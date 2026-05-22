@@ -38,8 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node 22
         uses: actions/setup-node@v6
