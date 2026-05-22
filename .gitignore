@@ -1,0 +1,67 @@
+#.gitignore
+
+# ---------- .NET ----------
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.swp
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+artifacts/
+publish/
+.vs/
+.vshistory/
+*.pidb
+*.svclog
+*.scc
+project.lock.json
+project.fragment.lock.json
+*.tlog
+*.cache
+*.log
+TestResults/
+[Cc]overage/
+*.coverage
+*.coveragexml
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+
+# ---------- Node / Vite ----------
+node_modules/
+dist/
+.vite/
+.cache/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IDEs ----------
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ---------- Entorno ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---------- Docker ----------
+pgdata/
+
+# ---------- Extras ----------
+.DS_Store
+.claude/

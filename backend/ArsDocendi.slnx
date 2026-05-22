@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ArsDocendi.Host/ArsDocendi.Host.csproj" />
+    <Project Path="src/ArsDocendi.Shared/ArsDocendi.Shared.csproj" />
+    <Project Path="src/Modules.Aulas.Contracts/Modules.Aulas.Contracts.csproj" />
+    <Project Path="src/Modules.Aulas/Modules.Aulas.csproj" />
+    <Project Path="src/Modules.Designaciones.Contracts/Modules.Designaciones.Contracts.csproj" />
+    <Project Path="src/Modules.Designaciones/Modules.Designaciones.csproj" />
+    <Project Path="src/Modules.Portal.Contracts/Modules.Portal.Contracts.csproj" />
+    <Project Path="src/Modules.Portal/Modules.Portal.csproj" />
+    <Project Path="src/Modules.Tareas.Contracts/Modules.Tareas.Contracts.csproj" />
+    <Project Path="src/Modules.Tareas/Modules.Tareas.csproj" />
+  </Folder>
+</Solution>
