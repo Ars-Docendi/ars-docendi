@@ -6,8 +6,56 @@ on:
   pull_request:
 
 jobs:
+  # Detecta qué partes del repo cambiaron para correr solo los jobs relevantes.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+            frontend:
+              - 'frontend/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'pnpm-lock.yaml'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+
+  # Format check siempre corre — chequea formato de TODOS los archivos versionados.
+  format:
+    name: Format check (prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Prettier check
+        run: pnpm format:check
+
   backend:
     name: Backend (.NET 10)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,27 +79,31 @@ jobs:
 
   frontend:
     name: Frontend (Vite + React)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
         with:
-          package_json_file: frontend/package.json
+          package_json_file: package.json
 
-      - name: Setup Node 22
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: "22"
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          node-version: "20"
+          cache: "pnpm"
 
-      - name: Install
+      - name: Install deps
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm --filter frontend lint
+
       - name: Build
-        run: pnpm build
+        run: pnpm --filter frontend build
+
+      # Test step pendiente: el frontend todavía no tiene runner configurado (Vitest/Jest).
+      # Cuando se agregue, sumar:
+      # - name: Test
+      #   run: pnpm --filter frontend test

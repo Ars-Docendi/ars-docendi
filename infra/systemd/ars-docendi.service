@@ -1,0 +1,65 @@
+# systemd unit sample para Ars Docendi backend
+#
+# PLACEHOLDER. Cuando se reciba la VM y se defina la estructura de paths,
+# ajustar User, WorkingDirectory, y ExecStart con valores reales.
+#
+# Instalación (en la VM, una vez ajustado):
+#   sudo cp infra/systemd/ars-docendi.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now ars-docendi
+#
+# Operación:
+#   sudo systemctl status ars-docendi
+#   sudo systemctl restart ars-docendi
+#   sudo journalctl -u ars-docendi -f       # tail de logs
+
+[Unit]
+Description=Ars Docendi backend (.NET 10 Kestrel)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+# Usuario no-root dedicado para correr el servicio. Crear con:
+#   sudo useradd --system --create-home --shell /usr/sbin/nologin arsdocendi
+User=arsdocendi
+Group=arsdocendi
+
+# Path al build publicado del backend. Ejemplo:
+#   sudo mkdir -p /opt/ars-docendi
+#   # publicar y copiar: dotnet publish backend/src/ArsDocendi.Host -c Release -o /opt/ars-docendi
+WorkingDirectory=/opt/ars-docendi
+ExecStart=/usr/bin/dotnet /opt/ars-docendi/ArsDocendi.Host.dll
+
+# Restart si crashea
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+
+# Logs van a journal (capturado por journalctl)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ars-docendi
+
+# Variables de entorno
+Environment=DOTNET_ROOT=/usr/share/dotnet
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
+# Connection string + secrets: NO HARDCODEAR — usar un EnvironmentFile separado y restringido
+# Ejemplo:
+#   sudo install -m 600 -o arsdocendi -g arsdocendi /dev/null /etc/ars-docendi/env
+#   sudo $EDITOR /etc/ars-docendi/env
+#   # Adentro: ConnectionStrings__ArsDocendi=Host=...;...
+EnvironmentFile=-/etc/ars-docendi/env
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/ars-docendi /opt/ars-docendi
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target
