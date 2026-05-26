@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@ars-docendi/ui':
-        specifier: github:Ars-Docendi/ui-lib#release/v1.0.1
+        specifier: github:Ars-Docendi/ui-lib#release/v1.0.2
         version: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/30e29f120865ef55c7454765f402fbc069b7383f(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-query':
         specifier: ^5.100.10

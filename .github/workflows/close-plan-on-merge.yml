@@ -33,7 +33,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run close-plan-on-merge script
         env:
