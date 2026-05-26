@@ -8,9 +8,9 @@ import type { ReactNode } from "react";
 
 /* Topbar + chrome */
 export const searchIcon: ReactNode = (
-  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="7" cy="7" r="5" />
-    <path d="M11 11l3 3" />
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <circle cx="8" cy="8" r="5" />
+    <path d="M11.5 11.5l3 3" />
   </svg>
 );
 
@@ -52,13 +52,13 @@ export const navIcons = {
   aulas: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="12" />
-      <path d="M3 8h12M9 3v12" />
+      <path d="M3 9h12M9 3v12" />
     </svg>
   ),
   tareas: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="12" />
-      <path d="M5 8l2 2 4-4" />
+      <path d="M6 9l2 2 4-4" />
     </svg>
   ),
   portal: (
@@ -69,7 +69,7 @@ export const navIcons = {
   ),
   reportes: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <path d="M3 15V5M3 15h12M6 12V8M9 12V6M12 12v-3" />
+      <path d="M3 14V4M3 14h12M6 11V7M9 11V5M12 11v-3" />
     </svg>
   ),
   settings: (
