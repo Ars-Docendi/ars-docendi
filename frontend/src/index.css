@@ -1,4 +1,9 @@
 :root {
+  /* Scales the whole UI up for 1080p / 40+ legibility. Viewport-pinned
+     containers (.adoc-app, .login-page, lib overlay stages) divide by this
+     so the app still fits exactly one screen height — no body scroll. */
+  --ui-zoom: 1.125;
+  zoom: var(--ui-zoom);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: 16px;
   line-height: 1.5;

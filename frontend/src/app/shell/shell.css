@@ -16,7 +16,7 @@
   grid-template-areas:
     "topbar topbar"
     "sidebar main";
-  height: 100vh;
+  height: calc(100vh / var(--ui-zoom, 1));
   background: var(--color-bg-canvas);
   font-family: var(--font-sans);
 }
@@ -41,7 +41,7 @@
   gap: 10px;
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--color-text-primary);
 }
 .adoc-brand .mark {
@@ -54,14 +54,14 @@
   justify-content: center;
   font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
 }
 .adoc-brand .sub {
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-weight: 300;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
   color: var(--color-text-tertiary);
   padding-left: 12px;
-  margin-left: 4px;
   border-left: 1px solid var(--color-border-subtle);
 }
 
@@ -102,7 +102,7 @@
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
   padding: 0 12px 0 32px;
-  font-size: 13px;
+  font-size: 12px;
   font-family: var(--font-sans);
   color: var(--color-text-primary);
   outline: none;
@@ -114,7 +114,7 @@
 .adoc-topbar-search .ico {
   position: absolute;
   left: 10px;
-  top: 50%;
+  top: 45%;
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
@@ -202,7 +202,7 @@
 }
 .adoc-nav-section {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
@@ -264,7 +264,7 @@
 .adoc-app.collapsed .adoc-sidebar-foot {
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Main area */
@@ -284,7 +284,7 @@
 }
 .adoc-page-head .title-area .pretitle {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
@@ -300,7 +300,7 @@
   color: var(--color-text-primary);
 }
 .adoc-page-head .meta {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-text-secondary);
   margin-top: 4px;
 }
