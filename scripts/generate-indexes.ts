@@ -96,9 +96,7 @@ const configs: IndexConfig[] = [
   {
     dir: "docs/business-rules",
     title: "Business rules index",
-    columns: [
-      { key: "__name", label: "Módulo / archivo" },
-    ],
+    columns: [{ key: "__name", label: "Módulo / archivo" }],
     emptyMsg: "_(No hay business-rules todavía.)_",
   },
 ];

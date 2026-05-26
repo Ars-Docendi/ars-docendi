@@ -12,7 +12,7 @@
  *     - Llenar/iniciar sección Completion si no existe.
  *     - git mv a docs/plans/completed/<slug>.md.
  *     - Crear branch automation/close-plan-<slug>-pr-<NUMBER>, commit, push.
- *     - Abrir PR de docs con auto-merge habilitado (si la org/repo lo permite).
+ *     - Abrir PR de docs hacia develop (review manual; sin auto-merge).
  *  4. Si encontró 0 planes o > 1: log y exit 0 (caso para manejo manual).
  *
  * Env vars requeridas (vienen del workflow):
@@ -20,8 +20,9 @@
  */
 
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,16 +40,30 @@ if (!PR_NUMBER || !BASE_SHA || !HEAD_SHA) {
 }
 
 function run(cmd: string, opts: { cwd?: string } = {}): string {
-  return execSync(cmd, { encoding: "utf-8", cwd: opts.cwd ?? ROOT, stdio: ["pipe", "pipe", "inherit"] }).trim();
+  return execSync(cmd, {
+    encoding: "utf-8",
+    cwd: opts.cwd ?? ROOT,
+    stdio: ["pipe", "pipe", "inherit"],
+  }).trim();
 }
 
 // 1. Detectar archivos cambiados
 console.log(`Inspecting merge: ${BASE_SHA}..${HEAD_SHA}`);
-const changedFiles = run(`git diff --name-only ${BASE_SHA}..${HEAD_SHA}`).split("\n").filter(Boolean);
+const changedFiles = run(`git diff --name-only ${BASE_SHA}..${HEAD_SHA}`)
+  .split("\n")
+  .filter(Boolean);
 
-const touchedPlans = changedFiles.filter((f) => f.startsWith("docs/plans/active/") && f.endsWith(".md") && !f.endsWith("_template.md") && !f.endsWith("_index.md"));
+const touchedPlans = changedFiles.filter(
+  (f) =>
+    f.startsWith("docs/plans/active/") &&
+    f.endsWith(".md") &&
+    !f.endsWith("_template.md") &&
+    !f.endsWith("_index.md"),
+);
 
-console.log(`Touched plans in active/: ${touchedPlans.length ? touchedPlans.join(", ") : "(none)"}`);
+console.log(
+  `Touched plans in active/: ${touchedPlans.length ? touchedPlans.join(", ") : "(none)"}`,
+);
 
 if (touchedPlans.length === 0) {
   console.log("No active plans touched. Exiting.");
@@ -119,8 +134,10 @@ if (!/^##\s+Completion\b/m.test(content)) {
 writeFileSync(absPlanPath, content);
 
 // 4. git mv
-run(`git config user.email "actions@github.com"`);
-run(`git config user.name "github-actions[bot]"`);
+// Usamos --local explícito para dejar claro que escribimos en .git/config del repo,
+// no en config global del runner (defensive, aunque el default ya es local).
+run(`git config --local user.email "actions@github.com"`);
+run(`git config --local user.name "github-actions[bot]"`);
 run(`git mv ${planPath} ${completedPath}`);
 
 // 5. Branch + commit + push
@@ -130,7 +147,7 @@ run(`git add ${planPath} ${completedPath}`);
 run(`git commit -m "docs: complete plan ${slug} after PR #${PR_NUMBER} merge"`);
 run(`git push -u origin ${branchName}`);
 
-// 6. Abrir PR (auto-merge si la org lo permite)
+// 6. Abrir PR hacia develop (sin auto-merge: review humano del cierre)
 const prBody = `Auto-cierre del plan \`${slug}\` después del merge de [#${PR_NUMBER}](${PR_URL}).
 
 - Movido a \`docs/plans/completed/${slug}.md\`
@@ -140,6 +157,14 @@ const prBody = `Auto-cierre del plan \`${slug}\` después del merge de [#${PR_NU
 _Generado por \`.github/workflows/close-plan-on-merge.yml\`._
 `;
 
-run(`gh pr create --base develop --head ${branchName} --title "docs: complete plan ${slug} (#${PR_NUMBER})" --body ${JSON.stringify(prBody)}`);
+// Pasamos el body via --body-file con tempfile para evitar problemas de shell escape
+// si PR_TITLE/PR_URL contienen caracteres especiales (comillas, backticks, $).
+const tmpDir = mkdtempSync(join(tmpdir(), "close-plan-"));
+const bodyFile = join(tmpDir, "pr-body.md");
+writeFileSync(bodyFile, prBody);
+
+run(
+  `gh pr create --base develop --head ${branchName} --title "docs: complete plan ${slug} (#${PR_NUMBER})" --body-file ${bodyFile}`,
+);
 
 console.log(`PR de cierre abierto para plan ${slug}.`);

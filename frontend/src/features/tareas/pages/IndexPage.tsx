@@ -4,5 +4,5 @@ export function IndexPage() {
       <h2>Tareas</h2>
       <p>Módulo en construcción — RF-04 Seguimiento de Tareas.</p>
     </section>
-  )
+  );
 }
