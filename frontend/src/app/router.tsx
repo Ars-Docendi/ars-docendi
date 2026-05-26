@@ -1,6 +1,6 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
-import App from "../App";
+import AppLayout from "./AppLayout";
 import { LoginPage } from "../shared/auth/LoginPage";
 import { RequireAuth } from "../shared/auth/RequireAuth";
 import { routes as designacionesRoutes } from "../features/designaciones/routes";
@@ -17,7 +17,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/",
-        element: <App />,
+        element: <AppLayout />,
         children: [
           { index: true, element: <Navigate to="/designaciones" replace /> },
           designacionesRoutes,
