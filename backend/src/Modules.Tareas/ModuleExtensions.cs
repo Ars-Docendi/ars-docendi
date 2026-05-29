@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Auditing;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,8 +11,9 @@ public static class ModuleExtensions
 {
     public static IServiceCollection AddTareasModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<TareasDbContext>(opt =>
-            opt.UseNpgsql(configuration.GetConnectionString("Postgres")));
+        services.AddDbContext<TareasDbContext>((sp, opt) =>
+            opt.UseNpgsql(configuration.GetConnectionString("Postgres"))
+               .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<TareasDbContext>());
 
