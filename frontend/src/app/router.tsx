@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/designaciones" replace /> },
+          { index: true, element: <Navigate to="/portal" replace /> },
           designacionesRoutes,
           aulasRoutes,
           portalRoutes,
