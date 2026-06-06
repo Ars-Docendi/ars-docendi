@@ -112,6 +112,7 @@ Reglas que se cumplen en todo PR. El reviewer (humano o `/pr-review`) las verifi
 10. **Plan lifecycle**. Plans en `docs/plans/active/` hasta merge; después en `completed/` (automatizado por workflow o manual con `/complete-plan`).
 11. **Compliance reglamentario**. Toda regla de negocio que provenga de normativa institucional debe registrarse como `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con **cita de la normativa** + mapping a test.
 12. **Cambios de UX → design spec**. Cambios que afecten flujos del cliente requieren actualizar `docs/product/designs/<feature>-design-spec.md`. (Cuando se defina herramienta UX, también el artefacto en la herramienta.)
+13. **Idioma del código: español**. Todo el código escrito por el equipo —identificadores (clases, métodos, variables, funciones, hooks, tipos), comentarios y docstrings— se escribe en español, para garantizar la mantenibilidad a futuro por un equipo hispanohablante. Única excepción: los símbolos provistos por el framework/lenguaje (que NO escribimos nosotros) se usan tal como los define la librería —keywords de C#/TS, APIs de React como `useEffect`/`useState`, atributos y tipos base de ASP.NET—. Detalle y gotchas en [Convenciones de código](#convenciones-de-código).
 
 ## Skills disponibles (project-scoped)
 
@@ -184,6 +185,10 @@ Detalle completo en [docs/quality/golden-principles.md](docs/quality/golden-prin
 - **Backend**: Controller → Service → Repository. Sin saltar capas. Sin imports cross-module excepto vía Contracts.
 - **Frontend**: features aisladas, lo común a `shared/`. React Query para data. Un solo axios instance.
 - **Naming**: PascalCase (componentes, clases .NET), camelCase (funciones, variables, hooks), kebab-case (filenames, branches).
+- **Idioma del código: español** (invariante #13). Identificadores, comentarios y docstrings en español. Los strings de UI, labels y reglas de negocio (`BR-*`) ya van en español.
+  - **Excepción — símbolos del framework/lenguaje**: lo que provee la librería se usa como ella lo define. Keywords (`public`, `async`, `await`), APIs de React (`useEffect`, `useState`, `useMemo`), atributos y tipos de ASP.NET (`[ApiController]`, `[AllowAnonymous]`, `ControllerBase`, `IActionResult`), helpers de librerías (`useQuery`, `useMutation` de React Query). Traducirlos rompe el build.
+  - **Gotcha .NET — sufijo `Controller`**: ASP.NET descubre los controllers y resuelve el token `[controller]` de las rutas por el sufijo `Controller` del nombre de clase. No traducir el sufijo: `DesignacionesController` ✅ / `ControladorDesignaciones` ❌ (rompe el routing por convención). El resto del nombre va en español de dominio.
+  - **Código existente en inglés**: el código ya mergeado (app-shell, auth) está en inglés. Migrar de forma gradual y registrar la deuda en [docs/quality/tech-debt.md](docs/quality/tech-debt.md).
 - **Archivos chicos**: ~300 líneas como cap soft.
 - **Structured logging** (Serilog) en backend. Nunca `Console.WriteLine` ni `console.log` en código productivo.
 
