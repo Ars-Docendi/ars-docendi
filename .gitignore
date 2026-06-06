@@ -74,7 +74,7 @@ pgdata/
 .claude/cache/
 
 # ---------- Docs autogenerados ----------
-docs/**/_index.md
+# docs/**/_index.md
 
 # ---------- Husky (artefactos internos, no los hooks versionados) ----------
 .husky/_/
