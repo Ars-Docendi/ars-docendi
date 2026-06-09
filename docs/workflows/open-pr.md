@@ -46,10 +46,9 @@ Ejemplos:
 - _(bullet con qué cambió y por qué)_
 - _(bullet con módulo/path afectados)_
 
-## Spec / Plan
+## Change OpenSpec
 
-- Spec: `docs/product/specs/<feature>.md` (si aplica)
-- Plan: `docs/plans/active/<feature>.md` (si aplica)
+- Change: `openspec/changes/<id>/` (proposal/specs/tasks) (si aplica)
 
 ## Roles afectados
 
@@ -73,7 +72,7 @@ Ejemplos:
 - [ ] `docs/architecture/dependency-graph.md` actualizado si hubo cambio de edges
 - [ ] `docs/architecture/api-contracts.md` actualizado si hubo cambio de endpoints
 - [ ] `docs/business-rules/<modulo>.md` actualizado si introduce/modifica BR
-- [ ] Plan en `docs/plans/active/` con progress log actualizado
+- [ ] Change OpenSpec en `openspec/changes/<id>/` con tasks actualizadas si aplica
 
 ## Breaking changes
 

@@ -62,5 +62,5 @@ Llenar los 7 archivos + un `domains/<dominio>.md` por bounded context. Reglas:
 Después del merge:
 
 - `/create-module` — para crear el primer módulo .NET propuesto en `dependency-graph.md`.
-- `/plan-feature` — para empezar specs y planes.
+- `/opsx:propose` — para empezar specs y planes.
 - `/architecture-drift-check` (recurrente) — cuando el código empiece a aterrizar.

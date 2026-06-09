@@ -33,8 +33,8 @@ gh pr diff <NUMBER>
 
 ### 2. Buscar artefactos relacionados
 
-- Si el PR es de feature: buscar `docs/product/specs/<feature>.md` y `docs/plans/active/<feature>.md`.
-- Si el PR es de bug: buscar `_bug-template.md` spec si fue escalado.
+- Si el PR es de feature: buscar el change OpenSpec asociado: `openspec/changes/<id>/` (proposal/specs/tasks).
+- Si el PR es de bug: buscar el change creado para el bug escalado en `openspec/changes/<id>/`.
 - Leer estos artefactos para entender el INTENT antes del CODE.
 
 ### 3. Aplicar los 7 ejes

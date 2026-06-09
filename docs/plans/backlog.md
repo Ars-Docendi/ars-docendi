@@ -1,6 +1,6 @@
 # Backlog
 
-Ideas no agendadas, follow-ups menores, posibles features futuras. **No reemplaza a `docs/plans/active/`** — acá vive lo que NO está en ejecución.
+Ideas no agendadas, follow-ups menores, posibles features futuras. Acá vive lo que **NO** está en ejecución — lo que está en ejecución son los changes activos en `openspec/changes/`.
 
 ## Formato sugerido
 
@@ -15,5 +15,5 @@ _(vacío al iniciar el proyecto)_
 ## Reglas del backlog
 
 - Items que llevan más de 6 meses sin moverse → re-evaluar (¿siguen siendo válidos? ¿se descartan?).
-- Items que vienen de bugs escalados → mover a `_bug-template.md` spec cuando se vayan a tomar.
-- Items que crecen → promover a feature completa con `/plan-feature`.
+- Items que vienen de bugs escalados → crear un change con `/opsx:propose` cuando se vayan a tomar.
+- Items que crecen → promover a feature completa con `/opsx:propose`.

@@ -47,7 +47,7 @@ Linkear a `docs/business-rules/<modulo>.md`.
 
 ## Specs activas
 
-Listar specs en `docs/product/specs/` que tocan este módulo. (Autogenerable a futuro.)
+Listar specs en `openspec/specs/` que tocan este módulo. (Autogenerable a futuro.)
 
 ## Decisiones registradas
 
