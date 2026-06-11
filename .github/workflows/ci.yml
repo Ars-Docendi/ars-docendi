@@ -14,6 +14,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       docs: ${{ steps.filter.outputs.docs }}
+      openspec: ${{ steps.filter.outputs.openspec }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v3
@@ -33,6 +34,8 @@ jobs:
             docs:
               - 'docs/**'
               - '**/*.md'
+            openspec:
+              - 'openspec/**'
 
   # Format check siempre corre — chequea formato de TODOS los archivos versionados.
   format:
@@ -51,6 +54,26 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
+
+  # Valida las specs y changes de OpenSpec (fuente de verdad del planning).
+  openspec:
+    name: OpenSpec validate
+    needs: changes
+    if: needs.changes.outputs.openspec == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+      - name: Validate changes and specs
+        run: pnpm exec openspec validate --all --strict
 
   backend:
     name: Backend (.NET 10)

@@ -81,11 +81,11 @@ Después podés mirar [`docs/architecture/domains/`](docs/architecture/domains/)
 
 Las skills viven en `.claude/skills/<nombre>/SKILL.md` y se invocan en Claude Code con `/<nombre> [args]`. Hay tres tipos:
 
-- **Interactivas** (las invocás vos): `/plan-feature`, `/add-feature`, `/fix-bug`, `/pr-review`, etc.
+- **Interactivas** (las invocás vos): `/opsx:propose`, `/add-feature`, `/fix-bug`, `/pr-review`, etc.
 - **Path-scoped** (auto-activan según el archivo que toques): `dotnet-modules-guide` se activa al editar `backend/src/Modules.*`, `react-features-guide` al editar `frontend/src/`.
 - **Ops** (las corre alguien con permisos de prod): `/check-deploy`, `/debug-production`, `/infra-logs-monitor`.
 
-**No necesitás memorizar todas**. Empezás con dos: `/plan-feature` para algo nuevo, `/fix-bug` para algo roto. El resto se va aprendiendo.
+**No necesitás memorizar todas**. Empezás con dos: `/opsx:propose` para algo nuevo, `/fix-bug` para algo roto. El resto se va aprendiendo.
 
 ### 1.6 Tu primer cambio: bug fix simple (caminata guiada)
 
@@ -116,26 +116,84 @@ La skill va a:
 
 Vos revisás cada paso y commiteás cuando estés conforme. **No es automático ciego — vos manejás**.
 
-### 1.7 Tu primera feature: dos fases
+### 1.7 Tu primera feature: ejemplo end-to-end
 
-Para una feature nueva el flujo es **dos fases** (plan primero, ejecución después con aprobación humana en el medio).
+Para una feature nueva el flujo tiene **dos fases** con aprobación humana en el medio: primero se planifica el change en OpenSpec, después se implementa.
 
 ```
-/plan-feature exportar listado de designaciones a Excel para Secretaría Académica
+/opsx:explore (opcional) → /opsx:propose → [equipo aprueba] → /add-feature → PR + CI → merge → /opsx:archive
+        idea                   el plan        gate humano       implementación                     cierre
 ```
 
-Esto crea:
+Caminata concreta. Secretaría Académica pide: **exportar el listado de designaciones a Excel**.
 
-- `docs/product/specs/exportar-designaciones-excel.md` (qué + por qué + criterios de aceptación)
-- `docs/plans/active/exportar-designaciones-excel.md` (cómo + módulos tocados + riesgos)
+**1. (Opcional) Pensar el problema — `/opsx:explore`**
 
-**El equipo revisa los dos archivos y aprueba** (o pide cambios). Una vez aprobados:
+```
+/opsx:explore exportar listado de designaciones a Excel para Secretaría
+```
+
+Modo read-only para investigar antes de comprometerte. No escribe código.
+
+**2. Crear el plan — `/opsx:propose`**
+
+```
+/opsx:propose exportar listado de designaciones a Excel para Secretaría Académica
+```
+
+Genera `openspec/changes/exportar-designaciones-excel/` con:
+
+- `proposal.md` — qué + por qué + criterios de aceptación
+- `design.md` — decisiones de diseño y arquitectura
+- `specs/` — requisitos SHALL/MUST + scenarios
+- `tasks.md` — tareas de implementación ordenadas
+
+Gracias a `openspec/config.yaml`, los artefactos ya respetan tus invariantes (módulos afectados, Contracts cross-module, BR-\* si hay normativa).
+
+**3. Aprobación del equipo**
+
+```
+openspec view exportar-designaciones-excel
+```
+
+El equipo revisa y ajusta. Los cambios acordados se encodean en los artefactos, no en "LGTM por chat". Acá el change queda apply-ready.
+
+**4. Implementar — `/add-feature`**
 
 ```
 /add-feature exportar-designaciones-excel
 ```
 
-Esto ejecuta el plan: implementa, corre tests, abre PR. El workflow `close-plan-on-merge.yml` mueve el plan a `completed/` automáticamente cuando el PR se mergea.
+Acá viven los gates del proyecto, en orden:
+
+- **Architecture check** — dependencias permitidas en `dependency-graph.md`; si hace falta un módulo nuevo → `/create-module` primero.
+- **Hard gate** — confirma `openspec status` con `applyRequires` (las tasks) en `done`. Si no está listo, frena.
+- **Execute** — delega en `/opsx:apply`: implementa contract-first (`Modules.X.Contracts` antes que internals) y tilda `- [ ]` → `- [x]` en `tasks.md`.
+- **Security pass** — auth por rol, sin leak de `Internal/`, DAG respetado.
+- **QA + docs** — `dotnet test`, build/lint frontend, `openspec validate --strict`, `/evaluate`; actualizar `api-contracts.md` / `data-model.md` / `domains/*` si cambiaron boundaries.
+
+**5. PR + CI**
+
+El PR se abre (ver [open-pr.md](docs/workflows/open-pr.md)). CI corre build/test/format **+ `openspec validate --all --strict`**. Opcional: `/pr-review <PR>`.
+
+**6. Merge → archivar — `/opsx:archive`**
+
+```
+/opsx:archive exportar-designaciones-excel
+```
+
+Mueve el change a `openspec/changes/archive/` y mergea sus delta specs a `openspec/specs/` (que ahora refleja el comportamiento vigente).
+
+**Quién es dueño de qué**
+
+| Responsabilidad                                      | Dueño                              |
+| ---------------------------------------------------- | ---------------------------------- |
+| Artefactos de planning (proposal/design/specs/tasks) | OpenSpec (`/opsx:*`)               |
+| Loop de ejecución de tasks + checkboxes              | OpenSpec (`/opsx:apply`)           |
+| Gates de arquitectura, security, `/evaluate`, PR, BR | Proyecto (`/add-feature` + skills) |
+| Fuente de verdad de specs                            | `openspec/specs/`                  |
+
+Vos revisás cada paso y commiteás cuando estés conforme. **No es automático ciego — vos manejás.**
 
 ### 1.8 Pre-commit: qué hace y qué hacer si falla
 
@@ -160,7 +218,7 @@ git commit -m "<mensaje>"
 Las **12 invariantes** del [CLAUDE.md](CLAUDE.md#invariantes-no-negociables) son no negociables. Las más fáciles de romper sin darse cuenta:
 
 - **Cross-module: solo vía Contracts**. Si tu código en `Modules.Designaciones` necesita algo de `Modules.Portal`, importás desde `Modules.Portal.Contracts`, NO desde `Modules.Portal` directamente. Nunca `Internal/` ajeno.
-- **Nueva feature ⇒ spec + plan ANTES de código**. El `/add-feature` lo verifica con un hard gate; si no existen los archivos en `docs/`, no implementa.
+- **Nueva feature ⇒ change OpenSpec aprobado y apply-ready ANTES de código**. El `/add-feature` lo verifica con un hard gate (`openspec status` — `applyRequires` en `done`); si el change no está listo, no implementa.
 - **Cambios en API/schema/dependencias ⇒ actualizar docs en el MISMO PR**. `api-contracts.md`, `data-model.md`, `dependency-graph.md`, `domains/<x>.md` según corresponda.
 - **Bug fixes ⇒ red-green obligatorio**. Test que falla primero, después fix mínimo.
 - **Compliance reglamentario**: si tu cambio implementa una regla que viene de normativa institucional (estatuto, régimen, disposición departamental), registrala como `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con la cita de la fuente.
@@ -178,7 +236,6 @@ Esta sección es para vos si te toca **completar el contenido inicial** de `docs
 | `product/brief.md`                 | ✅ Completo (TFI UNLaM, módulos, scope)                                   | Revisar y ajustar si querés precisarlo                                                                 |
 | `product/vision.md`                | ✅ Completo (goals, non-goals, métricas)                                  | Revisar; las métricas pueden necesitar baseline real                                                   |
 | `product/design-principles.md`     | ✅ Completo (principios, anti-patterns)                                   | Ajustar cuando se decida herramienta UX                                                                |
-| `product/specs/`                   | 📝 Solo templates (`_template.md`, `_bug-template.md`)                    | Llenar a medida que entren features nuevas via `/plan-feature`                                         |
 | `product/designs/`                 | 📝 Placeholder (herramienta TBD)                                          | Completar cuando el equipo decida (Figma / Pencil / otra)                                              |
 | `architecture/stack.md`            | ✅ Completo (.NET 10 + React 19 + Postgres)                               | Mantener al día si cambian versiones o se agrega tooling                                               |
 | `architecture/module-anatomy.md`   | ✅ Completo (.NET module layout)                                          | Estable, ajustar si evoluciona la convención                                                           |
@@ -187,9 +244,7 @@ Esta sección es para vos si te toca **completar el contenido inicial** de `docs
 | `architecture/data-model.md`       | ⚠️ Parcial (estructura + Portal/Docentes, resto vacío)                    | Completar a medida que se definan entidades                                                            |
 | `architecture/infrastructure.md`   | ⚠️ Skeleton (TBD en VMs/deploy/secrets/backup)                            | Completar cuando UNLaM provisione VMs                                                                  |
 | `architecture/domains/<modulo>.md` | ⚠️ Esqueleto (proposito + roles + dependencias; entidades y BR-\* vacías) | Llenar a medida que cada módulo evolucione                                                             |
-| `plans/backlog.md`                 | 📝 Vacío                                                                  | Items que vayan apareciendo                                                                            |
-| `plans/active/`                    | 📝 Vacío                                                                  | Llena con `/plan-feature`                                                                              |
-| `plans/completed/`                 | 📝 Vacío                                                                  | Llena automáticamente con `close-plan-on-merge` workflow                                               |
+| `plans/backlog.md`                 | 📝 Vacío                                                                  | Ideas y features pendientes de proponer; las features activas van en `openspec/changes/`               |
 | `quality/golden-principles.md`     | ✅ Completo                                                               | Sumar reglas a medida que aparezcan anti-patterns nuevos                                               |
 | `quality/grading-criteria.md`      | ✅ Completo (rúbrica para `/evaluate`)                                    | Estable                                                                                                |
 | `quality/scorecard.md`             | 📝 Vacío                                                                  | Se llena con `/evaluate`                                                                               |
@@ -200,9 +255,9 @@ Esta sección es para vos si te toca **completar el contenido inicial** de `docs
 
 ### 2.2 Qué completar y cómo
 
-#### 2.2.1 Specs de feature
+#### 2.2.1 Changes de feature (OpenSpec)
 
-**No las llenes a priori**. Se crean **una por feature** cuando arranca esa feature, usando `/plan-feature <descripción>`. La skill genera el `.md` desde `_template.md` con el contenido específico.
+**No los llenes a priori**. Se crean **uno por feature** cuando arranca esa feature, usando `/opsx:propose <descripción>`. El comando genera `openspec/changes/<id>/` con proposal, design, specs y tasks. Una vez aprobado por el equipo, `/add-feature <id>` lo implementa.
 
 #### 2.2.2 Business rules — TAREA CRÍTICA INICIAL
 
@@ -336,8 +391,14 @@ pnpm --filter frontend lint
 pnpm format          # arregla todo
 pnpm format:check    # solo verifica
 
-# Regenerar índices de plans / specs / business-rules
+# Regenerar índice de business-rules
 pnpm generate-indexes
+
+# Ver changes activos de OpenSpec
+openspec list
+
+# Ver detalle de un change
+openspec view <id>
 
 # Docker compose
 docker compose up -d         # levanta servicios en background
@@ -346,20 +407,21 @@ docker compose logs -f api   # tail logs
 docker compose down          # baja todo
 ```
 
-### 3.2 Skills más usadas (por frecuencia)
+### 3.2 Skills y comandos más usados (por frecuencia)
 
-| Skill            | Cuándo                            | Ejemplo                                                                       |
-| ---------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| `/plan-feature`  | Empezar una feature nueva         | `/plan-feature listado de aulas disponibles por fecha`                        |
-| `/add-feature`   | Implementar plan aprobado         | `/add-feature listado-aulas-disponibles`                                      |
-| `/fix-bug`       | Algo roto / regresión             | `/fix-bug formato fecha en designación aparece DD/MM en API pero MM/DD en UI` |
-| `/complete-plan` | Post-merge manual                 | `/complete-plan listado-aulas-disponibles` (usualmente automático)            |
-| `/pr-review`     | Review estructurado de PR         | `/pr-review 42`                                                               |
-| `/ci-fix`        | CI fallido en tu PR               | `/ci-fix 42`                                                                  |
-| `/add-tests`     | Cubrir gaps de tests              | `/add-tests designaciones --lane business`                                    |
-| `/create-module` | Módulo .NET nuevo                 | `/create-module Examenes`                                                     |
-| `/modify-module` | Cambio en módulo existente        | `/modify-module Designaciones`                                                |
-| `/evaluate`      | Autocrítica de feature completada | `/evaluate exportar-designaciones-excel`                                      |
+| Skill / Comando  | Cuándo                                | Ejemplo                                                                       |
+| ---------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
+| `/opsx:propose`  | Empezar una feature nueva             | `/opsx:propose listado de aulas disponibles por fecha`                        |
+| `/add-feature`   | Implementar change aprobado           | `/add-feature listado-aulas-disponibles`                                      |
+| `/opsx:apply`    | Ejecutar tasks de un change (directo) | `/opsx:apply listado-aulas-disponibles`                                       |
+| `/opsx:archive`  | Post-merge: archivar change           | `/opsx:archive listado-aulas-disponibles`                                     |
+| `/fix-bug`       | Algo roto / regresión                 | `/fix-bug formato fecha en designación aparece DD/MM en API pero MM/DD en UI` |
+| `/pr-review`     | Review estructurado de PR             | `/pr-review 42`                                                               |
+| `/ci-fix`        | CI fallido en tu PR                   | `/ci-fix 42`                                                                  |
+| `/add-tests`     | Cubrir gaps de tests                  | `/add-tests designaciones --lane business`                                    |
+| `/create-module` | Módulo .NET nuevo                     | `/create-module Examenes`                                                     |
+| `/modify-module` | Cambio en módulo existente            | `/modify-module Designaciones`                                                |
+| `/evaluate`      | Autocrítica de feature completada     | `/evaluate exportar-designaciones-excel`                                      |
 
 ### 3.3 Flujos comunes paso a paso
 
@@ -368,11 +430,11 @@ docker compose down          # baja todo
 ```
 1. git checkout develop && git pull
 2. git checkout -b feature/<kebab-slug>
-3. /plan-feature <descripción>     → genera spec + plan
-4. [equipo aprueba spec + plan]    → ajustes si hace falta
-5. /add-feature <kebab-slug>       → implementa, abre PR a develop
+3. /opsx:propose <descripción>     → genera openspec/changes/<id>/ (proposal+design+specs+tasks)
+4. [equipo aprueba change]         → ajustes si hace falta; change queda apply-ready
+5. /add-feature <id>               → gates del proyecto + ejecución vía /opsx:apply + abre PR
 6. /pr-review <PR-number>          → opcional: review estructurado
-7. [merge a develop]               → workflow close-plan-on-merge mueve plan a completed/
+7. [merge a develop]               → /opsx:archive <id> para archivar el change
 ```
 
 #### Bug fix simple
@@ -390,7 +452,7 @@ docker compose down          # baja todo
 
 ```
 1. /fix-bug <descripción>          → en step 2 detecta escalación, te avisa
-2. La skill llena docs/product/specs/_bug-template.md (copia adaptada)
+2. La skill indica crear un change con /opsx:propose (spec de bug escalado)
 3. Continuás: red-green sobre las Contracts impactadas
 4. Documentar consumidores afectados en el PR body
 ```
@@ -399,7 +461,7 @@ docker compose down          # baja todo
 
 ```
 1. /modify-module <NombreModulo>   → analiza impacto Contracts
-2. Si breaking → te indica escalar a /plan-feature
+2. Si breaking → te indica escalar a /opsx:propose
 3. Si aditivo → implementás, actualizás dependency-graph.md
 ```
 
@@ -446,8 +508,8 @@ No tenés que hacer nada — solo confirma que las convenciones se aplican autom
 # Ver solo el diff staged
 git diff --staged
 
-# Listar planes activos (después de generar índices)
-cat docs/plans/active/_index.md
+# Listar changes activos de OpenSpec
+openspec list
 
 # Listar BR-* de un módulo
 grep -n "^### BR-" docs/business-rules/designaciones.md
@@ -468,7 +530,7 @@ rm -rf frontend/node_modules/.vite && pnpm --filter frontend dev
 ### 3.6 Convenciones a tener siempre presentes
 
 - **Pre-commit falla → arreglar, NO bypass con `--no-verify`**.
-- **Spec + plan ANTES de código** para features no triviales (hard gate en `/add-feature`).
+- **Change OpenSpec aprobado y apply-ready ANTES de código** para features (hard gate en `/add-feature`).
 - **Cross-module solo via Contracts** (invariante #1).
 - **Cambios de schema/API → actualizar docs en el MISMO PR** (invariante #6).
 - **Red-green obligatorio en bug fixes** (invariante #9).
@@ -479,16 +541,16 @@ rm -rf frontend/node_modules/.vite && pnpm --filter frontend dev
 
 ## Cuando algo se rompe
 
-| Problema                                         | Acción                                                                                                                                      |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pre-commit aborta el commit                      | Leer el error, arreglar formato/lint, `git add` archivos modificados, re-commit                                                             |
-| `pnpm install` falla con peer dep warnings       | Verificar Node ≥ 20.19 y pnpm ≥ 9. Si persiste, `rm -rf node_modules pnpm-lock.yaml && pnpm install`                                        |
-| `dotnet restore` falla                           | Verificar `dotnet --version` ≥ 10.0.x. Borrar caches: `dotnet nuget locals all --clear`                                                     |
-| Docker compose: Postgres no levanta              | `docker compose down -v` (cuidado: borra datos) y reintentar                                                                                |
-| Tests fallan en CI pero no localmente            | Probable env de CI distinto. Revisar `.github/workflows/ci.yml` y reproducir las versiones exactas                                          |
-| CI rojo en tu PR                                 | `/ci-fix <PR-number>`                                                                                                                       |
-| El bot de `close-plan-on-merge` no movió el plan | Probablemente el PR tocó múltiples planes o ninguno detectable. Hacelo manual: `/complete-plan <slug>`                                      |
-| Skill `/<nombre>` no aparece en la lista         | Confirmá que existe `.claude/skills/<nombre>/SKILL.md` con frontmatter `name:` correcto. Reiniciar Claude Code si fue creada en esta sesión |
+| Problema                                   | Acción                                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-commit aborta el commit                | Leer el error, arreglar formato/lint, `git add` archivos modificados, re-commit                                                             |
+| `pnpm install` falla con peer dep warnings | Verificar Node ≥ 20.19 y pnpm ≥ 9. Si persiste, `rm -rf node_modules pnpm-lock.yaml && pnpm install`                                        |
+| `dotnet restore` falla                     | Verificar `dotnet --version` ≥ 10.0.x. Borrar caches: `dotnet nuget locals all --clear`                                                     |
+| Docker compose: Postgres no levanta        | `docker compose down -v` (cuidado: borra datos) y reintentar                                                                                |
+| Tests fallan en CI pero no localmente      | Probable env de CI distinto. Revisar `.github/workflows/ci.yml` y reproducir las versiones exactas                                          |
+| CI rojo en tu PR                           | `/ci-fix <PR-number>`                                                                                                                       |
+| Olvidaste archivar el change post-merge    | Archivar manualmente: `/opsx:archive <id>` — mergea las delta specs a `openspec/specs/`                                                     |
+| Skill `/<nombre>` no aparece en la lista   | Confirmá que existe `.claude/skills/<nombre>/SKILL.md` con frontmatter `name:` correcto. Reiniciar Claude Code si fue creada en esta sesión |
 
 ---
 

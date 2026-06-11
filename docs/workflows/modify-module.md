@@ -30,7 +30,7 @@ Modificar un módulo existente. Énfasis en análisis de **impacto sobre Contrac
    ```
 2. **Por cada consumidor** identificado:
    - ¿El cambio es **aditivo** (nuevo método/DTO/property) o **breaking** (rename, remove, type change)?
-   - Si breaking: necesitas spec + plan (escalar a `/plan-feature` o `/add-feature`).
+   - Si breaking: necesitas spec + plan (escalar creando un change con `/opsx:propose` e implementarlo con `/add-feature`).
    - Si aditivo: documentar pero puede seguir adelante.
 3. **Actualizar `dependency-graph.md`** si aparecen edges nuevos.
 

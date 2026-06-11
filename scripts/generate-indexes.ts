@@ -1,10 +1,13 @@
 #!/usr/bin/env tsx
 /**
- * scripts/generate-indexes.ts — Genera _index.md en docs/{plans,product/specs,business-rules}/
+ * scripts/generate-indexes.ts — Genera _index.md en docs/business-rules/
  *
  * Lee el frontmatter YAML de cada .md (excepto _template.md, _index.md) y produce
- * tablas Markdown navegables. Los _index.md están en .gitignore — son artefactos
- * locales de navegación, no se versionan.
+ * una tabla Markdown navegable.
+ *
+ * NOTA: el planning (specs + planes/changes) migró a OpenSpec (openspec/). La vista
+ * de specs y changes la da `openspec list` / `openspec view`. Este script solo
+ * indexa las reglas de negocio (docs/business-rules/), que siguen viviendo en docs/.
  *
  * Uso:
  *   pnpm exec tsx scripts/generate-indexes.ts
@@ -56,43 +59,6 @@ interface IndexConfig {
 }
 
 const configs: IndexConfig[] = [
-  {
-    dir: "docs/plans/active",
-    title: "Active plans index",
-    columns: [
-      { key: "__name", label: "Plan" },
-      { key: "status", label: "Status" },
-      { key: "module", label: "Módulo" },
-      { key: "owner", label: "Owner" },
-      { key: "started", label: "Started" },
-      { key: "target", label: "Target" },
-    ],
-    emptyMsg: "_(No hay planes activos.)_",
-  },
-  {
-    dir: "docs/plans/completed",
-    title: "Completed plans index",
-    columns: [
-      { key: "__name", label: "Plan" },
-      { key: "module", label: "Módulo" },
-      { key: "owner", label: "Owner" },
-      { key: "completed_at", label: "Completed" },
-      { key: "pr", label: "PR" },
-    ],
-    emptyMsg: "_(No hay planes completados.)_",
-  },
-  {
-    dir: "docs/product/specs",
-    title: "Product specs index",
-    columns: [
-      { key: "__name", label: "Spec" },
-      { key: "status", label: "Status" },
-      { key: "module", label: "Módulo" },
-      { key: "owner", label: "Owner" },
-      { key: "last_updated", label: "Last updated" },
-    ],
-    emptyMsg: "_(No hay specs todavía.)_",
-  },
   {
     dir: "docs/business-rules",
     title: "Business rules index",

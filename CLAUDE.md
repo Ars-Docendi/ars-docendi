@@ -8,16 +8,16 @@ Desarrollado como **Trabajo Final Integrador de Ingeniería Informática**. **No
 
 ## Tabla de navegación
 
-| Tipo                  | Path                                         | Cuándo usar                                                        |
-| --------------------- | -------------------------------------------- | ------------------------------------------------------------------ |
-| **Producto**          | [docs/product/](docs/product/)               | Brief, vision, design principles, specs de features                |
-| **Arquitectura**      | [docs/architecture/](docs/architecture/)     | Stack, layers, dependencias, API, datos, infra                     |
-| **Planes**            | [docs/plans/](docs/plans/)                   | Planes activos (`active/`), completados (`completed/`), backlog    |
-| **Calidad**           | [docs/quality/](docs/quality/)               | Golden principles, grading criteria, scorecard, tech debt          |
-| **Workflows**         | [docs/workflows/](docs/workflows/)           | Playbooks operacionales (init-project, add-feature, fix-bug, etc.) |
-| **Reglas de negocio** | [docs/business-rules/](docs/business-rules/) | BR-\* con citas reglamentarias + mapping a tests                   |
-| **Referencias**       | [docs/references/](docs/references/)         | Docs externas cacheadas (llms.txt)                                 |
-| **Skills**            | [.claude/skills/](.claude/skills/)           | Skills Claude Code project-scoped                                  |
+| Tipo                  | Path                                         | Cuándo usar                                                                          |
+| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Producto**          | [docs/product/](docs/product/)               | Brief, vision, design principles, designs UX                                         |
+| **Arquitectura**      | [docs/architecture/](docs/architecture/)     | Stack, layers, dependencias, API, datos, infra                                       |
+| **Planning**          | [openspec/](openspec/)                       | Specs vigentes (`openspec/specs/`), changes activos/archivados (`openspec/changes/`) |
+| **Calidad**           | [docs/quality/](docs/quality/)               | Golden principles, grading criteria, scorecard, tech debt                            |
+| **Workflows**         | [docs/workflows/](docs/workflows/)           | Playbooks operacionales (init-project, add-feature, fix-bug, etc.)                   |
+| **Reglas de negocio** | [docs/business-rules/](docs/business-rules/) | BR-\* con citas reglamentarias + mapping a tests                                     |
+| **Referencias**       | [docs/references/](docs/references/)         | Docs externas cacheadas (llms.txt)                                                   |
+| **Skills**            | [.claude/skills/](.claude/skills/)           | Skills Claude Code project-scoped                                                    |
 
 ## Stack tecnológico
 
@@ -80,14 +80,16 @@ El chatbot se integrará dentro de alguno de los módulos anteriores (pendiente 
 │       └── features/                # uno por módulo backend
 ├── docs/                            # System of record (ver Tabla de navegación)
 ├── infra/                           # Skeleton para deploy (TBD)
+├── openspec/                        # Planning: specs vigentes + changes activos/archivados
+│   ├── config.yaml                  # Contexto del proyecto + invariantes inyectadas
+│   ├── specs/                       # Specs consolidadas y vigentes
+│   └── changes/                     # Changes activos (<id>/) y archivados (archive/)
 ├── scripts/                         # Bootstrap + automatización
 │   ├── setup.sh
-│   ├── generate-indexes.ts
-│   └── close-plan-on-merge.ts
+│   └── generate-indexes.ts          # Regenera _index.md solo de docs/business-rules/
 ├── .claude/skills/                  # Skills Claude Code (project-scoped)
 ├── .github/workflows/
-│   ├── ci.yml                       # Path-filtered build + test + format
-│   └── close-plan-on-merge.yml      # Auto-cierre de planes post-merge
+│   └── ci.yml                       # Path-filtered build + test + format + openspec validate
 ├── .husky/pre-commit                # Pre-commit unificado (dotnet + prettier + eslint)
 ├── lint-staged.config.mjs
 ├── package.json                     # Hospeda husky/lint-staged/prettier
@@ -104,19 +106,19 @@ Reglas que se cumplen en todo PR. El reviewer (humano o `/pr-review`) las verifi
 2. **Grafo de dependencias DAG**. Sin ciclos. Chequear contra [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md) antes de agregar edges nuevos.
 3. **Ping endpoint obligatorio**. Cada módulo expone `GET /api/<modulo>/ping` con `[AllowAnonymous]` como smoke test.
 4. **Contracts y Shared puros**. `Modules.<X>.Contracts`: solo DTOs/interfaces/tokens, sin lógica. `ArsDocendi.Shared`: solo utilidades puras, sin I/O ni estado mutable.
-5. **Nueva feature → spec + plan**. SIEMPRE crear `docs/product/specs/<slug>.md` + `docs/plans/active/<slug>.md` antes de tocar código. El hard gate de `/add-feature` lo verifica.
+5. **Nueva feature → change OpenSpec aprobado**. SIEMPRE crear el change con `/opsx:propose` (genera proposal + design + specs + tasks) y dejarlo apply-ready ANTES de tocar código. El hard gate de `/add-feature` lo verifica con `openspec status` (`applyRequires` en `done`).
 6. **Cambios de schema/API → docs en el MISMO PR**. Actualizar `dependency-graph.md`, `api-contracts.md`, `data-model.md`, `domains/<x>.md` en el mismo PR que el código.
 7. **No fake UI**. Sin botones/rutas/forms que aparenten estar hechos pero no funcionan. Sin lorem ipsum / TODO visible al usuario.
 8. **Referencias cacheadas para libs externas**. Preferir `docs/references/<lib>-llms.txt` cuando exista; agregarlo si la lib se usa intensivamente.
 9. **Bug fixes: red-green mandatorio**. Test que falla primero, después fix mínimo (ver [docs/workflows/fix-bug.md](docs/workflows/fix-bug.md)).
-10. **Plan lifecycle**. Plans en `docs/plans/active/` hasta merge; después en `completed/` (automatizado por workflow o manual con `/complete-plan`).
+10. **Change lifecycle**. Los changes viven en `openspec/changes/<id>/` mientras están activos; post-merge se archivan con `/opsx:archive` → `openspec/changes/archive/` (mergea las delta specs a `openspec/specs/`).
 11. **Compliance reglamentario**. Toda regla de negocio que provenga de normativa institucional debe registrarse como `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con **cita de la normativa** + mapping a test.
 12. **Cambios de UX → design spec**. Cambios que afecten flujos del cliente requieren actualizar `docs/product/designs/<feature>-design-spec.md`. (Cuando se defina herramienta UX, también el artefacto en la herramienta.)
 13. **Idioma del código: español**. Todo el código escrito por el equipo —identificadores (clases, métodos, variables, funciones, hooks, tipos), comentarios y docstrings— se escribe en español, para garantizar la mantenibilidad a futuro por un equipo hispanohablante. Única excepción: los símbolos provistos por el framework/lenguaje (que NO escribimos nosotros) se usan tal como los define la librería —keywords de C#/TS, APIs de React como `useEffect`/`useState`, atributos y tipos base de ASP.NET—. Detalle y gotchas en [Convenciones de código](#convenciones-de-código).
 
 ## Skills disponibles (project-scoped)
 
-Las 20 skills viven en [`.claude/skills/`](.claude/skills/) y se versionan con el proyecto. Cualquiera que clone el repo las tiene disponibles sin frameworks globales.
+Las skills del proyecto viven en [`.claude/skills/`](.claude/skills/) y se versionan con el repo. Cualquiera que clone el repo las tiene disponibles sin frameworks globales. El planning usa los comandos `/opsx:*` (glue OpenSpec, también versionado en `.claude/commands/opsx/`).
 
 ### Bootstrap (corren una vez)
 
@@ -125,13 +127,23 @@ Las 20 skills viven en [`.claude/skills/`](.claude/skills/) y se versionan con e
 | `/init-project`          | Llenar `docs/product/{brief,vision,design-principles}.md` |
 | `/architecture-proposal` | Llenar `docs/architecture/*` post `/init-project`         |
 
-### Planning
+### Planning (OpenSpec)
 
-| Skill            | Cuándo                                                     |
-| ---------------- | ---------------------------------------------------------- |
-| `/plan-feature`  | Expandir brief → spec + plan (sin código)                  |
-| `/add-feature`   | Implementar feature de punta a punta, gated en spec + plan |
-| `/complete-plan` | Post-merge: mover plan a `completed/`                      |
+Los changes se gestionan con los comandos `/opsx:*` (glue versionado en `.claude/commands/opsx/`):
+
+| Comando         | Cuándo                                                                   |
+| --------------- | ------------------------------------------------------------------------ |
+| `/opsx:explore` | Explorar una idea antes de proponerla formalmente                        |
+| `/opsx:propose` | Crear change: genera proposal + design + specs + tasks                   |
+| `/opsx:apply`   | Implementar las tasks de un change apply-ready                           |
+| `/opsx:archive` | Post-merge: archivar change y mergear delta specs a `openspec/specs/`    |
+| `/opsx:sync`    | Sincronizar las delta specs de un change a las main specs (sin archivar) |
+
+La skill `/add-feature` se conserva como orquestador principal de features: aplica los gates del proyecto (architecture check, security pass, `/evaluate`, apertura de PR) y delega la ejecución de tasks a `/opsx:apply`. Su precondición es un change OpenSpec apply-ready.
+
+| Skill          | Cuándo                                                                  |
+| -------------- | ----------------------------------------------------------------------- |
+| `/add-feature` | Implementar feature de punta a punta, gated en change OpenSpec aprobado |
 
 ### Implementación
 
@@ -167,6 +179,14 @@ Las 20 skills viven en [`.claude/skills/`](.claude/skills/) y se versionan con e
 | ---------------------- | ---------------------------------------------------------------------------------- |
 | `dotnet-modules-guide` | Auto al tocar `backend/src/Modules.*/` o `ArsDocendi.Host/` o `ArsDocendi.Shared/` |
 | `react-features-guide` | Auto al tocar `frontend/src/`                                                      |
+
+### Política del glue OpenSpec (D7)
+
+El glue generado por OpenSpec (`.claude/commands/opsx/` + `.claude/skills/openspec-*`) **se versiona en el repo** (clone-and-go). Disciplina obligatoria:
+
+- Al bumpear el devDep `@fission-ai/openspec`, correr `openspec update` y commitear el glue regenerado en el **mismo PR**.
+- **Nadie corre `openspec init` global** — el init ya está hecho y el glue vive en el repo.
+- El CI corre `openspec validate --strict` sobre specs y changes. (Opcional pendiente: un guard que falle si `openspec update` produce diff, para detectar glue desincronizado de la CLI.)
 
 ## Workflows clave
 
@@ -211,7 +231,7 @@ Resumen rápido para volver acá si te perdés:
 2. Correr `./scripts/setup.sh` (levanta DB + deps + build).
 3. Leer [docs/architecture/stack.md](docs/architecture/stack.md) + [module-anatomy.md](docs/architecture/module-anatomy.md).
 4. Leer [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
-5. Mirar planes activos en [docs/plans/active/](docs/plans/active/) o regenerar índice: `pnpm generate-indexes`.
+5. Mirar changes activos: `openspec list`. Para business-rules, regenerar índice: `pnpm generate-indexes`.
 
 ## Herramientas personales del developer (opcional)
 
