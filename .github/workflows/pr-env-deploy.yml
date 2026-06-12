@@ -72,5 +72,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment "${{ github.event.pull_request.number }}" \
-            --body "🚀 Ambiente efímero listo: https://${AMBIENTE}.${DOMINIO} (DB sembrada con datos sintéticos)."
+          # gh no está instalado en el runner efímero (solo Docker garantizado);
+          # posteamos el comentario por la REST API con curl (igual que el setup).
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d "{\"body\": \"🚀 Ambiente efímero listo: https://${AMBIENTE}.${DOMINIO} (DB sembrada con datos sintéticos).\"}"
