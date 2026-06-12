@@ -20,6 +20,14 @@ optionsBuilder.UseNpgsql(connectionString, npgsql =>
     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", schema: "designaciones"));
 ```
 
+La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocendi`). Es el nombre que la infra de deploy inyecta por ambiente como `ConnectionStrings__ArsDocendi` (ver `infra/compose/compose.base.yml`), apuntando a la base aislada de cada ambiente (`arsdocendi_<env>`). Los 4 `ModuleExtensions.cs` y el `appsettings.json` leen esa misma clave.
+
+## Migraciones en deploy
+
+El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica las migraciones pendientes de los 4 módulos y termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
+
+Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
+
 ## Entidades por módulo (skeleton)
 
 ### Designaciones (`schema: designaciones`)

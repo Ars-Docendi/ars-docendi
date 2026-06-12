@@ -1,0 +1,43 @@
+# Deploy de STAGING desde la rama develop (rama confiable → corre con secrets).
+# Igual que prod pero ambiente staging (con seed sintético). No toca prod.
+name: deploy-staging
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, arsdocendi, confiable]
+    environment: staging
+    env:
+      AMBIENTE: staging
+      TAG_FRONTEND: sha-${{ github.sha }}
+      TAG_BACKEND: sha-${{ github.sha }}
+      REGISTRO: ${{ vars.REGISTRO }}
+      DOMINIO: ${{ vars.DOMINIO }}
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      APP_DB_USER: app_staging
+      APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_STAGING }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Login al registro de imágenes
+        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ secrets.REGISTRY_USUARIO }}" --password-stdin
+
+      - name: Build & push imágenes
+        run: |
+          docker build -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
+          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" backend
+          docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
+          docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
+
+      - name: Spin-up staging
+        run: infra/scripts/spin-up.sh staging

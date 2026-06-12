@@ -163,8 +163,6 @@ La skill `/add-feature` se conserva como orquestador principal de features: apli
 | `/evaluate`                 | Evaluación read-only contra spec + grading-criteria |
 | `/architecture-drift-check` | Read-only: docs vs código real                      |
 
-> Skills de operaciones (`/check-deploy`, `/debug-production`, `/infra-logs-monitor`) y de auditoría (`/security-audit`, `/test-gap-monitor`) se retiraron hasta que existan infra y código real para correrlas. Se recrean cuando aplique — ver [docs/quality/tech-debt.md](docs/quality/tech-debt.md).
-
 ### Guides path-scoped (auto-activan)
 
 | Skill                  | Trigger                                                                            |

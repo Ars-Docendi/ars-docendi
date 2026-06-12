@@ -25,5 +25,3 @@ El detalle paso a paso de cada workflow vive ahora en su skill (`.claude/skills/
 | CI falló en PR existente                           | `/ci-fix`                        | `gh` inspect → fix mínimo → push mismo branch                      |
 | Docs de arquitectura vs código real                | `/architecture-drift-check`      | Findings read-only                                                 |
 | Abrir el PR (cualquier flujo)                      | [open-pr.md](./open-pr.md)       | `gh pr create` canónico                                            |
-
-> Las skills de operaciones (`/check-deploy`, `/debug-production`, `/infra-logs-monitor`) y de auditoría (`/security-audit`, `/test-gap-monitor`) se retiraron hasta que haya infra y código real para correrlas — ver [tech-debt.md](../quality/tech-debt.md) (TD-002, TD-003).
