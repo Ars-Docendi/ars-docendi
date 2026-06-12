@@ -124,6 +124,12 @@ Credenciales admin para scripts/CI: `PGHOST=arsdocendi-postgres`, `PGPORT=5432`,
 base por ambiente** (D7), `arsdocendi_<env>`; las crea/borra `provision-db.sh` /
 `drop-db.sh`.
 
+> **psql vía contenedor**: como 5432 no se publica y `arsdocendi-postgres` solo
+> resuelve dentro de `arsdocendi-datos`, los scripts NO usan un `psql` del host —
+> corren el cliente en un contenedor efímero adjunto a esa red (`psql_en_docker`
+> en `scripts/_comun.sh`). El host del runner solo necesita Docker, no
+> `postgresql-client`. Override: `RED_DATOS`, `IMAGEN_PSQL`.
+
 ## 3. Traefik (reverse proxy interno)
 
 Rutea el túnel hacia el contenedor de cada ambiente leyendo sus labels vía el

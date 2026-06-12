@@ -36,6 +36,11 @@ if [[ ! -f "$seed_sql" ]]; then
   fatal "msg=\"no existe el archivo de fixtures\" ruta=\"${seed_sql}\""
 fi
 
-PGDATABASE="$base" psql -v ON_ERROR_STOP=1 -f "$seed_sql"
+# psql corre en un contenedor (ver _comun.sh): el .sql se monta read-only adentro.
+seed_sql_abs="$(cd "$(dirname "$seed_sql")" && pwd)/$(basename "$seed_sql")"
+psql_en_docker -e "PGDATABASE=$base" \
+  -v "${seed_sql_abs}:/seed.sql:ro" \
+  "$IMAGEN_PSQL" \
+  psql -v ON_ERROR_STOP=1 -f /seed.sql
 
 log_info msg="seed OK" ambiente="$ambiente" base="$base"

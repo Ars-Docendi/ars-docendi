@@ -49,9 +49,27 @@ exigir_ambiente_destruible() {
   fi
 }
 
+# Red Docker interna donde vive Postgres (no expuesto al host: ver infra/README §2)
+# e imagen que trae el cliente psql (pin a la versión del server). Override por env.
+RED_DATOS="${RED_DATOS:-arsdocendi-datos}"
+IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
+
+# Corre psql en un contenedor efímero adjunto a la red de datos. El host del runner
+# NO trae cliente psql ni alcanza a 'arsdocendi-postgres' (5432 sin publicar), así
+# que toda invocación a psql pasa por acá. Reenvía credenciales libpq por -e.
+# Los args extra de `docker run` (p. ej. -e PGDATABASE=... o -v para montar un .sql)
+# van ANTES de la imagen:
+#   psql_en_docker [args-docker...] "$IMAGEN_PSQL" psql [args-psql...]
+psql_en_docker() {
+  docker run --rm --network "$RED_DATOS" \
+    -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
+    "$@"
+}
+
 # psql como admin contra la base 'postgres' (para CREATE/DROP DATABASE).
 psql_admin() {
-  PGDATABASE=postgres psql -v ON_ERROR_STOP=1 -tA "$@"
+  psql_en_docker -e PGDATABASE=postgres "$IMAGEN_PSQL" \
+    psql -v ON_ERROR_STOP=1 -tA "$@"
 }
 
 # ¿Existe la base?  existe_base <nombre_base> -> 0 si existe
