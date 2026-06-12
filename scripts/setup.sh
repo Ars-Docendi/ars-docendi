@@ -82,7 +82,7 @@ ok "PostgreSQL levantado"
 
 # === Node deps (raíz + workspaces) ===
 log "Instalando dependencias Node (husky/lint-staged/prettier + frontend)..."
-pnpm install --frozen-lockfile
+pnpm install --no-frozen-lockfile
 ok "Dependencias Node instaladas"
 
 # === .NET deps ===

@@ -84,7 +84,7 @@ Abrir **dos** PRs: uno a `main`, otro a `develop`. Ambos deben mergearse.
 
 ### Bug (no hotfix)
 
-Usar `/fix-bug <descripción>` para flujo red-green-refactor. Detalle en [docs/workflows/fix-bug.md](docs/workflows/fix-bug.md).
+Usar `/fix-bug <descripción>` para flujo red-green-refactor. Detalle en la skill `/fix-bug` (`.claude/skills/fix-bug/SKILL.md`).
 
 ### Release (promoción a producción)
 

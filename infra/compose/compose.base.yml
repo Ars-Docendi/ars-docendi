@@ -1,0 +1,61 @@
+# Definición base de un ambiente Ars Docendi (frontend + backend).
+#
+# UN solo archivo materializa prod, staging y cualquier pr-N: solo cambian las
+# variables del .env del ambiente (ver .env.example). El nombre del Compose
+# project lo fija quien invoca (`docker compose -p <ambiente> ...`), de modo que
+# cada ambiente queda aislado (D2).
+#
+# Routing: Traefik descubre estos contenedores por el Docker provider leyendo
+# las labels de abajo (D4/D5). Dar de alta un ambiente NO requiere tocar Traefik
+# ni Cloudflare: el Host se fija por la label usando ${HOST_PUBLICO}.
+#
+# Gotcha: NO usar la variable ${HOSTNAME}. Muchas shells la exportan con el
+# hostname de la máquina y Compose le da precedencia sobre el .env, pisando el
+# valor del ambiente. Por eso el hostname público se llama ${HOST_PUBLICO}.
+
+services:
+  frontend:
+    image: ${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}
+    restart: unless-stopped
+    networks:
+      - red-publica
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Router del frontend: todo el Host salvo /api (lo toma el backend con mayor prioridad).
+      - "traefik.http.routers.${AMBIENTE}-frontend.rule=Host(`${HOST_PUBLICO}`)"
+      - "traefik.http.routers.${AMBIENTE}-frontend.entrypoints=web"
+      - "traefik.http.routers.${AMBIENTE}-frontend.priority=1"
+      - "traefik.http.services.${AMBIENTE}-frontend.loadbalancer.server.port=80"
+
+  backend:
+    image: ${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}
+    restart: unless-stopped
+    environment:
+      # Símbolos del framework (.NET / ASP.NET): se usan tal como los define la librería.
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      # Connection string que liga el ambiente a SU base aislada (D7).
+      ConnectionStrings__ArsDocendi: ${URL_BASE_DATOS}
+    networks:
+      - red-publica # para que Traefik rutee /api
+      - red-datos # para alcanzar la instancia Postgres compartida
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Router de la API: mismo Host que el frontend pero bajo /api, con prioridad mayor.
+      - "traefik.http.routers.${AMBIENTE}-backend.rule=Host(`${HOST_PUBLICO}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.${AMBIENTE}-backend.entrypoints=web"
+      - "traefik.http.routers.${AMBIENTE}-backend.priority=10"
+      - "traefik.http.services.${AMBIENTE}-backend.loadbalancer.server.port=8080"
+
+# Redes externas compartidas: se crean una sola vez en el host (ver runbook),
+# no las gestiona este compose. Así Traefik (otro project) y la instancia
+# Postgres (otro project) son alcanzables por cada ambiente sin acoplarlos.
+networks:
+  red-publica:
+    external: true
+    name: traefik
+  red-datos:
+    external: true
+    name: arsdocendi-datos

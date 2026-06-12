@@ -1,0 +1,25 @@
+# systemd service del reaper de ambientes pr-N (D9). Disparado por el .timer.
+#
+# Instalación (en el app host, ver runbook):
+#   sudo cp infra/reaper/reap-pr-envs.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now reap-pr-envs.timer
+
+[Unit]
+Description=Ars Docendi — reaper de ambientes pr-N huérfanos
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Ajustar la ruta al checkout del repo en el host.
+WorkingDirectory=/opt/ars-docendi/repo
+ExecStart=/opt/ars-docendi/repo/infra/reaper/reap-pr-envs.sh
+# Credenciales admin de Postgres + umbral, fuera del repo y con permisos 600.
+#   sudo install -m 600 /dev/null /etc/ars-docendi/reaper.env
+#   # adentro: PGHOST=, PGPORT=, PGUSER=, PGPASSWORD=, REAPER_MAX_DIAS=
+EnvironmentFile=/etc/ars-docendi/reaper.env
+# Logs estructurados van a journald (journalctl -u reap-pr-envs).
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=reap-pr-envs

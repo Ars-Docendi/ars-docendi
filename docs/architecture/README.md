@@ -17,6 +17,6 @@ Para cada módulo backend (Designaciones, Aulas, Portal, Tareas), se mantiene `d
 
 ## Relacionados
 
-- Workflows: [docs/workflows/create-module.md](../workflows/create-module.md)
+- Skill: `/create-module` (`.claude/skills/create-module/SKILL.md`)
 - Calidad: [docs/quality/golden-principles.md](../quality/golden-principles.md)
 - Reglas de negocio: [docs/business-rules/](../business-rules/)

@@ -6,36 +6,71 @@ argument-hint: [<descripción libre de la arquitectura>]
 
 # Architecture proposal
 
-**Source of truth:** [docs/workflows/architecture-proposal.md](../../../docs/workflows/architecture-proposal.md). Leerlo.
+Bootstrap único que llena `docs/architecture/*` con info real. Corre **después de `/init-project`** y **antes** de cualquier `/create-module` o `/add-feature`.
 
-## Produce
+## Cuándo usar
 
-| Archivo                                  | Rol                                    |
-| ---------------------------------------- | -------------------------------------- |
-| `docs/architecture/stack.md`             | Apps + packages + decisiones           |
-| `docs/architecture/module-anatomy.md`    | Layout de módulo .NET                  |
-| `docs/architecture/dependency-graph.md`  | Mermaid DAG + edge registry            |
-| `docs/architecture/api-contracts.md`     | Base URL, auth, error shape, endpoints |
-| `docs/architecture/data-model.md`        | ORM, entidades, ER, PII                |
-| `docs/architecture/infrastructure.md`    | Ambientes, deploy, monitoring          |
-| `docs/architecture/domains/<dominio>.md` | Uno por bounded context                |
+- `docs/product/brief.md` ya tiene contenido real (post `/init-project`).
+- `docs/architecture/*.md` todavía coinciden con el template scaffold.
+
+## Artefactos producidos
+
+| Archivo                                  | Rol                                             |
+| ---------------------------------------- | ----------------------------------------------- |
+| `docs/architecture/stack.md`             | Tabla de apps + packages, decisiones, rationale |
+| `docs/architecture/module-anatomy.md`    | Layout de módulo .NET, layer rules              |
+| `docs/architecture/dependency-graph.md`  | Mermaid DAG + edge registry                     |
+| `docs/architecture/api-contracts.md`     | Base URL, auth, error shape, endpoint table     |
+| `docs/architecture/data-model.md`        | ORM, entidades, ER, índices, PII/retención      |
+| `docs/architecture/infrastructure.md`    | Ambientes, deploy, health, logs, monitoring     |
+| `docs/architecture/domains/<dominio>.md` | Uno por cada bounded context                    |
 
 ## Flujo
 
-1. **Pre-condición**: `docs/product/brief.md` debe tener contenido real (post `/init-project`). Si no, parar y pedir `/init-project` primero.
-2. **Aclarar** arquitectura: runtime topology, stack, dominios, API pública, persistencia, infra.
-3. **Redactar** los docs. Sin placeholders sin completar. Marcar gaps con `_(needs owner input)_`.
-4. **Mostrar al equipo** + iterar feedback.
-5. **Sobre aprobación**:
-   - Branch `chore/architecture-proposal`
-   - Commit `docs/architecture/` completo
-   - PR a `develop`
+### 1. Leer contexto de producto
 
-## Hard rules
+Abrir `docs/product/brief.md` + `vision.md` + `design-principles.md`. Si alguno contiene placeholder, parar y pedir `/init-project` primero.
 
-- **Solo** editar `docs/architecture/`. Sin código, sin otros paths.
-- **Una vez por proyecto**. Si `stack.md` tiene contenido real, confirmar antes de sobreescribir.
+### 2. Aclarar arquitectura
+
+Preguntar sobre:
+
+1. **Topología de runtime** — qué apps corren (backend / frontend / workers / etc) y cómo se comunican.
+2. **Stack** — lenguajes, frameworks, ORM, runtime versions.
+3. **Dominios (bounded contexts)** — qué módulos backend. Cada uno será `domains/<nombre>.md`.
+4. **API pública** — endpoints, webhooks, eventos en el límite del sistema + esquema de auth.
+5. **Persistencia** — entidades principales, relaciones, PII, retención.
+6. **Infrastructure** — hosting target, CI/CD trigger, observability.
+
+### 3. Redactar los docs
+
+Llenar los 7 archivos + un `domains/<dominio>.md` por bounded context. Reglas:
+
+- Sin placeholder donde haya respuesta del usuario.
+- Donde no haya respuesta, marcar `_(needs owner input: <qué>)_`.
+- `dependency-graph.md`: regenerar el Mermaid + edge registry desde los dominios propuestos. Cada edge debe corresponder a una interacción mencionada en la descripción.
+- `infrastructure.md`: preservar secciones de hardening checklist y backup strategy (son boilerplate útil), reemplazar lo específico.
+
+### 4. Aprobar y commitear
+
+- Mostrar al equipo. Iterar con feedback.
+- Crear branch `chore/architecture-proposal`, commit, push.
+- Abrir PR a `develop` (ver [open-pr.md](../../../docs/workflows/open-pr.md)).
+
+## Reglas duras
+
+- **Solo** editar `docs/architecture/`. Cualquier otro path está fuera de scope.
+- **Sin código**, sin migrations, sin `docs/product/`, `docs/plans/`, `docs/business-rules/`.
+- **Una vez por proyecto**. Si `stack.md` ya tiene contenido no-template, confirmar antes de sobreescribir.
 - Cada edge en `dependency-graph.md` debe estar justificado por la descripción.
+
+## Handoff
+
+Después del merge:
+
+- `/create-module` — para crear el primer módulo .NET propuesto en `dependency-graph.md`.
+- `/opsx:propose` — para empezar specs y planes.
+- `/architecture-drift-check` (recurrente) — cuando el código empiece a aterrizar.
 
 ## Arguments
 

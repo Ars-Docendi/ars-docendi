@@ -1,41 +1,73 @@
 ---
 name: init-project
-description: Bootstrap los docs fundacionales de producto (brief, vision, design-principles) desde un prompt humano. Usar una sola vez por proyecto, antes de /plan-feature o /add-feature. Saltar si docs/product/brief.md ya tiene contenido no-placeholder.
+description: Bootstrap los docs fundacionales de producto (brief, vision, design-principles) desde un prompt humano. Usar una sola vez por proyecto, antes de /opsx:propose o /add-feature. Saltar si docs/product/brief.md ya tiene contenido no-placeholder.
 argument-hint: [<descripción libre del proyecto>]
 ---
 
 # Init project
 
-**Source of truth:** [docs/workflows/init-project.md](../../../docs/workflows/init-project.md). Leerlo. Este archivo es un puntero, no el playbook.
+Bootstrap único que llena `docs/product/*` con info real del proyecto. Corre **una sola vez** al iniciar, antes de cualquier `/opsx:propose` o `/add-feature`.
 
-## Produce
+## Cuándo usar
 
-1. `docs/product/brief.md` — reemplazar el placeholder con 1–4 oraciones del producto + milestone actual.
-2. `docs/product/vision.md` — llenar todas las secciones: Summary, Goals, Non-goals, Success metrics. Sin `_(placeholder)_` sin completar.
-3. `docs/product/design-principles.md` — mantener el scaffold; ajustar principios + anti-patterns + plataforma específicos del producto.
+- Proyecto recién creado o `docs/product/brief.md` todavía contiene el placeholder del template.
+- Skills downstream (`/opsx:propose`, `/add-feature`) necesitan contexto de producto real.
+
+Skip si `docs/product/brief.md` ya tiene contenido específico del proyecto.
+
+## Artefactos producidos
+
+| Archivo                             | Rol                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `docs/product/brief.md`             | 1–4 oraciones describiendo el producto + milestone actual           |
+| `docs/product/vision.md`            | Summary, Goals, Non-goals, Success metrics                          |
+| `docs/product/design-principles.md` | Principios + anti-patterns + plataforma — del producto, no defaults |
+
+NO crea specs, planes, business rules, ni código.
 
 ## Flujo
 
-1. **Aclarar** (si el prompt no cubre todo): preguntar al usuario sobre:
-   - Producto en una oración (qué es, para quién).
-   - Problema central + por qué ahora.
-   - Plataformas (web/mobile/API).
-   - In-scope vs out-of-scope del milestone inicial.
-   - Métricas de éxito.
-   - Dirección de diseño / brand.
-2. **Redactar** los 3 docs desde las respuestas. NO inventar datos no provistos; marcar gaps con `_(needs owner input: <qué>)_`.
-3. **Mostrar al equipo** para revisión + aprobación.
-4. **Sobre aprobación**:
-   - Branch `chore/init-project`
-   - Commit + push
-   - PR a `develop` (ver [open-pr.md](../../../docs/workflows/open-pr.md))
+### 1. Aclarar requisitos
 
-## Hard rules
+Antes de escribir, hacer preguntas al usuario sobre:
 
-- **Solo** editar `docs/product/{brief,vision,design-principles}.md`. Sin código, sin otros docs, sin `docs/plans/`, sin `docs/business-rules/`.
-- Sin escribir specs (`docs/product/specs/*`) — eso es `/plan-feature`.
-- Si `docs/product/brief.md` ya tiene contenido real, parar y preguntar antes de sobreescribir.
-- No abrir PR antes de aprobación del equipo.
+1. **Producto en una oración** — qué es, para quién.
+2. **Problema central** + por qué ahora.
+3. **Plataformas** — web, mobile, API, o combinación.
+4. **In scope** vs **out of scope** para el milestone inicial.
+5. **Métricas de éxito** — cómo sabemos que funciona.
+6. **Dirección de diseño / brand** — tono, referencias, anti-patterns a evitar.
+
+### 2. Redactar los 3 docs
+
+Llenar brief / vision / design-principles con las respuestas. Reglas:
+
+- Sin copy placeholder (`_(...)_`, `TODO`, `lorem ipsum`).
+- Sin inventar datos. Donde no haya respuesta, marcar inline `_(needs owner input: <qué>)_`.
+- Mantener la estructura de los templates — solo reemplazar contenido.
+- `design-principles.md`: mantener headers (Principios, Anti-patterns, Plataforma). Ajustar bullets al brand del producto.
+
+### 3. Aprobar y commitear
+
+- Mostrar los 3 docs al usuario / equipo.
+- Iterar con feedback hasta aprobación.
+- Crear branch `chore/init-project`, commit los 3 archivos, push.
+- Abrir PR a `develop` (ver [open-pr.md](../../../docs/workflows/open-pr.md)).
+
+## Reglas duras
+
+- **Solo** editar `docs/product/{brief,vision,design-principles}.md`. Cualquier otro path está fuera de scope de esta skill.
+- **Sin código**, sin migrations, sin infra, sin `docs/plans/`, sin `docs/business-rules/`.
+- Sin escribir specs — eso es `/opsx:propose`.
+- **Sin `gh pr create` antes de aprobación**.
+- **Una vez por proyecto**. Si `brief.md` ya tiene contenido real, preguntar antes de sobreescribir.
+
+## Handoff
+
+Después del merge:
+
+- `/architecture-proposal` — para bootstrap de la arquitectura.
+- `/opsx:propose` — para la primera feature.
 
 ## Arguments
 
