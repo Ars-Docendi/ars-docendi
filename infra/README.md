@@ -31,5 +31,4 @@ Adaptar:
 ## Referencias
 
 - [docs/architecture/infrastructure.md](../docs/architecture/infrastructure.md) — Plan operacional completo
-- [docs/workflows/check-deploy.md](../docs/workflows/) — Skill `/check-deploy`
-- [docs/workflows/debug-production.md](../docs/workflows/) — Skill `/debug-production`
+- Skills de ops (`/check-deploy`, `/debug-production`, `/infra-logs-monitor`) — retiradas hasta que exista infra real; recrear al provisionar las VMs (ver [docs/quality/tech-debt.md](../docs/quality/tech-debt.md) TD-002).

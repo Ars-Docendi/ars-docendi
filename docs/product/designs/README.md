@@ -16,7 +16,7 @@ Actualizar:
 
 1. Este README con la herramienta elegida + setup.
 2. `docs/product/design-principles.md` si la herramienta impone restricciones.
-3. `docs/workflows/add-feature.md` step "Inputs de diseño".
+3. La skill `/add-feature` (`.claude/skills/add-feature/SKILL.md`) step "Inputs de diseño".
 4. `.mcp.json` del proyecto (a crear) con el MCP server correspondiente.
 5. Skill `visual-test` (a portar del template) adaptada al MCP elegido.
 6. CLAUDE.md sección Skills disponibles agregando `visual-test`.

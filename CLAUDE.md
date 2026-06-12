@@ -110,7 +110,7 @@ Reglas que se cumplen en todo PR. El reviewer (humano o `/pr-review`) las verifi
 6. **Cambios de schema/API → docs en el MISMO PR**. Actualizar `dependency-graph.md`, `api-contracts.md`, `data-model.md`, `domains/<x>.md` en el mismo PR que el código.
 7. **No fake UI**. Sin botones/rutas/forms que aparenten estar hechos pero no funcionan. Sin lorem ipsum / TODO visible al usuario.
 8. **Referencias cacheadas para libs externas**. Preferir `docs/references/<lib>-llms.txt` cuando exista; agregarlo si la lib se usa intensivamente.
-9. **Bug fixes: red-green mandatorio**. Test que falla primero, después fix mínimo (ver [docs/workflows/fix-bug.md](docs/workflows/fix-bug.md)).
+9. **Bug fixes: red-green mandatorio**. Test que falla primero, después fix mínimo (ver la skill `/fix-bug`).
 10. **Change lifecycle**. Los changes viven en `openspec/changes/<id>/` mientras están activos; post-merge se archivan con `/opsx:archive` → `openspec/changes/archive/` (mergea las delta specs a `openspec/specs/`).
 11. **Compliance reglamentario**. Toda regla de negocio que provenga de normativa institucional debe registrarse como `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con **cita de la normativa** + mapping a test.
 12. **Cambios de UX → design spec**. Cambios que afecten flujos del cliente requieren actualizar `docs/product/designs/<feature>-design-spec.md`. (Cuando se defina herramienta UX, también el artefacto en la herramienta.)
@@ -161,17 +161,9 @@ La skill `/add-feature` se conserva como orquestador principal de features: apli
 | --------------------------- | --------------------------------------------------- |
 | `/pr-review`                | Review estructurado con inline comments + summary   |
 | `/evaluate`                 | Evaluación read-only contra spec + grading-criteria |
-| `/security-audit`           | Read-only security pass del proyecto                |
-| `/test-gap-monitor`         | Read-only: identifica tests faltantes               |
 | `/architecture-drift-check` | Read-only: docs vs código real                      |
 
-### Operaciones (cuando haya deploy)
-
-| Skill                 | Cuándo                                        |
-| --------------------- | --------------------------------------------- |
-| `/check-deploy`       | Health check post-deploy                      |
-| `/debug-production`   | Investigar issue reportado en producción      |
-| `/infra-logs-monitor` | Read-only: logs reales vs `infrastructure.md` |
+> Skills de operaciones (`/check-deploy`, `/debug-production`, `/infra-logs-monitor`) y de auditoría (`/security-audit`, `/test-gap-monitor`) se retiraron hasta que existan infra y código real para correrlas. Se recrean cuando aplique — ver [docs/quality/tech-debt.md](docs/quality/tech-debt.md).
 
 ### Guides path-scoped (auto-activan)
 
@@ -190,12 +182,12 @@ El glue generado por OpenSpec (`.claude/commands/opsx/` + `.claude/skills/opensp
 
 ## Workflows clave
 
-Cada skill apunta a un playbook en [`docs/workflows/`](docs/workflows/) con el detalle paso a paso. Para nuevos developers, leer en este orden:
+El detalle paso a paso de cada workflow vive en su skill (`.claude/skills/<x>/SKILL.md`) — **una sola fuente**. En `docs/workflows/` solo queda [open-pr.md](docs/workflows/open-pr.md) (referencia canónica de `gh pr create`, linkeada desde varias skills) + un [índice](docs/workflows/README.md). Para nuevos developers, leer en este orden:
 
-1. [docs/workflows/README.md](docs/workflows/README.md) — índice
-2. [docs/workflows/add-feature.md](docs/workflows/add-feature.md) — flujo principal
-3. [docs/workflows/fix-bug.md](docs/workflows/fix-bug.md) — red-green
-4. [docs/workflows/pr-review.md](docs/workflows/pr-review.md) — review
+1. [docs/workflows/README.md](docs/workflows/README.md) — índice "¿qué skill uso?"
+2. Skill `/add-feature` — flujo principal de features
+3. Skill `/fix-bug` — red-green
+4. Skill `/pr-review` — review
 5. [docs/workflows/open-pr.md](docs/workflows/open-pr.md) — referencia canónica
 
 ## Convenciones de código
