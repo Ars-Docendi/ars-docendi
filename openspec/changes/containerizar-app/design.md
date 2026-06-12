@@ -69,7 +69,7 @@ Los 4 `ModuleExtensions.cs` pasan a `GetConnectionString("ArsDocendi")` y `appse
 
 ### D-front — nginx estático con fallback SPA y `/api` fuera de juego
 
-Stage 1 (`node`): `corepack` habilita `pnpm@10.33.4` (campo `packageManager`); `apk add git` para resolver `@ars-docendi/ui` (`github:`); `pnpm install --frozen-lockfile` + `pnpm build`. Stage 2 (`nginx:alpine`): copia `dist/` a `/usr/share/nginx/html` + un `nginx.conf` con `try_files $uri $uri/ /index.html` (fallback react-router) y un `location /api { return 404; }` explícito (defense-in-depth: aunque Traefik rutea `/api` al backend con prioridad mayor antes de llegar acá, el contenedor nunca sirve `index.html` para `/api`). nginx stock escucha en 80 como pide la label de Traefik.
+Stage 1 (`node`): `corepack` habilita `pnpm@10.33.4` (campo `packageManager`); `apk add git` para resolver `@ars-docendi/ui` (`github:`); `pnpm install --no-frozen-lockfile` + `pnpm build`. Stage 2 (`nginx:alpine`): copia `dist/` a `/usr/share/nginx/html` + un `nginx.conf` con `try_files $uri $uri/ /index.html` (fallback react-router) y un `location /api { return 404; }` explícito (defense-in-depth: aunque Traefik rutea `/api` al backend con prioridad mayor antes de llegar acá, el contenedor nunca sirve `index.html` para `/api`). nginx stock escucha en 80 como pide la label de Traefik.
 
 ## Risks / Trade-offs
 

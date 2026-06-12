@@ -23,7 +23,7 @@
 
 - [x] 4.1 Crear `frontend/.dockerignore` excluyendo `node_modules/`, `dist/`
 - [x] 4.2 Crear `frontend/nginx.conf`: `try_files $uri $uri/ /index.html` (fallback SPA) + `location /api { return 404; }` (no secuestrar `/api`)
-- [x] 4.3 Crear `frontend/Dockerfile` multi-stage: stage `node` con `corepack` (pnpm@10.33.4) + `git` para resolver `@ars-docendi/ui`, `pnpm install --frozen-lockfile` + `pnpm build`; stage `nginx:alpine` sirviendo `dist/` en port 80 con el `nginx.conf`
+- [x] 4.3 Crear `frontend/Dockerfile` multi-stage: stage `node` con `corepack` (pnpm@10.33.4) + `git` para resolver `@ars-docendi/ui`, `pnpm install --no-frozen-lockfile` + `pnpm build`; stage `nginx:alpine` sirviendo `dist/` en port 80 con el `nginx.conf`
 - [ ] 4.4 `docker build -t arsdocendi-frontend frontend` sobre el repo limpio completa sin error y la imagen sirve los estáticos en 80 _(pendiente: Docker no disponible en la máquina actual; verificar en runner/CI)_
 
 ## 5. Verificación end-to-end y docs
