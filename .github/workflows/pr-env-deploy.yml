@@ -17,6 +17,7 @@ on:
 permissions:
   contents: read
   pull-requests: write # para comentar la URL del ambiente
+  packages: write # push de imágenes a ghcr.io con GITHUB_TOKEN
 
 concurrency:
   group: pr-env-${{ github.event.pull_request.number }}
@@ -55,7 +56,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Login al registro de imágenes
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ secrets.REGISTRY_USUARIO }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
 
       - name: Build & push imágenes del PR (tag por SHA del PR)
         run: |

@@ -10,6 +10,10 @@ concurrency:
   group: deploy-staging
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write # push de imágenes a ghcr.io con GITHUB_TOKEN
+
 jobs:
   deploy:
     runs-on: [self-hosted, arsdocendi, confiable]
@@ -30,7 +34,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Login al registro de imágenes
-        run: echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ secrets.REGISTRY_USUARIO }}" --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
 
       - name: Build & push imágenes
         run: |
