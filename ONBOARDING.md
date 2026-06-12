@@ -1,503 +1,216 @@
 # Onboarding y uso del harness
 
-Este documento explica cómo usar el workflow y set de skills del proyecto. **Tres audiencias** con necesidades distintas — leé la sección que te corresponda.
+Cómo usar el workflow y las skills del proyecto. **Tres audiencias** — leé la que te corresponde.
 
-| Si vos sos...                                                                                              | Saltá a                                                                                       |
-| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| Alguien nuevo en el equipo que acaba de clonar el repo y nunca lo levantó                                  | [Sección 1 — Developer nuevo](#1-developer-nuevo-en-el-proyecto)                              |
-| El primer encargado de llenar / completar el contenido inicial de `docs/` (brief, arquitectura, BRs, etc.) | [Sección 2 — Primer mantenedor de contexto inicial](#2-primer-mantenedor-de-contexto-inicial) |
-| Alguien que ya conoce el sistema y solo necesita refrescar comandos del día a día                          | [Sección 3 — Cheat sheet de uso recurrente](#3-uso-recurrente--cheat-sheet)                   |
+| Si vos sos...                                        | Saltá a                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------- |
+| Nuevo en el equipo, recién clonaste el repo          | [§1 Developer nuevo](#1-developer-nuevo)                             |
+| El primero en llenar el contenido inicial de `docs/` | [§2 Primer mantenedor de contexto](#2-primer-mantenedor-de-contexto) |
+| Ya conocés el sistema y querés refrescar comandos    | [§3 Cheat sheet](#3-cheat-sheet)                                     |
 
-> **Importante**: este harness es **project-scoped**. Todas las skills viven en `.claude/skills/` del repo y se versionan. No requieren ningún framework global (engram, SDD, etc.). Si vos personalmente usás herramientas globales adicionales, son opcionales — el proyecto no depende de ellas.
-
----
-
-## 1. Developer nuevo en el proyecto
-
-Bienvenido. Esta sección te lleva de "acabo de clonar" a "puedo abrir mi primer PR" en orden.
-
-### 1.1 Pre-requisitos en tu máquina
-
-| Herramienta      | Versión mínima        | Cómo verificar           |
-| ---------------- | --------------------- | ------------------------ |
-| .NET SDK         | 10.0.x                | `dotnet --version`       |
-| Node             | 20.19+                | `node --version`         |
-| pnpm             | 9.x (o usar corepack) | `pnpm --version`         |
-| Docker + Compose | Reciente              | `docker compose version` |
-| `gh` CLI         | Reciente              | `gh --version`           |
-
-Si te falta algo, instalalo antes de seguir. En Linux/macOS, [Mise](https://mise.jdx.dev/) o `asdf` simplifican el manejo de versiones múltiples.
-
-### 1.2 Levantar el proyecto la primera vez
-
-```bash
-git clone <repo-url>
-cd ars-docendi
-./scripts/setup.sh
-```
-
-Esto:
-
-1. Crea `.env` desde `.env.example` (revisalo y ajustá lo que aplique).
-2. Levanta PostgreSQL en docker compose.
-3. Corre `pnpm install` en la raíz (instala husky/lint-staged/prettier + deps del workspace `frontend`).
-4. Corre `dotnet restore` y `dotnet build` del backend.
-5. (Cuando existan migrations) las aplica.
-
-Al terminar te lista las URLs de los servicios. Esperalas:
-
-| URL                             | Para qué                       |
-| ------------------------------- | ------------------------------ |
-| `http://localhost:5000`         | Backend API                    |
-| `http://localhost:5000/swagger` | Swagger UI                     |
-| `http://localhost:5173`         | Frontend (cuando lo arranques) |
-| `localhost:5432`                | Postgres                       |
-
-### 1.3 Arrancar dev servers
-
-En dos terminales separadas:
-
-```bash
-# Terminal 1: backend
-dotnet run --project backend/src/ArsDocendi.Host
-
-# Terminal 2: frontend
-pnpm --filter frontend dev
-```
-
-### 1.4 Qué leer (en este orden)
-
-1. **[CLAUDE.md](CLAUDE.md)** — contexto del proyecto, módulos, roles, invariantes (12 reglas no negociables), skills disponibles. **Es la única lectura realmente obligatoria.**
-2. **[CONTRIBUTING.md](CONTRIBUTING.md)** — gitflow (develop/main), pre-commit, code review, convención de commits.
-3. **[docs/architecture/stack.md](docs/architecture/stack.md)** — qué tecnologías y por qué.
-4. **[docs/architecture/module-anatomy.md](docs/architecture/module-anatomy.md)** — layout de un módulo .NET, layer rules, cross-module via Contracts.
-5. **[docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)** — diagrama Mermaid + edge registry actual.
-6. **[docs/quality/golden-principles.md](docs/quality/golden-principles.md)** — anti-patterns + reglas de calidad. Lo flagga `/pr-review` y `/evaluate`.
-7. **[docs/workflows/README.md](docs/workflows/README.md)** — índice de playbooks. Cada skill referencia uno.
-
-Después podés mirar [`docs/architecture/domains/`](docs/architecture/domains/) para entender cada módulo en profundidad.
-
-### 1.5 Cómo trabajan las skills
-
-Las skills viven en `.claude/skills/<nombre>/SKILL.md` y se invocan en Claude Code con `/<nombre> [args]`. Hay tres tipos:
-
-- **Interactivas** (las invocás vos): `/plan-feature`, `/add-feature`, `/fix-bug`, `/pr-review`, etc.
-- **Path-scoped** (auto-activan según el archivo que toques): `dotnet-modules-guide` se activa al editar `backend/src/Modules.*`, `react-features-guide` al editar `frontend/src/`.
-- **Ops** (las corre alguien con permisos de prod): `/check-deploy`, `/debug-production`, `/infra-logs-monitor`.
-
-**No necesitás memorizar todas**. Empezás con dos: `/plan-feature` para algo nuevo, `/fix-bug` para algo roto. El resto se va aprendiendo.
-
-### 1.6 Tu primer cambio: bug fix simple (caminata guiada)
-
-Supongamos que encontraste un bug: el endpoint `/api/portal/docentes` devuelve 500 cuando no hay docentes. Debería devolver 200 con array vacío.
-
-```bash
-# 1. Sincronizar y crear branch
-git checkout develop
-git pull
-git checkout -b feature/portal-empty-docentes
-```
-
-En Claude Code:
-
-```
-/fix-bug endpoint /api/portal/docentes devuelve 500 con DB vacía, debería ser 200 con []
-```
-
-La skill va a:
-
-1. Localizar el módulo (Portal).
-2. Hacer escalation check (es un solo módulo, sin cambio de Contracts → continúa).
-3. Escribir un test que falla (`PortalController_GetDocentes_RetornaListaVaciaCuandoNoHayDocentes`).
-4. Aplicar el fix mínimo en el service.
-5. Confirmar que todos los tests pasan.
-6. Si el bug podría recurrir, sugerir agregar regla a `golden-principles.md`.
-7. Abrir el PR a `develop`.
-
-Vos revisás cada paso y commiteás cuando estés conforme. **No es automático ciego — vos manejás**.
-
-### 1.7 Tu primera feature: dos fases
-
-Para una feature nueva el flujo es **dos fases** (plan primero, ejecución después con aprobación humana en el medio).
-
-```
-/plan-feature exportar listado de designaciones a Excel para Secretaría Académica
-```
-
-Esto crea:
-
-- `docs/product/specs/exportar-designaciones-excel.md` (qué + por qué + criterios de aceptación)
-- `docs/plans/active/exportar-designaciones-excel.md` (cómo + módulos tocados + riesgos)
-
-**El equipo revisa los dos archivos y aprueba** (o pide cambios). Una vez aprobados:
-
-```
-/add-feature exportar-designaciones-excel
-```
-
-Esto ejecuta el plan: implementa, corre tests, abre PR. El workflow `close-plan-on-merge.yml` mueve el plan a `completed/` automáticamente cuando el PR se mergea.
-
-### 1.8 Pre-commit: qué hace y qué hacer si falla
-
-Al `git commit`, husky dispara `lint-staged` que corre:
-
-- `dotnet format` sobre archivos `.cs` modificados
-- `eslint --fix` + `prettier --write` sobre `.ts/.tsx` del frontend
-- `prettier --write` sobre `.md/.json/.yml`
-
-**Si falla**: el commit se aborta. Mirá el error, arreglá lo que indica (o re-stageá los archivos que prettier modificó), y volvé a commitear.
-
-```bash
-# Si prettier modificó archivos durante el pre-commit:
-git add <archivos>
-git commit -m "<mensaje>"
-```
-
-**Nunca** usar `--no-verify` salvo acuerdo explícito del equipo. Si el pre-commit está mal configurado, arreglar la config, no bypassearla.
-
-### 1.9 Reglas críticas para no romper nada
-
-Las **12 invariantes** del [CLAUDE.md](CLAUDE.md#invariantes-no-negociables) son no negociables. Las más fáciles de romper sin darse cuenta:
-
-- **Cross-module: solo vía Contracts**. Si tu código en `Modules.Designaciones` necesita algo de `Modules.Portal`, importás desde `Modules.Portal.Contracts`, NO desde `Modules.Portal` directamente. Nunca `Internal/` ajeno.
-- **Nueva feature ⇒ spec + plan ANTES de código**. El `/add-feature` lo verifica con un hard gate; si no existen los archivos en `docs/`, no implementa.
-- **Cambios en API/schema/dependencias ⇒ actualizar docs en el MISMO PR**. `api-contracts.md`, `data-model.md`, `dependency-graph.md`, `domains/<x>.md` según corresponda.
-- **Bug fixes ⇒ red-green obligatorio**. Test que falla primero, después fix mínimo.
-- **Compliance reglamentario**: si tu cambio implementa una regla que viene de normativa institucional (estatuto, régimen, disposición departamental), registrala como `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con la cita de la fuente.
+> Este harness es **project-scoped**: todas las skills viven en `.claude/skills/` y se versionan. No requieren framework global. El detalle paso a paso de cada workflow vive en su `SKILL.md` (una sola fuente); en `docs/workflows/` solo queda `open-pr.md` (referencia canónica) + un índice.
 
 ---
 
-## 2. Primer mantenedor de contexto inicial
+## 1. Developer nuevo
 
-Esta sección es para vos si te toca **completar el contenido inicial** de `docs/` (la primera carga real de info del proyecto, después del bootstrap mecánico del harness).
+### 1.1 Pre-requisitos
+
+| Herramienta      | Versión mínima   | Verificar                |
+| ---------------- | ---------------- | ------------------------ |
+| .NET SDK         | 10.0.x           | `dotnet --version`       |
+| Node             | 20.19+           | `node --version`         |
+| pnpm             | 9.x (o corepack) | `pnpm --version`         |
+| Docker + Compose | Reciente         | `docker compose version` |
+| `gh` CLI         | Reciente         | `gh --version`           |
+
+### 1.2 Levantar el proyecto
+
+El setup está en [README.md](README.md) (`./scripts/setup.sh` + arranque de dev servers). Volvé acá cuando lo tengas corriendo.
+
+### 1.3 Qué leer (en orden)
+
+1. **[CLAUDE.md](CLAUDE.md)** — contexto, módulos, roles, **13 invariantes** no negociables, skills. **Única lectura realmente obligatoria.**
+2. **[CONTRIBUTING.md](CONTRIBUTING.md)** — gitflow, pre-commit, code review, commits.
+3. **[docs/architecture/stack.md](docs/architecture/stack.md)** + **[module-anatomy.md](docs/architecture/module-anatomy.md)** + **[dependency-graph.md](docs/architecture/dependency-graph.md)**.
+4. **[docs/quality/golden-principles.md](docs/quality/golden-principles.md)** — anti-patterns; los flagga `/pr-review` y `/evaluate`.
+5. **[docs/workflows/README.md](docs/workflows/README.md)** — índice "¿qué skill uso?".
+
+Después, [`docs/architecture/domains/`](docs/architecture/domains/) para cada módulo en profundidad.
+
+### 1.4 Cómo trabajan las skills
+
+Viven en `.claude/skills/<nombre>/SKILL.md`, se invocan con `/<nombre> [args]`. Tres tipos:
+
+- **Interactivas** (las invocás vos): `/opsx:propose`, `/add-feature`, `/fix-bug`, `/pr-review`, etc.
+- **Path-scoped** (auto-activan): `dotnet-modules-guide` al editar `backend/src/Modules.*`, `react-features-guide` al editar `frontend/src/`.
+
+No hace falta memorizarlas. Empezás con dos: `/opsx:propose` para algo nuevo, `/fix-bug` para algo roto. El resto se aprende. Los flujos concretos están en [§3.3](#33-flujos-comunes). **No es automático ciego — vos revisás cada paso y commiteás.**
+
+### 1.5 Reglas críticas para no romper nada
+
+Las **13 invariantes** del [CLAUDE.md](CLAUDE.md#invariantes-no-negociables) son no negociables. Las más fáciles de romper sin querer:
+
+- **Cross-module: solo vía Contracts**. Desde `Modules.Designaciones` importás `Modules.Portal.Contracts`, nunca `Modules.Portal` interno ni `Internal/` ajeno.
+- **Nueva feature ⇒ change OpenSpec apply-ready ANTES de código** (hard gate en `/add-feature`).
+- **Cambios de API/schema/deps ⇒ docs en el MISMO PR** (`api-contracts.md`, `data-model.md`, `dependency-graph.md`, `domains/<x>.md`).
+- **Bug fixes ⇒ red-green obligatorio**.
+- **Compliance**: regla de normativa institucional ⇒ `BR-<modulo>-NNN` en `docs/business-rules/<modulo>.md` con cita.
+
+---
+
+## 2. Primer mantenedor de contexto
+
+Para vos si te toca **completar el contenido inicial** de `docs/`.
 
 ### 2.1 Estado actual de `docs/`
 
-| Carpeta                            | Estado                                                                    | Acción                                                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `product/brief.md`                 | ✅ Completo (TFI UNLaM, módulos, scope)                                   | Revisar y ajustar si querés precisarlo                                                                 |
-| `product/vision.md`                | ✅ Completo (goals, non-goals, métricas)                                  | Revisar; las métricas pueden necesitar baseline real                                                   |
-| `product/design-principles.md`     | ✅ Completo (principios, anti-patterns)                                   | Ajustar cuando se decida herramienta UX                                                                |
-| `product/specs/`                   | 📝 Solo templates (`_template.md`, `_bug-template.md`)                    | Llenar a medida que entren features nuevas via `/plan-feature`                                         |
-| `product/designs/`                 | 📝 Placeholder (herramienta TBD)                                          | Completar cuando el equipo decida (Figma / Pencil / otra)                                              |
-| `architecture/stack.md`            | ✅ Completo (.NET 10 + React 19 + Postgres)                               | Mantener al día si cambian versiones o se agrega tooling                                               |
-| `architecture/module-anatomy.md`   | ✅ Completo (.NET module layout)                                          | Estable, ajustar si evoluciona la convención                                                           |
-| `architecture/dependency-graph.md` | ✅ Completo (Mermaid + edge registry)                                     | Actualizar SIEMPRE que se agregue/quite un edge cross-module                                           |
-| `architecture/api-contracts.md`    | ⚠️ Parcial (estructura + ping endpoints, sin endpoints reales)            | Completar a medida que se definan endpoints                                                            |
-| `architecture/data-model.md`       | ⚠️ Parcial (estructura + Portal/Docentes, resto vacío)                    | Completar a medida que se definan entidades                                                            |
-| `architecture/infrastructure.md`   | ⚠️ Skeleton (TBD en VMs/deploy/secrets/backup)                            | Completar cuando UNLaM provisione VMs                                                                  |
-| `architecture/domains/<modulo>.md` | ⚠️ Esqueleto (proposito + roles + dependencias; entidades y BR-\* vacías) | Llenar a medida que cada módulo evolucione                                                             |
-| `plans/backlog.md`                 | 📝 Vacío                                                                  | Items que vayan apareciendo                                                                            |
-| `plans/active/`                    | 📝 Vacío                                                                  | Llena con `/plan-feature`                                                                              |
-| `plans/completed/`                 | 📝 Vacío                                                                  | Llena automáticamente con `close-plan-on-merge` workflow                                               |
-| `quality/golden-principles.md`     | ✅ Completo                                                               | Sumar reglas a medida que aparezcan anti-patterns nuevos                                               |
-| `quality/grading-criteria.md`      | ✅ Completo (rúbrica para `/evaluate`)                                    | Estable                                                                                                |
-| `quality/scorecard.md`             | 📝 Vacío                                                                  | Se llena con `/evaluate`                                                                               |
-| `quality/tech-debt.md`             | 📝 Vacío                                                                  | Se llena cuando se detecte deuda                                                                       |
-| `workflows/`                       | ✅ 13 playbooks completos                                                 | Estable; ajustar si cambia un proceso                                                                  |
-| `business-rules/`                  | 📝 Solo `_template.md`                                                    | **Crear un .md por módulo a medida que se identifiquen BR-\***. Crítico para compliance reglamentario. |
-| `references/`                      | 📝 Solo README                                                            | Agregar `<lib>-llms.txt` cuando una lib se use intensivamente                                          |
+| Carpeta                                                   | Estado                                                                          | Acción                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `product/{brief,vision,design-principles}.md`             | ✅ Completos                                                                    | Revisar/precisar; métricas pueden necesitar baseline real                       |
+| `product/designs/`                                        | 📝 Placeholder (herramienta UX TBD)                                             | Completar cuando el equipo decida                                               |
+| `architecture/{stack,module-anatomy,dependency-graph}.md` | ✅ Completos                                                                    | `dependency-graph` se actualiza SIEMPRE que cambie un edge cross-module         |
+| `architecture/api-contracts.md`                           | ⚠️ Parcial (solo ping endpoints)                                                | Completar a medida que se definan endpoints (mismo PR — invariante #6)          |
+| `architecture/data-model.md`                              | ⚠️ Parcial                                                                      | Completar a medida que se definan entidades; marcar PII explícita               |
+| `architecture/infrastructure.md`                          | ⚠️ Skeleton (TBD)                                                               | Completar cuando UNLaM provisione VMs                                           |
+| `architecture/domains/<modulo>.md`                        | ⚠️ Esqueleto                                                                    | Llenar entidades/API/BR a medida que cada módulo evolucione                     |
+| `plans/backlog.md`                                        | 📝 Vacío                                                                        | Ideas pendientes de proponer; features activas en `openspec/changes/`           |
+| `quality/{golden-principles,grading-criteria}.md`         | ✅ Completos                                                                    | Sumar reglas cuando aparezcan anti-patterns                                     |
+| `quality/{scorecard,tech-debt}.md`                        | 📝 Se llenan con `/evaluate` y al detectar deuda                                | —                                                                               |
+| `workflows/`                                              | `open-pr.md` (referencia) + `README.md` (índice); el detalle vive en las skills | Estable                                                                         |
+| `business-rules/`                                         | 📝 Solo `_template.md`                                                          | **Crear un .md por módulo con cada BR-\*** — crítico para compliance (ver §2.2) |
+| `references/`                                             | 📝 Solo README                                                                  | Agregar `<lib>-llms.txt` cuando una lib se use intensivamente                   |
 
-### 2.2 Qué completar y cómo
+### 2.2 Business rules — TAREA CRÍTICA INICIAL
 
-#### 2.2.1 Specs de feature
-
-**No las llenes a priori**. Se crean **una por feature** cuando arranca esa feature, usando `/plan-feature <descripción>`. La skill genera el `.md` desde `_template.md` con el contenido específico.
-
-#### 2.2.2 Business rules — TAREA CRÍTICA INICIAL
-
-Esta es la **tarea más importante** del primer mantenedor: identificar las **reglas reglamentarias** del Departamento de Ingeniería UNLaM y registrarlas en `docs/business-rules/<modulo>.md`.
+La tarea más importante del primer mantenedor: identificar las **reglas reglamentarias** del Departamento de Ingeniería UNLaM y registrarlas en `docs/business-rules/<modulo>.md`.
 
 **Proceso**:
 
-1. Pedir al cliente (Secretaría Académica / Departamento) los documentos normativos relevantes:
-   - Estatuto universitario UNLaM
-   - Régimen de docencia
-   - Normativas departamentales sobre designaciones, mesas de examen, reservas
-   - Cualquier disposición que afecte el flujo del sistema
+1. Pedir al cliente (Secretaría Académica / Departamento) los documentos normativos: estatuto UNLaM, régimen de docencia, normativas departamentales sobre designaciones/mesas/reservas, disposiciones que afecten el flujo.
 2. Por cada módulo, crear `docs/business-rules/<modulo>.md` desde `_template.md`.
-3. Por cada regla que el sistema deba implementar:
-   - Asignar ID `BR-<modulo>-NNN` (numeración local, empieza en 001).
-   - Llenar `Statement`, `Rationale`, `Provenance: from_regulation`, `Fuente normativa` (cita exacta), `Ejemplos` (positivos y negativos), `Roles afectados`.
-4. **No inventar reglas**. Si una regla no está en la normativa pero parece obvia, marcarla como `Provenance: inferred_from_code` o `confirmed_user` y validarla con el cliente.
-
-Ejemplo:
+3. Por cada regla a implementar: asignar `BR-<modulo>-NNN`; llenar `Statement`, `Rationale`, `Provenance: from_regulation`, `Fuente normativa` (cita exacta), `Ejemplos` (positivo + negativo), `Roles afectados`.
+4. **No inventar reglas**. Si no está en la normativa pero parece obvia, marcarla `inferred_from_code` o `confirmed_user` y validarla con el cliente.
 
 ```markdown
 ### BR-designaciones-001 Solo el Coordinador de la carrera puede aprobar designaciones de esa carrera
 
-- **Statement:** El Coordinador de Carrera solo puede aprobar/rechazar designaciones de docentes asignados a carreras bajo su coordinación. Designaciones de otras carreras quedan fuera de su scope.
-- **Rationale:** Cumple separación de responsabilidades entre coordinadores de distintas carreras del Departamento.
+- **Statement:** El Coordinador de Carrera solo aprueba/rechaza designaciones de docentes de carreras bajo su coordinación.
 - **Provenance:** `from_regulation`
 - **Fuente normativa:** Régimen de Designaciones Docentes UNLaM, Art. 14
-- **Ejemplos:**
-  - Positivo: Coordinador de Ingeniería Informática aprueba designación de docente de Programación I.
-  - Negativo: Coordinador de Ingeniería Informática NO puede aprobar designación de docente de Cálculo (otra carrera).
-- **Roles afectados:** Coordinador de Carrera, Jefe de Cátedra (solicitante)
+- **Ejemplos:** Positivo: Coord. de Informática aprueba designación de Programación I. Negativo: NO puede aprobar una de Cálculo (otra carrera).
+- **Roles afectados:** Coordinador de Carrera, Jefe de Cátedra
 ```
 
-**Cada BR debe tener un test** que la verifique cuando la regla se implemente. El mapping va en la sección "Test mapping" del mismo archivo.
+**Cada BR debe tener un test** cuando la regla se implemente; el mapping va en la sección "Test mapping" del mismo archivo (lo cubre `/add-tests --lane business`).
 
-#### 2.2.3 API contracts
+### 2.3 Resto del contenido (a medida que aparece)
 
-`docs/architecture/api-contracts.md` tiene la estructura armada con headers, autenticación, error shape, formato de tablas por módulo. **Faltan las filas de endpoints reales** (solo está el `/ping` de cada módulo como ejemplo).
+- **api-contracts / data-model / domains**: completar la fila/entidad en el MISMO PR que introduce el endpoint, migration EF Core, o cambio de módulo.
+- **infrastructure**: VMs, deploy process, secrets, backup, reverse proxy, hardening, monitoring — cuando UNLaM entregue las VMs. Ahí también crear los runbooks (`deploy.md`, `troubleshooting.md`, `restore-from-backup.md`) y recrear las skills de ops/auditoría retiradas (ver `docs/quality/tech-debt.md` TD-002/TD-003).
+- **design specs**: hasta elegir herramienta UX, son `.md` en `docs/product/designs/` siguiendo `_design-spec-template.md`.
 
-Cada vez que se agregue un endpoint, completar la fila correspondiente. Lo ideal es que ocurra en el MISMO PR que introduce el endpoint (es invariante #6 del CLAUDE.md).
+### 2.4 Re-bootstrap (rehacer contenido inicial)
 
-#### 2.2.4 Data model
-
-`docs/architecture/data-model.md` tiene la estructura por módulo + ya nombró `Portal.Docentes` con la nota de PII. **Faltan las entidades reales de cada módulo** a medida que se diseñen.
-
-Cuando se crea una migration EF Core, agregar la fila correspondiente. Marcar siempre la columna **PII** explícitamente (Sí/No + qué campos).
-
-#### 2.2.5 Infrastructure
-
-`docs/architecture/infrastructure.md` está como **skeleton con secciones TBD**. Completar a medida que UNLaM entregue las VMs:
-
-- **Topología VMs**: tipo, OS, recursos, dominios.
-- **Deployment process**: el proceso decidido (GitHub Actions → SSH, manual, Ansible).
-- **Secrets management**: en qué env vars + dónde se guardan + quién tiene acceso.
-- **Backup strategy**: frecuencia, destino, retención, encriptación.
-- **Reverse proxy**: ajustar `infra/nginx/ars-docendi.conf` con dominio real.
-- **Hardening checklist**: ir tildando a medida que se aplica.
-- **Monitoring**: si se decide montar Prometheus/Grafana o algo más simple.
-
-Cuando se concrete el deploy, crear los runbooks operacionales:
-
-- `docs/workflows/deploy.md`
-- `docs/workflows/troubleshooting.md`
-- `docs/workflows/restore-from-backup.md`
-
-#### 2.2.6 Domain docs
-
-`docs/architecture/domains/<modulo>.md` están armados con propósito, roles, bounded context y dependencias proyectadas. **Las entidades, API pública concreta y BR-\* siguen vacías** porque se materializan a medida que se diseña cada módulo.
-
-A medida que `/create-module` o `/modify-module` se invoquen, actualizá los domain docs en el MISMO PR.
-
-#### 2.2.7 Design specs
-
-Hasta que el equipo elija herramienta UX, los design specs son archivos `.md` en `docs/product/designs/` siguiendo `_design-spec-template.md`. Describen layout, estados, decisiones. Cuando se elija herramienta, agregar el MCP correspondiente a `.mcp.json` y portar la skill `visual-test` del template original.
-
-### 2.3 Si querés re-bootstrap (rehacer el contenido inicial)
-
-El harness ya hizo el bootstrap mecánico con info derivada del CLAUDE.md original. Pero si querés **rehacer desde cero** con sesiones interactivas de aclaración con el equipo, podés correr:
-
-```
-/init-project
-```
-
-Esto pregunta sobre producto, problema, plataformas, scope, métricas y dirección de diseño, y reescribe los 3 archivos de `docs/product/`.
-
-```
-/architecture-proposal
-```
-
-Esto pregunta sobre runtime topology, stack, dominios, API pública, persistencia, infrastructure, y reescribe los 7 archivos de `docs/architecture/` + un domain doc por bounded context.
-
-**Cuidado**: ambas skills sobreescriben los archivos. Hacelo en una branch separada (`chore/re-init-project`) y diffeá contra `develop` antes de mergear, no sea que se pierdan precisiones que ya tenías.
-
-### 2.4 Quality docs (golden-principles, tech-debt)
-
-A medida que el proyecto avance:
-
-- **`golden-principles.md`**: cada vez que una clase de bug se podría haber prevenido con una regla, agregala. La skill `/fix-bug` step 8 lo recuerda.
-- **`tech-debt.md`**: cuando dejás deuda intencional (fix parcial, atajo justificado, follow-up), agregala con severidad + owner. La skill `/evaluate` la lee para detectar deudas no documentadas.
+`/init-project` reescribe `docs/product/*`; `/architecture-proposal` reescribe `docs/architecture/*`. **Ambas sobreescriben** — corré en branch separada y diffeá contra `develop` antes de mergear.
 
 ---
 
-## 3. Uso recurrente — cheat sheet
+## 3. Cheat sheet
 
-Para el day-to-day, una vez que ya conocés el sistema.
-
-### 3.1 Comandos shell más usados
+### 3.1 Comandos shell
 
 ```bash
-# Setup (solo primera vez o reset)
-./scripts/setup.sh
-
-# Dev backend
-dotnet run --project backend/src/ArsDocendi.Host
-
-# Dev frontend
-pnpm --filter frontend dev
-
-# Tests backend
-dotnet test backend/ArsDocendi.slnx
-dotnet test --filter "FullyQualifiedName~NombreDelTest"   # uno solo
-
-# Build backend
-dotnet build backend/ArsDocendi.slnx
-
-# Build / lint frontend
-pnpm --filter frontend build
-pnpm --filter frontend lint
-
-# Format
-pnpm format          # arregla todo
-pnpm format:check    # solo verifica
-
-# Regenerar índices de plans / specs / business-rules
-pnpm generate-indexes
-
-# Docker compose
-docker compose up -d         # levanta servicios en background
-docker compose ps            # estado
-docker compose logs -f api   # tail logs
-docker compose down          # baja todo
+./scripts/setup.sh                                  # setup (primera vez / reset)
+dotnet run --project backend/src/ArsDocendi.Host    # dev backend
+pnpm --filter frontend dev                          # dev frontend
+dotnet test backend/ArsDocendi.slnx                 # tests backend
+dotnet test --filter "FullyQualifiedName~NombreTest"   # uno solo
+dotnet build backend/ArsDocendi.slnx                # build backend
+pnpm --filter frontend build|lint                   # build / lint frontend
+pnpm format[:check]                                 # formatea / verifica
+pnpm generate-indexes                               # índice de business-rules
+openspec list | openspec view <id>                  # changes OpenSpec
+docker compose up -d | ps | logs -f api | down      # postgres local
 ```
 
-### 3.2 Skills más usadas (por frecuencia)
+### 3.2 Skills más usadas
 
-| Skill            | Cuándo                            | Ejemplo                                                                       |
-| ---------------- | --------------------------------- | ----------------------------------------------------------------------------- |
-| `/plan-feature`  | Empezar una feature nueva         | `/plan-feature listado de aulas disponibles por fecha`                        |
-| `/add-feature`   | Implementar plan aprobado         | `/add-feature listado-aulas-disponibles`                                      |
-| `/fix-bug`       | Algo roto / regresión             | `/fix-bug formato fecha en designación aparece DD/MM en API pero MM/DD en UI` |
-| `/complete-plan` | Post-merge manual                 | `/complete-plan listado-aulas-disponibles` (usualmente automático)            |
-| `/pr-review`     | Review estructurado de PR         | `/pr-review 42`                                                               |
-| `/ci-fix`        | CI fallido en tu PR               | `/ci-fix 42`                                                                  |
-| `/add-tests`     | Cubrir gaps de tests              | `/add-tests designaciones --lane business`                                    |
-| `/create-module` | Módulo .NET nuevo                 | `/create-module Examenes`                                                     |
-| `/modify-module` | Cambio en módulo existente        | `/modify-module Designaciones`                                                |
-| `/evaluate`      | Autocrítica de feature completada | `/evaluate exportar-designaciones-excel`                                      |
+| Skill / Comando  | Cuándo                            | Ejemplo                                        |
+| ---------------- | --------------------------------- | ---------------------------------------------- |
+| `/opsx:propose`  | Empezar una feature nueva         | `/opsx:propose listado de aulas por fecha`     |
+| `/add-feature`   | Implementar change aprobado       | `/add-feature listado-aulas-disponibles`       |
+| `/opsx:apply`    | Ejecutar tasks de un change       | `/opsx:apply listado-aulas-disponibles`        |
+| `/opsx:archive`  | Post-merge: archivar change       | `/opsx:archive listado-aulas-disponibles`      |
+| `/fix-bug`       | Algo roto / regresión             | `/fix-bug fecha DD/MM en API pero MM/DD en UI` |
+| `/pr-review`     | Review estructurado de PR         | `/pr-review 42`                                |
+| `/ci-fix`        | CI fallido en tu PR               | `/ci-fix 42`                                   |
+| `/add-tests`     | Cubrir gaps de tests              | `/add-tests designaciones --lane business`     |
+| `/create-module` | Módulo .NET nuevo                 | `/create-module Examenes`                      |
+| `/modify-module` | Cambio en módulo existente        | `/modify-module Designaciones`                 |
+| `/evaluate`      | Autocrítica de feature completada | `/evaluate exportar-designaciones-excel`       |
 
-### 3.3 Flujos comunes paso a paso
+### 3.3 Flujos comunes
 
-#### Nueva feature
-
-```
-1. git checkout develop && git pull
-2. git checkout -b feature/<kebab-slug>
-3. /plan-feature <descripción>     → genera spec + plan
-4. [equipo aprueba spec + plan]    → ajustes si hace falta
-5. /add-feature <kebab-slug>       → implementa, abre PR a develop
-6. /pr-review <PR-number>          → opcional: review estructurado
-7. [merge a develop]               → workflow close-plan-on-merge mueve plan a completed/
-```
-
-#### Bug fix simple
+**Nueva feature**
 
 ```
-1. git checkout develop && git pull
-2. git checkout -b feature/fix-<descripcion-corta>
-3. /fix-bug <descripción del bug>  → red-green-refactor
-4. [revisar diff]                  → confirmar que no hay drive-by changes
-5. git push + abrir PR (la skill suele hacerlo)
-6. [merge a develop]
+1. git checkout develop && pull; git checkout -b feature/<kebab>
+2. /opsx:propose <descripción>   → openspec/changes/<id>/ (proposal+design+specs+tasks)
+3. [equipo aprueba]              → change apply-ready
+4. /add-feature <id>             → gates del proyecto + ejecución vía /opsx:apply + PR
+5. /pr-review <PR>               → opcional
+6. [merge] → /opsx:archive <id>  → archiva change + mergea delta specs
 ```
 
-#### Bug que toca múltiples módulos / Contracts
+**Bug fix simple**
 
 ```
-1. /fix-bug <descripción>          → en step 2 detecta escalación, te avisa
-2. La skill llena docs/product/specs/_bug-template.md (copia adaptada)
-3. Continuás: red-green sobre las Contracts impactadas
-4. Documentar consumidores afectados en el PR body
+1. branch feature/fix-<corto>
+2. /fix-bug <descripción>        → red-green-refactor
+3. [revisar diff: sin drive-by] → PR (la skill suele abrirlo) → merge
 ```
 
-#### Cambio cross-module (sin bug)
+**Bug que toca Contracts / múltiples módulos**: `/fix-bug` detecta la escalación en su step 2 e indica crear un change con `/opsx:propose`; documentás consumidores afectados en el PR.
 
-```
-1. /modify-module <NombreModulo>   → analiza impacto Contracts
-2. Si breaking → te indica escalar a /plan-feature
-3. Si aditivo → implementás, actualizás dependency-graph.md
-```
+**Cambio cross-module sin bug**: `/modify-module <X>` analiza impacto Contracts; si es breaking escala a `/opsx:propose`, si es aditivo implementás y actualizás `dependency-graph.md`.
 
-#### Antes de release / mensual
+**Antes de release / periódico**: `/evaluate <feature>` (score + scorecard) y `/architecture-drift-check` (docs vs código). _(Las pasadas de `/security-audit` y `/test-gap-monitor` están diferidas hasta que haya más código — ver tech-debt TD-003.)_
 
-```
-/evaluate <feature-reciente>       → score + scorecard
-/security-audit                    → deps vulnerables, secrets, auth
-/architecture-drift-check          → docs vs código real
-/test-gap-monitor                  → tests faltantes (BR-*, endpoints)
-```
+### 3.4 Path-scoped guides (auto-inyectan)
 
-#### Post-deploy (cuando haya prod)
+| Path                                                  | Guide                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------- |
+| `backend/src/Modules.*/`, `ArsDocendi.{Host,Shared}/` | `dotnet-modules-guide` (layers, Contracts, ping)        |
+| `frontend/src/`                                       | `react-features-guide` (features aisladas, React Query) |
 
-```
-/check-deploy prod                 → health endpoints + latencia
-/infra-logs-monitor prod           → drift logs vs infrastructure.md
-```
+### 3.5 Convenciones siempre presentes
 
-#### Algo se rompe en prod
-
-```
-/debug-production <síntoma>        → correlación logs + recent changes
-                                   → si causa clara: /fix-bug
-                                   → si no: documentar y pedir más data
-```
-
-### 3.4 Path-scoped guides (auto-inyectan, no las invocás)
-
-Cuando Claude Code toca archivos en estos paths, las guides correspondientes se activan automáticamente y le recuerdan las convenciones:
-
-| Path                             | Guide                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------- |
-| `backend/src/Modules.*/`         | `dotnet-modules-guide` (layers, Contracts cross-module, ping endpoint)    |
-| `backend/src/ArsDocendi.Host/`   | `dotnet-modules-guide`                                                    |
-| `backend/src/ArsDocendi.Shared/` | `dotnet-modules-guide`                                                    |
-| `frontend/src/`                  | `react-features-guide` (features aisladas, React Query, axios compartido) |
-
-No tenés que hacer nada — solo confirma que las convenciones se aplican automáticamente.
-
-### 3.5 Atajos útiles
-
-```bash
-# Ver solo el diff staged
-git diff --staged
-
-# Listar planes activos (después de generar índices)
-cat docs/plans/active/_index.md
-
-# Listar BR-* de un módulo
-grep -n "^### BR-" docs/business-rules/designaciones.md
-
-# Mirar qué hace el pre-commit sin commitear
-pnpm exec lint-staged --debug
-
-# Forzar regenerar el lock
-rm pnpm-lock.yaml && pnpm install
-
-# Backend rebuild rápido (sin restore)
-dotnet build backend/ArsDocendi.slnx --no-restore
-
-# Frontend dev sin Vite cache
-rm -rf frontend/node_modules/.vite && pnpm --filter frontend dev
-```
-
-### 3.6 Convenciones a tener siempre presentes
-
-- **Pre-commit falla → arreglar, NO bypass con `--no-verify`**.
-- **Spec + plan ANTES de código** para features no triviales (hard gate en `/add-feature`).
-- **Cross-module solo via Contracts** (invariante #1).
-- **Cambios de schema/API → actualizar docs en el MISMO PR** (invariante #6).
-- **Red-green obligatorio en bug fixes** (invariante #9).
-- **BR-\* obligatorio para reglas reglamentarias** (invariante #11).
-- **Sin AI attribution en commits**: el proyecto explícitamente NO usa `Co-Authored-By: Claude` ni similares.
+- **Pre-commit falla → arreglar, NO `--no-verify`**.
+- **Change OpenSpec apply-ready ANTES de código** (hard gate en `/add-feature`).
+- **Cross-module solo vía Contracts** (#1) · **schema/API → docs mismo PR** (#6) · **red-green en bugs** (#9) · **BR-\* para reglas reglamentarias** (#11).
+- **Sin AI attribution en commits**: el proyecto NO usa `Co-Authored-By: Claude` ni similares.
 
 ---
 
 ## Cuando algo se rompe
 
-| Problema                                         | Acción                                                                                                                                      |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pre-commit aborta el commit                      | Leer el error, arreglar formato/lint, `git add` archivos modificados, re-commit                                                             |
-| `pnpm install` falla con peer dep warnings       | Verificar Node ≥ 20.19 y pnpm ≥ 9. Si persiste, `rm -rf node_modules pnpm-lock.yaml && pnpm install`                                        |
-| `dotnet restore` falla                           | Verificar `dotnet --version` ≥ 10.0.x. Borrar caches: `dotnet nuget locals all --clear`                                                     |
-| Docker compose: Postgres no levanta              | `docker compose down -v` (cuidado: borra datos) y reintentar                                                                                |
-| Tests fallan en CI pero no localmente            | Probable env de CI distinto. Revisar `.github/workflows/ci.yml` y reproducir las versiones exactas                                          |
-| CI rojo en tu PR                                 | `/ci-fix <PR-number>`                                                                                                                       |
-| El bot de `close-plan-on-merge` no movió el plan | Probablemente el PR tocó múltiples planes o ninguno detectable. Hacelo manual: `/complete-plan <slug>`                                      |
-| Skill `/<nombre>` no aparece en la lista         | Confirmá que existe `.claude/skills/<nombre>/SKILL.md` con frontmatter `name:` correcto. Reiniciar Claude Code si fue creada en esta sesión |
-
----
+| Problema                          | Acción                                                                                              |
+| --------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Pre-commit aborta el commit       | Leer el error, arreglar formato/lint, `git add` modificados, re-commit                              |
+| `pnpm install` falla (peer deps)  | Node ≥ 20.19 y pnpm ≥ 9; si persiste `rm -rf node_modules pnpm-lock.yaml && pnpm install`           |
+| `dotnet restore` falla            | `dotnet --version` ≥ 10.0.x; `dotnet nuget locals all --clear`                                      |
+| Postgres no levanta               | `docker compose down -v` (borra datos) y reintentar                                                 |
+| Tests fallan en CI, no localmente | Env de CI distinto — revisar `.github/workflows/ci.yml` y reproducir versiones                      |
+| CI rojo en tu PR                  | `/ci-fix <PR>`                                                                                      |
+| Olvidaste archivar post-merge     | `/opsx:archive <id>`                                                                                |
+| Skill `/<nombre>` no aparece      | Confirmá `.claude/skills/<nombre>/SKILL.md` con frontmatter `name:` correcto; reiniciar Claude Code |
 
 ## Si te perdés
 
-- **Tabla de navegación general**: [CLAUDE.md](CLAUDE.md#tabla-de-navegación)
-- **Workflows detallados** (qué hace cada skill): [docs/workflows/README.md](docs/workflows/README.md)
-- **Reglas no negociables**: [CLAUDE.md → Invariantes](CLAUDE.md#invariantes-no-negociables)
-- **Calidad y anti-patterns**: [docs/quality/golden-principles.md](docs/quality/golden-principles.md)
-- **Cómo abrir un PR canónico**: [docs/workflows/open-pr.md](docs/workflows/open-pr.md)
+- **Navegación general** + **invariantes**: [CLAUDE.md](CLAUDE.md)
+- **¿Qué skill uso?**: [docs/workflows/README.md](docs/workflows/README.md)
+- **Calidad / anti-patterns**: [docs/quality/golden-principles.md](docs/quality/golden-principles.md)
+- **Abrir un PR canónico**: [docs/workflows/open-pr.md](docs/workflows/open-pr.md)
 
-Si después de todo esto sigue sin estar claro, **preguntale al equipo**. Si la confusión se repite, probablemente falta documentación — agregala en el PR donde la viviste.
+Si sigue sin estar claro, preguntale al equipo. Si la confusión se repite, falta documentación — agregala en el PR donde la viviste.

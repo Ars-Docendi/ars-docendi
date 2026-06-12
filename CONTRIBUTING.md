@@ -49,14 +49,14 @@ pnpm format:check   # verifica sin modificar
 
 ### Feature nueva (con Claude Code skills)
 
-El flujo recomendado usa las skills del proyecto:
+El flujo recomendado usa las skills y comandos del proyecto:
 
-1. **Plan** — `/plan-feature <descripción>` genera `docs/product/specs/<slug>.md` + `docs/plans/active/<slug>.md`.
-2. **Review humano del plan** — el equipo aprueba o pide cambios en los archivos generados.
-3. **Implementación** — `/add-feature <slug>` ejecuta el plan respetando spec, layers y BR-\*.
+1. **Change** — `/opsx:propose <descripción>` genera `openspec/changes/<id>/` (proposal + design + specs + tasks).
+2. **Review humano del change** — el equipo aprueba o pide cambios; el change queda apply-ready.
+3. **Implementación** — `/add-feature <id>` aplica los gates del proyecto y delega la ejecución de tasks a `/opsx:apply`.
 4. **PR** — la skill abre el PR a `develop` (ver `docs/workflows/open-pr.md`).
 5. **Review humano del PR** — opcional complemento con `/pr-review <NUMBER>`.
-6. **Merge** — el workflow `close-plan-on-merge.yml` mueve el plan a `completed/` automáticamente.
+6. **Post-merge** — archivar el change con `/opsx:archive <id>` (mergea las delta specs a `openspec/specs/`).
 
 ### Feature nueva (sin Claude Code)
 
@@ -64,8 +64,7 @@ El flujo recomendado usa las skills del proyecto:
 git checkout develop && git pull
 git checkout -b feature/mi-feature
 
-# Crear spec manual: docs/product/specs/mi-feature.md (desde _template.md)
-# Crear plan manual:  docs/plans/active/mi-feature.md (desde _template.md)
+# Crear/editar el change en openspec/changes/<id>/ con proposal, design, specs y tasks
 # ... implementar ...
 
 git push -u origin feature/mi-feature
@@ -85,7 +84,7 @@ Abrir **dos** PRs: uno a `main`, otro a `develop`. Ambos deben mergearse.
 
 ### Bug (no hotfix)
 
-Usar `/fix-bug <descripción>` para flujo red-green-refactor. Detalle en [docs/workflows/fix-bug.md](docs/workflows/fix-bug.md).
+Usar `/fix-bug <descripción>` para flujo red-green-refactor. Detalle en la skill `/fix-bug` (`.claude/skills/fix-bug/SKILL.md`).
 
 ### Release (promoción a producción)
 
@@ -103,7 +102,7 @@ NO reemplaza el review humano — lo complementa.
 
 ### Checklist mínimo del reviewer
 
-- [ ] El PR tiene spec + plan asociados (si es feature) o `_bug-template.md` (si es bug escalado).
+- [ ] El PR tiene change OpenSpec aprobado y apply-ready (si es feature) o spec de bug (si es bug escalado a change).
 - [ ] CI verde (backend + frontend + format-check).
 - [ ] Tests cubren BR-\* aplicables (si la feature las introduce/modifica).
 - [ ] Docs actualizadas (dependency-graph, api-contracts, data-model, domains/) si hubo cambios estructurales.
@@ -157,6 +156,20 @@ Detalle en [docs/quality/golden-principles.md](docs/quality/golden-principles.md
 ### Sin atribución AI
 
 Por convención del proyecto, **no agregar** `Co-Authored-By: Claude` o similar a los commits. Las herramientas usadas (Claude Code u otras) son herramientas — el commit lo firma quien commitea.
+
+## Glue OpenSpec (política D7)
+
+El glue generado por OpenSpec (`.claude/commands/opsx/` + `.claude/skills/openspec-*`) **se versiona en el repo**: cualquiera que clone tiene el planning listo sin configuración adicional.
+
+### Disciplina obligatoria
+
+- Al bumpear el devDep `@fission-ai/openspec` en `package.json`, correr `openspec update` y commitear el glue regenerado en el **mismo PR** que bump el paquete.
+- **Nadie corre `openspec init` global** — el init ya está hecho y el glue vive en el repo.
+- El CI corre `openspec validate --strict` en cada PR sobre specs y changes. (Opcional pendiente: un guard que falle si `openspec update` produce diff, para detectar glue desincronizado.)
+
+### Por qué importa
+
+Si el glue en `.claude/commands/opsx/` queda desincronizado de la versión de la CLI instalada localmente, los comandos `/opsx:*` pueden fallar silenciosamente o comportarse distinto entre developers. El versionado del glue garantiza reproducibilidad.
 
 ## Recursos
 

@@ -1,0 +1,11 @@
+# Artefactos de build locales: nunca deben entrar al contexto de build.
+# El repo los versiona "sucios"; sin esto inflarían el contexto y romperían
+# la reproducibilidad de la imagen.
+**/bin/
+**/obj/
+
+# Caches y metadata de IDE.
+.vs/
+**/*.user
+
+# Nada de planning/infra/docs hace falta para buildear la imagen.

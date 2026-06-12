@@ -1,0 +1,81 @@
+# Deploy de ambiente efímero pr-N (SEGURIDAD CRÍTICA).
+#
+# Postura (D8):
+#   - Trigger `pull_request` (NUNCA `pull_request_target`): el patrón target
+#     expondría secrets a código de forks. Acá GITHUB_TOKEN es read-only por default.
+#   - Doble gate de maintainer antes de correr código del PR con secrets:
+#       1) label `deploy-preview` aplicado por un maintainer.
+#       2) GitHub Environment `pr-preview` con required reviewers (aprobación manual).
+#   - El job que buildea el código del PR y toca secrets corre en runner
+#     self-hosted EFÍMERO, solo DESPUÉS de pasar ambos gates.
+name: pr-env-deploy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write # para comentar la URL del ambiente
+  packages: write # push de imágenes a ghcr.io con GITHUB_TOKEN
+
+concurrency:
+  group: pr-env-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Gate 1: solo sigue si un maintainer puso el label. Corre en runner hosted,
+  # sin secrets, sin checkout del código del PR.
+  gate:
+    if: contains(github.event.pull_request.labels.*.name, 'deploy-preview')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Gate de maintainer OK (label deploy-preview presente)."
+
+  # Gate 2 (Environment pr-preview con required reviewers) + deploy.
+  deploy:
+    needs: gate
+    runs-on: [self-hosted, arsdocendi, efimero]
+    environment: pr-preview
+    env:
+      AMBIENTE: pr-${{ github.event.pull_request.number }}
+      TAG_FRONTEND: sha-${{ github.event.pull_request.head.sha }}
+      TAG_BACKEND: sha-${{ github.event.pull_request.head.sha }}
+      REGISTRO: ${{ vars.REGISTRO }}
+      DOMINIO: ${{ vars.DOMINIO }}
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      APP_DB_USER: app_pr_${{ github.event.pull_request.number }}
+      APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PREVIEW }}
+    steps:
+      # Checkout del código del PR (el SHA del head) — recién acá, post-gate.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Login al registro de imágenes
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Build & push imágenes del PR (tag por SHA del PR)
+        run: |
+          docker build -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
+          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" backend
+          docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
+          docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
+
+      - name: Spin-up pr-N (DB sembrada, no productiva)
+        run: infra/scripts/spin-up.sh "${AMBIENTE}"
+
+      - name: Comentar URL del ambiente
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # gh no está instalado en el runner efímero (solo Docker garantizado);
+          # posteamos el comentario por la REST API con curl (igual que el setup).
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${GITHUB_API_URL}/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -d "{\"body\": \"🚀 Ambiente efímero listo: https://${AMBIENTE}.${DOMINIO} (DB sembrada con datos sintéticos).\"}"

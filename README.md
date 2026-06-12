@@ -74,7 +74,7 @@ pnpm --filter frontend dev
 ```bash
 pnpm format               # formatea todo el repo (prettier)
 pnpm format:check         # verifica formato sin modificar
-pnpm generate-indexes     # regenera _index.md de docs/{plans,specs,business-rules}/
+pnpm generate-indexes     # regenera _index.md de docs/business-rules/
 dotnet test backend/ArsDocendi.slnx
 pnpm --filter frontend lint
 pnpm --filter frontend build
@@ -98,11 +98,12 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 │       └── Modules.Tareas/         + .Contracts/
 ├── frontend/                 # Vite + React 19 + TS
 │   └── src/{app,shared,features}/
-├── docs/                     # System of record (product, architecture, plans, quality, workflows, business-rules, references)
+├── openspec/                 # Planning: specs vigentes + changes activos/archivados (fuente de verdad)
+├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
 ├── infra/                    # Skeleton para deploy (nginx + systemd samples)
-├── scripts/                  # setup.sh + generate-indexes.ts + close-plan-on-merge.ts
+├── scripts/                  # setup.sh + generate-indexes.ts (solo business-rules)
 ├── .claude/skills/           # Skills Claude Code project-scoped
-├── .github/workflows/        # ci.yml (path filtering) + close-plan-on-merge.yml
+├── .github/workflows/        # ci.yml (path filtering + openspec validate)
 ├── .husky/pre-commit
 ├── lint-staged.config.mjs
 ├── package.json              # hospeda husky/lint-staged/prettier

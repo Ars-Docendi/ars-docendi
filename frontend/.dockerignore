@@ -1,0 +1,8 @@
+# Dependencias y build locales: se regeneran dentro del build.
+node_modules/
+dist/
+
+# Metadata de IDE / entorno local.
+.vs/
+*.local
+.env

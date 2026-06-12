@@ -1,0 +1,14 @@
+# systemd timer que dispara el reaper periódicamente (D9).
+# Por default corre una vez al día; ajustar OnCalendar según necesidad.
+
+[Unit]
+Description=Ars Docendi — timer del reaper de ambientes pr-N
+
+[Timer]
+# Diario a las 04:00 hora local del host.
+OnCalendar=*-*-* 04:00:00
+# Si el host estuvo apagado a la hora programada, corre al volver.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
