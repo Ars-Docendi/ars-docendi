@@ -44,7 +44,6 @@ infra/
 CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 `pr-env-deploy`, `pr-env-teardown`.
 
-
 ## Operación manual
 
 ```bash
