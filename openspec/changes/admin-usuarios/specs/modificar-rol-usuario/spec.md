@@ -1,4 +1,4 @@
-## UPDATED Requirements
+## ADDED Requirements
 
 > Esta spec reemplaza el flujo "Editar roles" (solo checkboxes de rol) por un flujo completo "Editar usuario" que permite modificar todos los datos de la persona, incluyendo roles.
 
@@ -54,7 +54,16 @@ Opcionales: CUIL, Teléfono.
 
 El modal SHALL re-inicializar sus campos internos cada vez que la prop `usuario` cambia (p.ej. al abrir el modal para un usuario diferente o al cerrarlo). Esta sincronización SHALL implementarse comparando la prop con el valor anterior durante el render (`if (usuario !== prevUsuario)`), **no** mediante `useEffect`. El uso de `useEffect` para llamar a `setState` directamente en su cuerpo está prohibido en esta base de código (`react-hooks/set-state-in-effect`).
 
+#### Scenario: Reapertura del modal para otro usuario
+
+- **WHEN** el modal se cierra y se vuelve a abrir para un usuario distinto
+- **THEN** los campos internos se re-inicializan con los valores del nuevo usuario sin arrastrar el estado anterior
+
 ### Requirement: Botones del modal con separación y colores semánticos
+
+El footer del modal SHALL ubicar "Cancelar" (rojo) a la izquierda y "Guardar cambios" (primary) a la derecha, con `justify-content: space-between`.
+
+#### Scenario: Disposición de los botones
 
 - **WHEN** el modal está abierto
 - **THEN** el botón "Cancelar" (rojo) está a la izquierda y "Guardar cambios" (primary) está a la derecha (`justify-content: space-between`)
