@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { FileUpload, type UploadedFile } from "@ars-docendi/ui";
 import {
+  TAMANO_MAX_BYTES,
+  excedeTamanoMaximo,
   exigeDocumentacion,
   type ArchivoCargado,
   type DocumentacionPedido,
@@ -8,6 +11,10 @@ import {
 
 /** Slots de documentos obligatorios (clave en DocumentacionPedido). */
 type SlotObligatorio = "cv" | "dniFrente" | "dniDorso";
+
+/** Límite expresado en MB, derivado de la constante para no desincronizar el copy. */
+const TAMANO_MAX_MB = Math.round(TAMANO_MAX_BYTES / (1024 * 1024));
+const MENSAJE_EXCEDE = `El archivo supera el límite de ${TAMANO_MAX_MB} MB.`;
 
 interface SeccionDocumentacionProps {
   tipo: TipoPedido;
@@ -39,15 +46,37 @@ export function SeccionDocumentacion({
   onRemoveOtro,
 }: SeccionDocumentacionProps) {
   const altaNueva = exigeDocumentacion(tipo);
+  // Mensaje de error de tamaño por slot. El archivo rechazado no entra al modelo;
+  // este estado es feedback transitorio de UI, por eso vive local a la sección.
+  const [erroresTamano, setErroresTamano] = useState<Record<string, string | null>>({});
+
+  function setError(slot: string, mensaje: string | null) {
+    setErroresTamano((previos) => ({ ...previos, [slot]: mensaje }));
+  }
 
   function handleSlot(slot: SlotObligatorio, files: FileList) {
     const file = files.item(0);
-    if (file) onSetDoc(slot, archivoDesdeFile(file, slot));
+    if (!file) return;
+    if (excedeTamanoMaximo(file)) {
+      setError(slot, MENSAJE_EXCEDE);
+      return;
+    }
+    setError(slot, null);
+    onSetDoc(slot, archivoDesdeFile(file, slot));
   }
 
   function handleOtros(files: FileList) {
-    const nuevos = Array.from(files).map((f) => archivoDesdeFile(f, crypto.randomUUID()));
-    onAddOtros(nuevos);
+    const validos: ArchivoCargado[] = [];
+    let huboExcedido = false;
+    for (const file of Array.from(files)) {
+      if (excedeTamanoMaximo(file)) {
+        huboExcedido = true;
+        continue;
+      }
+      validos.push(archivoDesdeFile(file, crypto.randomUUID()));
+    }
+    setError("otros", huboExcedido ? MENSAJE_EXCEDE : null);
+    if (validos.length > 0) onAddOtros(validos);
   }
 
   return (
@@ -84,9 +113,9 @@ export function SeccionDocumentacion({
               <FileUpload
                 accept="application/pdf"
                 title="CV (PDF)"
-                hint="Arrastrar acá o seleccionar — máx. 5 MB"
+                hint={erroresTamano.cv ?? `Arrastrar acá o seleccionar — máx. ${TAMANO_MAX_MB} MB`}
                 files={comoUploaded(documentacion.cv)}
-                error={altaNueva && !documentacion.cv}
+                error={(altaNueva && !documentacion.cv) || Boolean(erroresTamano.cv)}
                 onFilesAdded={(files) => handleSlot("cv", files)}
                 onRemove={() => onSetDoc("cv", null)}
               />
@@ -99,9 +128,9 @@ export function SeccionDocumentacion({
               <FileUpload
                 accept="image/*"
                 title="DNI · frente"
-                hint="JPG o PNG · máx. 5 MB"
+                hint={erroresTamano.dniFrente ?? `JPG o PNG · máx. ${TAMANO_MAX_MB} MB`}
                 files={comoUploaded(documentacion.dniFrente)}
-                error={altaNueva && !documentacion.dniFrente}
+                error={(altaNueva && !documentacion.dniFrente) || Boolean(erroresTamano.dniFrente)}
                 onFilesAdded={(files) => handleSlot("dniFrente", files)}
                 onRemove={() => onSetDoc("dniFrente", null)}
               />
@@ -114,9 +143,9 @@ export function SeccionDocumentacion({
               <FileUpload
                 accept="image/*"
                 title="DNI · dorso"
-                hint="JPG o PNG · máx. 5 MB"
+                hint={erroresTamano.dniDorso ?? `JPG o PNG · máx. ${TAMANO_MAX_MB} MB`}
                 files={comoUploaded(documentacion.dniDorso)}
-                error={altaNueva && !documentacion.dniDorso}
+                error={(altaNueva && !documentacion.dniDorso) || Boolean(erroresTamano.dniDorso)}
                 onFilesAdded={(files) => handleSlot("dniDorso", files)}
                 onRemove={() => onSetDoc("dniDorso", null)}
               />
@@ -128,7 +157,11 @@ export function SeccionDocumentacion({
           <FileUpload
             multiple
             title="Adjuntar otros documentos (opcional)"
-            hint="Plan de trabajo · certificaciones · otros respaldatorios"
+            hint={
+              erroresTamano.otros ??
+              `Plan de trabajo · certificaciones · otros respaldatorios · máx. ${TAMANO_MAX_MB} MB c/u`
+            }
+            error={Boolean(erroresTamano.otros)}
             files={documentacion.otros.map((a) => ({ id: a.id, name: a.name, size: a.size }))}
             onFilesAdded={handleOtros}
             onRemove={onRemoveOtro}

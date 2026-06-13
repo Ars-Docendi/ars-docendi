@@ -53,6 +53,9 @@ export interface PedidoMock {
 export const JUSTIFICACION_MIN = 20;
 export const JUSTIFICACION_MAX = 1000;
 
+/** Tamaño máximo permitido por archivo en la sección Documentación (5 MB). */
+export const TAMANO_MAX_BYTES = 5 * 1024 * 1024;
+
 export const TIPOS_PEDIDO: {
   id: TipoPedido;
   nombre: string;
@@ -128,6 +131,11 @@ export function pedidoAltaNueva(): PedidoMock {
     designacion: { ...base.designacion, antiguedad: "0 años" },
     documentacion: { cv: null, dniFrente: null, dniDorso: null, otros: [] },
   };
+}
+
+/** True cuando el archivo supera el tamaño máximo permitido por documento. */
+export function excedeTamanoMaximo(file: File): boolean {
+  return file.size > TAMANO_MAX_BYTES;
 }
 
 /** True cuando el tipo exige CV + DNI (frente y dorso). */

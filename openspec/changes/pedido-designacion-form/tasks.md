@@ -12,6 +12,7 @@
 - [x] 2.4 Implementar `components/SeccionDesignacion.tsx` con `Field` + `Select`/`Input` (Materia, Comisión, Cargo, Horas, Dedicación, Antigüedad) y el bloque comparativo "Actual → Solicitado" condicional a Cambio de cargo.
 - [x] 2.5 Implementar `components/SeccionJustificacion.tsx` con `Textarea` de la lib + contador de caracteres (mín. 20 / máx. 1000).
 - [x] 2.6 Implementar `components/SeccionDocumentacion.tsx` con un `FileUpload` por documento obligatorio (CV PDF, DNI frente, DNI dorso) + `FileUpload multiple` opcional; tinte warning y slots faltantes cuando el tipo es Alta nueva.
+- [x] 2.6.1 Validar tamaño máximo (5 MB, constante `TAMANO_MAX_BYTES` + helper puro `excedeTamanoMaximo`) en los 4 slots de Documentación: rechazar el archivo excedido, marcar el slot en error con mensaje y derivar el hint "máx. 5 MB" de la constante.
 - [x] 2.7 Implementar `components/FooterPedido.tsx`: mensaje de validación a la izquierda + acciones (Cancelar / Guardar borrador / Enviar a revisión) con `Button` de la lib, "Enviar a revisión" como única primaria.
 
 ## 3. Página y lógica de validación

@@ -48,6 +48,20 @@ Cuando el tipo sea "Cambio de cargo", el sistema SHALL mostrar el bloque compara
 - **WHEN** el tipo de pedido seleccionado es "Cambio de cargo"
 - **THEN** la sección Designación muestra el bloque "Actual → Solicitado"; para los demás tipos ese bloque no aparece
 
+### Requirement: Límite de tamaño de los archivos de Documentación
+
+El sistema SHALL rechazar cualquier archivo cuyo tamaño supere los 5 MB en todos los slots de la sección Documentación (CV en PDF, DNI frente, DNI dorso y otros documentos). El archivo rechazado NO SHALL incorporarse al pedido, y el slot correspondiente SHALL mostrar un mensaje de error indicando que se superó el límite, sin afectar a los archivos ya cargados. El texto de ayuda de cada slot SHALL anunciar el límite máximo antes de cargar.
+
+#### Scenario: Rechazo de un archivo que supera el límite
+
+- **WHEN** el usuario selecciona para un slot de Documentación un archivo de más de 5 MB
+- **THEN** el archivo no se incorpora al pedido y el slot muestra un mensaje de error indicando que se superó el límite de 5 MB
+
+#### Scenario: Archivo dentro del límite
+
+- **WHEN** el usuario selecciona un archivo de 5 MB o menos
+- **THEN** el archivo se incorpora al slot correspondiente y no se muestra error de tamaño
+
 ### Requirement: Componentes provistos por la librería de UI
 
 El sistema SHALL construir los controles del formulario con los componentes de `@ars-docendi/ui` (`Field`, `Input`, `Select`, `Textarea`, `FileUpload`, `InlineAlert`, `Button`, `Breadcrumbs`), sin reimplementar esos primitivos dentro de la feature.
