@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Persistencia;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +12,9 @@ public static class ModuleExtensions
 {
     public static IServiceCollection AddPortalModule(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContext<PortalDbContext>(opt =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi")));
+        services.AddDbContext<PortalDbContext>((sp, opt) =>
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+               .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorPortal>();
 

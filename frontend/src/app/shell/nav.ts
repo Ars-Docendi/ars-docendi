@@ -27,9 +27,8 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        { to: "/designaciones", icon: "pedidos", label: "Pedidos" },
+        { to: "/designaciones", icon: "pedidos", label: "Designaciones" },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
-        { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
     },
     {
@@ -41,7 +40,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        { to: "/designaciones", icon: "designaciones", label: "Pedidos · revisar" },
+        { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
     },
@@ -55,9 +54,13 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Trabajo",
       items: [
         { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
-        { to: "/aulas", icon: "aulas", label: "Aulas" },
+        { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
+    },
+    {
+      label: "Configuración",
+      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
     },
     {
       label: "Personal",
@@ -67,7 +70,10 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   Decanato: [
     {
       label: "Trabajo",
-      items: [{ to: "/designaciones", icon: "designaciones", label: "Designaciones" }],
+      items: [
+        { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/tareas", icon: "tareas", label: "Tareas" },
+      ],
     },
     {
       label: "Personal",
@@ -78,9 +84,14 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        { to: "/aulas", icon: "aulas", label: "Aulas" },
+        { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
+    },
+    {
+      label: "Configuración",
+      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
     },
     {
       label: "Personal",
@@ -89,12 +100,12 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   ],
   Docente: [
     {
+      label: "Trabajo",
+      items: [{ to: "/aulas", icon: "aulas", label: "Reserva de aulas" }],
+    },
+    {
       label: "Personal",
-      items: [
-        { to: "/portal", icon: "portal", label: "Mi Portal" },
-        { to: "/designaciones", icon: "pedidos", label: "Mis designaciones" },
-        { to: "/aulas", icon: "aulas", label: "Mis aulas" },
-      ],
+      items: [{ to: "/portal", icon: "portal", label: "Mi Portal" }],
     },
   ],
 };

@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +12,7 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
+        services.AddScoped<AuditDbConnectionInterceptor>();
         return services;
     }
 }

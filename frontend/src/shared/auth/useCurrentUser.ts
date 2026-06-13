@@ -6,6 +6,9 @@
 // and what the topbar RoleBadge shows.
 // ============================================================
 
+// DEV MOCK LOGIN — remove with shared/auth/dev/ (and the getMockUser fallback below)
+import { getMockUser } from "./dev/mockSession";
+
 export type Role =
   | "Jefe de Cátedra"
   | "Coordinador"
@@ -34,5 +37,6 @@ const STUB_USER: CurrentUser = {
 
 /** STUB until MSAL claims exist. */
 export function useCurrentUser(): CurrentUser {
-  return STUB_USER;
+  // DEV MOCK LOGIN — remove with shared/auth/dev/ (revert to `return STUB_USER;`)
+  return getMockUser() ?? STUB_USER;
 }
