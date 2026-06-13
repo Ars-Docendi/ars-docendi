@@ -3,6 +3,9 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from "react-route
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { isAuthenticated, setToken } from "./auth";
+// DEV MOCK LOGIN — remove with shared/auth/dev/
+import { MockLoginModal } from "./dev/MockLoginModal";
+import { setMockUser } from "./dev/mockSession";
 import "./LoginPage.css";
 
 /** Where to land after login: the route the guard bounced us from, else the default. */
@@ -57,6 +60,8 @@ type LoginState = "default" | "redirecting" | "error" | "forbidden";
 export function LoginPage() {
   const [searchParams] = useSearchParams();
   const [redirecting, setRedirecting] = useState(false);
+  // DEV MOCK LOGIN — remove with shared/auth/dev/
+  const [mockModalOpen, setMockModalOpen] = useState(false);
   const navigate = useNavigate();
   const target = usePostLoginTarget();
 
@@ -72,20 +77,28 @@ export function LoginPage() {
   const state: LoginState = redirecting ? "redirecting" : baseState;
 
   function handleLogin() {
-    setRedirecting(true);
     // TODO: real Azure AD redirect. When a real entry URL is configured, hand off to it.
     const loginUrl = import.meta.env.VITE_AUTH_LOGIN_URL;
     if (loginUrl) {
+      setRedirecting(true);
       window.location.assign(loginUrl);
       return;
     }
-    // STUB (dev): no Azure AD wired yet — mint a placeholder token and enter the app.
-    // Replace with the MSAL callback that stores the real token. The delay is purely
-    // cosmetic so the "Redirigiendo a Microsoft…" loading state is visible in dev.
+    // DEV MOCK LOGIN — remove with shared/auth/dev/ (restore the stub setTimeout login below)
+    // No Azure AD wired yet: open the role picker instead of minting a token blindly.
+    setMockModalOpen(true);
+  }
+
+  // DEV MOCK LOGIN — remove with shared/auth/dev/
+  function handleMockSelect(userId: string) {
+    setMockUser(userId);
+    // Close the picker and show the loading button briefly before entering the app.
+    setMockModalOpen(false);
+    setRedirecting(true);
     setTimeout(() => {
       setToken("dev-stub-token");
       navigate(target, { replace: true });
-    }, 1500);
+    }, 1000);
   }
 
   return (
@@ -154,6 +167,13 @@ export function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* DEV MOCK LOGIN — remove with shared/auth/dev/ */}
+      <MockLoginModal
+        open={mockModalOpen}
+        onClose={() => setMockModalOpen(false)}
+        onSelect={handleMockSelect}
+      />
     </div>
   );
 }
