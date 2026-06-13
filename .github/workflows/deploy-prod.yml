@@ -10,9 +10,13 @@ on:
     # (docs/**, openspec/**, *.md) no disparan deploy.
     paths:
       - "backend/**"
+      - "!backend/**/*.md"
       - "frontend/**"
+      - "!frontend/**/*.md"
       - "infra/**"
+      - "!infra/**/*.md"
       - "database/**"
+      - "!database/**/*.md"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
