@@ -4,8 +4,7 @@
 
 - **Módulo / superficie:** (path o proyecto, ej. `backend/src/Modules.Designaciones/`)
 - **Owner / stakeholders:** (rol institucional responsable, ej. "Secretaría Académica")
-- **Spec relacionada:** `docs/product/specs/...` (si aplica)
-- **Plan relacionado:** `docs/plans/active/...` (si aplica)
+- **Change/Spec OpenSpec relacionado:** `openspec/specs/<capability>/` o `openspec/changes/<id>/` (si aplica)
 - **Normativa de referencia:** (estatuto / régimen / disposición departamental aplicable)
 
 ## Reglas

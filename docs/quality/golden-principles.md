@@ -52,7 +52,7 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 
 - **Red-green obligatorio**: cada bug fix arranca con un **test que falla** que captura el bug. El fix es el cambio MÁS chico que vuelve el test verde. Sin excepciones (excepto bugs puramente visuales).
 - **No drive-by refactors**: al arreglar un bug, NO refactorizar código no relacionado ni agregar features.
-- **Escalación**: si el fix requiere cambio en Contracts o cruza módulos, llenar `_bug-template.md` y agregar al backlog. Si revela brecha arquitectural, escalar a `/add-feature` completo.
+- **Escalación**: si el fix requiere cambio en Contracts o cruza módulos, crear un change con `/opsx:propose` y agregar nota en `docs/plans/backlog.md`. Si revela brecha arquitectural, escalar creando un change con `/opsx:propose` e implementarlo con `/add-feature`.
 - **Prevenir recurrencia**: si una clase de bug es prevenible por regla, **agregar la regla a este archivo**.
 
 ## Compliance reglamentario

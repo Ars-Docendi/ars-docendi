@@ -1,11 +1,11 @@
 # Workflow: Init project
 
-Bootstrap único que llena `docs/product/*` con info real del proyecto. Corre **una sola vez** al iniciar, antes de cualquier `/plan-feature` o `/add-feature`.
+Bootstrap único que llena `docs/product/*` con info real del proyecto. Corre **una sola vez** al iniciar, antes de cualquier `/opsx:propose` o `/add-feature`.
 
 ## Cuándo usar
 
 - Proyecto recién creado o `docs/product/brief.md` todavía contiene el placeholder del template.
-- Skills downstream (`/plan-feature`, `/add-feature`) necesitan contexto de producto real.
+- Skills downstream (`/opsx:propose`, `/add-feature`) necesitan contexto de producto real.
 
 Skip si `docs/product/brief.md` ya tiene contenido específico del proyecto.
 
@@ -60,4 +60,4 @@ Llenar brief / vision / design-principles con las respuestas. Reglas:
 Después del merge:
 
 - `/architecture-proposal` — para bootstrap de la arquitectura.
-- `/plan-feature` — para la primera feature.
+- `/opsx:propose` — para la primera feature.

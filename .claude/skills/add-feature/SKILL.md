@@ -1,32 +1,33 @@
 ---
 name: add-feature
-description: Implementar una feature de punta a punta. Usar cuando el usuario pide una nueva capability, una mejora, o un comportamiento visible para el usuario, o cuando se reanuda implementación desde una spec + plan aprobados. Sigue specs, planes, fronteras arquitecturales y gates de calidad.
-argument-hint: [<feature-kebab-name>]
+description: Implementar una feature de punta a punta sobre un change OpenSpec aprobado. Usar cuando el usuario pide una nueva capability, una mejora, o un comportamiento visible para el usuario, o cuando se reanuda implementación. Aplica los gates de arquitectura/calidad del proyecto y delega la ejecución de tasks a /opsx:apply.
+argument-hint: [<change-id>]
 ---
 
 # Add feature
 
 **Source of truth:** [docs/workflows/add-feature.md](../../../docs/workflows/add-feature.md). Leerlo. Este archivo es un puntero, no el playbook.
 
-## Slug
+## Modelo
 
-`$ARGUMENTS` es el kebab-case usado en `docs/product/specs/$ARGUMENTS.md` y `docs/plans/active/$ARGUMENTS.md`. Si no se provee, derivar del request y usarlo consistentemente.
+El planning vive en OpenSpec (`/opsx:propose` → `openspec/changes/<id>/`). `/add-feature` NO planifica: orquesta la disciplina del proyecto (architecture check, security, `/evaluate`, PR) sobre un change aprobado y **delega la ejecución de tasks a `/opsx:apply`**.
 
-## Fast-forward path
+## Change id
 
-Si la spec + plan ya existen aprobados, **saltear los steps 1-6**; arrancar en step 7 (Execute).
+`$ARGUMENTS` es el id (kebab-case) del change OpenSpec en `openspec/changes/$ARGUMENTS/`. Si no se provee, derivar del request o listar con `openspec list`.
 
 ## Orden
 
-1 → 2 → 3 (architecture check) → 4 → 5 (human review) → 6 (hard gate) → 7 (execute) → 8 (security) → 9 (QA, docs, close) → 10 (open PR). Sin reordenar.
+1 (contexto) → 2 (planning `/opsx:propose` si falta) → 3 (architecture check) → 4 (human review / aprobación) → 5 (hard gate) → 6 (execute vía `/opsx:apply`) → 7 (security) → 8 (QA, docs, close) → 9 (open PR). Sin reordenar.
 
 ## Hard rules
 
-- **Step 6 hard gate** OBLIGATORIO antes de tocar código: verificar que existen `docs/product/specs/<slug>.md` Y `docs/plans/active/<slug>.md`.
+- **Step 5 hard gate** OBLIGATORIO antes de tocar código: `openspec status --change "$ARGUMENTS"` con los artefactos de `applyRequires` (típicamente `tasks`) en estado `done`.
+- **Ejecución vía `/opsx:apply`** — no reimplementar a mano el loop de tasks.
 - **Sin saltear `/evaluate`** sin acuerdo explícito del equipo.
-- **No mover plan a `completed/`** antes del merge — usar `/complete-plan` o automatización post-merge.
-- Reemplazar `git`/`gh` solo cuando sea necesario; no usar clientes custom de GitHub API.
-- Cumplir invariantes del [CLAUDE.md](../../../CLAUDE.md) durante toda la implementación.
+- **Archivar post-merge** con `/opsx:archive $ARGUMENTS` (nunca antes del merge).
+- Usar `git`/`gh` directo; no clientes custom de GitHub API.
+- Cumplir las invariantes del [CLAUDE.md](../../../CLAUDE.md) durante toda la implementación.
 
 ## Comandos clave
 
@@ -35,7 +36,8 @@ Si la spec + plan ya existen aprobados, **saltear los steps 1-6**; arrancar en s
 - Frontend build: `pnpm --filter frontend build`
 - Frontend lint: `pnpm --filter frontend lint`
 - Format: `pnpm format` (raíz)
+- OpenSpec: `openspec list`, `openspec status --change <id>`, `openspec validate --strict <id>`
 
 ## Arguments
 
-`$ARGUMENTS` — kebab-slug de la feature.
+`$ARGUMENTS` — id del change OpenSpec.

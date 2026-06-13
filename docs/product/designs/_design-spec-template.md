@@ -1,7 +1,7 @@
 ---
 status: draft # draft | review | approved
 owner: ""
-feature: "" # link al spec en docs/product/specs/<feature>.md
+feature: "" # link al spec en openspec/specs/<capability>/spec.md
 last_updated: YYYY-MM-DD
 ---
 
@@ -56,7 +56,7 @@ Descripción del layout principal. Si hay sketches o mockups, linkear:
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Spec funcional: [`docs/product/specs/<feature>.md`](../specs/)
+- Spec funcional: [`openspec/specs/<capability>/spec.md`](../../openspec/specs/)
 
 ## Open questions de diseño
 

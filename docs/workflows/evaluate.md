@@ -10,8 +10,7 @@ Evaluación **read-only** del trabajo completado contra spec + grading-criteria 
 
 ## Pre-requisitos
 
-- Spec de la feature: `docs/product/specs/<feature>.md`
-- Plan: `docs/plans/active/<feature>.md` o `completed/<feature>.md`
+- Change OpenSpec de la feature: `openspec/changes/<id>/` (o archivado en `openspec/changes/archive/`)
 - Código mergeado o branch implementada.
 
 ## Steps
