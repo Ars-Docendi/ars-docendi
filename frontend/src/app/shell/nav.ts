@@ -59,6 +59,10 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       ],
     },
     {
+      label: "Configuración",
+      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
+    },
+    {
       label: "Personal",
       items: [{ to: "/portal", icon: "portal", label: "Mi Portal" }],
     },
@@ -84,6 +88,10 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
+    },
+    {
+      label: "Configuración",
+      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
     },
     {
       label: "Personal",

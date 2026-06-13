@@ -78,6 +78,14 @@ export const navIcons = {
       <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.5 1.5M12.5 12.5L14 14M4 14l1.5-1.5M12.5 5.5L14 4" />
     </svg>
   ),
+  usuarios: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <circle cx="6.5" cy="6" r="2.5" />
+      <path d="M1 16c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4" />
+      <circle cx="13" cy="5.5" r="2" />
+      <path d="M13 10c1.5 0 4 .75 4 3" />
+    </svg>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type NavIconKey = keyof typeof navIcons;
