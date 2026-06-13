@@ -4,6 +4,13 @@
 
 export type TipoPedido = "alta-nueva" | "renovacion" | "cambio" | "baja";
 
+/**
+ * Tono semántico de selección de cada tipo de pedido. Reusa la paleta del
+ * design system para que el color refleje la consecuencia de la acción:
+ * crear (success) / continuar (info) / modificar (warning) / cerrar (danger).
+ */
+export type TonoPedido = "success" | "info" | "warning" | "danger";
+
 export type EstadoPantalla = "edit" | "loading" | "error";
 
 /** Los tres documentos que "Alta nueva" exige sí o sí. */
@@ -60,26 +67,31 @@ export const TIPOS_PEDIDO: {
   id: TipoPedido;
   nombre: string;
   descripcion: string;
+  tono: TonoPedido;
 }[] = [
   {
     id: "alta-nueva",
     nombre: "Alta nueva",
     descripcion: "Docente que se incorpora a la cátedra por primera vez.",
+    tono: "success",
   },
   {
     id: "renovacion",
     nombre: "Renovación",
     descripcion: "Continuidad de un docente actual para el próximo cuatrimestre.",
+    tono: "info",
   },
   {
     id: "cambio",
     nombre: "Cambio de cargo",
     descripcion: "Promoción o modificación de horas / dedicación.",
+    tono: "warning",
   },
   {
     id: "baja",
     nombre: "Baja",
     descripcion: "Cierre de la designación al fin de cuatrimestre.",
+    tono: "danger",
   },
 ];
 

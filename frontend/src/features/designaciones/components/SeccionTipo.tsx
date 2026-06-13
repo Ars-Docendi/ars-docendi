@@ -59,6 +59,7 @@ export function SeccionTipo({ tipo, onCambiarTipo }: SeccionTipoProps) {
                   key={t.id}
                   role="radio"
                   aria-checked={seleccionado}
+                  data-tono={t.tono}
                   className={`pedido-tipo-card${seleccionado ? " selected" : ""}`}
                   onClick={() => onCambiarTipo(t.id)}
                 >
