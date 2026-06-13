@@ -1,0 +1,51 @@
+# Configuración ESTÁTICA de Traefik (reverse proxy interno) — D4.
+#
+# Traefik corre como su propio Compose project en el app host. Escucha HTTP
+# interno (Cloudflare termina TLS aguas arriba; ver infra/cloudflared/). NO
+# gestiona ACME/Let's Encrypt: el modelo viejo nginx+certbot fue reemplazado.
+#
+# Descubre los contenedores de cada ambiente por el Docker provider leyendo sus
+# labels (ver compose.base.yml y README.md). Un ambiente nuevo se rutea solo con
+# sus labels: este archivo NO se toca al dar de alta prod/staging/pr-N.
+
+entryPoints:
+  # Único entrypoint público (vía túnel). Recibe el tráfico de cloudflared.
+  web:
+    address: ":80"
+    # TLS lo termina Cloudflare; confiamos los forwarded headers SOLO del
+    # upstream interno (cloudflared en la red de Docker). El túnel es el único
+    # que llega a este puerto: no está publicado a internet directo.
+    forwardedHeaders:
+      trustedIPs:
+        - "127.0.0.1/32"
+        - "172.16.0.0/12" # rango de redes internas de Docker (cloudflared)
+    http:
+      # Headers de seguridad aplicados a TODO router del entrypoint web.
+      middlewares:
+        - headers-seguridad@file
+
+  # API/dashboard de Traefik: SOLO loopback. Nunca en el ingress del túnel (3.3).
+  # Se alcanza por la red de administración (Tailscale) vía SSH port-forward.
+  traefik:
+    address: "127.0.0.1:8080"
+
+providers:
+  docker:
+    # Nada se expone salvo que el contenedor lo pida explícitamente con
+    # traefik.enable=true. Evita publicar servicios por accidente.
+    exposedByDefault: false
+    network: traefik
+  file:
+    # Config dinámica versionada (middlewares de seguridad).
+    directory: /etc/traefik/dynamic
+    watch: true
+
+api:
+  dashboard: true
+  # 'insecure' sirve el dashboard en el entrypoint 'traefik', que arriba está
+  # bindeado a 127.0.0.1: aceptable porque nunca sale del loopback ni del túnel.
+  insecure: true
+
+log:
+  level: INFO
+accessLog: {}

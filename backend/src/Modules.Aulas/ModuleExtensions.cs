@@ -1,4 +1,5 @@
 using ArsDocendi.Shared.Auditing;
+using ArsDocendi.Shared.Persistencia;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,8 +13,10 @@ public static class ModuleExtensions
     public static IServiceCollection AddAulasModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AulasDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("Postgres"))
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
+
+        services.AddScoped<IMigradorModulo, MigradorAulas>();
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<AulasDbContext>());
 

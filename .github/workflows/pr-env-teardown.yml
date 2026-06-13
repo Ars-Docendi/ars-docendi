@@ -1,0 +1,34 @@
+# Teardown del ambiente efímero pr-N al cerrar/mergear el PR. Idempotente.
+#
+# Seguridad: corre los scripts de la rama BASE (no el código del PR), porque el
+# job usa secrets de Postgres. Así un PR no puede modificar el script de teardown
+# para que corra con credenciales admin.
+name: pr-env-teardown
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  group: pr-env-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  teardown:
+    # Pool persistente (confiable): el teardown corre código de la rama BASE con
+    # credenciales admin, no código del PR. No necesita runner efímero.
+    runs-on: [self-hosted, arsdocendi, confiable]
+    env:
+      AMBIENTE: pr-${{ github.event.pull_request.number }}
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+    steps:
+      # Checkout de la rama BASE (código confiable), NO el del PR.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Teardown pr-N (contenedores + DROP DATABASE, idempotente)
+        run: infra/scripts/teardown.sh "${AMBIENTE}"
