@@ -44,6 +44,25 @@ infra/
 CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 `pr-env-deploy`, `pr-env-teardown`.
 
+### Gating por paths (deploy condicional)
+
+`deploy-prod`, `deploy-staging` y `pr-env-deploy` solo redespliegan cuando el
+cambio toca el **artefacto desplegable**. El filtro se aplica con `on.<evento>.paths`
+a nivel del trigger del workflow. Conjunto canónico de paths desplegables:
+
+```
+backend/**        # código + schema/migraciones EF (Modules.*/Infrastructure/)
+frontend/**       # código del SPA
+infra/**          # compose, scripts de provisión/seed, runners
+database/**       # migraciones SQL versionadas (audit/, identity/, …)
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+```
+
+Un cambio doc-only (`docs/**`, `openspec/**`, `*.md`) **no** dispara deploy. Si se
+agrega una raíz desplegable nueva al repo, hay que sumarla a los tres workflows.
+
 ## Operación manual
 
 ```bash

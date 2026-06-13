@@ -6,6 +6,16 @@ name: deploy-prod
 on:
   push:
     branches: [main]
+    # Solo redeploya cuando cambia el artefacto desplegable; cambios doc-only
+    # (docs/**, openspec/**, *.md) no disparan deploy.
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "infra/**"
+      - "database/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
 
 concurrency:
   group: deploy-prod
