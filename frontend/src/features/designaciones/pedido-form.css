@@ -1,0 +1,299 @@
+/*
+ * CSS local de la feature Designaciones — Pedido de Designación (form crear/editar).
+ * Solo contiene las composiciones de pantalla que @ars-docendi/ui NO provee:
+ * grilla de tipo, TOC de secciones, footer sticky, banner condicional, slots de
+ * documentación, sección de formulario y grilla de 12 columnas, skeletons.
+ * Los controles atómicos (Field/Input/Select/Textarea/FileUpload/Button/...) vienen de la lib.
+ */
+
+/* ---- LAYOUT general ---- */
+.pedido-form-page {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+/* ---- TOC de secciones ---- */
+.pedido-toc {
+  position: sticky;
+  top: 4px;
+  align-self: start;
+  font-size: 13px;
+}
+.pedido-toc-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.pedido-toc a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0 7px 10px;
+  margin-left: -10px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  font-size: 13.5px;
+}
+.pedido-toc a:hover {
+  color: var(--color-text-primary);
+}
+.pedido-toc a.current {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  border-left-color: var(--color-accent);
+}
+.pedido-toc a .step {
+  font-family: var(--font-mono);
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+.pedido-toc a.done .step {
+  color: var(--success-700);
+}
+.pedido-toc a.error .step {
+  color: var(--danger-700);
+}
+
+/* ---- Sección de formulario + grilla de 12 columnas (port del design system) ---- */
+.adoc-form-section {
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  margin-bottom: 16px;
+}
+.adoc-form-section > header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-canvas);
+}
+.adoc-form-section > header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-form-section > header .hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-top: 2px;
+}
+.adoc-form-section > .body {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px 20px;
+}
+.adoc-form-section > .body .col-2 {
+  grid-column: span 2;
+}
+.adoc-form-section > .body .col-3 {
+  grid-column: span 3;
+}
+.adoc-form-section > .body .col-4 {
+  grid-column: span 4;
+}
+.adoc-form-section > .body .col-5 {
+  grid-column: span 5;
+}
+.adoc-form-section > .body .col-6 {
+  grid-column: span 6;
+}
+.adoc-form-section > .body .col-8 {
+  grid-column: span 8;
+}
+.adoc-form-section > .body .col-12 {
+  grid-column: span 12;
+}
+
+/* ---- Tarjetas de tipo de pedido (radiogroup) ---- */
+.pedido-tipo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.pedido-tipo-card {
+  border: 1.5px solid var(--color-border-default);
+  background: #fff;
+  padding: 14px 14px 12px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.pedido-tipo-card:hover {
+  border-color: var(--color-border-strong);
+}
+.pedido-tipo-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.pedido-tipo-card.selected {
+  border-color: var(--color-accent);
+  background: var(--accent-100);
+}
+.pedido-tipo-card .ico {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+.pedido-tipo-card.selected .ico {
+  color: var(--accent-700);
+}
+.pedido-tipo-card b {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.pedido-tipo-card.selected b {
+  color: var(--accent-700);
+}
+.pedido-tipo-card .desc {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
+}
+.pedido-tipo-card .req-flag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warning-700);
+  background: var(--warning-100);
+  border: 1px solid var(--warning-500);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+/* ---- Banner condicional (alta nueva) ---- */
+.pedido-banner {
+  background: var(--info-100);
+  border-left: 4px solid var(--info-500);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--info-700);
+  border-radius: var(--radius-xs);
+  margin-bottom: 12px;
+}
+
+/* ---- Bloque comparativo (cambio de cargo) ---- */
+.pedido-cambio-box {
+  padding: 12px 14px;
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+}
+.pedido-cambio-box .titulo {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pedido-cambio-box .fila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+}
+.pedido-cambio-box .sep {
+  color: var(--color-text-tertiary);
+}
+
+/* ---- Documentación ---- */
+.adoc-form-section.requiere-docs > header {
+  background: var(--warning-100);
+  border-bottom-color: var(--warning-500);
+}
+.adoc-form-section.requiere-docs > header h3,
+.adoc-form-section.requiere-docs > header .hint {
+  color: var(--warning-700);
+}
+.adoc-form-section.requiere-docs {
+  border-color: var(--warning-500);
+}
+.pedido-docs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.pedido-doc-slot .doc-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+}
+.pedido-doc-slot.requerido .doc-titulo .req {
+  color: var(--danger-700);
+  margin-left: 2px;
+}
+.pedido-doc-otros {
+  margin-top: 12px;
+}
+
+/* ---- Footer sticky (port del design system) ---- */
+.adoc-form-footer {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  border-top: 1px solid var(--color-border-strong);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 10;
+}
+.adoc-form-footer .left {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+.adoc-form-footer .left.ok {
+  color: var(--success-700);
+}
+.adoc-form-footer .left.warn {
+  color: var(--warning-700);
+}
+.adoc-form-footer .right {
+  display: flex;
+  gap: 10px;
+}
+
+/* ---- Skeletons (port del design system) ---- */
+.adoc-skel {
+  background: linear-gradient(
+    90deg,
+    var(--neutral-200) 0%,
+    var(--neutral-300) 50%,
+    var(--neutral-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: pedido-shimmer 1.4s linear infinite;
+  border-radius: var(--radius-xs);
+  display: block;
+}
+@keyframes pedido-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
