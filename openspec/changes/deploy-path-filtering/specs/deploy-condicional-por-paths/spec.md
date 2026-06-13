@@ -57,7 +57,7 @@ El workflow `pr-env-deploy.yml` (trigger `pull_request`) SHALL aplicar el filtro
 - **WHEN** un PR toca paths desplegables pero no tiene el label `deploy-preview`
 - **THEN** el deploy no corre (el gate de maintainer sigue vigente)
 
-### Requirement: Las migraciones de base de datos disparan deploy vía database/**
+### Requirement: Las migraciones de base de datos disparan deploy vía database/\*\*
 
 El conjunto de paths desplegables SHALL incluir `database/**` como trigger propio, porque el repo versiona las migraciones SQL de schema bajo `database/` (p.ej. `database/audit/`, `database/identity/`). Un cambio en una migración altera el schema desplegado y SHALL redeployar. La provisión/seed que viva bajo `infra/scripts/` queda cubierta por `infra/**`.
 
