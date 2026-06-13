@@ -48,3 +48,8 @@ Los campos del formulario SHALL presentarse en grilla de 2 columnas para reducir
 - Fila 4: UPN (ancho completo)
 - Fila 5: Teléfono (ancho completo)
 - Fila 6: Roles / checkboxes (ancho completo)
+
+#### Scenario: Disposición de los campos en grilla
+
+- **WHEN** el operador abre el modal de alta de usuario
+- **THEN** los campos se presentan en una grilla de 2 columnas con el orden de filas especificado (Nombre|Apellido, Documento|Legajo, CUIL|Fecha de nacimiento, y UPN, Teléfono y Roles a ancho completo)
