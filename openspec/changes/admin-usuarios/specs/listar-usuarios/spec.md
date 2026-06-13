@@ -120,6 +120,8 @@ Todos los filtros de texto SHALL ser insensibles a tildes: buscar "Lopez" encuen
 
 ### Requirement: Sidebar muestra entrada "Usuarios" para Secretaría y Administración
 
+El sidebar SHALL mostrar el ítem de navegación "Usuarios" (dentro del grupo "Configuración") únicamente a los usuarios con rol `Secretaría` o `Administración`. Para cualquier otro rol el ítem SHALL estar oculto.
+
 #### Scenario: Secretaría ve el ítem
 
 - **WHEN** el usuario logueado tiene rol `Secretaría`
