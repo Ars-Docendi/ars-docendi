@@ -64,4 +64,17 @@ pgdata/
 
 # ---------- Extras ----------
 .DS_Store
-.claude/
+
+# ---------- Claude Code ----------
+# Versionamos las skills, agents, commands, hooks y settings compartidos del proyecto.
+# Ignoramos solo lo que es local/personal de cada developer.
+.claude/settings.local.json
+.claude/projects/
+.claude/.session/
+.claude/cache/
+
+# ---------- Docs autogenerados ----------
+# docs/**/_index.md
+
+# ---------- Husky (artefactos internos, no los hooks versionados) ----------
+.husky/_/

@@ -1,0 +1,19 @@
+# Config DINÁMICA de Traefik: middleware de headers de seguridad (3.2).
+#
+# Se aplica a todo router del entrypoint `web` (ver traefik.yml). Asume TLS
+# terminado aguas arriba en Cloudflare, así que HSTS instruye al navegador a
+# forzar HTTPS aunque Traefik hable HTTP interno.
+
+http:
+  middlewares:
+    headers-seguridad:
+      headers:
+        # HSTS 1 año, incluye subdominios (el wildcard cubre *.<dominio>).
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        # Endurecimiento básico.
+        contentTypeNosniff: true
+        frameDeny: true
+        browserXssFilter: true
+        referrerPolicy: strict-origin-when-cross-origin

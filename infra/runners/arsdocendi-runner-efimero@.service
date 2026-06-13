@@ -1,0 +1,38 @@
+# Unit TEMPLATE de un runner self-hosted efímero (instancia %i).
+#
+# El "@" lo hace instanciable: arsdocendi-runner-efimero@1, @2, @3...
+# Cada instancia usa su propio RUNNER_DIR (paquete del runner extraído aparte),
+# así corren en paralelo. Concurrencia de deploys pr-N = nº de instancias activas.
+#
+# Instalación (ver README §4):
+#   sudo cp infra/runners/arsdocendi-runner-efimero@.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now arsdocendi-runner-efimero@{1,2,3}
+
+[Unit]
+Description=Ars Docendi — runner efímero de GitHub Actions (instancia %i)
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+# Reinicios ilimitados: el modelo es "1 job y muere", queremos relanzar siempre.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# Secrets del host (GH_OWNER, GH_REPO, GH_PAT, RUNNER_LABELS), permisos 600.
+EnvironmentFile=/etc/ars-docendi/runner.env
+# Cada instancia su propio directorio de runner.
+Environment=RUNNER_DIR=/opt/actions-runners/efimero-%i
+ExecStart=/opt/ars-docendi/repo/infra/runners/respawn-efimero.sh
+# Tras cada job el script sale 0; systemd relanza para el próximo job.
+Restart=always
+RestartSec=10
+# Usuario no-root con acceso al grupo docker.
+User=arsdocendi-runner
+Group=docker
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arsdocendi-runner-efimero
+
+[Install]
+WantedBy=multi-user.target

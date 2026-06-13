@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ars-docendi/ui':
+        specifier: github:Ars-Docendi/ui-lib#release/v1.0.2
+        version: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/30e29f120865ef55c7454765f402fbc069b7383f(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-query':
         specifier: ^5.100.10
         version: 5.100.11(react@19.2.6)
@@ -62,6 +65,13 @@ importers:
         version: 8.0.14(@types/node@24.12.4)
 
 packages:
+
+  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/30e29f120865ef55c7454765f402fbc069b7383f':
+    resolution: {gitHosted: true, integrity: sha512-EcQAj2tliWSTe82EjKtiWU5vFVNNW8EdlAd3JEnRGH7dXpuoIZZ8Sm5GoxzBbDyBhGwsi2iKJrm0B+yT+vIdJA==, tarball: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/30e29f120865ef55c7454765f402fbc069b7383f}
+    version: 1.0.1
+    peerDependencies:
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -1069,6 +1079,11 @@ packages:
     resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
 snapshots:
+
+  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/30e29f120865ef55c7454765f402fbc069b7383f(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+    dependencies:
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
 
   '@babel/code-frame@7.29.0':
     dependencies:

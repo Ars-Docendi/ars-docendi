@@ -1,0 +1,204 @@
+/* ============================================================
+   Login institucional — page-scoped layout (04b-login)
+   Interactive primitives come from @ars-docendi/ui; this file
+   only styles the screen scaffolding (marquee + card + glyph).
+   All colors via design tokens so theme/dark hold.
+   ============================================================ */
+
+.login-page {
+  width: 100%;
+  min-height: calc(100vh / var(--ui-zoom, 1));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+
+/* ---- Left marquee (dark institutional panel) ---- */
+.login-marquee {
+  background: var(--neutral-900);
+  color: #fff;
+  padding: 48px 56px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.login-marquee::before {
+  /* Subtle institutional motif: diagonal hairlines */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.018) 0 1px,
+    transparent 1px 16px
+  );
+  pointer-events: none;
+}
+.login-marquee .crest {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.login-marquee .crest .mark {
+  width: 48px;
+  height: 48px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.login-marquee .crest small {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+  display: block;
+  margin-top: 2px;
+}
+.login-marquee .title-area {
+  position: relative;
+  z-index: 1;
+}
+.login-marquee h1 {
+  font-family: var(--font-sans);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.05;
+  margin: 0 0 14px;
+  letter-spacing: -0.025em;
+}
+.login-marquee h1 .accent {
+  color: var(--accent-300);
+}
+.login-marquee .pitch {
+  max-width: 380px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+.login-marquee .foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+}
+
+/* ---- Right form side ---- */
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.login-card .head h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+.login-card .head p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+.login-card .cta .adoc-btn {
+  width: 100%;
+}
+.login-card .helper {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  line-height: 1.55;
+}
+.login-card .helper a {
+  color: var(--color-text-link);
+}
+.login-card .divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  margin: 4px 0;
+}
+.login-card .footnote-tiny {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  line-height: 1.55;
+}
+.login-card .alert-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+
+/* MS-style logo glyph for the SSO button.
+   `grid` (not inline-grid) so it fills the button's 16x16 icon slot with no
+   baseline gap — the button's flex `align-items: center` then centers it. */
+.ms-glyph {
+  display: grid;
+  place-self: center;
+  grid-template: repeat(2, 1fr) / repeat(2, 1fr);
+  gap: 1px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.ms-glyph i {
+  display: block;
+}
+.ms-glyph i:nth-child(1) {
+  background: #f25022;
+}
+.ms-glyph i:nth-child(2) {
+  background: #7fba00;
+}
+.ms-glyph i:nth-child(3) {
+  background: #00a4ef;
+}
+.ms-glyph i:nth-child(4) {
+  background: #ffb900;
+}
+
+/* Stack to a single column on narrow viewports (tablet/mobile) */
+@media (max-width: 720px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-marquee {
+    padding: 32px 28px;
+    gap: 28px;
+  }
+  .login-marquee h1 {
+    font-size: 36px;
+  }
+}

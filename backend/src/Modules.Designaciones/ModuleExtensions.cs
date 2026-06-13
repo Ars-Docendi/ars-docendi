@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Persistencia;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,7 +12,9 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>(opt =>
-            opt.UseNpgsql(configuration.GetConnectionString("Postgres")));
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi")));
+
+        services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<DesignacionesDbContext>());
 

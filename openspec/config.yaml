@@ -1,0 +1,72 @@
+# Configuración OpenSpec para Ars Docendi.
+# El CLI lee `schema`, `context` y `rules` desde este archivo.
+# `context` y `rules` se inyectan como restricciones al generar artefactos
+# (NO se copian al output del artefacto).
+
+schema: spec-driven
+
+context: |
+  Ars Docendi — sistema web institucional del Departamento de Ingeniería e
+  Investigaciones Tecnológicas de la UNLaM. Es un Trabajo Final Integrador que
+  QUEDA EN PRODUCCIÓN para uso real de la universidad: no es un proyecto
+  académico común, la calidad importa.
+
+  Idioma de los artefactos: ESPAÑOL. Docs y código escrito por el equipo van en
+  español; los símbolos provistos por framework/lenguaje quedan en inglés.
+
+  Stack:
+  - Backend: C# / .NET 10 (ASP.NET Core Web API), monolito modular en monorepo.
+  - Frontend: React 19 + TypeScript + Vite 8.
+  - Base de datos: PostgreSQL 18 (un schema por módulo).
+  - Auth: SSO Microsoft Azure AD (credenciales institucionales UNLaM).
+
+  Arquitectura:
+  - ArsDocendi.Host compone 4 módulos backend aislados: Designaciones, Aulas,
+    Portal, Tareas. Cada módulo expone su API pública vía un proyecto *.Contracts.
+  - Comunicación cross-module SOLO a través de Contracts. PROHIBIDO referenciar
+    Modules.<Otro> interno o importar desde Internal/ ajeno.
+  - Grafo de dependencias DAG (sin ciclos). Ver docs/architecture/dependency-graph.md.
+  - Backend por capas: Controller -> Service -> Repository (sin saltar capas).
+  - Frontend: features aisladas (una por módulo backend), lo común en shared/;
+    React Query para data; un solo axios instance.
+
+  Convenciones:
+  - Naming: PascalCase (componentes, clases .NET), camelCase (funciones, vars,
+    hooks), kebab-case (filenames, branches).
+  - Archivos chicos: ~300 líneas como cap soft.
+  - Structured logging (Serilog) en backend. Nunca Console.WriteLine ni
+    console.log en código productivo.
+  - Cada módulo expone GET /api/<modulo>/ping con [AllowAnonymous] (smoke test).
+  - Modules.<X>.Contracts: solo DTOs/interfaces/tokens, sin lógica.
+    ArsDocendi.Shared: solo utilidades puras, sin I/O ni estado mutable.
+
+  Gitflow: develop es la rama default (todos los PRs van ahí). main es release
+  stable. feature/<kebab> -> PR a develop. hotfix/<kebab> -> PR a main y develop.
+
+  Reglas de negocio: toda regla que provenga de normativa institucional se
+  registra como BR-<modulo>-NNN en docs/business-rules/<modulo>.md con CITA de la
+  normativa + mapping a test.
+
+rules:
+  proposal:
+    - Escribí la propuesta en español.
+    - Identificá los módulos afectados y, si cambia una API pública, los consumidores cross-module.
+    - Si el cambio toca normativa institucional, registrá la regla como BR-<modulo>-NNN con cita reglamentaria.
+    - Incluí impacto en el grafo de dependencias y un plan de rollback para cambios riesgosos.
+  specs:
+    - Escribí las specs en español.
+    - Usá Given/When/Then para los escenarios.
+    - Usá keywords RFC 2119 (MUST/SHALL/SHOULD/MAY) para los requisitos.
+    - Mapeá cada regla de negocio reglamentaria a un BR-<modulo>-NNN con su cita.
+  design:
+    - Escribí el diseño en español.
+    - "Respetá las fronteras: cross-module SOLO vía *.Contracts; nada de referenciar Modules.<Otro> interno."
+    - Mantené el grafo de dependencias como DAG (sin ciclos).
+    - Contracts y Shared puros (sin lógica / sin I/O ni estado mutable).
+    - Respetá Controller -> Service -> Repository y el ping endpoint por módulo.
+  tasks:
+    - Escribí las tareas en español, agrupadas por fase y con numeración jerárquica.
+    - Cambios de schema/API actualizan docs en el MISMO cambio (dependency-graph, api-contracts, data-model, domains/<x>).
+    - "Bug fixes: red-green (test que falla primero, después fix mínimo)."
+    - Nada de fake UI (sin botones/rutas/forms aparentes, sin lorem ipsum / TODO visible al usuario).
+    - Respetá structured logging (Serilog) y el cap ~300 líneas por archivo.

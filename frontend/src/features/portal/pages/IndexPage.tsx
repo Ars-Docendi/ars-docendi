@@ -1,8 +1,13 @@
+import { Breadcrumbs } from "@ars-docendi/ui";
+
+import { PageHeader } from "../../../shared/ui/PageHeader";
+
 export function IndexPage() {
   return (
-    <section>
-      <h2>Portal Docente</h2>
+    <>
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi Portal" }]} />
+      <PageHeader title="Mi Portal Docente" />
       <p>Módulo en construcción — RF-03 Portal del Docente.</p>
-    </section>
-  )
+    </>
+  );
 }

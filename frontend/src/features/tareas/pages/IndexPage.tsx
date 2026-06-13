@@ -1,8 +1,13 @@
+import { Breadcrumbs } from "@ars-docendi/ui";
+
+import { PageHeader } from "../../../shared/ui/PageHeader";
+
 export function IndexPage() {
   return (
-    <section>
-      <h2>Tareas</h2>
+    <>
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Tareas" }]} />
+      <PageHeader pretitle="Cuatrimestre 2026 · 1C" title="Tareas" />
       <p>Módulo en construcción — RF-04 Seguimiento de Tareas.</p>
-    </section>
-  )
+    </>
+  );
 }
