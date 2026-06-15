@@ -4,12 +4,12 @@
     {
       "type": "frame",
       "id": "wM7Fg",
-      "x": -167.4666666666667,
-      "y": -145.7333333333333,
+      "x": 0,
+      "y": 0,
       "name": "Login",
       "clip": true,
-      "width": 1440,
-      "height": 900,
+      "width": 1920,
+      "height": 1080,
       "children": [
         {
           "type": "frame",
@@ -361,12 +361,12 @@
     {
       "type": "frame",
       "id": "A9tdD",
-      "x": 3009,
-      "y": 954,
+      "x": 2120,
+      "y": 1280,
       "name": "Usuarios",
       "clip": true,
-      "width": 1440,
-      "height": 900,
+      "width": 1920,
+      "height": 1080,
       "fill": "$color-bg-canvas",
       "layout": "vertical",
       "children": [
@@ -3915,12 +3915,12 @@
     {
       "type": "frame",
       "id": "ICs06",
-      "x": 3009,
-      "y": -146,
+      "x": 0,
+      "y": 1280,
       "name": "Designaciones - Periodos",
       "clip": true,
-      "width": 1440,
-      "height": 900,
+      "width": 1920,
+      "height": 1080,
       "fill": "$color-bg-canvas",
       "layout": "vertical",
       "children": [
@@ -6762,12 +6762,12 @@
     {
       "type": "frame",
       "id": "mTWny",
-      "x": 1388,
-      "y": -146,
+      "x": 2120,
+      "y": 0,
       "name": "App Shell",
       "clip": true,
-      "width": 1440,
-      "height": 900,
+      "width": 1920,
+      "height": 1080,
       "fill": "$color-bg-canvas",
       "layout": "vertical",
       "children": [
