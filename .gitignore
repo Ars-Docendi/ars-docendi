@@ -69,9 +69,13 @@ pgdata/
 # Versionamos las skills, agents, commands, hooks y settings compartidos del proyecto.
 # Ignoramos solo lo que es local/personal de cada developer.
 .claude/settings.local.json
+.claude/**/settings.local.json
 .claude/projects/
 .claude/.session/
 .claude/cache/
+
+# ---------- Skill-registry (caches/artefactos generados, no versionar) ----------
+.atl/
 
 # ---------- Docs autogenerados ----------
 # docs/**/_index.md
