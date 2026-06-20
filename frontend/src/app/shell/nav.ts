@@ -60,7 +60,11 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     },
     {
       label: "Configuración",
-      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
+      items: [
+        { to: "/usuarios", icon: "usuarios", label: "Usuarios" },
+        { to: "/roles", icon: "roles", label: "Roles" },
+        { to: "/membresia-roles", icon: "membresiaRoles", label: "Membresía Roles" },
+      ],
     },
     {
       label: "Personal",
@@ -91,7 +95,11 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     },
     {
       label: "Configuración",
-      items: [{ to: "/usuarios", icon: "usuarios", label: "Usuarios" }],
+      items: [
+        { to: "/usuarios", icon: "usuarios", label: "Usuarios" },
+        { to: "/roles", icon: "roles", label: "Roles" },
+        { to: "/membresia-roles", icon: "membresiaRoles", label: "Membresía Roles" },
+      ],
     },
     {
       label: "Personal",
