@@ -1,0 +1,126 @@
+// ============================================================
+// API mock de pedidos de designación — EL SEAM DEL BACKEND.
+// Cada función es async (Promise + latencia simulada), opera sobre el
+// store mock y delega las transiciones de estado a `maquinaEstados.ts`.
+// Cuando llegue el backend, se reemplaza el CUERPO de cada función por
+// llamadas `apiClient.get/post(...)` MANTENIENDO LA FIRMA, y los
+// hooks/componentes no cambian. Por eso los `// TODO(backend)` viven
+// SOLO acá (regla del §7 del plan): si aparece uno fuera de `api/`, la
+// lógica se filtró del seam.
+// ============================================================
+import type {
+  ActorContexto,
+  DatosEditablesPedido,
+  EventoHistorial,
+  PedidoDesignacion,
+} from "../types";
+import { aplicarAccion } from "./maquinaEstados";
+import { PERIODO_ABIERTO_ID } from "./pedidosSeed";
+import * as store from "./pedidosStore";
+
+/** Latencia simulada para que la UI ejercite los estados de carga. */
+function demora(ms = 250): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function requerirPedido(id: string): PedidoDesignacion {
+  const pedido = store.buscar(id);
+  if (!pedido) {
+    throw new Error(`No se encontró el pedido con id "${id}".`);
+  }
+  return pedido;
+}
+
+/** Un pedido pertenece a "Mis pedidos" del JC si es de su cátedra. */
+function esDelJefeDeCatedra(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
+  if (actor.catedra) {
+    return pedido.catedra === actor.catedra;
+  }
+  return pedido.carrera === actor.carrera;
+}
+
+// TODO(backend): GET /api/designaciones/pedidos?ambito=catedra con autorización rol+ámbito (RNF-1) — SCRUM-7.
+//   Mock actual: lee el store en localStorage y filtra los pedidos de la cátedra del JC. Mantener la firma.
+export async function listarMisPedidos(actor: ActorContexto): Promise<PedidoDesignacion[]> {
+  await demora();
+  return store.leerTodos().filter((pedido) => esDelJefeDeCatedra(pedido, actor));
+}
+
+// TODO(backend): GET /api/designaciones/pedidos/:id (SCRUM-7).
+//   Mock actual: busca en el store. Mantener la firma.
+export async function obtenerPedido(id: string): Promise<PedidoDesignacion> {
+  await demora();
+  return requerirPedido(id);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos (SCRUM-7).
+//   Mock actual: crea un pedido en borrador en el store con un evento "crear". Mantener la firma.
+export async function crearPedido(
+  datos: DatosEditablesPedido,
+  actor: ActorContexto,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const eventoCrear: EventoHistorial = {
+    id: crypto.randomUUID(),
+    accion: "crear",
+    porRol: actor.rol,
+    porNombre: actor.nombre,
+    etapa: "borrador",
+    fecha: new Date().toISOString(),
+  };
+  const nuevo: PedidoDesignacion = {
+    id: crypto.randomUUID(),
+    periodoId: PERIODO_ABIERTO_ID,
+    catedra: actor.catedra ?? "",
+    carrera: actor.carrera ?? "",
+    docente: datos.docente,
+    materiaAsociada: datos.materiaAsociada,
+    cargoActual: datos.cargoActual,
+    dedicacionActual: datos.dedicacionActual,
+    novedad: datos.novedad,
+    cargoSolicitado: datos.cargoSolicitado,
+    dedicacionSolicitada: datos.dedicacionSolicitada,
+    justificacion: datos.justificacion,
+    haceHorasOtroDepto: datos.haceHorasOtroDepto,
+    horasInvestigacion: 0,
+    // TODO(backend): persistir adjuntos en File Storage y guardar URL (RNF-4) — SCRUM-7. Hoy solo metadata mock.
+    adjuntos: datos.adjuntos,
+    estado: "borrador",
+    prioritario: false,
+    historial: [eventoCrear],
+  };
+  return store.guardar(nuevo);
+}
+
+// TODO(backend): PUT /api/designaciones/pedidos/:id (SCRUM-7).
+//   Mock actual: valida el guard de edición con la máquina de estados y guarda. Mantener la firma.
+export async function editarPedido(
+  id: string,
+  datos: DatosEditablesPedido,
+  actor: ActorContexto,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "editar", datos }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/enviar (SCRUM-7).
+//   Mock actual: transiciona borrador → en_revision_coordinador vía la máquina de estados. Mantener la firma.
+export async function enviarPedido(id: string, actor: ActorContexto): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "enviar" }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/cancelar (SCRUM-7).
+//   Mock actual: transiciona borrador → cancelado vía la máquina de estados. Mantener la firma.
+export async function cancelarPedido(id: string, actor: ActorContexto): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "cancelar" }, actor);
+  return store.guardar(siguiente);
+}

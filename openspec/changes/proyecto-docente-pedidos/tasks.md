@@ -8,28 +8,28 @@
 
 ## 2. Fase 1 — Modelo de dominio (`types.ts`)
 
-- [ ] 2.1 Extender `frontend/src/features/designaciones/types.ts` con `Rol`, `Novedad`, `Cargo`, `Dedicacion`, `EstadoPedido` (completo, incluido `devuelto`/`en_lote`/`rechazado`/`cancelado`), `Adjunto`, `EventoHistorial`, `PedidoDesignacion`, `ActorContexto` (modelo del §6.4 del plan)
-- [ ] 2.2 Declarar el error de dominio `ErrorDominioPedido` para los rechazos de guard de la máquina de estados
+- [x] 2.1 Extender `frontend/src/features/designaciones/types.ts` con `Rol` (alias de `Role`), `Novedad`, `Cargo`, `Dedicacion`, `EstadoPedido` (completo, incluido `devuelto`/`en_lote`/`rechazado`/`cancelado`), `Adjunto`, `EventoHistorial`, `PedidoDesignacion`, `DatosEditablesPedido`, `ActorContexto` (modelo del §6.4 del plan)
+- [x] 2.2 Declarar el error de dominio `ErrorDominioPedido` para los rechazos de guard de la máquina de estados
 
 ## 3. Fase 1 — Máquina de estados pura (TDD ESTRICTO, red-green)
 
-- [ ] 3.1 RED: escribir los tests que fallan primero en `maquinaEstados.test.ts` para las transiciones del lado JC y sus guards: `enviaBorradorVaARevisionCoordinador`, `cancelarSoloEnBorrador`, `editarSoloBorradorODevueltoDelPropietario` [BR-008], `accionSobrePedidoTerminalDenegada`, `cadaTransicionRegistraHistorial`
-- [ ] 3.2 GREEN: implementar `maquinaEstados.ts` (`aplicarAccion(pedido, accion)` puro, sin React/Promise) hasta poner esos tests en verde, validando guards y devolviendo el pedido o lanzando `ErrorDominioPedido`
-- [ ] 3.3 Diseñar la firma/estructura de `aplicarAccion` para que SCRUM-8 agregue `aceptar`/`rechazar`/`devolver`/`reenviar`/`priorizar` sin reescribir lo existente (sin implementarlas ahora)
-- [ ] 3.4 Verificar `pnpm --filter frontend test:run` en verde para la suite de `maquinaEstados`
+- [x] 3.1 RED: escribir los tests que fallan primero en `maquinaEstados.test.ts` para las transiciones del lado JC y sus guards: `enviaBorradorVaARevisionCoordinador`, `cancelarSoloEnBorrador`, `editarSoloBorradorODevueltoDelPropietario` [BR-008], `accionSobrePedidoTerminalDenegada`, `cadaTransicionRegistraHistorial`
+- [x] 3.2 GREEN: implementar `maquinaEstados.ts` (`aplicarAccion(pedido, accion)` puro, sin React/Promise) hasta poner esos tests en verde, validando guards y devolviendo el pedido o lanzando `ErrorDominioPedido`
+- [x] 3.3 Diseñar la firma/estructura de `aplicarAccion` para que SCRUM-8 agregue `aceptar`/`rechazar`/`devolver`/`reenviar`/`priorizar` sin reescribir lo existente (union `AccionPedido` + switch exhaustivo con `never`)
+- [x] 3.4 Verificar `pnpm --filter frontend test:run` en verde para la suite de `maquinaEstados` (12 tests)
 
 ## 4. Fase 1 — Seam de datos mock (store + api + seed)
 
-- [ ] 4.1 Crear `api/pedidosStore.ts`: singleton en memoria hidratado desde `localStorage` (clave `adoc.mock.pedidos`), persistido en cada escritura; expone lectura/escritura síncrona interna (no lo consumen los componentes)
-- [ ] 4.2 Crear `api/pedidosSeed.ts`: datos iniciales (docentes precargados del período anterior como "Sin novedad" + algún pedido de ejemplo por estado del lado JC)
-- [ ] 4.3 Crear `api/pedidosApi.ts`: funciones async (`Promise` + `await demora(250)`) sobre el store, delegando transiciones a `maquinaEstados.ts`: `listarMisPedidos(actor)`, `obtenerPedido(id)`, `crearPedido(...)`, `editarPedido(...)`, `enviarPedido(id, actor)`, `cancelarPedido(id, actor)`
-- [ ] 4.4 Anotar cada función de `pedidosApi.ts` con su `// TODO(backend): <endpoint real> — SCRUM-7/8. Mock actual: ...` (formato fijo del §7 del plan); verificar que NO haya `// TODO(backend)` fuera de `api/`
+- [x] 4.1 Crear `api/pedidosStore.ts`: singleton en memoria hidratado desde `localStorage` (clave `adoc.mock.pedidos`), persistido en cada escritura; lectura/escritura síncrona con `structuredClone` (no lo consumen los componentes); `reiniciarStorePedidos()` para tests
+- [x] 4.2 Crear `api/pedidosSeed.ts`: datos iniciales (docentes precargados del período anterior como "Sin novedad" + ejemplos en borrador/Alta/enviado/devuelto)
+- [x] 4.3 Crear `api/pedidosApi.ts`: funciones async (`Promise` + `await demora(250)`) sobre el store, delegando transiciones a `maquinaEstados.ts`: `listarMisPedidos`, `obtenerPedido`, `crearPedido`, `editarPedido`, `enviarPedido`, `cancelarPedido` (+ `api/contextoActor.ts` seam del ámbito)
+- [x] 4.4 Anotar cada función de `pedidosApi.ts` con su `// TODO(backend): <endpoint real> — SCRUM-7. Mock actual: ...` (formato fijo del §7 del plan); verificado: no hay `// TODO(backend)` fuera de `api/`
 
 ## 5. Fase 1 — Hooks React Query + badge de estado
 
-- [ ] 5.1 Crear `hooks/usePedidos.ts`: `useMisPedidos(actor)` y `usePedido(id)` con `useQuery` y queryKeys namespaced (`["pedidos", ...]`)
-- [ ] 5.2 Crear `hooks/useAccionesPedido.ts`: mutations `useCrearPedido`, `useEditarPedido`, `useEnviarPedido`, `useCancelarPedido` que invalidan `["pedidos"]` en `onSuccess`
-- [ ] 5.3 Crear `components/EstadoPedidoBadge.tsx`: wrapper sobre `StatusBadge` que mapea `EstadoPedido` → `StatusKind` según §6.6 (+ badge extra `prioritario`)
+- [x] 5.1 Crear `hooks/usePedidos.ts`: `useMisPedidos(actor)` y `usePedido(id)` con `useQuery` y queryKeys namespaced (`["pedidos", ...]`); + `hooks/useActorContexto.ts`
+- [x] 5.2 Crear `hooks/useAccionesPedido.ts`: mutations `useCrearPedido`, `useEditarPedido`, `useEnviarPedido`, `useCancelarPedido` que invalidan `["pedidos"]` en `onSuccess`
+- [x] 5.3 Crear `components/EstadoPedidoBadge.tsx`: wrapper sobre `StatusBadge` que mapea `EstadoPedido` → `StatusKind` según §6.6 (+ badge extra `prioritario`)
 
 ## 6. Fase 2 — Validaciones de form (TDD ESTRICTO, red-green)
 
