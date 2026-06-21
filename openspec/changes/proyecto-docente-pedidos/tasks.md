@@ -67,4 +67,4 @@
 - [x] 11.1 `pnpm --filter frontend test:run` verde (34 tests: BR-001..004 + 008, máquina de estados, validador, PedidoForm UI, seam api, MisPedidosPage integración)
 - [x] 11.2 `pnpm --filter frontend lint` y `pnpm --filter frontend build` verdes; `openspec validate --strict` verde
 - [x] 11.3 Criterios de aceptación SCRUM-7 (§10): persistencia entre recarga (test seam), Loading/Empty/Error/Success en Mis pedidos y form, sin `// TODO(backend)` fuera de `api/` (verificado), identificadores/comentarios en español
-- [ ] 11.4 Correr `/evaluate` y registrar la composite score en `docs/quality/scorecard.md`
+- [x] 11.4 Correr `/evaluate` y registrar la composite score en `docs/quality/scorecard.md` (composite 4.25 — pass: ningún criterio < 3, Func ≥ 4)
