@@ -39,8 +39,8 @@
 
 ## 6. Fase 4 — Cierre: documentación y QA (invariantes #11 y #12)
 
-- [ ] 6.1 Registrar en `docs/business-rules/designaciones.md` las BR-005/009/011/013/014/015/017 (hoy en "Pendientes (SCRUM-8)") con statement, fuente (decisión de proceso) y mapping a test; regenerar el índice (`pnpm generate-indexes`)
-- [ ] 6.2 Extender `docs/product/designs/proyecto-docente-design-spec.md` con tablero de revisión + detalle role-aware + cadena de aprobación/timeline; tildar los roles revisores en "Roles que ven esta surface" (invariante #12)
-- [ ] 6.3 QA: `pnpm --filter frontend test:run` verde (suite completa SCRUM-7 + SCRUM-8), `pnpm --filter frontend lint` y `pnpm --filter frontend build` verdes, `pnpm exec openspec validate flujo-aprobacion-designaciones --strict` verde
-- [ ] 6.4 Verificar criterios de aceptación SCRUM-8 (§10 del plan): avance/rechazo/devolución/reenvío/prioridad correctos, gating por etapa+ámbito, Administración no aprueba, detalle con timeline+historial, sin `// TODO(backend)` fuera de `api/`, identificadores/comentarios en español
-- [ ] 6.5 Correr `/evaluate` y registrar la composite score en `docs/quality/scorecard.md`
+- [x] 6.1 Registrar en `docs/business-rules/designaciones.md` las BR-005/009/011/013/014/015/017 (hoy en "Pendientes (SCRUM-8)") con statement, fuente (decisión de proceso) y mapping a test; regenerar el índice (`pnpm generate-indexes`)
+- [x] 6.2 Extender `docs/product/designs/proyecto-docente-design-spec.md` con tablero de revisión + detalle role-aware + cadena de aprobación/timeline; tildar los roles revisores en "Roles que ven esta surface" (invariante #12)
+- [x] 6.3 QA: `pnpm --filter frontend test:run` verde (suite completa SCRUM-7 + SCRUM-8), `pnpm --filter frontend lint` y `pnpm --filter frontend build` verdes, `pnpm exec openspec validate flujo-aprobacion-designaciones --strict` verde
+- [x] 6.4 Verificar criterios de aceptación SCRUM-8 (§10 del plan): avance/rechazo/devolución/reenvío/prioridad correctos, gating por etapa+ámbito, Administración no aprueba, detalle con timeline+historial, sin `// TODO(backend)` fuera de `api/`, identificadores/comentarios en español
+- [x] 6.5 Correr `/evaluate` y registrar la composite score en `docs/quality/scorecard.md`
