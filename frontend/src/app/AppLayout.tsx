@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
-import { useCurrentUser, type Role } from "../shared/auth/useCurrentUser";
+import { useCurrentUser } from "../shared/auth/useCurrentUser";
+import { setRolActivo } from "../shared/auth/dev/mockSession";
 import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
 import "./shell/shell.css";
@@ -9,14 +10,14 @@ import "./shell/shell.css";
 /**
  * App shell (design 04a): top bar + role-aware sidebar + scrolling main.
  * Wraps every authenticated route; the active page renders into <Outlet>.
+ *
+ * El rol activo de un usuario multi-rol vive en la sesión mock (reactiva vía
+ * useCurrentUser): al cambiar de rol re-renderiza el shell Y el ActorContexto
+ * que consume la capa api/, sin recargar.
  */
 export default function AppLayout() {
-  const currentUser = useCurrentUser();
+  const user = useCurrentUser();
   const [collapsed, setCollapsed] = useState(false);
-  // Local role override so a multi-role user can switch without a reload.
-  const [role, setRole] = useState<Role>(currentUser.role);
-
-  const user = { ...currentUser, role };
 
   return (
     <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
@@ -24,9 +25,9 @@ export default function AppLayout() {
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((c) => !c)}
         user={user}
-        onSwitchRole={setRole}
+        onSwitchRole={setRolActivo}
       />
-      <Sidebar collapsed={collapsed} role={role} />
+      <Sidebar collapsed={collapsed} role={user.role} />
       <main className="adoc-main">
         <Outlet />
       </main>

@@ -5,7 +5,7 @@ import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useMisPedidos } from "../hooks/usePedidos";
-import { useCancelarPedido, useEnviarPedido } from "../hooks/useAccionesPedido";
+import { useCancelarPedido, useEnviarPedido, useReenviarPedido } from "../hooks/useAccionesPedido";
 import type { PedidoDesignacion } from "../types";
 
 export function MisPedidosPage() {
@@ -14,6 +14,7 @@ export function MisPedidosPage() {
   const { data: pedidos, isLoading, isError } = useMisPedidos(actor);
   const enviar = useEnviarPedido(actor);
   const cancelar = useCancelarPedido(actor);
+  const reenviar = useReenviarPedido(actor);
 
   const [pedidoACancelar, setPedidoACancelar] = useState<PedidoDesignacion | undefined>();
 
@@ -51,7 +52,7 @@ export function MisPedidosPage() {
         }
       />
 
-      {(enviar.isError || cancelar.isError) && (
+      {(enviar.isError || cancelar.isError || reenviar.isError) && (
         <InlineAlert severity="danger" title="No se pudo completar la acción">
           Ocurrió un error al actualizar el pedido. Probá de nuevo.
         </InlineAlert>
@@ -77,6 +78,7 @@ export function MisPedidosPage() {
           onEditar={handleEditar}
           onEnviar={(pedido) => enviar.mutate(pedido.id)}
           onCancelar={(pedido) => setPedidoACancelar(pedido)}
+          onReenviar={(pedido) => reenviar.mutate(pedido.id)}
         />
       )}
 

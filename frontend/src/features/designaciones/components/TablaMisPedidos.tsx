@@ -7,6 +7,7 @@ interface TablaMisPedidosProps {
   onEditar: (pedido: PedidoDesignacion) => void;
   onEnviar: (pedido: PedidoDesignacion) => void;
   onCancelar: (pedido: PedidoDesignacion) => void;
+  onReenviar: (pedido: PedidoDesignacion) => void;
 }
 
 /** El JC edita en borrador o cuando el pedido fue devuelto a él. */
@@ -25,7 +26,18 @@ function puedeCancelar(pedido: PedidoDesignacion): boolean {
   return pedido.estado === "borrador";
 }
 
-export function TablaMisPedidos({ pedidos, onEditar, onEnviar, onCancelar }: TablaMisPedidosProps) {
+/** El JC reenvía un pedido que le fue devuelto (retoma la etapa de revisión). */
+function puedeReenviar(pedido: PedidoDesignacion): boolean {
+  return pedido.estado === "devuelto" && pedido.propietarioActual === "Jefe de Cátedra";
+}
+
+export function TablaMisPedidos({
+  pedidos,
+  onEditar,
+  onEnviar,
+  onCancelar,
+  onReenviar,
+}: TablaMisPedidosProps) {
   return (
     <Table>
       <Table.Root>
@@ -79,6 +91,16 @@ export function TablaMisPedidos({ pedidos, onEditar, onEnviar, onCancelar }: Tab
                       Enviar
                     </Button>
                   )}
+                  {puedeReenviar(pedido) && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => onReenviar(pedido)}
+                      aria-label={`Reenviar a revisión el pedido de ${pedido.docente.nombre}`}
+                    >
+                      Reenviar
+                    </Button>
+                  )}
                   {puedeCancelar(pedido) && (
                     <Button
                       variant="ghost"
@@ -90,16 +112,19 @@ export function TablaMisPedidos({ pedidos, onEditar, onEnviar, onCancelar }: Tab
                       Cancelar
                     </Button>
                   )}
-                  {!puedeEditar(pedido) && !puedeEnviar(pedido) && !puedeCancelar(pedido) && (
-                    <span
-                      style={{
-                        color: "var(--color-text-tertiary)",
-                        fontSize: "var(--text-body-sm-size)",
-                      }}
-                    >
-                      Sin acciones
-                    </span>
-                  )}
+                  {!puedeEditar(pedido) &&
+                    !puedeEnviar(pedido) &&
+                    !puedeCancelar(pedido) &&
+                    !puedeReenviar(pedido) && (
+                      <span
+                        style={{
+                          color: "var(--color-text-tertiary)",
+                          fontSize: "var(--text-body-sm-size)",
+                        }}
+                      >
+                        Sin acciones
+                      </span>
+                    )}
                 </div>
               </Table.Cell>
             </Table.Row>

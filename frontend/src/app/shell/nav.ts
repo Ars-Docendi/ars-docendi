@@ -42,6 +42,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Trabajo",
       items: [
         { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/designaciones/revision", icon: "pedidos", label: "Revisión" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
     },
@@ -55,6 +56,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Trabajo",
       items: [
         { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/designaciones/revision", icon: "pedidos", label: "Revisión" },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
@@ -73,6 +75,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Trabajo",
       items: [
         { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/designaciones/revision", icon: "pedidos", label: "Revisión" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
     },
@@ -86,6 +89,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Trabajo",
       items: [
         { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/designaciones/revision", icon: "pedidos", label: "Revisión" },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],

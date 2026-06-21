@@ -17,25 +17,25 @@
 
 ## 3. Fase 3 — UI del revisor (Kanban + detalle + modal)
 
-- [ ] 3.1 Crear `components/PedidoCard.tsx` (presentacional: docente + cátedra + novedad + `EstadoPedidoBadge` + flag prioritario; click → detalle) y `components/ColumnaKanban.tsx` (título + cuenta + lista de cards; estado vacío)
-- [ ] 3.2 Crear `components/TableroRevision.tsx` (orquesta las 4 columnas Pendiente-mi-etapa / Aprobado / Rechazado / Devuelto a partir de la lista por ámbito) y `pages/TableroRevisionPage.tsx` (consume `usePedidosPorAmbito`, renderiza Loading / Empty / Error / Success)
-- [ ] 3.3 Crear los adapters de presentación puros: `accionAAuditVerb(accion)` (español → `AuditVerb`) y `derivarTimeline(pedido)` (estado + historial → `TimelineStep[]`), con `switch` exhaustivo (`never`); ubicados junto a los componentes de detalle (NO en `maquinaEstados.ts`)
-- [ ] 3.4 Crear `components/ModalAccionRevision.tsx` (Modal + Textarea + Button por variante primary/destructive/warning/ghost) que aplica la regla de comentario [BR-005] (obligatorio en rechazar/devolver/priorizar; opcional en aceptar) y dispara la mutation correspondiente
-- [ ] 3.5 Crear `pages/DetallePedidoPage.tsx` (`/designaciones/pedidos/:id`): `DataList` + `ApprovalTimeline` + `AuditLog` (+ `Tabs` Solicitud/Historial/Documentos); role-aware: botonera de revisión solo si `puedeRevisar(pedido, actor)`, resto solo lectura; Loading/Empty/Error/Success
-- [ ] 3.6 Tests de UI (RTL/user-event): `ModalAccionRevision` exige comentario en rechazo/devolución y dispara la mutation; `TableroRevision`/`PedidoCard` muestran estado y prioridad correctos y solo las columnas/acciones del ámbito y la etapa
+- [x] 3.1 Crear `components/PedidoCard.tsx` (presentacional: docente + cátedra + novedad + `EstadoPedidoBadge` + flag prioritario; click → detalle) y `components/ColumnaKanban.tsx` (título + cuenta + lista de cards; estado vacío)
+- [x] 3.2 Crear `components/TableroRevision.tsx` (orquesta las 4 columnas Pendiente-mi-etapa / Aprobado / Rechazado / Devuelto a partir de la lista por ámbito) y `pages/TableroRevisionPage.tsx` (consume `usePedidosPorAmbito`, renderiza Loading / Empty / Error / Success)
+- [x] 3.3 Crear los adapters de presentación puros: `accionAAuditVerb(accion)` (español → `AuditVerb`) y `derivarTimeline(pedido)` (estado + historial → `TimelineStep[]`), con `switch` exhaustivo (`never`); ubicados junto a los componentes de detalle (NO en `maquinaEstados.ts`)
+- [x] 3.4 Crear `components/ModalAccionRevision.tsx` (Modal + Textarea + Button por variante primary/destructive/warning/ghost) que aplica la regla de comentario [BR-005] (obligatorio en rechazar/devolver/priorizar; opcional en aceptar) y dispara la mutation correspondiente
+- [x] 3.5 Crear `pages/DetallePedidoPage.tsx` (`/designaciones/pedidos/:id`): `DataList` + `ApprovalTimeline` + `AuditLog` (+ `Tabs` Solicitud/Historial/Documentos); role-aware: botonera de revisión solo si `puedeRevisar(pedido, actor)`, resto solo lectura; Loading/Empty/Error/Success
+- [x] 3.6 Tests de UI (RTL/user-event): `ModalAccionRevision` exige comentario en rechazo/devolución y dispara la mutation; `TableroRevision`/`PedidoCard` muestran estado y prioridad correctos y solo las columnas/acciones del ámbito y la etapa
 
 ## 4. Fase 3 — Routing, nav, gating y role-switching
 
-- [ ] 4.1 Extender `features/designaciones/routes.tsx`: `revision` → `TableroRevisionPage` envuelta en `RequireRole` (Coordinador/Secretaría/Decanato/Administración); `pedidos/:id` → `DetallePedidoPage` (cualquier rol, visibilidad por ámbito, acciones gated por etapa)
-- [ ] 4.2 Extender `app/shell/nav.ts` (`NAV_BY_ROLE`): ítem "Revisión" → `/designaciones/revision` solo para los revisores (sin links muertos, invariante #7)
-- [ ] 4.3 Extender `shared/auth/dev/mockSession.ts`: `setRolActivo(rol)` / `getRolActivo()` persistidos en `localStorage` (clave `adoc.dev.mockRol`) + `suscribirMockSession(cb)`; `getMockUser()` aplica el rol activo como override acotado a `currentUser.roles`
-- [ ] 4.4 Volver reactivo `shared/auth/useCurrentUser.ts` con `useSyncExternalStore` suscrito a `suscribirMockSession` (misma firma `(): CurrentUser`); `AppLayout` deja de cablear un `role` local y `onSwitchRole` pasa a `setRolActivo`
-- [ ] 4.5 Agregar a `shared/auth/dev/mockUsers.ts` el usuario "Demo (todos los roles)" con `roles: [todos]` (el `RoleMenu` existente ya renderiza con `roles.length > 1`); verificar que SCRUM-7 (`MisPedidosPage.test.tsx`) sigue verde tras el cambio de `useCurrentUser`
+- [x] 4.1 Extender `features/designaciones/routes.tsx`: `revision` → `TableroRevisionPage` envuelta en `RequireRole` (Coordinador/Secretaría/Decanato/Administración); `pedidos/:id` → `DetallePedidoPage` (cualquier rol, visibilidad por ámbito, acciones gated por etapa)
+- [x] 4.2 Extender `app/shell/nav.ts` (`NAV_BY_ROLE`): ítem "Revisión" → `/designaciones/revision` solo para los revisores (sin links muertos, invariante #7)
+- [x] 4.3 Extender `shared/auth/dev/mockSession.ts`: `setRolActivo(rol)` / `getRolActivo()` persistidos en `localStorage` (clave `adoc.dev.mockRol`) + `suscribirMockSession(cb)`; `getMockUser()` aplica el rol activo como override acotado a `currentUser.roles`
+- [x] 4.4 Volver reactivo `shared/auth/useCurrentUser.ts` con `useSyncExternalStore` suscrito a `suscribirMockSession` (misma firma `(): CurrentUser`); `AppLayout` deja de cablear un `role` local y `onSwitchRole` pasa a `setRolActivo`
+- [x] 4.5 Agregar a `shared/auth/dev/mockUsers.ts` el usuario "Demo (todos los roles)" con `roles: [todos]` (el `RoleMenu` existente ya renderiza con `roles.length > 1`); verificar que SCRUM-7 (`MisPedidosPage.test.tsx`) sigue verde tras el cambio de `useCurrentUser`
 
 ## 5. Fase 3 — Tests de integración (RTL sobre el store mock)
 
-- [ ] 5.1 `happy-path`: JC envía → Coordinador acepta → Secretaría acepta → Decanato acepta → `en_lote`, cambiando el `ActorContexto` (rol activo) entre pasos; verifica que el pedido viaja entre vistas y conserva historial
-- [ ] 5.2 `devolución`: Coordinador devuelve con comentario → JC corrige/reenvía → vuelve a `en_revision_coordinador`; verifica además que confirmar sin comentario por la UI no muta el store [BR-005]
+- [x] 5.1 `happy-path`: JC envía → Coordinador acepta → Secretaría acepta → Decanato acepta → `en_lote`, cambiando el `ActorContexto` (rol activo) entre pasos; verifica que el pedido viaja entre vistas y conserva historial
+- [x] 5.2 `devolución`: Coordinador devuelve con comentario → JC corrige/reenvía → vuelve a `en_revision_coordinador`; verifica además que confirmar sin comentario por la UI no muta el store [BR-005]
 
 ## 6. Fase 4 — Cierre: documentación y QA (invariantes #11 y #12)
 
