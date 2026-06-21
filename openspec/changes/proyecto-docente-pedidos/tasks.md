@@ -59,12 +59,12 @@
 
 ## 10. Fase cierre — Documentación (invariantes #11 y #12)
 
-- [ ] 10.1 Crear `docs/business-rules/designaciones.md` desde el template y registrar BR-designaciones-001..008 con statement, fuente (cita normativa "pendiente con cliente" para 001..004; "decisión de proceso" para 005/008) y mapping a test; regenerar índice (`pnpm generate-indexes`)
-- [ ] 10.2 Crear `docs/product/designs/proyecto-docente-design-spec.md` desde `_design-spec-template.md` (Mis pedidos + Form de pedido)
+- [x] 10.1 Crear `docs/business-rules/designaciones.md` y registrar BR-designaciones-001..004 + 008 (los de SCRUM-7) con statement, fuente y mapping a test; BR de revisión (005/009/011/013/014/015/017) listadas como pendientes de SCRUM-8 (no se registran sin test); índice regenerado (`pnpm generate-indexes`)
+- [x] 10.2 Crear `docs/product/designs/proyecto-docente-design-spec.md` desde `_design-spec-template.md` (Mis pedidos + Form de pedido)
 
 ## 11. Cierre — QA y criterios de aceptación
 
-- [ ] 11.1 `pnpm --filter frontend test:run` verde con tests para todas las BR testeables de este change
-- [ ] 11.2 `pnpm --filter frontend lint` y `pnpm --filter frontend build` verdes
-- [ ] 11.3 Verificar criterios de aceptación globales y de SCRUM-7 del plan (§10): persistencia entre rol/recarga, Loading/Empty/Error/Success en cada pantalla con datos, sin `// TODO(backend)` fuera de `api/`, identificadores/comentarios en español
+- [x] 11.1 `pnpm --filter frontend test:run` verde (34 tests: BR-001..004 + 008, máquina de estados, validador, PedidoForm UI, seam api, MisPedidosPage integración)
+- [x] 11.2 `pnpm --filter frontend lint` y `pnpm --filter frontend build` verdes; `openspec validate --strict` verde
+- [x] 11.3 Criterios de aceptación SCRUM-7 (§10): persistencia entre recarga (test seam), Loading/Empty/Error/Success en Mis pedidos y form, sin `// TODO(backend)` fuera de `api/` (verificado), identificadores/comentarios en español
 - [ ] 11.4 Correr `/evaluate` y registrar la composite score en `docs/quality/scorecard.md`
