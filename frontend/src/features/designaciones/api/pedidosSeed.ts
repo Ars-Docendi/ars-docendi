@@ -28,6 +28,14 @@ function siguienteId(prefijo: string): string {
   return `${prefijo}-${contadorId}`;
 }
 
+/** Número de trámite legible ("N°-AAAA-NNNN"). En el real lo asigna el backend. */
+const ANIO_NUMERO = 2026;
+let contadorNumero = 0;
+function siguienteNumero(): string {
+  contadorNumero += 1;
+  return `N°-${ANIO_NUMERO}-${String(123 + contadorNumero).padStart(4, "0")}`;
+}
+
 interface SemillaPedido {
   dni: string;
   nombre: string;
@@ -156,6 +164,7 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
   const historial = historialPara(semilla.estado);
   return {
     id: siguienteId("ped"),
+    numero: siguienteNumero(),
     periodoId: PERIODO_ABIERTO_ID,
     catedra: semilla.catedra ?? CATEDRA,
     carrera: semilla.carrera ?? CARRERA,
@@ -338,5 +347,6 @@ const SEMILLAS: SemillaPedido[] = [
 /** Devuelve una copia fresca del seed (ids estables dentro de la sesión). */
 export function crearSeedPedidos(): PedidoDesignacion[] {
   contadorId = 0;
+  contadorNumero = 0;
   return SEMILLAS.map(desdeSemilla);
 }

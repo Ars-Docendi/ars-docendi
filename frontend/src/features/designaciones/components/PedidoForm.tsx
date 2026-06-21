@@ -1,39 +1,37 @@
 import { useState } from "react";
-import {
-  Button,
-  Field,
-  FileUpload,
-  InlineAlert,
-  Input,
-  Radio,
-  Select,
-  Textarea,
-} from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Radio, Textarea, Toggle } from "@ars-docendi/ui";
 import type { UploadedFile } from "@ars-docendi/ui";
 import type {
-  Cargo,
-  Dedicacion,
   DatosEditablesPedido,
+  DocenteExistente,
+  DocentePedido,
+  EstadoPedido,
   Novedad,
   PedidoDesignacion,
   TipoAdjunto,
 } from "../types";
+import { DOCENTES_EXISTENTES } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
+import { SeccionDocentePedido } from "./SeccionDocentePedido";
+import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
+import { SeccionAdjuntosPedido } from "./SeccionAdjuntosPedido";
+import "./pedidoForm.css";
 
 const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
-const CARGOS: Cargo[] = ["Titular", "Adjunto", "JTP", "Ayudante"];
-const DEDICACIONES: Dedicacion[] = [
-  "Categoría 1",
-  "Categoría 2",
-  "Categoría 3",
-  "Categoría 4",
-  "Categoría 5",
-  "Categoría 6",
-];
+
+/** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
+const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
+  en_revision_coordinador: "En revisión Coordinador",
+  en_revision_secretaria: "En revisión Secretaría",
+  en_revision_decanato: "En revisión Decanato",
+};
 
 interface PedidoFormProps {
   pedidoInicial?: PedidoDesignacion;
   pedidosExistentes: PedidoDesignacion[];
+  esEdicion?: boolean;
+  /** Etiqueta del período abierto para el subtítulo ("2026 · 1C"). */
+  periodoLabel?: string;
   guardando?: boolean;
   onGuardar: (datos: DatosEditablesPedido) => void;
   onCancelar: () => void;
@@ -54,18 +52,11 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
   };
 }
 
-const ADJUNTOS_POR_NOVEDAD: Partial<Record<Novedad, { tipo: TipoAdjunto; etiqueta: string }[]>> = {
-  Alta: [
-    { tipo: "cv", etiqueta: "CV" },
-    { tipo: "dni_frente", etiqueta: "Foto DNI (frente)" },
-    { tipo: "dni_dorso", etiqueta: "Foto DNI (dorso)" },
-  ],
-  Baja: [{ tipo: "justificativo", etiqueta: "Justificativo" }],
-};
-
 export function PedidoForm({
   pedidoInicial,
   pedidosExistentes,
+  esEdicion = false,
+  periodoLabel = "2026 · 1C",
   guardando = false,
   onGuardar,
   onCancelar,
@@ -78,6 +69,48 @@ export function PedidoForm({
     valor: DatosEditablesPedido[K],
   ) {
     setDatos((prev) => ({ ...prev, [campo]: valor }));
+  }
+
+  // Catálogo de docentes para el selector. Si se edita un pedido cuyo docente
+  // no está en el catálogo, se antepone para que quede seleccionable.
+  const opcionesDocente: DocenteExistente[] = [...DOCENTES_EXISTENTES];
+  const dniInicial = (pedidoInicial?.docente.dni ?? "").replace(/\D/g, "");
+  if (
+    pedidoInicial &&
+    dniInicial &&
+    pedidoInicial.cargoActual &&
+    pedidoInicial.dedicacionActual &&
+    !opcionesDocente.some((docente) => docente.dni === dniInicial)
+  ) {
+    opcionesDocente.unshift({
+      dni: dniInicial,
+      nombre: pedidoInicial.docente.nombre,
+      antiguedad: pedidoInicial.docente.antiguedad,
+      cargoActual: pedidoInicial.cargoActual,
+      dedicacionActual: pedidoInicial.dedicacionActual,
+      materiaActual: pedidoInicial.materiaAsociada,
+    });
+  }
+
+  function seleccionarDocente(dni: string) {
+    const docente = opcionesDocente.find((item) => item.dni === dni.replace(/\D/g, ""));
+    if (!docente) {
+      setDatos((prev) => ({
+        ...prev,
+        docente: { dni: "", nombre: "", antiguedad: 0 },
+        cargoActual: null,
+        dedicacionActual: null,
+        materiaAsociada: "",
+      }));
+      return;
+    }
+    setDatos((prev) => ({
+      ...prev,
+      docente: { dni: docente.dni, nombre: docente.nombre, antiguedad: docente.antiguedad },
+      cargoActual: docente.cargoActual,
+      dedicacionActual: docente.dedicacionActual,
+      materiaAsociada: docente.materiaActual,
+    }));
   }
 
   function agregarAdjunto(tipo: TipoAdjunto, archivos: FileList) {
@@ -115,188 +148,166 @@ export function PedidoForm({
     }
   }
 
-  const muestraSolicitud =
-    datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación";
-  const adjuntosRequeridos = ADJUNTOS_POR_NOVEDAD[datos.novedad];
+  const { novedad } = datos;
+  const esAlta = novedad === "Alta";
+  const esBaja = novedad === "Baja";
+  const esCambio = novedad === "Cambio de cargo o dedicación";
+  const esSinNovedad = novedad === "Sin novedad";
+  const muestraSolicitud = esAlta || esCambio;
+  const muestraToggle = esAlta || esCambio;
+
+  const numero = pedidoInicial?.numero ?? "";
+  const titulo = esEdicion ? "Editar pedido de designación" : "Nuevo pedido de designación";
+  const subtitulo = construirSubtitulo(novedad, esEdicion, pedidoInicial, numero, periodoLabel);
+  const devolucion = pedidoInicial?.estado === "devuelto" ? ultimaDevolucion(pedidoInicial) : null;
 
   return (
     <form
+      className="adoc-pf"
       onSubmit={(e) => {
         e.preventDefault();
         handleGuardar();
       }}
-      style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", maxWidth: 720 }}
     >
-      {/* Datos del docente */}
-      <fieldset
-        style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-4)" }}
-      >
-        <legend style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-          Datos del docente
-        </legend>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "var(--space-4)" }}>
-          <Field label="DNI" required error={errores.docente}>
-            <Input
-              value={datos.docente.dni}
-              onChange={(e) => actualizar("docente", { ...datos.docente, dni: e.target.value })}
-              placeholder="Ej. 30111222"
-            />
-          </Field>
-          <Field label="Nombre y apellido" required>
-            <Input
-              value={datos.docente.nombre}
-              onChange={(e) => actualizar("docente", { ...datos.docente, nombre: e.target.value })}
-              placeholder="Ej. Ana Pérez"
-            />
-          </Field>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-4)" }}>
-          <Field label="Antigüedad (años)">
-            <Input
-              type="number"
-              min={0}
-              value={String(datos.docente.antiguedad)}
-              onChange={(e) =>
-                actualizar("docente", { ...datos.docente, antiguedad: Number(e.target.value) })
-              }
-            />
-          </Field>
-          <Field label="Cargo actual" hint="Dato actual (solo lectura)">
-            <Input value={datos.cargoActual ?? "Sin designación actual"} readOnly />
-          </Field>
-          <Field label="Dedicación actual" hint="Dato actual (solo lectura)">
-            <Input value={datos.dedicacionActual ?? "—"} readOnly />
-          </Field>
-        </div>
-        <Field label="Materia asociada" required error={errores.materiaAsociada}>
-          <Input
-            value={datos.materiaAsociada}
-            onChange={(e) => actualizar("materiaAsociada", e.target.value)}
-            placeholder="Ej. Ingeniería de Software"
-          />
-        </Field>
-      </fieldset>
+      <header className="adoc-pf-head">
+        <p className="adoc-pf-eyebrow">DESIGNACIONES · {novedad.toUpperCase()}</p>
+        <h1 className="adoc-pf-title">{titulo}</h1>
+        <p className="adoc-pf-subtitle">{subtitulo}</p>
+      </header>
 
-      {/* Novedad */}
-      <fieldset style={{ border: "none", margin: 0, padding: 0 }}>
-        <legend style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-          Novedad
-        </legend>
-        <div
-          role="radiogroup"
-          aria-label="Novedad"
-          style={{ display: "grid", gap: "var(--space-2)" }}
-        >
-          {NOVEDADES.map((opcion) => (
-            <Radio
-              key={opcion}
-              name="novedad"
-              label={opcion}
-              value={opcion}
-              checked={datos.novedad === opcion}
-              onChange={() => actualizar("novedad", opcion)}
-            />
-          ))}
-        </div>
-        <label style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
-          <input
-            type="checkbox"
-            checked={datos.haceHorasOtroDepto}
-            onChange={(e) => actualizar("haceHorasOtroDepto", e.target.checked)}
-          />
-          Hace más horas en otro Departamento
-        </label>
-      </fieldset>
+      {devolucion && (
+        <InlineAlert severity="warning" title={`Devuelto por el ${devolucion.porRol}`}>
+          {devolucion.comentario ? `«${devolucion.comentario}» ` : ""}
+          Al reenviar, el pedido retoma la etapa{" "}
+          {ETIQUETA_ETAPA[pedidoInicial?.etapaRetorno ?? "en_revision_coordinador"] ??
+            "de revisión"}
+          .
+        </InlineAlert>
+      )}
 
-      {/* Solicitud (Alta / Cambio) */}
-      {muestraSolicitud && (
-        <fieldset
-          style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-4)" }}
-        >
-          <legend style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-            Solicitud
-          </legend>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
-            <Field label="Cargo solicitado" required error={errores.cargoSolicitado}>
-              <Select
-                value={datos.cargoSolicitado ?? ""}
-                onChange={(e) =>
-                  actualizar("cargoSolicitado", (e.target.value || undefined) as Cargo)
-                }
-              >
-                <option value="">Seleccionar…</option>
-                {CARGOS.map((cargo) => (
-                  <option key={cargo} value={cargo}>
-                    {cargo}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Dedicación solicitada" required error={errores.dedicacionSolicitada}>
-              <Select
-                value={datos.dedicacionSolicitada ?? ""}
-                onChange={(e) =>
-                  actualizar("dedicacionSolicitada", (e.target.value || undefined) as Dedicacion)
-                }
-              >
-                <option value="">Seleccionar…</option>
-                {DEDICACIONES.map((dedicacion) => (
-                  <option key={dedicacion} value={dedicacion}>
-                    {dedicacion}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+      <div className="adoc-pf-card">
+        <section className="adoc-pf-sec">
+          <h2 className="adoc-pf-sec-h">Tipo de novedad</h2>
+          <div className="adoc-pf-radios" role="radiogroup" aria-label="Tipo de novedad">
+            {NOVEDADES.map((opcion) => (
+              <Radio
+                key={opcion}
+                name="novedad"
+                label={opcion}
+                value={opcion}
+                checked={novedad === opcion}
+                onChange={() => actualizar("novedad", opcion)}
+              />
+            ))}
           </div>
-        </fieldset>
-      )}
+        </section>
 
-      {/* Justificación (Cambio) */}
-      {datos.novedad === "Cambio de cargo o dedicación" && (
-        <Field label="Justificación" required error={errores.justificacion}>
-          <Textarea
-            rows={3}
-            value={datos.justificacion ?? ""}
-            onChange={(e) => actualizar("justificacion", e.target.value)}
-            placeholder="Motivo del cambio de cargo o dedicación"
+        <SeccionDocentePedido
+          novedad={novedad}
+          docente={datos.docente}
+          errorDocente={errores.docente}
+          opcionesDocente={opcionesDocente}
+          cargoActual={datos.cargoActual}
+          dedicacionActual={datos.dedicacionActual}
+          materia={datos.materiaAsociada}
+          dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
+          onCambiarDocente={(docente: DocentePedido) => actualizar("docente", docente)}
+          onSeleccionarDocente={seleccionarDocente}
+        />
+
+        {muestraSolicitud && (
+          <SeccionDesignacionSolicitada
+            esAlta={esAlta}
+            materia={datos.materiaAsociada}
+            cargoSolicitado={datos.cargoSolicitado}
+            dedicacionSolicitada={datos.dedicacionSolicitada}
+            errores={errores}
+            onMateria={(valor) => actualizar("materiaAsociada", valor)}
+            onCargo={(valor) => actualizar("cargoSolicitado", valor)}
+            onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
           />
-        </Field>
-      )}
+        )}
 
-      {/* Adjuntos (Alta / Baja) */}
-      {adjuntosRequeridos && (
-        <fieldset
-          style={{ border: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3)" }}
-        >
-          <legend style={{ fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-            Documentación obligatoria
-          </legend>
-          {errores.adjuntos && (
-            <InlineAlert severity="warning" title="Faltan adjuntos">
-              {errores.adjuntos}
-            </InlineAlert>
-          )}
-          {adjuntosRequeridos.map(({ tipo, etiqueta }) => (
-            <FileUpload
-              key={tipo}
-              title={etiqueta}
-              hint="PDF o imagen (mock: solo se registra el nombre)"
-              files={adjuntoComoUploaded(tipo)}
-              onFilesAdded={(archivos) => agregarAdjunto(tipo, archivos)}
-              onRemove={() => quitarAdjunto(tipo)}
-            />
-          ))}
-        </fieldset>
-      )}
+        {!esSinNovedad && (
+          <section className="adoc-pf-sec">
+            <h2 className="adoc-pf-sec-h">Justificación</h2>
+            <Field
+              label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
+              error={errores.justificacion}
+            >
+              <Textarea
+                rows={3}
+                value={datos.justificacion ?? ""}
+                onChange={(e) => actualizar("justificacion", e.target.value)}
+                placeholder={
+                  esBaja
+                    ? "Motivo de la baja del docente"
+                    : esCambio
+                      ? "Motivo del cambio de cargo o dedicación"
+                      : "Motivo del pedido de designación"
+                }
+              />
+            </Field>
+            {muestraToggle && (
+              <Toggle
+                label="El docente hace más horas en otro Departamento (se gestiona como externo)"
+                checked={datos.haceHorasOtroDepto}
+                onChange={(e) => actualizar("haceHorasOtroDepto", e.target.checked)}
+              />
+            )}
+          </section>
+        )}
 
-      <div style={{ display: "flex", gap: "var(--space-2)" }}>
-        <Button type="button" variant="secondary" onClick={onCancelar}>
-          Cancelar
-        </Button>
-        <Button type="submit" variant="primary" loading={guardando}>
-          Guardar borrador
-        </Button>
+        {!esSinNovedad && (
+          <SeccionAdjuntosPedido
+            novedad={novedad}
+            errorAdjuntos={errores.adjuntos}
+            adjuntoComoUploaded={adjuntoComoUploaded}
+            onAgregar={agregarAdjunto}
+            onQuitar={quitarAdjunto}
+          />
+        )}
+
+        <div className="adoc-pf-actions">
+          <Button type="button" variant="secondary" onClick={onCancelar}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="primary" loading={guardando}>
+            Guardar pedido
+          </Button>
+        </div>
       </div>
     </form>
   );
+}
+
+/** Subtítulo del encabezado, según novedad / si es edición. */
+function construirSubtitulo(
+  novedad: Novedad,
+  esEdicion: boolean,
+  pedidoInicial: PedidoDesignacion | undefined,
+  numero: string,
+  periodoLabel: string,
+): string {
+  if (esEdicion) {
+    const ref = numero || "borrador";
+    return pedidoInicial?.estado === "devuelto"
+      ? `Editás un pedido devuelto · ${ref}`
+      : `Editás un borrador · ${ref}`;
+  }
+  switch (novedad) {
+    case "Alta":
+      return `Cargá la novedad de un docente · período ${periodoLabel}`;
+    case "Baja":
+      return `Registrá la baja de un docente · período ${periodoLabel}`;
+    case "Cambio de cargo o dedicación":
+      return `Cargá un cambio de cargo o dedicación · período ${periodoLabel}`;
+    default:
+      return `Reconfirmá la designación de un docente · período ${periodoLabel}`;
+  }
+}
+
+/** Último evento de devolución del historial (para el banner de pedido devuelto). */
+function ultimaDevolucion(pedido: PedidoDesignacion) {
+  return [...pedido.historial].reverse().find((evento) => evento.accion === "devolver") ?? null;
 }

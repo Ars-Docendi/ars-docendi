@@ -9,45 +9,60 @@ function renderForm(onGuardar = vi.fn()) {
   return { onGuardar, user: userEvent.setup() };
 }
 
-async function completarDatosComunes(user: ReturnType<typeof userEvent.setup>) {
+/** Completa los campos no-adjunto de un Alta (docente nuevo + designación). */
+async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByPlaceholderText("Ej. 30111222"), "30111222");
-  await user.type(screen.getByPlaceholderText("Ej. Ana Pérez"), "Ana Pérez");
-  await user.type(
-    screen.getByPlaceholderText("Ej. Ingeniería de Software"),
-    "Ingeniería de Software",
-  );
+  await user.type(screen.getByPlaceholderText("Ej. Pérez, Ana"), "Pérez, Ana");
+  await user.selectOptions(screen.getByLabelText("Materia asociada"), "Ingeniería de Software");
+  await user.selectOptions(screen.getByLabelText("Cargo solicitado"), "Ayudante");
+  await user.selectOptions(screen.getByLabelText("Dedicación solicitada"), "Categoría 5");
 }
 
 describe("PedidoForm", () => {
   describe("secciones condicionales por novedad", () => {
-    it("oculta solicitud y documentación en 'Sin novedad'", () => {
+    it("en 'Sin novedad' muestra el selector de docente y oculta solicitud/documentación", () => {
       renderForm();
-      expect(screen.queryByText("Solicitud")).not.toBeInTheDocument();
-      expect(screen.queryByText("Documentación obligatoria")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Docente")).toBeInTheDocument();
+      expect(screen.queryByText("Designación solicitada")).not.toBeInTheDocument();
+      expect(screen.queryByText(/Documentación obligatoria/)).not.toBeInTheDocument();
+      expect(screen.queryByText("Justificación")).not.toBeInTheDocument();
     });
 
-    it("muestra solicitud + documentación (CV/DNI) al elegir 'Alta'", async () => {
+    it("al elegir 'Alta' muestra datos nuevos + designación + documentación (CV/DNI)", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
-      expect(screen.getByText("Solicitud")).toBeInTheDocument();
-      expect(screen.getByText("Documentación obligatoria")).toBeInTheDocument();
-      expect(screen.getByText("CV")).toBeInTheDocument();
-      expect(screen.getByText("Foto DNI (frente)")).toBeInTheDocument();
+      expect(screen.getByText("Datos del docente · Nuevo")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Ej. 30111222")).toBeInTheDocument();
+      expect(screen.getByText("Designación solicitada")).toBeInTheDocument();
+      expect(screen.getByText("Documentación obligatoria · Alta")).toBeInTheDocument();
+      expect(screen.getByText("CV (PDF)")).toBeInTheDocument();
+      expect(screen.getByText("DNI · Frente")).toBeInTheDocument();
     });
 
-    it("muestra justificación al elegir 'Cambio de cargo o dedicación'", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      expect(screen.getByText("Solicitud")).toBeInTheDocument();
-      expect(screen.getByText("Justificación")).toBeInTheDocument();
-    });
-
-    it("para 'Baja' pide justificativo, no solicitud", async () => {
+    it("al elegir 'Baja' muestra selector de docente + justificativo, sin solicitud", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
-      expect(screen.queryByText("Solicitud")).not.toBeInTheDocument();
-      expect(screen.getByText("Documentación obligatoria")).toBeInTheDocument();
-      expect(screen.getByText("Justificativo")).toBeInTheDocument();
+      expect(screen.getByLabelText("Docente")).toBeInTheDocument();
+      expect(screen.queryByText("Designación solicitada")).not.toBeInTheDocument();
+      expect(screen.getByText("Documentación obligatoria · Baja")).toBeInTheDocument();
+      expect(screen.getByText("Documento justificativo de la baja")).toBeInTheDocument();
+    });
+
+    it("al elegir 'Cambio' muestra designación solicitada + justificación", async () => {
+      const { user } = renderForm();
+      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
+      expect(screen.getByText("Designación solicitada")).toBeInTheDocument();
+      expect(screen.getByText("Justificación")).toBeInTheDocument();
+      expect(screen.getByLabelText("Motivo del pedido")).toBeInTheDocument();
+    });
+
+    it("muestra los datos actuales (solo lectura) al seleccionar un docente existente", async () => {
+      const { user } = renderForm();
+      await user.click(screen.getByLabelText("Baja"));
+      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      expect(screen.getByText("Cargo actual")).toBeInTheDocument();
+      expect(screen.getByText("Adjunto")).toBeInTheDocument();
+      expect(screen.getByText("Categoría 3")).toBeInTheDocument();
     });
   });
 
@@ -55,23 +70,23 @@ describe("PedidoForm", () => {
     it("bloquea el submit de un 'Alta' sin adjuntos y muestra el error", async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
-      await completarDatosComunes(user);
+      await completarAlta(user);
 
-      await user.click(screen.getByRole("button", { name: "Guardar borrador" }));
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
 
       expect(onGuardar).not.toHaveBeenCalled();
       expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
     });
 
-    it("permite guardar un 'Sin novedad' válido", async () => {
+    it("permite guardar un 'Sin novedad' al seleccionar un docente existente", async () => {
       const onGuardar = vi.fn<(datos: DatosEditablesPedido) => void>();
       const { user } = renderForm(onGuardar);
-      await completarDatosComunes(user);
+      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
 
-      await user.click(screen.getByRole("button", { name: "Guardar borrador" }));
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
 
       expect(onGuardar).toHaveBeenCalledTimes(1);
-      expect(onGuardar.mock.calls[0][0].docente.dni).toBe("30111222");
+      expect(onGuardar.mock.calls[0][0].docente.dni).toBe("28341567");
     });
   });
 });

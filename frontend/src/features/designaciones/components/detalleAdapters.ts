@@ -1,13 +1,15 @@
 // ============================================================
 // Adapters de PRESENTACIÓN para el detalle del pedido (SCRUM-8).
 // Traducen el dominio (en español) a los tipos de @ars-docendi/ui
-// (en inglés): `AuditVerb` y `TimelineStep`. Son funciones puras de
-// vista —NO lógica de dominio—, por eso viven junto a los componentes
-// de detalle y no en `maquinaEstados.ts` (no rompen la regla del seam).
+// (en inglés): `AuditVerb`. Y derivan la cadena de aprobación
+// (5 etapas) para el stepper horizontal `CadenaRevision`. Son
+// funciones puras de vista —NO lógica de dominio—, por eso viven
+// junto a los componentes de detalle y no en `maquinaEstados.ts`.
 // ============================================================
-import type { AuditEntry, AuditVerb, TimelineStatus, TimelineStep } from "@ars-docendi/ui";
+import type { AuditEntry, AuditVerb } from "@ars-docendi/ui";
 import type {
   AccionHistorial,
+  ActorContexto,
   EstadoPedido,
   EventoHistorial,
   PedidoDesignacion,
@@ -46,7 +48,7 @@ export function accionAAuditVerb(accion: AccionHistorial): AuditVerb {
 }
 
 /** Iniciales para el avatar a partir de un nombre tipo "M. Díaz" → "MD". */
-function iniciales(nombre: string): string {
+export function iniciales(nombre: string): string {
   const letras = nombre
     .split(/\s+/)
     .map((parte) => parte.replace(/[^\p{L}]/gu, "").charAt(0))
@@ -55,7 +57,7 @@ function iniciales(nombre: string): string {
 }
 
 /** Formatea un ISO a dd/mm/yyyy de forma determinista (UTC), sin depender del locale. */
-function formatearFecha(iso: string): string {
+export function formatearFecha(iso: string): string {
   const fecha = new Date(iso);
   const dia = String(fecha.getUTCDate()).padStart(2, "0");
   const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
@@ -76,80 +78,147 @@ export function historialAAuditEntries(historial: EventoHistorial[]): AuditEntry
   }));
 }
 
-// --- Cadena de aprobación para `ApprovalTimeline` ---
+// ============================================================
+// Cadena de aprobación (5 etapas) para el stepper `CadenaRevision`.
+// Jefe de Cátedra → Coordinador → Secretaría → Decanato → En lote.
+// ============================================================
 
-interface Etapa {
-  estado: Extract<
-    EstadoPedido,
-    "en_revision_coordinador" | "en_revision_secretaria" | "en_revision_decanato"
-  >;
-  rol: Rol;
-  nombre: string;
+export type EstadoEtapaCadena = "cumplida" | "actual" | "pendiente" | "devuelta" | "rechazada";
+
+export interface EtapaCadena {
+  /** Etiqueta del rol/etapa (en español). */
+  rol: string;
+  estado: EstadoEtapaCadena;
+  /** Línea de detalle bajo el rol (estado legible + fecha si aplica). */
+  detalle: string;
+  /** El actor actual ocupa esta etapa (resalta "· vos"). */
+  esVos: boolean;
 }
 
-const ETAPAS: readonly Etapa[] = [
-  { estado: "en_revision_coordinador", rol: "Coordinador", nombre: "Coordinador de Carrera" },
-  { estado: "en_revision_secretaria", rol: "Secretaría", nombre: "Secretaría Académica" },
-  { estado: "en_revision_decanato", rol: "Decanato", nombre: "Decanato" },
+interface DefEtapa {
+  rol: string;
+  /** Estado del pedido al que corresponde la etapa (las de revisión + en_lote). */
+  estado?: EstadoPedido;
+  /** Rol del actor que actúa en la etapa (para detectar "vos"). */
+  rolActor?: Rol;
+}
+
+const CADENA: readonly DefEtapa[] = [
+  { rol: "Jefe de Cátedra", rolActor: "Jefe de Cátedra" },
+  { rol: "Coordinador", estado: "en_revision_coordinador", rolActor: "Coordinador" },
+  { rol: "Secretaría", estado: "en_revision_secretaria", rolActor: "Secretaría" },
+  { rol: "Decanato", estado: "en_revision_decanato", rolActor: "Decanato" },
+  { rol: "En lote", estado: "en_lote" },
 ];
 
-/** Nombre del revisor que actuó en una etapa (de existir en el historial). */
-function actorDeEtapa(pedido: PedidoDesignacion, rol: Rol): string | undefined {
-  const evento = pedido.historial.find(
-    (h) =>
-      h.porRol === rol &&
-      (h.accion === "aceptar" || h.accion === "rechazar" || h.accion === "devolver"),
-  );
-  return evento?.porNombre;
+function indiceDeEstado(estado: EstadoPedido | undefined): number {
+  return CADENA.findIndex((etapa) => etapa.estado === estado);
 }
 
-function ultimoComentario(pedido: PedidoDesignacion, accion: AccionHistorial): string | undefined {
-  return [...pedido.historial].reverse().find((h) => h.accion === accion)?.comentario;
+function indiceDeRolRevisor(rol: Rol): number {
+  const indice = CADENA.findIndex((etapa) => etapa.rolActor === rol && etapa.estado);
+  return indice < 0 ? 1 : indice;
+}
+
+/** ¿El estado es una etapa de revisión (Coordinador / Secretaría / Decanato)? */
+function esEstadoRevision(estado: EstadoPedido): boolean {
+  return (
+    estado === "en_revision_coordinador" ||
+    estado === "en_revision_secretaria" ||
+    estado === "en_revision_decanato"
+  );
 }
 
 /**
- * Deriva la cadena de aprobación (Coordinador → Secretaría → Decanato) a
- * `TimelineStep[]`, marcando cada etapa como done/current/pending/returned/rejected
- * según el estado y el historial del pedido.
+ * Posición de la etapa de revisión actual en la cadena ("2 de 4"), 1-based sobre
+ * las 4 etapas posteriores al Jefe de Cátedra (Coordinador → Secretaría →
+ * Decanato → En lote). Devuelve `null` fuera de las etapas de revisión
+ * (borrador / devuelto / terminales), donde una posición sería ambigua.
  */
-export function derivarTimeline(pedido: PedidoDesignacion): TimelineStep[] {
-  const construir = (indiceCorte: number, estadoCorte: TimelineStatus, comentario?: string) =>
-    ETAPAS.map((etapa, i) => {
-      const status: TimelineStatus =
-        i < indiceCorte ? "done" : i === indiceCorte ? estadoCorte : "pending";
-      return {
-        role: etapa.nombre,
-        name: actorDeEtapa(pedido, etapa.rol) ?? "Pendiente",
-        status,
-        comment: i === indiceCorte ? comentario : undefined,
-      };
-    });
+export function posicionEtapa(estado: EstadoPedido): { n: number; total: number } | null {
+  if (!esEstadoRevision(estado)) return null;
+  return { n: indiceDeEstado(estado) + 1, total: CADENA.length - 1 };
+}
 
-  if (pedido.estado === "rechazado") {
-    const evento = [...pedido.historial].reverse().find((h) => h.accion === "rechazar");
-    const indice = evento ? ETAPAS.findIndex((e) => e.rol === evento.porRol) : 0;
-    return construir(Math.max(indice, 0), "rejected", evento?.comentario);
+/** Texto de detalle bajo cada etapa, según su estado derivado. */
+function detalleEtapa(
+  pedido: PedidoDesignacion,
+  etapa: DefEtapa,
+  estado: EstadoEtapaCadena,
+  esVos: boolean,
+): string {
+  switch (estado) {
+    case "actual":
+      if (etapa.rol === "Jefe de Cátedra" && pedido.estado === "borrador") {
+        return "En borrador";
+      }
+      return esVos ? "En revisión · vos" : "En revisión";
+    case "pendiente":
+      return "Pendiente";
+    case "devuelta":
+      return "Devuelto para corrección";
+    case "rechazada": {
+      const evento = [...pedido.historial].reverse().find((h) => h.accion === "rechazar");
+      return evento ? `Rechazó · ${formatearFecha(evento.fecha)}` : "Rechazó";
+    }
+    case "cumplida": {
+      if (etapa.rol === "Jefe de Cátedra") {
+        const evento = [...pedido.historial]
+          .reverse()
+          .find((h) => h.accion === "reenviar" || h.accion === "enviar");
+        if (!evento) return "Originó el pedido";
+        const verbo = evento.accion === "reenviar" ? "Reenvió" : "Envió";
+        return `${verbo} · ${formatearFecha(evento.fecha)}`;
+      }
+      if (etapa.rol === "En lote") return "En lote";
+      const evento = etapa.rolActor
+        ? [...pedido.historial]
+            .reverse()
+            .find((h) => h.accion === "aceptar" && h.porRol === etapa.rolActor)
+        : undefined;
+      return evento ? `Aprobó · ${formatearFecha(evento.fecha)}` : "Aprobado";
+    }
   }
+}
 
-  if (pedido.estado === "devuelto") {
-    const indice = pedido.etapaRetorno
-      ? ETAPAS.findIndex((e) => e.estado === pedido.etapaRetorno)
-      : 0;
-    return construir(Math.max(indice, 0), "returned", ultimoComentario(pedido, "devolver"));
-  }
+/**
+ * Deriva las 5 etapas de la cadena (Jefe de Cátedra → … → En lote) a partir del
+ * estado y el historial del pedido. Cada etapa queda cumplida / actual /
+ * pendiente / devuelta / rechazada; `esVos` marca la etapa que ocupa el actor.
+ */
+export function derivarCadena(pedido: PedidoDesignacion, actor: ActorContexto): EtapaCadena[] {
+  let activo: number;
+  let naturaleza: EstadoEtapaCadena = "actual";
 
-  if (pedido.estado === "en_lote") {
-    return ETAPAS.map((etapa) => ({
-      role: etapa.nombre,
-      name: actorDeEtapa(pedido, etapa.rol) ?? "Aprobado",
-      status: "done" as const,
-    }));
+  if (pedido.estado === "borrador") {
+    activo = 0;
+  } else if (pedido.estado === "rechazado") {
+    // La etapa rechazada se deriva de la última etapa de revisión registrada en
+    // el historial (robusto aunque rechace Administración, que puede actuar en
+    // cualquier etapa); si el historial es mínimo, cae al rol del rechazo.
+    const etapaRevision = [...pedido.historial].reverse().find((h) => esEstadoRevision(h.etapa));
+    const rechazo = [...pedido.historial].reverse().find((h) => h.accion === "rechazar");
+    activo = etapaRevision
+      ? indiceDeEstado(etapaRevision.etapa)
+      : rechazo
+        ? indiceDeRolRevisor(rechazo.porRol)
+        : 1;
+    naturaleza = "rechazada";
+  } else if (pedido.estado === "devuelto") {
+    activo = pedido.etapaRetorno ? indiceDeEstado(pedido.etapaRetorno) : 1;
+    naturaleza = "devuelta";
+  } else if (pedido.estado === "en_lote") {
+    activo = CADENA.length; // toda la cadena queda done
+  } else {
+    activo = indiceDeEstado(pedido.estado); // etapas de revisión
   }
+  if (activo < 0) activo = 0;
 
-  const indiceActual = ETAPAS.findIndex((e) => e.estado === pedido.estado);
-  // borrador / cancelado: aún no entró a la cadena (todas pendientes).
-  if (indiceActual === -1) {
-    return ETAPAS.map((etapa) => ({ role: etapa.nombre, name: "Pendiente", status: "pending" }));
-  }
-  return construir(indiceActual, "current");
+  return CADENA.map((etapa, indice) => {
+    const estado: EstadoEtapaCadena =
+      indice < activo ? "cumplida" : indice === activo ? naturaleza : "pendiente";
+    const esVos =
+      etapa.rolActor !== undefined && actor.rol === etapa.rolActor && estado === "actual";
+    return { rol: etapa.rol, estado, detalle: detalleEtapa(pedido, etapa, estado, esVos), esVos };
+  });
 }

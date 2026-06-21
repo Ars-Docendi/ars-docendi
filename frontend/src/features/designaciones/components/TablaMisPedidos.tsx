@@ -1,136 +1,91 @@
-import { Table, Button } from "@ars-docendi/ui";
 import type { PedidoDesignacion } from "../types";
-import { EstadoPedidoBadge } from "./EstadoPedidoBadge";
+import { EstadoPedidoPill } from "./EstadoPedidoPill";
+import { MenuAccionesPedido } from "./MenuAccionesPedido";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
+  onVerDetalle: (pedido: PedidoDesignacion) => void;
   onEditar: (pedido: PedidoDesignacion) => void;
   onEnviar: (pedido: PedidoDesignacion) => void;
   onCancelar: (pedido: PedidoDesignacion) => void;
   onReenviar: (pedido: PedidoDesignacion) => void;
 }
 
-/** El JC edita en borrador o cuando el pedido fue devuelto a él. */
-function puedeEditar(pedido: PedidoDesignacion): boolean {
-  return (
-    pedido.estado === "borrador" ||
-    (pedido.estado === "devuelto" && pedido.propietarioActual === "Jefe de Cátedra")
-  );
+/** Etiqueta corta de la novedad (distingue cargo vs dedicación, como el diseño). */
+function etiquetaNovedadCorta(p: PedidoDesignacion): string {
+  if (p.novedad !== "Cambio de cargo o dedicación") return p.novedad;
+  if (p.cargoSolicitado && p.cargoSolicitado !== p.cargoActual) return "Cambio de cargo";
+  if (p.dedicacionSolicitada && p.dedicacionSolicitada !== p.dedicacionActual) {
+    return "Cambio de dedicación";
+  }
+  return "Cambio de cargo o dedicación";
 }
 
-function puedeEnviar(pedido: PedidoDesignacion): boolean {
-  return pedido.estado === "borrador";
+/** Fecha de envío (o de creación si sigue en borrador), formato dd/mm/aaaa. */
+function fechaEnviado(p: PedidoDesignacion): string {
+  const evento =
+    p.historial.find((h) => h.accion === "enviar") ??
+    p.historial.find((h) => h.accion === "crear") ??
+    p.historial.at(0);
+  if (!evento) return "—";
+  const fecha = new Date(evento.fecha);
+  const dia = String(fecha.getUTCDate()).padStart(2, "0");
+  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
+  return `${dia}/${mes}/${fecha.getUTCFullYear()}`;
 }
 
-function puedeCancelar(pedido: PedidoDesignacion): boolean {
-  return pedido.estado === "borrador";
-}
-
-/** El JC reenvía un pedido que le fue devuelto (retoma la etapa de revisión). */
-function puedeReenviar(pedido: PedidoDesignacion): boolean {
-  return pedido.estado === "devuelto" && pedido.propietarioActual === "Jefe de Cátedra";
-}
-
+/** Tabla de "Mis pedidos" (1:1 con screens.pen): Nº · Docente · Cátedra · Novedad · Enviado · Estado · ⋮. */
 export function TablaMisPedidos({
   pedidos,
+  onVerDetalle,
   onEditar,
   onEnviar,
   onCancelar,
   onReenviar,
 }: TablaMisPedidosProps) {
   return (
-    <Table>
-      <Table.Root>
-        <Table.Head>
-          <Table.Row>
-            <Table.HeaderCell>Docente</Table.HeaderCell>
-            <Table.HeaderCell>Materia asociada</Table.HeaderCell>
-            <Table.HeaderCell>Novedad</Table.HeaderCell>
-            <Table.HeaderCell>Estado</Table.HeaderCell>
-            <Table.HeaderCell>Acciones</Table.HeaderCell>
-          </Table.Row>
-        </Table.Head>
-        <Table.Body>
-          {pedidos.map((pedido) => (
-            <Table.Row key={pedido.id}>
-              <Table.Cell>
-                <strong>{pedido.docente.nombre}</strong>
-                <div
-                  style={{
-                    color: "var(--color-text-tertiary)",
-                    fontSize: "var(--text-body-sm-size)",
-                  }}
-                >
-                  DNI {pedido.docente.dni}
-                </div>
-              </Table.Cell>
-              <Table.Cell>{pedido.materiaAsociada}</Table.Cell>
-              <Table.Cell>{pedido.novedad}</Table.Cell>
-              <Table.Cell>
-                <EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />
-              </Table.Cell>
-              <Table.Cell>
-                <div style={{ display: "flex", gap: "var(--space-1)" }}>
-                  {puedeEditar(pedido) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEditar(pedido)}
-                      aria-label={`Editar pedido de ${pedido.docente.nombre}`}
-                    >
-                      Editar
-                    </Button>
-                  )}
-                  {puedeEnviar(pedido) && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => onEnviar(pedido)}
-                      aria-label={`Enviar a revisión el pedido de ${pedido.docente.nombre}`}
-                    >
-                      Enviar
-                    </Button>
-                  )}
-                  {puedeReenviar(pedido) && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => onReenviar(pedido)}
-                      aria-label={`Reenviar a revisión el pedido de ${pedido.docente.nombre}`}
-                    >
-                      Reenviar
-                    </Button>
-                  )}
-                  {puedeCancelar(pedido) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onCancelar(pedido)}
-                      aria-label={`Cancelar pedido de ${pedido.docente.nombre}`}
-                      style={{ color: "var(--color-text-danger)" }}
-                    >
-                      Cancelar
-                    </Button>
-                  )}
-                  {!puedeEditar(pedido) &&
-                    !puedeEnviar(pedido) &&
-                    !puedeCancelar(pedido) &&
-                    !puedeReenviar(pedido) && (
-                      <span
-                        style={{
-                          color: "var(--color-text-tertiary)",
-                          fontSize: "var(--text-body-sm-size)",
-                        }}
-                      >
-                        Sin acciones
-                      </span>
-                    )}
-                </div>
-              </Table.Cell>
-            </Table.Row>
-          ))}
-        </Table.Body>
-      </Table.Root>
-    </Table>
+    <div className="adoc-mp-table" role="table" aria-label="Mis pedidos de designación">
+      <div className="adoc-mp-head" role="row">
+        <span role="columnheader">N°</span>
+        <span role="columnheader">DOCENTE</span>
+        <span role="columnheader">CÁTEDRA</span>
+        <span role="columnheader">NOVEDAD</span>
+        <span role="columnheader">ENVIADO</span>
+        <span role="columnheader">ESTADO</span>
+        <span role="columnheader" aria-label="Acciones" />
+      </div>
+      {pedidos.map((pedido) => (
+        <div className="adoc-mp-row" role="row" key={pedido.id}>
+          <span className="adoc-mp-num" role="cell">
+            {pedido.numero ?? "—"}
+          </span>
+          <span className="adoc-mp-doc" role="cell">
+            Prof. {pedido.docente.nombre}
+          </span>
+          <span className="adoc-mp-cat" role="cell">
+            {pedido.materiaAsociada}
+          </span>
+          <span className="adoc-mp-nov" role="cell">
+            {etiquetaNovedadCorta(pedido)}
+          </span>
+          <span className="adoc-mp-env" role="cell">
+            {fechaEnviado(pedido)}
+          </span>
+          <span className="adoc-mp-est" role="cell">
+            <EstadoPedidoPill estado={pedido.estado} />
+          </span>
+          <span className="adoc-mp-acc" role="cell">
+            <MenuAccionesPedido
+              pedido={pedido}
+              onVerDetalle={onVerDetalle}
+              onEditar={onEditar}
+              onEnviar={onEnviar}
+              onCancelar={onCancelar}
+              onReenviar={onReenviar}
+            />
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }

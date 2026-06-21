@@ -11,12 +11,12 @@ const COORD: ActorContexto = {
   carrera: "Ingeniería en Informática",
 };
 
+const COMPLETA: FiltrosTablero = { vista: "completa", tipo: "todos", prioridad: "todos" };
 const MIS_PENDIENTES: FiltrosTablero = {
   vista: "mis-pendientes",
   tipo: "todos",
   prioridad: "todos",
 };
-const COMPLETA: FiltrosTablero = { vista: "completa", tipo: "todos", prioridad: "todos" };
 
 let contador = 0;
 function pedido(
@@ -47,13 +47,13 @@ function columna(titulo: string) {
   return within(screen.getByRole("region", { name: titulo }));
 }
 
-describe("TableroRevision (Kanban relativo al rol)", () => {
-  it("ubica cada pedido en su columna del pipeline para el Coordinador", () => {
-    const pendiente = pedido("en_revision_coordinador", {
-      docente: { dni: "1", nombre: "Pendiente Uno", antiguedad: 3 },
+describe("TableroRevision (modelo D — por estado de avance)", () => {
+  it("agrupa por avance: En revisión (toda la cadena) / Aceptados / Devueltos / Rechazados", () => {
+    const enCoord = pedido("en_revision_coordinador", {
+      docente: { dni: "1", nombre: "Coord Uno", antiguedad: 3 },
     });
-    const siguiente = pedido("en_revision_secretaria", {
-      docente: { dni: "2", nombre: "Siguiente Dos", antiguedad: 3 },
+    const enSec = pedido("en_revision_secretaria", {
+      docente: { dni: "2", nombre: "Secre Dos", antiguedad: 3 },
     });
     const aceptado = pedido("en_lote", {
       docente: { dni: "3", nombre: "Aceptado Tres", antiguedad: 3 },
@@ -69,45 +69,72 @@ describe("TableroRevision (Kanban relativo al rol)", () => {
 
     render(
       <TableroRevision
-        pedidos={[pendiente, siguiente, aceptado, rechazado, devuelto]}
+        pedidos={[enCoord, enSec, aceptado, rechazado, devuelto]}
         actor={COORD}
         filtros={COMPLETA}
         onSeleccionar={vi.fn()}
       />,
     );
 
-    expect(columna("Pendientes").getByText(/Pendiente Uno/)).toBeInTheDocument();
-    expect(columna("En Secretaría").getByText(/Siguiente Dos/)).toBeInTheDocument();
+    // Coordinación y Secretaría conviven en la ÚNICA columna "En revisión".
+    expect(columna("En revisión").getByText(/Coord Uno/)).toBeInTheDocument();
+    expect(columna("En revisión").getByText(/Secre Dos/)).toBeInTheDocument();
     expect(columna("Aceptados").getByText(/Aceptado Tres/)).toBeInTheDocument();
-    expect(columna("Rechazados").getByText(/Rechazado Cuatro/)).toBeInTheDocument();
     expect(columna("Devueltos").getByText(/Devuelto Cinco/)).toBeInTheDocument();
+    expect(columna("Rechazados").getByText(/Rechazado Cuatro/)).toBeInTheDocument();
   });
 
-  it("la vista 'mis-pendientes' oculta los rechazados; la 'completa' los muestra", () => {
-    const rechazado = pedido("rechazado", {
-      docente: { dni: "9", nombre: "Rechazado Oculto", antiguedad: 3 },
+  it("cada card en revisión declara su etapa + avance x/4; 'Tu turno' solo en la etapa del actor", () => {
+    const enCoord = pedido("en_revision_coordinador", {
+      docente: { dni: "1", nombre: "Coord Uno", antiguedad: 3 },
+    });
+    const enSec = pedido("en_revision_secretaria", {
+      docente: { dni: "2", nombre: "Secre Dos", antiguedad: 3 },
+    });
+
+    render(
+      <TableroRevision
+        pedidos={[enCoord, enSec]}
+        actor={COORD}
+        filtros={COMPLETA}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("En Coordinación · 1/4")).toBeInTheDocument();
+    expect(screen.getByText("En Secretaría · 2/4")).toBeInTheDocument();
+    // El Coordinador está en turno sobre Coordinación, no sobre Secretaría.
+    expect(screen.getAllByText("Tu turno")).toHaveLength(1);
+  });
+
+  it("la vista 'mis-pendientes' deja solo los pedidos en turno del actor; 'completa' muestra todo", () => {
+    const mio = pedido("en_revision_coordinador", {
+      docente: { dni: "1", nombre: "Mío Uno", antiguedad: 3 },
+    });
+    const ajeno = pedido("en_revision_secretaria", {
+      docente: { dni: "2", nombre: "Ajeno Dos", antiguedad: 3 },
     });
 
     const { rerender } = render(
       <TableroRevision
-        pedidos={[rechazado]}
+        pedidos={[mio, ajeno]}
         actor={COORD}
         filtros={MIS_PENDIENTES}
         onSeleccionar={vi.fn()}
       />,
     );
-    expect(screen.queryByText(/Rechazado Oculto/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Rechazados" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Mío Uno/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ajeno Dos/)).not.toBeInTheDocument();
 
     rerender(
       <TableroRevision
-        pedidos={[rechazado]}
+        pedidos={[mio, ajeno]}
         actor={COORD}
         filtros={COMPLETA}
         onSeleccionar={vi.fn()}
       />,
     );
-    expect(screen.getByText(/Rechazado Oculto/)).toBeInTheDocument();
+    expect(screen.getByText(/Ajeno Dos/)).toBeInTheDocument();
   });
 
   it("muestra el flag de prioritario y navega al hacer click en la card", async () => {
@@ -122,7 +149,7 @@ describe("TableroRevision (Kanban relativo al rol)", () => {
       <TableroRevision
         pedidos={[prioritario]}
         actor={COORD}
-        filtros={MIS_PENDIENTES}
+        filtros={COMPLETA}
         onSeleccionar={onSeleccionar}
       />,
     );

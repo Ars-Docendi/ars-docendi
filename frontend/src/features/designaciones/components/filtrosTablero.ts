@@ -1,6 +1,10 @@
 // ============================================================
-// Filtros del tablero de revisión (SCRUM-8). Lógica pura.
-// - vista: "mis-pendientes" (pipeline del rol) | "completa" (+ Rechazados).
+// Filtros del tablero de revisión (SCRUM-8, opción D). Lógica pura.
+// - vista: "completa" (todo el ámbito, default) | "mis-pendientes" (solo los
+//   pedidos en turno del actor). El default es "completa" para abrir con el board
+//   lleno (los terminales no son "tu turno", así que "mis-pendientes" los oculta).
+//   El filtro de vista lo aplican `TableroRevision` y `TablaRevision` (necesitan
+//   el actor); acá viven los filtros de tipo/prioridad.
 // - tipo: filtra por novedad.
 // - prioridad: filtra por el flag de prioritario.
 // ============================================================
@@ -17,7 +21,7 @@ export interface FiltrosTablero {
 }
 
 export const FILTROS_INICIALES: FiltrosTablero = {
-  vista: "mis-pendientes",
+  vista: "completa",
   tipo: "todos",
   prioridad: "todos",
 };

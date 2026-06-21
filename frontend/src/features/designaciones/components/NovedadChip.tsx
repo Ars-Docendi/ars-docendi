@@ -60,6 +60,13 @@ const ICONO_MINUS = (
   </IconoLucide>
 );
 
+const ICONO_X = (
+  <IconoLucide>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </IconoLucide>
+);
+
 const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
   Alta: ICONO_USER_PLUS,
   Baja: ICONO_USER_MINUS,
@@ -73,6 +80,28 @@ export function NovedadChip({ novedad }: { novedad: Novedad }) {
     <span className={`adoc-novedad-chip ${CLASE_POR_NOVEDAD[novedad]}`}>
       {ICONO_POR_NOVEDAD[novedad]}
       {etiquetaNovedad(novedad)}
+    </span>
+  );
+}
+
+/** Chip de estado "Rechazado" (icono Lucide `x`, color danger). Reemplaza al chip de novedad en las cards rechazadas. */
+export function RechazadoChip() {
+  return (
+    <span className="adoc-novedad-chip rechazado">
+      {ICONO_X}
+      Rechazado
+    </span>
+  );
+}
+
+/** Bandera de prioridad (Lucide `flag`, roja) sin etiqueta — para la columna Prioritario de la Tabla. */
+export function PrioridadFlagIcono() {
+  return (
+    <span className="adoc-bandera-prioridad" aria-label="Prioritario">
+      <IconoLucide>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" x2="4" y1="22" y2="15" />
+      </IconoLucide>
     </span>
   );
 }

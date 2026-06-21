@@ -12,6 +12,8 @@ import type { ActorContexto } from "../types";
 // Integración del circuito completo: usa el stack real (hooks → api mock →
 // store → maquinaEstados) y cambia el ROL ACTIVO del usuario "Demo (todos los
 // roles)" para que el mismo pedido viaje entre vistas, tal como en la defensa.
+// Las acciones se disparan desde el panel del detalle y se CONFIRMAN en el
+// modal de confirmación (donde también se valida el justificativo [BR-005]).
 const DEMO_ID = "a0000000-0000-4000-8000-000000000007";
 const COORD: ActorContexto = {
   rol: "Coordinador",
@@ -54,9 +56,12 @@ async function idEnCoordinador(): Promise<string> {
   return objetivo.id;
 }
 
-async function confirmar(user: ReturnType<typeof userEvent.setup>, etiqueta: string) {
+/** Abre el modal de aprobación desde el panel y confirma con "Aprobar y enviar". */
+async function aprobarViaModal(user: ReturnType<typeof userEvent.setup>) {
+  // Con el modal cerrado hay un único botón "Aprobar …" (el del panel).
+  await user.click(await screen.findByRole("button", { name: /^Aprobar/ }));
   const dialog = await screen.findByRole("dialog");
-  await user.click(within(dialog).getByRole("button", { name: etiqueta }));
+  await user.click(within(dialog).getByRole("button", { name: "Aprobar y enviar" }));
 }
 
 describe("Flujo de aprobación (integración)", () => {
@@ -67,22 +72,19 @@ describe("Flujo de aprobación (integración)", () => {
     const id = await idEnCoordinador();
     renderDetalle(id);
 
-    // Coordinador acepta → avanza a Secretaría.
-    await user.click(await screen.findByRole("button", { name: "Aceptar" }));
-    await confirmar(user, "Aceptar");
+    // Coordinador aprueba (el comentario es opcional) → confirma → avanza a Secretaría.
+    await aprobarViaModal(user);
     expect(await screen.findByText("En revisión · Secretaría")).toBeInTheDocument();
 
-    // Cambio de rol: Secretaría acepta → avanza a Decanato.
+    // Cambio de rol: Secretaría aprueba → avanza a Decanato.
     act(() => setRolActivo("Secretaría"));
-    await user.click(await screen.findByRole("button", { name: "Aceptar" }));
-    await confirmar(user, "Aceptar");
+    await aprobarViaModal(user);
     expect(await screen.findByText("En revisión · Decanato")).toBeInTheDocument();
 
-    // Cambio de rol: Decanato acepta → en_lote (terminal-prototipo).
+    // Cambio de rol: Decanato aprueba → en_lote (terminal-prototipo).
     act(() => setRolActivo("Decanato"));
-    await user.click(await screen.findByRole("button", { name: "Aceptar" }));
-    await confirmar(user, "Aceptar");
-    expect(await screen.findByText("En lote")).toBeInTheDocument();
+    await aprobarViaModal(user);
+    expect((await screen.findAllByText("En lote")).length).toBeGreaterThan(0);
   });
 
   it("devolución: Coordinador devuelve → JC reenvía → vuelve a en_revision_coordinador", async () => {
@@ -92,30 +94,35 @@ describe("Flujo de aprobación (integración)", () => {
     const id = await idEnCoordinador();
     const { unmount } = renderDetalle(id);
 
-    // Devolver sin comentario: la UI lo bloquea [BR-005] (no muta el store).
+    // Devolver abre el modal; sin justificativo, el confirmar está bloqueado [BR-005].
     await user.click(await screen.findByRole("button", { name: "Devolver" }));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Devolver" }));
-    expect(within(dialog).getByRole("alert")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Devolver a Borrador" })).toBeDisabled();
 
-    // Con comentario sí: pasa a "devuelto".
+    // Con justificativo en el modal sí: pasa a "devuelto" y el panel desaparece.
     await user.type(within(dialog).getByRole("textbox"), "Revisar la justificación adjunta.");
-    await user.click(within(dialog).getByRole("button", { name: "Devolver" }));
-    expect(await screen.findByText("Devuelto")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Devolver a Borrador" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Devolver" })).not.toBeInTheDocument();
+    });
+    expect((await screen.findAllByText("Devuelto")).length).toBeGreaterThan(0);
     unmount();
 
-    // El Jefe de Cátedra reenvía desde "Mis pedidos".
+    // El Jefe de Cátedra reenvía desde "Mis pedidos" (acción del menú kebab).
     act(() => setRolActivo("Jefe de Cátedra"));
     renderMisPedidos();
-    const reenviar = await screen.findByRole("button", {
-      name: /Reenviar a revisión el pedido de Valeria Suárez/,
-    });
-    await user.click(reenviar);
+    await user.click(
+      await screen.findByRole("button", { name: "Acciones del pedido de Valeria Suárez" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: /Reenviar a revisión/ }));
 
-    // Tras reenviar vuelve a revisión: ya no ofrece la acción de reenvío.
+    // Tras reenviar vuelve a revisión: su kebab ya no ofrece la acción de reenvío.
+    await user.click(
+      await screen.findByRole("button", { name: "Acciones del pedido de Valeria Suárez" }),
+    );
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: /Reenviar a revisión el pedido de Valeria Suárez/ }),
+        screen.queryByRole("menuitem", { name: /Reenviar a revisión/ }),
       ).not.toBeInTheDocument();
     });
   });

@@ -1,21 +1,19 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  ApprovalTimeline,
-  AuditLog,
-  Breadcrumbs,
-  Button,
-  DataList,
-  InlineAlert,
-  Tabs,
-} from "@ars-docendi/ui";
-import type { DataListItem, TabItem } from "@ars-docendi/ui";
+import { AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
-import { ModalAccionRevision } from "../components/ModalAccionRevision";
-import type { AccionRevision } from "../components/ModalAccionRevision";
-import { derivarTimeline, historialAAuditEntries } from "../components/detalleAdapters";
+import { CadenaRevision } from "../components/CadenaRevision";
+import { ResumenPedido } from "../components/ResumenPedido";
+import { PanelAccionesRevision } from "../components/PanelAccionesRevision";
+import {
+  ModalConfirmacionAccion,
+  type AccionRevision,
+} from "../components/ModalConfirmacionAccion";
+import { DatosTramite } from "../components/DatosTramite";
+import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
 import { actorAlcanzaAmbito, puedeAceptar, puedeRevisar } from "../api/maquinaEstados";
+import { PERIODOS_MOCK } from "../api/periodosMock";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
 import {
@@ -24,50 +22,23 @@ import {
   usePriorizarPedido,
   useRechazarPedido,
 } from "../hooks/useAccionesPedido";
-import type { Adjunto, PedidoDesignacion } from "../types";
+import type { ActorContexto, Novedad, PedidoDesignacion } from "../types";
+import "./detalle.css";
 
 const RUTA_REVISION = "/designaciones/revision";
 
-const ETIQUETA_ADJUNTO: Record<Adjunto["tipo"], string> = {
-  cv: "CV",
-  dni_frente: "DNI (frente)",
-  dni_dorso: "DNI (dorso)",
-  justificativo: "Justificativo",
+/** Título legible de la novedad para el header del detalle. */
+const TITULO_NOVEDAD: Record<Novedad, string> = {
+  Alta: "Alta de docente",
+  Baja: "Baja de docente",
+  "Cambio de cargo o dedicación": "Cambio de cargo o dedicación",
+  "Sin novedad": "Sin novedad",
 };
-
-function itemsDatos(pedido: PedidoDesignacion): DataListItem[] {
-  const items: DataListItem[] = [
-    { term: "Docente", description: `${pedido.docente.nombre} (DNI ${pedido.docente.dni})` },
-    { term: "Antigüedad", description: `${pedido.docente.antiguedad} años` },
-    { term: "Cátedra", description: pedido.catedra },
-    { term: "Carrera", description: pedido.carrera },
-    { term: "Materia asociada", description: pedido.materiaAsociada },
-    { term: "Novedad", description: pedido.novedad },
-    { term: "Cargo actual", description: pedido.cargoActual ?? "—" },
-    { term: "Dedicación actual", description: pedido.dedicacionActual ?? "—" },
-  ];
-  if (pedido.cargoSolicitado) {
-    items.push({ term: "Cargo solicitado", description: pedido.cargoSolicitado });
-  }
-  if (pedido.dedicacionSolicitada) {
-    items.push({ term: "Dedicación solicitada", description: pedido.dedicacionSolicitada });
-  }
-  if (pedido.justificacion) {
-    items.push({ term: "Justificación", description: pedido.justificacion });
-  }
-  items.push(
-    { term: "Horas de investigación", description: `${pedido.horasInvestigacion ?? 0} h` },
-    { term: "Hace horas en otro Depto.", description: pedido.haceHorasOtroDepto ? "Sí" : "No" },
-  );
-  return items;
-}
 
 export function DetallePedidoPage() {
   const { id } = useParams();
   const actor = useActorContexto();
   const { data: pedido, isLoading, isError } = usePedido(id);
-  const [tab, setTab] = useState("solicitud");
-  const [accion, setAccion] = useState<AccionRevision | null>(null);
 
   const aceptar = useAceptarPedido(actor);
   const rechazar = useRechazarPedido(actor);
@@ -75,21 +46,6 @@ export function DetallePedidoPage() {
   const priorizar = usePriorizarPedido(actor);
   const enviando =
     aceptar.isPending || rechazar.isPending || devolver.isPending || priorizar.isPending;
-
-  function handleConfirmar(comentario: string) {
-    if (!pedido) return;
-    const cerrar = () => setAccion(null);
-    const ref = pedido.id;
-    if (accion === "aceptar") {
-      aceptar.mutate({ id: ref, comentario: comentario || undefined }, { onSuccess: cerrar });
-    } else if (accion === "rechazar") {
-      rechazar.mutate({ id: ref, comentario }, { onSuccess: cerrar });
-    } else if (accion === "devolver") {
-      devolver.mutate({ id: ref, comentario }, { onSuccess: cerrar });
-    } else if (accion === "priorizar") {
-      priorizar.mutate({ id: ref, comentario }, { onSuccess: cerrar });
-    }
-  }
 
   return (
     <>
@@ -103,7 +59,11 @@ export function DetallePedidoPage() {
         ]}
       />
 
-      {isLoading && <p style={{ color: "var(--color-text-secondary)" }}>Cargando el pedido…</p>}
+      {isLoading && (
+        <p role="status" aria-live="polite" style={{ color: "var(--color-text-secondary)" }}>
+          Cargando el pedido…
+        </p>
+      )}
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
@@ -120,15 +80,12 @@ export function DetallePedidoPage() {
       {pedido && actorAlcanzaAmbito(pedido, actor) && (
         <DetalleCargado
           pedido={pedido}
-          esRevisor={puedeRevisar(pedido, actor)}
-          permiteAceptar={puedeAceptar(pedido, actor)}
-          tab={tab}
-          onTab={setTab}
+          actor={actor}
           enviando={enviando}
-          accion={accion}
-          onAbrirAccion={setAccion}
-          onCerrarAccion={() => setAccion(null)}
-          onConfirmar={handleConfirmar}
+          onAceptar={(comentario) => aceptar.mutate({ id: pedido.id, comentario })}
+          onRechazar={(comentario) => rechazar.mutate({ id: pedido.id, comentario })}
+          onDevolver={(comentario) => devolver.mutate({ id: pedido.id, comentario })}
+          onPriorizar={(comentario) => priorizar.mutate({ id: pedido.id, comentario })}
         />
       )}
     </>
@@ -137,105 +94,106 @@ export function DetallePedidoPage() {
 
 interface DetalleCargadoProps {
   pedido: PedidoDesignacion;
-  esRevisor: boolean;
-  permiteAceptar: boolean;
-  tab: string;
-  onTab: (id: string) => void;
+  actor: ActorContexto;
   enviando: boolean;
-  accion: AccionRevision | null;
-  onAbrirAccion: (accion: AccionRevision) => void;
-  onCerrarAccion: () => void;
-  onConfirmar: (comentario: string) => void;
+  onAceptar: (comentario?: string) => void;
+  onRechazar: (comentario: string) => void;
+  onDevolver: (comentario: string) => void;
+  onPriorizar: (comentario: string) => void;
 }
 
 function DetalleCargado({
   pedido,
-  esRevisor,
-  permiteAceptar,
-  tab,
-  onTab,
+  actor,
   enviando,
-  accion,
-  onAbrirAccion,
-  onCerrarAccion,
-  onConfirmar,
+  onAceptar,
+  onRechazar,
+  onDevolver,
+  onPriorizar,
 }: DetalleCargadoProps) {
-  const tabs: TabItem[] = [
-    { id: "solicitud", label: "Solicitud" },
-    { id: "historial", label: "Historial", count: pedido.historial.length },
-    { id: "documentos", label: "Documentos", count: pedido.adjuntos.length },
-  ];
+  const esRevisor = puedeRevisar(pedido, actor);
+  const permiteAceptar = puedeAceptar(pedido, actor);
+  const etapas = derivarCadena(pedido, actor);
+  const periodoNombre = PERIODOS_MOCK.find((p) => p.id === pedido.periodoId)?.nombre;
+
+  // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
+  const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
+  const [comentario, setComentario] = useState("");
+
+  function ejecutar(accion: AccionRevision, texto: string) {
+    switch (accion) {
+      case "aceptar":
+        onAceptar(texto || undefined);
+        break;
+      case "rechazar":
+        onRechazar(texto);
+        break;
+      case "devolver":
+        onDevolver(texto);
+        break;
+      case "priorizar":
+        onPriorizar(texto);
+        break;
+    }
+  }
+
+  function confirmar(texto: string) {
+    if (accionPendiente) {
+      ejecutar(accionPendiente, texto);
+    }
+    setAccionPendiente(null);
+    setComentario("");
+  }
 
   return (
     <>
       <PageHeader
-        pretitle="Circuito de aprobación"
-        title={`Pedido de ${pedido.docente.nombre}`}
-        meta={<EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />}
-        actions={
-          esRevisor && (
-            <div style={{ display: "flex", gap: "var(--space-1)", flexWrap: "wrap" }}>
-              {permiteAceptar && (
-                <Button variant="primary" onClick={() => onAbrirAccion("aceptar")}>
-                  Aceptar
-                </Button>
-              )}
-              <Button variant="destructive" onClick={() => onAbrirAccion("rechazar")}>
-                Rechazar
-              </Button>
-              <Button variant="warning" onClick={() => onAbrirAccion("devolver")}>
-                Devolver
-              </Button>
-              <Button variant="ghost" onClick={() => onAbrirAccion("priorizar")}>
-                Marcar prioritario
-              </Button>
-            </div>
-          )
-        }
+        pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
+        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.materiaAsociada}`}
+        meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
+        actions={<EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />}
       />
 
-      <Tabs items={tabs} value={tab} onChange={onTab} aria-label="Secciones del pedido" />
+      <div className="adoc-det">
+        <CadenaRevision etapas={etapas} />
 
-      {tab === "solicitud" && (
-        <div style={{ display: "grid", gap: "var(--space-4)", marginTop: "var(--space-3)" }}>
-          <DataList items={itemsDatos(pedido)} />
-          <section aria-label="Cadena de aprobación">
-            <h2 style={{ fontSize: "var(--text-body-size)" }}>Cadena de aprobación</h2>
-            <ApprovalTimeline steps={derivarTimeline(pedido)} />
-          </section>
+        <div className="adoc-det-cols">
+          <div className="adoc-det-main">
+            <ResumenPedido pedido={pedido} periodoNombre={periodoNombre} />
+
+            <section className="adoc-det-hist" aria-label="Historial del pedido">
+              <header className="adoc-hist-head">
+                <h2 className="adoc-hist-title">Historial del pedido</h2>
+                <span className="adoc-hist-note">Auditoría · usuario · fecha (RNF-7)</span>
+              </header>
+              <AuditLog entries={historialAAuditEntries(pedido.historial)} />
+            </section>
+          </div>
+
+          <aside className="adoc-det-rail">
+            {esRevisor && (
+              <PanelAccionesRevision
+                pedido={pedido}
+                actor={actor}
+                permiteAceptar={permiteAceptar}
+                enviando={enviando}
+                comentario={comentario}
+                onComentarioChange={setComentario}
+                onSolicitarAccion={(accion) => setAccionPendiente(accion)}
+              />
+            )}
+            <DatosTramite pedido={pedido} />
+          </aside>
         </div>
-      )}
+      </div>
 
-      {tab === "historial" && (
-        <div style={{ marginTop: "var(--space-3)" }}>
-          <AuditLog entries={historialAAuditEntries(pedido.historial)} />
-        </div>
-      )}
-
-      {tab === "documentos" && (
-        <div style={{ marginTop: "var(--space-3)" }}>
-          {pedido.adjuntos.length === 0 ? (
-            <InlineAlert severity="info" title="Sin documentos adjuntos">
-              Este pedido no tiene documentación adjunta.
-            </InlineAlert>
-          ) : (
-            <ul>
-              {pedido.adjuntos.map((adjunto) => (
-                <li key={adjunto.id}>
-                  <strong>{ETIQUETA_ADJUNTO[adjunto.tipo]}</strong> — {adjunto.nombre}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      <ModalAccionRevision
-        accion={accion}
+      <ModalConfirmacionAccion
+        accion={accionPendiente}
         pedido={pedido}
+        comentarioInicial={comentario}
         enviando={enviando}
-        onCerrar={onCerrarAccion}
-        onConfirmar={onConfirmar}
+        onConfirmar={confirmar}
+        onCerrar={() => setAccionPendiente(null)}
       />
     </>
   );

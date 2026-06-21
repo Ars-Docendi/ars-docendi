@@ -41,6 +41,17 @@ function esDelJefeDeCatedra(pedido: PedidoDesignacion, actor: ActorContexto): bo
   return pedido.carrera === actor.carrera;
 }
 
+// TODO(backend): el número de trámite lo asigna el backend al persistir (secuencia por año).
+//   Mock actual: calcula el siguiente "N°-AAAA-NNNN" a partir del máximo en el store.
+function siguienteNumeroTramite(): string {
+  const anio = new Date().getFullYear();
+  const maximo = store.leerTodos().reduce((max, p) => {
+    const n = Number(p.numero?.split("-").at(-1));
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 123);
+  return `N°-${anio}-${String(maximo + 1).padStart(4, "0")}`;
+}
+
 // TODO(backend): GET /api/designaciones/pedidos?ambito=catedra con autorización rol+ámbito (RNF-1) — SCRUM-7.
 //   Mock actual: lee el store en localStorage y filtra los pedidos de la cátedra del JC. Mantener la firma.
 export async function listarMisPedidos(actor: ActorContexto): Promise<PedidoDesignacion[]> {
@@ -72,6 +83,7 @@ export async function crearPedido(
   };
   const nuevo: PedidoDesignacion = {
     id: crypto.randomUUID(),
+    numero: siguienteNumeroTramite(),
     periodoId: PERIODO_ABIERTO_ID,
     catedra: actor.catedra ?? "",
     carrera: actor.carrera ?? "",
