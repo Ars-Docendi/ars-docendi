@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Table, Button, Input, Select } from "@ars-docendi/ui";
+import { Table, Input, Select } from "@ars-docendi/ui";
 import type { EstadoPeriodo, PeriodoDesignacion } from "../types";
-import { EstadoPeriodoBadge } from "./EstadoPeriodoBadge";
+import { EstadoPeriodoPill } from "./EstadoPeriodoPill";
+import { MenuAccionesPeriodo } from "./MenuAccionesPeriodo";
 
 interface TablaPeriodosProps {
   periodos: PeriodoDesignacion[];
@@ -12,34 +13,6 @@ interface TablaPeriodosProps {
 type FiltroEstado = EstadoPeriodo | "todos";
 
 const ORDEN_CUATRIMESTRE: Record<string, number> = { "2C": 2, "1C": 1, Verano: 0 };
-
-const iconoEditar = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.5}
-    aria-hidden="true"
-    width={15}
-    height={15}
-  >
-    <path d="M11 2l3 3-8 8H3v-3l8-8z" />
-  </svg>
-);
-
-const iconoEliminar = (
-  <svg
-    viewBox="0 0 16 16"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.5}
-    aria-hidden="true"
-    width={15}
-    height={15}
-  >
-    <path d="M3 4h10M6 4V2h4v2M5 4l1 9h4l1-9" />
-  </svg>
-);
 
 function formatearFecha(fechaIso: string): string {
   const [anio, mes, dia] = fechaIso.split("-");
@@ -89,12 +62,12 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
         <Table.Head>
           <Table.Row>
             <Table.HeaderCell>Nombre</Table.HeaderCell>
-            <Table.HeaderCell>Cuatrimestre</Table.HeaderCell>
-            <Table.HeaderCell>Año</Table.HeaderCell>
-            <Table.HeaderCell>Apertura</Table.HeaderCell>
-            <Table.HeaderCell>Cierre</Table.HeaderCell>
-            <Table.HeaderCell>Estado</Table.HeaderCell>
-            <Table.HeaderCell>Acciones</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 100 }}>Cuatr.</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 70 }}>Año</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 110 }}>Apertura</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 110 }}>Cierre</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 120 }}>Estado</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 90 }}>Acciones</Table.HeaderCell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
@@ -116,30 +89,14 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
                 <Table.Cell>{formatearFecha(periodo.fechaApertura)}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.fechaCierre)}</Table.Cell>
                 <Table.Cell>
-                  <EstadoPeriodoBadge estado={periodo.estado} />
+                  <EstadoPeriodoPill estado={periodo.estado} />
                 </Table.Cell>
                 <Table.Cell>
-                  <div style={{ display: "flex", gap: "var(--space-1)" }}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      leadingIcon={iconoEditar}
-                      onClick={() => onEditar(periodo)}
-                      aria-label={`Editar ${periodo.nombre}`}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      leadingIcon={iconoEliminar}
-                      onClick={() => onEliminar(periodo)}
-                      aria-label={`Eliminar ${periodo.nombre}`}
-                      style={{ color: "var(--color-text-danger)" }}
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
+                  <MenuAccionesPeriodo
+                    periodo={periodo}
+                    onEditar={onEditar}
+                    onEliminar={onEliminar}
+                  />
                 </Table.Cell>
               </Table.Row>
             ))

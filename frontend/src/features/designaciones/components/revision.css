@@ -1,0 +1,471 @@
+/* ============================================================
+   Tablero de revisión (SCRUM-8) — Kanban + cards de pedido.
+   Réplica 1:1 del frame "Designaciones - Tablero de revisión"
+   (docs/product/designs/screens.pen). Usa los tokens del design
+   system (@ars-docendi/ui); sin colores hardcodeados.
+   ============================================================ */
+
+.adoc-tablero-filtros {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Filtros: chips rectangulares (radius-xs), height 32. Override del Select. */
+.adoc-tablero-filtros .adoc-select-wrap {
+  display: inline-block;
+}
+.adoc-tablero-filtros .adoc-select {
+  width: auto;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+.adoc-tablero-filtros .adoc-filtro-activo .adoc-select {
+  background: var(--accent-100);
+  border-color: var(--color-accent);
+  color: var(--color-text-link);
+  font-weight: 600;
+}
+.adoc-tablero-filtros .adoc-filtro-activo::after {
+  border-right-color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* Switcher Tablero | Tabla (segmented control). */
+.adoc-vista-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+}
+.adoc-vista-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.adoc-vista-switch-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.adoc-vista-switch-btn.activa {
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+.adoc-tablero {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* --- Columna --- */
+.adoc-kanban-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.adoc-kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px var(--space-1);
+}
+.adoc-kanban-col-headl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.adoc-kanban-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.adoc-kanban-dot.neutro {
+  background: var(--neutral-500);
+}
+.adoc-kanban-dot.exito {
+  background: var(--success-500);
+}
+.adoc-kanban-dot.alerta {
+  background: var(--warning-500);
+}
+.adoc-kanban-dot.peligro {
+  background: var(--danger-500);
+}
+.adoc-kanban-col-tw {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.adoc-kanban-col-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-kanban-col-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+.adoc-kanban-col-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+  font-size: 11px;
+  font-weight: 500;
+}
+.adoc-kanban-col-empty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+/* --- Card --- */
+.adoc-pedido-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 13px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  cursor: pointer;
+}
+.adoc-pedido-card:hover {
+  border-color: var(--color-accent);
+}
+
+.adoc-pedido-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.adoc-pedido-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-pedido-materia {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.adoc-pedido-detalle {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Motivo de rechazo destacado: cita con borde izquierdo danger (multilínea). */
+.adoc-pedido-motivo {
+  padding-left: 9px;
+  border-left: 2px solid var(--danger-500);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+
+/* --- Card en turno del actor (opción D): borde accent + pill "Tu turno" --- */
+.adoc-pedido-card.tu-turno {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+.adoc-pedido-top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-pedido-turno {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* --- Avance en la cadena: mini-stepper (4 barras) + "En {etapa} · x/4" --- */
+.adoc-pedido-avance {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-pedido-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+.adoc-pedido-stepper-bar {
+  width: 16px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-300);
+}
+.adoc-pedido-stepper-bar.lleno {
+  background: var(--color-accent);
+}
+.adoc-pedido-avance-txt {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-pedido-avance.tu-turno .adoc-pedido-avance-txt {
+  color: var(--accent-700);
+}
+
+.adoc-pedido-divisor {
+  height: 1px;
+  width: 100%;
+  background: var(--color-border-subtle);
+}
+
+.adoc-pedido-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+.adoc-pedido-situacion {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* --- Chip de novedad --- */
+.adoc-novedad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+.adoc-novedad-chip svg {
+  width: 11px;
+  height: 11px;
+}
+.adoc-novedad-chip.alta {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+.adoc-novedad-chip.cambio {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-novedad-chip.baja {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-novedad-chip.neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
+.adoc-novedad-chip.rechazado {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+/* --- Flag de prioridad (lucide flag, rojo) --- */
+.adoc-pedido-prioridad {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--danger-500);
+  font-size: 11px;
+  font-weight: 500;
+}
+.adoc-pedido-prioridad svg {
+  width: 11px;
+  height: 11px;
+}
+/* Bandera sola (sin etiqueta) para la columna Prioritario de la Tabla. */
+.adoc-bandera-prioridad {
+  display: inline-flex;
+  align-items: center;
+  color: var(--danger-500);
+}
+.adoc-bandera-prioridad svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* --- Avatar (iniciales) --- */
+.adoc-pedido-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--accent-200);
+  color: var(--accent-700);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/* --- Celda Estado combinada (vista Tabla): estado + avance en una línea --- */
+.adoc-estado-avance {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.adoc-estado-avance-txt {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.adoc-estado-avance.acento .adoc-estado-avance-txt {
+  color: var(--accent-700);
+}
+.adoc-estado-avance.exito .adoc-estado-avance-txt {
+  color: var(--color-status-success-fg);
+}
+.adoc-estado-avance.alerta .adoc-estado-avance-txt {
+  color: var(--color-status-warning-fg);
+}
+.adoc-estado-avance.peligro .adoc-estado-avance-txt {
+  color: var(--color-status-danger-fg);
+}
+/* Stepper completo verde para Aceptado (reusa las barras de la card). */
+.adoc-pedido-stepper.exito .adoc-pedido-stepper-bar.lleno {
+  background: var(--success-500);
+}
+/* Dot de los estados terminales (sin avance). */
+.adoc-estado-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+}
+.adoc-estado-avance.alerta .adoc-estado-dot {
+  background: var(--warning-500);
+}
+.adoc-estado-avance.peligro .adoc-estado-dot {
+  background: var(--danger-500);
+}
+
+/* ============================================================
+   Vista Tabla del tablero de revisión (opción D)
+   ============================================================ */
+.adoc-tabla {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+}
+.adoc-tabla-head,
+.adoc-tabla-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr) minmax(
+      180px,
+      1.5fr
+    ) 44px;
+  align-items: center;
+  gap: var(--space-4);
+}
+.adoc-tabla-head {
+  padding: 10px 16px;
+  background: var(--color-bg-canvas);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+.adoc-tabla-h {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: var(--color-text-tertiary);
+}
+.adoc-tabla-row {
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  font: inherit;
+  background: var(--color-bg-raised);
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+.adoc-tabla-row:last-child {
+  border-bottom: none;
+}
+.adoc-tabla-row:hover {
+  background: var(--color-bg-canvas);
+}
+.adoc-tabla-c {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.adoc-tabla-docente {
+  gap: 10px;
+}
+.adoc-tabla-nombre {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-tabla-asig {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-tabla-prio {
+  justify-content: center;
+}

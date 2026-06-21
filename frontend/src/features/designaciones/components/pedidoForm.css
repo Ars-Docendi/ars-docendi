@@ -1,0 +1,175 @@
+/* ============================================================
+   Formulario de pedido de designación (SCRUM-7) — layout en
+   tarjeta con secciones por novedad. Replica los frames
+   n1zz2M (Alta) / JOHDw (Baja) / tZANr (Cambio · devuelto) de
+   screens.pen con tokens del design system (@ars-docendi/ui).
+   Sin colores hardcodeados.
+   ============================================================ */
+
+.adoc-pf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- Encabezado de página (eyebrow + título + subtítulo) --- */
+.adoc-pf-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adoc-pf-eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.24px;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+.adoc-pf-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+/* --- Tarjeta del formulario --- */
+.adoc-pf-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6, 24px);
+  width: 100%;
+  max-width: 860px;
+  padding: 28px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+}
+
+/* --- Sección (eyebrow + contenido) --- */
+.adoc-pf-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-pf-sec-h {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* --- Filas de campos --- */
+.adoc-pf-radios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) 28px;
+}
+.adoc-pf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.adoc-pf-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .adoc-pf-row,
+  .adoc-pf-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+.adoc-pf-dz-single {
+  max-width: 360px;
+}
+
+/* --- Panel de datos actuales (solo lectura) --- */
+.adoc-pf-datos {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: 14px 18px;
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+}
+.adoc-pf-datos-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.adoc-pf-datos-k {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-v {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.adoc-pf-datos-div {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 34px;
+  background: var(--color-border-default);
+}
+.adoc-pf-datos-trans {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adoc-pf-datos-from {
+  color: var(--color-text-tertiary);
+  font-weight: 400;
+}
+.adoc-pf-datos-arrow {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-to {
+  color: var(--accent-700);
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .adoc-pf-datos {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .adoc-pf-datos-div {
+    display: none;
+  }
+}
+
+/* --- Botonera --- */
+.adoc-pf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}

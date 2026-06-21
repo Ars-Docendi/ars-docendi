@@ -1,14 +1,21 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
-import { PageHeader } from "../../../shared/ui/PageHeader";
 import { PedidoForm } from "../components/PedidoForm";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import { useCrearPedido, useEditarPedido } from "../hooks/useAccionesPedido";
 import { puedeEditarPedido } from "../api/maquinaEstados";
+import { PERIODO_ABIERTO_ID } from "../api/pedidosSeed";
+import { PERIODOS_MOCK } from "../api/periodosMock";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
+
+/** Etiqueta corta del período ("2026 · 1C") a partir de su id. */
+function etiquetaPeriodo(periodoId: string): string {
+  const periodo = PERIODOS_MOCK.find((item) => item.id === periodoId);
+  return periodo ? `${periodo.anio} · ${periodo.cuatrimestre}` : "2026 · 1C";
+}
 
 export function PedidoFormPage() {
   const { id } = useParams();
@@ -33,8 +40,9 @@ export function PedidoFormPage() {
     }
   }
 
-  const titulo = esEdicion ? "Editar pedido" : "Nuevo pedido";
   const guardando = crear.isPending || editar.isPending;
+  const periodoLabel = etiquetaPeriodo(pedidoInicial?.periodoId ?? PERIODO_ABIERTO_ID);
+  const crumbEdicion = pedidoInicial?.numero ? `Editar · ${pedidoInicial.numero}` : "Editar";
 
   return (
     <>
@@ -44,10 +52,9 @@ export function PedidoFormPage() {
           { label: "Inicio", href: "/" },
           { label: "Designaciones", href: "/designaciones" },
           { label: "Mis pedidos", href: RUTA_MIS_PEDIDOS },
-          { label: titulo },
+          { label: esEdicion ? crumbEdicion : "Nuevo pedido" },
         ]}
       />
-      <PageHeader pretitle="Proyecto docente" title={titulo} />
 
       {esEdicion && isLoading && (
         <p style={{ color: "var(--color-text-secondary)" }}>Cargando el pedido…</p>
@@ -76,6 +83,7 @@ export function PedidoFormPage() {
       {!esEdicion && (
         <PedidoForm
           pedidosExistentes={pedidos ?? []}
+          periodoLabel={periodoLabel}
           guardando={guardando}
           onGuardar={handleGuardar}
           onCancelar={volver}
@@ -86,6 +94,8 @@ export function PedidoFormPage() {
         <PedidoForm
           pedidoInicial={pedidoInicial}
           pedidosExistentes={pedidos ?? []}
+          esEdicion
+          periodoLabel={periodoLabel}
           guardando={guardando}
           onGuardar={handleGuardar}
           onCancelar={volver}

@@ -77,8 +77,25 @@ export interface DocentePedido {
   antiguedad: number;
 }
 
+/**
+ * Docente ya existente en el sistema, con su designación vigente.
+ * Alimenta el selector de las novedades sobre docentes existentes
+ * (Sin novedad / Baja / Cambio) y el panel de datos actuales read-only.
+ * En el real provendría del módulo Portal / API Guaraní.
+ */
+export interface DocenteExistente {
+  dni: string;
+  nombre: string;
+  antiguedad: number;
+  cargoActual: Cargo;
+  dedicacionActual: Dedicacion;
+  materiaActual: string;
+}
+
 export interface PedidoDesignacion {
   id: string;
+  /** Número de trámite legible (formato "N°-AAAA-NNNN"). Lo asigna el backend al persistir. */
+  numero?: string;
   periodoId: string; // FK al período (SCRUM-82)
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
