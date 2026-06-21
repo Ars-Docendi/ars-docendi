@@ -409,10 +409,9 @@
 .adoc-tabla-head,
 .adoc-tabla-row {
   display: grid;
-  grid-template-columns: minmax(160px, 1.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr) minmax(
-      180px,
-      1.5fr
-    ) 44px;
+  grid-template-columns:
+    minmax(160px, 1.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr)
+    44px;
   align-items: center;
   gap: var(--space-4);
 }
