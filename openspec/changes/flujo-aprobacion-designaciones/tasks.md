@@ -8,12 +8,12 @@
 
 ## 2. Fase 2 — Seam `api/` + hooks + contexto + seed
 
-- [ ] 2.1 Extender `api/pedidosApi.ts` con `aceptarPedido` / `rechazarPedido` / `devolverPedido` / `reenviarPedido` / `priorizarPedido` (async, delegan a `aplicarAccion`) y `listarPedidosPorAmbito(actor)` (filtra el store con `actorAlcanzaAmbito`); cada función con su `// TODO(backend): <endpoint real> — SCRUM-8. Mock actual: ...` (formato fijo §7)
-- [ ] 2.2 Extender `api/contextoActor.ts`: agregar al mapa de ámbito Secretaría / Decanato / Administración (depto-wide, sin `carrera`), manteniendo la firma de `construirActorContexto`
-- [ ] 2.3 Extender `api/pedidosSeed.ts` con pedidos en `en_revision_secretaria`, `en_revision_decanato`, `rechazado`, `en_lote` y de otra carrera (ejercita el ámbito del Coordinador [BR-009]), con historial de fechas fijas
-- [ ] 2.4 Extender `hooks/useAccionesPedido.ts` con las mutations `useAceptarPedido` / `useRechazarPedido` / `useDevolverPedido` / `useReenviarPedido` / `usePriorizarPedido` (invalidan `["pedidos"]` en `onSuccess`)
-- [ ] 2.5 Extender `hooks/usePedidos.ts` con `usePedidosPorAmbito(actor)` (queryKey namespaced `["pedidos", "ambito", ...]`)
-- [ ] 2.6 Tests del seam en `pedidosApi.test.ts`: `listarPedidosPorAmbito` acota por carrera para el Coordinador y es depto-wide para Secretaría/Decanato/Administración; una aceptación persiste el avance de etapa entre recargas (reset + re-hidratación). Verificar que no hay `// TODO(backend)` fuera de `api/`
+- [x] 2.1 Extender `api/pedidosApi.ts` con `aceptarPedido` / `rechazarPedido` / `devolverPedido` / `reenviarPedido` / `priorizarPedido` (async, delegan a `aplicarAccion`) y `listarPedidosPorAmbito(actor)` (filtra el store con `actorAlcanzaAmbito`); cada función con su `// TODO(backend): <endpoint real> — SCRUM-8. Mock actual: ...` (formato fijo §7)
+- [x] 2.2 Extender `api/contextoActor.ts`: agregar al mapa de ámbito Secretaría / Decanato / Administración (depto-wide, sin `carrera`), manteniendo la firma de `construirActorContexto`
+- [x] 2.3 Extender `api/pedidosSeed.ts` con pedidos en `en_revision_secretaria`, `en_revision_decanato`, `rechazado`, `en_lote` y de otra carrera (ejercita el ámbito del Coordinador [BR-009]), con historial de fechas fijas
+- [x] 2.4 Extender `hooks/useAccionesPedido.ts` con las mutations `useAceptarPedido` / `useRechazarPedido` / `useDevolverPedido` / `useReenviarPedido` / `usePriorizarPedido` (invalidan `["pedidos"]` en `onSuccess`)
+- [x] 2.5 Extender `hooks/usePedidos.ts` con `usePedidosPorAmbito(actor)` (queryKey namespaced `["pedidos", "ambito", ...]`)
+- [x] 2.6 Tests del seam en `pedidosApi.test.ts`: `listarPedidosPorAmbito` acota por carrera para el Coordinador y es depto-wide para Secretaría/Decanato/Administración; una aceptación persiste el avance de etapa entre recargas (reset + re-hidratación). Verificado: no hay `// TODO(backend)` fuera de `api/`
 
 ## 3. Fase 3 — UI del revisor (Kanban + detalle + modal)
 

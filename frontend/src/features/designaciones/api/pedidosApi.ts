@@ -14,7 +14,7 @@ import type {
   EventoHistorial,
   PedidoDesignacion,
 } from "../types";
-import { aplicarAccion } from "./maquinaEstados";
+import { actorAlcanzaAmbito, aplicarAccion } from "./maquinaEstados";
 import { PERIODO_ABIERTO_ID } from "./pedidosSeed";
 import * as store from "./pedidosStore";
 
@@ -122,5 +122,78 @@ export async function cancelarPedido(id: string, actor: ActorContexto): Promise<
   await demora();
   const actual = requerirPedido(id);
   const siguiente = aplicarAccion(actual, { tipo: "cancelar" }, actor);
+  return store.guardar(siguiente);
+}
+
+// ============================================================
+// SCRUM-8 — Circuito de revisión. Lectura por ámbito + acciones del revisor.
+// ============================================================
+
+// TODO(backend): GET /api/designaciones/pedidos?ambito=depto con autorización rol+ámbito (RNF-1) — SCRUM-8.
+//   Mock actual: lee el store y filtra por el ámbito del revisor (Coordinador→su carrera;
+//   Secretaría/Decanato/Administración→todo el depto). Mantener la firma.
+export async function listarPedidosPorAmbito(actor: ActorContexto): Promise<PedidoDesignacion[]> {
+  await demora();
+  return store.leerTodos().filter((pedido) => actorAlcanzaAmbito(pedido, actor));
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/aceptar (SCRUM-8).
+//   Mock actual: avanza la cadena (coordinador→secretaría→decanato→en_lote) vía la máquina de estados. Mantener la firma.
+export async function aceptarPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario?: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "aceptar", comentario }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/rechazar (SCRUM-8).
+//   Mock actual: transiciona en_revision_* → rechazado (terminal) con justificativo. Mantener la firma.
+export async function rechazarPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "rechazar", comentario }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/devolver (SCRUM-8).
+//   Mock actual: retrocede un nivel (→ devuelto) fijando propietario y etapa de retorno. Mantener la firma.
+export async function devolverPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "devolver", comentario }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/reenviar (SCRUM-8).
+//   Mock actual: un devuelto del propietario vuelve a su etapa de retorno. Mantener la firma.
+export async function reenviarPedido(id: string, actor: ActorContexto): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "reenviar" }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/priorizar (SCRUM-8).
+//   Mock actual: marca prioritario=true (sin cambiar el estado) con justificativo. Mantener la firma.
+export async function priorizarPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "priorizar", comentario }, actor);
   return store.guardar(siguiente);
 }

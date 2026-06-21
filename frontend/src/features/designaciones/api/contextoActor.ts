@@ -10,6 +10,10 @@ import type { ActorContexto, Rol } from "../types";
 const AMBITO_POR_ROL: Partial<Record<Rol, { carrera?: string; catedra?: string }>> = {
   "Jefe de Cátedra": { carrera: "Ingeniería en Informática", catedra: "Ingeniería de Software" },
   Coordinador: { carrera: "Ingeniería en Informática" },
+  // Depto-wide (sin carrera): ven y actúan sobre todo el departamento [BR-009].
+  Secretaría: {},
+  Decanato: {},
+  Administración: {},
 };
 
 export function construirActorContexto(rol: Rol, nombre: string): ActorContexto {

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { crearPedido, enviarPedido, listarMisPedidos, obtenerPedido } from "./pedidosApi";
+import {
+  aceptarPedido,
+  crearPedido,
+  enviarPedido,
+  listarMisPedidos,
+  listarPedidosPorAmbito,
+  obtenerPedido,
+} from "./pedidosApi";
 import { reiniciarStorePedidos } from "./pedidosStore";
 import type { ActorContexto, DatosEditablesPedido } from "../types";
 
@@ -9,6 +16,13 @@ const JC: ActorContexto = {
   carrera: "Ingeniería en Informática",
   catedra: "Ingeniería de Software",
 };
+
+const COORD: ActorContexto = {
+  rol: "Coordinador",
+  nombre: "M. Díaz",
+  carrera: "Ingeniería en Informática",
+};
+const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
 
 const DATOS_ALTA: DatosEditablesPedido = {
   docente: { dni: "40222333", nombre: "Camila Vega", antiguedad: 0 },
@@ -51,5 +65,35 @@ describe("pedidosApi — seam mock", () => {
 
     const recuperado = await obtenerPedido(creado.id);
     expect(recuperado.estado).toBe("en_revision_coordinador");
+  });
+});
+
+describe("pedidosApi — seam de revisión (SCRUM-8)", () => {
+  it("listarPedidosPorAmbito acota a la carrera del Coordinador [BR-009]", async () => {
+    const lista = await listarPedidosPorAmbito(COORD);
+    expect(lista.length).toBeGreaterThan(0);
+    expect(lista.every((p) => p.carrera === "Ingeniería en Informática")).toBe(true);
+    // El pedido sembrado de Ingeniería Industrial NO debe aparecer.
+    expect(lista.some((p) => p.carrera === "Ingeniería Industrial")).toBe(false);
+  });
+
+  it("listarPedidosPorAmbito es depto-wide para Secretaría", async () => {
+    const lista = await listarPedidosPorAmbito(SECRE);
+    const carreras = new Set(lista.map((p) => p.carrera));
+    expect(carreras.has("Ingeniería en Informática")).toBe(true);
+    expect(carreras.has("Ingeniería Industrial")).toBe(true);
+  });
+
+  it("una aceptación persiste el avance de etapa entre recargas", async () => {
+    const enCoordinador = (await listarPedidosPorAmbito(COORD)).find(
+      (p) => p.estado === "en_revision_coordinador",
+    );
+    expect(enCoordinador).toBeDefined();
+
+    await aceptarPedido(enCoordinador!.id, COORD);
+    reiniciarStorePedidos();
+
+    const recuperado = await obtenerPedido(enCoordinador!.id);
+    expect(recuperado.estado).toBe("en_revision_secretaria");
   });
 });
