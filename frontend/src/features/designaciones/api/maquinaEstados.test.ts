@@ -128,3 +128,188 @@ describe("aplicarAccion — máquina de estados (lado Jefe de Cátedra)", () => 
     });
   });
 });
+
+// ============================================================
+// SCRUM-8 — Circuito de revisión (Coordinador → Secretaría → Decanato,
+// + Administración como revisor sin aprobación). Una falla primero por
+// fila/guard de la tabla §6.5 del plan.
+// ============================================================
+const COORD: ActorContexto = {
+  rol: "Coordinador",
+  nombre: "M. Díaz",
+  carrera: "Ingeniería en Informática",
+};
+const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
+const DECANO: ActorContexto = { rol: "Decanato", nombre: "R. Sosa" };
+const ADMIN: ActorContexto = { rol: "Administración", nombre: "P. Gómez" };
+
+/** Pedido en una etapa de revisión, partiendo del fixture de borrador. */
+function pedidoEnRevision(
+  estado: EstadoPedido,
+  overrides: Partial<PedidoDesignacion> = {},
+): PedidoDesignacion {
+  return pedidoBorrador({ estado, ...overrides });
+}
+
+describe("aplicarAccion — circuito de revisión (SCRUM-8)", () => {
+  describe("aceptar — avance de la cadena", () => {
+    it("aceptaCoordinadorAvanzaASecretaria", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_coordinador"),
+        { tipo: "aceptar" },
+        COORD,
+      );
+      expect(resultado.estado).toBe("en_revision_secretaria");
+      expect(resultado.historial.at(-1)).toMatchObject({
+        accion: "aceptar",
+        porRol: "Coordinador",
+      });
+    });
+
+    it("aceptaSecretariaAvanzaADecanato", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_secretaria"),
+        { tipo: "aceptar" },
+        SECRE,
+      );
+      expect(resultado.estado).toBe("en_revision_decanato");
+    });
+
+    it("aceptaDecanatoVaAEnLote", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_decanato"),
+        { tipo: "aceptar" },
+        DECANO,
+      );
+      expect(resultado.estado).toBe("en_lote");
+    });
+
+    it("administracionNoPuedeAceptar [BR-015]", () => {
+      expect(() =>
+        aplicarAccion(pedidoEnRevision("en_revision_coordinador"), { tipo: "aceptar" }, ADMIN),
+      ).toThrow(ErrorDominioPedido);
+    });
+  });
+
+  describe("rechazar [BR-005, BR-011]", () => {
+    it("rechazoSinJustificativoFalla", () => {
+      expect(() =>
+        aplicarAccion(
+          pedidoEnRevision("en_revision_coordinador"),
+          { tipo: "rechazar", comentario: "   " },
+          COORD,
+        ),
+      ).toThrow(ErrorDominioPedido);
+    });
+
+    it("rechazoEsTerminal", () => {
+      const rechazado = aplicarAccion(
+        pedidoEnRevision("en_revision_coordinador"),
+        { tipo: "rechazar", comentario: "No cumple los requisitos de antigüedad." },
+        COORD,
+      );
+      expect(rechazado.estado).toBe("rechazado");
+      // Idempotencia terminal: ninguna acción procede sobre un rechazado.
+      expect(() => aplicarAccion(rechazado, { tipo: "aceptar" }, SECRE)).toThrow(
+        ErrorDominioPedido,
+      );
+    });
+
+    it("administracionPuedeRechazar", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_secretaria"),
+        { tipo: "rechazar", comentario: "Documentación inconsistente." },
+        ADMIN,
+      );
+      expect(resultado.estado).toBe("rechazado");
+    });
+  });
+
+  describe("devolver [BR-005, BR-014]", () => {
+    it("devolucionSinComentarioFalla", () => {
+      expect(() =>
+        aplicarAccion(
+          pedidoEnRevision("en_revision_coordinador"),
+          { tipo: "devolver", comentario: "" },
+          COORD,
+        ),
+      ).toThrow(ErrorDominioPedido);
+    });
+
+    it("devolucionRetrocedeUnNivel", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_secretaria"),
+        { tipo: "devolver", comentario: "Revisar el cargo solicitado." },
+        SECRE,
+      );
+      expect(resultado.estado).toBe("devuelto");
+      expect(resultado.propietarioActual).toBe("Coordinador");
+      expect(resultado.etapaRetorno).toBe("en_revision_secretaria");
+    });
+
+    it("reenvioRetomaEtapaDelRevisor", () => {
+      const devuelto = pedidoEnRevision("devuelto", {
+        etapaRetorno: "en_revision_coordinador",
+        propietarioActual: "Jefe de Cátedra",
+      });
+      const resultado = aplicarAccion(devuelto, { tipo: "reenviar" }, JC);
+      expect(resultado.estado).toBe("en_revision_coordinador");
+    });
+
+    it("reenvioSoloDelPropietario", () => {
+      const devuelto = pedidoEnRevision("devuelto", {
+        etapaRetorno: "en_revision_coordinador",
+        propietarioActual: "Jefe de Cátedra",
+      });
+      expect(() => aplicarAccion(devuelto, { tipo: "reenviar" }, COORD)).toThrow(
+        ErrorDominioPedido,
+      );
+    });
+  });
+
+  describe("guards transversales", () => {
+    it("rolEtapaIncorrectaDenegado [BR-013]", () => {
+      // El Coordinador no puede actuar sobre un pedido que ya está en la etapa de Secretaría.
+      expect(() =>
+        aplicarAccion(pedidoEnRevision("en_revision_secretaria"), { tipo: "aceptar" }, COORD),
+      ).toThrow(ErrorDominioPedido);
+    });
+
+    it("coordinadorFueraDeCarreraDenegado [BR-009]", () => {
+      const otraCarrera: ActorContexto = {
+        rol: "Coordinador",
+        nombre: "F. Luna",
+        carrera: "Ingeniería Industrial",
+      };
+      expect(() =>
+        aplicarAccion(
+          pedidoEnRevision("en_revision_coordinador"),
+          { tipo: "aceptar" },
+          otraCarrera,
+        ),
+      ).toThrow(ErrorDominioPedido);
+    });
+  });
+
+  describe("priorizar [BR-017]", () => {
+    it("prioritarioExigeJustificativo", () => {
+      expect(() =>
+        aplicarAccion(
+          pedidoEnRevision("en_revision_coordinador"),
+          { tipo: "priorizar", comentario: "" },
+          COORD,
+        ),
+      ).toThrow(ErrorDominioPedido);
+    });
+
+    it("prioridadNoCambiaEstado", () => {
+      const resultado = aplicarAccion(
+        pedidoEnRevision("en_revision_coordinador"),
+        { tipo: "priorizar", comentario: "Caso urgente por inicio de cuatrimestre." },
+        COORD,
+      );
+      expect(resultado.prioritario).toBe(true);
+      expect(resultado.estado).toBe("en_revision_coordinador");
+    });
+  });
+});
