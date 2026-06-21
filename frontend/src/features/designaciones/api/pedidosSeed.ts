@@ -57,7 +57,7 @@ function eventoCreacion(): EventoHistorial {
     porRol: "Jefe de Cátedra",
     porNombre: JC_NOMBRE,
     etapa: "borrador",
-    fecha: "2026-03-02T10:00:00.000Z",
+    fecha: "2026-06-08T10:00:00.000Z",
   };
 }
 
@@ -68,7 +68,7 @@ function eventoEnvio(): EventoHistorial {
     porRol: "Jefe de Cátedra",
     porNombre: JC_NOMBRE,
     etapa: "en_revision_coordinador",
-    fecha: "2026-03-05T09:30:00.000Z",
+    fecha: "2026-06-12T09:30:00.000Z",
   };
 }
 
@@ -80,7 +80,7 @@ function eventoDevolucion(): EventoHistorial {
     porNombre: "M. Díaz",
     etapa: "en_revision_coordinador",
     comentario: "Falta adjuntar la justificación del cambio de dedicación.",
-    fecha: "2026-03-07T15:10:00.000Z",
+    fecha: "2026-06-19T15:10:00.000Z",
   };
 }
 
@@ -108,21 +108,21 @@ function eventoRechazo(): EventoHistorial {
     porNombre: "M. Díaz",
     etapa: "rechazado",
     comentario: "El cargo solicitado excede el cupo de la cátedra para el período.",
-    fecha: "2026-03-08T11:00:00.000Z",
+    fecha: "2026-06-16T11:00:00.000Z",
   };
 }
 
 const ACEPTA_COORD = (): EventoHistorial =>
-  eventoAceptacion("Coordinador", "M. Díaz", "en_revision_secretaria", "2026-03-06T10:00:00.000Z");
+  eventoAceptacion("Coordinador", "M. Díaz", "en_revision_secretaria", "2026-06-15T10:00:00.000Z");
 const ACEPTA_SECRE = (): EventoHistorial =>
   eventoAceptacion(
     "Secretaría",
     "L. Fernández",
     "en_revision_decanato",
-    "2026-03-09T09:00:00.000Z",
+    "2026-06-17T09:00:00.000Z",
   );
 const ACEPTA_DECANO = (): EventoHistorial =>
-  eventoAceptacion("Decanato", "R. Sosa", "en_lote", "2026-03-11T16:00:00.000Z");
+  eventoAceptacion("Decanato", "R. Sosa", "en_lote", "2026-06-18T16:00:00.000Z");
 
 /** Reconstruye un historial coherente para el estado objetivo del seed. */
 function historialPara(estado: EstadoPedido): EventoHistorial[] {

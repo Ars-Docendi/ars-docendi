@@ -9,7 +9,9 @@
 import type { PedidoDesignacion } from "../types";
 import { crearSeedPedidos } from "./pedidosSeed";
 
-const CLAVE = "adoc.mock.pedidos";
+// v2: el seed sumó pedidos de revisión + fechas recientes (SCRUM-8). El sufijo
+// fuerza un re-seed limpio en navegadores con datos viejos persistidos.
+const CLAVE = "adoc.mock.pedidos.v2";
 
 let pedidos: PedidoDesignacion[] | null = null;
 

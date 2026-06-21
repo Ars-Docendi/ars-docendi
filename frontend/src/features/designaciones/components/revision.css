@@ -1,0 +1,240 @@
+/* ============================================================
+   Tablero de revisión (SCRUM-8) — Kanban + cards de pedido.
+   Réplica 1:1 del frame "Designaciones - Tablero de revisión"
+   (docs/product/designs/screens.pen). Usa los tokens del design
+   system (@ars-docendi/ui); sin colores hardcodeados.
+   ============================================================ */
+
+.adoc-tablero-filtros {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Filtros: chips rectangulares (radius-xs), height 32. Override del Select. */
+.adoc-tablero-filtros .adoc-select-wrap {
+  display: inline-block;
+}
+.adoc-tablero-filtros .adoc-select {
+  width: auto;
+  height: 32px;
+  border-radius: var(--radius-xs);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+}
+.adoc-tablero-filtros .adoc-filtro-activo .adoc-select {
+  background: var(--accent-100);
+  border-color: var(--color-accent);
+  color: var(--color-text-link);
+  font-weight: 600;
+}
+.adoc-tablero-filtros .adoc-filtro-activo::after {
+  border-right-color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.adoc-tablero {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* --- Columna --- */
+.adoc-kanban-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.adoc-kanban-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px var(--space-1);
+}
+.adoc-kanban-col-headl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.adoc-kanban-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.adoc-kanban-dot.neutro {
+  background: var(--neutral-500);
+}
+.adoc-kanban-dot.exito {
+  background: var(--success-500);
+}
+.adoc-kanban-dot.alerta {
+  background: var(--warning-500);
+}
+.adoc-kanban-dot.peligro {
+  background: var(--danger-500);
+}
+.adoc-kanban-col-tw {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.adoc-kanban-col-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-kanban-col-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+.adoc-kanban-col-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+  font-size: 11px;
+  font-weight: 500;
+}
+.adoc-kanban-col-empty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+/* --- Card --- */
+.adoc-pedido-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 13px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  cursor: pointer;
+}
+.adoc-pedido-card:hover {
+  border-color: var(--color-accent);
+}
+
+.adoc-pedido-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.adoc-pedido-nombre {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-pedido-materia {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.adoc-pedido-detalle {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.adoc-pedido-divisor {
+  height: 1px;
+  width: 100%;
+  background: var(--color-border-subtle);
+}
+
+.adoc-pedido-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+.adoc-pedido-situacion {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* --- Chip de novedad --- */
+.adoc-novedad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+.adoc-novedad-chip svg {
+  width: 11px;
+  height: 11px;
+}
+.adoc-novedad-chip.alta {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+.adoc-novedad-chip.cambio {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-novedad-chip.baja {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-novedad-chip.neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
+
+/* --- Flag de prioridad (lucide flag, rojo) --- */
+.adoc-pedido-prioridad {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--danger-500);
+  font-size: 11px;
+  font-weight: 500;
+}
+.adoc-pedido-prioridad svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* --- Avatar (iniciales) --- */
+.adoc-pedido-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--accent-200);
+  color: var(--accent-700);
+  font-size: 9px;
+  font-weight: 600;
+}

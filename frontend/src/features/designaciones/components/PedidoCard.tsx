@@ -1,42 +1,39 @@
-import type { CSSProperties } from "react";
-import type { PedidoDesignacion } from "../types";
-import { EstadoPedidoBadge } from "./EstadoPedidoBadge";
+import type { ActorContexto, PedidoDesignacion } from "../types";
+import { NovedadChip, PrioridadFlag } from "./NovedadChip";
+import { detallePedido, inicialesDocente, situacionPedido } from "./tableroRevisionModelo";
 
 interface PedidoCardProps {
   pedido: PedidoDesignacion;
+  actor: ActorContexto;
   onSeleccionar: (pedido: PedidoDesignacion) => void;
 }
 
-const estiloCard: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-1)",
-  width: "100%",
-  textAlign: "left",
-  padding: "var(--space-2)",
-  border: "1px solid var(--color-border-subtle)",
-  borderRadius: "var(--radius-sm)",
-  background: "var(--color-bg-surface)",
-  cursor: "pointer",
-};
-
-/** Card del Kanban de revisión: docente + cátedra + novedad + estado. Click → detalle. */
-export function PedidoCard({ pedido, onSeleccionar }: PedidoCardProps) {
+/** Card del Kanban de revisión: novedad + prioridad + docente + detalle + situación. Click → detalle. */
+export function PedidoCard({ pedido, actor, onSeleccionar }: PedidoCardProps) {
   return (
     <button
       type="button"
-      style={estiloCard}
+      className="adoc-pedido-card"
       onClick={() => onSeleccionar(pedido)}
       aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
     >
-      <strong>{pedido.docente.nombre}</strong>
-      <span style={{ color: "var(--color-text-tertiary)", fontSize: "var(--text-body-sm-size)" }}>
-        {pedido.catedra} · {pedido.carrera}
+      <span className="adoc-pedido-top">
+        <NovedadChip novedad={pedido.novedad} />
+        {pedido.prioritario && <PrioridadFlag />}
       </span>
-      <span style={{ color: "var(--color-text-secondary)", fontSize: "var(--text-body-sm-size)" }}>
-        {pedido.novedad}
+
+      <span className="adoc-pedido-nombre">Prof. {pedido.docente.nombre}</span>
+      <span className="adoc-pedido-materia">{pedido.materiaAsociada}</span>
+      <span className="adoc-pedido-detalle">{detallePedido(pedido)}</span>
+
+      <span className="adoc-pedido-divisor" aria-hidden="true" />
+
+      <span className="adoc-pedido-foot">
+        <span className="adoc-pedido-situacion">{situacionPedido(pedido, actor)}</span>
+        <span className="adoc-pedido-avatar" aria-hidden="true">
+          {inicialesDocente(pedido.docente.nombre)}
+        </span>
       </span>
-      <EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />
     </button>
   );
 }
