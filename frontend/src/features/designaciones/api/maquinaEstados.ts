@@ -110,6 +110,21 @@ function editar(
 }
 
 /**
+ * Predicado de edición: ¿el actor puede editar este pedido?
+ * Mismo guard que la acción "editar" (borrador o devuelto del propietario,
+ * nunca en estado terminal). Lo usa la UI para no ofrecer edición inválida.
+ */
+export function puedeEditarPedido(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
+  if (esTerminal(pedido.estado)) {
+    return false;
+  }
+  const esBorradorDelJC = pedido.estado === "borrador" && actor.rol === "Jefe de Cátedra";
+  const esDevueltoDelPropietario =
+    pedido.estado === "devuelto" && pedido.propietarioActual === actor.rol;
+  return esBorradorDelJC || esDevueltoDelPropietario;
+}
+
+/**
  * Valida los guards de la acción y devuelve el pedido resultante,
  * o lanza ErrorDominioPedido. No muta el pedido recibido.
  */

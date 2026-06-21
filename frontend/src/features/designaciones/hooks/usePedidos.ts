@@ -10,10 +10,11 @@ export function useMisPedidos(actor: ActorContexto) {
   });
 }
 
-/** Obtiene un pedido por id. */
-export function usePedido(id: string) {
+/** Obtiene un pedido por id. Inactivo (sin fetch) si no hay id (modo alta). */
+export function usePedido(id: string | undefined) {
   return useQuery({
     queryKey: ["pedidos", id],
-    queryFn: () => obtenerPedido(id),
+    queryFn: () => obtenerPedido(id ?? ""),
+    enabled: Boolean(id),
   });
 }

@@ -27,7 +27,8 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        { to: "/designaciones", icon: "pedidos", label: "Designaciones" },
+        { to: "/designaciones", icon: "designaciones", label: "Designaciones" },
+        { to: "/designaciones/mis-pedidos", icon: "pedidos", label: "Mis pedidos" },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
       ],
     },

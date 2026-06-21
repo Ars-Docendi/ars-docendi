@@ -33,29 +33,29 @@
 
 ## 6. Fase 2 — Validaciones de form (TDD ESTRICTO, red-green)
 
-- [ ] 6.1 RED: escribir los tests que fallan primero del validador puro de `PedidoForm`: `unPedidoPorDocentePorPeriodo` [BR-001], `altaExigeCvYDniFrenteYDorso` [BR-002], `bajaExigeJustificativo` [BR-003], `cambioExigeJustificacion` [BR-004]
-- [ ] 6.2 GREEN: implementar el validador puro (sin React) hasta poner esos tests en verde
-- [ ] 6.3 Verificar `pnpm --filter frontend test:run` en verde para la suite de validaciones
+- [x] 6.1 RED: escribir los tests que fallan primero del validador puro `pedidoValidacion.ts`: `unPedidoPorDocentePorPeriodo` [BR-001], `altaExigeCvYDniFrenteYDorso` [BR-002], `bajaExigeJustificativo` [BR-003], `cambioExigeJustificacion` [BR-004]
+- [x] 6.2 GREEN: implementar `validarPedido` puro (sin React) hasta poner esos tests en verde
+- [x] 6.3 Verificar `pnpm --filter frontend test:run` en verde para la suite de validaciones (9 tests)
 
 ## 7. Fase 2 — UI: "Mis pedidos"
 
-- [ ] 7.1 Crear `components/TablaMisPedidos.tsx`: lista presentacional (docente, materia, novedad, `EstadoPedidoBadge`, flag prioritario) + acciones por estado (Nuevo, Editar, Cancelar, Enviar)
-- [ ] 7.2 Crear `pages/MisPedidosPage.tsx`: contenedor que consume `useMisPedidos` y renderiza explícitamente Loading / Empty / Error / Success
-- [ ] 7.3 Cablear las acciones a las mutations (Enviar → `useEnviarPedido`, Cancelar → `useCancelarPedido`) reflejando el cambio en la UI (sin fake UI, invariante #7)
+- [x] 7.1 Crear `components/TablaMisPedidos.tsx`: lista presentacional (docente, materia, novedad, `EstadoPedidoBadge`, flag prioritario) + acciones por estado (Editar, Enviar, Cancelar)
+- [x] 7.2 Crear `pages/MisPedidosPage.tsx`: contenedor que consume `useMisPedidos` y renderiza explícitamente Loading / Empty / Error / Success
+- [x] 7.3 Cablear las acciones a las mutations (Enviar → `useEnviarPedido`, Cancelar → `useCancelarPedido` con modal de confirmación) reflejando el cambio en la UI (sin fake UI, invariante #7)
 
 ## 8. Fase 2 — UI: Form de pedido
 
-- [ ] 8.1 Crear `components/PedidoForm.tsx`: campos comunes con `Field`+`Input`/`Select`/`Radio` y secciones condicionales por novedad (Alta/Cambio → cargo/dedicación solicitados; adjuntos con `FileUpload`; justificación con `Textarea`); cargo/dedicación actual read-only
-- [ ] 8.2 Conectar el validador (tarea 6) al form: error inline con `InlineAlert`/`Field error`, submit inválido bloqueado
-- [ ] 8.3 Crear `pages/PedidoFormPage.tsx`: modo alta (`/pedidos/nuevo`) y edición (`/pedidos/:id/editar`), consumiendo `useCrearPedido`/`useEditarPedido` y `usePedido`
-- [ ] 8.4 Tests de UI (RTL/user-event) de `PedidoForm`: muestra/oculta secciones según novedad; bloquea submit inválido
+- [x] 8.1 Crear `components/PedidoForm.tsx`: campos comunes con `Field`+`Input`/`Select`/`Radio` y secciones condicionales por novedad (Alta/Cambio → cargo/dedicación solicitados; adjuntos con `FileUpload`; justificación con `Textarea`); cargo/dedicación actual read-only
+- [x] 8.2 Conectar el validador (tarea 6) al form: error inline con `InlineAlert`/`Field error`, submit inválido bloqueado
+- [x] 8.3 Crear `pages/PedidoFormPage.tsx`: modo alta (`/pedidos/nuevo`) y edición (`/pedidos/:id/editar`), consumiendo `useCrearPedido`/`useEditarPedido` y `usePedido`; guard `puedeEditarPedido` para navegación directa a un pedido no editable
+- [x] 8.4 Tests de UI (RTL/user-event) de `PedidoForm`: muestra/oculta secciones según novedad; bloquea submit inválido (6 tests)
 
 ## 9. Fase 2 — Routing, nav, gating y personas mock
 
-- [ ] 9.1 Extender `routes.tsx`: `mis-pedidos` → `MisPedidosPage`, `pedidos/nuevo` y `pedidos/:id/editar` → `PedidoFormPage`, envueltas en `RequireRole` para el Jefe de Cátedra
-- [ ] 9.2 Extender `app/shell/nav.ts` (`NAV_BY_ROLE`): ítem "Mis pedidos" solo para el JC (sin links muertos, invariante #7)
-- [ ] 9.3 Extender `mockUsers.ts`: personas single-rol realistas (con `carrera` para el Coordinador) + usuario "Demo (todos los roles)" para recorrer la cadena con el `RoleMenu` existente
-- [ ] 9.4 Derivar `ActorContexto` desde `useCurrentUser()` + el mock (carrera/ámbito) para alimentar la capa `api/`
+- [x] 9.1 Extender `routes.tsx`: `mis-pedidos` → `MisPedidosPage`, `pedidos/nuevo` y `pedidos/:id/editar` → `PedidoFormPage`, envueltas en `RequireRole` para el Jefe de Cátedra
+- [x] 9.2 Extender `app/shell/nav.ts` (`NAV_BY_ROLE`): ítem "Mis pedidos" solo para el JC (sin links muertos, invariante #7)
+- [x] 9.3 `mockUsers.ts`: las 6 personas single-rol realistas YA existen (con `carrera_id` para el Coordinador). El usuario "Demo (todos los roles)" + role-switching se DIFIERE a SCRUM-8: en SCRUM-7 cambiar a un rol revisor no tiene superficie construida (el tablero/detalle son SCRUM-8) ⇒ sería UI a medias (roza invariante #7). Se construye junto al circuito de revisión.
+- [x] 9.4 Derivar `ActorContexto` desde `useCurrentUser()` + el mock de ámbito (`api/contextoActor.ts`) vía `hooks/useActorContexto.ts`; consumido por las páginas para alimentar la capa `api/`
 
 ## 10. Fase cierre — Documentación (invariantes #11 y #12)
 
