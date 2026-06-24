@@ -78,6 +78,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "C. López",
       initials: "CL",
+      upn: "carla.lopez@unlam.edu.ar",
       role: "Docente",
       roles: ["Docente"],
     },
@@ -102,6 +103,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "G. Ruiz",
       initials: "GR",
+      upn: "gustavo.ruiz@unlam.edu.ar",
       role: "Jefe de Cátedra",
       roles: ["Jefe de Cátedra"],
     },
@@ -126,6 +128,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "M. Díaz",
       initials: "MD",
+      upn: "marina.diaz@unlam.edu.ar",
       role: "Coordinador",
       roles: ["Coordinador"],
     },
@@ -150,6 +153,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "L. Fernández",
       initials: "LF",
+      upn: "secretaria.academica@unlam.edu.ar",
       role: "Secretaría",
       roles: ["Secretaría"],
     },
@@ -174,6 +178,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "R. Sosa",
       initials: "RS",
+      upn: "decanato@unlam.edu.ar",
       role: "Decanato",
       roles: ["Decanato"],
     },
@@ -198,6 +203,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "P. Gómez",
       initials: "PG",
+      upn: "admin.aulas@unlam.edu.ar",
       role: "Administración",
       roles: ["Administración"],
     },
