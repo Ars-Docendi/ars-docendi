@@ -13,6 +13,17 @@ name: pr-env-deploy
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+    # Defensa en profundidad: además del doble gate de maintainer (label
+    # deploy-preview + environment pr-preview), un PR doc-only no levanta
+    # ambiente efímero. No reemplaza los gates, los complementa.
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "infra/**"
+      - "database/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
 
 permissions:
   contents: read
