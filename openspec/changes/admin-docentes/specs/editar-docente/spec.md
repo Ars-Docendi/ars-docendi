@@ -9,9 +9,19 @@ El modal de edición SHALL presentar dos pestañas usando el componente `Tabs` d
 
 Un único botón "Guardar cambios" en el footer valida y persiste ambas pestañas. Si al intentar guardar desde la pestaña "Datos docentes" hay campos obligatorios incompletos en "Datos personales", se muestra un `InlineAlert` de advertencia indicando que hay errores en la otra pestaña.
 
+#### Scenario: Modal abre en pestaña Datos docentes por defecto
+
+- **WHEN** el usuario hace clic en "Editar" de cualquier docente
+- **THEN** el modal SHALL abrirse con la pestaña "Datos docentes" activa y la pestaña "Datos personales" visible pero no activa
+
+#### Scenario: InlineAlert cuando hay errores en pestaña oculta
+
+- **WHEN** el usuario está en la pestaña "Datos docentes" y hace clic en "Guardar cambios" con campos obligatorios incompletos en "Datos personales"
+- **THEN** el sistema SHALL mostrar un `InlineAlert` de severidad `warning` en la pestaña activa indicando que hay errores en la otra pestaña
+
 ### Requirement: Edición de datos del docente incluyendo Roles y Asignaciones
 
-Los Roles se muestran como checkboxes (permitiendo seleccionar ambos simultáneamente) y las Asignaciones deben pre-cargarse con los valores actuales y ser editables.
+Los Roles MUST mostrarse como checkboxes (permitiendo seleccionar ambos simultáneamente) y las Asignaciones SHALL pre-cargarse con los valores actuales y ser editables.
 
 #### Scenario: Apertura del modal pre-poblado con Roles y Asignaciones
 
