@@ -231,6 +231,7 @@ export const MOCK_USERS: MockUser[] = [
     currentUser: {
       name: "Demo",
       initials: "DM",
+      upn: "demo@unlam.edu.ar",
       role: "Jefe de Cátedra",
       roles: [
         "Jefe de Cátedra",
