@@ -61,11 +61,7 @@ export function PeriodosPage() {
     <>
       <Breadcrumbs
         separator="›"
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: "Pedidos", href: "/designaciones" },
-          { label: "Períodos de designación" },
-        ]}
+        items={[{ label: "Inicio", href: "/" }, { label: "Períodos de designación" }]}
       />
       <PageHeader
         pretitle="Configuración"

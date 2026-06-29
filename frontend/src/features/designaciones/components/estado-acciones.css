@@ -1,0 +1,125 @@
+/* ============================================================
+   Primitivos de celda compartidos por las tablas de designaciones
+   (Mis pedidos, Períodos): pill de estado + menú kebab de acciones.
+   1:1 con docs/product/designs/screens.pen.
+   ============================================================ */
+
+/* --- Pill de estado --- */
+.adoc-estado-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.adoc-estado-pill svg {
+  width: 12px;
+  height: 12px;
+}
+.adoc-estado-pill.neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+  border-color: var(--color-border-default);
+}
+.adoc-estado-pill.exito {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+  border-color: var(--success-500);
+}
+.adoc-estado-pill.peligro {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+  border-color: var(--danger-500);
+}
+.adoc-estado-pill.alerta {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  border-color: var(--warning-500);
+}
+
+/* --- Menú kebab (acciones) --- */
+.adoc-menu-acc {
+  position: relative;
+}
+.adoc-menu-acc-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.adoc-menu-acc-trigger:hover {
+  background: var(--color-bg-sunken);
+}
+.adoc-menu-acc-trigger svg {
+  width: 16px;
+  height: 16px;
+}
+/* Variante bordeada (Períodos): caja con borde + fondo canvas. */
+.adoc-menu-acc-trigger.bordeado {
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+.adoc-menu-acc-trigger.bordeado:hover {
+  background: var(--color-bg-sunken);
+}
+.adoc-menu-acc-trigger.bordeado svg {
+  width: 18px;
+  height: 18px;
+}
+.adoc-menu-acc-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+.adoc-menu-acc-pop button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.adoc-menu-acc-pop button:hover {
+  background: var(--color-bg-sunken);
+}
+.adoc-menu-acc-pop button svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+}
+.adoc-menu-acc-pop button.peligro {
+  color: var(--color-text-danger);
+}
+.adoc-menu-acc-pop button.peligro svg {
+  color: var(--color-text-danger);
+}

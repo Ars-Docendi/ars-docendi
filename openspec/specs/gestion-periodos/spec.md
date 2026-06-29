@@ -1,3 +1,9 @@
+## Purpose
+
+Gestión (ABM) de los períodos de designación docente: la Secretaría Académica crea, edita y elimina los períodos sobre los que el Jefe de Cátedra carga los pedidos de designación (SCRUM-82). Define el contenedor temporal del proyecto docente (cuatrimestre/año, fechas de apertura y cierre, estado).
+
+## Requirements
+
 ### Requirement: Listar períodos de designación
 
 El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, cuatrimestre, año, fecha de apertura, fecha de cierre y estado.
