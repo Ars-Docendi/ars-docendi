@@ -112,6 +112,8 @@ export const navIcons = {
       <path d="M2 16c0-2.5 2.5-4 5-4s5 1.5 5 4" />
       <rect x="11" y="8" width="6" height="5" rx="0.5" />
       <path d="M13 10h2M13 12h1" />
+    </svg>
+  ),
   roles: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="2" y="3" width="14" height="4" rx="1" />
