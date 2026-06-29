@@ -106,6 +106,22 @@ export const navIcons = {
       <path d="M13 10c1.5 0 4 .75 4 3" />
     </svg>
   ),
+  roles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="2" y="3" width="14" height="4" rx="1" />
+      <rect x="2" y="10" width="14" height="4" rx="1" />
+      <path d="M5 5h1M5 12h1" />
+    </svg>
+  ),
+  membresiaRoles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="2" y="3" width="8" height="4" rx="1" />
+      <path d="M12 4h4M12 7h3" />
+      <rect x="2" y="10" width="8" height="4" rx="1" />
+      <path d="M12 11h4M12 14h3" />
+      <path d="M11 5.5l1 1 2-2" />
+    </svg>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type NavIconKey = keyof typeof navIcons;
