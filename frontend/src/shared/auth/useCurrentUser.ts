@@ -23,6 +23,8 @@ export interface CurrentUser {
   name: string;
   /** 1–2 letters for the avatar circle. */
   initials: string;
+  /** Institutional email / Azure UPN. */
+  upn: string;
   /** The role currently in effect. */
   role: Role;
   /** Every role this account may act as (for the role switcher). */
@@ -32,6 +34,7 @@ export interface CurrentUser {
 const STUB_USER: CurrentUser = {
   name: "G. Ruiz",
   initials: "GR",
+  upn: "gustavo.ruiz@unlam.edu.ar",
   role: "Jefe de Cátedra",
   roles: ["Jefe de Cátedra"],
 };

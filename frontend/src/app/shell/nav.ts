@@ -46,6 +46,10 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       ],
     },
     {
+      label: "Configuración",
+      items: [{ to: "/docentes", icon: "docentes", label: "Mis Docentes" }],
+    },
+    {
       label: "Personal",
       items: [{ to: "/portal", icon: "portal", label: "Mi Portal" }],
     },
@@ -89,6 +93,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Configuración",
       items: [
         { to: "/usuarios", icon: "usuarios", label: "Usuarios" },
+        { to: "/docentes", icon: "docentes", label: "Docentes" },
         { to: "/roles", icon: "roles", label: "Roles" },
         { to: "/membresia-roles", icon: "membresiaRoles", label: "Membresía Roles" },
       ],
@@ -134,6 +139,7 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
       label: "Configuración",
       items: [
         { to: "/usuarios", icon: "usuarios", label: "Usuarios" },
+        { to: "/docentes", icon: "docentes", label: "Docentes" },
         { to: "/roles", icon: "roles", label: "Roles" },
         { to: "/membresia-roles", icon: "membresiaRoles", label: "Membresía Roles" },
       ],

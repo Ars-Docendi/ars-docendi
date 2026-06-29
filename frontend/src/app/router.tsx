@@ -8,6 +8,7 @@ import { routes as aulasRoutes } from "../features/aulas/routes";
 import { routes as portalRoutes } from "../features/portal/routes";
 import { routes as tareasRoutes } from "../features/tareas/routes";
 import { routes as usuariosRoutes } from "../features/usuarios/routes";
+import { routes as docentesRoutes } from "../features/docentes/routes";
 import { routes as rolesRoutes } from "../features/roles/routes";
 import { routes as membresiaRolesRoutes } from "../features/membresia-roles/routes";
 import { ConfiguracionProvider } from "../shared/configuracion/ConfiguracionContext";
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
           portalRoutes,
           tareasRoutes,
           usuariosRoutes,
+          docentesRoutes,
           {
             element: <ConfiguracionProvider />,
             children: [rolesRoutes, membresiaRolesRoutes],
