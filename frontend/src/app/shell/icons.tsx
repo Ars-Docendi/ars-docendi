@@ -35,12 +35,32 @@ export const collapseIcon: ReactNode = (
   </svg>
 );
 
+/* Chevron del toggle de grupos colapsables del nav (apunta hacia abajo). */
+export const chevronIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M5 7l4 4 4-4" />
+  </svg>
+);
+
 /* Sidebar nav module icons, keyed for the nav config */
 export const navIcons = {
   pedidos: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="13" />
       <path d="M6 7h6M6 10h6M6 13h4" />
+    </svg>
+  ),
+  revision: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="4" y="3" width="10" height="13" rx="1" />
+      <path d="M7 3.2V2.4a.8.8 0 01.8-.8h2.4a.8.8 0 01.8.8v.8" />
+      <path d="M6.5 9.5l1.6 1.6 3-3.6" />
+    </svg>
+  ),
+  periodos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="3" y="4" width="12" height="11" rx="1" />
+      <path d="M3 7.5h12M6 2.5v3M12 2.5v3" />
     </svg>
   ),
   designaciones: (
@@ -92,6 +112,20 @@ export const navIcons = {
       <path d="M2 16c0-2.5 2.5-4 5-4s5 1.5 5 4" />
       <rect x="11" y="8" width="6" height="5" rx="0.5" />
       <path d="M13 10h2M13 12h1" />
+  roles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="2" y="3" width="14" height="4" rx="1" />
+      <rect x="2" y="10" width="14" height="4" rx="1" />
+      <path d="M5 5h1M5 12h1" />
+    </svg>
+  ),
+  membresiaRoles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="2" y="3" width="8" height="4" rx="1" />
+      <path d="M12 4h4M12 7h3" />
+      <rect x="2" y="10" width="8" height="4" rx="1" />
+      <path d="M12 11h4M12 14h3" />
+      <path d="M11 5.5l1 1 2-2" />
     </svg>
   ),
 } satisfies Record<string, ReactNode>;

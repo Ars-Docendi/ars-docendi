@@ -208,4 +208,38 @@ export const MOCK_USERS: MockUser[] = [
       roles: ["Administración"],
     },
   },
+  // SCRUM-8 — Persona multi-rol para recorrer toda la cadena de aprobación sin
+  // re-loguear (RoleMenu + role switching). Arranca como Jefe de Cátedra. Útil
+  // para la defensa y para los tests de integración del circuito.
+  {
+    id: "a0000000-0000-4000-8000-000000000007",
+    db: {
+      id: "a0000000-0000-4000-8000-000000000007",
+      azure_oid: "00000000-0000-4000-8000-000000000007",
+      upn: "demo@unlam.edu.ar",
+      display_name: "Demo (todos los roles)",
+      is_active: true,
+    },
+    assignment: {
+      role_id: 99,
+      code: "demo",
+      name: "Todos los roles",
+      scope: "carrera",
+      carrera_id: CARRERA_INFORMATICA,
+      materia_id: MATERIA_ING_SOFTWARE,
+    },
+    currentUser: {
+      name: "Demo",
+      initials: "DM",
+      role: "Jefe de Cátedra",
+      roles: [
+        "Jefe de Cátedra",
+        "Coordinador",
+        "Secretaría",
+        "Decanato",
+        "Administración",
+        "Docente",
+      ],
+    },
+  },
 ];
