@@ -7,7 +7,8 @@
 // ============================================================
 
 // DEV MOCK LOGIN — remove with shared/auth/dev/ (and the getMockUser fallback below)
-import { getMockUser } from "./dev/mockSession";
+import { useSyncExternalStore } from "react";
+import { getMockUser, suscribirMockSession } from "./dev/mockSession";
 
 export type Role =
   | "Jefe de Cátedra"
@@ -35,8 +36,17 @@ const STUB_USER: CurrentUser = {
   roles: ["Jefe de Cátedra"],
 };
 
-/** STUB until MSAL claims exist. */
+// DEV MOCK LOGIN — el snapshot reactivo lee el usuario + rol activo de la sesión
+// mock; identidad estable mientras no cambien (requisito de useSyncExternalStore).
+function obtenerSnapshot(): CurrentUser {
+  return getMockUser() ?? STUB_USER;
+}
+
+/**
+ * STUB until MSAL claims exist. Reactivo a los cambios de rol activo de la
+ * sesión mock (role switching sin re-loguear) vía useSyncExternalStore.
+ */
 export function useCurrentUser(): CurrentUser {
   // DEV MOCK LOGIN — remove with shared/auth/dev/ (revert to `return STUB_USER;`)
-  return getMockUser() ?? STUB_USER;
+  return useSyncExternalStore(suscribirMockSession, obtenerSnapshot);
 }

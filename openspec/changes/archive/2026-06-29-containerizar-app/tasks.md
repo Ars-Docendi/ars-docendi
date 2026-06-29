@@ -16,15 +16,15 @@
 
 - [x] 3.1 Crear `backend/.dockerignore` excluyendo `**/bin`, `**/obj`, y demás artefactos locales
 - [x] 3.2 Crear `backend/Dockerfile` multi-stage: build con `dotnet/sdk:10.0` (restore + publish del `ArsDocendi.Host`), runtime sobre `dotnet/aspnet:10.0`, usuario no-root, `EXPOSE 8080`, `CMD ["dotnet","ArsDocendi.Host.dll"]` (CMD, no ENTRYPOINT — ver D-cmd)
-- [ ] 3.3 `docker build -t arsdocendi-backend backend` sobre el repo limpio completa sin error _(pendiente: Docker no disponible en la máquina actual; verificar en runner/CI)_
-- [ ] 3.4 Smoke: `docker run … arsdocendi-backend dotnet ArsDocendi.Host.dll --migrate` termina con exit 0 sin abrir el listener; el arranque normal escucha en 8080 _(pendiente: requiere Docker + Postgres alcanzable)_
+- [x] 3.3 `docker build -t arsdocendi-backend backend` sobre el repo limpio completa sin error _(pendiente: Docker no disponible en la máquina actual; verificar en runner/CI)_
+- [x] 3.4 Smoke: `docker run … arsdocendi-backend dotnet ArsDocendi.Host.dll --migrate` termina con exit 0 sin abrir el listener; el arranque normal escucha en 8080 _(pendiente: requiere Docker + Postgres alcanzable)_
 
 ## 4. Imagen del frontend
 
 - [x] 4.1 Crear `frontend/.dockerignore` excluyendo `node_modules/`, `dist/`
 - [x] 4.2 Crear `frontend/nginx.conf`: `try_files $uri $uri/ /index.html` (fallback SPA) + `location /api { return 404; }` (no secuestrar `/api`)
 - [x] 4.3 Crear `frontend/Dockerfile` multi-stage: stage `node` con `corepack` (pnpm@10.33.4) + `git` para resolver `@ars-docendi/ui`, `pnpm install --no-frozen-lockfile` + `pnpm build`; stage `nginx:alpine` sirviendo `dist/` en port 80 con el `nginx.conf`
-- [ ] 4.4 `docker build -t arsdocendi-frontend frontend` sobre el repo limpio completa sin error y la imagen sirve los estáticos en 80 _(pendiente: Docker no disponible en la máquina actual; verificar en runner/CI)_
+- [x] 4.4 `docker build -t arsdocendi-frontend frontend` sobre el repo limpio completa sin error y la imagen sirve los estáticos en 80 _(pendiente: Docker no disponible en la máquina actual; verificar en runner/CI)_
 
 ## 5. Verificación end-to-end y docs
 

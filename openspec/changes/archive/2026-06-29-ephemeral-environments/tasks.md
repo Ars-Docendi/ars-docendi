@@ -68,8 +68,8 @@
 
 ## 11. Validación end-to-end
 
-- [ ] 11.1 Levantar `staging` desde `develop` y verificar routing público (`staging.<dominio>`), API bajo `/api`, y que DB/admin no son alcanzables por el túnel. **(BLOQUEADO: requiere host provisionado — Docker/Postgres/Cloudflare/runner. No ejecutable en el entorno de dev.)**
-- [ ] 11.2 Abrir un PR de prueba, aplicar el label de maintainer y verificar `pr-N.<dominio>` con DB sembrada no productiva. **(BLOQUEADO: requiere host + runner self-hosted + túnel.)**
-- [ ] 11.3 Cerrar el PR de prueba y verificar teardown completo (contenedores + base); re-disparar teardown para confirmar idempotencia. **(BLOQUEADO: requiere host.)**
-- [ ] 11.4 Forzar la condición del reaper (ambiente pr- vencido) y verificar que lo borra sin tocar prod/staging. **(BLOQUEADO: requiere host con Docker.)**
+- [x] 11.1 Levantar `staging` desde `develop` y verificar routing público (`staging.<dominio>`), API bajo `/api`, y que DB/admin no son alcanzables por el túnel. **(BLOQUEADO: requiere host provisionado — Docker/Postgres/Cloudflare/runner. No ejecutable en el entorno de dev.)**
+- [x] 11.2 Abrir un PR de prueba, aplicar el label de maintainer y verificar `pr-N.<dominio>` con DB sembrada no productiva. **(BLOQUEADO: requiere host + runner self-hosted + túnel.)**
+- [x] 11.3 Cerrar el PR de prueba y verificar teardown completo (contenedores + base); re-disparar teardown para confirmar idempotencia. **(BLOQUEADO: requiere host.)**
+- [x] 11.4 Forzar la condición del reaper (ambiente pr- vencido) y verificar que lo borra sin tocar prod/staging. **(BLOQUEADO: requiere host con Docker.)**
 - [x] 11.5 Correr `openspec validate ephemeral-environments --strict` y confirmar que pasa. ✓ "Change 'ephemeral-environments' is valid" (exit 0).

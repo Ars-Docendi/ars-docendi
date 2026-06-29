@@ -35,12 +35,32 @@ export const collapseIcon: ReactNode = (
   </svg>
 );
 
+/* Chevron del toggle de grupos colapsables del nav (apunta hacia abajo). */
+export const chevronIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M5 7l4 4 4-4" />
+  </svg>
+);
+
 /* Sidebar nav module icons, keyed for the nav config */
 export const navIcons = {
   pedidos: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="13" />
       <path d="M6 7h6M6 10h6M6 13h4" />
+    </svg>
+  ),
+  revision: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="4" y="3" width="10" height="13" rx="1" />
+      <path d="M7 3.2V2.4a.8.8 0 01.8-.8h2.4a.8.8 0 01.8.8v.8" />
+      <path d="M6.5 9.5l1.6 1.6 3-3.6" />
+    </svg>
+  ),
+  periodos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="3" y="4" width="12" height="11" rx="1" />
+      <path d="M3 7.5h12M6 2.5v3M12 2.5v3" />
     </svg>
   ),
   designaciones: (
