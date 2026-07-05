@@ -1,38 +1,38 @@
 ## Purpose
 
-Gestión (ABM) de los períodos de designación docente: la Secretaría Académica crea, edita y elimina los períodos sobre los que el Jefe de Cátedra carga los pedidos de designación (SCRUM-82). Define el contenedor temporal del proyecto docente (cuatrimestre/año, fechas de apertura y cierre, estado).
+Gestión (ABM) de los períodos de designación docente: la Secretaría Académica crea, edita y elimina los períodos sobre los que el Jefe de Cátedra carga los pedidos de designación (SCRUM-82). Define el contenedor temporal del proyecto docente mediante dos ventanas separadas —la ventana de carga (desde/hasta) donde se admiten pedidos, y la ventana de impacto (desde/hasta) donde esas designaciones tienen efecto— y un estado activo/inactivo, con la regla de que a lo sumo un período puede estar activo a la vez.
 
 ## Requirements
 
 ### Requirement: Listar períodos de designación
 
-El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, cuatrimestre, año, fecha de apertura, fecha de cierre y estado.
+El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, ventana de carga (desde/hasta), ventana de impacto (desde/hasta) y estado activo/inactivo.
 
 #### Scenario: Lista con períodos cargados
 
 - **WHEN** el usuario navega a `/designaciones/periodos`
-- **THEN** el sistema muestra una tabla con al menos un período y las columnas: Nombre, Cuatrimestre, Año, Apertura, Cierre, Estado, Acciones
+- **THEN** el sistema muestra una tabla con al menos un período y las columnas: Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta, Activo, Acciones
 
-#### Scenario: Estado visual diferenciado
+#### Scenario: Impacto se muestra en formato mes/año
 
-- **WHEN** un período tiene estado Abierto
-- **THEN** el badge de estado SHALL mostrarse con color verde y la etiqueta "Abierto"
+- **WHEN** la tabla renderiza las columnas de Impacto desde/hasta
+- **THEN** el sistema SHALL mostrar únicamente mes y año (ej. "Agosto 2026"), truncando el día almacenado
 
-#### Scenario: Estado visual período cerrado
+#### Scenario: Estado visual del período activo
 
-- **WHEN** un período tiene estado Cerrado
-- **THEN** el badge de estado SHALL mostrarse con color neutro y la etiqueta "Cerrado"
+- **WHEN** un período tiene `activo: true`
+- **THEN** la columna Activo SHALL mostrar el texto "Activo" (de solo lectura, sin control interactivo en la tabla)
 
-#### Scenario: Estado visual período próximo
+#### Scenario: Estado visual del período inactivo
 
-- **WHEN** un período tiene estado Próximo
-- **THEN** el badge de estado SHALL mostrarse con color de advertencia y la etiqueta "Próximo"
+- **WHEN** un período tiene `activo: false`
+- **THEN** la columna Activo SHALL mostrar el texto "Inactivo" (de solo lectura, sin control interactivo en la tabla)
 
 ---
 
 ### Requirement: Crear período de designación
 
-El sistema SHALL permitir crear un nuevo período de designación mediante un formulario modal con los campos: nombre, cuatrimestre, año, fecha de apertura, fecha de cierre y estado.
+El sistema SHALL permitir crear un nuevo período de designación mediante un formulario modal con los campos obligatorios: nombre, fecha de carga desde, fecha de carga hasta, fecha de impacto desde y fecha de impacto hasta.
 
 #### Scenario: Apertura del modal de creación
 
@@ -42,7 +42,27 @@ El sistema SHALL permitir crear un nuevo período de designación mediante un fo
 #### Scenario: Campos obligatorios presentes
 
 - **WHEN** el modal de creación está abierto
-- **THEN** el sistema SHALL mostrar los campos: Nombre (Input), Cuatrimestre (Select: 1C/2C/Verano), Año (Input numérico), Fecha de apertura (DatePicker), Fecha de cierre (DatePicker), Estado (Select: Abierto/Cerrado/Próximo)
+- **THEN** el sistema SHALL mostrar los campos: Nombre (Input, obligatorio, vacío), Carga desde (DatePicker, obligatorio), Carga hasta (DatePicker, obligatorio), Impacto desde (DatePicker, obligatorio), Impacto hasta (DatePicker, obligatorio)
+
+#### Scenario: Sin campo de cuatrimestre, año o estado en el modal
+
+- **WHEN** el modal de creación o edición está abierto
+- **THEN** el sistema NO SHALL mostrar los campos Cuatrimestre, Año ni un selector de Estado
+
+#### Scenario: Sugerencia de fecha de carga hasta
+
+- **WHEN** el usuario completa "Impacto desde" y el campo "Carga hasta" está vacío
+- **THEN** el sistema SHALL pre-completar "Carga hasta" con la fecha correspondiente a un mes antes de "Impacto desde", editable por el usuario
+
+#### Scenario: Validación de rango carga inválido
+
+- **WHEN** el usuario intenta guardar con "Carga hasta" anterior a "Carga desde"
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error indicando que la fecha de carga hasta debe ser posterior o igual a la de carga desde
+
+#### Scenario: Validación de rango impacto inválido
+
+- **WHEN** el usuario intenta guardar con "Impacto hasta" anterior a "Impacto desde"
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error indicando que la fecha de impacto hasta debe ser posterior o igual a la de impacto desde
 
 #### Scenario: Cancelar creación
 
@@ -58,12 +78,12 @@ El sistema SHALL permitir crear un nuevo período de designación mediante un fo
 
 ### Requirement: Editar período de designación
 
-El sistema SHALL permitir modificar los datos de un período existente mediante el mismo formulario modal, pre-poblado con los valores actuales.
+El sistema SHALL permitir modificar los datos de un período existente mediante el mismo formulario modal, pre-poblado con los valores actuales (nombre, ventana de carga, ventana de impacto).
 
 #### Scenario: Apertura del modal de edición
 
 - **WHEN** el usuario hace clic en el botón de editar de una fila
-- **THEN** el sistema muestra un modal con título "Editar período" y los campos pre-poblados con los datos del período seleccionado
+- **THEN** el sistema muestra un modal con título "Editar período" y los campos Nombre, Carga desde, Carga hasta, Impacto desde e Impacto hasta pre-poblados con los datos del período seleccionado
 
 #### Scenario: Cancelar edición
 
@@ -110,9 +130,50 @@ El sistema SHALL mostrar datos de prueba representativos que permitan validar to
 #### Scenario: Variedad de estados en mock
 
 - **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar al menos un período Abierto, al menos un período Cerrado y al menos un período Próximo
+- **THEN** la tabla SHALL mostrar al menos un período con `activo: true` y varios con `activo: false`, y exactamente uno con `activo: true`
 
-#### Scenario: Variedad de cuatrimestres y años
+#### Scenario: Variedad de ventanas de carga e impacto
 
 - **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar períodos de distintos años y cuatrimestres para simular un historial realista
+- **THEN** la tabla SHALL mostrar períodos con distintas ventanas de carga e impacto para simular un historial realista
+
+---
+
+### Requirement: Activar y desactivar período de designación
+
+El sistema SHALL permitir definir si un período está activo mediante un campo `Toggle` ("Período activo") dentro del formulario de creación/edición, confirmado junto con el resto de los datos al hacer clic en "Guardar". El sistema SHALL impedir que exista más de un período activo simultáneamente.
+
+#### Scenario: Campo "Período activo" presente en creación y edición
+
+- **WHEN** el modal de creación o edición está abierto
+- **THEN** el sistema SHALL mostrar un `Toggle` "Período activo" al final del formulario, después de la ventana de carga y el período de impacto
+
+#### Scenario: Rechazo al guardar con un segundo período activo
+
+- **WHEN** el usuario hace clic en "Guardar" con el `Toggle` "Período activo" en `true` mientras otro período (distinto al que se está guardando) ya tiene `activo: true`
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error bajo el campo `Toggle` indicando cuál es el período actualmente activo, sin activar el nuevo ni desactivar el existente
+
+#### Scenario: Guardar como activo sin conflicto
+
+- **WHEN** el usuario hace clic en "Guardar" con el `Toggle` "Período activo" en `true` y ningún otro período tiene `activo: true`
+- **THEN** el sistema SHALL guardar el período con `activo: true` y cerrar el modal, sin pedir confirmación
+
+#### Scenario: Desactivar un período ya activo pide confirmación
+
+- **WHEN** el usuario edita un período con `activo: true`, apaga el `Toggle` "Período activo" y hace clic en "Guardar"
+- **THEN** el sistema SHALL cerrar el modal de edición y mostrar un modal de confirmación identificando el período antes de aplicar el cambio
+
+#### Scenario: Confirmar desactivación
+
+- **WHEN** el usuario confirma la desactivación en el modal de confirmación
+- **THEN** el sistema SHALL guardar el período con `activo: false` (junto con el resto de los cambios pendientes del formulario) y cerrar el modal
+
+#### Scenario: Cancelar desactivación
+
+- **WHEN** el usuario cancela en el modal de confirmación de desactivación
+- **THEN** el período SHALL permanecer activo, sin aplicar ningún cambio pendiente del formulario, y el modal de confirmación SHALL cerrarse
+
+#### Scenario: Crear o editar sin transición de activo a inactivo
+
+- **WHEN** el usuario hace clic en "Guardar" en cualquier otro caso (creación con cualquier valor de `activo`, o edición sin pasar de `activo: true` a `activo: false`)
+- **THEN** el sistema SHALL guardar directamente sin pedir confirmación
