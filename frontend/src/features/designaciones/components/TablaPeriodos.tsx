@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Table, Input, Select } from "@ars-docendi/ui";
-import type { EstadoPeriodo, PeriodoDesignacion } from "../types";
-import { EstadoPeriodoPill } from "./EstadoPeriodoPill";
+import type { PeriodoDesignacion } from "../types";
 import { MenuAccionesPeriodo } from "./MenuAccionesPeriodo";
 
 interface TablaPeriodosProps {
@@ -10,29 +9,45 @@ interface TablaPeriodosProps {
   onEliminar: (periodo: PeriodoDesignacion) => void;
 }
 
-type FiltroEstado = EstadoPeriodo | "todos";
-
-const ORDEN_CUATRIMESTRE: Record<string, number> = { "2C": 2, "1C": 1, Verano: 0 };
+type FiltroActivo = "todos" | "activos" | "inactivos";
 
 function formatearFecha(fechaIso: string): string {
   const [anio, mes, dia] = fechaIso.split("-");
   return `${dia}/${mes}/${anio}`;
 }
 
+const MESES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+function formatearMesAnio(fechaIso: string): string {
+  const [anio, mes] = fechaIso.split("-");
+  return `${MESES[Number(mes) - 1]} ${anio}`;
+}
+
 export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosProps) {
   const [busqueda, setBusqueda] = useState("");
-  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>("todos");
+  const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>("todos");
 
   const periodosOrdenadosYFiltrados = periodos
     .filter((p) => {
       const coincideNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
-      const coincideEstado = filtroEstado === "todos" || p.estado === filtroEstado;
-      return coincideNombre && coincideEstado;
+      const coincideActivo =
+        filtroActivo === "todos" || (filtroActivo === "activos" ? p.activo : !p.activo);
+      return coincideNombre && coincideActivo;
     })
-    .sort((a, b) => {
-      if (b.anio !== a.anio) return b.anio - a.anio;
-      return (ORDEN_CUATRIMESTRE[b.cuatrimestre] ?? 0) - (ORDEN_CUATRIMESTRE[a.cuatrimestre] ?? 0);
-    });
+    .sort((a, b) => (b.impactoDesde < a.impactoDesde ? -1 : 1));
 
   return (
     <Table>
@@ -47,14 +62,13 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
         }
         right={
           <Select
-            value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)}
+            value={filtroActivo}
+            onChange={(e) => setFiltroActivo(e.target.value as FiltroActivo)}
             style={{ width: 180 }}
           >
-            <option value="todos">Todos los estados</option>
-            <option value="abierto">Abierto</option>
-            <option value="proximo">Próximo</option>
-            <option value="cerrado">Cerrado</option>
+            <option value="todos">Todos</option>
+            <option value="activos">Activos</option>
+            <option value="inactivos">Inactivos</option>
           </Select>
         }
       />
@@ -62,11 +76,11 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
         <Table.Head>
           <Table.Row>
             <Table.HeaderCell>Nombre</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 100 }}>Cuatr.</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 70 }}>Año</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 110 }}>Apertura</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 110 }}>Cierre</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 120 }}>Estado</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 110 }}>Carga desde</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 110 }}>Carga hasta</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 130 }}>Impacto desde</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 130 }}>Impacto hasta</Table.HeaderCell>
+            <Table.HeaderCell style={{ width: 90 }}>Activo</Table.HeaderCell>
             <Table.HeaderCell style={{ width: 90 }}>Acciones</Table.HeaderCell>
           </Table.Row>
         </Table.Head>
@@ -84,13 +98,11 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
             periodosOrdenadosYFiltrados.map((periodo) => (
               <Table.Row key={periodo.id}>
                 <Table.Cell>{periodo.nombre}</Table.Cell>
-                <Table.Cell>{periodo.cuatrimestre}</Table.Cell>
-                <Table.Cell numeric>{periodo.anio}</Table.Cell>
-                <Table.Cell>{formatearFecha(periodo.fechaApertura)}</Table.Cell>
-                <Table.Cell>{formatearFecha(periodo.fechaCierre)}</Table.Cell>
-                <Table.Cell>
-                  <EstadoPeriodoPill estado={periodo.estado} />
-                </Table.Cell>
+                <Table.Cell>{formatearFecha(periodo.cargaDesde)}</Table.Cell>
+                <Table.Cell>{formatearFecha(periodo.cargaHasta)}</Table.Cell>
+                <Table.Cell>{formatearMesAnio(periodo.impactoDesde)}</Table.Cell>
+                <Table.Cell>{formatearMesAnio(periodo.impactoHasta)}</Table.Cell>
+                <Table.Cell>{periodo.activo ? "Activo" : "Inactivo"}</Table.Cell>
                 <Table.Cell>
                   <MenuAccionesPeriodo
                     periodo={periodo}
