@@ -40,7 +40,11 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 **Cargando un pedido — Todo tipo**
 
 - ✅ Horas de investigación → mockeado en Alta (`n1zz2M`) y Cambio (`tZANr`).
-- ⏳ Modificar horas docente → es la pantalla **Datos Docente**, no tocada todavía.
+- ✅ Modificar horas docente → **corrección (2026-07-06):** esto es modificar las horas de materia
+  **dentro del pedido**, no la pantalla Datos Docente (son dos ítems distintos). Ya está mockeado:
+  Alta vía "Materias y horas asignadas", Cambio vía el campo editable "Horas · Programación I". No
+  se tocó para "Sin novedad" (no existe un frame propio en el mockup para esa novedad — a definir si
+  hace falta) ni para Baja (no aplica, el docente se va).
 
 **Alta**
 
@@ -85,20 +89,30 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 
 **Pantalla Revisión (Dedicaciones)**
 
-- ⏳ Mostrar bien el tipo de cambio (alta/baja/cambio) → no mockeado.
-- ⏳ Estado más cerca del título / más visible → no mockeado.
-- 📝 Sacar el prioritario si cargo mayor → decidido como BR (P1, falta solo el umbral >/≥), **no
-  mockeado** (no hay affordance de "quitar prioritario" en la UI todavía).
-- ⏳ Simplificar bastante la info → no mockeado.
-- ⏳ Agregar botón de Volver → no mockeado (trivial).
-- 📝 Vista modo grilla para todos → **decidido**: se elimina el Kanban, queda solo grilla/tabla y
-  desaparece el switcher. **No mockeado**: los frames `q6OrQB`/`kWSjh`/`Z0S9T` (tablero, 2 variantes)
-  y `ebl4U` (tabla) siguen como estaban: falta unificarlos en un solo diseño de grilla y limpiar/archivar
-  las variantes de Kanban que quedan obsoletas.
+> **Corrección (2026-07-06, verificado directo en `screens.pen`, no de memoria):** varios de estos
+> puntos **ya existían antes de esta sesión** (obra del design-spec original), no son gaps nuevos.
+
+- ✅ Mostrar bien el tipo de cambio (alta/baja/cambio) → **ya existe** en `q6OrQB` (Kanban: `tipoChip`
+  con ícono+color por novedad) y en `ebl4U` (Tabla: columna Novedad con el mismo chip). Nada que
+  agregar; solo sobrevive con la Tabla al eliminar el Kanban.
+- 📝 Estado más cerca del título / más visible → en `hcCfk` (Detalle) el badge de estado **ya está en
+  la misma fila que el título** (no está lejos estructuralmente). El reclamo ("se pierde") es de **peso
+  visual**, no de posición — falta una iteración de diseño, no agregarlo de cero.
+- ⏳ Sacar el prioritario si cargo mayor → **confirmado ausente**: solo existe "Priorizar novedad"
+  (marcar); no hay ninguna acción de "despriorizar/quitar" en `hcCfk` ni en los modales. Decidido como
+  BR (P1, falta el umbral >/≥) — genuinamente pendiente de mockear.
+- ⏳ Simplificar bastante la info → juicio de diseño, no verificable como "hecho/no hecho" en el
+  archivo; sigue abierto.
+- ⏳ Agregar botón de Volver → **confirmado ausente** en `hcCfk` y en `ebl4U`. Pendiente, trivial.
+- 📝 Vista modo grilla para todos → la grilla (`ebl4U`, con columna Estado+avance y Novedad) **ya
+  existe** desde antes; lo que falta es **sacar el Kanban y el switcher** (`viewSwitch` en `ebl4U`),
+  no construir la grilla de cero. Frames a limpiar: `q6OrQB`/`kWSjh`/`Z0S9T` (Kanban, 3 variantes).
 
 **Resumen:** mockeados hasta ahora — form de pedido completo (Alta + Baja + Cambio, temas A+B+C+D) y
-Mis Pedidos (tema G + micro-UX). **Falta:** Revisión (tema E, el más grande), Historial (tema F) y la
-pantalla Datos Docente (parte de tema A).
+Mis Pedidos (tema G + micro-UX). **Falta:** Historial (tema F, de cero) y la pantalla Datos Docente
+(parte de tema A, de cero). **Revisión (tema E) es parcial**: el tipo de cambio y la vista de grilla
+ya existían de antes; lo que falta ahí es acotado — sacar Kanban/switcher, agregar "quitar
+prioritario" y botón Volver, e iterar el peso visual del estado y la simplificación de info.
 
 ## Decisiones estructurales (cerradas)
 
@@ -215,21 +229,23 @@ Capturas actualizadas en `exports/rediseno-designaciones-ui/`:
 - Los tres verificados sin problemas de layout (`snapshot_layout`).
 
 **Con esto, el checklist de "Estado de los comentarios del profesor" queda así:** mockeados Mis
-Pedidos (G), Baja (D) y Cambio (A+B+C) completos. Faltan: Revisión (E, el bloque más grande),
-Historial (F, pantalla nueva) y Datos Docente (resto de A).
+Pedidos (G), Baja (D) y Cambio (A+B+C) completos. Faltan de cero: Historial (F) y Datos Docente
+(resto de A). Revisión (E) es **parcial** (ver corrección más abajo, verificada directo en el
+archivo): el tipo de cambio y la vista de grilla ya existían de antes; lo acotado que falta es sacar
+Kanban/switcher, "quitar prioritario", botón Volver, y refinar visualmente el estado.
 
 ## Mapa de temas
 
-| #     | Tema                                                                                                                                                       | Pantallas                                      | Estado                                                                                             | Agrupación (change)          |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
-| **A** | **Modelo de horas** (materia / investigación / externas; modificar horas docente)                                                                          | Form (todo tipo, Alta, Cambio) + Datos Docente | ✅ Mockeado en Pencil (Alta + Cambio). Falta Datos Docente y "modificar horas docente"             | Propio (el más profundo)     |
-| **B** | **Múltiples materias en el pedido** (D3)                                                                                                                   | Form Alta/Cambio                               | ✅ Mockeado en Pencil (Alta)                                                                       | Junto con A                  |
-| **C** | **Jerarquía de cargos** (cambio solo a cargo superior; quitar prioritario si tenés cargo mayor)                                                            | Form Cambio + Revisión                         | ✅ Hint mockeado en Cambio (`tZANr`). Falta la parte de Revisión (quitar prioritario)              | BRs nuevas + orden de cargos |
-| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | ✅ Mockeado en Pencil (Baja, `JOHDw`). Check depto externo resuelto distinto (toggle eliminado)    | Con el form                  |
-| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | Se **elimina Kanban** → solo grilla; + regla nueva de quitar prioritario. **No mockeado todavía**  | UX-only, propio              |
-| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente). **No mockeado todavía**                     | Propio                       |
-| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | ✅ Alerta mockeada en `m3xg`. Falta la BR de restricción de carga (conecta con `gestion-periodos`) | Con Mis Pedidos              |
-| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | ✅ Mockeado como hint de texto en `m3xg`                                                           | Trivial, con E o G           |
+| #     | Tema                                                                                                                                                       | Pantallas                                      | Estado                                                                                                                                                                 | Agrupación (change)          |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **A** | **Modelo de horas** (materia / investigación / externas; modificar horas docente)                                                                          | Form (todo tipo, Alta, Cambio) + Datos Docente | ✅ Mockeado en el pedido (Alta + Cambio, incl. "modificar horas docente"). Falta la pantalla **Datos Docente** en sí                                                   | Propio (el más profundo)     |
+| **B** | **Múltiples materias en el pedido** (D3)                                                                                                                   | Form Alta/Cambio                               | ✅ Mockeado en Pencil (Alta)                                                                                                                                           | Junto con A                  |
+| **C** | **Jerarquía de cargos** (cambio solo a cargo superior; quitar prioritario si tenés cargo mayor)                                                            | Form Cambio + Revisión                         | ✅ Hint mockeado en Cambio (`tZANr`). Falta la parte de Revisión (quitar prioritario)                                                                                  | BRs nuevas + orden de cargos |
+| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | ✅ Mockeado en Pencil (Baja, `JOHDw`). Check depto externo resuelto distinto (toggle eliminado)                                                                        | Con el form                  |
+| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | Parcial ya existe de antes (tipo de cambio y grilla). Falta: sacar Kanban/switcher, quitar prioritario, botón Volver, iterar peso visual del estado y simplificar info | UX-only, propio              |
+| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente). **No mockeado todavía**                                                                                         | Propio                       |
+| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | ✅ Alerta mockeada en `m3xg`. Falta la BR de restricción de carga (conecta con `gestion-periodos`)                                                                     | Con Mis Pedidos              |
+| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | ✅ Mockeado como hint de texto en `m3xg`                                                                                                                               | Trivial, con E o G           |
 
 ### Detalle por pantalla (crudo del cliente, mapeado a tema)
 
@@ -312,6 +328,12 @@ Primera** (convención UNLaM). Un cargo es "superior" si tiene índice mayor en 
   docente ve **todas las designaciones que hizo** y entra a una para ver las de ese período. Falta:
   alcance por rol (¿solo propio o depto-wide para revisores?), filtros, y si reusa la tabla de Mis
   Pedidos. A explorar/diseñar en Pencil.
+- **Restricción real de período abierto (G):** hoy solo existe la alerta informativa en `m3xg`; falta
+  la validación/BR que efectivamente bloquee crear o enviar pedidos fuera del período abierto (no hay
+  ninguna acción deshabilitada ni mensaje de bloqueo mockeado todavía).
+- **"Sin novedad" en el form de pedido:** no existe un frame propio para esta novedad en `screens.pen`
+  (solo Alta/Baja/Cambio). Falta definir si necesita su propia sección de horas editables o si de
+  verdad no expone campos adicionales (como dice la spec vigente).
 - **Reconciliación `admin-docentes`:** cuándo y cómo alinear `AsignacionMateria.cargo` con D1.
 
 ### Parking lot (definido más adelante, no bloquea el mockup)
@@ -337,14 +359,21 @@ Para quien continúe el mockup en `docs/product/designs/screens.pen`:
 
 **Frames a tocar para lo que sigue (en orden sugerido, de menor a mayor esfuerzo):**
 
-1. **Tema E (Revisión → solo grilla)**: el más grande, el único que queda de fondo. Frames existentes
-   a **reconciliar**: `q6OrQB` (Tablero de revisión, vigente), `kWSjh` / `Z0S9T` (2 variantes de
-   tablero descartadas en su momento, opciones C/D) y `ebl4U` (Tabla/grilla, vigente). Como se elimina
-   el Kanban, `ebl4U` es el punto de partida; probablemente convenga **copiar `ebl4U` a un frame
-   nuevo** (no editar el original hasta confirmar) e iterar ahí: sacar tipo de cambio más visible,
-   estado cerca del título, simplificar info, botón Volver, y la acción de "quitar prioritario" (tema
-   C/P1) en el detalle (`hcCfk`, "Revisión de novedad"). Al terminar, marcar
-   `q6OrQB`/`kWSjh`/`Z0S9T` como obsoletos (no borrar todavía — dejarlos de referencia hasta el PR).
+1. **Tema E (Revisión → solo grilla)**: parcial, no de cero — verificado directo en `screens.pen`.
+   `ebl4U` (Tabla/grilla, vigente) **ya tiene** columna Novedad con chip de tipo de cambio (ícono+color)
+   y columna Estado+avance combinada; `q6OrQB` (Kanban) también ya muestra el tipo con `tipoChip`. Lo
+   que falta hacer, concretamente:
+   - Sacar el Kanban: eliminar/archivar `q6OrQB`, `kWSjh`, `Z0S9T` (2 variantes descartadas, opciones
+     C/D) y quitar el `viewSwitch` (segTabla/segTablero) del header de `ebl4U`, dejando la Tabla como
+     única vista.
+   - En `hcCfk` ("Revisión de novedad", Detalle): agregar la acción de **"quitar prioritario"** (tema
+     C/P1 — hoy solo existe "Priorizar novedad", no hay acción inversa) y un **botón Volver** (no
+     existe en ningún frame de Revisión).
+   - Iterar el **peso visual del badge de estado** en `hcCfk` (ya está en la fila del título, pero el
+     profesor dice que "se pierde" — es refinamiento visual, no reposicionarlo).
+   - **Simplificar la info** de `hcCfk` es un juicio de diseño abierto, a definir iterando.
+   - Probablemente convenga **copiar `ebl4U` a un frame nuevo** (no editar el original hasta
+     confirmar) para hacer los cambios de switcher/limpieza.
 2. **Tema F (Historial)**: no hay frame de partida. Usar `FindEmptySpace` (ver ejemplo en la sección
    "batch_design API" del propio Pencil) anclado a algún frame de Designaciones existente, y armar
    la pantalla desde cero reusando los componentes del design system (`Table`/`DataList`,
