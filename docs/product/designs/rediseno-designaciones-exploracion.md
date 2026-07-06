@@ -30,8 +30,12 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 
 **Pantalla Mis Pedidos — Inicio**
 
-- ⏳ Alerta de tiempo de períodos activos → tema G, no mockeado, sin BR redactada todavía.
-- ⏳ Doble click para abrir además de los 3 puntitos → micro-UX, no mockeado.
+- ✅ Alerta de tiempo de períodos activos → mockeado en `m3xg` (`InlineAlert/Info` "Período abierto ·
+  2026 · 1C — cierra el 20/03/2026 · quedan 5 días"). Sigue sin BR redactada (falta definir con
+  cuántos días de anticipación se muestra, y si cambia de color/urgencia cerca del cierre).
+- ✅ Doble click para abrir además de los 3 puntitos → mockeado como hint de texto sobre la tabla en
+  `m3xg` ("Tip: doble click en una fila también abre el pedido"). Es solo la intención visual — el
+  gesto de doble-click no es representable en un mockup estático; queda para la implementación real.
 
 **Cargando un pedido — Todo tipo**
 
@@ -48,14 +52,16 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 
 **Baja**
 
-- 📝 Tipificado de la baja → **decidido**: enum cerrado Renuncia/Jubilación/Otro. **No mockeado**
-  (el frame `JOHDw` "Pedido (Baja)" no se tocó en esta sesión).
+- ✅ Tipificado de la baja → **decidido y mockeado**: Select "Tipo de baja" agregado en `JOHDw`
+  ("Pedido (Baja)"), antes de "Motivo de la baja", ejemplo "Renuncia" (enum cerrado
+  Renuncia/Jubilación/Otro).
 
 **Cambio**
 
-- 📝 No se puede bajar el cargo, solo superiores → **decidido**: BR + jerarquía de 7 cargos. **No
-  mockeado** (no hay tratamiento visual de la restricción en `tZANr` — la validación es de dominio,
-  se podría reflejar con un hint o deshabilitando opciones inferiores del Select).
+- ✅ No se puede bajar el cargo, solo superiores → **decidido y mockeado**: hint de texto agregado
+  bajo "Cargo solicitado" en `tZANr` ("Solo podés solicitar un cargo superior al actual (Adjunto)").
+  Es solo la señal visual — la restricción real la impone el dominio (BR + jerarquía de 7 cargos), acá
+  solo se comunica al usuario.
 - ✅ Horas de materia / investigación / externas → mockeado en `tZANr` (y de paso se completó
   "Dedicación solicitada", que faltaba desde antes).
 
@@ -90,9 +96,9 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
   y `ebl4U` (tabla) siguen como estaban: falta unificarlos en un solo diseño de grilla y limpiar/archivar
   las variantes de Kanban que quedan obsoletas.
 
-**Resumen:** de todo el lote, **solo el form de pedido (Alta + Cambio, temas A+B) está mockeado**.
-Todo lo demás (temas C, D-Baja, E, F, G, y la pantalla Datos Docente) tiene la decisión tomada pero
-falta dibujarlo en Pencil.
+**Resumen:** mockeados hasta ahora — form de pedido completo (Alta + Baja + Cambio, temas A+B+C+D) y
+Mis Pedidos (tema G + micro-UX). **Falta:** Revisión (tema E, el más grande), Historial (tema F) y la
+pantalla Datos Docente (parte de tema A).
 
 ## Decisiones estructurales (cerradas)
 
@@ -192,18 +198,38 @@ SeccionDesignacionSolicitada.tsx` + `DatosActualesPanel.tsx`): ahí **Cargo y De
   la aclaración de semántica del tema D: en vez de reinterpretar el toggle, se lo reemplaza
   directamente por el campo de horas.
 
+### Mockup en Pencil — ronda 2: Mis Pedidos, Baja, Cambio (2026-07-06)
+
+Capturas actualizadas en `exports/rediseno-designaciones-ui/`:
+
+- **`m3xg`** ("Designaciones - Mis pedidos") — [mis-pedidos.png](./exports/rediseno-designaciones-ui/mis-pedidos.png):
+  tema G — `InlineAlert/Info` **"Período abierto · 2026 · 1C — cierra el 20/03/2026 · quedan 5 días"**
+  agregada entre el header y la tabla; y el hint de texto **"Tip: doble click en una fila también abre
+  el pedido"** sobre la tabla (micro-UX). El gesto de doble-click en sí no es representable en un
+  mockup estático — queda como intención para la implementación.
+- **`JOHDw`** ("Designaciones - Pedido (Baja)") — [pedido-baja.png](./exports/rediseno-designaciones-ui/pedido-baja.png):
+  tema D — Select **"Tipo de baja"** agregado antes de "Motivo de la baja", ejemplo "Renuncia".
+- **`tZANr`** (Cambio) — [pedido-editar-cambio.png](./exports/rediseno-designaciones-ui/pedido-editar-cambio.png):
+  tema C — hint de texto **"Solo podés solicitar un cargo superior al actual (Adjunto)"** bajo "Cargo
+  solicitado". Es solo la señal visual; la restricción real la impone el dominio (BR + jerarquía).
+- Los tres verificados sin problemas de layout (`snapshot_layout`).
+
+**Con esto, el checklist de "Estado de los comentarios del profesor" queda así:** mockeados Mis
+Pedidos (G), Baja (D) y Cambio (A+B+C) completos. Faltan: Revisión (E, el bloque más grande),
+Historial (F, pantalla nueva) y Datos Docente (resto de A).
+
 ## Mapa de temas
 
 | #     | Tema                                                                                                                                                       | Pantallas                                      | Estado                                                                                             | Agrupación (change)          |
 | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
 | **A** | **Modelo de horas** (materia / investigación / externas; modificar horas docente)                                                                          | Form (todo tipo, Alta, Cambio) + Datos Docente | ✅ Mockeado en Pencil (Alta + Cambio). Falta Datos Docente y "modificar horas docente"             | Propio (el más profundo)     |
 | **B** | **Múltiples materias en el pedido** (D3)                                                                                                                   | Form Alta/Cambio                               | ✅ Mockeado en Pencil (Alta)                                                                       | Junto con A                  |
-| **C** | **Jerarquía de cargos** (cambio solo a cargo superior; quitar prioritario si tenés cargo mayor)                                                            | Form Cambio + Revisión                         | Orden en `CARGOS_DOCENTES`; se define ladder de **7** (suma "Ayudante alumno") + se hace explícito | BRs nuevas + orden de cargos |
-| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | Enum de baja nuevo (cerrado); el toggle se deja como está por ahora                                | Con el form                  |
-| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | Se **elimina Kanban** → solo grilla; + regla nueva de quitar prioritario                           | UX-only, propio              |
-| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente)                                              | Propio                       |
-| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | Conecta con `gestion-periodos`; la restricción es regla nueva                                      | Con Mis Pedidos              |
-| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | Micro-UX                                                                                           | Trivial, con E o G           |
+| **C** | **Jerarquía de cargos** (cambio solo a cargo superior; quitar prioritario si tenés cargo mayor)                                                            | Form Cambio + Revisión                         | ✅ Hint mockeado en Cambio (`tZANr`). Falta la parte de Revisión (quitar prioritario)              | BRs nuevas + orden de cargos |
+| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | ✅ Mockeado en Pencil (Baja, `JOHDw`). Check depto externo resuelto distinto (toggle eliminado)    | Con el form                  |
+| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | Se **elimina Kanban** → solo grilla; + regla nueva de quitar prioritario. **No mockeado todavía**  | UX-only, propio              |
+| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente). **No mockeado todavía**                     | Propio                       |
+| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | ✅ Alerta mockeada en `m3xg`. Falta la BR de restricción de carga (conecta con `gestion-periodos`) | Con Mis Pedidos              |
+| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | ✅ Mockeado como hint de texto en `m3xg`                                                           | Trivial, con E o G           |
 
 ### Detalle por pantalla (crudo del cliente, mapeado a tema)
 
@@ -302,33 +328,28 @@ Primera** (convención UNLaM). Un cargo es "superior" si tiene índice mayor en 
 
 Para quien continúe el mockup en `docs/product/designs/screens.pen`:
 
-**Frames ya tocados (temas A+B, terminados):**
+**Frames ya tocados (terminados):**
 
-- `n1zz2M` — "Designaciones - Pedido (Alta)"
-- `tZANr` — "Designaciones - Pedido (Editar · Cambio)"
+- `n1zz2M` — "Designaciones - Pedido (Alta)" (temas A+B)
+- `tZANr` — "Designaciones - Pedido (Editar · Cambio)" (temas A+B+C)
+- `JOHDw` — "Designaciones - Pedido (Baja)" (tema D)
+- `m3xg` — "Designaciones - Mis pedidos" (tema G + micro-UX doble click)
 
 **Frames a tocar para lo que sigue (en orden sugerido, de menor a mayor esfuerzo):**
 
-1. **Tema G + micro-UX** en `m3xg` ("Designaciones - Mis pedidos"): agregar alerta de tiempo de
-   período activo + soporte visual de doble-click (puede ser solo una nota, el doble-click no se ve
-   en un mockup estático).
-2. **Tema D (Baja)** en `JOHDw` ("Pedido (Baja)"): agregar el Select de tipificación
-   (Renuncia/Jubilación/Otro) — mismo patrón de campo que "Cargo solicitado" en los otros frames.
-3. **Tema C** en `tZANr` (Cambio): reflejar visualmente "no bajar de cargo" (ej. opciones inferiores
-   del Select deshabilitadas/grisadas, o un hint bajo el campo).
-4. **Tema E (Revisión → solo grilla)**: el más grande. Frames existentes a **reconciliar**:
-   `q6OrQB` (Tablero de revisión, vigente), `kWSjh` / `Z0S9T` (2 variantes de tablero descartadas en
-   su momento, opciones C/D) y `ebl4U` (Tabla/grilla, vigente). Como se elimina el Kanban, `ebl4U` es
-   el punto de partida; probablemente convenga **copiar `ebl4U` a un frame nuevo** (no editar el
-   original hasta confirmar) e iterar ahí: sacar tipo de cambio más visible, estado cerca del título,
-   simplificar info, botón Volver, y la acción de "quitar prioritario" (tema C/P1) en el detalle
-   (`hcCfk`, "Revisión de novedad"). Al terminar, marcar `q6OrQB`/`kWSjh`/`Z0S9T` como obsoletos (no
-   borrar todavía — dejarlos de referencia hasta el PR).
-5. **Tema F (Historial)**: no hay frame de partida. Usar `FindEmptySpace` (ver ejemplo en la sección
+1. **Tema E (Revisión → solo grilla)**: el más grande, el único que queda de fondo. Frames existentes
+   a **reconciliar**: `q6OrQB` (Tablero de revisión, vigente), `kWSjh` / `Z0S9T` (2 variantes de
+   tablero descartadas en su momento, opciones C/D) y `ebl4U` (Tabla/grilla, vigente). Como se elimina
+   el Kanban, `ebl4U` es el punto de partida; probablemente convenga **copiar `ebl4U` a un frame
+   nuevo** (no editar el original hasta confirmar) e iterar ahí: sacar tipo de cambio más visible,
+   estado cerca del título, simplificar info, botón Volver, y la acción de "quitar prioritario" (tema
+   C/P1) en el detalle (`hcCfk`, "Revisión de novedad"). Al terminar, marcar
+   `q6OrQB`/`kWSjh`/`Z0S9T` como obsoletos (no borrar todavía — dejarlos de referencia hasta el PR).
+2. **Tema F (Historial)**: no hay frame de partida. Usar `FindEmptySpace` (ver ejemplo en la sección
    "batch_design API" del propio Pencil) anclado a algún frame de Designaciones existente, y armar
    la pantalla desde cero reusando los componentes del design system (`Table`/`DataList`,
    `Breadcrumbs`, `PageHeader` pattern) — mismo patrón que ya usan las demás pantallas del módulo.
-6. **Datos Docente**: no existe frame en `screens.pen` todavía para esta pantalla en absoluto — hay
+3. **Datos Docente**: no existe frame en `screens.pen` todavía para esta pantalla en absoluto — hay
    que crearla si se va a mockear "modificar horas docente" (A) y "cargo/dedicación únicos" (D1) ahí.
 
 **Tips de flujo aprendidos en esta sesión:**
