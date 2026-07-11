@@ -20,11 +20,12 @@ function pedidoBorrador(overrides: Partial<PedidoDesignacion> = {}): PedidoDesig
     catedra: "Ingeniería de Software",
     carrera: "Ingeniería en Informática",
     docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
-    materiaAsociada: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",
-    haceHorasOtroDepto: false,
+    horasExternas: 0,
+    horasInvestigacion: 0,
     adjuntos: [],
     estado: "borrador",
     prioritario: false,
@@ -35,11 +36,12 @@ function pedidoBorrador(overrides: Partial<PedidoDesignacion> = {}): PedidoDesig
 
 const DATOS_EDITADOS: DatosEditablesPedido = {
   docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 6 },
-  materiaAsociada: "Algoritmos y Estructuras de Datos",
+  asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
   novedad: "Sin novedad",
-  haceHorasOtroDepto: true,
+  horasExternas: 2,
+  horasInvestigacion: 0,
   adjuntos: [],
 };
 
@@ -76,8 +78,10 @@ describe("aplicarAccion — máquina de estados (lado Jefe de Cátedra)", () => 
         JC,
       );
       expect(resultado.estado).toBe("borrador");
-      expect(resultado.materiaAsociada).toBe("Algoritmos y Estructuras de Datos");
-      expect(resultado.haceHorasOtroDepto).toBe(true);
+      expect(resultado.asignaciones).toEqual([
+        { materia: "Algoritmos y Estructuras de Datos", horas: 4 },
+      ]);
+      expect(resultado.horasExternas).toBe(2);
     });
 
     it("editarSoloBorradorODevueltoDelPropietario — edita un devuelto del propietario", () => {

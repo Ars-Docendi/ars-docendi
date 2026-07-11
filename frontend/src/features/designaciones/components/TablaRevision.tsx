@@ -4,6 +4,7 @@ import type { FiltrosTablero } from "./filtrosTablero";
 import { aplicarFiltros } from "./filtrosTablero";
 import { NovedadChip, PrioridadFlagIcono } from "./NovedadChip";
 import { EstadoAvance } from "./EstadoAvance";
+import { resumenMaterias } from "./detalleAdapters";
 import "./revision.css";
 
 interface TablaRevisionProps {
@@ -55,7 +56,9 @@ export function TablaRevision({ pedidos, actor, filtros, onSeleccionar }: TablaR
               </span>
               <span className="adoc-tabla-nombre">Prof. {pedido.docente.nombre}</span>
             </span>
-            <span className="adoc-tabla-c adoc-tabla-asig">{pedido.materiaAsociada}</span>
+            <span className="adoc-tabla-c adoc-tabla-asig">
+              {resumenMaterias(pedido.asignaciones)}
+            </span>
             <span className="adoc-tabla-c">
               <NovedadChip novedad={pedido.novedad} />
             </span>

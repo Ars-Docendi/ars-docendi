@@ -1,7 +1,15 @@
 import { Field, Input, Select } from "@ars-docendi/ui";
-import type { Cargo, Dedicacion, DocenteExistente, DocentePedido, Novedad } from "../types";
+import type {
+  AsignacionMateria,
+  Cargo,
+  Dedicacion,
+  DocenteExistente,
+  DocentePedido,
+  Novedad,
+} from "../types";
 import { formatearDni } from "../api/catalogos";
 import { DatosActualesPanel } from "./DatosActualesPanel";
+import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
 
 interface SeccionDocentePedidoProps {
   novedad: Novedad;
@@ -10,10 +18,19 @@ interface SeccionDocentePedidoProps {
   /** Catálogo de docentes seleccionables (novedades sobre docente existente). */
   opcionesDocente: DocenteExistente[];
   cargoActual: Cargo | null;
+  /** Cambio: cargo solicitado, para mostrar la transición en el panel. */
+  cargoSolicitado?: Cargo;
   dedicacionActual: Dedicacion | null;
-  materia: string;
   /** Cambio: dedicación solicitada, para mostrar la transición en el panel. */
   dedicacionSolicitada?: Dedicacion;
+  /** Materias vigentes del docente seleccionado (catálogo). En Baja se listan todas, de solo lectura. */
+  materiasActuales: AsignacionMateria[];
+  /** Cambio: materias tal como quedan editadas en el form — dispara el resumen de cambios del panel. */
+  materiasSolicitadas?: AsignacionMateria[];
+  horasInvestigacionActuales?: number;
+  horasInvestigacionSolicitadas?: number;
+  horasExternasActuales?: number;
+  horasExternasSolicitadas?: number;
   /** Edición de los datos de un docente nuevo (Alta). */
   onCambiarDocente: (docente: DocentePedido) => void;
   /** Selección de un docente existente por DNI. */
@@ -37,7 +54,7 @@ function notaDocente(novedad: Novedad): string {
 /**
  * Sección "Datos del docente". En Alta son inputs nuevos (DNI + Apellido y
  * Nombre); en el resto es un selector de docente existente + panel de datos
- * actuales en solo lectura.
+ * actuales en solo lectura (en Cambio, resumen de cambios — ver D-8).
  */
 export function SeccionDocentePedido({
   novedad,
@@ -45,13 +62,20 @@ export function SeccionDocentePedido({
   errorDocente,
   opcionesDocente,
   cargoActual,
+  cargoSolicitado,
   dedicacionActual,
-  materia,
   dedicacionSolicitada,
+  materiasActuales,
+  materiasSolicitadas,
+  horasInvestigacionActuales,
+  horasInvestigacionSolicitadas,
+  horasExternasActuales,
+  horasExternasSolicitadas,
   onCambiarDocente,
   onSeleccionarDocente,
 }: SeccionDocentePedidoProps) {
   const esAlta = novedad === "Alta";
+  const esBaja = novedad === "Baja";
   const muestraDatosActuales = Boolean(docente.dni && cargoActual && dedicacionActual);
 
   return (
@@ -92,10 +116,20 @@ export function SeccionDocentePedido({
             <DatosActualesPanel
               antiguedad={docente.antiguedad}
               cargoActual={cargoActual}
+              cargoSolicitado={cargoSolicitado}
               dedicacionActual={dedicacionActual}
-              materia={materia}
               dedicacionSolicitada={dedicacionSolicitada}
+              materiasActuales={materiasActuales}
+              materiasSolicitadas={materiasSolicitadas}
+              mostrarMateria={novedad === "Sin novedad"}
+              horasInvestigacionActuales={horasInvestigacionActuales}
+              horasInvestigacionSolicitadas={horasInvestigacionSolicitadas}
+              horasExternasActuales={horasExternasActuales}
+              horasExternasSolicitadas={horasExternasSolicitadas}
             />
+          )}
+          {muestraDatosActuales && esBaja && (
+            <SeccionMateriasHoras asignaciones={materiasActuales} soloLectura />
           )}
         </>
       )}

@@ -5,11 +5,12 @@ import type { Adjunto, DatosEditablesPedido, PedidoDesignacion } from "./types";
 function datosBase(overrides: Partial<DatosEditablesPedido> = {}): DatosEditablesPedido {
   return {
     docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
-    materiaAsociada: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",
-    haceHorasOtroDepto: false,
+    horasExternas: 0,
+    horasInvestigacion: 0,
     adjuntos: [],
     ...overrides,
   };
@@ -22,11 +23,12 @@ function pedidoExistente(dni: string, id = "otro"): PedidoDesignacion {
     catedra: "Ingeniería de Software",
     carrera: "Ingeniería en Informática",
     docente: { dni, nombre: "Existente", antiguedad: 3 },
-    materiaAsociada: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",
-    haceHorasOtroDepto: false,
+    horasExternas: 0,
+    horasInvestigacion: 0,
     adjuntos: [],
     estado: "borrador",
     prioritario: false,
@@ -93,9 +95,10 @@ describe("validarPedido", () => {
 
   describe("BR-designaciones-003 — Baja exige justificativo", () => {
     it("bajaExigeJustificativo — sin adjunto", () => {
-      const errores = validarPedido(datosBase({ novedad: "Baja", adjuntos: [] }), {
-        pedidosExistentes: [],
-      });
+      const errores = validarPedido(
+        datosBase({ novedad: "Baja", tipoBaja: "Renuncia", adjuntos: [] }),
+        { pedidosExistentes: [] },
+      );
       expect(errores.adjuntos).toBeTruthy();
     });
 
@@ -103,11 +106,103 @@ describe("validarPedido", () => {
       const errores = validarPedido(
         datosBase({
           novedad: "Baja",
+          tipoBaja: "Renuncia",
           adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
         }),
         { pedidosExistentes: [] },
       );
       expect(errores.adjuntos).toBeUndefined();
+    });
+  });
+
+  describe("Tipificación de la baja", () => {
+    it("exige tipo de baja", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Baja",
+          adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.tipoBaja).toBeTruthy();
+    });
+
+    it('"Otro" exige detalle en texto libre', () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Baja",
+          tipoBaja: "Otro",
+          adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.tipoBajaDetalle).toBeTruthy();
+    });
+
+    it('"Otro" con detalle no marca error', () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Baja",
+          tipoBaja: "Otro",
+          tipoBajaDetalle: "Cambio de área dentro de la misma universidad.",
+          adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.tipoBajaDetalle).toBeUndefined();
+    });
+  });
+
+  describe("Materias y horas del pedido", () => {
+    it("exige al menos una materia", () => {
+      const errores = validarPedido(datosBase({ asignaciones: [] }), { pedidosExistentes: [] });
+      expect(errores.asignaciones).toBeTruthy();
+    });
+
+    it("en Alta, cada fila exige materia y horas > 0", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 5",
+          asignaciones: [{ materia: "Ingeniería de Software", horas: 0 }],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.asignaciones).toBeTruthy();
+    });
+
+    it("Alta con múltiples materias válidas no marca error", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 5",
+          asignaciones: [
+            { materia: "Programación I", horas: 6 },
+            { materia: "Programación II", horas: 4 },
+          ],
+          adjuntos: ADJUNTOS_ALTA,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.asignaciones).toBeUndefined();
+    });
+
+    it("D2 — no valida cierre de horas contra la dedicación", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 1", // dedicación alta, horas cargadas muy por debajo
+          asignaciones: [{ materia: "Ingeniería de Software", horas: 1 }],
+          horasInvestigacion: 0,
+          horasExternas: 0,
+          adjuntos: ADJUNTOS_ALTA,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(Object.keys(errores)).toHaveLength(0);
     });
   });
 
@@ -130,12 +225,68 @@ describe("validarPedido", () => {
         datosBase({
           novedad: "Cambio de cargo o dedicación",
           cargoSolicitado: "Adjunto",
-          dedicacionSolicitada: "Categoría 3",
+          dedicacionSolicitada: "Categoría 1", // mejor que la actual (Categoría 3)
           justificacion: "Aumento de carga de investigación.",
         }),
         { pedidosExistentes: [] },
       );
       expect(errores.justificacion).toBeUndefined();
+    });
+  });
+
+  describe("Dedicación solicitada en Cambio solo puede mejorar (D-7)", () => {
+    it("rechaza una dedicación solicitada igual a la actual", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 3", // igual a dedicacionActual
+          justificacion: "Motivo.",
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.dedicacionSolicitada).toBeTruthy();
+    });
+
+    it("rechaza una dedicación solicitada peor que la actual", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 5", // peor que Categoría 3 (índice mayor)
+          justificacion: "Motivo.",
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.dedicacionSolicitada).toBeTruthy();
+    });
+
+    it("acepta una dedicación solicitada estrictamente mejor que la actual", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 0", // la mejor posible
+          justificacion: "Motivo.",
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.dedicacionSolicitada).toBeUndefined();
+    });
+
+    it("en Alta no aplica la restricción (no hay dedicación actual)", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoActual: null,
+          dedicacionActual: null,
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 6",
+          adjuntos: ADJUNTOS_ALTA,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.dedicacionSolicitada).toBeUndefined();
     });
   });
 });

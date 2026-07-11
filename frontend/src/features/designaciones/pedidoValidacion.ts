@@ -4,12 +4,15 @@
 // Devuelve un mapa campo → mensaje; vacío ⇒ el pedido es válido.
 // ============================================================
 import type { Adjunto, DatosEditablesPedido, PedidoDesignacion, TipoAdjunto } from "./types";
+import { indiceDedicacion } from "./api/catalogos";
 
 export type CampoPedido =
   | "docente"
-  | "materiaAsociada"
+  | "asignaciones"
   | "cargoSolicitado"
   | "dedicacionSolicitada"
+  | "tipoBaja"
+  | "tipoBajaDetalle"
   | "justificacion"
   | "adjuntos";
 
@@ -46,8 +49,16 @@ export function validarPedido(
   } else if (!datos.docente.nombre.trim()) {
     errores.docente = "El nombre del docente es obligatorio.";
   }
-  if (!datos.materiaAsociada.trim()) {
-    errores.materiaAsociada = "La materia asociada es obligatoria.";
+  // Materias y horas (D2: las horas son campos libres, sin cierre contra la dedicación).
+  if (datos.asignaciones.length === 0) {
+    errores.asignaciones = "Agregá al menos una materia.";
+  } else if (datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación") {
+    const filaInvalida = datos.asignaciones.some(
+      (asignacion) => !asignacion.materia.trim() || asignacion.horas <= 0,
+    );
+    if (filaInvalida) {
+      errores.asignaciones = "Completá la materia y las horas (mayor a 0) en cada fila.";
+    }
   }
 
   // BR-001: un pedido por docente por período.
@@ -68,6 +79,13 @@ export function validarPedido(
     }
     if (!datos.dedicacionSolicitada) {
       errores.dedicacionSolicitada = "Seleccioná la dedicación solicitada.";
+    } else if (
+      datos.novedad === "Cambio de cargo o dedicación" &&
+      datos.dedicacionActual &&
+      indiceDedicacion(datos.dedicacionSolicitada) >= indiceDedicacion(datos.dedicacionActual)
+    ) {
+      // La dedicación solo puede mejorar en un Cambio (Categoría 0 = mayor jerarquía).
+      errores.dedicacionSolicitada = "La dedicación solicitada debe ser mejor que la actual.";
     }
   }
 
@@ -84,6 +102,12 @@ export function validarPedido(
     // BR-003: Baja exige justificativo.
     if (!tieneAdjunto(datos.adjuntos, "justificativo")) {
       errores.adjuntos = "La baja exige adjuntar un justificativo.";
+    }
+    // Tipificación de la baja: tipo obligatorio; "Otro" exige detalle en texto libre.
+    if (!datos.tipoBaja) {
+      errores.tipoBaja = "Seleccioná el tipo de baja.";
+    } else if (datos.tipoBaja === "Otro" && !datos.tipoBajaDetalle?.trim()) {
+      errores.tipoBajaDetalle = 'Describí el motivo cuando el tipo de baja es "Otro".';
     }
   }
 

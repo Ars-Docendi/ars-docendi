@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Field, InlineAlert, Radio, Textarea, Toggle } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Radio, Select, Textarea } from "@ars-docendi/ui";
 import type { UploadedFile } from "@ars-docendi/ui";
 import type {
   DatosEditablesPedido,
@@ -9,8 +9,9 @@ import type {
   Novedad,
   PedidoDesignacion,
   TipoAdjunto,
+  TipoBaja,
 } from "../types";
-import { DOCENTES_EXISTENTES } from "../api/catalogos";
+import { DOCENTES_EXISTENTES, TIPOS_BAJA } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
@@ -40,14 +41,17 @@ interface PedidoFormProps {
 function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
   return {
     docente: pedido?.docente ?? { dni: "", nombre: "", antiguedad: 0 },
-    materiaAsociada: pedido?.materiaAsociada ?? "",
+    asignaciones: pedido?.asignaciones ?? [{ materia: "", horas: 0 }],
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
     novedad: pedido?.novedad ?? "Sin novedad",
     cargoSolicitado: pedido?.cargoSolicitado,
     dedicacionSolicitada: pedido?.dedicacionSolicitada,
     justificacion: pedido?.justificacion,
-    haceHorasOtroDepto: pedido?.haceHorasOtroDepto ?? false,
+    tipoBaja: pedido?.tipoBaja,
+    tipoBajaDetalle: pedido?.tipoBajaDetalle,
+    horasExternas: pedido?.horasExternas ?? 0,
+    horasInvestigacion: pedido?.horasInvestigacion ?? 0,
     adjuntos: pedido?.adjuntos ?? [],
   };
 }
@@ -88,9 +92,17 @@ export function PedidoForm({
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
-      materiaActual: pedidoInicial.materiaAsociada,
+      materiasActuales: pedidoInicial.asignaciones,
+      horasInvestigacionActuales: pedidoInicial.horasInvestigacion,
+      horasExternasActuales: pedidoInicial.horasExternas,
     });
   }
+
+  // Docente seleccionado (catálogo): fuente de verdad de los valores "actuales"
+  // para el resumen de cambios de Cambio (D-8) — no lo que el usuario edita.
+  const docenteSeleccionado = opcionesDocente.find(
+    (item) => item.dni === datos.docente.dni.replace(/\D/g, ""),
+  );
 
   function seleccionarDocente(dni: string) {
     const docente = opcionesDocente.find((item) => item.dni === dni.replace(/\D/g, ""));
@@ -100,7 +112,9 @@ export function PedidoForm({
         docente: { dni: "", nombre: "", antiguedad: 0 },
         cargoActual: null,
         dedicacionActual: null,
-        materiaAsociada: "",
+        asignaciones: [{ materia: "", horas: 0 }],
+        horasInvestigacion: 0,
+        horasExternas: 0,
       }));
       return;
     }
@@ -109,7 +123,41 @@ export function PedidoForm({
       docente: { dni: docente.dni, nombre: docente.nombre, antiguedad: docente.antiguedad },
       cargoActual: docente.cargoActual,
       dedicacionActual: docente.dedicacionActual,
-      materiaAsociada: docente.materiaActual,
+      asignaciones: docente.materiasActuales.map((asignacion) => ({ ...asignacion })),
+      horasInvestigacion: docente.horasInvestigacionActuales,
+      horasExternas: docente.horasExternasActuales,
+    }));
+  }
+
+  function agregarMateria() {
+    setDatos((prev) => ({
+      ...prev,
+      asignaciones: [...prev.asignaciones, { materia: "", horas: 0 }],
+    }));
+  }
+
+  function quitarMateria(indice: number) {
+    setDatos((prev) => {
+      if (prev.asignaciones.length <= 1) return prev; // BR: no puede quedar sin materias
+      return { ...prev, asignaciones: prev.asignaciones.filter((_, i) => i !== indice) };
+    });
+  }
+
+  function cambiarMateria(indice: number, materia: string) {
+    setDatos((prev) => ({
+      ...prev,
+      asignaciones: prev.asignaciones.map((asignacion, i) =>
+        i === indice ? { ...asignacion, materia } : asignacion,
+      ),
+    }));
+  }
+
+  function cambiarHoras(indice: number, horas: number) {
+    setDatos((prev) => ({
+      ...prev,
+      asignaciones: prev.asignaciones.map((asignacion, i) =>
+        i === indice ? { ...asignacion, horas } : asignacion,
+      ),
     }));
   }
 
@@ -154,7 +202,6 @@ export function PedidoForm({
   const esCambio = novedad === "Cambio de cargo o dedicación";
   const esSinNovedad = novedad === "Sin novedad";
   const muestraSolicitud = esAlta || esCambio;
-  const muestraToggle = esAlta || esCambio;
 
   const numero = pedidoInicial?.numero ?? "";
   const titulo = esEdicion ? "Editar pedido de designación" : "Nuevo pedido de designación";
@@ -208,29 +255,71 @@ export function PedidoForm({
           errorDocente={errores.docente}
           opcionesDocente={opcionesDocente}
           cargoActual={datos.cargoActual}
+          cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
           dedicacionActual={datos.dedicacionActual}
-          materia={datos.materiaAsociada}
           dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
+          materiasActuales={docenteSeleccionado?.materiasActuales ?? []}
+          materiasSolicitadas={esCambio ? datos.asignaciones : undefined}
+          horasInvestigacionActuales={docenteSeleccionado?.horasInvestigacionActuales}
+          horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
+          horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
+          horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
           onCambiarDocente={(docente: DocentePedido) => actualizar("docente", docente)}
           onSeleccionarDocente={seleccionarDocente}
         />
 
         {muestraSolicitud && (
           <SeccionDesignacionSolicitada
-            esAlta={esAlta}
-            materia={datos.materiaAsociada}
+            asignaciones={datos.asignaciones}
             cargoSolicitado={datos.cargoSolicitado}
             dedicacionSolicitada={datos.dedicacionSolicitada}
+            dedicacionActual={datos.dedicacionActual}
+            horasInvestigacion={datos.horasInvestigacion}
+            horasExternas={datos.horasExternas}
             errores={errores}
-            onMateria={(valor) => actualizar("materiaAsociada", valor)}
+            onAgregarMateria={agregarMateria}
+            onQuitarMateria={quitarMateria}
+            onCambiarMateria={cambiarMateria}
+            onCambiarHoras={cambiarHoras}
             onCargo={(valor) => actualizar("cargoSolicitado", valor)}
             onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
+            onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}
+            onHorasExternas={(valor) => actualizar("horasExternas", valor)}
           />
         )}
 
         {!esSinNovedad && (
           <section className="adoc-pf-sec">
             <h2 className="adoc-pf-sec-h">Justificación</h2>
+            {esBaja && (
+              <>
+                <Field label="Tipo de baja" error={errores.tipoBaja}>
+                  <Select
+                    value={datos.tipoBaja ?? ""}
+                    onChange={(e) =>
+                      actualizar("tipoBaja", (e.target.value || undefined) as TipoBaja)
+                    }
+                  >
+                    <option value="">Seleccioná el tipo de baja…</option>
+                    {TIPOS_BAJA.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {datos.tipoBaja === "Otro" && (
+                  <Field label="Detalle" error={errores.tipoBajaDetalle}>
+                    <Textarea
+                      rows={2}
+                      value={datos.tipoBajaDetalle ?? ""}
+                      onChange={(e) => actualizar("tipoBajaDetalle", e.target.value)}
+                      placeholder="Describí el motivo de la baja"
+                    />
+                  </Field>
+                )}
+              </>
+            )}
             <Field
               label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
               error={errores.justificacion}
@@ -248,13 +337,6 @@ export function PedidoForm({
                 }
               />
             </Field>
-            {muestraToggle && (
-              <Toggle
-                label="El docente hace más horas en otro Departamento (se gestiona como externo)"
-                checked={datos.haceHorasOtroDepto}
-                onChange={(e) => actualizar("haceHorasOtroDepto", e.target.checked)}
-              />
-            )}
           </section>
         )}
 

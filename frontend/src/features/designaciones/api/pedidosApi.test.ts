@@ -26,13 +26,14 @@ const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
 
 const DATOS_ALTA: DatosEditablesPedido = {
   docente: { dni: "40222333", nombre: "Camila Vega", antiguedad: 0 },
-  materiaAsociada: "Ingeniería de Software",
+  asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
   cargoActual: null,
   dedicacionActual: null,
   novedad: "Alta",
   cargoSolicitado: "Ayudante",
   dedicacionSolicitada: "Categoría 5",
-  haceHorasOtroDepto: false,
+  horasExternas: 0,
+  horasInvestigacion: 0,
   adjuntos: [
     { id: "a1", nombre: "cv.pdf", tipo: "cv" },
     { id: "a2", nombre: "frente.jpg", tipo: "dni_frente" },

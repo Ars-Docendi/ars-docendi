@@ -116,12 +116,16 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Dedicación">
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
+        <Dato etiqueta="Materias">
+          {pedido.asignaciones.map((a) => `${a.materia} (${a.horas}h)`).join(" · ") || "—"}
+        </Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
-            {pedido.horasInvestigacion ?? 0} h semanales
+            {pedido.horasInvestigacion} h semanales
             <span className="adoc-portal-tag">Portal</span>
           </span>
         </Dato>
+        <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
       </div>
 
       {pedido.justificacion && (

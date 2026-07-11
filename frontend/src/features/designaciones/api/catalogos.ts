@@ -5,13 +5,14 @@
 // (con su designación vigente) para las novedades sobre docentes
 // existentes. En el real provendrían de la API Guaraní / módulo Portal.
 // ============================================================
-import type { Cargo, Dedicacion, DocenteExistente } from "../types";
+import type { Cargo, Dedicacion, DocenteExistente, TipoBaja } from "../types";
 
 /** Cargos del régimen docente, de mayor a menor jerarquía. */
 export const CARGOS: Cargo[] = ["Titular", "Adjunto", "JTP", "Ayudante"];
 
 /** Dedicaciones (categorías) del régimen docente. */
 export const DEDICACIONES: Dedicacion[] = [
+  "Categoría 0",
   "Categoría 1",
   "Categoría 2",
   "Categoría 3",
@@ -19,6 +20,18 @@ export const DEDICACIONES: Dedicacion[] = [
   "Categoría 5",
   "Categoría 6",
 ];
+
+/** Tipos de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
+export const TIPOS_BAJA: TipoBaja[] = ["Renuncia", "Jubilación", "Otro"];
+
+/**
+ * Índice numérico de una dedicación ("Categoría 3" → 3). La escala es
+ * descendente: 0 es la de mayor jerarquía, 6 la de menor — en Cambio, una
+ * dedicación solicitada "mejor" que la actual tiene índice estrictamente menor.
+ */
+export function indiceDedicacion(dedicacion: Dedicacion): number {
+  return Number(dedicacion.replace("Categoría ", ""));
+}
 
 /** Materias asociables a un pedido de designación. */
 export const MATERIAS: string[] = [
@@ -43,7 +56,12 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 8,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    materiaActual: "Programación I",
+    materiasActuales: [
+      { materia: "Programación I", horas: 6 },
+      { materia: "Ingeniería de Software", horas: 4 },
+    ],
+    horasInvestigacionActuales: 2,
+    horasExternasActuales: 0,
   },
   {
     dni: "27345678",
@@ -51,7 +69,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 12,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
-    materiaActual: "Ingeniería de Software",
+    materiasActuales: [{ materia: "Ingeniería de Software", horas: 8 }],
+    horasInvestigacionActuales: 4,
+    horasExternasActuales: 0,
   },
   {
     dni: "30987654",
@@ -59,7 +79,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 7,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
-    materiaActual: "Ingeniería de Software",
+    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
+    horasInvestigacionActuales: 0,
+    horasExternasActuales: 2,
   },
   {
     dni: "33112233",
@@ -67,7 +89,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 4,
     cargoActual: "Ayudante",
     dedicacionActual: "Categoría 5",
-    materiaActual: "Algoritmos y Estructuras de Datos",
+    materiasActuales: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+    horasInvestigacionActuales: 0,
+    horasExternasActuales: 0,
   },
   {
     dni: "28776655",
@@ -75,7 +99,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 9,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 4",
-    materiaActual: "Ingeniería de Software",
+    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
+    horasInvestigacionActuales: 3,
+    horasExternasActuales: 0,
   },
   {
     dni: "31445566",
@@ -83,7 +109,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
-    materiaActual: "Algoritmos y Estructuras de Datos",
+    materiasActuales: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
+    horasInvestigacionActuales: 0,
+    horasExternasActuales: 0,
   },
   {
     dni: "27660011",
@@ -91,7 +119,9 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
     antiguedad: 11,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    materiaActual: "Ingeniería de Software",
+    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
+    horasInvestigacionActuales: 0,
+    horasExternasActuales: 4,
   },
 ];
 

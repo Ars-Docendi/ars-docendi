@@ -1,6 +1,7 @@
 import type { PedidoDesignacion } from "../types";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 import { MenuAccionesPedido } from "./MenuAccionesPedido";
+import { resumenMaterias } from "./detalleAdapters";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
@@ -63,7 +64,7 @@ export function TablaMisPedidos({
             Prof. {pedido.docente.nombre}
           </span>
           <span className="adoc-mp-cat" role="cell">
-            {pedido.materiaAsociada}
+            {resumenMaterias(pedido.asignaciones)}
           </span>
           <span className="adoc-mp-nov" role="cell">
             {etiquetaNovedadCorta(pedido)}

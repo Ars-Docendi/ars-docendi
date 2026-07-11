@@ -8,6 +8,7 @@
 // ============================================================
 import type {
   Adjunto,
+  AsignacionMateria,
   EstadoPedido,
   EventoHistorial,
   Novedad,
@@ -40,17 +41,20 @@ interface SemillaPedido {
   dni: string;
   nombre: string;
   antiguedad: number;
-  materia: string;
+  asignaciones: AsignacionMateria[];
   cargoActual: PedidoDesignacion["cargoActual"];
   dedicacionActual: PedidoDesignacion["dedicacionActual"];
   novedad: Novedad;
   cargoSolicitado?: PedidoDesignacion["cargoSolicitado"];
   dedicacionSolicitada?: PedidoDesignacion["dedicacionSolicitada"];
   justificacion?: string;
+  tipoBaja?: PedidoDesignacion["tipoBaja"];
+  tipoBajaDetalle?: string;
   adjuntos?: Adjunto[];
   estado: PedidoDesignacion["estado"];
   prioritario?: boolean;
-  haceHorasOtroDepto?: boolean;
+  horasExternas?: number;
+  horasInvestigacion?: number;
   etapaRetorno?: PedidoDesignacion["etapaRetorno"];
   propietarioActual?: PedidoDesignacion["propietarioActual"];
   // Overrides de ámbito: por defecto la cátedra/carrera del JC Gustavo Ruiz.
@@ -169,15 +173,17 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     catedra: semilla.catedra ?? CATEDRA,
     carrera: semilla.carrera ?? CARRERA,
     docente: { dni: semilla.dni, nombre: semilla.nombre, antiguedad: semilla.antiguedad },
-    materiaAsociada: semilla.materia,
+    asignaciones: semilla.asignaciones,
     cargoActual: semilla.cargoActual,
     dedicacionActual: semilla.dedicacionActual,
     novedad: semilla.novedad,
     cargoSolicitado: semilla.cargoSolicitado,
     dedicacionSolicitada: semilla.dedicacionSolicitada,
     justificacion: semilla.justificacion,
-    haceHorasOtroDepto: semilla.haceHorasOtroDepto ?? false,
-    horasInvestigacion: 0,
+    tipoBaja: semilla.tipoBaja,
+    tipoBajaDetalle: semilla.tipoBajaDetalle,
+    horasExternas: semilla.horasExternas ?? 0,
+    horasInvestigacion: semilla.horasInvestigacion ?? 0,
     adjuntos: semilla.adjuntos ?? [],
     estado: semilla.estado,
     prioritario: semilla.prioritario ?? false,
@@ -193,7 +199,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "27345678",
     nombre: "Laura Giménez",
     antiguedad: 12,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
     novedad: "Sin novedad",
@@ -203,7 +209,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "30987654",
     nombre: "Diego Morales",
     antiguedad: 7,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Sin novedad",
@@ -213,23 +219,27 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "33112233",
     nombre: "Sofía Romano",
     antiguedad: 4,
-    materia: "Algoritmos y Estructuras de Datos",
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
     cargoActual: "Ayudante",
     dedicacionActual: "Categoría 5",
     novedad: "Sin novedad",
     estado: "borrador",
   },
-  // Un Alta en borrador con adjuntos cargados.
+  // Un Alta en borrador con adjuntos cargados y múltiples materias (D3).
   {
     dni: "35998877",
     nombre: "Martín Acosta",
     antiguedad: 1,
-    materia: "Ingeniería de Software",
+    asignaciones: [
+      { materia: "Ingeniería de Software", horas: 4 },
+      { materia: "Programación II", horas: 4 },
+    ],
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
     cargoSolicitado: "Ayudante",
     dedicacionSolicitada: "Categoría 5",
+    horasInvestigacion: 2,
     adjuntos: [
       { id: "adj-cv-seed", nombre: "cv-martin-acosta.pdf", tipo: "cv" },
       { id: "adj-dnif-seed", nombre: "dni-frente.jpg", tipo: "dni_frente" },
@@ -243,13 +253,14 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "28776655",
     nombre: "Valeria Suárez",
     antiguedad: 9,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
     cargoSolicitado: "Adjunto",
     dedicacionSolicitada: "Categoría 3",
     justificacion: "Mayor carga de investigación asignada para el ciclo 2026.",
+    horasInvestigacion: 3,
     estado: "en_revision_coordinador",
   },
   // Un Cambio devuelto por el Coordinador (vuelve editable al JC).
@@ -257,7 +268,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "31445566",
     nombre: "Pablo Herrera",
     antiguedad: 6,
-    materia: "Algoritmos y Estructuras de Datos",
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -267,13 +278,33 @@ const SEMILLAS: SemillaPedido[] = [
     etapaRetorno: "en_revision_coordinador",
     propietarioActual: "Jefe de Cátedra",
   },
+  // Una Baja con múltiples materias asignadas (mismo docente del catálogo, 2 materias).
+  {
+    dni: "28341567",
+    nombre: "Lucía Fernández",
+    antiguedad: 8,
+    asignaciones: [
+      { materia: "Programación I", horas: 6 },
+      { materia: "Ingeniería de Software", horas: 4 },
+    ],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Baja",
+    tipoBaja: "Renuncia",
+    justificacion:
+      "Renuncia del docente por traslado a otra institución. Cese efectivo al fin del cuatrimestre.",
+    adjuntos: [
+      { id: "adj-just-lucia", nombre: "renuncia-lucia-fernandez.pdf", tipo: "justificativo" },
+    ],
+    estado: "en_revision_coordinador",
+  },
   // --- SCRUM-8: pedidos en etapas de revisión para que cada tablero se vea real ---
   // En revisión de Secretaría (ya aceptado por el Coordinador).
   {
     dni: "29554433",
     nombre: "Florencia Cabrera",
     antiguedad: 8,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -287,7 +318,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "26889900",
     nombre: "Hernán Vidal",
     antiguedad: 15,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 2",
     novedad: "Cambio de cargo o dedicación",
@@ -302,7 +333,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "32110099",
     nombre: "Brenda Ortiz",
     antiguedad: 2,
-    materia: "Algoritmos y Estructuras de Datos",
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -320,7 +351,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "27660011",
     nombre: "Gabriel Núñez",
     antiguedad: 11,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",
@@ -331,7 +362,7 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "30445511",
     nombre: "Mariano Tévez",
     antiguedad: 6,
-    materia: "Física I",
+    asignaciones: [{ materia: "Física I", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",

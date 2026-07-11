@@ -47,7 +47,7 @@ function coincideBusqueda(pedido: PedidoDesignacion, q: string): boolean {
   return (
     pedido.docente.nombre.toLowerCase().includes(aguja) ||
     (pedido.numero ?? "").toLowerCase().includes(aguja) ||
-    pedido.materiaAsociada.toLowerCase().includes(aguja)
+    pedido.asignaciones.some((a) => a.materia.toLowerCase().includes(aguja))
   );
 }
 

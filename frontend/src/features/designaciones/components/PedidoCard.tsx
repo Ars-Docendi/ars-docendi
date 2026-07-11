@@ -8,6 +8,7 @@ import {
   motivoRechazo,
   situacionPedido,
 } from "./tableroRevisionModelo";
+import { resumenMaterias } from "./detalleAdapters";
 
 interface PedidoCardProps {
   pedido: PedidoDesignacion;
@@ -49,7 +50,7 @@ export function PedidoCard({ pedido, actor, onSeleccionar }: PedidoCardProps) {
       </span>
 
       <span className="adoc-pedido-nombre">Prof. {pedido.docente.nombre}</span>
-      <span className="adoc-pedido-materia">{pedido.materiaAsociada}</span>
+      <span className="adoc-pedido-materia">{resumenMaterias(pedido.asignaciones)}</span>
       {esRechazado && motivo ? (
         <span className="adoc-pedido-motivo">{`“${motivo}”`}</span>
       ) : (

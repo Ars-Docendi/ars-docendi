@@ -1,46 +1,59 @@
-import { Field, Select } from "@ars-docendi/ui";
-import type { Cargo, Dedicacion } from "../types";
+import { Field, Input, Select } from "@ars-docendi/ui";
+import type { AsignacionMateria, Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
-import { CARGOS, DEDICACIONES, MATERIAS } from "../api/catalogos";
+import { CARGOS, DEDICACIONES, indiceDedicacion } from "../api/catalogos";
+import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
 
 interface SeccionDesignacionSolicitadaProps {
-  /** En Alta se elige la materia; en Cambio la materia es la vigente del docente. */
-  esAlta: boolean;
-  materia: string;
+  asignaciones: AsignacionMateria[];
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
+  /** Cambio: dedicación vigente del docente. Filtra el Select a solo mejores (Categoría 0 = máxima). En Alta es `null` (no hay restricción). */
+  dedicacionActual: Dedicacion | null;
+  horasInvestigacion: number;
+  horasExternas: number;
   errores: ErroresValidacion;
-  onMateria: (valor: string) => void;
+  onAgregarMateria: () => void;
+  onQuitarMateria: (indice: number) => void;
+  onCambiarMateria: (indice: number, materia: string) => void;
+  onCambiarHoras: (indice: number, horas: number) => void;
   onCargo: (valor?: Cargo) => void;
   onDedicacion: (valor?: Dedicacion) => void;
+  onHorasInvestigacion: (valor: number) => void;
+  onHorasExternas: (valor: number) => void;
 }
 
-/** Sección "Designación solicitada" (Alta / Cambio): materia + cargo + dedicación. */
+/**
+ * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
+ * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
+ * dedicación (en Cambio, solo opciones mejores que la actual — ver D-7), la
+ * lista de materias + horas (agregar/quitar/editar, mismo patrón en ambas
+ * novedades), y horas de investigación/externas.
+ */
 export function SeccionDesignacionSolicitada({
-  esAlta,
-  materia,
+  asignaciones,
   cargoSolicitado,
   dedicacionSolicitada,
+  dedicacionActual,
+  horasInvestigacion,
+  horasExternas,
   errores,
-  onMateria,
+  onAgregarMateria,
+  onQuitarMateria,
+  onCambiarMateria,
+  onCambiarHoras,
   onCargo,
   onDedicacion,
+  onHorasInvestigacion,
+  onHorasExternas,
 }: SeccionDesignacionSolicitadaProps) {
+  const opcionesDedicacion = dedicacionActual
+    ? DEDICACIONES.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
+    : DEDICACIONES;
+
   return (
     <section className="adoc-pf-sec">
       <h2 className="adoc-pf-sec-h">Designación solicitada</h2>
-      {esAlta && (
-        <Field label="Materia asociada" error={errores.materiaAsociada}>
-          <Select value={materia} onChange={(e) => onMateria(e.target.value)}>
-            <option value="">Seleccioná una materia…</option>
-            {MATERIAS.map((opcion) => (
-              <option key={opcion} value={opcion}>
-                {opcion}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
       <div className="adoc-pf-row">
         <Field label="Cargo solicitado" error={errores.cargoSolicitado}>
           <Select
@@ -61,12 +74,40 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onDedicacion((e.target.value || undefined) as Dedicacion)}
           >
             <option value="">Seleccioná una dedicación…</option>
-            {DEDICACIONES.map((dedicacion) => (
+            {opcionesDedicacion.map((dedicacion) => (
               <option key={dedicacion} value={dedicacion}>
                 {dedicacion}
               </option>
             ))}
           </Select>
+        </Field>
+      </div>
+
+      <SeccionMateriasHoras
+        asignaciones={asignaciones}
+        error={errores.asignaciones}
+        onAgregar={onAgregarMateria}
+        onQuitar={onQuitarMateria}
+        onCambiarMateria={onCambiarMateria}
+        onCambiarHoras={onCambiarHoras}
+      />
+
+      <div className="adoc-pf-row">
+        <Field label="Horas de investigación">
+          <Input
+            type="number"
+            min={0}
+            value={horasInvestigacion}
+            onChange={(e) => onHorasInvestigacion(Number(e.target.value))}
+          />
+        </Field>
+        <Field label="Horas externas (otro depto.)">
+          <Input
+            type="number"
+            min={0}
+            value={horasExternas}
+            onChange={(e) => onHorasExternas(Number(e.target.value))}
+          />
         </Field>
       </div>
     </section>

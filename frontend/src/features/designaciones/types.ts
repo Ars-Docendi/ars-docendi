@@ -25,12 +25,22 @@ export type Rol = Role;
 export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
 export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
 export type Dedicacion =
+  | "Categoría 0"
   | "Categoría 1"
   | "Categoría 2"
   | "Categoría 3"
   | "Categoría 4"
   | "Categoría 5"
   | "Categoría 6";
+
+/** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
+export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
+
+/** Una materia asignada a un pedido, con su carga horaria. */
+export interface AsignacionMateria {
+  materia: string;
+  horas: number;
+}
 
 export type EstadoPedido =
   | "borrador"
@@ -89,7 +99,11 @@ export interface DocenteExistente {
   antiguedad: number;
   cargoActual: Cargo;
   dedicacionActual: Dedicacion;
-  materiaActual: string;
+  /** Materias a las que pertenece el docente, con su carga horaria. Mínimo 1 elemento. */
+  materiasActuales: AsignacionMateria[];
+  /** Horas de investigación/externas vigentes del docente (base de comparación en Cambio). */
+  horasInvestigacionActuales: number;
+  horasExternasActuales: number;
 }
 
 export interface PedidoDesignacion {
@@ -100,15 +114,18 @@ export interface PedidoDesignacion {
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
   docente: DocentePedido;
-  materiaAsociada: string;
+  /** Materias del pedido con su carga horaria. Mínimo 1 elemento (BR: no puede quedar vacío). */
+  asignaciones: AsignacionMateria[];
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   justificacion?: string;
-  haceHorasOtroDepto: boolean;
-  horasInvestigacion?: number; // mock (cross-module Portal en el real)
+  tipoBaja?: TipoBaja;
+  tipoBajaDetalle?: string;
+  horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
+  horasInvestigacion: number; // mock (cross-module Portal en el real)
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -121,14 +138,17 @@ export interface PedidoDesignacion {
 /** Subconjunto editable de un pedido (lo que el form de alta/edición produce). */
 export interface DatosEditablesPedido {
   docente: DocentePedido;
-  materiaAsociada: string;
+  asignaciones: AsignacionMateria[];
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   justificacion?: string;
-  haceHorasOtroDepto: boolean;
+  tipoBaja?: TipoBaja;
+  tipoBajaDetalle?: string;
+  horasExternas: number;
+  horasInvestigacion: number;
   adjuntos: Adjunto[];
 }
 

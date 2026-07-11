@@ -11,7 +11,11 @@ import {
   type AccionRevision,
 } from "../components/ModalConfirmacionAccion";
 import { DatosTramite } from "../components/DatosTramite";
-import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
+import {
+  derivarCadena,
+  historialAAuditEntries,
+  resumenMaterias,
+} from "../components/detalleAdapters";
 import { actorAlcanzaAmbito, puedeAceptar, puedeRevisar } from "../api/maquinaEstados";
 import { PERIODOS_MOCK } from "../api/periodosMock";
 import { useActorContexto } from "../hooks/useActorContexto";
@@ -149,7 +153,7 @@ function DetalleCargado({
     <>
       <PageHeader
         pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
-        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.materiaAsociada}`}
+        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${resumenMaterias(pedido.asignaciones)}`}
         meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
         actions={<EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />}
       />
