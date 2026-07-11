@@ -3,8 +3,8 @@
 // - vista: "completa" (todo el ámbito, default) | "mis-pendientes" (solo los
 //   pedidos en turno del actor). El default es "completa" para abrir con el board
 //   lleno (los terminales no son "tu turno", así que "mis-pendientes" los oculta).
-//   El filtro de vista lo aplican `TableroRevision` y `TablaRevision` (necesitan
-//   el actor); acá viven los filtros de tipo/prioridad.
+//   El filtro de vista lo aplica `TablaRevision` (necesita el actor); acá viven
+//   los filtros de tipo/prioridad.
 // - tipo: filtra por novedad.
 // - prioridad: filtra por el flag de prioritario.
 // ============================================================

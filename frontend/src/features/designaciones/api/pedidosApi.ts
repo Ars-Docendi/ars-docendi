@@ -211,3 +211,16 @@ export async function priorizarPedido(
   const siguiente = aplicarAccion(actual, { tipo: "priorizar", comentario }, actor);
   return store.guardar(siguiente);
 }
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/despriorizar (tema E).
+//   Mock actual: marca prioritario=false (sin cambiar el estado), sin exigir comentario. Mantener la firma.
+export async function despriorizarPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario?: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "despriorizar", comentario }, actor);
+  return store.guardar(siguiente);
+}

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Adjunto, Cargo, Dedicacion, Novedad, PedidoDesignacion, TipoAdjunto } from "../types";
 import { iniciales } from "./detalleAdapters";
+import { motivoRechazo } from "./tableroRevisionModelo";
 
 /** Tono del chip de novedad (clases del design system). */
 const TONO_NOVEDAD: Record<Novedad, string> = {
@@ -78,6 +79,7 @@ interface ResumenPedidoProps {
 export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
   const { docente } = pedido;
   const tieneAdjuntos = pedido.adjuntos.length > 0;
+  const motivo = pedido.estado === "rechazado" ? motivoRechazo(pedido) : undefined;
 
   return (
     <section className="adoc-card adoc-det-card">
@@ -127,6 +129,18 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         </Dato>
         <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
       </div>
+
+      {motivo && (
+        <>
+          <div className="adoc-divider" />
+          <div className="adoc-justif">
+            <p className="adoc-eyebrow">Motivo de rechazo</p>
+            <blockquote className="adoc-justif-quote adoc-justif-quote--danger">
+              {`“${motivo}”`}
+            </blockquote>
+          </div>
+        </>
+      )}
 
       {pedido.justificacion && (
         <>

@@ -28,6 +28,7 @@ const ETIQUETA_CONFIRMAR: Record<AccionRevision, string> = {
   rechazar: "Rechazar novedad",
   devolver: "Devolver a Borrador",
   priorizar: "Guardar prioridad",
+  despriorizar: "Quitar prioridad",
 };
 
 function renderModal(
@@ -96,6 +97,20 @@ describe("ModalConfirmacionAccion", () => {
     expect(
       within(dialog).getByRole("button", { name: ETIQUETA_CONFIRMAR.priorizar }),
     ).toBeDisabled();
+  });
+
+  it("despriorizar permite confirmar con el comentario vacío (sin justificativo)", async () => {
+    const user = userEvent.setup();
+    const { onConfirmar } = renderModal("despriorizar");
+    const dialog = screen.getByRole("dialog");
+
+    const confirmar = within(dialog).getByRole("button", {
+      name: ETIQUETA_CONFIRMAR.despriorizar,
+    });
+    expect(confirmar).toBeEnabled();
+
+    await user.click(confirmar);
+    expect(onConfirmar).toHaveBeenCalledWith("");
   });
 
   it("pre-carga el comentario del panel y permite editarlo antes de confirmar", async () => {

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom";
-import { AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button, AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
+import { IconoArrowLeft } from "../components/lucide";
 import { CadenaRevision } from "../components/CadenaRevision";
 import { ResumenPedido } from "../components/ResumenPedido";
 import { PanelAccionesRevision } from "../components/PanelAccionesRevision";
@@ -22,6 +23,7 @@ import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
 import {
   useAceptarPedido,
+  useDespriorizarPedido,
   useDevolverPedido,
   usePriorizarPedido,
   useRechazarPedido,
@@ -48,8 +50,13 @@ export function DetallePedidoPage() {
   const rechazar = useRechazarPedido(actor);
   const devolver = useDevolverPedido(actor);
   const priorizar = usePriorizarPedido(actor);
+  const despriorizar = useDespriorizarPedido(actor);
   const enviando =
-    aceptar.isPending || rechazar.isPending || devolver.isPending || priorizar.isPending;
+    aceptar.isPending ||
+    rechazar.isPending ||
+    devolver.isPending ||
+    priorizar.isPending ||
+    despriorizar.isPending;
 
   return (
     <>
@@ -90,6 +97,7 @@ export function DetallePedidoPage() {
           onRechazar={(comentario) => rechazar.mutate({ id: pedido.id, comentario })}
           onDevolver={(comentario) => devolver.mutate({ id: pedido.id, comentario })}
           onPriorizar={(comentario) => priorizar.mutate({ id: pedido.id, comentario })}
+          onDespriorizar={(comentario) => despriorizar.mutate({ id: pedido.id, comentario })}
         />
       )}
     </>
@@ -104,6 +112,7 @@ interface DetalleCargadoProps {
   onRechazar: (comentario: string) => void;
   onDevolver: (comentario: string) => void;
   onPriorizar: (comentario: string) => void;
+  onDespriorizar: (comentario?: string) => void;
 }
 
 function DetalleCargado({
@@ -114,11 +123,13 @@ function DetalleCargado({
   onRechazar,
   onDevolver,
   onPriorizar,
+  onDespriorizar,
 }: DetalleCargadoProps) {
   const esRevisor = puedeRevisar(pedido, actor);
   const permiteAceptar = puedeAceptar(pedido, actor);
   const etapas = derivarCadena(pedido, actor);
   const periodoNombre = PERIODOS_MOCK.find((p) => p.id === pedido.periodoId)?.nombre;
+  const navegar = useNavigate();
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
@@ -138,6 +149,9 @@ function DetalleCargado({
       case "priorizar":
         onPriorizar(texto);
         break;
+      case "despriorizar":
+        onDespriorizar(texto || undefined);
+        break;
     }
   }
 
@@ -155,7 +169,18 @@ function DetalleCargado({
         pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
         title={`${TITULO_NOVEDAD[pedido.novedad]} — ${resumenMaterias(pedido.asignaciones)}`}
         meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
-        actions={<EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />}
+        actions={
+          <div className="adoc-det-headactions">
+            <Button
+              variant="secondary"
+              leadingIcon={<IconoArrowLeft />}
+              onClick={() => navegar(RUTA_REVISION)}
+            >
+              Volver
+            </Button>
+            <EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />
+          </div>
+        }
       />
 
       <div className="adoc-det">

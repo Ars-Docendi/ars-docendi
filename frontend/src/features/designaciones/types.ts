@@ -69,7 +69,8 @@ export type AccionHistorial =
   | "reenviar"
   | "editar"
   | "cancelar"
-  | "priorizar";
+  | "priorizar"
+  | "despriorizar";
 
 export interface EventoHistorial {
   id: string;

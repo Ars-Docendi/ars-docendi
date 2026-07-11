@@ -31,6 +31,7 @@ function renderDetalle(id: string) {
       <MemoryRouter initialEntries={[`/designaciones/pedidos/${id}`]}>
         <Routes>
           <Route path="/designaciones/pedidos/:id" element={<DetallePedidoPage />} />
+          <Route path="/designaciones/revision" element={<p>Superficie de revisión</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -125,5 +126,67 @@ describe("Flujo de aprobación (integración)", () => {
         screen.queryByRole("menuitem", { name: /Reenviar a revisión/ }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("prioridad: marcar y quitar prioritario en el mismo flujo (tema E)", async () => {
+    const user = userEvent.setup();
+    setMockUser(DEMO_ID);
+    act(() => setRolActivo("Coordinador"));
+    const id = await idEnCoordinador();
+    renderDetalle(id);
+
+    // Marcar exige justificativo [BR-017].
+    await user.click(await screen.findByRole("button", { name: "Marcar prioritario" }));
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Guardar prioridad" })).toBeDisabled();
+    await user.type(
+      within(dialog).getByRole("textbox"),
+      "Caso urgente por inicio de cuatrimestre.",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Guardar prioridad" }));
+
+    // Una vez marcado, el botón cambia a "Quitar prioritario" — nunca conviven ambos.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Quitar prioritario" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Marcar prioritario" })).not.toBeInTheDocument();
+
+    // Quitar prioritario no exige comentario.
+    await user.click(screen.getByRole("button", { name: "Quitar prioritario" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Quitar prioridad" })).toBeEnabled();
+    await user.click(within(dialog).getByRole("button", { name: "Quitar prioridad" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Marcar prioritario" })).toBeInTheDocument();
+    });
+  });
+
+  it("rechazo: el motivo queda destacado en el detalle (tema E)", async () => {
+    const user = userEvent.setup();
+    setMockUser(DEMO_ID);
+    act(() => setRolActivo("Coordinador"));
+    const id = await idEnCoordinador();
+    renderDetalle(id);
+
+    await user.click(await screen.findByRole("button", { name: "Rechazar" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "No cumple los requisitos de antigüedad.");
+    await user.click(within(dialog).getByRole("button", { name: "Rechazar novedad" }));
+
+    expect(
+      await screen.findByText("“No cumple los requisitos de antigüedad.”"),
+    ).toBeInTheDocument();
+  });
+
+  it("el botón Volver navega a la superficie de revisión (tema E)", async () => {
+    const user = userEvent.setup();
+    setMockUser(DEMO_ID);
+    act(() => setRolActivo("Coordinador"));
+    const id = await idEnCoordinador();
+    renderDetalle(id);
+
+    await user.click(await screen.findByRole("button", { name: "Volver" }));
+    expect(await screen.findByText("Superficie de revisión")).toBeInTheDocument();
   });
 });

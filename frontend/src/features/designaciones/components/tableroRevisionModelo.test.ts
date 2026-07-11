@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  avancePedido,
-  construirColumnas,
-  detallePedido,
-  esTuTurno,
-  motivoRechazo,
-} from "./tableroRevisionModelo";
+import { avancePedido, construirColumnas, esTuTurno, motivoRechazo } from "./tableroRevisionModelo";
 import type {
   AccionHistorial,
   ActorContexto,
@@ -114,20 +108,7 @@ describe("esTuTurno", () => {
   });
 });
 
-describe("detallePedido (motivo de devolución / rechazo)", () => {
-  it("muestra el motivo del último evento de devolución y de rechazo", () => {
-    const devuelto = pedido("devuelto", {
-      historial: [evento("devolver", "falta el aval del área")],
-    });
-    const rechazado = pedido("rechazado", {
-      historial: [evento("rechazar", "cargo no presupuestado")],
-    });
-    expect(detallePedido(devuelto)).toBe("Devuelto: falta el aval del área");
-    expect(detallePedido(rechazado)).toBe("Rechazado: cargo no presupuestado");
-  });
-});
-
-describe("motivoRechazo (motivo crudo para la cita de la card)", () => {
+describe("motivoRechazo (motivo crudo para la cita destacada del detalle)", () => {
   it("devuelve el comentario del último rechazo, sin el prefijo 'Rechazado:'", () => {
     const rechazado = pedido("rechazado", {
       historial: [evento("rechazar", "cargo no presupuestado para el período")],

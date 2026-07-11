@@ -1,9 +1,9 @@
 // ============================================================
-// Modelo de presentación del tablero de revisión (SCRUM-8, opción D).
-// Agrupa por ESTADO DE AVANCE del pedido, no por rol: cuatro columnas
-// fijas e iguales para todos — En revisión (toda la cadena) · Aceptados ·
-// Devueltos · Rechazados. El "turno" del actor se marca por card
-// (`esTuTurno`), NO cambia qué columna contiene al pedido. Cada card en
+// Modelo de presentación de la vista Tabla de revisión (opción D).
+// Agrupa por ESTADO DE AVANCE del pedido, no por rol: cuatro grupos
+// fijos e iguales para todos — En revisión (toda la cadena) · Aceptados ·
+// Devueltos · Rechazados. El "turno" del actor se marca por fila
+// (`esTuTurno`), NO cambia qué grupo contiene al pedido. Cada fila en
 // revisión declara su etapa + avance `x/4` (`avancePedido`). Lógica de
 // vista pura (no es dominio): no decide autoridad, solo presenta.
 // ============================================================
@@ -72,8 +72,8 @@ export function avancePedido(pedido: PedidoDesignacion): AvanceEtapa | null {
 }
 
 /**
- * Columnas del tablero (opción D), iguales para todo actor. "En revisión"
- * reúne toda la cadena (las cards declaran su etapa + `x/4`); los pedidos del
+ * Grupos de la Tabla de revisión (opción D), iguales para todo actor. "En revisión"
+ * reúne toda la cadena (cada fila declara su etapa + `x/4`); los pedidos del
  * actor (su turno) se ordenan primero. Aceptados / Devueltos / Rechazados son
  * terminales. El gating por ámbito ya se aplicó al traer `pedidos`.
  */
@@ -143,67 +143,7 @@ function comentarioDe(
   return [...pedido.historial].reverse().find((evento) => evento.accion === accion)?.comentario;
 }
 
-/** Línea de detalle de la card (transición de cargo/dedicación, adjunto o motivo). */
-export function detallePedido(pedido: PedidoDesignacion): string {
-  if (pedido.estado === "devuelto") {
-    const motivo = comentarioDe(pedido, "devolver");
-    return motivo ? `Devuelto: ${motivo}` : "Devuelto";
-  }
-  if (pedido.estado === "rechazado") {
-    const motivo = motivoRechazo(pedido);
-    return motivo ? `Rechazado: ${motivo}` : "Rechazado";
-  }
-  switch (pedido.novedad) {
-    case "Alta":
-      return (
-        [pedido.cargoSolicitado, pedido.dedicacionSolicitada].filter(Boolean).join(" · ") ||
-        "Alta docente"
-      );
-    case "Baja":
-      return pedido.justificacion
-        ? `${pedido.cargoActual ?? "Docente"} · ${pedido.justificacion}`
-        : `${pedido.cargoActual ?? "Baja"} · baja`;
-    case "Cambio de cargo o dedicación":
-      if (pedido.cargoSolicitado && pedido.cargoSolicitado !== pedido.cargoActual) {
-        return `Cargo: ${pedido.cargoActual ?? "—"} → ${pedido.cargoSolicitado}`;
-      }
-      if (pedido.dedicacionSolicitada && pedido.dedicacionSolicitada !== pedido.dedicacionActual) {
-        return `Dedicación: ${pedido.dedicacionActual ?? "—"} → ${pedido.dedicacionSolicitada}`;
-      }
-      return "Cambio de cargo o dedicación";
-    case "Sin novedad":
-      return (
-        [pedido.cargoActual, pedido.dedicacionActual].filter(Boolean).join(" · ") || "Sin novedad"
-      );
-  }
-}
-
-/** Motivo crudo del último rechazo (sin el prefijo "Rechazado:"), para destacarlo como cita en la card. */
+/** Motivo crudo del último rechazo (sin el prefijo "Rechazado:"), para destacarlo como cita en el detalle. */
 export function motivoRechazo(pedido: PedidoDesignacion): string | undefined {
   return comentarioDe(pedido, "rechazar");
-}
-
-function ultimaFecha(pedido: PedidoDesignacion): string | undefined {
-  return pedido.historial.at(-1)?.fecha;
-}
-
-/** Tiempo relativo legible ("hace 3 d"). Usa la fecha actual (solo display). */
-function tiempoAtras(iso: string | undefined): string {
-  if (!iso) return "—";
-  const ms = Date.now() - new Date(iso).getTime();
-  const minutos = Math.max(0, Math.floor(ms / 60000));
-  if (minutos < 60) return `hace ${minutos} min`;
-  const horas = Math.floor(minutos / 60);
-  if (horas < 24) return `hace ${horas} h`;
-  const dias = Math.floor(horas / 24);
-  if (dias < 60) return `hace ${dias} d`;
-  const meses = Math.floor(dias / 30);
-  return `hace ${meses} ${meses === 1 ? "mes" : "meses"}`;
-}
-
-/** Recencia del pedido (pie de la card): "hace X" o "Reenviado · hace X". */
-export function situacionPedido(pedido: PedidoDesignacion): string {
-  const ultimaAccion = pedido.historial.at(-1)?.accion;
-  const prefijo = ultimaAccion === "reenviar" ? "Reenviado · " : "";
-  return prefijo + tiempoAtras(ultimaFecha(pedido));
 }

@@ -316,4 +316,37 @@ describe("aplicarAccion — circuito de revisión (SCRUM-8)", () => {
       expect(resultado.estado).toBe("en_revision_coordinador");
     });
   });
+
+  describe("despriorizar", () => {
+    it("despriorizarNoExigeComentario", () => {
+      const prioritario = pedidoEnRevision("en_revision_coordinador", { prioritario: true });
+      const resultado = aplicarAccion(prioritario, { tipo: "despriorizar" }, COORD);
+      expect(resultado.prioritario).toBe(false);
+    });
+
+    it("despriorizarNoCambiaEstado", () => {
+      const prioritario = pedidoEnRevision("en_revision_secretaria", { prioritario: true });
+      const resultado = aplicarAccion(prioritario, { tipo: "despriorizar" }, SECRE);
+      expect(resultado.estado).toBe("en_revision_secretaria");
+    });
+
+    it("despriorizarRespetaGuardDeAmbito [BR-009]", () => {
+      const otraCarrera: ActorContexto = {
+        rol: "Coordinador",
+        nombre: "F. Luna",
+        carrera: "Ingeniería Industrial",
+      };
+      const prioritario = pedidoEnRevision("en_revision_coordinador", { prioritario: true });
+      expect(() => aplicarAccion(prioritario, { tipo: "despriorizar" }, otraCarrera)).toThrow(
+        ErrorDominioPedido,
+      );
+    });
+
+    it("despriorizarDeniegaEnEstadoTerminal", () => {
+      const rechazado = pedidoEnRevision("rechazado", { prioritario: true });
+      expect(() => aplicarAccion(rechazado, { tipo: "despriorizar" }, COORD)).toThrow(
+        ErrorDominioPedido,
+      );
+    });
+  });
 });

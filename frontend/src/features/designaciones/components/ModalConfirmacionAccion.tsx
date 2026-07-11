@@ -6,7 +6,7 @@ import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
 import { resumenMaterias } from "./detalleAdapters";
 
 /** Acciones de revisión que se confirman con este modal. */
-export type AccionRevision = "aceptar" | "rechazar" | "devolver" | "priorizar";
+export type AccionRevision = "aceptar" | "rechazar" | "devolver" | "priorizar" | "despriorizar";
 
 /** Tono visual de las cajas (header e info/aviso), mapeado a tokens del design system. */
 type Tono = "accent" | "danger" | "warning";
@@ -63,6 +63,14 @@ const ICONO_ALERTA = (
     <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
     <path d="M12 9v4" />
     <path d="M12 17h.01" />
+  </IconoLucide>
+);
+const ICONO_FLAG_OFF = (
+  <IconoLucide>
+    <path d="M8 2c3 0 5 2 8 2s3.5-1 5-2v10" />
+    <path d="M11.53 15.929A19.478 19.478 0 0 0 8 15.5c-2.5 0-3.5 1-5 2" />
+    <path d="M4 22V4" />
+    <path d="m2 2 20 20" />
   </IconoLucide>
 );
 
@@ -210,6 +218,25 @@ function construirConfig(accion: AccionRevision, pedido: PedidoDesignacion): Con
         varianteConfirmar: "primary",
         iconoConfirmar: ICONO_FLAG,
       };
+    case "despriorizar":
+      return {
+        titulo: "Quitar prioridad",
+        subtitulo: "Cualquier actor · sin justificativo",
+        tonoHeader: "accent",
+        icono: ICONO_FLAG_OFF,
+        cuerpo: "Le sacás la marca de prioritario a este pedido.",
+        aviso: {
+          tono: "accent",
+          icono: ICONO_FLAG_OFF,
+          texto: "El pedido deja de figurar como prioritario para el resto del circuito.",
+        },
+        etiquetaCampo: "Comentario",
+        requiereJustificativo: false,
+        placeholder: "Agregá una aclaración (opcional)…",
+        etiquetaConfirmar: "Quitar prioridad",
+        varianteConfirmar: "primary",
+        iconoConfirmar: ICONO_FLAG_OFF,
+      };
   }
 }
 
@@ -227,7 +254,7 @@ interface ModalConfirmacionAccionProps {
 
 /**
  * Modal de confirmación de una acción de revisión (Aceptar / Rechazar /
- * Devolver / Priorizar), 1:1 con `screens.pen`. Es presentación pura: el page
+ * Devolver / Priorizar / Quitar prioritario), 1:1 con `screens.pen`. Es presentación pura: el page
  * dueño del estado dispara la mutation al confirmar. Aplica [BR-005]/[BR-017]
  * bloqueando el confirmar mientras falte el justificativo obligatorio; el
  * dominio sigue siendo la autoridad y revalida en la máquina de estados.

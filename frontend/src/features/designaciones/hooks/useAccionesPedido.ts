@@ -3,6 +3,7 @@ import {
   aceptarPedido,
   cancelarPedido,
   crearPedido,
+  despriorizarPedido,
   devolverPedido,
   editarPedido,
   enviarPedido,
@@ -105,6 +106,16 @@ export function usePriorizarPedido(actor: ActorContexto) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, comentario }: ParamsConComentario) => priorizarPedido(id, actor, comentario),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pedidos"] }),
+  });
+}
+
+/** Quita la marca de prioritario de un pedido (sin cambiar el estado). Comentario opcional. */
+export function useDespriorizarPedido(actor: ActorContexto) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, comentario }: { id: string; comentario?: string }) =>
+      despriorizarPedido(id, actor, comentario),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pedidos"] }),
   });
 }

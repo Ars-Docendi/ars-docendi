@@ -2,10 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs, InlineAlert, Select } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
-import { TableroRevision } from "../components/TableroRevision";
 import { TablaRevision } from "../components/TablaRevision";
-import { SwitchVista } from "../components/SwitchVista";
-import type { VistaActiva } from "../components/SwitchVista";
 import { FILTROS_INICIALES } from "../components/filtrosTablero";
 import type {
   FiltroPrioridad,
@@ -22,7 +19,6 @@ export function TableroRevisionPage() {
   const actor = useActorContexto();
   const { data: pedidos, isLoading, isError } = usePedidosPorAmbito(actor);
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_INICIALES);
-  const [vistaActiva, setVistaActiva] = useState<VistaActiva>("tablero");
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
     navegar(`/designaciones/pedidos/${pedido.id}`);
@@ -33,7 +29,6 @@ export function TableroRevisionPage() {
 
   const filtrosUI = (
     <div className="adoc-tablero-filtros">
-      <SwitchVista vista={vistaActiva} onCambiar={setVistaActiva} />
       <Select
         aria-label="Filtrar pedidos por turno"
         wrapClassName="adoc-filtro-activo"
@@ -101,25 +96,14 @@ export function TableroRevisionPage() {
         </InlineAlert>
       )}
 
-      {!isLoading &&
-        !isError &&
-        cantidad > 0 &&
-        pedidos &&
-        (vistaActiva === "tabla" ? (
-          <TablaRevision
-            pedidos={pedidos}
-            actor={actor}
-            filtros={filtros}
-            onSeleccionar={handleSeleccionar}
-          />
-        ) : (
-          <TableroRevision
-            pedidos={pedidos}
-            actor={actor}
-            filtros={filtros}
-            onSeleccionar={handleSeleccionar}
-          />
-        ))}
+      {!isLoading && !isError && cantidad > 0 && pedidos && (
+        <TablaRevision
+          pedidos={pedidos}
+          actor={actor}
+          filtros={filtros}
+          onSeleccionar={handleSeleccionar}
+        />
+      )}
     </>
   );
 }

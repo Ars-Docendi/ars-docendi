@@ -39,7 +39,8 @@ export type AccionPedido =
   | { tipo: "rechazar"; comentario: string }
   | { tipo: "devolver"; comentario: string }
   | { tipo: "reenviar" }
-  | { tipo: "priorizar"; comentario: string };
+  | { tipo: "priorizar"; comentario: string }
+  | { tipo: "despriorizar"; comentario?: string };
 
 const ESTADOS_TERMINALES: readonly EstadoPedido[] = ["cancelado", "rechazado", "en_lote"];
 
@@ -295,6 +296,22 @@ function priorizar(
   return conEvento(next, nuevoEvento("priorizar", actor, pedido.estado, motivo));
 }
 
+function despriorizar(
+  pedido: PedidoDesignacion,
+  actor: ActorContexto,
+  comentario?: string,
+): PedidoDesignacion {
+  if (!actorAlcanzaAmbito(pedido, actor)) {
+    throw new ErrorDominioPedido(
+      `El pedido está fuera del ámbito del actor "${actor.rol}" [BR-009].`,
+    );
+  }
+  // A diferencia de priorizar, no exige justificativo: bajar la urgencia
+  // no requiere la misma justificación que subirla.
+  const next: PedidoDesignacion = { ...pedido, prioritario: false };
+  return conEvento(next, nuevoEvento("despriorizar", actor, pedido.estado, comentario));
+}
+
 /**
  * Predicado de revisión: ¿el actor puede ejecutar acciones de revisión sobre
  * este pedido? (revisor de la etapa en su ámbito, o Administración). Lo usa la
@@ -363,6 +380,8 @@ export function aplicarAccion(
       return reenviar(pedido, actor);
     case "priorizar":
       return priorizar(pedido, actor, accion.comentario);
+    case "despriorizar":
+      return despriorizar(pedido, actor, accion.comentario);
     default: {
       // Exhaustividad: cuando SCRUM-8 agregue acciones, TS marcará este punto.
       const accionNoSoportada: never = accion;
