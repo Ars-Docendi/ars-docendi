@@ -1,0 +1,57 @@
+/* ============================================================
+   Bloque de filtro genérico (`FiltrosLista.tsx`): campos de texto fijos +
+   filtros opcionales vía "+ Añadir filtro" (con botón "×" para quitarlos),
+   sobre un fondo gris. Mismo patrón visual en toda la app (Usuarios, Mis
+   pedidos, y cualquier pantalla nueva que lo adopte).
+   ============================================================ */
+
+.adoc-filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+}
+.adoc-filtros-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.adoc-filtros-input {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+.adoc-filtros-input--chica {
+  flex: 0 1 160px;
+}
+.adoc-filtros-add {
+  flex: 0 0 auto;
+}
+.adoc-filtros-add .adoc-select {
+  width: auto;
+}
+.adoc-filtros-opcional {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.adoc-filtros-quitar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 36px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.adoc-filtros-quitar:hover {
+  background: var(--color-bg-sunken);
+}

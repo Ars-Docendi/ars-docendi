@@ -9,9 +9,10 @@
 import type { PedidoDesignacion } from "../types";
 import { crearSeedPedidos } from "./pedidosSeed";
 
-// v2: el seed sumó pedidos de revisión + fechas recientes (SCRUM-8). El sufijo
-// fuerza un re-seed limpio en navegadores con datos viejos persistidos.
-const CLAVE = "adoc.mock.pedidos.v2";
+// v4: se restauraron los 7 pedidos de ejemplo retirados en la reducción de seed
+// (mis-pedidos-simplificado, a pedido del cliente). El sufijo fuerza un re-seed
+// limpio en navegadores con datos viejos persistidos.
+const CLAVE = "adoc.mock.pedidos.v4";
 
 let pedidos: PedidoDesignacion[] | null = null;
 
@@ -55,6 +56,13 @@ export function guardar(pedido: PedidoDesignacion): PedidoDesignacion {
   }
   persistir();
   return structuredClone(pedido);
+}
+
+/** Quita un pedido del store definitivamente (no es una transición de estado) y persiste. */
+export function eliminar(id: string): void {
+  const lista = asegurarHidratado();
+  pedidos = lista.filter((p) => p.id !== id);
+  persistir();
 }
 
 /** Reemplaza todo el contenido del store (útil para tests). */

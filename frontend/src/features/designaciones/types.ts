@@ -86,6 +86,8 @@ export interface DocentePedido {
   dni: string;
   nombre: string;
   antiguedad: number;
+  /** Legajo institucional. Puede faltar en una Alta: el docente todavía no existe en el sistema. */
+  legajo?: string;
 }
 
 /**
@@ -97,6 +99,8 @@ export interface DocentePedido {
 export interface DocenteExistente {
   dni: string;
   nombre: string;
+  /** Legajo institucional — un docente ya existente en el sistema siempre lo tiene. */
+  legajo: string;
   antiguedad: number;
   cargoActual: Cargo;
   dedicacionActual: Dedicacion;

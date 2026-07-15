@@ -280,4 +280,68 @@ describe("PedidoForm", () => {
       expect(onGuardar.mock.calls[0][0].docente.dni).toBe("28341567");
     });
   });
+
+  describe("Guardar y enviar / Guardar y reenviar", () => {
+    it("un pedido nuevo (o en borrador) muestra 'Guardar y enviar'", () => {
+      renderForm();
+      expect(screen.getByRole("button", { name: "Guardar y enviar" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Guardar y reenviar" })).not.toBeInTheDocument();
+    });
+
+    it("un pedido devuelto muestra 'Guardar y reenviar' en vez de 'Guardar y enviar'", () => {
+      const onGuardar = vi.fn();
+      render(
+        <PedidoForm
+          pedidoInicial={{
+            id: "p1",
+            numero: "N°-2026-0001",
+            periodoId: "1",
+            catedra: "Ingeniería de Software",
+            carrera: "Ingeniería en Informática",
+            docente: { dni: "28341567", nombre: "Lucía Fernández", antiguedad: 8 },
+            asignaciones: [{ materia: "Programación I", horas: 6 }],
+            cargoActual: "Adjunto",
+            dedicacionActual: "Categoría 3",
+            novedad: "Sin novedad",
+            horasExternas: 0,
+            horasInvestigacion: 0,
+            adjuntos: [],
+            estado: "devuelto",
+            propietarioActual: "Jefe de Cátedra",
+            etapaRetorno: "en_revision_coordinador",
+            prioritario: false,
+            historial: [],
+          }}
+          pedidosExistentes={[]}
+          esEdicion
+          onGuardar={onGuardar}
+          onCancelar={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole("button", { name: "Guardar y reenviar" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Guardar y enviar" })).not.toBeInTheDocument();
+    });
+
+    it("bloquea 'Guardar y enviar' con los mismos errores que 'Guardar pedido'", async () => {
+      const { user, onGuardar } = renderForm();
+      await user.click(screen.getByLabelText("Alta"));
+      await completarAlta(user);
+
+      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
+
+      expect(onGuardar).not.toHaveBeenCalled();
+      expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
+    });
+
+    it("con datos válidos, 'Guardar y enviar' llama a onGuardar con { enviar: true }", async () => {
+      const onGuardar = vi.fn();
+      const { user } = renderForm(onGuardar);
+      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+
+      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
+
+      expect(onGuardar).toHaveBeenCalledTimes(1);
+      expect(onGuardar.mock.calls[0][1]).toEqual({ enviar: true });
+    });
+  });
 });

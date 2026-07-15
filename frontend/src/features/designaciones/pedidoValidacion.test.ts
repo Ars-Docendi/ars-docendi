@@ -4,7 +4,7 @@ import type { Adjunto, DatosEditablesPedido, PedidoDesignacion } from "./types";
 
 function datosBase(overrides: Partial<DatosEditablesPedido> = {}): DatosEditablesPedido {
   return {
-    docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
+    docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5, legajo: "1001" },
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
@@ -231,6 +231,63 @@ describe("validarPedido", () => {
         { pedidosExistentes: [] },
       );
       expect(errores.justificacion).toBeUndefined();
+    });
+  });
+
+  describe("BR-designaciones-018 — Baja y Cambio exigen legajo del docente", () => {
+    it("bajaExigeLegajo — sin legajo", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Baja",
+          tipoBaja: "Renuncia",
+          adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
+          docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.docente).toBeTruthy();
+    });
+
+    it("cambioExigeLegajo — sin legajo", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Motivo.",
+          docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.docente).toBeTruthy();
+    });
+
+    it("Baja con legajo no marca error de docente", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Baja",
+          tipoBaja: "Renuncia",
+          adjuntos: [{ id: "1", nombre: "j.pdf", tipo: "justificativo" }],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.docente).toBeUndefined();
+    });
+
+    it("en Alta no aplica la restricción (el docente todavía no tiene legajo)", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoActual: null,
+          dedicacionActual: null,
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 5",
+          adjuntos: ADJUNTOS_ALTA,
+          docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 0 },
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.docente).toBeUndefined();
     });
   });
 

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button, AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
-import { IconoArrowLeft } from "../components/lucide";
+import { IconoArrowLeft, IconoSquarePen, IconoX } from "../components/lucide";
 import { CadenaRevision } from "../components/CadenaRevision";
 import { ResumenPedido } from "../components/ResumenPedido";
 import { PanelAccionesRevision } from "../components/PanelAccionesRevision";
@@ -11,13 +11,20 @@ import {
   ModalConfirmacionAccion,
   type AccionRevision,
 } from "../components/ModalConfirmacionAccion";
+import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
 import { DatosTramite } from "../components/DatosTramite";
 import {
   derivarCadena,
   historialAAuditEntries,
   resumenMaterias,
 } from "../components/detalleAdapters";
-import { actorAlcanzaAmbito, puedeAceptar, puedeRevisar } from "../api/maquinaEstados";
+import {
+  actorAlcanzaAmbito,
+  puedeAceptar,
+  puedeEditarPedido,
+  puedeEliminarPedido,
+  puedeRevisar,
+} from "../api/maquinaEstados";
 import { PERIODOS_MOCK } from "../api/periodosMock";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
@@ -25,6 +32,7 @@ import {
   useAceptarPedido,
   useDespriorizarPedido,
   useDevolverPedido,
+  useEliminarPedido,
   usePriorizarPedido,
   useRechazarPedido,
 } from "../hooks/useAccionesPedido";
@@ -32,6 +40,7 @@ import type { ActorContexto, Novedad, PedidoDesignacion } from "../types";
 import "./detalle.css";
 
 const RUTA_REVISION = "/designaciones/revision";
+const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
 const TITULO_NOVEDAD: Record<Novedad, string> = {
@@ -43,6 +52,7 @@ const TITULO_NOVEDAD: Record<Novedad, string> = {
 
 export function DetallePedidoPage() {
   const { id } = useParams();
+  const navegar = useNavigate();
   const actor = useActorContexto();
   const { data: pedido, isLoading, isError } = usePedido(id);
 
@@ -51,6 +61,7 @@ export function DetallePedidoPage() {
   const devolver = useDevolverPedido(actor);
   const priorizar = usePriorizarPedido(actor);
   const despriorizar = useDespriorizarPedido(actor);
+  const eliminar = useEliminarPedido(actor);
   const enviando =
     aceptar.isPending ||
     rechazar.isPending ||
@@ -98,6 +109,11 @@ export function DetallePedidoPage() {
           onDevolver={(comentario) => devolver.mutate({ id: pedido.id, comentario })}
           onPriorizar={(comentario) => priorizar.mutate({ id: pedido.id, comentario })}
           onDespriorizar={(comentario) => despriorizar.mutate({ id: pedido.id, comentario })}
+          onEliminar={() =>
+            eliminar.mutate(pedido.id, { onSuccess: () => navegar(RUTA_MIS_PEDIDOS) })
+          }
+          eliminando={eliminar.isPending}
+          errorEliminar={eliminar.isError ? eliminar.error.message : undefined}
         />
       )}
     </>
@@ -113,6 +129,9 @@ interface DetalleCargadoProps {
   onDevolver: (comentario: string) => void;
   onPriorizar: (comentario: string) => void;
   onDespriorizar: (comentario?: string) => void;
+  onEliminar: () => void;
+  eliminando: boolean;
+  errorEliminar?: string;
 }
 
 function DetalleCargado({
@@ -124,9 +143,14 @@ function DetalleCargado({
   onDevolver,
   onPriorizar,
   onDespriorizar,
+  onEliminar,
+  eliminando,
+  errorEliminar,
 }: DetalleCargadoProps) {
   const esRevisor = puedeRevisar(pedido, actor);
   const permiteAceptar = puedeAceptar(pedido, actor);
+  const puedeEditar = puedeEditarPedido(pedido, actor);
+  const puedeEliminar = puedeEliminarPedido(pedido, actor);
   const etapas = derivarCadena(pedido, actor);
   const periodoNombre = PERIODOS_MOCK.find((p) => p.id === pedido.periodoId)?.nombre;
   const navegar = useNavigate();
@@ -134,6 +158,7 @@ function DetalleCargado({
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
   const [accionPendiente, setAccionPendiente] = useState<AccionRevision | null>(null);
   const [comentario, setComentario] = useState("");
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
 
   function ejecutar(accion: AccionRevision, texto: string) {
     switch (accion) {
@@ -174,10 +199,28 @@ function DetalleCargado({
             <Button
               variant="secondary"
               leadingIcon={<IconoArrowLeft />}
-              onClick={() => navegar(RUTA_REVISION)}
+              onClick={() => navegar(-1)}
             >
               Volver
             </Button>
+            {puedeEditar && (
+              <Button
+                variant="secondary"
+                leadingIcon={<IconoSquarePen />}
+                onClick={() => navegar(`/designaciones/pedidos/${pedido.id}/editar`)}
+              >
+                Editar
+              </Button>
+            )}
+            {puedeEliminar && (
+              <Button
+                variant="destructive"
+                leadingIcon={<IconoX />}
+                onClick={() => setMostrarEliminar(true)}
+              >
+                Eliminar
+              </Button>
+            )}
             <EstadoPedidoBadge estado={pedido.estado} prioritario={pedido.prioritario} />
           </div>
         }
@@ -223,6 +266,15 @@ function DetalleCargado({
         enviando={enviando}
         onConfirmar={confirmar}
         onCerrar={() => setAccionPendiente(null)}
+      />
+
+      <ModalEliminarPedido
+        open={mostrarEliminar}
+        onOpenChange={setMostrarEliminar}
+        pedido={pedido}
+        error={errorEliminar}
+        eliminando={eliminando}
+        onConfirmar={onEliminar}
       />
     </>
   );

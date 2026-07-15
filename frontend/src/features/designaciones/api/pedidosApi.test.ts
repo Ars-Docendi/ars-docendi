@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   aceptarPedido,
   crearPedido,
+  eliminarPedido,
   enviarPedido,
   listarMisPedidos,
   listarPedidosPorAmbito,
@@ -66,6 +67,33 @@ describe("pedidosApi — seam mock", () => {
 
     const recuperado = await obtenerPedido(creado.id);
     expect(recuperado.estado).toBe("en_revision_coordinador");
+  });
+});
+
+describe("pedidosApi — eliminar pedido en borrador (mis-pedidos-simplificado)", () => {
+  it("elimina un borrador propio del JC", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+    await eliminarPedido(creado.id, JC);
+
+    const lista = await listarMisPedidos(JC);
+    expect(lista.some((p) => p.id === creado.id)).toBe(false);
+    await expect(obtenerPedido(creado.id)).rejects.toThrow();
+  });
+
+  it("rechaza eliminar un pedido que no está en borrador", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+    await enviarPedido(creado.id, JC);
+
+    await expect(eliminarPedido(creado.id, JC)).rejects.toThrow(/borrador/i);
+
+    const lista = await listarMisPedidos(JC);
+    expect(lista.some((p) => p.id === creado.id)).toBe(true);
+  });
+
+  it("rechaza eliminar si el actor no es el Jefe de Cátedra", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+
+    await expect(eliminarPedido(creado.id, COORD)).rejects.toThrow(/Jefe de Cátedra/);
   });
 });
 

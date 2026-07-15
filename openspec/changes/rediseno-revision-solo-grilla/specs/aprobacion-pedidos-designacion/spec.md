@@ -71,13 +71,20 @@ respetan el mismo guard de ámbito/turno que aceptar, rechazar y devolver.
 El sistema SHALL ofrecer una pantalla de detalle (`/designaciones/pedidos/:id`) visible para cualquier
 rol con visibilidad por ámbito sobre el pedido, mostrando los datos completos del docente y del pedido
 (`DataList`), la cadena de aprobación (`ApprovalTimeline`) y el historial de eventos (`AuditLog`). Un
-botón/link **Volver** a la superficie de revisión (`/designaciones/revision`) MUST estar siempre
-visible, para cualquier rol. Para el revisor de la etapa actual dentro de su ámbito, el detalle MUST
+botón **Volver** MUST estar siempre visible, para cualquier rol, y MUST navegar a la pantalla anterior
+en el historial de navegación (no a una ruta fija) — el detalle se llega tanto desde la Tabla de
+revisión como desde "Mis pedidos" del Jefe de Cátedra, y Volver respeta de cuál de las dos vino
+(`mis-pedidos-simplificado`). Para el revisor de la etapa actual dentro de su ámbito, el detalle MUST
 ofrecer las acciones Aceptar, Rechazar, Devolver, y **Marcar prioritario o Quitar prioritario según
 corresponda** (nunca ambas a la vez — Marcar cuando el pedido no es prioritario, Quitar cuando ya lo
 es), mediante un modal que aplica la regla de comentario obligatorio [BR-designaciones-005] (Marcar
 prioritario también, ver BR-017; Quitar prioritario no). Para el resto de los roles, el detalle MUST
-ser de solo lectura salvo el botón Volver. Un pedido `rechazado` MUST mostrar su motivo de rechazo
+ser de solo lectura salvo el botón Volver — excepto que, para el Jefe de Cátedra propietario de un
+pedido en `borrador` o `devuelto`, el detalle también ofrece un botón **Editar** que navega al form de
+edición (`/designaciones/pedidos/:id/editar`, mismo guard `puedeEditarPedido` que ya gatea el botón
+homónimo en "Mis pedidos") y, únicamente si además está en `borrador`, la acción **Eliminar** (ver
+"Eliminar un pedido en borrador" en `pedidos-designacion`) — Editar y Eliminar pueden convivir en un
+borrador, pero un devuelto solo ofrece Editar. Un pedido `rechazado` MUST mostrar su motivo de rechazo
 destacado (citado, diferenciado del resto del detalle).
 
 #### Scenario: El revisor de la etapa ve las acciones, incluida la que corresponde de prioridad
@@ -108,11 +115,31 @@ destacado (citado, diferenciado del resto del detalle).
 - **THEN** el `AuditLog` lista cada evento con su actor, su acción y su fecha, y el `ApprovalTimeline`
   refleja la etapa alcanzada
 
-#### Scenario: El botón Volver navega a la superficie de revisión
+#### Scenario: El botón Volver navega a la pantalla anterior, sin importar de dónde vino
 
-- **GIVEN** cualquier rol viendo el detalle de un pedido
+- **GIVEN** un revisor que llegó al detalle desde la Tabla de revisión (`/designaciones/revision`)
 - **WHEN** hace click en "Volver"
-- **THEN** el sistema navega a `/designaciones/revision`
+- **THEN** el sistema navega de regreso a la Tabla de revisión
+
+#### Scenario: El botón Volver respeta el origen cuando es Mis pedidos
+
+- **GIVEN** un Jefe de Cátedra que llegó al detalle desde "Mis pedidos" (`/designaciones/mis-pedidos`)
+- **WHEN** hace click en "Volver"
+- **THEN** el sistema navega de regreso a "Mis pedidos", no a la Tabla de revisión
+
+#### Scenario: El Jefe de Cátedra ve el botón Editar en un borrador o un devuelto propio
+
+- **GIVEN** un Jefe de Cátedra viendo el detalle de un pedido propio en `borrador`, y otro en
+  `devuelto` del que es propietario actual
+- **WHEN** abre cada detalle
+- **THEN** ambos MUST mostrar el botón "Editar", que navega a `/designaciones/pedidos/:id/editar`
+- **AND** solo el `borrador` MUST mostrar además "Eliminar" (el `devuelto` no)
+
+#### Scenario: El botón Editar no aparece fuera de borrador/devuelto propio
+
+- **GIVEN** un pedido `en_revision_*`, `rechazado`, `cancelado` o `en_lote`
+- **WHEN** se muestra su detalle
+- **THEN** el sistema NO MUST ofrecer el botón "Editar"
 
 #### Scenario: El pedido rechazado muestra el motivo destacado
 

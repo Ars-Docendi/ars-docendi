@@ -14,7 +14,7 @@ import type {
   EventoHistorial,
   PedidoDesignacion,
 } from "../types";
-import { actorAlcanzaAmbito, aplicarAccion } from "./maquinaEstados";
+import { ErrorDominioPedido, actorAlcanzaAmbito, aplicarAccion } from "./maquinaEstados";
 import { PERIODO_ABIERTO_ID } from "./pedidosSeed";
 import * as store from "./pedidosStore";
 
@@ -130,13 +130,20 @@ export async function enviarPedido(id: string, actor: ActorContexto): Promise<Pe
   return store.guardar(siguiente);
 }
 
-// TODO(backend): POST /api/designaciones/pedidos/:id/cancelar (SCRUM-7).
-//   Mock actual: transiciona borrador → cancelado vía la máquina de estados. Mantener la firma.
-export async function cancelarPedido(id: string, actor: ActorContexto): Promise<PedidoDesignacion> {
+// TODO(backend): DELETE /api/designaciones/pedidos/:id (mis-pedidos-simplificado).
+//   Mock actual: solo borradores propios del JC; borra del store (no es una transición de estado).
+export async function eliminarPedido(id: string, actor: ActorContexto): Promise<void> {
   await demora();
   const actual = requerirPedido(id);
-  const siguiente = aplicarAccion(actual, { tipo: "cancelar" }, actor);
-  return store.guardar(siguiente);
+  if (actual.estado !== "borrador") {
+    throw new ErrorDominioPedido(
+      `Solo se puede eliminar un pedido en borrador (estado actual: "${actual.estado}").`,
+    );
+  }
+  if (actor.rol !== "Jefe de Cátedra") {
+    throw new ErrorDominioPedido("Solo el Jefe de Cátedra puede eliminar el pedido.");
+  }
+  store.eliminar(id);
 }
 
 // ============================================================

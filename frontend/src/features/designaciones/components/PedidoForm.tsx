@@ -34,7 +34,8 @@ interface PedidoFormProps {
   /** Etiqueta del período abierto para el subtítulo ("2026 · 1C"). */
   periodoLabel?: string;
   guardando?: boolean;
-  onGuardar: (datos: DatosEditablesPedido) => void;
+  /** `opciones.enviar` pide guardar y, en el mismo paso, enviar/reenviar a revisión. */
+  onGuardar: (datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) => void;
   onCancelar: () => void;
 }
 
@@ -89,6 +90,7 @@ export function PedidoForm({
     opcionesDocente.unshift({
       dni: dniInicial,
       nombre: pedidoInicial.docente.nombre,
+      legajo: pedidoInicial.docente.legajo ?? "",
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
@@ -120,7 +122,12 @@ export function PedidoForm({
     }
     setDatos((prev) => ({
       ...prev,
-      docente: { dni: docente.dni, nombre: docente.nombre, antiguedad: docente.antiguedad },
+      docente: {
+        dni: docente.dni,
+        nombre: docente.nombre,
+        antiguedad: docente.antiguedad,
+        legajo: docente.legajo,
+      },
       cargoActual: docente.cargoActual,
       dedicacionActual: docente.dedicacionActual,
       asignaciones: docente.materiasActuales.map((asignacion) => ({ ...asignacion })),
@@ -185,14 +192,14 @@ export function PedidoForm({
     return adjunto ? [{ id: adjunto.id, name: adjunto.nombre, status: "uploaded" }] : [];
   }
 
-  function handleGuardar() {
+  function handleGuardar(opciones?: { enviar?: boolean }) {
     const resultado = validarPedido(datos, {
       pedidosExistentes,
       pedidoActualId: pedidoInicial?.id,
     });
     setErrores(resultado);
     if (Object.keys(resultado).length === 0) {
-      onGuardar(datos);
+      onGuardar(datos, opciones);
     }
   }
 
@@ -354,8 +361,16 @@ export function PedidoForm({
           <Button type="button" variant="secondary" onClick={onCancelar}>
             Cancelar
           </Button>
-          <Button type="submit" variant="primary" loading={guardando}>
+          <Button type="submit" variant="secondary" loading={guardando}>
             Guardar pedido
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            loading={guardando}
+            onClick={() => handleGuardar({ enviar: true })}
+          >
+            {pedidoInicial?.estado === "devuelto" ? "Guardar y reenviar" : "Guardar y enviar"}
           </Button>
         </div>
       </div>

@@ -48,6 +48,13 @@ export function validarPedido(
     errores.docente = "El DNI del docente es obligatorio.";
   } else if (!datos.docente.nombre.trim()) {
     errores.docente = "El nombre del docente es obligatorio.";
+  } else if (
+    // BR-018: Baja/Cambio operan sobre un docente ya existente en el sistema,
+    // que por eso ya tiene legajo asignado — a diferencia de Alta (docente nuevo).
+    (datos.novedad === "Baja" || datos.novedad === "Cambio de cargo o dedicación") &&
+    !datos.docente.legajo?.trim()
+  ) {
+    errores.docente = "El legajo del docente es obligatorio para una baja o un cambio.";
   }
   // Materias y horas (D2: las horas son campos libres, sin cierre contra la dedicación).
   if (datos.asignaciones.length === 0) {

@@ -120,3 +120,25 @@ migraciones de datos (prototipo mock).
 
 - Ninguna bloqueante. "Simplificar la información" del detalle queda fuera de este change (juicio de
   diseño sin criterio verificable, ver Non-Goals).
+
+## Corrección post-implementación (`mis-pedidos-simplificado`)
+
+El botón Volver se diseñó originalmente como un link fijo a `/designaciones/revision` (D-3) asumiendo
+que el único origen posible del detalle era la Tabla de revisión. Al agregar en `mis-pedidos-simplificado`
+la navegación fila-clickeable de "Mis pedidos" hacia el mismo detalle, ese supuesto dejó de ser válido:
+un Jefe de Cátedra que llega desde "Mis pedidos" y hace click en Volver terminaba en Revisión (una
+pantalla a la que ni siquiera tiene acceso como rol no-revisor), no en "Mis pedidos". Se corrigió a
+`navigate(-1)` (vuelve a la pantalla anterior real del historial), revirtiendo D-3. Ver el requirement
+actualizado en `specs/aprobacion-pedidos-designacion/spec.md` de este mismo change.
+
+## Corrección post-implementación #2: falta el botón Editar en el detalle (`mis-pedidos-simplificado`)
+
+El detalle original (D-4 del proyecto de pedidos original, read-only salvo Volver para no-revisores)
+nunca ofreció una forma de editar un borrador/devuelto propio desde ahí — solo desde la fila de "Mis
+pedidos". Al agregar Eliminar al detalle (ronda 2 de `mis-pedidos-simplificado`) el header ya tenía
+Volver + Eliminar pero seguía faltando Editar, un gap real: un JC que entra al detalle de su propio
+borrador no tenía forma de corregirlo sin volver a "Mis pedidos" primero. Se agregó un botón **Editar**
+(`variant="secondary"`, ícono `IconoSquarePen`, entre Volver y Eliminar) gateado por el mismo
+`puedeEditarPedido` que ya usa la fila de "Mis pedidos" — visible en `borrador` y en `devuelto` del
+propietario, a diferencia de Eliminar que solo aplica a `borrador`. Ver el requirement actualizado en
+`specs/aprobacion-pedidos-designacion/spec.md` de este mismo change.

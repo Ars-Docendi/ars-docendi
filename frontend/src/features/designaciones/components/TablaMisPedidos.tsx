@@ -1,15 +1,16 @@
-import type { PedidoDesignacion } from "../types";
+import { Button } from "@ars-docendi/ui";
+import type { ActorContexto, PedidoDesignacion } from "../types";
+import { puedeEditarPedido, puedeEliminarPedido } from "../api/maquinaEstados";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
-import { MenuAccionesPedido } from "./MenuAccionesPedido";
+import { IconoX } from "./lucide";
 import { resumenMaterias } from "./detalleAdapters";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
+  actor: ActorContexto;
   onVerDetalle: (pedido: PedidoDesignacion) => void;
   onEditar: (pedido: PedidoDesignacion) => void;
-  onEnviar: (pedido: PedidoDesignacion) => void;
-  onCancelar: (pedido: PedidoDesignacion) => void;
-  onReenviar: (pedido: PedidoDesignacion) => void;
+  onEliminar: (pedido: PedidoDesignacion) => void;
 }
 
 /** Etiqueta corta de la novedad (distingue cargo vs dedicación, como el diseño). */
@@ -35,33 +36,53 @@ function fechaEnviado(p: PedidoDesignacion): string {
   return `${dia}/${mes}/${fecha.getUTCFullYear()}`;
 }
 
-/** Tabla de "Mis pedidos" (1:1 con screens.pen): Nº · Docente · Cátedra · Novedad · Enviado · Estado · ⋮. */
+/**
+ * Tabla de "Mis pedidos": Nº · Docente · Legajo · Cátedra · Tipo · Enviado · Estado.
+ * Cada fila navega al detalle al hacer click; "Ver"/"Editar" (mismo formato que en Usuarios) y la
+ * X roja de eliminar (solo en borrador) no disparan esa navegación.
+ */
 export function TablaMisPedidos({
   pedidos,
+  actor,
   onVerDetalle,
   onEditar,
-  onEnviar,
-  onCancelar,
-  onReenviar,
+  onEliminar,
 }: TablaMisPedidosProps) {
   return (
     <div className="adoc-mp-table" role="table" aria-label="Mis pedidos de designación">
       <div className="adoc-mp-head" role="row">
         <span role="columnheader">N°</span>
         <span role="columnheader">DOCENTE</span>
+        <span role="columnheader">LEGAJO</span>
         <span role="columnheader">CÁTEDRA</span>
-        <span role="columnheader">NOVEDAD</span>
+        <span role="columnheader">TIPO</span>
         <span role="columnheader">ENVIADO</span>
         <span role="columnheader">ESTADO</span>
         <span role="columnheader" aria-label="Acciones" />
       </div>
       {pedidos.map((pedido) => (
-        <div className="adoc-mp-row" role="row" key={pedido.id}>
+        <div
+          className="adoc-mp-row adoc-mp-row--clickeable"
+          role="row"
+          key={pedido.id}
+          tabIndex={0}
+          aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
+          onClick={() => onVerDetalle(pedido)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onVerDetalle(pedido);
+            }
+          }}
+        >
           <span className="adoc-mp-num" role="cell">
             {pedido.numero ?? "—"}
           </span>
           <span className="adoc-mp-doc" role="cell">
-            Prof. {pedido.docente.nombre}
+            {pedido.docente.nombre}
+          </span>
+          <span className="adoc-mp-leg" role="cell">
+            {pedido.docente.legajo ?? "—"}
           </span>
           <span className="adoc-mp-cat" role="cell">
             {resumenMaterias(pedido.asignaciones)}
@@ -76,14 +97,41 @@ export function TablaMisPedidos({
             <EstadoPedidoPill estado={pedido.estado} />
           </span>
           <span className="adoc-mp-acc" role="cell">
-            <MenuAccionesPedido
-              pedido={pedido}
-              onVerDetalle={onVerDetalle}
-              onEditar={onEditar}
-              onEnviar={onEnviar}
-              onCancelar={onCancelar}
-              onReenviar={onReenviar}
-            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onVerDetalle(pedido);
+              }}
+            >
+              Ver
+            </Button>
+            {puedeEditarPedido(pedido, actor) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditar(pedido);
+                }}
+              >
+                Editar
+              </Button>
+            )}
+            {puedeEliminarPedido(pedido, actor) && (
+              <button
+                type="button"
+                className="adoc-mp-eliminar"
+                aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEliminar(pedido);
+                }}
+              >
+                <IconoX />
+              </button>
+            )}
           </span>
         </div>
       ))}

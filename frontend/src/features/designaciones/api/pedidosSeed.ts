@@ -40,6 +40,8 @@ function siguienteNumero(): string {
 interface SemillaPedido {
   dni: string;
   nombre: string;
+  /** Legajo institucional. Ausente en una Alta: el docente todavía no existe en el sistema. */
+  legajo?: string;
   antiguedad: number;
   asignaciones: AsignacionMateria[];
   cargoActual: PedidoDesignacion["cargoActual"];
@@ -172,7 +174,12 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     periodoId: PERIODO_ABIERTO_ID,
     catedra: semilla.catedra ?? CATEDRA,
     carrera: semilla.carrera ?? CARRERA,
-    docente: { dni: semilla.dni, nombre: semilla.nombre, antiguedad: semilla.antiguedad },
+    docente: {
+      dni: semilla.dni,
+      nombre: semilla.nombre,
+      antiguedad: semilla.antiguedad,
+      legajo: semilla.legajo,
+    },
     asignaciones: semilla.asignaciones,
     cargoActual: semilla.cargoActual,
     dedicacionActual: semilla.dedicacionActual,
@@ -194,10 +201,13 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
 }
 
 const SEMILLAS: SemillaPedido[] = [
-  // Precarga del período anterior como "Sin novedad" (borradores).
+  // Cátedra "Ingeniería de Software" del JC de prueba: 11 ejemplos cubriendo los 7 estados
+  // posibles, para tener variedad al probar (filtros, columnas, acciones por estado).
+  // Un borrador editable, que se puede enviar.
   {
     dni: "27345678",
     nombre: "Laura Giménez",
+    legajo: "1002",
     antiguedad: 12,
     asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
     cargoActual: "Titular",
@@ -205,53 +215,11 @@ const SEMILLAS: SemillaPedido[] = [
     novedad: "Sin novedad",
     estado: "borrador",
   },
-  {
-    dni: "30987654",
-    nombre: "Diego Morales",
-    antiguedad: 7,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 4",
-    novedad: "Sin novedad",
-    estado: "borrador",
-  },
-  {
-    dni: "33112233",
-    nombre: "Sofía Romano",
-    antiguedad: 4,
-    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
-    cargoActual: "Ayudante",
-    dedicacionActual: "Categoría 5",
-    novedad: "Sin novedad",
-    estado: "borrador",
-  },
-  // Un Alta en borrador con adjuntos cargados y múltiples materias (D3).
-  {
-    dni: "35998877",
-    nombre: "Martín Acosta",
-    antiguedad: 1,
-    asignaciones: [
-      { materia: "Ingeniería de Software", horas: 4 },
-      { materia: "Programación II", horas: 4 },
-    ],
-    cargoActual: null,
-    dedicacionActual: null,
-    novedad: "Alta",
-    cargoSolicitado: "Ayudante",
-    dedicacionSolicitada: "Categoría 5",
-    horasInvestigacion: 2,
-    adjuntos: [
-      { id: "adj-cv-seed", nombre: "cv-martin-acosta.pdf", tipo: "cv" },
-      { id: "adj-dnif-seed", nombre: "dni-frente.jpg", tipo: "dni_frente" },
-      { id: "adj-dnid-seed", nombre: "dni-dorso.jpg", tipo: "dni_dorso" },
-    ],
-    estado: "borrador",
-    prioritario: true,
-  },
   // Un Cambio de dedicación ya enviado a revisión (read-only para el JC).
   {
     dni: "28776655",
     nombre: "Valeria Suárez",
+    legajo: "1005",
     antiguedad: 9,
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
@@ -263,10 +231,11 @@ const SEMILLAS: SemillaPedido[] = [
     horasInvestigacion: 3,
     estado: "en_revision_coordinador",
   },
-  // Un Cambio devuelto por el Coordinador (vuelve editable al JC).
+  // Un Cambio devuelto por el Coordinador (vuelve editable al JC, se puede reenviar).
   {
     dni: "31445566",
     nombre: "Pablo Herrera",
+    legajo: "1006",
     antiguedad: 6,
     asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
     cargoActual: "JTP",
@@ -278,57 +247,7 @@ const SEMILLAS: SemillaPedido[] = [
     etapaRetorno: "en_revision_coordinador",
     propietarioActual: "Jefe de Cátedra",
   },
-  // Una Baja con múltiples materias asignadas (mismo docente del catálogo, 2 materias).
-  {
-    dni: "28341567",
-    nombre: "Lucía Fernández",
-    antiguedad: 8,
-    asignaciones: [
-      { materia: "Programación I", horas: 6 },
-      { materia: "Ingeniería de Software", horas: 4 },
-    ],
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 3",
-    novedad: "Baja",
-    tipoBaja: "Renuncia",
-    justificacion:
-      "Renuncia del docente por traslado a otra institución. Cese efectivo al fin del cuatrimestre.",
-    adjuntos: [
-      { id: "adj-just-lucia", nombre: "renuncia-lucia-fernandez.pdf", tipo: "justificativo" },
-    ],
-    estado: "en_revision_coordinador",
-  },
-  // --- SCRUM-8: pedidos en etapas de revisión para que cada tablero se vea real ---
-  // En revisión de Secretaría (ya aceptado por el Coordinador).
-  {
-    dni: "29554433",
-    nombre: "Florencia Cabrera",
-    antiguedad: 8,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 3",
-    novedad: "Cambio de cargo o dedicación",
-    cargoSolicitado: "Adjunto",
-    dedicacionSolicitada: "Categoría 2",
-    justificacion: "Promoción por concurso docente cerrado en 2025.",
-    estado: "en_revision_secretaria",
-  },
-  // En revisión de Decanato (aceptado por Coordinador y Secretaría), prioritario.
-  {
-    dni: "26889900",
-    nombre: "Hernán Vidal",
-    antiguedad: 15,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 2",
-    novedad: "Cambio de cargo o dedicación",
-    cargoSolicitado: "Titular",
-    dedicacionSolicitada: "Categoría 1",
-    justificacion: "Cobertura del cargo de Titular vacante por jubilación.",
-    estado: "en_revision_decanato",
-    prioritario: true,
-  },
-  // Rechazado (terminal) — alimenta la columna "Rechazado".
+  // Rechazado (terminal, de solo lectura).
   {
     dni: "32110099",
     nombre: "Brenda Ortiz",
@@ -346,21 +265,117 @@ const SEMILLAS: SemillaPedido[] = [
     ],
     estado: "rechazado",
   },
-  // En lote (terminal-prototipo, aprobado por toda la cadena) — columna "Aprobado".
+  // Otro borrador "Sin novedad" (mismos datos que su entrada en el catálogo de docentes).
+  {
+    dni: "30987654",
+    nombre: "Diego Morales",
+    legajo: "1003",
+    antiguedad: 7,
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Sin novedad",
+    horasExternas: 2,
+    estado: "borrador",
+  },
+  // Una Baja en borrador (único ejemplo de esta novedad en el seed).
+  {
+    dni: "33112233",
+    nombre: "Sofía Romano",
+    legajo: "1004",
+    antiguedad: 4,
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+    cargoActual: "Ayudante",
+    dedicacionActual: "Categoría 5",
+    novedad: "Baja",
+    tipoBaja: "Renuncia",
+    adjuntos: [
+      { id: "adj-just-sofia", nombre: "renuncia-sofia-romano.pdf", tipo: "justificativo" },
+    ],
+    estado: "borrador",
+  },
+  // Un Cambio de cargo en borrador (no está en el catálogo de docentes existentes).
+  {
+    dni: "29112233",
+    nombre: "Martín Acosta",
+    legajo: "1008",
+    antiguedad: 10,
+    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    cargoActual: "Titular",
+    dedicacionActual: "Categoría 1",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 0",
+    justificacion: "Mayor dedicación por dirección de proyectos de investigación.",
+    estado: "borrador",
+  },
+  // Otro Cambio en en_revision_coordinador (mismos datos que su entrada en el catálogo).
+  {
+    dni: "28341567",
+    nombre: "Lucía Fernández",
+    legajo: "1001",
+    antiguedad: 8,
+    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Aumento de horas de investigación asignadas para el ciclo 2026.",
+    horasInvestigacion: 2,
+    estado: "en_revision_coordinador",
+  },
+  // En revisión, etapa Secretaría (no está en el catálogo de docentes existentes).
+  {
+    dni: "31556644",
+    nombre: "Florencia Cabrera",
+    legajo: "1009",
+    antiguedad: 5,
+    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 2",
+    justificacion: "Ampliación de responsabilidades en la cátedra.",
+    estado: "en_revision_secretaria",
+  },
+  // En revisión, etapa Decanato (no está en el catálogo de docentes existentes).
+  {
+    dni: "30667788",
+    nombre: "Hernán Vidal",
+    legajo: "1010",
+    antiguedad: 9,
+    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Vacante de titular por jubilación del cargo actual.",
+    estado: "en_revision_decanato",
+  },
+  // Aceptado, en_lote (terminal-prototipo) — mismos datos que su entrada en el catálogo.
   {
     dni: "27660011",
     nombre: "Gabriel Núñez",
+    legajo: "1007",
     antiguedad: 11,
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Aumento de carga externa aprobado por el Departamento.",
+    horasExternas: 4,
     estado: "en_lote",
   },
   // Otra carrera (Ingeniería Industrial): NO debe verlo el Coordinador de Informática [BR-009].
   {
     dni: "30445511",
     nombre: "Mariano Tévez",
+    legajo: "2001",
     antiguedad: 6,
     asignaciones: [{ materia: "Física I", horas: 6 }],
     cargoActual: "JTP",

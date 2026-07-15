@@ -53,6 +53,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "28341567",
     nombre: "Lucía Fernández",
+    legajo: "1001",
     antiguedad: 8,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
@@ -66,6 +67,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "27345678",
     nombre: "Laura Giménez",
+    legajo: "1002",
     antiguedad: 12,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
@@ -76,6 +78,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "30987654",
     nombre: "Diego Morales",
+    legajo: "1003",
     antiguedad: 7,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
@@ -86,6 +89,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "33112233",
     nombre: "Sofía Romano",
+    legajo: "1004",
     antiguedad: 4,
     cargoActual: "Ayudante",
     dedicacionActual: "Categoría 5",
@@ -96,6 +100,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "28776655",
     nombre: "Valeria Suárez",
+    legajo: "1005",
     antiguedad: 9,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 4",
@@ -106,6 +111,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "31445566",
     nombre: "Pablo Herrera",
+    legajo: "1006",
     antiguedad: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
@@ -116,6 +122,7 @@ export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {
     dni: "27660011",
     nombre: "Gabriel Núñez",
+    legajo: "1007",
     antiguedad: 11,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",

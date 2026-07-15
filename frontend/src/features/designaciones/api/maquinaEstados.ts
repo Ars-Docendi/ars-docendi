@@ -348,6 +348,15 @@ export function puedeEditarPedido(pedido: PedidoDesignacion, actor: ActorContext
 }
 
 /**
+ * Predicado de eliminación: ¿el actor puede eliminar este pedido? Solo un
+ * borrador propio del Jefe de Cátedra — a diferencia de editar, un devuelto
+ * NO se puede eliminar (ya tiene una revisión asociada en su historial).
+ */
+export function puedeEliminarPedido(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
+  return pedido.estado === "borrador" && actor.rol === "Jefe de Cátedra";
+}
+
+/**
  * Valida los guards de la acción y devuelve el pedido resultante,
  * o lanza ErrorDominioPedido. No muta el pedido recibido.
  */

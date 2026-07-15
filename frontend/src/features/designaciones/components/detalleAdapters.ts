@@ -35,6 +35,7 @@ const VERBO_POR_ACCION: Record<AccionHistorial, AuditVerb> = {
   reenviar: "update",
   cancelar: "reject",
   priorizar: "update",
+  despriorizar: "update",
 };
 
 /** Etiqueta legible (en español) que se muestra junto al verbo. */
@@ -48,6 +49,7 @@ const ETIQUETA_POR_ACCION: Record<AccionHistorial, string> = {
   reenviar: "Reenvió",
   cancelar: "Canceló",
   priorizar: "Marcó prioritario",
+  despriorizar: "Quitó prioridad",
 };
 
 /** Traduce una acción del historial a su `AuditVerb` de la lib. */

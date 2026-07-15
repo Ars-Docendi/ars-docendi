@@ -4,10 +4,10 @@
 
 - **Módulo / superficie:** `frontend/src/features/designaciones/` (prototipo SCRUM-7, mock; el backend `backend/src/Modules.Designaciones/` se implementa después).
 - **Owner / stakeholders:** Secretaría Académica del Departamento (define el circuito); Jefe de Cátedra (carga).
-- **Change/Spec OpenSpec relacionado:** `openspec/changes/proyecto-docente-pedidos/` (capability `pedidos-designacion`, SCRUM-7) y `openspec/changes/flujo-aprobacion-designaciones/` (capability `aprobacion-pedidos-designacion`, SCRUM-8).
+- **Change/Spec OpenSpec relacionado:** `openspec/changes/proyecto-docente-pedidos/` (capability `pedidos-designacion`, SCRUM-7), `openspec/changes/flujo-aprobacion-designaciones/` (capability `aprobacion-pedidos-designacion`, SCRUM-8) y `openspec/changes/mis-pedidos-simplificado/` (BR-018, campo Legajo).
 - **Normativa de referencia:** Estatuto / régimen docente UNLaM (citas exactas **pendientes de confirmación con el cliente** para BR-001..004).
 
-> **Alcance de este documento.** Registra las reglas que implementan **SCRUM-7** (carga de pedidos por el Jefe de Cátedra: BR-001..004, BR-008) y **SCRUM-8** (circuito de aprobación, change `flujo-aprobacion-designaciones`: BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
+> **Alcance de este documento.** Registra las reglas que implementan **SCRUM-7** (carga de pedidos por el Jefe de Cátedra: BR-001..004, BR-008, BR-018) y **SCRUM-8** (circuito de aprobación, change `flujo-aprobacion-designaciones`: BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
 
 ## Reglas
 
@@ -45,6 +45,15 @@
 - **Provenance:** `from_spec`
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
 - **Ejemplos:** Un "Cambio" con justificación vacía (o solo espacios) bloquea el guardado. Con una justificación cargada, no marca ese error.
+- **Roles afectados:** Jefe de Cátedra.
+
+### BR-`designaciones`-018 Baja y Cambio exigen que el docente ya tenga legajo
+
+- **Statement:** Un pedido con novedad "Baja" o "Cambio de cargo o dedicación" debe referenciar un docente con legajo asignado antes de poder guardarse. "Alta" no exige legajo: el docente todavía no existe en el sistema.
+- **Rationale:** Baja y Cambio operan sobre una designación **ya existente** — el docente, por definición, ya está dado de alta en el sistema y por lo tanto ya tiene un legajo institucional asignado. Un Alta, en cambio, crea un docente nuevo cuyo legajo lo asigna el sistema/RRHH después, no el Jefe de Cátedra en el form.
+- **Provenance:** `from_spec`
+- **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
+- **Ejemplos:** Un "Cambio" o una "Baja" sobre un docente sin legajo bloquea el guardado e indica que el legajo es obligatorio. Un "Alta" sin legajo no marca ese error.
 - **Roles afectados:** Jefe de Cátedra.
 
 ### BR-`designaciones`-008 Tras enviar, el Jefe de Cátedra no edita salvo devolución
@@ -127,6 +136,7 @@
 | BR-designaciones-002 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `altaExigeCvYDniFrenteYDorso`                                                                                                 | unit (business)               | Cita normativa pendiente con cliente. |
 | BR-designaciones-003 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `bajaExigeJustificativo`                                                                                                      | unit (business)               | Cita normativa pendiente con cliente. |
 | BR-designaciones-004 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `cambioExigeJustificacion`                                                                                                    | unit (business)               | Cita normativa pendiente con cliente. |
+| BR-designaciones-018 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `bajaExigeLegajo`, `cambioExigeLegajo`                                                                                        | unit (business)               | Cita normativa pendiente con cliente. |
 | BR-designaciones-008 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `editarSoloBorradorODevueltoDelPropietario`, `no edita tras enviar a revisión`                                              | unit (business)               | Decisión de proceso.                  |
 | BR-designaciones-005 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `rechazoSinJustificativoFalla`, `devolucionSinComentarioFalla`; `components/ModalAccionRevision.test.tsx` (UI)              | unit + ui (business)          | Decisión de proceso.                  |
 | BR-designaciones-009 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `coordinadorFueraDeCarreraDenegado`; `api/pedidosApi.test.ts` → `listarPedidosPorAmbito acota a la carrera del Coordinador` | unit (business)               | Decisión de proceso.                  |
@@ -144,7 +154,8 @@ Todo BR-\* debe tener al menos un test verificando la regla.
 
 ## Assumptions (a confirmar)
 
-- Las citas normativas de BR-001..004 provienen del estatuto / régimen docente UNLaM; el texto exacto (artículo/sección) se confirma con el cliente. La validación se implementa igual; el test queda en el lane `business` con cita pendiente.
+- Las citas normativas de BR-001..004 y BR-018 provienen del estatuto / régimen docente UNLaM; el texto exacto (artículo/sección) se confirma con el cliente. La validación se implementa igual; el test queda en el lane `business` con cita pendiente.
+- BR-018 se acota a Baja y Cambio (lo que pidió el cliente explícitamente); "Sin novedad" también opera sobre un docente ya existente pero no quedó incluido en el pedido — a confirmar si debería exigir legajo también.
 
 ## Open Questions
 
