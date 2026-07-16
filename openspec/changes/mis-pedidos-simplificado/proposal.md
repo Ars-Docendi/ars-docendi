@@ -114,6 +114,17 @@ empieza a cargar pedidos de a uno), no una tabla llena cubriendo los 7 estados p
 - **Bump de versión del store mock**: `adoc.mock.pedidos.v3` → `.v4`, mismo mecanismo que las rondas
   anteriores — sin el bump, un navegador que ya cargó la app con el seed reducido seguiría viéndolo.
 
+### Séptima ronda: "Guardar pedido" siempre guarda; solo Enviar exige campos obligatorios
+
+- **Se separa la validación de Guardar y de Enviar**: desde D-4 (primera ronda), "Guardar pedido" y
+  "Guardar y enviar"/"Guardar y reenviar" corrían la misma validación completa (`validarPedido`) — un
+  borrador a medio completar (sin adjuntos, sin tipo de baja, etc.) no se podía ni guardar. El cliente
+  pidió lo contrario: **"se debe de poder guardar los datos actuales siempre, lo que no se puede es
+  enviarse sin cumplir con los campos obligatorios"**. Ahora "Guardar pedido" MUST guardar siempre,
+  sin bloquear por campos faltantes; "Guardar y enviar"/"Guardar y reenviar" siguen validando y
+  bloqueando igual que antes — es la única de las dos acciones donde tiene sentido exigir que el
+  pedido esté completo, porque es la que lo expone a otros roles en el circuito de revisión.
+
 ## Capabilities
 
 ### New Capabilities
@@ -165,7 +176,9 @@ existente `pedidos-designacion`, no como capability nueva)_
     `rediseno-revision-solo-grilla` más arriba).
   - `components/PedidoForm.tsx` + `pages/PedidoFormPage.tsx`: botón "Guardar y enviar"/"Guardar y
     reenviar" (usa `useEnviarPedido`/`useReenviarPedido`, ya existentes); `PedidoForm.tsx` además
-    propaga `legajo` al seleccionar un docente existente.
+    propaga `legajo` al seleccionar un docente existente. `handleGuardar` separa el camino de
+    "Guardar pedido" (siempre guarda, sin validar) del de "Guardar y enviar"/"Guardar y reenviar"
+    (valida y bloquea) [D-15].
   - `api/pedidosSeed.ts`: `SEMILLAS` de "Ingeniería de Software" de 11 a 4 entradas; `SemillaPedido`
     suma `legajo?`.
   - `api/catalogos.ts`: `DOCENTES_EXISTENTES` suma `legajo` (obligatorio, un docente existente siempre

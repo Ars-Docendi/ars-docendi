@@ -193,6 +193,14 @@ export function PedidoForm({
   }
 
   function handleGuardar(opciones?: { enviar?: boolean }) {
+    // "Guardar pedido" siempre guarda el estado actual del form, aunque falten
+    // campos obligatorios — la validación completa solo bloquea el envío a
+    // revisión ("Guardar y enviar"/"Guardar y reenviar", opciones.enviar).
+    if (!opciones?.enviar) {
+      setErrores({});
+      onGuardar(datos);
+      return;
+    }
     const resultado = validarPedido(datos, {
       pedidosExistentes,
       pedidoActualId: pedidoInicial?.id,

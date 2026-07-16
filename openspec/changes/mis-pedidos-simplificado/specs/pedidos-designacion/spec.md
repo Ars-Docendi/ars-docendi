@@ -149,9 +149,13 @@ El sistema SHALL ofrecer, dentro del form de pedido (`/designaciones/pedidos/nue
 `/designaciones/pedidos/:id/editar`), un botón adicional a "Guardar pedido" que guarda los datos y, en
 el mismo paso, envía el pedido a revisión: **"Guardar y enviar"** cuando el resultado queda en
 `borrador` (creación, o edición de un borrador existente), o **"Guardar y reenviar"** cuando se está
-editando un pedido `devuelto`. Ambos botones corren la misma validación que "Guardar pedido"
-(bloqueada si hay errores). El sistema NO MUST ofrecer ninguna acción para cancelar (pasar a
-`cancelado`) un pedido en esta pantalla ni en el form.
+editando un pedido `devuelto`. **"Guardar pedido" MUST guardar siempre el estado actual del form, sin
+exigir que los campos obligatorios estén completos** — el Jefe de Cátedra tiene que poder guardar un
+borrador a medio completar y retomarlo después. La validación completa (adjuntos, justificación, tipo
+de baja, legajo [BR-designaciones-018], etc.) MUST aplicarse únicamente al enviar/reenviar: "Guardar y
+enviar" y "Guardar y reenviar" MUST bloquear la acción si hay errores, sin guardar ni enviar nada — a
+diferencia de "Guardar pedido", que nunca se bloquea por esta causa. El sistema NO MUST ofrecer
+ninguna acción para cancelar (pasar a `cancelado`) un pedido en esta pantalla ni en el form.
 
 #### Scenario: Crear y enviar en un solo paso
 
@@ -172,12 +176,19 @@ editando un pedido `devuelto`. Ambos botones corren la misma validación que "Gu
 - **WHEN** hace click en "Guardar y reenviar"
 - **THEN** el sistema guarda los cambios y reenvía el pedido, retomando la etapa que lo devolvió
 
-#### Scenario: Guardar y enviar respeta la misma validación que Guardar
+#### Scenario: Guardar pedido siempre guarda, aunque falten campos obligatorios
+
+- **GIVEN** el form con datos incompletos (p. ej. falta un adjunto obligatorio, o el tipo de baja)
+- **WHEN** el Jefe de Cátedra hace click en "Guardar pedido"
+- **THEN** el sistema MUST guardar el estado actual del form tal cual está, sin bloquear la acción ni
+  exigir que los campos obligatorios estén completos
+
+#### Scenario: Guardar y enviar bloquea si faltan campos obligatorios
 
 - **GIVEN** el form con datos inválidos (p. ej. falta un adjunto obligatorio)
 - **WHEN** el Jefe de Cátedra hace click en "Guardar y enviar" (o "Guardar y reenviar")
-- **THEN** el sistema MUST bloquear la acción y mostrar los mismos errores que bloquearían "Guardar
-  pedido", sin crear ni enviar nada
+- **THEN** el sistema MUST bloquear la acción y mostrar los errores correspondientes, sin guardar ni
+  enviar nada
 
 ### Requirement: Eliminar un pedido en borrador
 

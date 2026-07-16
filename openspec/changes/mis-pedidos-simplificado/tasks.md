@@ -214,3 +214,24 @@
 - [x] 11.5 `npx openspec validate --all --strict`.
 - [x] 11.6 Documentado en `proposal.md` (D-5 tachada, sección "Sexta ronda") y `design.md` (D-5
       marcada `[REVERTIDA, ver D-14]`, nueva D-14, riesgo del seed reducido tachado como moot).
+
+## 12. Séptima ronda — "Guardar pedido" siempre guarda, solo Enviar exige campos obligatorios [D-15]
+
+- [x] 12.1 `components/PedidoForm.tsx`: `handleGuardar` separa el camino — sin `opciones?.enviar`,
+      guarda directo (`onGuardar(datos)`, limpia errores, sin `validarPedido`); con `opciones.enviar`,
+      corre `validarPedido` y bloquea si hay errores, igual que antes.
+- [x] 12.2 `PedidoForm.test.tsx`: describe "validación" reescrito — "'Guardar pedido' siempre guarda,
+      aunque falten campos obligatorios" (antes probaba lo contrario); describe "tipificación de la
+      baja" retargeteado a "Guardar y enviar" (las 2 aserciones que antes bloqueaban "Guardar pedido"
+      ya no aplican); renombrado el test de "Guardar y enviar" que comparaba con "Guardar pedido".
+- [x] 12.3 Confirmado que `api/pedidosApi.ts` (`crearPedido`/`editarPedido`) nunca corrió
+      `validarPedido` — la validación siempre fue exclusiva de la UI (`PedidoForm.tsx`), no hace falta
+      tocar la capa de API ni el dominio.
+- [x] 12.4 `pnpm exec tsc --noEmit` + `pnpm exec vitest run` (160/160) + `pnpm exec eslint .` — todo
+      verde.
+- [x] 12.5 `npx openspec validate --all --strict`.
+- [x] 12.6 Specs: requirement "Enviar y reenviar desde el form de pedido" en `pedidos-designacion` —
+      nuevo scenario "Guardar pedido siempre guarda…"; "Guardar y enviar respeta la misma validación
+      que Guardar" pasa a "Guardar y enviar bloquea si faltan campos obligatorios".
+- [x] 12.7 Actualizado `docs/product/designs/proyecto-docente-design-spec.md` (botonera del form:
+      "Guardar pedido" ya no valida; "Validación inline bloqueante" acotada a Enviar).

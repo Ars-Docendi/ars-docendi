@@ -87,15 +87,16 @@ botón directo con el mismo cuidado de no burbujear el click).
 
 ### D-4: "Guardar y enviar"/"Guardar y reenviar" es un segundo botón `submit`, no una casilla ni un modal
 
-`PedidoForm.tsx` gana un segundo botón en el footer (`type="submit"`, un `<button>` HTML nativo
-distinto o un segundo `<Button>` con su propio `onClick` que llama `handleGuardarYEnviar` en vez de
-`handleGuardar`) que corre la MISMA validación (`validarPedido`) y, si pasa, llama `onGuardar(datos,
+`PedidoForm.tsx` gana un segundo botón en el footer (`type="button"` con su propio `onClick` que llama
+`handleGuardar({ enviar: true })`) que corre `validarPedido` y, si pasa, llama `onGuardar(datos,
 { enviar: true })` (se extiende la firma de `onGuardar` con un segundo parámetro opcional) para que
 `PedidoFormPage.tsx` decida: crear+enviar (dos mutaciones en cadena: `crearPedido` → `enviarPedido`
 con el id devuelto) o editar+enviar/reenviar (`editarPedido` → `enviarPedido`/`reenviarPedido`, según
 si el pedido es `borrador` o `devuelto`). Sin modal de confirmación intermedio — es una sola acción
 explícita del propio JC sobre su propio pedido, no una acción de revisión con impacto en otros
-roles (que sí pasan por `ModalConfirmacionAccion`).
+roles (que sí pasan por `ModalConfirmacionAccion`). ~~Corre la MISMA validación que "Guardar
+pedido"~~ — **corregido en la séptima ronda (D-15)**: "Guardar pedido" ya no valida nada, solo
+"Guardar y enviar"/"Guardar y reenviar" lo hacen.
 
 **Alternativa descartada**: dos formularios/botones separados en distintas pantallas (guardar acá,
 enviar allá) — es exactamente lo que se está simplificando; mantenerlo dividido no resuelve el pedido
@@ -250,6 +251,27 @@ los originales (que ya no existen en el historial de este seed mock, se reconstr
 específicamente "volver a añadir los pedidos", no deshacer las otras rondas — Legajo, `FiltrosLista` y
 BR-018 se quedan.
 
+### D-15: "Guardar pedido" deja de validar — la validación completa solo gatea Enviar
+
+Desde D-4, `handleGuardar` en `PedidoForm.tsx` corría `validarPedido` tanto para "Guardar pedido" como
+para "Guardar y enviar"/"Guardar y reenviar" — un pedido a medio completar no se podía guardar como
+borrador si, por ejemplo, faltaba un adjunto o el tipo de baja. El cliente pidió explícitamente lo
+contrario: "se debe de poder guardar los datos actuales siempre, lo que no se puede es enviarse sin
+cumplir con los campos obligatorios". Se separa `handleGuardar`: si `opciones?.enviar` es falsy,
+guarda directo (`onGuardar(datos)`, sin `validarPedido`, sin bloqueo, limpia errores previos en
+pantalla); si es `true`, corre `validarPedido` igual que antes y bloquea si hay errores. La UI
+(footer del form) no cambia — sigue siendo el mismo botón "Guardar pedido" (`type="submit"`) y el
+mismo "Guardar y enviar"/"Guardar y reenviar" (`onClick` con `{ enviar: true }`); solo cambia qué pasa
+puertas adentro de `handleGuardar`.
+
+**No hay nada que migrar en el dominio**: `pedidosApi.ts` (`crearPedido`/`editarPedido`) nunca corrió
+`validarPedido` — siempre fue una validación exclusiva de la UI del form (`PedidoForm.tsx`). No hace
+falta tocar `api/`, `maquinaEstados.ts` ni el store.
+
+**Por qué no se agrega una BR nueva**: esto es una decisión de interacción (cuándo se aplica una
+validación ya existente), no una regla de negocio nueva con su propio criterio verificable — las
+reglas que sí exige el sistema (BR-001..004, BR-018) no cambian, solo el momento en que se evalúan.
+
 ## Risks / Trade-offs
 
 - ~~**[Riesgo] Menos estados representados en el seed compartido**~~ — **moot tras D-14**: el seed
@@ -342,12 +364,27 @@ BR-018 se quedan.
 36. `pages/MisPedidosPage.test.tsx`: quitar la aserción de conteo total de "Editar" (brittle al crecer
     el seed; las aserciones por fila ya cubrían la regla).
 
+**Séptima ronda (amendment post-implementación):**
+
+37. `components/PedidoForm.tsx`: `handleGuardar` separa el camino de "Guardar pedido" (siempre guarda,
+    sin `validarPedido`) del de "Guardar y enviar"/"Guardar y reenviar" (valida, bloquea si hay
+    errores) (D-15).
+38. Tests en `PedidoForm.test.tsx`: reescrita "validación" (nuevo: "'Guardar pedido' siempre guarda,
+    aunque falten campos obligatorios"); "tipificación de la baja" retargeteada a "Guardar y enviar"
+    (antes probaba que "Guardar pedido" bloqueaba, ya no es cierto); renombrado el test de "Guardar y
+    enviar" que comparaba con "Guardar pedido".
+39. Specs: requirement "Enviar y reenviar desde el form de pedido" en `pedidos-designacion` — nuevo
+    scenario "Guardar pedido siempre guarda…"; el scenario "Guardar y enviar respeta la misma
+    validación que Guardar" pasa a "Guardar y enviar bloquea si faltan campos obligatorios" (ya no
+    compara con Guardar, que no valida).
+
 **Rollback**: revertir el PR restaura el menú kebab, el filtro combinado, las 11 semillas, y (segunda
 ronda) quita Eliminar/Ver y el formato de botones de Usuarios; (tercera ronda) restaura el filtro
 inline propio de "Mis pedidos" y quita la columna/filtro Legajo; (cuarta ronda) quita la validación
 BR-018 y su registro en `docs/business-rules/`; (quinta ronda) revierte la clave de `localStorage` a
 `.v2` y quita el botón Editar del detalle; (sexta ronda) vuelve a reducir el seed a 4 y revierte la
-clave a `.v3`; sin migraciones de datos (prototipo mock).
+clave a `.v3`; (séptima ronda) "Guardar pedido" vuelve a validar igual que "Guardar y enviar"; sin
+migraciones de datos (prototipo mock).
 
 ## Open Questions
 
