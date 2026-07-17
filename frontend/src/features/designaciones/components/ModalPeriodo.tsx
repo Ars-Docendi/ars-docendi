@@ -1,72 +1,105 @@
 import { useState } from "react";
-import { Modal, Field, Input, Select, DatePicker, Button, InlineAlert } from "@ars-docendi/ui";
-import type { EstadoPeriodo, PeriodoDesignacion } from "../types";
+import { Modal, Field, Input, DatePicker, Button, InlineAlert, Toggle } from "@ars-docendi/ui";
+import type { PeriodoDesignacion } from "../types";
+import { validarPeriodo, esPeriodoValido } from "../periodoValidacion";
+import type { DatosEditablesPeriodo } from "../periodoValidacion";
 
 type DatosPeriodo = Omit<PeriodoDesignacion, "id">;
 
-function calcularDuracionDias(apertura: string, cierre: string): number | null {
-  if (!apertura || !cierre) return null;
-  const diff = new Date(cierre).getTime() - new Date(apertura).getTime();
-  if (diff < 0) return null;
-  return Math.round(diff / (1000 * 60 * 60 * 24)) + 1;
+/** Fecha correspondiente a un mes antes de `fechaIso` (mismo día del mes anterior). */
+function unMesAntes(fechaIso: string): string {
+  const fecha = new Date(`${fechaIso}T00:00:00`);
+  fecha.setMonth(fecha.getMonth() - 1);
+  return fecha.toISOString().slice(0, 10);
 }
 
 interface ModalPeriodoProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   periodo?: PeriodoDesignacion;
+  /** Resto de los períodos, para validar la regla de único período activo. */
+  periodos: PeriodoDesignacion[];
   error?: string;
   onGuardar: (datos: DatosPeriodo) => void;
+  /** Se dispara en vez de `onGuardar` cuando el período estaba activo y se lo desactiva: pide confirmación antes de aplicar. */
+  onNecesitaConfirmarDesactivacion: (datos: DatosPeriodo) => void;
 }
 
-interface EstadoFormulario {
-  nombre: string;
-  cuatrimestre: "1C" | "2C" | "Verano";
-  anio: string;
-  fechaApertura: string;
-  fechaCierre: string;
-  estado: EstadoPeriodo;
-}
-
-const FORMULARIO_VACIO: EstadoFormulario = {
+const FORMULARIO_VACIO: DatosEditablesPeriodo = {
   nombre: "",
-  cuatrimestre: "1C",
-  anio: String(new Date().getFullYear()),
-  fechaApertura: "",
-  fechaCierre: "",
-  estado: "abierto",
+  cargaDesde: "",
+  cargaHasta: "",
+  impactoDesde: "",
+  impactoHasta: "",
+  activo: false,
 };
 
-function periodoAFormulario(periodo: PeriodoDesignacion): EstadoFormulario {
+function periodoAFormulario(periodo: PeriodoDesignacion): DatosEditablesPeriodo {
   return {
     nombre: periodo.nombre,
-    cuatrimestre: periodo.cuatrimestre,
-    anio: String(periodo.anio),
-    fechaApertura: periodo.fechaApertura,
-    fechaCierre: periodo.fechaCierre,
-    estado: periodo.estado,
+    cargaDesde: periodo.cargaDesde,
+    cargaHasta: periodo.cargaHasta,
+    impactoDesde: periodo.impactoDesde,
+    impactoHasta: periodo.impactoHasta,
+    activo: periodo.activo,
   };
 }
 
-export function ModalPeriodo({ open, onOpenChange, periodo, error, onGuardar }: ModalPeriodoProps) {
+export function ModalPeriodo({
+  open,
+  onOpenChange,
+  periodo,
+  periodos,
+  error,
+  onGuardar,
+  onNecesitaConfirmarDesactivacion,
+}: ModalPeriodoProps) {
   const esEdicion = Boolean(periodo);
-  const [formulario, setFormulario] = useState<EstadoFormulario>(() =>
+  const [formulario, setFormulario] = useState<DatosEditablesPeriodo>(() =>
     periodo ? periodoAFormulario(periodo) : FORMULARIO_VACIO,
   );
+  const [errores, setErrores] = useState<ReturnType<typeof validarPeriodo>>({});
+  const [mostrarErrores, setMostrarErrores] = useState(false);
 
-  function actualizar<K extends keyof EstadoFormulario>(campo: K, valor: EstadoFormulario[K]) {
-    setFormulario((prev) => ({ ...prev, [campo]: valor }));
+  function actualizar<K extends keyof DatosEditablesPeriodo>(
+    campo: K,
+    valor: DatosEditablesPeriodo[K],
+  ) {
+    setFormulario((prev) => {
+      const siguiente = { ...prev, [campo]: valor };
+      if (campo === "impactoDesde" && valor && !prev.cargaHasta) {
+        siguiente.cargaHasta = unMesAntes(valor as string);
+      }
+      return siguiente;
+    });
   }
 
   function handleGuardar() {
-    onGuardar({
-      nombre: formulario.nombre,
-      cuatrimestre: formulario.cuatrimestre,
-      anio: Number(formulario.anio),
-      fechaApertura: formulario.fechaApertura,
-      fechaCierre: formulario.fechaCierre,
-      estado: formulario.estado,
+    const erroresActuales = validarPeriodo(formulario, {
+      periodosExistentes: periodos,
+      periodoActualId: periodo?.id,
     });
+    setErrores(erroresActuales);
+    setMostrarErrores(true);
+    if (!esPeriodoValido(erroresActuales)) {
+      return;
+    }
+
+    const datos: DatosPeriodo = {
+      nombre: formulario.nombre,
+      cargaDesde: formulario.cargaDesde,
+      cargaHasta: formulario.cargaHasta,
+      impactoDesde: formulario.impactoDesde,
+      impactoHasta: formulario.impactoHasta,
+      activo: formulario.activo,
+    };
+
+    const seDesactiva = (periodo?.activo ?? false) && !formulario.activo;
+    if (seDesactiva) {
+      onNecesitaConfirmarDesactivacion(datos);
+      return;
+    }
+    onGuardar(datos);
   }
 
   return (
@@ -87,80 +120,83 @@ export function ModalPeriodo({ open, onOpenChange, periodo, error, onGuardar }: 
     >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
         {error && (
-          <InlineAlert severity="warning" title="No se pudo guardar">
+          <InlineAlert severity="warning" title="Atención">
             {error}
           </InlineAlert>
         )}
 
-        <Field label="Nombre" required>
+        <Field label="Nombre" required error={mostrarErrores ? errores.nombre : undefined}>
           <Input
             value={formulario.nombre}
             onChange={(e) => actualizar("nombre", e.target.value)}
-            placeholder="Ej. 1er cuatrimestre 2026"
+            placeholder="Nombre del período"
           />
         </Field>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-4)" }}>
-          <Field label="Cuatrimestre" required>
-            <Select
-              value={formulario.cuatrimestre}
-              onChange={(e) => actualizar("cuatrimestre", e.target.value as "1C" | "2C" | "Verano")}
-            >
-              <option value="1C">1C</option>
-              <option value="2C">2C</option>
-              <option value="Verano">Verano</option>
-            </Select>
-          </Field>
-
-          <Field label="Año" required>
-            <Input
-              type="number"
-              value={formulario.anio}
-              onChange={(e) => actualizar("anio", e.target.value)}
-              min={2020}
-              max={2099}
-            />
-          </Field>
-        </div>
-
-        <Field label="Fecha de apertura" required>
-          <DatePicker
-            value={formulario.fechaApertura}
-            onChange={(e) => actualizar("fechaApertura", e.target.value)}
-          />
-        </Field>
-
-        <Field label="Fecha de cierre" required>
-          <DatePicker
-            value={formulario.fechaCierre}
-            onChange={(e) => actualizar("fechaCierre", e.target.value)}
-          />
-        </Field>
-
-        {calcularDuracionDias(formulario.fechaApertura, formulario.fechaCierre) !== null && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           <p
             style={{
               margin: 0,
+              fontWeight: 600,
               fontSize: "var(--text-body-sm-size)",
-              color: "var(--color-text-secondary)",
+              color: "var(--color-text-primary)",
             }}
           >
-            Duración:{" "}
-            <strong style={{ color: "var(--color-text-primary)" }}>
-              {calcularDuracionDias(formulario.fechaApertura, formulario.fechaCierre)} días
-            </strong>
+            Ventana para cargar pedidos
           </p>
-        )}
 
-        <Field label="Estado" required>
-          <Select
-            value={formulario.estado}
-            onChange={(e) => actualizar("estado", e.target.value as EstadoPeriodo)}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+            <Field label="Desde" required>
+              <DatePicker
+                value={formulario.cargaDesde}
+                onChange={(e) => actualizar("cargaDesde", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Hasta" required error={mostrarErrores ? errores.cargaHasta : undefined}>
+              <DatePicker
+                value={formulario.cargaHasta}
+                onChange={(e) => actualizar("cargaHasta", e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          <p
+            style={{
+              margin: 0,
+              fontWeight: 600,
+              fontSize: "var(--text-body-sm-size)",
+              color: "var(--color-text-primary)",
+            }}
           >
-            <option value="abierto">Abierto</option>
-            <option value="proximo">Próximo</option>
-            <option value="cerrado">Cerrado</option>
-          </Select>
+            Período de impacto de la designación
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
+            <Field label="Desde" required error={mostrarErrores ? errores.impactoDesde : undefined}>
+              <DatePicker
+                value={formulario.impactoDesde}
+                onChange={(e) => actualizar("impactoDesde", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Hasta" required error={mostrarErrores ? errores.impactoHasta : undefined}>
+              <DatePicker
+                value={formulario.impactoHasta}
+                onChange={(e) => actualizar("impactoHasta", e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+
+        <Field error={mostrarErrores ? errores.activo : undefined}>
+          <Toggle
+            label="Período activo"
+            checked={formulario.activo}
+            onChange={(e) => actualizar("activo", e.target.checked)}
+          />
         </Field>
       </div>
     </Modal>

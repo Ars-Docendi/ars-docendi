@@ -4,6 +4,7 @@ import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaPeriodos } from "../components/TablaPeriodos";
 import { ModalPeriodo } from "../components/ModalPeriodo";
 import { ModalEliminarPeriodo } from "../components/ModalEliminarPeriodo";
+import { ModalDesactivarPeriodo } from "../components/ModalDesactivarPeriodo";
 import { PERIODOS_MOCK } from "../api/periodosMock";
 import type { PeriodoDesignacion } from "../types";
 
@@ -16,6 +17,12 @@ export function PeriodosPage() {
 
   const [modalEliminarAbierto, setModalEliminarAbierto] = useState(false);
   const [periodoEliminando, setPeriodoEliminando] = useState<PeriodoDesignacion | undefined>();
+
+  const [modalDesactivarAbierto, setModalDesactivarAbierto] = useState(false);
+  const [periodoDesactivando, setPeriodoDesactivando] = useState<PeriodoDesignacion | undefined>();
+  const [datosPendientesDesactivar, setDatosPendientesDesactivar] = useState<
+    Omit<PeriodoDesignacion, "id"> | undefined
+  >();
 
   function handleNuevoPeriodo() {
     setPeriodoEditando(undefined);
@@ -57,6 +64,23 @@ export function PeriodosPage() {
     setPeriodoEliminando(undefined);
   }
 
+  function handleNecesitaConfirmarDesactivacion(datos: Omit<PeriodoDesignacion, "id">) {
+    if (!periodoEditando) return;
+    setModalPeriodoAbierto(false);
+    setPeriodoDesactivando(periodoEditando);
+    setDatosPendientesDesactivar(datos);
+    setModalDesactivarAbierto(true);
+  }
+
+  function handleConfirmarDesactivar() {
+    if (datosPendientesDesactivar) {
+      handleGuardar(datosPendientesDesactivar);
+    }
+    setModalDesactivarAbierto(false);
+    setPeriodoDesactivando(undefined);
+    setDatosPendientesDesactivar(undefined);
+  }
+
   return (
     <>
       <Breadcrumbs
@@ -81,7 +105,9 @@ export function PeriodosPage() {
         open={modalPeriodoAbierto}
         onOpenChange={setModalPeriodoAbierto}
         periodo={periodoEditando}
+        periodos={periodos}
         onGuardar={handleGuardar}
+        onNecesitaConfirmarDesactivacion={handleNecesitaConfirmarDesactivacion}
       />
 
       <ModalEliminarPeriodo
@@ -89,6 +115,13 @@ export function PeriodosPage() {
         onOpenChange={setModalEliminarAbierto}
         periodo={periodoEliminando}
         onConfirmar={handleConfirmarEliminar}
+      />
+
+      <ModalDesactivarPeriodo
+        open={modalDesactivarAbierto}
+        onOpenChange={setModalDesactivarAbierto}
+        periodo={periodoDesactivando}
+        onConfirmar={handleConfirmarDesactivar}
       />
     </>
   );

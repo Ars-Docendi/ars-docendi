@@ -11,7 +11,11 @@ export const routes: RouteObject = {
   path: "designaciones",
   children: [
     { index: true, element: <IndexPage /> },
-    { path: "periodos", element: <PeriodosPage /> },
+    {
+      // Gestión de períodos es exclusiva de Secretaría Académica.
+      element: <RequireRole allowedRoles={["Secretaría"]} />,
+      children: [{ path: "periodos", element: <PeriodosPage /> }],
+    },
     {
       // SCRUM-7: la carga de pedidos es del Jefe de Cátedra.
       element: <RequireRole allowedRoles={["Jefe de Cátedra"]} />,
