@@ -16,10 +16,10 @@ import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
-/** Etiqueta corta del período ("2026 · 1C") a partir de su id. */
+/** Etiqueta corta del período a partir de su id. */
 function etiquetaPeriodo(periodoId: string): string {
   const periodo = PERIODOS_MOCK.find((item) => item.id === periodoId);
-  return periodo ? `${periodo.anio} · ${periodo.cuatrimestre}` : "2026 · 1C";
+  return periodo?.nombre ?? "Período sin definir";
 }
 
 export function PedidoFormPage() {

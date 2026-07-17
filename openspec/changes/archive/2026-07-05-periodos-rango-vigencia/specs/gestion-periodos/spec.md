@@ -1,8 +1,4 @@
-## Purpose
-
-Gestión (ABM) de los períodos de designación docente: la Secretaría Académica crea, edita y elimina los períodos sobre los que el Jefe de Cátedra carga los pedidos de designación (SCRUM-82). Define el contenedor temporal del proyecto docente mediante dos ventanas separadas —la ventana de carga (desde/hasta) donde se admiten pedidos, y la ventana de impacto (desde/hasta) donde esas designaciones tienen efecto— y un estado activo/inactivo, con la regla de que a lo sumo un período puede estar activo a la vez.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Listar períodos de designación
 
@@ -97,32 +93,6 @@ El sistema SHALL permitir modificar los datos de un período existente mediante 
 
 ---
 
-### Requirement: Eliminar período de designación
-
-El sistema SHALL requerir confirmación explícita antes de eliminar un período, mostrando un modal de confirmación que identifique el período afectado.
-
-#### Scenario: Apertura del modal de confirmación
-
-- **WHEN** el usuario hace clic en el botón de eliminar de una fila
-- **THEN** el sistema muestra un modal con título "Eliminar período" que menciona el nombre del período a eliminar
-
-#### Scenario: Cancelar eliminación
-
-- **WHEN** el usuario hace clic en "Cancelar" en el modal de eliminación
-- **THEN** el modal SHALL cerrarse sin eliminar el período
-
-#### Scenario: Confirmar eliminación
-
-- **WHEN** el usuario hace clic en "Eliminar" (variant destructive)
-- **THEN** el sistema SHALL eliminar el período de la lista y cerrar el modal
-
-#### Scenario: Slot de error para restricciones de backend
-
-- **WHEN** el backend rechace la eliminación (ej: período con pedidos asociados)
-- **THEN** el sistema SHALL mostrar un InlineAlert de severidad "danger" dentro del modal de confirmación con el motivo del rechazo, sin cerrar el modal
-
----
-
 ### Requirement: Mock data para validación visual
 
 El sistema SHALL mostrar datos de prueba representativos que permitan validar todos los estados visuales posibles sin necesidad de backend.
@@ -137,7 +107,7 @@ El sistema SHALL mostrar datos de prueba representativos que permitan validar to
 - **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
 - **THEN** la tabla SHALL mostrar períodos con distintas ventanas de carga e impacto para simular un historial realista
 
----
+## ADDED Requirements
 
 ### Requirement: Activar y desactivar período de designación
 

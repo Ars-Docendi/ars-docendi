@@ -1,15 +1,17 @@
 import type { Role } from "../../shared/auth/useCurrentUser";
 
-export type EstadoPeriodo = "abierto" | "cerrado" | "proximo";
-
 export interface PeriodoDesignacion {
   id: string;
   nombre: string;
-  cuatrimestre: "1C" | "2C" | "Verano";
-  anio: number;
-  fechaApertura: string;
-  fechaCierre: string;
-  estado: EstadoPeriodo;
+  /** Ventana en la que el Jefe de Cátedra puede cargar pedidos de designación. */
+  cargaDesde: string;
+  /** Límite blando: pasada esta fecha se sigue permitiendo cargar (el cierre real es manual, vía `activo`). */
+  cargaHasta: string;
+  /** Rango real de impacto de las designaciones (ej. 2do cuatrimestre = agosto-diciembre). */
+  impactoDesde: string;
+  impactoHasta: string;
+  /** Solo puede haber un período con activo:true a la vez. */
+  activo: boolean;
 }
 
 // ============================================================

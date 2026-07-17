@@ -82,7 +82,7 @@ export function MisPedidosPage() {
     });
   }
 
-  const periodo = PERIODOS_MOCK.find((p) => p.estado === "abierto");
+  const periodo = PERIODOS_MOCK.find((p) => p.activo);
   const total = pedidos?.length ?? 0;
 
   function actualizarFiltros(nuevos: FiltrosMisPedidosState) {
@@ -117,9 +117,7 @@ export function MisPedidosPage() {
         meta={
           isLoading
             ? "Cargando…"
-            : `${total} pedido${total !== 1 ? "s" : ""}${
-                periodo ? ` · Cuatrimestre ${periodo.anio} · ${periodo.cuatrimestre}` : ""
-              }`
+            : `${total} pedido${total !== 1 ? "s" : ""}${periodo ? ` · ${periodo.nombre}` : ""}`
         }
         actions={
           <Button
