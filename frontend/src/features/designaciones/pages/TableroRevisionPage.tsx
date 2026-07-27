@@ -2,17 +2,48 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs, InlineAlert, Select } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import {
+  FiltrosLista,
+  type CampoFiltroFijo,
+  type CampoFiltroOpcional,
+} from "../../../shared/ui/FiltrosLista";
 import { TablaRevision } from "../components/TablaRevision";
 import { FILTROS_INICIALES } from "../components/filtrosTablero";
-import type {
-  FiltroPrioridad,
-  FiltroTipo,
-  FiltrosTablero,
-  VistaTablero,
-} from "../components/filtrosTablero";
+import type { FiltrosTablero, VistaTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
+
+const FILTROS_FIJOS: CampoFiltroFijo[] = [
+  { clave: "nombre", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
+  {
+    tipo: "select",
+    clave: "tipo",
+    ariaLabel: "Filtrar por tipo",
+    opciones: [
+      { value: "todos", label: "Tipo: Todos" },
+      { value: "Sin novedad", label: "Sin novedad" },
+      { value: "Alta", label: "Alta" },
+      { value: "Baja", label: "Baja" },
+      { value: "Cambio de cargo o dedicación", label: "Cambio" },
+    ],
+  },
+];
+
+const FILTROS_OPCIONALES: CampoFiltroOpcional[] = [
+  { tipo: "texto", clave: "legajo", etiqueta: "Legajo", placeholder: "Legajo…", ancho: "120px" },
+  {
+    tipo: "select",
+    clave: "prioridad",
+    etiqueta: "Prioridad",
+    valorInicial: "todos",
+    opciones: [
+      { value: "todos", label: "Prioritario: Todos" },
+      { value: "prioritarios", label: "Solo prioritarios" },
+      { value: "normales", label: "Sin prioridad" },
+    ],
+  },
+];
 
 export function TableroRevisionPage() {
   const navegar = useNavigate();
@@ -27,7 +58,7 @@ export function TableroRevisionPage() {
   const cantidad = pedidos?.length ?? 0;
   const ambito = actor.carrera ?? "Departamento";
 
-  const filtrosUI = (
+  const vistaUI = (
     <div className="adoc-tablero-filtros">
       <Select
         aria-label="Filtrar pedidos por turno"
@@ -37,28 +68,6 @@ export function TableroRevisionPage() {
       >
         <option value="completa">Vista completa</option>
         <option value="mis-pendientes">Mis pendientes</option>
-      </Select>
-      <Select
-        aria-label="Filtrar por tipo de novedad"
-        value={filtros.tipo}
-        onChange={(e) => setFiltros((f) => ({ ...f, tipo: e.target.value as FiltroTipo }))}
-      >
-        <option value="todos">Tipo: Todos</option>
-        <option value="Sin novedad">Sin novedad</option>
-        <option value="Alta">Alta</option>
-        <option value="Baja">Baja</option>
-        <option value="Cambio de cargo o dedicación">Cambio</option>
-      </Select>
-      <Select
-        aria-label="Filtrar por prioridad"
-        value={filtros.prioridad}
-        onChange={(e) =>
-          setFiltros((f) => ({ ...f, prioridad: e.target.value as FiltroPrioridad }))
-        }
-      >
-        <option value="todos">Prioritario: Todos</option>
-        <option value="prioritarios">Solo prioritarios</option>
-        <option value="normales">Sin prioridad</option>
       </Select>
     </div>
   );
@@ -77,8 +86,17 @@ export function TableroRevisionPage() {
         pretitle="Designaciones"
         title="Tablero de revisión de pedidos"
         meta={`Pedidos en tu ámbito · ${actor.rol} · ${ambito}`}
-        actions={!isLoading && !isError && cantidad > 0 ? filtrosUI : undefined}
+        actions={!isLoading && !isError && cantidad > 0 ? vistaUI : undefined}
       />
+
+      {!isLoading && !isError && cantidad > 0 && (
+        <FiltrosLista
+          fijos={FILTROS_FIJOS}
+          opcionales={FILTROS_OPCIONALES}
+          valores={filtros}
+          onChange={setFiltros}
+        />
+      )}
 
       {isLoading && (
         <p style={{ color: "var(--color-text-secondary)" }}>Cargando los pedidos de tu ámbito…</p>

@@ -6,14 +6,24 @@ import { FiltrosLista, type CampoFiltroFijo, type CampoFiltroOpcional } from "./
 
 interface ValoresPrueba extends Record<string, string> {
   nombre: string;
+  tipo: string;
   legajo: string;
   estado: string;
 }
 
-const INICIALES: ValoresPrueba = { nombre: "", legajo: "", estado: "todos" };
+const INICIALES: ValoresPrueba = { nombre: "", tipo: "todos", legajo: "", estado: "todos" };
 
 const FIJOS: CampoFiltroFijo[] = [
   { clave: "nombre", placeholder: "Filtrar por nombre…", ariaLabel: "Filtrar por nombre" },
+  {
+    tipo: "select",
+    clave: "tipo",
+    ariaLabel: "Filtrar por tipo",
+    opciones: [
+      { value: "todos", label: "Tipo: Todos" },
+      { value: "alta", label: "Alta" },
+    ],
+  },
 ];
 
 const OPCIONALES: CampoFiltroOpcional[] = [
@@ -49,6 +59,18 @@ describe("FiltrosLista (genérico, reutilizable)", () => {
     await user.type(screen.getByLabelText("Filtrar por nombre"), "ana");
 
     expect(screen.getByTestId("valores")).toHaveTextContent('"nombre":"ana"');
+  });
+
+  it("un campo fijo tipo select está siempre visible (no detrás de '+ Añadir filtro') y dispara onChange", async () => {
+    const user = userEvent.setup();
+    render(<FiltrosDePrueba />);
+
+    expect(screen.getByLabelText("Filtrar por tipo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Añadir filtro")).not.toHaveTextContent("Tipo");
+
+    await user.selectOptions(screen.getByLabelText("Filtrar por tipo"), "alta");
+
+    expect(screen.getByTestId("valores")).toHaveTextContent('"tipo":"alta"');
   });
 
   it("el selector 'Añadir filtro' solo ofrece los campos opcionales no agregados", async () => {

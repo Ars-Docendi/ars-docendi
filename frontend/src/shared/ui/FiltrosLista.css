@@ -26,6 +26,9 @@
 .adoc-filtros-input--chica {
   flex: 0 1 160px;
 }
+.adoc-filtros-fijo-select {
+  flex: 0 0 auto;
+}
 .adoc-filtros-add {
   flex: 0 0 auto;
 }

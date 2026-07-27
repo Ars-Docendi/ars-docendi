@@ -2,19 +2,25 @@ import { useState } from "react";
 import { Input, Select } from "@ars-docendi/ui";
 import "./FiltrosLista.css";
 
-/** Campo de texto siempre visible, en la primera fila del filtro. */
-export interface CampoFiltroFijo {
-  clave: string;
-  placeholder: string;
-  ariaLabel: string;
-  /** "chica" para campos cortos (ids/números); por defecto ocupa el ancho disponible. */
-  ancho?: "normal" | "chica";
-}
-
 interface OpcionSelectFiltro {
   value: string;
   label: string;
 }
+
+interface CampoFiltroFijoBase {
+  clave: string;
+  ariaLabel: string;
+}
+
+/** Campo siempre visible, en la primera fila del filtro: texto (default) o select. */
+export type CampoFiltroFijo =
+  | (CampoFiltroFijoBase & {
+      tipo?: "texto";
+      placeholder: string;
+      /** "chica" para campos cortos (ids/números); por defecto ocupa el ancho disponible. */
+      ancho?: "normal" | "chica";
+    })
+  | (CampoFiltroFijoBase & { tipo: "select"; opciones: OpcionSelectFiltro[] });
 
 interface CampoFiltroOpcionalBase {
   clave: string;
@@ -71,20 +77,36 @@ export function FiltrosLista<T extends Record<string, string>>({
   return (
     <div className="adoc-filtros">
       <div className="adoc-filtros-fila">
-        {fijos.map((campo) => (
-          <Input
-            key={campo.clave}
-            className={
-              campo.ancho === "chica"
-                ? "adoc-filtros-input adoc-filtros-input--chica"
-                : "adoc-filtros-input"
-            }
-            placeholder={campo.placeholder}
-            value={valores[campo.clave] ?? ""}
-            onChange={(e) => set(campo.clave, e.target.value)}
-            aria-label={campo.ariaLabel}
-          />
-        ))}
+        {fijos.map((campo) =>
+          campo.tipo === "select" ? (
+            <span key={campo.clave} className="adoc-filtros-fijo-select">
+              <Select
+                value={valores[campo.clave] ?? ""}
+                onChange={(e) => set(campo.clave, e.target.value)}
+                aria-label={campo.ariaLabel}
+              >
+                {campo.opciones.map((op) => (
+                  <option key={op.value} value={op.value}>
+                    {op.label}
+                  </option>
+                ))}
+              </Select>
+            </span>
+          ) : (
+            <Input
+              key={campo.clave}
+              className={
+                campo.ancho === "chica"
+                  ? "adoc-filtros-input adoc-filtros-input--chica"
+                  : "adoc-filtros-input"
+              }
+              placeholder={campo.placeholder}
+              value={valores[campo.clave] ?? ""}
+              onChange={(e) => set(campo.clave, e.target.value)}
+              aria-label={campo.ariaLabel}
+            />
+          ),
+        )}
         {disponibles.length > 0 && (
           <span className="adoc-select-wrap adoc-filtros-add">
             <select

@@ -77,7 +77,7 @@
   height: 11px;
 }
 .adoc-novedad-chip.alta {
-  background: var(--color-status-success-bg);
+  background: var(--accent-200);
   color: var(--color-status-success-fg);
 }
 .adoc-novedad-chip.cambio {
@@ -127,9 +127,11 @@
   min-width: 0;
 }
 .adoc-estado-avance-txt {
+  overflow: hidden;
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .adoc-estado-avance.acento .adoc-estado-avance-txt {
   color: var(--accent-700);
@@ -143,16 +145,15 @@
 .adoc-estado-avance.peligro .adoc-estado-avance-txt {
   color: var(--color-status-danger-fg);
 }
-/* Stepper completo verde para Aceptado (reusa las barras de la card). */
-.adoc-pedido-stepper.exito .adoc-pedido-stepper-bar.lleno {
-  background: var(--success-500);
-}
-/* Dot de los estados terminales (sin avance). */
+/* Dot de los estados terminales (sin avance): Aceptado, Devuelto, Rechazado. */
 .adoc-estado-dot {
   width: 8px;
   height: 8px;
   flex: 0 0 auto;
   border-radius: var(--radius-pill);
+}
+.adoc-estado-avance.exito .adoc-estado-dot {
+  background: var(--success-500);
 }
 .adoc-estado-avance.alerta .adoc-estado-dot {
   background: var(--warning-500);
@@ -167,23 +168,24 @@
 .adoc-tabla {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-xs);
-  background: var(--color-bg-raised);
+  gap: var(--space-4);
 }
 .adoc-tabla-head,
 .adoc-tabla-row {
   display: grid;
   grid-template-columns:
-    minmax(160px, 1.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr)
-    44px;
+    minmax(160px, 1.6fr) minmax(80px, 0.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr)
+    minmax(110px, 0.9fr) minmax(180px, 1.5fr) 44px;
   align-items: center;
   gap: var(--space-4);
 }
 .adoc-tabla-head {
   padding: 10px 16px;
-  background: var(--color-bg-canvas);
+  /* Mismo fondo que el título del desplegable (`.adoc-seccion-header`) — pedido explícito del
+     cliente. La línea de arriba es lo que ahora separa uno de otro (antes no había nada entre
+     medio, y al compartir color quedaban fundidos en un solo bloque). */
+  background: var(--neutral-100);
+  border-top: 1px solid var(--color-border-default);
   border-bottom: 1px solid var(--color-border-strong);
 }
 .adoc-tabla-h {
@@ -231,6 +233,84 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.adoc-tabla-legajo,
+.adoc-tabla-fecha {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .adoc-tabla-prio {
   justify-content: center;
+}
+
+/* --- Secciones desplegables por etapa del circuito: cada una es su propia
+   card, separadas entre sí por `gap` en `.adoc-tabla` (no apiladas/pegadas). --- */
+/* Card en `--neutral-100` (no `--color-bg-raised`, blanco #fff puro y sin matiz) + franja de color
+   en el borde izquierdo: el fondo de página (`--color-bg-canvas` = `--neutral-200`) es un cálido
+   casi-neutro (oklch hue 75). `--neutral-100` comparte ese mismo matiz 75° (apenas más claro que el
+   fondo, oklch 98% vs 95%) — combina en vez de chocar como un blanco frío/sin matiz. La franja da la
+   identidad de color sin teñir toda la card. */
+.adoc-seccion-tabla {
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-left: 4px solid var(--accent-500);
+  border-radius: var(--radius-xs);
+  background: var(--neutral-100);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.adoc-seccion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--neutral-100);
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.adoc-seccion-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  transition: transform 0.15s ease;
+}
+.adoc-seccion-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+.adoc-seccion-chevron--colapsado {
+  transform: rotate(-90deg);
+}
+/* Color distinto al de los headers de columna (`.adoc-tabla-h`, gris chico)
+   para que el título de la sección no se confunda con las columnas. */
+.adoc-seccion-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-700);
+}
+.adoc-seccion-subtitulo {
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-seccion-contador {
+  flex: 0 0 auto;
+  min-width: 20px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  /* La card volvió a ser blanca (franja de color en el borde, no fill) — el contador puede volver
+     a ser un pill de color: un área chica de acento no choca con el fondo cálido como sí lo hacía
+     teñir toda la card. */
+  background: var(--accent-100);
+  color: var(--accent-700);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
 }

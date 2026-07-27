@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { TableroRevisionPage } from "./TableroRevisionPage";
@@ -44,5 +45,58 @@ describe("TableroRevisionPage — vista Tabla única (tema E)", () => {
 
     await screen.findByText("Asignatura");
     expect(screen.getByLabelText("Filtrar pedidos por turno")).toHaveValue("completa");
+  });
+
+  describe("filtro estilo Mis Pedidos (mismo componente FiltrosLista)", () => {
+    it("filtrar por Docente acota la lista", async () => {
+      const user = userEvent.setup();
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+        ).toBeInTheDocument();
+      });
+      await user.type(screen.getByLabelText("Filtrar por docente"), "valeria");
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ver el pedido de Pablo Herrera" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("agregar y quitar el filtro opcional Legajo acota la lista", async () => {
+      const user = userEvent.setup();
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Ver el pedido de Lucía Fernández" }),
+        ).toBeInTheDocument();
+      });
+
+      await user.selectOptions(screen.getByLabelText("Añadir filtro"), "legajo");
+      await user.type(screen.getByLabelText("Filtrar por legajo"), "1001");
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Lucía Fernández" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Quitar filtro de legajo" }));
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText("Filtrar por legajo")).not.toBeInTheDocument();
+    });
   });
 });
