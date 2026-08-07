@@ -25,10 +25,24 @@
     Ver openspec/changes/modelo-datos-identity-designaciones/design.md (D8).
   -->
   <ItemGroup>
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\..\database\audit\*.sql"
-                      Link="Sql\audit\%(Filename)%(Extension)" />
-    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\..\database\identity\*.sql"
-                      Link="Sql\identity\%(Filename)%(Extension)" />
+    <SqlAudit Include="$(MSBuildThisFileDirectory)..\..\..\database\audit\*.sql" />
+    <SqlIdentity Include="$(MSBuildThisFileDirectory)..\..\..\database\identity\*.sql" />
+    <EmbeddedResource Include="@(SqlAudit)" Link="Sql\audit\%(Filename)%(Extension)" />
+    <EmbeddedResource Include="@(SqlIdentity)" Link="Sql\identity\%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!--
+    Un glob de MSBuild que no matchea nada NO es un error: compila un assembly sin
+    recursos y el fallo recién aparece al correr las migraciones. Pasó exactamente
+    eso — el build context de Docker era `backend/`, `database/` quedaba afuera, y
+    el deploy explotó con "0 recursos disponibles". Fallar acá convierte un error
+    de deploy en un error de compilación.
+  -->
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlAudit)' == ''"
+           Text="No se encontró ningún .sql en database/audit/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+    <Error Condition="'@(SqlIdentity)' == ''"
+           Text="No se encontró ningún .sql en database/identity/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+  </Target>
 
 </Project>

@@ -190,6 +190,13 @@ Que el historial también haga `attach` no es contradictorio: responden pregunta
 
 Embeber como recurso da lo mejor de ambos: el SQL se escribe legible y diffeable, y se aplica determinísticamente por el mismo camino que el resto. `data-model.md` hay que corregirlo: hoy documenta migraciones EF puras.
 
+**Consecuencia descubierta en el primer deploy**: embeber convierte a `database/` en un **input de compilación**, y por lo tanto tiene que estar dentro del build context de Docker. La imagen del backend se construía con el contexto en `backend/`, así que los globs no matcheaban nada — y un glob vacío en MSBuild **no es un error**: compila un assembly sin recursos. El fallo apareció recién al correr `--migrate` en el ambiente del PR, con "0 recursos disponibles".
+
+Dos correcciones, y la segunda importa más que la primera:
+
+1. El contexto de la imagen del backend pasa a la raíz del repo (`docker build -f backend/Dockerfile .`), con un `.dockerignore` para no mandarle el repo entero al daemon. Se descartó mover `database/` bajo `backend/` porque invalidaría un requirement de la spec vigente `deploy-condicional-por-paths`, que declara `database/**` como trigger de deploy propio — no corresponde romper una spec ajena por un problema de plumbing.
+2. Los `.csproj` ganan un target `ValidarSqlEmbebido` que falla el build si el glob viene vacío. Esto convierte un error de deploy en un error de compilación, que es donde tiene que estar. La ausencia de este guard fue el defecto real; la ruta mal apuntada fue sólo el síntoma.
+
 ---
 
 ### D9 — `cargos` como catálogo único, con `orden`

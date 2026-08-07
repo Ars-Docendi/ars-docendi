@@ -1,7 +1,16 @@
 # syntax=docker/dockerfile:1
 #
 # Imagen del backend Ars Docendi (ArsDocendi.Host).
-# Contexto de build = carpeta `backend/` (los workflows corren `docker build … backend`).
+#
+# Contexto de build = RAÍZ del repo, no `backend/`:
+#   docker build -f backend/Dockerfile -t <tag> .
+#
+# El motivo es que los .csproj del backend embeben el DDL versionado de
+# `database/` como recurso del assembly (ver data-model.md → Migraciones). Ese
+# directorio es un input de compilación, así que tiene que estar dentro del
+# contexto. Con el contexto en `backend/` los globs no matcheaban nada, el
+# assembly compilaba sin recursos y las migraciones fallaban recién en el deploy.
+# Los .csproj ahora fallan el build si el glob viene vacío.
 
 # --- Stage build: SDK .NET 10 ---
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -9,11 +18,16 @@ WORKDIR /src
 
 # global.json fija la versión del SDK; copiarlo primero para que el restore
 # la respete antes de traer el resto del código.
-COPY global.json ./
-COPY . .
+COPY backend/global.json ./backend/
+COPY backend/ ./backend/
 
-RUN dotnet restore ArsDocendi.slnx
-RUN dotnet publish src/ArsDocendi.Host/ArsDocendi.Host.csproj \
+# DDL versionado: input de compilación, no artefacto de runtime. La ruta relativa
+# tiene que quedar igual que en el repo, porque los .csproj lo referencian con
+# ..\..\..\database desde backend/src/<Proyecto>/.
+COPY database/ ./database/
+
+RUN dotnet restore backend/ArsDocendi.slnx
+RUN dotnet publish backend/src/ArsDocendi.Host/ArsDocendi.Host.csproj \
     -c Release -o /app --no-restore
 
 # --- Stage runtime: ASP.NET 10, no-root ---

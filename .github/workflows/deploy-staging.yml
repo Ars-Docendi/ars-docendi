@@ -49,7 +49,9 @@ jobs:
       - name: Build & push imágenes
         run: |
           docker build -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
-          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" backend
+          # Contexto en la raíz: el backend embebe el DDL de database/ como
+          # recurso del assembly, así que es un input de compilación.
+          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
           docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
           docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
 

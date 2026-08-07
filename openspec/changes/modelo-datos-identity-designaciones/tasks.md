@@ -27,7 +27,9 @@
 
 - [x] 3.1 Configurar los `.sql` de `database/` como recursos embebidos del assembly correspondiente
 - [x] 3.2 Escribir el helper que lee un recurso embebido y lo ejecuta vía `migrationBuilder.Sql(...)` (`ArsDocendi.Shared/Persistencia/RecursosSql.cs`; nombres lógicos verificados contra los assemblies compilados)
-- [ ] 3.3 Verificar que la migración no dependa de rutas del filesystem (probar sobre la imagen de contenedor)
+- [x] 3.3 Verificar que la migración no dependa de rutas del filesystem — confirmado por el deploy de `pr-23`: el runtime nunca tocó el disco, falló por recursos embebidos faltantes
+- [x] 3.6 **Corregir el build context de la imagen del backend.** `docker build … backend` dejaba `database/` fuera del contexto, el glob del `.csproj` no matcheaba nada y MSBuild compilaba un assembly sin recursos **sin error**. El deploy de `pr-23` explotó con "0 recursos disponibles". Contexto movido a la raíz (`-f backend/Dockerfile .`) en los 3 workflows + `.dockerignore` nuevo
+- [x] 3.7 **Agregar el guard que faltaba**: target `ValidarSqlEmbebido` en ambos `.csproj`, que falla el build si el glob de `.sql` viene vacío. Verificado escondiendo `database/`: el build falla con el mensaje explícito. Este era el defecto real; la ruta mal apuntada era el síntoma
 - [ ] 3.4 Test: `--migrate` sobre base limpia crea todos los schemas y termina con exit 0 sin levantar el web server
 - [ ] 3.5 Test: reejecutar `--migrate` sobre una base ya migrada es idempotente y termina con exit 0
 

@@ -194,9 +194,21 @@ El motivo es que buena parte del schema EF Core no lo sabe generar:
 
 ### Cómo se aplican
 
-Los `.sql` se embeben como **recursos del assembly** (`<EmbeddedResource>` en el `.csproj`, apuntando a `database/` con `Link`), y la migración los ejecuta con `migrationBuilder.Sql(...)` leyéndolos con `ArsDocendi.Shared.Persistencia.RecursosSql`. Nunca se leen del filesystem en runtime: el deploy no depende de que `database/` viaje en la imagen.
+Los `.sql` se embeben como **recursos del assembly** (`<EmbeddedResource>` en el `.csproj`, apuntando a `database/` con `Link`), y la migración los ejecuta con `migrationBuilder.Sql(...)` leyéndolos con `ArsDocendi.Shared.Persistencia.RecursosSql`. Nunca se leen del filesystem en runtime: la imagen no necesita el directorio `database/`.
 
 El **orden** lo fija la migración que los invoca, no el nombre del archivo — hay dependencias entre schemas que el orden alfabético no respeta.
+
+### `database/` es un input de compilación
+
+Como el DDL se embebe, `database/` tiene que estar dentro del **build context de Docker**. Por eso la imagen del backend se construye con el contexto en la **raíz del repo**, no en `backend/`:
+
+```bash
+docker build -f backend/Dockerfile -t <tag> .
+```
+
+Esto se aprendió por las malas: con el contexto en `backend/`, los globs del `.csproj` no matcheaban nada, MSBuild compilaba un assembly **sin recursos y sin error**, y el fallo aparecía recién al correr `--migrate` en el ambiente desplegado. Los `.csproj` ahora tienen un target `ValidarSqlEmbebido` que falla el build si el glob viene vacío, así que ese modo de falla ya no puede repetirse en silencio.
+
+Al agregar un `.sql` nuevo no hace falta tocar nada del contexto — el glob por directorio ya lo cubre.
 
 ### Flujo para agregar una tabla
 
