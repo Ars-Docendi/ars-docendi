@@ -31,7 +31,7 @@ function pedido(
     catedra: "Cátedra X",
     carrera: CARRERA,
     docente: { dni: `${contador}`, nombre: `Docente ${contador}`, antiguedad: 3 },
-    asignaciones: [{ materia: "Materia X", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",

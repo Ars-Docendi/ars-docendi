@@ -8,6 +8,7 @@ import { MisPedidosPage } from "./MisPedidosPage";
 import { PedidoFormPage } from "./PedidoFormPage";
 import { listarMisPedidos, listarPedidosPorAmbito } from "../api/pedidosApi";
 import { setMockUser, setRolActivo } from "../../../shared/auth/dev/mockSession";
+import { construirActorContexto } from "../api/contextoActor";
 import type { ActorContexto } from "../types";
 
 // Integración del circuito completo: usa el stack real (hooks → api mock →
@@ -21,12 +22,7 @@ const COORD: ActorContexto = {
   nombre: "Demo",
   carrera: "Ingeniería en Informática",
 };
-const JC: ActorContexto = {
-  rol: "Jefe de Cátedra",
-  nombre: "Demo",
-  carrera: "Ingeniería en Informática",
-  catedra: "Ingeniería de Software",
-};
+const JC: ActorContexto = construirActorContexto("Jefe de Cátedra", "Demo");
 
 function nuevoClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });

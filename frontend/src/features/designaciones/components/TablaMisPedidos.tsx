@@ -3,7 +3,6 @@ import type { ActorContexto, PedidoDesignacion } from "../types";
 import { puedeEditarPedido, puedeEliminarPedido } from "../api/maquinaEstados";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 import { IconoX } from "./lucide";
-import { resumenMaterias } from "./detalleAdapters";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
@@ -85,7 +84,7 @@ export function TablaMisPedidos({
             {pedido.docente.legajo ?? "—"}
           </span>
           <span className="adoc-mp-cat" role="cell">
-            {resumenMaterias(pedido.asignaciones)}
+            {pedido.catedra}
           </span>
           <span className="adoc-mp-nov" role="cell">
             {etiquetaNovedadCorta(pedido)}

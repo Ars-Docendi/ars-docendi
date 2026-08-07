@@ -3,7 +3,6 @@ import type { ReactElement } from "react";
 import { Button, Modal, Textarea } from "@ars-docendi/ui";
 import type { ButtonVariant } from "@ars-docendi/ui";
 import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
-import { resumenMaterias } from "./detalleAdapters";
 
 /** Acciones de revisión que se confirman con este modal. */
 export type AccionRevision = "aceptar" | "rechazar" | "devolver" | "priorizar" | "despriorizar";
@@ -133,7 +132,7 @@ interface ConfigAccion {
 function construirConfig(accion: AccionRevision, pedido: PedidoDesignacion): ConfigAccion {
   const etapaActual = ETAPA_ACTUAL_LABEL[pedido.estado] ?? "tu etapa";
   const novedadFrase = NOVEDAD_FRASE[pedido.novedad];
-  const sujeto = `${novedadFrase} de Prof. ${pedido.docente.nombre} (${resumenMaterias(pedido.asignaciones)})`;
+  const sujeto = `${novedadFrase} de Prof. ${pedido.docente.nombre} (${pedido.catedra})`;
 
   switch (accion) {
     case "aceptar": {

@@ -13,11 +13,7 @@ import {
 } from "../components/ModalConfirmacionAccion";
 import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
 import { DatosTramite } from "../components/DatosTramite";
-import {
-  derivarCadena,
-  historialAAuditEntries,
-  resumenMaterias,
-} from "../components/detalleAdapters";
+import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
 import {
   actorAlcanzaAmbito,
   puedeAceptar,
@@ -192,7 +188,7 @@ function DetalleCargado({
     <>
       <PageHeader
         pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
-        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${resumenMaterias(pedido.asignaciones)}`}
+        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.catedra}`}
         meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
         actions={
           <div className="adoc-det-headactions">

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Repositories;
+using Modules.Designaciones.Services;
 
 namespace Modules.Designaciones;
 
@@ -17,6 +19,13 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
+
+        services.AddScoped<IUnidadDeTrabajo, UnidadDeTrabajo>();
+        services.AddScoped<IRepositorioPedidos, RepositorioPedidos>();
+        services.AddScoped<IRepositorioDesignaciones, RepositorioDesignaciones>();
+        services.AddScoped<MaterializadorDesignaciones>();
+        services.AddScoped<ResolutorActor>();
+        services.AddScoped<ServicioPedidos>();
 
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<DesignacionesDbContext>());
 

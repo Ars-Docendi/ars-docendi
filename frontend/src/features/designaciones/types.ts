@@ -38,7 +38,11 @@ export type Dedicacion =
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
 
-/** Una materia asignada a un pedido, con su carga horaria. */
+/**
+ * Una materia del docente con su carga horaria. Modela una fila de la designación
+ * vigente (`designaciones.designaciones` en el backend), NO una parte del pedido:
+ * un pedido cubre exactamente una materia y lleva sus horas como campo propio.
+ */
 export interface AsignacionMateria {
   materia: string;
   horas: number;
@@ -118,11 +122,16 @@ export interface PedidoDesignacion {
   /** Número de trámite legible (formato "N°-AAAA-NNNN"). Lo asigna el backend al persistir. */
   numero?: string;
   periodoId: string; // FK al período (SCRUM-82)
+  /**
+   * La cátedra del pedido, que **es** su materia: el rol `jefe_catedra` tiene ámbito
+   * de materia, así que cátedra y materia son el mismo concepto. Un pedido cubre
+   * exactamente una, y de ella se deriva la carrera (un único Coordinador competente).
+   */
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
   docente: DocentePedido;
-  /** Materias del pedido con su carga horaria. Mínimo 1 elemento (BR: no puede quedar vacío). */
-  asignaciones: AsignacionMateria[];
+  /** Carga horaria del docente en la cátedra del pedido. */
+  horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
@@ -142,10 +151,21 @@ export interface PedidoDesignacion {
   historial: EventoHistorial[];
 }
 
-/** Subconjunto editable de un pedido (lo que el form de alta/edición produce). */
+/**
+ * Subconjunto editable de un pedido (lo que el form de alta/edición produce).
+ * NO incluye `catedra`: la materia del pedido viene del ámbito del actor, no del
+ * form — un Jefe de Cátedra sólo carga pedidos sobre la cátedra que tiene a cargo.
+ */
 export interface DatosEditablesPedido {
   docente: DocentePedido;
-  asignaciones: AsignacionMateria[];
+  /**
+   * Cátedra del pedido, que es su materia. NO la elige el usuario: el form la
+   * recibe del ámbito del actor y la reenvía tal cual, porque define a qué
+   * Coordinador se rutea el pedido.
+   */
+  catedra: string;
+  /** Carga horaria en la cátedra del pedido. */
+  horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
@@ -164,5 +184,10 @@ export interface ActorContexto {
   rol: Rol;
   nombre: string;
   carrera?: string; // ámbito del Coordinador (depto implícito para Secretaría/Decanato/Administración)
-  catedra?: string; // ámbito del Jefe de Cátedra (cátedra que posee)
+  /**
+   * Cátedras que el Jefe de Cátedra tiene a cargo. Es una lista y no un valor
+   * único porque el rol tiene ámbito de materia y se puede otorgar varias veces
+   * al mismo usuario — se corresponde con `MateriasACargo` del backend.
+   */
+  catedras?: string[];
 }

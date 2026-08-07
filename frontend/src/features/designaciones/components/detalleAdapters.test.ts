@@ -14,7 +14,7 @@ function pedido(overrides: Partial<PedidoDesignacion> = {}): PedidoDesignacion {
     catedra: "Ingeniería de Software",
     carrera: "Ingeniería en Informática",
     docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",

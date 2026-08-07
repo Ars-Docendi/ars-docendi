@@ -1,11 +1,13 @@
 import { Field, Input, Select } from "@ars-docendi/ui";
-import type { AsignacionMateria, Cargo, Dedicacion } from "../types";
+import type { Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
 import { CARGOS, DEDICACIONES, indiceDedicacion } from "../api/catalogos";
-import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
+import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
 interface SeccionDesignacionSolicitadaProps {
-  asignaciones: AsignacionMateria[];
+  /** La cátedra del pedido. No se elige: viene del ámbito del actor. */
+  materia: string;
+  horas: number;
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   /** Cambio: dedicación vigente del docente. Filtra el Select a solo mejores (Categoría 0 = máxima). En Alta es `null` (no hay restricción). */
@@ -13,10 +15,7 @@ interface SeccionDesignacionSolicitadaProps {
   horasInvestigacion: number;
   horasExternas: number;
   errores: ErroresValidacion;
-  onAgregarMateria: () => void;
-  onQuitarMateria: (indice: number) => void;
-  onCambiarMateria: (indice: number, materia: string) => void;
-  onCambiarHoras: (indice: number, horas: number) => void;
+  onCambiarHoras: (horas: number) => void;
   onCargo: (valor?: Cargo) => void;
   onDedicacion: (valor?: Dedicacion) => void;
   onHorasInvestigacion: (valor: number) => void;
@@ -27,20 +26,17 @@ interface SeccionDesignacionSolicitadaProps {
  * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
  * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
  * dedicación (en Cambio, solo opciones mejores que la actual — ver D-7), la
- * lista de materias + horas (agregar/quitar/editar, mismo patrón en ambas
- * novedades), y horas de investigación/externas.
+ * materia de la cátedra con su carga horaria, y horas de investigación/externas.
  */
 export function SeccionDesignacionSolicitada({
-  asignaciones,
+  materia,
+  horas,
   cargoSolicitado,
   dedicacionSolicitada,
   dedicacionActual,
   horasInvestigacion,
   horasExternas,
   errores,
-  onAgregarMateria,
-  onQuitarMateria,
-  onCambiarMateria,
   onCambiarHoras,
   onCargo,
   onDedicacion,
@@ -83,12 +79,11 @@ export function SeccionDesignacionSolicitada({
         </Field>
       </div>
 
-      <SeccionMateriasHoras
-        asignaciones={asignaciones}
-        error={errores.asignaciones}
-        onAgregar={onAgregarMateria}
-        onQuitar={onQuitarMateria}
-        onCambiarMateria={onCambiarMateria}
+      <SeccionMateriaHoras
+        materia={materia}
+        horas={horas}
+        horasEditables
+        error={errores.horas}
         onCambiarHoras={onCambiarHoras}
       />
 

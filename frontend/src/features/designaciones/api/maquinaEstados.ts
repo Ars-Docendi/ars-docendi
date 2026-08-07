@@ -165,7 +165,11 @@ export function actorAlcanzaAmbito(pedido: PedidoDesignacion, actor: ActorContex
     case "Administración":
       return true;
     case "Jefe de Cátedra":
-      return actor.catedra ? pedido.catedra === actor.catedra : pedido.carrera === actor.carrera;
+      // Puede tener varias cátedras a cargo: alcanza el pedido si su materia es
+      // una de ellas. Sin cátedras declaradas cae al ámbito de carrera.
+      return actor.catedras?.length
+        ? actor.catedras.includes(pedido.catedra)
+        : pedido.carrera === actor.carrera;
     default:
       return false;
   }

@@ -44,9 +44,13 @@ public static class EstadosPedido
     /// Estados que NO ocupan el cupo de BR-designaciones-001. Debe coincidir con el
     /// <c>WHERE</c> del índice <c>pedidos_uno_por_docente_periodo</c>: si se
     /// desalinean, el backend y la base discrepan sobre qué es un duplicado.
+    /// <para>
+    /// Es un array y no un <c>HashSet</c> porque se usa dentro de una consulta LINQ:
+    /// EF Core traduce <c>Contains</c> sobre array a un <c>IN</c> de SQL, mientras que
+    /// sobre <c>IReadOnlySet</c> puede caer en evaluación del lado del cliente.
+    /// </para>
     /// </summary>
-    public static readonly IReadOnlySet<string> NoOcupanCupo =
-        new HashSet<string> { Rechazado, Cancelado };
+    public static readonly string[] NoOcupanCupo = [Rechazado, Cancelado];
 }
 
 /// <summary>Escala de dedicación, descendente: <c>Categoría 0</c> es la de mayor jerarquía.</summary>

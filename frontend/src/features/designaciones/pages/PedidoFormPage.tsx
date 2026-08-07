@@ -109,6 +109,7 @@ export function PedidoFormPage() {
 
       {!esEdicion && (
         <PedidoForm
+          catedra={actor.catedras?.[0] ?? ""}
           pedidosExistentes={pedidos ?? []}
           periodoLabel={periodoLabel}
           guardando={guardando}
@@ -120,6 +121,7 @@ export function PedidoFormPage() {
       {esEdicion && pedidoInicial && puedeEditarPedido(pedidoInicial, actor) && (
         <PedidoForm
           pedidoInicial={pedidoInicial}
+          catedra={pedidoInicial.catedra}
           pedidosExistentes={pedidos ?? []}
           esEdicion
           periodoLabel={periodoLabel}

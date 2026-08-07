@@ -11,7 +11,7 @@ import type {
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { DOCENTES_EXISTENTES, TIPOS_BAJA } from "../api/catalogos";
+import { DOCENTES_EXISTENTES, TIPOS_BAJA, horasVigentesEnCatedra } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
@@ -30,6 +30,12 @@ const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
 interface PedidoFormProps {
   pedidoInicial?: PedidoDesignacion;
   pedidosExistentes: PedidoDesignacion[];
+  /**
+   * Cátedra sobre la que se carga el pedido. Es su materia, y viene del ámbito del
+   * actor — no se elige en el form: un Jefe de Cátedra sólo tramita sobre la cátedra
+   * que tiene a cargo.
+   */
+  catedra: string;
   esEdicion?: boolean;
   /** Etiqueta del período abierto para el subtítulo ("2026 · 1C"). */
   periodoLabel?: string;
@@ -39,10 +45,11 @@ interface PedidoFormProps {
   onCancelar: () => void;
 }
 
-function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
+function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEditablesPedido {
   return {
     docente: pedido?.docente ?? { dni: "", nombre: "", antiguedad: 0 },
-    asignaciones: pedido?.asignaciones ?? [{ materia: "", horas: 0 }],
+    catedra: pedido?.catedra ?? catedra,
+    horas: pedido?.horas ?? 0,
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
     novedad: pedido?.novedad ?? "Sin novedad",
@@ -60,13 +67,16 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
 export function PedidoForm({
   pedidoInicial,
   pedidosExistentes,
+  catedra,
   esEdicion = false,
   periodoLabel = "2026 · 1C",
   guardando = false,
   onGuardar,
   onCancelar,
 }: PedidoFormProps) {
-  const [datos, setDatos] = useState<DatosEditablesPedido>(() => datosIniciales(pedidoInicial));
+  const [datos, setDatos] = useState<DatosEditablesPedido>(() =>
+    datosIniciales(catedra, pedidoInicial),
+  );
   const [errores, setErrores] = useState<ErroresValidacion>({});
 
   function actualizar<K extends keyof DatosEditablesPedido>(
@@ -94,7 +104,7 @@ export function PedidoForm({
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
-      materiasActuales: pedidoInicial.asignaciones,
+      materiasActuales: [{ materia: pedidoInicial.catedra, horas: pedidoInicial.horas }],
       horasInvestigacionActuales: pedidoInicial.horasInvestigacion,
       horasExternasActuales: pedidoInicial.horasExternas,
     });
@@ -114,7 +124,7 @@ export function PedidoForm({
         docente: { dni: "", nombre: "", antiguedad: 0 },
         cargoActual: null,
         dedicacionActual: null,
-        asignaciones: [{ materia: "", horas: 0 }],
+        horas: 0,
         horasInvestigacion: 0,
         horasExternas: 0,
       }));
@@ -130,41 +140,11 @@ export function PedidoForm({
       },
       cargoActual: docente.cargoActual,
       dedicacionActual: docente.dedicacionActual,
-      asignaciones: docente.materiasActuales.map((asignacion) => ({ ...asignacion })),
+      // Sólo las horas de la cátedra del pedido: un pedido cubre exactamente una
+      // materia, así que el resto de las designaciones del docente no participan.
+      horas: horasVigentesEnCatedra(docente, catedra) ?? 0,
       horasInvestigacion: docente.horasInvestigacionActuales,
       horasExternas: docente.horasExternasActuales,
-    }));
-  }
-
-  function agregarMateria() {
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: [...prev.asignaciones, { materia: "", horas: 0 }],
-    }));
-  }
-
-  function quitarMateria(indice: number) {
-    setDatos((prev) => {
-      if (prev.asignaciones.length <= 1) return prev; // BR: no puede quedar sin materias
-      return { ...prev, asignaciones: prev.asignaciones.filter((_, i) => i !== indice) };
-    });
-  }
-
-  function cambiarMateria(indice: number, materia: string) {
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: prev.asignaciones.map((asignacion, i) =>
-        i === indice ? { ...asignacion, materia } : asignacion,
-      ),
-    }));
-  }
-
-  function cambiarHoras(indice: number, horas: number) {
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: prev.asignaciones.map((asignacion, i) =>
-        i === indice ? { ...asignacion, horas } : asignacion,
-      ),
     }));
   }
 
@@ -273,8 +253,9 @@ export function PedidoForm({
           cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
           dedicacionActual={datos.dedicacionActual}
           dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
-          materiasActuales={docenteSeleccionado?.materiasActuales ?? []}
-          materiasSolicitadas={esCambio ? datos.asignaciones : undefined}
+          materia={catedra}
+          horasActuales={horasVigentesEnCatedra(docenteSeleccionado, catedra)}
+          horasSolicitadas={esCambio ? datos.horas : undefined}
           horasInvestigacionActuales={docenteSeleccionado?.horasInvestigacionActuales}
           horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
           horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
@@ -285,17 +266,15 @@ export function PedidoForm({
 
         {muestraSolicitud && (
           <SeccionDesignacionSolicitada
-            asignaciones={datos.asignaciones}
+            materia={catedra}
+            horas={datos.horas}
             cargoSolicitado={datos.cargoSolicitado}
             dedicacionSolicitada={datos.dedicacionSolicitada}
             dedicacionActual={datos.dedicacionActual}
             horasInvestigacion={datos.horasInvestigacion}
             horasExternas={datos.horasExternas}
             errores={errores}
-            onAgregarMateria={agregarMateria}
-            onQuitarMateria={quitarMateria}
-            onCambiarMateria={cambiarMateria}
-            onCambiarHoras={cambiarHoras}
+            onCambiarHoras={(valor) => actualizar("horas", valor)}
             onCargo={(valor) => actualizar("cargoSolicitado", valor)}
             onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
             onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}

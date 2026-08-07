@@ -63,6 +63,32 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Distinct()
                 .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
+        Guid usuarioId, string codigoRol, CancellationToken ct) =>
+        await db.UsuarioRoles
+                .AsNoTracking()
+                .Where(ur => ur.UsuarioId == usuarioId
+                          && ur.MateriaId != null
+                          && ur.Rol!.Codigo == codigoRol
+                          && ur.Rol.EsSistema
+                          && ur.Rol.Activo)
+                .Select(ur => ur.MateriaId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
+        Guid usuarioId, string codigoRol, CancellationToken ct) =>
+        await db.UsuarioRoles
+                .AsNoTracking()
+                .Where(ur => ur.UsuarioId == usuarioId
+                          && ur.CarreraId != null
+                          && ur.Rol!.Codigo == codigoRol
+                          && ur.Rol.EsSistema
+                          && ur.Rol.Activo)
+                .Select(ur => ur.CarreraId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
     public async Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct) =>
         await db.Materias
                 .AsNoTracking()

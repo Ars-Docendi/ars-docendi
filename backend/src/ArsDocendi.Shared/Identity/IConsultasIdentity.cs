@@ -49,6 +49,20 @@ public interface IConsultasIdentity
     /// <summary>Códigos de permiso efectivos del usuario, unión de todos sus roles vigentes.</summary>
     Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct);
 
+    /// <summary>
+    /// Materias sobre las que el usuario tiene vigente el rol de sistema indicado.
+    /// Es el ámbito del Jefe de Cátedra: las cátedras que tiene a cargo.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
+        Guid usuarioId, string codigoRol, CancellationToken ct);
+
+    /// <summary>
+    /// Carreras sobre las que el usuario tiene vigente el rol de sistema indicado.
+    /// Es el ámbito del Coordinador.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
+        Guid usuarioId, string codigoRol, CancellationToken ct);
+
     /// <summary>Carrera a la que pertenece la materia, o <c>null</c> si la materia no existe.</summary>
     Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct);
 }

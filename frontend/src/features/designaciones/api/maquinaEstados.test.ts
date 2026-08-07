@@ -20,7 +20,7 @@ function pedidoBorrador(overrides: Partial<PedidoDesignacion> = {}): PedidoDesig
     catedra: "Ingeniería de Software",
     carrera: "Ingeniería en Informática",
     docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5 },
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Sin novedad",
@@ -36,7 +36,8 @@ function pedidoBorrador(overrides: Partial<PedidoDesignacion> = {}): PedidoDesig
 
 const DATOS_EDITADOS: DatosEditablesPedido = {
   docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 6 },
-  asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+  catedra: "Ingeniería de Software",
+  horas: 4,
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
   novedad: "Sin novedad",
@@ -78,9 +79,7 @@ describe("aplicarAccion — máquina de estados (lado Jefe de Cátedra)", () => 
         JC,
       );
       expect(resultado.estado).toBe("borrador");
-      expect(resultado.asignaciones).toEqual([
-        { materia: "Algoritmos y Estructuras de Datos", horas: 4 },
-      ]);
+      expect(resultado.horas).toBe(4);
       expect(resultado.horasExternas).toBe(2);
     });
 

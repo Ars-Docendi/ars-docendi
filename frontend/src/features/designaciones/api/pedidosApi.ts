@@ -33,10 +33,10 @@ function requerirPedido(id: string): PedidoDesignacion {
   return pedido;
 }
 
-/** Un pedido pertenece a "Mis pedidos" del JC si es de su cátedra. */
+/** Un pedido pertenece a "Mis pedidos" del JC si es de alguna de sus cátedras. */
 function esDelJefeDeCatedra(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
-  if (actor.catedra) {
-    return pedido.catedra === actor.catedra;
+  if (actor.catedras?.length) {
+    return actor.catedras.includes(pedido.catedra);
   }
   return pedido.carrera === actor.carrera;
 }
@@ -85,10 +85,12 @@ export async function crearPedido(
     id: crypto.randomUUID(),
     numero: siguienteNumeroTramite(),
     periodoId: PERIODO_ABIERTO_ID,
-    catedra: actor.catedra ?? "",
+    // La cátedra viaja en los datos del form, no se deduce del actor: con varias
+    // cátedras a cargo, cuál es la del pedido sólo lo sabe la pantalla.
+    catedra: datos.catedra,
     carrera: actor.carrera ?? "",
     docente: datos.docente,
-    asignaciones: datos.asignaciones,
+    horas: datos.horas,
     cargoActual: datos.cargoActual,
     dedicacionActual: datos.dedicacionActual,
     novedad: datos.novedad,

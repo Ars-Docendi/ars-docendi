@@ -5,7 +5,14 @@ import { PedidoForm } from "./PedidoForm";
 import type { DatosEditablesPedido } from "../types";
 
 function renderForm(onGuardar = vi.fn()) {
-  render(<PedidoForm pedidosExistentes={[]} onGuardar={onGuardar} onCancelar={vi.fn()} />);
+  render(
+    <PedidoForm
+      catedra="Ingeniería de Software"
+      pedidosExistentes={[]}
+      onGuardar={onGuardar}
+      onCancelar={vi.fn()}
+    />,
+  );
   return { onGuardar, user: userEvent.setup() };
 }
 
@@ -18,11 +25,11 @@ function panelDatosActuales(): HTMLElement {
   return panel as HTMLElement;
 }
 
-/** Completa los campos no-adjunto de un Alta (docente nuevo + designación + una materia). */
+/** Completa los campos no-adjunto de un Alta. La materia no se completa: es la
+ * cátedra del actor y se muestra de solo lectura. */
 async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByPlaceholderText("Ej. 30111222"), "30111222");
   await user.type(screen.getByPlaceholderText("Ej. Pérez, Ana"), "Pérez, Ana");
-  await user.selectOptions(screen.getByLabelText("Materia"), "Ingeniería de Software");
   await user.clear(screen.getByLabelText("Horas"));
   await user.type(screen.getByLabelText("Horas"), "4");
   await user.selectOptions(screen.getByLabelText("Cargo solicitado"), "Ayudante");
@@ -78,36 +85,33 @@ describe("PedidoForm", () => {
     });
   });
 
-  describe("materias y horas", () => {
-    it("en Alta arranca con una fila (sin acción de quitar) y permite agregar/quitar", async () => {
+  describe("materia y horas", () => {
+    // Un pedido cubre exactamente una materia: la cátedra del actor. Por eso la
+    // materia no se elige ni se agrega/quita — sólo la carga horaria es editable.
+    it("en Alta muestra la materia de la cátedra sin ofrecer elegirla ni agregar otras", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
 
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(1);
+      const seccionMateria = document.querySelector(".adoc-pf-materias") as HTMLElement;
+      expect(within(seccionMateria).getByText("Ingeniería de Software")).toBeInTheDocument();
+
+      // Sin Select de materia, sin agregar, sin quitar.
+      expect(within(seccionMateria).queryByRole("combobox")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Agregar materia" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Quitar materia/ })).not.toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: "Agregar materia" }));
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(2);
-      expect(screen.getAllByRole("button", { name: /Quitar materia/ })).toHaveLength(2);
-
-      await user.click(screen.getAllByRole("button", { name: /Quitar materia/ })[0]);
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(1);
-      // Con una sola fila no se puede quitar más (mínimo 1 obligatorio).
-      expect(screen.queryByRole("button", { name: /Quitar materia/ })).not.toBeInTheDocument();
+      // Las horas sí son editables.
+      expect(screen.getByLabelText("Horas")).toBeInTheDocument();
     });
 
-    it("en Cambio precarga las materias del docente y admite agregar/quitar/cambiar", async () => {
+    it("en Cambio precarga las horas vigentes del docente en esa cátedra", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene 2 materias en el catálogo.
+      // Lucía Fernández tiene 4h en "Ingeniería de Software" (y 6h en otra materia,
+      // que no participa de este pedido).
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(2);
 
-      await user.click(screen.getByRole("button", { name: "Agregar materia" }));
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(3);
-
-      await user.click(screen.getAllByRole("button", { name: /Quitar materia/ })[0]);
-      expect(screen.getAllByLabelText("Materia")).toHaveLength(2);
+      expect(screen.getByLabelText("Horas")).toHaveValue(4);
     });
 
     it("carga horas de investigación y externas en Alta", async () => {
@@ -204,28 +208,30 @@ describe("PedidoForm", () => {
       expect(panel.getAllByText("0h")).toHaveLength(1);
     });
 
-    it("compara el listado de materias por nombre (agregada/quitada/sin cambios)", async () => {
+    it("muestra la transición de la carga horaria de la materia", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández: Programación I (6h) + Ingeniería de Software (4h).
+      // Lucía Fernández tiene 4h en "Ingeniería de Software", la cátedra del pedido.
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
 
-      // Quita "Programación I" (primera fila) y agrega una materia nueva.
-      await user.click(screen.getAllByRole("button", { name: /Quitar materia/ })[0]);
-      await user.click(screen.getByRole("button", { name: "Agregar materia" }));
-      const selectsMateria = screen.getAllByLabelText("Materia");
-      await user.selectOptions(selectsMateria[selectsMateria.length - 1], "Bases de Datos");
-      const inputsHoras = screen.getAllByLabelText("Horas");
-      await user.clear(inputsHoras[inputsHoras.length - 1]);
-      await user.type(inputsHoras[inputsHoras.length - 1], "3");
+      await user.clear(screen.getByLabelText("Horas"));
+      await user.type(screen.getByLabelText("Horas"), "8");
 
       const panel = within(panelDatosActuales());
-      expect(panel.getByText("Materias")).toBeInTheDocument();
-      expect(panel.getByText("Programación I")).toBeInTheDocument();
-      // Quitada: se ve tachada, pero sigue mostrando la carga horaria que tenía.
-      expect(panel.getByText("6h")).toBeInTheDocument();
-      expect(panel.getByText("Bases de Datos")).toBeInTheDocument();
-      expect(panel.getByText("3h")).toBeInTheDocument();
+      expect(panel.getByText("Materia")).toBeInTheDocument();
+      expect(panel.getByText("Ingeniería de Software")).toBeInTheDocument();
+      expect(panel.getByText("4h")).toBeInTheDocument();
+      expect(panel.getByText("8h")).toBeInTheDocument();
+    });
+
+    it("una carga horaria sin cambios se muestra sin transición", async () => {
+      const { user } = renderForm();
+      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
+      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+
+      // Sin tocar las horas: valor plano, una sola vez.
+      const panel = within(panelDatosActuales());
+      expect(panel.getAllByText("4h")).toHaveLength(1);
     });
   });
 
@@ -293,6 +299,7 @@ describe("PedidoForm", () => {
       const onGuardar = vi.fn();
       render(
         <PedidoForm
+          catedra="Ingeniería de Software"
           pedidoInicial={{
             id: "p1",
             numero: "N°-2026-0001",
@@ -300,7 +307,7 @@ describe("PedidoForm", () => {
             catedra: "Ingeniería de Software",
             carrera: "Ingeniería en Informática",
             docente: { dni: "28341567", nombre: "Lucía Fernández", antiguedad: 8 },
-            asignaciones: [{ materia: "Programación I", horas: 6 }],
+            horas: 6,
             cargoActual: "Adjunto",
             dedicacionActual: "Categoría 3",
             novedad: "Sin novedad",

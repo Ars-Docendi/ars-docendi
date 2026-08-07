@@ -11,7 +11,7 @@ const PEDIDO: PedidoDesignacion = {
   catedra: "Programación I",
   carrera: "Ingeniería en Informática",
   docente: { dni: "30111222", nombre: "Lucía Fernández", antiguedad: 5 },
-  asignaciones: [{ materia: "Programación I", horas: 6 }],
+  horas: 6,
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
   novedad: "Cambio de cargo o dedicación",

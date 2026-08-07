@@ -8,7 +8,6 @@
 // ============================================================
 import type {
   Adjunto,
-  AsignacionMateria,
   EstadoPedido,
   EventoHistorial,
   Novedad,
@@ -19,11 +18,12 @@ import type {
 /** Período abierto sobre el que se cargan los pedidos (FK a periodosMock id "1"). */
 export const PERIODO_ABIERTO_ID = "1";
 
-const CATEDRA = "Ingeniería de Software";
 const CARRERA = "Ingeniería en Informática";
+
 const JC_NOMBRE = "G. Ruiz";
 
 let contadorId = 0;
+
 function siguienteId(prefijo: string): string {
   contadorId += 1;
   return `${prefijo}-${contadorId}`;
@@ -31,7 +31,9 @@ function siguienteId(prefijo: string): string {
 
 /** Número de trámite legible ("N°-AAAA-NNNN"). En el real lo asigna el backend. */
 const ANIO_NUMERO = 2026;
+
 let contadorNumero = 0;
+
 function siguienteNumero(): string {
   contadorNumero += 1;
   return `N°-${ANIO_NUMERO}-${String(123 + contadorNumero).padStart(4, "0")}`;
@@ -43,7 +45,10 @@ interface SemillaPedido {
   /** Legajo institucional. Ausente en una Alta: el docente todavía no existe en el sistema. */
   legajo?: string;
   antiguedad: number;
-  asignaciones: AsignacionMateria[];
+  /** La cátedra del pedido. Es su materia: un pedido cubre exactamente una. */
+  materia: string;
+  /** Carga horaria del docente en esa cátedra. */
+  horas: number;
   cargoActual: PedidoDesignacion["cargoActual"];
   dedicacionActual: PedidoDesignacion["dedicacionActual"];
   novedad: Novedad;
@@ -59,9 +64,9 @@ interface SemillaPedido {
   horasInvestigacion?: number;
   etapaRetorno?: PedidoDesignacion["etapaRetorno"];
   propietarioActual?: PedidoDesignacion["propietarioActual"];
-  // Overrides de ámbito: por defecto la cátedra/carrera del JC Gustavo Ruiz.
+  // Override de ámbito: por defecto la carrera del JC Gustavo Ruiz. La cátedra no
+  // se sobreescribe — es la materia del propio pedido.
   carrera?: string;
-  catedra?: string;
 }
 
 function eventoCreacion(): EventoHistorial {
@@ -128,6 +133,7 @@ function eventoRechazo(): EventoHistorial {
 
 const ACEPTA_COORD = (): EventoHistorial =>
   eventoAceptacion("Coordinador", "M. Díaz", "en_revision_secretaria", "2026-06-15T10:00:00.000Z");
+
 const ACEPTA_SECRE = (): EventoHistorial =>
   eventoAceptacion(
     "Secretaría",
@@ -135,6 +141,7 @@ const ACEPTA_SECRE = (): EventoHistorial =>
     "en_revision_decanato",
     "2026-06-17T09:00:00.000Z",
   );
+
 const ACEPTA_DECANO = (): EventoHistorial =>
   eventoAceptacion("Decanato", "R. Sosa", "en_lote", "2026-06-18T16:00:00.000Z");
 
@@ -172,7 +179,7 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     id: siguienteId("ped"),
     numero: siguienteNumero(),
     periodoId: PERIODO_ABIERTO_ID,
-    catedra: semilla.catedra ?? CATEDRA,
+    catedra: semilla.materia,
     carrera: semilla.carrera ?? CARRERA,
     docente: {
       dni: semilla.dni,
@@ -180,7 +187,7 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
       antiguedad: semilla.antiguedad,
       legajo: semilla.legajo,
     },
-    asignaciones: semilla.asignaciones,
+    horas: semilla.horas,
     cargoActual: semilla.cargoActual,
     dedicacionActual: semilla.dedicacionActual,
     novedad: semilla.novedad,
@@ -210,7 +217,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Laura Giménez",
     legajo: "1002",
     antiguedad: 12,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
+    materia: "Ingeniería de Software",
+    horas: 8,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
     novedad: "Sin novedad",
@@ -222,7 +230,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Valeria Suárez",
     legajo: "1005",
     antiguedad: 9,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    materia: "Ingeniería de Software",
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -238,7 +247,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Pablo Herrera",
     legajo: "1006",
     antiguedad: 6,
-    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
+    materia: "Algoritmos y Estructuras de Datos",
+    horas: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -253,7 +263,8 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "32110099",
     nombre: "Brenda Ortiz",
     antiguedad: 2,
-    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+    materia: "Algoritmos y Estructuras de Datos",
+    horas: 4,
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -272,7 +283,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Diego Morales",
     legajo: "1003",
     antiguedad: 7,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    materia: "Ingeniería de Software",
+    horas: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Sin novedad",
@@ -285,7 +297,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Sofía Romano",
     legajo: "1004",
     antiguedad: 4,
-    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+    materia: "Algoritmos y Estructuras de Datos",
+    horas: 4,
     cargoActual: "Ayudante",
     dedicacionActual: "Categoría 5",
     novedad: "Baja",
@@ -301,7 +314,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Martín Acosta",
     legajo: "1008",
     antiguedad: 10,
-    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    materia: "Bases de Datos",
+    horas: 6,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 1",
     novedad: "Cambio de cargo o dedicación",
@@ -316,7 +330,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Lucía Fernández",
     legajo: "1001",
     antiguedad: 8,
-    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    materia: "Programación I",
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -332,7 +347,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Florencia Cabrera",
     legajo: "1009",
     antiguedad: 5,
-    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    materia: "Sistemas Operativos",
+    horas: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -347,7 +363,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Hernán Vidal",
     legajo: "1010",
     antiguedad: 9,
-    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    materia: "Matemática Discreta",
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -362,7 +379,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Gabriel Núñez",
     legajo: "1007",
     antiguedad: 11,
-    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    materia: "Ingeniería de Software",
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -378,7 +396,8 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "34221100",
     nombre: "Ignacio Paz",
     antiguedad: 0,
-    asignaciones: [{ materia: "Redes de Computadoras", horas: 4 }],
+    materia: "Redes de Computadoras",
+    horas: 4,
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -397,7 +416,8 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "34556677",
     nombre: "Carla Beltrán",
     antiguedad: 0,
-    asignaciones: [{ materia: "Bases de Datos", horas: 4 }],
+    materia: "Bases de Datos",
+    horas: 4,
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -416,7 +436,8 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "34881122",
     nombre: "Rodrigo Funes",
     antiguedad: 0,
-    asignaciones: [{ materia: "Sistemas Operativos", horas: 4 }],
+    materia: "Sistemas Operativos",
+    horas: 4,
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -436,7 +457,8 @@ const SEMILLAS: SemillaPedido[] = [
     dni: "34009988",
     nombre: "Melina Suárez",
     antiguedad: 0,
-    asignaciones: [{ materia: "Matemática Discreta", horas: 4 }],
+    materia: "Matemática Discreta",
+    horas: 4,
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -456,7 +478,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Esteban Roldán",
     legajo: "1011",
     antiguedad: 15,
-    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    materia: "Programación I",
+    horas: 6,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 1",
     novedad: "Baja",
@@ -472,7 +495,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Patricia Núñez",
     legajo: "1012",
     antiguedad: 20,
-    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    materia: "Bases de Datos",
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Baja",
@@ -488,7 +512,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Osvaldo Cabral",
     legajo: "1013",
     antiguedad: 18,
-    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    materia: "Sistemas Operativos",
+    horas: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Baja",
@@ -507,7 +532,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Nora Aguirre",
     legajo: "1014",
     antiguedad: 25,
-    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    materia: "Matemática Discreta",
+    horas: 6,
     cargoActual: "Titular",
     dedicacionActual: "Categoría 0",
     novedad: "Baja",
@@ -521,7 +547,8 @@ const SEMILLAS: SemillaPedido[] = [
     nombre: "Mariano Tévez",
     legajo: "2001",
     antiguedad: 6,
-    asignaciones: [{ materia: "Física I", horas: 6 }],
+    materia: "Física I",
+    horas: 6,
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -530,7 +557,6 @@ const SEMILLAS: SemillaPedido[] = [
     justificacion: "Reasignación de carga horaria en la carrera de Industrial.",
     estado: "en_revision_coordinador",
     carrera: "Ingeniería Industrial",
-    catedra: "Física I",
   },
 ];
 

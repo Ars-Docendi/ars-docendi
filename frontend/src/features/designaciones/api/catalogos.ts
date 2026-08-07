@@ -144,3 +144,18 @@ export function buscarDocenteExistente(dni: string): DocenteExistente | undefine
   const limpio = dni.replace(/\D/g, "");
   return DOCENTES_EXISTENTES.find((docente) => docente.dni === limpio);
 }
+
+/**
+ * Carga horaria vigente del docente en una cátedra puntual.
+ * <p>
+ * Un docente puede dictar en varias materias, pero un pedido cubre exactamente una:
+ * el form sólo necesita las horas de la cátedra sobre la que se está tramitando.
+ * Devuelve `undefined` si el docente no tiene designación vigente ahí — el caso
+ * normal de un Alta.
+ */
+export function horasVigentesEnCatedra(
+  docente: DocenteExistente | undefined,
+  catedra: string,
+): number | undefined {
+  return docente?.materiasActuales.find((asignacion) => asignacion.materia === catedra)?.horas;
+}

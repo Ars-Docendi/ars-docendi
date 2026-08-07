@@ -118,9 +118,7 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Dedicación">
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
-        <Dato etiqueta="Materias">
-          {pedido.asignaciones.map((a) => `${a.materia} (${a.horas}h)`).join(" · ") || "—"}
-        </Dato>
+        <Dato etiqueta="Materias">{`${pedido.catedra} (${pedido.horas}h)`}</Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
             {pedido.horasInvestigacion} h semanales

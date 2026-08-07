@@ -1,15 +1,8 @@
 import { Field, Input, Select } from "@ars-docendi/ui";
-import type {
-  AsignacionMateria,
-  Cargo,
-  Dedicacion,
-  DocenteExistente,
-  DocentePedido,
-  Novedad,
-} from "../types";
+import type { Cargo, Dedicacion, DocenteExistente, DocentePedido, Novedad } from "../types";
 import { formatearDni } from "../api/catalogos";
 import { DatosActualesPanel } from "./DatosActualesPanel";
-import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
+import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
 interface SeccionDocentePedidoProps {
   novedad: Novedad;
@@ -23,10 +16,12 @@ interface SeccionDocentePedidoProps {
   dedicacionActual: Dedicacion | null;
   /** Cambio: dedicación solicitada, para mostrar la transición en el panel. */
   dedicacionSolicitada?: Dedicacion;
-  /** Materias vigentes del docente seleccionado (catálogo). En Baja se listan todas, de solo lectura. */
-  materiasActuales: AsignacionMateria[];
-  /** Cambio: materias tal como quedan editadas en el form — dispara el resumen de cambios del panel. */
-  materiasSolicitadas?: AsignacionMateria[];
+  /** La cátedra del pedido: un pedido cubre exactamente una materia. */
+  materia: string;
+  /** Horas vigentes del docente en esa cátedra. */
+  horasActuales?: number;
+  /** Cambio: horas tal como quedan editadas en el form. */
+  horasSolicitadas?: number;
   horasInvestigacionActuales?: number;
   horasInvestigacionSolicitadas?: number;
   horasExternasActuales?: number;
@@ -65,8 +60,9 @@ export function SeccionDocentePedido({
   cargoSolicitado,
   dedicacionActual,
   dedicacionSolicitada,
-  materiasActuales,
-  materiasSolicitadas,
+  materia,
+  horasActuales,
+  horasSolicitadas,
   horasInvestigacionActuales,
   horasInvestigacionSolicitadas,
   horasExternasActuales,
@@ -119,8 +115,9 @@ export function SeccionDocentePedido({
               cargoSolicitado={cargoSolicitado}
               dedicacionActual={dedicacionActual}
               dedicacionSolicitada={dedicacionSolicitada}
-              materiasActuales={materiasActuales}
-              materiasSolicitadas={materiasSolicitadas}
+              materia={materia}
+              horasActuales={horasActuales}
+              horasSolicitadas={horasSolicitadas}
               mostrarMateria={novedad === "Sin novedad"}
               horasInvestigacionActuales={horasInvestigacionActuales}
               horasInvestigacionSolicitadas={horasInvestigacionSolicitadas}
@@ -129,7 +126,7 @@ export function SeccionDocentePedido({
             />
           )}
           {muestraDatosActuales && esBaja && (
-            <SeccionMateriasHoras asignaciones={materiasActuales} soloLectura />
+            <SeccionMateriaHoras materia={materia} horas={horasActuales ?? 0} />
           )}
         </>
       )}

@@ -2,19 +2,25 @@
 
 ### Requirement: Materia y horas del pedido
 
-El pedido de designación SHALL corresponder a exactamente una materia —la cátedra sobre la que el Jefe de Cátedra opera— con su carga horaria. El formulario SHALL exponer la materia y sus horas según la novedad: en "Alta" ambas son editables; en "Cambio de cargo o dedicación" las horas son editables y la materia queda fijada a la cátedra del pedido; en "Baja" y "Sin novedad" ambas son de solo lectura, como contexto de qué queda vacante o qué sigue vigente. El formulario MUST NOT ofrecer agregar ni quitar materias.
+El pedido de designación SHALL corresponder a exactamente una materia —la cátedra sobre la que el Jefe de Cátedra opera— con su carga horaria. La materia MUST NOT ser editable en ninguna novedad: proviene del ámbito del actor, no del formulario, porque determina a qué Coordinador se rutea el pedido. La carga horaria SHALL ser editable en "Alta" y en "Cambio de cargo o dedicación", y de solo lectura en "Baja" y "Sin novedad", donde es contexto de qué queda vacante o qué sigue vigente. El formulario MUST NOT ofrecer agregar ni quitar materias.
 
 #### Scenario: Alta captura la materia de la cátedra y sus horas
 
 - **GIVEN** un Jefe de Cátedra cargando un pedido de novedad "Alta"
 - **WHEN** completa la carga horaria de la materia
-- **THEN** el pedido guarda la materia de su cátedra junto con esas horas
+- **THEN** el pedido guarda la materia de su cátedra junto con esas horas, sin haberle ofrecido elegir la materia
 
 #### Scenario: Cambio permite editar las horas, no la materia
 
 - **GIVEN** un pedido de novedad "Cambio de cargo o dedicación"
 - **WHEN** el Jefe de Cátedra visualiza el formulario
 - **THEN** ve la carga horaria en un campo editable y la materia fijada a la cátedra del pedido, sin control para cambiarla
+
+#### Scenario: Cambio precarga las horas vigentes de esa cátedra
+
+- **GIVEN** un docente con designaciones vigentes en más de una materia
+- **WHEN** el Jefe de Cátedra lo selecciona en un pedido de "Cambio de cargo o dedicación"
+- **THEN** el formulario precarga únicamente las horas de la cátedra del pedido, sin considerar las de sus otras materias
 
 #### Scenario: Baja y Sin novedad muestran materia y horas de solo lectura
 

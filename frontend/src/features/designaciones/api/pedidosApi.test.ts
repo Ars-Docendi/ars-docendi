@@ -15,7 +15,7 @@ const JC: ActorContexto = {
   rol: "Jefe de Cátedra",
   nombre: "G. Ruiz",
   carrera: "Ingeniería en Informática",
-  catedra: "Ingeniería de Software",
+  catedras: ["Ingeniería de Software"],
 };
 
 const COORD: ActorContexto = {
@@ -27,7 +27,8 @@ const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
 
 const DATOS_ALTA: DatosEditablesPedido = {
   docente: { dni: "40222333", nombre: "Camila Vega", antiguedad: 0 },
-  asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+  catedra: "Ingeniería de Software",
+  horas: 6,
   cargoActual: null,
   dedicacionActual: null,
   novedad: "Alta",

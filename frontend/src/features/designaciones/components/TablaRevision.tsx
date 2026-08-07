@@ -13,7 +13,6 @@ import { aplicarFiltros } from "./filtrosTablero";
 import { NovedadChip, PrioridadFlagIcono } from "./NovedadChip";
 import { EstadoAvance } from "./EstadoAvance";
 import { IconoChevronDown } from "./lucide";
-import { resumenMaterias } from "./detalleAdapters";
 import "./revision.css";
 
 interface TablaRevisionProps {
@@ -144,7 +143,7 @@ function FilaTablaRevision({
         <span className="adoc-tabla-nombre">{pedido.docente.nombre}</span>
       </span>
       <span className="adoc-tabla-c adoc-tabla-legajo">{pedido.docente.legajo ?? "—"}</span>
-      <span className="adoc-tabla-c adoc-tabla-asig">{resumenMaterias(pedido.asignaciones)}</span>
+      <span className="adoc-tabla-c adoc-tabla-asig">{pedido.catedra}</span>
       <span className="adoc-tabla-c">
         <NovedadChip novedad={pedido.novedad} />
       </span>
