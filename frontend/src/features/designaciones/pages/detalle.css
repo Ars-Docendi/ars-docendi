@@ -11,6 +11,19 @@
   gap: var(--space-5);
 }
 
+/* --- Header: botón Volver + badge de estado (reforzado, mismo lugar de siempre) --- */
+.adoc-det-headactions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.adoc-det-headactions .adoc-badge {
+  height: 28px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* --- Card base + divisores + eyebrow --- */
 .adoc-card {
   background: var(--color-bg-raised);
@@ -296,6 +309,11 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-text-secondary);
+}
+.adoc-justif-quote--danger {
+  border-left-color: var(--color-status-danger-fg);
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
 }
 
 /* --- Documentación adjunta --- */

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   aceptarPedido,
   crearPedido,
+  eliminarPedido,
   enviarPedido,
   listarMisPedidos,
   listarPedidosPorAmbito,
@@ -26,13 +27,14 @@ const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
 
 const DATOS_ALTA: DatosEditablesPedido = {
   docente: { dni: "40222333", nombre: "Camila Vega", antiguedad: 0 },
-  materiaAsociada: "Ingeniería de Software",
+  asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
   cargoActual: null,
   dedicacionActual: null,
   novedad: "Alta",
   cargoSolicitado: "Ayudante",
   dedicacionSolicitada: "Categoría 5",
-  haceHorasOtroDepto: false,
+  horasExternas: 0,
+  horasInvestigacion: 0,
   adjuntos: [
     { id: "a1", nombre: "cv.pdf", tipo: "cv" },
     { id: "a2", nombre: "frente.jpg", tipo: "dni_frente" },
@@ -65,6 +67,33 @@ describe("pedidosApi — seam mock", () => {
 
     const recuperado = await obtenerPedido(creado.id);
     expect(recuperado.estado).toBe("en_revision_coordinador");
+  });
+});
+
+describe("pedidosApi — eliminar pedido en borrador (mis-pedidos-simplificado)", () => {
+  it("elimina un borrador propio del JC", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+    await eliminarPedido(creado.id, JC);
+
+    const lista = await listarMisPedidos(JC);
+    expect(lista.some((p) => p.id === creado.id)).toBe(false);
+    await expect(obtenerPedido(creado.id)).rejects.toThrow();
+  });
+
+  it("rechaza eliminar un pedido que no está en borrador", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+    await enviarPedido(creado.id, JC);
+
+    await expect(eliminarPedido(creado.id, JC)).rejects.toThrow(/borrador/i);
+
+    const lista = await listarMisPedidos(JC);
+    expect(lista.some((p) => p.id === creado.id)).toBe(true);
+  });
+
+  it("rechaza eliminar si el actor no es el Jefe de Cátedra", async () => {
+    const creado = await crearPedido(DATOS_ALTA, JC);
+
+    await expect(eliminarPedido(creado.id, COORD)).rejects.toThrow(/Jefe de Cátedra/);
   });
 });
 

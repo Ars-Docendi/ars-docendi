@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   aceptarPedido,
-  cancelarPedido,
   crearPedido,
+  despriorizarPedido,
   devolverPedido,
   editarPedido,
+  eliminarPedido,
   enviarPedido,
   priorizarPedido,
   rechazarPedido,
@@ -50,11 +51,11 @@ export function useEnviarPedido(actor: ActorContexto) {
   });
 }
 
-/** Cancela un borrador (→ cancelado). */
-export function useCancelarPedido(actor: ActorContexto) {
+/** Elimina un pedido en borrador (no es una transición de estado: lo saca del store). */
+export function useEliminarPedido(actor: ActorContexto) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => cancelarPedido(id, actor),
+    mutationFn: (id: string) => eliminarPedido(id, actor),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pedidos"] }),
   });
 }
@@ -105,6 +106,16 @@ export function usePriorizarPedido(actor: ActorContexto) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, comentario }: ParamsConComentario) => priorizarPedido(id, actor, comentario),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["pedidos"] }),
+  });
+}
+
+/** Quita la marca de prioritario de un pedido (sin cambiar el estado). Comentario opcional. */
+export function useDespriorizarPedido(actor: ActorContexto) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, comentario }: { id: string; comentario?: string }) =>
+      despriorizarPedido(id, actor, comentario),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pedidos"] }),
   });
 }

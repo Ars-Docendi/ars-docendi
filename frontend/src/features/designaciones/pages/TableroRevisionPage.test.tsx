@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -24,35 +24,79 @@ function renderPage() {
   );
 }
 
-describe("TableroRevisionPage — vista Tabla / Tablero", () => {
-  it("abre en la vista Tablero con el board completo (vista 'completa') por default", async () => {
+describe("TableroRevisionPage — vista Tabla única (tema E)", () => {
+  it("abre directamente en la Tabla, sin switcher de vistas", async () => {
     setMockUser(DEMO_ID);
     act(() => setRolActivo("Coordinador"));
     renderPage();
-
-    // Default = Tablero (Kanban): la columna "En revisión" existe como región.
-    expect(await screen.findByRole("region", { name: "En revisión" })).toBeInTheDocument();
-    // La vista Tabla NO está montada (su encabezado "Asignatura" no aparece).
-    expect(screen.queryByText("Asignatura")).not.toBeInTheDocument();
-    // El filtro de turno abre en "Vista completa" (board lleno; "mis-pendientes" oculta
-    // los terminales porque no son "tu turno").
-    expect(screen.getByLabelText("Filtrar pedidos por turno")).toHaveValue("completa");
-    // El switch marca "Tablero" como vista activa.
-    expect(screen.getByRole("button", { name: "Tablero" })).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("al elegir 'Tabla' muestra la vista tabular sobre los mismos pedidos del ámbito", async () => {
-    const user = userEvent.setup();
-    setMockUser(DEMO_ID);
-    act(() => setRolActivo("Coordinador"));
-    renderPage();
-
-    await screen.findByRole("region", { name: "En revisión" });
-    await user.click(screen.getByRole("button", { name: "Tabla" }));
 
     // La Tabla queda montada (su encabezado "Asignatura" aparece)...
-    expect(screen.getByText("Asignatura")).toBeInTheDocument();
-    // ...y las columnas del Kanban (regiones) ya no.
+    expect(await screen.findByText("Asignatura")).toBeInTheDocument();
+    // ...no hay switcher Tablero/Tabla ni columnas Kanban.
+    expect(screen.queryByRole("button", { name: "Tablero" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tabla" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "En revisión" })).not.toBeInTheDocument();
+  });
+
+  it("el filtro de turno abre en 'Vista completa' por default", async () => {
+    setMockUser(DEMO_ID);
+    act(() => setRolActivo("Coordinador"));
+    renderPage();
+
+    await screen.findByText("Asignatura");
+    expect(screen.getByLabelText("Filtrar pedidos por turno")).toHaveValue("completa");
+  });
+
+  describe("filtro estilo Mis Pedidos (mismo componente FiltrosLista)", () => {
+    it("filtrar por Docente acota la lista", async () => {
+      const user = userEvent.setup();
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+        ).toBeInTheDocument();
+      });
+      await user.type(screen.getByLabelText("Filtrar por docente"), "valeria");
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ver el pedido de Pablo Herrera" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("agregar y quitar el filtro opcional Legajo acota la lista", async () => {
+      const user = userEvent.setup();
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Ver el pedido de Lucía Fernández" }),
+        ).toBeInTheDocument();
+      });
+
+      await user.selectOptions(screen.getByLabelText("Añadir filtro"), "legajo");
+      await user.type(screen.getByLabelText("Filtrar por legajo"), "1001");
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Lucía Fernández" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Quitar filtro de legajo" }));
+
+      expect(
+        screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByLabelText("Filtrar por legajo")).not.toBeInTheDocument();
+    });
   });
 });

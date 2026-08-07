@@ -8,6 +8,7 @@
 // ============================================================
 import type {
   Adjunto,
+  AsignacionMateria,
   EstadoPedido,
   EventoHistorial,
   Novedad,
@@ -39,18 +40,23 @@ function siguienteNumero(): string {
 interface SemillaPedido {
   dni: string;
   nombre: string;
+  /** Legajo institucional. Ausente en una Alta: el docente todavía no existe en el sistema. */
+  legajo?: string;
   antiguedad: number;
-  materia: string;
+  asignaciones: AsignacionMateria[];
   cargoActual: PedidoDesignacion["cargoActual"];
   dedicacionActual: PedidoDesignacion["dedicacionActual"];
   novedad: Novedad;
   cargoSolicitado?: PedidoDesignacion["cargoSolicitado"];
   dedicacionSolicitada?: PedidoDesignacion["dedicacionSolicitada"];
   justificacion?: string;
+  tipoBaja?: PedidoDesignacion["tipoBaja"];
+  tipoBajaDetalle?: string;
   adjuntos?: Adjunto[];
   estado: PedidoDesignacion["estado"];
   prioritario?: boolean;
-  haceHorasOtroDepto?: boolean;
+  horasExternas?: number;
+  horasInvestigacion?: number;
   etapaRetorno?: PedidoDesignacion["etapaRetorno"];
   propietarioActual?: PedidoDesignacion["propietarioActual"];
   // Overrides de ámbito: por defecto la cátedra/carrera del JC Gustavo Ruiz.
@@ -168,16 +174,23 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     periodoId: PERIODO_ABIERTO_ID,
     catedra: semilla.catedra ?? CATEDRA,
     carrera: semilla.carrera ?? CARRERA,
-    docente: { dni: semilla.dni, nombre: semilla.nombre, antiguedad: semilla.antiguedad },
-    materiaAsociada: semilla.materia,
+    docente: {
+      dni: semilla.dni,
+      nombre: semilla.nombre,
+      antiguedad: semilla.antiguedad,
+      legajo: semilla.legajo,
+    },
+    asignaciones: semilla.asignaciones,
     cargoActual: semilla.cargoActual,
     dedicacionActual: semilla.dedicacionActual,
     novedad: semilla.novedad,
     cargoSolicitado: semilla.cargoSolicitado,
     dedicacionSolicitada: semilla.dedicacionSolicitada,
     justificacion: semilla.justificacion,
-    haceHorasOtroDepto: semilla.haceHorasOtroDepto ?? false,
-    horasInvestigacion: 0,
+    tipoBaja: semilla.tipoBaja,
+    tipoBajaDetalle: semilla.tipoBajaDetalle,
+    horasExternas: semilla.horasExternas ?? 0,
+    horasInvestigacion: semilla.horasInvestigacion ?? 0,
     adjuntos: semilla.adjuntos ?? [],
     estado: semilla.estado,
     prioritario: semilla.prioritario ?? false,
@@ -188,76 +201,44 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
 }
 
 const SEMILLAS: SemillaPedido[] = [
-  // Precarga del período anterior como "Sin novedad" (borradores).
+  // Cátedra "Ingeniería de Software" del JC de prueba: cubre los 7 estados posibles, para tener
+  // variedad al probar (filtros, columnas, acciones por estado) — incluye varios casos de Alta y
+  // Baja en distintas etapas del circuito, que originalmente eran muy pocos (solo 1 cada uno).
+  // Un borrador editable, que se puede enviar.
   {
     dni: "27345678",
     nombre: "Laura Giménez",
+    legajo: "1002",
     antiguedad: 12,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
     novedad: "Sin novedad",
     estado: "borrador",
   },
-  {
-    dni: "30987654",
-    nombre: "Diego Morales",
-    antiguedad: 7,
-    materia: "Ingeniería de Software",
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 4",
-    novedad: "Sin novedad",
-    estado: "borrador",
-  },
-  {
-    dni: "33112233",
-    nombre: "Sofía Romano",
-    antiguedad: 4,
-    materia: "Algoritmos y Estructuras de Datos",
-    cargoActual: "Ayudante",
-    dedicacionActual: "Categoría 5",
-    novedad: "Sin novedad",
-    estado: "borrador",
-  },
-  // Un Alta en borrador con adjuntos cargados.
-  {
-    dni: "35998877",
-    nombre: "Martín Acosta",
-    antiguedad: 1,
-    materia: "Ingeniería de Software",
-    cargoActual: null,
-    dedicacionActual: null,
-    novedad: "Alta",
-    cargoSolicitado: "Ayudante",
-    dedicacionSolicitada: "Categoría 5",
-    adjuntos: [
-      { id: "adj-cv-seed", nombre: "cv-martin-acosta.pdf", tipo: "cv" },
-      { id: "adj-dnif-seed", nombre: "dni-frente.jpg", tipo: "dni_frente" },
-      { id: "adj-dnid-seed", nombre: "dni-dorso.jpg", tipo: "dni_dorso" },
-    ],
-    estado: "borrador",
-    prioritario: true,
-  },
   // Un Cambio de dedicación ya enviado a revisión (read-only para el JC).
   {
     dni: "28776655",
     nombre: "Valeria Suárez",
+    legajo: "1005",
     antiguedad: 9,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
     cargoSolicitado: "Adjunto",
     dedicacionSolicitada: "Categoría 3",
     justificacion: "Mayor carga de investigación asignada para el ciclo 2026.",
+    horasInvestigacion: 3,
     estado: "en_revision_coordinador",
   },
-  // Un Cambio devuelto por el Coordinador (vuelve editable al JC).
+  // Un Cambio devuelto por el Coordinador (vuelve editable al JC, se puede reenviar).
   {
     dni: "31445566",
     nombre: "Pablo Herrera",
+    legajo: "1006",
     antiguedad: 6,
-    materia: "Algoritmos y Estructuras de Datos",
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",
@@ -267,42 +248,12 @@ const SEMILLAS: SemillaPedido[] = [
     etapaRetorno: "en_revision_coordinador",
     propietarioActual: "Jefe de Cátedra",
   },
-  // --- SCRUM-8: pedidos en etapas de revisión para que cada tablero se vea real ---
-  // En revisión de Secretaría (ya aceptado por el Coordinador).
-  {
-    dni: "29554433",
-    nombre: "Florencia Cabrera",
-    antiguedad: 8,
-    materia: "Ingeniería de Software",
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 3",
-    novedad: "Cambio de cargo o dedicación",
-    cargoSolicitado: "Adjunto",
-    dedicacionSolicitada: "Categoría 2",
-    justificacion: "Promoción por concurso docente cerrado en 2025.",
-    estado: "en_revision_secretaria",
-  },
-  // En revisión de Decanato (aceptado por Coordinador y Secretaría), prioritario.
-  {
-    dni: "26889900",
-    nombre: "Hernán Vidal",
-    antiguedad: 15,
-    materia: "Ingeniería de Software",
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 2",
-    novedad: "Cambio de cargo o dedicación",
-    cargoSolicitado: "Titular",
-    dedicacionSolicitada: "Categoría 1",
-    justificacion: "Cobertura del cargo de Titular vacante por jubilación.",
-    estado: "en_revision_decanato",
-    prioritario: true,
-  },
-  // Rechazado (terminal) — alimenta la columna "Rechazado".
+  // Rechazado (terminal, de solo lectura).
   {
     dni: "32110099",
     nombre: "Brenda Ortiz",
     antiguedad: 2,
-    materia: "Algoritmos y Estructuras de Datos",
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
     cargoActual: null,
     dedicacionActual: null,
     novedad: "Alta",
@@ -315,23 +266,262 @@ const SEMILLAS: SemillaPedido[] = [
     ],
     estado: "rechazado",
   },
-  // En lote (terminal-prototipo, aprobado por toda la cadena) — columna "Aprobado".
+  // Otro borrador "Sin novedad" (mismos datos que su entrada en el catálogo de docentes).
+  {
+    dni: "30987654",
+    nombre: "Diego Morales",
+    legajo: "1003",
+    antiguedad: 7,
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Sin novedad",
+    horasExternas: 2,
+    estado: "borrador",
+  },
+  // Una Baja en borrador (único ejemplo de esta novedad en el seed).
+  {
+    dni: "33112233",
+    nombre: "Sofía Romano",
+    legajo: "1004",
+    antiguedad: 4,
+    asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
+    cargoActual: "Ayudante",
+    dedicacionActual: "Categoría 5",
+    novedad: "Baja",
+    tipoBaja: "Renuncia",
+    adjuntos: [
+      { id: "adj-just-sofia", nombre: "renuncia-sofia-romano.pdf", tipo: "justificativo" },
+    ],
+    estado: "borrador",
+  },
+  // Un Cambio de cargo en borrador (no está en el catálogo de docentes existentes).
+  {
+    dni: "29112233",
+    nombre: "Martín Acosta",
+    legajo: "1008",
+    antiguedad: 10,
+    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    cargoActual: "Titular",
+    dedicacionActual: "Categoría 1",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 0",
+    justificacion: "Mayor dedicación por dirección de proyectos de investigación.",
+    estado: "borrador",
+  },
+  // Otro Cambio en en_revision_coordinador (mismos datos que su entrada en el catálogo).
+  {
+    dni: "28341567",
+    nombre: "Lucía Fernández",
+    legajo: "1001",
+    antiguedad: 8,
+    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Aumento de horas de investigación asignadas para el ciclo 2026.",
+    horasInvestigacion: 2,
+    estado: "en_revision_coordinador",
+  },
+  // En revisión, etapa Secretaría (no está en el catálogo de docentes existentes).
+  {
+    dni: "31556644",
+    nombre: "Florencia Cabrera",
+    legajo: "1009",
+    antiguedad: 5,
+    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 2",
+    justificacion: "Ampliación de responsabilidades en la cátedra.",
+    estado: "en_revision_secretaria",
+  },
+  // En revisión, etapa Decanato (no está en el catálogo de docentes existentes).
+  {
+    dni: "30667788",
+    nombre: "Hernán Vidal",
+    legajo: "1010",
+    antiguedad: 9,
+    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Vacante de titular por jubilación del cargo actual.",
+    estado: "en_revision_decanato",
+  },
+  // Aceptado, en_lote (terminal-prototipo) — mismos datos que su entrada en el catálogo.
   {
     dni: "27660011",
     nombre: "Gabriel Núñez",
+    legajo: "1007",
     antiguedad: 11,
-    materia: "Ingeniería de Software",
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Aumento de carga externa aprobado por el Departamento.",
+    horasExternas: 4,
     estado: "en_lote",
+  },
+  // --- Altas y Bajas adicionales, en varias etapas del circuito (eran muy pocos casos) ---
+  // Alta en revisión, etapa Coordinador.
+  {
+    dni: "34221100",
+    nombre: "Ignacio Paz",
+    antiguedad: 0,
+    asignaciones: [{ materia: "Redes de Computadoras", horas: 4 }],
+    cargoActual: null,
+    dedicacionActual: null,
+    novedad: "Alta",
+    cargoSolicitado: "Ayudante",
+    dedicacionSolicitada: "Categoría 5",
+    justificacion: "Cobertura de la comisión nueva del turno noche.",
+    adjuntos: [
+      { id: "adj-cv-ignacio", nombre: "cv-ignacio-paz.pdf", tipo: "cv" },
+      { id: "adj-dnif-ignacio", nombre: "dni-frente.jpg", tipo: "dni_frente" },
+      { id: "adj-dnid-ignacio", nombre: "dni-dorso.jpg", tipo: "dni_dorso" },
+    ],
+    estado: "en_revision_coordinador",
+  },
+  // Alta en revisión, etapa Secretaría.
+  {
+    dni: "34556677",
+    nombre: "Carla Beltrán",
+    antiguedad: 0,
+    asignaciones: [{ materia: "Bases de Datos", horas: 4 }],
+    cargoActual: null,
+    dedicacionActual: null,
+    novedad: "Alta",
+    cargoSolicitado: "JTP",
+    dedicacionSolicitada: "Categoría 4",
+    justificacion: "Refuerzo de la cátedra por licencia de un docente titular.",
+    adjuntos: [
+      { id: "adj-cv-carla", nombre: "cv-carla-beltran.pdf", tipo: "cv" },
+      { id: "adj-dnif-carla", nombre: "dni-frente.jpg", tipo: "dni_frente" },
+      { id: "adj-dnid-carla", nombre: "dni-dorso.jpg", tipo: "dni_dorso" },
+    ],
+    estado: "en_revision_secretaria",
+  },
+  // Alta devuelta por Secretaría, esperando corrección del JC (queda en la sección "En Decanato").
+  {
+    dni: "34881122",
+    nombre: "Rodrigo Funes",
+    antiguedad: 0,
+    asignaciones: [{ materia: "Sistemas Operativos", horas: 4 }],
+    cargoActual: null,
+    dedicacionActual: null,
+    novedad: "Alta",
+    cargoSolicitado: "Ayudante",
+    dedicacionSolicitada: "Categoría 6",
+    justificacion: "Cobertura de comisión de laboratorio.",
+    adjuntos: [
+      { id: "adj-cv-rodrigo", nombre: "cv-rodrigo-funes.pdf", tipo: "cv" },
+      { id: "adj-dnif-rodrigo", nombre: "dni-frente.jpg", tipo: "dni_frente" },
+    ],
+    estado: "devuelto",
+    etapaRetorno: "en_revision_decanato",
+    propietarioActual: "Secretaría",
+  },
+  // Alta aceptada, en_lote (queda en "Finalizados").
+  {
+    dni: "34009988",
+    nombre: "Melina Suárez",
+    antiguedad: 0,
+    asignaciones: [{ materia: "Matemática Discreta", horas: 4 }],
+    cargoActual: null,
+    dedicacionActual: null,
+    novedad: "Alta",
+    cargoSolicitado: "Ayudante",
+    dedicacionSolicitada: "Categoría 5",
+    justificacion: "Nueva comisión aprobada para el segundo cuatrimestre.",
+    adjuntos: [
+      { id: "adj-cv-melina", nombre: "cv-melina-suarez.pdf", tipo: "cv" },
+      { id: "adj-dnif-melina", nombre: "dni-frente.jpg", tipo: "dni_frente" },
+      { id: "adj-dnid-melina", nombre: "dni-dorso.jpg", tipo: "dni_dorso" },
+    ],
+    estado: "en_lote",
+  },
+  // Baja en revisión, etapa Coordinador.
+  {
+    dni: "35112200",
+    nombre: "Esteban Roldán",
+    legajo: "1011",
+    antiguedad: 15,
+    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    cargoActual: "Titular",
+    dedicacionActual: "Categoría 1",
+    novedad: "Baja",
+    tipoBaja: "Jubilación",
+    adjuntos: [
+      { id: "adj-just-esteban", nombre: "jubilacion-esteban-roldan.pdf", tipo: "justificativo" },
+    ],
+    estado: "en_revision_coordinador",
+  },
+  // Baja en revisión, etapa Decanato.
+  {
+    dni: "35667788",
+    nombre: "Patricia Núñez",
+    legajo: "1012",
+    antiguedad: 20,
+    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Baja",
+    tipoBaja: "Renuncia",
+    adjuntos: [
+      { id: "adj-just-patricia", nombre: "renuncia-patricia-nunez.pdf", tipo: "justificativo" },
+    ],
+    estado: "en_revision_decanato",
+  },
+  // Baja devuelta por el Coordinador, esperando corrección del JC (queda en "En Coordinación").
+  {
+    dni: "35998877",
+    nombre: "Osvaldo Cabral",
+    legajo: "1013",
+    antiguedad: 18,
+    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Baja",
+    tipoBaja: "Otro",
+    tipoBajaDetalle: "Cambio a otra unidad académica.",
+    adjuntos: [
+      { id: "adj-just-osvaldo", nombre: "detalle-osvaldo-cabral.pdf", tipo: "justificativo" },
+    ],
+    estado: "devuelto",
+    etapaRetorno: "en_revision_coordinador",
+    propietarioActual: "Jefe de Cátedra",
+  },
+  // Baja rechazada (queda en "Finalizados").
+  {
+    dni: "35334455",
+    nombre: "Nora Aguirre",
+    legajo: "1014",
+    antiguedad: 25,
+    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    cargoActual: "Titular",
+    dedicacionActual: "Categoría 0",
+    novedad: "Baja",
+    tipoBaja: "Renuncia",
+    adjuntos: [{ id: "adj-just-nora", nombre: "renuncia-nora-aguirre.pdf", tipo: "justificativo" }],
+    estado: "rechazado",
   },
   // Otra carrera (Ingeniería Industrial): NO debe verlo el Coordinador de Informática [BR-009].
   {
     dni: "30445511",
     nombre: "Mariano Tévez",
+    legajo: "2001",
     antiguedad: 6,
-    materia: "Física I",
+    asignaciones: [{ materia: "Física I", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
     novedad: "Cambio de cargo o dedicación",

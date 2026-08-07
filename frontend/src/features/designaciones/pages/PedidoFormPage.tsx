@@ -3,7 +3,12 @@ import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PedidoForm } from "../components/PedidoForm";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
-import { useCrearPedido, useEditarPedido } from "../hooks/useAccionesPedido";
+import {
+  useCrearPedido,
+  useEditarPedido,
+  useEnviarPedido,
+  useReenviarPedido,
+} from "../hooks/useAccionesPedido";
 import { puedeEditarPedido } from "../api/maquinaEstados";
 import { PERIODO_ABIERTO_ID } from "../api/pedidosSeed";
 import { PERIODOS_MOCK } from "../api/periodosMock";
@@ -27,20 +32,42 @@ export function PedidoFormPage() {
   const { data: pedidoInicial, isLoading, isError } = usePedido(id);
   const crear = useCrearPedido(actor);
   const editar = useEditarPedido(actor);
+  const enviar = useEnviarPedido(actor);
+  const reenviar = useReenviarPedido(actor);
 
   function volver() {
     navegar(RUTA_MIS_PEDIDOS);
   }
 
-  function handleGuardar(datos: DatosEditablesPedido) {
+  function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {
     if (esEdicion && id) {
-      editar.mutate({ id, datos }, { onSuccess: volver });
+      editar.mutate(
+        { id, datos },
+        {
+          onSuccess: () => {
+            if (!opciones?.enviar) {
+              volver();
+              return;
+            }
+            const mutacion = pedidoInicial?.estado === "devuelto" ? reenviar : enviar;
+            mutacion.mutate(id, { onSuccess: volver });
+          },
+        },
+      );
     } else {
-      crear.mutate(datos, { onSuccess: volver });
+      crear.mutate(datos, {
+        onSuccess: (creado) => {
+          if (!opciones?.enviar) {
+            volver();
+            return;
+          }
+          enviar.mutate(creado.id, { onSuccess: volver });
+        },
+      });
     }
   }
 
-  const guardando = crear.isPending || editar.isPending;
+  const guardando = crear.isPending || editar.isPending || enviar.isPending || reenviar.isPending;
   const periodoLabel = etiquetaPeriodo(pedidoInicial?.periodoId ?? PERIODO_ABIERTO_ID);
   const crumbEdicion = pedidoInicial?.numero ? `Editar · ${pedidoInicial.numero}` : "Editar";
 
@@ -74,7 +101,7 @@ export function PedidoFormPage() {
         </InlineAlert>
       )}
 
-      {(crear.isError || editar.isError) && (
+      {(crear.isError || editar.isError || enviar.isError || reenviar.isError) && (
         <InlineAlert severity="danger" title="No se pudo guardar el pedido">
           Ocurrió un error al guardar. Revisá los datos e intentá de nuevo.
         </InlineAlert>

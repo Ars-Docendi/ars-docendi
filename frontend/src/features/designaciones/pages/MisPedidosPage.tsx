@@ -1,78 +1,98 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Modal, Select } from "@ars-docendi/ui";
+import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import {
+  FiltrosLista,
+  type CampoFiltroFijo,
+  type CampoFiltroOpcional,
+} from "../../../shared/ui/FiltrosLista";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
-import { IconoArrowLeft, IconoArrowRight, IconoPlus, IconoSearch } from "../components/lucide";
+import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
+import { IconoArrowLeft, IconoArrowRight, IconoPlus } from "../components/lucide";
+import {
+  aplicarFiltrosMisPedidos,
+  FILTROS_INICIALES,
+  type FiltrosMisPedidosState,
+} from "../components/filtrosMisPedidos";
 import { PERIODOS_MOCK } from "../api/periodosMock";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useMisPedidos } from "../hooks/usePedidos";
-import { useCancelarPedido, useEnviarPedido, useReenviarPedido } from "../hooks/useAccionesPedido";
-import type { EstadoPedido, PedidoDesignacion } from "../types";
+import { useEliminarPedido } from "../hooks/useAccionesPedido";
+import type { Novedad, PedidoDesignacion } from "../types";
 import "./misPedidos.css";
 
 const PAGE_SIZE = 9;
 
-type FiltroEstado =
-  | "todos"
-  | "borrador"
-  | "revision"
-  | "aprobado"
-  | "rechazado"
-  | "devuelto"
-  | "cancelado";
+const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
 
-function coincideEstado(estado: EstadoPedido, filtro: FiltroEstado): boolean {
-  switch (filtro) {
-    case "todos":
-      return true;
-    case "borrador":
-      return estado === "borrador";
-    case "revision":
-      return estado.startsWith("en_revision");
-    case "aprobado":
-      return estado === "en_lote";
-    case "rechazado":
-      return estado === "rechazado";
-    case "devuelto":
-      return estado === "devuelto";
-    case "cancelado":
-      return estado === "cancelado";
-  }
-}
+const FILTROS_FIJOS: CampoFiltroFijo[] = [
+  { clave: "docente", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
+  {
+    clave: "numero",
+    placeholder: "Filtrar por N°…",
+    ariaLabel: "Filtrar por N°",
+    ancho: "chica",
+  },
+];
 
-function coincideBusqueda(pedido: PedidoDesignacion, q: string): boolean {
-  if (!q) return true;
-  const aguja = q.toLowerCase();
-  return (
-    pedido.docente.nombre.toLowerCase().includes(aguja) ||
-    (pedido.numero ?? "").toLowerCase().includes(aguja) ||
-    pedido.materiaAsociada.toLowerCase().includes(aguja)
-  );
-}
+const FILTROS_OPCIONALES: CampoFiltroOpcional[] = [
+  { tipo: "texto", clave: "legajo", etiqueta: "Legajo", placeholder: "Legajo…", ancho: "120px" },
+  {
+    tipo: "select",
+    clave: "tipo",
+    etiqueta: "Tipo",
+    valorInicial: "todos",
+    opciones: [
+      { value: "todos", label: "Tipo: Todos" },
+      ...NOVEDADES.map((n) => ({ value: n, label: n })),
+    ],
+  },
+  {
+    tipo: "select",
+    clave: "estado",
+    etiqueta: "Estado",
+    valorInicial: "todos",
+    opciones: [
+      { value: "todos", label: "Todos los estados" },
+      { value: "borrador", label: "Borrador" },
+      { value: "revision", label: "En revisión" },
+      { value: "aprobado", label: "Aprobado" },
+      { value: "devuelto", label: "Devuelto" },
+      { value: "rechazado", label: "Rechazado" },
+      { value: "cancelado", label: "Cancelado" },
+    ],
+  },
+];
 
 export function MisPedidosPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
   const { data: pedidos, isLoading, isError } = useMisPedidos(actor);
-  const enviar = useEnviarPedido(actor);
-  const cancelar = useCancelarPedido(actor);
-  const reenviar = useReenviarPedido(actor);
+  const eliminar = useEliminarPedido(actor);
 
-  const [pedidoACancelar, setPedidoACancelar] = useState<PedidoDesignacion | undefined>();
-  const [busqueda, setBusqueda] = useState("");
-  const [filtro, setFiltro] = useState<FiltroEstado>("todos");
+  const [filtros, setFiltros] = useState<FiltrosMisPedidosState>(FILTROS_INICIALES);
   const [pagina, setPagina] = useState(1);
+  const [pedidoAEliminar, setPedidoAEliminar] = useState<PedidoDesignacion | undefined>();
+
+  function handleConfirmarEliminar() {
+    if (!pedidoAEliminar) return;
+    eliminar.mutate(pedidoAEliminar.id, {
+      onSuccess: () => setPedidoAEliminar(undefined),
+    });
+  }
 
   const periodo = PERIODOS_MOCK.find((p) => p.activo);
   const total = pedidos?.length ?? 0;
 
+  function actualizarFiltros(nuevos: FiltrosMisPedidosState) {
+    setFiltros(nuevos);
+    setPagina(1);
+  }
+
   const filtrados = useMemo(
-    () =>
-      (pedidos ?? []).filter(
-        (p) => coincideEstado(p.estado, filtro) && coincideBusqueda(p, busqueda),
-      ),
-    [pedidos, filtro, busqueda],
+    () => aplicarFiltrosMisPedidos(pedidos ?? [], filtros),
+    [pedidos, filtros],
   );
 
   const totalFiltrado = filtrados.length;
@@ -80,18 +100,6 @@ export function MisPedidosPage() {
   const paginaActual = Math.min(pagina, totalPaginas);
   const desde = (paginaActual - 1) * PAGE_SIZE;
   const visibles = filtrados.slice(desde, desde + PAGE_SIZE);
-
-  function reiniciarPagina<T>(setter: (v: T) => void) {
-    return (v: T) => {
-      setter(v);
-      setPagina(1);
-    };
-  }
-
-  function handleConfirmarCancelar() {
-    if (pedidoACancelar) cancelar.mutate(pedidoACancelar.id);
-    setPedidoACancelar(undefined);
-  }
 
   return (
     <>
@@ -122,12 +130,6 @@ export function MisPedidosPage() {
         }
       />
 
-      {(enviar.isError || cancelar.isError || reenviar.isError) && (
-        <InlineAlert severity="danger" title="No se pudo completar la acción">
-          Ocurrió un error al actualizar el pedido. Probá de nuevo.
-        </InlineAlert>
-      )}
-
       {isLoading && <p style={{ color: "var(--color-text-secondary)" }}>Cargando tus pedidos…</p>}
 
       {isError && (
@@ -144,33 +146,12 @@ export function MisPedidosPage() {
 
       {!isLoading && !isError && total > 0 && (
         <div className="adoc-mp-section">
-          <div className="adoc-mp-toolbar">
-            <div className="adoc-mp-search">
-              <IconoSearch />
-              <input
-                type="search"
-                value={busqueda}
-                onChange={(e) => reiniciarPagina(setBusqueda)(e.target.value)}
-                placeholder="Buscar por docente, N° o materia…"
-                aria-label="Buscar pedidos"
-              />
-            </div>
-            <span className="adoc-mp-estado">
-              <Select
-                aria-label="Filtrar por estado"
-                value={filtro}
-                onChange={(e) => reiniciarPagina(setFiltro)(e.target.value as FiltroEstado)}
-              >
-                <option value="todos">Todos los estados</option>
-                <option value="borrador">Borrador</option>
-                <option value="revision">En revisión</option>
-                <option value="aprobado">Aprobado</option>
-                <option value="devuelto">Devuelto</option>
-                <option value="rechazado">Rechazado</option>
-                <option value="cancelado">Cancelado</option>
-              </Select>
-            </span>
-          </div>
+          <FiltrosLista
+            fijos={FILTROS_FIJOS}
+            opcionales={FILTROS_OPCIONALES}
+            valores={filtros}
+            onChange={actualizarFiltros}
+          />
 
           {totalFiltrado === 0 ? (
             <InlineAlert severity="info" title="Sin resultados">
@@ -180,11 +161,10 @@ export function MisPedidosPage() {
             <>
               <TablaMisPedidos
                 pedidos={visibles}
+                actor={actor}
                 onVerDetalle={(p) => navegar(`/designaciones/pedidos/${p.id}`)}
                 onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
-                onEnviar={(p) => enviar.mutate(p.id)}
-                onReenviar={(p) => reenviar.mutate(p.id)}
-                onCancelar={(p) => setPedidoACancelar(p)}
+                onEliminar={(p) => setPedidoAEliminar(p)}
               />
 
               <div className="adoc-mp-pager">
@@ -230,28 +210,16 @@ export function MisPedidosPage() {
         </div>
       )}
 
-      <Modal
-        open={pedidoACancelar !== undefined}
+      <ModalEliminarPedido
+        open={pedidoAEliminar !== undefined}
         onOpenChange={(open) => {
-          if (!open) setPedidoACancelar(undefined);
+          if (!open) setPedidoAEliminar(undefined);
         }}
-        title="Cancelar pedido"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setPedidoACancelar(undefined)}>
-              Volver
-            </Button>
-            <Button variant="destructive" onClick={handleConfirmarCancelar}>
-              Cancelar pedido
-            </Button>
-          </>
-        }
-      >
-        <p style={{ margin: 0 }}>
-          ¿Seguro que querés cancelar el pedido de{" "}
-          <strong>{pedidoACancelar?.docente.nombre}</strong>? Esta acción es definitiva.
-        </p>
-      </Modal>
+        pedido={pedidoAEliminar}
+        error={eliminar.isError ? eliminar.error.message : undefined}
+        eliminando={eliminar.isPending}
+        onConfirmar={handleConfirmarEliminar}
+      />
     </>
   );
 }

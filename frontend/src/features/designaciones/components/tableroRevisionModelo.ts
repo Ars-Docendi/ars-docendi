@@ -1,14 +1,20 @@
 // ============================================================
-// Modelo de presentación del tablero de revisión (SCRUM-8, opción D).
-// Agrupa por ESTADO DE AVANCE del pedido, no por rol: cuatro columnas
-// fijas e iguales para todos — En revisión (toda la cadena) · Aceptados ·
-// Devueltos · Rechazados. El "turno" del actor se marca por card
-// (`esTuTurno`), NO cambia qué columna contiene al pedido. Cada card en
-// revisión declara su etapa + avance `x/4` (`avancePedido`). Lógica de
-// vista pura (no es dominio): no decide autoridad, solo presenta.
+// Modelo de presentación de la vista Tabla de revisión: secciones por
+// ETAPA DEL CIRCUITO — En Coordinación / En Secretaría / En Decanato /
+// Finalizados — en vez de por estado de avance puro. Un pedido Devuelto no
+// tiene sección propia: vive en la sección de la etapa a la que volvió
+// (`etapaRetorno`) — es ahí donde queda trabado hasta que se corrija y
+// reenvíe —, con su fila anotada "Devuelto por {revisor}" en vez del
+// stepper (`quienDevolvio`). Este agrupamiento le permite a Secretaría
+// Académica, Administrativo y Decanato (que ven TODO el departamento, a
+// diferencia del Coordinador que ve solo su carrera) triangular grandes
+// volúmenes de pedidos por dónde están trabados en la cadena. Lógica de
+// vista pura (no es dominio): no decide autoridad, solo presenta — el
+// gating por ámbito [BR-009] ya se aplicó a los `pedidos` que llegan acá.
 // ============================================================
-import type { ActorContexto, EstadoPedido, Novedad, PedidoDesignacion } from "../types";
+import type { ActorContexto, EstadoPedido, Novedad, PedidoDesignacion, Rol } from "../types";
 import { puedeRevisar } from "../api/maquinaEstados";
+import { formatearFecha } from "./detalleAdapters";
 
 export type TonoColumna = "acento" | "neutro" | "exito" | "alerta" | "peligro";
 
@@ -48,14 +54,48 @@ const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
   en_lote: "En lote",
 };
 
-const ETAPAS_REVISION: EstadoPedido[] = [
+type EtapaRevision = "en_revision_coordinador" | "en_revision_secretaria" | "en_revision_decanato";
+
+const ETAPAS_REVISION: EtapaRevision[] = [
   "en_revision_coordinador",
   "en_revision_secretaria",
   "en_revision_decanato",
 ];
 
-function esEtapaDeRevision(estado: EstadoPedido): boolean {
-  return ETAPAS_REVISION.includes(estado);
+/** Sección de la Tabla por cada etapa del circuito (id/título/subtítulo fijos). */
+const SECCION_DE_ETAPA: Record<EtapaRevision, { id: string; titulo: string; subtitulo: string }> = {
+  en_revision_coordinador: {
+    id: "en-coordinacion",
+    titulo: "En Coordinación",
+    subtitulo: "Revisión de carrera",
+  },
+  en_revision_secretaria: {
+    id: "en-secretaria",
+    titulo: "En Secretaría",
+    subtitulo: "Revisión departamental",
+  },
+  en_revision_decanato: {
+    id: "en-decanato",
+    titulo: "En Decanato",
+    subtitulo: "Aprobación final",
+  },
+};
+
+/** Rol revisor "dueño" de cada sección de etapa (para el default de expansión, ver `seccionInicialDelActor`). */
+const ROL_DE_SECCION: Record<string, ActorContexto["rol"]> = {
+  "en-coordinacion": "Coordinador",
+  "en-secretaria": "Secretaría",
+  "en-decanato": "Decanato",
+};
+
+/**
+ * Id de la sección que debe arrancar expandida para este actor — la suya
+ * (Coordinador → "en-coordinacion", etc.); las demás arrancan colapsadas. Sin
+ * match (Administración, que ve todo por igual, o cualquier otro rol) →
+ * `null`, y las 4 arrancan colapsadas.
+ */
+export function seccionInicialDelActor(actor: ActorContexto): string | null {
+  return Object.entries(ROL_DE_SECCION).find(([, rol]) => rol === actor.rol)?.[0] ?? null;
 }
 
 /** ¿Es el turno del actor sobre este pedido? (revisor de la etapa en su ámbito, o Administración). */
@@ -71,52 +111,73 @@ export function avancePedido(pedido: PedidoDesignacion): AvanceEtapa | null {
   return { etiqueta, paso, total: TOTAL_PASOS };
 }
 
+/** ¿Este pedido vive en la sección de esta etapa? Activo en ella, o devuelto esperando corrección para volver. */
+function perteneceASeccion(pedido: PedidoDesignacion, etapa: EtapaRevision): boolean {
+  return pedido.estado === etapa || (pedido.estado === "devuelto" && pedido.etapaRetorno === etapa);
+}
+
+/** Fecha (epoch ms) del evento más reciente del historial; 0 si no hay historial. */
+function fechaUltimaActualizacionMs(pedido: PedidoDesignacion): number {
+  const ultimo = pedido.historial.at(-1);
+  return ultimo ? new Date(ultimo.fecha).getTime() : 0;
+}
+
 /**
- * Columnas del tablero (opción D), iguales para todo actor. "En revisión"
- * reúne toda la cadena (las cards declaran su etapa + `x/4`); los pedidos del
- * actor (su turno) se ordenan primero. Aceptados / Devueltos / Rechazados son
- * terminales. El gating por ámbito ya se aplicó al traer `pedidos`.
+ * Orden dentro de una sección de etapa: prioritarios primero, después
+ * devueltos, después el resto — dentro de cada grupo, por fecha de última
+ * actualización ascendente (el que espera hace más tiempo, arriba).
  */
-export function construirColumnas(
-  pedidos: PedidoDesignacion[],
-  actor: ActorContexto,
-): ColumnaTablero[] {
-  const enRevision = pedidos
-    .filter((pedido) => esEtapaDeRevision(pedido.estado))
-    .sort((a, b) => {
-      const turno = Number(esTuTurno(b, actor)) - Number(esTuTurno(a, actor));
-      if (turno !== 0) return turno;
-      return (PASO_DE_ETAPA[a.estado] ?? 0) - (PASO_DE_ETAPA[b.estado] ?? 0);
-    });
+function compararEnSeccion(a: PedidoDesignacion, b: PedidoDesignacion): number {
+  const rango = (p: PedidoDesignacion): number => {
+    if (p.prioritario) return 0;
+    if (p.estado === "devuelto") return 1;
+    return 2;
+  };
+  const diff = rango(a) - rango(b);
+  if (diff !== 0) return diff;
+  return fechaUltimaActualizacionMs(a) - fechaUltimaActualizacionMs(b);
+}
+
+/**
+ * Orden dentro de Finalizados: Aceptados antes que Rechazados; dentro de
+ * cada bloque, por fecha de última actualización descendente (el cierre
+ * más reciente arriba).
+ */
+function compararFinalizados(a: PedidoDesignacion, b: PedidoDesignacion): number {
+  const rango = (p: PedidoDesignacion) => (p.estado === "en_lote" ? 0 : 1);
+  const diff = rango(a) - rango(b);
+  if (diff !== 0) return diff;
+  return fechaUltimaActualizacionMs(b) - fechaUltimaActualizacionMs(a);
+}
+
+/**
+ * Secciones de la Tabla de revisión, iguales para todo actor: una por etapa
+ * del circuito (En Coordinación / En Secretaría / En Decanato) más
+ * Finalizados (Aceptados + Rechazados). El gating por ámbito [BR-009] ya se
+ * aplicó al traer `pedidos`; estas secciones no filtran por rol, solo
+ * organizan lo que el actor ya puede ver.
+ */
+export function construirColumnas(pedidos: PedidoDesignacion[]): ColumnaTablero[] {
+  const seccionesEtapa = ETAPAS_REVISION.map((etapa) => {
+    const { id, titulo, subtitulo } = SECCION_DE_ETAPA[etapa];
+    const filas = pedidos
+      .filter((pedido) => perteneceASeccion(pedido, etapa))
+      .sort(compararEnSeccion);
+    return { id, titulo, subtitulo, tono: "acento" as TonoColumna, pedidos: filas };
+  });
+
+  const finalizados = pedidos
+    .filter((pedido) => pedido.estado === "en_lote" || pedido.estado === "rechazado")
+    .sort(compararFinalizados);
 
   return [
+    ...seccionesEtapa,
     {
-      id: "en-revision",
-      titulo: "En revisión",
-      subtitulo: "Cadena de aprobación",
-      tono: "acento",
-      pedidos: enRevision,
-    },
-    {
-      id: "aceptados",
-      titulo: "Aceptados",
-      subtitulo: "En lote · 4/4",
-      tono: "exito",
-      pedidos: pedidos.filter((pedido) => pedido.estado === "en_lote"),
-    },
-    {
-      id: "devueltos",
-      titulo: "Devueltos",
-      subtitulo: "Para corrección",
-      tono: "alerta",
-      pedidos: pedidos.filter((pedido) => pedido.estado === "devuelto"),
-    },
-    {
-      id: "rechazados",
-      titulo: "Rechazados",
-      subtitulo: "Terminados · período",
-      tono: "peligro",
-      pedidos: pedidos.filter((pedido) => pedido.estado === "rechazado"),
+      id: "finalizados",
+      titulo: "Finalizados",
+      subtitulo: "Aceptados y rechazados",
+      tono: "neutro",
+      pedidos: finalizados,
     },
   ];
 }
@@ -130,80 +191,50 @@ export function inicialesDocente(nombre: string): string {
   return (partes[0] ?? "").concat(partes[partes.length - 1] ?? "").toUpperCase() || "?";
 }
 
+/** Fecha del evento más reciente del historial (cualquier acción), formato dd/mm/aaaa. */
+export function fechaUltimaActualizacion(pedido: PedidoDesignacion): string {
+  const ultimo = pedido.historial.at(-1);
+  return ultimo ? formatearFecha(ultimo.fecha) : "—";
+}
+
 /** Etiqueta corta de la novedad para el chip. */
 export function etiquetaNovedad(novedad: Novedad): string {
   return novedad === "Cambio de cargo o dedicación" ? "Cambio" : novedad;
 }
 
-/** Comentario del último evento del tipo dado (devolución / rechazo). */
-function comentarioDe(
+/** Último evento del historial del tipo dado (devolución / rechazo). */
+function eventoDe(
   pedido: PedidoDesignacion,
   accion: "devolver" | "rechazar",
-): string | undefined {
-  return [...pedido.historial].reverse().find((evento) => evento.accion === accion)?.comentario;
+): PedidoDesignacion["historial"][number] | undefined {
+  return [...pedido.historial].reverse().find((evento) => evento.accion === accion);
 }
 
-/** Línea de detalle de la card (transición de cargo/dedicación, adjunto o motivo). */
-export function detallePedido(pedido: PedidoDesignacion): string {
-  if (pedido.estado === "devuelto") {
-    const motivo = comentarioDe(pedido, "devolver");
-    return motivo ? `Devuelto: ${motivo}` : "Devuelto";
-  }
-  if (pedido.estado === "rechazado") {
-    const motivo = motivoRechazo(pedido);
-    return motivo ? `Rechazado: ${motivo}` : "Rechazado";
-  }
-  switch (pedido.novedad) {
-    case "Alta":
-      return (
-        [pedido.cargoSolicitado, pedido.dedicacionSolicitada].filter(Boolean).join(" · ") ||
-        "Alta docente"
-      );
-    case "Baja":
-      return pedido.justificacion
-        ? `${pedido.cargoActual ?? "Docente"} · ${pedido.justificacion}`
-        : `${pedido.cargoActual ?? "Baja"} · baja`;
-    case "Cambio de cargo o dedicación":
-      if (pedido.cargoSolicitado && pedido.cargoSolicitado !== pedido.cargoActual) {
-        return `Cargo: ${pedido.cargoActual ?? "—"} → ${pedido.cargoSolicitado}`;
-      }
-      if (pedido.dedicacionSolicitada && pedido.dedicacionSolicitada !== pedido.dedicacionActual) {
-        return `Dedicación: ${pedido.dedicacionActual ?? "—"} → ${pedido.dedicacionSolicitada}`;
-      }
-      return "Cambio de cargo o dedicación";
-    case "Sin novedad":
-      return (
-        [pedido.cargoActual, pedido.dedicacionActual].filter(Boolean).join(" · ") || "Sin novedad"
-      );
-  }
-}
-
-/** Motivo crudo del último rechazo (sin el prefijo "Rechazado:"), para destacarlo como cita en la card. */
+/** Motivo crudo del último rechazo (sin el prefijo "Rechazado:"), para destacarlo como cita en el detalle. */
 export function motivoRechazo(pedido: PedidoDesignacion): string | undefined {
-  return comentarioDe(pedido, "rechazar");
+  return eventoDe(pedido, "rechazar")?.comentario;
 }
 
-function ultimaFecha(pedido: PedidoDesignacion): string | undefined {
-  return pedido.historial.at(-1)?.fecha;
+/** Nombre de quien devolvió el pedido por última vez, para "Devuelto por {nombre}". */
+export function quienDevolvio(pedido: PedidoDesignacion): string | undefined {
+  return eventoDe(pedido, "devolver")?.porNombre;
 }
 
-/** Tiempo relativo legible ("hace 3 d"). Usa la fecha actual (solo display). */
-function tiempoAtras(iso: string | undefined): string {
-  if (!iso) return "—";
-  const ms = Date.now() - new Date(iso).getTime();
-  const minutos = Math.max(0, Math.floor(ms / 60000));
-  if (minutos < 60) return `hace ${minutos} min`;
-  const horas = Math.floor(minutos / 60);
-  if (horas < 24) return `hace ${horas} h`;
-  const dias = Math.floor(horas / 24);
-  if (dias < 60) return `hace ${dias} d`;
-  const meses = Math.floor(dias / 30);
-  return `hace ${meses} ${meses === 1 ? "mes" : "meses"}`;
+/** Rol de quien devolvió el pedido por última vez, para "Devuelto por {nombre} ({rol})". */
+export function rolDeQuienDevolvio(pedido: PedidoDesignacion): Rol | undefined {
+  return eventoDe(pedido, "devolver")?.porRol;
 }
 
-/** Recencia del pedido (pie de la card): "hace X" o "Reenviado · hace X". */
-export function situacionPedido(pedido: PedidoDesignacion): string {
-  const ultimaAccion = pedido.historial.at(-1)?.accion;
-  const prefijo = ultimaAccion === "reenviar" ? "Reenviado · " : "";
-  return prefijo + tiempoAtras(ultimaFecha(pedido));
+/**
+ * Avance (etapa + paso `x/4`) de un pedido Devuelto, calculado sobre `etapaRetorno` en vez de
+ * `estado` — la misma etapa que decide en qué sección vive (`perteneceASeccion`). Mismo shape que
+ * `avancePedido`, para que la celda Estado de un Devuelto use el mismo stepper + "En {etapa} ·
+ * x/4" que ya usan los estados en revisión, en vez de perder esa referencia.
+ */
+export function avanceEtapaRetorno(pedido: PedidoDesignacion): AvanceEtapa | null {
+  const etapa = pedido.etapaRetorno;
+  const paso = etapa ? PASO_DE_ETAPA[etapa] : undefined;
+  const etiqueta = etapa ? ETIQUETA_ETAPA[etapa] : undefined;
+  if (paso === undefined || etiqueta === undefined) return null;
+  return { etiqueta, paso, total: TOTAL_PASOS };
 }

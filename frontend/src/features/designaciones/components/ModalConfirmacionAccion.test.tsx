@@ -11,11 +11,12 @@ const PEDIDO: PedidoDesignacion = {
   catedra: "Programación I",
   carrera: "Ingeniería en Informática",
   docente: { dni: "30111222", nombre: "Lucía Fernández", antiguedad: 5 },
-  materiaAsociada: "Programación I",
+  asignaciones: [{ materia: "Programación I", horas: 6 }],
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
   novedad: "Cambio de cargo o dedicación",
-  haceHorasOtroDepto: false,
+  horasExternas: 0,
+  horasInvestigacion: 0,
   adjuntos: [],
   estado: "en_revision_coordinador",
   prioritario: false,
@@ -27,6 +28,7 @@ const ETIQUETA_CONFIRMAR: Record<AccionRevision, string> = {
   rechazar: "Rechazar novedad",
   devolver: "Devolver a Borrador",
   priorizar: "Guardar prioridad",
+  despriorizar: "Quitar prioridad",
 };
 
 function renderModal(
@@ -95,6 +97,20 @@ describe("ModalConfirmacionAccion", () => {
     expect(
       within(dialog).getByRole("button", { name: ETIQUETA_CONFIRMAR.priorizar }),
     ).toBeDisabled();
+  });
+
+  it("despriorizar permite confirmar con el comentario vacío (sin justificativo)", async () => {
+    const user = userEvent.setup();
+    const { onConfirmar } = renderModal("despriorizar");
+    const dialog = screen.getByRole("dialog");
+
+    const confirmar = within(dialog).getByRole("button", {
+      name: ETIQUETA_CONFIRMAR.despriorizar,
+    });
+    expect(confirmar).toBeEnabled();
+
+    await user.click(confirmar);
+    expect(onConfirmar).toHaveBeenCalledWith("");
   });
 
   it("pre-carga el comentario del panel y permite editarlo antes de confirmar", async () => {

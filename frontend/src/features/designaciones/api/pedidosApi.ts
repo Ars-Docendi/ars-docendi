@@ -14,7 +14,7 @@ import type {
   EventoHistorial,
   PedidoDesignacion,
 } from "../types";
-import { actorAlcanzaAmbito, aplicarAccion } from "./maquinaEstados";
+import { ErrorDominioPedido, actorAlcanzaAmbito, aplicarAccion } from "./maquinaEstados";
 import { PERIODO_ABIERTO_ID } from "./pedidosSeed";
 import * as store from "./pedidosStore";
 
@@ -88,15 +88,17 @@ export async function crearPedido(
     catedra: actor.catedra ?? "",
     carrera: actor.carrera ?? "",
     docente: datos.docente,
-    materiaAsociada: datos.materiaAsociada,
+    asignaciones: datos.asignaciones,
     cargoActual: datos.cargoActual,
     dedicacionActual: datos.dedicacionActual,
     novedad: datos.novedad,
     cargoSolicitado: datos.cargoSolicitado,
     dedicacionSolicitada: datos.dedicacionSolicitada,
     justificacion: datos.justificacion,
-    haceHorasOtroDepto: datos.haceHorasOtroDepto,
-    horasInvestigacion: 0,
+    tipoBaja: datos.tipoBaja,
+    tipoBajaDetalle: datos.tipoBajaDetalle,
+    horasExternas: datos.horasExternas,
+    horasInvestigacion: datos.horasInvestigacion,
     // TODO(backend): persistir adjuntos en File Storage y guardar URL (RNF-4) — SCRUM-7. Hoy solo metadata mock.
     adjuntos: datos.adjuntos,
     estado: "borrador",
@@ -128,13 +130,20 @@ export async function enviarPedido(id: string, actor: ActorContexto): Promise<Pe
   return store.guardar(siguiente);
 }
 
-// TODO(backend): POST /api/designaciones/pedidos/:id/cancelar (SCRUM-7).
-//   Mock actual: transiciona borrador → cancelado vía la máquina de estados. Mantener la firma.
-export async function cancelarPedido(id: string, actor: ActorContexto): Promise<PedidoDesignacion> {
+// TODO(backend): DELETE /api/designaciones/pedidos/:id (mis-pedidos-simplificado).
+//   Mock actual: solo borradores propios del JC; borra del store (no es una transición de estado).
+export async function eliminarPedido(id: string, actor: ActorContexto): Promise<void> {
   await demora();
   const actual = requerirPedido(id);
-  const siguiente = aplicarAccion(actual, { tipo: "cancelar" }, actor);
-  return store.guardar(siguiente);
+  if (actual.estado !== "borrador") {
+    throw new ErrorDominioPedido(
+      `Solo se puede eliminar un pedido en borrador (estado actual: "${actual.estado}").`,
+    );
+  }
+  if (actor.rol !== "Jefe de Cátedra") {
+    throw new ErrorDominioPedido("Solo el Jefe de Cátedra puede eliminar el pedido.");
+  }
+  store.eliminar(id);
 }
 
 // ============================================================
@@ -207,5 +216,18 @@ export async function priorizarPedido(
   await demora();
   const actual = requerirPedido(id);
   const siguiente = aplicarAccion(actual, { tipo: "priorizar", comentario }, actor);
+  return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/designaciones/pedidos/:id/despriorizar (tema E).
+//   Mock actual: marca prioritario=false (sin cambiar el estado), sin exigir comentario. Mantener la firma.
+export async function despriorizarPedido(
+  id: string,
+  actor: ActorContexto,
+  comentario?: string,
+): Promise<PedidoDesignacion> {
+  await demora();
+  const actual = requerirPedido(id);
+  const siguiente = aplicarAccion(actual, { tipo: "despriorizar", comentario }, actor);
   return store.guardar(siguiente);
 }

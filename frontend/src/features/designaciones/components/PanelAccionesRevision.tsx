@@ -73,7 +73,7 @@ export function PanelAccionesRevision({
         <div className="adoc-acc-lblrow">
           <label htmlFor="justificativo-revision">Justificativo</label>
           <span id="justificativo-help" className="adoc-acc-help">
-            obligatorio para rechazar, devolver o priorizar
+            obligatorio para rechazar, devolver o marcar prioritario
           </span>
         </div>
         <Textarea
@@ -109,9 +109,9 @@ export function PanelAccionesRevision({
         variant="ghost"
         style={BLOQUE}
         disabled={enviando}
-        onClick={() => onSolicitarAccion("priorizar")}
+        onClick={() => onSolicitarAccion(pedido.prioritario ? "despriorizar" : "priorizar")}
       >
-        Marcar prioritario
+        {pedido.prioritario ? "Quitar prioritario" : "Marcar prioritario"}
       </Button>
 
       <div className="adoc-divider" />

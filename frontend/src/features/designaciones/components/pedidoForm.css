@@ -105,12 +105,17 @@
 /* --- Panel de datos actuales (solo lectura) --- */
 .adoc-pf-datos {
   display: flex;
-  align-items: center;
-  gap: var(--space-5);
+  flex-direction: column;
+  gap: var(--space-3);
   padding: 14px 18px;
   background: var(--color-bg-canvas);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xs);
+}
+.adoc-pf-datos-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
 }
 .adoc-pf-datos-col {
   display: flex;
@@ -155,7 +160,7 @@
   font-weight: 600;
 }
 @media (max-width: 640px) {
-  .adoc-pf-datos {
+  .adoc-pf-datos-strip {
     flex-direction: column;
     align-items: stretch;
     gap: var(--space-3);
@@ -163,6 +168,150 @@
   .adoc-pf-datos-div {
     display: none;
   }
+}
+
+/* --- Sub-secciones de resumen de cambios (Cambio: materias / horas) --- */
+.adoc-pf-datos-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.adoc-pf-datos-sub-h {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-sub-filas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+/* Materias: listado — una materia debajo de la otra, no en línea. */
+.adoc-pf-datos-sub-lista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Fila = "etiqueta · valor" compacto (no space-between: van pegados a
+   propósito, para que se lea como una sola unidad). Cuando hay cambio, el
+   valor usa la misma transición viejo-tenue → nuevo-en-negrita que Cargo y
+   Dedicación (ver .adoc-pf-datos-trans) — mismo lenguaje visual en todo el
+   panel, sin un tratamiento de "warning" aparte. */
+.adoc-pf-datos-sub-fila {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  line-height: 1.3;
+}
+.adoc-pf-datos-sub-etiqueta {
+  color: var(--color-text-secondary);
+}
+.adoc-pf-datos-sub-etiqueta::after {
+  content: "·";
+  margin-left: 5px;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-sub-valor {
+  color: var(--color-text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.adoc-pf-datos-sub-fila.quitada {
+  padding: 3px 8px;
+}
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-etiqueta,
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-etiqueta::after,
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-valor {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  font-weight: 400;
+}
+
+.adoc-pf-datos-sub-fila.agregada {
+  background: var(--accent-100);
+  padding: 3px 8px;
+}
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-etiqueta,
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-etiqueta::after,
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-valor {
+  color: var(--accent-700);
+  font-weight: 600;
+}
+
+/* --- Lista de materias y horas (Alta/Cambio editable, Baja de solo lectura) --- */
+.adoc-pf-materias {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-pf-materias-h {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-materias-fila {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.adoc-pf-materias-fila > *:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-pf-materias-horas {
+  flex: 0 0 160px;
+}
+.adoc-pf-materias-ro {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+.adoc-pf-materias-quitar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.adoc-pf-materias-quitar:hover {
+  color: var(--color-text-danger);
+  border-color: var(--color-border-danger);
+}
+.adoc-pf-materias-quitar svg {
+  width: 16px;
+  height: 16px;
+}
+.adoc-pf-materias-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-danger);
 }
 
 /* --- Botonera --- */

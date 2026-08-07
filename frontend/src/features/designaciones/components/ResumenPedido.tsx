@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Adjunto, Cargo, Dedicacion, Novedad, PedidoDesignacion, TipoAdjunto } from "../types";
 import { iniciales } from "./detalleAdapters";
+import { motivoRechazo } from "./tableroRevisionModelo";
 
 /** Tono del chip de novedad (clases del design system). */
 const TONO_NOVEDAD: Record<Novedad, string> = {
@@ -78,6 +79,7 @@ interface ResumenPedidoProps {
 export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
   const { docente } = pedido;
   const tieneAdjuntos = pedido.adjuntos.length > 0;
+  const motivo = pedido.estado === "rechazado" ? motivoRechazo(pedido) : undefined;
 
   return (
     <section className="adoc-card adoc-det-card">
@@ -116,13 +118,29 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Dedicación">
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
+        <Dato etiqueta="Materias">
+          {pedido.asignaciones.map((a) => `${a.materia} (${a.horas}h)`).join(" · ") || "—"}
+        </Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
-            {pedido.horasInvestigacion ?? 0} h semanales
+            {pedido.horasInvestigacion} h semanales
             <span className="adoc-portal-tag">Portal</span>
           </span>
         </Dato>
+        <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
       </div>
+
+      {motivo && (
+        <>
+          <div className="adoc-divider" />
+          <div className="adoc-justif">
+            <p className="adoc-eyebrow">Motivo de rechazo</p>
+            <blockquote className="adoc-justif-quote adoc-justif-quote--danger">
+              {`“${motivo}”`}
+            </blockquote>
+          </div>
+        </>
+      )}
 
       {pedido.justificacion && (
         <>
