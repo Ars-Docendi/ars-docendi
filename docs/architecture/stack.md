@@ -16,7 +16,7 @@ Monolito modular en un único `ArsDocendi.slnx`. Cada módulo es un proyecto sep
 | Proyecto                               | Rol                                                                                                                                                                  |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ArsDocendi.Host`                      | Composition root. Configura DI, autenticación, módulos, pipeline HTTP. Único proyecto que referencia todos los `Modules.X.Contracts` y los `Modules.X` para hosting. |
-| `ArsDocendi.Shared`                    | Utilidades transversales (sin lógica de dominio).                                                                                                                    |
+| `ArsDocendi.Shared`                    | Utilidades transversales (sin lógica de dominio) **más** la persistencia de los schemas `identity` y `audit` — única I/O admitida, ver invariante #4.                |
 | `Modules.Designaciones` + `.Contracts` | Workflow de designaciones docentes + lectura de asignaciones via API Guaraní.                                                                                        |
 | `Modules.Aulas` + `.Contracts`         | Pedidos y asignación de aulas/laboratorios para exámenes.                                                                                                            |
 | `Modules.Portal` + `.Contracts`        | Datos personales del docente, horas, áreas de experticia.                                                                                                            |

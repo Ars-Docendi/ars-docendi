@@ -6,10 +6,30 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 
 **Entity Framework Core 10** con migraciones por módulo. Cada módulo tiene su propio `DbContext` apuntando a su schema:
 
+- `IdentityDbContext` → schemas `identity` y `audit` (vive en `ArsDocendi.Shared`, ver más abajo)
 - `DesignacionesDbContext` → schema `designaciones`
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas`
+
+### Dueño de `identity` y `audit`
+
+No son de ningún módulo: viven en **`ArsDocendi.Shared`**, porque son infraestructura transversal de la que dependen los 4 módulos. Es la única I/O admitida en ese proyecto — ver invariante #4 en [CLAUDE.md](../../CLAUDE.md), enmendado en el change `modelo-datos-identity-designaciones`.
+
+Consecuencia a vigilar: todos los módulos alcanzan `identity` sin pasar por Contracts. Leen para autorizar, vía `IConsultasIdentity`; escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración. Ver [dependency-graph.md](dependency-graph.md#frontera-de-lectura-sobre-identity).
+
+### El modelo EF no genera DDL
+
+**Todas** las entidades se mapean con `ExcludeFromMigrations()`. El DDL es el SQL versionado bajo `database/` (ver "Migraciones" más abajo); el modelo de EF sólo describe el schema para poder consultarlo. Así EF no puede divergir del SQL ni intentar recrear índices parciales, triggers plpgsql o constraints `EXCLUDE` que no sabe expresar.
+
+Verificable con:
+
+```bash
+dotnet ef migrations has-pending-model-changes \
+  --project backend/src/ArsDocendi.Shared \
+  --startup-project backend/src/ArsDocendi.Host \
+  --context IdentityDbContext
+```
 
 ## Conexión
 
@@ -28,32 +48,46 @@ El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el arg
 
 Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
 
-## Entidades por módulo (skeleton)
+## Entidades por schema
+
+### Identity (`schema: identity`) — dueño: `ArsDocendi.Shared`
+
+| Tabla          | Descripción                                                                                                                                                                                | PII                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `personas`     | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018) | **Sí** — documento, CUIL, teléfono, fecha nac. |
+| `users`        | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                        | Parcial — UPN, display name                    |
+| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger                                                                                                  | No                                             |
+| `permisos`     | Catálogo **cerrado** de 20. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
+| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización                                                                                                                      | No                                             |
+| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete                                                                                             | No                                             |
+| `carreras`     | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                           | No                                             |
+| `materias`     | Catálogo. Es también la unidad de "cátedra"                                                                                                                                                | No                                             |
 
 ### Designaciones (`schema: designaciones`)
 
-| Tabla                 | Descripción | PII |
-| --------------------- | ----------- | --- |
-| _(a definir en spec)_ | ...         | ... |
+| Tabla              | Descripción                                                                                                                   | PII |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | --- |
+| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                | No  |
+| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                              | No  |
+| `pedidos`          | **El trámite.** Cubre exactamente una materia; `snapshot` congela los datos vigentes al enviar                                | No  |
+| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                          | No  |
+| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                     | No  |
+| `designaciones`    | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia. `origen_pedido_id` NULL = carga administrativa directa | No  |
 
-### Aulas (`schema: aulas`)
+### Aulas, Portal, Tareas
 
-| Tabla                 | Descripción | PII |
-| --------------------- | ----------- | --- |
-| _(a definir en spec)_ | ...         | ... |
+Sin modelar todavía: sus `types.ts` en el frontend están vacíos y no hay pantalla que valide un modelo. Se definen cuando tengan superficie.
 
-### Portal (`schema: portal`)
+### Por qué el historial no sale de `audit.change_log`
 
-| Tabla                       | Descripción                                                          | PII                                  |
-| --------------------------- | -------------------------------------------------------------------- | ------------------------------------ |
-| `Docentes`                  | Datos personales del docente, áreas de experticia, horas disponibles | **Sí** — nombre, DNI, mail, teléfono |
-| _(otras a definir en spec)_ | ...                                                                  | ...                                  |
+`pedido_historial` es una tabla de dominio y no una vista sobre el log, por cuatro razones:
 
-### Tareas (`schema: tareas`)
+1. **El rol con el que se actuó no es derivable.** El log guarda `changed_by` (un usuario), pero un usuario puede tener varios roles.
+2. **El comentario es dato de negocio**, exigido por BR-designaciones-005 y visible en la UI.
+3. **`changed_by` es nullable** — queda NULL si el claim no parsea como UUID. Un registro probatorio no lo tolera.
+4. **El log está pensado para purgarse** (índice BRIN sobre `changed_at`). El historial de un trámite no se purga.
 
-| Tabla                 | Descripción | PII |
-| --------------------- | ----------- | --- |
-| _(a definir en spec)_ | ...         | ... |
+Igual hace `audit.attach`: que alguien edite el historial a mano tiene que dejar rastro.
 
 ## Trazabilidad de cambios
 
@@ -113,7 +147,7 @@ SELECT * FROM audit.row_history('identity', 'user_roles', '<uuid>');
 
 ## Consideraciones PII
 
-El módulo `Portal` maneja datos personales de docentes. Requisitos:
+Los datos personales del sistema (documento, CUIL, teléfono, fecha de nacimiento) se concentran en **`identity.personas`**, no en `Portal`. Cuando Portal tenga schema, sumará lo suyo (áreas de experticia, disponibilidad horaria), pero la identidad de la persona vive en un solo lugar. Requisitos:
 
 - **Encriptación at-rest**: PostgreSQL con encrypted volume en la VM (TBD en `infrastructure.md`).
 - **Encriptación in-transit**: TLS obligatorio para conexiones a Postgres en producción.
@@ -128,25 +162,64 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 - **Soft reference** por ID (sin FK física), con validación de existencia via interfaz pública del otro módulo (ver `module-anatomy.md`).
 - **Excepción**: cuando el costo de inconsistencia es muy alto y la performance lo justifica, FK cross-schema con justificación documentada en este archivo.
 
+### Excepciones vigentes
+
+| From                             | To                  | Justificación                                                                                                    |
+| -------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `designaciones.pedidos`          | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
+| `designaciones.pedidos`          | `identity.materias` | La materia determina la cátedra y, por derivación, el Coordinador competente (BR-designaciones-009)              |
+| `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
+| `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
+| `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
+| `designaciones.designaciones`    | `identity.materias` | Ídem que pedidos                                                                                                 |
+| `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
+
+Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.
+
+Nota de orden: `audit.change_log` referencia `identity.users`, pero `identity.users` necesita `audit.attach()` para engancharse al log. El ciclo se rompe creando `identity.users` sin enganche, después el schema `audit` completo, y difiriendo el `attach` a `database/identity/009_identity_audit_attach.sql`.
+
 ## Migraciones
 
-Comandos por módulo:
+**El DDL se autora en SQL, no en C#.** Los archivos `.sql` versionados bajo `database/<schema>/` son la fuente autorizada; las migraciones EF sólo los ejecutan.
+
+El motivo es que buena parte del schema EF Core no lo sabe generar:
+
+| Construcción                                       | ¿EF la genera?   |
+| -------------------------------------------------- | ---------------- |
+| Funciones y triggers plpgsql                       | No               |
+| `NULLS NOT DISTINCT` en índices de unicidad        | No               |
+| Constraints `EXCLUDE` (vigencias sin solapamiento) | No               |
+| `SELECT audit.attach('schema.tabla')` por tabla    | No               |
+| Índices parciales (`WHERE ...`)                    | Sí (`HasFilter`) |
+
+### Cómo se aplican
+
+Los `.sql` se embeben como **recursos del assembly** (`<EmbeddedResource>` en el `.csproj`, apuntando a `database/` con `Link`), y la migración los ejecuta con `migrationBuilder.Sql(...)` leyéndolos con `ArsDocendi.Shared.Persistencia.RecursosSql`. Nunca se leen del filesystem en runtime: el deploy no depende de que `database/` viaje en la imagen.
+
+El **orden** lo fija la migración que los invoca, no el nombre del archivo — hay dependencias entre schemas que el orden alfabético no respeta.
+
+### Flujo para agregar una tabla
+
+1. Escribir el `.sql` bajo `database/<schema>/`, con `created_at` y cerrando con `SELECT audit.attach(...)`.
+2. Agregar la entidad al `DbContext` con `ToTable(..., t => t.ExcludeFromMigrations())`.
+3. Sumar el archivo al array `ArchivosEnOrden` de la migración correspondiente (o crear una migración nueva).
+4. Verificar que no queden cambios pendientes de modelo:
 
 ```bash
-# Crear nueva migration
-dotnet ef migrations add <Nombre> \
-  --project backend/src/Modules.Designaciones \
-  --startup-project backend/src/ArsDocendi.Host \
-  --context DesignacionesDbContext
-
-# Aplicar migrations
-dotnet ef database update \
+dotnet ef migrations has-pending-model-changes \
   --project backend/src/Modules.Designaciones \
   --startup-project backend/src/ArsDocendi.Host \
   --context DesignacionesDbContext
 ```
 
-(repetir cambiando proyecto y context para cada módulo)
+### Aplicar
+
+```bash
+# Todos los schemas, one-shot, sin levantar el web server
+dotnet run --project backend/src/ArsDocendi.Host -- --migrate
+```
+
+Es idempotente (`Database.Migrate()`), así que re-ejecutarlo sobre una base ya migrada no produce cambios ni error.
 
 ## Seeds
 

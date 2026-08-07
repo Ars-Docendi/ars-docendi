@@ -13,12 +13,24 @@
 
 ### BR-`designaciones`-001 Un pedido por docente por período
 
-- **Statement:** No puede existir más de un pedido de designación para el mismo docente dentro de un mismo período abierto.
+- **Statement:** No puede existir más de un pedido de designación para el mismo docente dentro de un mismo período abierto, **sin importar la cátedra**.
 - **Rationale:** Evita designaciones duplicadas o contradictorias para un docente en un ciclo; el proyecto docente del período debe tener una sola entrada por docente.
 - **Provenance:** `from_spec`
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
 - **Ejemplos:** Si ya hay un pedido para el DNI 30.111.222 en el período abierto, crear otro para ese DNI se rechaza. Al **editar** el propio pedido, no se considera duplicado.
 - **Roles afectados:** Jefe de Cátedra.
+- **Implementación:** doble capa, con la base de datos como autoridad.
+
+  ```sql
+  -- database/designaciones/003_designaciones_pedidos.sql
+  CREATE UNIQUE INDEX pedidos_uno_por_docente_periodo
+      ON designaciones.pedidos (periodo_id, persona_id)
+      WHERE estado NOT IN ('rechazado', 'cancelado');
+  ```
+
+  El índice es lo único que sobrevive a dos requests concurrentes. El backend valida antes para producir el mensaje del spec y traduce la violación del índice al mismo error. El conjunto de estados excluidos vive en C# en `EstadosPedido.NoOcupanCupo` y **debe** coincidir con el `WHERE` del índice: si se desalinean, backend y base discrepan sobre qué es un duplicado.
+
+- **Consecuencia asumida:** combinada con "un pedido cubre exactamente una materia", esta regla implica que un docente recibe **a lo sumo un trámite por período en total**. Si dicta en dos cátedras, el primer Jefe de Cátedra que cargue bloquea al segundo. El mensaje de bloqueo **no debe exponer** la cátedra, el contenido ni el autor del pedido bloqueante — pertenece a una cátedra ajena al actor.
 
 ### BR-`designaciones`-002 Alta exige CV + DNI frente + DNI dorso
 
@@ -55,6 +67,7 @@
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
 - **Ejemplos:** Un "Cambio" o una "Baja" sobre un docente sin legajo bloquea el guardado e indica que el legajo es obligatorio. Un "Alta" sin legajo no marca ese error.
 - **Roles afectados:** Jefe de Cátedra.
+- **Implementación:** `identity.personas.legajo` es **nullable** precisamente para admitir el caso del Alta — un docente que todavía no existe en el sistema y cuyo legajo asigna RRHH después. La obligatoriedad en Baja y Cambio la valida el backend, no la base: es una regla dependiente de la novedad del pedido, no del estado de la persona.
 
 ### BR-`designaciones`-008 Tras enviar, el Jefe de Cátedra no edita salvo devolución
 
@@ -160,6 +173,10 @@ Todo BR-\* debe tener al menos un test verificando la regla.
 ## Open Questions
 
 - Confirmar con el cliente la documentación exacta exigida por Alta/Baja (¿algún adjunto adicional?) y la fuente normativa de la regla "un pedido por docente por período".
+- **Catálogo de cargos.** El código tenía tres vocabularios incompatibles: 4 valores en `features/designaciones/types.ts`, 6 en `features/docentes/mock/mockStore.ts`, y 7 mencionados sólo en el texto de `admin-docentes` D6 (incluye "Docente Autorizado", que no está en ningún array). `designaciones.cargos` siembra la lista de 6 por ser la más completa que está efectivamente en el código. La nomenclatura correcta viene del convenio colectivo y del estatuto UNLaM: **la define el cliente, no el equipo**. Corregirla es un `INSERT`/`UPDATE`, no una migración.
+- **Alcance de BR-001.** Se implementó la versión literal (por docente y período, sin importar la cátedra), que bloquea al segundo Jefe de Cátedra cuando un docente dicta en dos. Si el cliente confirma que debía ser **por cátedra**, es agregar `materia_id` al índice único.
+- **Reintento tras rechazo.** El índice excluye `rechazado` y `cancelado`, o sea que hoy se puede volver a presentar tras un rechazo dentro del mismo período. Si un rechazo debe cerrar el período para ese docente, se saca `'rechazado'` del `WHERE` (y de `EstadosPedido.NoOcupanCupo`).
+- **Matriz inicial de permisos.** `identity.rol_permisos` se siembra con una matriz derivada de las responsabilidades de cada rol documentadas en `CLAUDE.md`, **no** del mock del frontend (que le asigna "Aprobar designaciones — Decanato" al rol Docente). Es provisional y se ajusta desde `/membresia-roles` sin migración, pero conviene que Secretaría la valide.
 
 ## Aprobación
 

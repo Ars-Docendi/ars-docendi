@@ -7,7 +7,7 @@
 CREATE TABLE identity.user_roles (
     id           UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id      UUID         NOT NULL REFERENCES identity.users(id)    ON DELETE CASCADE,
-    role_id      SMALLINT     NOT NULL REFERENCES identity.roles(id)    ON DELETE RESTRICT,
+    role_id      UUID         NOT NULL REFERENCES identity.roles(id)    ON DELETE RESTRICT,
     materia_id   UUID         NULL     REFERENCES identity.materias(id) ON DELETE RESTRICT,
     carrera_id   UUID         NULL     REFERENCES identity.carreras(id) ON DELETE RESTRICT,
     granted_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
@@ -39,6 +39,8 @@ CREATE INDEX user_roles_carrera_idx
 
 -- Enforce that the scope columns match the assigned role's declared scope.
 -- Not a CHECK because it crosses tables (looks up identity.roles.scope).
+-- Applies identically to operator-created roles and to system roles: every role
+-- declares a scope, so there is no unscoped branch to fall through.
 CREATE OR REPLACE FUNCTION identity.enforce_role_scope()
 RETURNS TRIGGER
 LANGUAGE plpgsql

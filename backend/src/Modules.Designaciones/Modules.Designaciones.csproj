@@ -21,4 +21,15 @@
     <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
   </ItemGroup>
 
+  <!--
+    DDL del schema `designaciones`, autorado en SQL versionado bajo database/ y
+    embebido acá como recurso. Las migraciones EF lo ejecutan con
+    migrationBuilder.Sql(...); ver design.md (D8) del change
+    modelo-datos-identity-designaciones.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\..\database\designaciones\*.sql"
+                      Link="Sql\designaciones\%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

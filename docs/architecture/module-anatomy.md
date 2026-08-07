@@ -7,7 +7,7 @@ Cada **módulo** es un bounded context con una **única superficie pública**: e
 ```
 backend/src/
 ├── ArsDocendi.Host/                              # Composition root (referencia todos los Contracts + Modules)
-├── ArsDocendi.Shared/                            # Utilidades puras transversales
+├── ArsDocendi.Shared/                            # Utilidades transversales + schemas identity y audit
 ├── Modules.<Modulo>/                             # INTERNO — implementación
 │   ├── Modules.<Modulo>.csproj
 │   ├── Controllers/
@@ -67,6 +67,17 @@ public class DesignacionesService(IPortalDocenteQuery portalQuery) {
 - **Utilidades puras transversales**: `ArsDocendi.Shared` (cosas como `Result<T>`, helpers de fechas).
 - **Si un helper lo usa un solo módulo**: dentro de `Modules.<Modulo>/Internal/`.
 - **DTOs públicos compartidos entre módulos**: no aplica — cada módulo expone los suyos en su `.Contracts`. Si dos módulos necesitan el mismo DTO, indica que pertenece a un tercer concepto.
+
+### Identidad y auditoría: leer sí, escribir no
+
+`ArsDocendi.Shared` hospeda además la persistencia de los schemas `identity` y `audit` — única I/O admitida ahí, por el invariante #4 enmendado. Como los 4 módulos referencian Shared, todos alcanzan `identity` directamente, **sin pasar por Contracts**.
+
+El invariante #1 no cubre este caso: referenciar Shared es legítimo, así que no hay relación cross-module que violar. La disciplina es:
+
+- **Leer**: siempre a través de `IConsultasIdentity`, que expone sólo consultas de autorización (persona, roles vigentes, rol sobre materia o carrera, permisos efectivos). Es la barrera que hace incómodo escribir aunque el `DbContext` esté al alcance.
+- **Escribir** `personas`, `roles`, `permisos` o `rol_permisos`: **exclusivo de la superficie de administración**. Un `Modules.*` que escriba identity es una violación, aunque compile.
+
+Detalle en [dependency-graph.md](dependency-graph.md#frontera-de-lectura-sobre-identity).
 
 ## Smoke test obligatorio
 
