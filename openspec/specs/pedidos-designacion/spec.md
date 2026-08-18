@@ -105,14 +105,14 @@ representar explícitamente los cuatro estados de carga: Loading, Empty, Error y
 
 El sistema SHALL permitir al Jefe de Cátedra crear un pedido de designación desde
 `/designaciones/pedidos/nuevo`, capturando los datos comunes del pedido: docente (DNI, nombre),
-antigüedad, cargo y dedicación actual (read-only, mock), una o más asignaciones de materia con sus
-horas, horas de investigación, horas externas (otro departamento) y novedad. El pedido se crea en
+antigüedad, cargo y dedicación actual (read-only), la materia de su cátedra con su carga horaria,
+horas de investigación, horas externas (otro departamento) y novedad. El pedido se crea en
 estado `borrador`.
 
 #### Scenario: Alta de un pedido en borrador
 
 - **GIVEN** un Jefe de Cátedra en el form de nuevo pedido
-- **WHEN** completa los datos comunes, al menos una asignación de materia válida y una novedad válida
+- **WHEN** completa los datos comunes, la carga horaria de la materia y una novedad válida
   con sus campos requeridos
 - **THEN** el pedido se persiste en estado `borrador` y aparece en "Mis pedidos"
 
@@ -122,7 +122,14 @@ estado `borrador`.
 - **WHEN** el Jefe de Cátedra intenta crear un segundo pedido para ese mismo docente en el mismo
   período
 - **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en
-  el período, sin importar si las materias asociadas al segundo pedido difieren de las del primero
+  el período, **sin importar si el segundo pedido corresponde a otra cátedra**
+
+#### Scenario: El bloqueo por duplicado no expone datos de una cátedra ajena [BR-designaciones-001]
+
+- **GIVEN** un docente con un pedido no terminal cargado por el Jefe de Cátedra de otra materia
+- **WHEN** el Jefe de Cátedra de la cátedra actual intenta crear un pedido para ese docente
+- **THEN** el sistema MUST rechazar la creación informando que ya existe un trámite en curso para ese
+  docente en el período, **sin revelar la cátedra, el contenido ni el autor del pedido bloqueante**
 
 ### Requirement: Secciones condicionales por novedad
 
@@ -147,79 +154,44 @@ docente (solo lectura).
 - **THEN** la sección de adjuntos requeridos se actualiza para reflejar los adjuntos exigidos por esa
   novedad
 
-### Requirement: Materias y horas del pedido
+### Requirement: Materia y horas del pedido
 
-El sistema SHALL permitir que un pedido de novedad "Alta" o "Cambio de cargo o dedicación" incluya
-una o más asignaciones de materia, cada una con su propia carga horaria (materia + horas), agregables,
-quitables y con la materia seleccionable/cambiable desde el form — el mismo patrón de lista en ambas
-novedades. El listado SHALL tener siempre al menos 1 asignación: el sistema MUST impedir quitar la
-última fila restante. En Cambio, la lista SHALL precargarse con las materias que ya tiene el docente
-seleccionado, pero queda abierta a los mismos cambios que en Alta (agregar, quitar, cambiar materia,
-editar horas).
+El pedido de designación SHALL corresponder a exactamente una materia —la cátedra sobre la que el Jefe de Cátedra opera— con su carga horaria. La materia MUST NOT ser editable en ninguna novedad: proviene del ámbito del actor, no del formulario, porque determina a qué Coordinador se rutea el pedido. La carga horaria SHALL ser editable en "Alta" y en "Cambio de cargo o dedicación", y de solo lectura en "Baja" y "Sin novedad", donde es contexto de qué queda vacante o qué sigue vigente. El formulario MUST NOT ofrecer agregar ni quitar materias.
 
-Para la novedad "Baja", el sistema SHALL mostrar el mismo listado de materias y horas que ya tiene el
-docente (`materiasActuales`), pero íntegramente de solo lectura: ni la materia ni las horas ni el
-listado en sí (agregar/quitar) son editables — es información de contexto sobre qué queda vacante, no
-un dato a modificar. Para "Sin novedad", el pedido SHALL tener exactamente una asignación
-correspondiente a la materia vigente del docente, no editable ni en la materia ni en las horas.
+#### Scenario: Alta captura la materia de la cátedra y sus horas
 
-El listado de materias reemplaza cualquier mención de la materia en el panel de datos actuales de
-solo lectura (evita duplicar la misma información en dos lugares del form), tanto en Cambio como en
-Baja.
+- **GIVEN** un Jefe de Cátedra cargando un pedido de novedad "Alta"
+- **WHEN** completa la carga horaria de la materia
+- **THEN** el pedido guarda la materia de su cátedra junto con esas horas, sin haberle ofrecido elegir la materia
 
-#### Scenario: Alta con múltiples materias
+#### Scenario: Cambio permite editar las horas, no la materia
 
-- **GIVEN** un Jefe de Cátedra cargando un pedido de "Alta"
-- **WHEN** agrega una segunda fila de materia + horas mediante la acción "Agregar materia"
-- **THEN** el pedido guarda ambas asignaciones (materia + horas) sin necesidad de crear un segundo
-  pedido para el mismo docente
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación"
+- **WHEN** el Jefe de Cátedra visualiza el formulario
+- **THEN** ve la carga horaria en un campo editable y la materia fijada a la cátedra del pedido, sin control para cambiarla
 
-#### Scenario: Cambio precarga el listado de materias del docente, editable
+#### Scenario: Cambio precarga las horas vigentes de esa cátedra
 
-- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" sobre un docente con una o más
-  materias asignadas
-- **WHEN** el Jefe de Cátedra visualiza el form
-- **THEN** ve una fila por cada materia a la que pertenece el docente, con la materia seleccionable en
-  un `Select` y la carga horaria en un campo editable
+- **GIVEN** un docente con designaciones vigentes en más de una materia
+- **WHEN** el Jefe de Cátedra lo selecciona en un pedido de "Cambio de cargo o dedicación"
+- **THEN** el formulario precarga únicamente las horas de la cátedra del pedido, sin considerar las de sus otras materias
 
-#### Scenario: Cambio permite agregar, quitar y cambiar materias
+#### Scenario: Baja y Sin novedad muestran materia y horas de solo lectura
 
-- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" con su listado de materias precargado
-- **WHEN** el Jefe de Cátedra agrega una fila nueva, quita una fila existente, o cambia la materia
-  seleccionada en una fila
-- **THEN** el pedido guarda el listado resultante de asignaciones (materia + horas)
+- **GIVEN** un pedido de novedad "Baja" o "Sin novedad"
+- **WHEN** el Jefe de Cátedra visualiza el formulario
+- **THEN** ve la materia y las horas vigentes sin ningún control editable
 
-#### Scenario: No se puede dejar un pedido sin materias [Alta y Cambio]
+#### Scenario: El formulario no ofrece agregar ni quitar materias
 
-- **GIVEN** un pedido de novedad "Alta" o "Cambio de cargo o dedicación" con una única fila de materia
-  restante en el listado
-- **WHEN** el Jefe de Cátedra intenta quitar esa última fila
-- **THEN** el sistema MUST impedir la acción (la UI no ofrece quitar la última fila, y la validación
-  de guardado MUST rechazar un `asignaciones` vacío si ocurriera por otra vía)
+- **WHEN** el Jefe de Cátedra visualiza el formulario de pedido en cualquier novedad
+- **THEN** MUST no existir acción de "Agregar materia" ni control para quitar una fila de materia
 
-#### Scenario: Cambio y Baja no repiten la materia como columna plana en la franja superior
+#### Scenario: Un docente en dos cátedras requiere un pedido por cada una
 
-- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" o "Baja"
-- **WHEN** el Jefe de Cátedra visualiza la franja superior del panel de datos actuales (Antigüedad /
-  Cargo / Dedicación)
-- **THEN** esa franja MUST mostrar antigüedad, cargo actual y dedicación actual sin una columna plana
-  de "Materia" — la materia vive en la sección de materias y horas (Cambio: editable, arriba del
-  panel; Baja: listado de solo lectura) y, en Cambio, también en la sub-sección de transición del
-  propio panel (ver "Resumen de cambios en el panel de datos actuales")
-
-#### Scenario: Baja muestra el listado de materias y horas del docente, de solo lectura
-
-- **GIVEN** un pedido de novedad "Baja" sobre un docente con una o más materias asignadas
-- **WHEN** el Jefe de Cátedra visualiza el form
-- **THEN** ve una fila por cada materia a la que pertenece el docente, con su carga horaria, sin
-  ningún control editable (ni `Select` de materia, ni `Input` de horas, ni acción de agregar/quitar)
-
-#### Scenario: Sin novedad muestra la materia vigente sin edición
-
-- **GIVEN** un pedido de novedad "Sin novedad"
-- **WHEN** el Jefe de Cátedra visualiza el form
-- **THEN** ve la materia vigente del docente como asignación única, sin poder editar la materia ni
-  las horas ni agregar otras
+- **GIVEN** un docente que dicta en dos materias con Jefes de Cátedra distintos
+- **WHEN** se necesita tramitar novedades sobre ambas
+- **THEN** cada cátedra MUST cargar su propio pedido, sujeto a la restricción de BR-designaciones-001
 
 ### Requirement: Cargo solicitado sin restricción de jerarquía
 
@@ -264,11 +236,11 @@ aplica esta restricción (no hay dedicación actual con la cual comparar).
 - **THEN** el sistema MUST bloquear el guardado e indicar que la dedicación solicitada debe ser mejor
   que la actual
 
-### Requirement: Resumen de cambios en el panel de datos actuales (Cambio)
+### Requirement: Resumen de cambios de una materia en el panel de datos actuales (Cambio)
 
 En "Cambio de cargo o dedicación", el panel de solo lectura de datos actuales SHALL mostrar, además de
 antigüedad, la transición `actual → solicitado` de **todos** los campos que Cambio puede modificar:
-cargo, dedicación, cada materia con su carga horaria, y horas de investigación/externas. Un campo sin
+cargo, dedicación, la carga horaria de la materia, y horas de investigación/externas. Un campo sin
 cambios SHALL mostrarse con su valor plano (sin flecha de transición). En "Baja" y "Sin novedad" el
 panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
 
@@ -280,14 +252,18 @@ panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
 - **THEN** ve "Adjunto → Titular" en la fila de cargo y "Categoría 3 → Categoría 1" en la fila de
   dedicación
 
-#### Scenario: El panel compara el listado de materias por nombre
+#### Scenario: El panel muestra la transición de la carga horaria de la materia
 
-- **GIVEN** un pedido de Cambio donde el docente tenía "Programación I (6h)" y "Programación II (4h)",
-  y el Jefe de Cátedra cambió las horas de "Programación I" a 8h, quitó "Programación II" y agregó
-  "Bases de Datos (4h)"
+- **GIVEN** un pedido de Cambio sobre una cátedra donde el docente tenía 6h y el Jefe de Cátedra
+  cargó 8h
 - **WHEN** visualiza el panel de datos actuales
-- **THEN** ve tres filas: "Programación I: 6h → 8h", "Programación II: 6h · quitada" (o equivalente) y
-  "Bases de Datos: nueva · 4h" (o equivalente)
+- **THEN** ve la fila de la materia con "6h → 8h"
+
+#### Scenario: Una carga horaria sin cambios se muestra sin transición
+
+- **GIVEN** un pedido de Cambio donde el Jefe de Cátedra no modificó la carga horaria
+- **WHEN** visualiza el panel de datos actuales
+- **THEN** ve la carga horaria con su valor plano, sin flecha de transición
 
 #### Scenario: El panel muestra la transición de horas de investigación y externas
 

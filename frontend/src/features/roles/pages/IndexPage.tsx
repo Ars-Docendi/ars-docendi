@@ -7,7 +7,12 @@ import { TablaRoles } from "../components/TablaRoles";
 import { ModalNuevoRol } from "../components/ModalNuevoRol";
 import { ModalEditarRol } from "../components/ModalEditarRol";
 import { ModalConfirmarEliminarRol } from "../components/ModalConfirmarEliminarRol";
-import { normalizarTexto, type RolMock } from "../mock/mockStore";
+import {
+  normalizarTexto,
+  type DatosRolEditables,
+  type DatosRolNuevo,
+  type RolMock,
+} from "../mock/mockStore";
 
 export function IndexPage() {
   const { roles, agregarRol, editarRol, eliminarRol } = useConfiguracion();
@@ -24,12 +29,12 @@ export function IndexPage() {
     );
   }, [roles, busqueda]);
 
-  function handleCrear(datos: Omit<RolMock, "id">, rolBaseId: string | null) {
+  function handleCrear(datos: DatosRolNuevo, rolBaseId: string | null) {
     agregarRol(datos, rolBaseId);
     setModalNuevo(false);
   }
 
-  function handleEditar(datos: Omit<RolMock, "id">) {
+  function handleEditar(datos: DatosRolEditables) {
     if (!rolAEditar) return;
     editarRol(rolAEditar.id, datos);
     setRolAEditar(null);
@@ -79,7 +84,7 @@ export function IndexPage() {
       <ModalConfirmarEliminarRol
         rol={rolAEliminar}
         onConfirmar={() => {
-          if (rolAEliminar) eliminarRol(rolAEliminar.id);
+          if (rolAEliminar && !rolAEliminar.es_sistema) eliminarRol(rolAEliminar.id);
           setRolAEliminar(null);
         }}
         onCerrar={() => setRolAEliminar(null)}

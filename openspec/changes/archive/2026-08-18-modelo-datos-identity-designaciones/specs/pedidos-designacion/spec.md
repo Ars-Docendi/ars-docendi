@@ -39,39 +39,7 @@ El pedido de designación SHALL corresponder a exactamente una materia —la cá
 - **WHEN** se necesita tramitar novedades sobre ambas
 - **THEN** cada cátedra MUST cargar su propio pedido, sujeto a la restricción de BR-designaciones-001
 
-## MODIFIED Requirements
-
-### Requirement: Creación de pedido de designación
-
-El sistema SHALL permitir al Jefe de Cátedra crear un pedido de designación desde
-`/designaciones/pedidos/nuevo`, capturando los datos comunes del pedido: docente (DNI, nombre),
-antigüedad, cargo y dedicación actual (read-only), la materia de su cátedra con su carga horaria,
-horas de investigación, horas externas (otro departamento) y novedad. El pedido se crea en
-estado `borrador`.
-
-#### Scenario: Alta de un pedido en borrador
-
-- **GIVEN** un Jefe de Cátedra en el form de nuevo pedido
-- **WHEN** completa los datos comunes, la carga horaria de la materia y una novedad válida
-  con sus campos requeridos
-- **THEN** el pedido se persiste en estado `borrador` y aparece en "Mis pedidos"
-
-#### Scenario: Un pedido por docente por período [BR-designaciones-001]
-
-- **GIVEN** un docente que ya tiene un pedido en el período abierto
-- **WHEN** el Jefe de Cátedra intenta crear un segundo pedido para ese mismo docente en el mismo
-  período
-- **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en
-  el período, **sin importar si el segundo pedido corresponde a otra cátedra**
-
-#### Scenario: El bloqueo por duplicado no expone datos de una cátedra ajena [BR-designaciones-001]
-
-- **GIVEN** un docente con un pedido no terminal cargado por el Jefe de Cátedra de otra materia
-- **WHEN** el Jefe de Cátedra de la cátedra actual intenta crear un pedido para ese docente
-- **THEN** el sistema MUST rechazar la creación informando que ya existe un trámite en curso para ese
-  docente en el período, **sin revelar la cátedra, el contenido ni el autor del pedido bloqueante**
-
-### Requirement: Resumen de cambios en el panel de datos actuales (Cambio)
+### Requirement: Resumen de cambios de una materia en el panel de datos actuales (Cambio)
 
 En "Cambio de cargo o dedicación", el panel de solo lectura de datos actuales SHALL mostrar, además de
 antigüedad, la transición `actual → solicitado` de **todos** los campos que Cambio puede modificar:
@@ -107,6 +75,38 @@ panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
 - **WHEN** visualiza el panel de datos actuales
 - **THEN** ve "Investigación: 2h → 4h" y "Externas: 0h" (sin flecha, no cambió)
 
+## MODIFIED Requirements
+
+### Requirement: Creación de pedido de designación
+
+El sistema SHALL permitir al Jefe de Cátedra crear un pedido de designación desde
+`/designaciones/pedidos/nuevo`, capturando los datos comunes del pedido: docente (DNI, nombre),
+antigüedad, cargo y dedicación actual (read-only), la materia de su cátedra con su carga horaria,
+horas de investigación, horas externas (otro departamento) y novedad. El pedido se crea en
+estado `borrador`.
+
+#### Scenario: Alta de un pedido en borrador
+
+- **GIVEN** un Jefe de Cátedra en el form de nuevo pedido
+- **WHEN** completa los datos comunes, la carga horaria de la materia y una novedad válida
+  con sus campos requeridos
+- **THEN** el pedido se persiste en estado `borrador` y aparece en "Mis pedidos"
+
+#### Scenario: Un pedido por docente por período [BR-designaciones-001]
+
+- **GIVEN** un docente que ya tiene un pedido en el período abierto
+- **WHEN** el Jefe de Cátedra intenta crear un segundo pedido para ese mismo docente en el mismo
+  período
+- **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en
+  el período, **sin importar si el segundo pedido corresponde a otra cátedra**
+
+#### Scenario: El bloqueo por duplicado no expone datos de una cátedra ajena [BR-designaciones-001]
+
+- **GIVEN** un docente con un pedido no terminal cargado por el Jefe de Cátedra de otra materia
+- **WHEN** el Jefe de Cátedra de la cátedra actual intenta crear un pedido para ese docente
+- **THEN** el sistema MUST rechazar la creación informando que ya existe un trámite en curso para ese
+  docente en el período, **sin revelar la cátedra, el contenido ni el autor del pedido bloqueante**
+
 ## REMOVED Requirements
 
 ### Requirement: Materias y horas del pedido
@@ -128,3 +128,13 @@ pedido por cada una, sujeto a BR-designaciones-001. Los escenarios retirados con
 "Cambio y Baja no repiten la materia como columna plana en la franja superior", "Baja muestra el
 listado de materias y horas del docente, de solo lectura", "Sin novedad muestra la materia vigente sin
 edición") quedan cubiertos, en su parte vigente, por los escenarios del nuevo requirement.
+
+### Requirement: Resumen de cambios en el panel de datos actuales (Cambio)
+
+**Reason**: Este requirement compara una lista editable de materias por nombre para detectar altas,
+bajas y cambios de carga horaria. Con el modelo de una materia fija por pedido ya no existe una lista
+que agregar, quitar o reconciliar.
+
+**Migration**: Reemplazado por "Resumen de cambios de una materia en el panel de datos actuales
+(Cambio)", que conserva las transiciones de cargo, dedicación, horas de la materia y horas de
+investigación/externas, pero elimina la comparación de listas y nombres de materias.

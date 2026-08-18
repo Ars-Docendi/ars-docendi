@@ -20,6 +20,7 @@ Restricciones heredadas que el diseño respeta sin discusión:
 - Trazabilidad de punta a punta: de una designación vigente al pedido que la originó, de ahí a su historial de trámite, y de cualquier fila a `audit.change_log`.
 - Un dueño explícito para `identity` y `audit`, que hoy no pertenecen a ningún módulo.
 - Un mecanismo de migración que soporte el plpgsql que EF Core no sabe generar.
+- Una suite backend que ejecute el DDL real sobre PostgreSQL 18 y cubra las garantías de integridad y concurrencia del change.
 
 **Non-Goals:**
 
@@ -216,6 +217,32 @@ admin-docentes D6 (texto) 7:  …+ "Docente Autorizado"
 
 **Cuál de las tres listas es la correcta es Open Question para el cliente** — es nomenclatura institucional del convenio colectivo, no una decisión de diseño.
 
+---
+
+### D10 — Tests de integración con PostgreSQL real dentro del mismo change
+
+**Opción elegida**: un proyecto `ArsDocendi.IntegrationTests` con xUnit v3 y
+Testcontainers.PostgreSql. Un contenedor PostgreSQL 18 se comparte durante la suite
+y cada clase obtiene una base efímera propia, creada y migrada con los mismos
+`DbContext` que usa producción.
+
+**Alternativas descartadas**:
+
+- _EF Core InMemory o SQLite_ — no implementan plpgsql, índices parciales,
+  `NULLS NOT DISTINCT`, constraints `EXCLUDE`, locks ni semántica de concurrencia de
+  PostgreSQL; producirían tests verdes sobre un sistema distinto.
+- _El PostgreSQL fijo de `docker-compose`_ — sirve para desarrollo manual, pero
+  acopla la suite al estado y puertos de una máquina concreta y hace más difícil el
+  aislamiento en CI.
+- _Diferir los tests a otro change_ — fue la decisión inicial, revocada por el
+  usuario el 2026-08-18: las 21 tareas pendientes quedan dentro de este alcance.
+
+**Primer login**: la persistencia por sí sola no vincula una cuenta. Se agrega un
+caso de uso en Shared que recibe el principal validado de Azure AD y el documento
+validado por la capa de autenticación, busca la persona canónica y crea o actualiza
+`identity.users` en una transacción. El documento es explícito: no se intenta
+inferirlo del UPN.
+
 ## Risks / Trade-offs
 
 - **D3 + D4 juntas bloquean al segundo Jefe de Cátedra.** Un docente que dicta en dos cátedras solo admite un trámite por período; el primero en cargar gana. → Mitigación: la UI tiene que explicar el bloqueo **sin filtrar datos de una cátedra ajena** (el segundo JC no puede ver el pedido que lo bloquea). Requiere design spec (invariante #12). Si el cliente confirma que la regla debía ser por cátedra, es agregar `materia_id` al índice único.
@@ -226,6 +253,7 @@ admin-docentes D6 (texto) 7:  …+ "Docente Autorizado"
 - **D5 permite roles que no hacen nada en el circuito.** Un rol custom nunca aprueba pedidos. → Mitigación: la UI de `/roles` debe declararlo al crear. Sin eso, es fake UI de hecho aunque no de forma.
 - **D8 depende de que los `.sql` embebidos se apliquen en orden estable.** Un archivo mal numerado rompe el arranque `--migrate`. → Mitigación: el orden lo fija la migración EF que los invoca, no el nombre del archivo; y `--migrate` es idempotente (`Database.Migrate()`).
 - **El catálogo de cargos queda con una lista provisional** hasta que responda el cliente. → Mitigación: `cargos` es una tabla, no un enum; corregir la lista es un `INSERT`/`UPDATE`, no una migración de schema.
+- **La suite requiere un runtime de contenedores.** → Mitigación: Testcontainers detecta Docker de forma estándar y cada base de prueba es efímera; la dependencia queda explícita en el proyecto de integración y en el handoff.
 
 ## Migration Plan
 
@@ -237,6 +265,7 @@ No hay datos productivos: `identity` nunca se desplegó a producción y los otro
 4. Migraciones EF que embeben y ejecutan los `.sql`. Validar con `--migrate` sobre una base limpia.
 5. Migrar el frontend a un pedido por materia (D3) y alinear los mocks de docentes y roles.
 6. Actualizar `data-model.md`, `dependency-graph.md`, `module-anatomy.md`, `docs/business-rules/designaciones.md` y el design spec — mismo PR (invariante #6).
+7. Crear la infraestructura de tests, implementar el vínculo del primer login y ejecutar las 21 verificaciones pendientes sobre PostgreSQL 18 real.
 
 **Rollback**: revertir el PR y recrear la base con `--migrate`. El único punto irreversible sería aplicar el cambio de `identity.roles` sobre una base con datos reales; mientras no haya deploy productivo de identity, no aplica.
 

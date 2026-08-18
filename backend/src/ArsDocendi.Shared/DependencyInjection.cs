@@ -33,6 +33,7 @@ public static class DependencyInjection
 
         services.AddScoped<IMigradorModulo, MigradorIdentity>();
         services.AddScoped<IConsultasIdentity, ConsultasIdentity>();
+        services.AddScoped<IVinculadorPrimerLogin, VinculadorPrimerLogin>();
 
         return services;
     }

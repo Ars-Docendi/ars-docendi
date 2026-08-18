@@ -44,6 +44,12 @@ Sin modelo de datos no hay backend, y sin backend el sistema no puede quedar en 
 - **BREAKING (gobernanza)** — El invariante #4 se enmienda en el mismo PR. Hoy dice _"`ArsDocendi.Shared`: solo utilidades puras, sin I/O ni estado mutable"_, y un `DbContext` es I/O. El texto nuevo admite **únicamente** la persistencia de `identity` y `audit` y prohíbe explícitamente cualquier otra I/O, estado mutable o lógica de dominio en Shared — un carve-out con cerco, no un cheque en blanco. Se actualiza en los cuatro lugares que enuncian la regla: `CLAUDE.md`, `openspec/config.yaml` (contexto de proyecto **y** regla de design, que se inyectan en la generación de artefactos) y `docs/quality/golden-principles.md`.
 - Los archivos `database/*.sql` quedan como **fuente autorizada** del DDL, embebidos como recurso en el assembly y aplicados por migraciones EF vía `migrationBuilder.Sql(...)`. EF Core no puede generar el plpgsql (`enforce_role_scope`, `log_change`, `attach`), ni `NULLS NOT DISTINCT`, ni las constraints `EXCLUDE` de vigencia.
 
+### Infraestructura de tests backend
+
+- Se agrega `backend/tests/ArsDocendi.IntegrationTests` a la solución, con xUnit v3 y Testcontainers.PostgreSql sobre PostgreSQL 18.
+- La suite aplica las migraciones reales y verifica triggers, constraints, índices parciales, concurrencia y atomicidad transaccional; no usa un proveedor EF en memoria para comportamiento que pertenece a PostgreSQL.
+- Se implementa el caso de uso de primer login que crea o actualiza `identity.users` y lo vincula por documento con la `identity.personas` existente, sin duplicarla.
+
 ## Capabilities
 
 ### New Capabilities
@@ -66,8 +72,9 @@ Sin modelo de datos no hay backend, y sin backend el sistema no puede quedar en 
 
 ### Backend
 
-- `ArsDocendi.Shared` gana `IdentityDbContext` (schemas `identity` + `audit`), `MigradorIdentity : IMigradorModulo` y la interfaz de consultas de autorización. No se crean proyectos nuevos.
+- `ArsDocendi.Shared` gana `IdentityDbContext` (schemas `identity` + `audit`), `MigradorIdentity : IMigradorModulo`, la interfaz de consultas de autorización y el caso de uso de vinculación del primer login.
 - `Modules.Designaciones`: primeras entidades reales en `DesignacionesDbContext`, repositorios y servicios del circuito.
+- Se crea un proyecto de tests backend aislado con PostgreSQL 18 en contenedor; no se agrega un proyecto productivo nuevo.
 - Cross-module: ninguno de los otros 3 módulos cambia. **Riesgo nuevo a vigilar**: todos los módulos referencian Shared, así que todos podrán leer y escribir identity sin pasar por Contracts. La disciplina —leer para autorizar, escribir solo desde la superficie de administración— no la cubre el invariante #1 porque no es cross-module; queda escrita como corolario del invariante #4 enmendado.
 
 ### Frontend

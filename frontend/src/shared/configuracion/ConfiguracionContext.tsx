@@ -3,6 +3,9 @@ import { Outlet } from "react-router-dom";
 import {
   ROLES_INICIALES,
   editarRol as editarRolPuro,
+  generarCodigoRol,
+  type DatosRolEditables,
+  type DatosRolNuevo,
   type RolMock,
 } from "../../features/roles/mock/mockStore";
 import {
@@ -16,21 +19,30 @@ export function ConfiguracionProvider() {
   const [roles, setRoles] = useState<RolMock[]>(ROLES_INICIALES);
   const [membresias, setMembresias] = useState<MapaMembresias>(MEMBRESIAS_INICIALES);
 
-  function agregarRol(datos: Omit<RolMock, "id">, rolBaseId: string | null) {
+  function agregarRol(datos: DatosRolNuevo, rolBaseId: string | null) {
     const nuevoId = crypto.randomUUID();
-    setRoles((prev) => [...prev, { ...datos, id: nuevoId }]);
+    setRoles((prev) => [
+      ...prev,
+      {
+        ...datos,
+        id: nuevoId,
+        codigo: generarCodigoRol(datos.nombre),
+        es_sistema: false,
+      },
+    ]);
     if (rolBaseId) {
       const permisosBase = membresias[rolBaseId] ?? [];
       setMembresias((prev) => actualizarMembresia(prev, nuevoId, [...permisosBase]));
     }
   }
 
-  function editarRol(id: string, datos: Omit<RolMock, "id">) {
+  function editarRol(id: string, datos: DatosRolEditables) {
     setRoles((prev) => editarRolPuro(prev, id, datos));
   }
 
   function eliminarRol(id: string) {
-    setRoles((prev) => prev.filter((r) => r.id !== id));
+    if (roles.some((rol) => rol.id === id && rol.es_sistema)) return;
+    setRoles((prev) => prev.filter((r) => r.id !== id || r.es_sistema));
     setMembresias((prev) => {
       const siguiente = { ...prev };
       delete siguiente[id];
