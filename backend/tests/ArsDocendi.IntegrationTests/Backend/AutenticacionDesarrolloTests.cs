@@ -5,7 +5,6 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Identity.Desarrollo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Backend;
@@ -116,12 +115,10 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(ambiente);
-            builder.ConfigureAppConfiguration((_, configuracion) =>
-                configuracion.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["ConnectionStrings:ArsDocendi"] = Cadena,
-                    ["DevelopmentAuthentication:Enabled"] = habilitada.ToString(),
-                }));
+            builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
+            builder.UseSetting(
+                $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",
+                habilitada.ToString());
         });
 
     private async Task EjecutarSeedAsync(CancellationToken ct)
