@@ -3,8 +3,9 @@
 // Hidratan el store la primera vez que no hay nada en localStorage.
 // Representan el período abierto del Jefe de Cátedra Gustavo Ruiz
 // (cátedra "Ingeniería de Software", carrera "Ingeniería en Informática"):
-// docentes del período anterior precargados como "Sin novedad" + algunos
-// ejemplos en estados del lado del JC para que "Mis pedidos" se vea real.
+// ejemplos de Alta/Baja/Cambio en varios estados para que "Mis pedidos" se vea
+// real (la novedad "Sin novedad" ya no existe en el sistema — ver
+// `ajustes-pedido-y-revision` — así que no hay precarga automática).
 // ============================================================
 import type {
   Adjunto,
@@ -57,6 +58,7 @@ interface SemillaPedido {
   prioritario?: boolean;
   horasExternas?: number;
   horasInvestigacion?: number;
+  esAgenteExterno?: boolean;
   etapaRetorno?: PedidoDesignacion["etapaRetorno"];
   propietarioActual?: PedidoDesignacion["propietarioActual"];
   // Overrides de ámbito: por defecto la cátedra/carrera del JC Gustavo Ruiz.
@@ -191,6 +193,7 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     tipoBajaDetalle: semilla.tipoBajaDetalle,
     horasExternas: semilla.horasExternas ?? 0,
     horasInvestigacion: semilla.horasInvestigacion ?? 0,
+    esAgenteExterno: semilla.esAgenteExterno ?? false,
     adjuntos: semilla.adjuntos ?? [],
     estado: semilla.estado,
     prioritario: semilla.prioritario ?? false,
@@ -213,7 +216,10 @@ const SEMILLAS: SemillaPedido[] = [
     asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
     cargoActual: "Titular",
     dedicacionActual: "Categoría 2",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Mayor dedicación por continuidad en proyectos de la cátedra.",
     estado: "borrador",
   },
   // Un Cambio de dedicación ya enviado a revisión (read-only para el JC).
@@ -266,7 +272,7 @@ const SEMILLAS: SemillaPedido[] = [
     ],
     estado: "rechazado",
   },
-  // Otro borrador "Sin novedad" (mismos datos que su entrada en el catálogo de docentes).
+  // Otro Cambio en borrador (mismos datos que su entrada en el catálogo de docentes).
   {
     dni: "30987654",
     nombre: "Diego Morales",
@@ -275,7 +281,10 @@ const SEMILLAS: SemillaPedido[] = [
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "JTP",
     dedicacionActual: "Categoría 4",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 3",
+    justificacion: "Ascenso de cargo por antigüedad en la cátedra.",
     horasExternas: 2,
     estado: "borrador",
   },

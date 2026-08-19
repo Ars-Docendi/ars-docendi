@@ -17,9 +17,10 @@ function pedido(
     asignaciones: [{ materia: "Materia X", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
+    esAgenteExterno: false,
     adjuntos: [],
     estado,
     prioritario: false,
@@ -60,6 +61,10 @@ describe("EstadoAvance (celda Estado combinada)", () => {
     // El stepper (mismo componente que un estado en revisión) sigue ahí — no un dot.
     expect(container.querySelector(".adoc-pedido-stepper")).toBeInTheDocument();
     expect(container.querySelector(".adoc-estado-dot")).not.toBeInTheDocument();
+    // La clase "alerta" tiñe el texto de warning — el fondo lleno que distingue un
+    // devuelto de un vistazo vive en la fila entera (`.adoc-tabla-row--devuelto`,
+    // ver TablaRevision.test.tsx), no en esta celda.
+    expect(container.querySelector(".adoc-estado-avance.alerta")).toBeInTheDocument();
   });
 
   it("devuelto sin evento de devolución en el historial: usa '—' como revisor, conserva la etapa y el stepper", () => {

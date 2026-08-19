@@ -14,8 +14,6 @@ interface DatosActualesPanelProps {
   materiasActuales: AsignacionMateria[];
   /** Cambio: materias tal como quedan editadas en el form. Su presencia dispara la sub-sección "Materias". */
   materiasSolicitadas?: AsignacionMateria[];
-  /** Sin novedad: muestra la materia vigente (única) en la franja superior. */
-  mostrarMateria?: boolean;
   horasInvestigacionActuales?: number;
   horasInvestigacionSolicitadas?: number;
   horasExternasActuales?: number;
@@ -124,7 +122,6 @@ export function DatosActualesPanel({
   dedicacionSolicitada,
   materiasActuales,
   materiasSolicitadas,
-  mostrarMateria = true,
   horasInvestigacionActuales,
   horasInvestigacionSolicitadas,
   horasExternasActuales,
@@ -155,9 +152,6 @@ export function DatosActualesPanel({
           dedicacionActual
         ),
     },
-    ...(mostrarMateria && !materiasSolicitadas
-      ? [{ clave: "Materia", valor: materiasActuales[0]?.materia ?? "—" }]
-      : []),
   ];
 
   const filasMaterias = materiasSolicitadas

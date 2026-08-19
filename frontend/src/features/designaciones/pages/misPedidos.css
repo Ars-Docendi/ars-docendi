@@ -88,6 +88,12 @@
   justify-content: flex-end;
   gap: 4px;
 }
+/* Ver/Editar/Eliminar son fijos (siempre ocupan el mismo lugar en la fila) — cuando la
+   acción no está disponible, el botón queda semitransparente en vez de desaparecer. */
+.adoc-mp-acc :disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .adoc-mp-eliminar {
   display: flex;
   align-items: center;
@@ -103,6 +109,9 @@
 }
 .adoc-mp-eliminar:hover {
   background: var(--color-status-danger-bg);
+}
+.adoc-mp-eliminar:disabled:hover {
+  background: transparent;
 }
 .adoc-mp-eliminar svg {
   width: 16px;

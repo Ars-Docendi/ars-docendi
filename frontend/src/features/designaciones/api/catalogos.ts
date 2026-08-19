@@ -47,7 +47,7 @@ export const MATERIAS: string[] = [
 
 /**
  * Docentes con designación vigente, disponibles para las novedades
- * que operan sobre un docente existente (Sin novedad / Baja / Cambio).
+ * que operan sobre un docente existente (Baja / Cambio).
  */
 export const DOCENTES_EXISTENTES: DocenteExistente[] = [
   {

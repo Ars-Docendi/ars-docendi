@@ -18,7 +18,7 @@ import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
 import { SeccionAdjuntosPedido } from "./SeccionAdjuntosPedido";
 import "./pedidoForm.css";
 
-const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
+const NOVEDADES: Novedad[] = ["Alta", "Baja", "Cambio de cargo o dedicación"];
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
@@ -45,7 +45,7 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
     asignaciones: pedido?.asignaciones ?? [{ materia: "", horas: 0 }],
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
-    novedad: pedido?.novedad ?? "Sin novedad",
+    novedad: pedido?.novedad ?? "Alta",
     cargoSolicitado: pedido?.cargoSolicitado,
     dedicacionSolicitada: pedido?.dedicacionSolicitada,
     justificacion: pedido?.justificacion,
@@ -53,6 +53,7 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
     tipoBajaDetalle: pedido?.tipoBajaDetalle,
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
+    esAgenteExterno: pedido?.esAgenteExterno ?? false,
     adjuntos: pedido?.adjuntos ?? [],
   };
 }
@@ -117,6 +118,7 @@ export function PedidoForm({
         asignaciones: [{ materia: "", horas: 0 }],
         horasInvestigacion: 0,
         horasExternas: 0,
+        esAgenteExterno: false,
       }));
       return;
     }
@@ -133,6 +135,8 @@ export function PedidoForm({
       asignaciones: docente.materiasActuales.map((asignacion) => ({ ...asignacion })),
       horasInvestigacion: docente.horasInvestigacionActuales,
       horasExternas: docente.horasExternasActuales,
+      // Sin "valor actual" de agente externo (D-2): arranca sin marcar al elegir un docente existente.
+      esAgenteExterno: false,
     }));
   }
 
@@ -144,10 +148,12 @@ export function PedidoForm({
   }
 
   function quitarMateria(indice: number) {
-    setDatos((prev) => {
-      if (prev.asignaciones.length <= 1) return prev; // BR: no puede quedar sin materias
-      return { ...prev, asignaciones: prev.asignaciones.filter((_, i) => i !== indice) };
-    });
+    // Ni Alta ni Cambio exigen un mínimo de materias (regla de negocio) — Baja nunca
+    // llega acá (su listado es de solo lectura, sin acción de quitar).
+    setDatos((prev) => ({
+      ...prev,
+      asignaciones: prev.asignaciones.filter((_, i) => i !== indice),
+    }));
   }
 
   function cambiarMateria(indice: number, materia: string) {
@@ -215,7 +221,6 @@ export function PedidoForm({
   const esAlta = novedad === "Alta";
   const esBaja = novedad === "Baja";
   const esCambio = novedad === "Cambio de cargo o dedicación";
-  const esSinNovedad = novedad === "Sin novedad";
   const muestraSolicitud = esAlta || esCambio;
 
   const numero = pedidoInicial?.numero ?? "";
@@ -300,70 +305,68 @@ export function PedidoForm({
             onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
             onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
+            esAgenteExterno={datos.esAgenteExterno}
+            onEsAgenteExterno={(valor) => actualizar("esAgenteExterno", valor)}
           />
         )}
 
-        {!esSinNovedad && (
-          <section className="adoc-pf-sec">
-            <h2 className="adoc-pf-sec-h">Justificación</h2>
-            {esBaja && (
-              <>
-                <Field label="Tipo de baja" error={errores.tipoBaja}>
-                  <Select
-                    value={datos.tipoBaja ?? ""}
-                    onChange={(e) =>
-                      actualizar("tipoBaja", (e.target.value || undefined) as TipoBaja)
-                    }
-                  >
-                    <option value="">Seleccioná el tipo de baja…</option>
-                    {TIPOS_BAJA.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {tipo}
-                      </option>
-                    ))}
-                  </Select>
+        <section className="adoc-pf-sec">
+          <h2 className="adoc-pf-sec-h">Justificación</h2>
+          {esBaja && (
+            <>
+              <Field label="Tipo de baja" error={errores.tipoBaja}>
+                <Select
+                  value={datos.tipoBaja ?? ""}
+                  onChange={(e) =>
+                    actualizar("tipoBaja", (e.target.value || undefined) as TipoBaja)
+                  }
+                >
+                  <option value="">Seleccioná el tipo de baja…</option>
+                  {TIPOS_BAJA.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              {datos.tipoBaja === "Otro" && (
+                <Field label="Detalle" error={errores.tipoBajaDetalle}>
+                  <Textarea
+                    rows={2}
+                    value={datos.tipoBajaDetalle ?? ""}
+                    onChange={(e) => actualizar("tipoBajaDetalle", e.target.value)}
+                    placeholder="Describí el motivo de la baja"
+                  />
                 </Field>
-                {datos.tipoBaja === "Otro" && (
-                  <Field label="Detalle" error={errores.tipoBajaDetalle}>
-                    <Textarea
-                      rows={2}
-                      value={datos.tipoBajaDetalle ?? ""}
-                      onChange={(e) => actualizar("tipoBajaDetalle", e.target.value)}
-                      placeholder="Describí el motivo de la baja"
-                    />
-                  </Field>
-                )}
-              </>
-            )}
-            <Field
-              label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
-              error={errores.justificacion}
-            >
-              <Textarea
-                rows={3}
-                value={datos.justificacion ?? ""}
-                onChange={(e) => actualizar("justificacion", e.target.value)}
-                placeholder={
-                  esBaja
-                    ? "Motivo de la baja del docente"
-                    : esCambio
-                      ? "Motivo del cambio de cargo o dedicación"
-                      : "Motivo del pedido de designación"
-                }
-              />
-            </Field>
-          </section>
-        )}
+              )}
+            </>
+          )}
+          <Field
+            label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
+            error={errores.justificacion}
+          >
+            <Textarea
+              rows={3}
+              value={datos.justificacion ?? ""}
+              onChange={(e) => actualizar("justificacion", e.target.value)}
+              placeholder={
+                esBaja
+                  ? "Motivo de la baja del docente"
+                  : esCambio
+                    ? "Motivo del cambio de cargo o dedicación"
+                    : "Motivo del pedido de designación"
+              }
+            />
+          </Field>
+        </section>
 
-        {!esSinNovedad && (
-          <SeccionAdjuntosPedido
-            novedad={novedad}
-            errorAdjuntos={errores.adjuntos}
-            adjuntoComoUploaded={adjuntoComoUploaded}
-            onAgregar={agregarAdjunto}
-            onQuitar={quitarAdjunto}
-          />
-        )}
+        <SeccionAdjuntosPedido
+          novedad={novedad}
+          errorAdjuntos={errores.adjuntos}
+          adjuntoComoUploaded={adjuntoComoUploaded}
+          onAgregar={agregarAdjunto}
+          onQuitar={quitarAdjunto}
+        />
 
         <div className="adoc-pf-actions">
           <Button type="button" variant="secondary" onClick={onCancelar}>

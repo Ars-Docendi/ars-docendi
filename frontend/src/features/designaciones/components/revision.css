@@ -139,11 +139,11 @@
 .adoc-estado-avance.exito .adoc-estado-avance-txt {
   color: var(--color-status-success-fg);
 }
-.adoc-estado-avance.alerta .adoc-estado-avance-txt {
-  color: var(--color-status-warning-fg);
-}
 .adoc-estado-avance.peligro .adoc-estado-avance-txt {
   color: var(--color-status-danger-fg);
+}
+.adoc-estado-avance.alerta .adoc-estado-avance-txt {
+  color: var(--color-status-warning-fg);
 }
 /* Dot de los estados terminales (sin avance): Aceptado, Devuelto, Rechazado. */
 .adoc-estado-dot {
@@ -174,8 +174,8 @@
 .adoc-tabla-row {
   display: grid;
   grid-template-columns:
-    minmax(160px, 1.6fr) minmax(80px, 0.6fr) minmax(140px, 1.6fr) minmax(110px, 0.9fr)
-    minmax(110px, 0.9fr) minmax(180px, 1.5fr) 44px;
+    minmax(160px, 1.6fr) minmax(80px, 0.6fr) minmax(100px, 0.8fr) minmax(140px, 1.6fr)
+    minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr) 44px;
   align-items: center;
   gap: var(--space-4);
 }
@@ -210,6 +210,22 @@
 .adoc-tabla-row:hover {
   background: var(--color-bg-canvas);
 }
+/* Fila entera de color: prioritario (rojo) y devuelto (amarillo) — si un pedido es
+   ambas cosas, gana prioritario (ver `claseFondoFila` en TablaRevision.tsx). */
+.adoc-tabla-row--prioritario {
+  background: var(--danger-100);
+}
+.adoc-tabla-row--prioritario:hover {
+  background: var(--danger-100);
+  filter: brightness(0.96);
+}
+.adoc-tabla-row--devuelto {
+  background: var(--warning-100);
+}
+.adoc-tabla-row--devuelto:hover {
+  background: var(--warning-100);
+  filter: brightness(0.96);
+}
 .adoc-tabla-c {
   display: flex;
   align-items: center;
@@ -234,6 +250,7 @@
   text-overflow: ellipsis;
 }
 .adoc-tabla-legajo,
+.adoc-tabla-carrera,
 .adoc-tabla-fecha {
   overflow: hidden;
   font-size: 13px;

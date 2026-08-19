@@ -7,7 +7,6 @@ const CLASE_POR_NOVEDAD: Record<Novedad, string> = {
   Alta: "alta",
   Baja: "baja",
   "Cambio de cargo o dedicación": "cambio",
-  "Sin novedad": "neutro",
 };
 
 /** Wrapper de icono Lucide (viewBox 24, stroke currentColor) — tal cual el screens.pen. */
@@ -54,20 +53,13 @@ const ICONO_USER_MINUS = (
   </IconoLucide>
 );
 
-const ICONO_MINUS = (
-  <IconoLucide>
-    <path d="M5 12h14" />
-  </IconoLucide>
-);
-
 const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
   Alta: ICONO_USER_PLUS,
   Baja: ICONO_USER_MINUS,
   "Cambio de cargo o dedicación": ICONO_REFRESH,
-  "Sin novedad": ICONO_MINUS,
 };
 
-/** Chip de novedad (Alta / Baja / Cambio / Sin novedad) con icono Lucide y color de estado. */
+/** Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. */
 export function NovedadChip({ novedad }: { novedad: Novedad }) {
   return (
     <span className={`adoc-novedad-chip ${CLASE_POR_NOVEDAD[novedad]}`}>

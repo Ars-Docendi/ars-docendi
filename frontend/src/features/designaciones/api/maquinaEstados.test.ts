@@ -23,9 +23,10 @@ function pedidoBorrador(overrides: Partial<PedidoDesignacion> = {}): PedidoDesig
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
+    esAgenteExterno: false,
     adjuntos: [],
     estado: "borrador",
     prioritario: false,
@@ -39,9 +40,10 @@ const DATOS_EDITADOS: DatosEditablesPedido = {
   asignaciones: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
-  novedad: "Sin novedad",
+  novedad: "Cambio de cargo o dedicación",
   horasExternas: 2,
   horasInvestigacion: 0,
+  esAgenteExterno: false,
   adjuntos: [],
 };
 

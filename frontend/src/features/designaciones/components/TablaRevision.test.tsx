@@ -18,6 +18,7 @@ const COMPLETA: FiltrosTablero = {
   vista: "completa",
   tipo: "todos",
   prioridad: "todos",
+  carrera: "todos",
   nombre: "",
   legajo: "",
 };
@@ -25,6 +26,7 @@ const MIS_PENDIENTES: FiltrosTablero = {
   vista: "mis-pendientes",
   tipo: "todos",
   prioridad: "todos",
+  carrera: "todos",
   nombre: "",
   legajo: "",
 };
@@ -44,9 +46,10 @@ function pedido(
     asignaciones: [{ materia: "Materia X", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
+    esAgenteExterno: false,
     adjuntos: [],
     estado,
     prioritario: false,
@@ -256,9 +259,10 @@ describe("TablaRevision (secciones por etapa del circuito)", () => {
     expect(
       screen.getByText("En Decanato · 3/4 · Devuelto por S. Gómez (Coordinador)"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Ver el pedido de Devuelto Seis" }),
-    ).toBeInTheDocument();
+    const fila = screen.getByRole("button", { name: "Ver el pedido de Devuelto Seis" });
+    expect(fila).toBeInTheDocument();
+    // Fila entera con fondo amarillo (no solo la celda Estado).
+    expect(fila).toHaveClass("adoc-tabla-row--devuelto");
   });
 
   it("muestra el nombre del docente sin el prefijo 'Prof.'", () => {
@@ -321,6 +325,38 @@ describe("TablaRevision (secciones por etapa del circuito)", () => {
     );
 
     expect(screen.getAllByLabelText("Prioritario")).toHaveLength(1);
+    // Fila entera con fondo rojo solo en el pedido prioritario.
+    expect(screen.getByRole("button", { name: "Ver el pedido de Urgente Diez" })).toHaveClass(
+      "adoc-tabla-row--prioritario",
+    );
+    expect(screen.getByRole("button", { name: "Ver el pedido de Normal Once" })).not.toHaveClass(
+      "adoc-tabla-row--prioritario",
+    );
+  });
+
+  it("un pedido prioritario y devuelto a la vez muestra fondo rojo (gana prioritario sobre devuelto)", () => {
+    const prioritarioYDevuelto = pedido("devuelto", {
+      docente: { dni: "25", nombre: "Urgente Devuelto Veinticinco", antiguedad: 3 },
+      prioritario: true,
+      etapaRetorno: "en_revision_decanato",
+      propietarioActual: "Secretaría",
+      historial: [evento("devolver", "S. Gómez")],
+    });
+
+    render(
+      <TablaRevision
+        pedidos={[prioritarioYDevuelto]}
+        actor={DECANO}
+        filtros={COMPLETA}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    const fila = screen.getByRole("button", {
+      name: "Ver el pedido de Urgente Devuelto Veinticinco",
+    });
+    expect(fila).toHaveClass("adoc-tabla-row--prioritario");
+    expect(fila).not.toHaveClass("adoc-tabla-row--devuelto");
   });
 
   it("muestra Legajo, header Tipo y Fecha última actualización por fila", () => {
@@ -364,6 +400,21 @@ describe("TablaRevision (secciones por etapa del circuito)", () => {
     expect(screen.getByText("10/03/2026")).toBeInTheDocument();
     // El pedido sin legajo muestra "—" en esa columna.
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+  });
+
+  it("muestra la columna Carrera con el nombre abreviado", () => {
+    const fila = pedido("en_revision_coordinador", {
+      docente: { dni: "24", nombre: "Carrera Veinticuatro", antiguedad: 3 },
+      carrera: "Ingeniería Industrial",
+    });
+
+    render(
+      <TablaRevision pedidos={[fila]} actor={COORD} filtros={COMPLETA} onSeleccionar={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Carrera")).toBeInTheDocument();
+    expect(screen.getByText("Industrial")).toBeInTheDocument();
+    expect(screen.queryByText("Ingeniería Industrial")).not.toBeInTheDocument();
   });
 
   it("una sección sin pedidos que cumplan los filtros muestra su estado vacío al expandirla, sin romper el resto", async () => {

@@ -168,7 +168,8 @@ describe("Flujo de aprobación (integración)", () => {
     const filaTrasReenviar = await screen.findByRole("row", {
       name: "Ver el pedido de Valeria Suárez",
     });
-    expect(within(filaTrasReenviar).queryByRole("button", { name: "Editar" })).toBeNull();
+    // El botón es fijo: sigue en la fila, pero deshabilitado (ya no es editable por el JC).
+    expect(within(filaTrasReenviar).getByRole("button", { name: "Editar" })).toBeDisabled();
   });
 
   it("prioridad: marcar y quitar prioritario en el mismo flujo (tema E)", async () => {

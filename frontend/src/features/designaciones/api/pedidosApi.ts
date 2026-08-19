@@ -99,6 +99,7 @@ export async function crearPedido(
     tipoBajaDetalle: datos.tipoBajaDetalle,
     horasExternas: datos.horasExternas,
     horasInvestigacion: datos.horasInvestigacion,
+    esAgenteExterno: datos.esAgenteExterno,
     // TODO(backend): persistir adjuntos en File Storage y guardar URL (RNF-4) — SCRUM-7. Hoy solo metadata mock.
     adjuntos: datos.adjuntos,
     estado: "borrador",

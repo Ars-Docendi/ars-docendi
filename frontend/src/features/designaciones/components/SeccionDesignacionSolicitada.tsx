@@ -1,4 +1,4 @@
-import { Field, Input, Select } from "@ars-docendi/ui";
+import { Checkbox, Field, Input, Select } from "@ars-docendi/ui";
 import type { AsignacionMateria, Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
 import { CARGOS, DEDICACIONES, indiceDedicacion } from "../api/catalogos";
@@ -12,6 +12,8 @@ interface SeccionDesignacionSolicitadaProps {
   dedicacionActual: Dedicacion | null;
   horasInvestigacion: number;
   horasExternas: number;
+  /** Sin "valor actual" contra el cual comparar (D-2): dato nuevo, sin histórico previo. */
+  esAgenteExterno: boolean;
   errores: ErroresValidacion;
   onAgregarMateria: () => void;
   onQuitarMateria: (indice: number) => void;
@@ -21,14 +23,16 @@ interface SeccionDesignacionSolicitadaProps {
   onDedicacion: (valor?: Dedicacion) => void;
   onHorasInvestigacion: (valor: number) => void;
   onHorasExternas: (valor: number) => void;
+  onEsAgenteExterno: (valor: boolean) => void;
 }
 
 /**
  * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
  * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
  * dedicación (en Cambio, solo opciones mejores que la actual — ver D-7), la
- * lista de materias + horas (agregar/quitar/editar, mismo patrón en ambas
- * novedades), y horas de investigación/externas.
+ * lista de materias + horas (agregar/quitar/editar; puede quedar vacía en
+ * ambas novedades — ninguna exige un mínimo de materias), y horas de
+ * investigación/externas.
  */
 export function SeccionDesignacionSolicitada({
   asignaciones,
@@ -37,6 +41,7 @@ export function SeccionDesignacionSolicitada({
   dedicacionActual,
   horasInvestigacion,
   horasExternas,
+  esAgenteExterno,
   errores,
   onAgregarMateria,
   onQuitarMateria,
@@ -46,6 +51,7 @@ export function SeccionDesignacionSolicitada({
   onDedicacion,
   onHorasInvestigacion,
   onHorasExternas,
+  onEsAgenteExterno,
 }: SeccionDesignacionSolicitadaProps) {
   const opcionesDedicacion = dedicacionActual
     ? DEDICACIONES.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
@@ -109,6 +115,11 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onHorasExternas(Number(e.target.value))}
           />
         </Field>
+        <Checkbox
+          label="Docente es agente externo"
+          checked={esAgenteExterno}
+          onChange={(e) => onEsAgenteExterno(e.target.checked)}
+        />
       </div>
     </section>
   );

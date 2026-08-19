@@ -9,7 +9,7 @@ import {
   type ColumnaTablero,
 } from "./tableroRevisionModelo";
 import type { FiltrosTablero } from "./filtrosTablero";
-import { aplicarFiltros } from "./filtrosTablero";
+import { ABREVIATURA_CARRERA, aplicarFiltros } from "./filtrosTablero";
 import { NovedadChip, PrioridadFlagIcono } from "./NovedadChip";
 import { EstadoAvance } from "./EstadoAvance";
 import { IconoChevronDown } from "./lucide";
@@ -103,6 +103,7 @@ function SeccionEstadoTabla({
           <div className="adoc-tabla-head" aria-hidden="true">
             <span className="adoc-tabla-h">Docente</span>
             <span className="adoc-tabla-h">Legajo</span>
+            <span className="adoc-tabla-h">Carrera</span>
             <span className="adoc-tabla-h">Asignatura</span>
             <span className="adoc-tabla-h">Tipo</span>
             <span className="adoc-tabla-h">Fecha última actualización</span>
@@ -123,6 +124,18 @@ function SeccionEstadoTabla({
   );
 }
 
+/**
+ * Modificador de fondo de fila: prioritario (rojo) y devuelto (amarillo) se
+ * marcan con la fila entera, no solo con el ícono/celda de Estado — un
+ * prioritario devuelto muestra rojo (gana la prioridad sobre la devolución,
+ * que igual sigue visible en la celda Estado y en el ícono de bandera).
+ */
+function claseFondoFila(pedido: PedidoDesignacion): string {
+  if (pedido.prioritario) return " adoc-tabla-row--prioritario";
+  if (pedido.estado === "devuelto") return " adoc-tabla-row--devuelto";
+  return "";
+}
+
 function FilaTablaRevision({
   pedido,
   onSeleccionar,
@@ -133,7 +146,7 @@ function FilaTablaRevision({
   return (
     <button
       type="button"
-      className="adoc-tabla-row"
+      className={`adoc-tabla-row${claseFondoFila(pedido)}`}
       onClick={() => onSeleccionar(pedido)}
       aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
     >
@@ -144,6 +157,9 @@ function FilaTablaRevision({
         <span className="adoc-tabla-nombre">{pedido.docente.nombre}</span>
       </span>
       <span className="adoc-tabla-c adoc-tabla-legajo">{pedido.docente.legajo ?? "—"}</span>
+      <span className="adoc-tabla-c adoc-tabla-carrera">
+        {ABREVIATURA_CARRERA[pedido.carrera] ?? pedido.carrera}
+      </span>
       <span className="adoc-tabla-c adoc-tabla-asig">{resumenMaterias(pedido.asignaciones)}</span>
       <span className="adoc-tabla-c">
         <NovedadChip novedad={pedido.novedad} />

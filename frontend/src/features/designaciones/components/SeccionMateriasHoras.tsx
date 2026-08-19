@@ -16,9 +16,10 @@ interface SeccionMateriasHorasProps {
 
 /**
  * Lista de materias + horas del pedido. En Alta y Cambio es totalmente
- * editable (agregar/quitar/seleccionar materia, editar horas; mínimo 1 fila
- * — el botón de quitar no se muestra en la última). En Baja se usa en modo
- * `soloLectura`: mismos datos, sin ningún control interactivo.
+ * editable (agregar/quitar/seleccionar materia, editar horas) y puede quedar
+ * sin ninguna fila — ninguna de las dos novedades exige un mínimo de
+ * materias (regla de negocio). En Baja se usa en modo `soloLectura`: mismos
+ * datos, sin ningún control interactivo.
  */
 export function SeccionMateriasHoras({
   asignaciones,
@@ -67,7 +68,7 @@ export function SeccionMateriasHoras({
               )}
             </Field>
           </div>
-          {!soloLectura && asignaciones.length > 1 && (
+          {!soloLectura && (
             <button
               type="button"
               className="adoc-pf-materias-quitar"

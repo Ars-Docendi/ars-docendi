@@ -24,7 +24,7 @@ export interface PeriodoDesignacion {
 /** Roles del sistema. Alias del `Role` del app shell (única fuente de verdad). */
 export type Rol = Role;
 
-export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
+export type Novedad = "Alta" | "Baja" | "Cambio de cargo o dedicación";
 export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
 export type Dedicacion =
   | "Categoría 0"
@@ -95,7 +95,7 @@ export interface DocentePedido {
 /**
  * Docente ya existente en el sistema, con su designación vigente.
  * Alimenta el selector de las novedades sobre docentes existentes
- * (Sin novedad / Baja / Cambio) y el panel de datos actuales read-only.
+ * (Baja / Cambio) y el panel de datos actuales read-only.
  * En el real provendría del módulo Portal / API Guaraní.
  */
 export interface DocenteExistente {
@@ -133,6 +133,8 @@ export interface PedidoDesignacion {
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
   horasInvestigacion: number; // mock (cross-module Portal en el real)
+  /** Docente contratado como agente externo. Sin "valor actual": dato nuevo, sin histórico previo. */
+  esAgenteExterno: boolean;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -156,6 +158,7 @@ export interface DatosEditablesPedido {
   tipoBajaDetalle?: string;
   horasExternas: number;
   horasInvestigacion: number;
+  esAgenteExterno: boolean;
   adjuntos: Adjunto[];
 }
 

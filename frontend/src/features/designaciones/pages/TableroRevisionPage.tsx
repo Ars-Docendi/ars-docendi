@@ -8,7 +8,7 @@ import {
   type CampoFiltroOpcional,
 } from "../../../shared/ui/FiltrosLista";
 import { TablaRevision } from "../components/TablaRevision";
-import { FILTROS_INICIALES } from "../components/filtrosTablero";
+import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
 import type { FiltrosTablero, VistaTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
@@ -22,7 +22,6 @@ const FILTROS_FIJOS: CampoFiltroFijo[] = [
     ariaLabel: "Filtrar por tipo",
     opciones: [
       { value: "todos", label: "Tipo: Todos" },
-      { value: "Sin novedad", label: "Sin novedad" },
       { value: "Alta", label: "Alta" },
       { value: "Baja", label: "Baja" },
       { value: "Cambio de cargo o dedicación", label: "Cambio" },
@@ -41,6 +40,16 @@ const FILTROS_OPCIONALES: CampoFiltroOpcional[] = [
       { value: "todos", label: "Prioritario: Todos" },
       { value: "prioritarios", label: "Solo prioritarios" },
       { value: "normales", label: "Sin prioridad" },
+    ],
+  },
+  {
+    tipo: "select",
+    clave: "carrera",
+    etiqueta: "Carrera",
+    valorInicial: "todos",
+    opciones: [
+      { value: "todos", label: "Carrera: Todas" },
+      ...CARRERAS.map((carrera) => ({ value: carrera, label: carrera })),
     ],
   },
 ];
