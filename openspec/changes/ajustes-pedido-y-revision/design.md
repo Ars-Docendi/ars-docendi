@@ -210,21 +210,18 @@ habilitado.
 
 ## Risks / Trade-offs
 
-- **[Riesgo] Eliminar "Sin novedad" es un cambio de comportamiento de negocio, no solo de UI** → el
-  mecanismo de reconfirmación automática de docentes sin cambios desaparece sin reemplazo en esta
-  pasada. Mitigación: documentado explícitamente en `proposal.md` como nota abierta; si el cliente lo
-  nota al revisar, es un change aparte (no bloquea este).
+- ~~**[Riesgo] Eliminar "Sin novedad" es un cambio de comportamiento de negocio, no solo de UI**~~ —
+  **cerrado**: el cliente confirmó que "Sin novedad" no se vuelve a usar nunca más — la eliminación
+  sin reemplazo es el resultado buscado, no un riesgo pendiente.
 - **[Riesgo] Tests que siembran `novedad: "Sin novedad"`** (`PedidoForm.test.tsx`,
   `pedidoValidacion.test.ts`, `maquinaEstados.test.ts`, `detalleAdapters.test.ts`,
   `EstadoAvance.test.tsx`, `ModalConfirmacionAccion.test.tsx`, `TablaRevision.test.tsx`,
   `tableroRevisionModelo.test.ts`, `pedidosApi.test.ts`) dejan de compilar en cuanto se achica el union
   type → mitigado por diseño: el compilador de TS marca cada uno, no hay forma de "olvidarse" de
   ninguno; se resuelven reescribiendo esos fixtures a otra novedad (Alta/Baja/Cambio) en el mismo PR.
-- **[Riesgo] Nombre de carrera "Ingeniería Informática" (cliente) vs. "Ingeniería en Informática"
-  (código)** → si el filtro usa el nombre que dio el cliente, no matchea ningún pedido sembrado.
-  Mitigación: se usa el nombre existente en código (ver D-5 y nota abierta en `proposal.md`); si el
-  cliente confirma que el nombre real debe cambiar, es un rename aparte (afecta `contextoActor.ts`,
-  seeds y tests, no solo el filtro).
+- ~~**[Riesgo] Nombre de carrera "Ingeniería Informática" (cliente) vs. "Ingeniería en Informática"
+  (código)**~~ — **cerrado**: el cliente confirmó que el nombre es a modo informativo, no hace falta
+  unificarlo — se mantiene el nombre existente en código (ver D-5).
 - **[Trade-off] `mostrarMateria` se elimina en vez de dejarse `false` permanente** → más líneas
   tocadas en este change (dos componentes en vez de uno), pero evita dejar una prop y una rama de JSX
   que ya no se puede activar nunca — preferido sobre dejar código muerto "por si vuelve".
@@ -245,11 +242,13 @@ habilitado.
 
 ## Open Questions
 
-- ¿El nombre "Ingeniería en Informática" debe unificarse a "Ingeniería Informática" en todo el sistema,
-  o se deja como está y el filtro nuevo simplemente respeta el nombre existente? (ver D-5)
-- ¿Hace falta algún reemplazo para la reconfirmación de docentes sin cambios que hoy cubría "Sin
-  novedad", o queda fuera de alcance hasta que el cliente lo pida explícitamente?
-- Catálogo de carreras: el cliente mencionó 7 pero pasó 5 nombres — ¿confirmar las 2 restantes antes de
-  implementar, o cargar las 5 ahora y sumar el resto después?
+Ninguna pendiente — las 4 quedaron resueltas tras la revisión del cliente:
+
+- ~~¿El nombre "Ingeniería en Informática" debe unificarse a "Ingeniería Informática"...?~~ —
+  **resuelto**: es informativo, no hace falta unificarlo.
+- ~~¿Hace falta algún reemplazo para la reconfirmación de docentes sin cambios que hoy cubría "Sin
+  novedad"?~~ — **resuelto**: no, "Sin novedad" no se vuelve a usar nunca más.
+- ~~Catálogo de carreras: el cliente mencionó 7 pero pasó 5 nombres...~~ — **resuelto**: 5 está bien
+  por ahora, la lista completa va a depender del backend más adelante.
 - ~~La columna nueva se llama "Carrera" y el filtro que apunta al mismo dato se llama "Propuesta"~~ —
   **resuelto en la segunda ronda**: ambos se llaman "Carrera".

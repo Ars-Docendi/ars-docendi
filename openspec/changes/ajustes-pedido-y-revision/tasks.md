@@ -28,7 +28,7 @@
 - [x] 2.1 `types.ts`: agregar `esAgenteExterno: boolean` a `DatosEditablesPedido` y
       `PedidoDesignacion`.
 - [x] 2.2 `PedidoForm.tsx`: `datosIniciales()` defaultea `esAgenteExterno: pedido?.esAgenteExterno ??
-    false`; al seleccionar un docente existente (`seleccionarDocente`), arranca en `false` (sin
+  false`; al seleccionar un docente existente (`seleccionarDocente`), arranca en `false` (sin
       "valor actual" — D-2, no hay campo `*Actuales` en `DocenteExistente`).
 - [x] 2.3 `SeccionDesignacionSolicitada.tsx`: agregar `Checkbox` "Docente es agente externo" (de
       `@ars-docendi/ui`) junto al `Field` de "Horas externas (otro depto.)"; nuevas props
@@ -141,6 +141,6 @@
 
 - [x] 11.1 `openspec validate ajustes-pedido-y-revision --strict` sin errores.
 - [x] 11.2 Lint + typecheck + tests del frontend en verde (200/200).
-- [ ] 11.3 Probar manualmente en el navegador: form de pedido (Alta sin materias, checkbox de agente
+- [x] 11.3 Probar manualmente en el navegador: form de pedido (Alta sin materias, checkbox de agente
       externo), Revisión (filtro/columna Carrera, filas roja/amarilla), Mis Pedidos (botones fijos
-      semitransparentes cuando no aplican).
+      semitransparentes cuando no aplican) — validado por el cliente.

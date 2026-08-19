@@ -174,15 +174,15 @@ El cliente revisó la primera pasada y pidió 4 ajustes adicionales — **todos 
 
 ## Notas abiertas para la revisión del cliente
 
-- **Consecuencia de negocio de eliminar "Sin novedad"**: hoy es el mecanismo por el cual un docente que
-  sigue igual que el período anterior queda "confirmado" en el sistema (vía la precarga automática). Al
-  sacarlo, ese mecanismo desaparece en esta pasada — no se propone un reemplazo (por ejemplo, dar por
-  confirmado automáticamente a todo docente sin pedido cargado) porque no fue parte del pedido. Si hace
-  falta algún reemplazo, es un alcance nuevo a definir aparte.
-- **Nombre de la carrera "Ingeniería en Informática" vs. "Ingeniería Informática"**: se mantiene el
-  nombre que ya usa el código (`"Ingeniería en Informática"`) para que el filtro funcione contra los
-  datos existentes; avisar si el nombre real debe unificarse distinto.
-- **Catálogo de 5 carreras "por ahora"**: el cliente mencionó 7 carreras pero pasó 5 nombres — se
-  implementan esas 5 tal cual las dio; agregar las 2 restantes es un ajuste menor cuando las confirme.
+Las 4 quedaron **resueltas** tras la revisión del cliente:
+
+- ~~**Consecuencia de negocio de eliminar "Sin novedad"**~~ — **confirmado**: el cliente aclaró que
+  "Sin novedad" no se va a volver a usar nunca más, así que no hace falta ningún mecanismo de
+  reemplazo para la reconfirmación automática — la eliminación queda como alcance final, no parcial.
+- ~~**Nombre de la carrera "Ingeniería en Informática" vs. "Ingeniería Informática"**~~ — **confirmado
+  irrelevante**: el nombre es a modo informativo, no hace falta unificarlo. Se mantiene
+  `"Ingeniería en Informática"` (el que ya usa el código).
+- ~~**Catálogo de 5 carreras "por ahora"**~~ — **confirmado que no molesta**: el cliente aclaró que la
+  lista completa de carreras va a depender del backend más adelante; 5 por ahora está bien.
 - ~~**Header de la columna nueva: "Carrera" vs. "Propuesta"**~~ — **resuelto en la segunda ronda**: el
   cliente pidió unificar; el filtro pasó a llamarse "Carrera" también.
