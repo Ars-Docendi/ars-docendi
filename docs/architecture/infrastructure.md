@@ -85,6 +85,12 @@ módulo" dentro de cada base. Aprovisionamiento/borrado por `infra/scripts/`. Lo
 ambientes no-prod se siembran con datos sintéticos/anonimizados — **nunca** copia
 de prod.
 
+### Dataset sintético y autenticación de desarrollo
+
+Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.08.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+
+La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. La configuración de Production no habilita la opción y el Host ni siquiera registra la ruta o el esquema. El frontend también elimina el selector y el adapter dev de su bundle de producción mediante `import.meta.env.DEV`.
+
 ## Deployment process (CI/CD)
 
 GitHub Actions sobre runners self-hosted **efímeros**:

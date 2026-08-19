@@ -1,4 +1,4 @@
-import type { RolMock } from "../../roles/mock/mockStore";
+import type { RolMock } from "../../roles/models";
 
 interface ListaRolesProps {
   roles: RolMock[];

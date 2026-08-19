@@ -1,13 +1,12 @@
 import { Button, Table } from "@ars-docendi/ui";
-import { ETIQUETAS_SCOPE, type RolMock } from "../mock/mockStore";
+import { ETIQUETAS_SCOPE, type RolMock } from "../models";
 
 interface TablaRolesProps {
   roles: RolMock[];
   onEditar: (rol: RolMock) => void;
-  onEliminar: (rol: RolMock) => void;
 }
 
-export function TablaRoles({ roles, onEditar, onEliminar }: TablaRolesProps) {
+export function TablaRoles({ roles, onEditar }: TablaRolesProps) {
   if (roles.length === 0) {
     return (
       <div
@@ -50,17 +49,6 @@ export function TablaRoles({ roles, onEditar, onEliminar }: TablaRolesProps) {
                 <Table.Cell className="adoc-table-actions">
                   <Button variant="ghost" size="sm" onClick={() => onEditar(rol)}>
                     Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEliminar(rol)}
-                    disabled={rol.es_sistema}
-                    title={
-                      rol.es_sistema ? "Los roles de sistema no se pueden eliminar" : undefined
-                    }
-                  >
-                    Eliminar
                   </Button>
                 </Table.Cell>
               </Table.Row>

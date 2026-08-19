@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\Modules.Designaciones\Modules.Designaciones.csproj" />
+    <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Aulas\Modules.Aulas.csproj" />
     <ProjectReference Include="..\Modules.Portal\Modules.Portal.csproj" />
     <ProjectReference Include="..\Modules.Tareas\Modules.Tareas.csproj" />

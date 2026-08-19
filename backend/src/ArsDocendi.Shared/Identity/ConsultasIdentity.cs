@@ -19,6 +19,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         db.UsuarioRoles
           .AsNoTracking()
           .AnyAsync(ur => ur.UsuarioId == usuarioId
+                       && ur.Usuario!.Activo
                        && ur.MateriaId == materiaId
                        && ur.Rol!.Codigo == codigoRol
                        && ur.Rol.EsSistema
@@ -28,6 +29,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         db.UsuarioRoles
           .AsNoTracking()
           .AnyAsync(ur => ur.UsuarioId == usuarioId
+                       && ur.Usuario!.Activo
                        && ur.CarreraId == carreraId
                        && ur.Rol!.Codigo == codigoRol
                        && ur.Rol.EsSistema
@@ -37,6 +39,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         db.UsuarioRoles
           .AsNoTracking()
           .AnyAsync(ur => ur.UsuarioId == usuarioId
+                       && ur.Usuario!.Activo
                        && ur.MateriaId == null
                        && ur.CarreraId == null
                        && ur.Rol!.Codigo == codigoRol
@@ -46,7 +49,10 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
     public async Task<IReadOnlyList<string>> ObtenerCodigosDeRolesDeSistemaAsync(Guid usuarioId, CancellationToken ct) =>
         await db.UsuarioRoles
                 .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId && ur.Rol!.EsSistema && ur.Rol.Activo)
+                .Where(ur => ur.UsuarioId == usuarioId
+                          && ur.Usuario!.Activo
+                          && ur.Rol!.EsSistema
+                          && ur.Rol.Activo)
                 .Select(ur => ur.Rol!.Codigo)
                 .Distinct()
                 .ToListAsync(ct);
@@ -57,7 +63,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
     public async Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct) =>
         await db.UsuarioRoles
                 .AsNoTracking()
-                .Where(ur => ur.UsuarioId == usuarioId && ur.Rol!.Activo)
+                .Where(ur => ur.UsuarioId == usuarioId && ur.Usuario!.Activo && ur.Rol!.Activo)
                 .SelectMany(ur => ur.Rol!.Permisos)
                 .Select(rp => rp.Permiso!.Codigo)
                 .Distinct()
@@ -68,6 +74,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         await db.UsuarioRoles
                 .AsNoTracking()
                 .Where(ur => ur.UsuarioId == usuarioId
+                          && ur.Usuario!.Activo
                           && ur.MateriaId != null
                           && ur.Rol!.Codigo == codigoRol
                           && ur.Rol.EsSistema
@@ -81,6 +88,7 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         await db.UsuarioRoles
                 .AsNoTracking()
                 .Where(ur => ur.UsuarioId == usuarioId
+                          && ur.Usuario!.Activo
                           && ur.CarreraId != null
                           && ur.Rol!.Codigo == codigoRol
                           && ur.Rol.EsSistema
@@ -95,4 +103,23 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Where(m => m.Id == materiaId)
                 .Select(m => (Guid?)m.CarreraId)
                 .FirstOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<Materia>> ListarMateriasActivasAsync(CancellationToken ct) =>
+        await db.Materias.AsNoTracking()
+            .Include(m => m.Carrera)
+            .Where(m => m.Activo)
+            .OrderBy(m => m.Nombre)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct) =>
+        await db.Personas.AsNoTracking()
+            .OrderBy(p => p.Apellido)
+            .ThenBy(p => p.Nombre)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct) =>
+        await db.Usuarios.AsNoTracking()
+            .Include(u => u.Persona)
+            .OrderBy(u => u.NombreParaMostrar)
+            .ToListAsync(ct);
 }

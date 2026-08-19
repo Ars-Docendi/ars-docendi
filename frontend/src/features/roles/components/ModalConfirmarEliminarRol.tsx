@@ -1,5 +1,5 @@
 import { Button, Modal } from "@ars-docendi/ui";
-import type { RolMock } from "../mock/mockStore";
+import type { RolMock } from "../models";
 
 interface ModalConfirmarEliminarRolProps {
   rol: RolMock | null;

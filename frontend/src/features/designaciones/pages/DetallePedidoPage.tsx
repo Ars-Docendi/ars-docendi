@@ -14,14 +14,6 @@ import {
 import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
 import { DatosTramite } from "../components/DatosTramite";
 import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
-import {
-  actorAlcanzaAmbito,
-  puedeAceptar,
-  puedeEditarPedido,
-  puedeEliminarPedido,
-  puedeRevisar,
-} from "../api/maquinaEstados";
-import { PERIODOS_MOCK } from "../api/periodosMock";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
 import {
@@ -52,12 +44,12 @@ export function DetallePedidoPage() {
   const actor = useActorContexto();
   const { data: pedido, isLoading, isError } = usePedido(id);
 
-  const aceptar = useAceptarPedido(actor);
-  const rechazar = useRechazarPedido(actor);
-  const devolver = useDevolverPedido(actor);
-  const priorizar = usePriorizarPedido(actor);
-  const despriorizar = useDespriorizarPedido(actor);
-  const eliminar = useEliminarPedido(actor);
+  const aceptar = useAceptarPedido();
+  const rechazar = useRechazarPedido();
+  const devolver = useDevolverPedido();
+  const priorizar = usePriorizarPedido();
+  const despriorizar = useDespriorizarPedido();
+  const eliminar = useEliminarPedido();
   const enviando =
     aceptar.isPending ||
     rechazar.isPending ||
@@ -89,13 +81,7 @@ export function DetallePedidoPage() {
         </InlineAlert>
       )}
 
-      {pedido && !actorAlcanzaAmbito(pedido, actor) && (
-        <InlineAlert severity="info" title="Este pedido está fuera de tu ámbito">
-          No tenés visibilidad sobre este pedido. <a href={RUTA_REVISION}>Volver a Revisión</a>.
-        </InlineAlert>
-      )}
-
-      {pedido && actorAlcanzaAmbito(pedido, actor) && (
+      {pedido && (
         <DetalleCargado
           pedido={pedido}
           actor={actor}
@@ -143,12 +129,15 @@ function DetalleCargado({
   eliminando,
   errorEliminar,
 }: DetalleCargadoProps) {
-  const esRevisor = puedeRevisar(pedido, actor);
-  const permiteAceptar = puedeAceptar(pedido, actor);
-  const puedeEditar = puedeEditarPedido(pedido, actor);
-  const puedeEliminar = puedeEliminarPedido(pedido, actor);
+  const acciones = pedido.accionesPermitidas ?? [];
+  const esRevisor = acciones.some((accion) =>
+    ["aceptar", "rechazar", "devolver", "priorizar", "despriorizar"].includes(accion),
+  );
+  const permiteAceptar = acciones.includes("aceptar");
+  const puedeEditar = acciones.includes("editar");
+  const puedeEliminar = acciones.includes("eliminar");
   const etapas = derivarCadena(pedido, actor);
-  const periodoNombre = PERIODOS_MOCK.find((p) => p.id === pedido.periodoId)?.nombre;
+  const periodoNombre = pedido.periodoNombre;
   const navegar = useNavigate();
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.

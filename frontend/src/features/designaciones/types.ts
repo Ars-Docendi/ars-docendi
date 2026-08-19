@@ -12,6 +12,7 @@ export interface PeriodoDesignacion {
   impactoHasta: string;
   /** Solo puede haber un período con activo:true a la vez. */
   activo: boolean;
+  version?: number;
 }
 
 // ============================================================
@@ -25,15 +26,8 @@ export interface PeriodoDesignacion {
 export type Rol = Role;
 
 export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
-export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
-export type Dedicacion =
-  | "Categoría 0"
-  | "Categoría 1"
-  | "Categoría 2"
-  | "Categoría 3"
-  | "Categoría 4"
-  | "Categoría 5"
-  | "Categoría 6";
+export type Cargo = string;
+export type Dedicacion = string;
 
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
@@ -62,7 +56,7 @@ export type TipoAdjunto = "cv" | "dni_frente" | "dni_dorso" | "justificativo";
 
 export interface Adjunto {
   id: string;
-  nombre: string; // solo nombre/tipo en el mock
+  nombre: string;
   tipo: TipoAdjunto;
 }
 
@@ -96,6 +90,14 @@ export interface DocentePedido {
   legajo?: string;
 }
 
+/** Persona canónica disponible para un Alta, aun cuando todavía no tenga designación. */
+export interface PersonaCatalogoPedido {
+  id: string;
+  dni: string;
+  nombre: string;
+  legajo?: string;
+}
+
 /**
  * Docente ya existente en el sistema, con su designación vigente.
  * Alimenta el selector de las novedades sobre docentes existentes
@@ -122,6 +124,7 @@ export interface PedidoDesignacion {
   /** Número de trámite legible (formato "N°-AAAA-NNNN"). Lo asigna el backend al persistir. */
   numero?: string;
   periodoId: string; // FK al período (SCRUM-82)
+  periodoNombre?: string;
   /**
    * La cátedra del pedido, que **es** su materia: el rol `jefe_catedra` tiene ámbito
    * de materia, así que cátedra y materia son el mismo concepto. Un pedido cubre
@@ -141,7 +144,7 @@ export interface PedidoDesignacion {
   tipoBaja?: TipoBaja;
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
-  horasInvestigacion: number; // mock (cross-module Portal en el real)
+  horasInvestigacion: number; // integración cross-module con Portal pendiente
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -149,6 +152,11 @@ export interface PedidoDesignacion {
   etapaRetorno?: EstadoPedido; // a qué etapa de revisión vuelve al reenviar
   propietarioActual?: Rol; // quién debe corregir (JC / Coordinador / Secretaría)
   historial: EventoHistorial[];
+  accionesPermitidas?: string[];
+  version?: number;
+  personaId?: string;
+  materiaId?: string;
+  cargoSolicitadoId?: string;
 }
 
 /**
@@ -177,9 +185,14 @@ export interface DatosEditablesPedido {
   horasExternas: number;
   horasInvestigacion: number;
   adjuntos: Adjunto[];
+  personaId?: string;
+  materiaId?: string;
+  cargoSolicitadoId?: string;
+  periodoId?: string;
+  version?: number;
 }
 
-/** Contexto del actor que ejecuta una acción (rol + ámbito), derivado de useCurrentUser + mock. */
+/** Contexto presentacional derivado del usuario actual; nunca se envía como autoridad al backend. */
 export interface ActorContexto {
   rol: Rol;
   nombre: string;

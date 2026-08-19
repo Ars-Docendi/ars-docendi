@@ -19,7 +19,11 @@ internal interface IRepositorioPedidos
     /// [BR-designaciones-001]. Es la validación previa que produce el mensaje de
     /// error del spec; la autoridad real es el índice único parcial.
     /// </summary>
-    Task<bool> ExisteVivoParaPersonaEnPeriodoAsync(Guid periodoId, Guid personaId, CancellationToken ct);
+    Task<bool> ExisteVivoParaPersonaEnPeriodoAsync(
+        Guid periodoId, Guid personaId, Guid? exceptoPedidoId, CancellationToken ct);
+
+    Task<Periodo?> ObtenerPeriodoActivoAsync(CancellationToken ct);
+    Task<bool> ExisteCargoActivoAsync(Guid cargoId, CancellationToken ct);
 
     /// <summary>Pedidos de las materias indicadas dentro del período. Vista del Jefe de Cátedra.</summary>
     Task<IReadOnlyList<Pedido>> ListarPorMateriasAsync(
@@ -44,6 +48,10 @@ internal interface IRepositorioPedidos
     void Agregar(Pedido pedido);
 
     void Eliminar(Pedido pedido);
+
+    void ReemplazarAdjuntos(Pedido pedido, IReadOnlyList<PedidoAdjunto> adjuntos);
+    void AgregarHistorial(PedidoHistorial historial);
+    void EsperarVersion(Pedido pedido, uint version);
 
     /// <summary>
     /// Persiste los cambios pendientes.

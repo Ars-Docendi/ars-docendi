@@ -13,7 +13,6 @@
 // gating por ámbito [BR-009] ya se aplicó a los `pedidos` que llegan acá.
 // ============================================================
 import type { ActorContexto, EstadoPedido, Novedad, PedidoDesignacion, Rol } from "../types";
-import { puedeRevisar } from "../api/maquinaEstados";
 import { formatearFecha } from "./detalleAdapters";
 
 export type TonoColumna = "acento" | "neutro" | "exito" | "alerta" | "peligro";
@@ -100,7 +99,10 @@ export function seccionInicialDelActor(actor: ActorContexto): string | null {
 
 /** ¿Es el turno del actor sobre este pedido? (revisor de la etapa en su ámbito, o Administración). */
 export function esTuTurno(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
-  return puedeRevisar(pedido, actor);
+  void actor;
+  return (pedido.accionesPermitidas ?? []).some((accion) =>
+    ["aceptar", "rechazar", "devolver"].includes(accion),
+  );
 }
 
 /** Avance del pedido en la cadena (etapa + paso `x/4`); `null` para estados sin avance. */

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import { ETIQUETAS_SCOPE, SCOPES_ROL, type DatosRolNuevo, type RolMock } from "../mock/mockStore";
+import { ETIQUETAS_SCOPE, SCOPES_ROL, type DatosRolNuevo, type RolMock } from "../models";
 
 interface ModalNuevoRolProps {
   open: boolean;

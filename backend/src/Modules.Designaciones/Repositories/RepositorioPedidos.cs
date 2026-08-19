@@ -20,23 +20,37 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositor
           .Include(p => p.Adjuntos)
           .Include(p => p.Historial.OrderBy(h => h.CreadoEn))
           .Include(p => p.CargoSolicitado)
+          .Include(p => p.Periodo)
+          .AsSplitQuery()
           .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
 
     public Task<Pedido?> ObtenerLivianoAsync(Guid pedidoId, CancellationToken ct) =>
         db.Pedidos.FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
 
     public Task<bool> ExisteVivoParaPersonaEnPeriodoAsync(
-        Guid periodoId, Guid personaId, CancellationToken ct) =>
+        Guid periodoId, Guid personaId, Guid? exceptoPedidoId, CancellationToken ct) =>
         db.Pedidos
           .AsNoTracking()
           .AnyAsync(p => p.PeriodoId == periodoId
                       && p.PersonaId == personaId
+                      && p.Id != exceptoPedidoId
                       && !EstadosPedido.NoOcupanCupo.Contains(p.Estado), ct);
+
+    public Task<Periodo?> ObtenerPeriodoActivoAsync(CancellationToken ct) =>
+        db.Periodos.AsNoTracking().SingleOrDefaultAsync(p => p.Activo, ct);
+
+    public Task<bool> ExisteCargoActivoAsync(Guid cargoId, CancellationToken ct) =>
+        db.Cargos.AsNoTracking().AnyAsync(c => c.Id == cargoId && c.Activo, ct);
 
     public async Task<IReadOnlyList<Pedido>> ListarPorMateriasAsync(
         Guid periodoId, IReadOnlyCollection<Guid> materiaIds, CancellationToken ct) =>
         await db.Pedidos
                 .AsNoTracking()
+                .Include(p => p.Periodo)
+                .Include(p => p.CargoSolicitado)
+                .Include(p => p.Adjuntos)
+                .Include(p => p.Historial)
+                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId && materiaIds.Contains(p.MateriaId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -59,6 +73,11 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositor
     public async Task<IReadOnlyList<Pedido>> ListarDelPeriodoAsync(Guid periodoId, CancellationToken ct) =>
         await db.Pedidos
                 .AsNoTracking()
+                .Include(p => p.Periodo)
+                .Include(p => p.CargoSolicitado)
+                .Include(p => p.Adjuntos)
+                .Include(p => p.Historial)
+                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId)
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -92,6 +111,22 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositor
     public void Agregar(Pedido pedido) => db.Pedidos.Add(pedido);
 
     public void Eliminar(Pedido pedido) => db.Pedidos.Remove(pedido);
+
+    public void ReemplazarAdjuntos(Pedido pedido, IReadOnlyList<PedidoAdjunto> adjuntos)
+    {
+        db.PedidoAdjuntos.RemoveRange(pedido.Adjuntos);
+        pedido.Adjuntos.Clear();
+        foreach (var adjunto in adjuntos)
+        {
+            pedido.Adjuntos.Add(adjunto);
+            db.PedidoAdjuntos.Add(adjunto);
+        }
+    }
+
+    public void EsperarVersion(Pedido pedido, uint version) =>
+        db.Entry(pedido).Property(p => p.Version).OriginalValue = version;
+
+    public void AgregarHistorial(PedidoHistorial historial) => db.PedidoHistorial.Add(historial);
 
     public async Task GuardarCambiosAsync(CancellationToken ct)
     {

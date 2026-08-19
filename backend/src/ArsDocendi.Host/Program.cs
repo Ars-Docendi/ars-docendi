@@ -1,5 +1,9 @@
 using ArsDocendi.Shared;
 using ArsDocendi.Shared.Persistencia;
+using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Administracion;
+using ArsDocendi.Host.Desarrollo;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
@@ -16,6 +20,32 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console());
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
+builder.Services.AddScoped<ServicioDocentes>();
+var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
+    && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
+if (autenticacionDesarrolloHabilitada)
+{
+    builder.Services
+        .AddAuthentication(AutenticacionDesarrolloHandler.Esquema)
+        .AddScheme<AuthenticationSchemeOptions, AutenticacionDesarrolloHandler>(
+            AutenticacionDesarrolloHandler.Esquema, _ => { });
+}
+builder.Services.AddAuthorization(opciones =>
+{
+    foreach (var permiso in ArsDocendi.Shared.Auth.Permisos.Todos)
+    {
+        opciones.AddPolicy(permiso, politica =>
+            politica.RequireClaim(ArsDocendi.Shared.Auth.Permisos.Claim, permiso));
+    }
+    opciones.AddPolicy(ArsDocendi.Shared.Auth.Permisos.DesignacionesRevisar, politica =>
+        politica.RequireAssertion(contexto => contexto.User.Claims.Any(c =>
+            c.Type == ArsDocendi.Shared.Auth.Permisos.Claim
+            && (c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarCoordinacion
+                || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarSecretaria
+                || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarDecanato))));
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -50,6 +80,7 @@ if (args.Contains("--migrate"))
 }
 
 app.UseSerilogRequestLogging();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -57,7 +88,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (autenticacionDesarrolloHabilitada)
+{
+    app.UseAuthentication();
+}
 app.UseAuthorization();
 app.MapControllers();
+if (autenticacionDesarrolloHabilitada)
+{
+    app.MapIdentidadesDesarrollo();
+}
 
 app.Run();
+
+public partial class Program;

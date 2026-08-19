@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { Breadcrumbs, Field, InlineAlert, Select } from "@ars-docendi/ui";
 import { PedidoForm } from "../components/PedidoForm";
-import { useActorContexto } from "../hooks/useActorContexto";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
   useCrearPedido,
@@ -9,16 +9,15 @@ import {
   useEnviarPedido,
   useReenviarPedido,
 } from "../hooks/useAccionesPedido";
-import { puedeEditarPedido } from "../api/maquinaEstados";
-import { PERIODO_ABIERTO_ID } from "../api/pedidosSeed";
-import { PERIODOS_MOCK } from "../api/periodosMock";
+import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
+import { docentesDesdeCatalogo, personasDesdeCatalogo } from "../api/catalogos";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Etiqueta corta del período a partir de su id. */
-function etiquetaPeriodo(periodoId: string): string {
-  const periodo = PERIODOS_MOCK.find((item) => item.id === periodoId);
+function etiquetaPeriodo(periodoId: string, periodos: { id: string; nombre: string }[]): string {
+  const periodo = periodos.find((item) => item.id === periodoId);
   return periodo?.nombre ?? "Período sin definir";
 }
 
@@ -26,14 +25,18 @@ export function PedidoFormPage() {
   const { id } = useParams();
   const esEdicion = Boolean(id);
   const navegar = useNavigate();
-  const actor = useActorContexto();
 
-  const { data: pedidos } = useMisPedidos(actor);
+  const { data: pedidos } = useMisPedidos();
+  const catalogos = useCatalogosDesignaciones();
   const { data: pedidoInicial, isLoading, isError } = usePedido(id);
-  const crear = useCrearPedido(actor);
-  const editar = useEditarPedido(actor);
-  const enviar = useEnviarPedido(actor);
-  const reenviar = useReenviarPedido(actor);
+  const crear = useCrearPedido();
+  const editar = useEditarPedido();
+  const enviar = useEnviarPedido();
+  const reenviar = useReenviarPedido();
+  const [materiaSeleccionadaId, setMateriaSeleccionadaId] = useState("");
+  const materiaSeleccionada =
+    catalogos.data?.materias.find((materia) => materia.id === materiaSeleccionadaId) ??
+    catalogos.data?.materias[0];
 
   function volver() {
     navegar(RUTA_MIS_PEDIDOS);
@@ -42,7 +45,16 @@ export function PedidoFormPage() {
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {
     if (esEdicion && id) {
       editar.mutate(
-        { id, datos },
+        {
+          id,
+          datos: {
+            ...datos,
+            version: pedidoInicial?.version,
+            periodoId: pedidoInicial?.periodoId,
+            personaId: pedidoInicial?.personaId,
+            materiaId: pedidoInicial?.materiaId,
+          },
+        },
         {
           onSuccess: () => {
             if (!opciones?.enviar) {
@@ -55,20 +67,26 @@ export function PedidoFormPage() {
         },
       );
     } else {
-      crear.mutate(datos, {
-        onSuccess: (creado) => {
-          if (!opciones?.enviar) {
-            volver();
-            return;
-          }
-          enviar.mutate(creado.id, { onSuccess: volver });
+      crear.mutate(
+        { ...datos, materiaId: materiaSeleccionada?.id },
+        {
+          onSuccess: (creado) => {
+            if (!opciones?.enviar) {
+              volver();
+              return;
+            }
+            enviar.mutate(creado.id, { onSuccess: volver });
+          },
         },
-      });
+      );
     }
   }
 
   const guardando = crear.isPending || editar.isPending || enviar.isPending || reenviar.isPending;
-  const periodoLabel = etiquetaPeriodo(pedidoInicial?.periodoId ?? PERIODO_ABIERTO_ID);
+  const periodoLabel = etiquetaPeriodo(
+    pedidoInicial?.periodoId ?? catalogos.data?.periodoActivo?.id ?? "",
+    catalogos.data?.periodos ?? [],
+  );
   const crumbEdicion = pedidoInicial?.numero ? `Editar · ${pedidoInicial.numero}` : "Editar";
 
   return (
@@ -94,7 +112,7 @@ export function PedidoFormPage() {
         </InlineAlert>
       )}
 
-      {esEdicion && pedidoInicial && !puedeEditarPedido(pedidoInicial, actor) && (
+      {esEdicion && pedidoInicial && !pedidoInicial.accionesPermitidas?.includes("editar") && (
         <InlineAlert severity="info" title="Este pedido no es editable">
           El pedido ya fue enviado a revisión y quedó de solo lectura para el Jefe de Cátedra (salvo
           que sea devuelto). <a href={RUTA_MIS_PEDIDOS}>Volver a Mis pedidos</a>.
@@ -107,29 +125,57 @@ export function PedidoFormPage() {
         </InlineAlert>
       )}
 
-      {!esEdicion && (
-        <PedidoForm
-          catedra={actor.catedras?.[0] ?? ""}
-          pedidosExistentes={pedidos ?? []}
-          periodoLabel={periodoLabel}
-          guardando={guardando}
-          onGuardar={handleGuardar}
-          onCancelar={volver}
-        />
+      {!esEdicion && catalogos.data && (
+        <>
+          <Field label="Materia del pedido">
+            <Select
+              value={materiaSeleccionada?.id ?? ""}
+              onChange={(event) => setMateriaSeleccionadaId(event.target.value)}
+            >
+              {catalogos.data.materias.map((materia) => (
+                <option key={materia.id} value={materia.id}>
+                  {materia.nombre}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <PedidoForm
+            key={materiaSeleccionada?.id}
+            catedra={materiaSeleccionada?.nombre ?? ""}
+            pedidosExistentes={pedidos ?? []}
+            periodoLabel={periodoLabel}
+            guardando={guardando}
+            onGuardar={handleGuardar}
+            onCancelar={volver}
+            docentes={docentesDesdeCatalogo(catalogos.data)}
+            personas={personasDesdeCatalogo(catalogos.data)}
+            cargos={catalogos.data.cargos.map((c) => c.nombre)}
+            dedicaciones={catalogos.data.dedicaciones}
+            tiposBaja={catalogos.data.tiposBaja}
+          />
+        </>
       )}
 
-      {esEdicion && pedidoInicial && puedeEditarPedido(pedidoInicial, actor) && (
-        <PedidoForm
-          pedidoInicial={pedidoInicial}
-          catedra={pedidoInicial.catedra}
-          pedidosExistentes={pedidos ?? []}
-          esEdicion
-          periodoLabel={periodoLabel}
-          guardando={guardando}
-          onGuardar={handleGuardar}
-          onCancelar={volver}
-        />
-      )}
+      {esEdicion &&
+        pedidoInicial &&
+        pedidoInicial.accionesPermitidas?.includes("editar") &&
+        catalogos.data && (
+          <PedidoForm
+            pedidoInicial={pedidoInicial}
+            catedra={pedidoInicial.catedra}
+            pedidosExistentes={pedidos ?? []}
+            esEdicion
+            periodoLabel={periodoLabel}
+            guardando={guardando}
+            onGuardar={handleGuardar}
+            onCancelar={volver}
+            docentes={docentesDesdeCatalogo(catalogos.data)}
+            personas={personasDesdeCatalogo(catalogos.data)}
+            cargos={catalogos.data.cargos.map((c) => c.nombre)}
+            dedicaciones={catalogos.data.dedicaciones}
+            tiposBaja={catalogos.data.tiposBaja}
+          />
+        )}
     </>
   );
 }

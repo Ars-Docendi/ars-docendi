@@ -17,13 +17,15 @@ El modelo de docente agrega sobre el de usuario los campos específicos del domi
 - Accesible solo para los roles `Secretaría` y `Administración` (reutilizando `RequireRole`).
 - Filtros client-side: Apellido, Nombre, Documento (fijos) + Código de materia, Materia, Cargo y Estado (opcionales añadibles).
 
-**Non-Goals:**
+**Non-Goals de la fase visual original:**
 
 - Llamadas HTTP reales al backend.
 - Persistencia entre recargas (estado se reinicia con la página).
 - Paginación en la tabla (el mock tiene pocos registros).
 - Integración real con la API Guaraní para el catálogo de materias.
 - Gestión de horarios o carga horaria del docente (pertenece a Designaciones).
+
+La exclusión de HTTP y persistencia fue temporal. `datos-ejemplo-y-frontend-con-api` reemplaza D2, D5, D6 y D10 en lo relativo a la fuente de registros: materias, cargos, personas, roles y designaciones se consultan por API; el patrón de filas y el modelo por asignación se mantienen como decisiones de UI.
 
 ## Decisions
 

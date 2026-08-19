@@ -4,14 +4,14 @@ import type { UploadedFile } from "@ars-docendi/ui";
 import type {
   DatosEditablesPedido,
   DocenteExistente,
-  DocentePedido,
   EstadoPedido,
   Novedad,
   PedidoDesignacion,
+  PersonaCatalogoPedido,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { DOCENTES_EXISTENTES, TIPOS_BAJA, horasVigentesEnCatedra } from "../api/catalogos";
+import { horasVigentesEnCatedra } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
@@ -43,6 +43,11 @@ interface PedidoFormProps {
   /** `opciones.enviar` pide guardar y, en el mismo paso, enviar/reenviar a revisión. */
   onGuardar: (datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) => void;
   onCancelar: () => void;
+  docentes: DocenteExistente[];
+  personas: PersonaCatalogoPedido[];
+  cargos: string[];
+  dedicaciones: string[];
+  tiposBaja: string[];
 }
 
 function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEditablesPedido {
@@ -61,6 +66,10 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
     adjuntos: pedido?.adjuntos ?? [],
+    personaId: pedido?.personaId,
+    materiaId: pedido?.materiaId,
+    periodoId: pedido?.periodoId,
+    version: pedido?.version,
   };
 }
 
@@ -73,6 +82,11 @@ export function PedidoForm({
   guardando = false,
   onGuardar,
   onCancelar,
+  docentes,
+  personas,
+  cargos,
+  dedicaciones,
+  tiposBaja,
 }: PedidoFormProps) {
   const [datos, setDatos] = useState<DatosEditablesPedido>(() =>
     datosIniciales(catedra, pedidoInicial),
@@ -88,7 +102,7 @@ export function PedidoForm({
 
   // Catálogo de docentes para el selector. Si se edita un pedido cuyo docente
   // no está en el catálogo, se antepone para que quede seleccionable.
-  const opcionesDocente: DocenteExistente[] = [...DOCENTES_EXISTENTES];
+  const opcionesDocente: DocenteExistente[] = [...docentes];
   const dniInicial = (pedidoInicial?.docente.dni ?? "").replace(/\D/g, "");
   if (
     pedidoInicial &&
@@ -127,6 +141,7 @@ export function PedidoForm({
         horas: 0,
         horasInvestigacion: 0,
         horasExternas: 0,
+        personaId: undefined,
       }));
       return;
     }
@@ -145,6 +160,20 @@ export function PedidoForm({
       horas: horasVigentesEnCatedra(docente, catedra) ?? 0,
       horasInvestigacion: docente.horasInvestigacionActuales,
       horasExternas: docente.horasExternasActuales,
+      personaId: personas.find((persona) => persona.dni === docente.dni)?.id,
+    }));
+  }
+
+  function seleccionarPersonaAlta(personaId: string) {
+    const persona = personas.find((item) => item.id === personaId);
+    setDatos((prev) => ({
+      ...prev,
+      personaId: persona?.id,
+      docente: persona
+        ? { dni: persona.dni, nombre: persona.nombre, legajo: persona.legajo, antiguedad: 0 }
+        : { dni: "", nombre: "", antiguedad: 0 },
+      cargoActual: null,
+      dedicacionActual: null,
     }));
   }
 
@@ -249,6 +278,7 @@ export function PedidoForm({
           docente={datos.docente}
           errorDocente={errores.docente}
           opcionesDocente={opcionesDocente}
+          personasAlta={personas}
           cargoActual={datos.cargoActual}
           cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
           dedicacionActual={datos.dedicacionActual}
@@ -260,8 +290,8 @@ export function PedidoForm({
           horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
           horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
           horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
-          onCambiarDocente={(docente: DocentePedido) => actualizar("docente", docente)}
           onSeleccionarDocente={seleccionarDocente}
+          onSeleccionarPersonaAlta={seleccionarPersonaAlta}
         />
 
         {muestraSolicitud && (
@@ -279,6 +309,8 @@ export function PedidoForm({
             onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
             onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
+            cargos={cargos}
+            dedicaciones={dedicaciones}
           />
         )}
 
@@ -295,7 +327,7 @@ export function PedidoForm({
                     }
                   >
                     <option value="">Seleccioná el tipo de baja…</option>
-                    {TIPOS_BAJA.map((tipo) => (
+                    {tiposBaja.map((tipo) => (
                       <option key={tipo} value={tipo}>
                         {tipo}
                       </option>

@@ -4,6 +4,29 @@ import userEvent from "@testing-library/user-event";
 import { PedidoForm } from "./PedidoForm";
 import type { DatosEditablesPedido } from "../types";
 
+const CATALOGOS = {
+  personas: [{ id: "persona-alta", dni: "30111222", nombre: "Pérez, Ana" }],
+  docentes: [
+    {
+      dni: "28341567",
+      nombre: "Lucía Fernández",
+      legajo: "1001",
+      antiguedad: 8,
+      cargoActual: "Adjunto",
+      dedicacionActual: "Categoría 3",
+      materiasActuales: [
+        { materia: "Programación I", horas: 6 },
+        { materia: "Ingeniería de Software", horas: 4 },
+      ],
+      horasInvestigacionActuales: 2,
+      horasExternasActuales: 0,
+    },
+  ],
+  cargos: ["Titular", "Adjunto", "JTP", "Ayudante"],
+  dedicaciones: Array.from({ length: 7 }, (_, i) => `Categoría ${i}`),
+  tiposBaja: ["Renuncia", "Jubilación", "Otro"],
+};
+
 function renderForm(onGuardar = vi.fn()) {
   render(
     <PedidoForm
@@ -11,6 +34,7 @@ function renderForm(onGuardar = vi.fn()) {
       pedidosExistentes={[]}
       onGuardar={onGuardar}
       onCancelar={vi.fn()}
+      {...CATALOGOS}
     />,
   );
   return { onGuardar, user: userEvent.setup() };
@@ -28,8 +52,7 @@ function panelDatosActuales(): HTMLElement {
 /** Completa los campos no-adjunto de un Alta. La materia no se completa: es la
  * cátedra del actor y se muestra de solo lectura. */
 async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByPlaceholderText("Ej. 30111222"), "30111222");
-  await user.type(screen.getByPlaceholderText("Ej. Pérez, Ana"), "Pérez, Ana");
+  await user.selectOptions(screen.getByLabelText("Persona"), "persona-alta");
   await user.clear(screen.getByLabelText("Horas"));
   await user.type(screen.getByLabelText("Horas"), "4");
   await user.selectOptions(screen.getByLabelText("Cargo solicitado"), "Ayudante");
@@ -50,7 +73,7 @@ describe("PedidoForm", () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
       expect(screen.getByText("Datos del docente · Nuevo")).toBeInTheDocument();
-      expect(screen.getByPlaceholderText("Ej. 30111222")).toBeInTheDocument();
+      expect(screen.getByLabelText("Persona")).toBeInTheDocument();
       expect(screen.getByText("Designación solicitada")).toBeInTheDocument();
       expect(screen.getByText("Documentación obligatoria · Alta")).toBeInTheDocument();
       expect(screen.getByText("CV (PDF)")).toBeInTheDocument();
@@ -324,6 +347,7 @@ describe("PedidoForm", () => {
           esEdicion
           onGuardar={onGuardar}
           onCancelar={vi.fn()}
+          {...CATALOGOS}
         />,
       );
       expect(screen.getByRole("button", { name: "Guardar y reenviar" })).toBeInTheDocument();

@@ -1,14 +1,10 @@
-const TOKEN_KEY = "adoc.auth.token";
+import { limpiarSesionDesarrollo, obtenerSesionDesarrollo } from "./dev/session";
 
-/** STUB: presence of a token === authenticated. Replace with MSAL account check. */
+/** Adaptador temporal: desarrollo usa la selección sembrada; producción espera SSO. */
 export function isAuthenticated(): boolean {
-  return Boolean(localStorage.getItem(TOKEN_KEY));
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  return import.meta.env.DEV && obtenerSesionDesarrollo() !== null;
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  if (import.meta.env.DEV) limpiarSesionDesarrollo();
 }

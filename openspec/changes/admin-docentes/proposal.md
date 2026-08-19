@@ -18,7 +18,7 @@ Actualmente no existe una pantalla de gestión de docentes en el sistema: los da
 - Botones de acción en tabla `variant="ghost"`: "Editar" siempre; "Desactivar" o "Activar" según estado.
 - Modal de alta con dos modos (nueva persona / persona del sistema), selector de rol (`RolDocente`) y componente `AsignacionesSelector` (filas añadibles: una por asignación materia+cargo+horas). Campos obligatorios: datos personales, rol, al menos una asignación completa (materia, cargo y horas).
 - Confirmación antes de activar o desactivar para prevenir clicks no intencionales.
-- Sin llamadas HTTP reales; todo es estado local mock (mismo patrón que admin-usuarios).
+- La UI se construyó inicialmente sobre estado local. El cambio `datos-ejemplo-y-frontend-con-api` reemplaza esa fuente transitoria por la API administrativa y el dataset sintético persistido antes de considerar completa la integración.
 
 ## Capabilities
 
@@ -39,5 +39,5 @@ _(ninguna — es todo nuevo)_
 - `frontend/src/app/shell/icons.tsx` — se agrega `docentes` al objeto `navIcons`.
 - `frontend/src/app/shell/nav.ts` — se agrega ítem a las secciones de Secretaría y Administración.
 - `frontend/src/app/router.tsx` — se agrega `docentesRoutes`.
-- No se toca ningún archivo de backend. Sin llamadas HTTP reales; todo es estado local mock.
+- La UI de este cambio se conserva; backend, persistencia y sustitución del store se implementan y validan en `datos-ejemplo-y-frontend-con-api` para evitar contratos duplicados entre cambios activos.
 - No hay cambios en el grafo de dependencias de módulos backend.

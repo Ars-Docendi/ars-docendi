@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input, Select } from "@ars-docendi/ui";
-import { MATERIAS_CATALOGO, ROLES_DOCENTE } from "../mock/mockStore";
+import { type MateriaMock } from "../models";
 
 export interface FiltrosState {
   apellido: string;
@@ -43,9 +43,11 @@ const estiloBotonQuitar: React.CSSProperties = {
 interface FiltrosDocentesProps {
   filtros: FiltrosState;
   onChange: (filtros: FiltrosState) => void;
+  materias: MateriaMock[];
+  roles: string[];
 }
 
-export function FiltrosDocentes({ filtros, onChange }: FiltrosDocentesProps) {
+export function FiltrosDocentes({ filtros, onChange, materias, roles }: FiltrosDocentesProps) {
   const [activados, setActivados] = useState<FiltroOpcional[]>([]);
 
   function set<K extends keyof FiltrosState>(campo: K, valor: FiltrosState[K]) {
@@ -151,7 +153,7 @@ export function FiltrosDocentes({ filtros, onChange }: FiltrosDocentesProps) {
                 style={{ width: "auto" }}
               >
                 <option value="">Todas las materias</option>
-                {MATERIAS_CATALOGO.map((m) => (
+                {materias.map((m) => (
                   <option key={m.codigo} value={String(m.codigo)}>
                     {m.codigo} – {m.nombre}
                   </option>
@@ -195,7 +197,7 @@ export function FiltrosDocentes({ filtros, onChange }: FiltrosDocentesProps) {
                 style={{ width: "auto" }}
               >
                 <option value="">Todos los roles</option>
-                {ROLES_DOCENTE.map((r) => (
+                {roles.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

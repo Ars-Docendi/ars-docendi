@@ -15,8 +15,7 @@ import {
   FILTROS_INICIALES,
   type FiltrosMisPedidosState,
 } from "../components/filtrosMisPedidos";
-import { PERIODOS_MOCK } from "../api/periodosMock";
-import { useActorContexto } from "../hooks/useActorContexto";
+import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { useMisPedidos } from "../hooks/usePedidos";
 import { useEliminarPedido } from "../hooks/useAccionesPedido";
 import type { Novedad, PedidoDesignacion } from "../types";
@@ -67,9 +66,9 @@ const FILTROS_OPCIONALES: CampoFiltroOpcional[] = [
 
 export function MisPedidosPage() {
   const navegar = useNavigate();
-  const actor = useActorContexto();
-  const { data: pedidos, isLoading, isError } = useMisPedidos(actor);
-  const eliminar = useEliminarPedido(actor);
+  const { data: pedidos, isLoading, isError, refetch } = useMisPedidos();
+  const catalogos = useCatalogosDesignaciones();
+  const eliminar = useEliminarPedido();
 
   const [filtros, setFiltros] = useState<FiltrosMisPedidosState>(FILTROS_INICIALES);
   const [pagina, setPagina] = useState(1);
@@ -82,7 +81,7 @@ export function MisPedidosPage() {
     });
   }
 
-  const periodo = PERIODOS_MOCK.find((p) => p.activo);
+  const periodo = catalogos.data?.periodoActivo;
   const total = pedidos?.length ?? 0;
 
   function actualizarFiltros(nuevos: FiltrosMisPedidosState) {
@@ -134,7 +133,8 @@ export function MisPedidosPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se pudieron cargar los pedidos">
-          Hubo un problema al obtener tus pedidos del período. Recargá la página para reintentar.
+          Hubo un problema al obtener tus pedidos del período.{" "}
+          <button onClick={() => refetch()}>Reintentar</button>.
         </InlineAlert>
       )}
 
@@ -161,7 +161,6 @@ export function MisPedidosPage() {
             <>
               <TablaMisPedidos
                 pedidos={visibles}
-                actor={actor}
                 onVerDetalle={(p) => navegar(`/designaciones/pedidos/${p.id}`)}
                 onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
                 onEliminar={(p) => setPedidoAEliminar(p)}

@@ -1,161 +1,81 @@
-// ============================================================
-// Catálogos del módulo (mock del prototipo frontend-only).
-// Alimentan los selects del form de pedido: materias de la cátedra,
-// cargos/dedicaciones del régimen docente y los docentes ya existentes
-// (con su designación vigente) para las novedades sobre docentes
-// existentes. En el real provendrían de la API Guaraní / módulo Portal.
-// ============================================================
-import type { Cargo, Dedicacion, DocenteExistente, TipoBaja } from "../types";
+import { apiClient } from "../../../shared/api/client";
+import type {
+  Dedicacion,
+  DocenteExistente,
+  PeriodoDesignacion,
+  PersonaCatalogoPedido,
+} from "../types";
 
-/** Cargos del régimen docente, de mayor a menor jerarquía. */
-export const CARGOS: Cargo[] = ["Titular", "Adjunto", "JTP", "Ayudante"];
+export interface CatalogosDesignaciones {
+  periodoActivo: PeriodoDesignacion | null;
+  periodos: PeriodoDesignacion[];
+  materias: { id: string; codigo: string; nombre: string; carreraId: string }[];
+  personas: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    documento: string;
+    legajo: string | null;
+    designacionesVigentes: {
+      materiaId: string;
+      materiaNombre: string;
+      cargoId: string;
+      cargoNombre: string;
+      dedicacion: string | null;
+      horas: number;
+    }[];
+  }[];
+  cargos: { id: string; codigo: string; nombre: string; abreviatura: string; orden: number }[];
+  dedicaciones: string[];
+  tiposBaja: string[];
+  novedades: string[];
+}
 
-/** Dedicaciones (categorías) del régimen docente. */
-export const DEDICACIONES: Dedicacion[] = [
-  "Categoría 0",
-  "Categoría 1",
-  "Categoría 2",
-  "Categoría 3",
-  "Categoría 4",
-  "Categoría 5",
-  "Categoría 6",
-];
+export async function obtenerCatalogosDesignaciones(): Promise<CatalogosDesignaciones> {
+  return (await apiClient.get<CatalogosDesignaciones>("/api/designaciones/catalogos")).data;
+}
 
-/** Tipos de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
-export const TIPOS_BAJA: TipoBaja[] = ["Renuncia", "Jubilación", "Otro"];
+export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): DocenteExistente[] {
+  return catalogos.personas.flatMap((persona) => {
+    const primera = persona.designacionesVigentes[0];
+    if (!primera) return [];
+    return [
+      {
+        dni: persona.documento,
+        nombre: `${persona.apellido}, ${persona.nombre}`,
+        legajo: persona.legajo ?? "",
+        antiguedad: 0,
+        cargoActual: primera.cargoNombre,
+        dedicacionActual: (primera.dedicacion ?? "") as Dedicacion,
+        materiasActuales: persona.designacionesVigentes.map((d) => ({
+          materia: d.materiaNombre,
+          horas: d.horas,
+        })),
+        horasInvestigacionActuales: 0,
+        horasExternasActuales: 0,
+      },
+    ];
+  });
+}
 
-/**
- * Índice numérico de una dedicación ("Categoría 3" → 3). La escala es
- * descendente: 0 es la de mayor jerarquía, 6 la de menor — en Cambio, una
- * dedicación solicitada "mejor" que la actual tiene índice estrictamente menor.
- */
+export function personasDesdeCatalogo(catalogos: CatalogosDesignaciones): PersonaCatalogoPedido[] {
+  return catalogos.personas
+    .filter((persona) => persona.designacionesVigentes.length === 0)
+    .map((persona) => ({
+      id: persona.id,
+      dni: persona.documento,
+      nombre: `${persona.apellido}, ${persona.nombre}`,
+      legajo: persona.legajo ?? undefined,
+    }));
+}
+
 export function indiceDedicacion(dedicacion: Dedicacion): number {
   return Number(dedicacion.replace("Categoría ", ""));
 }
-
-/** Materias asociables a un pedido de designación. */
-export const MATERIAS: string[] = [
-  "Ingeniería de Software",
-  "Algoritmos y Estructuras de Datos",
-  "Programación I",
-  "Programación II",
-  "Bases de Datos",
-  "Sistemas Operativos",
-  "Matemática Discreta",
-  "Física I",
-];
-
-/**
- * Docentes con designación vigente, disponibles para las novedades
- * que operan sobre un docente existente (Sin novedad / Baja / Cambio).
- */
-export const DOCENTES_EXISTENTES: DocenteExistente[] = [
-  {
-    dni: "28341567",
-    nombre: "Lucía Fernández",
-    legajo: "1001",
-    antiguedad: 8,
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 3",
-    materiasActuales: [
-      { materia: "Programación I", horas: 6 },
-      { materia: "Ingeniería de Software", horas: 4 },
-    ],
-    horasInvestigacionActuales: 2,
-    horasExternasActuales: 0,
-  },
-  {
-    dni: "27345678",
-    nombre: "Laura Giménez",
-    legajo: "1002",
-    antiguedad: 12,
-    cargoActual: "Titular",
-    dedicacionActual: "Categoría 2",
-    materiasActuales: [{ materia: "Ingeniería de Software", horas: 8 }],
-    horasInvestigacionActuales: 4,
-    horasExternasActuales: 0,
-  },
-  {
-    dni: "30987654",
-    nombre: "Diego Morales",
-    legajo: "1003",
-    antiguedad: 7,
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 4",
-    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
-    horasInvestigacionActuales: 0,
-    horasExternasActuales: 2,
-  },
-  {
-    dni: "33112233",
-    nombre: "Sofía Romano",
-    legajo: "1004",
-    antiguedad: 4,
-    cargoActual: "Ayudante",
-    dedicacionActual: "Categoría 5",
-    materiasActuales: [{ materia: "Algoritmos y Estructuras de Datos", horas: 4 }],
-    horasInvestigacionActuales: 0,
-    horasExternasActuales: 0,
-  },
-  {
-    dni: "28776655",
-    nombre: "Valeria Suárez",
-    legajo: "1005",
-    antiguedad: 9,
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 4",
-    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
-    horasInvestigacionActuales: 3,
-    horasExternasActuales: 0,
-  },
-  {
-    dni: "31445566",
-    nombre: "Pablo Herrera",
-    legajo: "1006",
-    antiguedad: 6,
-    cargoActual: "JTP",
-    dedicacionActual: "Categoría 4",
-    materiasActuales: [{ materia: "Algoritmos y Estructuras de Datos", horas: 6 }],
-    horasInvestigacionActuales: 0,
-    horasExternasActuales: 0,
-  },
-  {
-    dni: "27660011",
-    nombre: "Gabriel Núñez",
-    legajo: "1007",
-    antiguedad: 11,
-    cargoActual: "Adjunto",
-    dedicacionActual: "Categoría 3",
-    materiasActuales: [{ materia: "Ingeniería de Software", horas: 6 }],
-    horasInvestigacionActuales: 0,
-    horasExternasActuales: 4,
-  },
-];
-
-/** Formatea un DNI numérico con separadores de miles ("28341567" → "28.341.567"). */
 export function formatearDni(dni: string): string {
   const limpio = dni.replace(/\D/g, "");
-  if (!limpio) return dni;
-  return limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return limpio ? limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : dni;
 }
-
-/** Busca un docente existente por DNI (normalizando separadores). */
-export function buscarDocenteExistente(dni: string): DocenteExistente | undefined {
-  const limpio = dni.replace(/\D/g, "");
-  return DOCENTES_EXISTENTES.find((docente) => docente.dni === limpio);
-}
-
-/**
- * Carga horaria vigente del docente en una cátedra puntual.
- * <p>
- * Un docente puede dictar en varias materias, pero un pedido cubre exactamente una:
- * el form sólo necesita las horas de la cátedra sobre la que se está tramitando.
- * Devuelve `undefined` si el docente no tiene designación vigente ahí — el caso
- * normal de un Alta.
- */
-export function horasVigentesEnCatedra(
-  docente: DocenteExistente | undefined,
-  catedra: string,
-): number | undefined {
+export function horasVigentesEnCatedra(docente: DocenteExistente | undefined, catedra: string) {
   return docente?.materiasActuales.find((asignacion) => asignacion.materia === catedra)?.horas;
 }

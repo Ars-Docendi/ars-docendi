@@ -30,6 +30,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<Carrera> Carreras => Set<Carrera>();
     public DbSet<Materia> Materias => Set<Materia>();
     public DbSet<RegistroCambio> RegistrosDeCambio => Set<RegistroCambio>();
+    public DbSet<IdentidadSembrada> IdentidadesSembradas => Set<IdentidadSembrada>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -63,6 +64,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Property(x => x.UltimoLoginEn).HasColumnName("last_login_at");
             e.Property(x => x.PersonaId).HasColumnName("persona_id");
+            e.Property(x => x.Version).IsRowVersion();
             e.HasOne(x => x.Persona).WithOne(p => p!.Usuario!).HasForeignKey<Usuario>(x => x.PersonaId);
         });
 
@@ -78,6 +80,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.EsSistema).HasColumnName("es_sistema");
             e.Property(x => x.Activo).HasColumnName("is_active");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.Property(x => x.Version).IsRowVersion();
             e.HasIndex(x => x.Codigo).IsUnique();
         });
 
@@ -166,6 +169,15 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.CambiadoPor).HasColumnName("changed_by");
             e.Property(x => x.CambiadoEn).HasColumnName("changed_at");
             e.Property(x => x.RequestId).HasColumnName("request_id");
+        });
+
+        modelBuilder.Entity<IdentidadSembrada>(e =>
+        {
+            e.ToTable("seed_identities", "public", t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.UsuarioId);
+            e.Property(x => x.UsuarioId).HasColumnName("user_id");
+            e.Property(x => x.VersionDataset).HasColumnName("dataset_version");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 
         base.OnModelCreating(modelBuilder);

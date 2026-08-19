@@ -1,5 +1,5 @@
 import { Button, StatusBadge, Table } from "@ars-docendi/ui";
-import { ABREV_CARGOS, nombreCompleto, type DocenteMock } from "../mock/mockStore";
+import { nombreCompleto, type DocenteMock } from "../models";
 
 interface TablaDocentesProps {
   docentes: DocenteMock[];
@@ -59,7 +59,7 @@ export function TablaDocentes({ docentes, onDesactivar, onActivar, onEditar }: T
                         className="adoc-badge s-pendiente"
                         style={{ fontSize: "11px", height: "20px", padding: "0 8px" }}
                       >
-                        {a.materia.codigo} – {ABREV_CARGOS[a.cargo]}
+                        {a.materia.codigo} – {a.cargoAbreviatura ?? a.cargo}
                       </span>
                     ))}
                   </div>

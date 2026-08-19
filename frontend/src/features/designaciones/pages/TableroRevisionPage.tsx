@@ -48,7 +48,7 @@ const FILTROS_OPCIONALES: CampoFiltroOpcional[] = [
 export function TableroRevisionPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
-  const { data: pedidos, isLoading, isError } = usePedidosPorAmbito(actor);
+  const { data: pedidos, isLoading, isError, refetch } = usePedidosPorAmbito();
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_INICIALES);
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
@@ -104,7 +104,8 @@ export function TableroRevisionPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se pudieron cargar los pedidos">
-          Hubo un problema al obtener los pedidos de revisión. Recargá la página para reintentar.
+          Hubo un problema al obtener los pedidos de revisión.{" "}
+          <button onClick={() => refetch()}>Reintentar</button>.
         </InlineAlert>
       )}
 

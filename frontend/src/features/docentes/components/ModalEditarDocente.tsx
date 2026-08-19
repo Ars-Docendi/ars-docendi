@@ -10,14 +10,13 @@ import {
   type TabItem,
 } from "@ars-docendi/ui";
 import {
-  MATERIAS_CATALOGO,
-  ROLES_DOCENTE,
   nombreCompleto,
   type AsignacionMateria,
   type CargoDocente,
   type DocenteMock,
   type RolDocente,
-} from "../mock/mockStore";
+  type MateriaMock,
+} from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
 
 interface ModalEditarDocenteProps {
@@ -25,6 +24,10 @@ interface ModalEditarDocenteProps {
   upnsExistentes: string[];
   onGuardar: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
   onCerrar: () => void;
+  materias: MateriaMock[];
+  cargos: string[];
+  error?: string;
+  rolesDisponibles: string[];
 }
 
 const PESTAÑAS: TabItem[] = [
@@ -70,6 +73,10 @@ export function ModalEditarDocente({
   upnsExistentes,
   onGuardar,
   onCerrar,
+  materias,
+  cargos,
+  error,
+  rolesDisponibles,
 }: ModalEditarDocenteProps) {
   const [prevDocente, setPrevDocente] = useState(docente);
   const [campos, setCampos] = useState(camposDesde(docente));
@@ -107,7 +114,7 @@ export function ModalEditarDocente({
     const asignaciones: AsignacionMateria[] = asignacionRows
       .filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0)
       .map((r) => ({
-        materia: MATERIAS_CATALOGO.find((m) => m.codigo === r.materia)!,
+        materia: materias.find((m) => m.codigo === r.materia)!,
         cargo: r.cargo as CargoDocente,
         horas: Number(r.horas),
       }));
@@ -167,6 +174,7 @@ export function ModalEditarDocente({
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ marginBottom: "1rem" }}>
         <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
           {docente ? nombreCompleto(docente) : ""} &mdash; {docente?.upn}
@@ -197,7 +205,7 @@ export function ModalEditarDocente({
               error={enviado && roles.length === 0 ? "Seleccioná al menos un rol" : undefined}
             >
               <div style={{ display: "flex", gap: "1.5rem", padding: "0.25rem 0" }}>
-                {ROLES_DOCENTE.map((r) => (
+                {rolesDisponibles.map((r) => (
                   <label
                     key={r}
                     style={{
@@ -225,6 +233,8 @@ export function ModalEditarDocente({
               rows={asignacionRows}
               onChange={setAsignacionRows}
               error={errorAsignaciones}
+              materias={materias}
+              cargos={cargos}
             />
           </div>
         </div>

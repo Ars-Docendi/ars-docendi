@@ -25,6 +25,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
     public DbSet<PedidoAdjunto> PedidoAdjuntos => Set<PedidoAdjunto>();
     public DbSet<PedidoHistorial> PedidoHistorial => Set<PedidoHistorial>();
     public DbSet<Designacion> Designaciones => Set<Designacion>();
+    public DbSet<ComandoIdempotente> ComandosIdempotentes => Set<ComandoIdempotente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +57,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.ImpactoHasta).HasColumnName("impacto_hasta");
             e.Property(x => x.Activo).HasColumnName("activo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.Property(x => x.Version).IsRowVersion();
         });
 
         modelBuilder.Entity<Pedido>(e =>
@@ -81,6 +83,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.EtapaRetorno).HasColumnName("etapa_retorno");
             e.Property(x => x.PropietarioActual).HasColumnName("propietario_actual");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.Property(x => x.Version).IsRowVersion();
             e.Ignore(x => x.EsTerminal);
 
             // Documento congelado: se escribe entero al enviar y no se consulta por
@@ -142,6 +145,22 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Ignore(x => x.EstaVigente);
             e.HasOne(x => x.Cargo).WithMany().HasForeignKey(x => x.CargoId);
+        });
+
+        modelBuilder.Entity<ComandoIdempotente>(e =>
+        {
+            e.ToTable("idempotencia_comandos", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Clave).HasColumnName("clave");
+            e.Property(x => x.ActorId).HasColumnName("actor_id");
+            e.Property(x => x.Ruta).HasColumnName("ruta");
+            e.Property(x => x.PedidoId).HasColumnName("pedido_id");
+            e.Property(x => x.RequestHash).HasColumnName("request_hash");
+            e.Property(x => x.StatusCode).HasColumnName("status_code");
+            e.Property(x => x.ResponseBody).HasColumnName("response_body").HasColumnType("jsonb");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.HasIndex(x => new { x.ActorId, x.Ruta, x.Clave }).IsUnique();
         });
 
         base.OnModelCreating(modelBuilder);

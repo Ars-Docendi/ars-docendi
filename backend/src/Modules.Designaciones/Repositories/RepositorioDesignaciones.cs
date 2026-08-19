@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Contracts.Administracion;
 
 namespace Modules.Designaciones.Repositories;
 
@@ -19,7 +20,12 @@ internal interface IRepositorioDesignaciones
     /// <summary>Plantel vigente de una cátedra.</summary>
     Task<IReadOnlyList<Designacion>> ListarVigentesDeMateriaAsync(Guid materiaId, CancellationToken ct);
 
+    Task<IReadOnlyList<Designacion>> ListarTodasVigentesSinTrackingAsync(CancellationToken ct);
+    Task<IReadOnlyList<Cargo>> ListarCargosAsync(CancellationToken ct);
+    Task<IReadOnlyList<Cargo>> ObtenerCargosActivosAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
     void Agregar(Designacion designacion);
+    Task GuardarAsync(CancellationToken ct);
 }
 
 /// <inheritdoc cref="IRepositorioDesignaciones" />
@@ -45,5 +51,24 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db) : IRep
                 .Where(d => d.MateriaId == materiaId && d.VigenteHasta == null)
                 .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Designacion>> ListarTodasVigentesSinTrackingAsync(CancellationToken ct) =>
+        await db.Designaciones
+            .AsNoTracking()
+            .Include(d => d.Cargo)
+            .Where(d => d.VigenteHasta == null)
+            .OrderBy(d => d.PersonaId)
+            .ThenBy(d => d.MateriaId)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Cargo>> ListarCargosAsync(CancellationToken ct) =>
+        await db.Cargos.AsNoTracking().OrderBy(c => c.Orden).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Cargo>> ObtenerCargosActivosAsync(
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken ct) =>
+        await db.Cargos.AsNoTracking().Where(c => ids.Contains(c.Id) && c.Activo).ToListAsync(ct);
+
     public void Agregar(Designacion designacion) => db.Designaciones.Add(designacion);
+
+    public Task GuardarAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

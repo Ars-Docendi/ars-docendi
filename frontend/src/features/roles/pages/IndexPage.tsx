@@ -2,24 +2,24 @@ import { useState, useMemo } from "react";
 import { Breadcrumbs, Button } from "@ars-docendi/ui";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
-import { useConfiguracion } from "../../../shared/configuracion/useConfiguracion";
+import { useRoles } from "../hooks/useRoles";
 import { TablaRoles } from "../components/TablaRoles";
 import { ModalNuevoRol } from "../components/ModalNuevoRol";
 import { ModalEditarRol } from "../components/ModalEditarRol";
-import { ModalConfirmarEliminarRol } from "../components/ModalConfirmarEliminarRol";
 import {
   normalizarTexto,
   type DatosRolEditables,
   type DatosRolNuevo,
   type RolMock,
-} from "../mock/mockStore";
+} from "../models";
+const SIN_ROLES: RolMock[] = [];
 
 export function IndexPage() {
-  const { roles, agregarRol, editarRol, eliminarRol } = useConfiguracion();
+  const remoto = useRoles();
+  const roles = remoto.consulta.data ?? SIN_ROLES;
   const [busqueda, setBusqueda] = useState("");
   const [modalNuevo, setModalNuevo] = useState(false);
   const [rolAEditar, setRolAEditar] = useState<RolMock | null>(null);
-  const [rolAEliminar, setRolAEliminar] = useState<RolMock | null>(null);
 
   const rolesFiltrados = useMemo(() => {
     const q = normalizarTexto(busqueda);
@@ -30,14 +30,12 @@ export function IndexPage() {
   }, [roles, busqueda]);
 
   function handleCrear(datos: DatosRolNuevo, rolBaseId: string | null) {
-    agregarRol(datos, rolBaseId);
-    setModalNuevo(false);
+    remoto.crear.mutate({ datos, rolBaseId }, { onSuccess: () => setModalNuevo(false) });
   }
 
   function handleEditar(datos: DatosRolEditables) {
     if (!rolAEditar) return;
-    editarRol(rolAEditar.id, datos);
-    setRolAEditar(null);
+    remoto.editar.mutate({ rol: rolAEditar, datos }, { onSuccess: () => setRolAEditar(null) });
   }
 
   return (
@@ -52,6 +50,17 @@ export function IndexPage() {
           </Button>
         }
       />
+      {remoto.consulta.isLoading && <p role="status">Cargando roles…</p>}
+      {remoto.consulta.isError && (
+        <p role="alert">
+          No se pudieron cargar los roles.{" "}
+          <button onClick={() => remoto.consulta.refetch()}>Reintentar</button>
+        </p>
+      )}
+      {(remoto.crear.isError || remoto.editar.isError) && (
+        <p role="alert">No se pudo guardar el rol. Revisá los datos e intentá nuevamente.</p>
+      )}
+      {(remoto.crear.isPending || remoto.editar.isPending) && <p role="status">Guardando rol…</p>}
 
       <div style={{ marginBottom: "1rem" }}>
         <input
@@ -64,7 +73,7 @@ export function IndexPage() {
         />
       </div>
 
-      <TablaRoles roles={rolesFiltrados} onEditar={setRolAEditar} onEliminar={setRolAEliminar} />
+      <TablaRoles roles={rolesFiltrados} onEditar={setRolAEditar} />
 
       <ModalNuevoRol
         open={modalNuevo}
@@ -79,15 +88,6 @@ export function IndexPage() {
         nombresExistentes={roles.filter((r) => r.id !== rolAEditar?.id).map((r) => r.nombre)}
         onGuardar={handleEditar}
         onCerrar={() => setRolAEditar(null)}
-      />
-
-      <ModalConfirmarEliminarRol
-        rol={rolAEliminar}
-        onConfirmar={() => {
-          if (rolAEliminar && !rolAEliminar.es_sistema) eliminarRol(rolAEliminar.id);
-          setRolAEliminar(null);
-        }}
-        onCerrar={() => setRolAEliminar(null)}
       />
     </>
   );

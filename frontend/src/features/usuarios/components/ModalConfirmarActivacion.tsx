@@ -1,5 +1,5 @@
 import { Button, Modal } from "@ars-docendi/ui";
-import { nombreCompleto, type UsuarioMock } from "../mock/mockStore";
+import { nombreCompleto, type UsuarioMock } from "../models";
 
 interface ModalConfirmarActivacionProps {
   usuario: UsuarioMock | null;

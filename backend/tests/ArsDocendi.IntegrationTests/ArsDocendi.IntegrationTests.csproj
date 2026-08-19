@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.9" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <!-- Override transitivo de Testcontainers: <= 2025.1.0 está afectado por
          GHSA-q939-rpr3-3284 (path traversal en descarga SCP recursiva). -->
@@ -24,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+    <ProjectReference Include="..\..\src\ArsDocendi.Host\ArsDocendi.Host.csproj" />
     <ProjectReference Include="..\..\src\Modules.Designaciones\Modules.Designaciones.csproj" />
   </ItemGroup>
 

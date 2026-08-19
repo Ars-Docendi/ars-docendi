@@ -27,6 +27,11 @@ internal sealed class UnidadDeTrabajo(DesignacionesDbContext db) : IUnidadDeTrab
     public async Task EjecutarEnTransaccionAsync(
         Func<CancellationToken, Task> trabajo, CancellationToken ct)
     {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            await trabajo(ct);
+            return;
+        }
         // La estrategia de ejecución de Npgsql puede reintentar; usar su envoltorio
         // en vez de BeginTransaction directo es lo que hace el reintento seguro.
         var estrategia = db.Database.CreateExecutionStrategy();

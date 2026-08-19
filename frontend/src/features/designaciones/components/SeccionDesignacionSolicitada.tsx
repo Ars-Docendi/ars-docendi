@@ -1,7 +1,7 @@
 import { Field, Input, Select } from "@ars-docendi/ui";
 import type { Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
-import { CARGOS, DEDICACIONES, indiceDedicacion } from "../api/catalogos";
+import { indiceDedicacion } from "../api/catalogos";
 import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
 interface SeccionDesignacionSolicitadaProps {
@@ -20,6 +20,8 @@ interface SeccionDesignacionSolicitadaProps {
   onDedicacion: (valor?: Dedicacion) => void;
   onHorasInvestigacion: (valor: number) => void;
   onHorasExternas: (valor: number) => void;
+  cargos: Cargo[];
+  dedicaciones: Dedicacion[];
 }
 
 /**
@@ -42,10 +44,12 @@ export function SeccionDesignacionSolicitada({
   onDedicacion,
   onHorasInvestigacion,
   onHorasExternas,
+  cargos,
+  dedicaciones,
 }: SeccionDesignacionSolicitadaProps) {
   const opcionesDedicacion = dedicacionActual
-    ? DEDICACIONES.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
-    : DEDICACIONES;
+    ? dedicaciones.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
+    : dedicaciones;
 
   return (
     <section className="adoc-pf-sec">
@@ -57,7 +61,7 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onCargo((e.target.value || undefined) as Cargo)}
           >
             <option value="">Seleccioná un cargo…</option>
-            {CARGOS.map((cargo) => (
+            {cargos.map((cargo) => (
               <option key={cargo} value={cargo}>
                 {cargo}
               </option>

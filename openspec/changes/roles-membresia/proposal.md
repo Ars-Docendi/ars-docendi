@@ -9,7 +9,7 @@ Actualmente la gestión de roles del sistema y la asignación de permisos a esos
 - Nuevos íconos `roles` y `membresiaRoles` en `frontend/src/app/shell/icons.tsx`.
 - Entradas "Roles" y "Membresía Roles" agregadas al grupo "Configuración" del sidebar de Secretaría y Administración en `frontend/src/app/shell/nav.ts`.
 - Nuevas rutas `/roles` y `/membresia-roles` registradas en `frontend/src/app/router.tsx`, ambas protegidas con `RequireRole` para los mismos roles que `/usuarios`.
-- Mock stores locales para roles y permisos (misma estrategia que `usuarios/mock/mockStore.ts`): datos en memoria, funciones puras de mutación, sin llamadas HTTP.
+- La UI se construyó inicialmente con stores locales; `datos-ejemplo-y-frontend-con-api` los sustituye por roles, permisos y membresías persistidos mediante la API administrativa.
 
 ## Capabilities
 
@@ -30,5 +30,5 @@ _(ninguna — es todo nuevo)_
 - `frontend/src/app/shell/icons.tsx` — se agregan `roles` y `membresiaRoles` al objeto `navIcons`.
 - `frontend/src/app/shell/nav.ts` — se agregan los ítems "Roles" y "Membresía Roles" al grupo "Configuración" de Secretaría y Administración.
 - `frontend/src/app/router.tsx` — se registran `rolesRoutes` y `membresiaRolesRoutes`.
-- No se toca el backend. Sin llamadas HTTP reales; todo es estado local mock.
+- La UI, rutas y guards se conservan; backend y migración de estado remoto pertenecen a `datos-ejemplo-y-frontend-con-api` para mantener una única definición del contrato HTTP.
 - El guard `RequireRole` ya existe (`shared/auth/RequireRole.tsx`); se reutiliza sin modificaciones.

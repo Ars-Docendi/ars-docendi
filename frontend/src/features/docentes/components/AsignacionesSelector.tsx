@@ -1,5 +1,5 @@
 import { Button, Field, Input, Select } from "@ars-docendi/ui";
-import { CARGOS_DOCENTES, MATERIAS_CATALOGO } from "../mock/mockStore";
+import type { MateriaMock } from "../models";
 
 export interface AsignacionRow {
   materia: string;
@@ -11,9 +11,17 @@ interface AsignacionesSelectorProps {
   rows: AsignacionRow[];
   onChange: (rows: AsignacionRow[]) => void;
   error?: string;
+  materias: MateriaMock[];
+  cargos: string[];
 }
 
-export function AsignacionesSelector({ rows, onChange, error }: AsignacionesSelectorProps) {
+export function AsignacionesSelector({
+  rows,
+  onChange,
+  error,
+  materias,
+  cargos,
+}: AsignacionesSelectorProps) {
   function actualizarFila(i: number, campo: keyof AsignacionRow, valor: string) {
     onChange(rows.map((r, idx) => (idx === i ? { ...r, [campo]: valor } : r)));
   }
@@ -32,7 +40,7 @@ export function AsignacionesSelector({ rows, onChange, error }: AsignacionesSele
     <Field label="Asignaciones (materia + cargo + horas)" required error={error}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {rows.map((fila, i) => {
-          const opcionesMateria = MATERIAS_CATALOGO.filter(
+          const opcionesMateria = materias.filter(
             (m) => !materiasUsadas.includes(m.codigo) || m.codigo === fila.materia,
           );
 
@@ -59,7 +67,7 @@ export function AsignacionesSelector({ rows, onChange, error }: AsignacionesSele
                 style={{ flex: "1" }}
               >
                 <option value="">Cargo…</option>
-                {CARGOS_DOCENTES.map((c) => (
+                {cargos.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>

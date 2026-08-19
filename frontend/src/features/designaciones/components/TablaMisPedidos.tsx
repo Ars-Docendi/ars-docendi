@@ -1,12 +1,10 @@
 import { Button } from "@ars-docendi/ui";
-import type { ActorContexto, PedidoDesignacion } from "../types";
-import { puedeEditarPedido, puedeEliminarPedido } from "../api/maquinaEstados";
+import type { PedidoDesignacion } from "../types";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 import { IconoX } from "./lucide";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
-  actor: ActorContexto;
   onVerDetalle: (pedido: PedidoDesignacion) => void;
   onEditar: (pedido: PedidoDesignacion) => void;
   onEliminar: (pedido: PedidoDesignacion) => void;
@@ -42,7 +40,6 @@ function fechaEnviado(p: PedidoDesignacion): string {
  */
 export function TablaMisPedidos({
   pedidos,
-  actor,
   onVerDetalle,
   onEditar,
   onEliminar,
@@ -106,7 +103,7 @@ export function TablaMisPedidos({
             >
               Ver
             </Button>
-            {puedeEditarPedido(pedido, actor) && (
+            {pedido.accionesPermitidas?.includes("editar") && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -118,7 +115,7 @@ export function TablaMisPedidos({
                 Editar
               </Button>
             )}
-            {puedeEliminarPedido(pedido, actor) && (
+            {pedido.accionesPermitidas?.includes("eliminar") && (
               <button
                 type="button"
                 className="adoc-mp-eliminar"

@@ -65,4 +65,13 @@ public interface IConsultasIdentity
 
     /// <summary>Carrera a la que pertenece la materia, o <c>null</c> si la materia no existe.</summary>
     Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct);
+
+    /// <summary>Catálogo activo de materias para superficies autorizadas.</summary>
+    Task<IReadOnlyList<Materia>> ListarMateriasActivasAsync(CancellationToken ct);
+
+    /// <summary>Personas canónicas elegibles para operaciones de negocio.</summary>
+    Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
+
+    /// <summary>Cuentas canónicas para resolver actores en respuestas de auditoría.</summary>
+    Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct);
 }

@@ -14,13 +14,15 @@ La restricción de acceso es por rol: solo `Secretaría` y `Administración` ven
 - Datos mock fieles al esquema que tendrá el backend real para facilitar la integración futura.
 - Accesible solo para los roles `Secretaría` y `Administración`.
 
-**Non-Goals:**
+**Non-Goals de la fase visual original:**
 
 - Llamadas HTTP reales al backend.
 - Persistencia entre recargas.
 - Gestión de permisos a nivel de carrera/materia (solo permiso global por ahora).
 - Paginación (el mock tiene pocos registros).
 - Eliminar roles (no requerido en este alcance).
+
+La exclusión de HTTP y persistencia fue temporal. `datos-ejemplo-y-frontend-con-api` sustituye D2 y D4b para datos remotos: React Query pasa a ser la fuente compartida, los cambios de permisos quedan pendientes en el formulario y se envían como reemplazo atómico sólo al presionar “Guardar cambios”.
 
 ## Decisions
 

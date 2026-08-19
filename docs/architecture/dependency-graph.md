@@ -31,7 +31,7 @@ flowchart TD
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
-  Host --> DesignacionesContracts
+  Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
   Host --> AulasContracts
   Host --> PortalContracts
   Host --> TareasContracts
@@ -54,21 +54,22 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 
 ## Edge registry
 
-| From                    | To                                | Vía               | Notas                      |
-| ----------------------- | --------------------------------- | ----------------- | -------------------------- |
-| `ArsDocendi.Host`       | `Modules.Designaciones`           | project reference | Hosting + composition root |
-| `ArsDocendi.Host`       | `Modules.Aulas`                   | project reference | Hosting                    |
-| `ArsDocendi.Host`       | `Modules.Portal`                  | project reference | Hosting                    |
-| `ArsDocendi.Host`       | `Modules.Tareas`                  | project reference | Hosting                    |
-| `ArsDocendi.Host`       | `Modules.*.Contracts`             | project reference | DI / interfaces            |
-| `Modules.Designaciones` | `ArsDocendi.Shared`               | project reference | Utilidades                 |
-| `Modules.Designaciones` | `Modules.Designaciones.Contracts` | project reference | Propio contract público    |
-| `Modules.Aulas`         | `ArsDocendi.Shared`               | project reference | Utilidades                 |
-| `Modules.Aulas`         | `Modules.Aulas.Contracts`         | project reference | Propio contract público    |
-| `Modules.Portal`        | `ArsDocendi.Shared`               | project reference | Utilidades                 |
-| `Modules.Portal`        | `Modules.Portal.Contracts`        | project reference | Propio contract público    |
-| `Modules.Tareas`        | `ArsDocendi.Shared`               | project reference | Utilidades                 |
-| `Modules.Tareas`        | `Modules.Tareas.Contracts`        | project reference | Propio contract público    |
+| From                    | To                                      | Vía               | Notas                                                                                              |
+| ----------------------- | --------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `ArsDocendi.Host`       | `Modules.Designaciones`                 | project reference | Hosting + composition root                                                                         |
+| `ArsDocendi.Host`       | `Modules.Aulas`                         | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Portal`                        | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Tareas`                        | project reference | Hosting                                                                                            |
+| `ArsDocendi.Host`       | `Modules.Designaciones.Contracts`       | project reference | `IAdministracionDesignaciones`: consulta y reemplazo de designaciones vigentes sin tocar internals |
+| `ArsDocendi.Host`       | `Modules.Aulas/Portal/Tareas.Contracts` | project reference | DI / interfaces de composición                                                                     |
+| `Modules.Designaciones` | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
+| `Modules.Designaciones` | `Modules.Designaciones.Contracts`       | project reference | Propio contract público                                                                            |
+| `Modules.Aulas`         | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
+| `Modules.Aulas`         | `Modules.Aulas.Contracts`               | project reference | Propio contract público                                                                            |
+| `Modules.Portal`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
+| `Modules.Portal`        | `Modules.Portal.Contracts`              | project reference | Propio contract público                                                                            |
+| `Modules.Tareas`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
+| `Modules.Tareas`        | `Modules.Tareas.Contracts`              | project reference | Propio contract público                                                                            |
 
 Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyectos, pero explican por qué Shared ya no es puro):
 
@@ -87,7 +88,11 @@ La disciplina, corolario del invariante #4 enmendado:
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
 
-`/pr-review` y `/architecture-drift-check` deben tratar cualquier escritura a identity desde un `Modules.*` como violación. Pendiente: un test de arquitectura que lo falle automáticamente.
+`/pr-review` y `/architecture-drift-check` deben tratar cualquier escritura a identity desde un `Modules.*` como violación. `ArquitecturaIdentityTests` verifica automáticamente la frontera Controller → Service → Repository, la escritura administrativa exclusiva y que ningún proyecto consuma internals de otro módulo.
+
+## Orquestación administrativa de docentes
+
+`ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa el edge Host → Contracts ya permitido y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
 
 **Edges cross-module proyectados (a confirmar en spec respectiva)**:
 

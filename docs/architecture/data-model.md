@@ -235,4 +235,13 @@ Es idempotente (`Database.Migrate()`), así que re-ejecutarlo sobre una base ya 
 
 ## Seeds
 
-Datos seed mínimos para desarrollo (roles, parámetros del sistema) viven en cada módulo bajo `Infrastructure/Seeds/<NombreSeed>.cs` y se ejecutan en `ModuleRegistration` cuando `ASPNETCORE_ENVIRONMENT=Development`.
+El dataset de ejemplo no productivo vive en [`infra/scripts/seed-data/sintetico.sql`](../../infra/scripts/seed-data/sintetico.sql). Es una fuente transversal explícita, no una migración EF ni un inicializador de módulo. `infra/scripts/seed.sh <ambiente>` lo aplica sólo después de migrar la base.
+
+- `public.seed_metadata` registra `dataset_version` (`2026.08.1`), origen y última ejecución.
+- `public.seed_identities` marca exactamente qué cuentas pueden usarse con la autenticación de desarrollo.
+- UUIDs reservados relacionan personas, cuentas, roles y ámbitos con carreras, materias, cargos, períodos, pedidos, historial y designaciones vigentes.
+- Una transacción y un advisory lock vuelven atómica la ejecución y serializan reintentos concurrentes.
+- Los upserts restauran sólo las filas propiedad del dataset; no hay `TRUNCATE` ni eliminación de filas ajenas.
+- Reejecutar la misma versión es seguro. Cambiar datos declarados restaura las fixtures y conserva registros creados fuera del rango reservado.
+
+Los módulos de negocio leen identidad mediante `IConsultasIdentity`. Sólo los servicios administrativos de `ArsDocendi.Shared.Identity.Administracion` escriben personas, cuentas, roles, permisos y ámbitos. Designaciones conserva la propiedad exclusiva de `designaciones.designaciones`; la administración docente la modifica únicamente mediante `IAdministracionDesignaciones`.

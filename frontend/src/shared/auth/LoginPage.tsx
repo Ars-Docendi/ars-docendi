@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
-import { isAuthenticated, setToken } from "./auth";
-// DEV MOCK LOGIN — remove with shared/auth/dev/
-import { MockLoginModal } from "./dev/MockLoginModal";
-import { setMockUser } from "./dev/mockSession";
+import { isAuthenticated } from "./auth";
+import { seleccionarSesionDesarrollo } from "./dev/session";
 import "./LoginPage.css";
+
+const DevLoginModal = import.meta.env.DEV
+  ? lazy(() => import("./dev/DevLoginModal").then((module) => ({ default: module.DevLoginModal })))
+  : null;
 
 /** Where to land after login: the route the guard bounced us from, else the default. */
 function usePostLoginTarget(): string {
@@ -60,8 +62,7 @@ type LoginState = "default" | "redirecting" | "error" | "forbidden";
 export function LoginPage() {
   const [searchParams] = useSearchParams();
   const [redirecting, setRedirecting] = useState(false);
-  // DEV MOCK LOGIN — remove with shared/auth/dev/
-  const [mockModalOpen, setMockModalOpen] = useState(false);
+  const [devModalOpen, setDevModalOpen] = useState(false);
   const navigate = useNavigate();
   const target = usePostLoginTarget();
 
@@ -84,19 +85,16 @@ export function LoginPage() {
       window.location.assign(loginUrl);
       return;
     }
-    // DEV MOCK LOGIN — remove with shared/auth/dev/ (restore the stub setTimeout login below)
-    // No Azure AD wired yet: open the role picker instead of minting a token blindly.
-    setMockModalOpen(true);
+    // Azure AD todavía no está conectado. El selector sembrado sólo se compila en desarrollo.
+    if (DevLoginModal) setDevModalOpen(true);
   }
 
-  // DEV MOCK LOGIN — remove with shared/auth/dev/
-  function handleMockSelect(userId: string) {
-    setMockUser(userId);
+  function handleDevSelect(userId: string, roleCode: string) {
+    seleccionarSesionDesarrollo(userId, roleCode);
     // Close the picker and show the loading button briefly before entering the app.
-    setMockModalOpen(false);
+    setDevModalOpen(false);
     setRedirecting(true);
     setTimeout(() => {
-      setToken("dev-stub-token");
       navigate(target, { replace: true });
     }, 1000);
   }
@@ -168,12 +166,15 @@ export function LoginPage() {
         </div>
       </div>
 
-      {/* DEV MOCK LOGIN — remove with shared/auth/dev/ */}
-      <MockLoginModal
-        open={mockModalOpen}
-        onClose={() => setMockModalOpen(false)}
-        onSelect={handleMockSelect}
-      />
+      {DevLoginModal && (
+        <Suspense fallback={null}>
+          <DevLoginModal
+            open={devModalOpen}
+            onClose={() => setDevModalOpen(false)}
+            onSelect={handleDevSelect}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -61,16 +61,22 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 
 ## API pública (contract)
 
-| Interfaz      | Métodos | Consumido por |
-| ------------- | ------- | ------------- |
-| _(a definir)_ | ...     | ...           |
+| Interfaz                       | Métodos                                             | Consumido por                      |
+| ------------------------------ | --------------------------------------------------- | ---------------------------------- |
+| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host |
+
+El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
 
 ## Endpoints HTTP
 
-| Método                    | Path                      | Rol       | Descripción  |
-| ------------------------- | ------------------------- | --------- | ------------ |
-| GET                       | `/api/designaciones/ping` | (anónimo) | Health check |
-| _(a documentar en specs)_ | ...                       | ...       | ...          |
+| Recurso            | Path                                       | Autoridad                                           |
+| ------------------ | ------------------------------------------ | --------------------------------------------------- |
+| Períodos           | `/api/designaciones/periodos`              | permiso `periodos.administrar`                      |
+| Catálogos acotados | `/api/designaciones/catalogos`             | identidad y ámbitos persistidos                     |
+| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`        | permisos y visibilidad resueltos por backend        |
+| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}` | máquina de estados, permiso de etapa e idempotencia |
+
+El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 
 ## Reglas de negocio
 

@@ -34,6 +34,7 @@ public sealed class Usuario
     public DateTimeOffset CreadoEn { get; set; }
     public DateTimeOffset? UltimoLoginEn { get; set; }
     public Guid? PersonaId { get; set; }
+    public uint Version { get; set; }
 
     public Persona? Persona { get; set; }
     public ICollection<UsuarioRol> Roles { get; set; } = [];
@@ -59,6 +60,7 @@ public sealed class Rol
     public bool EsSistema { get; set; }
     public bool Activo { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
+    public uint Version { get; set; }
 
     public ICollection<RolPermiso> Permisos { get; set; } = [];
 }
@@ -157,4 +159,12 @@ public sealed class RegistroCambio
     public Guid? CambiadoPor { get; set; }
     public DateTimeOffset CambiadoEn { get; set; }
     public string? RequestId { get; set; }
+}
+
+/// <summary>Marca no productiva creada exclusivamente por el seed sintético.</summary>
+public sealed class IdentidadSembrada
+{
+    public Guid UsuarioId { get; set; }
+    public required string VersionDataset { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
 }

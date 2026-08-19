@@ -1,5 +1,5 @@
 import { Button, Modal } from "@ars-docendi/ui";
-import { nombreCompleto, type DocenteMock } from "../mock/mockStore";
+import { nombreCompleto, type DocenteMock } from "../models";
 
 interface ModalConfirmarDesactivacionProps {
   docente: DocenteMock | null;

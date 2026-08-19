@@ -1,14 +1,6 @@
-// ============================================================
-// Current user / role source for the app shell.
-// STUB: returns a fixed user. Replace with Azure AD / MSAL claims
-// (name, roles) once SSO is wired — mirrors the dev token stub in
-// auth.ts. The returned `role` drives which sidebar nav renders
-// and what the topbar RoleBadge shows.
-// ============================================================
-
-// DEV MOCK LOGIN — remove with shared/auth/dev/ (and the getMockUser fallback below)
 import { useSyncExternalStore } from "react";
-import { getMockUser, suscribirMockSession } from "./dev/mockSession";
+import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/session";
+import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
 
 export type Role =
   | "Jefe de Cátedra"
@@ -18,38 +10,95 @@ export type Role =
   | "Administración"
   | "Docente";
 
-export interface CurrentUser {
-  /** Display name, e.g. "G. Ruiz". */
-  name: string;
-  /** 1–2 letters for the avatar circle. */
-  initials: string;
-  /** Institutional email / Azure UPN. */
-  upn: string;
-  /** The role currently in effect. */
-  role: Role;
-  /** Every role this account may act as (for the role switcher). */
-  roles: Role[];
+export interface OpcionRolActual {
+  codigo: string;
+  nombre: Role;
 }
 
-const STUB_USER: CurrentUser = {
-  name: "G. Ruiz",
-  initials: "GR",
-  upn: "gustavo.ruiz@unlam.edu.ar",
-  role: "Jefe de Cátedra",
-  roles: ["Jefe de Cátedra"],
+export interface CurrentUser {
+  name: string;
+  initials: string;
+  upn: string;
+  role: Role;
+  roleCode: string;
+  roles: Role[];
+  roleOptions: OpcionRolActual[];
+}
+
+export interface CurrentUserState {
+  user: CurrentUser | null;
+  isLoading: boolean;
+  error: Error | null;
+  retry: () => void;
+}
+
+const NOMBRES_ROL: Record<string, Role | undefined> = {
+  jefe_catedra: "Jefe de Cátedra",
+  coordinador_carrera: "Coordinador",
+  secretaria: "Secretaría",
+  decanato: "Decanato",
+  administrativo: "Administración",
+  sys_admin: "Administración",
+  docente: "Docente",
 };
 
-// DEV MOCK LOGIN — el snapshot reactivo lee el usuario + rol activo de la sesión
-// mock; identidad estable mientras no cambien (requisito de useSyncExternalStore).
-function obtenerSnapshot(): CurrentUser {
-  return getMockUser() ?? STUB_USER;
+function useCurrentUserDesarrollo(): CurrentUserState {
+  const sesion = useSyncExternalStore(
+    suscribirSesionDesarrollo,
+    obtenerSesionDesarrollo,
+    () => null,
+  );
+  const consulta = useIdentidadesDesarrollo();
+  const identidad = consulta.data?.find((item) => item.usuarioId === sesion?.usuarioId);
+  const rol = identidad?.roles.find((item) => item.codigo === sesion?.rolCodigo);
+  const nombreRol = rol ? NOMBRES_ROL[rol.codigo] : undefined;
+  const roleOptions =
+    identidad?.roles
+      .map((item) => ({ codigo: item.codigo, nombre: NOMBRES_ROL[item.codigo] }))
+      .filter((item): item is OpcionRolActual => item.nombre !== undefined) ?? [];
+  const user =
+    identidad && rol && nombreRol
+      ? {
+          name: identidad.nombreParaMostrar,
+          initials: iniciales(identidad.nombreParaMostrar),
+          upn: identidad.upn,
+          role: nombreRol,
+          roleCode: rol.codigo,
+          roles: [...new Set(roleOptions.map((item) => item.nombre))],
+          roleOptions,
+        }
+      : null;
+  const seleccionInvalida = Boolean(consulta.data && sesion && !user);
+  return {
+    user,
+    isLoading: consulta.isLoading,
+    error:
+      consulta.error ??
+      (seleccionInvalida ? new Error("La sesión elegida ya no está disponible.") : null),
+    retry: () => {
+      void consulta.refetch();
+    },
+  };
 }
 
-/**
- * STUB until MSAL claims exist. Reactivo a los cambios de rol activo de la
- * sesión mock (role switching sin re-loguear) vía useSyncExternalStore.
- */
-export function useCurrentUser(): CurrentUser {
-  // DEV MOCK LOGIN — remove with shared/auth/dev/ (revert to `return STUB_USER;`)
-  return useSyncExternalStore(suscribirMockSession, obtenerSnapshot);
+function useCurrentUserProduccion(): CurrentUserState {
+  return {
+    user: null,
+    isLoading: false,
+    error: new Error("La integración de identidad institucional todavía no está configurada."),
+    retry: () => undefined,
+  };
+}
+
+export const useCurrentUser = import.meta.env.DEV
+  ? useCurrentUserDesarrollo
+  : useCurrentUserProduccion;
+
+function iniciales(nombre: string): string {
+  return nombre
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join("")
+    .toUpperCase();
 }

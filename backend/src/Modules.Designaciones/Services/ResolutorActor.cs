@@ -16,7 +16,7 @@ namespace Modules.Designaciones.Services;
 /// invariante #4.
 /// </para>
 /// </summary>
-internal sealed class ResolutorActor(ICurrentUser usuarioActual, IConsultasIdentity identity)
+public sealed class ResolutorActor(ICurrentUser usuarioActual, IConsultasIdentity identity)
 {
     public async Task<ActorContexto> ResolverAsync(CancellationToken ct)
     {
@@ -28,7 +28,11 @@ internal sealed class ResolutorActor(ICurrentUser usuarioActual, IConsultasIdent
         // Sólo roles de sistema: un rol creado por el operador agrupa permisos pero no
         // participa del circuito de aprobación, y devolverlo acá invitaría a que la
         // máquina de estados lo tratara como si lo hiciera.
-        var roles = await identity.ObtenerCodigosDeRolesDeSistemaAsync(usuarioId, ct);
+        var rolesPersistidos = await identity.ObtenerCodigosDeRolesDeSistemaAsync(usuarioId, ct);
+        var rolesSeleccionados = usuarioActual.Roles.Count == 0
+            ? rolesPersistidos
+            : rolesPersistidos.Where(usuarioActual.Roles.Contains).ToArray();
+        var roles = rolesSeleccionados;
 
         var materias = roles.Contains(RolesCircuito.JefeCatedra)
             ? await identity.ObtenerMateriasDeRolAsync(usuarioId, RolesCircuito.JefeCatedra, ct)

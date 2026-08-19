@@ -27,6 +27,7 @@ public sealed class Periodo
     public DateOnly ImpactoHasta { get; set; }
     public bool Activo { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
+    public uint Version { get; set; }
 }
 
 /// <summary>
@@ -89,6 +90,7 @@ public sealed class Pedido
 
     public SnapshotPedido? Snapshot { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
+    public uint Version { get; set; }
 
     public Periodo? Periodo { get; set; }
     public Cargo? CargoSolicitado { get; set; }
@@ -160,4 +162,18 @@ public sealed class Designacion
     public Cargo? Cargo { get; set; }
 
     public bool EstaVigente => VigenteHasta is null;
+}
+
+/// <summary>Respuesta confirmada de un comando con clave de idempotencia.</summary>
+public sealed class ComandoIdempotente
+{
+    public Guid Id { get; set; }
+    public Guid Clave { get; set; }
+    public Guid ActorId { get; set; }
+    public required string Ruta { get; set; }
+    public Guid PedidoId { get; set; }
+    public required string RequestHash { get; set; }
+    public int StatusCode { get; set; }
+    public required string ResponseBody { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
 }
