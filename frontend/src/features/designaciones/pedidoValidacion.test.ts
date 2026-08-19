@@ -274,6 +274,51 @@ describe("validarPedido", () => {
     });
   });
 
+  describe("Agente externo exige departamento", () => {
+    it("marcado sin departamento marca error", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: true,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeTruthy();
+    });
+
+    it("marcado con departamento no marca error", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: true,
+          departamentoAgenteExterno: "Departamento de Salud",
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeUndefined();
+    });
+
+    it("sin marcar, no exige departamento", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: false,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeUndefined();
+    });
+  });
+
   describe("BR-designaciones-018 — Baja y Cambio exigen legajo del docente", () => {
     it("bajaExigeLegajo — sin legajo", () => {
       const errores = validarPedido(

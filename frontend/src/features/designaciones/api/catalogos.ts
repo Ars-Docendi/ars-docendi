@@ -5,7 +5,13 @@
 // (con su designación vigente) para las novedades sobre docentes
 // existentes. En el real provendrían de la API Guaraní / módulo Portal.
 // ============================================================
-import type { Cargo, Dedicacion, DocenteExistente, TipoBaja } from "../types";
+import type {
+  Cargo,
+  Dedicacion,
+  DepartamentoAgenteExterno,
+  DocenteExistente,
+  TipoBaja,
+} from "../types";
 
 /** Cargos del régimen docente, de mayor a menor jerarquía. */
 export const CARGOS: Cargo[] = ["Titular", "Adjunto", "JTP", "Ayudante"];
@@ -23,6 +29,17 @@ export const DEDICACIONES: Dedicacion[] = [
 
 /** Tipos de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export const TIPOS_BAJA: TipoBaja[] = ["Renuncia", "Jubilación", "Otro"];
+
+/** Departamentos/dependencias a cargo de un docente marcado como agente externo (catálogo cerrado). */
+export const DEPARTAMENTOS_AGENTE_EXTERNO: DepartamentoAgenteExterno[] = [
+  "Departamento de Arquitectura",
+  "Departamento de Salud",
+  "Departamento de Derecho",
+  "Departamento de Económicas",
+  "Departamento de Humanidades",
+  "Departamento de Odontología",
+  "Secretaría Académica",
+];
 
 /**
  * Índice numérico de una dedicación ("Categoría 3" → 3). La escala es

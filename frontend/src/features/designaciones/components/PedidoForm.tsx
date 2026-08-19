@@ -54,6 +54,7 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
     esAgenteExterno: pedido?.esAgenteExterno ?? false,
+    departamentoAgenteExterno: pedido?.departamentoAgenteExterno,
     adjuntos: pedido?.adjuntos ?? [],
   };
 }
@@ -119,6 +120,7 @@ export function PedidoForm({
         horasInvestigacion: 0,
         horasExternas: 0,
         esAgenteExterno: false,
+        departamentoAgenteExterno: undefined,
       }));
       return;
     }
@@ -137,6 +139,7 @@ export function PedidoForm({
       horasExternas: docente.horasExternasActuales,
       // Sin "valor actual" de agente externo (D-2): arranca sin marcar al elegir un docente existente.
       esAgenteExterno: false,
+      departamentoAgenteExterno: undefined,
     }));
   }
 
@@ -171,6 +174,15 @@ export function PedidoForm({
       asignaciones: prev.asignaciones.map((asignacion, i) =>
         i === indice ? { ...asignacion, horas } : asignacion,
       ),
+    }));
+  }
+
+  function cambiarEsAgenteExterno(valor: boolean) {
+    setDatos((prev) => ({
+      ...prev,
+      esAgenteExterno: valor,
+      // Al desmarcar, se limpia el departamento — no queda un valor huérfano sin el checkbox.
+      departamentoAgenteExterno: valor ? prev.departamentoAgenteExterno : undefined,
     }));
   }
 
@@ -306,7 +318,9 @@ export function PedidoForm({
             onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
             esAgenteExterno={datos.esAgenteExterno}
-            onEsAgenteExterno={(valor) => actualizar("esAgenteExterno", valor)}
+            onEsAgenteExterno={cambiarEsAgenteExterno}
+            departamentoAgenteExterno={datos.departamentoAgenteExterno}
+            onDepartamentoAgenteExterno={(valor) => actualizar("departamentoAgenteExterno", valor)}
           />
         )}
 

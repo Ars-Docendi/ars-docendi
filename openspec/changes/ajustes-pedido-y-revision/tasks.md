@@ -28,7 +28,7 @@
 - [x] 2.1 `types.ts`: agregar `esAgenteExterno: boolean` a `DatosEditablesPedido` y
       `PedidoDesignacion`.
 - [x] 2.2 `PedidoForm.tsx`: `datosIniciales()` defaultea `esAgenteExterno: pedido?.esAgenteExterno ??
-  false`; al seleccionar un docente existente (`seleccionarDocente`), arranca en `false` (sin
+false`; al seleccionar un docente existente (`seleccionarDocente`), arranca en `false` (sin
       "valor actual" — D-2, no hay campo `*Actuales` en `DocenteExistente`).
 - [x] 2.3 `SeccionDesignacionSolicitada.tsx`: agregar `Checkbox` "Docente es agente externo" (de
       `@ars-docendi/ui`) junto al `Field` de "Horas externas (otro depto.)"; nuevas props
@@ -137,10 +137,51 @@
       deshabilitados según el pedido) y `flujoAprobacion.test.tsx` (tras reenviar, Editar queda
       deshabilitado en vez de ausente).
 
-## 11. Verificación final
+## 12. Departamento a cargo del agente externo (D-10, cuarta ronda)
 
-- [x] 11.1 `openspec validate ajustes-pedido-y-revision --strict` sin errores.
-- [x] 11.2 Lint + typecheck + tests del frontend en verde (200/200).
-- [x] 11.3 Probar manualmente en el navegador: form de pedido (Alta sin materias, checkbox de agente
+- [x] 12.1 `types.ts`: nuevo tipo `DepartamentoAgenteExterno` (unión cerrada de 7 literales); campo
+      opcional `departamentoAgenteExterno` en `PedidoDesignacion` y `DatosEditablesPedido`.
+- [x] 12.2 `api/catalogos.ts`: nueva constante `DEPARTAMENTOS_AGENTE_EXTERNO` con las 7 opciones.
+- [x] 12.3 `pedidoValidacion.ts`: nuevo campo `departamentoAgenteExterno` en `CampoPedido`; error si
+      `esAgenteExterno` es `true` y no hay departamento seleccionado.
+- [x] 12.4 `SeccionDesignacionSolicitada.tsx`: `Select` "Departamento a cargo" condicional (solo si
+      `esAgenteExterno`), nuevas props `departamentoAgenteExterno`/`onDepartamentoAgenteExterno`.
+- [x] 12.5 `PedidoForm.tsx`: nueva función `cambiarEsAgenteExterno` que limpia
+      `departamentoAgenteExterno` al desmarcar el checkbox; `datosIniciales()` y `seleccionarDocente`
+      actualizados.
+- [x] 12.6 `api/pedidosApi.ts`: `crearPedido` persiste `departamentoAgenteExterno`.
+- [x] 12.7 `ResumenPedido.tsx`: la fila "Agente externo" muestra el nombre del departamento cuando
+      corresponde, en vez de solo "Sí"/"No".
+- [x] 12.8 Tests: `pedidoValidacion.test.ts` (exige departamento solo si `esAgenteExterno`) y
+      `PedidoForm.test.tsx` (selector aparece/desaparece con el checkbox, se limpia al desmarcar,
+      bloquea "Guardar y enviar" sin departamento).
+
+## 14. Flechita de devuelto junto a la bandera de prioridad (D-11 — quinta ronda, corregido en la sexta)
+
+- [x] 14.1 `NovedadChip.tsx`: nuevo `DevueltoFlechaIcono` (ícono `corner-up-left`, mismo que
+      `EstadoPedidoPill` usa para "Devuelto"), color `--warning-500`.
+- [x] 14.2 (quinta ronda, descartado) `TablaRevision.tsx`/`revision.css`: dos casilleros fijos
+      (`.adoc-tabla-prio-slot`) — **revertido en la sexta ronda**, el cliente marcó que un ícono solo
+      quedaba mal posicionado (pegado a un costado en vez de centrado).
+- [x] 14.3 (sexta ronda) `TablaRevision.tsx`: se sacan los casilleros — los dos íconos vuelven a ser
+      hijos condicionales directos de `.adoc-tabla-prio` (bandera primero, flechita después).
+- [x] 14.4 (sexta ronda) `revision.css`: se elimina `.adoc-tabla-prio-slot`; `.adoc-tabla-prio` suma
+      `gap: 6px` sobre el `justify-content: center` que ya tenía — centra 1 ícono solo, o el par con
+      espacio en el medio si hay 2.
+- [x] 14.5 `revision.css`: columna Prioritario del grid pasa de `44px` a `60px` (lugar para 2 íconos +
+      gap).
+- [x] 14.6 Tests en `TablaRevision.test.tsx`: un pedido devuelto (no prioritario) muestra solo la
+      flechita; con los dos, la celda tiene exactamente 2 hijos, bandera primero y flechita segunda
+      (por `aria-label`).
+
+## 15. Verificación final
+
+- [x] 15.1 `openspec validate ajustes-pedido-y-revision --strict` sin errores.
+- [x] 15.2 Lint + typecheck + tests del frontend en verde (209/209).
+- [x] 15.3 Probar manualmente en el navegador: form de pedido (Alta sin materias, checkbox de agente
       externo), Revisión (filtro/columna Carrera, filas roja/amarilla), Mis Pedidos (botones fijos
       semitransparentes cuando no aplican) — validado por el cliente.
+- [x] 15.4 Probar manualmente el selector de departamento a cargo (aparece/desaparece con el checkbox,
+      exige selección para enviar) — validado por el cliente ("funciona perfecto").
+- [x] 15.5 Probar manualmente el ícono de devuelto/bandera en Revisión (centrado con 1 solo, separados
+      con los 2) — validado por el cliente con el ejemplo de Verónica Salas (prioritario + devuelto).

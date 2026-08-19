@@ -256,7 +256,14 @@ validar que su suma junto con las horas de materia cierre contra la dedicación 
 sistema SHALL además permitir, junto al campo de horas externas, marcar si el docente es agente
 externo (`esAgenteExterno`, checkbox booleano, sin marcar por default) — mismo alcance de novedades
 (Alta y Cambio); no tiene un "valor actual" contra el cual comparar (ver "Resumen de cambios en el
-panel de datos actuales (Cambio)").
+panel de datos actuales (Cambio)"). Cuando el checkbox "Docente es agente externo" está marcado, el
+sistema SHALL mostrar un `Select` **"Departamento a cargo"** (`departamentoAgenteExterno`) con un
+catálogo cerrado de 7 opciones: Departamento de Arquitectura, Departamento de Salud, Departamento de
+Derecho, Departamento de Económicas, Departamento de Humanidades, Departamento de Odontología y
+Secretaría Académica. El `Select` NO MUST mostrarse cuando el checkbox está desmarcado, y el sistema
+MUST exigir un valor seleccionado antes de permitir "Guardar y enviar" mientras el checkbox esté
+marcado. Al desmarcar el checkbox, el sistema MUST limpiar cualquier departamento previamente
+seleccionado.
 
 #### Scenario: Carga de horas de investigación y externas
 
@@ -284,3 +291,26 @@ panel de datos actuales (Cambio)").
 - **WHEN** el Jefe de Cátedra visualiza el form
 - **THEN** NO MUST ver el checkbox "Docente es agente externo" (Baja no muestra la sección de
   designación solicitada)
+
+#### Scenario: Marcar agente externo habilita el selector de departamento
+
+- **GIVEN** un Jefe de Cátedra cargando un pedido de "Alta" o "Cambio de cargo o dedicación", sin
+  marcar "Docente es agente externo"
+- **WHEN** marca el checkbox
+- **THEN** aparece el `Select` "Departamento a cargo" con las 7 opciones del catálogo cerrado
+
+#### Scenario: Desmarcar agente externo limpia el departamento
+
+- **GIVEN** un pedido con "Docente es agente externo" marcado y un departamento seleccionado
+- **WHEN** el Jefe de Cátedra desmarca el checkbox
+- **THEN** el `Select` "Departamento a cargo" desaparece y el sistema MUST limpiar el valor
+  seleccionado (no queda guardado un departamento sin su checkbox)
+
+#### Scenario: Agente externo sin departamento bloquea el envío
+
+- **GIVEN** un pedido de "Alta" o "Cambio de cargo o dedicación" con "Docente es agente externo"
+  marcado y ningún departamento seleccionado
+- **WHEN** el Jefe de Cátedra hace click en "Guardar y enviar"
+- **THEN** el sistema MUST bloquear el envío e indicar que el departamento a cargo es obligatorio
+- **AND** "Guardar pedido" (sin enviar) NO MUST bloquearse por esta razón, igual que el resto de los
+  campos obligatorios del pedido

@@ -32,6 +32,9 @@ de la spec base.
 - Permitir que Alta y Cambio se guarden sin materias (solo cargo y dedicación) — ver D-8.
 - Ver/Editar/Eliminar fijos (nunca ocultos) en "Mis pedidos", deshabilitados cuando no aplican — ver
   D-9.
+- Registrar qué departamento se hace cargo de un docente marcado como agente externo — ver D-10.
+- Sumar un ícono de devuelto (junto al de prioridad, en casillero fijo) a la columna Prioritario de la
+  Tabla de revisión — ver D-11.
 
 **Non-Goals:**
 
@@ -67,6 +70,9 @@ docente existente para un Cambio, el checkbox arranca en `false` (no se infiere 
 el Jefe de Cátedra lo marca si corresponde a esta solicitud puntual. Si más adelante el cliente pide
 comparar contra un valor vigente, es una extensión natural de este mismo campo (agregar
 `esAgenteExternoActual` a `DocenteExistente`), fuera de alcance ahora.
+
+> **Cuarta ronda**: el cliente pidió que, al marcar el checkbox, se pueda registrar **qué departamento
+> se hace cargo** del docente — ver D-10.
 
 ### D-3: Alcance completo de la eliminación de "Sin novedad"
 
@@ -207,6 +213,71 @@ X de eliminar, que es un `<button>` propio con clase `adoc-mp-eliminar`). CSS nu
 que cubre ambos botones sin duplicar la regla, más un `:disabled:hover` que anula el hover rojo de la X
 (no tiene sentido resaltarla si no hace nada al clickear). "Ver" no cambia: siempre estuvo fijo y
 habilitado.
+
+### D-10: Departamento a cargo del agente externo — condicional, catálogo cerrado, sin "valor actual" (cuarta ronda)
+
+El cliente pidió que, al marcar "Docente es agente externo", se habilite un selector para registrar
+qué departamento (o Secretaría Académica) se hace cargo de él, con 7 opciones cerradas que dio
+textualmente. Decisiones:
+
+- **Tipo nuevo, no `string` libre**: `DepartamentoAgenteExterno` en `types.ts`, unión de 7 literales
+  (mismo patrón que `TipoBaja`) — un catálogo cerrado se modela como union type, no como `string`
+  suelto, para que el compilador detecte cualquier valor inválido en el resto del código.
+- **Catálogo en `api/catalogos.ts`** (`DEPARTAMENTOS_AGENTE_EXTERNO`), no en `filtrosTablero.ts` —
+  a diferencia de `CARRERAS` (D-5), este catálogo alimenta un campo del **form de pedido**, no un
+  filtro de la Tabla de revisión; vive donde ya viven `CARGOS`/`DEDICACIONES`/`TIPOS_BAJA`, mismo
+  criterio de ubicación por consumidor.
+- **Renderizado condicional, no `disabled`**: el `Select` "Departamento a cargo" solo se muestra
+  cuando `esAgenteExterno` es `true` (mismo patrón que "Otro" → campo "Detalle" en Tipo de baja) —
+  no un `Select` siempre visible pero deshabilitado. Consistente con el resto del form: ningún otro
+  campo condicional de esta pantalla usa `disabled`, todos aparecen/desaparecen.
+- **Se limpia al desmarcar**: `PedidoForm.tsx` gana `cambiarEsAgenteExterno`, que resetea
+  `departamentoAgenteExterno` a `undefined` cuando el checkbox pasa a `false` — evita guardar un
+  departamento "huérfano" sin su checkbox correspondiente si el Jefe de Cátedra lo tilda y destilda.
+- **Obligatorio solo si `esAgenteExterno` es `true`**: `pedidoValidacion.ts` agrega
+  `if (datos.esAgenteExterno && !datos.departamentoAgenteExterno) errores.departamentoAgenteExterno = ...`
+  — un `if` más, sin acoplarse a la novedad (el checkbox ya está gateado a Alta/Cambio por la sección
+  que lo contiene).
+- **Sin "valor actual"**: mismo criterio que D-2 — es un dato nuevo sobre lo solicitado, no hay
+  histórico de qué departamento tenía a cargo a un docente antes, así que no hay transición
+  `actual → solicitado` en el panel de Cambio.
+
+### D-11: Flechita de devuelto centrada junto a la bandera de prioridad (quinta ronda, corregido en la sexta)
+
+El cliente pidió sumar, a la bandera de prioridad que ya tenía la columna Prioritario de la Tabla de
+revisión, un ícono para devuelto. Primer intento (quinta ronda) — **descartado en la sexta**: dos
+casilleros de ancho fijo (`.adoc-tabla-prio-slot`), uno por ícono, siempre presentes aunque vacíos. El
+cliente lo corrigió: no quería casilleros fijos — quería que **un solo ícono quede centrado en la
+columna** (misma posición visual sea cual sea el ícono), y que **con los dos** se abra un espacio en
+el medio quedando uno a cada lado (bandera a la izquierda, flechita a la derecha). Con casilleros
+fijos, un solo ícono quedaba pegado a un costado (con el casillero vacío del otro lado corriéndolo del
+centro) — exactamente lo que el cliente notó como "mal posicionado".
+
+Implementación final (sexta ronda): sin casilleros — los dos íconos son hijos condicionales directos
+de `.adoc-tabla-prio` (`{pedido.prioritario && <PrioridadFlagIcono />}` seguido de
+`{pedido.estado === "devuelto" && <DevueltoFlechaIcono />}`), y la celda ya tenía
+`justify-content: center` (heredado de antes de este change) más `gap: 6px` (nuevo). Flexbox centra
+lo que haya: **un** ícono queda centrado solo; **dos** íconos se centran como par, separados por el
+`gap` — que es, visualmente, el "espacio en el medio" que pidió el cliente — bandera primero
+(izquierda) por ir primero en el JSX, flechita segunda (derecha). Mucho más simple que la solución
+descartada, y es exactamente el comportamiento por defecto de `justify-content: center` con múltiples
+hijos — no hacía falta ninguna lógica de posicionamiento propia.
+
+- **Ícono reusado, no uno nuevo**: `DevueltoFlechaIcono` (en `NovedadChip.tsx`, junto a
+  `PrioridadFlagIcono`) usa el mismo path `corner-up-left` que ya representa "Devuelto" en
+  `EstadoPedidoPill.tsx` (Mis Pedidos) — mismo lenguaje visual en toda la feature para el mismo
+  estado, en vez de inventar un ícono distinto para la Tabla de revisión.
+- **Color ámbar (`--warning-500`)**: coherente con el amarillo que ya usa la fila devuelta (D-7) y el
+  texto de la celda Estado (`.adoc-estado-avance.alerta`) — mismo tono en los tres lugares donde
+  "devuelto" se representa en esta pantalla.
+- **Columna Prioritario pasa de 44px a 60px**: el ancho fijo de la última columna del grid
+  (`grid-template-columns`) tenía que crecer para que quepan dos íconos de 13px + gap sin apretarse
+  contra Estado ni desbordar.
+- **Independiente del color de fila (D-7)**: los dos íconos se muestran según sus propias condiciones
+  (`pedido.prioritario`, `pedido.estado === "devuelto"`) — ninguno de los dos "gana" sobre el otro acá,
+  a diferencia del fondo de fila (donde prioritario sí gana). Un pedido prioritario y devuelto muestra
+  **ambos** íconos a la vez, aunque su fila sea roja (no amarilla) por D-7 — son señales
+  independientes, no hay contradicción.
 
 ## Risks / Trade-offs
 

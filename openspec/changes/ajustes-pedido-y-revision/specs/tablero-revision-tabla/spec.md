@@ -26,6 +26,13 @@ especial en cualquier otro caso. Cuando un pedido es prioritario y está devuelt
 prevalecer el fondo **rojo** (prioritario) — la celda Estado sigue mostrando el detalle de la
 devolución (stepper + "Devuelto por…") sin importar el color de fondo de la fila.
 
+La columna **Prioritario** MUST mostrar un ícono de bandera cuando `pedido.prioritario` es verdadero
+y/o un ícono de flechita cuando `pedido.estado` es `devuelto` — ambos son independientes entre sí (a
+diferencia del fondo de fila, acá **no hay** prevalencia: un pedido prioritario y devuelto a la vez
+MUST mostrar los dos íconos juntos). La celda MUST centrar su contenido: con un solo ícono (cualquiera
+de los dos), MUST quedar centrado en la columna; con los dos a la vez, MUST quedar un espacio entre
+ambos, con la bandera a la izquierda y la flechita a la derecha.
+
 La vista MUST respetar los filtros activos: vista (`mis-pendientes`/`completa`), **Nombre** y **Tipo**
 del docente como campos fijos siempre visibles, y **Legajo**, **Prioridad** y **Carrera** (ver "Filtro
 de carrera en la Tabla de revisión") como filtros opcionales vía "+ Añadir filtro". El filtro **Tipo**
@@ -87,6 +94,28 @@ vista alternativa.
   sección Finalizados
 - **THEN** la columna Estado muestra un punto de color + la etiqueta correspondiente, sin stepper, y la
   fila NO MUST llevar el fondo rojo ni el amarillo
+
+#### Scenario: Un pedido devuelto (no prioritario) muestra la flechita centrada, no la bandera
+
+- **GIVEN** un pedido en estado Devuelto, no marcado como prioritario
+- **WHEN** el revisor ve su fila
+- **THEN** la columna Prioritario muestra únicamente el ícono de flechita, centrado en la columna
+
+#### Scenario: Un pedido prioritario (no devuelto) muestra la bandera centrada, no la flechita
+
+- **GIVEN** un pedido marcado como prioritario, no devuelto
+- **WHEN** el revisor ve su fila
+- **THEN** la columna Prioritario muestra únicamente el ícono de bandera, centrado en la columna — en
+  la misma posición horizontal que ocuparía la flechita si el pedido fuera solo devuelto (un solo
+  ícono siempre queda centrado, sea cual sea)
+
+#### Scenario: Un pedido prioritario y devuelto a la vez muestra los dos íconos, uno a cada lado
+
+- **GIVEN** un pedido marcado como prioritario y en estado Devuelto a la vez
+- **WHEN** el revisor ve su fila
+- **THEN** la columna Prioritario muestra la bandera a la izquierda y la flechita a la derecha, con un
+  espacio entre ambas — sin importar que la fila esté en fondo rojo (D-7/prioritario gana el fondo,
+  pero no el ícono)
 
 ## ADDED Requirements
 

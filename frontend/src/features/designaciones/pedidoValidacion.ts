@@ -14,7 +14,8 @@ export type CampoPedido =
   | "tipoBaja"
   | "tipoBajaDetalle"
   | "justificacion"
-  | "adjuntos";
+  | "adjuntos"
+  | "departamentoAgenteExterno";
 
 export type ErroresValidacion = Partial<Record<CampoPedido, string>>;
 
@@ -125,6 +126,11 @@ export function validarPedido(
     if (!datos.justificacion?.trim()) {
       errores.justificacion = "La justificación es obligatoria para un cambio.";
     }
+  }
+
+  // Agente externo: si está marcado, exige el departamento a cargo (Alta y Cambio).
+  if (datos.esAgenteExterno && !datos.departamentoAgenteExterno) {
+    errores.departamentoAgenteExterno = "Seleccioná el departamento a cargo del agente externo.";
   }
 
   return errores;

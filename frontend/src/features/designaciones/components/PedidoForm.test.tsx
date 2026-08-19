@@ -186,6 +186,43 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Baja"));
       expect(screen.queryByLabelText("Docente es agente externo")).not.toBeInTheDocument();
     });
+
+    it("al marcar agente externo aparece el selector de departamento, que se guarda y se limpia al desmarcar", async () => {
+      const onGuardar = vi.fn();
+      const { user } = renderForm(onGuardar);
+      await user.click(screen.getByLabelText("Alta"));
+
+      expect(screen.queryByLabelText("Departamento a cargo")).not.toBeInTheDocument();
+
+      const checkbox = screen.getByLabelText("Docente es agente externo");
+      await user.click(checkbox);
+      const selectDepartamento = screen.getByLabelText("Departamento a cargo");
+      expect(selectDepartamento).toBeInTheDocument();
+
+      await user.selectOptions(selectDepartamento, "Secretaría Académica");
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
+      expect(onGuardar.mock.calls[0][0].departamentoAgenteExterno).toBe("Secretaría Académica");
+
+      await user.click(checkbox); // desmarca
+      expect(screen.queryByLabelText("Departamento a cargo")).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
+      expect(onGuardar.mock.calls[1][0].departamentoAgenteExterno).toBeUndefined();
+    });
+
+    it("exige el departamento para enviar cuando el docente es agente externo", async () => {
+      const { user, onGuardar } = renderForm();
+      await user.click(screen.getByLabelText("Alta"));
+      await completarAlta(user);
+      await user.click(screen.getByLabelText("Docente es agente externo"));
+
+      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
+
+      expect(onGuardar).not.toHaveBeenCalled();
+      expect(
+        screen.getByText("Seleccioná el departamento a cargo del agente externo."),
+      ).toBeInTheDocument();
+    });
   });
 
   describe("cargo libre, dedicación restringida a mejorar (D-6/D-7)", () => {

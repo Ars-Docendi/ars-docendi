@@ -126,7 +126,9 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
           </span>
         </Dato>
         <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
-        <Dato etiqueta="Agente externo">{pedido.esAgenteExterno ? "Sí" : "No"}</Dato>
+        <Dato etiqueta="Agente externo">
+          {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
+        </Dato>
       </div>
 
       {motivo && (

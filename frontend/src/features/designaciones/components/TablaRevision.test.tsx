@@ -334,6 +334,71 @@ describe("TablaRevision (secciones por etapa del circuito)", () => {
     );
   });
 
+  it("un pedido devuelto (no prioritario) muestra la flechita, no la bandera", () => {
+    const devuelto = pedido("devuelto", {
+      docente: { dni: "26", nombre: "Devuelto Veintiséis", antiguedad: 3 },
+      etapaRetorno: "en_revision_coordinador",
+      propietarioActual: "Jefe de Cátedra",
+    });
+    const normal = pedido("en_revision_coordinador", {
+      docente: { dni: "27", nombre: "Normal Veintisiete", antiguedad: 3 },
+    });
+
+    render(
+      <TablaRevision
+        pedidos={[devuelto, normal]}
+        actor={COORD}
+        filtros={COMPLETA}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByLabelText("Devuelto")).toHaveLength(1);
+    expect(screen.queryAllByLabelText("Prioritario")).toHaveLength(0);
+  });
+
+  it("con un solo ícono queda centrado; con los dos, bandera a la izquierda y flechita a la derecha", () => {
+    const soloPrioritario = pedido("en_revision_coordinador", {
+      docente: { dni: "28", nombre: "Solo Prioritario", antiguedad: 3 },
+      prioritario: true,
+    });
+    const soloDevuelto = pedido("devuelto", {
+      docente: { dni: "29", nombre: "Solo Devuelto", antiguedad: 3 },
+      etapaRetorno: "en_revision_coordinador",
+      propietarioActual: "Jefe de Cátedra",
+    });
+    const ambas = pedido("devuelto", {
+      docente: { dni: "30", nombre: "Prioritario Y Devuelto", antiguedad: 3 },
+      prioritario: true,
+      etapaRetorno: "en_revision_coordinador",
+      propietarioActual: "Jefe de Cátedra",
+    });
+
+    render(
+      <TablaRevision
+        pedidos={[soloPrioritario, soloDevuelto, ambas]}
+        actor={COORD}
+        filtros={COMPLETA}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    function celdaPrio(nombre: string) {
+      const fila = screen.getByRole("button", { name: `Ver el pedido de ${nombre}` });
+      return fila.querySelector(".adoc-tabla-prio")!;
+    }
+
+    // Un solo ícono: la celda no tiene ningún casillero extra, queda un único ícono centrado.
+    expect(celdaPrio("Solo Prioritario").children).toHaveLength(1);
+    expect(celdaPrio("Solo Devuelto").children).toHaveLength(1);
+
+    // Los dos a la vez: bandera primero (izquierda), flechita después (derecha) — mismo orden del JSX.
+    const hijosAmbas = celdaPrio("Prioritario Y Devuelto").children;
+    expect(hijosAmbas).toHaveLength(2);
+    expect(hijosAmbas[0]).toHaveAttribute("aria-label", "Prioritario");
+    expect(hijosAmbas[1]).toHaveAttribute("aria-label", "Devuelto");
+  });
+
   it("un pedido prioritario y devuelto a la vez muestra fondo rojo (gana prioritario sobre devuelto)", () => {
     const prioritarioYDevuelto = pedido("devuelto", {
       docente: { dni: "25", nombre: "Urgente Devuelto Veinticinco", antiguedad: 3 },

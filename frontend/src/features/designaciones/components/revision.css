@@ -103,6 +103,16 @@
   width: 13px;
   height: 13px;
 }
+/* --- Flechita de devuelto (lucide corner-up-left, ámbar), mismo patrón que la bandera --- */
+.adoc-bandera-devuelto {
+  display: inline-flex;
+  align-items: center;
+  color: var(--warning-500);
+}
+.adoc-bandera-devuelto svg {
+  width: 13px;
+  height: 13px;
+}
 
 /* --- Avatar (iniciales) --- */
 .adoc-pedido-avatar {
@@ -175,7 +185,7 @@
   display: grid;
   grid-template-columns:
     minmax(160px, 1.6fr) minmax(80px, 0.6fr) minmax(100px, 0.8fr) minmax(140px, 1.6fr)
-    minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr) 44px;
+    minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr) 60px;
   align-items: center;
   gap: var(--space-4);
 }
@@ -258,8 +268,12 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* Con un solo ícono (bandera o flechita), queda centrado en la columna. Con los dos, el mismo
+   centrado los deja como un par — separados por `gap`, bandera a la izquierda y flechita a la
+   derecha (orden en el que aparecen en el JSX). */
 .adoc-tabla-prio {
   justify-content: center;
+  gap: 6px;
 }
 
 /* --- Secciones desplegables por etapa del circuito: cada una es su propia

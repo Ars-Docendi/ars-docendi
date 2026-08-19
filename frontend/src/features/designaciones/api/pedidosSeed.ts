@@ -510,6 +510,25 @@ const SEMILLAS: SemillaPedido[] = [
     etapaRetorno: "en_revision_coordinador",
     propietarioActual: "Jefe de Cátedra",
   },
+  // Cambio devuelto Y prioritario a la vez (queda en "En Coordinación") — para ver la fila en rojo
+  // (prioritario gana el fondo sobre devuelto) con los dos íconos juntos en la columna Prioritario.
+  {
+    dni: "36223311",
+    nombre: "Verónica Salas",
+    legajo: "1015",
+    antiguedad: 13,
+    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 4",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 2",
+    justificacion: "Reasignación urgente por licencia de otro docente de la cátedra.",
+    estado: "devuelto",
+    etapaRetorno: "en_revision_coordinador",
+    propietarioActual: "Jefe de Cátedra",
+    prioritario: true,
+  },
   // Baja rechazada (queda en "Finalizados").
   {
     dni: "35334455",

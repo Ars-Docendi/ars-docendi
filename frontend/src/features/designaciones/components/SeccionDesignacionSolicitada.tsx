@@ -1,7 +1,12 @@
 import { Checkbox, Field, Input, Select } from "@ars-docendi/ui";
-import type { AsignacionMateria, Cargo, Dedicacion } from "../types";
+import type { AsignacionMateria, Cargo, Dedicacion, DepartamentoAgenteExterno } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
-import { CARGOS, DEDICACIONES, indiceDedicacion } from "../api/catalogos";
+import {
+  CARGOS,
+  DEDICACIONES,
+  DEPARTAMENTOS_AGENTE_EXTERNO,
+  indiceDedicacion,
+} from "../api/catalogos";
 import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
 
 interface SeccionDesignacionSolicitadaProps {
@@ -14,6 +19,8 @@ interface SeccionDesignacionSolicitadaProps {
   horasExternas: number;
   /** Sin "valor actual" contra el cual comparar (D-2): dato nuevo, sin histórico previo. */
   esAgenteExterno: boolean;
+  /** Departamento a cargo del agente externo. Solo aplica (y se exige) cuando `esAgenteExterno` es `true`. */
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   errores: ErroresValidacion;
   onAgregarMateria: () => void;
   onQuitarMateria: (indice: number) => void;
@@ -24,6 +31,7 @@ interface SeccionDesignacionSolicitadaProps {
   onHorasInvestigacion: (valor: number) => void;
   onHorasExternas: (valor: number) => void;
   onEsAgenteExterno: (valor: boolean) => void;
+  onDepartamentoAgenteExterno: (valor?: DepartamentoAgenteExterno) => void;
 }
 
 /**
@@ -42,6 +50,7 @@ export function SeccionDesignacionSolicitada({
   horasInvestigacion,
   horasExternas,
   esAgenteExterno,
+  departamentoAgenteExterno,
   errores,
   onAgregarMateria,
   onQuitarMateria,
@@ -52,6 +61,7 @@ export function SeccionDesignacionSolicitada({
   onHorasInvestigacion,
   onHorasExternas,
   onEsAgenteExterno,
+  onDepartamentoAgenteExterno,
 }: SeccionDesignacionSolicitadaProps) {
   const opcionesDedicacion = dedicacionActual
     ? DEDICACIONES.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
@@ -121,6 +131,26 @@ export function SeccionDesignacionSolicitada({
           onChange={(e) => onEsAgenteExterno(e.target.checked)}
         />
       </div>
+
+      {esAgenteExterno && (
+        <Field label="Departamento a cargo" error={errores.departamentoAgenteExterno}>
+          <Select
+            value={departamentoAgenteExterno ?? ""}
+            onChange={(e) =>
+              onDepartamentoAgenteExterno(
+                (e.target.value || undefined) as DepartamentoAgenteExterno,
+              )
+            }
+          >
+            <option value="">Seleccioná un departamento…</option>
+            {DEPARTAMENTOS_AGENTE_EXTERNO.map((departamento) => (
+              <option key={departamento} value={departamento}>
+                {departamento}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
     </section>
   );
 }

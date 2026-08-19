@@ -10,7 +10,7 @@ import {
 } from "./tableroRevisionModelo";
 import type { FiltrosTablero } from "./filtrosTablero";
 import { ABREVIATURA_CARRERA, aplicarFiltros } from "./filtrosTablero";
-import { NovedadChip, PrioridadFlagIcono } from "./NovedadChip";
+import { DevueltoFlechaIcono, NovedadChip, PrioridadFlagIcono } from "./NovedadChip";
 import { EstadoAvance } from "./EstadoAvance";
 import { IconoChevronDown } from "./lucide";
 import { resumenMaterias } from "./detalleAdapters";
@@ -170,6 +170,7 @@ function FilaTablaRevision({
       </span>
       <span className="adoc-tabla-c adoc-tabla-prio">
         {pedido.prioritario && <PrioridadFlagIcono />}
+        {pedido.estado === "devuelto" && <DevueltoFlechaIcono />}
       </span>
     </button>
   );

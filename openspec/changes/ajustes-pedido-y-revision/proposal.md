@@ -61,7 +61,9 @@ _(ninguna)_
 
 - `pedidos-designacion`:
   - MODIFIED "Horas de investigación y horas externas del pedido" → suma el campo `esAgenteExterno`
-    junto a horas externas, en Alta y Cambio.
+    junto a horas externas, en Alta y Cambio; **cuarta ronda**: suma el `Select` "Departamento a
+    cargo" (`departamentoAgenteExterno`, catálogo cerrado de 7 opciones), obligatorio cuando
+    `esAgenteExterno` es verdadero.
   - MODIFIED "Secciones condicionales por novedad" → el radio "Tipo de novedad" pasa de 4 a 3 opciones
     (se saca "Sin novedad").
   - MODIFIED "Materias y horas del pedido" → se retira el escenario/comportamiento específico de "Sin
@@ -80,18 +82,25 @@ _(ninguna)_
   - MODIFIED "Vista Tabla del tablero de revisión" → suma la columna **Carrera** (nombre abreviado,
     entre Legajo y Asignatura) en las 4 secciones; el filtro fijo "Tipo" pierde la opción "Sin
     novedad"; **segunda ronda**: los pedidos prioritarios y devueltos marcan la **fila entera** (rojo/
-    amarillo, prioritario gana si son ambos) en vez de solo la celda Estado.
+    amarillo, prioritario gana si son ambos) en vez de solo la celda Estado; **quinta ronda**: la
+    columna Prioritario suma un ícono de flechita ámbar para devuelto, en un casillero fijo propio,
+    junto al de la bandera de prioridad.
 
 ## Impact
 
 - **Frontend** (`frontend/src/features/designaciones/`):
   - `types.ts`: `Novedad` pierde `"Sin novedad"`; `DatosEditablesPedido`/`PedidoDesignacion` suman
-    `esAgenteExterno: boolean`.
+    `esAgenteExterno: boolean`; **cuarta ronda**: nuevo tipo `DepartamentoAgenteExterno` (unión cerrada
+    de 7 literales) y campo opcional `departamentoAgenteExterno` en ambas interfaces.
   - `components/PedidoForm.tsx`: `NOVEDADES` pasa a `["Alta", "Baja", "Cambio de cargo o dedicación"]`;
     el default de un pedido nuevo deja de ser `"Sin novedad"` (pasa a requerir selección explícita o a
     `"Alta"` — se define en `design.md`); rama `esSinNovedad` se elimina.
   - `components/SeccionDesignacionSolicitada.tsx`: nuevo `Checkbox` "Docente es agente externo" junto al
-    `Field` de "Horas externas (otro depto.)"; nueva prop `esAgenteExterno`/`onEsAgenteExterno`.
+    `Field` de "Horas externas (otro depto.)"; nueva prop `esAgenteExterno`/`onEsAgenteExterno`;
+    **cuarta ronda**: `Select` "Departamento a cargo" condicional (solo si `esAgenteExterno`), catálogo
+    `DEPARTAMENTOS_AGENTE_EXTERNO` (nuevo, en `api/catalogos.ts`).
+  - `pedidoValidacion.ts`: **cuarta ronda** — `esAgenteExterno` sin `departamentoAgenteExterno` marca
+    error; `PedidoForm.tsx#cambiarEsAgenteExterno` limpia el departamento al desmarcar el checkbox.
   - `components/DatosActualesPanel.tsx`: la prop `mostrarMateria` (solo usada por "Sin novedad") queda
     sin caller — se limpia si el análisis de impacto en `design.md` confirma que no tiene otro uso.
   - `components/ResumenPedido.tsx`, `components/NovedadChip.tsx`,
@@ -107,9 +116,13 @@ _(ninguna)_
     nombre completo → abreviatura (mismo archivo/patrón que otros catálogos de la feature).
   - `components/revision.css`: grid de columnas pasa de 7 a 8; **segunda ronda**: fondo de fila
     completo rojo/amarillo (`.adoc-tabla-row--prioritario`/`--devuelto`) para prioritario/devuelto —
-    reemplaza el badge lleno de la celda Estado de la primera ronda.
+    reemplaza el badge lleno de la celda Estado de la primera ronda; **quinta ronda**: columna
+    Prioritario pasa de `44px` a `60px`, con dos casilleros fijos (`.adoc-tabla-prio-slot`).
   - `components/EstadoAvance.tsx`: sin cambios de contenido; la clase `alerta` vuelve a teñir solo el
     texto (el fondo lleno se movió a la fila, ver arriba).
+  - `components/NovedadChip.tsx`, `components/TablaRevision.tsx`: **quinta ronda** — nuevo
+    `DevueltoFlechaIcono` (ícono `corner-up-left`, mismo que usa `EstadoPedidoPill` para "Devuelto" en
+    Mis Pedidos), junto a `PrioridadFlagIcono` en la columna Prioritario.
   - `api/pedidosSeed.ts`: las 2 semillas de precarga "Sin novedad" se recastean a "Cambio de cargo o
     dedicación" (no se eliminan — ver D-3 en `design.md` para el motivo del cambio de plan);
     `api/catalogos.ts` pierde su comentario sobre "Sin novedad".
@@ -130,8 +143,8 @@ SeccionDesignacionSolicitada.tsx`, `PedidoForm.tsx`: **segunda y tercera ronda**
 - **Sin impacto en el grafo de dependencias**: cambios acotados a `frontend/src/features/designaciones/`.
 - **Rollback**: cambio acotado al frontend de un módulo, sin migraciones de datos — revertir el/los PR
   restaura el radio de 4 opciones, la precarga "Sin novedad", el form sin el checkbox de agente externo,
-  la Tabla de revisión sin filtro de Carrera y sin el fondo de fila rojo/amarillo, y Alta/Cambio
-  exigiendo mínimo 1 materia.
+  la Tabla de revisión sin filtro de Carrera y sin el fondo de fila rojo/amarillo, Alta/Cambio
+  exigiendo mínimo 1 materia, y el form sin el selector de departamento a cargo del agente externo.
 
 ## Estado (segunda ronda)
 
@@ -171,6 +184,35 @@ El cliente revisó la primera pasada y pidió 4 ajustes adicionales — **todos 
   exigiéndolas** — su listado refleja lo que el docente ya tiene, no se tocó); se aprovechó para
   simplificar el código de la segunda ronda (`permiteVacio`/`esAlta` quedaron sin uso y se eliminaron
   en vez de dejarse condicionados). Ver D-8 en `design.md`.
+
+## Estado (cuarta ronda)
+
+- **Selector de departamento a cargo del agente externo** — **implementado**: al marcar "Docente es
+  agente externo" (Alta/Cambio), aparece un nuevo `Select` **"Departamento a cargo"** con un catálogo
+  cerrado de 7 opciones que pasó el cliente: Departamento de Arquitectura, de Salud, de Derecho, de
+  Económicas, de Humanidades, de Odontología, y Secretaría Académica. El selector solo aparece (y solo
+  se exige) cuando el checkbox está marcado — al desmarcarlo, el valor se limpia. Nuevo campo
+  `departamentoAgenteExterno` (tipo `DepartamentoAgenteExterno`, unión cerrada de las 7 opciones) en
+  `PedidoDesignacion`/`DatosEditablesPedido`, junto a `esAgenteExterno` (D-2). Ver D-10 en `design.md`.
+
+## Estado (quinta ronda)
+
+- **Flechita de devuelto junto a la bandera de prioridad** — **implementado, corregido en la sexta
+  ronda**: la columna Prioritario de la Tabla de revisión (hoy solo mostraba la bandera roja cuando el
+  pedido era prioritario) suma un segundo ícono — una flechita ámbar (`corner-up-left`, el mismo que ya
+  usa `EstadoPedidoPill` para "Devuelto" en Mis Pedidos) — cuando el pedido está devuelto. Primer
+  intento: dos casilleros fijos (uno por ícono). El cliente lo corrigió en la sexta ronda — ver abajo.
+
+## Estado (sexta ronda)
+
+- **Posicionamiento de la bandera/flechita corregido** — **implementado**: el cliente marcó que los
+  casilleros fijos de la quinta ronda "no están bien posicionados" y aclaró la idea real: **un solo
+  ícono siempre centrado** (misma posición sea cual sea) y, **con los dos**, un espacio en el medio con
+  uno de cada lado (bandera a la izquierda, flechita a la derecha) — no dos casilleros fijos, uno de
+  los cuales quedaba vacío y corría el ícono solo hacia un costado. Se sacaron los casilleros: ahora
+  los dos íconos son hijos condicionales directos de la celda, que ya centraba su contenido — con uno
+  o dos, el centrado de flexbox los deja exactamente donde el cliente pidió, sin lógica de
+  posicionamiento propia. Ver D-11 en `design.md` (revisado).
 
 ## Notas abiertas para la revisión del cliente
 

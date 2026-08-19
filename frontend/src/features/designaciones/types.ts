@@ -38,6 +38,16 @@ export type Dedicacion =
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
 
+/** Departamento/dependencia que se hace cargo de un docente marcado como agente externo. */
+export type DepartamentoAgenteExterno =
+  | "Departamento de Arquitectura"
+  | "Departamento de Salud"
+  | "Departamento de Derecho"
+  | "Departamento de Económicas"
+  | "Departamento de Humanidades"
+  | "Departamento de Odontología"
+  | "Secretaría Académica";
+
 /** Una materia asignada a un pedido, con su carga horaria. */
 export interface AsignacionMateria {
   materia: string;
@@ -135,6 +145,8 @@ export interface PedidoDesignacion {
   horasInvestigacion: number; // mock (cross-module Portal en el real)
   /** Docente contratado como agente externo. Sin "valor actual": dato nuevo, sin histórico previo. */
   esAgenteExterno: boolean;
+  /** Departamento a cargo del agente externo. Obligatorio cuando `esAgenteExterno` es `true`. */
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -159,6 +171,7 @@ export interface DatosEditablesPedido {
   horasExternas: number;
   horasInvestigacion: number;
   esAgenteExterno: boolean;
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
 }
 
