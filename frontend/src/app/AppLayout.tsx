@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 import { useCurrentUser } from "../shared/auth/useCurrentUser";
+import { developmentAuthEnabled } from "../shared/auth/developmentAuth";
 import { Sidebar } from "./shell/Sidebar";
 import { TopBar } from "./shell/TopBar";
 import "./shell/shell.css";
@@ -38,7 +39,7 @@ export default function AppLayout() {
         user={user}
         onSwitchRole={(rol) => {
           const opcion = user.roleOptions.find((item) => item.nombre === rol);
-          if (opcion && import.meta.env.DEV) {
+          if (opcion && developmentAuthEnabled) {
             void import("../shared/auth/dev/session").then(({ cambiarRolDesarrollo }) => {
               cambiarRolDesarrollo(opcion.codigo);
             });

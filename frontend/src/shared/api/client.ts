@@ -1,4 +1,5 @@
 import axios from "axios";
+import { developmentAuthEnabled } from "../auth/developmentAuth";
 import { obtenerSesionDesarrollo } from "../auth/dev/session";
 
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -8,7 +9,7 @@ export const apiClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-if (import.meta.env.DEV) {
+if (developmentAuthEnabled) {
   apiClient.interceptors.request.use((config) => {
     const sesion = obtenerSesionDesarrollo();
     if (sesion) {

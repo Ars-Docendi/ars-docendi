@@ -60,6 +60,8 @@ jobs:
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
       APP_DB_USER: app_pr_${{ github.event.pull_request.number }}
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PREVIEW }}
+      ASPNETCORE_ENVIRONMENT: Staging
+      DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
     steps:
       # Checkout del código del PR (el SHA del head) — recién acá, post-gate.
       - uses: actions/checkout@v6
@@ -71,7 +73,7 @@ jobs:
 
       - name: Build & push imágenes del PR (tag por SHA del PR)
         run: |
-          docker build -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
+          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
           # Contexto en la raíz: el backend embebe el DDL de database/ como
           # recurso del assembly, así que es un input de compilación.
           docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .

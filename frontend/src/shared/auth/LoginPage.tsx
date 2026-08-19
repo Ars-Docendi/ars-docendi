@@ -3,10 +3,11 @@ import { Navigate, useLocation, useNavigate, useSearchParams } from "react-route
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { isAuthenticated } from "./auth";
+import { developmentAuthEnabled } from "./developmentAuth";
 import { seleccionarSesionDesarrollo } from "./dev/session";
 import "./LoginPage.css";
 
-const DevLoginModal = import.meta.env.DEV
+const DevLoginModal = developmentAuthEnabled
   ? lazy(() => import("./dev/DevLoginModal").then((module) => ({ default: module.DevLoginModal })))
   : null;
 

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { developmentAuthEnabled } from "./developmentAuth";
 import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/session";
 import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
 
@@ -90,7 +91,7 @@ function useCurrentUserProduccion(): CurrentUserState {
   };
 }
 
-export const useCurrentUser = import.meta.env.DEV
+export const useCurrentUser = developmentAuthEnabled
   ? useCurrentUserDesarrollo
   : useCurrentUserProduccion;
 

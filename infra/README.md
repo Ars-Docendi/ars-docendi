@@ -301,7 +301,15 @@ infra/scripts/seed.sh staging
 # o, dentro del flujo normal: infra/scripts/spin-up.sh staging
 ```
 
-`SEED_SQL=/ruta/version.sql` selecciona explícitamente otro archivo. Nunca se debe invocar con `prod`; el script lo rechaza antes de abrir `psql`. Para usar las identidades sembradas en un Host local no productivo hay que optar además por `DevelopmentAuthentication__Enabled=true` (equivale a `DevelopmentAuthentication:Enabled` en configuración). Production ignora los headers de desarrollo y no publica `/api/desarrollo/identidades`.
+`SEED_SQL=/ruta/version.sql` selecciona explícitamente otro archivo. Nunca se debe invocar con `prod`; el script lo rechaza antes de abrir `psql`. Para usar las identidades sembradas en un Host local no productivo hay que optar además por `DevelopmentAuthentication__Enabled=true` (equivale a `DevelopmentAuthentication:Enabled` en configuración). En Compose se configura mediante `DEVELOPMENT_AUTHENTICATION_ENABLED=true`. Los bundles optimizados de staging/preview requieren también `--build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true`; los workflows no productivos fijan ambos valores. Production conserva ambos opt-ins en `false`, ignora los headers de desarrollo y no publica `/api/desarrollo/identidades`.
+
+Smoke check después de desplegar staging o un preview:
+
+1. Abrir `/login` y pulsar **Iniciar sesión con cuenta institucional**; debe abrirse el selector sembrado.
+2. Confirmar que `GET /api/desarrollo/identidades` responde `200` y lista sólo identidades elegibles.
+3. Elegir una identidad y verificar que una llamada protegida envía `X-Dev-User-Id` y `X-Dev-Role-Code` y responde `200`.
+4. Cambiar de rol y verificar que la solicitud siguiente usa el nuevo código.
+5. En producción, confirmar que `/api/desarrollo/identidades` responde `404` y que el selector no está disponible.
 
 ## Empaquetado de la app (resuelto en el change `containerizar-app`)
 

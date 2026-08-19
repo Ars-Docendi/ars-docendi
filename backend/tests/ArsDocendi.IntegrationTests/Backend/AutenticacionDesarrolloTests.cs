@@ -111,6 +111,27 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
     }
 
+    [Fact]
+    public async Task Staging_con_opt_in_registra_catalogo_y_esquema_de_desarrollo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost("Staging", true);
+        using var cliente = host.CreateClient();
+
+        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
+            "/api/desarrollo/identidades", ct);
+
+        Assert.NotNull(identidades);
+        Assert.Contains(identidades, identidad => identidad.UsuarioId == Jefe);
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
     private WebApplicationFactory<Program> CrearHost(string ambiente, bool habilitada) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
