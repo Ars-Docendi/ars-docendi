@@ -53,12 +53,6 @@ export function IndexPage() {
   const { user: usuario } = useCurrentUser();
   const esJdC = usuario?.role === "Jefe de Cátedra";
 
-  const materiasJdC = useMemo(() => {
-    if (!esJdC) return null;
-    const propio = docentes.find((d) => d.upn === usuario?.upn);
-    return propio ? propio.asignaciones.map((a) => a.materia.codigo) : [];
-  }, [esJdC, usuario?.upn, docentes]);
-
   const docentesFiltrados = useMemo(() => {
     const apellido = normalizarTexto(filtros.apellido);
     const nombre = normalizarTexto(filtros.nombre);
@@ -68,11 +62,6 @@ export function IndexPage() {
     const materiaBuscada = filtros.materia;
 
     return docentes.filter((d) => {
-      if (
-        materiasJdC !== null &&
-        !d.asignaciones.some((a) => materiasJdC.includes(a.materia.codigo))
-      )
-        return false;
       if (apellido && !normalizarTexto(d.apellido).includes(apellido)) return false;
       if (nombre && !normalizarTexto(d.nombre).includes(nombre)) return false;
       if (doc && !normalizarTexto(d.documento).includes(doc)) return false;
@@ -87,7 +76,7 @@ export function IndexPage() {
       if (filtros.estado === "inactivo" && d.is_active) return false;
       return true;
     });
-  }, [docentes, filtros, materiasJdC]);
+  }, [docentes, filtros]);
 
   function handleCrear(datos: Omit<DocenteMock, "id" | "is_active">) {
     remoto.crear.mutate(datos, { onSuccess: () => setModalNuevo(false) });
@@ -170,6 +159,7 @@ export function IndexPage() {
         onDesactivar={setDocenteADesactivar}
         onActivar={setDocenteAActivar}
         onEditar={setDocenteAEditar}
+        soloLectura={esJdC}
       />
 
       <ModalNuevoDocente

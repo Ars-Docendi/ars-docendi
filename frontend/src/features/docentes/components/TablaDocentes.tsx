@@ -6,9 +6,16 @@ interface TablaDocentesProps {
   onDesactivar: (docente: DocenteMock) => void;
   onActivar: (docente: DocenteMock) => void;
   onEditar: (docente: DocenteMock) => void;
+  soloLectura?: boolean;
 }
 
-export function TablaDocentes({ docentes, onDesactivar, onActivar, onEditar }: TablaDocentesProps) {
+export function TablaDocentes({
+  docentes,
+  onDesactivar,
+  onActivar,
+  onEditar,
+  soloLectura = false,
+}: TablaDocentesProps) {
   return (
     <div style={{ overflowX: "auto" }}>
       <Table>
@@ -23,9 +30,11 @@ export function TablaDocentes({ docentes, onDesactivar, onActivar, onEditar }: T
               <Table.HeaderCell style={{ whiteSpace: "nowrap", width: "1%" }}>
                 Estado
               </Table.HeaderCell>
-              <Table.HeaderCell style={{ whiteSpace: "nowrap", width: "1%" }}>
-                Acciones
-              </Table.HeaderCell>
+              {!soloLectura && (
+                <Table.HeaderCell style={{ whiteSpace: "nowrap", width: "1%" }}>
+                  Acciones
+                </Table.HeaderCell>
+              )}
             </Table.Row>
           </Table.Head>
           <Table.Body>
@@ -70,23 +79,25 @@ export function TablaDocentes({ docentes, onDesactivar, onActivar, onEditar }: T
                     label={docente.is_active ? "Activo" : "Inactivo"}
                   />
                 </Table.Cell>
-                <Table.Cell
-                  className="adoc-table-actions"
-                  style={{ whiteSpace: "nowrap", width: "1%" }}
-                >
-                  <Button variant="ghost" size="sm" onClick={() => onEditar(docente)}>
-                    Editar
-                  </Button>
-                  {docente.is_active ? (
-                    <Button variant="ghost" size="sm" onClick={() => onDesactivar(docente)}>
-                      Desactivar
+                {!soloLectura && (
+                  <Table.Cell
+                    className="adoc-table-actions"
+                    style={{ whiteSpace: "nowrap", width: "1%" }}
+                  >
+                    <Button variant="ghost" size="sm" onClick={() => onEditar(docente)}>
+                      Editar
                     </Button>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => onActivar(docente)}>
-                      Activar
-                    </Button>
-                  )}
-                </Table.Cell>
+                    {docente.is_active ? (
+                      <Button variant="ghost" size="sm" onClick={() => onDesactivar(docente)}>
+                        Desactivar
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => onActivar(docente)}>
+                        Activar
+                      </Button>
+                    )}
+                  </Table.Cell>
+                )}
               </Table.Row>
             ))}
           </Table.Body>

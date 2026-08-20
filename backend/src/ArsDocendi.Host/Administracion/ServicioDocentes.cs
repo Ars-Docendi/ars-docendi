@@ -18,6 +18,15 @@ public sealed class ServicioDocentes(
         Guid? materiaId,
         string? rol,
         bool? activo,
+        CancellationToken ct) =>
+        await ListarAsync(busqueda, materiaId, rol, activo, null, ct);
+
+    public async Task<IReadOnlyList<DocenteAdministracionDto>> ListarAsync(
+        string? busqueda,
+        Guid? materiaId,
+        string? rol,
+        bool? activo,
+        IReadOnlySet<Guid>? materiasVisibles,
         CancellationToken ct)
     {
         var personas = await repositorio.ListarPersonasAsync(ct);
@@ -28,6 +37,8 @@ public sealed class ServicioDocentes(
         var resultado = personas
             .Where(p => porPersona.ContainsKey(p.Id) || RolesDocentes(p.Usuario).Count > 0)
             .Select(p => Mapear(p, porPersona.GetValueOrDefault(p.Id) ?? [], materias))
+            .Where(d => materiasVisibles is null
+                || d.Asignaciones.Any(a => materiasVisibles.Contains(a.MateriaId)))
             .Where(d => materiaId is null || d.Asignaciones.Any(a => a.MateriaId == materiaId))
             .Where(d => rol is null || d.Roles.Contains(rol, StringComparer.OrdinalIgnoreCase))
             .Where(d => activo is null || d.Activo == activo)
@@ -39,6 +50,12 @@ public sealed class ServicioDocentes(
     }
 
     public async Task<DocenteAdministracionDto> ObtenerAsync(Guid personaId, CancellationToken ct)
+        => await ObtenerAsync(personaId, null, ct);
+
+    public async Task<DocenteAdministracionDto> ObtenerAsync(
+        Guid personaId,
+        IReadOnlySet<Guid>? materiasVisibles,
+        CancellationToken ct)
     {
         var persona = await repositorio.ObtenerPersonaAsync(personaId, false, ct)
             ?? throw NoEncontrado();
@@ -47,10 +64,17 @@ public sealed class ServicioDocentes(
             .Where(d => d.PersonaId == personaId)
             .ToArray();
         if (vigentes.Length == 0 && RolesDocentes(persona.Usuario).Count == 0) throw NoEncontrado();
+        if (materiasVisibles is not null
+            && !vigentes.Any(d => materiasVisibles.Contains(d.MateriaId))) throw NoEncontrado();
         return Mapear(persona, vigentes, materias);
     }
 
     public async Task<CatalogosDocentesDto> ObtenerCatalogosAsync(CancellationToken ct)
+        => await ObtenerCatalogosAsync(null, ct);
+
+    public async Task<CatalogosDocentesDto> ObtenerCatalogosAsync(
+        IReadOnlySet<Guid>? materiasVisibles,
+        CancellationToken ct)
     {
         var personas = await repositorio.ListarPersonasAsync(ct);
         var docentes = (await designaciones.ListarVigentesAsync(ct)).Select(d => d.PersonaId).ToHashSet();
@@ -58,7 +82,9 @@ public sealed class ServicioDocentes(
         var roles = await repositorio.ObtenerRolesDocentesAsync(RolesPermitidos.ToArray(), ct);
         var cargos = await designaciones.ListarCargosAsync(ct);
         var elegibles = personas
-            .Where(p => !docentes.Contains(p.Id) && RolesDocentes(p.Usuario).Count == 0)
+            .Where(p => materiasVisibles is null
+                && !docentes.Contains(p.Id)
+                && RolesDocentes(p.Usuario).Count == 0)
             .Select(p => new PersonaElegibleDto(
                 p.Id, p.Nombre, p.Apellido, p.Documento, p.Legajo, p.Cuil,
                 p.FechaNacimiento, p.Telefono, p.Usuario?.Upn, p.Usuario?.Version))
@@ -66,7 +92,8 @@ public sealed class ServicioDocentes(
         return new CatalogosDocentesDto(
             roles.OrderBy(r => r.Nombre)
                 .Select(r => new OpcionCatalogoDto(r.Id, r.Codigo, r.Nombre)).ToArray(),
-            materias.Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre)).ToArray(),
+            materias.Where(m => materiasVisibles is null || materiasVisibles.Contains(m.Id))
+                .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre)).ToArray(),
             cargos.Where(c => c.Activo).ToArray(),
             elegibles);
     }

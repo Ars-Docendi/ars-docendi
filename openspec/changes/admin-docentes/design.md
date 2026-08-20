@@ -172,6 +172,16 @@ La exclusión de HTTP y persistencia fue temporal. `datos-ejemplo-y-frontend-con
 
 ---
 
+### D16 — Lectura docente con política compuesta y ámbito de materia
+
+**Opción elegida**: Los GET de `/api/administracion/docentes` aceptan `usuarios.ver` para la administración sin restricciones o el rol activo `jefe_catedra`. En este último caso, el backend deriva las materias desde `identity.user_roles`, filtra listado y detalle por designaciones vigentes, limita el catálogo de materias y no devuelve personas elegibles. El frontend consume ese scope autoritativo sin recalcularlo por UPN y oculta todas las acciones de escritura. Las escrituras conservan `usuarios.administrar`.
+
+**Alternativa descartada**: Otorgar `usuarios.ver` a `jefe_catedra` y mantener el filtro sólo en React.
+
+**Por qué**: Ese permiso también habilita la API administrativa de usuarios y el filtrado client-side expone docentes ajenos a la cátedra. La política compuesta habilita "Mis Docentes" sin ampliar privilegios ni confiar en datos de ámbito enviados por el cliente.
+
+---
+
 ## Risks / Trade-offs
 
 - **Estado efímero**: Al recargar la página el store se reinicia. → Aceptado; el usuario lo sabrá por ser entorno dev. Cuando llegue el backend, se persiste en Postgres.

@@ -98,4 +98,19 @@ Cuando el usuario autenticado tiene rol `Jefe de Cátedra`, la pantalla SHALL mo
 #### Scenario: Botón "Nuevo docente" oculto para JdC
 
 - **WHEN** el usuario autenticado tiene rol `Jefe de Cátedra`
-- **THEN** el botón "Nuevo docente" no se muestra
+- **THEN** el botón "Nuevo docente" y la columna de acciones de escritura no se muestran
+
+#### Scenario: API de docentes limitada al ámbito del JdC
+
+- **WHEN** un usuario autenticado como `Jefe de Cátedra` consulta `GET /api/administracion/docentes`
+- **THEN** la API responde exitosamente y devuelve únicamente docentes con al menos una designación vigente en las materias donde el usuario tiene ese rol
+
+#### Scenario: Catálogos de docentes limitados para el JdC
+
+- **WHEN** un usuario autenticado como `Jefe de Cátedra` consulta `GET /api/administracion/docentes/catalogos`
+- **THEN** la API devuelve únicamente sus materias, no expone personas elegibles y conserva los catálogos necesarios para filtrar la vista
+
+#### Scenario: Escritura docente denegada al JdC
+
+- **WHEN** un usuario autenticado como `Jefe de Cátedra` intenta crear, editar, activar o desactivar un docente
+- **THEN** la API responde `403` porque esas operaciones siguen requiriendo `usuarios.administrar`

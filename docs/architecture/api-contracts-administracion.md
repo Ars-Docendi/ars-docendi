@@ -4,14 +4,15 @@ Complementa [api-contracts.md](./api-contracts.md). Todas las rutas administrati
 
 ## Permisos
 
-| Recurso               | Lectura                                   | Escritura                   |
-| --------------------- | ----------------------------------------- | --------------------------- |
-| Usuarios y docentes   | `usuarios.ver`                            | `usuarios.administrar`      |
-| Roles                 | `roles.ver`                               | `roles.administrar`         |
-| Membresía de permisos | `roles.ver`                               | `roles.gestionar_membresia` |
-| Catálogos             | permiso de lectura del recurso consumidor | —                           |
+| Recurso               | Lectura                                    | Escritura                   |
+| --------------------- | ------------------------------------------ | --------------------------- |
+| Usuarios              | `usuarios.ver`                             | `usuarios.administrar`      |
+| Docentes              | `usuarios.ver` o JdC con ámbito de materia | `usuarios.administrar`      |
+| Roles                 | `roles.ver`                                | `roles.administrar`         |
+| Membresía de permisos | `roles.ver`                                | `roles.gestionar_membresia` |
+| Catálogos             | permiso de lectura del recurso consumidor  | —                           |
 
-Docentes reutiliza los permisos de usuarios porque administra la misma identidad canónica y sus designaciones vigentes; no se agrega un permiso sin un check de autorización correspondiente.
+Docentes reutiliza los permisos de usuarios porque administra la misma identidad canónica y sus designaciones vigentes. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras.
 
 ## DTOs
 
@@ -50,16 +51,16 @@ La edición de un rol de sistema ignora ninguna protección: código, ámbito y 
 
 ## Rutas de docentes y catálogos
 
-| Método | Ruta                                                  | Permiso                | Entrada / salida                              |
-| ------ | ----------------------------------------------------- | ---------------------- | --------------------------------------------- |
-| GET    | `/api/administracion/docentes`                        | `usuarios.ver`         | `DocenteResumenDto[]`                         |
-| GET    | `/api/administracion/docentes/{personaId}`            | `usuarios.ver`         | `DocenteResumenDto`                           |
-| POST   | `/api/administracion/docentes`                        | `usuarios.administrar` | `GuardarDocenteDto` → `201 DocenteResumenDto` |
-| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar` | `GuardarDocenteDto` → `DocenteResumenDto`     |
-| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar` | `DocenteResumenDto`                           |
-| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar` | `DocenteResumenDto`                           |
-| GET    | `/api/administracion/docentes/catalogos`              | `usuarios.ver`         | materias, cargos y personas elegibles         |
-| GET    | `/api/administracion/catalogos`                       | autenticado            | `CatalogoIdentityDto` filtrado por permisos   |
+| Método | Ruta                                                  | Permiso                      | Entrada / salida                                   |
+| ------ | ----------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
+| GET    | `/api/administracion/docentes`                        | `usuarios.ver` o JdC acotado | `DocenteResumenDto[]`                              |
+| GET    | `/api/administracion/docentes/{personaId}`            | `usuarios.ver` o JdC acotado | `DocenteResumenDto`                                |
+| POST   | `/api/administracion/docentes`                        | `usuarios.administrar`       | `GuardarDocenteDto` → `201 DocenteResumenDto`      |
+| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar`       | `GuardarDocenteDto` → `DocenteResumenDto`          |
+| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar`       | `DocenteResumenDto`                                |
+| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar`       | `DocenteResumenDto`                                |
+| GET    | `/api/administracion/docentes/catalogos`              | `usuarios.ver` o JdC acotado | materias, cargos y personas elegibles según ámbito |
+| GET    | `/api/administracion/catalogos`                       | autenticado                  | `CatalogoIdentityDto` filtrado por permisos        |
 
 Alta/edición docente es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
 

@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Persistencia;
 using ArsDocendi.Host.Api;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Desarrollo;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,7 @@ builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
 builder.Services.AddScoped<ServicioDocentes>();
+builder.Services.AddScoped<ResolutorAlcanceDocentes>();
 var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
     && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
 if (autenticacionDesarrolloHabilitada)
@@ -45,6 +47,15 @@ builder.Services.AddAuthorization(opciones =>
             && (c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarCoordinacion
                 || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarSecretaria
                 || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarDecanato))));
+    opciones.AddPolicy(ArsDocendi.Shared.Auth.Politicas.DocentesVer, politica =>
+        politica.RequireAssertion(contexto =>
+            contexto.User.HasClaim(
+                ArsDocendi.Shared.Auth.Permisos.Claim,
+                ArsDocendi.Shared.Auth.Permisos.UsuariosVer)
+            || (contexto.User.IsInRole("jefe_catedra")
+                && Guid.TryParse(
+                    contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out _))));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>

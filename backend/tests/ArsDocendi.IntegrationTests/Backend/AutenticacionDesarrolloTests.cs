@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Identity.Desarrollo;
@@ -14,7 +15,9 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_dev")
 {
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
+    private static readonly Guid MateriaDelJefe = Guid.Parse("70000000-0000-4000-8000-000000000101");
 
     [Fact]
     public async Task Catalogo_y_handler_aceptan_usuario_activo_con_rol_asignado()
@@ -37,6 +40,54 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
         using var respuesta = await cliente.SendAsync(solicitud, ct);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Jefe_accede_a_docentes_solo_en_sus_materias_y_no_puede_modificarlos()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
+
+        var docentes = await cliente.GetFromJsonAsync<DocenteAdministracionDto[]>(
+            "/api/administracion/docentes", ct);
+        var catalogos = await cliente.GetFromJsonAsync<CatalogosDocentesDto>(
+            "/api/administracion/docentes/catalogos", ct);
+        using var detalleFueraDeAmbito = await cliente.GetAsync(
+            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000003", ct);
+        using var alta = await cliente.PostAsJsonAsync(
+            "/api/administracion/docentes", new { }, ct);
+
+        Assert.NotNull(docentes);
+        Assert.NotEmpty(docentes);
+        Assert.All(docentes, docente =>
+            Assert.Contains(docente.Asignaciones, asignacion =>
+                asignacion.MateriaId == MateriaDelJefe));
+        Assert.NotNull(catalogos);
+        Assert.All(catalogos.Materias, materia => Assert.Equal(MateriaDelJefe, materia.Id));
+        Assert.Empty(catalogos.PersonasElegibles);
+        Assert.Equal(HttpStatusCode.NotFound, detalleFueraDeAmbito.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, alta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Docente_sin_permiso_no_accede_a_la_administracion_de_docentes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        using var solicitud = new HttpRequestMessage(
+            HttpMethod.Get, "/api/administracion/docentes");
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Docente.ToString());
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "docente");
+
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
     }
 
     [Theory]

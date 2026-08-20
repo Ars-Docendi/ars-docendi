@@ -67,18 +67,19 @@
 
 - [x] 11.1 `Table.*`, `StatusBadge`, `Button`, `Modal`, `Field`, `Input`, `Select`, `DatePicker`, `InlineAlert`, `Breadcrumbs`, `PageHeader`
 
-## 11. Verificación
+## 12. Verificación
 
-- [x] 11.1 Secretaría ve "Docentes" en sidebar y la página carga correctamente
-- [x] 11.2 Otro rol (ej. Docente, Decanato) es redirigido a `/` al intentar acceder a `/docentes`
-- [ ] 11.3 Alta modo "Nueva persona": campos completos + al menos una asignación → docente en tabla con badges "CODIGO – ABREV"
-- [ ] 11.4 Alta modo "Persona del sistema": seleccionar persona + al menos una asignación → docente en tabla con datos de la persona
-- [ ] 11.5 Alta: UPN duplicada (modo nueva y existente) muestra InlineAlert
-- [ ] 11.6 Alta: fila de materia vacía bloquea el submit con error
-- [ ] 11.7 Alta: cargo no seleccionado muestra "Campo obligatorio"
-- [ ] 11.8 MateriasSelector: "+ Agregar materia" añade fila; × quita fila; opciones ya elegidas no aparecen en otras filas
-- [x] 11.9 Desactivar: modal → badge rojo "Inactivo", botón cambia a "Activar"
-- [x] 11.10 Activar: modal → badge verde "Activo", botón cambia a "Desactivar"
-- [ ] 11.11 Editar: cargo y materias pre-cargados correctamente; cambios guardados en tabla
-- [x] 11.12 Filtros fijos (Apellido, Nombre, Documento): filtran e ignoran tildes
-- [x] 11.13 Filtros opcionales: se añaden/quitan; Materia selector usa catálogo completo
+- [x] 12.1 Secretaría ve "Docentes" en sidebar y la página carga correctamente
+- [x] 12.2 Otro rol (ej. Docente, Decanato) es redirigido a `/` al intentar acceder a `/docentes`
+- [ ] 12.3 Alta modo "Nueva persona": campos completos + al menos una asignación → docente en tabla con badges "CODIGO – ABREV"
+- [ ] 12.4 Alta modo "Persona del sistema": seleccionar persona + al menos una asignación → docente en tabla con datos de la persona
+- [ ] 12.5 Alta: UPN duplicada (modo nueva y existente) muestra InlineAlert
+- [ ] 12.6 Alta: fila de materia vacía bloquea el submit con error
+- [ ] 12.7 Alta: cargo no seleccionado muestra "Campo obligatorio"
+- [ ] 12.8 MateriasSelector: "+ Agregar materia" añade fila; × quita fila; opciones ya elegidas no aparecen en otras filas
+- [x] 12.9 Desactivar: modal → badge rojo "Inactivo", botón cambia a "Activar"
+- [x] 12.10 Activar: modal → badge verde "Activo", botón cambia a "Desactivar"
+- [ ] 12.11 Editar: cargo y materias pre-cargados correctamente; cambios guardados en tabla
+- [x] 12.12 Filtros fijos (Apellido, Nombre, Documento): filtran e ignoran tildes
+- [x] 12.13 Filtros opcionales: se añaden/quitan; Materia selector usa catálogo completo
+- [x] 12.14 Corregir autorización para Jefe de Cátedra: GET de docentes y catálogos con scope server-side por materias; detalle fuera de ámbito en 404, escrituras en 403 y acciones de escritura ocultas en la UI
