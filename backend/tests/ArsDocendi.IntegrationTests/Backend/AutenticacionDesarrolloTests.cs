@@ -15,6 +15,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_dev")
 {
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
     private static readonly Guid MateriaDelJefe = Guid.Parse("70000000-0000-4000-8000-000000000101");
@@ -88,6 +89,26 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         using var respuesta = await cliente.SendAsync(solicitud, ct);
 
         Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/administracion/roles")]
+    [InlineData("/api/administracion/permisos")]
+    public async Task Administrativo_accede_a_los_catalogos_de_roles_y_permisos(string ruta)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, ruta);
+        solicitud.Headers.Add(
+            AutenticacionDesarrolloHandler.HeaderUsuario,
+            Administrativo.ToString());
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "administrativo");
+
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
     [Theory]
