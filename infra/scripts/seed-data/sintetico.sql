@@ -16,6 +16,25 @@ CREATE TABLE IF NOT EXISTS public.seed_identities (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- El seed corre con la cuenta administrativa, mientras que el Host se conecta
+-- con el rol dueño de la base. Los privilegios de una tabla no se heredan del
+-- privilegio CONNECT ni de ser dueño de la base, por lo que el catálogo de
+-- login necesita un GRANT explícito sobre esta tabla creada por el seed.
+DO $$
+DECLARE
+    app_role NAME;
+BEGIN
+    SELECT pg_get_userbyid(datdba)
+      INTO app_role
+      FROM pg_database
+     WHERE datname = current_database();
+
+    EXECUTE format(
+        'GRANT SELECT ON TABLE public.seed_identities TO %I',
+        app_role);
+END
+$$;
+
 INSERT INTO public.seed_metadata (clave, valor) VALUES
     ('origen_datos', 'sintetico'),
     ('dataset_version', '2026.08.1'),

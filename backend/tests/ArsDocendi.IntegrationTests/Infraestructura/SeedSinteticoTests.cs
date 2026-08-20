@@ -66,6 +66,41 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Seed_concede_lectura_de_identidades_al_rol_dueno_de_la_base()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var rolAplicacion = $"app_seed_{Guid.NewGuid():N}";
+        var baseActual = new NpgsqlConnectionStringBuilder(Cadena).Database
+            ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
+
+        await using var conexion = await AbrirConexionAsync();
+        try
+        {
+            await EjecutarAsync(conexion, $"""
+                CREATE ROLE "{rolAplicacion}" NOLOGIN;
+                ALTER DATABASE "{baseActual}" OWNER TO "{rolAplicacion}";
+                """);
+
+            await EjecutarSeedAsync(ct);
+
+            await EjecutarAsync(conexion, $"SET ROLE \"{rolAplicacion}\";");
+            Assert.True(await EscalarAsync<bool>(conexion,
+                "SELECT has_table_privilege(current_user, 'public.seed_identities', 'SELECT')"));
+            Assert.True(await EscalarAsync<long>(conexion,
+                "SELECT count(*) FROM public.seed_identities") > 0);
+        }
+        finally
+        {
+            await EjecutarAsync(conexion, "RESET ROLE;");
+            await EjecutarAsync(conexion, $"""
+                ALTER DATABASE "{baseActual}" OWNER TO postgres;
+                REVOKE SELECT ON TABLE public.seed_identities FROM "{rolAplicacion}";
+                DROP ROLE IF EXISTS "{rolAplicacion}";
+                """);
+        }
+    }
+
+    [Fact]
     public async Task Script_rechaza_prod_y_origen_productivo_antes_de_invocar_docker()
     {
         var prod = await EjecutarScriptSeedAsync("prod");
