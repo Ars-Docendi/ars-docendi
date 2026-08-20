@@ -1,5 +1,6 @@
+```mermaid
 flowchart LR
-Browser["React routes"]
+    Browser["React routes"]
 
     subgraph Frontend["Frontend API adapters"]
         UsersUI["/usuarios"]
@@ -74,3 +75,4 @@ Browser["React routes"]
 
     EmptyUI -. "no application API adapter yet" .-> Pings
     DevAPI --> IdentityRepos
+```

@@ -1,14 +1,15 @@
+```mermaid
 erDiagram
-IDENTITY_PERSONAS {
-uuid id PK
-text documento UK
-text cuil
-text legajo UK
-text nombre
-text apellido
-date fecha_nacimiento
-text telefono
-}
+    IDENTITY_PERSONAS {
+        uuid id PK
+        text documento UK
+        text cuil
+        text legajo UK
+        text nombre
+        text apellido
+        date fecha_nacimiento
+        text telefono
+    }
 
     IDENTITY_USERS {
         uuid id PK
@@ -175,3 +176,4 @@ text telefono
     IDENTITY_USERS ||--o{ DESIGNACIONES_IDEMPOTENCIA : ejecuta
     DESIGNACIONES_PEDIDOS ||--o{ DESIGNACIONES_IDEMPOTENCIA : protege
     IDENTITY_USERS o|--o{ AUDIT_CHANGE_LOG : autor
+```
