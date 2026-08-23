@@ -306,14 +306,29 @@ paga el reescritor, porque enrutar «¿y el de Pérez?» sin resolver la anáfor
 
 Tres conexiones que nunca se cruzan:
 
-| Conexión        | Rol                           | Uso                                                                |
-| --------------- | ----------------------------- | ------------------------------------------------------------------ |
-| Dueña           | rol dueño                     | Migraciones del módulo y escritura de los dos registros            |
-| Lectura básica  | `asistente_ro_<ambiente>`     | SQL generada, sin PII                                              |
-| Lectura con PII | `asistente_ro_pii_<ambiente>` | SQL generada cuando el actor tiene el permiso de datos de docentes |
+| Conexión        | Rol                           | Uso                                                                                     |
+| --------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| Dueña           | rol dueño                     | Migraciones del módulo y escritura de los dos registros                                 |
+| Lectura básica  | `asistente_ro_<ambiente>`     | SQL generada, sin PII                                                                   |
+| Lectura con PII | `asistente_ro_pii_<ambiente>` | SQL generada cuando el actor tiene el permiso de datos de docentes **y** alcance global |
 
 **Dos roles de lectura y no uno** porque es lo que mantiene la defensa en el motor: un usuario
 sin el permiso **no puede leer la columna**, no «no se la mostramos».
+
+**La condición para la conexión con PII exige alcance global además del permiso**, y no es
+redundancia. `Politicas.DocentesVer` la pasa quien tenga `usuarios.ver` **o** quien esté en el rol
+`jefe_catedra`, pero los tres endpoints de docentes **acotan los datos por separado**, en el
+controller. La política es la puerta; el acotamiento es otra cosa que se aplica después. Un
+asistente que mirara solo la política heredaría la puerta y no el acotamiento, y como
+`identity.personas` no tiene RLS, un jefe de cátedra podría leer documento y teléfono de todo el
+padrón — algo que la interfaz le niega.
+
+**Riesgo residual aceptado y registrado**: un actor de ámbito de materia o carrera sigue pudiendo
+listar nombre, apellido y legajo de todo el padrón, porque esas columnas se conceden al rol básico
+y `personas` no tiene RLS. Se aceptó porque son datos que ya circulan en cualquier listado de
+cátedra, y porque agregar una policy sobre `identity` que consulte `designaciones` invertiría la
+dirección del grafo de dependencias: es una discusión que merece su propio PR y no el mismo donde
+se pide la excepción arquitectónica.
 
 **Tipos distintos por cadena** — `CadenaDueña`, `CadenaSoloLectura`, `CadenaSoloLecturaPii` — para
 que pedir la equivocada no compile. Hoy el sistema tiene una sola cadena que comparten los dos
@@ -549,14 +564,15 @@ posible — por eso el permiso de dominio dentro del predicado RLS no es recomen
 
 ## 8 · Huecos abiertos
 
-| #   | Hueco                                                  | Qué bloquea                          | Cómo se cierra                                                                                                         |
-| --- | ------------------------------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Validación de los casos de uso** con el Departamento | Congelar el alcance                  | Conversación con un usuario real. Prevista, sin fecha                                                                  |
-| 2   | **Autenticación de producción (Azure AD)**             | Que el asistente llegue a producción | Tiene dueño, no tiene fecha. **Fuera del camino crítico**: se construye listo para producción y habilitarla es un flag |
-| 3   | **Marco institucional de datos personales**            | Nada, por ahora                      | Cubierto con el default conservador de §3.4, revisable si aparece una política                                         |
-| 4   | **Valor del techo de gasto**                           | Producción                           | Parámetro operativo; debe existir antes de desplegar                                                                   |
-| 5   | **PR #23 sin integrar**                                | Todo lo que asume el modelo de datos | Su cuerpo dice _«En prueba, no integrar a develop todavia»_. Confirmar con el equipo                                   |
-| 6   | **`.Contracts` vacío**                                 | Nada                                 | Consulta chica al equipo                                                                                               |
+| #   | Hueco                                                  | Qué bloquea                          | Cómo se cierra                                                                                                                                    |
+| --- | ------------------------------------------------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Validación de los casos de uso** con el Departamento | Congelar el alcance                  | Conversación con un usuario real. Prevista, sin fecha                                                                                             |
+| 2   | **Autenticación de producción (Azure AD)**             | Que el asistente llegue a producción | Tiene dueño, no tiene fecha. **Fuera del camino crítico**: se construye listo para producción y habilitarla es un flag                            |
+| 3   | **Marco institucional de datos personales**            | Nada, por ahora                      | Cubierto con el default conservador de §3.4, revisable si aparece una política                                                                    |
+| 4   | **Valor del techo de gasto**                           | Producción                           | Parámetro operativo; debe existir antes de desplegar                                                                                              |
+| 5   | **PR #23 sin integrar**                                | Todo lo que asume el modelo de datos | Su cuerpo dice _«En prueba, no integrar a develop todavia»_. Confirmar con el equipo                                                              |
+| 6   | **`.Contracts` vacío**                                 | Nada                                 | Consulta chica al equipo                                                                                                                          |
+| 7   | **`identity.personas` sin RLS**                        | Nada; riesgo residual acotado        | Mitigado exigiendo alcance global para la conexión con PII (§4.3). El cierre completo es una policy propia, con la inversión del grafo a discutir |
 
 ---
 
