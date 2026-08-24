@@ -1,4 +1,5 @@
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
@@ -193,6 +194,31 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
     /// la única forma honesta de probar un límite que impone el motor: consultarlo
     /// desde el dueño de la base no prueba nada.
     /// </summary>
+    /// <summary>
+    /// Las dos cadenas de solo lectura de la base de prueba, con los tipos
+    /// envoltorio que usa el módulo.
+    /// </summary>
+    /// <remarks>
+    /// Existen para que las piezas del carril se prueben con las mismas cadenas
+    /// tipadas que reciben en producción: armar un <c>string</c> suelto acá
+    /// probaría un camino que el módulo no tiene.
+    /// </remarks>
+    protected (CadenaSoloLectura Basica, CadenaSoloLecturaPii ConDatosPersonales) CadenasDeLectura()
+    {
+        var actual = _base ?? throw new InvalidOperationException("La base de prueba no está inicializada.");
+
+        return (new CadenaSoloLectura(CadenaDeRol(actual, actual.RolSoloLectura)),
+                new CadenaSoloLecturaPii(CadenaDeRol(actual, actual.RolSoloLecturaPii)));
+    }
+
+    private static string CadenaDeRol(BaseDePrueba baseDePrueba, string rol) =>
+        new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena)
+        {
+            Username = rol,
+            Password = baseDePrueba.Password,
+            Pooling = false,
+        }.ConnectionString;
+
     protected async Task<NpgsqlConnection> AbrirConexionComoAsistenteAsync(bool conDatosPersonales)
     {
         var actual = _base ?? throw new InvalidOperationException("La base de prueba no está inicializada.");
