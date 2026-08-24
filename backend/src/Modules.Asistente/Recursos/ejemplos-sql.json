@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "descripcion": "Catálogo de pares pregunta-SQL verificados. El selector elige los más parecidos a la pregunta del turno por similitud léxica y los inyecta en el prompt de USUARIO, nunca en el prefijo de sistema. INVARIANTE: este catálogo y el dataset de capacidad de la evaluación son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce ejemplos que ya vio; y como el catálogo de capacidades deriva sus sugerencias de acá, el asistente estaría proponiendo las preguntas con las que se lo evalúa.",
+  "ejemplos": [
+    {
+      "pregunta": "¿Qué docentes están designados en Algoritmos y Estructuras de Datos?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, c.nombre AS cargo, d.horas FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE m.name = 'Algoritmos y Estructuras de Datos' AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
+    },
+    {
+      "pregunta": "¿Cuántos profesores titulares hay en la carrera de Ingeniería Informática?",
+      "categoria": "agregacion",
+      "sql": "SELECT count(*) AS cantidad FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE c.codigo = 'titular' AND ca.name = 'Ingeniería Informática' AND d.vigente_hasta IS NULL"
+    },
+    {
+      "pregunta": "¿Qué materias no tienen ningún docente designado?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT ca.name AS carrera, m.name AS materia FROM identity.materias m JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE m.is_active AND NOT EXISTS (SELECT 1 FROM designaciones.designaciones d WHERE d.materia_id = m.id AND d.vigente_hasta IS NULL) ORDER BY ca.name, m.name"
+    },
+    {
+      "pregunta": "¿Cuáles son los pedidos pendientes de aprobación?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, pe.estado FROM designaciones.pedidos pe JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id WHERE pe.estado IN ('en_revision_coordinador', 'en_revision_secretaria', 'en_revision_decanato') ORDER BY pe.prioritario DESC, pe.created_at"
+    },
+    {
+      "pregunta": "¿Qué trámites hay cargados en el período vigente?",
+      "categoria": "filtro_temporal",
+      "sql": "SELECT pe.numero, pe.novedad, pe.estado FROM designaciones.pedidos pe JOIN designaciones.periodos pr ON pr.id = pe.periodo_id WHERE pr.activo ORDER BY pe.created_at"
+    },
+    {
+      "pregunta": "¿Cuántos pedidos hay en cada estado?",
+      "categoria": "agregacion",
+      "sql": "SELECT pe.estado, count(*) AS cantidad FROM designaciones.pedidos pe GROUP BY pe.estado ORDER BY cantidad DESC, pe.estado"
+    },
+    {
+      "pregunta": "¿Cuál es el historial del trámite 2026-000123?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT h.created_at, h.accion, h.etapa, r.name AS rol, h.comentario FROM designaciones.pedido_historial h JOIN identity.roles r ON r.id = h.rol_id JOIN designaciones.pedidos pe ON pe.id = h.pedido_id WHERE pe.numero = '2026-000123' ORDER BY h.created_at"
+    },
+    {
+      "pregunta": "¿Quién es el jefe de cátedra de Bases de Datos?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT u.display_name, m.name AS materia FROM identity.user_roles ur JOIN identity.users u ON u.id = ur.user_id JOIN identity.roles r ON r.id = ur.role_id JOIN identity.materias m ON m.id = ur.materia_id WHERE r.code = 'jefe_catedra' AND m.name = 'Bases de Datos' AND ur.deleted_at IS NULL ORDER BY u.display_name"
+    },
+    {
+      "pregunta": "¿Cuántas horas semanales tiene asignadas cada docente?",
+      "categoria": "agregacion",
+      "sql": "SELECT p.apellido, p.nombre, sum(d.horas) AS horas_totales FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id WHERE d.vigente_hasta IS NULL GROUP BY p.id, p.apellido, p.nombre ORDER BY horas_totales DESC, p.apellido"
+    },
+    {
+      "pregunta": "¿Qué altas se solicitaron en el período activo?",
+      "categoria": "filtro_temporal",
+      "sql": "SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, c.nombre AS cargo_solicitado FROM designaciones.pedidos pe JOIN designaciones.periodos pr ON pr.id = pe.periodo_id JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id LEFT JOIN designaciones.cargos c ON c.id = pe.cargo_solicitado_id WHERE pr.activo AND pe.novedad = 'Alta' ORDER BY pe.created_at"
+    },
+    {
+      "pregunta": "¿Qué carreras están vigentes?",
+      "categoria": "consulta_simple",
+      "sql": "SELECT name AS carrera FROM identity.carreras WHERE is_active ORDER BY name"
+    },
+    {
+      "pregunta": "¿Qué pedidos fueron rechazados y con qué fundamento?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT pe.numero, h.comentario AS motivo, h.created_at FROM designaciones.pedidos pe JOIN designaciones.pedido_historial h ON h.pedido_id = pe.id WHERE pe.estado = 'rechazado' AND h.accion = 'rechazar' ORDER BY h.created_at DESC"
+    },
+    {
+      "pregunta": "¿Qué designaciones terminaron antes del 1 de marzo de 2026?",
+      "categoria": "filtro_temporal",
+      "sql": "SELECT p.apellido, p.nombre, m.name AS materia, d.vigente_hasta FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE d.vigente_hasta IS NOT NULL AND d.vigente_hasta < DATE '2026-03-01' ORDER BY d.vigente_hasta DESC"
+    },
+    {
+      "pregunta": "¿Cómo se compone el plantel por cargo?",
+      "categoria": "agregacion",
+      "sql": "SELECT c.nombre AS cargo, count(DISTINCT d.persona_id) AS cantidad FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.vigente_hasta IS NULL GROUP BY c.id, c.nombre, c.orden ORDER BY c.orden"
+    },
+    {
+      "pregunta": "¿Qué dedicación y cuántas horas tiene cada designación de la materia Paradigmas de Programación?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, d.dedicacion, d.horas, c.abreviatura AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE m.name = 'Paradigmas de Programación' AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
+    },
+    {
+      "pregunta": "¿Cuántas materias tiene cada carrera?",
+      "categoria": "agregacion",
+      "sql": "SELECT ca.name AS carrera, count(m.id) AS cantidad FROM identity.carreras ca LEFT JOIN identity.materias m ON m.carrera_id = ca.id AND m.is_active WHERE ca.is_active GROUP BY ca.id, ca.name ORDER BY ca.name"
+    }
+  ]
+}
