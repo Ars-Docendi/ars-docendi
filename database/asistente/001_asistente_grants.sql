@@ -85,6 +85,17 @@ BEGIN
   EXECUTE format('GRANT SELECT (rol_id, permiso_id, created_at) ON identity.rol_permisos TO %I', rol_pii);
 
   -- ------------------------------------------------------------------
+  -- funciones de resolución del actor (migración identity/012)
+  -- ------------------------------------------------------------------
+  -- Las cuatro son SECURITY DEFINER y PUBLIC no las ejecuta. El GRANT va acá y no
+  -- en la migración de identity porque los nombres de rol llevan sufijo de
+  -- ambiente, y esta es la migración que los conoce.
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_actor() TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_es_global() TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO %I, %I', rol_basico, rol_pii);
+
+  -- ------------------------------------------------------------------
   -- designaciones
   -- ------------------------------------------------------------------
   -- pedidos.snapshot no se concede: JSONB de forma arbitraria que puede cambiar

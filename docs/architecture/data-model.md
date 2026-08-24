@@ -203,6 +203,25 @@ Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_na
 
 **Deny-by-default verificable**: `database/asistente/manifiesto-privilegios.json` enumera toda tabla de los schemas expuestos y toda columna de las concedidas. Un test compara ese manifiesto contra los privilegios efectivos en tres direcciones y falla si divergen: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar. Una tabla nueva rompe el CI en vez de quedar concedida en silencio.
 
+### Resolución del actor
+
+Cuatro funciones en `identity`, todas `SECURITY DEFINER` y `STABLE`, responden en vivo sobre la base:
+
+| Función                                  | Devuelve                                             |
+| ---------------------------------------- | ---------------------------------------------------- |
+| `identity.asistente_actor()`             | El actor del turno, leído de `app.asistente_user_id` |
+| `identity.asistente_es_global()`         | Si tiene alguna asignación vigente de alcance global |
+| `identity.asistente_materias_visibles()` | Las materias que puede ver                           |
+| `identity.asistente_tiene_permiso(code)` | Si la matriz vigente le da ese permiso               |
+
+**Ninguna lleva un código de rol.** La matriz rol → permiso es editable desde `/membresia-roles` sin migración, e `identity.roles` no es un catálogo cerrado. Una lista negra (`code <> 'docente'`) **falla abierta**: cualquier rol nuevo pasaría por default. Se pregunta por el permiso, que es lo que el cliente administra.
+
+`SECURITY DEFINER` con `SET search_path = ''` y todos los nombres calificados: sin eso, una función definer es un vector de escalada. `PUBLIC` no tiene `EXECUTE` sobre ninguna; el `GRANT` a los dos roles del asistente vive en la migración del módulo, que es la que conoce sus nombres con sufijo de ambiente.
+
+`STABLE` y no `VOLATILE` no es estilo: con `VOLATILE`, un predicado sin columnas deja de ser pseudo-constante y el ejecutor lo reevalúa **fila por fila** en vez de resolverlo una vez por consulta. Hay un par de tests que compara los dos planes.
+
+**Propagación del actor**: conexión y transacción nuevas por turno, y `set_config('app.asistente_user_id', <id>, true)` — transaction-local, así que el ajuste muere en el `COMMIT` y no sobrevive al pool. La fuente del id es `ICurrentUser.UserId`, nunca el `oid` de Azure AD: si llega el equivocado, la función **rompe** en vez de devolver cero filas, porque un vacío en silencio se lee como «no hay datos» y eso es una respuesta falsa.
+
 ## Relaciones cross-schema
 
 PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo necesita referenciar un dato de otro módulo, usar:
