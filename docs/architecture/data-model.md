@@ -239,6 +239,26 @@ Cuatro funciones en `identity`, todas `SECURITY DEFINER` y `STABLE`, responden e
 
 **Propagación del actor**: conexión y transacción nuevas por turno, y `set_config('app.asistente_user_id', <id>, true)` — transaction-local, así que el ajuste muere en el `COMMIT` y no sobrevive al pool. La fuente del id es `ICurrentUser.UserId`, nunca el `oid` de Azure AD: si llega el equivocado, la función **rompe** en vez de devolver cero filas, porque un vacío en silencio se lee como «no hay datos» y eso es una respuesta falsa.
 
+### Comentarios de esquema: parte del contrato con el asistente
+
+Toda tabla y toda columna que el manifiesto declara concedida lleva un `COMMENT ON` en español. Viven en el DDL de **cada módulo dueño** —`database/identity/013_identity_comentarios_asistente.sql` y `database/designaciones/010_designaciones_comentarios_asistente.sql`—, por el mismo criterio con que las policies RLS viven en el DDL de `designaciones`: el dueño del bounded context escribe el DDL de sus objetos.
+
+**No son documentación.** El proveedor de esquema del asistente los lee del catálogo y los inyecta en el prompt de sistema, así que una columna sin comentar le llega al modelo como un nombre pelado y un tipo. Por eso incluyen a propósito los sinónimos con que el Departamento nombra cada cosa —«docente/profesor/agente», «materia/asignatura/cátedra», «pedido/trámite/solicitud»— que en el esquema no aparecen, y por eso advierten las dos colisiones del dominio: los nombres de materia se repiten entre carreras y los apellidos entre personas.
+
+También registran cómo se resuelve «ahora» sin tocar el reloj: `designaciones.periodos.activo` y `designaciones.designaciones.vigente_hasta IS NULL`.
+
+Las dos tablas denegadas **no** se comentan: describir algo que el asistente no puede leer solo sirve para que lo pida y choque con `permission denied` en vez de abstenerse. Hay un test por cada dirección —concedida sin comentario, denegada con comentario—.
+
+### El prefijo del prompt se deriva de los privilegios efectivos
+
+El bloque de esquema del prompt de sistema no sale de una lista en el código: sale de preguntarle a la base **qué puede leer esta conexión** (`has_column_privilege` contra `current_user`), junto con los comentarios de arriba y las claves foráneas cuyos dos extremos son legibles.
+
+Una lista embebida se desincroniza en silencio y falla en las dos direcciones. Si alguien concede una columna, el prompt sigue describiendo el esquema viejo. Si alguien la revoca —la dirección peligrosa—, el prompt se la sigue ofreciendo al modelo, que la pide, y el turno falla con `permission denied` en vez de abstenerse.
+
+Consecuencia buscada: **los dos roles tienen prefijos distintos**, con huellas distintas, cacheados por separado. Compartir prefijo exigiría describirle al rol básico columnas que no puede leer.
+
+El prefijo se calcula perezosamente —construirlo al arrancar rompería el invariante #3— y **no se invalida solo**: una migración de esquema exige reiniciar el proceso. Es lo correcto para lo que se optimiza, porque un prefijo que cambiara entre dos turnos consecutivos es lo que RNF-14 prohíbe y cada invalidación pagaría escritura de caché sobre el bloque más grande del prompt.
+
 ## Relaciones cross-schema
 
 PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo necesita referenciar un dato de otro módulo, usar:

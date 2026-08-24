@@ -9,20 +9,87 @@ Change de planning: `openspec/changes/asistente-fundaciones/`.
 
 ## Estado
 
-**Scaffold.** El módulo existe, el Host lo registra y solo expone su smoke test.
-No tiene servicios, `DbContext` ni migraciones.
+**Carril SQL construido, sin superficie de usuario.** El módulo traduce una
+pregunta en español a una consulta, la valida, la ejecuta acotada al actor y
+redacta la respuesta. `CarrilSql` es un servicio, no un endpoint.
 
 Lo que falta y dónde va:
 
-| Qué                                  | Dónde             |
-| ------------------------------------ | ----------------- |
-| Motor de consulta y validador de SQL | `Application/`    |
-| Cliente del proveedor de LLM         | `Infrastructure/` |
-| Cadenas de conexión tipadas          | `Infrastructure/` |
+| Qué                                                          | Épica |
+| ------------------------------------------------------------ | ----- |
+| Enmascaramiento de columnas sensibles                        | E4    |
+| Hilo conversacional, reescritor y detector de ambigüedad     | E5    |
+| Carril determinista de API vía `Modules.<X>.Contracts`       | E6    |
+| `POST /api/asistente/consultas` y contrato de cuatro estados | E7    |
+| Cuota por actor, circuit breaker y registros                 | E8    |
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día
 aparece un agregado que le pertenezca, se crea entonces.
+
+## El carril SQL
+
+Dos llamadas al modelo por turno y siete piezas deterministas alrededor. La
+asimetría es deliberada: cada pieza determinista que se agrega al medio es una
+pieza que no puede alucinar.
+
+```
+CarrilSql.ResponderAsync(actor, mensaje, preguntaInterpretada)
+  │
+  ├─ IPerfilDelActor        ──► alcance global · acceso a datos personales
+  │                             (valida el actor: un oid de Azure falla acá)
+  │
+  ├─ GeneradorDeSql         ──► LLAMADA 1 · temperatura 0 · prefijo cacheado
+  │    ├─ IProveedorDeEsquema  prefijo estable, derivado de los GRANT efectivos
+  │    ├─ ISelectorDeEjemplos  ejemplos por similitud léxica, en el prompt de usuario
+  │    └─ IFechaDeReferencia   «hoy» como parámetro, nunca now()
+  │
+  ├─ ValidadorDeSql         ──► rechazo → no contestable, SIN reintento ciego
+  │
+  ├─ IEjecutorDeConsulta    ──► transacción nueva READ ONLY, actor transaction-local,
+  │                             LIMIT tope+1, fila sonda descartada
+  │
+  ├─ PoliticaDeAbstencion   ──► vacío + actor global → un reintento de generación
+  │                             vacío + actor acotado → respuesta SIN segunda llamada
+  │
+  └─ RedactorDeRespuesta    ──► LLAMADA 2 · temperatura 0,3 · sin caché
+```
+
+### Cómo se agrega un ejemplo al catálogo
+
+`Recursos/ejemplos-sql.json`, embebido como recurso del assembly. Cada entrada
+lleva `pregunta`, `sql` y `categoria`.
+
+Tres cosas se verifican solas al agregarlo:
+
+- la consulta **ejecuta** contra el esquema vigente (`CarrilSqlTests`);
+- la consulta **pasa el validador** (`SelectorDeEjemplosTests`) — un ejemplo que el
+  propio validador rechazaría le estaría enseñando al modelo a escribir consultas
+  que después se van a rechazar;
+- la huella del catálogo cambia, y con ella el sellado de los reportes de
+  evaluación.
+
+**Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
+son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
+ejemplos que ya vio — y como el catálogo de capacidades deriva sus sugerencias de
+acá, el asistente estaría proponiendo las preguntas con las que se lo evalúa.
+
+### Cuándo se recalcula el prefijo
+
+**Al reiniciar el proceso, y solo entonces.** El prefijo se construye la primera
+vez que alguien lo pide, se cachea por rol y no se invalida por su cuenta.
+
+Es deliberado. Un prefijo que se invalidara solo podría cambiar entre dos turnos
+consecutivos —lo que RNF-14 prohíbe— y cada invalidación pagaría escritura de
+caché a 1,25× en vez de lectura a 0,1× sobre el bloque más grande del prompt.
+
+Consecuencia operativa: **una migración que cambie el esquema exige reiniciar**.
+El despliegue ya lo hace. Y el hash del prefijo va sellado en cada reporte de
+evaluación, así que una corrida contra un esquema viejo queda registrada como tal.
+
+Los dos roles tienen prefijos distintos, con huellas distintas: el prefijo se
+deriva de los privilegios **efectivos** de cada conexión, no de una lista en el
+código.
 
 ## Endpoints
 
@@ -74,9 +141,15 @@ turno: para eso tiene su propio máximo de intentos.
 ## Conexiones
 
 El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la
-`CadenaDuena` con los roles y contraseñas de la sección `Asistente`. Todavía nadie
-las consume: llegan con el carril SQL. Ver
+`CadenaDuena` con los roles y contraseñas de la sección `Asistente`. Ver
 [data-model.md → Cadenas tipadas](../../../docs/architecture/data-model.md).
+
+Cuál de las dos usa un turno lo decide `IPerfilDelActor`: la de datos personales
+exige alcance global **además** del permiso. La política de la aplicación es la
+puerta, pero los endpoints de docentes acotan los datos por separado en el
+controller; sin la conjunción, el asistente heredaría la puerta sin el acotamiento,
+y como `identity.personas` no tiene RLS, un jefe de cátedra leería documento y
+teléfono de todo el padrón.
 
 ## Dependencias
 
@@ -105,3 +178,10 @@ construcción y re-ejecutarlo converge.
 concede. Un test lo compara contra los privilegios efectivos de la base en tres
 direcciones: si alguien agrega una tabla o cambia un `GRANT` sin tocar el
 manifiesto, el CI falla.
+
+Los `COMMENT ON` de las tablas y columnas legibles viven en el DDL de **cada
+módulo dueño** —`database/identity/013_*.sql` y
+`database/designaciones/010_*.sql`—, por el mismo criterio con que las policies RLS
+viven en el de `designaciones`. No son documentación: el proveedor de esquema los
+lee del catálogo y los pone en el prompt, así que una columna sin comentar le llega
+al modelo como un nombre pelado y un tipo.
