@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    Referencia única a ArsDocendi.Shared. El módulo NO referencia todavía su
+    propio .Contracts (que nace vacío, ver Modules.Asistente.Contracts/README.md)
+    ni ningún otro módulo: los edges hacia Contracts ajenos llegan con el carril
+    determinista de API.
+
+    Tampoco hay PackageReference a EF Core, Npgsql ni MediatR: este tramo es el
+    scaffold, y agregarlos antes de tener con qué usarlos deja dependencias que
+    nadie puede justificar leyendo el código.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

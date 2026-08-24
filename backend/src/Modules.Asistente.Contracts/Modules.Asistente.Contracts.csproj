@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Sin PackageReference ni ProjectReference: el proyecto todavía no tiene
+       tipos. Ver README.md — su existencia es una decisión abierta del equipo. -->
+
+</Project>

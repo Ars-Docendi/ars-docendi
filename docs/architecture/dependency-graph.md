@@ -19,18 +19,21 @@ flowchart TD
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
+    AsistenteContracts["Modules.Asistente.Contracts<br/>(vacío: decisión abierta)"]
   end
   subgraph modules [Modules internos]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
     Tareas["Modules.Tareas"]
+    Asistente["Modules.Asistente"]
   end
 
   Host --> Designaciones
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
+  Host --> Asistente
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
   Host --> AulasContracts
   Host --> PortalContracts
@@ -40,6 +43,7 @@ flowchart TD
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
+  Asistente --> Shared
 
   Designaciones --> DesignacionesContracts
   Aulas --> AulasContracts
@@ -48,6 +52,7 @@ flowchart TD
 
   Designaciones -.->|"vía PortalContracts (TBD)"| PortalContracts
   Aulas -.->|"vía PortalContracts (TBD)"| PortalContracts
+  Asistente -.->|"carril determinista de API (TBD)"| DesignacionesContracts
 ```
 
 Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todavía). Cuando se confirmen, pasan a sólidas y se agregan al edge registry.
@@ -70,6 +75,10 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 | `Modules.Portal`        | `Modules.Portal.Contracts`              | project reference | Propio contract público                                                                            |
 | `Modules.Tareas`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
 | `Modules.Tareas`        | `Modules.Tareas.Contracts`              | project reference | Propio contract público                                                                            |
+| `ArsDocendi.Host`       | `Modules.Asistente`                     | project reference | Hosting                                                                                            |
+| `Modules.Asistente`     | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
+
+`Modules.Asistente.Contracts` existe en la solución pero **no aparece en el registro**: ningún proyecto lo referencia. El asistente consume Contracts ajenos y nadie lo consume a él, así que su `.Contracts` nace vacío. Se lo dejó como nodo huérfano a propósito, para que la decisión de conservarlo o borrarlo quede visible; ver `backend/src/Modules.Asistente.Contracts/README.md`.
 
 Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyectos, pero explican por qué Shared ya no es puro):
 

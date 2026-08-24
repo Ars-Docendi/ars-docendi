@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/ArsDocendi.Host/ArsDocendi.Host.csproj" />
     <Project Path="src/ArsDocendi.Shared/ArsDocendi.Shared.csproj" />
+    <Project Path="src/Modules.Asistente.Contracts/Modules.Asistente.Contracts.csproj" />
+    <Project Path="src/Modules.Asistente/Modules.Asistente.csproj" />
     <Project Path="src/Modules.Aulas.Contracts/Modules.Aulas.Contracts.csproj" />
     <Project Path="src/Modules.Aulas/Modules.Aulas.csproj" />
     <Project Path="src/Modules.Designaciones.Contracts/Modules.Designaciones.Contracts.csproj" />
