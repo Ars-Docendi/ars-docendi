@@ -1,0 +1,54 @@
+namespace Modules.Asistente.Application;
+
+/// <summary>Los cuatro estados en que puede terminar un turno (RF-14).</summary>
+public enum EstadoDelTurno
+{
+    /// <summary>Se respondió con datos.</summary>
+    Respondida,
+
+    /// <summary>La pregunta no se puede responder con lo que el asistente ve.</summary>
+    NoContestable,
+
+    /// <summary>Falta un dato para poder responder sin adivinar.</summary>
+    NecesitaAclaracion,
+
+    /// <summary>El proveedor no está disponible o el turno se quedó sin cupo.</summary>
+    ServicioDegradado,
+}
+
+/// <summary>
+/// Lo que devuelve el carril SQL.
+/// </summary>
+/// <remarks>
+/// No es todavía el contrato de la API: el endpoint, la forma de la respuesta
+/// HTTP y la <c>Idempotency-Key</c> llegan con la épica de superficie de usuario.
+/// Éste es el valor de retorno del servicio, y existe para que el carril se pueda
+/// ejercitar sin inventar dos veces el contrato.
+/// </remarks>
+/// <param name="Estado">En cuál de los cuatro estados terminó.</param>
+/// <param name="Respuesta">El texto que lee el usuario.</param>
+/// <param name="Razonamiento">
+/// Cómo se interpretó la pregunta, tal como lo devolvió la generación. Se expone
+/// sin agregarle ninguna explicación generada aparte (RF-11).
+/// </param>
+/// <param name="PreguntaInterpretada">
+/// Presente solo cuando difiere del mensaje del usuario (RF-10).
+/// </param>
+/// <param name="Columnas">Nombres de las columnas del resultado, si hubo.</param>
+/// <param name="Filas">Las filas devueltas, ya recortadas al tope.</param>
+/// <param name="Truncado">
+/// Si hubo más filas que el tope. Booleano, nunca un conteo: cuántas quedaron
+/// afuera es un canal de inferencia sobre datos que el usuario no puede ver.
+/// </param>
+/// <param name="Categoria">Categoría estimada por la generación.</param>
+/// <param name="LlamadasAlModelo">Cuántas llamadas al modelo consumió el turno.</param>
+public sealed record ResultadoDelTurno(
+    EstadoDelTurno Estado,
+    string Respuesta,
+    string Razonamiento,
+    string? PreguntaInterpretada,
+    IReadOnlyList<string> Columnas,
+    IReadOnlyList<IReadOnlyList<object?>> Filas,
+    bool Truncado,
+    string Categoria,
+    int LlamadasAlModelo);
