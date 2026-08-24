@@ -66,4 +66,33 @@ public sealed class OpcionesAsistente
 
     /// <summary>Tope de una espera individual, en milisegundos.</summary>
     public int EsperaMaximaMs { get; set; } = 8000;
+
+    /// <summary>
+    /// Cuántas filas como mucho devuelve una consulta del carril SQL.
+    /// </summary>
+    /// <remarks>
+    /// El ejecutor pide una fila MÁS que este tope, a propósito. Con un límite
+    /// exacto, «devolvió N» y «devolvió más de N y se recortó» son
+    /// indistinguibles desde el resultado, y la redacción termina afirmando un
+    /// total sobre un recorte. La fila sonda se descarta antes de salir.
+    /// </remarks>
+    public int TopeDeFilas { get; set; } = 200;
+
+    /// <summary>
+    /// Timeout de sentencia de la base, en milisegundos, fijado dentro de la
+    /// transacción del carril.
+    /// </summary>
+    /// <remarks>
+    /// Es el que corta del lado del servidor: sin él, una consulta generada con
+    /// un producto cartesiano ocuparía un backend hasta terminar, mucho después
+    /// de que el cliente se haya ido.
+    /// </remarks>
+    public int TimeoutDeSentenciaMs { get; set; } = 8000;
+
+    /// <summary>Timeout del comando del lado del cliente, en segundos.</summary>
+    /// <remarks>
+    /// Va por encima del de sentencia para que, cuando los dos apliquen, el que
+    /// corte primero sea el del servidor —que además libera el backend—.
+    /// </remarks>
+    public int TimeoutDeComandoSegundos { get; set; } = 15;
 }
