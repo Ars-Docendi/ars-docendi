@@ -45,6 +45,32 @@ La respuesta simulada se identifica como tal en la bandera `EsSimulada` **y** en
 texto. Un proveedor de mentira que devolviera algo verosímil sería peor que uno que
 falla: la métrica del asistente es corrección con abstención.
 
+## Reintento y techo de llamadas
+
+Dos cotas explícitas, y explícitas porque **se multiplican**:
+
+| Cota                               | Default | Dónde                        |
+| ---------------------------------- | ------- | ---------------------------- |
+| Llamadas al modelo **por turno**   | 4       | `ContadorDeLlamadasDelTurno` |
+| Intentos de transporte por llamada | 3       | `ReintentoDeTransporte`      |
+
+Peor caso de un turno: `4 × 3 = 12` requests HTTP. El número se puede decir en voz
+alta justamente porque las dos cotas están escritas.
+
+El techo de llamadas es **global del turno, no por capa**. Repartido por capa, cada
+una respeta su límite y el total se multiplica igual — que es el modo de falla del
+que este requisito nace. Lo aplica un decorador sobre `IProveedorDeModelo`, así que
+ninguna capa puede saltearlo sin dejar de usar el proveedor.
+
+El reintento de transporte va como `DelegatingHandler` del cliente HTTP, con
+backoff exponencial y **jitter completo**, y honra `retry-after` cuando viene. No
+reintenta ningún `400` —incluido el del límite de gasto: reintentar un rechazo por
+presupuesto agotado gasta presupuesto que ya no hay— ni `401`/`403`, porque una
+credencial no se arregla esperando.
+
+Un reintento de transporte ocurre **dentro** de una llamada y no consume cupo del
+turno: para eso tiene su propio máximo de intentos.
+
 ## Conexiones
 
 El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la

@@ -37,7 +37,8 @@ public sealed partial class ProveedorDeModeloTests
     {
         using var servicios = Componer().BuildServiceProvider();
 
-        var proveedor = servicios.GetRequiredService<IProveedorDeModelo>();
+        using var turno = servicios.CreateScope();
+        var proveedor = turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>();
 
         // Usar un proveedor real tiene que exigir configuración explícita. Si el
         // default fuese el real, un ambiente mal configurado gastaría plata —o
@@ -119,8 +120,10 @@ public sealed partial class ProveedorDeModeloTests
     {
         using var servicios = Componer("openai-de-verdad").BuildServiceProvider();
 
+        using var turno = servicios.CreateScope();
+
         var error = Assert.Throws<InvalidOperationException>(
-            servicios.GetRequiredService<IProveedorDeModelo>);
+            turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
 
         Assert.Contains("openai-de-verdad", error.Message, StringComparison.Ordinal);
     }
@@ -153,7 +156,8 @@ public sealed partial class ProveedorDeModeloTests
         using var cliente = host.CreateClient();
 
         using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
-        var proveedor = host.Services.GetRequiredService<IProveedorDeModelo>();
+        using var turno = host.Services.CreateScope();
+        var proveedor = turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>();
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         Assert.True(proveedor.EsSimulado);
@@ -161,8 +165,13 @@ public sealed partial class ProveedorDeModeloTests
 
     // ------------------------------------------------------------------------ apoyo
 
+    /// <summary>
+    /// El proveedor se resuelve DENTRO de un scope: el decorador que le cobra al
+    /// techo del turno es scoped, y un turno es un request.
+    /// </summary>
     private static IProveedorDeModelo Simulado() =>
-        Componer().BuildServiceProvider().GetRequiredService<IProveedorDeModelo>();
+        Componer().BuildServiceProvider().CreateScope().ServiceProvider
+            .GetRequiredService<IProveedorDeModelo>();
 
     private static ServiceCollection Componer(string? proveedor = null)
     {

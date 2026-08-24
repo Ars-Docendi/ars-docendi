@@ -12,6 +12,9 @@ namespace Modules.Asistente;
 /// </summary>
 public static class ModuleExtensions
 {
+    /// <summary>Nombre del cliente HTTP con el reintento de transporte.</summary>
+    public const string ClienteDelProveedor = "asistente-proveedor";
+
     /// <summary>
     /// Suma el módulo del asistente al contenedor de dependencias.
     /// </summary>
@@ -50,17 +53,43 @@ public static class ModuleExtensions
 
         // Proveedor del modelo. Se registra como fábrica para que un nombre
         // desconocido falle recién cuando alguien lo pida, y no impida arrancar.
-        services.AddSingleton<IProveedorDeModelo>(sp =>
+        services.AddSingleton(sp =>
         {
             var elegido = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.Proveedor;
-            return elegido switch
+            return new ProveedorBase(elegido switch
             {
                 ProveedorSimulado.Clave => new ProveedorSimulado(),
                 _ => throw new InvalidOperationException(
                     $"Proveedor de modelo '{elegido}' desconocido. Hoy el único disponible es "
                     + $"'{ProveedorSimulado.Clave}'; el real llega con el carril SQL."),
-            };
+            });
         });
+
+        // Contador y decorador son SCOPED: el techo es por turno, y un turno no
+        // puede heredar el conteo del anterior.
+        services.AddScoped(sp => new ContadorDeLlamadasDelTurno(
+            sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.MaximoDeLlamadasPorTurno));
+
+        // Nadie puede pedir el proveedor sin pasar por el techo: la interfaz solo
+        // resuelve al decorador.
+        services.AddScoped<IProveedorDeModelo>(sp => new ProveedorConTechoDeLlamadas(
+            sp.GetRequiredService<ProveedorBase>().Valor,
+            sp.GetRequiredService<ContadorDeLlamadasDelTurno>()));
+
+        // Cliente HTTP del proveedor, con el reintento de transporte ya puesto.
+        // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,
+        // pero se registra acá para que esa implementación lo pida por nombre y no
+        // tenga que saber nada de reintentos.
+        services.AddHttpClient(ClienteDelProveedor)
+            .AddHttpMessageHandler(sp =>
+            {
+                var opciones = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+                return new ReintentoDeTransporte(
+                    opciones.MaximoDeIntentosDeTransporte,
+                    TimeSpan.FromMilliseconds(opciones.EsperaBaseMs),
+                    TimeSpan.FromMilliseconds(opciones.EsperaMaximaMs),
+                    Random.Shared);
+            });
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

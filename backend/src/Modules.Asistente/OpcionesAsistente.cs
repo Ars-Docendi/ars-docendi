@@ -39,4 +39,31 @@ public sealed class OpcionesAsistente
     /// request en un job con los secrets del environment.
     /// </remarks>
     public string Proveedor { get; set; } = "simulado";
+
+    /// <summary>
+    /// Techo de llamadas al modelo por turno (RNF-10). Cuatro sin reintentos:
+    /// reescritor, generación, reintento y redacción.
+    /// </summary>
+    /// <remarks>
+    /// Es global del turno, no por capa. Repartido por capa, cada una respeta su
+    /// límite y el total se multiplica igual.
+    /// </remarks>
+    public int MaximoDeLlamadasPorTurno { get; set; } = 4;
+
+    /// <summary>
+    /// Intentos de transporte por llamada, el primero incluido (RNF-11).
+    /// </summary>
+    /// <remarks>
+    /// Se multiplica con el techo de arriba: el peor caso de un turno es
+    /// <c>MaximoDeLlamadasPorTurno × MaximoDeIntentosDeTransporte</c> requests HTTP.
+    /// Con los defaults, 4 × 3 = 12. Las dos cotas explícitas son lo que hace que
+    /// ese número se pueda decir en voz alta.
+    /// </remarks>
+    public int MaximoDeIntentosDeTransporte { get; set; } = 3;
+
+    /// <summary>Espera base del backoff exponencial, en milisegundos.</summary>
+    public int EsperaBaseMs { get; set; } = 500;
+
+    /// <summary>Tope de una espera individual, en milisegundos.</summary>
+    public int EsperaMaximaMs { get; set; } = 8000;
 }
