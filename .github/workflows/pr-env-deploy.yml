@@ -60,6 +60,8 @@ jobs:
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
       APP_DB_USER: app_pr_${{ github.event.pull_request.number }}
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PREVIEW }}
+      ASISTENTE_RO_PASSWORD: ${{ secrets.ASISTENTE_RO_PASSWORD_PREVIEW }}
+      ASISTENTE_RO_PII_PASSWORD: ${{ secrets.ASISTENTE_RO_PII_PASSWORD_PREVIEW }}
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
     steps:
