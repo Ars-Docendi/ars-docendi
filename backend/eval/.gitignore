@@ -1,0 +1,5 @@
+# Los reportes son generados y salen de una corrida contra un proveedor real, que
+# el CI no puede hacer. Versionarlos invitaría a editarlos a mano, que es
+# exactamente lo que el sellado de identidad existe para evitar.
+reportes/*
+!reportes/.gitkeep

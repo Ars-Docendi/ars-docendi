@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/ArsDocendi.Evaluacion.Nucleo/ArsDocendi.Evaluacion.Nucleo.csproj" />
     <Project Path="src/ArsDocendi.Host/ArsDocendi.Host.csproj" />
     <Project Path="src/ArsDocendi.Shared/ArsDocendi.Shared.csproj" />
     <Project Path="src/Modules.Asistente.Contracts/Modules.Asistente.Contracts.csproj" />

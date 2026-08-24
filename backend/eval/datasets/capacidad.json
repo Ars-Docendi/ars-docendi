@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "descripcion": "Dataset del eje de CAPACIDAD: mide si el asistente traduce la pregunta a la consulta correcta. Estratificado por dificultad técnica. Las consultas de referencia se ejecutan EN VIVO contra el fixture en cada corrida; no hay conjuntos de resultados guardados, para que referencia y respuesta se muevan juntas cuando el fixture cambia. INVARIANTE: este dataset y el catálogo de ejemplos del módulo son disjuntos — si se solaparan, la métrica mediría cuán bien el sistema reproduce ejemplos que ya vio.",
+  "items": [
+    {
+      "id": "cap-001",
+      "pregunta": "¿Qué carreras dicta el Departamento?",
+      "categoria": "consulta_simple",
+      "actor": "global",
+      "sql_referencia": "SELECT name FROM identity.carreras WHERE is_active ORDER BY name"
+    },
+    {
+      "id": "cap-002",
+      "pregunta": "¿Cuáles son los cargos docentes que existen?",
+      "categoria": "consulta_simple",
+      "actor": "global",
+      "sql_referencia": "SELECT nombre FROM designaciones.cargos WHERE activo ORDER BY orden"
+    },
+    {
+      "id": "cap-003",
+      "pregunta": "¿En qué asignatura hay más gente nombrada?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT m.name AS materia, count(*) AS total FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id WHERE d.vigente_hasta IS NULL GROUP BY m.id, m.name ORDER BY total DESC, m.name"
+    },
+    {
+      "id": "cap-004",
+      "pregunta": "¿Quiénes dictan Bases de Datos?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE m.name = 'Bases de Datos' AND d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-005",
+      "pregunta": "¿Cuántos nombramientos siguen abiertos?",
+      "categoria": "filtro_temporal",
+      "actor": "global",
+      "sql_referencia": "SELECT count(*) AS total FROM designaciones.designaciones WHERE vigente_hasta IS NULL"
+    },
+    {
+      "id": "cap-006",
+      "pregunta": "¿Cuántos ayudantes de primera están nombrados?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT count(*) AS total FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE c.codigo = 'ayudante1' AND d.vigente_hasta IS NULL"
+    },
+    {
+      "id": "cap-007",
+      "pregunta": "¿Qué solicitudes se cargaron para el ciclo en curso?",
+      "categoria": "filtro_temporal",
+      "actor": "global",
+      "sql_referencia": "SELECT pe.numero FROM designaciones.pedidos pe JOIN designaciones.periodos pr ON pr.id = pe.periodo_id WHERE pr.activo ORDER BY pe.numero"
+    },
+    {
+      "id": "cap-008",
+      "pregunta": "¿Qué solicitudes puedo ver de mi carrera?",
+      "categoria": "cruce_de_tablas",
+      "actor": "carrera",
+      "sql_referencia": "SELECT pe.numero FROM designaciones.pedidos pe ORDER BY pe.numero"
+    },
+    {
+      "id": "cap-009",
+      "pregunta": "¿Quiénes tienen nombramiento abierto en la asignatura que dirijo?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id WHERE d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-010",
+      "pregunta": "¿Cuáles son los tres cargos con más gente nombrada, de mayor a menor?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "orden_importa": true,
+      "sql_referencia": "SELECT c.nombre AS cargo, count(*) AS total FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.vigente_hasta IS NULL GROUP BY c.id, c.nombre ORDER BY total DESC, c.nombre"
+    },
+    {
+      "id": "cap-011",
+      "pregunta": "¿Qué ciclos de designación están cargados en el sistema?",
+      "categoria": "consulta_simple",
+      "actor": "global",
+      "sql_referencia": "SELECT nombre FROM designaciones.periodos ORDER BY carga_desde"
+    },
+    {
+      "id": "cap-012",
+      "pregunta": "¿Qué solicitudes quedaron sin aprobar?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT pe.numero FROM designaciones.pedidos pe WHERE pe.estado = 'rechazado' ORDER BY pe.numero"
+    },
+    {
+      "id": "cap-013",
+      "pregunta": "¿Qué nombramientos ya se cerraron?",
+      "categoria": "filtro_temporal",
+      "actor": "global",
+      "sql_referencia": "SELECT p.apellido, p.nombre, d.vigente_hasta FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id WHERE d.vigente_hasta IS NOT NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-014",
+      "pregunta": "¿Cuántas solicitudes de baja se presentaron?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT count(*) AS total FROM designaciones.pedidos WHERE novedad = 'Baja'"
+    },
+    {
+      "id": "cap-015",
+      "pregunta": "¿Qué asignaturas se dictan en Ingeniería Industrial?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT m.name AS materia FROM identity.materias m JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE ca.name = 'Ingeniería Industrial' AND m.is_active ORDER BY m.name"
+    },
+    {
+      "id": "cap-016",
+      "pregunta": "¿Qué solicitudes están marcadas como urgentes?",
+      "categoria": "consulta_simple",
+      "actor": "global",
+      "sql_referencia": "SELECT numero FROM designaciones.pedidos WHERE prioritario ORDER BY numero"
+    },
+    {
+      "id": "cap-017",
+      "pregunta": "¿Cuál es el sueldo de cada profesor?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-018",
+      "pregunta": "¿Qué calificaciones sacaron los alumnos el año pasado?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-019",
+      "pregunta": "¿En qué aula se dicta Sistemas Operativos?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-020",
+      "pregunta": "¿Quién dicta Análisis Matemático?",
+      "categoria": "ambigua",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-021",
+      "pregunta": "¿Qué nombramiento tiene Gómez?",
+      "categoria": "ambigua",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-022",
+      "pregunta": "¿Cuántas horas semanales suman los nombramientos abiertos?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT sum(horas) AS total FROM designaciones.designaciones WHERE vigente_hasta IS NULL"
+    },
+    {
+      "id": "cap-023",
+      "pregunta": "¿Qué solicitudes de la asignatura que dirijo puedo consultar?",
+      "categoria": "cruce_de_tablas",
+      "actor": "materia",
+      "sql_referencia": "SELECT numero FROM designaciones.pedidos ORDER BY numero"
+    },
+    {
+      "id": "cap-024",
+      "pregunta": "¿Qué solicitudes hay registradas?",
+      "categoria": "consulta_simple",
+      "actor": "sin_permiso",
+      "sql_referencia": "SELECT numero FROM designaciones.pedidos ORDER BY numero"
+    }
+  ]
+}
