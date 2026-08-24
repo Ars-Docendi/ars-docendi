@@ -28,4 +28,15 @@ public sealed class OpcionesAsistente
 
     /// <summary>Contraseña del rol de solo lectura con datos personales.</summary>
     public string PasswordSoloLecturaPii { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Proveedor del modelo de lenguaje. El default es el simulado: usar uno real
+    /// exige configuración explícita.
+    /// </summary>
+    /// <remarks>
+    /// El default vale sobre todo para los ambientes efímeros de PR, que no pueden
+    /// tener clave real — su workflow ejecuta un script que viene del propio pull
+    /// request en un job con los secrets del environment.
+    /// </remarks>
+    public string Proveedor { get; set; } = "simulado";
 }

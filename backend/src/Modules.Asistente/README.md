@@ -30,6 +30,21 @@ aparece un agregado que le pertenezca, se crea entonces.
   ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
   «la base responde».
 
+## Proveedor del modelo
+
+`IProveedorDeModelo` (en `Application/`) es la interfaz propia detrás de la cual
+vive el proveedor de LLM. Hoy la única implementación es `ProveedorSimulado`:
+determinista, sin red, y **el default de todos los ambientes**.
+
+Usar un proveedor real exige ponerlo explícitamente en `Asistente:Proveedor`. El
+motivo no es estilístico: los ambientes efímeros de PR no pueden tener clave real,
+porque su workflow hace checkout del head del pull request y ejecuta un script que
+viene de ese mismo PR, en un job con los secrets del environment.
+
+La respuesta simulada se identifica como tal en la bandera `EsSimulada` **y** en el
+texto. Un proveedor de mentira que devolviera algo verosímil sería peor que uno que
+falla: la métrica del asistente es corrección con abstención.
+
 ## Conexiones
 
 El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la

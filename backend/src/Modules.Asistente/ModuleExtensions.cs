@@ -2,6 +2,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 
 namespace Modules.Asistente;
@@ -46,6 +47,20 @@ public static class ModuleExtensions
             sp.GetRequiredService<CadenaDuena>(),
             Requerido(sp, o => o.RolSoloLecturaPii, nameof(OpcionesAsistente.RolSoloLecturaPii)),
             Requerido(sp, o => o.PasswordSoloLecturaPii, nameof(OpcionesAsistente.PasswordSoloLecturaPii)))));
+
+        // Proveedor del modelo. Se registra como fábrica para que un nombre
+        // desconocido falle recién cuando alguien lo pida, y no impida arrancar.
+        services.AddSingleton<IProveedorDeModelo>(sp =>
+        {
+            var elegido = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.Proveedor;
+            return elegido switch
+            {
+                ProveedorSimulado.Clave => new ProveedorSimulado(),
+                _ => throw new InvalidOperationException(
+                    $"Proveedor de modelo '{elegido}' desconocido. Hoy el único disponible es "
+                    + $"'{ProveedorSimulado.Clave}'; el real llega con el carril SQL."),
+            };
+        });
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

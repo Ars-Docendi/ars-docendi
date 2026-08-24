@@ -13,6 +13,7 @@
 #   ASISTENTE_RO_PASSWORD             password del rol de lectura del asistente
 #   ASISTENTE_RO_PII_PASSWORD         password del rol de lectura con datos personales
 # Variables opcionales:
+#   ASISTENTE_PROVEEDOR               proveedor del modelo; default "simulado"
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
@@ -67,6 +68,7 @@ ASISTENTE_ROL_BASICO=${rol_ro}
 ASISTENTE_ROL_PII=${rol_ro_pii}
 ASISTENTE_RO_PASSWORD=${ASISTENTE_RO_PASSWORD}
 ASISTENTE_RO_PII_PASSWORD=${ASISTENTE_RO_PII_PASSWORD}
+ASISTENTE_PROVEEDOR=${ASISTENTE_PROVEEDOR:-simulado}
 EOF
 
 docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
