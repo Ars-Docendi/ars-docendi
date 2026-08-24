@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using ArsDocendi.IntegrationTests.Infraestructura;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
@@ -10,7 +11,14 @@ public sealed partial class ArquitecturaIdentityTests
     {
         var raiz = BuscarRaizRepositorio();
         var controllers = Directory.EnumerateFiles(
-            Path.Combine(raiz, "backend", "src"), "*Controller.cs", SearchOption.AllDirectories);
+            Path.Combine(raiz, "backend", "src"), "*Controller.cs", SearchOption.AllDirectories)
+            .ToArray();
+
+        // Un guard que no distingue «no hay infracciones» de «no escaneé nada» no es
+        // un guard: si mañana se renombra una carpeta, seguiría pasando en verde.
+        Assert.NotEmpty(controllers);
+        Assert.Contains(controllers, ruta => ruta.EndsWith("AsistenteController.cs", StringComparison.Ordinal));
+
         var infracciones = controllers
             .Where(archivo => DependenciaInfraestructuraEnController().IsMatch(
                 QuitarComentarios(File.ReadAllText(archivo))))
@@ -29,8 +37,14 @@ public sealed partial class ArquitecturaIdentityTests
         var raiz = BuscarRaizRepositorio();
         var proyectos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "Modules.*.csproj", SearchOption.AllDirectories)
-            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal));
+            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal))
+            .ToArray();
         var infracciones = new List<string>();
+
+        // Los cinco módulos internos, Asistente incluido. Si el glob dejara de
+        // alcanzar alguno, el test pasaría sin haberlo mirado.
+        Assert.Equal(5, proyectos.Length);
+        Assert.Contains(proyectos, ruta => ruta.EndsWith("Modules.Asistente.csproj", StringComparison.Ordinal));
 
         foreach (var proyecto in proyectos)
         {
@@ -63,8 +77,16 @@ public sealed partial class ArquitecturaIdentityTests
         var archivos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "*.cs", SearchOption.AllDirectories)
             .Where(ruta => Path.GetRelativePath(Path.Combine(raiz, "backend", "src"), ruta)
-                .StartsWith("Modules.", StringComparison.Ordinal));
+                .StartsWith("Modules.", StringComparison.Ordinal))
+            .ToArray();
         var infracciones = new List<string>();
+
+        // El asistente tiene una excepción declarada —consulta schemas ajenos sin
+        // pasar por Contracts—, y por eso mismo su código tiene que estar dentro de
+        // este barrido, no supuesto.
+        Assert.NotEmpty(archivos);
+        Assert.Contains(archivos, ruta => ruta.Contains(
+            Path.Combine("Modules.Asistente", string.Empty), StringComparison.Ordinal));
 
         foreach (var archivo in archivos)
         {
@@ -81,22 +103,7 @@ public sealed partial class ArquitecturaIdentityTests
             $"Escrituras o acceso directo detectados en: {string.Join(", ", infracciones)}");
     }
 
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (Directory.Exists(Path.Combine(directorio.FullName, "backend", "src"))
-                && File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md")))
-            {
-                return directorio.FullName;
-            }
-
-            directorio = directorio.Parent;
-        }
-
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
+    private static string BuscarRaizRepositorio() => RaizRepositorio.Ruta();
 
     private static string QuitarComentarios(string codigo) =>
         Comentarios().Replace(codigo, string.Empty);
