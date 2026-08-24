@@ -28,7 +28,7 @@ Todo este cambio está organizado alrededor de una sola pregunta incómoda: **¿
 
 `ArsDocendi.Evaluacion` —el ejecutable— está **fuera**: es lo único que instancia un proveedor real.
 
-La alternativa obvia —poner *todo* lo de evaluación afuera— tiene un costo que no se paga: la puntuación, el generador y el preflight dejarían de tener tests en el CI. Y son exactamente las piezas donde un error hace que el número mienta. Un eval sin tests es un eval en el que no se puede confiar, que es lo mismo que no tenerlo.
+La alternativa obvia —poner _todo_ lo de evaluación afuera— tiene un costo que no se paga: la puntuación, el generador y el preflight dejarían de tener tests en el CI. Y son exactamente las piezas donde un error hace que el número mienta. Un eval sin tests es un eval en el que no se puede confiar, que es lo mismo que no tenerlo.
 
 Lo que hay que sacar del CI no es «la evaluación»: es **la llamada facturada**.
 
