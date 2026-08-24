@@ -9,20 +9,25 @@ Change de planning: `openspec/changes/asistente-fundaciones/`.
 
 ## Estado
 
-**Scaffold.** El módulo existe, el Host lo registra y no hace nada todavía. No
-tiene controllers, servicios, `DbContext` ni migraciones.
+**Scaffold.** El módulo existe, el Host lo registra y solo expone su smoke test.
+No tiene servicios, `DbContext` ni migraciones.
 
 Lo que falta y dónde va:
 
 | Qué                                       | Dónde             |
 | ----------------------------------------- | ----------------- |
-| `GET /api/asistente/ping`                 | `Api/`            |
 | Motor de consulta y validador de SQL      | `Application/`    |
 | Cliente del proveedor de LLM y conexiones | `Infrastructure/` |
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día
 aparece un agregado que le pertenezca, se crea entonces.
+
+## Endpoints
+
+- `GET /api/asistente/ping` — smoke test, `[AllowAnonymous]`. No toca la base ni
+  ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
+  «la base responde».
 
 ## Dependencias
 

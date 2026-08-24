@@ -94,6 +94,15 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | GET    | `/ping` | (anónimo)  | Health check del módulo               |
 | ...    | ...     | ...        | _(a documentar en specs por feature)_ |
 
+### Asistente (`/api/asistente/`)
+
+| Método | Path    | Rol mínimo | Descripción                           |
+| ------ | ------- | ---------- | ------------------------------------- |
+| GET    | `/ping` | (anónimo)  | Health check del módulo               |
+| ...    | ...     | ...        | _(a documentar en specs por feature)_ |
+
+Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
+
 ## Idempotencia
 
 Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico retorna la misma respuesta y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.
