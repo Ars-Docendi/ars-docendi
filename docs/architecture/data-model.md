@@ -203,6 +203,23 @@ Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_na
 
 **Deny-by-default verificable**: `database/asistente/manifiesto-privilegios.json` enumera toda tabla de los schemas expuestos y toda columna de las concedidas. Un test compara ese manifiesto contra los privilegios efectivos en tres direcciones y falla si divergen: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar. Una tabla nueva rompe el CI en vez de quedar concedida en silencio.
 
+### Row Level Security sobre el trámite
+
+`designaciones.pedidos`, `designaciones.designaciones`, `pedido_historial` y `pedido_adjuntos` llevan **`ENABLE ROW LEVEL SECURITY`** con una policy `FOR SELECT` cada una. El predicado conjunta dos condiciones:
+
+```sql
+identity.asistente_tiene_permiso('designaciones.ver')
+AND materia_id IN (SELECT identity.asistente_materias_visibles())
+```
+
+**Las dos, no una.** RLS decide qué filas ve una consulta, no si quien pregunta tiene derecho a la tabla — y acá no coinciden: el rol `docente` tiene ámbito de materia, pero sus permisos son `portal.ver` y `portal.editar`. Una policy que mirara solo el ámbito le abriría pedidos, historial y justificativos de rechazo que la API le niega con `403`. El asistente no ampliaría un permiso: **crearía acceso donde no hay ninguno**. Y un `[Authorize]` en el endpoint no cubre el hueco: cuando la SQL ya está corriendo, el `[Authorize]` es pasado.
+
+El predicado es **uno solo** para los tres ámbitos: para un actor global, `asistente_materias_visibles()` devuelve todas las materias, así que la pertenencia es verdadera para toda fila. No ramificar por ámbito es lo que evita que un ámbito nuevo caiga en un `ELSE` permisivo.
+
+**`ENABLE`, nunca `FORCE`.** Con `ENABLE`, el dueño de la tabla queda exento: la aplicación conecta como `app_<ambiente>` y sigue viendo y escribiendo todo. `FORCE` somete también al dueño, y como estas policies son `FOR SELECT` y están escritas para el actor del asistente, la aplicación dejaría de ver sus propias filas. Ahí `FORCE` no endurece nada: tira el backend.
+
+Las policies **no llevan cláusula `TO`**. Es una frontera de módulos, no una decisión de seguridad: este DDL pertenece a `Modules.Designaciones` y se embebe en su assembly, mientras que los nombres de rol llevan sufijo de ambiente y solo los conoce la configuración del asistente. La restricción real la impone el predicado, que falla cerrado: sin el ajuste `app.asistente_user_id` no hay actor, sin actor no hay permiso, y sin permiso no hay filas.
+
 ### Resolución del actor
 
 Cuatro funciones en `identity`, todas `SECURITY DEFINER` y `STABLE`, responden en vivo sobre la base:
