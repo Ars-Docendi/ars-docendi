@@ -40,7 +40,25 @@ optionsBuilder.UseNpgsql(connectionString, npgsql =>
     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", schema: "designaciones"));
 ```
 
-La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocendi`). Es el nombre que la infra de deploy inyecta por ambiente como `ConnectionStrings__ArsDocendi` (ver `infra/compose/compose.base.yml`), apuntando a la base aislada de cada ambiente (`arsdocendi_<env>`). Los 4 `ModuleExtensions.cs` y el `appsettings.json` leen esa misma clave.
+La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocendi`). Es el nombre que la infra de deploy inyecta por ambiente como `ConnectionStrings__ArsDocendi` (ver `infra/compose/compose.base.yml`), apuntando a la base aislada de cada ambiente (`arsdocendi_<env>`).
+
+### Cadenas tipadas
+
+Esa clave se lee **una sola vez**, en `AddArsDocendiShared`, y a partir de ahí la cadena viaja como tipo, no como `string`:
+
+| Tipo                   | Usuario                       | Para qué                                 |
+| ---------------------- | ----------------------------- | ---------------------------------------- |
+| `CadenaDuena`          | `app_<ambiente>`              | Migrar, leer y escribir. Todo el sistema |
+| `CadenaSoloLectura`    | `asistente_ro_<ambiente>`     | Consulta generada, sin datos personales  |
+| `CadenaSoloLecturaPii` | `asistente_ro_pii_<ambiente>` | Consulta generada, con datos personales  |
+
+Viven en `ArsDocendi.Shared/Persistencia/CadenasDeConexion.cs`. Los `DbContext` y los migradores las piden por tipo (`sp.GetRequiredService<CadenaDuena>()`), no por clave de configuración.
+
+Son **tres tipos independientes**: sin clase base común y sin conversiones entre sí. Una base compartida dejaría escribir un parámetro del tipo base y volvería a aceptar cualquiera de las tres, que es el error que estos tipos existen para impedir. Pasar la cadena equivocada no compila.
+
+Las dos de solo lectura se **derivan** de la del dueño —mismo host, mismo puerto, misma base, otro usuario y otra contraseña— en vez de configurarse por separado. Con tres cadenas independientes, un typo en el nombre de la base haría que el asistente leyera otro ambiente sin que nada fallara. Los roles y sus contraseñas llegan de la sección `Asistente` (`Asistente__RolSoloLectura`, `Asistente__PasswordSoloLectura`, y sus pares con PII).
+
+`ToString()` de las tres devuelve la cadena **sin la contraseña**: interpolar una en un log o en un mensaje de excepción no filtra el secreto. El valor crudo está en `Valor`, que hay que pedir a propósito.
 
 ## Migraciones en deploy
 

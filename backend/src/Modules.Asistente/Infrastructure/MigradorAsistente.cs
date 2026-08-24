@@ -1,5 +1,4 @@
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -20,22 +19,20 @@ namespace Modules.Asistente.Infrastructure;
 /// migraciones que crean las tablas de <c>identity</c> y <c>designaciones</c>.
 /// Sin esas tablas, cada GRANT fallaría con «relation does not exist».
 ///
-/// Conecta con la cadena del dueño de la base: conceder requiere ser dueño de la
-/// tabla. El asistente nunca usa esta conexión para consultar.
+/// Pide <see cref="CadenaDuena"/> y no una cadena cualquiera: conceder requiere
+/// ser dueño de la tabla, así que con una de solo lectura este código no podría
+/// hacer su trabajo. Que el tipo lo diga evita descubrirlo en runtime.
 /// </remarks>
 internal sealed class MigradorAsistente(
     IOptions<OpcionesAsistente> opciones,
-    IConfiguration configuracion,
+    CadenaDuena cadena,
     ILogger<MigradorAsistente> log) : IMigradorModulo
 {
     public async Task MigrarAsync(CancellationToken ct)
     {
         var valores = opciones.Value;
-        var cadena = configuracion.GetConnectionString("ArsDocendi")
-            ?? throw new InvalidOperationException(
-                "Falta la cadena de conexión 'ArsDocendi'; sin ella no se pueden aplicar los privilegios del asistente.");
 
-        await using var conexion = new NpgsqlConnection(cadena);
+        await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
 
         await PrivilegiosAsistente.AplicarAsync(

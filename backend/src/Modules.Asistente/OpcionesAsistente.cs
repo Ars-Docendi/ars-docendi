@@ -19,4 +19,13 @@ public sealed class OpcionesAsistente
     /// Rol de PostgreSQL con el que el asistente lee incluyendo datos personales.
     /// </summary>
     public string RolSoloLecturaPii { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Contraseña del rol de solo lectura. La inyecta el ambiente en runtime; nunca
+    /// se loguea ni se escribe al repositorio.
+    /// </summary>
+    public string PasswordSoloLectura { get; set; } = string.Empty;
+
+    /// <summary>Contraseña del rol de solo lectura con datos personales.</summary>
+    public string PasswordSoloLecturaPii { get; set; } = string.Empty;
 }

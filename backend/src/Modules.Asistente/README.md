@@ -30,6 +30,13 @@ aparece un agregado que le pertenezca, se crea entonces.
   ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
   «la base responde».
 
+## Conexiones
+
+El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la
+`CadenaDuena` con los roles y contraseñas de la sección `Asistente`. Todavía nadie
+las consume: llegan con el carril SQL. Ver
+[data-model.md → Cadenas tipadas](../../../docs/architecture/data-model.md).
+
 ## Dependencias
 
 Solo `ArsDocendi.Shared`. No referencia ningún otro módulo ni su propio
