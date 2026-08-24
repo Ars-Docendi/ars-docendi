@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\..\src\ArsDocendi.Host\ArsDocendi.Host.csproj" />
     <ProjectReference Include="..\..\src\Modules.Designaciones\Modules.Designaciones.csproj" />
+    <ProjectReference Include="..\..\src\Modules.Asistente\Modules.Asistente.csproj" />
   </ItemGroup>
 
 </Project>

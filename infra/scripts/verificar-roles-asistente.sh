@@ -121,6 +121,25 @@ comprobar "sin CREATE sobre ningún schema" "0" \
                            WHERE g.rolname IN (${roles_sql})
                              AND a.privilege_type = 'CREATE';")"
 
+# 7. Si las tablas ya existen —o sea, después de las migraciones—, los GRANT del
+#    asistente tienen que haber corrido. Este control detecta el caso que los
+#    tests de CI no pueden ver: que la migración funcione, pero no se haya
+#    ejecutado en ESTE ambiente. Antes de migrar no hay tablas y se saltea.
+tablas="$(psql_base "$base" -c "SELECT count(*)
+                                FROM information_schema.tables
+                                WHERE table_schema IN ('identity', 'designaciones')
+                                  AND table_type = 'BASE TABLE';")"
+
+if [[ "$tablas" -gt 0 ]]; then
+  comprobar "los GRANT de lectura ya se aplicaron" "t" \
+    "$(psql_base "$base" -c "SELECT count(*) > 0
+                             FROM information_schema.column_privileges
+                             WHERE grantee IN (${roles_sql})
+                               AND privilege_type = 'SELECT';")"
+else
+  log_info msg="base sin tablas todavía: no se controlan los GRANT de lectura" base="$base"
+fi
+
 if (( fallas > 0 )); then
   fatal "msg=\"verificación de roles del asistente FALLIDA\" ambiente=\"${ambiente}\" fallas=\"${fallas}\""
 fi

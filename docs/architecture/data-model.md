@@ -44,9 +44,11 @@ La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocend
 
 ## Migraciones en deploy
 
-El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica las migraciones pendientes de los 4 módulos y termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
+El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica las migraciones pendientes de cada módulo y termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
 
-Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
+Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna**; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente.
+
+El orden de ejecución es el orden de registración en `Program.cs`. `Modules.Asistente` va **último** a propósito: no tiene schema ni entidades propias, y su migrador solo concede privilegios de lectura sobre tablas de otros schemas. Si corriera antes, cada `GRANT` fallaría con «relation does not exist». Por lo mismo, su migrador no envuelve un `DbContext`: ejecuta SQL idempotente por construcción (`CREATE EXTENSION IF NOT EXISTS` y `GRANT`, que repetido es un no-op) sin historial de migraciones que llevar.
 
 ## Entidades por schema
 
@@ -154,6 +156,34 @@ Los datos personales del sistema (documento, CUIL, teléfono, fecha de nacimient
 - **Logs sin PII**: no loggear cuerpos de request/response con datos personales. Si es necesario, hashear o redactar.
 - **Backup encriptado**: dumps de Postgres deben estar encriptados antes de salir de la VM.
 - **Borrado**: tener procedimiento para honrar bajas de docentes (GDPR-like aunque no aplique directamente, es buena práctica institucional).
+
+## Privilegios de lectura del asistente
+
+El asistente conversacional no lee con la conexión de la aplicación. Tiene **dos roles de PostgreSQL propios, de solo lectura**, con sufijo de ambiente (`asistente_ro_prod`, `asistente_ro_pii_pr_123`):
+
+| Rol                           | Alcance                                             |
+| ----------------------------- | --------------------------------------------------- |
+| `asistente_ro_<ambiente>`     | Lectura sin columnas de datos personales            |
+| `asistente_ro_pii_<ambiente>` | Lectura incluyendo las columnas de datos personales |
+
+**El límite lo impone el motor, no el código.** Los privilegios se conceden **columna por columna** con `GRANT SELECT (lista) ON tabla`, nunca sobre todas las tablas de un schema de una vez: esa forma entregaría cada tabla nueva por default y en silencio. Consecuencia visible: con el rol básico, `SELECT * FROM identity.personas` **falla** con `permission denied`, porque la tabla tiene columnas no concedidas.
+
+Fuera de alcance, con motivo escrito:
+
+| Objeto                                | Por qué                                                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Schema `audit` completo               | `change_log.old_row/new_row` guardan la fila entera en JSON; un JSONB no admite GRANT por columna |
+| `designaciones.idempotencia_comandos` | `response_body` guarda el cuerpo HTTP completo de cada comando                                    |
+| `designaciones.pedidos.snapshot`      | JSONB de forma arbitraria que puede cambiar sin que nadie revise el manifiesto                    |
+| `designaciones.pedido_adjuntos.uri`   | Ubicación del archivo: referencia a un recurso, no dato de consulta                               |
+| `identity.users.azure_oid`            | Identificador opaco del directorio externo                                                        |
+| `identity.user_roles.granted_by`      | Rastro de una acción administrativa sobre otra persona                                            |
+
+Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_nacimiento`, `telefono`— y `identity.users.upn` van **solo** al rol con datos personales.
+
+**Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
+
+**Deny-by-default verificable**: `database/asistente/manifiesto-privilegios.json` enumera toda tabla de los schemas expuestos y toda columna de las concedidas. Un test compara ese manifiesto contra los privilegios efectivos en tres direcciones y falla si divergen: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar. Una tabla nueva rompe el CI en vez de quedar concedida en silencio.
 
 ## Relaciones cross-schema
 

@@ -1,5 +1,7 @@
+using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Modules.Asistente.Infrastructure;
 
 namespace Modules.Asistente;
 
@@ -12,18 +14,20 @@ public static class ModuleExtensions
     /// Suma el módulo del asistente al contenedor de dependencias.
     /// </summary>
     /// <remarks>
-    /// El módulo todavía no tiene servicios propios. Lo único que hace acá es
-    /// declarar su assembly como application part, para que MVC descubra los
-    /// controllers que lleguen después sin volver a tocar el Host.
-    ///
-    /// <paramref name="configuration"/> no se usa todavía: va en la firma por
-    /// paridad con el resto de los módulos y porque de ahí van a salir las
-    /// cadenas de conexión de solo lectura del asistente.
+    /// La configuración de los roles NO se valida al arrancar: solo hace falta en
+    /// el arranque one-shot <c>--migrate</c>, y exigirla siempre rompería el Host
+    /// en cualquier ambiente que todavía no la tenga. El migrador falla con un
+    /// mensaje que nombra el valor faltante cuando efectivamente la necesita.
     /// </remarks>
     public static IServiceCollection AddAsistenteModule(
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.Configure<OpcionesAsistente>(
+            configuration.GetSection(OpcionesAsistente.Seccion));
+
+        services.AddScoped<IMigradorModulo, MigradorAsistente>();
+
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);
 

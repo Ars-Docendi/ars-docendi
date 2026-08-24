@@ -14,10 +14,11 @@ No tiene servicios, `DbContext` ni migraciones.
 
 Lo que falta y dónde va:
 
-| Qué                                       | Dónde             |
-| ----------------------------------------- | ----------------- |
-| Motor de consulta y validador de SQL      | `Application/`    |
-| Cliente del proveedor de LLM y conexiones | `Infrastructure/` |
+| Qué                                  | Dónde             |
+| ------------------------------------ | ----------------- |
+| Motor de consulta y validador de SQL | `Application/`    |
+| Cliente del proveedor de LLM         | `Infrastructure/` |
+| Cadenas de conexión tipadas          | `Infrastructure/` |
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día
@@ -42,9 +43,17 @@ Tampoco declara EF Core, Npgsql ni MediatR: llegan cuando haya código que los u
 Ninguno propio. El asistente **lee** los schemas de otros módulos a través de dos
 roles de solo lectura, con privilegios enumerados columna por columna.
 
-> **Para quien implemente los `GRANT`**: el DDL de `database/asistente/*.sql` se
-> embebe como recurso de **este** assembly, igual que
-> `database/designaciones/*.sql` en `Modules.Designaciones.csproj`. Por eso ese
-> trabajo depende de que este proyecto exista. El `ItemGroup` de embebido y su
-> `Target` de validación se agregan en el mismo cambio que traiga el primer
-> `.sql`, no antes: el `Target` falla el build si el glob no encuentra nada.
+El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
+assembly, igual que `database/designaciones/*.sql` en su módulo.
+`MigradorAsistente` lo ejecuta en el arranque `--migrate`, **último** de todos los
+migradores: los `GRANT` necesitan que las tablas de `identity` y `designaciones`
+ya existan.
+
+No usa EF Core. El módulo no tiene entidades ni schema propio, así que no hay nada
+que versionar con un historial de migraciones; el script es idempotente por
+construcción y re-ejecutarlo converge.
+
+`database/asistente/manifiesto-privilegios.json` es la fuente de verdad de qué se
+concede. Un test lo compara contra los privilegios efectivos de la base en tres
+direcciones: si alguien agrega una tabla o cambia un `GRANT` sin tocar el
+manifiesto, el CI falla.

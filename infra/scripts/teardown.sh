@@ -23,7 +23,7 @@ log_warn msg="teardown iniciado" ambiente="$ambiente"
 #    se pasan placeholders inertes para que `down` resuelva sin errores.
 docker compose -p "$ambiente" \
   -f "$compose_file" \
-  --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\n' "$ambiente") \
+  --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\nASISTENTE_ROL_BASICO=x\nASISTENTE_ROL_PII=x\n' "$ambiente") \
   down -v --remove-orphans || log_warn msg="compose down no encontró el project (ok, idempotente)" ambiente="$ambiente"
 
 # 2. Base del ambiente (drop-db es idempotente y valida que no sea prod).

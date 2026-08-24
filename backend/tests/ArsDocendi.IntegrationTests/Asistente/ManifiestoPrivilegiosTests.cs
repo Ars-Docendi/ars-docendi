@@ -6,11 +6,14 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <summary>
 /// Verificación del manifiesto de privilegios del asistente en las tres direcciones.
 ///
-/// La dirección 3 —tablas y columnas sin clasificar— corre hoy contra el esquema real y es
+/// La dirección 3 —tablas y columnas sin clasificar— corre contra el esquema real y es
 /// la que hace que una tabla nueva rompa el CI en vez de quedar concedida en silencio.
-/// Las direcciones 1 y 2 comparan contra los privilegios efectivos y necesitan que existan
-/// los roles y sus GRANT: se ejercitan acá sobre el comparador y quedan pendientes contra
-/// la base real hasta que esas migraciones existan.
+/// Las direcciones 1 y 2 comparan el manifiesto contra los privilegios efectivos: se
+/// ejercitan primero sobre el comparador, con desviaciones sintéticas, y después contra
+/// los GRANT que aplicó de verdad la migración del módulo sobre la base de prueba.
+///
+/// Los roles reales llevan sufijo por ambiente (y en los tests, uno por base), así que
+/// hay que traducirlos a los nombres lógicos del manifiesto antes de comparar.
 /// </summary>
 [Collection(ColeccionPostgres.Nombre)]
 public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
@@ -183,8 +186,7 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
 
     // --------------------------------------------- direcciones 1 y 2, contra los GRANT reales
 
-    [Fact(Skip = "Pendiente ARS-17 y ARS-18: los roles del asistente y sus GRANT todavía no existen. "
-                 + "Quitar el Skip en el PR que agrega la migración de privilegios.")]
+    [Fact]
     public async Task Los_privilegios_efectivos_coinciden_con_el_manifiesto()
     {
         var manifiesto = Manifiesto.Cargar();
@@ -196,7 +198,7 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
         Assert.True(desviaciones.Count == 0, Describir(desviaciones));
     }
 
-    [Fact(Skip = "Pendiente ARS-17 y ARS-18: los roles del asistente todavía no existen.")]
+    [Fact]
     public async Task Los_roles_del_asistente_no_tienen_ningun_privilegio_de_mutacion()
     {
         await using var conexion = await AbrirConexionAsync();
@@ -204,9 +206,10 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
             """
             SELECT grantee, table_schema, table_name, privilege_type
               FROM information_schema.role_table_grants
-             WHERE grantee LIKE 'asistente_ro%'
+             WHERE grantee = ANY(@roles)
                AND privilege_type <> 'SELECT'
             """, conexion);
+        comando.Parameters.AddWithValue("roles", new[] { RolSoloLectura, RolSoloLecturaPii });
 
         await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
 
@@ -256,10 +259,11 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
             """
             SELECT table_schema, table_name, column_name, grantee
               FROM information_schema.column_privileges
-             WHERE grantee LIKE 'asistente_ro%'
+             WHERE grantee = ANY(@roles)
                AND privilege_type = 'SELECT'
              ORDER BY table_schema, table_name, column_name
             """, conexion);
+        comando.Parameters.AddWithValue("roles", new[] { RolSoloLectura, RolSoloLecturaPii });
 
         await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
 
@@ -267,11 +271,22 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
         while (await lector.ReadAsync(TestContext.Current.CancellationToken))
         {
             privilegios.Add(new PrivilegioEfectivo(
-                lector.GetString(0), lector.GetString(1), lector.GetString(2), lector.GetString(3)));
+                lector.GetString(0), lector.GetString(1), lector.GetString(2),
+                NombreLogicoDelRol(lector.GetString(3))));
         }
 
         return privilegios;
     }
+
+    /// <summary>
+    /// Traduce el nombre real del rol al nombre lógico del manifiesto. El manifiesto
+    /// habla de <c>asistente_ro</c> y <c>asistente_ro_pii</c>; la base tiene
+    /// <c>asistente_ro_pr_123</c> o, acá, un sufijo por base de prueba.
+    /// </summary>
+    private string NombreLogicoDelRol(string rolReal) =>
+        rolReal == RolSoloLecturaPii ? RolPii
+        : rolReal == RolSoloLectura ? RolBasico
+        : rolReal;
 
     private static string Describir(IReadOnlyCollection<Desviacion> desviaciones) =>
         desviaciones.Count == 0

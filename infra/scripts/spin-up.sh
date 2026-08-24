@@ -37,6 +37,8 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 base="$(nombre_base "$ambiente")"
+rol_ro="$(rol_asistente "$ambiente" basico)"
+rol_ro_pii="$(rol_asistente "$ambiente" pii)"
 host_publico="${ambiente}.${DOMINIO}"
 url_base="Host=${PGHOST};Port=${PGPORT:-5432};Database=${base};Username=${APP_DB_USER};Password=${APP_DB_PASSWORD}"
 
@@ -61,6 +63,8 @@ TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
 DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
 URL_BASE_DATOS=${url_base}
+ASISTENTE_ROL_BASICO=${rol_ro}
+ASISTENTE_ROL_PII=${rol_ro_pii}
 EOF
 
 docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d

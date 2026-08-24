@@ -38,6 +38,11 @@ services:
       DevelopmentAuthentication__Enabled: ${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
       # Connection string que liga el ambiente a SU base aislada (D7).
       ConnectionStrings__ArsDocendi: ${URL_BASE_DATOS}
+      # Roles de solo lectura del asistente, con sufijo de ambiente. Los crea
+      # provision-db.sh; el backend los necesita para aplicarles sus GRANT al
+      # migrar, y más adelante para elegir con cuál de los dos consulta.
+      Asistente__RolSoloLectura: ${ASISTENTE_ROL_BASICO}
+      Asistente__RolSoloLecturaPii: ${ASISTENTE_ROL_PII}
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida
