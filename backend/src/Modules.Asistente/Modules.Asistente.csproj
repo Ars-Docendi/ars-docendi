@@ -33,6 +33,14 @@
     como recurso. Lo ejecuta MigradorAsistente; ver la nota equivalente en
     Modules.Designaciones.csproj.
   -->
+  <!--
+    Catálogo de ejemplos pregunta-SQL. Embebido para que viaje con el assembly:
+    leerlo del disco haría que el módulo dependiera del layout del despliegue.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Recursos\ejemplos-sql.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <SqlAsistente Include="$(MSBuildThisFileDirectory)..\..\..\database\asistente\*.sql" />
     <EmbeddedResource Include="@(SqlAsistente)" Link="Sql\asistente\%(Filename)%(Extension)" />

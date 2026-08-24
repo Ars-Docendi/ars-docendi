@@ -85,12 +85,33 @@ public sealed partial class ArquitecturaAsistenteTests
         [
             new("Application/Guardar.cs", "var sql = \"INSERT INTO designaciones.pedidos VALUES (1)\";"),
             new("Application/Borrar.cs", "var sql = \"DELETE FROM identity.personas\";"),
+            new("Application/Vaciar.cs", "var sql = \"TRUNCATE designaciones.pedidos\";"),
+            new("Application/VaciarTabla.cs", "var sql = \"TRUNCATE TABLE identity.personas\";"),
             new("Application/Persistir.cs", "await db.SaveChangesAsync(ct);"),
         ];
 
         var infracciones = Detectar(sinteticos, MutacionEnCodigo());
 
-        Assert.Equal(3, infracciones.Count);
+        Assert.Equal(5, infracciones.Count);
+    }
+
+    [Fact]
+    public void Una_lista_de_palabras_prohibidas_no_cuenta_como_mutacion()
+    {
+        // El validador de la SQL generada tiene que enumerar lo que rechaza. Una
+        // enumeración de prohibiciones es lo contrario de una mutación, y el
+        // detector no puede confundirlas: si lo hiciera, la salida sería quitar el
+        // guard o quitar la enumeración, y las dos son peores.
+        Archivo[] sinteticos =
+        [
+            new("Application/ValidadorFicticio.cs",
+                """
+                private static readonly HashSet<string> Prohibidas =
+                    ["insert", "update", "delete", "truncate", "merge"];
+                """),
+        ];
+
+        Assert.Empty(Detectar(sinteticos, MutacionEnCodigo()));
     }
 
     // ------------------------------------------------------------- el DDL no muta
@@ -194,14 +215,21 @@ public sealed partial class ArquitecturaAsistenteTests
     [GeneratedRegex(@"\bCadenaDuena\b")]
     private static partial Regex UsoDeCadenaDuena();
 
+    // TRUNCATE exige un objetivo —igual que las otras tres formas de este patrón—
+    // y no aparece suelto. El validador de la SQL generada tiene que ENUMERAR las
+    // palabras prohibidas para poder rechazarlas, y una lista de prohibiciones es
+    // lo contrario de una mutación. Exigir el objetivo conserva todos los
+    // verdaderos positivos: una sentencia real siempre nombra qué trunca.
     [GeneratedRegex(
-        @"\bINSERT\s+INTO\b|\bUPDATE\s+[\w"".]+\s+SET\b|\bDELETE\s+FROM\b|\bTRUNCATE\b|" +
+        @"\bINSERT\s+INTO\b|\bUPDATE\s+[\w"".]+\s+SET\b|\bDELETE\s+FROM\b|" +
+        @"\bTRUNCATE\s+(?:TABLE\s+)?[\w"".]+|" +
         @"\bSaveChanges(?:Async)?\s*\(|\bExecuteUpdate\w*\s*\(|\bExecuteDelete\w*\s*\(",
         RegexOptions.IgnoreCase)]
     private static partial Regex MutacionEnCodigo();
 
     [GeneratedRegex(
-        @"\bINSERT\s+INTO\b|\bUPDATE\s+[\w"".]+\s+SET\b|\bDELETE\s+FROM\b|\bTRUNCATE\b|" +
+        @"\bINSERT\s+INTO\b|\bUPDATE\s+[\w"".]+\s+SET\b|\bDELETE\s+FROM\b|" +
+        @"\bTRUNCATE\s+(?:TABLE\s+)?[\w"".]+|" +
         @"\bDROP\s+\w+\b|\bALTER\s+TABLE\b|\bCREATE\s+TABLE\b",
         RegexOptions.IgnoreCase)]
     private static partial Regex MutacionEnSql();

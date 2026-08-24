@@ -76,6 +76,27 @@ public static class ModuleExtensions
             sp.GetRequiredService<ProveedorBase>().Valor,
             sp.GetRequiredService<ContadorDeLlamadasDelTurno>()));
 
+        // ---------------------------------------------------------------- carril SQL
+
+        // El proveedor de esquema es SINGLETON porque cachea el prefijo: uno por
+        // turno lo recalcularía en cada request y pagaría escritura de caché del
+        // lado del proveedor sobre el bloque más grande del prompt.
+        services.AddSingleton<IProveedorDeEsquema, ProveedorDeEsquema>();
+
+        // El selector lee el catálogo embebido una sola vez, al construirse.
+        services.AddSingleton<ISelectorDeEjemplos, SelectorDeEjemplos>();
+
+        // La fecha se resuelve UNA VEZ por turno: con alcance de request, un turno
+        // que empieza a las 23:59:59 no puede cambiar de día a la mitad.
+        services.AddScoped<IFechaDeReferencia>(_ =>
+            new FechaDeReferenciaFija(DateOnly.FromDateTime(DateTime.UtcNow)));
+
+        services.AddScoped<IPerfilDelActor, ConsultorDeAlcance>();
+        services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
+        services.AddScoped<GeneradorDeSql>();
+        services.AddScoped<RedactorDeRespuesta>();
+        services.AddScoped<CarrilSql>();
+
         // Cliente HTTP del proveedor, con el reintento de transporte ya puesto.
         // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,
         // pero se registra acá para que esa implementación lo pida por nombre y no
