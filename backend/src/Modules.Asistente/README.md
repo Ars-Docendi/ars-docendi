@@ -151,6 +151,20 @@ controller; sin la conjunción, el asistente heredaría la puerta sin el acotami
 y como `identity.personas` no tiene RLS, un jefe de cátedra leería documento y
 teléfono de todo el padrón.
 
+## Evaluación
+
+La métrica primaria del proyecto —corrección con abstención— se mide con el
+evaluador de [`backend/eval/`](../../eval/README.md).
+
+Está partido en dos por **qué cuesta dinero**: `ArsDocendi.Evaluacion.Nucleo` está
+en la solución y tiene tests en el CI; el ejecutable, que es lo único que
+instancia un proveedor real, está fuera, con un guard adentro que falla si vuelve
+a entrar.
+
+**Al agregar un ejemplo al catálogo** de este módulo, un test verifica que no
+choque con ninguna pregunta del dataset de capacidad. Si chocara, la métrica
+mediría cuán bien el sistema reproduce ejemplos que ya vio.
+
 ## Dependencias
 
 Solo `ArsDocendi.Shared`. No referencia ningún otro módulo ni su propio

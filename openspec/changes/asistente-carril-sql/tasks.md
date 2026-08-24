@@ -39,7 +39,7 @@
 - [x] 3.12 Test: la selección no consume llamadas al modelo, verificado con el techo del turno agotado
 - [x] 3.13 Test: los ejemplos aparecen en el prompt de usuario y el prefijo no cambia con ellos
 - [x] 3.14 Test: la huella del catálogo cambia al agregar un ejemplo
-- [ ] 3.15 La verificación de disjunción con el dataset de capacidad se implementa en el cambio de evaluación, junto con el dataset
+- [x] 3.15 La verificación de disjunción con el dataset de capacidad se implementa en el cambio de evaluación, junto con el dataset — **cerrada** en `asistente-evaluacion`, tarea 3.9
 
 ## 4. Fecha de referencia (ARS-30, primera mitad)
 

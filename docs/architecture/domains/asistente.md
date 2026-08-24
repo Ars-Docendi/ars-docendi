@@ -131,6 +131,23 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-fundaciones/` — roles, manifiesto, permiso, funciones
   del actor, RLS, cadenas tipadas y módulo base
 - `openspec/changes/asistente-carril-sql/` — este carril
+- `openspec/changes/asistente-evaluacion/` — el eje de capacidad y la exclusión del CI
+
+## Evaluación
+
+La métrica primaria del proyecto es **corrección con abstención**, y se mide con el
+evaluador de [`backend/eval/`](../../../backend/eval/README.md).
+
+Está partido en dos por **qué cuesta dinero**, no por qué es «de evaluación»:
+`ArsDocendi.Evaluacion.Nucleo` —generador del fixture, dataset, puntuación,
+preflight, reporte— está en la solución y tiene tests en el CI;
+`ArsDocendi.Evaluacion` —el ejecutable, lo único que instancia un proveedor real—
+está **fuera**, con un guard adentro que falla si vuelve a entrar. El CI corre los
+tests de la solución sin filtro, y el síntoma de olvidarlo sería una factura, no un
+test rojo.
+
+Hoy no se puede correr: no hay ninguna implementación de proveedor de modelo real.
+Está registrado como TD-008.
 
 ## Decisiones registradas
 
