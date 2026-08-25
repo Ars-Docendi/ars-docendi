@@ -96,14 +96,30 @@ public static class PoliticaDeAbstencion
     public const string TextoErrorAlConsultar =
         "No pude completar esa consulta. Probá formulándola de otra manera.";
 
-    /// <summary>Texto de proveedor caído o cuota agotada (caso 6).</summary>
+    /// <summary>Texto de proveedor caído (caso 6).</summary>
     /// <remarks>
-    /// No expone el error crudo del proveedor ni distingue «se cayó» de «se acabó
-    /// la cuota»: las dos cosas se arreglan igual desde el lado de quien pregunta,
-    /// que es esperando.
+    /// No expone el error crudo del proveedor. Tampoco promete un plazo: nadie sabe
+    /// cuánto tarda en volver un servicio de terceros, y «en unos minutos» dicho sin
+    /// saberlo es una promesa que el sistema no puede cumplir.
     /// </remarks>
     public const string TextoServicioDegradado =
-        "El asistente no está disponible en este momento. Probá de nuevo en unos minutos.";
+        "El asistente no está disponible en este momento. Volvé a intentar más tarde.";
+
+    /// <summary>
+    /// Texto de cuota agotada (caso 6, la otra mitad).
+    /// </summary>
+    /// <remarks>
+    /// Este caso arrancó compartiendo texto con el de proveedor caído, con el
+    /// argumento de que desde el lado de quien pregunta los dos se arreglan
+    /// esperando. Con la cuota implementada, el argumento no se sostiene: acá el
+    /// sistema <b>sabe</b> exactamente cuándo vuelve el cupo, y callárselo deja a
+    /// quien pregunta reintentando a ciegas contra algo que no se va a destrabar
+    /// hasta una hora fija.
+    /// </remarks>
+    public static string TextoCuotaAgotada(DateTimeOffset? vuelveA) => vuelveA is { } cuando
+        ? "Alcanzaste tu límite de consultas por ahora. Volvés a tener disponibles a las "
+            + $"{cuando.ToLocalTime():HH:mm}."
+        : "Alcanzaste tu límite de consultas por ahora. Probá de nuevo más tarde.";
 
     /// <summary>
     /// Reglas que se agregan al prompt de redacción según el caso del turno.

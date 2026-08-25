@@ -115,6 +115,71 @@ public sealed class OpcionesAsistente
     public int TopeDeTurnosDelHistorial { get; set; } = 4;
 
     /// <summary>
+    /// Cuánto dura como mucho un turno completo, en segundos (RNF-09).
+    /// </summary>
+    /// <remarks>
+    /// Es la cota punta a punta, no la suma de los timeouts de cada etapa. Cuatro
+    /// llamadas de diez segundos son cuarenta segundos de espera y cada una habría
+    /// respetado su límite: la cota tiene que estar arriba de todas.
+    ///
+    /// Cero o menos lo deja sin cota, que es lo que necesitan los tests que miden
+    /// otra cosa.
+    /// </remarks>
+    public int PresupuestoDelTurnoSegundos { get; set; } = 30;
+
+    /// <summary>
+    /// Cuánto espera como mucho una llamada al proveedor, en segundos.
+    /// </summary>
+    /// <remarks>
+    /// Hoy hay timeout de sentencia y de comando en la ejecución de SQL, y hasta
+    /// esta configuración no había ninguno en las llamadas al modelo: el peor caso
+    /// de un turno no tenía cota superior.
+    /// </remarks>
+    public int TimeoutDeLlamadaSegundos { get; set; } = 20;
+
+    /// <summary>
+    /// Cuántas llamadas al modelo puede consumir un actor en una ventana (RF-20).
+    /// </summary>
+    /// <remarks>
+    /// Se mide en llamadas y no en turnos ni en requests: un turno con reescritor
+    /// cuesta tres. Con el default, un actor tiene alrededor de quince turnos
+    /// completos por ventana.
+    ///
+    /// Cero desactiva la cuota. Es lo que corresponde en desarrollo y en los
+    /// ambientes efímeros, donde el proveedor es el simulado y no cuesta nada.
+    /// </remarks>
+    public int CupoDeLlamadasPorActor { get; set; } = 60;
+
+    /// <summary>Ventana deslizante de la cuota, en minutos.</summary>
+    public int VentanaDeCuotaMinutos { get; set; } = 60;
+
+    /// <summary>
+    /// Fallos seguidos del proveedor que abren el corte.
+    /// </summary>
+    /// <remarks>
+    /// Cuenta fallos de transporte y de timeout, nunca rechazos semánticos: un
+    /// modelo que devuelve una respuesta que el validador descarta está sano.
+    ///
+    /// Cero o menos desactiva el breaker.
+    /// </remarks>
+    public int FallosParaAbrirElBreaker { get; set; } = 5;
+
+    /// <summary>Cuánto se espera antes de volver a probar el proveedor, en segundos.</summary>
+    public int EsperaDelBreakerSegundos { get; set; } = 30;
+
+    /// <summary>
+    /// Cuánto se conservan los registros del asistente, en días (RNF-19).
+    /// </summary>
+    /// <remarks>
+    /// El marco institucional de protección de datos todavía no está definido, así
+    /// que el default es conservador y se ajusta si aparece una política.
+    /// </remarks>
+    public int RetencionDeRegistrosDias { get; set; } = 90;
+
+    /// <summary>Cada cuánto corre la purga, en horas.</summary>
+    public int PeriodoDePurgaHoras { get; set; } = 24;
+
+    /// <summary>
     /// Cuántas veces se reofrece un menú de aclaración antes de abandonarlo.
     /// </summary>
     /// <remarks>

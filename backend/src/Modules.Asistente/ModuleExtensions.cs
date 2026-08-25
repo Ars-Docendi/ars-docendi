@@ -32,6 +32,14 @@ public static class ModuleExtensions
         services.Configure<OpcionesAsistente>(
             configuration.GetSection(OpcionesAsistente.Seccion));
 
+        // TryAdd: si el Host ya registró un TimeProvider, gana el suyo. Los tests
+        // del hilo inyectan uno falso para poder adelantar el reloj sin esperar.
+        //
+        // Va primero porque de él dependen el breaker, la cuota, el presupuesto del
+        // turno y la expiración del hilo: cuatro relojes que en un test tienen que
+        // ser el mismo, o adelantar uno no mueve a los otros.
+        services.TryAddSingleton(TimeProvider.System);
+
         services.AddScoped<IMigradorModulo, MigradorAsistente>();
 
         // Las dos cadenas de solo lectura se DERIVAN de la del dueño: mismo host,
@@ -71,11 +79,43 @@ public static class ModuleExtensions
         services.AddScoped(sp => new ContadorDeLlamadasDelTurno(
             sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.MaximoDeLlamadasPorTurno));
 
+        // ------------------------------------------- presupuesto y degradación
+
+        // El breaker es SINGLETON: el estado del proveedor es del proceso, no del
+        // request. Uno por turno no acumularía ningún fallo y nunca abriría.
+        services.AddSingleton<BreakerDelProveedor>();
+
+        // La cuota también, y por lo mismo: la ventana deslizante de un actor tiene
+        // que sobrevivir a sus turnos.
+        services.AddSingleton<ICuotaDelActor, CuotaEnMemoria>();
+        services.AddSingleton<IDisponibilidadDelModelo, DisponibilidadDelModeloReal>();
+
         // Nadie puede pedir el proveedor sin pasar por el techo: la interfaz solo
         // resuelve al decorador.
-        services.AddScoped<IProveedorDeModelo>(sp => new ProveedorConTechoDeLlamadas(
-            sp.GetRequiredService<ProveedorBase>().Valor,
-            sp.GetRequiredService<ContadorDeLlamadasDelTurno>()));
+        //
+        // El orden va de afuera hacia adentro de más barato a más caro:
+        //
+        //     techo del turno  →  breaker + timeout  →  proveedor real
+        //
+        // Invertir los dos primeros haría que el breaker registrara intentos que el
+        // techo iba a rechazar igual, y un solo turno desbocado terminaría abriendo
+        // el corte para todos los demás.
+        //
+        // La cuota NO está en esta cadena: la cobra la capa conversacional, que es
+        // lo único que conoce al actor. Meterla acá exigiría un objeto de request
+        // mutable con el actor adentro, leído por capas que no lo declaran.
+        services.AddScoped<IProveedorDeModelo>(sp =>
+        {
+            var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+
+            return new ProveedorConTechoDeLlamadas(
+                new ProveedorConBreaker(
+                    sp.GetRequiredService<ProveedorBase>().Valor,
+                    sp.GetRequiredService<BreakerDelProveedor>(),
+                    TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
+                    sp.GetRequiredService<TimeProvider>()),
+                sp.GetRequiredService<ContadorDeLlamadasDelTurno>());
+        });
 
         // ---------------------------------------------------------------- carril SQL
 
@@ -106,10 +146,6 @@ public static class ModuleExtensions
         services.AddScoped<CarrilSql>();
 
         // ---------------------------------------------- capa conversacional
-
-        // TryAdd: si el Host ya registró un TimeProvider, gana el suyo. Los tests
-        // del hilo inyectan uno falso para poder adelantar el reloj sin esperar.
-        services.TryAddSingleton(TimeProvider.System);
 
         // Singletons los dos, y por motivos distintos. El almacén de hilos ES el
         // estado conversacional: registrarlo con scope lo perdería entre requests,

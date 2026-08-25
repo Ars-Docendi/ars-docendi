@@ -35,12 +35,24 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
     /// <summary>Excepción que lanza en vez de responder, si se le pone una.</summary>
     public Exception? Falla { get; init; }
 
+    /// <summary>
+    /// Qué hacer justo antes de contestar, si hace falta.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que permite simular una llamada lenta contra un reloj falso: el gancho
+    /// adelanta el reloj y el turno vive el paso del tiempo sin esperarlo.
+    /// </remarks>
+    public Action? Antes { get; init; }
+
     public Task<RespuestaDelModelo> CompletarAsync(SolicitudAlModelo solicitud, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
         ct.ThrowIfCancellationRequested();
 
         _recibidas.Add(solicitud);
+
+        Antes?.Invoke();
+        ct.ThrowIfCancellationRequested();
 
         if (Falla is not null)
         {

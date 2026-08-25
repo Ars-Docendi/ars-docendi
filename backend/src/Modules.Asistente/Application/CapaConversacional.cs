@@ -23,6 +23,9 @@ public sealed class CapaConversacional(
     IIndiceDeEntidades indice,
     ReescritorDePreguntas reescritor,
     CarrilSql carril,
+    IDisponibilidadDelModelo disponibilidad,
+    ICuotaDelActor cuota,
+    ContadorDeLlamadasDelTurno contador,
     IOptions<OpcionesAsistente> opciones,
     TimeProvider reloj,
     ILogger<CapaConversacional> log)
@@ -40,8 +43,59 @@ public sealed class CapaConversacional(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
-        var conversacion = hilos.Resolver(hilo, actor);
         var valores = opciones.Value;
+
+        // LA COTA DEL TURNO. Una sola, punta a punta, encadenada al token del
+        // request. No es la suma de los timeouts de las etapas: cuatro llamadas de
+        // diez segundos son cuarenta segundos de espera y cada una habría respetado
+        // su límite.
+        using var presupuesto = PresupuestoDelTurno.Abrir(
+            ct, TimeSpan.FromSeconds(valores.PresupuestoDelTurnoSegundos), reloj);
+
+        var conversacion = hilos.Resolver(hilo, actor);
+
+        try
+        {
+            return await ResolverAsync(actor, conversacion, mensaje, valores, presupuesto.Token);
+        }
+        catch (OperationCanceledException) when (presupuesto.Vencio)
+        {
+            // Se acabó el tiempo del turno. Para quien preguntó, «no llegué a
+            // tiempo» es una respuesta; una cancelación cruda no lo es.
+            log.LogWarning(
+                "El turno del asistente agotó su presupuesto de {Segundos}s.",
+                valores.PresupuestoDelTurnoSegundos);
+
+            return Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
+        }
+        finally
+        {
+            // Se anota en `finally` para que un turno que se cayó a la mitad pague
+            // igual las llamadas que llegó a emitir. Cobrar solo los turnos que
+            // terminan bien haría del fallo una forma de consultar gratis.
+            cuota.Anotar(actor, contador.Llamadas);
+        }
+    }
+
+    private async Task<ResultadoDelTurno> ResolverAsync(
+        Guid actor,
+        HiloConversacional conversacion,
+        string mensaje,
+        OpcionesAsistente valores,
+        CancellationToken ct)
+    {
+        // EL VEREDICTO SOBRE EL MODELO, resuelto una sola vez y ANTES del pipeline.
+        // No corta el turno: los cinco pasos que no necesitan proveedor siguen
+        // corriendo. Tratarlo como excepción apagaría el saludo a cero tokens y el
+        // menú de aclaración justo cuando son lo único que queda en pie.
+        var motivo = disponibilidad.Consultar(actor);
+        var hayModelo = motivo == MotivoSinModelo.Ninguno;
+
+        if (!hayModelo)
+        {
+            log.LogInformation(
+                "El turno corre sin modelo disponible ({Motivo}).", motivo);
+        }
 
         // 1 — CARRIL SIN DATOS. Se saltea entero si hay una aclaración pendiente:
         // con un menú abierto, un «gracias» le robaría la respuesta al menú y la
@@ -84,8 +138,13 @@ public sealed class CapaConversacional(
             historial = [];
         }
 
-        // 4 — REESCRITURA. Única llamada al modelo de esta capa.
-        var interpretada = await reescritor.ReescribirAsync(pregunta, historial, ct);
+        // 4 — REESCRITURA. Única llamada al modelo de esta capa, y por eso el único
+        // paso de acá que se saltea sin modelo. Sin él la pregunta sigue cruda: un
+        // seguimiento con anáfora va a resolver peor, pero un turno autocontenido
+        // —que es la mayoría— no pierde nada.
+        var interpretada = hayModelo
+            ? await reescritor.ReescribirAsync(pregunta, historial, ct)
+            : pregunta;
 
         // 5 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis
         // Matemático?» no contiene ninguna entidad ambigua hasta que se la
@@ -97,7 +156,14 @@ public sealed class CapaConversacional(
             return NecesitaAclaracion(conversacion, aclaracion, interpretada, mensaje);
         }
 
-        // 6 — CARRIL SQL.
+        // 6 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin
+        // generación no hay consulta, y sin consulta no hay nada que ejecutar. Se
+        // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
+        if (!hayModelo)
+        {
+            return Degradado(conversacion, TextoSinModelo(actor, motivo));
+        }
+
         var aMostrar = string.Equals(interpretada, mensaje, StringComparison.Ordinal)
             ? null
             : interpretada;
@@ -183,6 +249,34 @@ public sealed class CapaConversacional(
             LlamadasAlModelo: 0,
             conversacion.Id,
             aclaracion.Opciones);
+
+    /// <summary>
+    /// El texto de la degradación, que distingue las dos causas.
+    /// </summary>
+    /// <remarks>
+    /// Distinguirlas no es cosmético. Con la cuota agotada el sistema <b>sabe</b>
+    /// cuándo vuelve el cupo; con el proveedor caído no lo sabe nadie. Decir «probá
+    /// en unos minutos» en el primer caso manda a reintentar a ciegas contra algo
+    /// que no se destraba hasta una hora fija.
+    /// </remarks>
+    private string TextoSinModelo(Guid actor, MotivoSinModelo motivo) =>
+        motivo == MotivoSinModelo.CuotaAgotada
+            ? PoliticaDeAbstencion.TextoCuotaAgotada(disponibilidad.CupoVuelveA(actor))
+            : PoliticaDeAbstencion.TextoServicioDegradado;
+
+    /// <summary>Un turno que termina sin modelo: cero llamadas al proveedor.</summary>
+    private static ResultadoDelTurno Degradado(HiloConversacional conversacion, string texto) =>
+        new(EstadoDelTurno.ServicioDegradado,
+            texto,
+            Razonamiento: string.Empty,
+            PreguntaInterpretada: null,
+            [],
+            [],
+            Truncado: false,
+            [],
+            GeneracionDeSql.CategoriaNoContestable,
+            LlamadasAlModelo: 0,
+            conversacion.Id);
 
     /// <summary>Un turno del carril sin datos: cero llamadas al modelo.</summary>
     private static ResultadoDelTurno SinDatos(HiloConversacional conversacion, string texto) =>

@@ -92,6 +92,18 @@ public sealed class CarrilSql(
             log.LogWarning("El turno del asistente agotó su techo de llamadas al modelo.");
             return Degradado(aMostrar);
         }
+        catch (ProveedorNoDisponible)
+        {
+            // El breaker cortó el paso. No es un fallo de este turno: es el sistema
+            // no gastando una llamada contra un proveedor que ya sabe caído.
+            log.LogInformation("El corte al proveedor del modelo sigue abierto.");
+            return Degradado(aMostrar);
+        }
+        catch (TimeoutDelProveedor excepcion)
+        {
+            log.LogWarning(excepcion, "El proveedor del modelo agotó el tiempo de la llamada.");
+            return Degradado(aMostrar);
+        }
         catch (HttpRequestException excepcion)
         {
             log.LogWarning(excepcion, "El proveedor del modelo no respondió.");

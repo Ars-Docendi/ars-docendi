@@ -289,46 +289,15 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private sealed record Aparejo(
-        IAlmacenDeHilos Hilos,
-        ProveedorGuionado Proveedor,
-        Func<CapaConversacional> Capa);
-
-    private Aparejo Banco(params string[] guion) =>
+    private BancoDelAsistente Banco(params string[] guion) =>
         Banco(NuevosHilos(), guion);
 
-    private Aparejo Banco(IAlmacenDeHilos hilos, params string[] guion)
+    private BancoDelAsistente Banco(IAlmacenDeHilos hilos, params string[] guion)
     {
-        var proveedor = new ProveedorGuionado(guion);
         var (basica, pii) = CadenasDeLectura();
-        var opciones = Options.Create(new OpcionesAsistente());
-        var contador = new ContadorDeLlamadasDelTurno(
-            new OpcionesAsistente().MaximoDeLlamadasPorTurno);
-        var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
 
-        var carril = new CarrilSql(
-            new GeneradorDeSql(
-                new ProveedorDeEsquema(basica, pii),
-                new SelectorDeEjemplos(),
-                conTecho,
-                new FechaDeReferenciaFija(new DateOnly(2026, 8, 25))),
-            new EjecutorDeConsulta(basica, pii, ClasificadorDeSensibilidad(), opciones),
-            new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho),
-            contador,
-            NullLogger<CarrilSql>.Instance);
-
-        return new Aparejo(
-            hilos,
-            proveedor,
-            () => new CapaConversacional(
-                hilos,
-                new IndiceDeEntidades(basica),
-                new ReescritorDePreguntas(conTecho),
-                carril,
-                opciones,
-                TimeProvider.System,
-                NullLogger<CapaConversacional>.Instance));
+        return BancoDelAsistente.Armar(
+            basica, pii, ClasificadorDeSensibilidad(), hilos: hilos, guion: guion);
     }
 
     private IAlmacenDeHilos NuevosHilos() =>
