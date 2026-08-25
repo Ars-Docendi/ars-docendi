@@ -46,10 +46,24 @@
     <EmbeddedResource Include="@(SqlAsistente)" Link="Sql\asistente\%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!--
+    Manifiesto de sensibilidad. Vive en database/asistente/ y no acá, junto al de
+    privilegios: los dos clasifican las mismas columnas y se leen juntos, así que
+    separarlos hace que quien agregue una columna se olvide de uno. Se embebe por
+    el mismo mecanismo que el DDL para que el modulo no dependa del layout del
+    despliegue.
+  -->
+  <ItemGroup>
+    <ManifiestoAsistente Include="$(MSBuildThisFileDirectory)..\..\..\database\asistente\manifiesto-sensibilidad.json" />
+    <EmbeddedResource Include="@(ManifiestoAsistente)" Link="Sql\asistente\%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Un glob vacío compila en silencio y el fallo aparece recién al migrar. -->
   <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
     <Error Condition="'@(SqlAsistente)' == ''"
            Text="No se encontró ningún .sql en database/asistente/. El DDL se embebe como recurso de este assembly, así que sin esos archivos los privilegios del asistente no se aplican. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+    <Error Condition="'@(ManifiestoAsistente)' == ''"
+           Text="No se encontró database/asistente/manifiesto-sensibilidad.json. El manifiesto gobierna qué columnas se enmascaran antes de mandarlas al proveedor del modelo; sin él, el enmascarador no tiene con qué decidir. Falla en build a propósito: descubrirlo en runtime significaría haber mandado datos personales afuera." />
   </Target>
 
 </Project>
