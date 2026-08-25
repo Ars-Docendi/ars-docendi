@@ -110,6 +110,50 @@ instrucción del prompt.
 Restricción dura: ninguna respuesta declara cuántas filas quedaron afuera. El
 indicador de truncado es un booleano y no un número.
 
+### La frontera de salida
+
+Los `GRANT` deciden **quién puede leer qué**, y eso lo impone el motor. El
+enmascarador decide **qué sale hacia un tercero**, que es una pregunta distinta: un
+actor puede tener todo el derecho a ver un teléfono en pantalla y no haber ninguna
+razón para que ese teléfono llegue al proveedor del modelo.
+
+Se interpone entre la ejecución de la SQL y la llamada de redacción. Las filas que
+llegan al modelo van enmascaradas; las reales siguen viaje al llamador.
+
+`database/asistente/manifiesto-sensibilidad.json` —hermano del de privilegios—
+clasifica cada columna legible en tres categorías:
+
+| Categoría        | Qué pasa                                                                |
+| ---------------- | ----------------------------------------------------------------------- |
+| `publica`        | Viaja al modelo tal cual                                                |
+| `sensible-valor` | Al modelo va un marcador estable; el valor real sigue viaje al llamador |
+| `sensible-texto` | No viaja en absoluto: se suprime la columna entera, nombre incluido     |
+
+La tercera es para texto libre —`pedido_historial.comentario`,
+`pedidos.justificacion`, `pedidos.tipo_baja_detalle`—, donde redactar con reglas es
+frágil y no mandarlo es simple: un comentario de rechazo puede nombrar a cualquiera.
+
+**Cómo se identifica la columna.** No por su nombre en el resultado, que es el
+alias que eligió la consulta generada: un `SELECT p.documento AS codigo` produce una
+columna llamada `codigo`, y comparar nombres la dejaría pasar entera. Se usa el par
+`(OID de tabla, número de atributo)` que PostgreSQL emite en la descripción de
+filas, que identifica el origen sin importar el alias y sobrevive tanto a la
+envoltura en subconsulta del ejecutor como a un `WITH`. El riesgo residual —una
+expresión sobre una columna personal deja el par vacío— está en TD-009.
+
+**El marcador es un contador, no un hash del valor.** Un hash de un documento se
+invierte por fuerza bruta en segundos, así que viajaría al proveedor y sería el
+dato con un paso más. El contador es por orden de primera aparición, lleva la
+etiqueta del manifiesto —`«documento 1»`— y no sobrevive al turno.
+
+**Consecuencia de diseño**: con columnas sensibles, la narración deja de ser el
+vehículo del dato. El modelo redacta el marco («encontré 4 docentes») y el dato lo
+renderiza la interfaz.
+
+**El enmascaramiento es asimétrico.** La pregunta cruda del usuario viaja al
+proveedor a través de la generación: si alguien tipea un documento en la pregunta,
+llega al modelo igual. Protege el camino de vuelta, no el de ida.
+
 ## Reglas de negocio (BR-\*)
 
 Ninguna propia. El asistente no decide nada del dominio: expone lo que otros

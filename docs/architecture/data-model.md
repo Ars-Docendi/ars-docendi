@@ -203,6 +203,8 @@ Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_na
 
 **Deny-by-default verificable**: `database/asistente/manifiesto-privilegios.json` enumera toda tabla de los schemas expuestos y toda columna de las concedidas. Un test compara ese manifiesto contra los privilegios efectivos en tres direcciones y falla si divergen: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar. Una tabla nueva rompe el CI en vez de quedar concedida en silencio.
 
+**Qué sale hacia afuera** es una pregunta distinta de quién puede leer qué, y tiene su propio manifiesto: `database/asistente/manifiesto-sensibilidad.json` clasifica cada columna concedida en `publica`, `sensible-valor` —al proveedor del modelo va un marcador, el valor real va al llamador— o `sensible-texto`, que no viaja en absoluto. Las cuatro columnas personales de `identity.personas` y el correo institucional de `identity.users` son `sensible-valor`; las tres columnas de texto libre del trámite son `sensible-texto`. Un test falla si una columna concedida queda sin clasificar, y otro si el manifiesto clasifica una que nadie concede.
+
 ### Row Level Security sobre el trámite
 
 `designaciones.pedidos`, `designaciones.designaciones`, `pedido_historial` y `pedido_adjuntos` llevan **`ENABLE ROW LEVEL SECURITY`** con una policy `FOR SELECT` cada una. El predicado conjunta dos condiciones:

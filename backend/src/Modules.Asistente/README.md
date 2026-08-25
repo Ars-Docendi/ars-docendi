@@ -29,7 +29,7 @@ aparece un agregado que le pertenezca, se crea entonces.
 
 ## El carril SQL
 
-Dos llamadas al modelo por turno y siete piezas deterministas alrededor. La
+Dos llamadas al modelo por turno y ocho piezas deterministas alrededor. La
 asimetría es deliberada: cada pieza determinista que se agrega al medio es una
 pieza que no puede alucinar.
 
@@ -48,12 +48,40 @@ CarrilSql.ResponderAsync(actor, mensaje, preguntaInterpretada)
   │
   ├─ IEjecutorDeConsulta    ──► transacción nueva READ ONLY, actor transaction-local,
   │                             LIMIT tope+1, fila sonda descartada
+  │                             clasifica cada columna por (OID, attnum) del motor
+  │                             42501 del motor → abstención, nunca error crudo
   │
   ├─ PoliticaDeAbstencion   ──► vacío + actor global → un reintento de generación
   │                             vacío + actor acotado → respuesta SIN segunda llamada
   │
+  ├─ Enmascarador           ──► FRONTERA DE SALIDA · lo que va al modelo va tapado,
+  │                             lo real sigue viaje al llamador
+  │
   └─ RedactorDeRespuesta    ──► LLAMADA 2 · temperatura 0,3 · sin caché
 ```
+
+### La frontera de salida
+
+Los `GRANT` deciden quién puede **leer** qué. El enmascarador decide qué **sale
+hacia un tercero**, que es otra pregunta: un actor puede tener todo el derecho a
+ver un teléfono en pantalla y no haber ninguna razón para que llegue al proveedor.
+
+`database/asistente/manifiesto-sensibilidad.json` clasifica cada columna legible en
+`publica`, `sensible-valor` (al modelo va `«documento 1»`, el valor real va al
+llamador) o `sensible-texto` (se suprime la columna entera, nombre incluido).
+
+La columna se identifica por el par `(OID de tabla, número de atributo)` que emite
+el motor, **no por su nombre en el resultado**: ese nombre es el alias que eligió la
+consulta generada, y un `SELECT p.documento AS codigo` lo dejaría pasar entero.
+
+El marcador es un contador por orden de aparición, no un hash del valor: un hash de
+un documento se invierte por fuerza bruta en segundos.
+
+**Es asimétrico**: la pregunta cruda del usuario viaja al proveedor a través de la
+generación. Protege el camino de vuelta, no el de ida.
+
+El caso que el par no cubre —una expresión sobre una columna personal— está en
+TD-009.
 
 ### Cómo se agrega un ejemplo al catálogo
 
