@@ -41,20 +41,8 @@
       "tabla": "carreras",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "code",
-          "name",
-          "is_active",
-          "created_at"
-        ],
-        "asistente_ro_pii": [
-          "id",
-          "code",
-          "name",
-          "is_active",
-          "created_at"
-        ]
+        "asistente_ro": ["id", "code", "name", "is_active", "created_at"],
+        "asistente_ro_pii": ["id", "code", "name", "is_active", "created_at"]
       },
       "columnas_denegadas": []
     },
@@ -63,22 +51,8 @@
       "tabla": "materias",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "code",
-          "name",
-          "carrera_id",
-          "is_active",
-          "created_at"
-        ],
-        "asistente_ro_pii": [
-          "id",
-          "code",
-          "name",
-          "carrera_id",
-          "is_active",
-          "created_at"
-        ]
+        "asistente_ro": ["id", "code", "name", "carrera_id", "is_active", "created_at"],
+        "asistente_ro_pii": ["id", "code", "name", "carrera_id", "is_active", "created_at"]
       },
       "columnas_denegadas": []
     },
@@ -87,13 +61,7 @@
       "tabla": "personas",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "legajo",
-          "nombre",
-          "apellido",
-          "created_at"
-        ],
+        "asistente_ro": ["id", "legajo", "nombre", "apellido", "created_at"],
         "asistente_ro_pii": [
           "id",
           "legajo",
@@ -207,20 +175,8 @@
       "tabla": "permisos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "code",
-          "nombre",
-          "descripcion",
-          "created_at"
-        ],
-        "asistente_ro_pii": [
-          "id",
-          "code",
-          "nombre",
-          "descripcion",
-          "created_at"
-        ]
+        "asistente_ro": ["id", "code", "nombre", "descripcion", "created_at"],
+        "asistente_ro_pii": ["id", "code", "nombre", "descripcion", "created_at"]
       },
       "columnas_denegadas": []
     },
@@ -229,16 +185,8 @@
       "tabla": "rol_permisos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "rol_id",
-          "permiso_id",
-          "created_at"
-        ],
-        "asistente_ro_pii": [
-          "rol_id",
-          "permiso_id",
-          "created_at"
-        ]
+        "asistente_ro": ["rol_id", "permiso_id", "created_at"],
+        "asistente_ro_pii": ["rol_id", "permiso_id", "created_at"]
       },
       "columnas_denegadas": []
     },
@@ -247,15 +195,7 @@
       "tabla": "cargos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "codigo",
-          "nombre",
-          "abreviatura",
-          "orden",
-          "activo",
-          "created_at"
-        ],
+        "asistente_ro": ["id", "codigo", "nombre", "abreviatura", "orden", "activo", "created_at"],
         "asistente_ro_pii": [
           "id",
           "codigo",
@@ -357,20 +297,8 @@
       "tabla": "pedido_adjuntos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": [
-          "id",
-          "pedido_id",
-          "tipo",
-          "nombre",
-          "created_at"
-        ],
-        "asistente_ro_pii": [
-          "id",
-          "pedido_id",
-          "tipo",
-          "nombre",
-          "created_at"
-        ]
+        "asistente_ro": ["id", "pedido_id", "tipo", "nombre", "created_at"],
+        "asistente_ro_pii": ["id", "pedido_id", "tipo", "nombre", "created_at"]
       },
       "columnas_denegadas": [
         {
