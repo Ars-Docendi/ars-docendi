@@ -122,6 +122,34 @@ public static class PoliticaDeAbstencion
         : "Alcanzaste tu límite de consultas por ahora. Probá de nuevo más tarde.";
 
     /// <summary>
+    /// Los límites del asistente, tal como se los cuenta al usuario (RF-04).
+    /// </summary>
+    /// <remarks>
+    /// Son literales, y conviene decir por qué cuando todo el resto del catálogo de
+    /// capacidades se deriva de la base: <b>no son datos, son propiedades del
+    /// sistema</b>. «No escribe» no sale de ningún GRANT que se pueda consultar —sale
+    /// de que no existe ningún GRANT de escritura, que es una ausencia—, y «no
+    /// consulta fuentes externas» sale de que no hay ninguna integración. Derivarlos
+    /// exigiría inferir una negación de la falta de evidencia.
+    ///
+    /// Los tres están verificados por otros tests: el primero por los guards de
+    /// arquitectura del módulo, el segundo por la única referencia de proyecto del
+    /// csproj, y el tercero por los tests de RLS y de privilegios por columna.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> LimitesDelAsistente =
+    [
+        "No modifica nada: solo consulta. No puede cargar, aprobar ni cambiar el estado de un trámite.",
+        "Solo consulta datos de este sistema. No accede a Guaraní, a planillas ni a ninguna otra fuente.",
+        "Solo te muestra lo que tu rol ya puede ver. Si algo no aparece, puede existir y estar fuera de tu alcance.",
+        "No inventa: si no puede responder con lo que ve, lo dice.",
+    ];
+
+    /// <summary>Cómo se le describe al actor el alcance de lo que ve.</summary>
+    public static string TextoDeAlcance(bool esGlobal) => esGlobal
+        ? "Ves los datos de todo el Departamento."
+        : "Ves los datos de tu ámbito: las materias y carreras que tenés asignadas.";
+
+    /// <summary>
     /// Reglas que se agregan al prompt de redacción según el caso del turno.
     /// </summary>
     /// <remarks>

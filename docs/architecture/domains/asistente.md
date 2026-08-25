@@ -62,13 +62,79 @@ o se declara la excepción.
 
 ## Endpoints HTTP
 
-| Método | Path                  | Rol       | Descripción  |
-| ------ | --------------------- | --------- | ------------ |
-| GET    | `/api/asistente/ping` | (anónimo) | Health check |
+| Método | Path                         | Permiso               | Qué                                          |
+| ------ | ---------------------------- | --------------------- | -------------------------------------------- |
+| GET    | `/api/asistente/ping`        | (anónimo)             | Smoke test, sin base ni proveedor            |
+| POST   | `/api/asistente/consultas`   | `asistente.consultar` | Un turno. Exige `Idempotency-Key`            |
+| GET    | `/api/asistente/capacidades` | `asistente.consultar` | Qué puede hacer el asistente para este actor |
 
-El endpoint del turno —`POST /api/asistente/consultas`— llega con la épica de
-superficie de usuario, junto con el contrato de cuatro estados y la
-`Idempotency-Key`. Hoy el carril es un servicio del módulo.
+El ping vive en su **propio controller, sin constructor**. Estuvo junto al turno hasta
+que ése ganó dependencias, y ahí se rompió: construir el controller pasó a exigir las
+cadenas de solo lectura —cuya fábrica falla si el ambiente no las configuró— y el ping
+devolvía 500 sin base. Un ping que necesita configuración de base deja de poder
+distinguir «el módulo está cargado» de «la base responde», que es lo único que el
+invariante #3 le pide. Hay un guard que lo fija.
+
+### El contrato de respuesta
+
+Cuatro estados, y **el tercero no se colapsa contra el segundo**: «no contestable»
+significa que la pregunta no se puede responder nunca; «necesita aclaración» significa
+que se puede en cuanto el usuario elija. Colapsarlos hace que el asistente diga «no
+puedo» cuando corresponde «¿cuál de estas?».
+
+Por el mismo motivo, `opciones` y `sugerencias` son campos **separados**: las opciones
+bloquean el turno esperando una elección, las sugerencias son próximos pasos y no
+bloquean nada. Un solo campo para las dos cosas borra el tercer estado.
+
+Las sugerencias salen del **catálogo de ejemplos verificados** y no del modelo. Pedirlas
+al modelo costaría una llamada más justo en el camino donde el sistema ya decidió que no
+puede responder, y produciría preguntas que no se sabe si funcionan; las del catálogo
+tienen su consulta al lado y pasan el validador. Una sugerencia que no funciona convierte
+un rechazo honesto en dos, y el segundo con la pregunta que el propio sistema propuso.
+
+### La consulta generada, detrás de un permiso
+
+`asistente.ver_consulta` se siembra y **no se le concede a ningún rol**. No es prudencia
+genérica: el `WHERE` de una consulta generada puede llevar un documento, un legajo o un
+nombre, así que verla es ver datos que la respuesta redactada no muestra.
+
+Quién necesita eso es una decisión del Departamento y no de quien escribe la migración.
+Un permiso concedido de arranque es difícil de quitar; uno vacío se concede en treinta
+segundos desde `/membresia-roles` cuando alguien lo pide, y queda registrado quién.
+
+El chequeo vive donde se arma la respuesta y no en el borde HTTP: puesto arriba,
+cualquier camino nuevo tendría que acordarse de tapar el campo.
+
+### El catálogo de capacidades
+
+Una caja de texto libre sin descubrimiento es una falsa promesa: el usuario no sabe qué
+preguntar, y averiguarlo le cuesta un turno que termina en rechazo.
+
+> **Se deriva de los GRANT efectivos, NUNCA del payload del prompt.**
+
+El esquema se inyecta entero en el prompt, columnas personales incluidas. Un catálogo
+derivado de ahí ofrecería preguntas sobre columnas que el rol del usuario no puede leer:
+la consulta terminaría en `permission denied`, pero el daño ya está hecho — el catálogo
+le habría dicho que esos datos existen y que el asistente los tiene.
+
+Sale de preguntarle a la base «¿qué puedo leer **yo**?», con `has_column_privilege`
+contra `current_user`. Los dos roles obtienen catálogos distintos sin que el código sepa
+nada de ellos.
+
+**Los ejemplos los valida el motor.** Cada candidato se pasa por `EXPLAIN` con la
+conexión del actor: `EXPLAIN` sin `ANALYZE` arranca el ejecutor —y por lo tanto chequea
+privilegios— pero no lee ninguna fila. Es más caro que consultar una lista de ejemplos
+marcados «seguros», y es lo correcto: una lista se desincroniza del `GRANT` en silencio,
+y el modo de falla de esa desincronización es ofrecerle al usuario una pregunta que no
+puede hacer.
+
+**El ámbito va aparte de los conteos**: cambia qué filas se ven, no qué se puede
+preguntar. Meterlo en los conteos los haría mentir en las dos direcciones.
+
+**La meta-pregunta dejó de tener texto fijo.** «¿Qué podés hacer?» se respondía con un
+párrafo escrito a mano que enumeraba cinco áreas sin que nada comprobara que el rol de
+quien preguntaba pudiera leerlas. Ahora la responde el catálogo real, y sigue costando
+cero tokens.
 
 ## El carril SQL
 
@@ -350,6 +416,7 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-enmascaramiento/` — el manifiesto de sensibilidad y la frontera de salida
 - `openspec/changes/asistente-capa-conversacional/` — el hilo, lo social, la aclaración y el seguimiento
 - `openspec/changes/asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
+- `openspec/changes/asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
 
 ## Evaluación
 

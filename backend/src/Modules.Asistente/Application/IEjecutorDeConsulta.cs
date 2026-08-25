@@ -29,7 +29,8 @@ public interface IEjecutorDeConsulta
 /// <param name="VeDatosPersonales">
 /// Si corresponde usar la conexión con acceso a las columnas personales.
 /// </param>
-public sealed record PerfilDelActor(bool EsGlobal, bool VeDatosPersonales);
+public sealed record PerfilDelActor(
+    bool EsGlobal, bool VeDatosPersonales, bool VeLaConsulta = false);
 
 /// <summary>
 /// Resuelve el alcance y el acceso a datos personales del actor.

@@ -23,6 +23,8 @@ public sealed class CapaConversacional(
     IIndiceDeEntidades indice,
     ReescritorDePreguntas reescritor,
     CarrilSql carril,
+    ISelectorDeEjemplos ejemplos,
+    ICatalogoDeCapacidades capacidades,
     IRegistroDelTurno registro,
     IDisponibilidadDelModelo disponibilidad,
     ICuotaDelActor cuota,
@@ -158,6 +160,23 @@ public sealed class CapaConversacional(
         if (conversacion.AclaracionPendiente is null)
         {
             var intencion = EnrutadorSocial.Clasificar(mensaje);
+
+            // La meta-pregunta se responde con el catálogo REAL y no con un texto
+            // fijo. Un texto escrito a mano es una promesa sobre capacidades que
+            // nadie verifica, y se desactualiza en silencio con cada GRANT.
+            //
+            // Sigue costando cero tokens: el catálogo sale de la base y del catálogo
+            // de ejemplos, no del modelo.
+            if (intencion == IntencionSocial.Meta)
+            {
+                var puede = await capacidades.ObtenerAsync(actor, ct);
+
+                return SinDatos(
+                    conversacion,
+                    RedaccionDeCapacidades.Texto(puede),
+                    puede.Ejemplos);
+            }
+
             if (intencion != IntencionSocial.Ninguna)
             {
                 return SinDatos(conversacion, EnrutadorSocial.Responder(intencion));
@@ -280,7 +299,8 @@ public sealed class CapaConversacional(
                 [],
                 GeneracionDeSql.CategoriaNoContestable,
                 LlamadasAlModelo: 0,
-                conversacion.Id));
+                conversacion.Id,
+                Sugerencias: Sugerencias.Para(pendiente.PreguntaOriginal, ejemplos)));
         }
 
         return (mensaje, NecesitaAclaracion(
@@ -334,7 +354,16 @@ public sealed class CapaConversacional(
             conversacion.Id);
 
     /// <summary>Un turno del carril sin datos: cero llamadas al modelo.</summary>
-    private static ResultadoDelTurno SinDatos(HiloConversacional conversacion, string texto) =>
+    /// <remarks>
+    /// Las sugerencias viajan acá aunque el turno esté respondido, y no es una
+    /// contradicción con el rechazo cooperativo: las sugerencias no bloquean. Son
+    /// los ejemplos ejecutables que acompañan a la meta-pregunta, y es lo que hace
+    /// que «¿qué podés hacer?» termine en algo clicable en vez de en un párrafo.
+    /// </remarks>
+    private static ResultadoDelTurno SinDatos(
+        HiloConversacional conversacion,
+        string texto,
+        IReadOnlyList<string>? sugerencias = null) =>
         new(EstadoDelTurno.Respondida,
             texto,
             Razonamiento: string.Empty,
@@ -345,5 +374,6 @@ public sealed class CapaConversacional(
             [],
             GeneracionDeSql.CategoriaNoContestable,
             LlamadasAlModelo: 0,
-            conversacion.Id);
+            conversacion.Id,
+            Sugerencias: sugerencias);
 }

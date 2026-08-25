@@ -22,6 +22,7 @@ public sealed class CarrilSql(
     IEjecutorDeConsulta ejecutor,
     IPerfilDelActor perfiles,
     RedactorDeRespuesta redactor,
+    ISelectorDeEjemplos ejemplos,
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
@@ -73,7 +74,7 @@ public sealed class CarrilSql(
             // «no tenés acceso a eso» es una respuesta, no una falla.
             log.LogWarning(
                 "El motor rechazó la lectura por falta de privilegio del rol del asistente.");
-            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
+            return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
         }
         catch (PostgresException excepcion)
         {
@@ -83,7 +84,7 @@ public sealed class CarrilSql(
             // respuesta.
             log.LogWarning(
                 excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.SqlState);
-            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
+            return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
         }
         catch (TechoDeLlamadasSuperado)
         {
@@ -132,7 +133,8 @@ public sealed class CarrilSql(
         {
             // Corta acá: sin consulta no hay nada que ejecutar y no hay nada que
             // redactar, así que la segunda llamada no se hace.
-            return NoContestable(generacion, aMostrar, PoliticaDeAbstencion.TextoNoContestable);
+            return NoContestable(
+                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoNoContestable);
         }
 
         var veredicto = ValidadorDeSql.Validar(generacion.Sql);
@@ -144,7 +146,7 @@ public sealed class CarrilSql(
                 "El validador rechazó la consulta generada: {Motivo}", veredicto.Motivo);
 
             return NoContestable(
-                generacion, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador);
+                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador);
         }
 
         var resultado = await ejecutor.EjecutarAsync(
@@ -157,7 +159,7 @@ public sealed class CarrilSql(
         }
 
         return resultado.EstaVacio
-            ? Vacio(generacion, aMostrar, perfil.EsGlobal)
+            ? Vacio(generacion, aMostrar, perfil)
             : await RedactadoAsync(mensaje, generacion, aMostrar, resultado, perfil, ct);
     }
 
@@ -220,7 +222,8 @@ public sealed class CarrilSql(
             resultado.Truncado,
             [.. Enumerable.Range(0, resultado.Columnas.Count).Select(resultado.SensibilidadDe)],
             generacion.Categoria,
-            contador.Llamadas);
+            contador.Llamadas,
+            Sql: LaConsulta(generacion, perfil));
     }
 
     /// <summary>
@@ -232,9 +235,10 @@ public sealed class CarrilSql(
     /// distinción entre «no hay» y «no podés verlo» sea mecánica en lugar de
     /// depender de que el modelo respete una instrucción del prompt.
     /// </remarks>
-    private ResultadoDelTurno Vacio(GeneracionDeSql generacion, string? aMostrar, bool esGlobal) =>
+    private ResultadoDelTurno Vacio(
+        GeneracionDeSql generacion, string? aMostrar, PerfilDelActor perfil) =>
         new(EstadoDelTurno.Respondida,
-            PoliticaDeAbstencion.TextoDeResultadoVacio(esGlobal),
+            PoliticaDeAbstencion.TextoDeResultadoVacio(perfil.EsGlobal),
             generacion.Razonamiento,
             aMostrar,
             [],
@@ -242,10 +246,11 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             generacion.Categoria,
-            contador.Llamadas);
+            contador.Llamadas,
+            Sql: LaConsulta(generacion, perfil));
 
     private ResultadoDelTurno NoContestable(
-        GeneracionDeSql generacion, string? aMostrar, string texto) =>
+        GeneracionDeSql generacion, string pregunta, string? aMostrar, string texto) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             generacion.Razonamiento,
@@ -255,7 +260,8 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             GeneracionDeSql.CategoriaNoContestable,
-            contador.Llamadas);
+            contador.Llamadas,
+            Sugerencias: Sugerencias.Para(pregunta, ejemplos));
 
     /// <summary>
     /// Un turno que termina sin filas y sin haber llegado a la redacción.
@@ -264,7 +270,7 @@ public sealed class CarrilSql(
     /// No consume la segunda llamada al modelo: no hay nada que narrar, y pedirle
     /// que narre una falla es pedirle que invente una explicación.
     /// </remarks>
-    private ResultadoDelTurno SinDatos(string? aMostrar, string texto) =>
+    private ResultadoDelTurno SinDatos(string pregunta, string? aMostrar, string texto) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             Razonamiento: string.Empty,
@@ -274,8 +280,26 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             GeneracionDeSql.CategoriaNoContestable,
-            contador.Llamadas);
+            contador.Llamadas,
+            Sugerencias: Sugerencias.Para(pregunta, ejemplos));
 
+    /// <summary>
+    /// La consulta generada, solo si el actor puede verla.
+    /// </summary>
+    /// <remarks>
+    /// El chequeo se hace <b>acá</b>, al armar la respuesta, y no en el borde HTTP.
+    /// Puesto arriba, cualquier camino nuevo que devolviera un resultado tendría que
+    /// acordarse de tapar el campo; puesto acá, el único lugar donde el campo se
+    /// llena es el único lugar donde se decide.
+    /// </remarks>
+    private static string? LaConsulta(GeneracionDeSql generacion, PerfilDelActor perfil) =>
+        perfil.VeLaConsulta ? generacion.Sql : null;
+
+    /// <summary>
+    /// Servicio degradado. <b>Sin sugerencias</b>: la pregunta no tiene nada de
+    /// malo, así que proponerle otra al usuario le sugeriría que el problema es
+    /// suyo.
+    /// </summary>
     private ResultadoDelTurno Degradado(string? aMostrar) =>
         new(EstadoDelTurno.ServicioDegradado,
             PoliticaDeAbstencion.TextoServicioDegradado,

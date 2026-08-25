@@ -397,6 +397,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
             ejecutor,
             new ConsultorDeAlcance(basica),
             new RedactorDeRespuesta(conTecho),
+            new SelectorDeEjemplos(),
             contador,
             NullLogger<CarrilSql>.Instance);
 

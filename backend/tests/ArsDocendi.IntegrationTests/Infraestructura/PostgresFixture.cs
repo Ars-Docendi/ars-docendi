@@ -27,7 +27,7 @@ public sealed record BaseDePrueba(
 public sealed class PostgresFixture : IAsyncLifetime
 {
     /// <summary>Password de los roles del asistente en el contenedor efímero de test.</summary>
-    private const string PasswordDeRol = "asistente-de-prueba";
+    internal const string PasswordDeRol = "asistente-de-prueba";
 
     private readonly PostgreSqlContainer _contenedor = new PostgreSqlBuilder("postgres:18-alpine")
         .WithDatabase("ars_docendi_tests")

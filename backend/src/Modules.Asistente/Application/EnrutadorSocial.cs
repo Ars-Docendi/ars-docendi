@@ -179,11 +179,12 @@ public static class EnrutadorSocial
         IntencionSocial.Agradecimiento =>
             "De nada. Cuando necesites consultar algo del sistema, escribime.",
 
-        IntencionSocial.Meta =>
-            "Respondo preguntas sobre lo que hay cargado en el sistema: designaciones, "
-            + "docentes, materias, pedidos de designación y períodos. Solo consulto: "
-            + "no modifico nada ni ejecuto acciones. Todo lo que ves está acotado a "
-            + "tus permisos.",
+        IntencionSocial.Meta => throw new ArgumentOutOfRangeException(
+            nameof(intencion),
+            intencion,
+            "La meta-pregunta no tiene texto fijo: la responde el catálogo de "
+            + "capacidades, derivado de los privilegios efectivos del actor. Un texto "
+            + "escrito acá sería una promesa sobre capacidades que nadie verifica.'"),
 
         _ => throw new ArgumentOutOfRangeException(
             nameof(intencion), intencion, "No es una intención social."),

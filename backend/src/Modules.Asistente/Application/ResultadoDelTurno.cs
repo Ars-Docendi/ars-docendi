@@ -55,11 +55,26 @@ public enum EstadoDelTurno
 /// Las opciones de la aclaración, cuando el turno terminó en
 /// <see cref="EstadoDelTurno.NecesitaAclaracion"/>.
 /// </param>
+/// <param name="Sugerencias">
+/// Qué otra cosa probar, cuando el turno terminó en un rechazo.
+/// </param>
 /// <remarks>
-/// <c>Opciones</c> es un campo <b>distinto</b> de las sugerencias de un rechazo
-/// cooperativo, que llegan con la superficie de usuario. Colapsarlos haría que la
-/// interfaz no pueda distinguir «elegí una de estas, y sigo» de «probá con alguna
-/// de estas otras preguntas».
+/// <c>Opciones</c> y <c>Sugerencias</c> son campos <b>distintos</b>, y colapsarlos
+/// borraría el tercer estado del sistema. Las opciones <b>bloquean</b>: el turno
+/// espera una elección para poder seguir. Las sugerencias no bloquean nada: el
+/// turno ya terminó, y son próximos pasos.
+///
+/// Con un solo campo, la interfaz tendría que adivinar cuál de las dos cosas le
+/// llegó mirando el estado — y el día que un turno respondido quiera sugerir algo,
+/// la distinción se pierde del todo.
+/// </remarks>
+/// <param name="Sql">
+/// La consulta que se ejecutó. Presente <b>solo</b> si el actor tiene el permiso
+/// de verla; nula en cualquier otro caso.
+/// </param>
+/// <remarks>
+/// No es transparencia gratuita: un <c>WHERE</c> puede llevar un documento. Por eso
+/// va detrás de un permiso propio, que no se concede a ningún rol por omisión.
 /// </remarks>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
@@ -73,4 +88,6 @@ public sealed record ResultadoDelTurno(
     string Categoria,
     int LlamadasAlModelo,
     Guid Hilo = default,
-    IReadOnlyList<OpcionDeAclaracion>? Opciones = null);
+    IReadOnlyList<OpcionDeAclaracion>? Opciones = null,
+    IReadOnlyList<string>? Sugerencias = null,
+    string? Sql = null);

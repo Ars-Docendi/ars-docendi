@@ -148,20 +148,35 @@ public sealed class EnrutadorSocialTests
     [Theory]
     [InlineData(IntencionSocial.Saludo)]
     [InlineData(IntencionSocial.Agradecimiento)]
-    [InlineData(IntencionSocial.Meta)]
-    public void Las_tres_clases_tienen_respuesta_fija(IntencionSocial intencion)
+    public void El_saludo_y_el_agradecimiento_tienen_respuesta_fija(IntencionSocial intencion)
     {
+        // Estas dos sí: son cortesía, no información. Un texto fijo no puede
+        // desactualizarse respecto de nada.
         Assert.False(string.IsNullOrWhiteSpace(EnrutadorSocial.Responder(intencion)));
     }
 
     [Fact]
-    public void La_respuesta_meta_no_promete_lo_que_el_sistema_no_hace()
+    public void La_meta_pregunta_NO_tiene_respuesta_fija()
     {
-        var texto = EnrutadorSocial.Responder(IntencionSocial.Meta);
+        // Tenía una, y era el problema: un párrafo escrito a mano enumerando qué
+        // podía consultar el asistente. Eso es una promesa sobre capacidades que
+        // nadie verifica, y se desactualiza en silencio con cada GRANT — decía
+        // «designaciones, docentes, materias, pedidos y períodos» sin que nada
+        // comprobara que el rol de quien preguntaba pudiera leer esas cinco cosas.
+        //
+        // Ahora la responde el catálogo de capacidades, derivado de los privilegios
+        // efectivos del actor. Que acá levante excepción es la garantía de que nadie
+        // pueda volver a escribir el párrafo sin darse cuenta.
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => EnrutadorSocial.Responder(IntencionSocial.Meta));
+    }
 
-        // Solo consulta. Prometer acciones sería una promesa falsa en el único
-        // turno donde el usuario está preguntando exactamente qué puede esperar.
-        Assert.Contains("no modifico", texto, StringComparison.OrdinalIgnoreCase);
+    [Fact]
+    public void La_meta_pregunta_se_sigue_clasificando_como_meta()
+    {
+        // Que no tenga texto fijo no significa que deje de detectarse: el enrutador
+        // la sigue capturando, y quien la resuelve es la capa con el catálogo.
+        Assert.Equal(IntencionSocial.Meta, EnrutadorSocial.Clasificar("¿qué podés hacer?"));
     }
 
     [Fact]

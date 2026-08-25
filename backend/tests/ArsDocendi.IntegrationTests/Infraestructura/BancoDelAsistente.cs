@@ -75,6 +75,16 @@ internal sealed class BancoDelAsistente
         // y uno por turno no cachearía nada.
         var indice = new IndiceDeEntidades(basica);
 
+        // El catálogo de capacidades también se comparte: cachea por rol, y uno por
+        // turno no cachearía nada.
+        var catalogo = new CatalogoDeCapacidades(
+            basica,
+            conDatosPersonales,
+            new ConsultorDeAlcance(basica),
+            new SelectorDeEjemplos(),
+            new CacheDeCapacidades(),
+            NullLogger<CatalogoDeCapacidades>.Instance);
+
         return new BancoDelAsistente
         {
             Proveedor = elProveedor,
@@ -104,6 +114,7 @@ internal sealed class BancoDelAsistente
                     new EjecutorDeConsulta(basica, conDatosPersonales, clasificador, opciones),
                     new ConsultorDeAlcance(basica),
                     new RedactorDeRespuesta(conTecho),
+                    new SelectorDeEjemplos(),
                     contador,
                     NullLogger<CarrilSql>.Instance);
 
@@ -112,6 +123,8 @@ internal sealed class BancoDelAsistente
                     indice,
                     new ReescritorDePreguntas(conTecho),
                     carril,
+                    new SelectorDeEjemplos(),
+                    catalogo,
                     elRegistro,
                     disponibilidad,
                     cuota,

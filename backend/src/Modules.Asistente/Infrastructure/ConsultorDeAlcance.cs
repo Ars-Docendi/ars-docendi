@@ -27,6 +27,18 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
     private const string PermisoDeDatosPersonales = "usuarios.ver";
 
     /// <summary>
+    /// Permiso que habilita ver la consulta generada.
+    /// </summary>
+    /// <remarks>
+    /// A diferencia del de datos personales, éste <b>no</b> se conjuga con el
+    /// alcance global. El alcance acota qué filas ve el actor, y la consulta que se
+    /// le muestra es la que se ejecutó con su propio alcance: verla no le agrega
+    /// ninguna fila. Lo que le agrega es entender qué hizo el asistente, y eso es
+    /// justamente lo que el permiso decide.
+    /// </remarks>
+    private const string PermisoDeVerLaConsulta = "asistente.ver_consulta";
+
+    /// <summary>
     /// SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.
     /// Es el que usa <c>identity.asistente_actor()</c> cuando el identificador no
     /// corresponde a un usuario activo.
@@ -112,7 +124,11 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
         // que acote por el alcance del actor, y tiene su propio ticket de
         // endurecimiento (ARS-69); no se adelanta acá porque es una migración con
         // impacto sobre consumidores que no son el asistente.
-        return new PerfilDelActor(esGlobal, veDatosPersonales);
+        var veLaConsulta = await LeerBooleanoAsync(
+            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
+            ("permiso", PermisoDeVerLaConsulta));
+
+        return new PerfilDelActor(esGlobal, veDatosPersonales, veLaConsulta);
     }
 
     private static async Task<bool> LeerBooleanoAsync(

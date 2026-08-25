@@ -156,11 +156,47 @@ Los dos roles tienen prefijos distintos, con huellas distintas: el prefijo se
 deriva de los privilegios **efectivos** de cada conexión, no de una lista en el
 código.
 
-## Endpoints
+## Endpoints (superficie HTTP)
 
 - `GET /api/asistente/ping` — smoke test, `[AllowAnonymous]`. No toca la base ni
   ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
   «la base responde».
+
+### El contrato de respuesta
+
+`opciones` y `sugerencias` son campos **separados**. Las opciones bloquean el turno
+esperando una elección; las sugerencias no bloquean nada. Un solo campo obligaría a la
+interfaz a adivinar cuál le llegó mirando el estado, y el día que un turno respondido
+quiera sugerir algo la distinción se pierde del todo.
+
+`estado` viaja con etiquetas propias del contrato (`respondida`, `no_contestable`,
+`necesita_aclaracion`, `servicio_degradado`) y no con el nombre del enum: renombrarlo
+adentro no puede romper a los clientes en silencio.
+
+`sql` solo viaja con `asistente.ver_consulta`, y el chequeo está donde se arma la
+respuesta —no en el controller—, para que cualquier camino nuevo lo herede.
+
+### La idempotencia
+
+En memoria, acotada por **(actor, clave)** y con expiración corta. La clave sola
+alcanzaría para el doble clic y sería un canal de fuga: dos usuarios que manden la misma
+—cosa que pasa, los clientes generan claves y nada garantiza que no colisionen—
+compartirían respuesta, y el segundo recibiría datos calculados con el alcance del
+primero.
+
+No se reusa ni se copia `designaciones.idempotencia_comandos`: guarda el `response_body`
+completo, que es exactamente lo que este módulo decidió no persistir.
+
+### El catálogo de capacidades
+
+Scoped, con la caché singleton al lado. Los alcances no son intercambiables: el catálogo
+depende de `IPerfilDelActor`, que resuelve al actor del turno, y un catálogo singleton
+capturaría el perfil del primer actor que consultara. El contenedor rechaza esa
+registración al arrancar, y hace bien.
+
+Lo que sí sobrevive al request es el resultado de leer el catálogo de PostgreSQL, y eso
+vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variantes y los
+`GRANT` no cambian en runtime.
 
 ## Proveedor del modelo
 

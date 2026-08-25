@@ -200,6 +200,17 @@ Fuera de alcance, con motivo escrito:
 
 Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_nacimiento`, `telefono`— y `identity.users.upn` van **solo** al rol con datos personales.
 
+### Los dos permisos del asistente
+
+| Permiso                  | Qué habilita                                | Concedido a                                         |
+| ------------------------ | ------------------------------------------- | --------------------------------------------------- |
+| `asistente.consultar`    | Usar el asistente                           | Los seis roles de sistema no `docente`              |
+| `asistente.ver_consulta` | Ver la consulta SQL que el asistente generó | **Ningún rol.** Se concede desde `/membresia-roles` |
+
+El segundo está sembrado y vacío a propósito: la consulta generada es superficie de diagnóstico y su `WHERE` puede llevar un documento, un legajo o un nombre. Quién necesita verla es una decisión del Departamento, no de quien escribe la migración. Un permiso concedido de arranque es difícil de quitar; uno vacío se concede en treinta segundos cuando alguien lo pide.
+
+Ninguno de los dos es una lista de roles en código, por el mismo motivo: `identity.roles` no es un catálogo cerrado, y una lista embebida falla **abierta** con cualquier rol que no conozca.
+
 ### El schema `asistente`: dos registros que no se cruzan
 
 Es el único schema que el asistente escribe, y lo escribe con la **conexión dueña**. Sus propios roles de solo lectura lo tienen revocado entero.

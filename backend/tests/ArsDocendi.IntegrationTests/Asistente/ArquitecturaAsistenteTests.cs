@@ -216,6 +216,37 @@ public sealed partial class ArquitecturaAsistenteTests
         Assert.Equal(3, Detectar(sinteticos, DestruccionEnSql()).Count);
     }
 
+    // --------------------------------------------- el ping no arrastra dependencias
+
+    [Fact]
+    public void El_controller_del_ping_no_tiene_ninguna_dependencia()
+    {
+        // ESTO YA SE ROMPIÓ UNA VEZ. El ping vivía junto al endpoint del turno; el
+        // día que ese controller ganó dependencias, construirlo pasó a exigir las
+        // cadenas de solo lectura —cuya fábrica falla si el ambiente no las
+        // configuró— y el ping devolvió 500 sin base.
+        //
+        // Un ping que necesita configuración de base deja de poder distinguir «el
+        // módulo está cargado» de «la base responde», que es lo único que el
+        // invariante #3 le pide. La separación tiene que ser estructural: sin
+        // constructor con parámetros, no hay nada que resolver.
+        var tipo = typeof(Modules.Asistente.Api.PingAsistenteController);
+
+        Assert.All(
+            tipo.GetConstructors(),
+            constructor => Assert.Empty(constructor.GetParameters()));
+    }
+
+    [Fact]
+    public void El_ping_no_esta_en_el_controller_del_turno()
+    {
+        var tipo = typeof(Modules.Asistente.Api.AsistenteController);
+
+        Assert.DoesNotContain(
+            tipo.GetMethods().Select(m => m.Name),
+            nombre => nombre.Equals("Ping", StringComparison.Ordinal));
+    }
+
     // ------------------------------------------------------------- las referencias
 
     [Fact]

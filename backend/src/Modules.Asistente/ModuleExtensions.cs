@@ -156,6 +156,20 @@ public static class ModuleExtensions
 
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
+
+        // ------------------------------------------------ superficie de usuario
+
+        // La caché es SINGLETON —lo que cuesta leer del catálogo de PostgreSQL tiene
+        // que sobrevivir al request— y el catálogo es SCOPED, porque depende del
+        // perfil del actor del turno. Al revés, un catálogo singleton capturaría el
+        // perfil del primer actor que consultara y se lo devolvería a todos los
+        // demás; el contenedor rechaza esa registración al arrancar.
+        services.AddSingleton<CacheDeCapacidades>();
+        services.AddScoped<ICatalogoDeCapacidades, CatalogoDeCapacidades>();
+
+        // Singleton también: la caché de idempotencia tiene que sobrevivir al
+        // request, que es literalmente para lo que existe.
+        services.AddSingleton<IIdempotencia, IdempotenciaEnMemoria>();
         services.AddScoped<CapaConversacional>();
 
         // -------------------------------------------- registros y su purga

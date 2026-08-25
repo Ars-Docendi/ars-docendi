@@ -180,6 +180,17 @@ public sealed class OpcionesAsistente
     public int PeriodoDePurgaHoras { get; set; } = 24;
 
     /// <summary>
+    /// Cuánto vale una clave de idempotencia, en minutos.
+    /// </summary>
+    /// <remarks>
+    /// Corta a propósito. Lo que este mecanismo tiene que resolver es el doble clic
+    /// y el reintento del cliente ante un timeout de red, no la reproducibilidad de
+    /// una respuesta a lo largo del día: una ventana larga en memoria acumula
+    /// respuestas de turnos que nadie va a volver a pedir.
+    /// </remarks>
+    public int VigenciaDeIdempotenciaMinutos { get; set; } = 5;
+
+    /// <summary>
     /// Cuántas veces se reofrece un menú de aclaración antes de abandonarlo.
     /// </summary>
     /// <remarks>
