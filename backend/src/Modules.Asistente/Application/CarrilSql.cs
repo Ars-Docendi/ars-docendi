@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace Modules.Asistente.Application;
 
@@ -24,6 +25,11 @@ public sealed class CarrilSql(
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
+    /// <summary>
+    /// SQLSTATE de PostgreSQL para falta de privilegio (<c>insufficient_privilege</c>).
+    /// </summary>
+    private const string PrivilegioDenegado = "42501";
+
     /// <summary>Responde una pregunta acotada al actor.</summary>
     /// <param name="actor">
     /// Identificador de <c>identity.users</c> del usuario autenticado. Lo resuelve
@@ -55,6 +61,29 @@ public sealed class CarrilSql(
         {
             var perfil = await perfiles.ObtenerAsync(actor, ct);
             return await ResolverAsync(actor, mensaje, pregunta, aMostrar, perfil, ct);
+        }
+        catch (PostgresException excepcion) when (excepcion.SqlState == PrivilegioDenegado)
+        {
+            // La defensa de más abajo hizo lo suyo: el actor pidió una columna que
+            // su rol no puede leer y el motor rechazó la consulta. Sin este catch,
+            // la excepción escapaba del turno entero y llegaba cruda a quien
+            // llamara — con el nombre de la tabla adentro del mensaje.
+            //
+            // Se resuelve como abstención y no como error: para quien pregunta,
+            // «no tenés acceso a eso» es una respuesta, no una falla.
+            log.LogWarning(
+                "El motor rechazó la lectura por falta de privilegio del rol del asistente.");
+            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
+        }
+        catch (PostgresException excepcion)
+        {
+            // Cualquier otro rechazo del motor: SQL que el validador dejó pasar y
+            // no ejecuta, un tipo incompatible, un timeout de sentencia. El mensaje
+            // crudo nombra tablas y columnas, así que va al registro y no a la
+            // respuesta.
+            log.LogWarning(
+                excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.SqlState);
+            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
         }
         catch (TechoDeLlamadasSuperado)
         {
@@ -160,7 +189,12 @@ public sealed class CarrilSql(
         PerfilDelActor perfil,
         CancellationToken ct)
     {
-        var texto = await redactor.RedactarAsync(mensaje, resultado, perfil.EsGlobal, ct);
+        // LA FRONTERA DE SALIDA. Lo que va al modelo es el resultado enmascarado;
+        // lo que vuelve al llamador son las filas reales. Cambiar el orden de estas
+        // dos líneas, o pasarle `resultado` al redactor, manda datos personales al
+        // proveedor sin que nada falle.
+        var paraElModelo = Enmascarador.Enmascarar(resultado);
+        var texto = await redactor.RedactarAsync(mensaje, paraElModelo, perfil.EsGlobal, ct);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
@@ -170,6 +204,7 @@ public sealed class CarrilSql(
             resultado.Columnas,
             resultado.Filas,
             resultado.Truncado,
+            [.. Enumerable.Range(0, resultado.Columnas.Count).Select(resultado.SensibilidadDe)],
             generacion.Categoria,
             contador.Llamadas);
     }
@@ -191,6 +226,7 @@ public sealed class CarrilSql(
             [],
             [],
             Truncado: false,
+            [],
             generacion.Categoria,
             contador.Llamadas);
 
@@ -203,6 +239,26 @@ public sealed class CarrilSql(
             [],
             [],
             Truncado: false,
+            [],
+            GeneracionDeSql.CategoriaNoContestable,
+            contador.Llamadas);
+
+    /// <summary>
+    /// Un turno que termina sin filas y sin haber llegado a la redacción.
+    /// </summary>
+    /// <remarks>
+    /// No consume la segunda llamada al modelo: no hay nada que narrar, y pedirle
+    /// que narre una falla es pedirle que invente una explicación.
+    /// </remarks>
+    private ResultadoDelTurno SinDatos(string? aMostrar, string texto) =>
+        new(EstadoDelTurno.NoContestable,
+            texto,
+            Razonamiento: string.Empty,
+            aMostrar,
+            [],
+            [],
+            Truncado: false,
+            [],
             GeneracionDeSql.CategoriaNoContestable,
             contador.Llamadas);
 
@@ -214,6 +270,7 @@ public sealed class CarrilSql(
             [],
             [],
             Truncado: false,
+            [],
             GeneracionDeSql.CategoriaNoContestable,
             contador.Llamadas);
 }

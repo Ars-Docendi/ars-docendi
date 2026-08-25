@@ -356,6 +356,7 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         return new EjecutorDeConsulta(
             basica,
             conDatosPersonales,
+            ClasificadorDeSensibilidad(),
             Options.Create(new OpcionesAsistente { TopeDeFilas = tope }));
     }
 

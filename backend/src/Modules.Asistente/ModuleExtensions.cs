@@ -86,6 +86,13 @@ public static class ModuleExtensions
         // El selector lee el catálogo embebido una sola vez, al construirse.
         services.AddSingleton<ISelectorDeEjemplos, SelectorDeEjemplos>();
 
+        // El manifiesto es inmutable y se lee del assembly: una sola instancia.
+        // El catálogo lo resuelve a identificadores del motor y cachea, con la
+        // misma pereza que el prefijo del prompt — construirlo al arrancar
+        // exigiría base durante el arranque, y el ping tiene que responder sin ella.
+        services.AddSingleton(_ => ManifiestoDeSensibilidad.Cargar());
+        services.AddSingleton<IClasificadorDeSensibilidad, CatalogoDeSensibilidad>();
+
         // La fecha se resuelve UNA VEZ por turno: con alcance de request, un turno
         // que empieza a las 23:59:59 no puede cambiar de día a la mitad.
         services.AddScoped<IFechaDeReferencia>(_ =>

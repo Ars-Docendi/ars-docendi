@@ -4,6 +4,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Npgsql;
+using Npgsql.Schema;
 
 namespace Modules.Asistente.Infrastructure;
 
@@ -23,6 +24,7 @@ namespace Modules.Asistente.Infrastructure;
 internal sealed class EjecutorDeConsulta(
     CadenaSoloLectura cadenaBasica,
     CadenaSoloLecturaPii cadenaConDatosPersonales,
+    IClasificadorDeSensibilidad clasificador,
     IOptions<OpcionesAsistente> opciones) : IEjecutorDeConsulta
 {
     /// <summary>
@@ -54,7 +56,11 @@ internal sealed class EjecutorDeConsulta(
 
         await PrepararTransaccionAsync(conexion, transaccion, actor, valores, ct);
 
-        return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, ct);
+        // La resolución del manifiesto va antes de leer: si fallara después, ya
+        // tendríamos las filas en memoria sin saber cuáles se pueden mandar afuera.
+        await clasificador.PrepararAsync(ct);
+
+        return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, clasificador, ct);
     }
 
     /// <summary>
@@ -118,6 +124,7 @@ internal sealed class EjecutorDeConsulta(
         NpgsqlTransaction transaccion,
         string sql,
         int tope,
+        IClasificadorDeSensibilidad clasificador,
         CancellationToken ct)
     {
         var envuelta = $"SELECT * FROM (\n{sql}\n) AS resultado_asistente LIMIT {tope + 1}";
@@ -126,9 +133,21 @@ internal sealed class EjecutorDeConsulta(
         await using var lector = await comando.ExecuteReaderAsync(ct);
 
         var columnas = new List<string>(lector.FieldCount);
+        var sensibilidad = new List<SensibilidadDeColumna>(lector.FieldCount);
+
+        // El esquema de columnas trae el identificador de tabla y el número de
+        // atributo que el motor reportó para cada una. Se clasifica ACÁ y no en la
+        // capa de aplicación porque es el único punto donde esos identificadores
+        // existen: más arriba solo quedan los alias, que no dicen de dónde vino la
+        // columna.
+        var esquema = lector.GetColumnSchema();
+
         for (var indice = 0; indice < lector.FieldCount; indice++)
         {
             columnas.Add(lector.GetName(indice));
+            sensibilidad.Add(clasificador.Clasificar(
+                esquema[indice].TableOID,
+                esquema[indice].ColumnAttributeNumber ?? 0));
         }
 
         var filas = new List<IReadOnlyList<object?>>();
@@ -153,6 +172,6 @@ internal sealed class EjecutorDeConsulta(
             filas.Add(fila);
         }
 
-        return new ResultadoDeConsulta(columnas, filas, truncado);
+        return new ResultadoDeConsulta(columnas, filas, truncado, sensibilidad);
     }
 }

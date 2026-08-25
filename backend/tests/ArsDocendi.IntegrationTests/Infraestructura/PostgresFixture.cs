@@ -1,6 +1,8 @@
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using Modules.Asistente.Application;
+using Modules.Asistente.Infrastructure;
 using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Npgsql;
@@ -210,6 +212,22 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
         return (new CadenaSoloLectura(CadenaDeRol(actual, actual.RolSoloLectura)),
                 new CadenaSoloLecturaPii(CadenaDeRol(actual, actual.RolSoloLecturaPii)));
     }
+
+    /// <summary>
+    /// El clasificador de sensibilidad resuelto contra la base de prueba.
+    /// </summary>
+    /// <remarks>
+    /// Se construye con el manifiesto real del repositorio y no con uno de
+    /// juguete: si el manifiesto nombrara una columna que ya no existe, los tests
+    /// del carril tienen que enterarse.
+    /// </remarks>
+    /// <remarks>
+    /// Devuelve la interfaz y no el tipo concreto porque esta clase es pública y el
+    /// catálogo es <c>internal</c> del módulo. El test del caché, que necesita el
+    /// contador de lecturas, lo construye por su cuenta.
+    /// </remarks>
+    protected IClasificadorDeSensibilidad ClasificadorDeSensibilidad() =>
+        new CatalogoDeSensibilidad(CadenasDeLectura().Basica, ManifiestoDeSensibilidad.Cargar());
 
     private static string CadenaDeRol(BaseDePrueba baseDePrueba, string rol) =>
         new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena)

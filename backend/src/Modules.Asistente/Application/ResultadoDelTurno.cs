@@ -40,6 +40,11 @@ public enum EstadoDelTurno
 /// Si hubo más filas que el tope. Booleano, nunca un conteo: cuántas quedaron
 /// afuera es un canal de inferencia sobre datos que el usuario no puede ver.
 /// </param>
+/// <param name="Sensibilidad">
+/// La clasificación de cada columna, paralela a <paramref name="Columnas"/>. La
+/// necesita quien renderiza: con columnas sensibles el modelo redacta el marco y
+/// el dato lo muestra la interfaz, así que tiene que saber cuáles son.
+/// </param>
 /// <param name="Categoria">Categoría estimada por la generación.</param>
 /// <param name="LlamadasAlModelo">Cuántas llamadas al modelo consumió el turno.</param>
 public sealed record ResultadoDelTurno(
@@ -50,5 +55,6 @@ public sealed record ResultadoDelTurno(
     IReadOnlyList<string> Columnas,
     IReadOnlyList<IReadOnlyList<object?>> Filas,
     bool Truncado,
+    IReadOnlyList<SensibilidadDeColumna> Sensibilidad,
     string Categoria,
     int LlamadasAlModelo);

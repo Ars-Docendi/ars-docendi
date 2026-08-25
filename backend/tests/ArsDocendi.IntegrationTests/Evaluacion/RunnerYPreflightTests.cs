@@ -386,7 +386,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         var opciones = Options.Create(new OpcionesAsistente());
         var contador = new ContadorDeLlamadasDelTurno(64);
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
-        var ejecutor = new EjecutorDeConsulta(basica, conDatosPersonales, opciones);
+        var ejecutor = new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones);
 
         var carril = new CarrilSql(
             new GeneradorDeSql(

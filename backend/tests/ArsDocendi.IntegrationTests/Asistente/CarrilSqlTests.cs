@@ -373,7 +373,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         await SembrarAsync();
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var ejecutor = new EjecutorDeConsulta(
-            basica, conDatosPersonales, Options.Create(new OpcionesAsistente()));
+            basica, conDatosPersonales, ClasificadorDeSensibilidad(),
+            Options.Create(new OpcionesAsistente()));
         var ct = TestContext.Current.CancellationToken;
 
         // Un ejemplo con SQL rota le estaría enseñando al modelo a escribir
@@ -435,7 +436,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
 
         return new CarrilSql(
             generador,
-            new EjecutorDeConsulta(basica, conDatosPersonales, opciones),
+            new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones),
             new ConsultorDeAlcance(basica),
             new RedactorDeRespuesta(conTecho),
             contadorDelTurno,

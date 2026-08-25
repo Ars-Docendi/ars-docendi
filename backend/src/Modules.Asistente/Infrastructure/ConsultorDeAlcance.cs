@@ -96,6 +96,22 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeDatosPersonales));
 
+        // RIESGO RESIDUAL ACEPTADO, y registrado a propósito donde se toma la
+        // decisión y no solo en un documento.
+        //
+        // La conjunción de arriba cierra el acceso a documento, CUIL, teléfono y
+        // fecha de nacimiento para todo actor que no sea global. Lo que NO cierra:
+        // un actor de ámbito de materia o de carrera sigue pudiendo listar nombre,
+        // apellido y legajo de TODO el padrón, porque esas tres columnas se
+        // conceden también al rol básico y `identity.personas` no tiene RLS — las
+        // policies del asistente cubren únicamente las cuatro tablas de
+        // `designaciones`.
+        //
+        // Se aceptó porque son datos que ya circulan en cualquier listado de
+        // cátedra. El cierre completo es una policy propia sobre `identity.personas`
+        // que acote por el alcance del actor, y tiene su propio ticket de
+        // endurecimiento (ARS-69); no se adelanta acá porque es una migración con
+        // impacto sobre consumidores que no son el asistente.
         return new PerfilDelActor(esGlobal, veDatosPersonales);
     }
 

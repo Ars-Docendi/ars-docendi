@@ -73,6 +73,29 @@ public static class PoliticaDeAbstencion
     public const string TextoRechazadaPorValidador =
         "No pude armar una consulta segura para esa pregunta. Probá formulándola de otra manera.";
 
+    /// <summary>Texto de una lectura que el motor rechazó por falta de privilegio.</summary>
+    /// <remarks>
+    /// Es el caso en que la defensa de más abajo hizo exactamente lo suyo: el actor
+    /// pidió una columna que su rol no puede leer y PostgreSQL rechazó la consulta.
+    /// Que funcione no alcanza — sin este texto, la excepción escapaba del turno y
+    /// llegaba cruda a quien llamara, con el nombre de la tabla adentro.
+    ///
+    /// Dice «no tenés acceso» y no «no hay»: son cosas distintas y confundirlas es
+    /// justamente lo que la política de abstención existe para evitar.
+    /// </remarks>
+    public const string TextoSinAccesoALosDatos =
+        "No tenés acceso a esa información con tus permisos actuales.";
+
+    /// <summary>Texto de un rechazo del motor que no es de permisos.</summary>
+    /// <remarks>
+    /// Una consulta que el validador dejó pasar y el motor no pudo ejecutar: SQL
+    /// mal formada que el validador no atrapa, un tipo incompatible, un timeout de
+    /// sentencia. Nunca se muestra el mensaje del motor, que nombra tablas y
+    /// columnas.
+    /// </remarks>
+    public const string TextoErrorAlConsultar =
+        "No pude completar esa consulta. Probá formulándola de otra manera.";
+
     /// <summary>Texto de proveedor caído o cuota agotada (caso 6).</summary>
     /// <remarks>
     /// No expone el error crudo del proveedor ni distingue «se cayó» de «se acabó
