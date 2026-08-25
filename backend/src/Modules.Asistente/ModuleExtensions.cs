@@ -1,6 +1,7 @@
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
@@ -103,6 +104,22 @@ public static class ModuleExtensions
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
         services.AddScoped<CarrilSql>();
+
+        // ---------------------------------------------- capa conversacional
+
+        // TryAdd: si el Host ya registró un TimeProvider, gana el suyo. Los tests
+        // del hilo inyectan uno falso para poder adelantar el reloj sin esperar.
+        services.TryAddSingleton(TimeProvider.System);
+
+        // Singletons los dos, y por motivos distintos. El almacén de hilos ES el
+        // estado conversacional: registrarlo con scope lo perdería entre requests,
+        // que es exactamente lo que tiene que sobrevivir. El índice de entidades es
+        // un caché, y uno por request no cachearía nada.
+        services.AddSingleton<IAlmacenDeHilos, AlmacenDeHilosEnMemoria>();
+        services.AddSingleton<IIndiceDeEntidades, IndiceDeEntidades>();
+
+        services.AddScoped<ReescritorDePreguntas>();
+        services.AddScoped<CapaConversacional>();
 
         // Cliente HTTP del proveedor, con el reintento de transporte ya puesto.
         // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,
