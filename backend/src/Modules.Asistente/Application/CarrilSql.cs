@@ -178,6 +178,8 @@ public sealed class CarrilSql(
         PerfilDelActor perfil,
         CancellationToken ct)
     {
+        contador.MarcarReintento();
+
         var segunda = await generador.GenerarAsync(pregunta, perfil.VeDatosPersonales, ct);
 
         if (!segunda.EsContestable

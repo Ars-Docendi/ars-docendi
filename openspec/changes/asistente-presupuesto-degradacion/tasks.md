@@ -62,37 +62,45 @@
 
 ## 5. Los dos registros (ARS-55)
 
-- [ ] 5.1 `database/asistente/002_asistente_registros.sql` — schema `asistente` y las dos tablas
-- [ ] 5.2 Registro operativo: actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado
-- [ ] 5.3 Registro analítico: pregunta, categoría, estado y fecha **de tipo `date`**, sin hora ni actor
-- [ ] 5.4 Comentario en el `.sql` declarando que **no** se aplica `audit.attach`, con el motivo
-- [ ] 5.5 GRANT: la conexión dueña escribe; los roles de solo lectura no
-- [ ] 5.6 `Application/IRegistroDelTurno.cs` + `Infrastructure/RegistroDelTurno.cs` — escritura tolerante a fallos
-- [ ] 5.7 Enganchar la escritura al final de `CapaConversacional`, con la latencia medida punta a punta
-- [ ] 5.8 Actualizar el manifiesto de privilegios y el de sensibilidad con las tablas nuevas
-- [ ] 5.9 Test: el operativo no guarda el texto de la pregunta
-- [ ] 5.10 Test: el analítico no guarda actor
-- [ ] 5.11 Test: dos turnos del mismo día tienen la misma fecha analítica
-- [ ] 5.12 Test: no hay columna compartida que permita cruzarlos
-- [ ] 5.13 Test: un turno con filas sensibles no deja ningún valor en ningún registro
-- [ ] 5.14 Test: ninguna de las dos tablas tiene disparador de auditoría
-- [ ] 5.15 Test: escribir un turno no hace crecer `audit.change_log`
-- [ ] 5.16 Test: el rol de solo lectura no puede insertar
-- [ ] 5.17 Test: sin tablas, el turno responde igual y el fallo queda logueado
+- [x] 5.1 `database/asistente/002_asistente_registros.sql` — schema `asistente` y las dos tablas
+- [x] 5.2 Registro operativo: actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado
+- [x] 5.3 Registro analítico: pregunta, categoría, estado y fecha **de tipo `date`**, sin hora ni actor
+- [x] 5.4 Comentario en el `.sql` declarando que **no** se aplica `audit.attach`, con el motivo
+- [x] 5.5 GRANT: la conexión dueña escribe; los roles de solo lectura no
+- [x] 5.6 `Application/IRegistroDelTurno.cs` + `Infrastructure/RegistroDelTurno.cs` — escritura tolerante a fallos
+- [x] 5.7 Enganchar la escritura al final de `CapaConversacional`, con la latencia medida punta a punta
+- [x] 5.8 Declarar el schema `asistente` como **denegado** en el manifiesto de privilegios. El de sensibilidad no lo toca: clasifica columnas que el asistente puede leer, y éstas no lo son
+- [x] 5.9 Test: el operativo no guarda el texto de la pregunta
+- [x] 5.10 Test: el analítico no guarda actor
+- [x] 5.11 Test: dos turnos del mismo día tienen la misma fecha analítica
+- [x] 5.12 Test: no hay columna compartida que permita cruzarlos
+- [x] 5.13 Test: un turno con filas sensibles no deja ningún valor en ningún registro
+- [x] 5.14 Test: ninguna de las dos tablas tiene disparador de auditoría
+- [x] 5.15 Test: escribir un turno no hace crecer `audit.change_log`
+- [x] 5.16 Test: el rol de solo lectura no puede insertar
+- [x] 5.17 Test: sin tablas, el turno responde igual y el fallo queda logueado
 
 ## 6. Purga y retención (ARS-56)
 
-- [ ] 6.1 `Infrastructure/PurgaDeRegistros.cs` — borrado por ventana, sobre las dos tablas
-- [ ] 6.2 Servicio hospedado que la corre periódicamente, apagable con el módulo
-- [ ] 6.3 `OpcionesAsistente` — ventana de retención (90 días) y período de la purga
-- [ ] 6.4 Test: lo más viejo que la ventana desaparece
-- [ ] 6.5 Test: lo de adentro de la ventana se conserva
-- [ ] 6.6 Test: dos corridas seguidas no fallan
-- [ ] 6.7 Verificar en rojo: una purga que compare contra el reloj del sistema en vez del inyectado no se puede testear
+- [x] 6.1 `Infrastructure/PurgaDeRegistros.cs` — borrado por ventana, sobre las dos tablas
+- [x] 6.2 Servicio hospedado que la corre periódicamente, apagable con el módulo
+- [x] 6.3 `OpcionesAsistente` — ventana de retención (90 días) y período de la purga
+- [x] 6.4 Test: lo más viejo que la ventana desaparece
+- [x] 6.5 Test: lo de adentro de la ventana se conserva
+- [x] 6.6 Test: dos corridas seguidas no fallan
+- [x] 6.7 Verificar en rojo: purgar contra el reloj del sistema en vez del inyectado. **El primer intento no dio rojo**: el ancla del test estaba pegada a la fecha real. Se la corrió al futuro, y ahí sí discrimina
 
 ## 7. Documentación
 
-- [ ] 7.1 `docs/architecture/domains/asistente.md` — el presupuesto, el breaker y los dos registros
-- [ ] 7.2 `docs/architecture/data-model.md` — el schema `asistente` y sus dos tablas
-- [ ] 7.3 `backend/src/Modules.Asistente/README.md` — la configuración nueva y el orden de los decoradores
-- [ ] 7.4 `docs/quality/tech-debt.md` — la cuota en memoria se pierde en cada redespliegue
+- [x] 7.1 `docs/architecture/domains/asistente.md` — el presupuesto, el breaker y los dos registros
+- [x] 7.2 `docs/architecture/data-model.md` — el schema `asistente` y sus dos tablas
+- [x] 7.3 `backend/src/Modules.Asistente/README.md` — la configuración nueva y el orden de los decoradores
+- [x] 7.4 `docs/quality/tech-debt.md` — la cuota en memoria se pierde en cada redespliegue
+
+## 8. Guards de arquitectura que hubo que acotar
+
+- [x] 8.1 `ArquitecturaAsistenteTests` — de «el módulo no escribe» a «el módulo no muta datos de otro schema»
+- [x] 8.2 El detector extrae el objetivo de la sentencia y perdona **solo** `asistente.*`
+- [x] 8.3 `DROP` y `ALTER` quedan prohibidos sin excepción, ni siquiera sobre lo propio
+- [x] 8.4 `CadenaDuena` suma dos archivos a la lista blanca, con el motivo escrito por archivo
+- [x] 8.5 Test nuevo: escribir el schema propio **no** es infracción y escribir uno ajeno **sí**

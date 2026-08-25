@@ -191,6 +191,7 @@ Fuera de alcance, con motivo escrito:
 | Objeto                                | Por qué                                                                                           |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Schema `audit` completo               | `change_log.old_row/new_row` guardan la fila entera en JSON; un JSONB no admite GRANT por columna |
+| Schema `asistente` completo           | Son los registros del propio asistente: el analítico tiene el texto de las preguntas de todos     |
 | `designaciones.idempotencia_comandos` | `response_body` guarda el cuerpo HTTP completo de cada comando                                    |
 | `designaciones.pedidos.snapshot`      | JSONB de forma arbitraria que puede cambiar sin que nadie revise el manifiesto                    |
 | `designaciones.pedido_adjuntos.uri`   | Ubicación del archivo: referencia a un recurso, no dato de consulta                               |
@@ -198,6 +199,25 @@ Fuera de alcance, con motivo escrito:
 | `identity.user_roles.granted_by`      | Rastro de una acción administrativa sobre otra persona                                            |
 
 Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_nacimiento`, `telefono`— y `identity.users.upn` van **solo** al rol con datos personales.
+
+### El schema `asistente`: dos registros que no se cruzan
+
+Es el único schema que el asistente escribe, y lo escribe con la **conexión dueña**. Sus propios roles de solo lectura lo tienen revocado entero.
+
+| Tabla                          | Guarda                                                                                               | No guarda                 |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------- |
+| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens, latencia, reintento, truncado | El texto de la pregunta   |
+| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                   | El actor y la hora exacta |
+
+**Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni detrás de un flag.
+
+Tres decisiones de esquema que sostienen la desvinculación, y las tres están escritas en [`002_asistente_registros.sql`](../../database/asistente/002_asistente_registros.sql):
+
+1. **`dia` es de tipo `date`, no `timestamptz`.** Con alrededor de treinta usuarios, un timestamp preciso en las dos tablas permitiría reidentificar al autor de cada pregunta con un join por tiempo. El tipo es lo que garantiza la pérdida: aunque el código mandara la hora, el motor la trunca.
+2. **La clave del analítico es un `uuid` aleatorio, no una identidad.** Con autoincremento en las dos, la fila _n_ de una y la fila _n_ de la otra serían el mismo turno: el orden de inserción sería, él mismo, la clave del join. Queda un residual —el orden físico— declarado como TD-012.
+3. **No se les aplica `audit.attach`, y está declarado en el archivo con el motivo.** Es lo contrario de la convención del repositorio, a propósito: `audit.change_log` guarda la fila entera en JSON y no tiene política de retención, así que el texto de cada pregunta sobreviviría a la purga en otro lado. Hay un test que falla si a alguna de las dos le aparece el disparador.
+
+Retención de 90 días configurable, con purga automática en el proceso (`PurgaDeRegistros` + un servicio hospedado) y test de retención en las dos direcciones. Una retención sin un mecanismo que borre es una frase en un documento.
 
 **Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
 

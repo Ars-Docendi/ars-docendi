@@ -34,7 +34,10 @@ El asistente no tiene ninguna rama de código que decida qué puede ver quién.
 
 ## Entidades principales
 
-Ninguna. El módulo no tiene schema propio ni `DbContext`.
+Ninguna de dominio, y ningún `DbContext`. Lo único que le pertenece son sus dos
+registros —`asistente.registro_operativo` y `asistente.registro_analitico`—, que son
+telemetría suya y no datos del sistema: nadie más los lee, y los dos roles de solo
+lectura del propio asistente tienen ese schema revocado entero.
 
 Lee, con `GRANT SELECT` por columna contra un manifiesto deny-by-default:
 
@@ -45,8 +48,9 @@ Lee, con `GRANT SELECT` por columna contra un manifiesto deny-by-default:
 
 Denegadas explícitamente: `designaciones.idempotencia_comandos` (su `response_body`
 JSONB guarda respuestas HTTP completas con datos de personas), el schema `audit`
-entero, y las columnas `pedidos.snapshot`, `pedido_adjuntos.uri`, `users.azure_oid`
-y `user_roles.granted_by`.
+entero, el schema `asistente` entero (sus propios registros), y las columnas
+`pedidos.snapshot`, `pedido_adjuntos.uri`, `users.azure_oid` y
+`user_roles.granted_by`.
 
 Fuente de verdad: [`database/asistente/manifiesto-privilegios.json`](../../../database/asistente/manifiesto-privilegios.json).
 
@@ -199,6 +203,128 @@ renderiza la interfaz.
 proveedor a través de la generación: si alguien tipea un documento en la pregunta,
 llega al modelo igual. Protege el camino de vuelta, no el de ida.
 
+## Presupuesto y degradación
+
+Tres cotas, más un estado propio para cuando alguna se agota.
+
+### La cuota por actor
+
+Se mide en **llamadas al modelo**, no en requests HTTP. Un turno con reescritor
+cuesta tres llamadas y con reintento de transporte hasta cuatro requests por
+llamada: contar requests del cliente subestimaría el consumo por un factor de tres.
+
+Con una sola clave de API por ambiente, el proveedor factura al ambiente entero y no
+puede atribuir consumo a nadie. Si la cuota no vive en la aplicación, no vive en
+ningún lado.
+
+Se acota por **identidad autenticada** y nunca por dirección de origen: todo el
+tráfico entra por un túnel, así que un departamento tras NAT compartiría cupo con
+sus vecinos.
+
+El chequeo va **antes** del pipeline: superado el cupo no se emite ninguna llamada,
+no una que falle. El cargo, en cambio, se hace al terminar el turno, en un `finally`
+—así un turno que se cae a la mitad paga igual lo que llegó a gastar—.
+
+Vive en memoria y se pierde en cada redespliegue. Es un mecanismo de equidad entre
+usuarios, no la última línea contra una factura: esa es el techo de gasto en la
+consola del proveedor. Registrado como TD-011.
+
+### Las dos cotas de tiempo
+
+| Cota                                 | Dónde                                            |
+| ------------------------------------ | ------------------------------------------------ |
+| Timeout de una llamada al proveedor  | `ProveedorConBreaker`                            |
+| Presupuesto total del turno (RNF-09) | `PresupuestoDelTurno`, en la capa conversacional |
+
+**No son la misma cosa y la segunda no se deriva de la primera.** Cuatro llamadas de
+diez segundos son cuarenta segundos de espera y cada una habría respetado su límite.
+El presupuesto es un único `CancellationTokenSource` encadenado al token del
+request, creado al entrar a la capa y propagado hacia abajo.
+
+Las etapas conservan sus propios timeouts —el de sentencia libera el backend de la
+base, cosa que cancelar un token no hace—, pero ninguno de ellos es la cota del
+turno.
+
+`PresupuestoDelTurno.Vencio` distingue «se acabó el tiempo» de «el usuario cerró la
+pestaña». Sin esa distinción, cada abandono se registraría como una caída del
+servicio.
+
+### El circuit breaker
+
+Tres estados —cerrado, abierto, en prueba—, con el estado en el proceso y no en el
+request. Cuenta **fallos de transporte y de timeout**, nunca rechazos semánticos: un
+modelo que devuelve una respuesta que el validador descarta está sano, y cortarle las
+llamadas por eso apagaría el asistente cada vez que alguien pregunta algo difícil.
+
+En prueba deja pasar **una sola** llamada, no una por turno: con varios turnos
+concurrentes, «una por turno» sería una avalancha contra un proveedor que recién se
+levanta.
+
+El proveedor se envuelve de afuera hacia adentro, de más barato a más caro:
+
+```
+ProveedorConTechoDeLlamadas   ← techo del turno
+  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
+       └─ proveedor real
+```
+
+### El modo degradado no se inventa: se expone
+
+Cinco de los ocho pasos del pipeline no necesitan proveedor. La falta de modelo **no
+corta el turno**: la capa conversacional resuelve el veredicto una vez, antes de
+empezar, y lo consulta solo donde hace falta.
+
+| Con el modelo caído o sin cupo     | Qué pasa                       |
+| ---------------------------------- | ------------------------------ |
+| Un saludo o un agradecimiento      | Responde, cero llamadas        |
+| Una pregunta con entidad ambigua   | Devuelve su menú de aclaración |
+| La respuesta a un menú abierto     | Se reconoce y se cierra        |
+| Una pregunta de seguimiento        | Se responde sin reescribir     |
+| Una pregunta que exige generar SQL | Servicio degradado             |
+
+El texto distingue las dos causas. Con la cuota agotada el sistema **sabe** cuándo
+vuelve el cupo y lo dice; con el proveedor caído no lo sabe nadie y no promete plazo.
+
+## Los dos registros
+
+Dos tablas en el schema `asistente` que **no se cruzan**, con retención de 90 días y
+purga automática.
+
+| Registro             | Guarda                                                                          | No guarda                |
+| -------------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| `registro_operativo` | actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado | El texto de la pregunta  |
+| `registro_analitico` | pregunta, categoría, estado, **fecha redondeada al día**                        | El actor, la hora exacta |
+
+**Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni
+detrás de un flag: son exactamente los datos que el enmascaramiento acaba de sacar
+del camino de salida, y un `WHERE` puede llevar un documento. No están en el tipo
+que recibe el escritor, así que no se pueden persistir por accidente.
+
+**Por qué la fecha va redondeada**: con alrededor de treinta usuarios, un timestamp
+preciso en las dos tablas permitiría reidentificar al autor de cada pregunta con un
+join por tiempo. Desvincular sin quitar la hora no desvincula nada.
+
+**Por qué el analítico no tiene clave secuencial**: una identidad autoincremental
+sería, ella misma, la clave del join —la fila _n_ de una y la fila _n_ de la otra
+serían el mismo turno—. Usa un UUID aleatorio. Queda un residual: el orden físico de
+las filas todavía correlaciona. Está declarado, y es TD-012.
+
+**Sin `audit.attach`, y declarado explícito en la migración.** Todas las tablas del
+repositorio lo llaman al final de su archivo; acá no, porque `audit.change_log`
+guarda la fila entera en JSON y no tiene política de retención: el texto de cada
+pregunta sobreviviría a la purga en otro lado. La ausencia es una decisión, y hay un
+test que falla si a alguna de las dos tablas le aparece el disparador.
+
+**Los escribe la conexión dueña.** Los dos roles de solo lectura tienen el schema
+`asistente` revocado entero: un asistente que pudiera consultar el registro analítico
+respondería «qué le preguntó fulano al asistente» a cualquiera con el permiso de
+consulta.
+
+**El registro nunca hace fallar un turno.** Un registro que rompe el turno que estaba
+registrando convierte la observabilidad en una fuente de indisponibilidad. Es la
+decisión inversa a la del enmascarador, y a propósito: ahí un fallo silencioso filtra
+datos, acá un fallo ruidoso niega un servicio que funciona.
+
 ## Reglas de negocio (BR-\*)
 
 Ninguna propia. El asistente no decide nada del dominio: expone lo que otros
@@ -221,6 +347,9 @@ viven en el manifiesto de privilegios y en las policies RLS.
   del actor, RLS, cadenas tipadas y módulo base
 - `openspec/changes/asistente-carril-sql/` — este carril
 - `openspec/changes/asistente-evaluacion/` — el eje de capacidad y la exclusión del CI
+- `openspec/changes/asistente-enmascaramiento/` — el manifiesto de sensibilidad y la frontera de salida
+- `openspec/changes/asistente-capa-conversacional/` — el hilo, lo social, la aclaración y el seguimiento
+- `openspec/changes/asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
 
 ## Evaluación
 

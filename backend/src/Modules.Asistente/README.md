@@ -203,6 +203,53 @@ credencial no se arregla esperando.
 Un reintento de transporte ocurre **dentro** de una llamada y no consume cupo del
 turno: para eso tiene su propio máximo de intentos.
 
+## Presupuesto, degradación y registros
+
+### Configuración
+
+| Opción                         | Default | Qué acota                                                        |
+| ------------------------------ | ------- | ---------------------------------------------------------------- |
+| `MaximoDeLlamadasPorTurno`     | 4       | Llamadas al modelo de un turno, global y no por capa             |
+| `MaximoDeIntentosDeTransporte` | 3       | Intentos de red **dentro** de una llamada                        |
+| `PresupuestoDelTurnoSegundos`  | 30      | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota |
+| `TimeoutDeLlamadaSegundos`     | 20      | Una llamada al proveedor                                         |
+| `CupoDeLlamadasPorActor`       | 60      | Llamadas de un actor por ventana. **Cero desactiva la cuota**    |
+| `VentanaDeCuotaMinutos`        | 60      | La ventana deslizante del cupo                                   |
+| `FallosParaAbrirElBreaker`     | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker    |
+| `EsperaDelBreakerSegundos`     | 30      | Cuánto espera antes de probar de nuevo                           |
+| `RetencionDeRegistrosDias`     | 90      | Cuánto viven las filas de los dos registros                      |
+| `PeriodoDePurgaHoras`          | 24      | Cada cuánto corre la purga                                       |
+
+En desarrollo y en los ambientes efímeros conviene `CupoDeLlamadasPorActor: 0`: el
+proveedor es el simulado y no cuesta nada.
+
+### El orden de los decoradores
+
+```
+ProveedorConTechoDeLlamadas   ← techo del turno
+  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
+       └─ proveedor real
+```
+
+De afuera hacia adentro, de más barato a más caro. Invertir los dos primeros haría
+que el breaker registrara intentos que el techo iba a rechazar igual, y un solo turno
+desbocado terminaría abriendo el corte para todos los demás.
+
+**La cuota no está en esta cadena.** La cobra `CapaConversacional` en un `finally`,
+con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor, y
+meterla acá exigiría un objeto de request mutable con el actor adentro, leído por
+capas que no lo declaran.
+
+### Qué sigue funcionando sin proveedor
+
+Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de modelo **no
+corta el turno**. El veredicto se resuelve una vez, antes de empezar, y se consulta
+solo en el reescritor y al delegar en el carril SQL.
+
+Con el corte abierto o el cupo agotado: un saludo responde con cero llamadas, una
+pregunta ambigua devuelve su menú, y la respuesta a un menú abierto se reconoce. Solo
+una pregunta que exige generar una consulta termina en servicio degradado.
+
 ## Conexiones
 
 El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la
@@ -240,8 +287,11 @@ Tampoco declara EF Core, Npgsql ni MediatR: llegan cuando haya código que los u
 
 ## Schema PostgreSQL
 
-Ninguno propio. El asistente **lee** los schemas de otros módulos a través de dos
-roles de solo lectura, con privilegios enumerados columna por columna.
+El asistente **lee** los schemas de otros módulos a través de dos roles de solo
+lectura, con privilegios enumerados columna por columna, y **escribe** un schema
+propio, `asistente`, con sus dos registros. Esos registros son telemetría suya, no
+datos del sistema: los escribe la conexión dueña y sus propios roles de lectura los
+tienen revocados enteros.
 
 El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
 assembly, igual que `database/designaciones/*.sql` en su módulo.
@@ -249,9 +299,13 @@ assembly, igual que `database/designaciones/*.sql` en su módulo.
 migradores: los `GRANT` necesitan que las tablas de `identity` y `designaciones`
 ya existan.
 
-No usa EF Core. El módulo no tiene entidades ni schema propio, así que no hay nada
-que versionar con un historial de migraciones; el script es idempotente por
-construcción y re-ejecutarlo converge.
+No usa EF Core. El módulo no tiene entidades de dominio, así que no hay nada que
+versionar con un historial de migraciones; los scripts son idempotentes por
+construcción y re-ejecutarlos converge.
+
+Los dos archivos corren en orden y el orden importa: `001_asistente_grants.sql`
+concede la lectura, y `002_asistente_registros.sql` crea el schema propio y se lo
+revoca a los dos roles —para revocar un schema, primero tiene que existir—.
 
 `database/asistente/manifiesto-privilegios.json` es la fuente de verdad de qué se
 concede. Un test lo compara contra los privilegios efectivos de la base en tres

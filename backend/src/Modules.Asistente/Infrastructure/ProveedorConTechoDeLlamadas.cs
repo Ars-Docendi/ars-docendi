@@ -22,12 +22,21 @@ internal sealed class ProveedorConTechoDeLlamadas(
 
     public bool EsSimulado => interno.EsSimulado;
 
-    public Task<RespuestaDelModelo> CompletarAsync(SolicitudAlModelo solicitud, CancellationToken ct)
+    public async Task<RespuestaDelModelo> CompletarAsync(
+        SolicitudAlModelo solicitud, CancellationToken ct)
     {
         // Se reserva ANTES de llamar. Contar después dejaría pasar una llamada de
         // más cada vez que el proveedor falla, que es justo cuando más se reintenta.
         contador.Reservar();
-        return interno.CompletarAsync(solicitud, ct);
+
+        var respuesta = await interno.CompletarAsync(solicitud, ct);
+
+        // Los tokens, en cambio, se contabilizan DESPUÉS y solo si hubo respuesta:
+        // una llamada que falló no facturó nada, y sumarle los tokens de la anterior
+        // haría que el registro operativo informara un consumo que no existió.
+        contador.Contabilizar(respuesta);
+
+        return respuesta;
     }
 }
 

@@ -24,6 +24,11 @@
       "nombre": "audit",
       "estado": "denegado",
       "motivo": "change_log.old_row y change_log.new_row guardan la fila entera en JSON. Cualquier dato personal escrito en cualquier tabla auditada reaparece ahí, y un JSONB no admite GRANT por columna sobre su contenido. Se deniega el schema completo con REVOKE USAGE, no tabla por tabla, para que un intento de acceso falle con permission denied for schema audit."
+    },
+    {
+      "nombre": "asistente",
+      "estado": "denegado",
+      "motivo": "Los dos registros del propio asistente. registro_analitico guarda el texto de las preguntas de TODOS los usuarios: un asistente que pudiera leerlo respondería «qué le preguntó fulano» a cualquiera con el permiso de consulta. registro_operativo guarda actor y timestamp preciso, y poder leerlo desde el carril SQL reconstruiría por dentro el cruce que separar las dos tablas existe para impedir. Se deniega el schema completo con REVOKE ALL ON SCHEMA, declarado en 002_asistente_registros.sql junto al CREATE SCHEMA porque un REVOKE sobre un schema inexistente falla."
     }
   ],
   "objetos_no_cubiertos": {
@@ -36,8 +41,20 @@
       "tabla": "carreras",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "code", "name", "is_active", "created_at"],
-        "asistente_ro_pii": ["id", "code", "name", "is_active", "created_at"]
+        "asistente_ro": [
+          "id",
+          "code",
+          "name",
+          "is_active",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "code",
+          "name",
+          "is_active",
+          "created_at"
+        ]
       },
       "columnas_denegadas": []
     },
@@ -46,8 +63,22 @@
       "tabla": "materias",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "code", "name", "carrera_id", "is_active", "created_at"],
-        "asistente_ro_pii": ["id", "code", "name", "carrera_id", "is_active", "created_at"]
+        "asistente_ro": [
+          "id",
+          "code",
+          "name",
+          "carrera_id",
+          "is_active",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "code",
+          "name",
+          "carrera_id",
+          "is_active",
+          "created_at"
+        ]
       },
       "columnas_denegadas": []
     },
@@ -56,7 +87,13 @@
       "tabla": "personas",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "legajo", "nombre", "apellido", "created_at"],
+        "asistente_ro": [
+          "id",
+          "legajo",
+          "nombre",
+          "apellido",
+          "created_at"
+        ],
         "asistente_ro_pii": [
           "id",
           "legajo",
@@ -170,8 +207,20 @@
       "tabla": "permisos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "code", "nombre", "descripcion", "created_at"],
-        "asistente_ro_pii": ["id", "code", "nombre", "descripcion", "created_at"]
+        "asistente_ro": [
+          "id",
+          "code",
+          "nombre",
+          "descripcion",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "code",
+          "nombre",
+          "descripcion",
+          "created_at"
+        ]
       },
       "columnas_denegadas": []
     },
@@ -180,8 +229,16 @@
       "tabla": "rol_permisos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["rol_id", "permiso_id", "created_at"],
-        "asistente_ro_pii": ["rol_id", "permiso_id", "created_at"]
+        "asistente_ro": [
+          "rol_id",
+          "permiso_id",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "rol_id",
+          "permiso_id",
+          "created_at"
+        ]
       },
       "columnas_denegadas": []
     },
@@ -190,7 +247,15 @@
       "tabla": "cargos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "codigo", "nombre", "abreviatura", "orden", "activo", "created_at"],
+        "asistente_ro": [
+          "id",
+          "codigo",
+          "nombre",
+          "abreviatura",
+          "orden",
+          "activo",
+          "created_at"
+        ],
         "asistente_ro_pii": [
           "id",
           "codigo",
@@ -292,8 +357,20 @@
       "tabla": "pedido_adjuntos",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "pedido_id", "tipo", "nombre", "created_at"],
-        "asistente_ro_pii": ["id", "pedido_id", "tipo", "nombre", "created_at"]
+        "asistente_ro": [
+          "id",
+          "pedido_id",
+          "tipo",
+          "nombre",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "pedido_id",
+          "tipo",
+          "nombre",
+          "created_at"
+        ]
       },
       "columnas_denegadas": [
         {

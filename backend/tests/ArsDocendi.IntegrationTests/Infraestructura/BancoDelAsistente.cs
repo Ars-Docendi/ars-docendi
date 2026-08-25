@@ -40,6 +40,9 @@ internal sealed class BancoDelAsistente
     /// <summary>La configuración con la que se armó.</summary>
     public required OpcionesAsistente Opciones { get; init; }
 
+    /// <summary>El registro del turno, sea el de memoria o el real.</summary>
+    public required IRegistroDelTurno Registro { get; init; }
+
     /// <summary>Un turno nuevo, con su propio contador de llamadas.</summary>
     public CapaConversacional Capa() => Fabrica();
 
@@ -52,6 +55,7 @@ internal sealed class BancoDelAsistente
         IAlmacenDeHilos? hilos = null,
         TimeProvider? reloj = null,
         ProveedorGuionado? proveedor = null,
+        IRegistroDelTurno? registro = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
@@ -65,6 +69,7 @@ internal sealed class BancoDelAsistente
         var cuota = new CuotaEnMemoria(opciones, elReloj);
         var disponibilidad = new DisponibilidadDelModeloReal(cuota, breaker);
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
+        var elRegistro = registro ?? new RegistroEnMemoria();
 
         // El índice se comparte entre turnos, igual que en producción: es un caché,
         // y uno por turno no cachearía nada.
@@ -77,6 +82,7 @@ internal sealed class BancoDelAsistente
             Breaker = breaker,
             Cuota = cuota,
             Opciones = valores,
+            Registro = elRegistro,
             Fabrica = () =>
             {
                 var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
@@ -106,6 +112,7 @@ internal sealed class BancoDelAsistente
                     indice,
                     new ReescritorDePreguntas(conTecho),
                     carril,
+                    elRegistro,
                     disponibilidad,
                     cuota,
                     contador,

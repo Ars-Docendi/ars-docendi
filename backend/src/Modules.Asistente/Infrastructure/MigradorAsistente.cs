@@ -38,6 +38,11 @@ internal sealed class MigradorAsistente(
         await PrivilegiosAsistente.AplicarAsync(
             conexion, valores.RolSoloLectura, valores.RolSoloLecturaPii, ct);
 
+        // Después de los privilegios y no antes: el DDL de los registros revoca su
+        // propio schema a los dos roles, y para eso los roles ya tienen que existir.
+        await RegistrosAsistente.AplicarAsync(
+            conexion, valores.RolSoloLectura, valores.RolSoloLecturaPii, ct);
+
         log.LogInformation(
             "Privilegios del asistente aplicados a {RolSoloLectura} y {RolSoloLecturaPii}",
             valores.RolSoloLectura,

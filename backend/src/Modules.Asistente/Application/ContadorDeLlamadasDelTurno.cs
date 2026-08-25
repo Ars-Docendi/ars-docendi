@@ -23,6 +23,33 @@ public sealed class ContadorDeLlamadasDelTurno(int techo)
     /// <summary>Llamadas al modelo consumidas en este turno.</summary>
     public int Llamadas => _llamadas;
 
+    /// <summary>Tokens de entrada facturados en este turno.</summary>
+    public int TokensDeEntrada { get; private set; }
+
+    /// <summary>Tokens de salida facturados en este turno.</summary>
+    public int TokensDeSalida { get; private set; }
+
+    /// <summary>Si el turno tuvo que volver a generar la consulta.</summary>
+    /// <remarks>
+    /// Es el reintento <b>semántico</b> del pipeline, no el de transporte: el de
+    /// transporte ocurre dentro de una llamada y tiene su propia cota. Se anota acá
+    /// porque el registro operativo lo pide y porque este objeto ya es el que sabe
+    /// lo que costó el turno.
+    /// </remarks>
+    public bool HuboReintento { get; private set; }
+
+    /// <summary>Anota lo que facturó una respuesta del modelo.</summary>
+    public void Contabilizar(RespuestaDelModelo respuesta)
+    {
+        ArgumentNullException.ThrowIfNull(respuesta);
+
+        TokensDeEntrada += respuesta.TokensDeEntrada;
+        TokensDeSalida += respuesta.TokensDeSalida;
+    }
+
+    /// <summary>Deja constancia de que el turno volvió a generar.</summary>
+    public void MarcarReintento() => HuboReintento = true;
+
     /// <summary>Máximo de llamadas al modelo permitidas en el turno.</summary>
     public int Techo { get; } = techo > 0
         ? techo

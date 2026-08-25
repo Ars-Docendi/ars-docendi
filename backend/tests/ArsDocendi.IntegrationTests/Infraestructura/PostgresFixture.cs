@@ -3,7 +3,6 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
-using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -92,6 +91,9 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             await conexion.OpenAsync();
             await PrivilegiosAsistente.AplicarAsync(
+                conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
+
+            await RegistrosAsistente.AplicarAsync(
                 conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
         }
 

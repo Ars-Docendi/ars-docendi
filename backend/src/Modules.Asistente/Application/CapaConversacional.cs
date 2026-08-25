@@ -23,6 +23,7 @@ public sealed class CapaConversacional(
     IIndiceDeEntidades indice,
     ReescritorDePreguntas reescritor,
     CarrilSql carril,
+    IRegistroDelTurno registro,
     IDisponibilidadDelModelo disponibilidad,
     ICuotaDelActor cuota,
     ContadorDeLlamadasDelTurno contador,
@@ -53,10 +54,16 @@ public sealed class CapaConversacional(
             ct, TimeSpan.FromSeconds(valores.PresupuestoDelTurnoSegundos), reloj);
 
         var conversacion = hilos.Resolver(hilo, actor);
+        var arranco = reloj.GetUtcNow();
 
         try
         {
-            return await ResolverAsync(actor, conversacion, mensaje, valores, presupuesto.Token);
+            var turno = await ResolverAsync(
+                actor, conversacion, mensaje, valores, presupuesto.Token);
+
+            await RegistrarAsync(actor, mensaje, turno, arranco, ct);
+
+            return turno;
         }
         catch (OperationCanceledException) when (presupuesto.Vencio)
         {
@@ -66,7 +73,10 @@ public sealed class CapaConversacional(
                 "El turno del asistente agotó su presupuesto de {Segundos}s.",
                 valores.PresupuestoDelTurnoSegundos);
 
-            return Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
+            var turno = Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
+            await RegistrarAsync(actor, mensaje, turno, arranco, ct);
+
+            return turno;
         }
         finally
         {
@@ -76,6 +86,51 @@ public sealed class CapaConversacional(
             cuota.Anotar(actor, contador.Llamadas);
         }
     }
+
+    /// <summary>
+    /// Manda el turno a los dos registros, ya partido en lo que va a cada uno.
+    /// </summary>
+    /// <remarks>
+    /// Se registra <b>lo que escribió el usuario</b> y no la pregunta interpretada:
+    /// el registro analítico existe para saber cómo pregunta la gente, y guardar la
+    /// versión reescrita mediría al reescritor en lugar de a los usuarios.
+    ///
+    /// Va con el token del request y no con el del presupuesto: si el turno se cortó
+    /// por tiempo, el registro de ese corte es justamente lo que hay que conservar.
+    /// </remarks>
+    private Task RegistrarAsync(
+        Guid actor,
+        string mensaje,
+        ResultadoDelTurno turno,
+        DateTimeOffset arranco,
+        CancellationToken ct)
+    {
+        var ahora = reloj.GetUtcNow();
+
+        return registro.RegistrarAsync(
+            new TurnoParaRegistrar(
+                actor,
+                ahora,
+                CarrilDe(turno),
+                turno.Estado,
+                turno.LlamadasAlModelo,
+                contador.TokensDeEntrada,
+                contador.TokensDeSalida,
+                (int)Math.Clamp((ahora - arranco).TotalMilliseconds, 0, int.MaxValue),
+                contador.HuboReintento,
+                turno.Truncado,
+                mensaje,
+                turno.Categoria),
+            ct);
+    }
+
+    private static CarrilDelTurno CarrilDe(ResultadoDelTurno turno) => turno.Estado switch
+    {
+        EstadoDelTurno.ServicioDegradado => CarrilDelTurno.Degradado,
+        EstadoDelTurno.NecesitaAclaracion => CarrilDelTurno.Aclaracion,
+        _ when turno.LlamadasAlModelo == 0 => CarrilDelTurno.SinDatos,
+        _ => CarrilDelTurno.Sql,
+    };
 
     private async Task<ResultadoDelTurno> ResolverAsync(
         Guid actor,

@@ -155,7 +155,15 @@ public static class ModuleExtensions
         services.AddSingleton<IIndiceDeEntidades, IndiceDeEntidades>();
 
         services.AddScoped<ReescritorDePreguntas>();
+        services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
         services.AddScoped<CapaConversacional>();
+
+        // -------------------------------------------- registros y su purga
+
+        // La purga es scoped porque la cadena dueña lo es; el servicio que la
+        // dispara abre un scope por vuelta en vez de capturarla para siempre.
+        services.AddScoped<PurgaDeRegistros>();
+        services.AddHostedService<ServicioDePurga>();
 
         // Cliente HTTP del proveedor, con el reintento de transporte ya puesto.
         // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,

@@ -108,10 +108,10 @@ Es idempotente y no falla si no hay nada que borrar: la ventana se compara contr
 
 ## Alternativas descartadas
 
-| Alternativa | Por qué no |
-| --- | --- |
-| Cuota derivada del registro operativo | Acopla el camino caliente a una tabla con retención propia: al purgar a los 90 días, el cupo se recalcularía sobre datos incompletos. Y agrega una lectura a la base antes de cada turno. |
-| Timeout por etapa, sin cota global | Es exactamente el modo de falla que RNF-09 nombra: cada etapa respeta su límite y el total se suma. |
-| Breaker por proceso compartido entre ambientes | El proveedor puede estar caído para una clave y sano para otra; y el módulo se despliega por ambiente. |
-| Modo degradado como excepción que corta el turno | Apagaría los cinco pasos que funcionan sin proveedor, justo cuando son lo único que queda. |
-| Registro único con un flag de anonimato | Un flag no desvincula: las dos filas siguen en la misma tabla con la misma clave y el mismo tiempo. |
+| Alternativa                                      | Por qué no                                                                                                                                                                                |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cuota derivada del registro operativo            | Acopla el camino caliente a una tabla con retención propia: al purgar a los 90 días, el cupo se recalcularía sobre datos incompletos. Y agrega una lectura a la base antes de cada turno. |
+| Timeout por etapa, sin cota global               | Es exactamente el modo de falla que RNF-09 nombra: cada etapa respeta su límite y el total se suma.                                                                                       |
+| Breaker por proceso compartido entre ambientes   | El proveedor puede estar caído para una clave y sano para otra; y el módulo se despliega por ambiente.                                                                                    |
+| Modo degradado como excepción que corta el turno | Apagaría los cinco pasos que funcionan sin proveedor, justo cuando son lo único que queda.                                                                                                |
+| Registro único con un flag de anonimato          | Un flag no desvincula: las dos filas siguen en la misma tabla con la misma clave y el mismo tiempo.                                                                                       |
