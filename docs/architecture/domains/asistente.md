@@ -391,6 +391,62 @@ registrando convierte la observabilidad en una fuente de indisponibilidad. Es la
 decisión inversa a la del enmascarador, y a propósito: ahí un fallo silencioso filtra
 datos, acá un fallo ruidoso niega un servicio que funciona.
 
+## La superficie de usuario
+
+`frontend/src/features/asistente/`, con **dos montajes de la misma vista**: la ruta
+`/asistente` a página completa y un lanzador en la barra superior que la abre en un
+cajón. Una ruta a la que hay que navegar no resuelve el descubrimiento: si el usuario
+tiene que acordarse de que el asistente existe y buscar dónde está, no lo usa.
+
+Dos implementaciones se desincronizarían, así que hay una sola —`PanelAsistente`—
+montada dos veces.
+
+**El lanzador elimina un fake UI.** En la barra superior había un botón «Ayuda»
+`disabled` con `title="Próximamente"`, que es exactamente lo que el invariante #7
+prohíbe. Activarlo con el asistente quita superficie falsa en lugar de agregar
+superficie nueva.
+
+### El acceso se pregunta, no se deduce del rol
+
+El frontend consulta `GET /api/asistente/capacidades`: si responde, hay acceso; si
+responde `403`, no.
+
+Lo tentador sería una lista de roles —«todos menos Docente»— y es el mismo antipatrón
+que el backend rechazó al sembrar el permiso: `identity.roles` **no es un catálogo
+cerrado**, Secretaría puede crear roles desde la aplicación, y una lista embebida
+falla **abierta** con cualquiera que no conozca. El fallo no daría error: le mostraría
+el asistente a alguien que no debería verlo.
+
+El catálogo que trae de vuelta es el mismo que la vista necesita para su pantalla
+inicial, así que la consulta no es un costo extra.
+
+### La accesibilidad, que es donde estaba el defecto conocido
+
+| Regla                                                          | Por qué                                                                                                                         |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `role="log"` + `aria-live` **solo sobre la lista de mensajes** | En el prototipo previo la región envolvía el contenedor entero, así que cada re-render hacía que el lector leyera todo de nuevo |
+| La línea de métricas, **fuera**                                | Cambia en cada turno: adentro es lo que más ruido genera                                                                        |
+| El indicador, en su propio `role="status"` y fuera del log     | Es un estado, no un mensaje de la conversación                                                                                  |
+| Umbral de aparición del indicador                              | Los tres carriles se diferencian en un orden de magnitud; un indicador que parpadea es peor que ninguno                         |
+| Foco al campo de entrada al responder                          | Quien usa teclado o lector no tiene que volver a buscarlo                                                                       |
+
+**No se inventan etapas.** «Interpretando… consultando… redactando…» exigiría streaming
+del servidor, que cambia el contrato; un progreso simulado por temporizador sería el
+mismo fake UI que este cambio vino a eliminar.
+
+### Lo que se muestra, y lo que no
+
+Los cuatro estados se renderizan distinguibles, y el **degradado va como aviso, no como
+error**: un banner rojo le diría al usuario que hizo algo mal, y su pregunta no tiene
+nada de malo.
+
+`opciones` y `sugerencias` se presentan distinto porque son cosas distintas: las
+opciones continúan el turno, las sugerencias son preguntas nuevas.
+
+Las columnas sensibles se renderizan como tabla con los **valores reales** —nunca
+viajaron al modelo—, y el truncado se avisa **sin números**: «ves 3 de 124» es un canal
+de inferencia sobre datos que el usuario no puede ver.
+
 ## Reglas de negocio (BR-\*)
 
 Ninguna propia. El asistente no decide nada del dominio: expone lo que otros
@@ -417,6 +473,7 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-capa-conversacional/` — el hilo, lo social, la aclaración y el seguimiento
 - `openspec/changes/asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
 - `openspec/changes/asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
+- `openspec/changes/asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
 
 ## Evaluación
 

@@ -4,7 +4,8 @@ import { Button, RoleBadge, RoleMenu } from "@ars-docendi/ui";
 
 import { clearToken } from "../../shared/auth/auth";
 import type { CurrentUser, Role } from "../../shared/auth/useCurrentUser";
-import { bellIcon, /*collapseIcon,*/ helpIcon, searchIcon } from "./icons";
+import { bellIcon, /*collapseIcon,*/ searchIcon } from "./icons";
+import { LanzadorAsistente } from "../../features/asistente/components/LanzadorAsistente";
 
 interface TopBarProps {
   collapsed: boolean;
@@ -84,15 +85,11 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user, onSwitchRole }: 
         >
           <span className="ico">{bellIcon}</span>
         </button>
-        <button
-          type="button"
-          className="adoc-icon-btn"
-          aria-label="Ayuda"
-          title="Próximamente"
-          disabled
-        >
-          <span className="ico">{helpIcon}</span>
-        </button>
+        {/* Acá vivía un botón «Ayuda» disabled con title="Próximamente", que es
+            exactamente el fake UI que el invariante #7 prohíbe. El lanzador del
+            asistente lo reemplaza: activarlo ELIMINA superficie falsa en vez de
+            agregar superficie nueva. Quien no tiene el permiso no ve nada. */}
+        <LanzadorAsistente />
 
         <div className="adoc-user-menu" ref={menuRef}>
           <RoleBadge
