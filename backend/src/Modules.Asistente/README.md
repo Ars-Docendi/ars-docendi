@@ -27,6 +27,43 @@ No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día
 aparece un agregado que le pertenezca, se crea entonces.
 
+## La capa conversacional
+
+Va encima del carril, no adentro. `CarrilSql.ResponderAsync` ya recibía una pregunta
+autocontenida; la capa es quien la calcula.
+
+```
+CapaConversacional.ResponderAsync(actor, hilo, mensaje)
+  │
+  ├─ IAlmacenDeHilos        ──► hilo en memoria, TTL 2 h, atado al actor
+  │                             guarda PREGUNTAS, nunca filas
+  │
+  ├─ EnrutadorSocial        ──► CARRIL SIN DATOS · 0 tokens
+  │                             se SALTEA si hay aclaración pendiente
+  │
+  ├─ ReconocedorDeAclaracion──► etiqueta → token distintivo → ordinal · 0 tokens
+  │
+  ├─ DetectorDeCambioDeTema ──► al marcarlo, SUELTA el segmento
+  │                             (el reescritor queda sin historial que arrastrar)
+  │
+  ├─ ReescritorDePreguntas  ──► única llamada al modelo de la capa; solo con historial
+  │
+  ├─ DetectorDeAmbiguedad   ──► necesita_aclaracion · 0 tokens · un SELECT, no el modelo
+  │
+  └─ CARRIL SQL (abajo)
+```
+
+**El pivote se fuerza.** Al detectar cambio de tema no se le pide al modelo que
+ignore el historial: se suelta el segmento y el reescritor no recibe ninguno. Por
+eso el test del pivote no mira la salida del modelo, mira qué se le mandó.
+
+**«¿y en Sistemas?» no es un pivote**, aunque nombre una entidad que no está activa.
+Lo salva la guarda del marcador anafórico, que va antes que la de entidad.
+
+**El detector de ambigüedad no se extiende a la vaguedad.** Dispara solo ante una
+colisión verificada por consulta. Preguntar tiene un costo medido: las aclaraciones
+de calidad baja son peores que no preguntar.
+
 ## El carril SQL
 
 Dos llamadas al modelo por turno y ocho piezas deterministas alrededor. La

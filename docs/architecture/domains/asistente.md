@@ -110,6 +110,51 @@ instrucción del prompt.
 Restricción dura: ninguna respuesta declara cuántas filas quedaron afuera. El
 indicador de truncado es un booleano y no un número.
 
+### La capa conversacional
+
+Va **encima** del carril, no adentro. Esa separación es lo que deja intactos el
+prefijo cacheado, el validador y los datasets: `CarrilSql.ResponderAsync` ya recibía
+una pregunta autocontenida, y la capa es quien la calcula.
+
+```
+resolver hilo
+  └─ enrutador social/meta        ← se SALTEA si hay aclaración pendiente
+       └─ reconocedor de aclaración
+            └─ detector de cambio de tema
+                 └─ reescritor    ← única llamada al modelo de la capa; solo con historial
+                      └─ detector de ambigüedad
+                           └─ CARRIL SQL
+```
+
+Cada posición tiene un motivo:
+
+- **El enrutador social se saltea con un menú abierto.** Si no, un «gracias» le
+  robaría la respuesta a la aclaración y el menú quedaría colgado.
+- **El reconocedor corre antes del reescritor** y le entrega la etiqueta canónica.
+  Si le pasara el «2» que el usuario tipeó, el reescritor tendría que adivinar.
+- **El reescritor corre antes del detector de ambigüedad.** «¿y en Análisis
+  Matemático?» no contiene ninguna entidad ambigua hasta que se la reescribe.
+
+**El cambio de tema se fuerza, no se pide.** Hay evidencia de modelos que detectan
+el pivote y arrastran contexto rancio igual. Al marcarlo, al reescritor **no se le
+pasa historial** — no se le pasa historial y una instrucción que diga «ignoralo».
+La diferencia es que así el arrastre es imposible por construcción, y el test que lo
+verifica no mira la salida del modelo sino qué se le mandó.
+
+**La guarda del marcador anafórico** es lo que evita que «¿y en Sistemas?» se lea
+como pivote: ese mensaje menciona un término del catálogo que no está activo, así
+que sin la guarda rompería el caso de seguimiento más común que existe.
+
+**La ambigüedad se resuelve con un `SELECT`, y solo con certeza.** Dos clases de
+colisión: nombres de materia repetidos entre carreras, y apellidos compartidos. El
+índice sale de la base. **No se extiende a la vaguedad**: preguntar tiene un costo
+medido, y las aclaraciones de calidad baja son peores que no preguntar.
+
+**El hilo guarda preguntas y nunca filas.** Guardar los resultados devolvería al
+prompt, por la puerta del historial, los datos personales que el enmascarador sacó
+del camino de salida. No se persiste: se pierde en cada redespliegue y eso está
+aceptado.
+
 ### La frontera de salida
 
 Los `GRANT` deciden **quién puede leer qué**, y eso lo impone el motor. El
