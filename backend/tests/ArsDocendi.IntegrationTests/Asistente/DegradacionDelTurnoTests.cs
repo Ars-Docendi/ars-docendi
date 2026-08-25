@@ -426,6 +426,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             reloj: reloj ?? new RelojFijo(Ancla),
             proveedor: proveedor,
             registro: null,
+            envolver: null,
             guion: guion);
     }
 

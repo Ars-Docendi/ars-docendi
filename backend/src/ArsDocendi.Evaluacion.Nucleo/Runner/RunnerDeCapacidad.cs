@@ -38,11 +38,20 @@ public interface IResolutorDeActores
 /// que instancia un proveedor real.
 /// </remarks>
 public sealed class RunnerDeCapacidad(
-    CarrilSql carril,
+    Func<CarrilSql> carrilPorItem,
     IEjecutorDeConsulta ejecutor,
     IResolutorDeActores actores,
     IProveedorDeModelo proveedor)
 {
+    // UN CARRIL NUEVO POR ÍTEM, y no es un detalle de construcción.
+    //
+    // `ContadorDeLlamadasDelTurno` es POR TURNO: en producción vive con el alcance
+    // del request. Un runner que sostuviera una sola instancia para todo el dataset
+    // convertiría ese techo —cuatro llamadas— en un techo de la corrida entera: el
+    // tercer ítem ya lo habría agotado, resolvería degradado, y el eje reportaría
+    // fallo casi total sin que nada explicara por qué.
+    //
+    // El modo de falla es especialmente malo porque NO da error: da un número.
     /// <summary>Código de salida cuando el preflight rechaza la corrida.</summary>
     public const int CodigoDePreflightFallido = 2;
 
@@ -74,20 +83,30 @@ public sealed class RunnerDeCapacidad(
             resultados.Add(await EvaluarAsync(item, ct));
         }
 
+
         var reporte = new Reporte(
             "capacidad", sello, resultados, dataset.ConteoPorCategoria());
 
         return new ResultadoDeCorrida(0, reporte, null);
     }
 
-    private async Task<ResultadoDeItem> EvaluarAsync(ItemDeCapacidad item, CancellationToken ct)
+    /// <summary>
+    /// Evalúa un ítem suelto.
+    /// </summary>
+    /// <remarks>
+    /// Es público para que el eje de robustez use <b>exactamente esta</b> evaluación
+    /// y no una copia. Con dos implementaciones, los números de los dos ejes dejarían
+    /// de ser comparables — que es justo la comparación que el eje de robustez existe
+    /// para permitir.
+    /// </remarks>
+    public async Task<ResultadoDeItem> EvaluarAsync(ItemDeCapacidad item, CancellationToken ct)
     {
         var actor = actores.Resolver(item.Actor);
 
         ResultadoDelTurno turno;
         try
         {
-            turno = await carril.ResponderAsync(actor, item.Pregunta, null, ct);
+            turno = await carrilPorItem().ResponderAsync(actor, item.Pregunta, null, ct);
         }
         catch (Exception excepcion) when (excepcion is not OperationCanceledException)
         {

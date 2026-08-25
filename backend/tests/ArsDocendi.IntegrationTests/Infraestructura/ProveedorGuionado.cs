@@ -24,7 +24,17 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
 
     public string Nombre => "guionado";
 
-    public bool EsSimulado => true;
+    /// <summary>
+    /// Si se declara simulado.
+    /// </summary>
+    /// <remarks>
+    /// Verdadero por omisión, que es lo honesto: sus respuestas no vienen de ningún
+    /// modelo. Los tests de los runners de evaluación lo ponen en falso a propósito,
+    /// porque el preflight rechaza a los proveedores simulados —y con razón— y lo que
+    /// esos tests miden es el criterio de puntuación, no el preflight, que tiene los
+    /// suyos.
+    /// </remarks>
+    public bool EsSimulado { get; init; } = true;
 
     /// <summary>Todo lo que se le pidió, en orden.</summary>
     public IReadOnlyList<SolicitudAlModelo> Recibidas => _recibidas;
@@ -67,7 +77,7 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
 
         _entregadas++;
 
-        return Task.FromResult(new RespuestaDelModelo(texto, 100, 50, EsSimulada: true));
+        return Task.FromResult(new RespuestaDelModelo(texto, 100, 50, EsSimulada: EsSimulado));
     }
 
     /// <summary>Arma la respuesta JSON de una generación contestable.</summary>

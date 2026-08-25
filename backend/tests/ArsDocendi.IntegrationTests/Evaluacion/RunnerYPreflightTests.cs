@@ -388,7 +388,11 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
         var ejecutor = new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones);
 
-        var carril = new CarrilSql(
+        // Una fábrica y no una instancia: el techo de llamadas es POR TURNO, y un
+        // carril compartido para todo el dataset lo convertiría en un techo de la
+        // corrida entera —el tercer ítem lo agotaría y todos los siguientes
+        // resolverían degradado—. El modo de falla no da error: da un número.
+        CarrilSql Carril() => new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(basica, conDatosPersonales),
                 new SelectorDeEjemplos(),
@@ -401,7 +405,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
             contador,
             NullLogger<CarrilSql>.Instance);
 
-        var runner = new RunnerDeCapacidad(carril, ejecutor, new ActoresDePrueba(), proveedor);
+        var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresDePrueba(), proveedor);
 
         return await runner.CorrerAsync(
             DatasetDeCapacidad.Interpretar(dataset), Sello, TestContext.Current.CancellationToken);

@@ -74,7 +74,71 @@ Cada sección del generador usa **su propia fuente de aleatoriedad**. Con una so
 compartida, agregar una persona correría todos los valores de las secciones
 siguientes y rompería ítems que nadie tocó.
 
-## El dataset
+## Los cuatro ejes
+
+| Eje                    | Dataset          | Qué mide, que ningún otro ve                               |
+| ---------------------- | ---------------- | ---------------------------------------------------------- |
+| **Capacidad**          | `capacidad.json` | Si traduce la pregunta a la consulta correcta              |
+| **Robustez de fraseo** | `robustez.json`  | Si entiende a la gente y no solo preguntas de manual       |
+| **Diálogo**            | `dialogo.json`   | La capa conversacional entera, y si **arrastra**           |
+| **Social y meta**      | `social.json`    | Qué captura el carril de cero tokens, y qué se come de más |
+
+**Los cuatro reportes van a archivos separados y no se promedian.** Un 0,7 de robustez
+y un 0,7 de diálogo no significan ni valen lo mismo, y el promedio de cuatro cosas
+incomparables no mide nada.
+
+### Robustez: la consulta se hereda, no se copia
+
+Cada ítem de robustez es una pregunta del eje de capacidad dicha de otra manera —sin
+tildes, con errores de tipeo, con sinónimos, parcial, coloquial—.
+
+**Ninguno declara su propia consulta de referencia: la hereda del ítem de origen.** Lo
+directo sería copiarla y poner un test que compare las dos, y es peor: un test que
+compara copias falla _después_ de que alguien las desincronizó, y copiar mal es
+exactamente el error que se comete al agregar el ítem quince. Al derivarla no hay dos
+copias que puedan diferir.
+
+El motivo por el que ese invariante importa: sin él, un fallo sería ambiguo. ¿No
+entendió el fraseo, o no supo escribir la consulta?
+
+### Diálogo: mide lo que NO tiene que aparecer
+
+Un diálogo puede dar 100% mientras el sistema **arrastra silenciosamente** el filtro
+del turno anterior: si el turno de prueba es autocontenido, el arrastre no cambia el
+resultado y no se ve en ningún lado.
+
+Cada turno declara `terminos_prohibidos`, y el runner los busca en la **pregunta
+interpretada** —no en la respuesta—, que es la única superficie donde el arrastre es
+visible antes de convertirse en filas. El chequeo va **antes** que la comparación de
+resultados: un turno que arrastra puede acertar de casualidad, y contarlo como acierto
+escondería el defecto.
+
+El dataset incluye **pivotes duros**: turno uno sobre una entidad, turno dos sobre
+otra sin ninguna referencia anafórica, con los términos del primero prohibidos.
+
+> **Se espera que este eje empiece rojo**, y ése es el punto: es la línea de base
+> honesta contra la cual medir las mejoras del reescritor.
+
+### Social: el assert de costo cero ES la métrica
+
+Los ítems sociales aprueban **solo si consumen cero tokens de entrada**. Si el saludo
+costó tokens, el enrutador no lo capturó, por perfecta que haya sido la respuesta.
+
+Se miden **tokens y no llamadas**: cero llamadas implica cero tokens, pero no al revés
+—un proveedor que devuelve vacío consumió entrada igual—. El número sale del
+transporte, con un decorador que es a la vez el instrumento.
+
+Los ítems **negativos** son preguntas legítimas tomadas del eje de capacidad y de las
+clases coloquial y parcial de robustez: el enrutador **no** debe capturarlas, y
+capturarlas resta. Sin negativos, un enrutador que se come todo daría perfecto.
+
+**La trampa del proveedor caído, agravada.** Acá el assert es «consumió cero tokens», y
+un proveedor caído consume cero en **todos** los ítems: la corrida entera daría verde
+perfecto. Por eso el runner social **aborta ruidosamente si todos los turnos
+consumieron cero** — en una corrida sana, los negativos tienen que haber llegado al
+modelo.
+
+## El dataset de capacidad
 
 `datasets/capacidad.json`, estratificado por dificultad técnica:
 `consulta_simple` · `filtro_temporal` · `cruce_de_tablas` · `agregacion` ·
@@ -150,16 +214,44 @@ ser reproducibles, sin que nadie lo note.
 
 Los reportes van a `reportes/` y son **generados**: no se editan a mano.
 
+## El gate de regresión
+
+Lock **por ítem** contra un archivo versionado en `lineas-de-base/`, no umbral
+agregado. El motivo es aritmético: con pocas decenas de ítems, **tres que se rompen y
+tres que se arreglan dan delta cero** y pasan cualquier umbral mientras el asistente
+cambió de comportamiento. Y un solo ítem vale un par de puntos porcentuales: un umbral
+fino sería ruido y uno grueso no detectaría nada.
+
+Ventaja adicional: el lock **no depende del tamaño del dataset**. Un dataset de esta
+escala tiene un intervalo de confianza de varios puntos, así que ninguna comparación de
+agregados puede sostener una afirmación de mejora o regresión.
+
+Si cambió cualquiera de los tres hashes del sellado, el gate **no compara**: exige
+regenerar. Los hashes identifican contra qué se midió, y comparar ítem a ítem con un
+sello distinto sería comparar dos cosas que no son la misma.
+
+**La regeneración nunca es automática.** Si lo fuera, una regresión real se absorbería
+sola en el primer commit que la causara. Ver `lineas-de-base/README.md`.
+
+## Un defecto que este trabajo encontró
+
+`ContadorDeLlamadasDelTurno` es **por turno**: en producción vive con el alcance del
+request. Los runners sostenían **una** instancia del pipeline para todo el dataset, así
+que ese techo —cuatro llamadas— funcionaba como techo de la **corrida entera**: el
+tercer ítem ya lo había agotado, resolvía degradado, y el eje habría reportado fallo
+casi total.
+
+El modo de falla es especialmente malo porque **no da error: da un número**. Los tres
+runners reciben ahora una fábrica y arman el pipeline por ítem; hay un test que lo fija.
+
 ## Qué falta
 
-| Qué                                                | Épica |
-| -------------------------------------------------- | ----- |
-| Eje de robustez de fraseo                          | H4    |
-| Eje de diálogo con chequeo negativo de arrastre    | H4    |
-| Eje social y meta, con assert de costo cero        | H4    |
-| Gate de regresión con lock por ítem                | H4    |
-| **Una implementación de proveedor de modelo real** | —     |
+| Qué                                                | Estado                                                     |
+| -------------------------------------------------- | ---------------------------------------------------------- |
+| **Una implementación de proveedor de modelo real** | Bloqueado por TD-008                                       |
+| Las cuatro líneas de base                          | Salen de una corrida real, así que dependen de lo anterior |
 
-El gate de regresión es lock **por ítem** y no umbral agregado: tres ítems que se
-rompen y tres que se arreglan dan delta cero y pasan cualquier umbral. Necesita una
-línea de base, y la línea de base sale de correr esto.
+Sin proveedor real, los cuatro ejes están completos y probados pero **no se pueden
+correr**. Una línea de base generada con el proveedor simulado registraría el
+comportamiento del simulador, no el del asistente, y el gate empezaría a defender el
+número equivocado.

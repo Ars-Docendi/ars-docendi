@@ -16,7 +16,14 @@ namespace Modules.Asistente.Application;
 /// también. Sin unificarlos, dos preguntas idénticas escritas por dos personas
 /// distintas seleccionarían ejemplos distintos.
 /// </remarks>
-internal static class NormalizadorLexico
+/// <remarks>
+/// Es público —y no interno como nació— porque el eje de diálogo de la evaluación
+/// necesita decidir si un término se arrastró de un turno al siguiente, y tiene que
+/// hacerlo con LA MISMA noción de igualdad que usa el asistente. Con dos plegados
+/// distintos, el evaluador podría reportar un arrastre que el módulo no ve, o
+/// pasarle por al lado a uno que sí.
+/// </remarks>
+public static class NormalizadorLexico
 {
     /// <summary>
     /// Palabras vacías del español. Se descartan porque aparecen en casi toda
@@ -180,7 +187,8 @@ internal static class NormalizadorLexico
     /// escribe «diseno» pregunta lo mismo— y ninguno de los términos del dominio
     /// colisiona con otro al plegarla.
     /// </remarks>
-    private static string SinAcentos(string palabra)
+    /// <summary>Quita tildes y diéresis, dejando la letra base.</summary>
+    public static string SinAcentos(string palabra)
     {
         var descompuesta = palabra.Normalize(NormalizationForm.FormD);
         var limpia = new StringBuilder(descompuesta.Length);

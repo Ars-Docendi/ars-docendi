@@ -56,12 +56,18 @@ internal sealed class BancoDelAsistente
         TimeProvider? reloj = null,
         ProveedorGuionado? proveedor = null,
         IRegistroDelTurno? registro = null,
+        Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
         var opciones = Options.Create(valores);
         var elReloj = reloj ?? TimeProvider.System;
         var elProveedor = proveedor ?? new ProveedorGuionado(guion);
+
+        // El envoltorio permite meter un medidor entre el guionado y el pipeline. El
+        // eje social lo necesita: afirma «cero tokens de entrada», y ese número sale
+        // del transporte, no del resultado del turno.
+        var visto = envolver is null ? (IProveedorDeModelo)elProveedor : envolver(elProveedor);
 
         var breaker = new BreakerDelProveedor(
             opciones, elReloj, NullLogger<BreakerDelProveedor>.Instance);
@@ -98,7 +104,7 @@ internal sealed class BancoDelAsistente
                 var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
 
                 var conBreaker = new ProveedorConBreaker(
-                    elProveedor,
+                    visto,
                     breaker,
                     TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
                     elReloj);

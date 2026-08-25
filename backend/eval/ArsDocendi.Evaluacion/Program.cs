@@ -25,7 +25,7 @@ public static class Program
     public static async Task<int> Main(string[] argumentos)
     {
         var raiz = RaizDelRepositorio();
-        var dataset = Path.Combine(raiz, "backend", "eval", "datasets", "capacidad.json");
+        var datasets = Path.Combine(raiz, "backend", "eval", "datasets");
         var reportes = Path.Combine(raiz, "backend", "eval", "reportes");
 
         if (argumentos.Contains("--ayuda", StringComparer.Ordinal))
@@ -34,19 +34,32 @@ public static class Program
             return CodigoDeUso;
         }
 
-        if (!File.Exists(dataset))
+        var capacidad = Path.Combine(datasets, "capacidad.json");
+        if (!File.Exists(capacidad))
         {
-            await Console.Error.WriteLineAsync($"No se encontró el dataset en {dataset}.");
+            await Console.Error.WriteLineAsync($"No se encontró el dataset en {capacidad}.");
             return CodigoDeUso;
         }
 
-        var cargado = DatasetDeCapacidad.Cargar(dataset);
+        // Los cuatro ejes se cargan ACÁ, antes de mirar si hay proveedor: un dataset
+        // mal armado tiene que fallar de forma visible aunque no haya con qué correr,
+        // porque si no el error aparece recién el día que alguien consigue una clave.
+        var cargado = DatasetDeCapacidad.Cargar(capacidad);
+        var robustez = DatasetDeRobustez.Cargar(Path.Combine(datasets, "robustez.json"), cargado);
+        var dialogo = DatasetDeDialogo.Cargar(Path.Combine(datasets, "dialogo.json"));
+        var social = DatasetSocial.Cargar(Path.Combine(datasets, "social.json"));
         var fixture = new GeneradorDeFixture();
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"Dataset: {cargado.Items.Count} ítems · huella {cargado.Huella[..12]}"));
+            $"Capacidad: {cargado.Items.Count} ítems · huella {cargado.Huella[..12]}"));
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"Fixture: huella {fixture.Huella()[..12]}"));
+            $"Robustez:  {robustez.Items.Count} ítems · huella {robustez.Huella[..12]}"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Diálogo:   {dialogo.Turnos} turnos en {dialogo.Dialogos.Count} conversaciones · huella {dialogo.Huella[..12]}"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Social:    {social.Items.Count} ítems · huella {social.Huella[..12]}"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Fixture:   huella {fixture.Huella()[..12]}"));
 
         // ─────────────────────────────────────────────────────────────────────
         // ACÁ VA EL PROVEEDOR REAL, y es lo único que falta para poder correr
@@ -77,7 +90,10 @@ public static class Program
             """);
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"\n(Los reportes se escribirían en {reportes}.)"));
+            $"\n(Los cuatro reportes se escribirían en {reportes}, uno por eje.)"));
+        Console.WriteLine(
+            "Los ejes NO se promedian entre sí: un 0,7 de robustez y un 0,7 de diálogo\n"
+            + "no significan ni valen lo mismo.");
 
         return CodigoSinProveedor;
     }
@@ -92,6 +108,10 @@ public static class Program
           · una base PostgreSQL con el esquema migrado y el fixture aplicado;
           · las cadenas de conexión del asistente en el ambiente;
           · un proveedor de modelo REAL — hoy no hay ninguno implementado.
+
+        Cuatro ejes, con reportes separados: capacidad, robustez de fraseo,
+        diálogo y social/meta. Más el gate de regresión con lock por ítem, que
+        necesita una línea de base — y una línea de base sale de correr esto.
 
         No lo corre el CI, y no puede: este proyecto está fuera del archivo de
         solución a propósito. Ver backend/eval/README.md.

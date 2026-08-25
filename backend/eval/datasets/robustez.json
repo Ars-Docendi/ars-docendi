@@ -1,0 +1,99 @@
+{
+  "descripcion": "Eje de robustez de fraseo. Cada ítem es una pregunta del eje de capacidad dicha de otra manera. NINGUNO declara consulta de referencia: la hereda de su ítem de origen, así que la reutilización byte-idéntica es estructural y no una convención vigilada. Sin eso, un fallo sería ambiguo: ¿no entendió el fraseo, o no supo escribir la consulta?",
+  "items": [
+    {
+      "id": "rob-001",
+      "origen": "cap-001",
+      "clase": "sin_tildes",
+      "pregunta": "Que carreras dicta el Departamento?"
+    },
+    {
+      "id": "rob-002",
+      "origen": "cap-005",
+      "clase": "sin_tildes",
+      "pregunta": "Cuantos nombramientos siguen abiertos?"
+    },
+    {
+      "id": "rob-003",
+      "origen": "cap-015",
+      "clase": "sin_tildes",
+      "pregunta": "Que asignaturas se dictan en Ingenieria Industrial?"
+    },
+
+    {
+      "id": "rob-004",
+      "origen": "cap-002",
+      "clase": "tipeo",
+      "pregunta": "¿Cuáles son los carogs docentes que existen?"
+    },
+    {
+      "id": "rob-005",
+      "origen": "cap-004",
+      "clase": "tipeo",
+      "pregunta": "¿Quiénes dictan Bases de Dattos?"
+    },
+    {
+      "id": "rob-006",
+      "origen": "cap-011",
+      "clase": "tipeo",
+      "pregunta": "¿Qué cilcos de designación están cargados en el sistema?"
+    },
+
+    {
+      "id": "rob-007",
+      "origen": "cap-001",
+      "clase": "sinonimo",
+      "pregunta": "¿Qué carreras se cursan en el Departamento?"
+    },
+    {
+      "id": "rob-008",
+      "origen": "cap-006",
+      "clase": "sinonimo",
+      "pregunta": "¿Cuántos auxiliares de primera tienen designación?"
+    },
+    {
+      "id": "rob-009",
+      "origen": "cap-012",
+      "clase": "sinonimo",
+      "pregunta": "¿Qué pedidos siguen sin aprobación?"
+    },
+
+    {
+      "id": "rob-010",
+      "origen": "cap-001",
+      "clase": "parcial",
+      "pregunta": "carreras del Departamento"
+    },
+    {
+      "id": "rob-011",
+      "origen": "cap-004",
+      "clase": "parcial",
+      "pregunta": "docentes de Bases de Datos"
+    },
+    {
+      "id": "rob-012",
+      "origen": "cap-016",
+      "clase": "parcial",
+      "pregunta": "solicitudes urgentes"
+    },
+
+    {
+      "id": "rob-013",
+      "origen": "cap-001",
+      "clase": "coloquial",
+      "pregunta": "che, ¿qué carreras hay en el Departamento?"
+    },
+    {
+      "id": "rob-014",
+      "origen": "cap-005",
+      "clase": "coloquial",
+      "pregunta": "a ver, ¿cuántos nombramientos hay abiertos hoy?"
+    },
+    {
+      "id": "rob-015",
+      "origen": "cap-014",
+      "clase": "coloquial",
+      "pregunta": "necesito saber cuántas bajas se pidieron"
+    }
+  ]
+}
