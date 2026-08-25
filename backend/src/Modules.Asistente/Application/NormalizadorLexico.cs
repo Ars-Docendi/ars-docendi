@@ -129,6 +129,20 @@ internal static class NormalizadorLexico
     }
 
     /// <summary>
+    /// Las palabras del texto en orden, en minúscula y sin acentos, sin descartar
+    /// ninguna.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que <see cref="Terminos"/> tiene antes de tirar las palabras vacías y
+    /// de aplicar sinónimos. Lo necesita el enrutador social, que decide
+    /// justamente por lo que queda después de sacar la apertura de cortesía: si
+    /// arrancara de un conjunto ya sin palabras vacías, «¿qué tal?» llegaría vacío
+    /// desde el principio y cualquier pregunta corta se confundiría con un saludo.
+    /// </remarks>
+    public static IReadOnlyList<string> Palabras(string texto) =>
+        [.. Trocear(texto).Select(SinAcentos)];
+
+    /// <summary>
     /// Parte el texto en palabras. Todo lo que no sea letra o dígito separa,
     /// así que los signos de interrogación y la puntuación no dejan rastro.
     /// </summary>

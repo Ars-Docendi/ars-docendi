@@ -95,4 +95,31 @@ public sealed class OpcionesAsistente
     /// corte primero sea el del servidor —que además libera el backend—.
     /// </remarks>
     public int TimeoutDeComandoSegundos { get; set; } = 15;
+
+    /// <summary>Cuánto vive un hilo conversacional sin actividad, en minutos.</summary>
+    /// <remarks>
+    /// El hilo no se persiste: se pierde en cada redespliegue y eso está aceptado.
+    /// Persistirlo agregaría tabla, migración y una política de retención de datos
+    /// personales indirectos sin mover ninguna métrica del proyecto.
+    /// </remarks>
+    public int VigenciaDelHiloMinutos { get; set; } = 120;
+
+    /// <summary>
+    /// Cuántos turnos del segmento vigente se le muestran al reescritor.
+    /// </summary>
+    /// <remarks>
+    /// Se recorta desde el inicio del SEGMENTO y no desde el turno cero: anclar
+    /// para siempre el primer turno arrastra contexto muerto de temas que la
+    /// conversación ya soltó.
+    /// </remarks>
+    public int TopeDeTurnosDelHistorial { get; set; } = 4;
+
+    /// <summary>
+    /// Cuántas veces se reofrece un menú de aclaración antes de abandonarlo.
+    /// </summary>
+    /// <remarks>
+    /// Sin tope, una respuesta que nunca se reconoce deja la aclaración pendiente
+    /// para siempre y el hilo deja de aceptar preguntas nuevas.
+    /// </remarks>
+    public int MaximoDeIntentosDeAclaracion { get; set; } = 2;
 }
