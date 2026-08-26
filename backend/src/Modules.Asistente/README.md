@@ -265,6 +265,58 @@ Faltando la clave, el Host **arranca igual** y el ping responde: el error llega
 recién a quien pida el proveedor, y nombra el valor que falta. Un ambiente a medio
 configurar tiene que poder levantar.
 
+### Levantar el asistente entero en local
+
+El asistente es el único módulo que necesita **dos roles de PostgreSQL extra**, y
+esos roles no los crea ninguna migración: tienen que existir antes, porque las
+migraciones les conceden privilegios. Los crea `infra/scripts/provision-db.sh`,
+que corre `psql` en un contenedor efímero adjunto a la red `arsdocendi-datos`.
+
+Verificado de punta a punta con el ambiente `pr-25`:
+
+```bash
+# 1. Postgres y la red que los scripts esperan
+docker network create arsdocendi-datos
+docker run -d --name arsdocendi-local --network arsdocendi-datos \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -p 55432:5432 postgres:18-alpine
+
+# 2. Base + los tres roles (app, asistente básico, asistente con PII)
+PGHOST=arsdocendi-local PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres \
+APP_DB_USER=app_pr_25 APP_DB_PASSWORD=... \
+ASISTENTE_RO_PASSWORD=... ASISTENTE_RO_PII_PASSWORD=... \
+  infra/scripts/provision-db.sh pr-25
+
+# 3. Migraciones de los cinco módulos, incluidos los GRANT del asistente
+ConnectionStrings__ArsDocendi="Host=localhost;Port=55432;Database=arsdocendi_pr_25;Username=app_pr_25;Password=..." \
+Asistente__RolSoloLectura=asistente_ro_pr_25 \
+Asistente__RolSoloLecturaPii=asistente_ro_pii_pr_25 \
+Asistente__PasswordSoloLectura=... Asistente__PasswordSoloLecturaPii=... \
+  dotnet run --project backend/src/ArsDocendi.Host -- --migrate
+
+# 4. Datos sintéticos
+PGHOST=arsdocendi-local PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres \
+  infra/scripts/seed.sh pr-25
+
+# 5. El Host, con identidad de desarrollo
+ASPNETCORE_ENVIRONMENT=Development DevelopmentAuthentication__Enabled=true \
+  <las mismas variables del paso 3> \
+  dotnet run --project backend/src/ArsDocendi.Host --no-launch-profile
+
+# 6. El frontend, que llega a la API por el proxy de Vite
+VITE_API_PROXY_TARGET=http://localhost:5099 pnpm --filter frontend dev
+```
+
+Dos cosas que cuestan una tarde si no están escritas:
+
+- La sección de la identidad de desarrollo es `DevelopmentAuthentication`, no
+  `AutenticacionDesarrollo`. Con el nombre equivocado el flag queda en `false`,
+  no se registra ningún esquema de autenticación, y **todo endpoint protegido
+  responde 500 en lugar de 401** — el error no dice que falte configuración.
+- El navegador tiene que hablar con el mismo origen. El Host no declara CORS y no
+  tiene por qué: en los ambientes desplegados Traefik publica la API bajo `/api`
+  en el mismo host. En desarrollo eso lo resuelve el proxy de `vite.config.ts`.
+
 ### Qué absorbe el adaptador, y por qué eso es su trabajo
 
 - **La temperatura no viaja.** Los modelos Claude actuales la rechazan con 400. El
