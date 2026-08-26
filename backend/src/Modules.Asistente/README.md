@@ -201,17 +201,72 @@ vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variante
 ## Proveedor del modelo
 
 `IProveedorDeModelo` (en `Application/`) es la interfaz propia detrás de la cual
-vive el proveedor de LLM. Hoy la única implementación es `ProveedorSimulado`:
-determinista, sin red, y **el default de todos los ambientes**.
+vive el proveedor de LLM. No menciona ningún proveedor: `PrefijoEstable`,
+`Mensaje`, `Temperatura` y `MaximoDeTokens` de ida; texto y conteo de tokens de
+vuelta.
 
-Usar un proveedor real exige ponerlo explícitamente en `Asistente:Proveedor`. El
-motivo no es estilístico: los ambientes efímeros de PR no pueden tener clave real,
-porque su workflow hace checkout del head del pull request y ejecuta un script que
-viene de ese mismo PR, en un job con los secrets del environment.
+El `switch` de `ModuleExtensions` **es el registro de adaptadores** y la selección
+va por ambiente (`Asistente:Proveedor`):
+
+| Clave       | Implementación       | Cuándo                                                |
+| ----------- | -------------------- | ----------------------------------------------------- |
+| `simulado`  | `ProveedorSimulado`  | Default de todos los ambientes. Determinista, sin red |
+| `anthropic` | `ProveedorAnthropic` | Requiere `Asistente:ClaveDelProveedor`                |
+
+Sumar uno nuevo —otro proveedor, o un modelo propio corriendo en la nube— es una
+clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline que
+rehacer, y los dos conviven en la misma compilación con ambientes distintos
+eligiendo uno u otro.
+
+El default es el simulado y usar uno real exige configuración explícita. El motivo
+no es estilístico: los ambientes efímeros de PR no pueden tener clave real, porque
+su workflow hace checkout del head del pull request y ejecuta un script que viene de
+ese mismo PR, en un job con los secrets del environment.
 
 La respuesta simulada se identifica como tal en la bandera `EsSimulada` **y** en el
 texto. Un proveedor de mentira que devolviera algo verosímil sería peor que uno que
 falla: la métrica del asistente es corrección con abstención.
+
+### Configuración del adaptador real
+
+| Variable                       | Default         | Qué es                                   |
+| ------------------------------ | --------------- | ---------------------------------------- |
+| `Asistente__Proveedor`         | `simulado`      | `simulado` o `anthropic`                 |
+| `Asistente__ClaveDelProveedor` | —               | La credencial. Nunca al repositorio      |
+| `Asistente__Modelo`            | `claude-opus-5` | Qué modelo usar                          |
+| `Asistente__Esfuerzo`          | `high`          | `low`, `medium`, `high`, `xhigh` o `max` |
+
+Para levantarlo en desarrollo con clave real, sin escribirla a ningún archivo:
+
+```bash
+export Asistente__Proveedor=anthropic
+export Asistente__ClaveDelProveedor=...
+dotnet run --project backend/src/ArsDocendi.Host
+```
+
+Faltando la clave, el Host **arranca igual** y el ping responde: el error llega
+recién a quien pida el proveedor, y nombra el valor que falta. Un ambiente a medio
+configurar tiene que poder levantar.
+
+### Qué absorbe el adaptador, y por qué eso es su trabajo
+
+- **La temperatura no viaja.** Los modelos Claude actuales la rechazan con 400. El
+  puerto la conserva porque otros proveedores sí la usan; el determinismo del
+  carril SQL se pide por instrucción del prefijo y por `Esfuerzo`.
+- **El prefijo va marcado para cachear.** Es el bloque más grande del prompt y se
+  repite idéntico turno a turno. Sin la marca nada falla: el ahorro simplemente no
+  ocurre, y solo se nota en la factura.
+- **El adaptador no reintenta.** El SDK lo hace por defecto; se apaga. El reintento
+  vive en `ReintentoDeTransporte`, y con los dos encendidos el peor caso documentado
+  de un turno pasaría de 12 requests a 36 sin que nada falle.
+- **Ninguna excepción del SDK sale de él.** `ProveedorConBreaker` cuenta dos formas
+  de fallo —su propia cancelación y `HttpRequestException`— y cualquier otra lo
+  atraviesa sin contarse. Un tipo del SDK que se escapara haría que el corte no
+  abriera nunca.
+
+Un test de arquitectura fija que el SDK se nombre en **un solo archivo**. Es lo que
+hace verificable —y no meramente intencional— la promesa de que el puerto es
+agnóstico.
 
 ## Reintento y techo de llamadas
 

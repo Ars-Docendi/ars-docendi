@@ -2,6 +2,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
@@ -61,16 +62,25 @@ public static class ModuleExtensions
             Requerido(sp, o => o.PasswordSoloLecturaPii, nameof(OpcionesAsistente.PasswordSoloLecturaPii)))));
 
         // Proveedor del modelo. Se registra como fábrica para que un nombre
-        // desconocido falle recién cuando alguien lo pida, y no impida arrancar.
+        // desconocido —o una clave faltante— falle recién cuando alguien lo pida, y
+        // no impida arrancar: el ping tiene que responder en cualquier ambiente.
+        //
+        // Este switch ES el registro de adaptadores. El puerto no menciona ningún
+        // proveedor y la selección va por ambiente, así que sumar uno nuevo —otro
+        // proveedor, o un modelo propio corriendo en la nube— es un brazo más acá y
+        // una clase en Infrastructure. No hay nada del pipeline que rehacer.
         services.AddSingleton(sp =>
         {
-            var elegido = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.Proveedor;
+            var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+            var elegido = valores.Proveedor;
+
             return new ProveedorBase(elegido switch
             {
                 ProveedorSimulado.Clave => new ProveedorSimulado(),
+                ProveedorAnthropic.Clave => ArmarAnthropic(sp, valores),
                 _ => throw new InvalidOperationException(
-                    $"Proveedor de modelo '{elegido}' desconocido. Hoy el único disponible es "
-                    + $"'{ProveedorSimulado.Clave}'; el real llega con el carril SQL."),
+                    $"Proveedor de modelo '{elegido}' desconocido. Los disponibles son "
+                    + $"'{ProveedorSimulado.Clave}' y '{ProveedorAnthropic.Clave}'."),
             });
         });
 
@@ -209,4 +219,24 @@ public static class ModuleExtensions
                 $"Falta '{OpcionesAsistente.Seccion}:{nombre}' en la configuración del ambiente.")
             : valor;
     }
+
+    /// <summary>
+    /// Arma el adaptador de Anthropic con el cliente HTTP que ya trae el reintento.
+    /// </summary>
+    /// <remarks>
+    /// El transporte sale de la fábrica con nombre y no de un <c>HttpClient</c>
+    /// propio: ahí adentro está <see cref="ReintentoDeTransporte"/>, que es la
+    /// única autoridad de reintento del módulo. Un cliente propio dejaría al
+    /// adaptador sin reintento, o —peor— lo tentaría a poner el suyo y multiplicar
+    /// en silencio la cota de requests que el módulo documenta.
+    /// </remarks>
+    private static ProveedorAnthropic ArmarAnthropic(
+        IServiceProvider sp, OpcionesAsistente valores) =>
+        new(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
+            Requerido(sp, o => o.ClaveDelProveedor, nameof(OpcionesAsistente.ClaveDelProveedor)),
+            Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo)),
+            valores.Esfuerzo,
+            sp.GetRequiredService<ILogger<ProveedorAnthropic>>());
+
 }

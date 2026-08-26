@@ -41,6 +41,45 @@ public sealed class OpcionesAsistente
     public string Proveedor { get; set; } = "simulado";
 
     /// <summary>
+    /// Credencial del proveedor real. La inyecta el ambiente en runtime.
+    /// </summary>
+    /// <remarks>
+    /// Nunca se escribe al repositorio, no entra en ningún <c>appsettings.json</c> y
+    /// no aparece en ningún registro: el registro operativo guarda el nombre del
+    /// proveedor, no su clave.
+    ///
+    /// Vacía por default y eso está bien: el proveedor simulado no la necesita, y
+    /// exigirla siempre rompería el arranque en todo ambiente que todavía corra con
+    /// el simulado —que hoy son todos—.
+    /// </remarks>
+    public string ClaveDelProveedor { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Modelo a usar con el proveedor real.
+    /// </summary>
+    /// <remarks>
+    /// Es configuración y no una constante a propósito: comparar costo contra
+    /// calidad entre modelos es justamente lo que los cuatro ejes de evaluación
+    /// miden, y cambiar de modelo para medirlo tiene que ser una variable de
+    /// ambiente y no un recompilado.
+    /// </remarks>
+    public string Modelo { get; set; } = "claude-opus-5";
+
+    /// <summary>
+    /// Cuánto esfuerzo de razonamiento se le pide al modelo.
+    /// </summary>
+    /// <remarks>
+    /// Valores aceptados: <c>low</c>, <c>medium</c>, <c>high</c>, <c>xhigh</c>,
+    /// <c>max</c>. Uno desconocido falla al construir el proveedor, con la lista
+    /// en el mensaje.
+    ///
+    /// Junto con la instrucción del prefijo, es lo que reemplaza a la temperatura:
+    /// los modelos Claude actuales rechazan <c>temperature</c> con 400, así que el
+    /// determinismo que el carril SQL necesita se pide por acá.
+    /// </remarks>
+    public string Esfuerzo { get; set; } = "high";
+
+    /// <summary>
     /// Techo de llamadas al modelo por turno (RNF-10). Cuatro sin reintentos:
     /// reescritor, generación, reintento y redacción.
     /// </summary>

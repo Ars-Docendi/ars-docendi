@@ -460,8 +460,12 @@ viven en el manifiesto de privilegios y en las policies RLS.
   agrega edges hacia `Modules.<X>.Contracts`, es de la épica E6.
 - **Hacia afuera**: nadie lo consume.
 - **Externas**: un proveedor de modelo de lenguaje, detrás de `IProveedorDeModelo`.
-  Hoy la única implementación es la simulada. **El asistente no accede a ninguna
-  otra fuente externa**: opera exclusivamente sobre la base del propio sistema.
+  Dos implementaciones: `ProveedorSimulado` (default de todos los ambientes) y
+  `ProveedorAnthropic`, que se elige con `Asistente__Proveedor=anthropic` y exige
+  clave. El SDK del proveedor se nombra en un solo archivo, fijado por un test de
+  arquitectura, así que sumar un adaptador —o cambiar de proveedor— es una clase y
+  un brazo del `switch`. **El asistente no accede a ninguna otra fuente externa**:
+  opera exclusivamente sobre la base del propio sistema.
 
 ## Specs activas
 
@@ -474,6 +478,7 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-presupuesto-degradacion/` — cuota, topes, breaker y los dos registros
 - `openspec/changes/asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
 - `openspec/changes/asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
+- `openspec/changes/asistente-proveedor-anthropic/` — el primer adaptador real del puerto
 
 ## Evaluación
 
@@ -488,8 +493,9 @@ está **fuera**, con un guard adentro que falla si vuelve a entrar. El CI corre 
 tests de la solución sin filtro, y el síntoma de olvidarlo sería una factura, no un
 test rojo.
 
-Hoy no se puede correr: no hay ninguna implementación de proveedor de modelo real.
-Está registrado como TD-008.
+Hoy no se puede correr, pero por la otra mitad: el adaptador real existe
+(`ProveedorAnthropic`, `Asistente__Proveedor=anthropic`) y lo que falta es una clave
+y presupuesto aprobado. Sigue registrado como TD-008.
 
 ## Decisiones registradas
 

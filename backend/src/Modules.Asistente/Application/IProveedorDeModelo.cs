@@ -54,7 +54,21 @@ public sealed record SolicitudAlModelo
     /// <summary>Parte variable: la pregunta del turno y sus parámetros.</summary>
     public required string Mensaje { get; init; }
 
-    /// <summary>0.0 para generar SQL; más alta para redactar en español.</summary>
+    /// <summary>
+    /// Cuánta variación se pide: 0.0 para generar SQL, más alta para redactar en
+    /// español. Es una <b>intención</b>, y cada adaptador decide cómo expresarla.
+    /// </summary>
+    /// <remarks>
+    /// No todos los proveedores la aceptan: los modelos Claude actuales la rechazan
+    /// con 400, así que <c>ProveedorAnthropic</c> la absorbe y pide lo mismo por
+    /// instrucción del prefijo y por esfuerzo de razonamiento.
+    ///
+    /// Sigue en el contrato igual, y a propósito. La temperatura es un parámetro
+    /// real de casi cualquier otro proveedor, incluido un modelo propio corriendo en
+    /// la nube —que es la migración que el proyecto contempla—. Sacarla porque UN
+    /// adaptador no la soporta convertiría al puerto en la forma de ese adaptador,
+    /// que es exactamente lo que un puerto no debe ser.
+    /// </remarks>
     public required decimal Temperatura { get; init; }
 
     /// <summary>Techo de tokens de la respuesta.</summary>

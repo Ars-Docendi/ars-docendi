@@ -15,6 +15,7 @@ namespace ArsDocendi.IntegrationTests.Infraestructura;
 public sealed class RegistroDeCapturas : ILoggerProvider
 {
     private readonly List<string> _lineas = [];
+    private readonly List<(LogLevel Nivel, string Linea)> _niveles = [];
     private readonly Lock _candado = new();
 
     /// <summary>Un logger tipado que escribe acá.</summary>
@@ -41,11 +42,29 @@ public sealed class RegistroDeCapturas : ILoggerProvider
         }
     }
 
-    private void Agregar(string linea)
+    /// <summary>
+    /// Solo lo registrado en un nivel dado.
+    /// </summary>
+    /// <remarks>
+    /// La severidad importa cuando lo que se afirma es que algo se gritó y no que
+    /// se anotó al pasar. Una credencial rechazada registrada en <c>Warning</c> se
+    /// pierde entre la intermitencia normal del proveedor, que es exactamente el
+    /// caso que este selector permite distinguir.
+    /// </remarks>
+    public IReadOnlyList<string> DeNivel(LogLevel nivel)
+    {
+        lock (_candado)
+        {
+            return [.. _niveles.Where(par => par.Nivel == nivel).Select(par => par.Linea)];
+        }
+    }
+
+    private void Agregar(LogLevel nivel, string linea)
     {
         lock (_candado)
         {
             _lineas.Add(linea);
+            _niveles.Add((nivel, linea));
         }
     }
 
@@ -81,7 +100,7 @@ public sealed class RegistroDeCapturas : ILoggerProvider
                 linea.Append(" | ").Append(exception);
             }
 
-            registro.Agregar(linea.ToString());
+            registro.Agregar(logLevel, linea.ToString());
         }
     }
 }

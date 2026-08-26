@@ -269,6 +269,21 @@ public sealed partial class ArquitecturaAsistenteTests
         Assert.Equal(["ArsDocendi.Shared"], referencias);
     }
 
+    [Fact]
+    public void El_SDK_del_proveedor_se_nombra_en_un_solo_archivo()
+    {
+        var culpables = Detectar(CodigoDelModulo(), SdkDelProveedor())
+            .Where(ruta => !ruta.EndsWith("ProveedorAnthropic.cs", StringComparison.Ordinal))
+            .ToList();
+
+        // Es lo que hace cierta la promesa de que el puerto es agnóstico. Mientras
+        // el SDK viva en un archivo, cambiar de proveedor —o sumar un segundo, o
+        // pasarse a un modelo propio— es escribir otra clase al lado y otro brazo
+        // del switch. En cuanto sus tipos se filtran a la composición o al
+        // pipeline, esa promesa deja de ser verificable y pasa a ser una intención.
+        Assert.Empty(culpables);
+    }
+
     // ------------------------------------------------------------------------ apoyo
 
     private sealed record Archivo(string Ruta, string Contenido);
@@ -372,4 +387,10 @@ public sealed partial class ArquitecturaAsistenteTests
     // módulo tenga que borrar o alterar algo, ni siquiera lo propio.
     [GeneratedRegex(@"\bDROP\s+\w+\b|\bALTER\s+TABLE\b", RegexOptions.IgnoreCase)]
     private static partial Regex DestruccionEnSql();
+
+    // El namespace raíz del SDK y sus tipos propios. Alcanza con el namespace: no
+    // hay forma de usar el SDK sin nombrarlo, porque el módulo no tiene ningún
+    // using global que lo traiga.
+    [GeneratedRegex(@"\bAnthropic\.[A-Z]|\bAnthropicClient\b")]
+    private static partial Regex SdkDelProveedor();
 }

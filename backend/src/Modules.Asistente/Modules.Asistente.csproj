@@ -10,7 +10,15 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <!--
+    El SDK de Anthropic entra como dependencia de UN adaptador, no del pipeline.
+    Nada fuera de Infrastructure/ProveedorAnthropic.cs lo nombra: el resto del
+    módulo habla con IProveedorDeModelo, que no menciona ningún proveedor. Un
+    adaptador para otro proveedor —o para un modelo propio— suma su paquete acá
+    al lado y ninguno de los dos desplaza al otro.
+  -->
   <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.42.1" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
 
