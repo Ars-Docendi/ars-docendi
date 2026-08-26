@@ -62,8 +62,24 @@ public sealed class OpcionesAsistente
     /// calidad entre modelos es justamente lo que los cuatro ejes de evaluación
     /// miden, y cambiar de modelo para medirlo tiene que ser una variable de
     /// ambiente y no un recompilado.
+    ///
+    /// <b>Por qué Sonnet y no Opus.</b> El esquema que el modelo tiene que manejar
+    /// es chico —catorce tablas, poco más de cien columnas—, que es el factor que
+    /// más pesa en traducir preguntas a SQL. Opus cuesta dos veces y media más por
+    /// token para un problema de ese tamaño.
+    ///
+    /// <b>Por qué no uno más chico todavía.</b> Haiku 4.5 no acepta el parámetro de
+    /// esfuerzo —cada llamada volvería 400— y su retiro está anunciado para no antes
+    /// de octubre de 2026. Para un sistema que queda en producción, elegirlo sería
+    /// elegir una migración forzada. Y ahorra poco: lo que separa a Sonnet de Haiku
+    /// es una fracción de lo que separaba a Opus de Sonnet.
+    ///
+    /// El riesgo que este default asume está del lado de la métrica: responder mal
+    /// RESTA y abstenerse no, y los modelos más chicos fallan con confianza en vez
+    /// de callarse. Es exactamente lo que el eje de capacidad mide, así que la
+    /// elección se confirma o se corrige con una corrida, no con una opinión.
     /// </remarks>
-    public string Modelo { get; set; } = "claude-opus-5";
+    public string Modelo { get; set; } = "claude-sonnet-5";
 
     /// <summary>
     /// Cuánto esfuerzo de razonamiento se le pide al modelo.
@@ -76,8 +92,20 @@ public sealed class OpcionesAsistente
     /// Junto con la instrucción del prefijo, es lo que reemplaza a la temperatura:
     /// los modelos Claude actuales rechazan <c>temperature</c> con 400, así que el
     /// determinismo que el carril SQL necesita se pide por acá.
+    ///
+    /// <b>Medium y no high</b>, que es el default del proveedor, por una razón que
+    /// no es solo de costo. Los modelos actuales piensan por defecto y esos tokens
+    /// se facturan como salida <b>y cuentan contra el techo de la llamada</b>. La
+    /// generación de SQL tiene un techo de 1200 tokens: con esfuerzo alto sobre una
+    /// pregunta difícil, el modelo podría gastar buena parte del presupuesto
+    /// pensando y truncar el JSON, que el generador resuelve como «no pude
+    /// interpretar la pregunta». Una abstención que en realidad fue un techo corto.
+    ///
+    /// Es una hipótesis todavía, no algo observado: hay que mirarlo en la primera
+    /// corrida real. Si aparece, el síntoma son abstenciones sin explicación sobre
+    /// preguntas que el modelo debería poder contestar.
     /// </remarks>
-    public string Esfuerzo { get; set; } = "high";
+    public string Esfuerzo { get; set; } = "medium";
 
     /// <summary>
     /// Techo de llamadas al modelo por turno (RNF-10). Cuatro sin reintentos:

@@ -229,12 +229,29 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                       | Default         | Qué es                                   |
-| ------------------------------ | --------------- | ---------------------------------------- |
-| `Asistente__Proveedor`         | `simulado`      | `simulado` o `anthropic`                 |
-| `Asistente__ClaveDelProveedor` | —               | La credencial. Nunca al repositorio      |
-| `Asistente__Modelo`            | `claude-opus-5` | Qué modelo usar                          |
-| `Asistente__Esfuerzo`          | `high`          | `low`, `medium`, `high`, `xhigh` o `max` |
+| Variable                       | Default           | Qué es                                   |
+| ------------------------------ | ----------------- | ---------------------------------------- |
+| `Asistente__Proveedor`         | `simulado`        | `simulado` o `anthropic`                 |
+| `Asistente__ClaveDelProveedor` | —                 | La credencial. Nunca al repositorio      |
+| `Asistente__Modelo`            | `claude-sonnet-5` | Qué modelo usar                          |
+| `Asistente__Esfuerzo`          | `medium`          | `low`, `medium`, `high`, `xhigh` o `max` |
+
+**Por qué esos dos defaults.** El esquema que el modelo maneja es chico —catorce
+tablas, poco más de cien columnas— y ése es el factor que más pesa en traducir
+preguntas a SQL, así que Opus no se paga. Hacia abajo tampoco conviene: Haiku 4.5
+no acepta el parámetro de esfuerzo (cada llamada volvería `400`) y su retiro está
+anunciado para no antes de octubre de 2026.
+
+El esfuerzo va en `medium` por costo **y** por un riesgo concreto: los modelos
+actuales piensan por defecto, esos tokens se facturan como salida y cuentan contra
+el techo de la llamada. La generación de SQL tiene techo de 1200 tokens, así que
+con esfuerzo alto el modelo podría gastar el presupuesto pensando y truncar el
+JSON — que el generador resuelve como «no pude interpretar la pregunta». Todavía
+es una hipótesis; el síntoma serían abstenciones sin explicación sobre preguntas
+contestables.
+
+Las dos elecciones se confirman o se corrigen con una corrida del evaluador, que
+para eso existe. Cambiar de modelo entre corridas es una variable de ambiente.
 
 Para levantarlo en desarrollo con clave real, sin escribirla a ningún archivo:
 
