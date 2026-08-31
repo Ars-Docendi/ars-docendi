@@ -269,6 +269,46 @@ renderiza la interfaz.
 proveedor a través de la generación: si alguien tipea un documento en la pregunta,
 llega al modelo igual. Protege el camino de vuelta, no el de ida.
 
+## El carril determinista: catálogo de intenciones
+
+Las preguntas que la API del sistema **ya sabe responder** no necesitan que un modelo reconstruya su consulta. El carril determinista las reconoce contra un catálogo cerrado y las enruta a la API. Hoy está construida **la primera mitad**: el catálogo y la resolución de slots. El enrutador que los consume, y los edges hacia los `Contracts` de los módulos consumidos, son el cambio siguiente.
+
+**Clasificar la intención con el modelo está descartado con evidencia**: 60% de F1 en triage de cinco clases, 77,4% en nueve vías. Un clasificador que falla una de cada cuatro veces, cuesta una llamada y corta el flujo es peor que una tabla.
+
+### Qué declara una intención
+
+`Recursos/intenciones.json` es un archivo, no código disperso. Cada intención declara los términos que tienen que aparecer en la pregunta normalizada, los slots que exige y un **destino lógico**. El destino es un nombre: nadie lo invoca desde el catálogo, y por eso el módulo no gana ninguna referencia nueva.
+
+El reconocimiento es por **conjunto** de términos y no por expresión regular: «¿en qué estado está el pedido de Pérez?» y «¿el pedido de Pérez en qué estado está?» son la misma pregunta, y una regex sobre lenguaje natural es una promesa de precisión que el orden de las palabras no sostiene.
+
+### De dónde salen los valores
+
+Los slots se resuelven contra la base, nunca contra una lista escrita a mano:
+
+| Clase de slot                 | Fuente                                                      |
+| ----------------------------- | ----------------------------------------------------------- |
+| Materia, Persona              | El índice de entidades que ya usan los dos detectores       |
+| Estado, Novedad, Tipo de baja | Los `CHECK` de `designaciones.pedidos`, vía `pg_constraint` |
+| Cargo                         | `designaciones.cargos`, por nombre y por abreviatura        |
+
+**Por qué se leen los `CHECK` y no se copian sus valores.** El problema de la lista copiada no es la duplicación sino su modo de fallar: cuando alguien agregue un estado, la lista no rompe nada. El resolutor deja de reconocerlo, la pregunta cae al carril SQL y nadie se entera de que había un camino más barato. Un desajuste que no falla es un desajuste que dura. Por eso una restricción que no enumera literales —o que alguien renombró— es un **error ruidoso** y nunca un vocabulario vacío.
+
+**Y por qué el vocabulario se compone al lado del índice y no adentro.** `CatalogoDeEntidades` lo consumen el detector de ambigüedad, que dispara cuando un término colisiona, y el de cambio de tema, que mide el solapamiento de entidades entre dos preguntas. Meterles «borrador», «Alta» y «Titular» adentro les cambiaría el comportamiento en silencio: palabras que hoy son texto común pasarían a ser entidades del dominio. Componiendo afuera, los dos quedan intactos por construcción y no por un test que lo vigile.
+
+### La colisión no resuelve
+
+Un término que corresponde a más de un valor deja el slot **sin resolver**, y una intención con un slot sin resolver no queda reconocida. Es la misma regla del detector de ambigüedad, escrita en el sentido de este carril: con dos Pérez, enrutar con uno devuelve las filas del otro, y esa respuesta es indistinguible de la correcta para quien preguntó.
+
+**El default es SQL y nunca API.** Enrutar mal hacia la API devuelve cero filas, y «cero filas» es indistinguible de «no hay» — la mentira que la política de abstención prohíbe. Fallar hacia el carril más caro es fallar hacia el que puede responder.
+
+### Lo que esta pieza no es
+
+**No generaliza, y conviene decirlo.** La guarda que hace viable el enrutador social —interceptar solo si no queda ningún token de contenido— no sirve acá: distinguir «¿cuál es el estado del pedido de Pérez?» de una pregunta arbitraria exige intención **y** slots. Es viable sobre un catálogo chico de preguntas frecuentes.
+
+El catálogo nace con cinco intenciones y crece **de a una, cada una con su caso de prueba**. Hay un test que itera el catálogo y falla nombrando la intención que no tiene caso: es lo que hace barata la disciplina, y la razón de que el catálogo sea un archivo.
+
+**Cuesta cero llamadas al modelo.** Se verifica sobre las dependencias y no contando llamadas: un contador en cero dice que esta vez no llamó; que el tipo no reciba por dónde llamar dice que no puede.
+
 ## Presupuesto y degradación
 
 Tres cotas, más un estado propio para cuando alguna se agota.

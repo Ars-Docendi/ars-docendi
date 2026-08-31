@@ -56,6 +56,14 @@ Esto es lo que mantiene el corte del ticket en pie. El módulo no gana ninguna r
 
 El reconocimiento y la resolución son puros sobre datos ya cargados. Los dos catálogos —entidades y vocabulario del trámite— se cargan **perezosamente y se cachean**, con el mismo patrón y por el mismo motivo que el índice de entidades: el invariante #3 pide que el `ping` responda con la base detenida, así que nada se construye al arrancar el Host.
 
+### D7 — El vocabulario se compone al lado del índice, no adentro
+
+`CatalogoDeEntidades` queda **exactamente como está**. El vocabulario del trámite vive en un catálogo propio, y una pieza nueva —`ICatalogoDelDominio`— compone los dos para el resolutor.
+
+**La alternativa era ampliar el índice existente**, que es lo que primero parece más simple: un solo catálogo, un solo caché, una sola consulta. Se descartó al ver quiénes lo consumen. El detector de ambigüedad dispara cuando un término del índice colisiona, y el de cambio de tema mide el solapamiento de entidades entre dos preguntas. Meterles «borrador», «Alta» y «Titular» adentro les cambia el comportamiento en silencio: palabras que hoy son texto común pasarían a ser entidades del dominio, y el cambio de tema empezaría a medir contra un vocabulario que no eligió.
+
+Componer afuera hace que esos dos detectores queden intactos **por construcción** y no por un test que lo vigile. El costo es una interfaz más y una segunda consulta a la base, ambas baratas y cacheadas igual que la primera.
+
 ## Riesgos
 
 - **El catálogo chico se va a querer agrandar.** Cada intención nueva agranda la superficie donde un reconocimiento incorrecto manda una pregunta al carril que no la responde. La mitigación es la disciplina, no el código: un caso de prueba por intención, con sus slots resueltos y sin resolver, y el test que itera el catálogo y falla si falta.

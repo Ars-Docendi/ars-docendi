@@ -1,0 +1,49 @@
+{
+  "$comentario": [
+    "Catálogo CERRADO de intenciones del carril determinista.",
+    "",
+    "Cada intención declara los términos que tienen que aparecer en la pregunta ya",
+    "normalizada, los slots que exige y el destino lógico al que enrutaría. El",
+    "destino es un NOMBRE: nadie lo invoca desde acá.",
+    "",
+    "Los términos van normalizados —minúscula, sin acentos, con los sinónimos ya",
+    "aplicados—: hay un test que falla si alguno no lo está. 'estados' se escribe",
+    "'estado' y 'cuantas' se escribe 'cuantos' porque el normalizador los pliega.",
+    "",
+    "El catálogo nace chico y crece DE A UNA, cada una con su caso de prueba. No",
+    "generaliza: reconocer intención más slots sobre lenguaje abierto no es lo que",
+    "esta pieza hace. Lo que no reconoce cae al carril SQL, que sí puede responder."
+  ],
+  "intenciones": [
+    {
+      "nombre": "estado-del-pedido-de-una-persona",
+      "terminos": ["estado", "pedido"],
+      "slots": [{ "nombre": "persona", "clase": "Persona" }],
+      "destino": "designaciones/pedidos-por-persona"
+    },
+    {
+      "nombre": "pedidos-en-un-estado",
+      "terminos": ["cuantos", "pedido"],
+      "slots": [{ "nombre": "estado", "clase": "Estado" }],
+      "destino": "designaciones/pedidos-por-estado"
+    },
+    {
+      "nombre": "pedidos-de-una-novedad",
+      "terminos": ["pedido"],
+      "slots": [{ "nombre": "novedad", "clase": "Novedad" }],
+      "destino": "designaciones/pedidos-por-novedad"
+    },
+    {
+      "nombre": "plantel-de-una-materia",
+      "terminos": ["plantel"],
+      "slots": [{ "nombre": "materia", "clase": "Materia" }],
+      "destino": "designaciones/designaciones-por-materia"
+    },
+    {
+      "nombre": "designaciones-de-un-cargo",
+      "terminos": ["cuantos"],
+      "slots": [{ "nombre": "cargo", "clase": "Cargo" }],
+      "destino": "designaciones/designaciones-por-cargo"
+    }
+  ]
+}

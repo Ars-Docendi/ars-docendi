@@ -164,6 +164,19 @@ public static class ModuleExtensions
         services.AddSingleton<IAlmacenDeHilos, AlmacenDeHilosEnMemoria>();
         services.AddSingleton<IIndiceDeEntidades, IndiceDeEntidades>();
 
+        // El catálogo del dominio es el índice de entidades MÁS el vocabulario
+        // cerrado del trámite, compuestos afuera y no adentro: el índice lo consumen
+        // el detector de ambigüedad y el de cambio de tema, y meterles «borrador» o
+        // «Titular» como entidades les cambiaría el comportamiento en silencio.
+        //
+        // El catálogo de intenciones se carga ACÁ y no perezosamente. Es un archivo
+        // embebido y no toca la base, así que cargarlo temprano no compromete el
+        // invariante #3 —el ping responde con la base detenida— y hace que un
+        // catálogo mal escrito rompa el arranque en lugar de la primera pregunta.
+        services.AddSingleton<ICatalogoDelDominio, CatalogoDelDominioReal>();
+        services.AddSingleton(CatalogoDeIntenciones.Cargar());
+        services.AddScoped<ResolutorDeIntenciones>();
+
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
 
