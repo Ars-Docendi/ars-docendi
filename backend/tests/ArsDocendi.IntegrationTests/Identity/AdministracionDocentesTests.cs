@@ -5,10 +5,10 @@ using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
 using Modules.Designaciones.Contracts.Administracion;
+using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
-using Modules.Designaciones.Domain;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Identity;

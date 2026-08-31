@@ -1,5 +1,5 @@
-using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Aplicacion;
+using ArsDocendi.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Designaciones.Domain;

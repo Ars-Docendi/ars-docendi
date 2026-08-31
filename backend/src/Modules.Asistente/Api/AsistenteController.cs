@@ -1,6 +1,6 @@
 using ArsDocendi.Shared.Auth;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Asistente.Application;
 

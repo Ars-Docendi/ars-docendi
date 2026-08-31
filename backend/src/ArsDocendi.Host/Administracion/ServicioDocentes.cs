@@ -154,22 +154,22 @@ public sealed class ServicioDocentes(
 
             var ahora = DateTimeOffset.UtcNow;
             foreach (var rol in roles.Values)
-            foreach (var materia in materias.Values)
-            {
-                var asignacion = new UsuarioRol
+                foreach (var materia in materias.Values)
                 {
-                    Id = Guid.NewGuid(),
-                    UsuarioId = usuario.Id,
-                    RolId = rol.Id,
-                    MateriaId = materia.Id,
-                    CarreraId = materia.CarreraId,
-                    OtorgadoEn = ahora,
-                    CreadoEn = ahora,
-                    Rol = rol,
-                };
-                usuario.Roles.Add(asignacion);
-                repositorio.AgregarAsignacion(asignacion);
-            }
+                    var asignacion = new UsuarioRol
+                    {
+                        Id = Guid.NewGuid(),
+                        UsuarioId = usuario.Id,
+                        RolId = rol.Id,
+                        MateriaId = materia.Id,
+                        CarreraId = materia.CarreraId,
+                        OtorgadoEn = ahora,
+                        CreadoEn = ahora,
+                        Rol = rol,
+                    };
+                    usuario.Roles.Add(asignacion);
+                    repositorio.AgregarAsignacion(asignacion);
+                }
             await repositorio.GuardarAsync(token);
             await designaciones.ReemplazarVigentesAsync(persona.Id, datos.Designaciones, token);
             return persona.Id;
