@@ -284,6 +284,43 @@ public sealed partial class ArquitecturaAsistenteTests
         Assert.Empty(culpables);
     }
 
+    // -------------------------------------------------- higiene de la credencial
+
+    [Fact]
+    public void Ningun_archivo_de_configuracion_versionado_trae_la_clave_del_proveedor()
+    {
+        var archivos = ConfiguracionVersionada();
+
+        // El default de `ClaveDelProveedor` es la cadena vacía y la clave real entra
+        // por ambiente. Lo que este test cuida es que nadie la «deje puesta un rato»
+        // en un appsettings para probar: una credencial commiteada no se arregla
+        // borrándola después, porque queda en el historial para siempre.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, ClaveConValor());
+
+        Assert.True(culpables.Count == 0,
+            "Hay una clave del proveedor escrita en configuración versionada. "
+            + "Va por variable de ambiente. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_clave_escrita_en_configuracion()
+    {
+        Archivo[] sinteticos =
+        [
+            new("a/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\":\"sk-ant-api03-x\"}}"),
+            new("b/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\": \"a-mano\"}}"),
+        ];
+
+        Assert.Equal(2, Detectar(sinteticos, ClaveConValor()).Count);
+
+        // Declararla vacía es exactamente lo que el repositorio SÍ puede hacer:
+        // documenta que el valor existe sin traer ningún secreto.
+        Assert.Empty(Detectar(
+            [new("c/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\": \"\"}}")],
+            ClaveConValor()));
+    }
+
     // ------------------------------------------------------------------------ apoyo
 
     private sealed record Archivo(string Ruta, string Contenido);
@@ -333,6 +370,42 @@ public sealed partial class ArquitecturaAsistenteTests
             .Select(ruta => new Archivo(
                 Path.GetRelativePath(raiz, ruta),
                 SinComentariosDeCodigo(File.ReadAllText(ruta))))];
+    }
+
+    /// <summary>
+    /// Los archivos de configuración que el repositorio versiona.
+    /// </summary>
+    /// <remarks>
+    /// Barre el repo entero y no solo el módulo: la clave se puede filtrar tanto en
+    /// el appsettings del Host como en el de los tests, y el daño es el mismo.
+    ///
+    /// Los archivos por ambiente y los locales quedan afuera porque no se versionan:
+    /// un appsettings.Development.json con la clave puesta en la máquina de alguien
+    /// es correcto, y es justamente el lugar donde el README dice que vaya.
+    /// </remarks>
+    private static Archivo[] ConfiguracionVersionada()
+    {
+        var raiz = RaizRepositorio.Ruta();
+
+        return [.. Directory
+            .EnumerateFiles(raiz, "appsettings*.json", SearchOption.AllDirectories)
+            .Where(ruta => !EnCarpeta(ruta, "obj") && !EnCarpeta(ruta, "bin"))
+            .Where(ruta => !EnCarpeta(ruta, "node_modules"))
+            .Where(EstaVersionado)
+            .Select(ruta => new Archivo(Path.GetRelativePath(raiz, ruta), File.ReadAllText(ruta)))];
+    }
+
+    private static bool EnCarpeta(string ruta, string carpeta) =>
+        ruta.Contains(
+            $"{Path.DirectorySeparatorChar}{carpeta}{Path.DirectorySeparatorChar}",
+            StringComparison.Ordinal);
+
+    private static bool EstaVersionado(string ruta)
+    {
+        var nombre = Path.GetFileName(ruta);
+
+        return !nombre.Contains(".Development.", StringComparison.OrdinalIgnoreCase)
+            && !nombre.Contains(".Local.", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Archivo[] DdlDelAsistente()
@@ -393,4 +466,9 @@ public sealed partial class ArquitecturaAsistenteTests
     // using global que lo traiga.
     [GeneratedRegex(@"\bAnthropic\.[A-Z]|\bAnthropicClient\b")]
     private static partial Regex SdkDelProveedor();
+
+    // La clave declarada CON un valor. La cadena vacía se perdona a propósito: es la
+    // forma en que un appsettings documenta que el valor existe sin traer el secreto.
+    [GeneratedRegex("\"ClaveDelProveedor\"\\s*:\\s*\"[^\"]+\"")]
+    private static partial Regex ClaveConValor();
 }

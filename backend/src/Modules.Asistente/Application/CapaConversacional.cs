@@ -25,6 +25,7 @@ public sealed class CapaConversacional(
     CarrilSql carril,
     ISelectorDeEjemplos ejemplos,
     ICatalogoDeCapacidades capacidades,
+    IProveedorDeModelo proveedor,
     IRegistroDelTurno registro,
     IDisponibilidadDelModelo disponibilidad,
     ICuotaDelActor cuota,
@@ -122,7 +123,8 @@ public sealed class CapaConversacional(
                 contador.HuboReintento,
                 turno.Truncado,
                 mensaje,
-                turno.Categoria),
+                turno.Categoria,
+                proveedor.Nombre),
             ct);
     }
 

@@ -36,6 +36,11 @@ public enum CarrilDelTurno
 /// <param name="Pregunta">
 /// Qué se preguntó. Va solo al registro analítico.
 /// </param>
+/// <param name="Proveedor">
+/// Quién respondió: la identidad que expone <see cref="IProveedorDeModelo.Nombre"/>,
+/// nunca su credencial. Va solo al registro operativo, porque es una propiedad del
+/// costo del turno y no de la pregunta.
+/// </param>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
     DateTimeOffset Cuando,
@@ -48,7 +53,8 @@ public sealed record TurnoParaRegistrar(
     bool HuboReintento,
     bool Truncado,
     string Pregunta,
-    string Categoria);
+    string Categoria,
+    string Proveedor);
 
 /// <summary>
 /// Escribe los dos registros desvinculados (RF-16).

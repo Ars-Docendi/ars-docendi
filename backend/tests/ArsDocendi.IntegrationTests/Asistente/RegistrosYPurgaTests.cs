@@ -51,6 +51,41 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task El_operativo_guarda_el_nombre_del_proveedor_y_ninguna_credencial()
+    {
+        // El nombre del proveedor es lo que hace atribuible el costo: sin él, un
+        // cambio de modelo mezcla dos series de precios distintos en la misma tabla.
+        // La credencial es lo contrario —no aporta nada y todo lo que puede hacer es
+        // filtrarse—, y la única forma de que no esté es que nunca llegue hasta acá.
+        await RegistrarAsync(Turno());
+
+        var proveedores = await LeerAsync<string>(
+            "SELECT proveedor FROM asistente.registro_operativo");
+
+        Assert.Equal(["anthropic/claude-sonnet-5"], proveedores);
+
+        // Ninguna de las dos tablas guarda nada con forma de credencial. Se busca la
+        // forma y no un valor concreto: un test contra la clave de un ambiente daría
+        // verde en cualquier otro.
+        foreach (var tabla in (string[])["registro_operativo", "registro_analitico"])
+        {
+            Assert.Empty(await BuscarTextoAsync(tabla, "sk-ant"));
+            Assert.Empty(await BuscarTextoAsync(tabla, "api_key"));
+        }
+    }
+
+    [Fact]
+    public async Task El_nombre_del_proveedor_no_viaja_al_registro_analitico()
+    {
+        // Es la mitad que importa de la columna nueva. En el analítico sería una
+        // dimensión más por la cual agrupar preguntas, y con treinta usuarios cada
+        // dimensión que se agrega achica el conjunto en el que alguien se esconde.
+        await RegistrarAsync(Turno());
+
+        Assert.DoesNotContain("proveedor", await ColumnasDeAsync("registro_analitico"));
+    }
+
+    [Fact]
     public async Task El_analitico_no_guarda_actor_ni_hora()
     {
         await RegistrarAsync(Turno());
@@ -478,7 +513,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             HuboReintento: false,
             Truncado: false,
             pregunta,
-            "cruce_de_tablas");
+            "cruce_de_tablas",
+            Proveedor: "anthropic/claude-sonnet-5");
 
     private async Task RegistrarAsync(TurnoParaRegistrar turno)
     {

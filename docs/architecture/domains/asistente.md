@@ -356,10 +356,12 @@ vuelve el cupo y lo dice; con el proveedor caído no lo sabe nadie y no promete 
 Dos tablas en el schema `asistente` que **no se cruzan**, con retención de 90 días y
 purga automática.
 
-| Registro             | Guarda                                                                          | No guarda                |
-| -------------------- | ------------------------------------------------------------------------------- | ------------------------ |
-| `registro_operativo` | actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado | El texto de la pregunta  |
-| `registro_analitico` | pregunta, categoría, estado, **fecha redondeada al día**                        | El actor, la hora exacta |
+| Registro             | Guarda                                                                                     | No guarda                                |
+| -------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| `registro_operativo` | actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado, proveedor | El texto de la pregunta, y la credencial |
+| `registro_analitico` | pregunta, categoría, estado, **fecha redondeada al día**                                   | El actor, la hora exacta                 |
+
+La columna `proveedor` guarda la identidad que expone el puerto —`anthropic/claude-sonnet-5`—, nunca la clave. Es lo que permite separar el costo de antes y el de después de un cambio de modelo, que sin ella quedarían mezclados en la misma serie. Va solo al registro operativo: en el analítico sería una dimensión más por la cual agrupar preguntas, y a esta escala cada dimensión achica el conjunto en el que un usuario se esconde.
 
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni
 detrás de un flag: son exactamente los datos que el enmascaramiento acaba de sacar

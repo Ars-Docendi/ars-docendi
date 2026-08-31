@@ -1,9 +1,9 @@
+using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
-using ArsDocendi.Shared.Persistencia;
 
 namespace ArsDocendi.IntegrationTests.Infraestructura;
 
@@ -131,6 +131,7 @@ internal sealed class BancoDelAsistente
                     carril,
                     new SelectorDeEjemplos(),
                     catalogo,
+                    conTecho,
                     elRegistro,
                     disponibilidad,
                     cuota,

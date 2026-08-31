@@ -215,10 +215,10 @@ Ninguno de los dos es una lista de roles en código, por el mismo motivo: `ident
 
 Es el único schema que el asistente escribe, y lo escribe con la **conexión dueña**. Sus propios roles de solo lectura lo tienen revocado entero.
 
-| Tabla                          | Guarda                                                                                               | No guarda                 |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------- |
-| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens, latencia, reintento, truncado | El texto de la pregunta   |
-| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                   | El actor y la hora exacta |
+| Tabla                          | Guarda                                                                                                            | No guarda                                              |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens, latencia, reintento, truncado, `proveedor` | El texto de la pregunta, y la credencial del proveedor |
+| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                                | El actor y la hora exacta                              |
 
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni detrás de un flag.
 

@@ -49,8 +49,20 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
     tokens_de_salida   integer     NOT NULL,
     latencia_ms        integer     NOT NULL,
     hubo_reintento     boolean     NOT NULL,
-    truncado           boolean     NOT NULL
+    truncado           boolean     NOT NULL,
+    proveedor          text        NOT NULL
 );
+
+-- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
+-- Es la identidad que expone el puerto —IProveedorDeModelo.Nombre—, nunca la
+-- credencial. Sin esta columna, un cambio de proveedor o de modelo dejaría el costo
+-- de antes y el de después mezclados en la misma serie, sin forma de separarlos.
+--
+-- Va sin DEFAULT y sin un ALTER que la agregue a una tabla ya creada, porque este
+-- archivo no puede alterar nada: el módulo no lleva historial de migraciones y hay
+-- un test de arquitectura que lo sostiene. Una base que ya tenía la tabla no se
+-- migra, se vuelve a aprovisionar; los ambientes de este sistema son efímeros y esa
+-- es la vía prevista.
 
 -- Sin clave foránea a identity.users a propósito: el registro tiene que poder
 -- purgarse y conservarse con independencia del padrón, y una baja de usuario no
