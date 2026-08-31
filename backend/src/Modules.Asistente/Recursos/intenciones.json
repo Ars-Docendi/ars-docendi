@@ -6,6 +6,13 @@
     "normalizada, los slots que exige y el destino lógico al que enrutaría. El",
     "destino es un NOMBRE: nadie lo invoca desde acá.",
     "",
+    "Una intención puede además declarar `excluye`: términos que NO deben estar. Es",
+    "lo que separa el listado del conteo — «¿qué pedidos de Alta hay?» y «¿cuántos",
+    "pedidos de Alta hay?» comparten todas sus palabras de contenido, y lo único que",
+    "las distingue es la presencia de «cuántos»—. Sin exclusión no hay término",
+    "positivo que las separe, y capturar la de conteo con la intención de listado la",
+    "respondería mal.",
+    "",
     "Los términos van normalizados —minúscula, sin acentos, con los sinónimos ya",
     "aplicados—: hay un test que falla si alguno no lo está. 'estados' se escribe",
     "'estado' y 'cuantas' se escribe 'cuantos' porque el normalizador los pliega.",
@@ -30,6 +37,7 @@
     {
       "nombre": "pedidos-de-una-novedad",
       "terminos": ["pedido"],
+      "excluye": ["cuantos"],
       "slots": [{ "nombre": "novedad", "clase": "Novedad" }],
       "destino": "designaciones/pedidos-por-novedad"
     },

@@ -301,6 +301,26 @@ Un término que corresponde a más de un valor deja el slot **sin resolver**, y 
 
 **El default es SQL y nunca API.** Enrutar mal hacia la API devuelve cero filas, y «cero filas» es indistinguible de «no hay» — la mentira que la política de abstención prohíbe. Fallar hacia el carril más caro es fallar hacia el que puede responder.
 
+### El enrutador y el modo sombra
+
+El enrutador de dominio corre entre el reescritor y el detector de ambigüedad. Las dos vecindades tienen motivo: después del reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta que se resuelve la anáfora; antes del detector porque una pregunta que el catálogo cubre con todos sus slots únicos no es ambigua, y hacerla pasar por el menú sería preguntar algo ya decidido.
+
+**Decide y no ejecuta.** Devuelve la intención resuelta o nada; no llama a ninguna API. Nulo es el caso normal y no un error.
+
+**Hoy está en modo sombra**: la decisión se toma sobre tráfico real y se registra, y el turno sigue al carril SQL igual que siempre. No hay a dónde enrutar todavía — faltan los adaptadores de respuesta y los edges hacia `Modules.<X>.Contracts`, que necesitan el acuerdo del equipo por el checklist de cinco pasos.
+
+Está cableado igual porque ese pedido de aprobación se fundamenta con un número —qué proporción del tráfico real captura un catálogo de cinco intenciones y cuántas veces se equivoca— y ese número no existe si la decisión no se toma nunca. No cambia ninguna respuesta, así que no puede romper nada, y se saca borrando unas líneas.
+
+### El banco de preguntas negativas
+
+Que el enrutador capture lo que le corresponde lo prueban unos pocos casos. Que **no** capture lo que no le corresponde no se puede probar con casos escritos a mano: uno escribe los que ya sabe que fallan.
+
+Por eso el banco sale de `capacidad.json` y `robustez.json`. Los escribió otra tarea con otro objetivo —medir traducción a SQL y tolerancia al fraseo—, así que son preguntas legítimas y ajenas al catálogo. Cuando el catálogo crezca, el banco crece con él sin que nadie lo mantenga, y es el único test que puede fallar por agregar una intención demasiado laxa. El fallo nombra la pregunta **y** la intención culpable: sin la segunda, quien la agregó ve rojo y no sabe cuál sacar.
+
+**Ya encontró una.** «¿Cuántas solicitudes de baja se presentaron?» caía en `pedidos-de-una-novedad`, porque «solicitudes» normaliza a «pedido» y «baja» es una novedad válida. La intención existe para **listar** los pedidos de una novedad; la pregunta pide **contarlos**, que tiene otra forma de respuesta.
+
+De ahí salieron los **términos excluidos**: una intención puede declarar términos que no deben aparecer. No había alternativa positiva — «¿qué pedidos de Alta hay?» no tiene ninguna palabra de contenido que «¿cuántos pedidos de Alta hay?» no tenga, y lo único que las separa es la presencia de «cuántos».
+
 ### Lo que esta pieza no es
 
 **No generaliza, y conviene decirlo.** La guarda que hace viable el enrutador social —interceptar solo si no queda ningún token de contenido— no sirve acá: distinguir «¿cuál es el estado del pedido de Pérez?» de una pregunta arbitraria exige intención **y** slots. Es viable sobre un catálogo chico de preguntas frecuentes.

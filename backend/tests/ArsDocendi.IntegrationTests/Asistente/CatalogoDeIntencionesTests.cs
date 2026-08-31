@@ -109,6 +109,58 @@ public sealed class CatalogoDeIntencionesTests
         Assert.Contains("sindestino", error.Message, StringComparison.Ordinal);
     }
 
+    // --------------------------------------------------- términos excluidos
+
+    [Fact]
+    public void Un_termino_excluido_impide_el_reconocimiento()
+    {
+        // La forma que separa el listado del conteo. «¿qué pedidos de Alta hay?» y
+        // «¿cuántos pedidos de Alta hay?» comparten todas sus palabras de contenido:
+        // lo único que las distingue es la presencia de «cuántos».
+        var catalogo = CatalogoDeIntenciones.Cargar(Json(
+            """{"nombre":"listado","terminos":["pedido"],"excluye":["cuantos"],"slots":[{"nombre":"n","clase":"Novedad"}],"destino":"d"}"""));
+
+        var intencion = catalogo.Intenciones.Single();
+
+        Assert.True(intencion.Terminos.IsSubsetOf(NormalizadorLexico.Terminos("¿qué pedidos hay?")));
+        Assert.False(intencion.Excluye.Overlaps(NormalizadorLexico.Terminos("¿qué pedidos hay?")));
+
+        // La de conteo declara los mismos términos exigidos y además el excluido.
+        Assert.True(intencion.Excluye.Overlaps(
+            NormalizadorLexico.Terminos("¿cuántos pedidos hay?")));
+    }
+
+    [Fact]
+    public void Un_termino_excluido_sin_normalizar_no_carga()
+    {
+        var error = Assert.Throws<CatalogoDeIntencionesInvalido>(() => CatalogoDeIntenciones.Cargar(
+            Json("""{"nombre":"malexcluida","terminos":["pedido"],"excluye":["Cuántos"],"slots":[{"nombre":"n","clase":"Novedad"}],"destino":"d"}""")));
+
+        Assert.Contains("malexcluida", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_termino_exigido_y_excluido_a_la_vez_no_carga()
+    {
+        // Así declarada no podría reconocerse nunca: el término tendría que estar y
+        // no estar. Es un error de escritura, y el catálogo lo dice al cargar.
+        var error = Assert.Throws<CatalogoDeIntencionesInvalido>(() => CatalogoDeIntenciones.Cargar(
+            Json("""{"nombre":"contradictoria","terminos":["pedido"],"excluye":["pedido"],"slots":[{"nombre":"n","clase":"Novedad"}],"destino":"d"}""")));
+
+        Assert.Contains("contradictoria", error.Message, StringComparison.Ordinal);
+        Assert.Contains("pedido", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Una_intencion_sin_excluidos_carga_igual()
+    {
+        // El campo es opcional: la mayoría de las intenciones no lo necesita.
+        var catalogo = CatalogoDeIntenciones.Cargar(Json(
+            """{"nombre":"simple","terminos":["plantel"],"slots":[{"nombre":"m","clase":"Materia"}],"destino":"d"}"""));
+
+        Assert.Empty(catalogo.Intenciones.Single().Excluye);
+    }
+
     // ----------------------------------------- una intención nueva, un caso nuevo
 
     [Fact]

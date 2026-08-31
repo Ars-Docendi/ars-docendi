@@ -19,6 +19,12 @@ public sealed record SlotExigido(string Nombre, ClaseDeSlot Clase);
 /// está?» son la misma pregunta.
 /// </param>
 /// <param name="Slots">Lo que hay que resolver para poder enrutar.</param>
+/// <param name="Excluye">
+/// Términos que NO deben estar. Es lo que separa una pregunta de listado de una de
+/// conteo: «¿qué pedidos de Alta hay?» y «¿cuántos pedidos de Alta hay?» comparten
+/// todas sus palabras de contenido, y lo único que las distingue es la presencia de
+/// «cuántos». Sin exclusión no hay término positivo que las separe.
+/// </param>
 /// <param name="Destino">
 /// A dónde enrutaría. Es una cadena lógica y nadie la invoca desde acá: es lo que
 /// mantiene al módulo sin ninguna referencia nueva.
@@ -26,6 +32,7 @@ public sealed record SlotExigido(string Nombre, ClaseDeSlot Clase);
 public sealed record Intencion(
     string Nombre,
     IReadOnlySet<string> Terminos,
+    IReadOnlySet<string> Excluye,
     IReadOnlyList<SlotExigido> Slots,
     string Destino);
 
@@ -147,7 +154,7 @@ public sealed class CatalogoDeIntenciones
                 $"La intención '{nombre}' no declara destino.");
         }
 
-        foreach (var termino in cruda.Terminos)
+        foreach (var termino in cruda.Terminos.Concat(cruda.Excluye ?? []))
         {
             // El término del catálogo se compara contra la pregunta ya normalizada,
             // así que uno acentuado o en plural nunca coincidiría con nada. Falla al
@@ -168,9 +175,20 @@ public sealed class CatalogoDeIntenciones
                 $"La intención '{nombre}' tiene un slot sin nombre.");
         }
 
+        var excluidos = (cruda.Excluye ?? []).ToHashSet(StringComparer.Ordinal);
+        var chocan = excluidos.Intersect(cruda.Terminos, StringComparer.Ordinal).ToList();
+
+        if (chocan.Count > 0)
+        {
+            throw new CatalogoDeIntencionesInvalido(
+                $"La intención '{nombre}' exige y excluye a la vez: {string.Join(", ", chocan)}. "
+                + "Así declarada no podría reconocerse nunca.");
+        }
+
         return new Intencion(
             nombre,
             cruda.Terminos.ToHashSet(StringComparer.Ordinal),
+            excluidos,
             [.. cruda.Slots.Select(s => new SlotExigido(s.Nombre, s.Clase))],
             cruda.Destino);
     }
@@ -178,7 +196,11 @@ public sealed class CatalogoDeIntenciones
     private sealed record Archivo(List<IntencionCruda>? Intenciones);
 
     private sealed record IntencionCruda(
-        string? Nombre, List<string>? Terminos, List<SlotCrudo>? Slots, string? Destino);
+        string? Nombre,
+        List<string>? Terminos,
+        List<string>? Excluye,
+        List<SlotCrudo>? Slots,
+        string? Destino);
 
     private sealed record SlotCrudo(string? Nombre, ClaseDeSlot Clase);
 }

@@ -48,7 +48,9 @@ public sealed class ResolutorDeIntenciones(
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
         var terminos = NormalizadorLexico.Terminos(pregunta);
-        var candidatas = catalogo.Intenciones.Where(i => i.Terminos.IsSubsetOf(terminos)).ToList();
+        var candidatas = catalogo.Intenciones
+            .Where(i => i.Terminos.IsSubsetOf(terminos) && !i.Excluye.Overlaps(terminos))
+            .ToList();
 
         if (candidatas.Count == 0)
         {

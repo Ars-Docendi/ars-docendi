@@ -287,6 +287,66 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.DoesNotContain("López", todo, StringComparison.Ordinal);
     }
 
+    // ------------------------------------------- enrutador de dominio, en sombra
+
+    [Fact]
+    public async Task Una_pregunta_que_el_carril_determinista_capturaria_responde_igual_que_antes()
+    {
+        // La propiedad que hace seguro al modo sombra: la decisión se toma y la
+        // respuesta no cambia. Mientras no haya a dónde enrutar, cualquier otra cosa
+        // sería un carril a medio conectar, que es peor que ninguno.
+        await SembrarAsync();
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria,
+            null,
+            "¿en qué estado está el pedido de Gómez?",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Equal(CarrilDelTurno.Sql, ((RegistroEnMemoria)banco.Registro).Turnos.Single().Carril);
+    }
+
+    [Fact]
+    public async Task El_enrutador_de_dominio_no_agrega_ninguna_llamada_al_modelo()
+    {
+        // Dos llamadas: generación y redacción. Las mismas que antes de que el
+        // enrutador existiera; decidir el carril cuesta cero.
+        await SembrarAsync();
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria,
+            null,
+            "¿en qué estado está el pedido de Gómez?",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, turno.LlamadasAlModelo);
+        Assert.Equal(2, banco.Proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Una_colision_termina_en_aclaracion_y_no_en_el_carril_determinista()
+    {
+        // El enrutador corre ANTES del detector de ambigüedad, así que hay que
+        // probar que no le roba el turno. La pregunta lo tienta a propósito: dice
+        // «plantel», que es el término exacto de una intención del catálogo. Con dos
+        // «Bases de Datos» el slot no resuelve, el enrutador no captura, y el menú
+        // de aclaración llega igual.
+        await SembrarAsync();
+        await AgregarColisionesAsync();
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria,
+            null,
+            "¿cómo está el plantel de Bases de Datos?",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
+        Assert.Equal(CarrilDelTurno.Aclaracion, ((RegistroEnMemoria)banco.Registro).Turnos.Single().Carril);
+    }
     // ------------------------------------------------------------------ apoyo
 
     private BancoDelAsistente Banco(params string[] guion) =>

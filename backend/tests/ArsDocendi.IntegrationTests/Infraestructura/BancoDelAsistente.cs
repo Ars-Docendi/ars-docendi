@@ -91,6 +91,16 @@ internal sealed class BancoDelAsistente
             new CacheDeCapacidades(),
             NullLogger<CatalogoDeCapacidades>.Instance);
 
+        // El enrutador de dominio se comparte por el mismo motivo que el índice: su
+        // catálogo del dominio es un caché, y uno por turno no cachearía nada. Está
+        // en MODO SOMBRA —decide y el turno sigue por SQL igual—, así que agregarlo
+        // acá no cambia ninguna respuesta esperada de los tests que ya existían.
+        var enrutador = new EnrutadorDeDominio(
+            new ResolutorDeIntenciones(
+                CatalogoDeIntenciones.Cargar(),
+                new CatalogoDelDominioReal(indice, basica)),
+            NullLogger<EnrutadorDeDominio>.Instance);
+
         return new BancoDelAsistente
         {
             Proveedor = elProveedor,
@@ -131,6 +141,7 @@ internal sealed class BancoDelAsistente
                     carril,
                     new SelectorDeEjemplos(),
                     catalogo,
+                    enrutador,
                     conTecho,
                     elRegistro,
                     disponibilidad,

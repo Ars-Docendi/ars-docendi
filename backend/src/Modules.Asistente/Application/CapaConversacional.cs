@@ -25,6 +25,7 @@ public sealed class CapaConversacional(
     CarrilSql carril,
     ISelectorDeEjemplos ejemplos,
     ICatalogoDeCapacidades capacidades,
+    EnrutadorDeDominio enrutador,
     IProveedorDeModelo proveedor,
     IRegistroDelTurno registro,
     IDisponibilidadDelModelo disponibilidad,
@@ -222,7 +223,35 @@ public sealed class CapaConversacional(
             ? await reescritor.ReescribirAsync(pregunta, historial, ct)
             : pregunta;
 
-        // 5 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis
+        // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después
+        // del reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta
+        // que se resuelve la anáfora, y antes del detector de ambigüedad porque una
+        // pregunta con todos sus slots únicos no es ambigua.
+        //
+        // LA DECISIÓN SE TOMA Y NO SE USA, A PROPÓSITO. No hay a dónde enrutar: los
+        // adaptadores de respuesta y los edges hacia Modules.<X>.Contracts todavía no
+        // existen, y los edges necesitan que el equipo apruebe el checklist de cinco
+        // pasos del repositorio.
+        //
+        // Está cableado igual porque ese pedido de aprobación se fundamenta con un
+        // número —qué proporción del tráfico real captura un catálogo de cinco
+        // intenciones, y cuántas veces se equivoca— y ese número no existe si la
+        // decisión no se toma nunca. No cambia ninguna respuesta, así que no puede
+        // romper nada, y se saca borrando estas líneas.
+        //
+        // QUIEN VENGA A CONECTARLO: hace falta ARS-46 (edges) y los adaptadores de
+        // respuesta. No alcanza con cambiar este `if`.
+        var determinista = await enrutador.DecidirAsync(interpretada, ct);
+
+        if (determinista is not null)
+        {
+            log.LogInformation(
+                "El carril determinista habría resuelto este turno con {Intencion}; "
+                + "sigue por SQL porque todavía no hay a dónde enrutar.",
+                determinista.Intencion.Nombre);
+        }
+
+        // 6 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis
         // Matemático?» no contiene ninguna entidad ambigua hasta que se la
         // reescribe, y la reescrita sí.
         var aclaracion = DetectorDeAmbiguedad.Detectar(interpretada, catalogo);
@@ -232,7 +261,7 @@ public sealed class CapaConversacional(
             return NecesitaAclaracion(conversacion, aclaracion, interpretada, mensaje);
         }
 
-        // 6 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin
+        // 7 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin
         // generación no hay consulta, y sin consulta no hay nada que ejecutar. Se
         // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
         if (!hayModelo)

@@ -176,6 +176,7 @@ public static class ModuleExtensions
         services.AddSingleton<ICatalogoDelDominio, CatalogoDelDominioReal>();
         services.AddSingleton(CatalogoDeIntenciones.Cargar());
         services.AddScoped<ResolutorDeIntenciones>();
+        services.AddScoped<EnrutadorDeDominio>();
 
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
