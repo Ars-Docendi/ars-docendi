@@ -49,6 +49,7 @@ public sealed record TurnoParaRegistrar(
     int LlamadasAlModelo,
     int TokensDeEntrada,
     int TokensDeSalida,
+    int TokensDeCache,
     int LatenciaMs,
     bool HuboReintento,
     bool Truncado,

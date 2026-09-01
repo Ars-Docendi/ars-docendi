@@ -51,6 +51,12 @@ public sealed class ReescritorDePreguntas(
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(mensaje, historial),
                 Temperatura = Temperatura,
+                // Bajo: resolver «¿y el de Pérez?» contra el turno anterior es una
+                // sustitución. Y está en el camino crítico de todo seguimiento, antes
+                // de que el pipeline siquiera empiece.
+                Esfuerzo = EsfuerzoConfigurado.Interpretar(
+                    opciones.Value.EsfuerzoDeReescritura,
+                    nameof(OpcionesAsistente.EsfuerzoDeReescritura)),
                 MaximoDeTokens = opciones.Value.MaximoDeTokensDeReescritura,
             },
             ct);

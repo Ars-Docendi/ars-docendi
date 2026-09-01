@@ -509,6 +509,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             LlamadasAlModelo: 2,
             TokensDeEntrada: 1200,
             TokensDeSalida: 80,
+            TokensDeCache: 900,
             LatenciaMs: 1450,
             HuboReintento: false,
             Truncado: false,

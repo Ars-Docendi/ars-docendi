@@ -86,6 +86,13 @@ public static class ModuleExtensions
             var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
             var elegido = valores.Proveedor;
 
+            // Los tres esfuerzos se interpretan ACÁ aunque cada llamada los vuelva a
+            // pedir. El parseo real ocurre por solicitud; esto es solo para que un
+            // valor mal escrito rompa al resolver el proveedor y no en la primera
+            // pregunta. Alguien que escribió «alta» en vez de «alto» quiere
+            // enterarse al arrancar, no correr un mes con un esfuerzo que no eligió.
+            ValidarEsfuerzos(valores);
+
             IProveedorDeModelo proveedor = elegido switch
             {
                 ProveedorSimulado.Clave => new ProveedorSimulado(),
@@ -258,13 +265,25 @@ public static class ModuleExtensions
     /// adaptador sin reintento, o —peor— lo tentaría a poner el suyo y multiplicar
     /// en silencio la cota de requests que el módulo documenta.
     /// </remarks>
+    /// <summary>
+    /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
+    /// </summary>
+    private static void ValidarEsfuerzos(OpcionesAsistente valores)
+    {
+        EsfuerzoConfigurado.Interpretar(
+            valores.EsfuerzoDeGeneracion, nameof(OpcionesAsistente.EsfuerzoDeGeneracion));
+        EsfuerzoConfigurado.Interpretar(
+            valores.EsfuerzoDeRedaccion, nameof(OpcionesAsistente.EsfuerzoDeRedaccion));
+        EsfuerzoConfigurado.Interpretar(
+            valores.EsfuerzoDeReescritura, nameof(OpcionesAsistente.EsfuerzoDeReescritura));
+    }
+
     private static ProveedorAnthropic ArmarAnthropic(
         IServiceProvider sp, OpcionesAsistente valores) =>
         new(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
             Requerido(sp, o => o.ClaveDelProveedor, nameof(OpcionesAsistente.ClaveDelProveedor)),
             Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo)),
-            valores.Esfuerzo,
             sp.GetRequiredService<ILogger<ProveedorAnthropic>>());
 
 }

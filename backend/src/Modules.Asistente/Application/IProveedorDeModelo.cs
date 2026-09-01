@@ -34,6 +34,30 @@ public interface IProveedorDeModelo
     Task<RespuestaDelModelo> CompletarAsync(SolicitudAlModelo solicitud, CancellationToken ct);
 }
 
+/// <summary>Cuánta deliberación se le pide al modelo antes de responder.</summary>
+/// <remarks>
+/// Vocabulario del puerto, no de ningún proveedor. Un adaptador lo mapea a lo que
+/// su API entienda —o lo ignora, si su modelo no delibera— sin que el pipeline se
+/// entere.
+/// </remarks>
+public enum EsfuerzoDelModelo
+{
+    /// <summary>Sin deliberación: responder directo.</summary>
+    Minimo,
+
+    /// <summary>Poca. Alcanza para transformar algo que ya está resuelto.</summary>
+    Bajo,
+
+    /// <summary>La del trabajo que exige elegir entre alternativas.</summary>
+    Medio,
+
+    /// <summary>Alta, para lo que no sale de una sola pasada.</summary>
+    Alto,
+
+    /// <summary>Todo lo que el modelo pueda.</summary>
+    Maximo,
+}
+
 /// <summary>
 /// Una llamada al modelo.
 /// </summary>
@@ -71,6 +95,22 @@ public sealed record SolicitudAlModelo
     /// </remarks>
     public required decimal Temperatura { get; init; }
 
+    /// <summary>
+    /// Cuánto se le pide al modelo que delibere antes de escribir.
+    /// </summary>
+    /// <remarks>
+    /// <b>Va por solicitud y no por proveedor, y esa es la decisión.</b> Las tres
+    /// llamadas del pipeline necesitan cosas distintas: generar una consulta contra
+    /// catorce tablas se beneficia de pensar, y convertir filas ya obtenidas en una
+    /// oración en español no. Con un solo valor global, la redacción razonaba antes
+    /// de escribir la primera palabra y eso es espera pura para quien preguntó.
+    ///
+    /// Es una <b>intención</b>, como la temperatura: cada adaptador la expresa como
+    /// puede. El vocabulario es propio del puerto y no de ningún proveedor, porque
+    /// un puerto que nombra los niveles de un SDK deja de ser un puerto.
+    /// </remarks>
+    public required EsfuerzoDelModelo Esfuerzo { get; init; }
+
     /// <summary>Techo de tokens de la respuesta.</summary>
     public required int MaximoDeTokens { get; init; }
 }
@@ -79,23 +119,54 @@ public sealed record SolicitudAlModelo
 /// Lo que devuelve el modelo. Los conteos de tokens alimentan el registro
 /// operativo, no la facturación.
 /// </summary>
-/// <param name="SeQuedoSinTokens">
-/// El modelo llegó al techo de <see cref="SolicitudAlModelo.MaximoDeTokens"/> y la
-/// respuesta quedó cortada a la mitad.
+/// <param name="TokensDeCache">
+/// Cuántos de los tokens de entrada los sirvió la caché del proveedor.
 ///
-/// <b>Existe porque su ausencia es indistinguible de una respuesta legítima.</b>
-/// Una generación cortada deja un JSON incompleto, el intérprete no lo puede leer
-/// y el turno resuelve «no pude interpretar la pregunta» — exactamente el mismo
-/// texto que devuelve una pregunta que de verdad no se puede contestar. Sin este
-/// dato, un presupuesto mal dimensionado se ve igual que un asistente prudente.
+/// <b>Va aparte de <see cref="TokensDeEntrada"/>, que los incluye.</b> No es
+/// redundancia: sin este número no hay forma de saber si la caché está pegando,
+/// porque un prefijo cacheado y uno que se reprocesa entero producen exactamente
+/// el mismo total de entrada. La diferencia es un orden de magnitud en costo y
+/// tiempo de proceso, y hoy era invisible.
 ///
-/// Importa más desde que los modelos razonan: con <c>Esfuerzo</c> configurado, el
-/// razonamiento sale de este mismo presupuesto, así que el techo que alcanzaba
-/// para escribir la consulta puede no alcanzar para pensarla y escribirla.
+/// Cero significa dos cosas que conviene no confundir: que el proveedor no cachea,
+/// o que cachea y esta llamada no acertó. La primera es del adaptador; la segunda
+/// es lo que hay que investigar cuando se repite.
 /// </param>
 public sealed record RespuestaDelModelo(
     string Texto,
     int TokensDeEntrada,
     int TokensDeSalida,
     bool EsSimulada,
-    bool SeQuedoSinTokens = false);
+    bool SeQuedoSinTokens = false,
+    int TokensDeCache = 0);
+
+/// <summary>
+/// Traduce el esfuerzo configurado por ambiente al vocabulario del puerto.
+/// </summary>
+/// <remarks>
+/// Vive acá y no en el adaptador para que un valor mal escrito falle igual con
+/// cualquier proveedor. Si el parseo estuviera del lado de Anthropic, cambiar de
+/// proveedor cambiaría qué configuraciones son válidas, que es lo contrario de lo
+/// que un puerto promete.
+/// </remarks>
+public static class EsfuerzoConfigurado
+{
+    /// <summary>Interpreta el valor de configuración.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// Si no es ninguno de los aceptados. Falla al construir y no en la primera
+    /// llamada: un esfuerzo mal escrito descubierto en runtime es una respuesta
+    /// degradada sin causa aparente.
+    /// </exception>
+    public static EsfuerzoDelModelo Interpretar(string configurado, string nombreDelValor) =>
+        configurado?.Trim().ToLowerInvariant() switch
+        {
+            "minimo" or "mínimo" => EsfuerzoDelModelo.Minimo,
+            "bajo" => EsfuerzoDelModelo.Bajo,
+            "medio" => EsfuerzoDelModelo.Medio,
+            "alto" => EsfuerzoDelModelo.Alto,
+            "maximo" or "máximo" => EsfuerzoDelModelo.Maximo,
+            _ => throw new InvalidOperationException(
+                $"Esfuerzo '{configurado}' desconocido en {nombreDelValor}. "
+                + "Los aceptados son: minimo, bajo, medio, alto, maximo."),
+        };
+}

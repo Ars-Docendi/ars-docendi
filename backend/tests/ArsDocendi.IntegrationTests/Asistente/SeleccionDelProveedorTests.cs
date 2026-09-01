@@ -31,6 +31,7 @@ public sealed class SeleccionDelProveedorTests
         PrefijoEstable = "Esquema.",
         Mensaje = "¿Qué docentes dictan Bases de Datos?",
         Temperatura = 0.0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 256,
     };
 
@@ -86,18 +87,24 @@ public sealed class SeleccionDelProveedorTests
     [Fact]
     public void Un_esfuerzo_desconocido_falla_nombrando_los_aceptados()
     {
-        using var servicios = Componer(clave: "clave-de-prueba", esfuerzo: "alto")
+        using var servicios = Componer(clave: "clave-de-prueba", esfuerzo: "altisimo")
             .BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
         var error = Assert.Throws<InvalidOperationException>(
             turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
 
-        // Falla en vez de caer al default en silencio: alguien que escribió «alto»
-        // en vez de «high» quiere enterarse, no correr un mes con un esfuerzo que
-        // no eligió.
-        Assert.Contains("alto", error.Message, StringComparison.Ordinal);
-        Assert.Contains("xhigh", error.Message, StringComparison.Ordinal);
+        // Falla en vez de caer al default en silencio: alguien que escribió
+        // «altisimo» quiere enterarse al arrancar, no correr un mes con un esfuerzo
+        // que no eligió.
+        Assert.Contains("altisimo", error.Message, StringComparison.Ordinal);
+
+        // Y el mensaje enumera los aceptados y nombra CUÁL de los tres valores está
+        // mal: con tres esfuerzos configurables, decir solo «esfuerzo desconocido»
+        // deja a quien lo lee buscando en cuál de los tres se equivocó.
+        Assert.Contains("maximo", error.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            nameof(OpcionesAsistente.EsfuerzoDeGeneracion), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -157,7 +164,7 @@ public sealed class SeleccionDelProveedorTests
 
     private static ServiceCollection Componer(
         string? clave,
-        string esfuerzo = "high",
+        string esfuerzo = "alto",
         TransporteFalso? transporte = null,
         int? intentos = null,
         int? fallosParaAbrir = null)
@@ -166,7 +173,7 @@ public sealed class SeleccionDelProveedorTests
         {
             [$"ConnectionStrings:{CadenaDuena.Clave}"] = CadenaDelDueno,
             [Ajuste(nameof(OpcionesAsistente.Proveedor))] = "anthropic",
-            [Ajuste(nameof(OpcionesAsistente.Esfuerzo))] = esfuerzo,
+            [Ajuste(nameof(OpcionesAsistente.EsfuerzoDeGeneracion))] = esfuerzo,
             [Ajuste(nameof(OpcionesAsistente.EsperaBaseMs))] = "1",
             [Ajuste(nameof(OpcionesAsistente.EsperaMaximaMs))] = "2",
         };

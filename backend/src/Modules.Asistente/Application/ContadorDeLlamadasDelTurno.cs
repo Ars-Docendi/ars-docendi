@@ -29,6 +29,17 @@ public sealed class ContadorDeLlamadasDelTurno(int techo)
     /// <summary>Tokens de salida facturados en este turno.</summary>
     public int TokensDeSalida { get; private set; }
 
+    /// <summary>
+    /// Cuántos de los tokens de entrada del turno los sirvió la caché.
+    /// </summary>
+    /// <remarks>
+    /// Es un subconjunto de <see cref="TokensDeEntrada"/>, no un sumando aparte.
+    /// Se cuenta porque sin él no hay forma de saber si la caché del prefijo está
+    /// pegando: el total de entrada es idéntico con caché y sin ella, y la
+    /// diferencia es un orden de magnitud en costo y en tiempo de proceso.
+    /// </remarks>
+    public int TokensDeCache { get; private set; }
+
     /// <summary>Si el turno tuvo que volver a generar la consulta.</summary>
     /// <remarks>
     /// Es el reintento <b>semántico</b> del pipeline, no el de transporte: el de
@@ -45,6 +56,7 @@ public sealed class ContadorDeLlamadasDelTurno(int techo)
 
         TokensDeEntrada += respuesta.TokensDeEntrada;
         TokensDeSalida += respuesta.TokensDeSalida;
+        TokensDeCache += respuesta.TokensDeCache;
     }
 
     /// <summary>Deja constancia de que el turno volvió a generar.</summary>

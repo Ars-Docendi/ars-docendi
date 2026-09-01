@@ -50,13 +50,21 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
     latencia_ms        integer     NOT NULL,
     hubo_reintento     boolean     NOT NULL,
     truncado           boolean     NOT NULL,
-    proveedor          text        NOT NULL
+    proveedor          text        NOT NULL,
+    tokens_de_cache    integer     NOT NULL
 );
 
 -- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
 -- Es la identidad que expone el puerto —IProveedorDeModelo.Nombre—, nunca la
 -- credencial. Sin esta columna, un cambio de proveedor o de modelo dejaría el costo
 -- de antes y el de después mezclados en la misma serie, sin forma de separarlos.
+--
+-- `tokens_de_cache` es un SUBCONJUNTO de tokens_de_entrada, no un sumando aparte.
+-- Sin él no se puede saber si la caché del prefijo está pegando: el total de
+-- entrada es idéntico con caché y sin ella, y la diferencia es un orden de magnitud
+-- en costo y en tiempo de proceso del prompt. Con el prefijo del esquema pesando
+-- unos 9.000 tokens por llamada, eso es lo que separa una factura razonable de una
+-- que no lo es — y hasta ahora era invisible.
 --
 -- Va sin DEFAULT y sin un ALTER que la agregue a una tabla ya creada, porque este
 -- archivo no puede alterar nada: el módulo no lleva historial de migraciones y hay

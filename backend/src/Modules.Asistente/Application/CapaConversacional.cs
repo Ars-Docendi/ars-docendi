@@ -120,6 +120,7 @@ public sealed class CapaConversacional(
                 turno.LlamadasAlModelo,
                 contador.TokensDeEntrada,
                 contador.TokensDeSalida,
+                contador.TokensDeCache,
                 (int)Math.Clamp((ahora - arranco).TotalMilliseconds, 0, int.MaxValue),
                 contador.HuboReintento,
                 turno.Truncado,

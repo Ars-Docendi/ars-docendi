@@ -32,6 +32,7 @@ public sealed class ReintentoYTechoTests
         PrefijoEstable = "Esquema.",
         Mensaje = "¿Cuántos pedidos hay?",
         Temperatura = 0.0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 256,
     };
 

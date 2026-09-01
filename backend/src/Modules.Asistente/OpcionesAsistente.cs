@@ -82,30 +82,41 @@ public sealed class OpcionesAsistente
     public string Modelo { get; set; } = "claude-sonnet-5";
 
     /// <summary>
-    /// Cuánto esfuerzo de razonamiento se le pide al modelo.
+    /// Deliberación pedida al generar la consulta.
     /// </summary>
     /// <remarks>
-    /// Valores aceptados: <c>low</c>, <c>medium</c>, <c>high</c>, <c>xhigh</c>,
-    /// <c>max</c>. Uno desconocido falla al construir el proveedor, con la lista
-    /// en el mensaje.
+    /// <b>Son tres y no uno, y el motivo es de latencia.</b> Con un valor global,
+    /// la redacción razonaba antes de escribir la primera palabra: para quien
+    /// preguntó eso es espera pura, porque las filas ya estaban.
     ///
-    /// Junto con la instrucción del prefijo, es lo que reemplaza a la temperatura:
-    /// los modelos Claude actuales rechazan <c>temperature</c> con 400, así que el
-    /// determinismo que el carril SQL necesita se pide por acá.
+    /// La generación sí lo aprovecha: elegir el join correcto entre catorce tablas
+    /// es exactamente el trabajo que mejora deliberando. Es la llamada donde
+    /// equivocarse cuesta una respuesta falsa, que es lo que la métrica castiga.
     ///
-    /// <b>Medium y no high</b>, que es el default del proveedor, por una razón que
-    /// no es solo de costo. Los modelos actuales piensan por defecto y esos tokens
-    /// se facturan como salida <b>y cuentan contra el techo de la llamada</b>. La
-    /// generación de SQL tiene un techo de 1200 tokens: con esfuerzo alto sobre una
-    /// pregunta difícil, el modelo podría gastar buena parte del presupuesto
-    /// pensando y truncar el JSON, que el generador resuelve como «no pude
-    /// interpretar la pregunta». Una abstención que en realidad fue un techo corto.
-    ///
-    /// Es una hipótesis todavía, no algo observado: hay que mirarlo en la primera
-    /// corrida real. Si aparece, el síntoma son abstenciones sin explicación sobre
-    /// preguntas que el modelo debería poder contestar.
+    /// Valores: minimo, bajo, medio, alto, maximo.
     /// </remarks>
-    public string Esfuerzo { get; set; } = "medium";
+    public string EsfuerzoDeGeneracion { get; set; } = "medio";
+
+    /// <summary>
+    /// Deliberación pedida al redactar la respuesta en español.
+    /// </summary>
+    /// <remarks>
+    /// Baja a propósito. La consulta ya se ejecutó y las filas ya están: esto es
+    /// convertir un resultado en una oración, no decidir nada. Cada nivel de más
+    /// acá es tiempo que el usuario mira una pantalla quieta.
+    /// </remarks>
+    public string EsfuerzoDeRedaccion { get; set; } = "bajo";
+
+    /// <summary>
+    /// Deliberación pedida al reescribir una pregunta de seguimiento.
+    /// </summary>
+    /// <remarks>
+    /// Baja por el mismo motivo: resolver «¿y el de Pérez?» contra el turno
+    /// anterior es una sustitución, no un problema. Y está en el camino crítico de
+    /// todo seguimiento, así que lo que tarde acá lo espera el usuario antes de que
+    /// el pipeline siquiera empiece.
+    /// </remarks>
+    public string EsfuerzoDeReescritura { get; set; } = "bajo";
 
     /// <summary>
     /// Techo de llamadas al modelo por turno (RNF-10). Cuatro sin reintentos:

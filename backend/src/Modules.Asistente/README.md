@@ -229,12 +229,27 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                       | Default           | Qué es                                   |
-| ------------------------------ | ----------------- | ---------------------------------------- |
-| `Asistente__Proveedor`         | `simulado`        | `simulado` o `anthropic`                 |
-| `Asistente__ClaveDelProveedor` | —                 | La credencial. Nunca al repositorio      |
-| `Asistente__Modelo`            | `claude-sonnet-5` | Qué modelo usar                          |
-| `Asistente__Esfuerzo`          | `medium`          | `low`, `medium`, `high`, `xhigh` o `max` |
+| Variable                           | Default           | Qué decide                                    |
+| ---------------------------------- | ----------------- | --------------------------------------------- |
+| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                   |
+| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado |
+| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                    |
+| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta           |
+| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español           |
+| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento     |
+
+**Los esfuerzos son tres y no uno, y el motivo es de latencia.** Con un valor
+global, la redacción deliberaba antes de escribir la primera palabra: para quien
+preguntó eso es espera pura, porque las filas ya estaban. Medido sobre una corrida
+completa de los cuatro ejes, separarlos bajó el p95 de 9,4 s a 6,7 s **sin mover
+ninguno de los cuatro puntajes**.
+
+La generación se queda en `medio` a propósito: elegir el join correcto entre
+catorce tablas es el trabajo que sí mejora deliberando, y es la llamada donde
+equivocarse produce una respuesta falsa.
+
+Valores aceptados: `minimo`, `bajo`, `medio`, `alto`, `maximo`. Uno mal escrito
+falla al resolver el proveedor y nombra cuál de los tres es.
 
 **Por qué esos dos defaults.** El esquema que el modelo maneja es chico —catorce
 tablas, poco más de cien columnas— y ése es el factor que más pesa en traducir

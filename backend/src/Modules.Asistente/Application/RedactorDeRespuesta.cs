@@ -48,6 +48,12 @@ public sealed class RedactorDeRespuesta(
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(pregunta, resultado, actorEsGlobal),
                 Temperatura = Temperatura,
+                // Bajo a propósito: las filas ya están y esto es convertirlas en
+                // una oración. Cada nivel de más es tiempo que el usuario mira una
+                // pantalla quieta después de que la consulta ya se resolvió.
+                Esfuerzo = EsfuerzoConfigurado.Interpretar(
+                    opciones.Value.EsfuerzoDeRedaccion,
+                    nameof(OpcionesAsistente.EsfuerzoDeRedaccion)),
                 MaximoDeTokens = opciones.Value.MaximoDeTokensDeRedaccion,
             },
             ct);

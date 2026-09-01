@@ -39,9 +39,10 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
             INSERT INTO asistente.registro_operativo
                 (actor_id, ocurrido_en, carril, estado, llamadas_al_modelo,
                  tokens_de_entrada, tokens_de_salida, latencia_ms, hubo_reintento,
-                 truncado, proveedor)
+                 truncado, proveedor, tokens_de_cache)
             VALUES (@actor, @cuando, @carril, @estado, @llamadas,
-                    @entrada, @salida, @latencia, @reintento, @truncado, @proveedor)
+                    @entrada, @salida, @latencia, @reintento, @truncado, @proveedor,
+                    @cache)
             """,
             conexion);
 
@@ -60,6 +61,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         // por la cual agrupar preguntas, y con esta escala eso achica el conjunto
         // anónimo; acá es lo que permite atribuir el costo a quien lo generó.
         comando.Parameters.AddWithValue("proveedor", turno.Proveedor);
+        comando.Parameters.AddWithValue("cache", turno.TokensDeCache);
 
         await comando.ExecuteNonQueryAsync(ct);
     }

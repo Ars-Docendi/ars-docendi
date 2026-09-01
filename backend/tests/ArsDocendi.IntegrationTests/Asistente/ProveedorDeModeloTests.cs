@@ -29,6 +29,7 @@ public sealed partial class ProveedorDeModeloTests
         PrefijoEstable = "Esquema de identity y designaciones.",
         Mensaje = "¿Qué docentes dictan Bases de Datos?",
         Temperatura = 0.0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 512,
     };
 

@@ -24,6 +24,7 @@ public sealed class ProveedorAnthropicTests
         PrefijoEstable = Prefijo,
         Mensaje = "¿Qué docentes dictan Bases de Datos?",
         Temperatura = 0.0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 512,
     };
 
@@ -83,19 +84,47 @@ public sealed class ProveedorAnthropicTests
         Assert.False(Cuerpo(transporte).TryGetProperty("temperature", out _));
     }
 
-    [Fact]
-    public async Task El_esfuerzo_configurado_viaja_en_el_request()
+    [Theory]
+    [InlineData(EsfuerzoDelModelo.Minimo, "low")]
+    [InlineData(EsfuerzoDelModelo.Bajo, "low")]
+    [InlineData(EsfuerzoDelModelo.Medio, "medium")]
+    [InlineData(EsfuerzoDelModelo.Alto, "high")]
+    [InlineData(EsfuerzoDelModelo.Maximo, "max")]
+    public async Task El_esfuerzo_de_la_solicitud_viaja_en_el_request(
+        EsfuerzoDelModelo pedido, string esperado)
     {
         using var transporte = TransporteFalso.QueResponde();
 
-        await Armar(transporte, esfuerzo: "low").CompletarAsync(
-            Solicitud, TestContext.Current.CancellationToken);
+        await Armar(transporte).CompletarAsync(
+            Solicitud with { Esfuerzo = pedido }, TestContext.Current.CancellationToken);
 
         // Es lo que reemplaza a la temperatura. Si no viajara, el carril SQL se
         // quedaría sin ninguna palanca de determinación.
         Assert.Equal(
-            "low",
+            esperado,
             Cuerpo(transporte).GetProperty("output_config").GetProperty("effort").GetString());
+    }
+
+    [Fact]
+    public async Task Dos_llamadas_del_mismo_turno_pueden_pedir_esfuerzos_distintos()
+    {
+        // LA RAZÓN DE QUE EL ESFUERZO SEA POR SOLICITUD Y NO POR PROVEEDOR. Generar
+        // la consulta se beneficia de deliberar; convertir filas ya obtenidas en una
+        // oración no, y cada nivel de más ahí es espera pura para quien preguntó.
+        // Con un valor de instancia esto era imposible sin dos proveedores.
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = TransporteFalso.QueResponde();
+        var proveedor = Armar(transporte);
+
+        await proveedor.CompletarAsync(Solicitud with { Esfuerzo = EsfuerzoDelModelo.Medio }, ct);
+        await proveedor.CompletarAsync(Solicitud with { Esfuerzo = EsfuerzoDelModelo.Bajo }, ct);
+
+        Assert.Equal(
+            "medium",
+            Cuerpo(transporte, 0).GetProperty("output_config").GetProperty("effort").GetString());
+        Assert.Equal(
+            "low",
+            Cuerpo(transporte, 1).GetProperty("output_config").GetProperty("effort").GetString());
     }
 
     // ------------------------------------------------------------ lo que vuelve
@@ -247,6 +276,40 @@ public sealed class ProveedorAnthropicTests
     // ------------------------------------------------------------------ identidad
 
     [Fact]
+    public async Task Los_tokens_servidos_por_cache_se_informan_aparte()
+    {
+        // SIN ESTE NÚMERO NO SE PUEDE SABER SI LA CACHÉ PEGA. Un prefijo cacheado y
+        // uno reprocesado entero producen exactamente el mismo total de entrada, y
+        // la diferencia es un orden de magnitud en costo y en tiempo de proceso del
+        // prompt. Con el esquema pesando unos 9.000 tokens por llamada, eso separa
+        // una factura razonable de una que no lo es.
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = new TransporteFalso(
+            _ => TransporteFalso.Exito("SELECT 1", tokensDeEntrada: 120, tokensDeCache: 8000));
+
+        var respuesta = await Armar(transporte).CompletarAsync(Solicitud, ct);
+
+        Assert.Equal(8000, respuesta.TokensDeCache);
+
+        // Y el total los sigue incluyendo: son tokens de prompt reales, lo único
+        // distinto es lo que cuestan. El registro operativo mide tamaño de prompt.
+        Assert.Equal(8120, respuesta.TokensDeEntrada);
+    }
+
+    [Fact]
+    public async Task Sin_acierto_de_cache_el_numero_es_cero_y_el_total_no_cambia()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = new TransporteFalso(
+            _ => TransporteFalso.Exito("SELECT 1", tokensDeEntrada: 8120));
+
+        var respuesta = await Armar(transporte).CompletarAsync(Solicitud, ct);
+
+        Assert.Equal(0, respuesta.TokensDeCache);
+        Assert.Equal(8120, respuesta.TokensDeEntrada);
+    }
+
+    [Fact]
     public async Task Una_respuesta_cortada_por_presupuesto_se_informa_y_se_grita()
     {
         // EL MODO DE FALLAR MÁS CARO DEL MÓDULO, si no se hace visible. Una
@@ -307,13 +370,11 @@ public sealed class ProveedorAnthropicTests
     private static ProveedorAnthropic Armar(
         TransporteFalso transporte,
         string modelo = "claude-opus-5",
-        string esfuerzo = "high",
         RegistroDeCapturas? registro = null) =>
         new(
             new HttpClient(transporte, disposeHandler: false),
             "clave-de-prueba",
             modelo,
-            esfuerzo,
             (registro ?? new RegistroDeCapturas()).Logger<ProveedorAnthropic>());
 
     private static JsonElement Cuerpo(TransporteFalso transporte, int cual = 0) =>

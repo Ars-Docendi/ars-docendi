@@ -69,6 +69,12 @@ public sealed class GeneradorDeSql(
                 PrefijoEstable = prefijo.Prefijo,
                 Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy()),
                 Temperatura = 0.0m,
+                // La llamada que MÁS se beneficia de deliberar: elegir el join
+                // correcto entre catorce tablas es el trabajo que mejora pensando, y
+                // es donde equivocarse produce una respuesta falsa.
+                Esfuerzo = EsfuerzoConfigurado.Interpretar(
+                    opciones.Value.EsfuerzoDeGeneracion,
+                    nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
                 MaximoDeTokens = opciones.Value.MaximoDeTokensDeGeneracion,
             },
             ct);

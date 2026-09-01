@@ -58,6 +58,11 @@ public static class Preflight
                     Mensaje = PreguntaDePrueba,
                     Temperatura = 0.0m,
 
+                    // Mínimo: el preflight pregunta si el proveedor responde y
+                    // cobra, no si piensa bien. Deliberar acá alarga cada corrida
+                    // sin agregar nada a lo que la comprobación verifica.
+                    Esfuerzo = EsfuerzoDelModelo.Minimo,
+
                     // Holgado para una respuesta de una palabra, y a propósito. Con
                     // esfuerzo configurado el modelo razona antes de escribir y ese
                     // razonamiento sale del MISMO presupuesto: con un techo de 16

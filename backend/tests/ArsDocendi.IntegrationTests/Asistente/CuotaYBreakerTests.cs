@@ -328,6 +328,7 @@ public sealed class CuotaYBreakerTests
         PrefijoEstable = "prefijo",
         Mensaje = "mensaje",
         Temperatura = 0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 100,
     };
 

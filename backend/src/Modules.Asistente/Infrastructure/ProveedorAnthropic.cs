@@ -32,14 +32,12 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
 
     private readonly AnthropicClient _cliente;
     private readonly string _modelo;
-    private readonly Effort _esfuerzo;
     private readonly ILogger<ProveedorAnthropic> _log;
 
     public ProveedorAnthropic(
         HttpClient transporte,
         string clave,
         string modelo,
-        string esfuerzo,
         ILogger<ProveedorAnthropic> log)
     {
         ArgumentNullException.ThrowIfNull(transporte);
@@ -71,12 +69,11 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
         };
 
         _modelo = modelo;
-        _esfuerzo = EsfuerzoDe(esfuerzo);
         _log = log;
     }
 
     /// <summary>
-    /// Traduce el esfuerzo de la configuración al del SDK.
+    /// Traduce el esfuerzo del puerto al del SDK.
     /// </summary>
     /// <remarks>
     /// Vive acá y no en la composición del módulo para que <c>Effort</c> —un tipo
@@ -87,18 +84,20 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
     /// que escribió <c>alto</c> en vez de <c>high</c> quiere enterarse, no correr
     /// un mes con un esfuerzo que no eligió.
     /// </remarks>
-    private static Effort EsfuerzoDe(string configurado) =>
-        configurado.Trim().ToLowerInvariant() switch
-        {
-            "low" => Effort.Low,
-            "medium" => Effort.Medium,
-            "high" => Effort.High,
-            "xhigh" => Effort.Xhigh,
-            "max" => Effort.Max,
-            _ => throw new InvalidOperationException(
-                $"Esfuerzo '{configurado}' desconocido en la configuración del asistente. "
-                + "Los valores aceptados son: low, medium, high, xhigh, max."),
-        };
+    private static Effort EsfuerzoDe(EsfuerzoDelModelo esfuerzo) => esfuerzo switch
+    {
+        // Mínimo y bajo colapsan en Low: es el piso que este SDK expone. Se
+        // conservan separados en el puerto porque otro proveedor sí distingue
+        // «no pienses» de «pensá poco», y el puerto no se recorta a lo que
+        // ofrece un adaptador.
+        EsfuerzoDelModelo.Minimo => Effort.Low,
+        EsfuerzoDelModelo.Bajo => Effort.Low,
+        EsfuerzoDelModelo.Medio => Effort.Medium,
+        EsfuerzoDelModelo.Alto => Effort.High,
+        EsfuerzoDelModelo.Maximo => Effort.Max,
+        _ => throw new InvalidOperationException(
+            $"Esfuerzo del puerto no mapeado en el adaptador: {esfuerzo}."),
+    };
 
     /// <summary>
     /// Incluye el modelo, no solo el proveedor.
@@ -142,7 +141,7 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             },
 
             Messages = [new() { Role = Role.User, Content = solicitud.Mensaje }],
-            OutputConfig = new OutputConfig { Effort = _esfuerzo },
+            OutputConfig = new OutputConfig { Effort = EsfuerzoDe(solicitud.Esfuerzo) },
         };
 
         Message respuesta;
@@ -189,7 +188,7 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             throw Transporte(excepcion);
         }
 
-        return Traducir(respuesta, solicitud.MaximoDeTokens);
+        return Traducir(respuesta, solicitud);
     }
 
     public void Dispose() => _cliente.Dispose();
@@ -205,7 +204,7 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
     /// por algo que no es una falla de servicio y le contestaría al usuario
     /// «servicio degradado» cuando el servicio anduvo.
     /// </remarks>
-    private RespuestaDelModelo Traducir(Message respuesta, int maximoDeTokens)
+    private RespuestaDelModelo Traducir(Message respuesta, SolicitudAlModelo solicitud)
     {
         if (respuesta.StopReason == "refusal")
         {
@@ -238,8 +237,8 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
                 + "presupuesto (esfuerzo {Esfuerzo}). Con esfuerzo configurado el razonamiento "
                 + "sale de ese mismo techo. Si el turno abstiene sin motivo aparente, esta es "
                 + "la causa: subí el presupuesto de la llamada.",
-                maximoDeTokens,
-                _esfuerzo);
+                solicitud.MaximoDeTokens,
+                solicitud.Esfuerzo);
         }
 
         var texto = string.Concat(
@@ -253,12 +252,19 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
         //
         // El registro operativo mide tamaño de prompt, no factura; su propia
         // documentación lo dice.
+        // La caché se informa APARTE aunque los tokens de entrada la incluyan. Sin
+        // el número separado no hay forma de saber si está pegando: un prefijo
+        // cacheado y uno reprocesado entero producen el mismo total de entrada, y la
+        // diferencia es un orden de magnitud en costo y en tiempo de proceso.
+        var deCache = Acotar(respuesta.Usage.CacheReadInputTokens ?? 0);
+
         return new RespuestaDelModelo(
             texto,
-            Acotar(respuesta.Usage.InputTokens + (respuesta.Usage.CacheReadInputTokens ?? 0)),
+            Acotar(respuesta.Usage.InputTokens) + deCache,
             Acotar(respuesta.Usage.OutputTokens),
             EsSimulada: false,
-            seQuedoSinTokens);
+            seQuedoSinTokens,
+            deCache);
     }
 
     /// <summary>
