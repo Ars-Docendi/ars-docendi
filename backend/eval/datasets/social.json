@@ -1,14 +1,72 @@
 {
   "descripcion": "Eje social y meta, con puntuación asimétrica. Los ítems `social` aprueban SOLO si resuelven con cero tokens de entrada: el assert de costo cero ES la métrica, porque si el saludo costó tokens el enrutador no lo capturó. Los `no_contestable` exigen abstención MÁS sugerencias. Los `negativo` son preguntas legítimas —tomadas del eje de capacidad y de las clases coloquial y parcial de robustez— que el enrutador NO debe capturar; son además los únicos ítems que consumen tokens, y por eso el runner puede distinguir una corrida sana de una sin proveedor.",
   "items": [
-    { "id": "soc-001", "clase": "social", "actor": "global", "pregunta": "hola" },
-    { "id": "soc-002", "clase": "social", "actor": "global", "pregunta": "buenas tardes" },
-    { "id": "soc-003", "clase": "social", "actor": "global", "pregunta": "gracias" },
-    { "id": "soc-004", "clase": "social", "actor": "global", "pregunta": "muchas gracias!" },
-    { "id": "soc-005", "clase": "social", "actor": "global", "pregunta": "¿qué podés hacer?" },
-    { "id": "soc-006", "clase": "social", "actor": "global", "pregunta": "¿para qué servís?" },
-    { "id": "soc-007", "clase": "social", "actor": "carrera", "pregunta": "ayuda" },
-
+    {
+      "id": "soc-001",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "hola"
+    },
+    {
+      "id": "soc-002",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "buenas tardes"
+    },
+    {
+      "id": "soc-003",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "gracias"
+    },
+    {
+      "id": "soc-004",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "muchas gracias!"
+    },
+    {
+      "id": "soc-005",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿qué podés hacer?"
+    },
+    {
+      "id": "soc-006",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿para qué servís?"
+    },
+    {
+      "id": "soc-007",
+      "clase": "social",
+      "actor": "carrera",
+      "pregunta": "ayuda"
+    },
+    {
+      "id": "soc-017",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿qué es lo que puedes realizar?"
+    },
+    {
+      "id": "soc-018",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿qué cosas sabés hacer?"
+    },
+    {
+      "id": "soc-019",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿en qué me podés ayudar?"
+    },
+    {
+      "id": "soc-020",
+      "clase": "social",
+      "actor": "global",
+      "pregunta": "¿qué información me podés dar?"
+    },
     {
       "id": "soc-008",
       "clase": "no_contestable",
@@ -27,7 +85,6 @@
       "actor": "global",
       "pregunta": "¿Cuánto sale el café de la máquina?"
     },
-
     {
       "id": "soc-011",
       "clase": "negativo",
@@ -46,7 +103,12 @@
       "actor": "global",
       "pregunta": "che, ¿qué carreras hay en el Departamento?"
     },
-    { "id": "soc-014", "clase": "negativo", "actor": "global", "pregunta": "solicitudes urgentes" },
+    {
+      "id": "soc-014",
+      "clase": "negativo",
+      "actor": "global",
+      "pregunta": "solicitudes urgentes"
+    },
     {
       "id": "soc-015",
       "clase": "negativo",

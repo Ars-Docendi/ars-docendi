@@ -62,6 +62,12 @@ public static class EnrutadorSocial
         "barbaro", "dale", "ok", "okey", "listo", "buenisimo", "excelente",
         "chau", "adios", "nos", "vemos", "hasta", "luego", "nada", "mas",
         "por", "ahora", "eso", "es", "de", "a", "el", "la", "un", "una",
+        // Palabras función, que no son cortesía ni contenido. Están en este mismo
+        // bucket porque cumplen el mismo papel: se sacan antes de mirar qué quedó.
+        // Sin ellas, «¿qué es LO que podés hacer?» y «¿EN qué me podés ayudar?»
+        // dejan un resto que no es del dominio pero tampoco del asistente, y la
+        // meta-pregunta se pierde por una preposición.
+        "lo", "los", "las", "en", "y", "o", "con", "al", "del",
     };
 
     /// <summary>Palabras que marcan el mensaje como agradecimiento o cierre.</summary>
@@ -79,28 +85,43 @@ public static class EnrutadorSocial
     };
 
     /// <summary>
-    /// Frases que preguntan por el asistente mismo.
+    /// Palabras con las que se habla <b>del asistente</b> y no del dominio.
     /// </summary>
     /// <remarks>
-    /// Deliberadamente angostas y todas con una referencia al asistente. Una lista
-    /// laxa se comería «¿qué carreras hay?», y devolverle al usuario un texto sobre
-    /// capacidades cuando pidió la lista de carreras es peor que no tener la clase.
+    /// <b>Reemplaza a una lista cerrada de frases exactas, y el motivo es un bug
+    /// real.</b> La lista cubría «¿qué podés hacer?» pero no «¿qué es lo que puedes
+    /// realizar?», que fue lo primero que escribió un usuario. Esa pregunta se fue
+    /// al carril SQL, costó una llamada al modelo y terminó en «no puedo responder
+    /// eso» — lo contrario exacto de lo que la clase meta existe para dar.
+    ///
+    /// Enumerar frases no escala: la misma pregunta tiene decenas de formas entre
+    /// el tuteo y el voseo, los sinónimos del verbo y las circunlocuciones, y cada
+    /// una que falta falla del modo más caro.
+    ///
+    /// <b>La precisión no la da la angostura de la lista sino la regla</b>, que es
+    /// la misma que ya gobierna la cortesía: se clasifica meta solo si, sacada la
+    /// cortesía, <b>todo</b> lo que queda está acá. Una sola palabra del dominio
+    /// —«carreras», «Gómez», «pedidos»— sobrevive y manda la pregunta al carril de
+    /// datos. Por eso «¿qué carreras hay?» no se puede confundir: «carreras» y
+    /// «hay» no están en esta lista y no van a estarlo.
     /// </remarks>
-    private static readonly string[] Meta =
-    [
-        "que podes hacer", "que puedes hacer", "que sabes hacer",
-        "que cosas podes hacer", "que cosas puedes hacer",
-        "para que servis", "para que sirves", "para que sos", "para que estas",
-        "como funcionas", "como te uso", "como se usa",
-        "que puedo preguntar", "que puedo preguntarte", "que te puedo preguntar",
-        "en que me podes ayudar", "en que podes ayudarme", "en que me puedes ayudar",
-        "quien sos", "quien eres", "que sos", "que eres",
-    ];
-
-    /// <summary>Palabras que, solas, piden ayuda sobre el asistente.</summary>
-    private static readonly HashSet<string> MetaSolas = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> Meta = new(StringComparer.Ordinal)
     {
-        "ayuda", "help", "ayudame",
+        // Segunda persona, en tuteo y en voseo: de quién se habla.
+        "podes", "puedes", "podrias", "podras", "sabes", "sabras",
+        "servis", "sirves", "funcionas", "funciona", "sos", "eres", "estas",
+        "ayudas", "ayudar", "ayudame", "ayudas", "hacer", "hace", "haces",
+        "hacerte", "hacerlo", "dar", "das", "darme", "decir", "decime",
+        "preguntar", "preguntarte", "responder", "respondes", "contestar",
+        "usar", "uso", "usa", "usarte", "realizar", "realizas", "ofreces",
+        "ofrecer", "brindas", "brindar", "manejas", "manejar", "conoces",
+        // Pronombres y referencias al asistente o a quien pregunta.
+        "te", "vos", "tu", "ti", "me", "mi", "conmigo", "vos", "usted",
+        "yo", "puedo", "podria", "quiero", "quien", "para", "con",
+        // Sustantivos de capacidad, nunca del dominio.
+        "ayuda", "help", "cosas", "tipo", "tipos", "clase", "informacion",
+        "info", "datos", "preguntas", "consultas", "temas", "funciones",
+        "utilidad", "capaz", "posible", "sirve", "servir",
     };
 
     /// <summary>Clasifica el mensaje crudo del usuario.</summary>
@@ -117,29 +138,25 @@ public static class EnrutadorSocial
             return IntencionSocial.Ninguna;
         }
 
-        // La meta-pregunta va primero y por frase, no por ausencia de contenido:
-        // «¿qué podés hacer?» tiene contenido, solo que el contenido es el
-        // asistente y no el dominio.
-        var normalizado = string.Join(' ', palabras);
-        if (Meta.Any(frase => normalizado.Contains(frase, StringComparison.Ordinal)))
-        {
-            return IntencionSocial.Meta;
-        }
-
-        // Una sola palabra que pide ayuda va acá arriba y no después de la guarda
-        // de contenido: «ayuda» ES contenido, así que la guarda la dejaría pasar.
-        // Exigir que sea el mensaje entero es lo que separa «ayuda» de «necesito
-        // ayuda con las designaciones de Álgebra».
-        if (palabras.Count == 1 && MetaSolas.Contains(palabras[0]))
-        {
-            return IntencionSocial.Meta;
-        }
-
-        // LA GUARDA DE PRECISIÓN. Se quita la cortesía y se mira qué queda. Si
-        // queda algo, era una pregunta con una apertura amable y sigue de largo.
+        // LA GUARDA DE PRECISIÓN, una sola y compartida. Se saca la cortesía y se
+        // mira qué queda; las tres clases se deciden sobre ese resto.
+        //
         // Decidir por la presencia del saludo en vez de por la ausencia de
         // contenido rompería «hola, ¿cuántos docentes tiene Inglés Nivel IV?».
         var contenido = palabras.Where(palabra => !Cortesia.Contains(palabra)).ToArray();
+
+        // META: queda algo, y ese algo habla del asistente y no del dominio.
+        //
+        // El «queda algo» no es una formalidad: sin él, un «hola» —que se vacía
+        // entero— cumpliría la condición por vacuidad y todo saludo sería una
+        // meta-pregunta.
+        //
+        // Va ANTES de la guarda de contenido porque una meta-pregunta TIENE
+        // contenido; lo que pasa es que el contenido es el asistente.
+        if (contenido.Length > 0 && Array.TrueForAll(contenido, Meta.Contains))
+        {
+            return IntencionSocial.Meta;
+        }
 
         if (contenido.Length > 0)
         {

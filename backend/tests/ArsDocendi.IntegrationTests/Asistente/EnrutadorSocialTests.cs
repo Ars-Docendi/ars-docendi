@@ -1,4 +1,6 @@
+using System.Text.Json;
 using ArsDocendi.IntegrationTests.Evaluacion;
+using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 
@@ -55,6 +57,20 @@ public sealed class EnrutadorSocialTests
     [InlineData("¿qué puedo preguntarte?")]
     [InlineData("ayuda")]
     [InlineData("¿quién sos?")]
+    // Regresión de un bug encontrado a mano, no por un test. La lista de frases
+    // exactas cubría «qué podés hacer» pero no esta forma, así que la primera
+    // pregunta que escribió un usuario real —un saludo más una circunlocución en
+    // tuteo— se fue al carril SQL, costó una llamada al modelo y terminó en «no
+    // puedo responder eso», que es lo contrario de lo que la clase meta existe
+    // para dar.
+    [InlineData("Hola, que es lo que puedes realizar?")]
+    [InlineData("¿qué es lo que podés hacer?")]
+    [InlineData("¿qué cosas sabés hacer?")]
+    [InlineData("¿qué puedo hacer con vos?")]
+    [InlineData("¿me ayudás?")]
+    [InlineData("¿qué tipo de preguntas puedo hacerte?")]
+    [InlineData("¿para qué me servís?")]
+    [InlineData("¿qué información me podés dar?")]
     public void Una_pregunta_sobre_el_asistente_es_meta(string mensaje)
     {
         Assert.Equal(IntencionSocial.Meta, EnrutadorSocial.Clasificar(mensaje));
@@ -184,5 +200,51 @@ public sealed class EnrutadorSocialTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(
             () => EnrutadorSocial.Responder(IntencionSocial.Ninguna));
+    }
+
+    [Fact]
+    public void Ninguna_pregunta_de_los_datasets_de_datos_se_clasifica_como_social()
+    {
+        // EL GUARD QUE PAGA EL CAMBIO DE MECANISMO. Pasar de una lista de frases a
+        // un vocabulario hace al enrutador más generoso, y lo generoso se paga
+        // capturando preguntas que no le tocan: interceptar «¿qué carreras hay?»
+        // con un texto sobre capacidades es peor que no tener la clase meta.
+        //
+        // Las preguntas salen de los datasets de capacidad y robustez, no de una
+        // lista escrita a mano: uno escribe los casos que ya sabe que fallan. Las
+        // escribió otra tarea con otro objetivo, así que son legítimas y ajenas.
+        var capturadas = new List<string>();
+
+        foreach (var (id, pregunta) in PreguntasDeDatos())
+        {
+            var intencion = EnrutadorSocial.Clasificar(pregunta);
+
+            if (intencion != IntencionSocial.Ninguna)
+            {
+                capturadas.Add($"{id} «{pregunta}» quedó como {intencion}");
+            }
+        }
+
+        Assert.True(capturadas.Count == 0,
+            "El enrutador social capturó preguntas de datos. Es vocabulario "
+            + "demasiado laxo, no un dataset mal escrito:\n" + string.Join("\n", capturadas));
+    }
+
+    private static IEnumerable<(string Id, string Pregunta)> PreguntasDeDatos()
+    {
+        foreach (var archivo in (string[])["capacidad.json", "robustez.json"])
+        {
+            var ruta = Path.Combine(
+                RaizRepositorio.Ruta(), "backend", "eval", "datasets", archivo);
+
+            using var documento = JsonDocument.Parse(File.ReadAllText(ruta));
+
+            foreach (var item in documento.RootElement.GetProperty("items").EnumerateArray())
+            {
+                yield return (
+                    item.GetProperty("id").GetString()!,
+                    item.GetProperty("pregunta").GetString()!);
+            }
+        }
     }
 }
