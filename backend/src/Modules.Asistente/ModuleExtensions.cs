@@ -26,9 +26,21 @@ public static class ModuleExtensions
     /// en cualquier ambiente que todavía no la tenga. El migrador falla con un
     /// mensaje que nombra el valor faltante cuando efectivamente la necesita.
     /// </remarks>
+    /// <param name="envolverProveedor">
+    /// Envoltorio opcional del proveedor base, aplicado ANTES del corte y del techo
+    /// por turno.
+    ///
+    /// Existe para el evaluador, que necesita contar tokens de las llamadas que
+    /// llegan de verdad al modelo. Contarlas afuera de la cadena no sirve: lo que
+    /// se quiere saber es si un turno alcanzó al proveedor, y el techo y el corte
+    /// pueden hacer que no lo alcance. Va adentro y no encima por eso.
+    ///
+    /// Nulo en producción, que es donde no hay nada que medir de más.
+    /// </param>
     public static IServiceCollection AddAsistenteModule(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        Func<IProveedorDeModelo, IProveedorDeModelo>? envolverProveedor = null)
     {
         services.Configure<OpcionesAsistente>(
             configuration.GetSection(OpcionesAsistente.Seccion));
@@ -74,14 +86,16 @@ public static class ModuleExtensions
             var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
             var elegido = valores.Proveedor;
 
-            return new ProveedorBase(elegido switch
+            IProveedorDeModelo proveedor = elegido switch
             {
                 ProveedorSimulado.Clave => new ProveedorSimulado(),
                 ProveedorAnthropic.Clave => ArmarAnthropic(sp, valores),
                 _ => throw new InvalidOperationException(
                     $"Proveedor de modelo '{elegido}' desconocido. Los disponibles son "
                     + $"'{ProveedorSimulado.Clave}' y '{ProveedorAnthropic.Clave}'."),
-            });
+            };
+
+            return new ProveedorBase(envolverProveedor?.Invoke(proveedor) ?? proveedor);
         });
 
         // Contador y decorador son SCOPED: el techo es por turno, y un turno no

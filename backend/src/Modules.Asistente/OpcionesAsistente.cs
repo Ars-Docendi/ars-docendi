@@ -192,7 +192,18 @@ public sealed class OpcionesAsistente
     /// Cero o menos lo deja sin cota, que es lo que necesitan los tests que miden
     /// otra cosa.
     /// </remarks>
-    public int PresupuestoDelTurnoSegundos { get; set; } = 30;
+    /// <remarks>
+    /// Subió de 30 s con la llegada de los modelos que razonan: el razonamiento
+    /// ocurre ANTES del primer token de la respuesta, así que una generación que
+    /// antes tardaba segundos ahora puede tardar decenas. Treinta segundos
+    /// alcanzaban para dos llamadas sin razonamiento y no alcanzan para dos con él.
+    ///
+    /// Es un techo, no una espera: un turno que resuelve rápido no paga nada por
+    /// que el techo sea alto. Lo que sí cuesta es tenerlo bajo, porque el turno se
+    /// corta a la mitad y el usuario recibe «no llegué a tiempo» por un límite
+    /// nuestro y no por un problema del proveedor.
+    /// </remarks>
+    public int PresupuestoDelTurnoSegundos { get; set; } = 150;
 
     /// <summary>
     /// Cuánto espera como mucho una llamada al proveedor, en segundos.
@@ -202,7 +213,13 @@ public sealed class OpcionesAsistente
     /// esta configuración no había ninguno en las llamadas al modelo: el peor caso
     /// de un turno no tenía cota superior.
     /// </remarks>
-    public int TimeoutDeLlamadaSegundos { get; set; } = 20;
+    /// <remarks>
+    /// Subió de 20 s por el mismo motivo que el presupuesto del turno: con
+    /// <see cref="Esfuerzo"/> configurado, el modelo piensa antes de escribir y esa
+    /// pausa entra dentro de esta cota. Con 20 s el corte llegaba antes que la
+    /// respuesta, y el turno degradaba como si el proveedor estuviera caído.
+    /// </remarks>
+    public int TimeoutDeLlamadaSegundos { get; set; } = 60;
 
     /// <summary>
     /// Cuántas llamadas al modelo puede consumir un actor en una ventana (RF-20).

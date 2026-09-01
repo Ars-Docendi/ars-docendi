@@ -34,6 +34,19 @@ public static class Program
         var datasets = Path.Combine(raiz, "backend", "eval", "datasets");
         var reportes = Path.Combine(raiz, "backend", "eval", "reportes");
 
+        // El fixture se EMITE, no se aplica. El evaluador no tiene —ni debería
+        // tener— la cadena del dueño: corre con los roles de solo lectura del
+        // asistente, que es lo que hace que lo que mide sea lo que el asistente
+        // puede ver. Emitirlo por salida estándar deja que lo aplique quien sí
+        // tiene permiso de escritura, con psql o con lo que use ese ambiente.
+        //
+        // El README lo pedía aplicado y no daba forma de aplicarlo.
+        if (argumentos.Contains("--fixture", StringComparer.Ordinal))
+        {
+            Console.Write(new GeneradorDeFixture().Generar());
+            return 0;
+        }
+
         if (argumentos.Contains("--ayuda", StringComparer.Ordinal))
         {
             Ayuda();
@@ -91,7 +104,16 @@ public static class Program
         // Host no existe, así que se registra igual que allá: desde la
         // configuración, con la misma clave y la misma validación.
         servicios.AddSingleton(CadenaDuena.Desde(configuracion));
-        servicios.AddAsistenteModule(configuracion);
+        // El medidor va DENTRO de la cadena y no al lado. El eje social pregunta si
+        // un turno alcanzó al modelo, y contarlo desde afuera contaría lo que el
+        // evaluador pidió y no lo que el pipeline dejó pasar: el techo por turno y
+        // el corte pueden hacer que la llamada no llegue nunca.
+        //
+        // La primera corrida lo tuvo afuera y el eje se auto-rechazó —«ningún turno
+        // consumió tokens»—, que es exactamente lo que ese guard existe para hacer.
+        MedidorDeConsumo? medidor = null;
+        servicios.AddAsistenteModule(
+            configuracion, interno => medidor = new MedidorDeConsumo(interno));
 
         // La fecha de referencia se clava en el ancla del fixture. El pipeline la
         // pasa como parámetro y nunca usa el reloj, así que fijarla acá es lo que
@@ -138,7 +160,12 @@ public static class Program
             }
 
             var actores = new ActoresDelFixture();
-            var medidor = new MedidorDeConsumo(proveedor);
+
+            // El proveedor ya se resolvió arriba, así que la fábrica del envoltorio
+            // corrió y el medidor existe. Si no existiera, el eje social mediría
+            // cero para siempre.
+            var medidorDelTurno = medidor ?? throw new InvalidOperationException(
+                "El módulo no aplicó el envoltorio del proveedor.");
 
             var capacidadRunner = new RunnerDeCapacidad(
                 PorTurno<CarrilSql>, ejecutor, actores, proveedor);
@@ -159,7 +186,7 @@ public static class Program
                     PorTurno<CapaConversacional>, ejecutor, actores, proveedor).CorrerAsync(
                     dialogo, Sello(dialogo.Huella), CancellationToken.None)),
                 ("social", () => new RunnerSocial(
-                    PorTurno<CapaConversacional>, actores, medidor).CorrerAsync(
+                    PorTurno<CapaConversacional>, actores, medidorDelTurno).CorrerAsync(
                     social, Sello(social.Huella), CancellationToken.None)),
             };
 
@@ -203,8 +230,15 @@ public static class Program
     /// Resuelve los actores del fixture por su alcance.
     /// </summary>
     /// <remarks>
-    /// Los identificadores salen del generador del fixture y no están escritos acá:
-    /// si el fixture cambia de identificadores, esto sigue apuntando a la persona
+    /// Los cuatro índices son los que el fixture asigna en
+    /// <c>GeneradorDeFixture.EscribirAsignaciones</c>, y el orden no es arbitrario:
+    /// 0 es Secretaría con alcance global, 1 el coordinador de la carrera 0, 2 el
+    /// jefe de cátedra de la materia 0 y 3 el docente SIN permiso de designaciones
+    /// —el caso en que RLS devuelve cero filas por falta de permiso y no por falta
+    /// de datos, que es justo lo que el eje mide—.
+    ///
+    /// Los identificadores salen del generador y no están escritos acá: si el
+    /// fixture cambia de identificadores, esto sigue apuntando a la persona
     /// correcta en vez de a un GUID que ya no existe.
     /// </remarks>
     private sealed class ActoresDelFixture : IResolutorDeActores
@@ -212,12 +246,13 @@ public static class Program
         public Guid Resolver(string actor) => Guid.Parse(GeneradorDeFixture.IdDeUsuario(
             actor switch
             {
-                "global" => 4,
-                "carrera" => 3,
-                "catedra" => 2,
-                "propio" => 1,
+                "global" => 0,
+                "carrera" => 1,
+                "materia" => 2,
+                "sin_permiso" => 3,
                 _ => throw new InvalidOperationException(
-                    $"El dataset pide un actor '{actor}' que el fixture no define."),
+                    $"El dataset pide un actor '{actor}' que el fixture no define. "
+                    + "Los alcances son: global, carrera, materia, sin_permiso."),
             }));
     }
 
@@ -226,6 +261,10 @@ public static class Program
         Evaluador del asistente conversacional.
 
           dotnet run --project backend/eval/ArsDocendi.Evaluacion
+
+        Emitir el SQL del fixture por salida estándar, para aplicarlo:
+
+          dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --fixture
 
         Necesita:
           · una base PostgreSQL con el esquema migrado y el fixture aplicado;
