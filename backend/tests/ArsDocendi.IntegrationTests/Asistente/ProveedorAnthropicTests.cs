@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.Extensions.Logging;
@@ -255,6 +256,39 @@ public sealed class ProveedorAnthropicTests
         Assert.Contains(errores, linea => linea.Contains("credencial", StringComparison.Ordinal));
         Assert.Contains(
             errores, linea => linea.Contains("ClaveDelProveedor", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Quedarse_sin_credito_no_se_reporta_como_defecto_del_codigo()
+    {
+        // PASÓ DE VERDAD: una corrida de evaluación se quedó sin saldo a la mitad y
+        // el log decía «es un defecto del adaptador», que manda a alguien a buscar
+        // un bug que no existe. Las dos cosas llegan como el mismo 400 y la reacción
+        // de quien lee el log no se parece en nada: una es arreglar código, la otra
+        // es pagar.
+        var ct = TestContext.Current.CancellationToken;
+        var registro = new RegistroDeCapturas();
+
+        using var transporte = new TransporteFalso(_ => new HttpResponseMessage(
+            HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                """
+                {"type":"error","error":{"type":"invalid_request_error",
+                 "message":"Your credit balance is too low to access the Anthropic API."}}
+                """,
+                Encoding.UTF8,
+                "application/json"),
+        });
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => Armar(transporte, registro: registro).CompletarAsync(Solicitud, ct));
+
+        var errores = registro.DeNivel(LogLevel.Error);
+
+        Assert.Contains(errores, l => l.Contains("no tiene crédito", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            errores, l => l.Contains("defecto del adaptador", StringComparison.Ordinal));
     }
 
     [Fact]

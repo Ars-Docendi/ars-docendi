@@ -299,15 +299,47 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
     }
 
     /// <summary>El request salió mal armado de acá. Ningún reintento lo arregla.</summary>
+    /// <summary>
+    /// El proveedor devolvió 400. Distingue quedarse sin crédito de armar mal el
+    /// request, porque la reacción de quien lee el log no se parece en nada.
+    /// </summary>
+    /// <remarks>
+    /// LAS DOS COSAS LLEGAN COMO EL MISMO 400 y decirle «defecto del adaptador» a
+    /// una cuenta sin saldo manda a alguien a buscar un bug que no existe. Pasó de
+    /// verdad: una corrida de evaluación se quedó sin crédito a la mitad y el log
+    /// culpaba al código.
+    ///
+    /// Se distingue por el texto del mensaje, que es frágil y conviene decirlo: el
+    /// proveedor no expone un código distinto para esto. Si cambia el texto, el
+    /// caso vuelve a caer en la rama de siempre —que es la que ya existía— y nadie
+    /// pierde nada; lo único que se pierde es la precisión del diagnóstico.
+    /// </remarks>
     private HttpRequestException Armado(AnthropicException excepcion)
     {
-        _log.LogError(
-            excepcion,
-            "El proveedor del modelo rechazó el request por mal armado. Es un defecto del "
-            + "adaptador, no una falla del proveedor: reintentar no lo corrige.");
+        if (SinCredito(excepcion.Message))
+        {
+            _log.LogError(
+                excepcion,
+                "La cuenta del proveedor del modelo no tiene crédito. NO es un defecto del "
+                + "código y reintentar no lo corrige: hay que cargar saldo. Mientras tanto "
+                + "todos los turnos van a responder degradados.");
+        }
+        else
+        {
+            _log.LogError(
+                excepcion,
+                "El proveedor del modelo rechazó el request por mal armado. Es un defecto del "
+                + "adaptador, no una falla del proveedor: reintentar no lo corrige.");
+        }
 
         return Transporte(excepcion);
     }
+
+    /// <summary>Si el 400 del proveedor es en realidad falta de saldo.</summary>
+    private static bool SinCredito(string mensaje) =>
+        mensaje.Contains("credit balance", StringComparison.OrdinalIgnoreCase)
+        || mensaje.Contains("billing", StringComparison.OrdinalIgnoreCase)
+        || mensaje.Contains("purchase credits", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Traduce al único vocabulario de falla que el pipeline conoce.
