@@ -86,11 +86,8 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
     /// </remarks>
     private static Effort EsfuerzoDe(EsfuerzoDelModelo esfuerzo) => esfuerzo switch
     {
-        // Mínimo y bajo colapsan en Low: es el piso que este SDK expone. Se
-        // conservan separados en el puerto porque otro proveedor sí distingue
-        // «no pienses» de «pensá poco», y el puerto no se recorta a lo que
-        // ofrece un adaptador.
-        EsfuerzoDelModelo.Minimo => Effort.Low,
+        // Mínimo no llega acá: se resuelve omitiendo el campo entero, que es la
+        // única forma de hablarle a un modelo que no delibera.
         EsfuerzoDelModelo.Bajo => Effort.Low,
         EsfuerzoDelModelo.Medio => Effort.Medium,
         EsfuerzoDelModelo.Alto => Effort.High,
@@ -141,7 +138,16 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             },
 
             Messages = [new() { Role = Role.User, Content = solicitud.Mensaje }],
-            OutputConfig = new OutputConfig { Effort = EsfuerzoDe(solicitud.Esfuerzo) },
+            // MÍNIMO NO MANDA EL CAMPO, y no es una optimización: hay modelos que
+            // no deliberan y rechazan `output_config` con 400 —Haiku 4.5 es uno—.
+            // Pedirle «esfuerzo bajo» a un modelo que no razona no es pedirle menos,
+            // es pedirle algo que no entiende.
+            //
+            // Es lo que hace que se pueda usar un modelo chico y rápido para
+            // redactar sin que el pipeline sepa nada de qué modelo es.
+            OutputConfig = solicitud.Esfuerzo == EsfuerzoDelModelo.Minimo
+                ? null
+                : new OutputConfig { Effort = EsfuerzoDe(solicitud.Esfuerzo) },
         };
 
         Message respuesta;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
@@ -17,8 +18,16 @@ namespace Modules.Asistente.Application;
 /// distinto en cada turno por definición —lleva las filas—, así que no hay nada
 /// estable que cachear.
 /// </remarks>
+/// <remarks>
+/// <b>El proveedor se lo inyecta la composición con clave, y puede ser otro modelo
+/// que el que genera.</b> Redactar toma filas ya obtenidas, ya enmascaradas y ya
+/// validadas y las escribe en una oración: no decide nada. Que sea la composición
+/// la que elige quién sirve este caso de uso, y no el puerto, es lo que deja este
+/// tipo sin enterarse de qué modelo le tocó.
+/// </remarks>
 public sealed class RedactorDeRespuesta(
-    IProveedorDeModelo modelo, IOptions<OpcionesAsistente> opciones)
+    [FromKeyedServices(ModuleExtensions.ProveedorDeRedaccion)] IProveedorDeModelo modelo,
+    IOptions<OpcionesAsistente> opciones)
 {
     /// <summary>
     /// Temperatura baja pero no cero: cero produce redacciones rígidas y

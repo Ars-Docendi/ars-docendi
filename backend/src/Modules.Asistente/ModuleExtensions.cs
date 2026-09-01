@@ -93,16 +93,21 @@ public static class ModuleExtensions
             // enterarse al arrancar, no correr un mes con un esfuerzo que no eligió.
             ValidarEsfuerzos(valores);
 
-            IProveedorDeModelo proveedor = elegido switch
-            {
-                ProveedorSimulado.Clave => new ProveedorSimulado(),
-                ProveedorAnthropic.Clave => ArmarAnthropic(sp, valores),
-                _ => throw new InvalidOperationException(
-                    $"Proveedor de modelo '{elegido}' desconocido. Los disponibles son "
-                    + $"'{ProveedorSimulado.Clave}' y '{ProveedorAnthropic.Clave}'."),
-            };
+            var proveedor = ConstruirProveedor(sp, valores, valores.Modelo);
 
             return new ProveedorBase(envolverProveedor?.Invoke(proveedor) ?? proveedor);
+        });
+        // La base que redacta. Es el MISMO switch —el registro de adaptadores sigue
+        // siendo uno solo— con otro modelo. Vacío significa «el mismo que genera»,
+        // que es el default: elegir un modelo más chico es una decisión de costo y
+        // de calidad que se toma por ambiente, no algo que el módulo imponga.
+        services.AddSingleton(sp =>
+        {
+            var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+
+            return string.IsNullOrWhiteSpace(valores.ModeloDeRedaccion)
+                ? new BaseDeRedaccion(sp.GetRequiredService<ProveedorBase>().Valor)
+                : new BaseDeRedaccion(ConstruirProveedor(sp, valores, valores.ModeloDeRedaccion));
         });
 
         // Contador y decorador son SCOPED: el techo es por turno, y un turno no
@@ -135,18 +140,23 @@ public static class ModuleExtensions
         // La cuota NO está en esta cadena: la cobra la capa conversacional, que es
         // lo único que conoce al actor. Meterla acá exigiría un objeto de request
         // mutable con el actor adentro, leído por capas que no lo declaran.
-        services.AddScoped<IProveedorDeModelo>(sp =>
-        {
-            var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+        services.AddScoped<IProveedorDeModelo>(
+            sp => Encadenar(sp, sp.GetRequiredService<ProveedorBase>().Valor));
 
-            return new ProveedorConTechoDeLlamadas(
-                new ProveedorConBreaker(
-                    sp.GetRequiredService<ProveedorBase>().Valor,
-                    sp.GetRequiredService<BreakerDelProveedor>(),
-                    TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
-                    sp.GetRequiredService<TimeProvider>()),
-                sp.GetRequiredService<ContadorDeLlamadasDelTurno>());
-        });
+        // LA SEGUNDA CADENA, para redactar. Comparte el techo del turno y el corte
+        // con la primera —el contador es scoped y el breaker singleton, así que las
+        // dos resuelven los mismos— y eso es lo que hay que conservar: dos techos
+        // independientes serían el doble de llamadas, y dos cortes independientes
+        // harían que el proveedor tuviera que caerse dos veces para que el sistema
+        // se entere una.
+        //
+        // Lo único distinto es el modelo. Que sea la COMPOSICIÓN la que elige quién
+        // sirve cada caso de uso, y no el puerto, es lo que deja el contrato
+        // intacto: `RedactorDeRespuesta` sigue pidiendo un `IProveedorDeModelo` y no
+        // sabe que le tocó otro.
+        services.AddKeyedScoped<IProveedorDeModelo>(
+            ProveedorDeRedaccion,
+            (sp, _) => Encadenar(sp, sp.GetRequiredService<BaseDeRedaccion>().Valor));
 
         // ---------------------------------------------------------------- carril SQL
 
@@ -268,6 +278,42 @@ public static class ModuleExtensions
     /// <summary>
     /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
     /// </summary>
+    /// <summary>
+    /// El registro de adaptadores. Un proveedor nuevo es un brazo más acá.
+    /// </summary>
+    private static IProveedorDeModelo ConstruirProveedor(
+        IServiceProvider sp, OpcionesAsistente valores, string modelo) => valores.Proveedor switch
+        {
+            ProveedorSimulado.Clave => new ProveedorSimulado(),
+            ProveedorAnthropic.Clave => ArmarAnthropic(sp, modelo),
+            _ => throw new InvalidOperationException(
+                $"Proveedor de modelo '{valores.Proveedor}' desconocido. Los disponibles son "
+                + $"'{ProveedorSimulado.Clave}' y '{ProveedorAnthropic.Clave}'."),
+        };
+
+    /// <summary>Clave del proveedor que redacta, en el contenedor.</summary>
+    public const string ProveedorDeRedaccion = "asistente-redaccion";
+
+    /// <summary>
+    /// Envuelve un proveedor con el corte y el techo del turno.
+    /// </summary>
+    /// <remarks>
+    /// El orden va de afuera hacia adentro de más barato a más caro:
+    /// techo del turno → corte + timeout → proveedor real. Invertir los dos
+    /// primeros haría que el corte registrara intentos que el techo iba a rechazar
+    /// igual, y un solo turno desbocado abriría el corte para todos.
+    /// </remarks>
+    private static IProveedorDeModelo Encadenar(IServiceProvider sp, IProveedorDeModelo interno) =>
+        new ProveedorConTechoDeLlamadas(
+            new ProveedorConBreaker(
+                interno,
+                sp.GetRequiredService<BreakerDelProveedor>(),
+                TimeSpan.FromSeconds(
+                    sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value
+                        .TimeoutDeLlamadaSegundos),
+                sp.GetRequiredService<TimeProvider>()),
+            sp.GetRequiredService<ContadorDeLlamadasDelTurno>());
+
     private static void ValidarEsfuerzos(OpcionesAsistente valores)
     {
         EsfuerzoConfigurado.Interpretar(
@@ -278,12 +324,13 @@ public static class ModuleExtensions
             valores.EsfuerzoDeReescritura, nameof(OpcionesAsistente.EsfuerzoDeReescritura));
     }
 
-    private static ProveedorAnthropic ArmarAnthropic(
-        IServiceProvider sp, OpcionesAsistente valores) =>
+    private static ProveedorAnthropic ArmarAnthropic(IServiceProvider sp, string modelo) =>
         new(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
             Requerido(sp, o => o.ClaveDelProveedor, nameof(OpcionesAsistente.ClaveDelProveedor)),
-            Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo)),
+            string.IsNullOrWhiteSpace(modelo)
+                ? Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo))
+                : modelo,
             sp.GetRequiredService<ILogger<ProveedorAnthropic>>());
 
 }

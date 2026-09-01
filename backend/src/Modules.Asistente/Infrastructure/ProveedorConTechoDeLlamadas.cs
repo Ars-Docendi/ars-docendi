@@ -49,3 +49,13 @@ internal sealed class ProveedorConTechoDeLlamadas(
 /// es la de adentro.
 /// </remarks>
 internal sealed record ProveedorBase(IProveedorDeModelo Valor);
+
+/// <summary>
+/// El proveedor base que redacta, que puede ser un modelo distinto del que genera.
+/// </summary>
+/// <remarks>
+/// Es un tipo propio y no una instancia con clave del anterior para que el
+/// contenedor pueda distinguirlos sin que ningún consumidor tenga que nombrarlos:
+/// quién sirve cada caso de uso lo decide la composición.
+/// </remarks>
+internal sealed record BaseDeRedaccion(IProveedorDeModelo Valor);

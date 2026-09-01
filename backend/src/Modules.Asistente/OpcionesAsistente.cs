@@ -98,6 +98,26 @@ public sealed class OpcionesAsistente
     public string EsfuerzoDeGeneracion { get; set; } = "medio";
 
     /// <summary>
+    /// Modelo que redacta la respuesta en español. Vacío usa el mismo que genera.
+    /// </summary>
+    /// <remarks>
+    /// <b>Redactar y generar son trabajos distintos.</b> Generar elige el join
+    /// correcto entre catorce tablas y decide qué se pregunta; redactar toma filas
+    /// ya obtenidas, ya enmascaradas y ya validadas, y las escribe en una oración.
+    /// El segundo no necesita el mismo modelo que el primero, y usarlo se paga en
+    /// segundos que el usuario mira una pantalla quieta.
+    ///
+    /// Es una cadena y no un booleano «usar modelo rápido» porque cuál es el modelo
+    /// rápido depende del proveedor y del año. El pipeline no sabe qué modelo es:
+    /// esto lo decide la composición, no el puerto.
+    ///
+    /// Si el modelo elegido no delibera —Haiku 4.5 rechaza `output_config` con
+    /// 400—, hay que poner <see cref="EsfuerzoDeRedaccion"/> en `minimo`, que es el
+    /// valor que omite el campo entero.
+    /// </remarks>
+    public string ModeloDeRedaccion { get; set; } = string.Empty;
+
+    /// <summary>
     /// Deliberación pedida al redactar la respuesta en español.
     /// </summary>
     /// <remarks>

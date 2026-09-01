@@ -85,7 +85,6 @@ public sealed class ProveedorAnthropicTests
     }
 
     [Theory]
-    [InlineData(EsfuerzoDelModelo.Minimo, "low")]
     [InlineData(EsfuerzoDelModelo.Bajo, "low")]
     [InlineData(EsfuerzoDelModelo.Medio, "medium")]
     [InlineData(EsfuerzoDelModelo.Alto, "high")]
@@ -103,6 +102,24 @@ public sealed class ProveedorAnthropicTests
         Assert.Equal(
             esperado,
             Cuerpo(transporte).GetProperty("output_config").GetProperty("effort").GetString());
+    }
+
+    [Fact]
+    public async Task El_esfuerzo_minimo_no_manda_el_campo()
+    {
+        // NO es «esfuerzo bajo»: es no mandar `output_config`. Hay modelos que no
+        // deliberan y lo rechazan con 400 —Haiku 4.5 es uno—, y pedirle «poco
+        // esfuerzo» a un modelo que no razona es pedirle algo que no entiende.
+        //
+        // Es lo que permite usar un modelo chico y rápido para redactar sin que el
+        // pipeline sepa qué modelo le tocó.
+        using var transporte = TransporteFalso.QueResponde();
+
+        await Armar(transporte).CompletarAsync(
+            Solicitud with { Esfuerzo = EsfuerzoDelModelo.Minimo },
+            TestContext.Current.CancellationToken);
+
+        Assert.False(Cuerpo(transporte).TryGetProperty("output_config", out _));
     }
 
     [Fact]
