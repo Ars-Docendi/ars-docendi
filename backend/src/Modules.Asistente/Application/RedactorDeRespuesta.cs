@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
@@ -16,7 +17,8 @@ namespace Modules.Asistente.Application;
 /// distinto en cada turno por definición —lleva las filas—, así que no hay nada
 /// estable que cachear.
 /// </remarks>
-public sealed class RedactorDeRespuesta(IProveedorDeModelo modelo)
+public sealed class RedactorDeRespuesta(
+    IProveedorDeModelo modelo, IOptions<OpcionesAsistente> opciones)
 {
     /// <summary>
     /// Temperatura baja pero no cero: cero produce redacciones rígidas y
@@ -24,7 +26,6 @@ public sealed class RedactorDeRespuesta(IProveedorDeModelo modelo)
     /// </summary>
     private const decimal Temperatura = 0.3m;
 
-    private const int MaximoDeTokens = 800;
 
     /// <summary>Cuántas filas se le muestran al modelo como mucho.</summary>
     /// <remarks>
@@ -47,7 +48,7 @@ public sealed class RedactorDeRespuesta(IProveedorDeModelo modelo)
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(pregunta, resultado, actorEsGlobal),
                 Temperatura = Temperatura,
-                MaximoDeTokens = MaximoDeTokens,
+                MaximoDeTokens = opciones.Value.MaximoDeTokensDeRedaccion,
             },
             ct);
 

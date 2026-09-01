@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using ArsDocendi.IntegrationTests.Infraestructura;
@@ -245,6 +246,48 @@ public sealed class ProveedorAnthropicTests
 
     // ------------------------------------------------------------------ identidad
 
+    [Fact]
+    public async Task Una_respuesta_cortada_por_presupuesto_se_informa_y_se_grita()
+    {
+        // EL MODO DE FALLAR MÁS CARO DEL MÓDULO, si no se hace visible. Una
+        // generación cortada deja un JSON incompleto, el intérprete no lo puede
+        // leer, y el turno responde «no pude interpretar la pregunta» — palabra por
+        // palabra lo que devuelve una pregunta genuinamente incontestable. Sin este
+        // dato, un presupuesto mal dimensionado se ve igual que un asistente
+        // prudente, y no hay nada en la respuesta que permita distinguirlos.
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = new TransporteFalso(
+            _ => TransporteFalso.Exito("""{"sql": "SELECT * FROM""", motivoDeCorte: "max_tokens"));
+
+        var registro = new RegistroDeCapturas();
+        var respuesta = await Armar(transporte, registro: registro)
+            .CompletarAsync(Solicitud, ct);
+
+        Assert.True(respuesta.SeQuedoSinTokens);
+
+        // Y en los logs, con el número que hay que subir. Warning y no Error: el
+        // proveedor funcionó; lo que quedó chico es la configuración.
+        var avisos = registro.DeNivel(LogLevel.Warning);
+
+        Assert.Contains(avisos, linea =>
+            linea.Contains(
+                Solicitud.MaximoDeTokens.ToString(CultureInfo.InvariantCulture),
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Una_respuesta_completa_no_se_declara_cortada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = new TransporteFalso(_ => TransporteFalso.Exito("SELECT 1"));
+
+        var registro = new RegistroDeCapturas();
+        var respuesta = await Armar(transporte, registro: registro)
+            .CompletarAsync(Solicitud, ct);
+
+        Assert.False(respuesta.SeQuedoSinTokens);
+        Assert.Empty(registro.DeNivel(LogLevel.Warning));
+    }
     [Fact]
     public void El_adaptador_no_se_declara_simulado_y_nombra_su_modelo()
     {

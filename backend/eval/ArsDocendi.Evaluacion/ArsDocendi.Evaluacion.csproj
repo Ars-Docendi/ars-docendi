@@ -31,6 +31,18 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\..\src\ArsDocendi.Evaluacion.Nucleo\ArsDocendi.Evaluacion.Nucleo.csproj" />
+
+    <!--
+      El módulo entero, y no solo su contrato: el proveedor se resuelve del
+      contenedor del módulo para que el `switch` de ModuleExtensions siga siendo
+      el ÚNICO registro de adaptadores. Construir uno a mano acá crearía una
+      segunda forma de elegir proveedor, capaz de quedar en desacuerdo con la de
+      producción sin que nada falle.
+
+      Referenciarlo NO mete este proyecto en la solución, que es lo que el guard
+      ExclusionDelEvaluadorTests vigila.
+    -->
+    <ProjectReference Include="..\..\src\Modules.Asistente\Modules.Asistente.csproj" />
   </ItemGroup>
 
   <ItemGroup>

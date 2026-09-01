@@ -357,10 +357,11 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
                 new ProveedorDeEsquema(basica, pii),
                 new SelectorDeEjemplos(),
                 conTecho,
-                new FechaDeReferenciaFija(new DateOnly(2026, 8, 24))),
+                new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)),
+                opciones),
             new EjecutorDeConsulta(basica, pii, ClasificadorDeSensibilidad(), opciones),
             new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho),
+            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
             contador,
             registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());

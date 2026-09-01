@@ -36,13 +36,23 @@ Necesita tres cosas:
 1. **Una base PostgreSQL migrada**, con el fixture aplicado.
 2. **Las cadenas de conexión del asistente** en el ambiente (`Asistente__RolSoloLectura`
    y compañía; ver `backend/src/Modules.Asistente/README.md`).
-3. **Un proveedor de modelo real.**
+3. **Un proveedor de modelo real**, elegido por ambiente:
 
-> **Hoy falta la tercera.** `IProveedorDeModelo` tiene una sola implementación —la
-> simulada— y el preflight la rechaza a propósito. Elegir proveedor y modelo, y
-> conseguir una clave, es una decisión de producto y de costo. Cuando esté tomada,
-> se implementa la interfaz y se la construye en `Program.cs`; nada más del
-> pipeline cambia.
+   ```bash
+   Asistente__Proveedor=anthropic
+   Asistente__ClaveDelProveedor=<la clave>
+   ```
+
+El proveedor **se resuelve del contenedor del módulo**, no se construye acá. El
+`switch` de `ModuleExtensions` es el único registro de adaptadores: armar uno a mano
+en el evaluador crearía una segunda forma de elegir proveedor, capaz de quedar en
+desacuerdo con la de producción sin que nada falle. Además el que devuelve el
+contenedor viene ya envuelto en el reintento, el techo por turno y el corte — que es
+lo que corre de verdad. Medir sobre un proveedor desnudo mediría otro sistema.
+
+Sin la tercera, el preflight rechaza y **no se escribe ningún reporte**. Es
+deliberado: un reporte escrito sobre una corrida inválida es peor que no tener
+reporte, porque el que no existe se nota y el que miente no.
 
 El evaluador **nunca** corre en el CI. No es una convención: es estructural.
 

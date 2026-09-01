@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
@@ -39,10 +40,9 @@ public sealed class GeneradorDeSql(
     IProveedorDeEsquema esquema,
     ISelectorDeEjemplos ejemplos,
     IProveedorDeModelo modelo,
-    IFechaDeReferencia fecha)
+    IFechaDeReferencia fecha,
+    IOptions<OpcionesAsistente> opciones)
 {
-    /// <summary>Techo de tokens de la generación.</summary>
-    private const int MaximoDeTokens = 1200;
 
     /// <summary>
     /// Razonamiento con que se resuelve una respuesta que no se pudo interpretar.
@@ -69,7 +69,7 @@ public sealed class GeneradorDeSql(
                 PrefijoEstable = prefijo.Prefijo,
                 Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy()),
                 Temperatura = 0.0m,
-                MaximoDeTokens = MaximoDeTokens,
+                MaximoDeTokens = opciones.Value.MaximoDeTokensDeGeneracion,
             },
             ct);
 

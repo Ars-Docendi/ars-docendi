@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
@@ -18,11 +19,11 @@ namespace Modules.Asistente.Application;
 /// ninguna entidad ambigua, pero la reescrita sí, y además ya trae el discriminador
 /// que la resuelve.
 /// </remarks>
-public sealed class ReescritorDePreguntas(IProveedorDeModelo modelo)
+public sealed class ReescritorDePreguntas(
+    IProveedorDeModelo modelo, IOptions<OpcionesAsistente> opciones)
 {
     private const decimal Temperatura = 0.0m;
 
-    private const int MaximoDeTokens = 200;
 
     /// <summary>
     /// Reescribe el mensaje como pregunta autocontenida.
@@ -50,7 +51,7 @@ public sealed class ReescritorDePreguntas(IProveedorDeModelo modelo)
                 PrefijoEstable = Instrucciones,
                 Mensaje = ArmarMensaje(mensaje, historial),
                 Temperatura = Temperatura,
-                MaximoDeTokens = MaximoDeTokens,
+                MaximoDeTokens = opciones.Value.MaximoDeTokensDeReescritura,
             },
             ct);
 

@@ -57,7 +57,15 @@ public static class Preflight
                     PrefijoEstable = "Prueba de conectividad del evaluador.",
                     Mensaje = PreguntaDePrueba,
                     Temperatura = 0.0m,
-                    MaximoDeTokens = 16,
+
+                    // Holgado para una respuesta de una palabra, y a propósito. Con
+                    // esfuerzo configurado el modelo razona antes de escribir y ese
+                    // razonamiento sale del MISMO presupuesto: con un techo de 16
+                    // tokens el preflight se cortaría siempre, avisaría de un corte
+                    // por presupuesto en cada corrida, y ese aviso —que existe para
+                    // señalar un problema real— se volvería ruido que se aprende a
+                    // ignorar. Lo que se paga son los tokens generados, no el techo.
+                    MaximoDeTokens = 512,
                 },
                 ct);
         }

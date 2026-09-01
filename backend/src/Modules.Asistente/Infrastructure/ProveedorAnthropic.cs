@@ -189,7 +189,7 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             throw Transporte(excepcion);
         }
 
-        return Traducir(respuesta);
+        return Traducir(respuesta, solicitud.MaximoDeTokens);
     }
 
     public void Dispose() => _cliente.Dispose();
@@ -205,7 +205,7 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
     /// por algo que no es una falla de servicio y le contestaría al usuario
     /// «servicio degradado» cuando el servicio anduvo.
     /// </remarks>
-    private RespuestaDelModelo Traducir(Message respuesta)
+    private RespuestaDelModelo Traducir(Message respuesta, int maximoDeTokens)
     {
         if (respuesta.StopReason == "refusal")
         {
@@ -214,6 +214,32 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             _log.LogWarning(
                 "El modelo se rehusó a responder ({Categoria}).",
                 respuesta.StopDetails?.Category);
+        }
+
+        // EL CORTE POR PRESUPUESTO SE GRITA, y es la única forma de enterarse.
+        //
+        // Una respuesta cortada por MaxTokens deja un JSON incompleto; el generador
+        // no lo puede interpretar y el turno resuelve «no pude interpretar la
+        // pregunta», que es palabra por palabra lo que responde una pregunta
+        // genuinamente incontestable. Sin este log, un presupuesto chico se ve
+        // exactamente igual que un asistente prudente, y no hay nada en la
+        // respuesta del usuario que permita distinguirlos.
+        //
+        // Con Esfuerzo configurado el razonamiento sale del MISMO presupuesto, así
+        // que el techo que alcanzaba para escribir la consulta puede no alcanzar
+        // para pensarla y escribirla. Por eso el mensaje nombra el número: es el
+        // que hay que subir.
+        var seQuedoSinTokens = respuesta.StopReason == "max_tokens";
+
+        if (seQuedoSinTokens)
+        {
+            _log.LogWarning(
+                "La respuesta del modelo se cortó al agotar los {MaximoDeTokens} tokens de "
+                + "presupuesto (esfuerzo {Esfuerzo}). Con esfuerzo configurado el razonamiento "
+                + "sale de ese mismo techo. Si el turno abstiene sin motivo aparente, esta es "
+                + "la causa: subí el presupuesto de la llamada.",
+                maximoDeTokens,
+                _esfuerzo);
         }
 
         var texto = string.Concat(
@@ -231,7 +257,8 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             texto,
             Acotar(respuesta.Usage.InputTokens + (respuesta.Usage.CacheReadInputTokens ?? 0)),
             Acotar(respuesta.Usage.OutputTokens),
-            EsSimulada: false);
+            EsSimulada: false,
+            seQuedoSinTokens);
     }
 
     /// <summary>

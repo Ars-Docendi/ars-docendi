@@ -1,4 +1,6 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using Microsoft.Extensions.Options;
+using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 
@@ -225,7 +227,8 @@ public sealed class GeneracionDeSqlTests
         new(new EsquemaDeGuion(),
             new SelectorDeEjemplos(),
             proveedor,
-            new FechaDeReferenciaFija(fecha ?? Hoy));
+            new FechaDeReferenciaFija(fecha ?? Hoy),
+            Options.Create(new OpcionesAsistente()));
 
     /// <summary>Proveedor de esquema fijo, para no necesitar una base.</summary>
     private sealed class EsquemaDeGuion : IProveedorDeEsquema

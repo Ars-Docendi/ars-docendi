@@ -126,10 +126,11 @@ internal sealed class BancoDelAsistente
                         new ProveedorDeEsquema(basica, conDatosPersonales),
                         new SelectorDeEjemplos(),
                         conTecho,
-                        new FechaDeReferenciaFija(new DateOnly(2026, 8, 25))),
+                        new FechaDeReferenciaFija(new DateOnly(2026, 8, 25)),
+                        opciones),
                     new EjecutorDeConsulta(basica, conDatosPersonales, clasificador, opciones),
                     new ConsultorDeAlcance(basica),
-                    new RedactorDeRespuesta(conTecho),
+                    new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
                     new SelectorDeEjemplos(),
                     contador,
                     NullLogger<CarrilSql>.Instance);
@@ -137,7 +138,7 @@ internal sealed class BancoDelAsistente
                 return new CapaConversacional(
                     losHilos,
                     indice,
-                    new ReescritorDePreguntas(conTecho),
+                    new ReescritorDePreguntas(conTecho, Options.Create(new OpcionesAsistente())),
                     carril,
                     new SelectorDeEjemplos(),
                     catalogo,

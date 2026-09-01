@@ -432,13 +432,14 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             new ProveedorDeEsquema(basica, conDatosPersonales),
             new SelectorDeEjemplos(),
             conTecho,
-            new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)));
+            new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)),
+            Options.Create(new OpcionesAsistente()));
 
         return new CarrilSql(
             generador,
             new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones),
             new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho),
+            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
             contadorDelTurno,
             NullLogger<CarrilSql>.Instance);

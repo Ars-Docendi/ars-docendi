@@ -397,10 +397,11 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
                 new ProveedorDeEsquema(basica, conDatosPersonales),
                 new SelectorDeEjemplos(),
                 conTecho,
-                new FechaDeReferenciaFija(new DateOnly(2026, 3, 2))),
+                new FechaDeReferenciaFija(new DateOnly(2026, 3, 2)),
+                Options.Create(new OpcionesAsistente())),
             ejecutor,
             new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho),
+            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
             contador,
             NullLogger<CarrilSql>.Instance);

@@ -79,8 +79,23 @@ public sealed record SolicitudAlModelo
 /// Lo que devuelve el modelo. Los conteos de tokens alimentan el registro
 /// operativo, no la facturación.
 /// </summary>
+/// <param name="SeQuedoSinTokens">
+/// El modelo llegó al techo de <see cref="SolicitudAlModelo.MaximoDeTokens"/> y la
+/// respuesta quedó cortada a la mitad.
+///
+/// <b>Existe porque su ausencia es indistinguible de una respuesta legítima.</b>
+/// Una generación cortada deja un JSON incompleto, el intérprete no lo puede leer
+/// y el turno resuelve «no pude interpretar la pregunta» — exactamente el mismo
+/// texto que devuelve una pregunta que de verdad no se puede contestar. Sin este
+/// dato, un presupuesto mal dimensionado se ve igual que un asistente prudente.
+///
+/// Importa más desde que los modelos razonan: con <c>Esfuerzo</c> configurado, el
+/// razonamiento sale de este mismo presupuesto, así que el techo que alcanzaba
+/// para escribir la consulta puede no alcanzar para pensarla y escribirla.
+/// </param>
 public sealed record RespuestaDelModelo(
     string Texto,
     int TokensDeEntrada,
     int TokensDeSalida,
-    bool EsSimulada);
+    bool EsSimulada,
+    bool SeQuedoSinTokens = false);

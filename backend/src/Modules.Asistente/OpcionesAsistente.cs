@@ -265,4 +265,48 @@ public sealed class OpcionesAsistente
     /// para siempre y el hilo deja de aceptar preguntas nuevas.
     /// </remarks>
     public int MaximoDeIntentosDeAclaracion { get; set; } = 2;
+    /// <summary>
+    /// Techo de tokens de la llamada que genera la consulta.
+    /// </summary>
+    /// <remarks>
+    /// <b>El razonamiento sale de este mismo presupuesto.</b> Con <see cref="Esfuerzo"/>
+    /// configurado, el modelo piensa antes de escribir y esos tokens cuentan contra
+    /// este techo, así que el número que alcanzaba para escribir la consulta puede
+    /// no alcanzar para pensarla y escribirla.
+    ///
+    /// El valor arrancó en 1200, dimensionado sobre la salida sola. Se subió con
+    /// margen porque el modo de fallar del techo corto es el peor posible: la
+    /// respuesta llega cortada, el JSON queda incompleto y el turno resuelve «no
+    /// pude interpretar la pregunta» —el mismo texto que devuelve una pregunta
+    /// genuinamente incontestable—. Un presupuesto chico se ve igual que un
+    /// asistente prudente.
+    ///
+    /// Es configurable y no una constante porque el número correcto depende del
+    /// esfuerzo y del modelo, y esos se eligen por ambiente. Si en los logs aparece
+    /// el aviso de corte por presupuesto, este es el valor a subir.
+    ///
+    /// El costo de pasarse es acotado: se paga por token generado, no por techo
+    /// pedido, así que un techo holgado solo cuesta cuando de verdad se usa.
+    /// </remarks>
+    public int MaximoDeTokensDeGeneracion { get; set; } = 4000;
+
+    /// <summary>
+    /// Techo de tokens de la llamada que redacta la respuesta en español.
+    /// </summary>
+    /// <remarks>
+    /// Más chico que el de generación porque la salida es prosa corta y no hay
+    /// formato que se pueda romper a la mitad: una redacción cortada se lee peor,
+    /// pero se lee. Aun así el razonamiento también sale de acá.
+    /// </remarks>
+    public int MaximoDeTokensDeRedaccion { get; set; } = 2000;
+
+    /// <summary>
+    /// Techo de tokens de la llamada que reescribe una pregunta de seguimiento.
+    /// </summary>
+    /// <remarks>
+    /// La salida es una sola pregunta reescrita, así que el techo es chico. Se
+    /// subió de 200 por el mismo motivo que los otros dos: con razonamiento, 200
+    /// tokens pueden agotarse antes de escribir la primera palabra.
+    /// </remarks>
+    public int MaximoDeTokensDeReescritura { get; set; } = 1000;
 }
