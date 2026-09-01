@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Drawer } from "@ars-docendi/ui";
+import { Modal } from "@ars-docendi/ui";
 
 import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
-import { helpIcon } from "../../../app/shell/icons";
+import { sparkIcon } from "../../../app/shell/icons";
 
 /**
  * El asistente desde cualquier pantalla.
@@ -18,6 +18,15 @@ import { helpIcon } from "../../../app/shell/icons";
  *
  * Quien no tiene el permiso no ve nada: ni el botón deshabilitado ni una ruta
  * muerta. El acceso lo decide el backend, no una lista de roles.
+ *
+ * LLEVA ETIQUETA Y NO SOLO UN ÍCONO. Un ícono solo obliga a descubrir qué hace
+ * pasando el mouse por encima, y en la barra ya conviven otros dos; «Preguntar»
+ * dice qué pasa al apretarlo sin que haya que averiguarlo.
+ *
+ * VA EN UN MODAL CENTRADO Y NO EN UN CAJÓN LATERAL. La conversación es la tarea
+ * mientras dura: un cajón compite por el ancho con la pantalla que quedó atrás, y a
+ * esa pantalla no se la está mirando. El modal también centra el foco del teclado,
+ * que es lo que corresponde cuando lo que se abre es donde hay que escribir.
  */
 export function LanzadorAsistente() {
   const { tieneAcceso } = useAccesoAlAsistente();
@@ -27,26 +36,21 @@ export function LanzadorAsistente() {
 
   return (
     <>
-      <button
-        type="button"
-        className="adoc-icon-btn"
-        aria-label="Abrir el asistente"
-        title="Asistente"
-        onClick={() => setAbierto(true)}
-      >
-        <span className="ico">{helpIcon}</span>
+      <button type="button" className="adoc-asistente-lanzador" onClick={() => setAbierto(true)}>
+        <span className="ico">{sparkIcon}</span>
+        Preguntar
       </button>
 
-      <Drawer
+      <Modal
         open={abierto}
         onOpenChange={setAbierto}
-        title="Asistente"
+        className="adoc-asistente-modal"
         aria-label="Asistente conversacional"
       >
         {/* Se monta recién al abrir: el panel arranca una conversación, y montarlo
             siempre dejaría un hilo abierto en cada pantalla de la aplicación. */}
         {abierto && <PanelAsistente />}
-      </Drawer>
+      </Modal>
     </>
   );
 }

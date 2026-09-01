@@ -137,3 +137,164 @@
   flex: 1;
   resize: vertical;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EL LANZADOR Y EL MODAL
+
+   La conversación es la tarea mientras dura, así que ocupa el centro. Los colores
+   salen del acento del sistema y no de valores propios: el asistente es una parte
+   de la aplicación, no un widget pegado encima.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.adoc-asistente-lanzador {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--color-accent, #157a4a);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent, #157a4a) 8%, transparent);
+  color: var(--color-accent, #157a4a);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adoc-asistente-lanzador:hover {
+  background: color-mix(in srgb, var(--color-accent, #157a4a) 16%, transparent);
+}
+
+.adoc-asistente-lanzador:focus-visible {
+  outline: 2px solid var(--color-accent, #157a4a);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-lanzador .ico {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+}
+
+.adoc-asistente-modal .adoc-asistente {
+  /* Alto fijo para que el campo de entrada no se mueva a medida que la
+     conversación crece: un input que baja con cada respuesta obliga a perseguirlo. */
+  height: min(68vh, 600px);
+}
+
+/* La región que scrollea. `min-height: 0` no es decorativo: sin él, un hijo flex
+   no se encoge por debajo de su contenido y el desbordamiento se lo come el
+   contenedor de abajo —que acá es el campo de entrada, y desaparece—. */
+.adoc-asistente-hilo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+  padding-right: 0.25rem;
+}
+
+/* ─────────────────────────────── la conversación ───────────────────────────── */
+
+/* Ya no scrollea ella: scrollea el hilo entero, para que el bloque de bienvenida
+   y los turnos se muevan juntos. */
+.adoc-asistente-conversacion {
+  overflow: visible;
+}
+
+/* Lo que escribió el usuario: burbuja de acento, a la derecha. La alineación hace
+   el trabajo que hacía la etiqueta «VOS», así que la etiqueta se oculta —sigue en
+   el DOM para el lector de pantalla, que no ve de qué lado está la burbuja—. */
+.adoc-asistente-pregunta {
+  align-self: flex-end;
+  max-width: 82%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: var(--color-accent, #157a4a);
+  color: #fff;
+}
+
+.adoc-asistente-pregunta .adoc-asistente-quien,
+.adoc-asistente-respuesta > .adoc-asistente-quien {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* La respuesta: tarjeta clara, ancho completo. No se alinea a la izquierda con un
+   ancho corto porque su contenido no es solo texto —trae tablas y menús—, y una
+   burbuja angosta los rompería. */
+.adoc-asistente-respuesta {
+  align-self: stretch;
+  padding: 1rem;
+  border-radius: 10px;
+  background: var(--color-bg-subtle, #f4f3ee);
+}
+
+/* ────────────────────────────────── la entrada ─────────────────────────────── */
+
+.adoc-asistente-entrada {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem 0.35rem 2.35rem;
+  border: 2px solid var(--color-accent, #157a4a);
+  border-radius: 10px;
+  background: var(--color-bg-raised, #fff);
+}
+
+.adoc-asistente-entrada:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #157a4a) 40%, transparent);
+  outline-offset: 2px;
+}
+
+/* Centrado sobre el alto real del campo, no sobre el del formulario: el
+   formulario crece con el botón y el ícono quedaría descolgado abajo. */
+.adoc-asistente-destello {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  left: 0.75rem;
+  display: inline-flex;
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--color-accent, #157a4a);
+  pointer-events: none;
+}
+
+/* El campo pierde su marco: el marco ahora es el del contenedor, y dos bordes
+   concéntricos se leen como un error de maquetado. */
+/* El campo pierde su marco, su sombra y su fondo: el marco ahora es el del
+   contenedor, y dos bordes concéntricos se leen como un error de maquetado. Va con
+   la clase del formulario adelante para ganarle en especificidad al de la
+   librería, no con !important. */
+.adoc-asistente-entrada textarea,
+.adoc-asistente-entrada textarea:focus,
+.adoc-asistente-entrada textarea:focus-visible {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  resize: none;
+  padding: 0.5rem 0;
+
+  /* La librería le pone un alto mínimo pensado para un campo de formulario. Acá es
+     una línea de chat: arranca en una línea y crece hasta cuatro, que es donde una
+     pregunta larga sigue entrando sin que el campo se coma la conversación. */
+  min-height: 0;
+  height: auto;
+  field-sizing: content;
+  max-height: 6.5rem;
+  line-height: 1.45;
+}

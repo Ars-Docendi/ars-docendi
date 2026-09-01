@@ -59,7 +59,7 @@ describe("El lanzador del asistente", () => {
   it("aparece cuando el backend concede acceso", async () => {
     montar(<LanzadorAsistente />);
 
-    expect(await screen.findByRole("button", { name: "Abrir el asistente" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Preguntar" })).toBeEnabled();
   });
 
   it("no aparece cuando el backend niega el acceso", async () => {
@@ -70,9 +70,7 @@ describe("El lanzador del asistente", () => {
 
     montar(<LanzadorAsistente />);
 
-    await waitFor(() =>
-      expect(screen.queryByRole("button", { name: "Abrir el asistente" })).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Preguntar" })).toBeNull());
   });
 
   it("no deja ningún botón deshabilitado con leyenda de próximamente", async () => {
@@ -81,17 +79,23 @@ describe("El lanzador del asistente", () => {
     // no hay botón.
     montar(<LanzadorAsistente />);
 
-    const boton = await screen.findByRole("button", { name: "Abrir el asistente" });
+    const boton = await screen.findByRole("button", { name: "Preguntar" });
 
     expect(boton).not.toBeDisabled();
-    expect(boton).toHaveAttribute("title", "Asistente");
+
+    // No lleva `title`: el botón ahora tiene etiqueta visible, y un tooltip que
+    // repite lo que ya dice el texto es ruido para un lector de pantalla. Lo que
+    // este test cuida no es el atributo sino la propiedad: ninguna promesa de algo
+    // que todavía no funciona.
+    expect(boton).not.toHaveAttribute("title", "Próximamente");
+    expect(boton).toHaveAccessibleName("Preguntar");
   });
 
   it("abre el panel con la misma vista que la ruta", async () => {
     const user = userEvent.setup();
     montar(<LanzadorAsistente />);
 
-    await user.click(await screen.findByRole("button", { name: "Abrir el asistente" }));
+    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
 
     expect(
       await screen.findByRole("region", { name: "Asistente conversacional" }),

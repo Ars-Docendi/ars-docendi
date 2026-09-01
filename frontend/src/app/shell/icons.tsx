@@ -132,4 +132,18 @@ export const navIcons = {
   ),
 } satisfies Record<string, ReactNode>;
 
+/**
+ * Destello. Marca lo que resuelve un modelo, no una consulta determinista.
+ *
+ * Se repite en el lanzador y en el campo de entrada a propósito: es la misma
+ * promesa en los dos lugares —«acá le hablás al asistente»—, y usar dos símbolos
+ * distintos para lo mismo obliga a aprender dos.
+ */
+export const sparkIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 2.5l1.3 3.4L13.7 7l-3.4 1.1L9 11.5 7.7 8.1 4.3 7l3.4-1.1z" />
+    <path d="M13.8 11.6l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;
