@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Button, Checkbox, Field, FileUpload, Input, Modal, Textarea } from "@ars-docendi/ui";
+import { Button, Field, FileUpload, Input, Modal, Textarea } from "@ars-docendi/ui";
 
 import type { DatosProyecto, Proyecto } from "../types";
+import { CampoPeriodo } from "./CampoPeriodo";
 import "./portal.css";
 
 const VACIO: DatosProyecto = {
@@ -77,26 +78,16 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
         <Field label="Tu rol" required error={errores.rol}>
           <Input value={datos.rol} onChange={(e) => setDatos({ ...datos, rol: e.target.value })} />
         </Field>
-        <div className="portal-form-grid">
-          <Field label="Desde" required error={errores.desde}>
-            <Input
-              value={datos.desde}
-              placeholder="2022"
-              onChange={(e) => setDatos({ ...datos, desde: e.target.value })}
-            />
-          </Field>
-          <Field label="Hasta">
-            <Input
-              value={actual ? "" : (datos.hasta ?? "")}
-              placeholder="2024"
-              disabled={actual}
-              onChange={(e) => setDatos({ ...datos, hasta: e.target.value })}
-            />
-          </Field>
-        </div>
-        <Checkbox checked={actual} onChange={(e) => setActual(e.target.checked)}>
-          Sigue en curso
-        </Checkbox>
+        <CampoPeriodo
+          desde={datos.desde}
+          hasta={datos.hasta}
+          enCurso={actual}
+          etiquetaEnCurso="Sigue en curso"
+          errorDesde={errores.desde}
+          onDesde={(desde) => setDatos({ ...datos, desde })}
+          onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onEnCurso={setActual}
+        />
         <Field label="De qué se trata" required error={errores.descripcion}>
           <Textarea
             rows={3}

@@ -1,5 +1,6 @@
 import type { DatosProyecto, Proyecto } from "../types";
 import { agregarProyecto, editarProyecto, eliminarPorId } from "../mock/mockStore";
+import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemProyecto } from "./ItemsPerfil";
@@ -26,7 +27,7 @@ export function SeccionProyectos({ items, onCambio }: SeccionProyectosProps) {
     <>
       <SeccionLista
         titulo="Proyectos"
-        items={items}
+        items={ordenarPorPeriodo(items)}
         etiquetaItem={(item) => item.nombre}
         renderItem={(item) => <ItemProyecto item={item} />}
         onAgregar={s.abrirAlta}

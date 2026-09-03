@@ -163,7 +163,7 @@ La librería no tiene `Tag`, `Chip`, `Combobox` ni `MultiSelect`. El selector de
 
 ## Open questions de diseño
 
-- **Vocabulario de habilidades e intereses: catálogo curado o texto libre.** El caso de uso (encontrar a quién contactar ante una vacante) pide algo consistente y buscable; el texto libre es más rico pero deja "IA", "Inteligencia Artificial" y "AI" como tres cosas distintas. Esta iteración usa catálogo con opción de sugerir, que cubre ambos mundos sin cerrar la decisión.
+- ~~**Vocabulario de habilidades e intereses.**~~ **Resuelto el 2026-09-03:** no se cura un catálogo de antemano —hay demasiadas especialidades de ingeniería— sino que el vocabulario se forma por uso, con **autocompletado sobre lo ya cargado** por otros docentes. Ver D13 en el design del change. La pantalla de esta iteración todavía usa el `Select` de catálogo; la migración del widget está registrada como TD-007.
 - **Se le pide el CV dos veces**, subido y cargado a mano. Es la causa típica de que estos módulos queden vacíos. Se mitiga poniendo el CV como puerta de entrada, pero la redundancia queda.
 - **Quién consume estos datos y cuándo** (concursos, categorización, informes a la Facultad). El uso define qué campos importan de verdad.
 - **Qué ve en `/portal` alguien que no es docente**, por ejemplo un administrativo de Secretaría. La raíz redirige ahí para los seis perfiles de rol.

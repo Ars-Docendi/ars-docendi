@@ -9,6 +9,8 @@
 // ============================================================
 
 import { PERSONAS_SISTEMA } from "../../../shared/mock/personasSistema";
+
+export { perfilDe } from "./perfilesSeed";
 import type {
   Certificacion,
   DatosCertificacion,
@@ -17,7 +19,6 @@ import type {
   DatosProyecto,
   Educacion,
   Experiencia,
-  PerfilDocente,
   PerfilInstitucional,
   Proyecto,
   Tag,
@@ -64,106 +65,6 @@ export function obtenerPerfilInstitucional(upn: string): PerfilInstitucional | n
     documento: persona.documento,
     legajo: persona.legajo,
     cuil: persona.cuil,
-  };
-}
-
-/** Perfil recién estrenado: solo el bloque institucional, todo lo demás vacío. */
-export function perfilVacio(institucional: PerfilInstitucional): PerfilDocente {
-  return {
-    institucional,
-    contacto: { telefono: "", mail: "" },
-    cv: null,
-    experiencia: [],
-    educacion: [],
-    certificaciones: [],
-    proyectos: [],
-    habilidades: [],
-    intereses: [],
-  };
-}
-
-/**
- * Perfil seed con datos cargados, para poder recorrer la pantalla en su estado
- * lleno. Corresponde a Marina Díaz del padrón compartido.
- */
-export function perfilSeed(institucional: PerfilInstitucional): PerfilDocente {
-  return {
-    institucional,
-    contacto: { telefono: "11-5548-9900", mail: "marina.diaz@gmail.com" },
-    cv: { nombre: "cv-diaz-2026.pdf", fechaCarga: "2026-08-12" },
-    experiencia: [
-      {
-        id: "exp-1",
-        puesto: "Data Architect",
-        organizacion: "Globant",
-        desde: "2015",
-        hasta: "2020",
-        descripcion: "Diseño de modelos de datos y pipelines para clientes de banca.",
-      },
-      {
-        id: "exp-2",
-        puesto: "Jefa de Trabajos Prácticos",
-        organizacion: "Universidad de Buenos Aires",
-        desde: "2010",
-        hasta: "2018",
-        descripcion: "Cátedra de Bases de Datos.",
-      },
-    ],
-    educacion: [
-      {
-        id: "edu-1",
-        nivel: "Grado",
-        carrera: "Ingeniería en Informática",
-        institucion: "Universidad Nacional de La Matanza",
-        desde: "2002",
-        hasta: "2008",
-      },
-      {
-        id: "edu-2",
-        nivel: "Maestría",
-        carrera: "Explotación de Datos y Descubrimiento del Conocimiento",
-        institucion: "Universidad de Buenos Aires",
-        desde: "2012",
-        hasta: "2015",
-      },
-    ],
-    certificaciones: [
-      {
-        id: "cert-1",
-        nombre: "AWS Certified Solutions Architect",
-        emisor: "Amazon Web Services",
-        fecha: "2024-05-10",
-        vencimiento: "2027-05-10",
-      },
-    ],
-    proyectos: [
-      {
-        id: "pro-1",
-        nombre: "Detección de anomalías en tráfico SCADA",
-        rol: "Investigadora responsable",
-        desde: "2022",
-        hasta: null,
-        descripcion: "Proyecto de investigación acreditado sobre seguridad en redes industriales.",
-        documento: null,
-        doi: "10.1000/scada.2025.114",
-      },
-      {
-        id: "pro-2",
-        nombre: "Modernización del sistema de becas",
-        rol: "Consultora técnica",
-        desde: "2019",
-        hasta: "2021",
-        descripcion: "Migración del sistema de gestión de becas del Departamento.",
-        documento: { nombre: "informe-becas.pdf" },
-        doi: "",
-      },
-    ],
-    habilidades: [
-      { termino: "Bases de datos", sugerido: false },
-      { termino: "Ciencia de datos", sugerido: false },
-      { termino: "Redes de computadoras", sugerido: false },
-    ],
-    intereses: [{ termino: "Machine learning", sugerido: false }],
   };
 }
 

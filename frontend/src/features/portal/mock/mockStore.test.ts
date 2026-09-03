@@ -9,10 +9,18 @@ import {
   editarExperiencia,
   eliminarPorId,
   obtenerPerfilInstitucional,
-  perfilVacio,
   quitarTag,
   vocabularioDisponible,
 } from "./mockStore";
+import {
+  anioDe,
+  componerFecha,
+  formatearFecha,
+  mesDe,
+  ordenarPorFecha,
+  ordenarPorPeriodo,
+  rangoPeriodo,
+} from "../formato";
 import type { DatosExperiencia } from "../types";
 
 const EXPERIENCIA: DatosExperiencia = {
@@ -135,9 +143,7 @@ describe("tags de habilidades e intereses", () => {
   });
 
   it("habilidades e intereses son independientes: quitar de una no toca la otra", () => {
-    const perfil = perfilVacio(obtenerPerfilInstitucional("marina.diaz@unlam.edu.ar")!);
     const conAmbas = {
-      ...perfil,
       habilidades: agregarTag([], "Machine learning"),
       intereses: agregarTag([], "Machine learning"),
     };
@@ -147,5 +153,63 @@ describe("tags de habilidades e intereses", () => {
     };
     expect(sinHabilidad.habilidades).toHaveLength(0);
     expect(sinHabilidad.intereses).toHaveLength(1);
+  });
+});
+
+describe("orden y formato de fechas", () => {
+  const items = [
+    { id: "a", desde: "2004", hasta: "2010" },
+    { id: "b", desde: "2014", hasta: null },
+    { id: "c", desde: "2014", hasta: "2016" },
+    { id: "d", desde: "2014-03", hasta: "2016-08" },
+  ];
+
+  it("pone primero lo que sigue en curso", () => {
+    expect(ordenarPorPeriodo(items)[0].id).toBe("b");
+  });
+
+  it("ordena por fecha de fin, de más reciente a más antigua", () => {
+    expect(ordenarPorPeriodo(items).map((i) => i.id)).toEqual(["b", "d", "c", "a"]);
+  });
+
+  it("desempata por mes cuando el año coincide", () => {
+    const mismoAnio = [
+      { id: "sin-mes", desde: "2020", hasta: "2022" },
+      { id: "con-mes", desde: "2020", hasta: "2022-09" },
+    ];
+    expect(ordenarPorPeriodo(mismoAnio).map((i) => i.id)).toEqual(["con-mes", "sin-mes"]);
+  });
+
+  it("no muta la lista original", () => {
+    const original = [...items];
+    ordenarPorPeriodo(items);
+    expect(items).toEqual(original);
+  });
+
+  it("ordena las certificaciones por fecha de emisión descendente", () => {
+    const certs = [{ fecha: "2021-03-18" }, { fecha: "2024-05-10" }, { fecha: "2023-11-02" }];
+    expect(ordenarPorFecha(certs).map((c) => c.fecha)).toEqual([
+      "2024-05-10",
+      "2023-11-02",
+      "2021-03-18",
+    ]);
+  });
+
+  it("muestra el mes solo cuando está cargado", () => {
+    expect(formatearFecha("2014")).toBe("2014");
+    expect(formatearFecha("2014-03")).toBe("mar 2014");
+  });
+
+  it("marca como actual el período sin fecha de fin", () => {
+    expect(rangoPeriodo({ desde: "2022-05", hasta: null })).toBe("may 2022 – actual");
+    expect(rangoPeriodo({ desde: "2015", hasta: "2020" })).toBe("2015 – 2020");
+  });
+
+  it("compone y descompone la fecha con mes opcional", () => {
+    expect(componerFecha("2014", "03")).toBe("2014-03");
+    expect(componerFecha("2014", "")).toBe("2014");
+    expect(componerFecha("", "03")).toBe("");
+    expect(anioDe("2014-03")).toBe("2014");
+    expect(mesDe("2014")).toBe("");
   });
 });

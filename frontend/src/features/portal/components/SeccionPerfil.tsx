@@ -12,6 +12,8 @@ interface SeccionPerfilProps {
   vacia?: boolean;
   /** Acción del encabezado (Editar / + Agregar / Reemplazar). */
   accion?: { etiqueta: string; onClick: () => void };
+  /** El cuerpo son filas a sangre: sin padding propio de la sección. */
+  filas?: boolean;
   children?: ReactNode;
 }
 
@@ -20,7 +22,13 @@ interface SeccionPerfilProps {
  * `accion`: la ausencia de afordancia es lo que comunica que es de solo
  * lectura, sin un texto que lo explique.
  */
-export function SeccionPerfil({ titulo, vacia = false, accion, children }: SeccionPerfilProps) {
+export function SeccionPerfil({
+  titulo,
+  vacia = false,
+  accion,
+  filas = false,
+  children,
+}: SeccionPerfilProps) {
   if (vacia) {
     return (
       <section className="portal-fila-vacia">
@@ -44,7 +52,11 @@ export function SeccionPerfil({ titulo, vacia = false, accion, children }: Secci
           </Button>
         )}
       </div>
-      <div className="portal-seccion-body">{children}</div>
+      <div
+        className={filas ? "portal-seccion-body portal-seccion-body-filas" : "portal-seccion-body"}
+      >
+        {children}
+      </div>
     </section>
   );
 }

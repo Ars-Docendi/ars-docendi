@@ -1,5 +1,6 @@
 import type { DatosExperiencia, Experiencia } from "../types";
 import { agregarExperiencia, editarExperiencia, eliminarPorId } from "../mock/mockStore";
+import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemExperiencia } from "./ItemsPerfil";
@@ -28,7 +29,7 @@ export function SeccionExperiencia({ items, onCambio }: SeccionExperienciaProps)
       <SeccionLista
         titulo="Experiencia"
         variante="cronologia"
-        items={items}
+        items={ordenarPorPeriodo(items)}
         etiquetaItem={(item) => item.puesto}
         renderItem={(item) => <ItemExperiencia item={item} />}
         onAgregar={s.abrirAlta}

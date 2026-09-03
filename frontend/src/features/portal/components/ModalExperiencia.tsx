@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Button, Checkbox, Field, Input, Modal, Textarea } from "@ars-docendi/ui";
+import { Button, Field, Input, Modal, Textarea } from "@ars-docendi/ui";
 
 import type { DatosExperiencia, Experiencia } from "../types";
+import { CampoPeriodo } from "./CampoPeriodo";
 import "./portal.css";
 
 const VACIA: DatosExperiencia = {
@@ -73,26 +74,16 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
             onChange={(e) => setDatos({ ...datos, organizacion: e.target.value })}
           />
         </Field>
-        <div className="portal-form-grid">
-          <Field label="Desde" required error={errores.desde}>
-            <Input
-              value={datos.desde}
-              placeholder="2015"
-              onChange={(e) => setDatos({ ...datos, desde: e.target.value })}
-            />
-          </Field>
-          <Field label="Hasta">
-            <Input
-              value={actual ? "" : (datos.hasta ?? "")}
-              placeholder="2020"
-              disabled={actual}
-              onChange={(e) => setDatos({ ...datos, hasta: e.target.value })}
-            />
-          </Field>
-        </div>
-        <Checkbox checked={actual} onChange={(e) => setActual(e.target.checked)}>
-          Sigo en este puesto
-        </Checkbox>
+        <CampoPeriodo
+          desde={datos.desde}
+          hasta={datos.hasta}
+          enCurso={actual}
+          etiquetaEnCurso="Sigo en este puesto"
+          errorDesde={errores.desde}
+          onDesde={(desde) => setDatos({ ...datos, desde })}
+          onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onEnCurso={setActual}
+        />
         <Field label="De qué se trató" required error={errores.descripcion}>
           <Textarea
             rows={3}

@@ -9,6 +9,9 @@
 // El `telefono` de este padrón es el histórico que administra Secretaría; el
 // Portal NO lo lee: el teléfono de contacto lo mantiene el propio docente.
 //
+// Incluye los UPN de la sesión mock de desarrollo (secretaria.academica,
+// decanato, admin.aulas, demo): sin ellos esos logins no encuentran su perfil.
+//
 // STUB: reemplazar por la API real cuando exista Modules.Portal.
 // ============================================================
 
@@ -101,5 +104,49 @@ export const PERSONAS_SISTEMA: PersonaSistema[] = [
     fecha_nacimiento: "1988-01-20",
     telefono: "11-4455-7788",
     upn: "natalia.castro@unlam.edu.ar",
+  },
+  {
+    id: "p0000000-0000-4000-8000-000000000008",
+    nombre: "Lucía",
+    apellido: "Fernández",
+    documento: "27654321",
+    legajo: "0007",
+    cuil: "27-27654321-4",
+    fecha_nacimiento: "1979-02-09",
+    telefono: "11-4001-2233",
+    upn: "secretaria.academica@unlam.edu.ar",
+  },
+  {
+    id: "p0000000-0000-4000-8000-000000000009",
+    nombre: "Roberto",
+    apellido: "Sosa",
+    documento: "17234890",
+    legajo: "0001",
+    cuil: "20-17234890-6",
+    fecha_nacimiento: "1965-10-30",
+    telefono: "11-4770-5566",
+    upn: "decanato@unlam.edu.ar",
+  },
+  {
+    id: "p0000000-0000-4000-8000-000000000010",
+    nombre: "Paula",
+    apellido: "Gómez",
+    documento: "35678901",
+    legajo: "0058",
+    cuil: "27-35678901-9",
+    fecha_nacimiento: "1992-06-11",
+    telefono: "11-3324-6612",
+    upn: "admin.aulas@unlam.edu.ar",
+  },
+  {
+    id: "p0000000-0000-4000-8000-000000000011",
+    nombre: "Usuario",
+    apellido: "Demo",
+    documento: "30000000",
+    legajo: "0999",
+    cuil: "20-30000000-5",
+    fecha_nacimiento: "1983-01-01",
+    telefono: "11-0000-0000",
+    upn: "demo@unlam.edu.ar",
   },
 ];

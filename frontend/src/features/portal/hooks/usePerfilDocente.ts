@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
-import { obtenerPerfilInstitucional, perfilSeed, perfilVacio } from "../mock/mockStore";
+import { obtenerPerfilInstitucional, perfilDe } from "../mock/mockStore";
 import type { EstadoPerfil, PerfilDocente } from "../types";
-
-/** UPN del docente que tiene perfil cargado en el seed; el resto arranca vacío. */
-const UPN_CON_DATOS = "marina.diaz@unlam.edu.ar";
 
 /** Latencia simulada para que el estado Loading sea real y no decorativo. */
 const LATENCIA_MS = 250;
@@ -38,11 +35,7 @@ export function usePerfilDocente() {
       const institucional = obtenerPerfilInstitucional(usuario.upn);
       setLectura({
         upn: usuario.upn,
-        perfil: institucional
-          ? usuario.upn === UPN_CON_DATOS
-            ? perfilSeed(institucional)
-            : perfilVacio(institucional)
-          : null,
+        perfil: institucional ? perfilDe(institucional) : null,
       });
     }, LATENCIA_MS);
     return () => {

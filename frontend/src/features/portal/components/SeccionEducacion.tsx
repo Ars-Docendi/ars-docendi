@@ -1,5 +1,6 @@
 import type { DatosEducacion, Educacion } from "../types";
 import { agregarEducacion, editarEducacion, eliminarPorId } from "../mock/mockStore";
+import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemEducacion } from "./ItemsPerfil";
@@ -26,7 +27,7 @@ export function SeccionEducacion({ items, onCambio }: SeccionEducacionProps) {
       <SeccionLista
         titulo="Educación"
         variante="cronologia"
-        items={items}
+        items={ordenarPorPeriodo(items)}
         etiquetaItem={(item) => item.carrera}
         renderItem={(item) => <ItemEducacion item={item} />}
         onAgregar={s.abrirAlta}

@@ -4,12 +4,14 @@ import userEvent from "@testing-library/user-event";
 
 import { IndexPage } from "./IndexPage";
 
-const sesion = vi.hoisted(() => ({ upn: "gustavo.ruiz@unlam.edu.ar" }));
+// admin.aulas es el único usuario de la sesión mock sin perfil cargado: es el
+// que permite recorrer el estado vacío.
+const sesion = vi.hoisted(() => ({ upn: "admin.aulas@unlam.edu.ar" }));
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
-    name: "G. Ruiz",
-    initials: "GR",
+    name: "P. Gómez",
+    initials: "PG",
     upn: sesion.upn,
     role: "Docente",
     roles: ["Docente"],
@@ -25,7 +27,7 @@ function seccion(titulo: string): HTMLElement {
 }
 
 beforeEach(() => {
-  sesion.upn = "gustavo.ruiz@unlam.edu.ar";
+  sesion.upn = "admin.aulas@unlam.edu.ar";
 });
 
 describe("estados de la pantalla", () => {
@@ -52,16 +54,18 @@ describe("bloque Perfil de solo lectura", () => {
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
     const bloque = within(seccion("Perfil"));
-    expect(bloque.getByText("Ruiz, Gustavo")).toBeInTheDocument();
-    expect(bloque.getByText("gustavo.ruiz@unlam.edu.ar")).toBeInTheDocument();
-    expect(bloque.getByText("0115")).toBeInTheDocument();
+    expect(bloque.getByText("Gómez, Paula")).toBeInTheDocument();
+    expect(bloque.getByText("admin.aulas@unlam.edu.ar")).toBeInTheDocument();
+    expect(bloque.getByText("0058")).toBeInTheDocument();
   });
 
   it("no ofrece ningún control de edición, a diferencia del resto", async () => {
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
+    // Ninguna fila del Perfil abre nada: esa ausencia es lo que comunica que
+    // no se edita acá.
     expect(within(seccion("Perfil")).queryByRole("button")).not.toBeInTheDocument();
-    expect(within(seccion("Contacto")).getByRole("button")).toBeInTheDocument();
+    expect(within(seccion("Contacto")).getAllByRole("button")).toHaveLength(2);
   });
 });
 
@@ -91,7 +95,7 @@ describe("secciones vacías", () => {
     await usuario.click(within(seccion("Educación")).getByRole("button", { name: "+ Agregar" }));
     await usuario.type(screen.getByLabelText(/Carrera o título/), "Ingeniería en Informática");
     await usuario.type(screen.getByLabelText(/Institución/), "UNLaM");
-    await usuario.type(screen.getByLabelText(/Desde/), "2002");
+    await usuario.type(screen.getByLabelText("Año de desde"), "2002");
     await usuario.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(within(seccion("Educación")).getByText(/Ingeniería en Informática/)).toBeInTheDocument();
@@ -116,13 +120,13 @@ describe("edición por sección", () => {
     expect(screen.queryByRole("button", { name: /guardar (todo|perfil|cambios)/i })).toBeNull();
   });
 
-  it("guardar Contacto no exige ni altera las demás secciones", async () => {
+  it("guardar un campo no exige ni altera a los demás", async () => {
     const usuario = userEvent.setup();
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
 
-    await usuario.click(within(seccion("Contacto")).getByRole("button", { name: "+ Agregar" }));
-    await usuario.type(screen.getByLabelText("Teléfono"), "11-2233-4455");
+    await usuario.click(screen.getByRole("button", { name: "Editar teléfono" }));
+    await usuario.type(screen.getByRole("textbox", { name: "Teléfono" }), "11-2233-4455");
     await usuario.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(within(seccion("Contacto")).getByText("11-2233-4455")).toBeInTheDocument();
@@ -138,8 +142,8 @@ describe("edición por sección", () => {
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
 
-    await usuario.click(within(seccion("Contacto")).getByRole("button", { name: "+ Agregar" }));
-    await usuario.type(screen.getByLabelText("Teléfono"), "11-9999-0000");
+    await usuario.click(screen.getByRole("button", { name: "Editar teléfono" }));
+    await usuario.type(screen.getByRole("textbox", { name: "Teléfono" }), "11-9999-0000");
     await usuario.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(screen.queryByText("11-9999-0000")).not.toBeInTheDocument();
@@ -152,12 +156,12 @@ describe("validación del mail de contacto", () => {
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
 
-    await usuario.click(within(seccion("Contacto")).getByRole("button", { name: "+ Agregar" }));
-    await usuario.type(screen.getByLabelText("Mail"), "marina@");
+    await usuario.click(screen.getByRole("button", { name: "Editar mail" }));
+    await usuario.type(screen.getByRole("textbox", { name: "Mail" }), "marina@");
     await usuario.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(screen.getByText("Revisá el mail: no tiene un formato válido.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Mail")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Mail" })).toBeInTheDocument();
   });
 
   it("acepta un mail bien formado", async () => {
@@ -165,8 +169,8 @@ describe("validación del mail de contacto", () => {
     render(<IndexPage />);
     await screen.findByRole("heading", { name: "Perfil" });
 
-    await usuario.click(within(seccion("Contacto")).getByRole("button", { name: "+ Agregar" }));
-    await usuario.type(screen.getByLabelText("Mail"), "marina.diaz@gmail.com");
+    await usuario.click(screen.getByRole("button", { name: "Editar mail" }));
+    await usuario.type(screen.getByRole("textbox", { name: "Mail" }), "marina.diaz@gmail.com");
     await usuario.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(within(seccion("Contacto")).getByText("marina.diaz@gmail.com")).toBeInTheDocument();

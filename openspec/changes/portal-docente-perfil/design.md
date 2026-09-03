@@ -122,6 +122,40 @@ Se compone dentro de la feature siguiendo el precedente de `MateriasSelector` y 
 
 El CV y los PDF de proyectos registran nombre y metadata en el store, sin storage real, igual que los adjuntos de `pedidos-designacion`. El hint deja claro que es mock; la persistencia real es una decisión de backend.
 
+### D13 — Habilidades e intereses como folksonomía, no como catálogo curado
+
+**Decidido el 2026-09-03 con el equipo; resuelve la OQ1.**
+
+El vocabulario **no se cura de antemano**: hay demasiadas especialidades de ingeniería como para enumerarlas, y cualquier lista que armemos va a quedar corta el primer día. Arranca **vacío** y lo escriben los docentes.
+
+Lo que evita que se fragmente no es la lista sino el **autocompletado sobre lo ya cargado**: el primero que escribe "Inteligencia Artificial" crea el término; al segundo se lo ofrecemos antes de que escriba "IA". El vocabulario se forma por uso, sin curaduría previa. La decisión de fondo no era catálogo-vs-libre, era **cuándo** se crea el vocabulario.
+
+Modelo de datos para cuando exista el backend:
+
+```
+portal.Habilidades
+  id            uuid PK
+  nombre        text            -- como se escribió la primera vez
+  nombre_norm   text UNIQUE     -- lower + sin acentos + trim + espacios colapsados
+  usos          int             -- rankea el autocompletado
+  canonica_id   uuid NULL FK → Habilidades.id
+
+portal.DocenteHabilidades
+  docente_id    uuid FK
+  habilidad_id  uuid FK
+  tipo          enum('habilidad','interes')
+  PK (docente_id, habilidad_id, tipo)
+```
+
+- **`nombre_norm` con índice único** corta el duplicado obvio. En PostgreSQL conviene como columna generada (`unaccent(lower(trim(nombre)))`): lo hace cumplir el motor, no el código de aplicación.
+- **`canonica_id`** es la válvula de escape. Si igual entran "IA" y "AI", Secretaría las fusiona apuntándolas al término canónico y las búsquedas siguen el alias — nadie pierde sus tags y no hace falta acertar el vocabulario el día uno.
+- **`usos`** distingue el término establecido de la variante que alguien escribió una sola vez.
+- **Una sola tabla para ambas listas**, discriminadas por `tipo`: comparten vocabulario por diseño (D8), así que separarlas en dos tablas duplicaría los términos y rompería el autocompletado cruzado.
+
+**Alternativa descartada:** catálogo cerrado mantenido por Secretaría — le agrega trabajo permanente a quien no tiene el conocimiento de dominio de cada especialidad, y bloquea al docente cuando su área no está.
+
+**Estado:** decisión tomada y documentada; **el mock todavía usa el `Select` de catálogo + "sugerir nueva"**. La migración del widget a autocompletado queda registrada como deuda (TD-007).
+
 ## Risks / Trade-offs
 
 - **[Se le pide el CV dos veces: el PDF y lo mismo cargado a mano en Educación, Experiencia y Proyectos]** → Es la causa típica de que estos módulos queden vacíos. Se mitiga parcialmente con D6, que convierte el CV en la puerta de entrada en vez de un extra, pero la redundancia queda. Si en la validación con el cliente se confirma como freno, la salida es bajar cuánto se pide estructurado (OQ2).
@@ -137,7 +171,7 @@ No aplica migración de datos ni deploy de backend: es un prototipo frontend con
 
 ## Open Questions
 
-- **OQ1 — Vocabulario de habilidades e intereses: catálogo curado o texto libre.** El caso de uso (encontrar a quién contactar ante una vacante) pide algo consistente y buscable, lo que sugiere catálogo; pero cierra flexibilidad. El mock usa catálogo con opción de "sugerir nueva" para cubrir ambos mundos sin cerrar la decisión.
+- ~~**OQ1 — Vocabulario de habilidades e intereses.**~~ **Resuelta el 2026-09-03:** folksonomía con autocompletado sobre lo ya cargado, no catálogo curado. Ver D13.
 - **OQ2 — La doble carga del CV.** ¿El PDF es solo respaldo y lo estructurado es lo que vale, o se reduce cuánto se pide estructurado? A validar con el cliente viendo el prototipo.
 - **OQ3 — Quién consume estos datos y cuándo** (concursos, categorización docente, informes a la Facultad). El uso define qué campos importan de verdad; hoy los campos son los razonables por defecto.
 - **OQ4 — Qué ve en `/portal` alguien que no es docente**, por ejemplo un administrativo de Secretaría. La raíz redirige ahí para los seis perfiles de rol.

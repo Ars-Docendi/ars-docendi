@@ -1,5 +1,6 @@
 import type { Certificacion, DatosCertificacion } from "../types";
 import { agregarCertificacion, editarCertificacion, eliminarPorId } from "../mock/mockStore";
+import { ordenarPorFecha } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemCertificacion } from "./ItemsPerfil";
@@ -27,7 +28,7 @@ export function SeccionCertificaciones({ items, onCambio }: SeccionCertificacion
     <>
       <SeccionLista
         titulo="Certificaciones"
-        items={items}
+        items={ordenarPorFecha(items)}
         etiquetaItem={(item) => item.nombre}
         renderItem={(item) => <ItemCertificacion item={item} />}
         onAgregar={s.abrirAlta}

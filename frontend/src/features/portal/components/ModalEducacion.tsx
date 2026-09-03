@@ -7,6 +7,7 @@ import {
   type Educacion,
   type NivelEducacion,
 } from "../types";
+import { CampoPeriodo } from "./CampoPeriodo";
 import "./portal.css";
 
 const VACIA: DatosEducacion = {
@@ -25,6 +26,7 @@ interface ModalEducacionProps {
 
 export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacionProps) {
   const [datos, setDatos] = useState<DatosEducacion>(() => (educacion ? { ...educacion } : VACIA));
+  const [cursando, setCursando] = useState(() => educacion?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
   function guardar() {
@@ -40,7 +42,7 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
       carrera: datos.carrera.trim(),
       institucion: datos.institucion.trim(),
       desde: datos.desde.trim(),
-      hasta: datos.hasta?.trim() || null,
+      hasta: cursando ? null : datos.hasta?.trim() || null,
     });
   }
 
@@ -85,22 +87,16 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
             onChange={(e) => setDatos({ ...datos, institucion: e.target.value })}
           />
         </Field>
-        <div className="portal-form-grid">
-          <Field label="Desde" required error={errores.desde}>
-            <Input
-              value={datos.desde}
-              placeholder="2002"
-              onChange={(e) => setDatos({ ...datos, desde: e.target.value })}
-            />
-          </Field>
-          <Field label="Hasta">
-            <Input
-              value={datos.hasta ?? ""}
-              placeholder="2008"
-              onChange={(e) => setDatos({ ...datos, hasta: e.target.value })}
-            />
-          </Field>
-        </div>
+        <CampoPeriodo
+          desde={datos.desde}
+          hasta={datos.hasta}
+          enCurso={cursando}
+          etiquetaEnCurso="Estoy cursando"
+          errorDesde={errores.desde}
+          onDesde={(desde) => setDatos({ ...datos, desde })}
+          onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onEnCurso={setCursando}
+        />
       </div>
     </Modal>
   );
