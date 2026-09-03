@@ -1,0 +1,256 @@
+/* ============================================================
+   Mi Portal — secciones del perfil.
+   Lectura por defecto, edición por sección. Una sección vacía
+   ocupa una fila; con contenido se expande a tarjeta.
+   ============================================================ */
+
+.portal-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 860px;
+}
+
+/* Accesible para lectores de pantalla, sin ocupar lugar en la página. */
+.portal-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- Identidad: encabeza la página, no es una sección más --- */
+.portal-identidad {
+  border: 1px solid var(--color-border-subtle);
+  border-top: 2px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  margin-bottom: var(--space-2);
+}
+.portal-identidad-head {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-identidad-datos {
+  padding: var(--space-4);
+}
+
+/* --- Sección con contenido --- */
+.portal-seccion {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-surface);
+}
+.portal-seccion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+/* Marca de acento a la izquierda del título: da color sin decorar. */
+.portal-seccion .portal-seccion-titulo::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.portal-seccion-body {
+  padding: var(--space-4);
+}
+
+/* --- Sección vacía: una fila, no una tarjeta hueca --- */
+.portal-fila-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: transparent;
+}
+.portal-fila-vacia .portal-seccion-titulo {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+
+/* --- Ítems de una sección de lista --- */
+.portal-items {
+  display: flex;
+  flex-direction: column;
+}
+.portal-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-item:first-child {
+  padding-top: 0;
+}
+.portal-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.portal-item-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.portal-item-titulo {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+.portal-item-detalle {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.portal-item-nota {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.portal-item-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 2px;
+}
+.portal-item-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.portal-item-enlace svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+/* --- Formularios dentro de una sección (edición inline) --- */
+.portal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.portal-form-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.portal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+/* --- Tags de habilidades e intereses --- */
+.portal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.portal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-primary);
+}
+.portal-tag-quitar {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.portal-tag-quitar:hover {
+  color: var(--color-text-danger);
+}
+
+/* --- Aviso de guardado (Toast) --- */
+.portal-aviso {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: 60;
+  max-width: 360px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .portal-aviso {
+    animation: portal-aviso-entra 200ms var(--ease-enter);
+  }
+}
+@keyframes portal-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Cronología: Experiencia y Educación se leen como línea de tiempo --- */
+.portal-cronologia {
+  position: relative;
+  padding-left: var(--space-6);
+}
+/* Riel vertical que une los hitos. */
+.portal-cronologia::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  width: 1px;
+  background: var(--color-border-default);
+}
+.portal-cronologia .portal-item {
+  position: relative;
+}
+/* Hito de cada ítem sobre el riel. */
+.portal-cronologia .portal-item::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: calc(var(--space-6) * -1 + 1px);
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-surface);
+  border: 1.5px solid var(--color-border-strong);
+}
+/* Lo vigente se distingue: es lo que el docente está haciendo hoy. */
+.portal-cronologia .portal-item-vigente::before {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
