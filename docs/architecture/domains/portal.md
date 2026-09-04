@@ -16,12 +16,12 @@
 
 ## Entidades principales
 
-| Entidad                     | Descripción                  | Schema/Tabla             | PII                                   |
-| --------------------------- | ---------------------------- | ------------------------ | ------------------------------------- |
-| `Docentes`                  | Datos personales del docente | `portal.Docentes`        | **Sí** — nombre, DNI, email, teléfono |
-| `AreasExperticia`           | Catálogo de áreas            | `portal.AreasExperticia` | No                                    |
-| `DocenteAreas`              | Relación docente ↔ áreas     | `portal.DocenteAreas`    | No                                    |
-| _(otras a definir en spec)_ | ...                          | ...                      | ...                                   |
+| Entidad                     | Descripción                                                                                                                                  | Schema/Tabla                | PII                                   |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------- |
+| `Docentes`                  | Datos personales del docente                                                                                                                 | `portal.Docentes`           | **Sí** — nombre, DNI, email, teléfono |
+| `Habilidades`               | Términos de habilidad e interés, creados por uso (folksonomía): `nombre`, `nombre_norm` único, `usos`, `canonica_id` para fusionar variantes | `portal.Habilidades`        | No                                    |
+| `DocenteHabilidades`        | Relación docente ↔ término, discriminada por `tipo` (`habilidad` \| `interes`)                                                               | `portal.DocenteHabilidades` | No                                    |
+| _(otras a definir en spec)_ | ...                                                                                                                                          | ...                         | ...                                   |
 
 ## API pública (contract)
 
@@ -54,3 +54,4 @@ _(autogenerable a futuro)_
 
 - **Identidad desde Azure AD**: el ID del docente se vincula al `oid` (object ID) del token de Azure AD. NO se manejan credenciales propias.
 - **PII sensible**: ver `data-model.md` para tratamiento de PII (encriptación, logs, backup).
+- **Vocabulario de experticia por folksonomía**: no hay catálogo curado de antemano. Los docentes escriben el término y el autocompletado sobre lo ya cargado evita que se fragmente; `nombre_norm` (único) corta duplicados y `canonica_id` permite fusionar variantes sin perder datos. Decidido el 2026-09-03 — ver D13 en `openspec/changes/portal-docente-perfil/design.md`.

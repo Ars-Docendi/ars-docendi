@@ -173,3 +173,10 @@ export const IconoTrash2 = () => (
     <line x1="14" x2="14" y1="11" y2="17" />
   </Svg>
 );
+
+export const IconoFlag = () => (
+  <Svg>
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <line x1="4" x2="4" y1="22" y2="15" />
+  </Svg>
+);

@@ -168,7 +168,7 @@ Todo BR-\* debe tener al menos un test verificando la regla.
 ## Assumptions (a confirmar)
 
 - Las citas normativas de BR-001..004 y BR-018 provienen del estatuto / régimen docente UNLaM; el texto exacto (artículo/sección) se confirma con el cliente. La validación se implementa igual; el test queda en el lane `business` con cita pendiente.
-- BR-018 se acota a Baja y Cambio (lo que pidió el cliente explícitamente); "Sin novedad" también opera sobre un docente ya existente pero no quedó incluido en el pedido — a confirmar si debería exigir legajo también.
+- BR-018 se acota a Baja y Cambio (lo que pidió el cliente explícitamente) — nota resuelta: la novedad "Sin novedad" (que también operaba sobre un docente ya existente) se eliminó del sistema en `ajustes-pedido-y-revision`, así que ya no queda ningún otro caso a confirmar acá.
 
 ## Open Questions
 

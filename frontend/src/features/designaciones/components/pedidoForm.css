@@ -19,24 +19,24 @@
   gap: 6px;
 }
 .adoc-pf-eyebrow {
-  margin: 0;
+  margin: var(--space-0);
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
 .adoc-pf-title {
-  margin: 0;
+  margin: var(--space-0);
   font-size: 24px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   letter-spacing: -0.24px;
   line-height: 1.2;
   color: var(--color-text-primary);
 }
 .adoc-pf-subtitle {
-  font-size: 14px;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
 }
 
@@ -60,17 +60,17 @@
   gap: var(--space-3);
 }
 .adoc-pf-sec-h {
-  margin: 0;
+  margin: var(--space-0);
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
 }
 .adoc-pf-note {
-  margin: 0;
-  font-size: 13px;
+  margin: var(--space-0);
+  font-size: var(--text-caption-size);
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
@@ -125,13 +125,13 @@
   min-width: 0;
 }
 .adoc-pf-datos-k {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-tertiary);
 }
 .adoc-pf-datos-v {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--color-text-primary);
 }
 .adoc-pf-datos-div {
@@ -147,7 +147,7 @@
 }
 .adoc-pf-datos-from {
   color: var(--color-text-tertiary);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 .adoc-pf-datos-arrow {
   flex: 0 0 auto;
@@ -157,7 +157,7 @@
 }
 .adoc-pf-datos-to {
   color: var(--accent-700);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 @media (max-width: 640px) {
   .adoc-pf-datos-strip {
@@ -174,13 +174,13 @@
 .adoc-pf-datos-sub {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border-subtle);
 }
 .adoc-pf-datos-sub-h {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
@@ -196,7 +196,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 /* Fila = "etiqueta · valor" compacto (no space-between: van pegados a
@@ -210,7 +210,7 @@
   gap: 5px;
   padding: 3px 4px;
   border-radius: var(--radius-xs);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   line-height: 1.3;
 }
 .adoc-pf-datos-sub-etiqueta {
@@ -223,7 +223,7 @@
 }
 .adoc-pf-datos-sub-valor {
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
@@ -235,7 +235,7 @@
 .adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-valor {
   color: var(--color-text-tertiary);
   text-decoration: line-through;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 
 .adoc-pf-datos-sub-fila.agregada {
@@ -246,7 +246,7 @@
 .adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-etiqueta::after,
 .adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-valor {
   color: var(--accent-700);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 /* --- Lista de materias y horas (Alta/Cambio editable, Baja de solo lectura) --- */
@@ -258,7 +258,7 @@
 .adoc-pf-materias-h {
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
@@ -279,12 +279,12 @@
   display: flex;
   align-items: center;
   height: 36px;
-  padding: 0 12px;
+  padding: var(--space-0) var(--space-3);
   background: var(--color-bg-canvas);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xs);
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: var(--text-body-sm-size);
 }
 .adoc-pf-materias-quitar {
   display: flex;
@@ -293,7 +293,7 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  padding: 0;
+  padding: var(--space-0);
   background: var(--color-bg-raised);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
@@ -309,8 +309,8 @@
   height: 16px;
 }
 .adoc-pf-materias-error {
-  margin: 0;
-  font-size: 13px;
+  margin: var(--space-0);
+  font-size: var(--text-caption-size);
   color: var(--color-text-danger);
 }
 

@@ -32,6 +32,15 @@ export type Dedicacion = string;
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
 
+export type DepartamentoAgenteExterno =
+  | "Departamento de Arquitectura"
+  | "Departamento de Salud"
+  | "Departamento de Derecho"
+  | "Departamento de Económicas"
+  | "Departamento de Humanidades"
+  | "Departamento de Odontología"
+  | "Secretaría Académica";
+
 /**
  * Una materia del docente con su carga horaria. Modela una fila de la designación
  * vigente (`designaciones.designaciones` en el backend), NO una parte del pedido:
@@ -145,6 +154,8 @@ export interface PedidoDesignacion {
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
   horasInvestigacion: number; // integración cross-module con Portal pendiente
+  esAgenteExterno?: boolean;
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -184,6 +195,8 @@ export interface DatosEditablesPedido {
   tipoBajaDetalle?: string;
   horasExternas: number;
   horasInvestigacion: number;
+  esAgenteExterno?: boolean;
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
   personaId?: string;
   materiaId?: string;

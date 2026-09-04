@@ -108,10 +108,10 @@ const DEVOLUCION_POR_ETAPA: Partial<
 
 /** Frase de la novedad para el cuerpo del modal. */
 const NOVEDAD_FRASE: Record<Novedad, string> = {
+  "Sin novedad": "la actualización del docente",
   "Cambio de cargo o dedicación": "el cambio de cargo o dedicación",
   Alta: "el alta del docente",
   Baja: "la baja del docente",
-  "Sin novedad": "el pedido",
 };
 
 interface ConfigAccion {
