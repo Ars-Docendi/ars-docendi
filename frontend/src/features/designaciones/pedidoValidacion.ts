@@ -14,7 +14,8 @@ export type CampoPedido =
   | "tipoBaja"
   | "tipoBajaDetalle"
   | "justificacion"
-  | "adjuntos";
+  | "adjuntos"
+  | "departamentoAgenteExterno";
 
 export type ErroresValidacion = Partial<Record<CampoPedido, string>>;
 
@@ -57,7 +58,9 @@ export function validarPedido(
     errores.docente = "El legajo del docente es obligatorio para una baja o un cambio.";
   }
   // Materias y horas (D2: las horas son campos libres, sin cierre contra la dedicación).
-  if (datos.asignaciones.length === 0) {
+  // Ni Alta ni Cambio exigen un mínimo de materias (regla de negocio) — Baja sí, porque su
+  // listado refleja lo que el docente ya tiene asignado (no debería llegar vacío nunca).
+  if (datos.novedad === "Baja" && datos.asignaciones.length === 0) {
     errores.asignaciones = "Agregá al menos una materia.";
   } else if (datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación") {
     const filaInvalida = datos.asignaciones.some(
@@ -123,6 +126,11 @@ export function validarPedido(
     if (!datos.justificacion?.trim()) {
       errores.justificacion = "La justificación es obligatoria para un cambio.";
     }
+  }
+
+  // Agente externo: si está marcado, exige el departamento a cargo (Alta y Cambio).
+  if (datos.esAgenteExterno && !datos.departamentoAgenteExterno) {
+    errores.departamentoAgenteExterno = "Seleccioná el departamento a cargo del agente externo.";
   }
 
   return errores;

@@ -121,7 +121,6 @@ export function SeccionDocentePedido({
               dedicacionSolicitada={dedicacionSolicitada}
               materiasActuales={materiasActuales}
               materiasSolicitadas={materiasSolicitadas}
-              mostrarMateria={novedad === "Sin novedad"}
               horasInvestigacionActuales={horasInvestigacionActuales}
               horasInvestigacionSolicitadas={horasInvestigacionSolicitadas}
               horasExternasActuales={horasExternasActuales}

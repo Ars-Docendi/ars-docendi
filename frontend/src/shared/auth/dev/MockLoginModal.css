@@ -5,24 +5,24 @@
    ============================================================ */
 .mock-login-hint {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
 }
 
 .mock-login-list {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: var(--space-0);
+  padding: var(--space-0);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .mock-login-row {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 10px 12px;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-default);
@@ -43,13 +43,13 @@
   height: 36px;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-bg-raised);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
 }
 
 .mock-login-info {
@@ -59,12 +59,12 @@
   flex: 1;
 }
 .mock-login-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
 }
 .mock-login-upn {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-micro-size);
   color: var(--color-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;

@@ -25,29 +25,32 @@ function renderPage() {
 }
 
 describe("TableroRevisionPage — vista Tabla única (tema E)", () => {
-  it("abre directamente en la Tabla, sin switcher de vistas", async () => {
+  it("abre directamente en la Tabla, con las pestañas por etapa y sin switcher de vistas", async () => {
     setMockUser(DEMO_ID);
     act(() => setRolActivo("Coordinador"));
     renderPage();
 
-    // La Tabla queda montada (su encabezado "Asignatura" aparece)...
-    expect(await screen.findByText("Asignatura")).toBeInTheDocument();
-    // ...no hay switcher Tablero/Tabla ni columnas Kanban.
+    // La Tabla queda montada (su encabezado "Estado" aparece)...
+    expect(await screen.findByRole("columnheader", { name: "Estado" })).toBeInTheDocument();
+    // ...con una sola tabla y las 6 pestañas por área del circuito.
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+    expect(screen.getAllByRole("tab")).toHaveLength(6);
+    // No hay switcher Tablero/Tabla ni columnas Kanban.
     expect(screen.queryByRole("button", { name: "Tablero" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Tabla" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "En revisión" })).not.toBeInTheDocument();
   });
 
-  it("el filtro de turno abre en 'Vista completa' por default", async () => {
+  it("el filtro de turno ya no es un Select suelto: las pestañas por etapa lo reemplazan", async () => {
     setMockUser(DEMO_ID);
     act(() => setRolActivo("Coordinador"));
     renderPage();
 
-    await screen.findByText("Asignatura");
-    expect(screen.getByLabelText("Filtrar pedidos por turno")).toHaveValue("completa");
+    await screen.findByRole("columnheader", { name: "Estado" });
+    expect(screen.queryByLabelText("Filtrar pedidos por turno")).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Todos/ })).toBeInTheDocument();
   });
 
-  describe("filtro estilo Mis Pedidos (mismo componente FiltrosLista)", () => {
+  describe("filtros globales, arriba de las pestañas", () => {
     it("filtrar por Docente acota la lista", async () => {
       const user = userEvent.setup();
       setMockUser(DEMO_ID);
@@ -69,7 +72,7 @@ describe("TableroRevisionPage — vista Tabla única (tema E)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("agregar y quitar el filtro opcional Legajo acota la lista", async () => {
+    it("los filtros opcionales se agregan y se quitan", async () => {
       const user = userEvent.setup();
       setMockUser(DEMO_ID);
       act(() => setRolActivo("Coordinador"));
@@ -92,11 +95,63 @@ describe("TableroRevisionPage — vista Tabla única (tema E)", () => {
       ).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Quitar filtro de legajo" }));
-
       expect(
         screen.getByRole("button", { name: "Ver el pedido de Valeria Suárez" }),
       ).toBeInTheDocument();
-      expect(screen.queryByLabelText("Filtrar por legajo")).not.toBeInTheDocument();
+    });
+
+    it("el filtro de período es fijo y abre en el período abierto, no en 'todos'", async () => {
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Filtrar por período")).toBeInTheDocument();
+      });
+
+      // Un revisor trabaja sobre el período en curso; los cerrados son ruido. Y como
+      // arranca aplicado, el filtro no puede vivir detrás de "+ Añadir filtro".
+      const periodo = screen.getByLabelText("Filtrar por período");
+      expect(periodo).toHaveValue("1");
+
+      const opciones = Array.from(periodo.querySelectorAll("option"), (o) => o.textContent);
+      // El abierto se rotula como tal, y "Todos" queda al final: es la salida, no el default.
+      expect(opciones[0]).toBe("1er cuatrimestre 2026 (abierto)");
+      expect(opciones.at(-1)).toBe("Todos los períodos");
+      expect(opciones.filter((o) => o?.includes("(abierto)"))).toHaveLength(1);
+    });
+
+    /** Opciones que ofrece el selector "+ Añadir filtro". */
+    function filtrosOfrecidos() {
+      return Array.from(
+        screen.getByLabelText("Añadir filtro").querySelectorAll("option"),
+        (o) => o.textContent,
+      );
+    }
+
+    it("el filtro Carrera no se le ofrece a quien ve una sola carrera", async () => {
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Coordinador"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Añadir filtro")).toBeInTheDocument();
+      });
+
+      // El ámbito de un Coordinador ES una carrera [BR-009]: no acotaría nada.
+      expect(filtrosOfrecidos()).not.toContain("Carrera");
+    });
+
+    it("Secretaría, que ve todo el departamento, sí tiene el filtro Carrera", async () => {
+      setMockUser(DEMO_ID);
+      act(() => setRolActivo("Secretaría"));
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Añadir filtro")).toBeInTheDocument();
+      });
+
+      expect(filtrosOfrecidos()).toContain("Carrera");
     });
   });
 });

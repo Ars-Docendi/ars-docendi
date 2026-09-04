@@ -9,10 +9,11 @@
 import type { PedidoDesignacion } from "../types";
 import { crearSeedPedidos } from "./pedidosSeed";
 
-// v4: se restauraron los 7 pedidos de ejemplo retirados en la reducción de seed
-// (mis-pedidos-simplificado, a pedido del cliente). El sufijo fuerza un re-seed
-// limpio en navegadores con datos viejos persistidos.
-const CLAVE = "adoc.mock.pedidos.v4";
+// v6: el `propietarioActual` de los devueltos pasó a derivarse de `etapaRetorno`
+// según BR-014 (la devolución retrocede un nivel), lo que corrigió una semilla que
+// tenía una combinación que la máquina de estados nunca produciría. El sufijo fuerza
+// un re-seed limpio en navegadores con datos viejos persistidos.
+const CLAVE = "adoc.mock.pedidos.v6";
 
 let pedidos: PedidoDesignacion[] | null = null;
 

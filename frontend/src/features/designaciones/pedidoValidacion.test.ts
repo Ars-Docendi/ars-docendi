@@ -8,9 +8,10 @@ function datosBase(overrides: Partial<DatosEditablesPedido> = {}): DatosEditable
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
+    esAgenteExterno: false,
     adjuntos: [],
     ...overrides,
   };
@@ -26,9 +27,10 @@ function pedidoExistente(dni: string, id = "otro"): PedidoDesignacion {
     asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
-    novedad: "Sin novedad",
+    novedad: "Cambio de cargo o dedicación",
     horasExternas: 0,
     horasInvestigacion: 0,
+    esAgenteExterno: false,
     adjuntos: [],
     estado: "borrador",
     prioritario: false,
@@ -43,8 +45,16 @@ const ADJUNTOS_ALTA: Adjunto[] = [
 ];
 
 describe("validarPedido", () => {
-  it("un 'Sin novedad' completo no tiene errores", () => {
-    const errores = validarPedido(datosBase(), { pedidosExistentes: [] });
+  it("un Cambio completo no tiene errores", () => {
+    const errores = validarPedido(
+      datosBase({
+        novedad: "Cambio de cargo o dedicación",
+        cargoSolicitado: "Adjunto",
+        dedicacionSolicitada: "Categoría 1", // mejor que la actual (Categoría 3)
+        justificacion: "Aumento de carga de investigación.",
+      }),
+      { pedidosExistentes: [] },
+    );
     expect(Object.keys(errores)).toHaveLength(0);
   });
 
@@ -154,9 +164,39 @@ describe("validarPedido", () => {
   });
 
   describe("Materias y horas del pedido", () => {
-    it("exige al menos una materia", () => {
-      const errores = validarPedido(datosBase({ asignaciones: [] }), { pedidosExistentes: [] });
+    it("Baja exige al menos una materia", () => {
+      const errores = validarPedido(datosBase({ novedad: "Baja", asignaciones: [] }), {
+        pedidosExistentes: [],
+      });
       expect(errores.asignaciones).toBeTruthy();
+    });
+
+    it("Alta NO exige materia (BR de negocio: se puede dar de alta solo con cargo y dedicación)", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Alta",
+          cargoSolicitado: "Ayudante",
+          dedicacionSolicitada: "Categoría 5",
+          asignaciones: [],
+          adjuntos: ADJUNTOS_ALTA,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(Object.keys(errores)).toHaveLength(0);
+    });
+
+    it("Cambio NO exige materia (BR de negocio: también se puede vaciar la lista)", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Ascenso por antigüedad.",
+          asignaciones: [],
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(Object.keys(errores)).toHaveLength(0);
     });
 
     it("en Alta, cada fila exige materia y horas > 0", () => {
@@ -231,6 +271,51 @@ describe("validarPedido", () => {
         { pedidosExistentes: [] },
       );
       expect(errores.justificacion).toBeUndefined();
+    });
+  });
+
+  describe("Agente externo exige departamento", () => {
+    it("marcado sin departamento marca error", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: true,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeTruthy();
+    });
+
+    it("marcado con departamento no marca error", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: true,
+          departamentoAgenteExterno: "Departamento de Salud",
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeUndefined();
+    });
+
+    it("sin marcar, no exige departamento", () => {
+      const errores = validarPedido(
+        datosBase({
+          novedad: "Cambio de cargo o dedicación",
+          cargoSolicitado: "Adjunto",
+          dedicacionSolicitada: "Categoría 1",
+          justificacion: "Refuerzo de la cátedra.",
+          esAgenteExterno: false,
+        }),
+        { pedidosExistentes: [] },
+      );
+      expect(errores.departamentoAgenteExterno).toBeUndefined();
     });
   });
 
