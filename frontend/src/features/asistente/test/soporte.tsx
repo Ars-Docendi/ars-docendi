@@ -41,10 +41,14 @@ export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): Respues
   };
 }
 
-export function montar(nodo: ReactNode) {
+/** `contenedor`: dónde montar, ya colgado del `body`; sin él, RTL crea uno. */
+export function montar(nodo: ReactNode, contenedor?: HTMLElement) {
   const cliente = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
 
-  return render(<QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>,
+    contenedor && { container: contenedor },
+  );
 }

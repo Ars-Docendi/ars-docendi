@@ -4,6 +4,7 @@ import type { TurnoDeLaConversacion } from "../types";
 interface ConversacionProps {
   turnos: TurnoDeLaConversacion[];
   onElegir: (pregunta: string) => void;
+  onReintentar: (id: string) => void;
   enVuelo: boolean;
 }
 
@@ -19,7 +20,7 @@ interface ConversacionProps {
  * son hermanos, fuera. `role="log"` es lo que le dice al lector que es un registro
  * de conversación donde lo nuevo se agrega al final.
  */
-export function Conversacion({ turnos, onElegir, enVuelo }: ConversacionProps) {
+export function Conversacion({ turnos, onElegir, onReintentar, enVuelo }: ConversacionProps) {
   return (
     <ul
       className="adoc-asistente-conversacion"
@@ -28,7 +29,13 @@ export function Conversacion({ turnos, onElegir, enVuelo }: ConversacionProps) {
       aria-label="Conversación con el asistente"
     >
       {turnos.map((turno) => (
-        <Mensaje key={turno.id} turno={turno} onElegir={onElegir} enVuelo={enVuelo} />
+        <Mensaje
+          key={turno.id}
+          turno={turno}
+          onElegir={onElegir}
+          onReintentar={onReintentar}
+          enVuelo={enVuelo}
+        />
       ))}
     </ul>
   );

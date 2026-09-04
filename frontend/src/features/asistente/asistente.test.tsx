@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { PanelAsistente } from "./components/PanelAsistente";
+import { PanelDePrueba } from "./test/PanelDePrueba";
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
 import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "./types";
@@ -107,7 +107,7 @@ describe("El lanzador del asistente", () => {
 
 describe("El panel del asistente", () => {
   it("arranca mostrando el catálogo real y sus ejemplos", async () => {
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     expect(await screen.findByText(/2 áreas de datos del sistema/)).toBeInTheDocument();
     expect(
@@ -119,7 +119,7 @@ describe("El panel del asistente", () => {
   it("manda la pregunta y muestra la respuesta", async () => {
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "¿cuántos docentes hay?");
     // «Enviar» y no «Preguntar»: con el modal abierto habría dos botones con el
@@ -135,7 +135,7 @@ describe("El panel del asistente", () => {
     // del primero, que es justo lo contrario de lo que la idempotencia busca.
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const entrada = await screen.findByLabelText("Tu pregunta");
 
@@ -154,7 +154,7 @@ describe("El panel del asistente", () => {
   it("arrastra el hilo al turno siguiente", async () => {
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const entrada = await screen.findByLabelText("Tu pregunta");
 
@@ -182,7 +182,7 @@ describe("Los cuatro estados", () => {
         metricas: { llamadasAlModelo: 0 },
       }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -202,7 +202,7 @@ describe("Los cuatro estados", () => {
         metricas: { llamadasAlModelo: 0 },
       }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -224,7 +224,7 @@ describe("Los cuatro estados", () => {
         metricas: { llamadasAlModelo: 1 },
       }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -246,7 +246,7 @@ describe("Los cuatro estados", () => {
         truncado: true,
       }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -263,7 +263,7 @@ describe("Los cuatro estados", () => {
   it("un fallo de red se muestra en español y sin códigos técnicos", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockRejectedValue(new Error("Network Error"));
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -278,7 +278,7 @@ describe("Los cuatro estados", () => {
 
 describe("Accesibilidad de la conversación", () => {
   it("la lista de mensajes es una región viva con rol de registro", async () => {
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const log = await screen.findByRole("log", { name: "Conversación con el asistente" });
 
@@ -291,7 +291,7 @@ describe("Accesibilidad de la conversación", () => {
     // nuevo, métricas incluidas — y las métricas cambian en cada turno.
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
     await screen.findByText("Hay 4 docentes designados.");
@@ -305,7 +305,7 @@ describe("Accesibilidad de la conversación", () => {
   });
 
   it("el indicador de proceso queda fuera de la región viva y es un estado", async () => {
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const estado = await screen.findByRole("status");
     const log = screen.getByRole("log");
@@ -318,7 +318,7 @@ describe("Accesibilidad de la conversación", () => {
     // un anuncio que aparece y desaparece antes de terminar de leerse.
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente umbralDelIndicadorMs={10_000} />);
+    montar(<PanelDePrueba umbralDelIndicadorMs={10_000} />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
     await screen.findByText("Hay 4 docentes designados.");
@@ -332,7 +332,7 @@ describe("Accesibilidad de la conversación", () => {
     vi.spyOn(api, "consultar").mockImplementation(
       () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
     );
-    montar(<PanelAsistente umbralDelIndicadorMs={0} />);
+    montar(<PanelDePrueba umbralDelIndicadorMs={0} />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
@@ -347,7 +347,7 @@ describe("Accesibilidad de la conversación", () => {
   it("el foco vuelve al campo de entrada cuando llega la respuesta", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const entrada = await screen.findByLabelText("Tu pregunta");
     await user.type(entrada, "algo{Enter}");
@@ -368,7 +368,7 @@ describe("Accesibilidad de la conversación", () => {
         }),
       )
       .mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     const entrada = await screen.findByLabelText("Tu pregunta");
     await user.type(entrada, "algo{Enter}");

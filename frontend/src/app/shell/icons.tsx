@@ -172,4 +172,23 @@ export const sendIcon = (
   </svg>
 );
 
+/**
+ * Más. Va delante de «Nueva conversación» en el asistente.
+ */
+export const plusIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 3.5v11M3.5 9h11" />
+  </svg>
+);
+
+/**
+ * Cuadrado de parar. Va delante de «Dejar de esperar» en el asistente: es el
+ * símbolo que el usuario ya conoce, y acá para sólo la espera de este lado.
+ */
+export const stopIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="4.5" y="4.5" width="9" height="9" rx="1.5" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

@@ -19,7 +19,7 @@ const TURNOS: TurnoDeLaConversacion[] = [
 
 describe("La franja de estado", () => {
   it("junta el indicador y las métricas en una fila, cada uno con su contrato intacto", async () => {
-    render(<FranjaDeEstado enVuelo turnos={TURNOS} umbralMs={0} />);
+    render(<FranjaDeEstado enVuelo turnos={TURNOS} onDetener={() => {}} umbralMs={0} />);
 
     const estado = await screen.findByRole("status");
     // El texto del estado es exactamente ése: los puntos que laten son CSS y no

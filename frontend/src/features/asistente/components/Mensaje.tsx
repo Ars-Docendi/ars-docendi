@@ -1,4 +1,4 @@
-import { InlineAlert } from "@ars-docendi/ui";
+import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
@@ -9,11 +9,12 @@ import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 interface MensajeProps {
   turno: TurnoDeLaConversacion;
   onElegir: (pregunta: string) => void;
+  onReintentar: (id: string) => void;
   enVuelo: boolean;
 }
 
 /** Un turno completo: lo que preguntó el usuario y lo que contestó el asistente. */
-export function Mensaje({ turno, onElegir, enVuelo }: MensajeProps) {
+export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps) {
   const { respuesta } = turno;
 
   return (
@@ -26,7 +27,30 @@ export function Mensaje({ turno, onElegir, enVuelo }: MensajeProps) {
       {turno.error && (
         <InlineAlert severity="danger" title="No se pudo consultar">
           {turno.error}
+          {/* Reusa la clave y el texto del intento, y SÓLO acá, sobre un turno que
+              terminó. En vuelo o tras dejar de esperar, la misma clave haría que el
+              backend ejecutara el turno entero otra vez. */}
+          <div className="adoc-asistente-reintento">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={enVuelo}
+              onClick={() => onReintentar(turno.id)}
+            >
+              Reintentar
+            </Button>
+          </div>
         </InlineAlert>
+      )}
+
+      {turno.detenido && (
+        // No es un error: lo pidió el usuario, y por eso no va en una alerta. Se
+        // dice lo que pasó de verdad —la consulta ya salió y el backend la sigue
+        // hasta el final, cupo incluido— y no se ofrece «Reintentar»: ese turno
+        // sigue corriendo allá, y la misma clave lo ejecutaría dos veces.
+        <p className="adoc-asistente-detenido">
+          Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.
+        </p>
       )}
 
       {respuesta && (

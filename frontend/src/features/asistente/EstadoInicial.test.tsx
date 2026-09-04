@@ -3,9 +3,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { EstadoInicial } from "./components/EstadoInicial";
-import { PanelAsistente } from "./components/PanelAsistente";
 import * as api from "./api/asistenteApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
+import { PanelDePrueba } from "./test/PanelDePrueba";
 import type { RespuestaDelAsistente } from "./types";
 
 // ============================================================
@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe("El estado inicial", () => {
   it("presenta las áreas por su descripción y nunca por su nombre interno", async () => {
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     expect(
       await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" }),
@@ -49,7 +49,7 @@ describe("El estado inicial", () => {
       ...CAPACIDADES,
       cubre: [{ nombre: "designaciones.pedidos", descripcion: null, columnas: 12 }],
     });
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" });
 
@@ -60,7 +60,7 @@ describe("El estado inicial", () => {
   it("un chip manda su pregunta tal cual", async () => {
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.click(await screen.findByRole("button", { name: "¿Qué carreras están vigentes?" }));
 
@@ -74,7 +74,7 @@ describe("El estado inicial", () => {
     vi.spyOn(api, "consultar").mockImplementation(
       () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.click(await screen.findByRole("button", { name: "¿Qué carreras están vigentes?" }));
 
@@ -107,7 +107,7 @@ describe("Sin acceso", () => {
     vi.spyOn(api, "obtenerCapacidades").mockRejectedValue(
       Object.assign(new Error("Forbidden"), { isAxiosError: true, response: { status: 403 } }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     expect(
       await screen.findByText("No tenés acceso al asistente con tus permisos actuales."),

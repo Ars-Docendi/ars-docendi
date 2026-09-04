@@ -79,4 +79,6 @@ export interface TurnoDeLaConversacion {
   respuesta?: RespuestaDelAsistente;
   /** Mensaje comprensible cuando el pedido falló por transporte. */
   error?: string;
+  /** El usuario dejó de esperarlo: el request se soltó de este lado. No es un error. */
+  detenido?: boolean;
 }

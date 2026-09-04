@@ -3,9 +3,9 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { Mensaje } from "./components/Mensaje";
-import { PanelAsistente } from "./components/PanelAsistente";
 import * as api from "./api/asistenteApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
+import { PanelDePrueba } from "./test/PanelDePrueba";
 import type { RespuestaDelAsistente, TurnoDeLaConversacion } from "./types";
 
 // ============================================================
@@ -30,7 +30,7 @@ function turno(parcial: Partial<RespuestaDelAsistente> = {}): TurnoDeLaConversac
 function montarMensaje(unTurno: TurnoDeLaConversacion) {
   return montar(
     <ul>
-      <Mensaje turno={unTurno} onElegir={() => {}} enVuelo={false} />
+      <Mensaje turno={unTurno} onElegir={() => {}} onReintentar={() => {}} enVuelo={false} />
     </ul>,
   );
 }
@@ -105,7 +105,7 @@ describe("Lo que nunca se muestra", () => {
         metricas: METRICAS_DEL_BACKEND,
       }),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await screen.findByText(/áreas de datos del sistema/);
     expect(document.body.textContent).not.toMatch(/designaciones\.|identity\./);

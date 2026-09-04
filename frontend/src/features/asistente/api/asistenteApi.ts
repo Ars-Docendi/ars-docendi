@@ -29,9 +29,15 @@ export interface OpcionesDeConsulta {
  * Un turno.
  *
  * La `Idempotency-Key` la genera quien llama, POR INTENTO y no por conversación:
- * un reintento del mismo envío —doble clic, reintento por timeout— reusa la clave,
- * que es exactamente para lo que existe. Generarla una vez por conversación haría
- * que el segundo turno recibiera la respuesta del primero.
+ * «Reintentar» sobre un turno que terminó en error reusa la clave y el texto, que
+ * es exactamente para lo que existe: si el backend ya había terminado cuando se
+ * cortó, devuelve lo que guardó en lugar de cobrarle otra vez al modelo. Generarla
+ * una vez por conversación haría que el segundo turno recibiera la respuesta del
+ * primero.
+ *
+ * Reusarla SÓLO cuando el turno terminó. La idempotencia del backend consulta la
+ * caché antes de ejecutar y guarda después, sin registrar el turno en curso: la
+ * misma clave mientras el original sigue corriendo ejecuta el turno dos veces.
  */
 export async function consultar(
   consulta: ConsultaDelAsistente,

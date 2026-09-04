@@ -36,6 +36,16 @@
   padding-right: var(--space-1);
 }
 
+/* ───────────────────────────── el encabezado del panel ─────────────────────── */
+
+/* Sólo en el modal: una fila con «Nueva conversación» a la derecha. El título ya
+   lo pone el Modal, y en la ruta el botón va en el encabezado de la página. */
+.adoc-asistente-encabezado {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
 
 /* La pantalla vacía: un título que invita a escribir, el alcance, los ejemplos
@@ -127,6 +137,19 @@
   border-radius: var(--radius-sm);
   background: var(--color-accent);
   color: var(--color-text-on-accent);
+}
+
+/* «Reintentar», debajo del mensaje de la alerta de error. */
+.adoc-asistente-reintento {
+  margin-top: var(--space-2);
+}
+
+/* Se dejó de esperar: una nota bajo la pregunta y no una alerta, porque no es un
+   error —lo pidió el usuario—. */
+.adoc-asistente-detenido {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
 }
 
 /* La respuesta: tarjeta clara, ancho completo. No se alinea a la izquierda con un
@@ -307,18 +330,18 @@
 
 /* ─────────────────────────────── la franja de estado ───────────────────────── */
 
-/* Una sola fila entre el hilo y el campo: el estado a la izquierda, lo que costó a
-   la derecha. Casi nunca se ven a la vez —uno mientras se espera, el otro cuando ya
-   llegó—, y en dos filas el campo de entrada saltaba cada vez que una aparecía. El
-   alto mínimo es el de una línea, para que tampoco salte acá. Los dos siguen
-   FUERA de la región viva. */
+/* Una sola fila entre el hilo y el campo: el estado y «Dejar de esperar» a la
+   izquierda, lo que costó a la derecha. Casi nunca se ven a la vez —unos mientras
+   se espera, el otro cuando ya llegó—, y en dos filas el campo de entrada saltaba
+   cada vez que una aparecía. El alto mínimo es el de un botón chico de la
+   librería, para que tampoco salte cuando aparece el de dejar de esperar. Los tres
+   siguen FUERA de la región viva. */
 .adoc-asistente-franja {
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
-  min-height: 1.25rem;
+  min-height: 28px;
 }
 
 .adoc-asistente-proceso {

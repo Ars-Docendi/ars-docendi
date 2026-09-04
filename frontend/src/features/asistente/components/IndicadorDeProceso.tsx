@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useVisibleTrasUmbral } from "../hooks/useVisibleTrasUmbral";
 
 /** Cuánto se espera antes de mostrar nada, en milisegundos. */
 export const UMBRAL_DE_APARICION_MS = 400;
@@ -30,26 +30,7 @@ export function IndicadorDeProceso({
   activo,
   umbralMs = UMBRAL_DE_APARICION_MS,
 }: IndicadorDeProcesoProps) {
-  const [visible, setVisible] = useState(false);
-  const [activoAnterior, setActivoAnterior] = useState(activo);
-
-  // Apagarlo es un AJUSTE DE ESTADO EN RENDER y no un efecto. Bajarlo desde un
-  // efecto dispara un render en cascada —React lo señala— y, peor para lo que este
-  // componente hace, deja un frame con el indicador todavía puesto sobre una
-  // respuesta que ya llegó.
-  if (activo !== activoAnterior) {
-    setActivoAnterior(activo);
-    if (!activo) setVisible(false);
-  }
-
-  // Encenderlo sí es un efecto: depende de que pase el tiempo, que es exactamente
-  // el sistema externo que un efecto existe para sincronizar.
-  useEffect(() => {
-    if (!activo) return;
-
-    const temporizador = window.setTimeout(() => setVisible(true), umbralMs);
-    return () => window.clearTimeout(temporizador);
-  }, [activo, umbralMs]);
+  const visible = useVisibleTrasUmbral(activo, umbralMs);
 
   return (
     <div role="status" aria-live="polite" className="adoc-asistente-proceso">

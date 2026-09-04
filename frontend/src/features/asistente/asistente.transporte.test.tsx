@@ -3,11 +3,11 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, CanceledError } from "axios";
 
-import { PanelAsistente } from "./components/PanelAsistente";
 import { AsistentePage } from "./pages/AsistentePage";
 import * as api from "./api/asistenteApi";
 import { apiClient } from "../../shared/api/client";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
+import { PanelDePrueba } from "./test/PanelDePrueba";
 import type { RespuestaDelAsistente } from "./types";
 
 beforeEach(() => {
@@ -26,7 +26,7 @@ describe("Todo turno lleva señal de aborto y un tope de tiempo del cliente", ()
     // vuelo hasta que el servidor conteste, si es que contesta.
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
     await screen.findByText("Hay 4 docentes designados.");
@@ -40,7 +40,7 @@ describe("Todo turno lleva señal de aborto y un tope de tiempo del cliente", ()
     // aplicación no tiene turnos de dos minutos y medio.
     const user = userEvent.setup();
     const post = vi.spyOn(apiClient, "post").mockResolvedValue({ data: respuesta() });
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
     await screen.findByText("Hay 4 docentes designados.");
@@ -60,7 +60,7 @@ describe("Todo turno lleva señal de aborto y un tope de tiempo del cliente", ()
     vi.spyOn(api, "consultar").mockRejectedValue(
       new AxiosError("timeout of 160000ms exceeded", AxiosError.ECONNABORTED),
     );
-    montar(<PanelAsistente />);
+    montar(<PanelDePrueba />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
