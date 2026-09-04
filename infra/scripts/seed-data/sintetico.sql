@@ -100,6 +100,9 @@ ON CONFLICT (id) DO UPDATE SET
 
 DELETE FROM public.seed_identities
  WHERE user_id = 'a0000000-0000-4000-8000-000000000009';
+UPDATE audit.change_log
+   SET changed_by = NULL
+ WHERE changed_by = 'a0000000-0000-4000-8000-000000000009';
 DELETE FROM identity.users
  WHERE id = 'a0000000-0000-4000-8000-000000000009';
 DELETE FROM identity.personas
