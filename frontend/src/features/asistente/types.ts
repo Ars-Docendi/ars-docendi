@@ -30,7 +30,10 @@ export interface ColumnaDelResultado {
 
 export interface MetricasDelTurno {
   llamadasAlModelo: number;
-  categoria: string;
+  // El backend también manda `categoria` («consulta_simple», «cruce_de_tablas»…) y
+  // acá no se declara A PROPÓSITO: es la etiqueta interna del carril que resolvió
+  // el turno, y RNF-18 prohíbe mostrar etiquetas internas. Lo que no está en el
+  // tipo no se puede pintar por descuido.
 }
 
 export interface RespuestaDelAsistente {

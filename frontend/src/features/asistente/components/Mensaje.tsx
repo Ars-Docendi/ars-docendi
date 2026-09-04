@@ -1,6 +1,7 @@
 import { InlineAlert } from "@ars-docendi/ui";
 
 import { Opciones } from "./Opciones";
+import { Razonamiento } from "./Razonamiento";
 import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
@@ -35,8 +36,10 @@ export function Mensaje({ turno, onElegir, enVuelo }: MensajeProps) {
           {respuesta.preguntaInterpretada && (
             // Solo llega cuando difiere de lo que se escribió, así que mostrarla
             // nunca es ruido: es el asistente diciendo cómo entendió la pregunta.
+            // Queda VISIBLE y fuera de la disclosure del razonamiento: esconder el
+            // aviso de que se reinterpretó la pregunta derrota su razón de ser.
             <p className="adoc-asistente-interpretada">
-              Lo interpreté como: <em>{respuesta.preguntaInterpretada}</em>
+              Entendí: <em>{respuesta.preguntaInterpretada}</em>
             </p>
           )}
 
@@ -58,14 +61,22 @@ export function Mensaje({ turno, onElegir, enVuelo }: MensajeProps) {
             deshabilitado={enVuelo}
           />
 
-          {respuesta.sql && (
-            // Solo llega con `asistente.ver_consulta`. Que esté acá no es
-            // transparencia gratuita: el WHERE de una consulta generada puede
-            // llevar un documento, y por eso quien la ve pasó por un permiso.
-            <details className="adoc-asistente-sql">
-              <summary>Ver la consulta</summary>
-              <pre>{respuesta.sql}</pre>
-            </details>
+          {(respuesta.razonamiento || respuesta.sql) && (
+            // El pie: lo que se puede desplegar a pedido, después de todo lo que
+            // hay que leer. Sólo existe cuando hay algo que desplegar.
+            <div className="adoc-asistente-pie">
+              <Razonamiento razonamiento={respuesta.razonamiento} />
+
+              {respuesta.sql && (
+                // Solo llega con `asistente.ver_consulta`. Que esté acá no es
+                // transparencia gratuita: el WHERE de una consulta generada puede
+                // llevar un documento, y por eso quien la ve pasó por un permiso.
+                <details className="adoc-asistente-sql">
+                  <summary>Ver la consulta</summary>
+                  <pre>{respuesta.sql}</pre>
+                </details>
+              )}
+            </div>
           )}
         </div>
       )}

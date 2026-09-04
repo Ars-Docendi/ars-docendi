@@ -36,7 +36,7 @@ export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): Respues
     columnas: [],
     filas: [],
     truncado: false,
-    metricas: { llamadasAlModelo: 2, categoria: "agregacion" },
+    metricas: { llamadasAlModelo: 2 },
     ...parcial,
   };
 }

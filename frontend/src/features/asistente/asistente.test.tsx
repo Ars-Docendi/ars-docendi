@@ -32,7 +32,7 @@ function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): RespuestaDelAs
     columnas: [],
     filas: [],
     truncado: false,
-    metricas: { llamadasAlModelo: 2, categoria: "agregacion" },
+    metricas: { llamadasAlModelo: 2 },
     ...parcial,
   };
 }
@@ -179,7 +179,7 @@ describe("Los cuatro estados", () => {
       respuesta({
         estado: "servicio_degradado",
         respuesta: "El asistente no está disponible en este momento.",
-        metricas: { llamadasAlModelo: 0, categoria: "no_contestable" },
+        metricas: { llamadasAlModelo: 0 },
       }),
     );
     montar(<PanelAsistente />);
@@ -199,7 +199,7 @@ describe("Los cuatro estados", () => {
           { etiqueta: "Bases de Datos (Informática)", preguntaResuelta: "..." },
           { etiqueta: "Bases de Datos (Industrial)", preguntaResuelta: "..." },
         ],
-        metricas: { llamadasAlModelo: 0, categoria: "no_contestable" },
+        metricas: { llamadasAlModelo: 0 },
       }),
     );
     montar(<PanelAsistente />);
@@ -221,7 +221,7 @@ describe("Los cuatro estados", () => {
         estado: "no_contestable",
         respuesta: "No puedo responder eso.",
         sugerencias: ["¿Qué carreras están vigentes?"],
-        metricas: { llamadasAlModelo: 1, categoria: "no_contestable" },
+        metricas: { llamadasAlModelo: 1 },
       }),
     );
     montar(<PanelAsistente />);
@@ -364,7 +364,7 @@ describe("Accesibilidad de la conversación", () => {
           estado: "necesita_aclaracion",
           respuesta: "¿Cuál?",
           opciones: [{ etiqueta: "Una", preguntaResuelta: "..." }],
-          metricas: { llamadasAlModelo: 0, categoria: "no_contestable" },
+          metricas: { llamadasAlModelo: 0 },
         }),
       )
       .mockResolvedValue(respuesta());

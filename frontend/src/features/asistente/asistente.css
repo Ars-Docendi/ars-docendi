@@ -198,9 +198,46 @@
   color: var(--color-text-secondary);
 }
 
+/* ─────────────────────────────────── el pie ────────────────────────────────── */
+
+/* Lo que se puede desplegar, al pie de la respuesta: cómo se interpretó la pregunta
+   y, con permiso, la consulta. Sólo existe cuando hay algo que desplegar, así que
+   nunca deja un hueco. */
+.adoc-asistente-pie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Las dos disclosures se ven igual: una nota que se abre a pedido, no un control
+   que reclame atención. El marcador nativo se conserva; es la señal de que hay
+   algo plegado. */
+.adoc-asistente-razonamiento summary,
+.adoc-asistente-sql summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-razonamiento summary:focus-visible,
+.adoc-asistente-sql summary:focus-visible {
+  outline: none;
+  border-radius: var(--radius-xs);
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-razonamiento p {
+  margin: var(--space-2) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
 /* Fondo elevado y no hundido: va DENTRO de la tarjeta hundida, y con el mismo
    fondo no se distinguiría. */
 .adoc-asistente-sql pre {
+  margin: var(--space-2) 0 0;
   overflow-x: auto;
   padding: var(--space-3);
   border-radius: var(--radius-sm);

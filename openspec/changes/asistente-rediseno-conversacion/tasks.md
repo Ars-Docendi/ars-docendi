@@ -52,11 +52,11 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 6. feat(asistente): razonamiento + `categoria` fuera del tipo (cierra ARS-79 v1)
 
-- [ ] 6.1 Tests — `Mensaje.test.tsx` (nuevo): con `razonamiento` hay un `summary` «Cómo lo interpreté» y el `details` está cerrado; sin él, `queryByText` nulo; «Entendí:» visible fuera del `details`; «Ninguna etiqueta interna en el DOM»: tras una respuesta, `document.body.textContent` no contiene `consulta_simple`, `respondida`, `designaciones.` ni `identity.`.
-- [ ] 6.2 `components/Razonamiento.tsx` (nuevo): `<details class="adoc-asistente-razonamiento"><summary>Cómo lo interpreté</summary><p>…</p></details>`; `null` si vacío.
-- [ ] 6.3 `components/Mensaje.tsx`: orden «Entendí:» (visible, `--text-body-sm-size`, pregunta en cursiva) → marco/texto → tabla → opciones → sugerencias → pie con `Razonamiento` y «Ver la consulta».
-- [ ] 6.4 `types.ts`: quitar `categoria` de `MetricasDelTurno` con comentario (etiqueta interna, RNF-18); quitar `categoria` de las fixtures de `asistente.test.tsx`.
-- [ ] 6.5 Verde y commit `feat(asistente): …` (referenciar ARS-79 en el cuerpo).
+- [x] 6.1 Tests — `Mensaje.test.tsx` (nuevo): con `razonamiento` hay un `summary` «Cómo lo interpreté» y el `details` está cerrado; sin él, `queryByText` nulo; «Entendí:» visible fuera del `details`; «Ninguna etiqueta interna en el DOM»: tras una respuesta, `document.body.textContent` no contiene `consulta_simple`, `respondida`, `designaciones.` ni `identity.`.
+- [x] 6.2 `components/Razonamiento.tsx` (nuevo): `<details class="adoc-asistente-razonamiento"><summary>Cómo lo interpreté</summary><p>…</p></details>`; `null` si vacío.
+- [x] 6.3 `components/Mensaje.tsx`: orden «Entendí:» (visible, `--text-body-sm-size`, pregunta en cursiva) → marco/texto → tabla → opciones → sugerencias → pie con `Razonamiento` y «Ver la consulta».
+- [x] 6.4 `types.ts`: quitar `categoria` de `MetricasDelTurno` con comentario (etiqueta interna, RNF-18); quitar `categoria` de las fixtures de `asistente.test.tsx`.
+- [x] 6.5 Verde y commit `feat(asistente): …` (referenciar ARS-79 en el cuerpo).
 
 ## 7. feat(asistente): estado inicial + chips
 
