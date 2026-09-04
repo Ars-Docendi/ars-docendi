@@ -1,47 +1,23 @@
-import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, RoleBadge, RoleMenu } from "@ars-docendi/ui";
+import { Button, RoleBadge } from "@ars-docendi/ui";
 
 import { clearToken } from "../../shared/auth/auth";
-import type { CurrentUser, Role } from "../../shared/auth/useCurrentUser";
+import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { bellIcon, /*collapseIcon,*/ helpIcon, searchIcon } from "./icons";
 
 interface TopBarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   user: CurrentUser;
-  /** Called when a multi-role user picks a different role. */
-  onSwitchRole: (role: Role) => void;
 }
 
-export function TopBar({ /*collapsed, onToggleCollapse,*/ user, onSwitchRole }: TopBarProps) {
+export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close the user menu on outside click or Escape.
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onPointer(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
 
   function handleLogout() {
     clearToken();
     navigate("/login", { replace: true });
   }
-
-  const canSwitchRole = user.roles.length > 1;
 
   return (
     <header className="adoc-topbar">
@@ -94,39 +70,11 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user, onSwitchRole }: 
           <span className="ico">{helpIcon}</span>
         </button>
 
-        <div className="adoc-user-menu" ref={menuRef}>
-          <RoleBadge
-            name={user.name}
-            initials={user.initials}
-            role={user.role}
-            multi
-            onSwitchClick={() => setMenuOpen((open) => !open)}
-            switchLabel="Abrir menú de usuario"
-          />
-
-          {menuOpen && (
-            <div className="adoc-user-menu-pop" role="menu">
-              {canSwitchRole && (
-                <RoleMenu
-                  heading="Cambiar de rol"
-                  options={user.roles.map((r) => ({
-                    id: r,
-                    name: r,
-                    current: r === user.role,
-                  }))}
-                  onSelect={(id) => {
-                    onSwitchRole(id as Role);
-                    setMenuOpen(false);
-                  }}
-                />
-              )}
-              <div className="adoc-user-menu-foot">
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  Cerrar sesión
-                </Button>
-              </div>
-            </div>
-          )}
+        <div className="adoc-user-menu">
+          <RoleBadge name={user.name} initials={user.initials} role={user.role} />
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            Cerrar sesión
+          </Button>
         </div>
       </div>
     </header>

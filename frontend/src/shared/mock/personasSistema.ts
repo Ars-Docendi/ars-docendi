@@ -9,8 +9,8 @@
 // El `telefono` de este padrón es el histórico que administra Secretaría; el
 // Portal NO lo lee: el teléfono de contacto lo mantiene el propio docente.
 //
-// Incluye los UPN de la sesión mock de desarrollo (secretaria.academica,
-// decanato, admin.aulas, demo): sin ellos esos logins no encuentran su perfil.
+// Incluye los UPN de la sesión mock de desarrollo para que esos logins
+// encuentren su perfil.
 //
 // STUB: reemplazar por la API real cuando exista Modules.Portal.
 // ============================================================
@@ -137,16 +137,5 @@ export const PERSONAS_SISTEMA: PersonaSistema[] = [
     fecha_nacimiento: "1992-06-11",
     telefono: "11-3324-6612",
     upn: "admin.aulas@unlam.edu.ar",
-  },
-  {
-    id: "p0000000-0000-4000-8000-000000000011",
-    nombre: "Usuario",
-    apellido: "Demo",
-    documento: "30000000",
-    legajo: "0999",
-    cuil: "20-30000000-5",
-    fecha_nacimiento: "1983-01-01",
-    telefono: "11-0000-0000",
-    upn: "demo@unlam.edu.ar",
   },
 ];

@@ -15,11 +15,7 @@ vi.mock("./dev/DevLoginModal", () => ({
 import { apiClient } from "../api/client";
 import { LoginPage } from "./LoginPage";
 import { isAuthenticated } from "./auth";
-import {
-  cambiarRolDesarrollo,
-  obtenerSesionDesarrollo,
-  seleccionarSesionDesarrollo,
-} from "./dev/session";
+import { obtenerSesionDesarrollo, seleccionarSesionDesarrollo } from "./dev/session";
 import { resolverDevelopmentAuthEnabled } from "./developmentAuth";
 
 describe("autenticación sembrada configurable", () => {
@@ -47,14 +43,12 @@ describe("autenticación sembrada configurable", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent("Selector de identidades");
   });
 
-  it("conserva sesión y cambio de rol cuando el opt-in está habilitado", () => {
+  it("conserva la sesión seleccionada cuando el opt-in está habilitado", () => {
     seleccionarSesionDesarrollo("usuario-1", "jefe_catedra");
     expect(isAuthenticated()).toBe(true);
-
-    cambiarRolDesarrollo("coordinador_carrera");
     expect(obtenerSesionDesarrollo()).toEqual({
       usuarioId: "usuario-1",
-      rolCodigo: "coordinador_carrera",
+      rolCodigo: "jefe_catedra",
     });
   });
 

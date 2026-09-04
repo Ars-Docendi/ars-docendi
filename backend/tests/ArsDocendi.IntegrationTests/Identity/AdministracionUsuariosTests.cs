@@ -24,10 +24,8 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
 
         var usuarios = await servicio.ListarAsync(ct);
 
-        Assert.Equal(9, usuarios.Count);
-        var demo = Assert.Single(usuarios, u => u.Upn == "demo@unlam.edu.ar");
-        Assert.Contains(demo.Roles, r => r.Codigo == "jefe_catedra" && r.MateriaId is not null);
-        Assert.Contains(demo.Roles, r => r.Codigo == "coordinador_carrera" && r.CarreraId is not null);
+        Assert.Equal(8, usuarios.Count);
+        Assert.DoesNotContain(usuarios, u => u.Upn == "demo@unlam.edu.ar");
         Assert.Empty(db.ChangeTracker.Entries());
     }
 

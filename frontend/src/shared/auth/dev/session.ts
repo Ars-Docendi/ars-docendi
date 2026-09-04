@@ -26,12 +26,6 @@ export function seleccionarSesionDesarrollo(usuarioId: string, rolCodigo: string
   notificar();
 }
 
-export function cambiarRolDesarrollo(rolCodigo: string): void {
-  if (!localStorage.getItem(USUARIO_KEY)) return;
-  localStorage.setItem(ROL_KEY, rolCodigo);
-  notificar();
-}
-
 export function limpiarSesionDesarrollo(): void {
   localStorage.removeItem(USUARIO_KEY);
   localStorage.removeItem(ROL_KEY);
