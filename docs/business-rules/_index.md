@@ -5,3 +5,4 @@
 | Módulo / archivo |
 | --- |
 | [C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\designaciones](./C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\designaciones.md) |
+| [C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\tareas](./C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\tareas.md) |
