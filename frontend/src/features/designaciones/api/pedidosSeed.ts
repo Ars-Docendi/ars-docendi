@@ -59,8 +59,25 @@ interface SemillaPedido {
   horasExternas?: number;
   horasInvestigacion?: number;
   esAgenteExterno?: boolean;
+  /**
+   * Solo para `estado: "devuelto"`: la etapa desde la que se devolvió, que es
+   * también a la que vuelve al reenviarse. Quién firma la devolución y quién
+   * tiene que corregir se DERIVAN de acá según BR-014 — la semilla no los
+   * declara, para que no pueda escribir una combinación que la máquina de
+   * estados nunca produciría (p. ej. devuelto desde Secretaría y a la vez a
+   * cargo de Secretaría).
+   */
   etapaRetorno?: PedidoDesignacion["etapaRetorno"];
-  propietarioActual?: PedidoDesignacion["propietarioActual"];
+  /**
+   * Reubica el historial en el tiempo, en días hacia atrás desde hoy: el `enviar`
+   * a `diasDesdeEnvio` días y el último evento a `diasDesdeUltimoEvento`, con los
+   * eventos del medio repartidos entre ambos. Sirve para que la Tabla de revisión
+   * muestre contadores variados (un pedido recién enviado vs. uno trabado hace
+   * meses) en vez de que todas las filas digan lo mismo. Sin estos campos, la
+   * semilla usa las fechas fijas de junio 2026.
+   */
+  diasDesdeEnvio?: number;
+  diasDesdeUltimoEvento?: number;
   // Overrides de ámbito: por defecto la cátedra/carrera del JC Gustavo Ruiz.
   carrera?: string;
   catedra?: string;
@@ -88,13 +105,33 @@ function eventoEnvio(): EventoHistorial {
   };
 }
 
-function eventoDevolucion(): EventoHistorial {
+/**
+ * Quién revisa cada etapa (firma la devolución) y quién tiene que corregir lo
+ * devuelto desde ella [BR-014]: la devolución retrocede UN nivel, nunca salta
+ * directo a la Cátedra — Decanato devuelve a Secretaría, Secretaría a
+ * Coordinación, Coordinación a la Cátedra. Espejo de `ROL_DE_ETAPA` y
+ * `PROPIETARIO_DEVOLUCION` en `maquinaEstados.ts`.
+ */
+const REVISOR_DE_ETAPA: Record<string, { rol: Rol; nombre: string }> = {
+  en_revision_coordinador: { rol: "Coordinador", nombre: "M. Díaz" },
+  en_revision_secretaria: { rol: "Secretaría", nombre: "L. Fernández" },
+  en_revision_decanato: { rol: "Decanato", nombre: "R. Sosa" },
+};
+
+const CORRIGE_LO_DEVUELTO_DESDE: Record<string, Rol> = {
+  en_revision_coordinador: "Jefe de Cátedra",
+  en_revision_secretaria: "Coordinador",
+  en_revision_decanato: "Secretaría",
+};
+
+function eventoDevolucion(etapaRetorno: EstadoPedido | undefined): EventoHistorial {
+  const revisor = REVISOR_DE_ETAPA[etapaRetorno ?? "en_revision_coordinador"];
   return {
     id: siguienteId("ev"),
     accion: "devolver",
-    porRol: "Coordinador",
-    porNombre: "M. Díaz",
-    etapa: "en_revision_coordinador",
+    porRol: revisor.rol,
+    porNombre: revisor.nombre,
+    etapa: etapaRetorno ?? "en_revision_coordinador",
     comentario: "Falta adjuntar la justificación del cambio de dedicación.",
     fecha: "2026-06-19T15:10:00.000Z",
   };
@@ -141,7 +178,7 @@ const ACEPTA_DECANO = (): EventoHistorial =>
   eventoAceptacion("Decanato", "R. Sosa", "en_lote", "2026-06-18T16:00:00.000Z");
 
 /** Reconstruye un historial coherente para el estado objetivo del seed. */
-function historialPara(estado: EstadoPedido): EventoHistorial[] {
+function historialPara(estado: EstadoPedido, etapaRetorno?: EstadoPedido): EventoHistorial[] {
   const historial: EventoHistorial[] = [eventoCreacion()];
   switch (estado) {
     case "en_revision_coordinador":
@@ -160,7 +197,7 @@ function historialPara(estado: EstadoPedido): EventoHistorial[] {
       historial.push(eventoEnvio(), eventoRechazo());
       break;
     case "devuelto":
-      historial.push(eventoEnvio(), eventoDevolucion());
+      historial.push(eventoEnvio(), eventoDevolucion(etapaRetorno));
       break;
     default:
       break; // borrador / cancelado: solo la creación
@@ -168,8 +205,46 @@ function historialPara(estado: EstadoPedido): EventoHistorial[] {
   return historial;
 }
 
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+/**
+ * Reubica el historial en el tiempo dejando el `enviar` y el último evento a la
+ * distancia pedida de hoy, y repartiendo los eventos del medio proporcionalmente
+ * entre ambos. El `crear` queda 4 días antes del envío (el borrador siempre
+ * existe antes de enviarse). Muta las fechas de `historial` en el lugar.
+ */
+function reubicarEnElTiempo(
+  historial: EventoHistorial[],
+  diasDesdeEnvio: number,
+  diasDesdeUltimoEvento: number,
+): void {
+  const indiceEnvio = historial.findIndex((evento) => evento.accion === "enviar");
+  if (indiceEnvio === -1) return;
+
+  const hoy = Date.now();
+  const tEnvio = hoy - diasDesdeEnvio * MS_POR_DIA;
+  const tUltimo = hoy - diasDesdeUltimoEvento * MS_POR_DIA;
+  const tramos = historial.length - 1 - indiceEnvio;
+
+  historial[indiceEnvio].fecha = new Date(tEnvio).toISOString();
+  for (let i = indiceEnvio + 1; i < historial.length; i += 1) {
+    const avance = (i - indiceEnvio) / tramos;
+    historial[i].fecha = new Date(tEnvio + (tUltimo - tEnvio) * avance).toISOString();
+  }
+  for (let i = 0; i < indiceEnvio; i += 1) {
+    historial[i].fecha = new Date(tEnvio - (indiceEnvio - i) * 4 * MS_POR_DIA).toISOString();
+  }
+}
+
 function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
-  const historial = historialPara(semilla.estado);
+  const historial = historialPara(semilla.estado, semilla.etapaRetorno);
+  if (semilla.diasDesdeEnvio !== undefined) {
+    reubicarEnElTiempo(
+      historial,
+      semilla.diasDesdeEnvio,
+      semilla.diasDesdeUltimoEvento ?? semilla.diasDesdeEnvio,
+    );
+  }
   return {
     id: siguienteId("ped"),
     numero: siguienteNumero(),
@@ -198,7 +273,10 @@ function desdeSemilla(semilla: SemillaPedido): PedidoDesignacion {
     estado: semilla.estado,
     prioritario: semilla.prioritario ?? false,
     etapaRetorno: semilla.etapaRetorno,
-    propietarioActual: semilla.propietarioActual,
+    // Derivado, no declarado: ver BR-014 en `CORRIGE_LO_DEVUELTO_DESDE`.
+    propietarioActual: semilla.etapaRetorno
+      ? CORRIGE_LO_DEVUELTO_DESDE[semilla.etapaRetorno]
+      : undefined,
     historial,
   };
 }
@@ -252,7 +330,6 @@ const SEMILLAS: SemillaPedido[] = [
     dedicacionSolicitada: "Categoría 3",
     estado: "devuelto",
     etapaRetorno: "en_revision_coordinador",
-    propietarioActual: "Jefe de Cátedra",
   },
   // Rechazado (terminal, de solo lectura).
   {
@@ -438,7 +515,6 @@ const SEMILLAS: SemillaPedido[] = [
     ],
     estado: "devuelto",
     etapaRetorno: "en_revision_decanato",
-    propietarioActual: "Secretaría",
   },
   // Alta aceptada, en_lote (queda en "Finalizados").
   {
@@ -508,7 +584,6 @@ const SEMILLAS: SemillaPedido[] = [
     ],
     estado: "devuelto",
     etapaRetorno: "en_revision_coordinador",
-    propietarioActual: "Jefe de Cátedra",
   },
   // Cambio devuelto Y prioritario a la vez (queda en "En Coordinación") — para ver la fila en rojo
   // (prioritario gana el fondo sobre devuelto) con los dos íconos juntos en la columna Prioritario.
@@ -526,7 +601,6 @@ const SEMILLAS: SemillaPedido[] = [
     justificacion: "Reasignación urgente por licencia de otro docente de la cátedra.",
     estado: "devuelto",
     etapaRetorno: "en_revision_coordinador",
-    propietarioActual: "Jefe de Cátedra",
     prioritario: true,
   },
   // Baja rechazada (queda en "Finalizados").
@@ -542,6 +616,124 @@ const SEMILLAS: SemillaPedido[] = [
     tipoBaja: "Renuncia",
     adjuntos: [{ id: "adj-just-nora", nombre: "renuncia-nora-aguirre.pdf", tipo: "justificativo" }],
     estado: "rechazado",
+  },
+  // ============================================================
+  // Muestrario para la Tabla de revisión vista desde Secretaría (cuenta Demo,
+  // rol Secretaría): un ejemplo de cada caso que la grilla sabe representar, con
+  // contadores de días variados para que el par Inicio / Últ. actualización se
+  // lea (uno recién enviado, uno trabado hace meses, uno que circuló rápido).
+  // ============================================================
+  // (a) Prioritario puro, en la sección propia de Secretaría: le toca revisarlo Y es urgente.
+  {
+    dni: "36778899",
+    nombre: "Ariel Bustos",
+    legajo: "1016",
+    antiguedad: 14,
+    asignaciones: [{ materia: "Bases de Datos", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 2",
+    justificacion: "Cobertura urgente de la titularidad vacante de la cátedra.",
+    estado: "en_revision_secretaria",
+    prioritario: true,
+    diasDesdeEnvio: 41,
+    diasDesdeUltimoEvento: 2,
+  },
+  // (b) Devuelto A Secretaría: el chip dice "Devuelto — corregís vos" para este actor.
+  {
+    dni: "36889900",
+    nombre: "Camila Ferreyra",
+    legajo: "1017",
+    antiguedad: 7,
+    asignaciones: [{ materia: "Programación I", horas: 6 }],
+    cargoActual: "JTP",
+    dedicacionActual: "Categoría 4",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 3",
+    justificacion: "Reasignación por apertura de comisión nueva.",
+    estado: "devuelto",
+    // Devuelto por Decanato: BR-014 hace que lo corrija Secretaría.
+    etapaRetorno: "en_revision_decanato",
+    diasDesdeEnvio: 68,
+    diasDesdeUltimoEvento: 9,
+  },
+  // (c) Devuelto pero a OTRO (el Coordinador corrige): Secretaría lo ve, no lo toca.
+  {
+    dni: "36990011",
+    nombre: "Emilia Pardo",
+    legajo: "1018",
+    antiguedad: 11,
+    asignaciones: [{ materia: "Sistemas Operativos", horas: 6 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 3",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Adjunto",
+    dedicacionSolicitada: "Categoría 2",
+    justificacion: "Ampliación de dedicación por dirección de tesinas.",
+    estado: "devuelto",
+    etapaRetorno: "en_revision_secretaria",
+    diasDesdeEnvio: 52,
+    diasDesdeUltimoEvento: 14,
+  },
+  // (d) Prioritario puro en Coordinación, recién enviado: el chip de Prioridad sin devolución,
+  //     y el contador chico que contrasta con los de meses.
+  {
+    dni: "37001122",
+    nombre: "Nicolás Ferrari",
+    legajo: "1019",
+    antiguedad: 3,
+    asignaciones: [{ materia: "Redes de Computadoras", horas: 4 }],
+    cargoActual: "Ayudante",
+    dedicacionActual: "Categoría 5",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "JTP",
+    dedicacionSolicitada: "Categoría 4",
+    justificacion: "Reemplazo urgente por licencia médica del JTP de la comisión.",
+    estado: "en_revision_coordinador",
+    prioritario: true,
+    diasDesdeEnvio: 5,
+    diasDesdeUltimoEvento: 5,
+  },
+  // (e) Trabado hace meses en Decanato: Inicio y Últ. actualización los dos grandes —
+  //     el par que grita "nadie lo movió".
+  {
+    dni: "37112233",
+    nombre: "Silvina Ocampo",
+    legajo: "1020",
+    antiguedad: 22,
+    asignaciones: [{ materia: "Matemática Discreta", horas: 6 }],
+    cargoActual: "Titular",
+    dedicacionActual: "Categoría 1",
+    novedad: "Baja",
+    tipoBaja: "Jubilación",
+    adjuntos: [
+      { id: "adj-just-silvina", nombre: "jubilacion-silvina-ocampo.pdf", tipo: "justificativo" },
+    ],
+    estado: "en_revision_decanato",
+    diasDesdeEnvio: 156,
+    diasDesdeUltimoEvento: 121,
+  },
+  // (f) Aceptado Y prioritario: el chip de Prioridad también en Finalizados, y el contador
+  //     congelado — Inicio dice "tardó 24 d" aunque el cierre haya sido hace una semana.
+  {
+    dni: "37223344",
+    nombre: "Tomás Vera",
+    legajo: "1021",
+    antiguedad: 16,
+    asignaciones: [{ materia: "Ingeniería de Software", horas: 8 }],
+    cargoActual: "Adjunto",
+    dedicacionActual: "Categoría 2",
+    novedad: "Cambio de cargo o dedicación",
+    cargoSolicitado: "Titular",
+    dedicacionSolicitada: "Categoría 1",
+    justificacion: "Promoción aprobada por concurso.",
+    estado: "en_lote",
+    prioritario: true,
+    diasDesdeEnvio: 30,
+    diasDesdeUltimoEvento: 6,
   },
   // Otra carrera (Ingeniería Industrial): NO debe verlo el Coordinador de Informática [BR-009].
   {
