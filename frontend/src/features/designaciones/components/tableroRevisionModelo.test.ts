@@ -38,7 +38,7 @@ function pedido(
     catedra: "Cátedra X",
     carrera: CARRERA,
     docente: { dni: `${contador}`, nombre: `Docente ${contador}`, antiguedad: 3 },
-    asignaciones: [{ materia: "Materia X", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -233,12 +233,22 @@ describe("pestaniaInicial", () => {
 });
 
 describe("esTuTurno", () => {
-  it("es el turno del Coordinador en su etapa y ámbito, no en etapas ajenas", () => {
-    expect(esTuTurno(pedido("en_revision_coordinador"), COORD)).toBe(true);
-    expect(esTuTurno(pedido("en_revision_secretaria"), COORD)).toBe(false);
-    expect(esTuTurno(pedido("en_revision_coordinador", { carrera: "Otra carrera" }), COORD)).toBe(
+  it("usa las acciones autorizadas por el backend, no el ámbito declarado en UI", () => {
+    expect(
+      esTuTurno(pedido("en_revision_coordinador", { accionesPermitidas: ["aceptar"] }), COORD),
+    ).toBe(true);
+    expect(esTuTurno(pedido("en_revision_secretaria", { accionesPermitidas: [] }), COORD)).toBe(
       false,
     );
+    expect(
+      esTuTurno(
+        pedido("en_revision_coordinador", {
+          carrera: "Otra carrera",
+          accionesPermitidas: ["devolver"],
+        }),
+        COORD,
+      ),
+    ).toBe(true);
   });
 });
 

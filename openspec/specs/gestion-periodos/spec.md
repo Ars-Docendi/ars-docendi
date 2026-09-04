@@ -4,6 +4,28 @@ Gestión (ABM) de los períodos de designación docente: la Secretaría Académi
 
 ## Requirements
 
+### Requirement: Gestión persistente de períodos
+
+El listado, alta, edición, activación, desactivación y eliminación de períodos MUST operar mediante la API de Designaciones. La unicidad del período activo y las restricciones por pedidos asociados MUST validarse en backend.
+
+#### Scenario: Guardado exitoso
+
+- **GIVEN** datos válidos y un actor autorizado
+- **WHEN** la API confirma la creación o edición
+- **THEN** una consulta posterior devuelve el período con los valores persistidos
+
+#### Scenario: Segundo período activo
+
+- **GIVEN** un período activo distinto al que se guarda
+- **WHEN** se intenta activar otro período
+- **THEN** la API MUST rechazar la operación sin desactivar el existente
+
+#### Scenario: Eliminación restringida
+
+- **GIVEN** un período referenciado por pedidos
+- **WHEN** se intenta eliminarlo
+- **THEN** la API MUST rechazar la operación con un conflicto identificable y conservar el período
+
 ### Requirement: Listar períodos de designación
 
 El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, ventana de carga (desde/hasta), ventana de impacto (desde/hasta) y estado activo/inactivo.
@@ -120,24 +142,6 @@ El sistema SHALL requerir confirmación explícita antes de eliminar un período
 
 - **WHEN** el backend rechace la eliminación (ej: período con pedidos asociados)
 - **THEN** el sistema SHALL mostrar un InlineAlert de severidad "danger" dentro del modal de confirmación con el motivo del rechazo, sin cerrar el modal
-
----
-
-### Requirement: Mock data para validación visual
-
-El sistema SHALL mostrar datos de prueba representativos que permitan validar todos los estados visuales posibles sin necesidad de backend.
-
-#### Scenario: Variedad de estados en mock
-
-- **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar al menos un período con `activo: true` y varios con `activo: false`, y exactamente uno con `activo: true`
-
-#### Scenario: Variedad de ventanas de carga e impacto
-
-- **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar períodos con distintas ventanas de carga e impacto para simular un historial realista
-
----
 
 ### Requirement: Activar y desactivar período de designación
 

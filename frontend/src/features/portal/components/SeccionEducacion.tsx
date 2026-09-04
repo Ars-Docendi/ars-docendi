@@ -1,5 +1,5 @@
 import type { DatosEducacion, Educacion } from "../types";
-import { agregarEducacion, editarEducacion, eliminarPorId } from "../mock/mockStore";
+import { agregarEducacion, editarEducacion, eliminarPorId } from "../helpers";
 import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";

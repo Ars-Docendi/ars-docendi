@@ -8,14 +8,13 @@ import { indiceDedicacion } from "./api/catalogos";
 
 export type CampoPedido =
   | "docente"
-  | "asignaciones"
+  | "horas"
   | "cargoSolicitado"
   | "dedicacionSolicitada"
   | "tipoBaja"
   | "tipoBajaDetalle"
   | "justificacion"
-  | "adjuntos"
-  | "departamentoAgenteExterno";
+  | "adjuntos";
 
 export type ErroresValidacion = Partial<Record<CampoPedido, string>>;
 
@@ -57,29 +56,34 @@ export function validarPedido(
   ) {
     errores.docente = "El legajo del docente es obligatorio para una baja o un cambio.";
   }
-  // Materias y horas (D2: las horas son campos libres, sin cierre contra la dedicación).
-  // Ni Alta ni Cambio exigen un mínimo de materias (regla de negocio) — Baja sí, porque su
-  // listado refleja lo que el docente ya tiene asignado (no debería llegar vacío nunca).
-  if (datos.novedad === "Baja" && datos.asignaciones.length === 0) {
-    errores.asignaciones = "Agregá al menos una materia.";
-  } else if (datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación") {
-    const filaInvalida = datos.asignaciones.some(
-      (asignacion) => !asignacion.materia.trim() || asignacion.horas <= 0,
-    );
-    if (filaInvalida) {
-      errores.asignaciones = "Completá la materia y las horas (mayor a 0) en cada fila.";
-    }
+  // Carga horaria de la cátedra. Las horas son un campo libre: no se valida que
+  // cierren contra la dedicación solicitada (D2), sólo que sean positivas cuando el
+  // pedido efectivamente pide una designación.
+  if (
+    (datos.novedad === "Alta" || datos.novedad === "Cambio de cargo o dedicación") &&
+    datos.horas <= 0
+  ) {
+    errores.horas = "Ingresá la carga horaria de la materia (mayor a 0).";
   }
 
-  // BR-001: un pedido por docente por período.
+  // BR-001: un pedido por docente por período, SIN IMPORTAR LA CÁTEDRA.
+  //
+  // El mensaje no nombra la cátedra ni el autor del pedido bloqueante: puede
+  // pertenecer a una cátedra ajena al actor, que no tiene por qué verla. Acá el
+  // chequeo alcanza sólo a los pedidos que el actor ya tiene a la vista; la
+  // autoridad real es el índice único parcial de PostgreSQL, y el backend traduce
+  // su violación a este mismo mensaje.
   const duplicado = contexto.pedidosExistentes.some(
     (pedido) =>
       pedido.id !== contexto.pedidoActualId &&
       pedido.docente.dni.trim() === datos.docente.dni.trim() &&
-      datos.docente.dni.trim() !== "",
+      datos.docente.dni.trim() !== "" &&
+      // Un pedido rechazado o cancelado libera el cupo: se puede volver a presentar.
+      pedido.estado !== "rechazado" &&
+      pedido.estado !== "cancelado",
   );
   if (duplicado) {
-    errores.docente = "Ya existe un pedido para este docente en el período.";
+    errores.docente = "Ya existe un pedido en curso para este docente en el período.";
   }
 
   // Reglas por novedad.
@@ -126,11 +130,6 @@ export function validarPedido(
     if (!datos.justificacion?.trim()) {
       errores.justificacion = "La justificación es obligatoria para un cambio.";
     }
-  }
-
-  // Agente externo: si está marcado, exige el departamento a cargo (Alta y Cambio).
-  if (datos.esAgenteExterno && !datos.departamentoAgenteExterno) {
-    errores.departamentoAgenteExterno = "Seleccioná el departamento a cargo del agente externo.";
   }
 
   return errores;

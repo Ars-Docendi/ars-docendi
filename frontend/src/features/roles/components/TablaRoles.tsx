@@ -1,13 +1,12 @@
 import { Button, Table } from "@ars-docendi/ui";
-import type { RolMock } from "../mock/mockStore";
+import { ETIQUETAS_SCOPE, type RolMock } from "../models";
 
 interface TablaRolesProps {
   roles: RolMock[];
   onEditar: (rol: RolMock) => void;
-  onEliminar: (rol: RolMock) => void;
 }
 
-export function TablaRoles({ roles, onEditar, onEliminar }: TablaRolesProps) {
+export function TablaRoles({ roles, onEditar }: TablaRolesProps) {
   if (roles.length === 0) {
     return (
       <div
@@ -33,6 +32,8 @@ export function TablaRoles({ roles, onEditar, onEliminar }: TablaRolesProps) {
             <Table.Row>
               <Table.HeaderCell>Nombre</Table.HeaderCell>
               <Table.HeaderCell>Descripción</Table.HeaderCell>
+              <Table.HeaderCell>Ámbito</Table.HeaderCell>
+              <Table.HeaderCell>Tipo</Table.HeaderCell>
               <Table.HeaderCell>Acciones</Table.HeaderCell>
             </Table.Row>
           </Table.Head>
@@ -43,12 +44,11 @@ export function TablaRoles({ roles, onEditar, onEliminar }: TablaRolesProps) {
                   <strong>{rol.nombre}</strong>
                 </Table.Cell>
                 <Table.Cell>{rol.descripcion}</Table.Cell>
+                <Table.Cell>{ETIQUETAS_SCOPE[rol.scope]}</Table.Cell>
+                <Table.Cell>{rol.es_sistema ? "Sistema" : "Personalizado"}</Table.Cell>
                 <Table.Cell className="adoc-table-actions">
                   <Button variant="ghost" size="sm" onClick={() => onEditar(rol)}>
                     Editar
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onEliminar(rol)}>
-                    Eliminar
                   </Button>
                 </Table.Cell>
               </Table.Row>

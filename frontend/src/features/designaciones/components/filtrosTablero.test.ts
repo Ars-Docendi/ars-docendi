@@ -17,7 +17,7 @@ function pedido(overrides: Partial<PedidoDesignacion> = {}): PedidoDesignacion {
     catedra: "Cátedra X",
     carrera: "Ingeniería en Informática",
     docente: { dni: `${contador}`, nombre: `Docente ${contador}`, antiguedad: 3 },
-    asignaciones: [{ materia: "Materia X", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",

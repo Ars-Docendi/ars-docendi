@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { Button, DatePicker, Field, Input, InlineAlert, Modal, Select } from "@ars-docendi/ui";
 import {
-  MATERIAS_CATALOGO,
-  PERSONAS_SISTEMA,
-  ROLES_DOCENTE,
   nombreCompleto,
   type AsignacionMateria,
   type CargoDocente,
   type DocenteMock,
   type PersonaSistema,
+  type MateriaMock,
   type RolDocente,
-} from "../mock/mockStore";
+} from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
 
 type Modo = "nueva" | "existente";
@@ -20,6 +18,11 @@ interface ModalNuevoDocenteProps {
   upnsExistentes: string[];
   onCrear: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
   onCerrar: () => void;
+  materias: MateriaMock[];
+  cargos: string[];
+  personas: PersonaSistema[];
+  error?: string;
+  rolesDisponibles: string[];
 }
 
 const VACIO_PERSONA = {
@@ -47,6 +50,11 @@ export function ModalNuevoDocente({
   upnsExistentes,
   onCrear,
   onCerrar,
+  materias,
+  cargos,
+  personas,
+  error,
+  rolesDisponibles,
 }: ModalNuevoDocenteProps) {
   const [modo, setModo] = useState<Modo>("nueva");
   const [personaId, setPersonaId] = useState("");
@@ -76,7 +84,7 @@ export function ModalNuevoDocente({
 
   function seleccionarPersona(id: string) {
     setPersonaId(id);
-    const persona = PERSONAS_SISTEMA.find((p) => p.id === id) ?? null;
+    const persona = personas.find((p) => p.id === id) ?? null;
     setCampos(
       persona
         ? {
@@ -119,7 +127,7 @@ export function ModalNuevoDocente({
     const asignaciones: AsignacionMateria[] = asignacionRows
       .filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0)
       .map((r) => ({
-        materia: MATERIAS_CATALOGO.find((m) => m.codigo === r.materia)!,
+        materia: materias.find((m) => m.codigo === r.materia)!,
         cargo: r.cargo as CargoDocente,
         horas: Number(r.horas),
       }));
@@ -129,12 +137,13 @@ export function ModalNuevoDocente({
       upn: campos.upn.toLowerCase(),
       roles: [rol as RolDocente],
       asignaciones,
+      persona_id: modo === "existente" ? personaId : undefined,
     });
     handleCerrar();
   }
 
   const personaSeleccionada: PersonaSistema | null =
-    modo === "existente" ? (PERSONAS_SISTEMA.find((p) => p.id === personaId) ?? null) : null;
+    modo === "existente" ? (personas.find((p) => p.id === personaId) ?? null) : null;
 
   const upnDuplicada = enviado && !!campos.upn && upnsExistentes.includes(campos.upn.toLowerCase());
   const errorAsignaciones = enviado ? validarAsignaciones(asignacionRows) : undefined;
@@ -186,6 +195,7 @@ export function ModalNuevoDocente({
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         {/* Selector de modo */}
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -313,7 +323,7 @@ export function ModalNuevoDocente({
             >
               <Select value={personaId} onChange={(e) => seleccionarPersona(e.target.value)}>
                 <option value="">Elegí una persona del sistema…</option>
-                {PERSONAS_SISTEMA.map((p) => (
+                {personas.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.apellido}, {p.nombre} — DNI {p.documento}
                   </option>
@@ -350,7 +360,7 @@ export function ModalNuevoDocente({
         <Field label="Rol" required error={enviado && !rol ? "Campo obligatorio" : undefined}>
           <Select value={rol} onChange={(e) => setRol(e.target.value)}>
             <option value="">Seleccioná un rol…</option>
-            {ROLES_DOCENTE.map((r) => (
+            {rolesDisponibles.map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -362,6 +372,8 @@ export function ModalNuevoDocente({
           rows={asignacionRows}
           onChange={setAsignacionRows}
           error={errorAsignaciones}
+          materias={materias}
+          cargos={cargos}
         />
       </div>
     </Modal>

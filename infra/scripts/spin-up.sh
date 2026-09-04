@@ -12,6 +12,7 @@
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
 # Variables opcionales:
 #   ASPNETCORE_ENVIRONMENT            default Production
+#   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
 #                                     (default: "dotnet ArsDocendi.Host.dll --migrate";
 #                                      la app debe soportar este arg — trabajo adyacente)
@@ -50,6 +51,7 @@ REGISTRO=${REGISTRO}
 TAG_FRONTEND=${TAG_FRONTEND}
 TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
+DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
 URL_BASE_DATOS=${url_base}
 EOF
 

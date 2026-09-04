@@ -9,9 +9,9 @@ import {
 } from "../../../shared/ui/FiltrosLista";
 import { TablaRevision } from "../components/TablaRevision";
 import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
-import { PERIODOS_MOCK } from "../api/periodosMock";
 import type { FiltrosTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
+import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
 
@@ -21,32 +21,36 @@ import type { PedidoDesignacion } from "../types";
  * abierto): un filtro que acota desde el vamos no puede estar escondido detrás de
  * "+ Añadir filtro" — el usuario vería una lista recortada sin saber por qué.
  */
-const FILTROS_FIJOS: CampoFiltroFijo[] = [
-  { clave: "nombre", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
-  {
-    tipo: "select",
-    clave: "tipo",
-    ariaLabel: "Filtrar por tipo",
-    opciones: [
-      { value: "todos", label: "Tipo: Todos" },
-      { value: "Alta", label: "Alta" },
-      { value: "Baja", label: "Baja" },
-      { value: "Cambio de cargo o dedicación", label: "Cambio" },
-    ],
-  },
-  {
-    tipo: "select",
-    clave: "periodo",
-    ariaLabel: "Filtrar por período",
-    opciones: [
-      ...PERIODOS_MOCK.map((periodo) => ({
-        value: periodo.id,
-        label: periodo.activo ? `${periodo.nombre} (abierto)` : periodo.nombre,
-      })),
-      { value: "todos", label: "Todos los períodos" },
-    ],
-  },
-];
+function filtrosFijos(
+  periodos: { id: string; nombre: string; activo: boolean }[],
+): CampoFiltroFijo[] {
+  return [
+    { clave: "nombre", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
+    {
+      tipo: "select",
+      clave: "tipo",
+      ariaLabel: "Filtrar por tipo",
+      opciones: [
+        { value: "todos", label: "Tipo: Todos" },
+        { value: "Alta", label: "Alta" },
+        { value: "Baja", label: "Baja" },
+        { value: "Cambio de cargo o dedicación", label: "Cambio" },
+      ],
+    },
+    {
+      tipo: "select",
+      clave: "periodo",
+      ariaLabel: "Filtrar por período",
+      opciones: [
+        ...periodos.map((periodo) => ({
+          value: periodo.id,
+          label: periodo.activo ? `${periodo.nombre} (abierto)` : periodo.nombre,
+        })),
+        { value: "todos", label: "Todos los períodos" },
+      ],
+    },
+  ];
+}
 
 /**
  * Filtros opcionales, detrás de "+ Añadir filtro". El filtro **Carrera** solo se
@@ -99,7 +103,8 @@ function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
 export function TableroRevisionPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
-  const { data: pedidos, isLoading, isError } = usePedidosPorAmbito(actor);
+  const { data: pedidos, isLoading, isError, refetch } = usePedidosPorAmbito();
+  const catalogos = useCatalogosDesignaciones();
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_INICIALES);
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
@@ -131,7 +136,8 @@ export function TableroRevisionPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se pudieron cargar los pedidos">
-          Hubo un problema al obtener los pedidos de revisión. Recargá la página para reintentar.
+          Hubo un problema al obtener los pedidos de revisión.{" "}
+          <button onClick={() => refetch()}>Reintentar</button>.
         </InlineAlert>
       )}
 
@@ -143,7 +149,7 @@ export function TableroRevisionPage() {
 
       {!isLoading && !isError && cantidad > 0 && (
         <FiltrosLista
-          fijos={FILTROS_FIJOS}
+          fijos={filtrosFijos(catalogos.data?.periodos ?? [])}
           opcionales={filtrosOpcionales(actor.carrera === undefined)}
           valores={filtros}
           onChange={setFiltros}

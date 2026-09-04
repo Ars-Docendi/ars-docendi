@@ -12,6 +12,7 @@ export interface PeriodoDesignacion {
   impactoHasta: string;
   /** Solo puede haber un período con activo:true a la vez. */
   activo: boolean;
+  version?: number;
 }
 
 // ============================================================
@@ -24,21 +25,13 @@ export interface PeriodoDesignacion {
 /** Roles del sistema. Alias del `Role` del app shell (única fuente de verdad). */
 export type Rol = Role;
 
-export type Novedad = "Alta" | "Baja" | "Cambio de cargo o dedicación";
-export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
-export type Dedicacion =
-  | "Categoría 0"
-  | "Categoría 1"
-  | "Categoría 2"
-  | "Categoría 3"
-  | "Categoría 4"
-  | "Categoría 5"
-  | "Categoría 6";
+export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
+export type Cargo = string;
+export type Dedicacion = string;
 
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
 
-/** Departamento/dependencia que se hace cargo de un docente marcado como agente externo. */
 export type DepartamentoAgenteExterno =
   | "Departamento de Arquitectura"
   | "Departamento de Salud"
@@ -48,7 +41,11 @@ export type DepartamentoAgenteExterno =
   | "Departamento de Odontología"
   | "Secretaría Académica";
 
-/** Una materia asignada a un pedido, con su carga horaria. */
+/**
+ * Una materia del docente con su carga horaria. Modela una fila de la designación
+ * vigente (`designaciones.designaciones` en el backend), NO una parte del pedido:
+ * un pedido cubre exactamente una materia y lleva sus horas como campo propio.
+ */
 export interface AsignacionMateria {
   materia: string;
   horas: number;
@@ -68,7 +65,7 @@ export type TipoAdjunto = "cv" | "dni_frente" | "dni_dorso" | "justificativo";
 
 export interface Adjunto {
   id: string;
-  nombre: string; // solo nombre/tipo en el mock
+  nombre: string;
   tipo: TipoAdjunto;
 }
 
@@ -102,10 +99,18 @@ export interface DocentePedido {
   legajo?: string;
 }
 
+/** Persona canónica disponible para un Alta, aun cuando todavía no tenga designación. */
+export interface PersonaCatalogoPedido {
+  id: string;
+  dni: string;
+  nombre: string;
+  legajo?: string;
+}
+
 /**
  * Docente ya existente en el sistema, con su designación vigente.
  * Alimenta el selector de las novedades sobre docentes existentes
- * (Baja / Cambio) y el panel de datos actuales read-only.
+ * (Sin novedad / Baja / Cambio) y el panel de datos actuales read-only.
  * En el real provendría del módulo Portal / API Guaraní.
  */
 export interface DocenteExistente {
@@ -128,11 +133,17 @@ export interface PedidoDesignacion {
   /** Número de trámite legible (formato "N°-AAAA-NNNN"). Lo asigna el backend al persistir. */
   numero?: string;
   periodoId: string; // FK al período (SCRUM-82)
+  periodoNombre?: string;
+  /**
+   * La cátedra del pedido, que **es** su materia: el rol `jefe_catedra` tiene ámbito
+   * de materia, así que cátedra y materia son el mismo concepto. Un pedido cubre
+   * exactamente una, y de ella se deriva la carrera (un único Coordinador competente).
+   */
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
   docente: DocentePedido;
-  /** Materias del pedido con su carga horaria. Mínimo 1 elemento (BR: no puede quedar vacío). */
-  asignaciones: AsignacionMateria[];
+  /** Carga horaria del docente en la cátedra del pedido. */
+  horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
@@ -142,10 +153,8 @@ export interface PedidoDesignacion {
   tipoBaja?: TipoBaja;
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
-  horasInvestigacion: number; // mock (cross-module Portal en el real)
-  /** Docente contratado como agente externo. Sin "valor actual": dato nuevo, sin histórico previo. */
-  esAgenteExterno: boolean;
-  /** Departamento a cargo del agente externo. Obligatorio cuando `esAgenteExterno` es `true`. */
+  horasInvestigacion: number; // integración cross-module con Portal pendiente
+  esAgenteExterno?: boolean;
   departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
@@ -154,12 +163,28 @@ export interface PedidoDesignacion {
   etapaRetorno?: EstadoPedido; // a qué etapa de revisión vuelve al reenviar
   propietarioActual?: Rol; // quién debe corregir (JC / Coordinador / Secretaría)
   historial: EventoHistorial[];
+  accionesPermitidas?: string[];
+  version?: number;
+  personaId?: string;
+  materiaId?: string;
+  cargoSolicitadoId?: string;
 }
 
-/** Subconjunto editable de un pedido (lo que el form de alta/edición produce). */
+/**
+ * Subconjunto editable de un pedido (lo que el form de alta/edición produce).
+ * NO incluye `catedra`: la materia del pedido viene del ámbito del actor, no del
+ * form — un Jefe de Cátedra sólo carga pedidos sobre la cátedra que tiene a cargo.
+ */
 export interface DatosEditablesPedido {
   docente: DocentePedido;
-  asignaciones: AsignacionMateria[];
+  /**
+   * Cátedra del pedido, que es su materia. NO la elige el usuario: el form la
+   * recibe del ámbito del actor y la reenvía tal cual, porque define a qué
+   * Coordinador se rutea el pedido.
+   */
+  catedra: string;
+  /** Carga horaria en la cátedra del pedido. */
+  horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
   novedad: Novedad;
@@ -170,15 +195,25 @@ export interface DatosEditablesPedido {
   tipoBajaDetalle?: string;
   horasExternas: number;
   horasInvestigacion: number;
-  esAgenteExterno: boolean;
+  esAgenteExterno?: boolean;
   departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
+  personaId?: string;
+  materiaId?: string;
+  cargoSolicitadoId?: string;
+  periodoId?: string;
+  version?: number;
 }
 
-/** Contexto del actor que ejecuta una acción (rol + ámbito), derivado de useCurrentUser + mock. */
+/** Contexto presentacional derivado del usuario actual; nunca se envía como autoridad al backend. */
 export interface ActorContexto {
   rol: Rol;
   nombre: string;
   carrera?: string; // ámbito del Coordinador (depto implícito para Secretaría/Decanato/Administración)
-  catedra?: string; // ámbito del Jefe de Cátedra (cátedra que posee)
+  /**
+   * Cátedras que el Jefe de Cátedra tiene a cargo. Es una lista y no un valor
+   * único porque el rol tiene ámbito de materia y se puede otorgar varias veces
+   * al mismo usuario — se corresponde con `MateriasACargo` del backend.
+   */
+  catedras?: string[];
 }

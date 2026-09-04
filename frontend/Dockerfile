@@ -20,6 +20,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --no-frozen-lockfile
 
 COPY . .
+ARG VITE_DEVELOPMENT_AUTH_ENABLED=false
+ENV VITE_DEVELOPMENT_AUTH_ENABLED=${VITE_DEVELOPMENT_AUTH_ENABLED}
 RUN pnpm build
 
 # --- Stage runtime: nginx sirviendo el bundle estático ---

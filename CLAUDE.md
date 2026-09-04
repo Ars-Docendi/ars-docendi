@@ -68,7 +68,7 @@ El chatbot se integrará dentro de alguno de los módulos anteriores (pendiente 
 │   ├── global.json
 │   └── src/
 │       ├── ArsDocendi.Host/         # Composition root
-│       ├── ArsDocendi.Shared/       # Utilidades puras transversales
+│       ├── ArsDocendi.Shared/       # Utilidades transversales + schemas identity/audit
 │       ├── Modules.Designaciones/   + .Contracts/
 │       ├── Modules.Aulas/           + .Contracts/
 │       ├── Modules.Portal/          + .Contracts/
@@ -105,7 +105,7 @@ Reglas que se cumplen en todo PR. El reviewer (humano o `/pr-review`) las verifi
 1. **Cross-module: solo via Contracts**. `Modules.X` importa solo desde `Modules.<Otro>.Contracts`. **PROHIBIDO** referenciar `Modules.<Otro>` (proyecto interno) directamente o importar desde `Internal/` ajeno.
 2. **Grafo de dependencias DAG**. Sin ciclos. Chequear contra [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md) antes de agregar edges nuevos.
 3. **Ping endpoint obligatorio**. Cada módulo expone `GET /api/<modulo>/ping` con `[AllowAnonymous]` como smoke test.
-4. **Contracts y Shared puros**. `Modules.<X>.Contracts`: solo DTOs/interfaces/tokens, sin lógica. `ArsDocendi.Shared`: solo utilidades puras, sin I/O ni estado mutable.
+4. **Contracts puros; Shared acotado**. `Modules.<X>.Contracts`: solo DTOs/interfaces/tokens, sin lógica. `ArsDocendi.Shared`: utilidades puras transversales **más** la persistencia de identidad y auditoría (schemas `identity` y `audit`) — **única I/O admitida**, por ser infraestructura transversal de la que dependen los 4 módulos y no lógica de dominio. Cualquier otra I/O, estado mutable o lógica de negocio en `Shared` está **prohibida**. Corolario: los módulos **leen** identity para autorizar; escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración (el invariante #1 no lo cubre porque no es una relación cross-module).
 5. **Nueva feature → change OpenSpec aprobado**. SIEMPRE crear el change con `/opsx:propose` (genera proposal + design + specs + tasks) y dejarlo apply-ready ANTES de tocar código. El hard gate de `/add-feature` lo verifica con `openspec status` (`applyRequires` en `done`).
 6. **Cambios de schema/API → docs en el MISMO PR**. Actualizar `dependency-graph.md`, `api-contracts.md`, `data-model.md`, `domains/<x>.md` en el mismo PR que el código.
 7. **No fake UI**. Sin botones/rutas/forms que aparenten estar hechos pero no funcionan. Sin lorem ipsum / TODO visible al usuario.

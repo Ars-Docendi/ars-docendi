@@ -2,7 +2,7 @@
 
 ## Propósito
 
-**Portal de autogestión del docente**: el docente accede a sus datos personales, declara horas disponibles, mantiene áreas de experticia. Es la fuente canónica de información del docente que otros módulos consumen.
+**Portal de autogestión del docente**: el docente consulta identidad institucional de solo lectura y mantiene contacto, CV, trayectoria, formación, certificaciones, proyectos, habilidades e intereses.
 
 ## Roles que interactúan
 
@@ -16,25 +16,27 @@
 
 ## Entidades principales
 
-| Entidad                     | Descripción                                                                                                                                  | Schema/Tabla                | PII                                   |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------- |
-| `Docentes`                  | Datos personales del docente                                                                                                                 | `portal.Docentes`           | **Sí** — nombre, DNI, email, teléfono |
-| `Habilidades`               | Términos de habilidad e interés, creados por uso (folksonomía): `nombre`, `nombre_norm` único, `usos`, `canonica_id` para fusionar variantes | `portal.Habilidades`        | No                                    |
-| `DocenteHabilidades`        | Relación docente ↔ término, discriminada por `tipo` (`habilidad` \| `interes`)                                                               | `portal.DocenteHabilidades` | No                                    |
-| _(otras a definir en spec)_ | ...                                                                                                                                          | ...                         | ...                                   |
+| Entidad                                                       | Descripción                                                 | Schema/Tabla                     | PII      |
+| ------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------- | -------- |
+| `Perfiles`                                                    | Raíz vinculada a `identity.personas` por `persona_id`       | `portal.perfiles`                | No       |
+| `Contactos`, `Cvs`                                            | Datos editables y metadata del CV, sin bytes                | `portal.contactos`, `portal.cvs` | Contacto |
+| `Experiencias`, `Educaciones`, `Certificaciones`, `Proyectos` | Colecciones informativas con períodos opcionales            | `portal.*`                       | No       |
+| `Habilidades`                                                 | Vocabulario normalizado, con términos sugeridos             | `portal.habilidades`             | No       |
+| `DocenteHabilidades`                                          | Relación discriminada por `tipo` (`habilidad` \| `interes`) | `portal.docente_habilidades`     | No       |
 
 ## API pública (contract)
 
-| Interfaz              | Métodos                                                | Consumido por            |
-| --------------------- | ------------------------------------------------------ | ------------------------ |
-| `IPortalDocenteQuery` | `ObtenerDocentePorId`, `ExisteDocente`, `ObtenerAreas` | `Designaciones`, `Aulas` |
+| Interfaz         | Métodos              | Consumido por                   |
+| ---------------- | -------------------- | ------------------------------- |
+| `IPortalQueries` | `ObtenerPerfilAsync` | Futuros consumidores de lectura |
 
 ## Endpoints HTTP
 
-| Método                    | Path               | Rol       | Descripción  |
-| ------------------------- | ------------------ | --------- | ------------ |
-| GET                       | `/api/portal/ping` | (anónimo) | Health check |
-| _(a documentar en specs)_ | ...                | ...       | ...          |
+| Método          | Path                                                               | Rol         | Descripción                 |
+| --------------- | ------------------------------------------------------------------ | ----------- | --------------------------- | ----------- | ----------- | ------------------- |
+| GET             | `/api/portal/ping`                                                 | (anónimo)   | Health check                |
+| PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses` | autenticado | Actualización independiente |
+| POST/PUT/DELETE | `/api/portal/perfil/{experiencia                                   | educacion   | certificaciones             | proyectos}` | autenticado | CRUD de colecciones |
 
 ## Reglas de negocio
 
@@ -43,7 +45,7 @@ Ver [`docs/business-rules/portal.md`](../../business-rules/portal.md) (a crear).
 ## Dependencias
 
 - **Hacia adentro**: ninguna (es módulo fundacional de datos).
-- **Hacia afuera**: `Designaciones` y `Aulas` consumen este módulo vía `Modules.Portal.Contracts`.
+- **Hacia afuera**: no agrega edges; los contratos quedan disponibles para futuros consumidores.
 - **Externas**: **Azure AD** (login institucional — el docente se autentica con sus credenciales UNLaM).
 
 ## Specs activas

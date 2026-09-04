@@ -8,8 +8,9 @@ interface RequireRoleProps {
 }
 
 export function RequireRole({ allowedRoles }: RequireRoleProps) {
-  const usuario = useCurrentUser();
-  if (!allowedRoles.includes(usuario.role)) {
+  const { user, isLoading } = useCurrentUser();
+  if (isLoading) return null;
+  if (!user || !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
   return <Outlet />;

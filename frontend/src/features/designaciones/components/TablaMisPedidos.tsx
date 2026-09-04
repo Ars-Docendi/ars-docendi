@@ -1,13 +1,10 @@
 import { Button } from "@ars-docendi/ui";
-import type { ActorContexto, PedidoDesignacion } from "../types";
-import { puedeEditarPedido, puedeEliminarPedido } from "../api/maquinaEstados";
+import type { PedidoDesignacion } from "../types";
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 import { IconoX } from "./lucide";
-import { resumenMaterias } from "./detalleAdapters";
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
-  actor: ActorContexto;
   onVerDetalle: (pedido: PedidoDesignacion) => void;
   onEditar: (pedido: PedidoDesignacion) => void;
   onEliminar: (pedido: PedidoDesignacion) => void;
@@ -43,7 +40,6 @@ function fechaEnviado(p: PedidoDesignacion): string {
  */
 export function TablaMisPedidos({
   pedidos,
-  actor,
   onVerDetalle,
   onEditar,
   onEliminar,
@@ -85,7 +81,7 @@ export function TablaMisPedidos({
             {pedido.docente.legajo ?? "—"}
           </span>
           <span className="adoc-mp-cat" role="cell">
-            {resumenMaterias(pedido.asignaciones)}
+            {pedido.catedra}
           </span>
           <span className="adoc-mp-nov" role="cell">
             {etiquetaNovedadCorta(pedido)}
@@ -107,29 +103,31 @@ export function TablaMisPedidos({
             >
               Ver
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={!puedeEditarPedido(pedido, actor)}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditar(pedido);
-              }}
-            >
-              Editar
-            </Button>
-            <button
-              type="button"
-              className="adoc-mp-eliminar"
-              disabled={!puedeEliminarPedido(pedido, actor)}
-              aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEliminar(pedido);
-              }}
-            >
-              <IconoX />
-            </button>
+            {pedido.accionesPermitidas?.includes("editar") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditar(pedido);
+                }}
+              >
+                Editar
+              </Button>
+            )}
+            {pedido.accionesPermitidas?.includes("eliminar") && (
+              <button
+                type="button"
+                className="adoc-mp-eliminar"
+                aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEliminar(pedido);
+                }}
+              >
+                <IconoX />
+              </button>
+            )}
           </span>
         </div>
       ))}

@@ -8,7 +8,24 @@
 // TODO(backend): reemplazar por Modules.Portal vía React Query.
 // ============================================================
 
-import { PERSONAS_SISTEMA } from "../../../shared/mock/personasSistema";
+const PERSONAS_SISTEMA = [
+  {
+    nombre: "Marina",
+    apellido: "Díaz",
+    documento: "31089234",
+    legajo: "0033",
+    cuil: "27-31089234-8",
+    upn: "marina.diaz@unlam.edu.ar",
+  },
+  {
+    nombre: "Paula",
+    apellido: "Gómez",
+    documento: "35678901",
+    legajo: "0058",
+    cuil: "27-35678901-9",
+    upn: "admin.aulas@unlam.edu.ar",
+  },
+];
 
 export { perfilDe } from "./perfilesSeed";
 import type {

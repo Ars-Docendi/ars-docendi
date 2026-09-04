@@ -9,15 +9,9 @@ import { ModalNuevoDocente } from "../components/ModalNuevoDocente";
 import { ModalConfirmarDesactivacion } from "../components/ModalConfirmarDesactivacion";
 import { ModalConfirmarActivacion } from "../components/ModalConfirmarActivacion";
 import { ModalEditarDocente } from "../components/ModalEditarDocente";
-import {
-  DOCENTES_INICIALES,
-  agregarDocente,
-  editarDocente,
-  desactivarDocente,
-  activarDocente,
-  normalizarTexto,
-  type DocenteMock,
-} from "../mock/mockStore";
+import { useDocentes } from "../hooks/useDocentes";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
+import { normalizarTexto, type DocenteMock } from "../models";
 
 const FILTROS_VACIOS: FiltrosState = {
   apellido: "",
@@ -29,23 +23,35 @@ const FILTROS_VACIOS: FiltrosState = {
   rol: "",
   estado: "",
 };
+const SIN_DOCENTES: DocenteMock[] = [];
 
 export function IndexPage() {
-  const [docentes, setDocentes] = useState<DocenteMock[]>(DOCENTES_INICIALES);
+  const remoto = useDocentes();
+  const docentes = remoto.consulta.data ?? SIN_DOCENTES;
+  const materias = remoto.catalogos.data?.materias ?? [];
+  const cargos = remoto.catalogos.data?.cargos.map((c) => c.nombre) ?? [];
+  const rolesDisponibles = remoto.catalogos.data?.roles.map((rol) => rol.nombre) ?? [];
+  const personas =
+    remoto.catalogos.data?.personasElegibles.map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      apellido: p.apellido,
+      documento: p.documento,
+      legajo: p.legajo ?? "",
+      cuil: p.cuil ?? "",
+      fecha_nacimiento: p.fechaNacimiento ?? "",
+      telefono: p.telefono ?? "",
+      upn: p.upn ?? "",
+      version: p.version ?? undefined,
+    })) ?? [];
   const [filtros, setFiltros] = useState<FiltrosState>(FILTROS_VACIOS);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [docenteADesactivar, setDocenteADesactivar] = useState<DocenteMock | null>(null);
   const [docenteAActivar, setDocenteAActivar] = useState<DocenteMock | null>(null);
   const [docenteAEditar, setDocenteAEditar] = useState<DocenteMock | null>(null);
 
-  const usuario = useCurrentUser();
-  const esJdC = usuario.role === "Jefe de Cátedra";
-
-  const materiasJdC = useMemo(() => {
-    if (!esJdC) return null;
-    const propio = docentes.find((d) => d.upn === usuario.upn);
-    return propio ? propio.asignaciones.map((a) => a.materia.codigo) : [];
-  }, [esJdC, usuario.upn, docentes]);
+  const { user: usuario } = useCurrentUser();
+  const esJdC = usuario?.role === "Jefe de Cátedra";
 
   const docentesFiltrados = useMemo(() => {
     const apellido = normalizarTexto(filtros.apellido);
@@ -56,11 +62,6 @@ export function IndexPage() {
     const materiaBuscada = filtros.materia;
 
     return docentes.filter((d) => {
-      if (
-        materiasJdC !== null &&
-        !d.asignaciones.some((a) => materiasJdC.includes(a.materia.codigo))
-      )
-        return false;
       if (apellido && !normalizarTexto(d.apellido).includes(apellido)) return false;
       if (nombre && !normalizarTexto(d.nombre).includes(nombre)) return false;
       if (doc && !normalizarTexto(d.documento).includes(doc)) return false;
@@ -75,29 +76,34 @@ export function IndexPage() {
       if (filtros.estado === "inactivo" && d.is_active) return false;
       return true;
     });
-  }, [docentes, filtros, materiasJdC]);
+  }, [docentes, filtros]);
 
   function handleCrear(datos: Omit<DocenteMock, "id" | "is_active">) {
-    setDocentes((prev) => agregarDocente(prev, datos));
-    setModalNuevo(false);
+    remoto.crear.mutate(datos, { onSuccess: () => setModalNuevo(false) });
   }
 
   function handleEditar(datos: Omit<DocenteMock, "id" | "is_active">) {
     if (!docenteAEditar) return;
-    setDocentes((prev) => editarDocente(prev, docenteAEditar.id, datos));
-    setDocenteAEditar(null);
+    remoto.editar.mutate(
+      { docente: docenteAEditar, datos },
+      { onSuccess: () => setDocenteAEditar(null) },
+    );
   }
 
   function handleDesactivar() {
     if (!docenteADesactivar) return;
-    setDocentes((prev) => desactivarDocente(prev, docenteADesactivar.id));
-    setDocenteADesactivar(null);
+    remoto.cambiarEstado.mutate(
+      { docente: docenteADesactivar, activo: false },
+      { onSuccess: () => setDocenteADesactivar(null) },
+    );
   }
 
   function handleActivar() {
     if (!docenteAActivar) return;
-    setDocentes((prev) => activarDocente(prev, docenteAActivar.id));
-    setDocenteAActivar(null);
+    remoto.cambiarEstado.mutate(
+      { docente: docenteAActivar, activo: true },
+      { onSuccess: () => setDocenteAActivar(null) },
+    );
   }
 
   return (
@@ -106,6 +112,29 @@ export function IndexPage() {
         separator="›"
         items={[{ label: "Inicio", href: "/" }, { label: esJdC ? "Mis Docentes" : "Docentes" }]}
       />
+      {(remoto.consulta.isLoading || remoto.catalogos.isLoading) && (
+        <p role="status">Cargando docentes…</p>
+      )}
+      {(remoto.consulta.isError || remoto.catalogos.isError) && (
+        <p role="alert">
+          No se pudieron cargar los docentes.{" "}
+          <button onClick={() => remoto.consulta.refetch()}>Reintentar</button>
+        </p>
+      )}
+      {!remoto.consulta.isLoading && !remoto.consulta.isError && docentes.length === 0 && (
+        <p>No hay docentes para mostrar.</p>
+      )}
+      {(remoto.crear.isError || remoto.editar.isError || remoto.cambiarEstado.isError) && (
+        <p role="alert">
+          {mensajeProblema(
+            remoto.crear.error ?? remoto.editar.error ?? remoto.cambiarEstado.error,
+            "No se pudo guardar el cambio docente.",
+          )}
+        </p>
+      )}
+      {(remoto.crear.isPending || remoto.editar.isPending || remoto.cambiarEstado.isPending) && (
+        <p role="status">Guardando docente…</p>
+      )}
       <PageHeader
         title={esJdC ? "Mis Docentes" : "Administración de Docentes"}
         meta={`${docentesFiltrados.length} docentes · ${docentesFiltrados.filter((d) => d.is_active).length} activos`}
@@ -118,13 +147,19 @@ export function IndexPage() {
         }
       />
 
-      <FiltrosDocentes filtros={filtros} onChange={setFiltros} />
+      <FiltrosDocentes
+        filtros={filtros}
+        onChange={setFiltros}
+        materias={materias}
+        roles={rolesDisponibles}
+      />
 
       <TablaDocentes
         docentes={docentesFiltrados}
         onDesactivar={setDocenteADesactivar}
         onActivar={setDocenteAActivar}
         onEditar={setDocenteAEditar}
+        soloLectura={esJdC}
       />
 
       <ModalNuevoDocente
@@ -132,6 +167,15 @@ export function IndexPage() {
         upnsExistentes={docentes.map((d) => d.upn)}
         onCrear={handleCrear}
         onCerrar={() => setModalNuevo(false)}
+        materias={materias}
+        cargos={cargos}
+        personas={personas}
+        error={
+          remoto.crear.error
+            ? mensajeProblema(remoto.crear.error, "No se pudo crear el docente.")
+            : undefined
+        }
+        rolesDisponibles={rolesDisponibles}
       />
 
       <ModalConfirmarDesactivacion
@@ -151,6 +195,14 @@ export function IndexPage() {
         upnsExistentes={docentes.filter((d) => d.id !== docenteAEditar?.id).map((d) => d.upn)}
         onGuardar={handleEditar}
         onCerrar={() => setDocenteAEditar(null)}
+        materias={materias}
+        cargos={cargos}
+        error={
+          remoto.editar.error
+            ? mensajeProblema(remoto.editar.error, "No se pudo editar el docente.")
+            : undefined
+        }
+        rolesDisponibles={rolesDisponibles}
       />
     </>
   );

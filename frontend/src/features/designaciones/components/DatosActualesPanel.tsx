@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { ReactNode } from "react";
-import type { AsignacionMateria, Cargo, Dedicacion } from "../types";
+import type { Cargo, Dedicacion } from "../types";
 
 interface DatosActualesPanelProps {
   antiguedad: number;
@@ -10,10 +10,14 @@ interface DatosActualesPanelProps {
   dedicacionActual: Dedicacion;
   /** Cambio: dedicación solicitada. Si difiere de la actual se muestra como transición. */
   dedicacionSolicitada?: Dedicacion;
-  /** Materias vigentes del docente (catálogo), no lo que el usuario esté editando. */
-  materiasActuales: AsignacionMateria[];
-  /** Cambio: materias tal como quedan editadas en el form. Su presencia dispara la sub-sección "Materias". */
-  materiasSolicitadas?: AsignacionMateria[];
+  /** La cátedra del pedido. Es su materia: un pedido cubre exactamente una. */
+  materia: string;
+  /** Horas vigentes del docente en esa cátedra. `undefined` en un Alta: todavía no tiene designación. */
+  horasActuales?: number;
+  /** Cambio: horas tal como quedan editadas en el form. Su presencia dispara la sub-sección "Materia". */
+  horasSolicitadas?: number;
+  /** Sin novedad: muestra la materia en la franja superior. */
+  mostrarMateria?: boolean;
   horasInvestigacionActuales?: number;
   horasInvestigacionSolicitadas?: number;
   horasExternasActuales?: number;
@@ -55,62 +59,11 @@ function FilaResumen({ etiqueta, children }: { etiqueta: string; children: React
   );
 }
 
-/** Fila de materia: nombre + horas, con la misma transición (viejo tenue → nuevo en negrita) que Cargo/Dedicación — sin fondo ni ícono de aviso. */
-function FilaMateriaResumen({ fila }: { fila: FilaMateria }) {
-  const claseEstado =
-    fila.estado === "agregada" || fila.estado === "quitada" ? ` ${fila.estado}` : "";
-  return (
-    <div className={`adoc-pf-datos-sub-fila${claseEstado}`}>
-      <span className="adoc-pf-datos-sub-etiqueta">{fila.materia}</span>
-      <span className="adoc-pf-datos-sub-valor">
-        {fila.estado === "horas-cambiadas" ? (
-          <Transicion desde={`${fila.horasActual}h`} hacia={`${fila.horasNueva}h`} />
-        ) : (
-          `${fila.horasActual ?? fila.horasNueva}h`
-        )}
-      </span>
-    </div>
-  );
-}
-
-type EstadoFilaMateria = "sin-cambios" | "horas-cambiadas" | "agregada" | "quitada";
-
-interface FilaMateria {
-  materia: string;
-  horasActual?: number;
-  horasNueva?: number;
-  estado: EstadoFilaMateria;
-}
-
-/** Compara el listado de materias actual vs. solicitado, por nombre de materia. */
-function compararMaterias(
-  actuales: AsignacionMateria[],
-  solicitadas: AsignacionMateria[],
-): FilaMateria[] {
-  const mapaActual = new Map(actuales.map((a) => [a.materia, a.horas]));
-  const mapaSolicitada = new Map(solicitadas.map((a) => [a.materia, a.horas]));
-  const nombres = [...new Set([...mapaActual.keys(), ...mapaSolicitada.keys()])];
-  return nombres.map((materia): FilaMateria => {
-    const horasActual = mapaActual.get(materia);
-    const horasNueva = mapaSolicitada.get(materia);
-    if (horasActual !== undefined && horasNueva !== undefined) {
-      return {
-        materia,
-        horasActual,
-        horasNueva,
-        estado: horasActual === horasNueva ? "sin-cambios" : "horas-cambiadas",
-      };
-    }
-    if (horasActual !== undefined) return { materia, horasActual, estado: "quitada" };
-    return { materia, horasNueva, estado: "agregada" };
-  });
-}
-
 /**
  * Panel de solo lectura con la designación vigente del docente. En Cambio
  * (cuando llegan los props "solicitados") se convierte en un resumen de
- * cambios: transición `actual → solicitado` de cargo, dedicación, cada
- * materia (con sus horas) y horas de investigación/externas — para que la
+ * cambios: transición `actual → solicitado` de cargo, dedicación, la carga
+ * horaria de la materia y las horas de investigación/externas — para que la
  * modificación se entienda de un vistazo. Replica el bloque `datosActuales`
  * de los frames Baja/Cambio.
  */
@@ -120,8 +73,10 @@ export function DatosActualesPanel({
   cargoSolicitado,
   dedicacionActual,
   dedicacionSolicitada,
-  materiasActuales,
-  materiasSolicitadas,
+  materia,
+  horasActuales,
+  horasSolicitadas,
+  mostrarMateria = true,
   horasInvestigacionActuales,
   horasInvestigacionSolicitadas,
   horasExternasActuales,
@@ -152,11 +107,15 @@ export function DatosActualesPanel({
           dedicacionActual
         ),
     },
+    ...(mostrarMateria && horasSolicitadas === undefined
+      ? [{ clave: "Materia", valor: materia || "—" }]
+      : []),
   ];
 
-  const filasMaterias = materiasSolicitadas
-    ? compararMaterias(materiasActuales, materiasSolicitadas)
-    : [];
+  // En Cambio la materia no puede variar (es la cátedra), así que el resumen sólo
+  // compara su carga horaria.
+  const muestraMateriaConHoras = horasSolicitadas !== undefined;
+  const cambioHoras = muestraMateriaConHoras && horasSolicitadas !== (horasActuales ?? 0);
 
   const cambioInvestigacion =
     horasInvestigacionSolicitadas !== undefined &&
@@ -181,13 +140,20 @@ export function DatosActualesPanel({
         ))}
       </div>
 
-      {filasMaterias.length > 0 && (
+      {muestraMateriaConHoras && (
         <div className="adoc-pf-datos-sub">
-          <span className="adoc-pf-datos-sub-h">Materias</span>
+          <span className="adoc-pf-datos-sub-h">Materia</span>
           <div className="adoc-pf-datos-sub-lista">
-            {filasMaterias.map((fila) => (
-              <FilaMateriaResumen key={fila.materia} fila={fila} />
-            ))}
+            <div className="adoc-pf-datos-sub-fila">
+              <span className="adoc-pf-datos-sub-etiqueta">{materia || "—"}</span>
+              <span className="adoc-pf-datos-sub-valor">
+                {cambioHoras ? (
+                  <Transicion desde={`${horasActuales ?? 0}h`} hacia={`${horasSolicitadas}h`} />
+                ) : (
+                  `${horasActuales ?? horasSolicitadas ?? 0}h`
+                )}
+              </span>
+            </div>
           </div>
         </div>
       )}

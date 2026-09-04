@@ -18,7 +18,6 @@
 // - carrera: filtra por carrera exacta (Select cerrado, no texto libre).
 // ============================================================
 import type { Novedad, PedidoDesignacion } from "../types";
-import { PERIODOS_MOCK } from "../api/periodosMock";
 
 export type FiltroTipo = "todos" | Novedad;
 export type FiltroPrioridad = "todos" | "prioritarios" | "normales";
@@ -64,8 +63,7 @@ export interface FiltrosTablero {
  * puede haber uno a la vez. Si no hubiera ninguno, "todos" — mejor mostrar de más que
  * esconder todo detrás de un filtro que el usuario no pidió.
  */
-export const PERIODO_POR_DEFECTO: string =
-  PERIODOS_MOCK.find((periodo) => periodo.activo)?.id ?? "todos";
+export const PERIODO_POR_DEFECTO = "todos";
 
 export const FILTROS_INICIALES: FiltrosTablero = {
   tipo: "todos",

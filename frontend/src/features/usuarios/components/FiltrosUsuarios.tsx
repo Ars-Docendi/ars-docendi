@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input, Select } from "@ars-docendi/ui";
-import { ROLES_SISTEMA, type RolSistema } from "../mock/mockStore";
+import { type RolSistema } from "../models";
 
 export interface FiltrosState {
   apellido: string;
@@ -41,9 +41,10 @@ const estiloBotonQuitar: React.CSSProperties = {
 interface FiltrosUsuariosProps {
   filtros: FiltrosState;
   onChange: (filtros: FiltrosState) => void;
+  roles: string[];
 }
 
-export function FiltrosUsuarios({ filtros, onChange }: FiltrosUsuariosProps) {
+export function FiltrosUsuarios({ filtros, onChange, roles }: FiltrosUsuariosProps) {
   const [activados, setActivados] = useState<FiltroOpcional[]>([]);
 
   function set<K extends keyof FiltrosState>(campo: K, valor: FiltrosState[K]) {
@@ -169,7 +170,7 @@ export function FiltrosUsuarios({ filtros, onChange }: FiltrosUsuariosProps) {
                 style={{ width: "auto" }}
               >
                 <option value="">Todos los roles</option>
-                {ROLES_SISTEMA.map((r) => (
+                {roles.map((r) => (
                   <option key={r} value={r}>
                     {r}
                   </option>

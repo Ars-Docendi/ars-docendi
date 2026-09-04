@@ -4,21 +4,21 @@ import type { UploadedFile } from "@ars-docendi/ui";
 import type {
   DatosEditablesPedido,
   DocenteExistente,
-  DocentePedido,
   EstadoPedido,
   Novedad,
   PedidoDesignacion,
+  PersonaCatalogoPedido,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { DOCENTES_EXISTENTES, TIPOS_BAJA } from "../api/catalogos";
+import { horasVigentesEnCatedra } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
 import { SeccionAdjuntosPedido } from "./SeccionAdjuntosPedido";
 import "./pedidoForm.css";
 
-const NOVEDADES: Novedad[] = ["Alta", "Baja", "Cambio de cargo o dedicación"];
+const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
@@ -30,6 +30,12 @@ const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
 interface PedidoFormProps {
   pedidoInicial?: PedidoDesignacion;
   pedidosExistentes: PedidoDesignacion[];
+  /**
+   * Cátedra sobre la que se carga el pedido. Es su materia, y viene del ámbito del
+   * actor — no se elige en el form: un Jefe de Cátedra sólo tramita sobre la cátedra
+   * que tiene a cargo.
+   */
+  catedra: string;
   esEdicion?: boolean;
   /** Etiqueta del período abierto para el subtítulo ("2026 · 1C"). */
   periodoLabel?: string;
@@ -37,15 +43,21 @@ interface PedidoFormProps {
   /** `opciones.enviar` pide guardar y, en el mismo paso, enviar/reenviar a revisión. */
   onGuardar: (datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) => void;
   onCancelar: () => void;
+  docentes: DocenteExistente[];
+  personas: PersonaCatalogoPedido[];
+  cargos: string[];
+  dedicaciones: string[];
+  tiposBaja: string[];
 }
 
-function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
+function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEditablesPedido {
   return {
     docente: pedido?.docente ?? { dni: "", nombre: "", antiguedad: 0 },
-    asignaciones: pedido?.asignaciones ?? [{ materia: "", horas: 0 }],
+    catedra: pedido?.catedra ?? catedra,
+    horas: pedido?.horas ?? 0,
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
-    novedad: pedido?.novedad ?? "Alta",
+    novedad: pedido?.novedad ?? "Sin novedad",
     cargoSolicitado: pedido?.cargoSolicitado,
     dedicacionSolicitada: pedido?.dedicacionSolicitada,
     justificacion: pedido?.justificacion,
@@ -53,22 +65,32 @@ function datosIniciales(pedido?: PedidoDesignacion): DatosEditablesPedido {
     tipoBajaDetalle: pedido?.tipoBajaDetalle,
     horasExternas: pedido?.horasExternas ?? 0,
     horasInvestigacion: pedido?.horasInvestigacion ?? 0,
-    esAgenteExterno: pedido?.esAgenteExterno ?? false,
-    departamentoAgenteExterno: pedido?.departamentoAgenteExterno,
     adjuntos: pedido?.adjuntos ?? [],
+    personaId: pedido?.personaId,
+    materiaId: pedido?.materiaId,
+    periodoId: pedido?.periodoId,
+    version: pedido?.version,
   };
 }
 
 export function PedidoForm({
   pedidoInicial,
   pedidosExistentes,
+  catedra,
   esEdicion = false,
   periodoLabel = "2026 · 1C",
   guardando = false,
   onGuardar,
   onCancelar,
+  docentes,
+  personas,
+  cargos,
+  dedicaciones,
+  tiposBaja,
 }: PedidoFormProps) {
-  const [datos, setDatos] = useState<DatosEditablesPedido>(() => datosIniciales(pedidoInicial));
+  const [datos, setDatos] = useState<DatosEditablesPedido>(() =>
+    datosIniciales(catedra, pedidoInicial),
+  );
   const [errores, setErrores] = useState<ErroresValidacion>({});
 
   function actualizar<K extends keyof DatosEditablesPedido>(
@@ -80,7 +102,7 @@ export function PedidoForm({
 
   // Catálogo de docentes para el selector. Si se edita un pedido cuyo docente
   // no está en el catálogo, se antepone para que quede seleccionable.
-  const opcionesDocente: DocenteExistente[] = [...DOCENTES_EXISTENTES];
+  const opcionesDocente: DocenteExistente[] = [...docentes];
   const dniInicial = (pedidoInicial?.docente.dni ?? "").replace(/\D/g, "");
   if (
     pedidoInicial &&
@@ -96,7 +118,7 @@ export function PedidoForm({
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
-      materiasActuales: pedidoInicial.asignaciones,
+      materiasActuales: [{ materia: pedidoInicial.catedra, horas: pedidoInicial.horas }],
       horasInvestigacionActuales: pedidoInicial.horasInvestigacion,
       horasExternasActuales: pedidoInicial.horasExternas,
     });
@@ -116,11 +138,10 @@ export function PedidoForm({
         docente: { dni: "", nombre: "", antiguedad: 0 },
         cargoActual: null,
         dedicacionActual: null,
-        asignaciones: [{ materia: "", horas: 0 }],
+        horas: 0,
         horasInvestigacion: 0,
         horasExternas: 0,
-        esAgenteExterno: false,
-        departamentoAgenteExterno: undefined,
+        personaId: undefined,
       }));
       return;
     }
@@ -134,55 +155,25 @@ export function PedidoForm({
       },
       cargoActual: docente.cargoActual,
       dedicacionActual: docente.dedicacionActual,
-      asignaciones: docente.materiasActuales.map((asignacion) => ({ ...asignacion })),
+      // Sólo las horas de la cátedra del pedido: un pedido cubre exactamente una
+      // materia, así que el resto de las designaciones del docente no participan.
+      horas: horasVigentesEnCatedra(docente, catedra) ?? 0,
       horasInvestigacion: docente.horasInvestigacionActuales,
       horasExternas: docente.horasExternasActuales,
-      // Sin "valor actual" de agente externo (D-2): arranca sin marcar al elegir un docente existente.
-      esAgenteExterno: false,
-      departamentoAgenteExterno: undefined,
+      personaId: personas.find((persona) => persona.dni === docente.dni)?.id,
     }));
   }
 
-  function agregarMateria() {
+  function seleccionarPersonaAlta(personaId: string) {
+    const persona = personas.find((item) => item.id === personaId);
     setDatos((prev) => ({
       ...prev,
-      asignaciones: [...prev.asignaciones, { materia: "", horas: 0 }],
-    }));
-  }
-
-  function quitarMateria(indice: number) {
-    // Ni Alta ni Cambio exigen un mínimo de materias (regla de negocio) — Baja nunca
-    // llega acá (su listado es de solo lectura, sin acción de quitar).
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: prev.asignaciones.filter((_, i) => i !== indice),
-    }));
-  }
-
-  function cambiarMateria(indice: number, materia: string) {
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: prev.asignaciones.map((asignacion, i) =>
-        i === indice ? { ...asignacion, materia } : asignacion,
-      ),
-    }));
-  }
-
-  function cambiarHoras(indice: number, horas: number) {
-    setDatos((prev) => ({
-      ...prev,
-      asignaciones: prev.asignaciones.map((asignacion, i) =>
-        i === indice ? { ...asignacion, horas } : asignacion,
-      ),
-    }));
-  }
-
-  function cambiarEsAgenteExterno(valor: boolean) {
-    setDatos((prev) => ({
-      ...prev,
-      esAgenteExterno: valor,
-      // Al desmarcar, se limpia el departamento — no queda un valor huérfano sin el checkbox.
-      departamentoAgenteExterno: valor ? prev.departamentoAgenteExterno : undefined,
+      personaId: persona?.id,
+      docente: persona
+        ? { dni: persona.dni, nombre: persona.nombre, legajo: persona.legajo, antiguedad: 0 }
+        : { dni: "", nombre: "", antiguedad: 0 },
+      cargoActual: null,
+      dedicacionActual: null,
     }));
   }
 
@@ -233,6 +224,7 @@ export function PedidoForm({
   const esAlta = novedad === "Alta";
   const esBaja = novedad === "Baja";
   const esCambio = novedad === "Cambio de cargo o dedicación";
+  const esSinNovedad = novedad === "Sin novedad";
   const muestraSolicitud = esAlta || esCambio;
 
   const numero = pedidoInicial?.numero ?? "";
@@ -286,101 +278,103 @@ export function PedidoForm({
           docente={datos.docente}
           errorDocente={errores.docente}
           opcionesDocente={opcionesDocente}
+          personasAlta={personas}
           cargoActual={datos.cargoActual}
           cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
           dedicacionActual={datos.dedicacionActual}
           dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
-          materiasActuales={docenteSeleccionado?.materiasActuales ?? []}
-          materiasSolicitadas={esCambio ? datos.asignaciones : undefined}
+          materia={catedra}
+          horasActuales={horasVigentesEnCatedra(docenteSeleccionado, catedra)}
+          horasSolicitadas={esCambio ? datos.horas : undefined}
           horasInvestigacionActuales={docenteSeleccionado?.horasInvestigacionActuales}
           horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
           horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
           horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
-          onCambiarDocente={(docente: DocentePedido) => actualizar("docente", docente)}
           onSeleccionarDocente={seleccionarDocente}
+          onSeleccionarPersonaAlta={seleccionarPersonaAlta}
         />
 
         {muestraSolicitud && (
           <SeccionDesignacionSolicitada
-            asignaciones={datos.asignaciones}
+            materia={catedra}
+            horas={datos.horas}
             cargoSolicitado={datos.cargoSolicitado}
             dedicacionSolicitada={datos.dedicacionSolicitada}
             dedicacionActual={datos.dedicacionActual}
             horasInvestigacion={datos.horasInvestigacion}
             horasExternas={datos.horasExternas}
             errores={errores}
-            onAgregarMateria={agregarMateria}
-            onQuitarMateria={quitarMateria}
-            onCambiarMateria={cambiarMateria}
-            onCambiarHoras={cambiarHoras}
+            onCambiarHoras={(valor) => actualizar("horas", valor)}
             onCargo={(valor) => actualizar("cargoSolicitado", valor)}
             onDedicacion={(valor) => actualizar("dedicacionSolicitada", valor)}
             onHorasInvestigacion={(valor) => actualizar("horasInvestigacion", valor)}
             onHorasExternas={(valor) => actualizar("horasExternas", valor)}
-            esAgenteExterno={datos.esAgenteExterno}
-            onEsAgenteExterno={cambiarEsAgenteExterno}
-            departamentoAgenteExterno={datos.departamentoAgenteExterno}
-            onDepartamentoAgenteExterno={(valor) => actualizar("departamentoAgenteExterno", valor)}
+            cargos={cargos}
+            dedicaciones={dedicaciones}
           />
         )}
 
-        <section className="adoc-pf-sec">
-          <h2 className="adoc-pf-sec-h">Justificación</h2>
-          {esBaja && (
-            <>
-              <Field label="Tipo de baja" error={errores.tipoBaja}>
-                <Select
-                  value={datos.tipoBaja ?? ""}
-                  onChange={(e) =>
-                    actualizar("tipoBaja", (e.target.value || undefined) as TipoBaja)
-                  }
-                >
-                  <option value="">Seleccioná el tipo de baja…</option>
-                  {TIPOS_BAJA.map((tipo) => (
-                    <option key={tipo} value={tipo}>
-                      {tipo}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              {datos.tipoBaja === "Otro" && (
-                <Field label="Detalle" error={errores.tipoBajaDetalle}>
-                  <Textarea
-                    rows={2}
-                    value={datos.tipoBajaDetalle ?? ""}
-                    onChange={(e) => actualizar("tipoBajaDetalle", e.target.value)}
-                    placeholder="Describí el motivo de la baja"
-                  />
+        {!esSinNovedad && (
+          <section className="adoc-pf-sec">
+            <h2 className="adoc-pf-sec-h">Justificación</h2>
+            {esBaja && (
+              <>
+                <Field label="Tipo de baja" error={errores.tipoBaja}>
+                  <Select
+                    value={datos.tipoBaja ?? ""}
+                    onChange={(e) =>
+                      actualizar("tipoBaja", (e.target.value || undefined) as TipoBaja)
+                    }
+                  >
+                    <option value="">Seleccioná el tipo de baja…</option>
+                    {tiposBaja.map((tipo) => (
+                      <option key={tipo} value={tipo}>
+                        {tipo}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
-              )}
-            </>
-          )}
-          <Field
-            label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
-            error={errores.justificacion}
-          >
-            <Textarea
-              rows={3}
-              value={datos.justificacion ?? ""}
-              onChange={(e) => actualizar("justificacion", e.target.value)}
-              placeholder={
-                esBaja
-                  ? "Motivo de la baja del docente"
-                  : esCambio
-                    ? "Motivo del cambio de cargo o dedicación"
-                    : "Motivo del pedido de designación"
-              }
-            />
-          </Field>
-        </section>
+                {datos.tipoBaja === "Otro" && (
+                  <Field label="Detalle" error={errores.tipoBajaDetalle}>
+                    <Textarea
+                      rows={2}
+                      value={datos.tipoBajaDetalle ?? ""}
+                      onChange={(e) => actualizar("tipoBajaDetalle", e.target.value)}
+                      placeholder="Describí el motivo de la baja"
+                    />
+                  </Field>
+                )}
+              </>
+            )}
+            <Field
+              label={esBaja ? "Motivo de la baja" : "Motivo del pedido"}
+              error={errores.justificacion}
+            >
+              <Textarea
+                rows={3}
+                value={datos.justificacion ?? ""}
+                onChange={(e) => actualizar("justificacion", e.target.value)}
+                placeholder={
+                  esBaja
+                    ? "Motivo de la baja del docente"
+                    : esCambio
+                      ? "Motivo del cambio de cargo o dedicación"
+                      : "Motivo del pedido de designación"
+                }
+              />
+            </Field>
+          </section>
+        )}
 
-        <SeccionAdjuntosPedido
-          novedad={novedad}
-          errorAdjuntos={errores.adjuntos}
-          adjuntoComoUploaded={adjuntoComoUploaded}
-          onAgregar={agregarAdjunto}
-          onQuitar={quitarAdjunto}
-        />
+        {!esSinNovedad && (
+          <SeccionAdjuntosPedido
+            novedad={novedad}
+            errorAdjuntos={errores.adjuntos}
+            adjuntoComoUploaded={adjuntoComoUploaded}
+            onAgregar={agregarAdjunto}
+            onQuitar={quitarAdjunto}
+          />
+        )}
 
         <div className="adoc-pf-actions">
           <Button type="button" variant="secondary" onClick={onCancelar}>

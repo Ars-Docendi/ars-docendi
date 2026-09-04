@@ -1,0 +1,31 @@
+# El backend se buildea con el contexto en la raíz del repo (necesita database/
+# como input de compilación), así que sin este archivo el daemon recibiría todo
+# node_modules y los bin/obj de .NET en cada build.
+
+# Dependencias y artefactos de build
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/.vite
+**/coverage
+
+# Control de versiones y tooling local
+.git
+.gitignore
+.husky
+.claude
+**/.vs
+**/.idea
+**/*.user
+
+# Documentación y planning: no participan de ninguna imagen
+docs/
+openspec/
+*.md
+!README.md
+
+# Secretos y estado local
+.env
+.env.*
+!.env.example

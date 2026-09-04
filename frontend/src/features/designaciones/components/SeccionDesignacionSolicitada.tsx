@@ -1,71 +1,55 @@
-import { Checkbox, Field, Input, Select } from "@ars-docendi/ui";
-import type { AsignacionMateria, Cargo, Dedicacion, DepartamentoAgenteExterno } from "../types";
+import { Field, Input, Select } from "@ars-docendi/ui";
+import type { Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
-import {
-  CARGOS,
-  DEDICACIONES,
-  DEPARTAMENTOS_AGENTE_EXTERNO,
-  indiceDedicacion,
-} from "../api/catalogos";
-import { SeccionMateriasHoras } from "./SeccionMateriasHoras";
+import { indiceDedicacion } from "../api/catalogos";
+import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
 interface SeccionDesignacionSolicitadaProps {
-  asignaciones: AsignacionMateria[];
+  /** La cátedra del pedido. No se elige: viene del ámbito del actor. */
+  materia: string;
+  horas: number;
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   /** Cambio: dedicación vigente del docente. Filtra el Select a solo mejores (Categoría 0 = máxima). En Alta es `null` (no hay restricción). */
   dedicacionActual: Dedicacion | null;
   horasInvestigacion: number;
   horasExternas: number;
-  /** Sin "valor actual" contra el cual comparar (D-2): dato nuevo, sin histórico previo. */
-  esAgenteExterno: boolean;
-  /** Departamento a cargo del agente externo. Solo aplica (y se exige) cuando `esAgenteExterno` es `true`. */
-  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   errores: ErroresValidacion;
-  onAgregarMateria: () => void;
-  onQuitarMateria: (indice: number) => void;
-  onCambiarMateria: (indice: number, materia: string) => void;
-  onCambiarHoras: (indice: number, horas: number) => void;
+  onCambiarHoras: (horas: number) => void;
   onCargo: (valor?: Cargo) => void;
   onDedicacion: (valor?: Dedicacion) => void;
   onHorasInvestigacion: (valor: number) => void;
   onHorasExternas: (valor: number) => void;
-  onEsAgenteExterno: (valor: boolean) => void;
-  onDepartamentoAgenteExterno: (valor?: DepartamentoAgenteExterno) => void;
+  cargos: Cargo[];
+  dedicaciones: Dedicacion[];
 }
 
 /**
  * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
  * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
  * dedicación (en Cambio, solo opciones mejores que la actual — ver D-7), la
- * lista de materias + horas (agregar/quitar/editar; puede quedar vacía en
- * ambas novedades — ninguna exige un mínimo de materias), y horas de
- * investigación/externas.
+ * materia de la cátedra con su carga horaria, y horas de investigación/externas.
  */
 export function SeccionDesignacionSolicitada({
-  asignaciones,
+  materia,
+  horas,
   cargoSolicitado,
   dedicacionSolicitada,
   dedicacionActual,
   horasInvestigacion,
   horasExternas,
-  esAgenteExterno,
-  departamentoAgenteExterno,
   errores,
-  onAgregarMateria,
-  onQuitarMateria,
-  onCambiarMateria,
   onCambiarHoras,
   onCargo,
   onDedicacion,
   onHorasInvestigacion,
   onHorasExternas,
-  onEsAgenteExterno,
-  onDepartamentoAgenteExterno,
+  cargos,
+  dedicaciones,
 }: SeccionDesignacionSolicitadaProps) {
   const opcionesDedicacion = dedicacionActual
-    ? DEDICACIONES.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
-    : DEDICACIONES;
+    ? dedicaciones.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
+    : dedicaciones;
 
   return (
     <section className="adoc-pf-sec">
@@ -77,7 +61,7 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onCargo((e.target.value || undefined) as Cargo)}
           >
             <option value="">Seleccioná un cargo…</option>
-            {CARGOS.map((cargo) => (
+            {cargos.map((cargo) => (
               <option key={cargo} value={cargo}>
                 {cargo}
               </option>
@@ -99,12 +83,11 @@ export function SeccionDesignacionSolicitada({
         </Field>
       </div>
 
-      <SeccionMateriasHoras
-        asignaciones={asignaciones}
-        error={errores.asignaciones}
-        onAgregar={onAgregarMateria}
-        onQuitar={onQuitarMateria}
-        onCambiarMateria={onCambiarMateria}
+      <SeccionMateriaHoras
+        materia={materia}
+        horas={horas}
+        horasEditables
+        error={errores.horas}
         onCambiarHoras={onCambiarHoras}
       />
 
@@ -125,32 +108,7 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onHorasExternas(Number(e.target.value))}
           />
         </Field>
-        <Checkbox
-          label="Docente es agente externo"
-          checked={esAgenteExterno}
-          onChange={(e) => onEsAgenteExterno(e.target.checked)}
-        />
       </div>
-
-      {esAgenteExterno && (
-        <Field label="Departamento a cargo" error={errores.departamentoAgenteExterno}>
-          <Select
-            value={departamentoAgenteExterno ?? ""}
-            onChange={(e) =>
-              onDepartamentoAgenteExterno(
-                (e.target.value || undefined) as DepartamentoAgenteExterno,
-              )
-            }
-          >
-            <option value="">Seleccioná un departamento…</option>
-            {DEPARTAMENTOS_AGENTE_EXTERNO.map((departamento) => (
-              <option key={departamento} value={departamento}>
-                {departamento}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
     </section>
   );
 }

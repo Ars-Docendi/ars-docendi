@@ -1,129 +1,166 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { apiClient } from "../../../shared/api/client";
 import {
   aceptarPedido,
   crearPedido,
+  despriorizarPedido,
+  devolverPedido,
   eliminarPedido,
-  enviarPedido,
-  listarMisPedidos,
   listarPedidosPorAmbito,
-  obtenerPedido,
+  priorizarPedido,
+  rechazarPedido,
+  reenviarPedido,
 } from "./pedidosApi";
-import { reiniciarStorePedidos } from "./pedidosStore";
-import type { ActorContexto, DatosEditablesPedido } from "../types";
 
-const JC: ActorContexto = {
-  rol: "Jefe de Cátedra",
-  nombre: "G. Ruiz",
-  carrera: "Ingeniería en Informática",
-  catedra: "Ingeniería de Software",
-};
+vi.mock("../../../shared/api/client", () => ({
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
 
-const COORD: ActorContexto = {
-  rol: "Coordinador",
-  nombre: "M. Díaz",
-  carrera: "Ingeniería en Informática",
-};
-const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
-
-const DATOS_ALTA: DatosEditablesPedido = {
-  docente: { dni: "40222333", nombre: "Camila Vega", antiguedad: 0 },
-  asignaciones: [{ materia: "Ingeniería de Software", horas: 6 }],
-  cargoActual: null,
-  dedicacionActual: null,
+const dto = {
+  id: "pedido-1",
+  numero: "2026-0001",
+  periodo: { id: "periodo-1", nombre: "2C 2026" },
+  persona: { id: "persona-1", nombre: "Ana", apellido: "Pérez", documento: "123", legajo: "7" },
+  materia: {
+    id: "materia-1",
+    codigo: "03500",
+    nombre: "Software",
+    carreraId: "carrera-1",
+    carreraNombre: "Informática",
+  },
   novedad: "Alta",
-  cargoSolicitado: "Ayudante",
-  dedicacionSolicitada: "Categoría 5",
-  horasExternas: 0,
+  estado: "en_revision_coordinador",
+  prioritario: false,
+  cargoSolicitado: { id: "cargo-1", codigo: "adjunto", nombre: "Profesor Adjunto" },
+  dedicacionSolicitada: "Categoría 2",
+  horas: 10,
   horasInvestigacion: 0,
-  esAgenteExterno: false,
-  adjuntos: [
-    { id: "a1", nombre: "cv.pdf", tipo: "cv" },
-    { id: "a2", nombre: "frente.jpg", tipo: "dni_frente" },
-    { id: "a3", nombre: "dorso.jpg", tipo: "dni_dorso" },
+  horasExternas: 0,
+  justificacion: null,
+  tipoBaja: null,
+  tipoBajaDetalle: null,
+  etapaRetorno: null,
+  propietarioActual: "coordinador_carrera",
+  snapshot: null,
+  version: 2,
+  adjuntos: [],
+  historial: [],
+  accionesPermitidas: ["aceptar", "rechazar"],
+};
+const catalogos = {
+  periodoActivo: {
+    id: "periodo-1",
+    nombre: "2C",
+    cargaDesde: "2026-01-01",
+    cargaHasta: "2026-02-01",
+    impactoDesde: "2026-03-01",
+    impactoHasta: "2026-07-01",
+    activo: true,
+  },
+  periodos: [],
+  materias: [{ id: "materia-1", codigo: "03500", nombre: "Software", carreraId: "carrera-1" }],
+  personas: [
+    {
+      id: "persona-1",
+      nombre: "Ana",
+      apellido: "Pérez",
+      documento: "123",
+      legajo: "7",
+      designacionesVigentes: [],
+    },
   ],
+  cargos: [
+    {
+      id: "cargo-1",
+      codigo: "adjunto",
+      nombre: "Profesor Adjunto",
+      abreviatura: "Adjunto",
+      orden: 3,
+    },
+  ],
+  dedicaciones: ["Categoría 2"],
+  tiposBaja: ["Renuncia"],
+  novedades: ["Alta"],
 };
 
-describe("pedidosApi — seam mock", () => {
-  it("lista el seed de 'Mis pedidos' acotado a la cátedra del JC", async () => {
-    const lista = await listarMisPedidos(JC);
-    expect(lista.length).toBeGreaterThan(0);
-    expect(lista.every((p) => p.catedra === "Ingeniería de Software")).toBe(true);
+beforeEach(() => vi.clearAllMocks());
+
+describe("pedidosApi HTTP", () => {
+  it("mapea listado y conserva las acciones autorizadas por backend", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
+    const pedidos = await listarPedidosPorAmbito();
+    expect(apiClient.get).toHaveBeenCalledWith("/api/designaciones/pedidos");
+    expect(pedidos[0]).toMatchObject({
+      catedra: "Software",
+      carrera: "Informática",
+      accionesPermitidas: ["aceptar", "rechazar"],
+    });
   });
 
-  it("crear agrega un pedido en borrador con un evento 'crear'", async () => {
-    const creado = await crearPedido(DATOS_ALTA, JC);
-    expect(creado.estado).toBe("borrador");
-    expect(creado.historial.at(-1)?.accion).toBe("crear");
-
-    const lista = await listarMisPedidos(JC);
-    expect(lista.some((p) => p.id === creado.id)).toBe(true);
-  });
-
-  it("el estado persiste entre recargas (reset + re-hidratación del store)", async () => {
-    const creado = await crearPedido(DATOS_ALTA, JC);
-    await enviarPedido(creado.id, JC);
-
-    // Simula una recarga: el singleton se resetea y re-hidrata desde localStorage.
-    reiniciarStorePedidos();
-
-    const recuperado = await obtenerPedido(creado.id);
-    expect(recuperado.estado).toBe("en_revision_coordinador");
-  });
-});
-
-describe("pedidosApi — eliminar pedido en borrador (mis-pedidos-simplificado)", () => {
-  it("elimina un borrador propio del JC", async () => {
-    const creado = await crearPedido(DATOS_ALTA, JC);
-    await eliminarPedido(creado.id, JC);
-
-    const lista = await listarMisPedidos(JC);
-    expect(lista.some((p) => p.id === creado.id)).toBe(false);
-    await expect(obtenerPedido(creado.id)).rejects.toThrow();
-  });
-
-  it("rechaza eliminar un pedido que no está en borrador", async () => {
-    const creado = await crearPedido(DATOS_ALTA, JC);
-    await enviarPedido(creado.id, JC);
-
-    await expect(eliminarPedido(creado.id, JC)).rejects.toThrow(/borrador/i);
-
-    const lista = await listarMisPedidos(JC);
-    expect(lista.some((p) => p.id === creado.id)).toBe(true);
-  });
-
-  it("rechaza eliminar si el actor no es el Jefe de Cátedra", async () => {
-    const creado = await crearPedido(DATOS_ALTA, JC);
-
-    await expect(eliminarPedido(creado.id, COORD)).rejects.toThrow(/Jefe de Cátedra/);
-  });
-});
-
-describe("pedidosApi — seam de revisión (SCRUM-8)", () => {
-  it("listarPedidosPorAmbito acota a la carrera del Coordinador [BR-009]", async () => {
-    const lista = await listarPedidosPorAmbito(COORD);
-    expect(lista.length).toBeGreaterThan(0);
-    expect(lista.every((p) => p.carrera === "Ingeniería en Informática")).toBe(true);
-    // El pedido sembrado de Ingeniería Industrial NO debe aparecer.
-    expect(lista.some((p) => p.carrera === "Ingeniería Industrial")).toBe(false);
-  });
-
-  it("listarPedidosPorAmbito es depto-wide para Secretaría", async () => {
-    const lista = await listarPedidosPorAmbito(SECRE);
-    const carreras = new Set(lista.map((p) => p.carrera));
-    expect(carreras.has("Ingeniería en Informática")).toBe(true);
-    expect(carreras.has("Ingeniería Industrial")).toBe(true);
-  });
-
-  it("una aceptación persiste el avance de etapa entre recargas", async () => {
-    const enCoordinador = (await listarPedidosPorAmbito(COORD)).find(
-      (p) => p.estado === "en_revision_coordinador",
+  it("crea con IDs canónicos resueltos desde catálogos HTTP", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await crearPedido(
+      {
+        docente: { dni: "123", nombre: "Ana", antiguedad: 0 },
+        catedra: "Software",
+        horas: 10,
+        cargoActual: null,
+        dedicacionActual: null,
+        novedad: "Alta",
+        cargoSolicitado: "Profesor Adjunto",
+        dedicacionSolicitada: "Categoría 2",
+        horasExternas: 0,
+        horasInvestigacion: 0,
+        adjuntos: [],
+      },
+      catalogos,
     );
-    expect(enCoordinador).toBeDefined();
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos",
+      expect.objectContaining({
+        periodoId: "periodo-1",
+        personaId: "persona-1",
+        materiaId: "materia-1",
+        cargoSolicitadoId: "cargo-1",
+      }),
+    );
+  });
 
-    await aceptarPedido(enCoordinador!.id, COORD);
-    reiniciarStorePedidos();
+  it("envía una clave UUID en cada transición", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await aceptarPedido("pedido-1", "Conforme");
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos/pedido-1/aceptar",
+      { comentario: "Conforme" },
+      { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } },
+    );
+  });
 
-    const recuperado = await obtenerPedido(enCoordinador!.id);
-    expect(recuperado.estado).toBe("en_revision_secretaria");
+  it("usa HTTP para devolución, reenvío, rechazo, prioridad y eliminación", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await devolverPedido("pedido-1", "Corregir");
+    await reenviarPedido("pedido-1");
+    await rechazarPedido("pedido-1", "No corresponde");
+    await priorizarPedido("pedido-1", "Urgente");
+    await despriorizarPedido("pedido-1");
+    await eliminarPedido("pedido-1");
+    for (const accion of ["devolver", "reenviar", "rechazar", "priorizar", "despriorizar"]) {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        `/api/designaciones/pedidos/pedido-1/${accion}`,
+        expect.anything(),
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+        }),
+      );
+    }
+    expect(apiClient.delete).toHaveBeenCalledWith("/api/designaciones/pedidos/pedido-1");
+  });
+
+  it("propaga un conflicto HTTP sin inventar un estado local", async () => {
+    const conflicto = Object.assign(new Error("concurrency-conflict"), {
+      response: { status: 409 },
+    });
+    vi.mocked(apiClient.post).mockRejectedValue(conflicto);
+    await expect(aceptarPedido("pedido-1")).rejects.toBe(conflicto);
   });
 });

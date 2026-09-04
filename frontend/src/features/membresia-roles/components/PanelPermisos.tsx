@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Button } from "@ars-docendi/ui";
-import type { RolMock } from "../../roles/mock/mockStore";
-import type { PermisoMock, MapaMembresias } from "../mock/mockStore";
+import type { RolMock } from "../../roles/models";
+import type { PermisoMock, MapaMembresias } from "../models";
 
 interface PanelPermisosProps {
   rol: RolMock;
   permisos: PermisoMock[];
   membresias: MapaMembresias;
   onToggle: (rolId: string, permisoId: string) => void;
-  onGuardar: () => void;
+  onGuardar: () => Promise<void>;
 }
 
 export function PanelPermisos({
@@ -22,8 +22,8 @@ export function PanelPermisos({
 
   const activos = membresias[rol.id] ?? [];
 
-  function handleGuardar() {
-    onGuardar();
+  async function handleGuardar() {
+    await onGuardar();
     setGuardado(true);
     setTimeout(() => setGuardado(false), 2500);
   }

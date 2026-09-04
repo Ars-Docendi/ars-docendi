@@ -319,7 +319,6 @@ const SOFTWARE: Seccion = {
  */
 const PERFILES_POR_UPN: Record<string, Seccion> = {
   "marina.diaz@unlam.edu.ar": DATOS,
-  "demo@unlam.edu.ar": DATOS,
   "gustavo.ruiz@unlam.edu.ar": REDES,
   "decanato@unlam.edu.ar": REDES,
   "carla.lopez@unlam.edu.ar": SOFTWARE,

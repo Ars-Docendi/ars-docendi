@@ -48,7 +48,7 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
       hasta: actual ? null : datos.hasta?.trim() || null,
       descripcion: datos.descripcion.trim(),
       documento: datos.documento,
-      doi: datos.doi.trim(),
+      doi: datos.doi?.trim() ?? "",
     });
   }
 
@@ -97,7 +97,7 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
         </Field>
         <Field label="DOI">
           <Input
-            value={datos.doi}
+            value={datos.doi ?? ""}
             placeholder="10.1000/ejemplo.2025.114"
             onChange={(e) => setDatos({ ...datos, doi: e.target.value })}
           />

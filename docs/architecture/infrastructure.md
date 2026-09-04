@@ -85,6 +85,21 @@ módulo" dentro de cada base. Aprovisionamiento/borrado por `infra/scripts/`. Lo
 ambientes no-prod se siembran con datos sintéticos/anonimizados — **nunca** copia
 de prod.
 
+### Dataset sintético y autenticación de desarrollo
+
+Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.08.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+
+La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
+
+| Ambiente             | Frontend             | Backend                          | Resultado                                     |
+| -------------------- | -------------------- | -------------------------------- | --------------------------------------------- |
+| Local con `vite dev` | habilitado por `DEV` | no productivo + opt-in requerido | selector disponible si el Host fue habilitado |
+| Staging              | build arg `true`     | `Staging` + opt-in `true`        | selector y headers disponibles                |
+| Preview `pr-N`       | build arg `true`     | `Staging` + opt-in `true`        | selector y headers disponibles                |
+| Producción           | build arg `false`    | `Production` + opt-in `false`    | ruta, esquema, selector y headers ausentes    |
+
+Los defaults del Dockerfile, Compose y `spin-up.sh` son `false`. Además, el Host conserva la guarda independiente `!IsProduction()`: configurar el opt-in accidentalmente en Production no registra la superficie.
+
 ## Deployment process (CI/CD)
 
 GitHub Actions sobre runners self-hosted **efímeros**:

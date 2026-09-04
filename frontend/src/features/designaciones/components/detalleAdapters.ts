@@ -10,19 +10,11 @@ import type { AuditEntry, AuditVerb } from "@ars-docendi/ui";
 import type {
   AccionHistorial,
   ActorContexto,
-  AsignacionMateria,
   EstadoPedido,
   EventoHistorial,
   PedidoDesignacion,
   Rol,
 } from "../types";
-
-/** Resumen legible de las materias de un pedido: una sola → su nombre; varias → "Primera +N". */
-export function resumenMaterias(asignaciones: AsignacionMateria[]): string {
-  if (asignaciones.length === 0) return "—";
-  const [primera, ...resto] = asignaciones;
-  return resto.length > 0 ? `${primera.materia || "—"} +${resto.length}` : primera.materia || "—";
-}
 
 /** Mapa español → `AuditVerb` (símbolo de la lib, en inglés). Exhaustivo por tipo. */
 const VERBO_POR_ACCION: Record<AccionHistorial, AuditVerb> = {

@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { Button, Checkbox, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import {
-  nombreCompleto,
-  ROLES_SISTEMA,
-  type RolSistema,
-  type UsuarioMock,
-} from "../mock/mockStore";
+import { nombreCompleto, type RolSistema, type UsuarioMock } from "../models";
 
 interface ModalEditarUsuarioProps {
   usuario: UsuarioMock | null;
   upnsExistentes: string[];
   onGuardar: (datos: Omit<UsuarioMock, "id" | "is_active">) => void;
   onCerrar: () => void;
+  error?: string;
+  rolesDisponibles: string[];
 }
 
 export function ModalEditarUsuario({
@@ -19,6 +16,8 @@ export function ModalEditarUsuario({
   upnsExistentes,
   onGuardar,
   onCerrar,
+  error,
+  rolesDisponibles,
 }: ModalEditarUsuarioProps) {
   const [prevUsuario, setPrevUsuario] = useState(usuario);
   const [campos, setCampos] = useState(camposDesde(usuario));
@@ -96,6 +95,7 @@ export function ModalEditarUsuario({
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ marginBottom: "1rem" }}>
         <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
           {usuario ? nombreCompleto(usuario) : ""} &mdash; {usuario?.upn}
@@ -209,7 +209,7 @@ export function ModalEditarUsuario({
           error={enviado && campos.roles.length === 0 ? "Seleccioná al menos un rol" : undefined}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-            {ROLES_SISTEMA.map((r) => (
+            {rolesDisponibles.map((r) => (
               <Checkbox
                 key={r}
                 label={r}

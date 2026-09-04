@@ -5,12 +5,14 @@ import { motivoRechazo } from "./tableroRevisionModelo";
 
 /** Tono del chip de novedad (clases del design system). */
 const TONO_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "neutral",
   Alta: "success",
   Baja: "danger",
   "Cambio de cargo o dedicación": "warning",
 };
 
 const ETIQUETA_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "Sin novedad",
   Alta: "Alta",
   Baja: "Baja",
   "Cambio de cargo o dedicación": "Cambio",
@@ -116,9 +118,7 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Dedicación">
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
-        <Dato etiqueta="Materias">
-          {pedido.asignaciones.map((a) => `${a.materia} (${a.horas}h)`).join(" · ") || "—"}
-        </Dato>
+        <Dato etiqueta="Materias">{`${pedido.catedra} (${pedido.horas}h)`}</Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
             {pedido.horasInvestigacion} h semanales

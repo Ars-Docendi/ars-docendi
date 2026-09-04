@@ -4,6 +4,22 @@ Listado y filtrado de los usuarios del sistema en la página `/usuarios`, accesi
 
 ## Requirements
 
+### Requirement: Listado desde la identidad persistida
+
+La página de usuarios MUST obtener el listado desde la API de administración y MUST mostrar el estado canónico persistido, sin recurrir a un listado local ante respuestas vacías o fallidas.
+
+#### Scenario: Consulta exitosa
+
+- **GIVEN** usuarios persistidos en `identity`
+- **WHEN** un operador autorizado abre `/usuarios`
+- **THEN** la tabla muestra los usuarios devueltos por la API con sus personas, roles, ámbitos y estado
+
+#### Scenario: Cambios de otra sesión
+
+- **GIVEN** un usuario modificado por otra sesión
+- **WHEN** el operador refresca el listado
+- **THEN** la tabla refleja el nuevo estado persistido
+
 ### Requirement: Tabla de usuarios visible para Secretaría y Administración
 
 La página `/usuarios` SHALL mostrar una tabla con todos los usuarios del sistema. Solo los roles `Secretaría` y `Administración` SHALL poder acceder a esta ruta; cualquier otro rol SHALL ser redirigido a `/`.

@@ -87,32 +87,39 @@ export function PanelAccionesRevision({
       </div>
 
       <div className="adoc-acc-row">
-        <Button
-          variant="destructive"
-          style={BLOQUE}
-          disabled={enviando}
-          onClick={() => onSolicitarAccion("rechazar")}
-        >
-          Rechazar
-        </Button>
-        <Button
-          variant="secondary"
-          style={BLOQUE}
-          disabled={enviando}
-          onClick={() => onSolicitarAccion("devolver")}
-        >
-          Devolver
-        </Button>
+        {pedido.accionesPermitidas?.includes("rechazar") && (
+          <Button
+            variant="destructive"
+            style={BLOQUE}
+            disabled={enviando}
+            onClick={() => onSolicitarAccion("rechazar")}
+          >
+            Rechazar
+          </Button>
+        )}
+        {pedido.accionesPermitidas?.includes("devolver") && (
+          <Button
+            variant="secondary"
+            style={BLOQUE}
+            disabled={enviando}
+            onClick={() => onSolicitarAccion("devolver")}
+          >
+            Devolver
+          </Button>
+        )}
       </div>
 
-      <Button
-        variant="ghost"
-        style={BLOQUE}
-        disabled={enviando}
-        onClick={() => onSolicitarAccion(pedido.prioritario ? "despriorizar" : "priorizar")}
-      >
-        {pedido.prioritario ? "Quitar prioritario" : "Marcar prioritario"}
-      </Button>
+      {(pedido.accionesPermitidas?.includes("priorizar") ||
+        pedido.accionesPermitidas?.includes("despriorizar")) && (
+        <Button
+          variant="ghost"
+          style={BLOQUE}
+          disabled={enviando}
+          onClick={() => onSolicitarAccion(pedido.prioritario ? "despriorizar" : "priorizar")}
+        >
+          {pedido.prioritario ? "Quitar prioritario" : "Marcar prioritario"}
+        </Button>
+      )}
 
       <div className="adoc-divider" />
 

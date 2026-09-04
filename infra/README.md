@@ -292,6 +292,25 @@ curl -I https://staging.<dominio>/api/<modulo>/ping   # 200 (ruteo /api al backe
 > (`scripts/seed-data/sintetico.sql`) en todo ambiente **no-prod**. Regla dura:
 > `seed.sh` aborta si se le pide copiar la base de prod a un ambiente no-prod.
 
+### Operar y reejecutar el dataset sintético
+
+El SQL declara la versión `2026.08.1` en `public.seed_metadata` y usa UUIDs reservados, una transacción y un advisory lock. Puede ejecutarse nuevamente para restaurar las filas de ejemplo sin duplicarlas ni borrar registros ajenos:
+
+```bash
+infra/scripts/seed.sh staging
+# o, dentro del flujo normal: infra/scripts/spin-up.sh staging
+```
+
+`SEED_SQL=/ruta/version.sql` selecciona explícitamente otro archivo. Nunca se debe invocar con `prod`; el script lo rechaza antes de abrir `psql`. Para usar las identidades sembradas en un Host local no productivo hay que optar además por `DevelopmentAuthentication__Enabled=true` (equivale a `DevelopmentAuthentication:Enabled` en configuración). En Compose se configura mediante `DEVELOPMENT_AUTHENTICATION_ENABLED=true`. Los bundles optimizados de staging/preview requieren también `--build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true`; los workflows no productivos fijan ambos valores. Production conserva ambos opt-ins en `false`, ignora los headers de desarrollo y no publica `/api/desarrollo/identidades`.
+
+Smoke check después de desplegar staging o un preview:
+
+1. Abrir `/login` y pulsar **Iniciar sesión con cuenta institucional**; debe abrirse el selector sembrado.
+2. Confirmar que `GET /api/desarrollo/identidades` responde `200` y lista sólo identidades elegibles.
+3. Elegir una identidad y verificar que una llamada protegida envía `X-Dev-User-Id` y `X-Dev-Role-Code` y responde `200`.
+4. Cambiar de rol y verificar que la solicitud siguiente usa el nuevo código.
+5. En producción, confirmar que `/api/desarrollo/identidades` responde `404` y que el selector no está disponible.
+
 ## Empaquetado de la app (resuelto en el change `containerizar-app`)
 
 El empaquetado que esta plataforma consume vive en el repo:

@@ -38,7 +38,12 @@ context: |
     console.log en código productivo.
   - Cada módulo expone GET /api/<modulo>/ping con [AllowAnonymous] (smoke test).
   - Modules.<X>.Contracts: solo DTOs/interfaces/tokens, sin lógica.
-    ArsDocendi.Shared: solo utilidades puras, sin I/O ni estado mutable.
+    ArsDocendi.Shared: utilidades puras transversales MÁS la persistencia de
+    identidad y auditoría (schemas identity y audit) — única I/O admitida, por
+    ser infraestructura transversal de la que dependen los 4 módulos. Cualquier
+    otra I/O, estado mutable o lógica de dominio en Shared está prohibida. Los
+    módulos LEEN identity para autorizar; escribir personas/roles/permisos es
+    exclusivo de la superficie de administración.
 
   Gitflow: develop es la rama default (todos los PRs van ahí). main es release
   stable. feature/<kebab> -> PR a develop. hotfix/<kebab> -> PR a main y develop.
@@ -62,7 +67,7 @@ rules:
     - Escribí el diseño en español.
     - "Respetá las fronteras: cross-module SOLO vía *.Contracts; nada de referenciar Modules.<Otro> interno."
     - Mantené el grafo de dependencias como DAG (sin ciclos).
-    - Contracts y Shared puros (sin lógica / sin I/O ni estado mutable).
+    - "Contracts puros (sin lógica). Shared acotado: utilidades puras + la persistencia de identity/audit como única I/O admitida; ninguna otra."
     - Respetá Controller -> Service -> Repository y el ping endpoint por módulo.
   tasks:
     - Escribí las tareas en español, agrupadas por fase y con numeración jerárquica.

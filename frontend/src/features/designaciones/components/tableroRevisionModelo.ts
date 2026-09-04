@@ -20,7 +20,6 @@
 // gating por ámbito [BR-009] ya se aplicó a los `pedidos` que llegan acá.
 // ============================================================
 import type { ActorContexto, EstadoPedido, Novedad, PedidoDesignacion, Rol } from "../types";
-import { puedeRevisar } from "../api/maquinaEstados";
 import { formatearFecha } from "./detalleAdapters";
 
 type EtapaRevision = "en_revision_coordinador" | "en_revision_secretaria" | "en_revision_decanato";
@@ -90,7 +89,10 @@ export function pestaniaInicial(actor: ActorContexto): IdPestania {
 
 /** ¿Es el turno del actor sobre este pedido? (revisor de la etapa en su ámbito, o Administración). */
 export function esTuTurno(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
-  return puedeRevisar(pedido, actor);
+  void actor;
+  return (pedido.accionesPermitidas ?? []).some((accion) =>
+    ["aceptar", "rechazar", "devolver"].includes(accion),
+  );
 }
 
 /**

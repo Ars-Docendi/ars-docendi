@@ -21,4 +21,22 @@
     <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
   </ItemGroup>
 
+  <!--
+    DDL del schema `designaciones`, autorado en SQL versionado bajo database/ y
+    embebido acá como recurso. Las migraciones EF lo ejecutan con
+    migrationBuilder.Sql(...); ver design.md (D8) del change
+    modelo-datos-identity-designaciones.
+  -->
+  <ItemGroup>
+    <SqlDesignaciones Include="$(MSBuildThisFileDirectory)..\..\..\database\designaciones\*.sql" />
+    <EmbeddedResource Include="@(SqlDesignaciones)" Link="Sql\designaciones\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Ver la nota equivalente en ArsDocendi.Shared.csproj: un glob vacío compilaba
+       en silencio y el fallo aparecía recién al migrar. -->
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlDesignaciones)' == ''"
+           Text="No se encontró ningún .sql en database/designaciones/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+  </Target>
+
 </Project>
