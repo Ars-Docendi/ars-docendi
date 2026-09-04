@@ -1,5 +1,5 @@
 ---
-status: draft
+status: review
 owner: "Equipo Ars Docendi"
 feature: "openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md"
 last_updated: 2026-09-04
@@ -71,8 +71,9 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Modal**: `max-width` 880 px, alto del panel `min(72vh, 680px)`, título «Asistente» en el
-  encabezado del `Modal`. En ≤ 640 px ocupa la pantalla completa, sin radio ni margen.
+- **Modal**: `max-width` 880 px, alto del panel `min(72vh, 680px)` —el `vh` dividido por el
+  zoom de la interfaz, como hace el escenario del modal—, título «Asistente» en el encabezado
+  del `Modal`. En ≤ 640 px ocupa la pantalla completa, sin radio ni margen.
 - **Página `/asistente`**: `PageHeader` («Asistente» + meta) con «Nueva conversación» en
   `actions`; el panel centrado a 880 px y con alto fijo para que el hilo scrollee solo.
 - **Tarjeta de respuesta**: fondo `--color-bg-sunken`, radio `--radius-sm`, texto a `72ch`; la
@@ -87,7 +88,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 
 | Estado              | Descripción                                                                                                                                                                                  | Cuándo se muestra                                                              |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Cargando acceso     | Nada: ni lanzador ni panel hasta que `capacidades` responda                                                                                                                                  | Primera carga de la app                                                        |
+| Cargando acceso     | No hay lanzador; `/asistente` muestra el panel sin estado inicial hasta que el catálogo responda                                                                                             | Primera carga de la app                                                        |
 | Sin acceso          | No hay lanzador; `/asistente` muestra sólo un `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón                                               | 403 del backend                                                                |
 | Inicial (vacío)     | Título + alcance + chips de ejemplos + áreas (por descripción) + límites; campo con foco                                                                                                     | Sin turnos                                                                     |
 | En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                | Entre el envío y la respuesta                                                  |

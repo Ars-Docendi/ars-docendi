@@ -94,7 +94,7 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 10. docs(asistente): domains/asistente.md y tech-debt
 
-- [ ] 10.1 `docs/architecture/domains/asistente.md` §La superficie de usuario: «la abre en un cajón» → modal centrado; sumar razonamiento colapsado, reintento con la misma clave (sólo en error, y por qué), «Dejar de esperar» y su límite, conversación nueva, conversación que sobrevive al cierre, foco (retorno + `inert`), marca de columna sensible. §Specs activas: agregar `openspec/changes/asistente-rediseno-conversacion/`.
-- [ ] 10.2 `docs/quality/tech-debt.md`: TD-014 `Modal` de `@ars-docendi/ui` sin focus trap ni retorno de foco (workaround `inert` sobre `#root` en la feature; quitarlo cuando la librería lo traiga); TD-015 dos sets de íconos SVG (`app/shell/icons.tsx` grilla 18 y `features/designaciones/components/lucide.tsx` grilla 24), unificar en `shared/ui/iconos/` cuando designaciones no esté en edición viva.
-- [ ] 10.3 `docs/product/designs/asistente-conversacional-design-spec.md` ya existe (se creó con este change): revisar que lo implementado coincida y pasar `status` a `review`.
-- [ ] 10.4 Prettier y commit `docs(asistente): …`.
+- [x] 10.1 `docs/architecture/domains/asistente.md` §La superficie de usuario: «la abre en un cajón» → modal centrado; sumar razonamiento colapsado, reintento con la misma clave (sólo en error, y por qué), «Dejar de esperar» y su límite, conversación nueva, conversación que sobrevive al cierre, foco (retorno + `inert`), marca de columna sensible. §Specs activas: agregar `openspec/changes/asistente-rediseno-conversacion/`.
+- [x] 10.2 `docs/quality/tech-debt.md`: TD-014 `Modal` de `@ars-docendi/ui` sin focus trap ni retorno de foco (workaround `inert` sobre `#root` en la feature; quitarlo cuando la librería lo traiga); TD-015 dos sets de íconos SVG (`app/shell/icons.tsx` grilla 18 y `features/designaciones/components/lucide.tsx` grilla 24), unificar en `shared/ui/iconos/` cuando designaciones no esté en edición viva.
+- [x] 10.3 `docs/product/designs/asistente-conversacional-design-spec.md` ya existe (se creó con este change): revisar que lo implementado coincida y pasar `status` a `review`.
+- [x] 10.4 Prettier y commit `docs(asistente): …`.

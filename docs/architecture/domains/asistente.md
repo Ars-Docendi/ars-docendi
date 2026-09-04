@@ -457,8 +457,11 @@ datos, acá un fallo ruidoso niega un servicio que funciona.
 
 `frontend/src/features/asistente/`, con **dos montajes de la misma vista**: la ruta
 `/asistente` a página completa y un lanzador en la barra superior que la abre en un
-cajón. Una ruta a la que hay que navegar no resuelve el descubrimiento: si el usuario
-tiene que acordarse de que el asistente existe y buscar dónde está, no lo usa.
+**modal centrado**. Una ruta a la que hay que navegar no resuelve el descubrimiento:
+si el usuario tiene que acordarse de que el asistente existe y buscar dónde está, no
+lo usa. Y es un modal y no un cajón lateral porque la conversación es la tarea
+mientras dura: un cajón compite por el ancho con una pantalla que quedó atrás y a
+la que nadie está mirando.
 
 Dos implementaciones se desincronizarían, así que hay una sola —`PanelAsistente`—
 montada dos veces.
@@ -480,17 +483,92 @@ falla **abierta** con cualquiera que no conozca. El fallo no daría error: le mo
 el asistente a alguien que no debería verlo.
 
 El catálogo que trae de vuelta es el mismo que la vista necesita para su pantalla
-inicial, así que la consulta no es un costo extra.
+inicial, así que la consulta no es un costo extra. Y sin acceso no hay formulario:
+`/asistente` muestra sólo el aviso, porque un campo con botón que rechaza al enviar
+es un formulario que aparenta funcionar.
+
+### La conversación vive en el dueño del montaje
+
+El estado de la conversación —turnos, hilo, turno en vuelo— lo crea `useAsistente`
+en quien monta la vista: el lanzador de la barra para el modal, la página para la
+ruta. `PanelAsistente` lo recibe por prop y no tiene conversación propia.
+
+No es una prolijidad: el panel se monta al abrir el modal y se desmonta al cerrarlo,
+y Esc o un clic afuera —también sin querer— cierran. Con el hilo en el panel, un
+clic fuera tiraba la conversación entera y el turno en vuelo con ella. El lanzador
+vive con la barra, así que al reabrir la conversación sigue donde estaba, y un turno
+que estaba en vuelo al cerrar llega igual y espera. Navegar fuera de `/asistente`
+sí aborta el suyo: la página es su dueña.
+
+La ruta y el modal son **dos hilos independientes**, y nada se guarda en el
+navegador: las filas traen datos personales, y persistirlas en `localStorage` sin
+política de retención contradice lo que el enmascarador acaba de proteger. La
+conversación muere al recargar, como decidió el backend al no persistir el hilo.
+
+### Un turno a la vez, y el cliente nunca queda colgado
+
+Mientras hay un turno en vuelo no se envía otro —ni por Enter, ni por el botón, ni
+por un chip—, aunque se puede seguir escribiendo. Dos pedidos concurrentes son dos
+claves de idempotencia, es decir dos cobros, y el segundo sale con el hilo viejo o
+nulo y abre una conversación que nadie pidió. El guard vive en el hook, no sólo en
+la vista, para que ningún montaje futuro lo pierda.
+
+Cada turno viaja con un `AbortSignal` y un timeout **por request** de 160 s, apenas
+sobre el presupuesto de 150 s del turno en el backend: el que corta tiene que ser el
+servidor, con su mensaje de degradado, y el cliente es sólo la red de seguridad. El
+timeout no va en el cliente HTTP compartido porque el resto de la aplicación no
+tiene turnos de 150 s.
+
+Un `404` de hilo perdido —el backend los expira por inactividad— descarta el
+identificador del lado del cliente: la siguiente pregunta abre una conversación
+nueva en lugar de repetir el mismo error.
+
+### Reintentar reusa la clave, y sólo sobre un turno que terminó en error
+
+Un turno que falló ofrece «Reintentar», que reenvía el mismo texto con la misma
+`Idempotency-Key`: es el uso documentado de la clave, y si el backend ya había
+terminado cuando se cortó la conexión, devuelve lo que guardó sin volver a llamar al
+modelo.
+
+**El límite sale de leer el backend.** `IdempotenciaEnMemoria` consulta la caché
+**antes** de ejecutar el turno y guarda **después**, sin registrar el turno en
+curso: un segundo pedido con la misma clave mientras el original sigue corriendo
+ejecuta el turno entero otra vez, y el último `Guardar` pisa al primero. Por eso el
+botón existe únicamente en turnos con error —red, 5xx, 404, timeout del cliente—,
+que llegan cuando el request ya terminó, y **nunca** en vuelo ni sobre un turno
+que el usuario dejó de esperar.
+
+### «Dejar de esperar» dice exactamente lo que hace
+
+Mientras hay un turno en vuelo aparece «Dejar de esperar», con el mismo umbral que
+el indicador. Aborta el request del cliente y libera el campo, y eso es todo lo que
+hace: el backend no se entera, sigue el turno hasta el final y cobra la cuota. El
+turno queda con «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para
+tu cupo.», como nota y no como error —lo pidió el usuario—, y sin «Reintentar», por
+el límite de arriba.
+
+No se llama «Detener» ni «Cancelar» porque ninguno de los dos es cierto, y ni el
+nombre ni ningún tooltip insinúan que se ahorró la llamada al modelo.
+
+### Conversación nueva
+
+«Nueva conversación» vacía el hilo y descarta el identificador; el backend acepta
+un hilo nulo como conversación nueva, así que es real. Sin confirmación, porque no
+hay nada persistido que perder. Deshabilitado sin turnos y en vuelo.
 
 ### La accesibilidad, que es donde estaba el defecto conocido
 
-| Regla                                                          | Por qué                                                                                                                         |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `role="log"` + `aria-live` **solo sobre la lista de mensajes** | En el prototipo previo la región envolvía el contenedor entero, así que cada re-render hacía que el lector leyera todo de nuevo |
-| La línea de métricas, **fuera**                                | Cambia en cada turno: adentro es lo que más ruido genera                                                                        |
-| El indicador, en su propio `role="status"` y fuera del log     | Es un estado, no un mensaje de la conversación                                                                                  |
-| Umbral de aparición del indicador                              | Los tres carriles se diferencian en un orden de magnitud; un indicador que parpadea es peor que ninguno                         |
-| Foco al campo de entrada al responder                          | Quien usa teclado o lector no tiene que volver a buscarlo                                                                       |
+| Regla                                                          | Por qué                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `role="log"` + `aria-live` **solo sobre la lista de mensajes** | En el prototipo previo la región envolvía el contenedor entero, así que cada re-render hacía que el lector leyera todo de nuevo                                                                                                                                    |
+| La línea de métricas, **fuera**                                | Cambia en cada turno: adentro es lo que más ruido genera                                                                                                                                                                                                           |
+| El indicador, en su propio `role="status"` y fuera del log     | Es un estado, no un mensaje de la conversación                                                                                                                                                                                                                     |
+| Umbral de aparición del indicador                              | Los tres carriles se diferencian en un orden de magnitud; un indicador que parpadea es peor que ninguno                                                                                                                                                            |
+| Foco al campo de entrada al responder                          | Quien usa teclado o lector no tiene que volver a buscarlo                                                                                                                                                                                                          |
+| Foco de vuelta al lanzador al cerrar el modal                  | Sin eso el foco se perdía en `body`, y quien navega por teclado tenía que volver a encontrar la barra                                                                                                                                                              |
+| `inert` sobre `#root` mientras el modal está abierto           | El `Modal` de la librería no contiene el foco: Tab se escapaba hacia la página de atrás. Se portalea a `body`, hermano de `#root`, así que hacer inerte la raíz contiene el foco sin un trap a mano. Es un workaround (TD-014) hasta que el `Modal` traiga el suyo |
+| El razonamiento, como `<details>` cerrado dentro del mensaje   | Es parte de la respuesta y va en la región viva; el contenido de una disclosure cerrada no se anuncia hasta abrirla, así que no le agrega ruido al lector                                                                                                          |
+| La columna sensible, anunciada                                 | Un candado sólo visual no le dice nada a quien no lo ve: el candado va `aria-hidden` y la cabecera lleva «(dato personal)» sólo para lectores                                                                                                                      |
 
 **No se inventan etapas.** «Interpretando… consultando… redactando…» exigiría streaming
 del servidor, que cambia el contrato; un progreso simulado por temporizador sería el
@@ -505,9 +583,29 @@ nada de malo.
 `opciones` y `sugerencias` se presentan distinto porque son cosas distintas: las
 opciones continúan el turno, las sugerencias son preguntas nuevas.
 
+**El razonamiento se lee a pedido.** El backend lo redacta para el usuario final, y
+va al pie del mensaje como una disclosure cerrada, «Cómo lo interpreté», al lado de
+«Ver la consulta». La pregunta interpretada queda **visible** como «Entendí: …»,
+fuera de la disclosure: es el aviso de que la pregunta se reinterpretó, y esconderlo
+derrotaría su razón de ser.
+
+**Ninguna etiqueta interna llega a la pantalla.** `metricas.categoria` —el carril
+que resolvió el turno— salió del tipo del cliente: el backend la sigue mandando y lo
+que no está en el tipo no se puede pintar por descuido. `cubre[].nombre` es
+`schema.tabla` y tampoco se muestra; las áreas del catálogo se presentan por su
+descripción, y cuando no viene, no se listan.
+
 Las columnas sensibles se renderizan como tabla con los **valores reales** —nunca
-viajaron al modelo—, y el truncado se avisa **sin números**: «ves 3 de 124» es un canal
-de inferencia sobre datos que el usuario no puede ver.
+viajaron al modelo— y **se marcan**: candado en la cabecera y una leyenda bajo la
+tabla, «Las columnas con candado contienen datos personales.». Se dice qué es
+personal, no por dónde viajó ni cómo se enmascaró: eso es mecánica interna. El
+truncado se avisa **sin números**: «ves 3 de 124» es un canal de inferencia sobre
+datos que el usuario no puede ver.
+
+**Sólo acciones reales por mensaje**: «Copiar respuesta» y, con tabla, «Copiar
+tabla», y únicamente cuando el portapapeles del navegador existe. Regenerar,
+calificar, editar y adjuntar no tienen backend, y un botón que no hace nada es el
+fake UI del invariante #7.
 
 ## Reglas de negocio (BR-\*)
 
@@ -541,6 +639,7 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-superficie-api/` — el contrato de respuesta, los endpoints y el catálogo de capacidades
 - `openspec/changes/asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
 - `openspec/changes/asistente-proveedor-anthropic/` — el primer adaptador real del puerto
+- `openspec/changes/asistente-rediseno-conversacion/` — la conversación: reintento con la misma clave, «Dejar de esperar», conversación nueva y que sobrevive al cierre del modal, foco, columnas sensibles marcadas y el aspecto con tokens del tema
 
 ## Evaluación
 
