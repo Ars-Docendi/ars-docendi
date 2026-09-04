@@ -100,6 +100,18 @@ jobs:
       - name: Test
         run: dotnet test ArsDocendi.slnx --no-build -c Release --verbosity normal
 
+      # El evaluador está FUERA del archivo de solución a propósito: adentro,
+      # `dotnet test` lo correría y ejecutaría la API real decenas de veces por
+      # semana. Ver backend/eval/README.md y el guard ExclusionDelEvaluadorTests.
+      #
+      # Compilarlo sí: build no llama a ningún proveedor y cuesta cero. Sin este
+      # paso, el evaluador se rompería en silencio con cada cambio del núcleo y
+      # nadie lo notaría hasta querer correrlo.
+      #
+      # NUNCA agregar `dotnet test` ni `dotnet run` sobre este proyecto.
+      - name: Build del evaluador (sin correrlo)
+        run: dotnet build eval/ArsDocendi.Evaluacion/ArsDocendi.Evaluacion.csproj -c Release
+
   frontend:
     name: Frontend (Vite + React)
     needs: changes

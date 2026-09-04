@@ -1,9 +1,9 @@
+using System.Security.Claims;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ArsDocendi.Host.Api;
 

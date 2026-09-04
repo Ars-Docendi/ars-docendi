@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Modules.Designaciones.Contracts.Administracion;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
-using Modules.Designaciones.Contracts.Administracion;
 
 namespace Modules.Designaciones.Repositories;
 

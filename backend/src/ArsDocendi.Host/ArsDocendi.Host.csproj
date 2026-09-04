@@ -25,6 +25,7 @@
     <ProjectReference Include="..\Modules.Aulas\Modules.Aulas.csproj" />
     <ProjectReference Include="..\Modules.Portal\Modules.Portal.csproj" />
     <ProjectReference Include="..\Modules.Tareas\Modules.Tareas.csproj" />
+    <ProjectReference Include="..\Modules.Asistente\Modules.Asistente.csproj" />
   </ItemGroup>
 
 </Project>

@@ -97,6 +97,53 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | GET    | `/ping` | (anónimo)  | Health check del módulo               |
 | ...    | ...     | ...        | _(a documentar en specs por feature)_ |
 
+### Asistente (`/api/asistente/`)
+
+| Método | Path           | Permiso               | Descripción                                  |
+| ------ | -------------- | --------------------- | -------------------------------------------- |
+| GET    | `/ping`        | (anónimo)             | Health check del módulo                      |
+| POST   | `/consultas`   | `asistente.consultar` | Un turno. Exige `Idempotency-Key`            |
+| GET    | `/capacidades` | `asistente.consultar` | Qué puede hacer el asistente para este actor |
+
+Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
+
+El ping vive en un controller **propio y sin constructor**, y eso no es prolijidad: mientras compartió controller con el turno, construirlo exigía resolver las cadenas de solo lectura del asistente —cuya fábrica falla si el ambiente no las configuró— y el ping devolvía 500 sin base. Un ping que necesita configuración de base deja de poder distinguir «el módulo está cargado» de «la base responde». Hay un guard de arquitectura que lo fija.
+
+#### `POST /api/asistente/consultas`
+
+Pedido: `{ mensaje, hilo? }`. **No lleva actor**: sale de la identidad de la sesión, porque un identificador tomado del cuerpo sería un selector de alcance controlado por el cliente.
+
+Respuesta:
+
+| Campo                  | Qué                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| `estado`               | `respondida` · `no_contestable` · `necesita_aclaracion` · `servicio_degradado` |
+| `respuesta`            | El texto que lee el usuario                                                    |
+| `hilo`                 | Para mandarlo en el turno siguiente                                            |
+| `preguntaInterpretada` | Solo si difiere del mensaje                                                    |
+| `razonamiento`         | Cómo se interpretó la pregunta, tal como lo devolvió la generación             |
+| `opciones[]`           | El menú de una aclaración. **Bloquean** el turno                               |
+| `sugerencias[]`        | Qué otra cosa probar. **No** bloquean nada                                     |
+| `columnas[]`           | Nombre y marca de sensibilidad                                                 |
+| `filas[]`              | Los valores reales, incluidos los que no viajaron al modelo                    |
+| `truncado`             | Booleano, **nunca** un conteo                                                  |
+| `sql`                  | Solo con `asistente.ver_consulta`                                              |
+| `metricas`             | Llamadas al modelo y categoría                                                 |
+
+`opciones` y `sugerencias` son campos distintos a propósito, y colapsarlos borraría el tercer estado: las opciones esperan una elección para poder seguir, las sugerencias no esperan nada.
+
+`estado` usa etiquetas propias del contrato y no el nombre del enum del backend: renombrar un valor interno no puede romper a los clientes en silencio.
+
+**`Idempotency-Key` obligatoria.** Cada turno cuesta dos o tres llamadas al modelo, así que un doble submit se factura completo dos veces. Se resuelve **en memoria con expiración corta y acotada por actor** — no se reusa ni se copia `designaciones.idempotencia_comandos`, que guarda el cuerpo completo de la respuesta HTTP, que es exactamente lo que este módulo decidió no persistir.
+
+#### `GET /api/asistente/capacidades`
+
+Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede[]` y `alcance`.
+
+Se deriva de los **GRANT efectivos** del rol con el que el actor consulta y **nunca del payload del prompt**: el prefijo trae el esquema entero, columnas personales incluidas, así que un catálogo derivado de ahí ofrecería preguntas sobre columnas que el rol no puede leer.
+
+Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de ofrecerse. Cuesta cero tokens, así que sigue respondiendo con el proveedor caído.
+
 ## Idempotencia
 
 Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico retorna la misma respuesta y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.

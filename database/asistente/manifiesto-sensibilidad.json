@@ -1,0 +1,541 @@
+{
+  "version": 1,
+  "descripcion": "Manifiesto de sensibilidad del asistente. Clasifica TODA columna que el manifiesto de privilegios concede a alguno de los dos roles. Gobierna qué sale hacia el proveedor externo del modelo, que es una pregunta DISTINTA de quién puede leer qué: un actor puede tener todo el derecho a ver un teléfono en pantalla y no haber ninguna razón para que ese teléfono llegue a un tercero. Un test falla si aparece una columna concedida sin clasificar.",
+  "categorias": {
+    "publica": "Viaja al modelo tal cual.",
+    "sensible-valor": "Al modelo va un marcador estable; el valor real sigue viaje al llamador. El marcador es un contador por orden de aparición y NO se deriva del valor: un hash de un documento es invertible por fuerza bruta.",
+    "sensible-texto": "No viaja al modelo en absoluto: se suprime la columna entera, nombre incluido. Es para texto libre, donde redactar con reglas es frágil y no mandarlo es simple."
+  },
+  "asimetria": "El enmascaramiento protege el camino de VUELTA, no el de ida. La pregunta cruda del usuario viaja al proveedor a través de la generación: si alguien tipea un documento en la pregunta, llega al modelo igual.",
+  "tablas": [
+    {
+      "schema": "identity",
+      "tabla": "carreras",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "code",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "name",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "is_active",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "materias",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "code",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "name",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "is_active",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "personas",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "legajo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "apellido",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "documento",
+          "clasificacion": "sensible-valor",
+          "etiqueta": "documento",
+          "motivo": "Número de documento."
+        },
+        {
+          "columna": "cuil",
+          "clasificacion": "sensible-valor",
+          "etiqueta": "CUIL",
+          "motivo": "Clave única de identificación laboral."
+        },
+        {
+          "columna": "fecha_nacimiento",
+          "clasificacion": "sensible-valor",
+          "etiqueta": "fecha de nacimiento",
+          "motivo": "Fecha de nacimiento."
+        },
+        {
+          "columna": "telefono",
+          "clasificacion": "sensible-valor",
+          "etiqueta": "teléfono",
+          "motivo": "Teléfono de contacto."
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "users",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "display_name",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "is_active",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "last_login_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "persona_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "upn",
+          "clasificacion": "sensible-valor",
+          "etiqueta": "correo institucional",
+          "motivo": "Correo institucional. Es dato de contacto: solo lo concede el rol con acceso a datos personales."
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "roles",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "code",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "name",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "description",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "scope",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "es_sistema",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "is_active",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "user_roles",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "user_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "role_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "granted_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "deleted_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "permisos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "code",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "descripcion",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "rol_permisos",
+      "columnas": [
+        {
+          "columna": "rol_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "permiso_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "cargos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "abreviatura",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "orden",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "periodos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carga_desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carga_hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "impacto_desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "impacto_hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedidos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "numero",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "periodo_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "persona_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "novedad",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "estado",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "prioritario",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "cargo_solicitado_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "dedicacion_solicitada",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas_investigacion",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas_externas",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "justificacion",
+          "clasificacion": "sensible-texto",
+          "motivo": "Texto libre escrito por quien pide. Puede nombrar a cualquier persona y contar motivos que no son del trámite."
+        },
+        {
+          "columna": "tipo_baja",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "tipo_baja_detalle",
+          "clasificacion": "sensible-texto",
+          "motivo": "Texto libre con el detalle de una baja. Puede contener motivos personales o de salud."
+        },
+        {
+          "columna": "etapa_retorno",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "propietario_actual",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedido_adjuntos",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "pedido_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "tipo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedido_historial",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "pedido_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "accion",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "rol_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "actor_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "etapa",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "comentario",
+          "clasificacion": "sensible-texto",
+          "motivo": "Texto libre: justificativo de rechazo, comentario de devolución o motivo de prioridad. Puede nombrar a cualquier persona."
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "designaciones",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "persona_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "cargo_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "dedicacion",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "vigente_desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "vigente_hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "origen_pedido_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    }
+  ]
+}

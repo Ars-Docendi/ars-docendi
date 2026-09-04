@@ -16,6 +16,22 @@ public static class Permisos
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
 
+    /// <summary>
+    /// Admisión al asistente conversacional. Se administra desde la membresía de
+    /// roles, sin desplegar.
+    /// </summary>
+    public const string AsistenteConsultar = "asistente.consultar";
+
+    /// <summary>
+    /// Ver la consulta que el asistente generó para responder.
+    /// </summary>
+    /// <remarks>
+    /// Superficie de diagnóstico, no de uso: el <c>WHERE</c> de una consulta
+    /// generada puede llevar un documento. Se siembra <b>sin concedérselo a ningún
+    /// rol</b> y se otorga desde la administración de membresías, sin desplegar.
+    /// </remarks>
+    public const string AsistenteVerConsulta = "asistente.ver_consulta";
+
     public static readonly string[] Todos =
     [
         UsuariosVer,
@@ -29,5 +45,7 @@ public static class Permisos
         DesignacionesAprobarCoordinacion,
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
+        AsistenteConsultar,
+        AsistenteVerConsulta,
     ];
 }

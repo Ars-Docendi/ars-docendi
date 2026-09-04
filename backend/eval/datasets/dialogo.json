@@ -1,0 +1,72 @@
+{
+  "descripcion": "Eje de diálogo. Es el único que ejercita la capa conversacional: el eje de capacidad manda turnos autocontenidos, así que el reescritor, el reconocedor de aclaraciones y el detector de cambio de tema no están medidos por ningún número. Cada turno puede declarar `terminos_prohibidos`, que el runner busca en la PREGUNTA INTERPRETADA: sin eso, un diálogo puede dar 100% mientras el sistema arrastra el filtro del turno anterior. Se espera que empiece rojo, y ése es el punto: es la línea de base honesta.",
+  "dialogos": [
+    {
+      "id": "dia-001-seguimiento",
+      "actor": "global",
+      "es_pivote_duro": false,
+      "turnos": [
+        {
+          "pregunta": "¿Cuántos nombramientos siguen abiertos?",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.designaciones WHERE vigente_hasta IS NULL"
+        },
+        {
+          "pregunta": "¿y cuántos hay cerrados?",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.designaciones WHERE vigente_hasta IS NOT NULL"
+        }
+      ]
+    },
+    {
+      "id": "dia-002-aclaracion",
+      "actor": "global",
+      "es_pivote_duro": false,
+      "turnos": [
+        {
+          "pregunta": "¿Quién dicta Análisis Matemático?",
+          "espera_aclaracion": true
+        },
+        {
+          "pregunta": "el de Ingeniería en Informática",
+          "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = m.carrera_id WHERE m.name = 'Análisis Matemático' AND c.name = 'Ingeniería en Informática'"
+        }
+      ]
+    },
+    {
+      "id": "dia-003-pivote-duro",
+      "actor": "global",
+      "es_pivote_duro": true,
+      "turnos": [
+        {
+          "pregunta": "¿Qué docentes dictan Bases de Datos?",
+          "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE m.name = 'Bases de Datos'"
+        },
+        {
+          "pregunta": "¿Cuáles son los cargos docentes que existen?",
+          "sql_referencia": "SELECT nombre FROM designaciones.cargos ORDER BY nombre",
+          "terminos_prohibidos": ["Bases de Datos", "docentes que dictan", "materia"]
+        }
+      ]
+    },
+    {
+      "id": "dia-004-pivote-y-vuelta",
+      "actor": "global",
+      "es_pivote_duro": true,
+      "turnos": [
+        {
+          "pregunta": "¿Qué asignaturas se dictan en Ingeniería Industrial?",
+          "sql_referencia": "SELECT m.name FROM identity.materias m JOIN identity.carreras c ON c.id = m.carrera_id WHERE c.name = 'Ingeniería Industrial' ORDER BY m.name"
+        },
+        {
+          "pregunta": "¿Cuántas solicitudes de baja se presentaron?",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE tipo_novedad = 'baja'",
+          "terminos_prohibidos": ["Ingeniería Industrial", "asignaturas", "materias"]
+        },
+        {
+          "pregunta": "¿y cuántas de esas quedaron sin aprobar?",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE tipo_novedad = 'baja' AND estado <> 'aprobado'",
+          "terminos_prohibidos": ["Ingeniería Industrial"]
+        }
+      ]
+    }
+  ]
+}

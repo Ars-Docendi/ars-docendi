@@ -1,8 +1,8 @@
+using ArsDocendi.Shared.Identity;
 using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
-using ArsDocendi.Shared.Identity;
 
 namespace Modules.Designaciones.Services;
 

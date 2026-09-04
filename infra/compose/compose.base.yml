@@ -38,6 +38,20 @@ services:
       DevelopmentAuthentication__Enabled: ${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
       # Connection string que liga el ambiente a SU base aislada (D7).
       ConnectionStrings__ArsDocendi: ${URL_BASE_DATOS}
+      # Roles de solo lectura del asistente, con sufijo de ambiente. Los crea
+      # provision-db.sh; el backend los necesita para aplicarles sus GRANT al
+      # migrar, y más adelante para elegir con cuál de los dos consulta.
+      Asistente__RolSoloLectura: ${ASISTENTE_ROL_BASICO}
+      Asistente__RolSoloLecturaPii: ${ASISTENTE_ROL_PII}
+      # Contraseñas de esos roles: con ellas el backend arma las dos cadenas de
+      # solo lectura, derivadas de la del dueño (mismo host y misma base).
+      Asistente__PasswordSoloLectura: ${ASISTENTE_RO_PASSWORD}
+      Asistente__PasswordSoloLecturaPii: ${ASISTENTE_RO_PII_PASSWORD}
+      # Proveedor del modelo de lenguaje. DEFAULT SIMULADO, a propósito: los
+      # ambientes efímeros de PR no pueden tener clave real, porque su workflow
+      # ejecuta un script que viene del propio pull request en un job con los
+      # secrets del environment. Usar uno real exige ponerlo explícitamente.
+      Asistente__Proveedor: ${ASISTENTE_PROVEEDOR:-simulado}
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida
