@@ -19,7 +19,7 @@ export function mensajeDeError(error: unknown): string {
     return "No tenés acceso al asistente con tus permisos actuales.";
   }
 
-  if (estado === 404) {
+  if (esHiloPerdido(error)) {
     return "Se perdió el hilo de la conversación. Volvé a hacer la pregunta.";
   }
 
@@ -32,4 +32,15 @@ export function mensajeDeError(error: unknown): string {
   }
 
   return "No pude completar la consulta. Probá formulándola de otra manera.";
+}
+
+/**
+ * El backend ya no reconoce el hilo: lo expiró por inactividad y responde 404.
+ *
+ * Quien lo detecta tiene que SOLTAR el identificador que guardaba. Decirle al
+ * usuario «volvé a hacer la pregunta» y mandar el mismo hilo muerto la vez
+ * siguiente es prometer una salida y devolverlo al mismo error.
+ */
+export function esHiloPerdido(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
 }

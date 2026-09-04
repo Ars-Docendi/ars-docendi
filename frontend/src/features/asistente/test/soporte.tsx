@@ -1,0 +1,50 @@
+import type { ReactNode } from "react";
+import { render } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
+
+// ============================================================
+// Lo que comparten los archivos de test de la feature.
+//
+// `asistente.test.tsx` ya roza el cap de ~300 líneas, así que cada componente o
+// hook nuevo se prueba en un archivo hermano. Todos montan igual —un
+// `QueryClientProvider` propio, sin reintentos ni caché— y usan las mismas
+// fixtures, para que un test no pase por una diferencia de montaje que otro no
+// tiene.
+// ============================================================
+
+export const CAPACIDADES: CapacidadesDelAsistente = {
+  cubre: [
+    { nombre: "designaciones.pedidos", descripcion: "Los pedidos del trámite.", columnas: 12 },
+    { nombre: "identity.personas", descripcion: "El padrón de personas.", columnas: 5 },
+  ],
+  tablas: 2,
+  columnas: 17,
+  ejemplos: ["¿Qué carreras están vigentes?", "¿Cuántos pedidos hay en cada estado?"],
+  noPuede: ["No modifica nada: solo consulta."],
+  alcance: "Ves los datos de todo el Departamento.",
+};
+
+export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): RespuestaDelAsistente {
+  return {
+    estado: "respondida",
+    respuesta: "Hay 4 docentes designados.",
+    hilo: "11111111-1111-4111-8111-111111111111",
+    opciones: [],
+    sugerencias: [],
+    columnas: [],
+    filas: [],
+    truncado: false,
+    metricas: { llamadasAlModelo: 2, categoria: "agregacion" },
+    ...parcial,
+  };
+}
+
+export function montar(nodo: ReactNode) {
+  const cliente = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+
+  return render(<QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>);
+}

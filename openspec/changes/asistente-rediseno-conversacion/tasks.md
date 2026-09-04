@@ -2,11 +2,11 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 1. fix(asistente): Enter en vuelo + hilo perdido en 404
 
-- [ ] 1.1 Test rojo primero — `asistente.turnos.test.tsx` (nuevo): «Enter en vuelo no manda un segundo turno»: `consultar` con promesa pendiente; `type("a{Enter}")`, `type("b{Enter}")`; `expect(consultar).toHaveBeenCalledTimes(1)`; resolver; el segundo texto sigue en el campo. Hoy falla: se llama dos veces con claves distintas.
-- [ ] 1.2 Test rojo primero — «Un 404 reinicia el hilo»: primer turno OK (hilo A); segundo rechaza con `Object.assign(new Error(), { isAxiosError: true, response: { status: 404 } })`; tercero → `mock.calls[2][0].hilo === null`. Hoy falla: repite el hilo A.
-- [ ] 1.3 `hooks/useAsistente.ts`: `preguntar` ignora el envío si ya hay un turno en vuelo (guard en el hook). `components/PanelAsistente.tsx`: el `onKeyDown` no llama a `enviar` mientras `enVuelo`.
-- [ ] 1.4 `errores.ts`: exportar `esHiloPerdido(error): boolean` (404). En el `catch` de `useAsistente`, si `esHiloPerdido(error)` → `hilo.current = null`. El texto «Se perdió el hilo…» no cambia.
-- [ ] 1.5 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
+- [x] 1.1 Test rojo primero — `asistente.turnos.test.tsx` (nuevo): «Enter en vuelo no manda un segundo turno»: `consultar` con promesa pendiente; `type("a{Enter}")`, `type("b{Enter}")`; `expect(consultar).toHaveBeenCalledTimes(1)`; resolver; el segundo texto sigue en el campo. Hoy falla: se llama dos veces con claves distintas.
+- [x] 1.2 Test rojo primero — «Un 404 reinicia el hilo»: primer turno OK (hilo A); segundo rechaza con `Object.assign(new Error(), { isAxiosError: true, response: { status: 404 } })`; tercero → `mock.calls[2][0].hilo === null`. Hoy falla: repite el hilo A.
+- [x] 1.3 `hooks/useAsistente.ts`: `preguntar` ignora el envío si ya hay un turno en vuelo (guard en el hook). `components/PanelAsistente.tsx`: el `onKeyDown` no llama a `enviar` mientras `enVuelo`.
+- [x] 1.4 `errores.ts`: exportar `esHiloPerdido(error): boolean` (404). En el `catch` de `useAsistente`, si `esHiloPerdido(error)` → `hilo.current = null`. El texto «Se perdió el hilo…» no cambia.
+- [x] 1.5 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
 
 ## 2. fix(asistente): `AbortSignal` + timeout por turno + aborto al desmontar el dueño
 

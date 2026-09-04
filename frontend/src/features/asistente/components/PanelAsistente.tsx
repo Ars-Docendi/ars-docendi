@@ -48,6 +48,10 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
   }, [turnos, enVuelo]);
 
   async function enviar(mensaje: string) {
+    // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el
+    // botón, ni por un chip—, pero se puede seguir escribiendo: el borrador no se
+    // toca. El hook tiene su propio guard; éste es el que cuida lo escrito.
+    if (enVuelo) return;
     setBorrador("");
     await preguntar(mensaje);
   }
@@ -106,7 +110,8 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
           aria-label="Tu pregunta"
           onKeyDown={(evento) => {
             // Enter envía, Shift+Enter hace salto de línea: es lo que espera
-            // cualquiera que haya usado un chat.
+            // cualquiera que haya usado un chat. En vuelo, Enter no hace nada —
+            // tampoco inserta un salto que después viajaría con la pregunta.
             if (evento.key === "Enter" && !evento.shiftKey) {
               evento.preventDefault();
               void enviar(borrador);
