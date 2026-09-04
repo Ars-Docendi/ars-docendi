@@ -38,17 +38,51 @@
 
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
 
+/* La pantalla vacía: un título que invita a escribir, el alcance, los ejemplos
+   como chips y, más abajo y en chico, qué se puede consultar y qué no. Sin caja
+   ni borde: es lo que hay en el hilo antes del primer turno, no un aviso. Todo
+   sale del catálogo del backend. */
 .adoc-asistente-inicio {
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 72ch;
+  padding: var(--space-6) var(--space-2) var(--space-2);
 }
 
-.adoc-asistente-limites {
-  margin: var(--space-3) 0 0;
-  padding-inline-start: var(--space-5);
+.adoc-asistente-inicio-titulo {
+  margin: 0;
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-lh);
+  font-weight: var(--text-heading-weight);
+}
+
+.adoc-asistente-inicio-alcance {
+  margin: 0;
   color: var(--color-text-secondary);
+}
+
+/* Qué puede y qué no: lado a lado cuando entran, en columna cuando no. */
+.adoc-asistente-inicio-detalle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-inicio-rotulo {
+  margin: 0 0 var(--space-1);
   font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-inicio-lista {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
 }
 
 /* ─────────────────────────────── la conversación ───────────────────────────── */
@@ -170,20 +204,45 @@
 
 /* ─────────────────────────── opciones y sugerencias ────────────────────────── */
 
-/* Las opciones BLOQUEAN el turno y las sugerencias no: se ven distinto a propósito. */
+/* Las opciones BLOQUEAN el turno y las sugerencias no: se ven distinto a propósito.
+   Las opciones van en un bloque con barra de acento y botones con marco, una
+   elección pendiente. Las sugerencias —y los ejemplos del inicio— son chips:
+   pastillas sin relleno que se leen como preguntas para probar. */
 .adoc-asistente-opciones ul,
-.adoc-asistente-sugerencias ul {
+.adoc-asistente-chips {
   list-style: none;
-  margin: var(--space-2) 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
+/* Debajo de su título; en el inicio el espacio lo pone el contenedor. */
+.adoc-asistente-opciones ul,
+.adoc-asistente-sugerencias .adoc-asistente-chips {
+  margin-top: var(--space-2);
+}
+
 .adoc-asistente-opciones {
   border-left: 3px solid var(--color-accent);
   padding-left: var(--space-3);
+}
+
+/* Pastilla con contorno sutil: el botón fantasma de la librería es transparente y
+   sin borde, y solo se vería como texto suelto. Una pregunta que no entra en la
+   línea se parte en dos renglones en vez de desbordar el hilo; por eso el alto es
+   libre. La clase del panel adelante le gana en especificidad al tamaño de la
+   librería, no con !important. */
+.adoc-asistente .adoc-asistente-chips li > button {
+  max-width: 100%;
+  height: auto;
+  min-height: 28px;
+  padding-block: var(--space-1);
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-pill);
+  white-space: normal;
+  text-align: start;
 }
 
 .adoc-asistente-opciones-titulo,
@@ -516,16 +575,17 @@
     max-width: 92%;
   }
 
-  /* Los chips a ancho completo: en una pantalla angosta, una fila de pastillas que
-     se parte en tres renglones es más difícil de tocar que una lista. El botón de
-     la librería fija alto y una sola línea; acá se le permite crecer. */
+  /* Los chips y las opciones a ancho completo: en una pantalla angosta, una fila
+     de pastillas que se parte en tres renglones es más difícil de tocar que una
+     lista. El botón de la librería fija alto y una sola línea; acá se le permite
+     crecer. */
   .adoc-asistente .adoc-asistente-opciones li,
-  .adoc-asistente .adoc-asistente-sugerencias li {
+  .adoc-asistente .adoc-asistente-chips li {
     flex: 1 1 100%;
   }
 
   .adoc-asistente .adoc-asistente-opciones li > button,
-  .adoc-asistente .adoc-asistente-sugerencias li > button {
+  .adoc-asistente .adoc-asistente-chips li > button {
     width: 100%;
     height: auto;
     min-height: 28px;

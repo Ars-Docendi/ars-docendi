@@ -1,6 +1,13 @@
 import axios, { AxiosError } from "axios";
 
 /**
+ * Lo que se le dice a quien no tiene el permiso, sea al cargar el panel o al
+ * enviar. Un solo texto: dos redacciones para la misma situación harían pensar
+ * que son dos situaciones.
+ */
+export const MENSAJE_SIN_ACCESO = "No tenés acceso al asistente con tus permisos actuales.";
+
+/**
  * Traduce un fallo de transporte a algo que una persona pueda leer.
  *
  * El invariante es que NO salga nada crudo: ni el código de estado, ni el nombre de
@@ -16,7 +23,7 @@ export function mensajeDeError(error: unknown): string {
   const estado = error.response?.status;
 
   if (estado === 403) {
-    return "No tenés acceso al asistente con tus permisos actuales.";
+    return MENSAJE_SIN_ACCESO;
   }
 
   if (esHiloPerdido(error)) {

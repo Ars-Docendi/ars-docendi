@@ -60,11 +60,11 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 7. feat(asistente): estado inicial + chips
 
-- [ ] 7.1 Tests — `EstadoInicial.test.tsx` (nuevo): «usa `descripcion` y no `nombre`» (`findByText("Los pedidos del trámite.")`; `queryByText("designaciones.pedidos")` nulo); un chip envía la pregunta; chips deshabilitados en vuelo; «Sin acceso no hay formulario» (`obtenerCapacidades` rechaza 403; `findByText(/No tenés acceso/)`; `queryByLabelText("Tu pregunta")` nulo).
-- [ ] 7.2 `components/EstadoInicial.tsx` (nuevo): título «¿Qué querés saber del sistema?» + línea con `alcance`; chips `<button>` pastilla (`--radius-pill`) con `ejemplos`; «Puedo consultar:» con `cubre[].descripcion` sólo cuando viene; «No puedo:» con `noPuede` compacto. Desaparece con el primer turno. El texto «N áreas de datos del sistema» que fija el test existente se conserva en la línea de alcance o se cambia el test a propósito en el mismo commit.
-- [ ] 7.3 `PanelAsistente.tsx`: con `tieneAcceso === false` renderiza sólo `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón.
-- [ ] 7.4 `Opciones.tsx` / `Sugerencias.tsx`: sólo clases (barra de acento a la izquierda / chips pastilla `ghost`); textos intactos.
-- [ ] 7.5 Verde y commit `feat(asistente): …`.
+- [x] 7.1 Tests — `EstadoInicial.test.tsx` (nuevo): «usa `descripcion` y no `nombre`» (`findByText("Los pedidos del trámite.")`; `queryByText("designaciones.pedidos")` nulo); un chip envía la pregunta; chips deshabilitados en vuelo; «Sin acceso no hay formulario» (`obtenerCapacidades` rechaza 403; `findByText(/No tenés acceso/)`; `queryByLabelText("Tu pregunta")` nulo).
+- [x] 7.2 `components/EstadoInicial.tsx` (nuevo): título «¿Qué querés saber del sistema?» + línea con `alcance`; chips `<button>` pastilla (`--radius-pill`) con `ejemplos`; «Puedo consultar:» con `cubre[].descripcion` sólo cuando viene; «No puedo:» con `noPuede` compacto. Desaparece con el primer turno. El texto «N áreas de datos del sistema» que fija el test existente se conserva en la línea de alcance o se cambia el test a propósito en el mismo commit.
+- [x] 7.3 `PanelAsistente.tsx`: con `tieneAcceso === false` renderiza sólo `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón.
+- [x] 7.4 `Opciones.tsx` / `Sugerencias.tsx`: sólo clases (barra de acento a la izquierda / chips pastilla `ghost`); textos intactos.
+- [x] 7.5 Verde y commit `feat(asistente): …`.
 
 ## 8. feat(asistente): reintentar, «Dejar de esperar», nueva conversación, conversación que sobrevive al cierre, foco del modal
 

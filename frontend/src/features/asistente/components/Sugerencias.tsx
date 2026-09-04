@@ -23,7 +23,7 @@ export function Sugerencias({ sugerencias, onElegir, deshabilitado }: Sugerencia
   return (
     <div className="adoc-asistente-sugerencias">
       <p className="adoc-asistente-sugerencias-titulo">Probá con alguna de estas:</p>
-      <ul>
+      <ul className="adoc-asistente-chips">
         {sugerencias.map((sugerencia) => (
           <li key={sugerencia}>
             <Button

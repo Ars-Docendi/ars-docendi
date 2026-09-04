@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { InlineAlert } from "@ars-docendi/ui";
 
 import { Conversacion } from "./Conversacion";
 import { EntradaDePregunta } from "./EntradaDePregunta";
+import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
-import { Sugerencias } from "./Sugerencias";
+import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
 
@@ -21,7 +23,7 @@ interface PanelAsistenteProps {
  * que alguien reportara que «desde el botón anda distinto».
  */
 export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
-  const { capacidades } = useAccesoAlAsistente();
+  const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar } = useAsistente();
   const [borrador, setBorrador] = useState("");
   const entrada = useRef<HTMLTextAreaElement>(null);
@@ -53,6 +55,18 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
     await preguntar(mensaje);
   }
 
+  // SIN ACCESO NO HAY FORMULARIO. Con 403 el campo y el botón quedaban activos y
+  // el rechazo recién aparecía al enviar: un formulario que aparenta funcionar es
+  // el fake UI que el invariante #7 prohíbe. El lanzador de la barra no aparece
+  // sin acceso, así que la ruta `/asistente` es la única forma de llegar acá.
+  if (tieneAcceso === false) {
+    return (
+      <section className="adoc-asistente" aria-label="Asistente conversacional">
+        <InlineAlert severity="info">{MENSAJE_SIN_ACCESO}</InlineAlert>
+      </section>
+    );
+  }
+
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
       {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando, el
@@ -61,21 +75,7 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
           espera de un chat. */}
       <div className="adoc-asistente-hilo" ref={hilo}>
         {turnos.length === 0 && capacidades && (
-          <div className="adoc-asistente-inicio">
-            <p>
-              Puedo consultar {capacidades.tablas} áreas de datos del sistema. {capacidades.alcance}
-            </p>
-            <Sugerencias
-              sugerencias={capacidades.ejemplos}
-              onElegir={enviar}
-              deshabilitado={enVuelo}
-            />
-            <ul className="adoc-asistente-limites">
-              {capacidades.noPuede.map((limite) => (
-                <li key={limite}>{limite}</li>
-              ))}
-            </ul>
-          </div>
+          <EstadoInicial capacidades={capacidades} onElegir={enviar} deshabilitado={enVuelo} />
         )}
 
         <Conversacion turnos={turnos} onElegir={enviar} enVuelo={enVuelo} />
