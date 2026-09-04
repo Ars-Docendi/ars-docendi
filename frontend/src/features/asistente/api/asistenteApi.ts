@@ -7,6 +7,25 @@ export interface ConsultaDelAsistente {
 }
 
 /**
+ * Lo máximo que el cliente espera un turno, en milisegundos.
+ *
+ * El backend acota cada turno a 150 s y, cuando lo agota, responde degradado con su
+ * propio mensaje. El margen es para que el que corte sea el servidor con ese
+ * mensaje; el cliente es sólo la red de seguridad para un request que se colgó
+ * sin respuesta de ningún tipo.
+ *
+ * Va POR REQUEST y no en el cliente HTTP compartido: el resto de la aplicación no
+ * tiene turnos de dos minutos y medio, y un tope global así de largo no protegería
+ * a nadie.
+ */
+export const PRESUPUESTO_DEL_TURNO_MS = 160_000;
+
+export interface OpcionesDeConsulta {
+  /** Para soltar el request desde afuera: quien lo emitió se desmontó o dejó de esperar. */
+  signal?: AbortSignal;
+}
+
+/**
  * Un turno.
  *
  * La `Idempotency-Key` la genera quien llama, POR INTENTO y no por conversación:
@@ -17,11 +36,16 @@ export interface ConsultaDelAsistente {
 export async function consultar(
   consulta: ConsultaDelAsistente,
   claveDeIdempotencia: string,
+  { signal }: OpcionesDeConsulta = {},
 ): Promise<RespuestaDelAsistente> {
   const { data } = await apiClient.post<RespuestaDelAsistente>(
     "/api/asistente/consultas",
     consulta,
-    { headers: { "Idempotency-Key": claveDeIdempotencia } },
+    {
+      headers: { "Idempotency-Key": claveDeIdempotencia },
+      signal,
+      timeout: PRESUPUESTO_DEL_TURNO_MS,
+    },
   );
   return data;
 }

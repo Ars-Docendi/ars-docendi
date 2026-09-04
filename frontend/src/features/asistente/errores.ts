@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 /**
  * Traduce un fallo de transporte a algo que una persona pueda leer.
@@ -27,7 +27,14 @@ export function mensajeDeError(error: unknown): string {
     return "El asistente tuvo un problema al responder. Probá de nuevo en un momento.";
   }
 
-  if (error.code === "ECONNABORTED" || error.response === undefined) {
+  // El timeout NO es «sin conexión». La conexión está bien; lo que pasó es que la
+  // pregunta no entró en el presupuesto, y lo que el usuario puede hacer es
+  // acotarla, no revisar su red.
+  if (error.code === AxiosError.ECONNABORTED || error.code === AxiosError.ETIMEDOUT) {
+    return "El asistente tardó demasiado en responder. Probá con una pregunta más acotada.";
+  }
+
+  if (error.response === undefined) {
     return "No pude comunicarme con el servidor. Revisá tu conexión y volvé a intentar.";
   }
 
@@ -43,4 +50,12 @@ export function mensajeDeError(error: unknown): string {
  */
 export function esHiloPerdido(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
+/**
+ * El request se abortó desde este lado: quien lo emitió se desmontó o dejó de
+ * esperar. NO es un error —nadie falló— y no se le muestra al usuario como tal.
+ */
+export function esCancelacion(error: unknown): boolean {
+  return axios.isCancel(error);
 }

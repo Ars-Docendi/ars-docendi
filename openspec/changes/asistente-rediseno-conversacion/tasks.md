@@ -10,13 +10,13 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 2. fix(asistente): `AbortSignal` + timeout por turno + aborto al desmontar el dueño
 
-- [ ] 2.1 Test rojo primero — «El turno viaja con `signal` y timeout»: `mock.calls[0][2].signal` es `AbortSignal`; espiar `apiClient.post` → recibe `timeout: 160000`. Hoy falla: `consultar` no recibe opciones.
-- [ ] 2.2 Test rojo primero — «El timeout se muestra como error»: `consultar` rechaza con `new AxiosError("timeout", "ECONNABORTED")` → `findByText(/tardó demasiado/)`. Hoy falla: cae en el mensaje genérico de «sin respuesta».
-- [ ] 2.3 Test rojo primero — «Desmontar el dueño aborta el request en vuelo»: `montar(<AsistentePage/>)`, turno pendiente, `unmount()`; el `signal` capturado tiene `aborted === true`; sin warning de `act` por `setState` tras desmontar.
-- [ ] 2.4 `api/asistenteApi.ts`: `consultar(consulta, clave, { signal }?)` pasa `signal` y `timeout: PRESUPUESTO_DEL_TURNO_MS` (constante exportada, 160 000, comentario: 150 s del backend más margen para que corte el servidor) al `post`. Sin timeout global en `shared/api/client.ts`.
-- [ ] 2.5 `hooks/useAsistente.ts`: `AbortController` por turno en un ref; abortado en el cleanup del hook; el `catch` ignora `esCancelacion(error)` y no hace `setTurnos` sobre un componente desmontado.
-- [ ] 2.6 `errores.ts`: exportar `esCancelacion(error)` (`axios.isCancel`); separar `ECONNABORTED` (timeout) de «sin respuesta»: «El asistente tardó demasiado en responder. Probá con una pregunta más acotada.»
-- [ ] 2.7 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
+- [x] 2.1 Test rojo primero — «El turno viaja con `signal` y timeout»: `mock.calls[0][2].signal` es `AbortSignal`; espiar `apiClient.post` → recibe `timeout: 160000`. Hoy falla: `consultar` no recibe opciones.
+- [x] 2.2 Test rojo primero — «El timeout se muestra como error»: `consultar` rechaza con `new AxiosError("timeout", "ECONNABORTED")` → `findByText(/tardó demasiado/)`. Hoy falla: cae en el mensaje genérico de «sin respuesta».
+- [x] 2.3 Test rojo primero — «Desmontar el dueño aborta el request en vuelo»: `montar(<AsistentePage/>)`, turno pendiente, `unmount()`; el `signal` capturado tiene `aborted === true`; sin warning de `act` por `setState` tras desmontar.
+- [x] 2.4 `api/asistenteApi.ts`: `consultar(consulta, clave, { signal }?)` pasa `signal` y `timeout: PRESUPUESTO_DEL_TURNO_MS` (constante exportada, 160 000, comentario: 150 s del backend más margen para que corte el servidor) al `post`. Sin timeout global en `shared/api/client.ts`.
+- [x] 2.5 `hooks/useAsistente.ts`: `AbortController` por turno en un ref; abortado en el cleanup del hook; el `catch` ignora `esCancelacion(error)` y no hace `setTurnos` sobre un componente desmontado.
+- [x] 2.6 `errores.ts`: exportar `esCancelacion(error)` (`axios.isCancel`); separar `ECONNABORTED` (timeout) de «sin respuesta»: «El asistente tardó demasiado en responder. Probá con una pregunta más acotada.»
+- [x] 2.7 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
 
 ## 3. fix(asistente): tabla ancha recortada por el `overflow: hidden` de la librería + marca de columna sensible
 

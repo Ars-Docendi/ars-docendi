@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { consultar } from "../api/asistenteApi";
-import { esHiloPerdido, mensajeDeError } from "../errores";
+import { esCancelacion, esHiloPerdido, mensajeDeError } from "../errores";
 import type { TurnoDeLaConversacion } from "../types";
 
 export interface Asistente {
@@ -24,6 +24,20 @@ export function useAsistente(): Asistente {
   // Espejo de `enVuelo` para el guard de abajo. `preguntar` se memoiza una sola
   // vez, así que leer el estado adentro daría siempre el valor del primer render.
   const turnoEnVuelo = useRef(false);
+  // El request del turno en vuelo, para soltarlo desde afuera de su promesa.
+  const controlador = useRef<AbortController | null>(null);
+  const montado = useRef(true);
+
+  // Quien se desmonta con un turno en vuelo se lleva el request consigo. Sin esto
+  // el pedido sobrevive al componente y la respuesta cae sobre un estado que ya no
+  // existe. Corre al desmontarse el DUEÑO del hook, sea quien sea.
+  useEffect(() => {
+    montado.current = true;
+    return () => {
+      montado.current = false;
+      controlador.current?.abort();
+    };
+  }, []);
 
   const preguntar = useCallback(async (mensaje: string) => {
     const texto = mensaje.trim();
@@ -39,25 +53,34 @@ export function useAsistente(): Asistente {
     // la respuesta del primero, que es justo lo contrario de lo que se busca.
     const clave = crypto.randomUUID();
     const id = clave;
+    const aborto = new AbortController();
+    controlador.current = aborto;
 
     setTurnos((previos) => [...previos, { id, pregunta: texto }]);
     turnoEnVuelo.current = true;
     setEnVuelo(true);
 
     try {
-      const respuesta = await consultar({ mensaje: texto, hilo: hilo.current }, clave);
+      const respuesta = await consultar({ mensaje: texto, hilo: hilo.current }, clave, {
+        signal: aborto.signal,
+      });
       hilo.current = respuesta.hilo;
+      if (!montado.current) return;
       setTurnos((previos) => previos.map((t) => (t.id === id ? { ...t, respuesta } : t)));
     } catch (error) {
+      // Un aborto no es un error: lo pidió este lado. El turno queda como está.
+      if (esCancelacion(error)) return;
       // Un hilo que el backend ya no reconoce no se vuelve a mandar: la siguiente
       // pregunta abre una conversación nueva en lugar de repetir el mismo 404.
       if (esHiloPerdido(error)) hilo.current = null;
+      if (!montado.current) return;
       setTurnos((previos) =>
         previos.map((t) => (t.id === id ? { ...t, error: mensajeDeError(error) } : t)),
       );
     } finally {
       turnoEnVuelo.current = false;
-      setEnVuelo(false);
+      if (controlador.current === aborto) controlador.current = null;
+      if (montado.current) setEnVuelo(false);
     }
   }, []);
 
