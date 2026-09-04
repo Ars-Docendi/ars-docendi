@@ -20,14 +20,14 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 3. fix(asistente): tabla ancha recortada por el `overflow: hidden` de la librería + marca de columna sensible
 
-- [ ] 3.1 Test rojo primero — `TablaDeResultado.test.tsx` (nuevo): el `Table` recibe la clase propia (`container.querySelector(".adoc-table-wrap.adoc-asistente-tabla-wrap")` no nulo). Contrato mínimo: jsdom no calcula layout.
-- [ ] 3.2 Test rojo primero — «Columna sensible marcada y anunciada»: fixture con `documento` sensible → `getByRole("columnheader", { name: /documento.*dato personal/i })`; la cabecera `apellido` no lo tiene; la leyenda «Las columnas con candado…» está; con ninguna sensible, no está.
-- [ ] 3.3 `components/TablaDeResultado.tsx`: `<Table className="adoc-asistente-tabla-wrap">`; `Table.Cell numeric` cuando `typeof valor === "number"`; `MarcaSensible` en las cabeceras con `sensible`; leyenda en `--text-caption-size` sólo si hay alguna.
-- [ ] 3.4 `components/MarcaSensible.tsx` (nuevo): `lockIcon` `aria-hidden` + sr-only «(dato personal)».
-- [ ] 3.5 `app/shell/icons.tsx`: `lockIcon` (grilla 18, trazo 1.5, como `sparkIcon`).
-- [ ] 3.6 `asistente.css`: `.adoc-asistente-tabla .adoc-table-wrap { overflow: auto; max-height: 50vh }`, `.adoc-asistente-tabla table.adoc-table { width: max-content; min-width: 100% }`; quitar el `overflow-x` del wrapper externo. Sin `!important`.
-- [ ] 3.7 Verificar a ojo en Chrome y Firefox con una respuesta de 8 columnas en el modal: scrollea en los dos ejes, no recorta.
-- [ ] 3.8 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
+- [x] 3.1 Test rojo primero — `TablaDeResultado.test.tsx` (nuevo): el `Table` recibe la clase propia (`container.querySelector(".adoc-table-wrap.adoc-asistente-tabla-wrap")` no nulo). Contrato mínimo: jsdom no calcula layout.
+- [x] 3.2 Test rojo primero — «Columna sensible marcada y anunciada»: fixture con `documento` sensible → `getByRole("columnheader", { name: /documento.*dato personal/i })`; la cabecera `apellido` no lo tiene; la leyenda «Las columnas con candado…» está; con ninguna sensible, no está.
+- [x] 3.3 `components/TablaDeResultado.tsx`: `<Table className="adoc-asistente-tabla-wrap">`; `Table.Cell numeric` cuando `typeof valor === "number"`; `MarcaSensible` en las cabeceras con `sensible`; leyenda en `--text-caption-size` sólo si hay alguna.
+- [x] 3.4 `components/MarcaSensible.tsx` (nuevo): `lockIcon` `aria-hidden` + sr-only «(dato personal)».
+- [x] 3.5 `app/shell/icons.tsx`: `lockIcon` (grilla 18, trazo 1.5, como `sparkIcon`).
+- [x] 3.6 `asistente.css`: `.adoc-asistente-tabla .adoc-table-wrap { overflow: auto; max-height: 50vh }`, `.adoc-asistente-tabla table.adoc-table { width: max-content; min-width: 100% }`; quitar el `overflow-x` del wrapper externo. Sin `!important`.
+- [x] 3.7 Verificar a ojo en Chrome y Firefox con una respuesta de 8 columnas en el modal: scrollea en los dos ejes, no recorta.
+- [x] 3.8 Verde y commit `fix(asistente): …` con «Verificado en rojo: …».
 
 ## 4. refactor(asistente): `asistente.css` a tokens, dedupe, montajes iguales, modal 880 px, responsive
 

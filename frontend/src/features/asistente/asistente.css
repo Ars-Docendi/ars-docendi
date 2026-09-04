@@ -69,8 +69,42 @@
   color: var(--color-fg-muted, #64748b);
 }
 
-.adoc-asistente-tabla {
-  overflow-x: auto;
+/* La tabla scrollea DENTRO de su propio marco, en los dos ejes. El envoltorio de la
+   librería trae `overflow: hidden` y la tabla `width: 100%`: con más columnas de
+   las que entran, las de la derecha se recortaban sin aviso antes de que un
+   contenedor externo tuviera qué scrollear. Las dos clases le ganan en
+   especificidad a la regla de la librería sin `!important` ni fork; la clase
+   propia es la que `TablaDeResultado` le pasa al `Table`. */
+.adoc-asistente-tabla .adoc-asistente-tabla-wrap {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+/* `max-content` deja que la tabla sea tan ancha como sus columnas —es lo que le da
+   al marco algo que scrollear—; `min-width: 100%` la mantiene a ancho completo
+   cuando entra. */
+.adoc-asistente-tabla table.adoc-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.adoc-asistente-sensible {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-inline-start: var(--space-1);
+}
+
+.adoc-asistente-candado {
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.adoc-asistente-leyenda-sensible {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
 }
 
 .adoc-asistente-truncado {

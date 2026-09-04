@@ -146,4 +146,17 @@ export const sparkIcon = (
   </svg>
 );
 
+/**
+ * Candado. Marca una columna que trae un dato personal.
+ *
+ * Va junto al nombre de la columna en la tabla de resultados del asistente. Dice
+ * QUÉ es sensible, no por dónde viajó: el enmascaramiento es mecánica interna.
+ */
+export const lockIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="4" y="8" width="10" height="7" rx="1" />
+    <path d="M6.5 8V6a2.5 2.5 0 015 0v2" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;
