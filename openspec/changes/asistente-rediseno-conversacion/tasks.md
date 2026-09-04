@@ -31,13 +31,13 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 4. refactor(asistente): `asistente.css` a tokens, dedupe, montajes iguales, modal 880 px, responsive
 
-- [ ] 4.1 Mapear cada fallback a su token real: `--color-fg-muted`→`--color-text-secondary`, `--color-bg-subtle`→`--color-bg-sunken`, `--color-border`→`--color-border-default`/`--color-border-subtle`, `--radius-md`→`--radius-sm`, `#fff`→`--color-text-on-accent`, indigo→`--color-accent`. Borrar duplicados (`.adoc-asistente-conversacion` ×2, `.adoc-asistente-entrada` ×2, comentario repetido). Al final `grep '#' asistente.css` sólo en comentarios.
-- [ ] 4.2 Montajes iguales: `.adoc-asistente-modal .body { padding: 0; color: inherit; font-size: inherit }`; `.adoc-asistente-modal { max-width: min(880px, calc(100vw - 48px)) }`; panel `min(72vh, 680px)`; `title="Asistente"` en el `Modal` de `LanzadorAsistente`.
-- [ ] 4.3 Página: `pages/AsistentePage.tsx` envuelve en `.adoc-asistente-pagina` con `max-width: 880px; margin-inline: auto` y alto fijo (medir `.adoc-topbar` y `.adoc-page-head` en `shell.css`) para que sólo scrollee el hilo; texto de respuesta `max-width: 72ch`.
-- [ ] 4.4 `components/FranjaDeEstado.tsx` (nuevo): una fila entre hilo y composer con `IndicadorDeProceso` a la izquierda y `LineaDeMetricas` a la derecha, ambos intactos y fuera del log; puntos que laten con pseudo-elementos sin tocar el `textContent` «Consultando…».
-- [ ] 4.5 `@media (max-width: 640px)`: `.adoc-modal-stage:has(.adoc-asistente-modal) { padding: 0 }`, modal `max-width: none; width: 100%; height: 100%; border-radius: 0; border: 0`, panel `height: 100%`, burbuja `max-width: 92%`, chips a ancho completo. `@media (prefers-reduced-motion: reduce)` apaga las animaciones.
-- [ ] 4.6 Los tests existentes «Indicador y métricas siguen fuera del log» y «Los dos montajes muestran el mismo panel» pasan sin cambios de texto.
-- [ ] 4.7 Verde y commit `refactor(asistente): …`.
+- [x] 4.1 Mapear cada fallback a su token real: `--color-fg-muted`→`--color-text-secondary`, `--color-bg-subtle`→`--color-bg-sunken`, `--color-border`→`--color-border-default`/`--color-border-subtle`, `--radius-md`→`--radius-sm`, `#fff`→`--color-text-on-accent`, indigo→`--color-accent`. Borrar duplicados (`.adoc-asistente-conversacion` ×2, `.adoc-asistente-entrada` ×2, comentario repetido). Al final `grep '#' asistente.css` sólo en comentarios.
+- [x] 4.2 Montajes iguales: `.adoc-asistente-modal .body { padding: 0; color: inherit; font-size: inherit }`; `.adoc-asistente-modal { max-width: min(880px, calc(100vw - 48px)) }`; panel `min(72vh, 680px)`; `title="Asistente"` en el `Modal` de `LanzadorAsistente`.
+- [x] 4.3 Página: `pages/AsistentePage.tsx` envuelve en `.adoc-asistente-pagina` con `max-width: 880px; margin-inline: auto` y alto fijo (medir `.adoc-topbar` y `.adoc-page-head` en `shell.css`) para que sólo scrollee el hilo; texto de respuesta `max-width: 72ch`.
+- [x] 4.4 `components/FranjaDeEstado.tsx` (nuevo): una fila entre hilo y composer con `IndicadorDeProceso` a la izquierda y `LineaDeMetricas` a la derecha, ambos intactos y fuera del log; puntos que laten con pseudo-elementos sin tocar el `textContent` «Consultando…».
+- [x] 4.5 `@media (max-width: 640px)`: `.adoc-modal-stage:has(.adoc-asistente-modal) { padding: 0 }`, modal `max-width: none; width: 100%; height: 100%; border-radius: 0; border: 0`, panel `height: 100%`, burbuja `max-width: 92%`, chips a ancho completo. `@media (prefers-reduced-motion: reduce)` apaga las animaciones.
+- [x] 4.6 Los tests existentes «Indicador y métricas siguen fuera del log» y «Los dos montajes muestran el mismo panel» pasan sin cambios de texto.
+- [x] 4.7 Verde y commit `refactor(asistente): …`.
 
 ## 5. feat(asistente): composer (`EntradaDePregunta`, contador, «Enviar», auto-grow fallback)
 

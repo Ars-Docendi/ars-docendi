@@ -41,11 +41,14 @@ export function LanzadorAsistente() {
         Preguntar
       </button>
 
+      {/* Con título, el Modal pinta un encabezado que dice qué es esto y nombra el
+          diálogo por él; sin título quedaba un encabezado con sólo la «×» y un
+          nombre que sólo el lector de pantalla oía. */}
       <Modal
         open={abierto}
         onOpenChange={setAbierto}
+        title="Asistente"
         className="adoc-asistente-modal"
-        aria-label="Asistente conversacional"
       >
         {/* Se monta recién al abrir: el panel arranca una conversación, y montarlo
             siempre dejaría un hilo abierto en cada pantalla de la aplicación. */}

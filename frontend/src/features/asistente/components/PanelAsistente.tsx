@@ -4,8 +4,7 @@ import { Button, Textarea } from "@ars-docendi/ui";
 import { sparkIcon } from "../../../app/shell/icons";
 
 import { Conversacion } from "./Conversacion";
-import { IndicadorDeProceso } from "./IndicadorDeProceso";
-import { LineaDeMetricas } from "./LineaDeMetricas";
+import { FranjaDeEstado } from "./FranjaDeEstado";
 import { Sugerencias } from "./Sugerencias";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
@@ -19,7 +18,7 @@ interface PanelAsistenteProps {
  * La vista del asistente.
  *
  * ES UNA SOLA, MONTADA DOS VECES: la ruta `/asistente` la muestra a página completa
- * y el lanzador de la barra superior la muestra en un cajón. Dos implementaciones se
+ * y el lanzador de la barra superior la muestra en un modal. Dos implementaciones se
  * desincronizarían —una recibiría una mejora y la otra no—, y nadie lo notaría hasta
  * que alguien reportara que «desde el botón anda distinto».
  */
@@ -84,9 +83,8 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
         <Conversacion turnos={turnos} onElegir={enviar} enVuelo={enVuelo} />
       </div>
 
-      {/* Los dos van FUERA de la región viva, a propósito. */}
-      <IndicadorDeProceso activo={enVuelo} umbralMs={umbralDelIndicadorMs} />
-      <LineaDeMetricas turnos={turnos} />
+      {/* Una sola fila, FUERA de la región viva a propósito. */}
+      <FranjaDeEstado enVuelo={enVuelo} turnos={turnos} umbralMs={umbralDelIndicadorMs} />
 
       <form
         className="adoc-asistente-entrada"
