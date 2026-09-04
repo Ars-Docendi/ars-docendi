@@ -103,6 +103,14 @@ DELETE FROM public.seed_identities
 UPDATE audit.change_log
    SET changed_by = NULL
  WHERE changed_by = 'a0000000-0000-4000-8000-000000000009';
+UPDATE designaciones.pedido_historial
+   SET actor_id = NULL
+ WHERE actor_id = 'a0000000-0000-4000-8000-000000000009';
+UPDATE identity.user_roles
+   SET granted_by = NULL
+ WHERE granted_by = 'a0000000-0000-4000-8000-000000000009';
+DELETE FROM designaciones.idempotencia_comandos
+ WHERE actor_id = 'a0000000-0000-4000-8000-000000000009';
 DELETE FROM identity.users
  WHERE id = 'a0000000-0000-4000-8000-000000000009';
 DELETE FROM identity.personas
