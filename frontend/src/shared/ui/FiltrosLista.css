@@ -58,3 +58,16 @@
 .adoc-filtros-quitar:hover {
   background: var(--color-bg-sunken);
 }
+
+/* Campos fijos que no son texto/select (fecha, número, buscable) — mismo
+   ancho automático que el select fijo. El combobox buscable en sí
+   (`.adoc-combobox*`) vive en `ComboboxBuscable.css`. */
+.adoc-filtros-fijo-control {
+  flex: 0 0 auto;
+}
+
+/* Input numérico opcional (ej. % Avance): ancho fijo prolijo, el navegador
+   por defecto lo deja demasiado angosto para el placeholder. */
+.adoc-filtros-opcional input[type="number"] {
+  width: 110px;
+}
