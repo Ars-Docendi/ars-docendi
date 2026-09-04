@@ -19,8 +19,8 @@ export async function guardarContacto(datos: DatosContacto) {
   return (await apiClient.put("/api/portal/perfil/contacto", datos)).data;
 }
 
-export async function guardarCv(datos: { nombre: string; uri?: string | null }) {
-  return (await apiClient.put("/api/portal/perfil/cv", datos)).data;
+export async function guardarCv({ nombre }: { nombre: string }) {
+  return (await apiClient.put("/api/portal/perfil/cv", { nombre, uri: null })).data;
 }
 
 export async function eliminarCv() {
@@ -32,20 +32,20 @@ export async function reemplazarTags(tipo: "habilidades" | "intereses", terminos
 }
 
 export async function crearExperiencia(datos: DatosExperiencia) {
-  return (await apiClient.post("/api/portal/perfil/experiencia", datos)).data;
+  return (await apiClient.post("/api/portal/perfil/experiencia", payloadPeriodo(datos))).data;
 }
 export async function editarExperiencia(id: string, datos: DatosExperiencia) {
-  return (await apiClient.put(`/api/portal/perfil/experiencia/${id}`, datos)).data;
+  return (await apiClient.put(`/api/portal/perfil/experiencia/${id}`, payloadPeriodo(datos))).data;
 }
 export async function eliminarExperiencia(id: string) {
   await apiClient.delete(`/api/portal/perfil/experiencia/${id}`);
 }
 
 export async function crearEducacion(datos: DatosEducacion) {
-  return (await apiClient.post("/api/portal/perfil/educacion", datos)).data;
+  return (await apiClient.post("/api/portal/perfil/educacion", payloadPeriodo(datos))).data;
 }
 export async function editarEducacion(id: string, datos: DatosEducacion) {
-  return (await apiClient.put(`/api/portal/perfil/educacion/${id}`, datos)).data;
+  return (await apiClient.put(`/api/portal/perfil/educacion/${id}`, payloadPeriodo(datos))).data;
 }
 export async function eliminarEducacion(id: string) {
   await apiClient.delete(`/api/portal/perfil/educacion/${id}`);
@@ -73,8 +73,13 @@ export async function eliminarProyecto(id: string) {
 
 function payloadProyecto({ documento, ...datos }: DatosProyecto) {
   return {
-    ...datos,
+    ...payloadPeriodo(datos),
     documentoNombre: documento?.nombre ?? null,
     documentoUri: null,
   };
+}
+
+function payloadPeriodo<T extends { desde: string; hasta: string | null }>(datos: T) {
+  const fecha = (valor: string) => valor.padEnd(10, "-01");
+  return { ...datos, desde: fecha(datos.desde), hasta: datos.hasta ? fecha(datos.hasta) : null };
 }

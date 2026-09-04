@@ -61,7 +61,7 @@ export function SeccionContacto({ contacto, onGuardar }: SeccionContactoProps) {
         <ModalEditarCampo
           etiqueta="Teléfono"
           tipo="tel"
-          valor={contacto.telefono}
+          valor={contacto.telefono ?? ""}
           onCerrar={() => setEnEdicion(null)}
           onGuardar={(valor) => guardarCampo("telefono", valor)}
         />
@@ -70,7 +70,7 @@ export function SeccionContacto({ contacto, onGuardar }: SeccionContactoProps) {
         <ModalEditarCampo
           etiqueta="Mail"
           tipo="email"
-          valor={contacto.mail}
+          valor={contacto.mail ?? ""}
           validar={validarMail}
           onCerrar={() => setEnEdicion(null)}
           onGuardar={(valor) => guardarCampo("mail", valor)}

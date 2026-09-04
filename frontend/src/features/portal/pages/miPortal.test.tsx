@@ -3,8 +3,13 @@ import { fireEvent, render as testingRender, screen, within } from "@testing-lib
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { apiClient } from "../../../shared/api/client";
 import { IndexPage } from "./IndexPage";
 import { obtenerPerfilInstitucional, perfilDe } from "../mock/mockStore";
+
+vi.mock("../../../shared/api/client", () => ({
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
 
 vi.mock("../api/portalApi", async () => {
   const real = await vi.importActual<typeof import("../api/portalApi")>("../api/portalApi");
@@ -13,7 +18,18 @@ vi.mock("../api/portalApi", async () => {
     obtenerPerfil: async () => {
       const institucional = obtenerPerfilInstitucional(sesion.upn);
       if (!institucional) throw new Error("no encontrado");
-      return perfilDe(institucional);
+      const perfil = perfilDe(institucional);
+      return {
+        ...perfil,
+        contacto: {
+          telefono: perfil.contacto.telefono || null,
+          mail: perfil.contacto.mail || null,
+        },
+        proyectos: perfil.proyectos.map((proyecto) => ({
+          ...proyecto,
+          doi: proyecto.doi || null,
+        })),
+      };
     },
   };
 });
@@ -35,9 +51,11 @@ vi.mock("../../../shared/auth/useCurrentUser", () => ({
 }));
 
 function render(ui: React.ReactElement) {
+  const cliente = new QueryClient();
+  vi.spyOn(cliente, "invalidateQueries").mockResolvedValue();
   return testingRender(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+      <QueryClientProvider client={cliente}>{children}</QueryClientProvider>
     ),
   });
 }
@@ -52,6 +70,9 @@ function seccion(titulo: string): HTMLElement {
 
 beforeEach(() => {
   sesion.upn = "admin.aulas@unlam.edu.ar";
+  for (const metodo of [apiClient.get, apiClient.post, apiClient.put, apiClient.delete]) {
+    vi.mocked(metodo).mockReset().mockResolvedValue({ data: {} });
+  }
 });
 
 describe("estados de la pantalla", () => {
@@ -123,6 +144,13 @@ describe("secciones vacías", () => {
     await usuario.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(within(seccion("Educación")).getByText(/Ingeniería en Informática/)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith("/api/portal/perfil/educacion", {
+      nivel: "Grado",
+      carrera: "Ingeniería en Informática",
+      institucion: "UNLaM",
+      desde: "2002-01-01",
+      hasta: null,
+    });
   });
 
   it("no da de alta un ítem al que le faltan los campos identificatorios", async () => {
@@ -155,10 +183,29 @@ describe("edición por sección", () => {
 
     expect(within(seccion("Contacto")).getByText("11-2233-4455")).toBeInTheDocument();
     expect(await screen.findByText("Cambios guardados")).toBeInTheDocument();
+    expect(apiClient.put).toHaveBeenCalledWith("/api/portal/perfil/contacto", {
+      telefono: "11-2233-4455",
+      mail: null,
+    });
     // Las secciones que no se tocaron siguen vacías, sin bloquear el guardado.
     expect(
       within(seccion("Proyectos")).getByRole("button", { name: "+ Agregar" }),
     ).toBeInTheDocument();
+  });
+
+  it("revierte el cambio y avisa cuando el backend rechaza el guardado", async () => {
+    vi.mocked(apiClient.put).mockRejectedValueOnce(new Error("sin conexión"));
+    const usuario = userEvent.setup();
+    render(<IndexPage />);
+    await screen.findByRole("heading", { name: "Perfil" });
+
+    await usuario.click(screen.getByRole("button", { name: "Editar teléfono" }));
+    await usuario.type(screen.getByRole("textbox", { name: "Teléfono" }), "11-2233-4455");
+    await usuario.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("No pudimos guardar los cambios")).toBeInTheDocument();
+    expect(screen.queryByText("11-2233-4455")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cambios guardados")).not.toBeInTheDocument();
   });
 
   it("descarta la edición al cancelar", async () => {

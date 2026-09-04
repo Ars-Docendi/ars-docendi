@@ -23,7 +23,7 @@ import "../components/portal.css";
  * llenarse, así que la página crece con el perfil.
  */
 export function IndexPage() {
-  const { estado, perfil, guardado, actualizar, ocultarAviso } = usePerfilDocente();
+  const { estado, perfil, guardado, error, actualizar, ocultarAviso } = usePerfilDocente();
 
   const encabezado = (
     <>
@@ -55,6 +55,11 @@ export function IndexPage() {
   return (
     <>
       {encabezado}
+      {error && (
+        <InlineAlert severity="danger" title="No pudimos guardar los cambios">
+          {error}
+        </InlineAlert>
+      )}
       <div className="portal-secciones">
         <SeccionPerfilInstitucional institucional={perfil.institucional} />
 

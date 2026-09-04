@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import {
   crearCertificacion,
   crearEducacion,
@@ -29,6 +30,7 @@ export function usePerfilDocente() {
   const upn = usuario.user?.upn ?? "";
   const cliente = useQueryClient();
   const [guardado, setGuardado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const consulta = useQuery({
     queryKey: [...perfilKey, upn],
     queryFn: obtenerPerfil,
@@ -40,7 +42,8 @@ export function usePerfilDocente() {
       const anterior = consulta.data;
       const siguiente = cambio(anterior);
       cliente.setQueryData([...perfilKey, upn], siguiente);
-      setGuardado(true);
+      setGuardado(false);
+      setError(null);
       void Promise.all([
         siguiente.contacto !== anterior.contacto ? guardarContacto(siguiente.contacto) : undefined,
         siguiente.cv !== anterior.cv
@@ -89,8 +92,14 @@ export function usePerfilDocente() {
             )
           : undefined,
       ])
-        .then(() => cliente.invalidateQueries({ queryKey: perfilKey }))
-        .catch(() => undefined);
+        .then(async () => {
+          await cliente.invalidateQueries({ queryKey: perfilKey });
+          setGuardado(true);
+        })
+        .catch((causa) => {
+          cliente.setQueryData([...perfilKey, upn], anterior);
+          setError(mensajeProblema(causa, "No se pudieron guardar los cambios."));
+        });
     },
     [cliente, consulta.data, upn],
   );
@@ -103,6 +112,7 @@ export function usePerfilDocente() {
     estado,
     perfil: consulta.data ?? null,
     guardado,
+    error,
     actualizar,
     ocultarAviso: () => setGuardado(false),
   };
@@ -118,8 +128,8 @@ async function sincronizar<T extends { id: string }>(
   await Promise.all([
     ...siguiente
       .filter((item) => anterior.find((x) => x.id === item.id) !== item)
-      .map((item) =>
-        anterior.some((x) => x.id === item.id) ? editar(item.id, item) : crear(item),
+      .map(({ id, ...datos }) =>
+        anterior.some((x) => x.id === id) ? editar(id, datos) : crear(datos),
       ),
     ...anterior
       .filter((item) => !siguiente.some((x) => x.id === item.id))

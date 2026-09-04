@@ -20,9 +20,9 @@ export interface PerfilInstitucional {
 
 /** Contacto que el docente mantiene. Ambos campos son opcionales. */
 export interface DatosContacto {
-  telefono: string;
+  telefono: string | null;
   /** Mail de contacto, distinto del institucional. */
-  mail: string;
+  mail: string | null;
 }
 
 /**
@@ -85,8 +85,8 @@ export interface Proyecto extends Periodo {
   descripcion: string;
   /** Documento en PDF, si lo hay. */
   documento: DocumentoAdjunto | null;
-  /** Enlace DOI, si lo hay. Vacío significa sin enlace. */
-  doi: string;
+  /** Enlace DOI, si lo hay. Vacío o null significa sin enlace. */
+  doi: string | null;
 }
 
 /**
