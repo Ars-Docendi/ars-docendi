@@ -178,9 +178,8 @@ export function FiltrosLista<T extends Record<string, string>>({
           );
         })}
         {disponibles.length > 0 && (
-          <span className="adoc-select-wrap adoc-filtros-add">
-            <select
-              className="adoc-select"
+          <span className="adoc-filtros-add">
+            <Select
               value=""
               onChange={(e) => {
                 if (e.target.value) agregar(e.target.value);
@@ -193,7 +192,7 @@ export function FiltrosLista<T extends Record<string, string>>({
                   {campo.etiqueta}
                 </option>
               ))}
-            </select>
+            </Select>
           </span>
         )}
       </div>

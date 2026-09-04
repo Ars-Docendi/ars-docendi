@@ -8,14 +8,12 @@ const TONO_NOVEDAD: Record<Novedad, string> = {
   Alta: "success",
   Baja: "danger",
   "Cambio de cargo o dedicación": "warning",
-  "Sin novedad": "neutral",
 };
 
 const ETIQUETA_NOVEDAD: Record<Novedad, string> = {
   Alta: "Alta",
   Baja: "Baja",
   "Cambio de cargo o dedicación": "Cambio",
-  "Sin novedad": "Sin novedad",
 };
 
 const ETIQUETA_ADJUNTO: Record<TipoAdjunto, string> = {
@@ -128,6 +126,9 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
           </span>
         </Dato>
         <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
+        <Dato etiqueta="Agente externo">
+          {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
+        </Dato>
       </div>
 
       {motivo && (

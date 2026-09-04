@@ -107,31 +107,29 @@ export function TablaMisPedidos({
             >
               Ver
             </Button>
-            {puedeEditarPedido(pedido, actor) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditar(pedido);
-                }}
-              >
-                Editar
-              </Button>
-            )}
-            {puedeEliminarPedido(pedido, actor) && (
-              <button
-                type="button"
-                className="adoc-mp-eliminar"
-                aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEliminar(pedido);
-                }}
-              >
-                <IconoX />
-              </button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!puedeEditarPedido(pedido, actor)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditar(pedido);
+              }}
+            >
+              Editar
+            </Button>
+            <button
+              type="button"
+              className="adoc-mp-eliminar"
+              disabled={!puedeEliminarPedido(pedido, actor)}
+              aria-label={`Eliminar pedido de ${pedido.docente.nombre}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEliminar(pedido);
+              }}
+            >
+              <IconoX />
+            </button>
           </span>
         </div>
       ))}

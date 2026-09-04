@@ -35,6 +35,7 @@ const DATOS_ALTA: DatosEditablesPedido = {
   dedicacionSolicitada: "Categoría 5",
   horasExternas: 0,
   horasInvestigacion: 0,
+  esAgenteExterno: false,
   adjuntos: [
     { id: "a1", nombre: "cv.pdf", tipo: "cv" },
     { id: "a2", nombre: "frente.jpg", tipo: "dni_frente" },

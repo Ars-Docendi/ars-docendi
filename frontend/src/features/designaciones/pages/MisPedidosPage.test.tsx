@@ -78,7 +78,7 @@ describe("MisPedidosPage (integración)", () => {
     }
   });
 
-  it("el botón Editar aparece solo en pedidos editables (borrador o devuelto propio)", async () => {
+  it("el botón Editar es fijo: habilitado en editables, deshabilitado (no oculto) en el resto", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -90,13 +90,13 @@ describe("MisPedidosPage (integración)", () => {
     const filaValeria = screen.getByRole("row", { name: "Ver el pedido de Valeria Suárez" }); // en revisión
     const filaBrenda = screen.getByRole("row", { name: "Ver el pedido de Brenda Ortiz" }); // rechazado
 
-    expect(within(filaLaura).queryByRole("button", { name: "Editar" })).not.toBeNull();
-    expect(within(filaPablo).queryByRole("button", { name: "Editar" })).not.toBeNull();
-    expect(within(filaValeria).queryByRole("button", { name: "Editar" })).toBeNull();
-    expect(within(filaBrenda).queryByRole("button", { name: "Editar" })).toBeNull();
+    expect(within(filaLaura).getByRole("button", { name: "Editar" })).toBeEnabled();
+    expect(within(filaPablo).getByRole("button", { name: "Editar" })).toBeEnabled();
+    expect(within(filaValeria).getByRole("button", { name: "Editar" })).toBeDisabled();
+    expect(within(filaBrenda).getByRole("button", { name: "Editar" })).toBeDisabled();
   });
 
-  it("la X roja de eliminar solo aparece en pedidos en borrador", async () => {
+  it("la X de eliminar es fija: habilitada solo en borrador, deshabilitada (no oculta) en el resto", async () => {
     renderPage();
 
     await waitFor(() => {
@@ -106,10 +106,8 @@ describe("MisPedidosPage (integración)", () => {
     const filaLaura = screen.getByRole("row", { name: "Ver el pedido de Laura Giménez" }); // borrador
     const filaPablo = screen.getByRole("row", { name: "Ver el pedido de Pablo Herrera" }); // devuelto
 
-    expect(within(filaLaura).getByRole("button", { name: /Eliminar pedido/ })).toBeInTheDocument();
-    expect(
-      within(filaPablo).queryByRole("button", { name: /Eliminar pedido/ }),
-    ).not.toBeInTheDocument();
+    expect(within(filaLaura).getByRole("button", { name: /Eliminar pedido/ })).toBeEnabled();
+    expect(within(filaPablo).getByRole("button", { name: /Eliminar pedido/ })).toBeDisabled();
   });
 
   it("click en Editar navega a la edición sin disparar la navegación al detalle", async () => {

@@ -24,7 +24,7 @@ export interface PeriodoDesignacion {
 /** Roles del sistema. Alias del `Role` del app shell (única fuente de verdad). */
 export type Rol = Role;
 
-export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
+export type Novedad = "Alta" | "Baja" | "Cambio de cargo o dedicación";
 export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
 export type Dedicacion =
   | "Categoría 0"
@@ -37,6 +37,16 @@ export type Dedicacion =
 
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
+
+/** Departamento/dependencia que se hace cargo de un docente marcado como agente externo. */
+export type DepartamentoAgenteExterno =
+  | "Departamento de Arquitectura"
+  | "Departamento de Salud"
+  | "Departamento de Derecho"
+  | "Departamento de Económicas"
+  | "Departamento de Humanidades"
+  | "Departamento de Odontología"
+  | "Secretaría Académica";
 
 /** Una materia asignada a un pedido, con su carga horaria. */
 export interface AsignacionMateria {
@@ -95,7 +105,7 @@ export interface DocentePedido {
 /**
  * Docente ya existente en el sistema, con su designación vigente.
  * Alimenta el selector de las novedades sobre docentes existentes
- * (Sin novedad / Baja / Cambio) y el panel de datos actuales read-only.
+ * (Baja / Cambio) y el panel de datos actuales read-only.
  * En el real provendría del módulo Portal / API Guaraní.
  */
 export interface DocenteExistente {
@@ -133,6 +143,10 @@ export interface PedidoDesignacion {
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
   horasInvestigacion: number; // mock (cross-module Portal en el real)
+  /** Docente contratado como agente externo. Sin "valor actual": dato nuevo, sin histórico previo. */
+  esAgenteExterno: boolean;
+  /** Departamento a cargo del agente externo. Obligatorio cuando `esAgenteExterno` es `true`. */
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
   estado: EstadoPedido;
   prioritario: boolean;
@@ -156,6 +170,8 @@ export interface DatosEditablesPedido {
   tipoBajaDetalle?: string;
   horasExternas: number;
   horasInvestigacion: number;
+  esAgenteExterno: boolean;
+  departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
 }
 

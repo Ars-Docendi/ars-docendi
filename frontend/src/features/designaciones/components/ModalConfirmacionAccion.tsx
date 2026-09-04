@@ -112,7 +112,6 @@ const NOVEDAD_FRASE: Record<Novedad, string> = {
   "Cambio de cargo o dedicación": "el cambio de cargo o dedicación",
   Alta: "el alta del docente",
   Baja: "la baja del docente",
-  "Sin novedad": "el pedido",
 };
 
 interface ConfigAccion {

@@ -47,7 +47,6 @@ const TITULO_NOVEDAD: Record<Novedad, string> = {
   Alta: "Alta de docente",
   Baja: "Baja de docente",
   "Cambio de cargo o dedicación": "Cambio de cargo o dedicación",
-  "Sin novedad": "Sin novedad",
 };
 
 export function DetallePedidoPage() {
