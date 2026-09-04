@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, RoleBadge } from "@ars-docendi/ui";
 
@@ -13,6 +14,24 @@ interface TopBarProps {
 
 export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
   function handleLogout() {
     clearToken();
@@ -70,11 +89,24 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
           <span className="ico">{helpIcon}</span>
         </button>
 
-        <div className="adoc-user-menu">
-          <RoleBadge name={user.name} initials={user.initials} role={user.role} />
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            Cerrar sesión
-          </Button>
+        <div className="adoc-user-menu" ref={menuRef}>
+          <RoleBadge
+            name={user.name}
+            initials={user.initials}
+            role={user.role}
+            multi
+            onSwitchClick={() => setMenuOpen((open) => !open)}
+            switchLabel="Abrir menú de usuario"
+          />
+          {menuOpen && (
+            <div className="adoc-user-menu-pop" role="menu">
+              <div className="adoc-user-menu-foot">
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                  Cerrar sesión
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

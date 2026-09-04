@@ -78,6 +78,7 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
         modelBuilder.Entity<DocumentoProyecto>().Property(x => x.Nombre).HasColumnName("nombre");
         modelBuilder.Entity<DocumentoProyecto>().Property(x => x.FechaCarga).HasColumnName("fecha_carga");
         modelBuilder.Entity<DocumentoProyecto>().Property(x => x.Uri).HasColumnName("uri");
+        modelBuilder.Entity<DocumentoProyecto>().Property(x => x.CreadoEn).HasColumnName("created_at");
 
         modelBuilder.Entity<Habilidad>(e =>
         {
