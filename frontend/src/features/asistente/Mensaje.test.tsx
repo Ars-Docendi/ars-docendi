@@ -117,6 +117,9 @@ describe("Lo que nunca se muestra", () => {
     expect(document.body.textContent).not.toMatch(
       /consulta_simple|respondida|designaciones\.|identity\./,
     );
+    // Tampoco como clase: `estado-respondida` era la etiqueta cruda en el DOM sin
+    // que ninguna regla de la hoja la usara.
+    expect(document.querySelector('[class*="estado-"]')).toBeNull();
   });
 });
 

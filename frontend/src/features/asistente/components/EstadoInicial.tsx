@@ -16,21 +16,18 @@ interface EstadoInicialProps {
  * usuario. Los ejemplos son preguntas verificadas, así que un chip es una pregunta
  * que se sabe que funciona, y se manda tal cual.
  *
- * LAS ÁREAS SE PRESENTAN POR SU DESCRIPCIÓN Y NUNCA POR SU NOMBRE. `cubre[].nombre`
- * es `schema.tabla` —«designaciones.pedidos»—, una etiqueta interna que RNF-18
- * prohíbe mostrar. La descripción es opcional: el área que no la trae no se lista,
- * y si ninguna la trae la sección desaparece entera. Nunca se cae en el nombre.
- *
- * El conteo de áreas se conserva en la línea del alcance aunque haya descripciones:
- * es lo único que queda cuando no vienen.
+ * DE LAS ÁREAS SÓLO SE DICE CUÁNTAS HAY. `cubre[].nombre` es `schema.tabla`
+ * —«designaciones.pedidos»—, una etiqueta interna que RNF-18 prohíbe mostrar. Y
+ * `cubre[].descripcion` tampoco se pinta: es el `COMMENT ON TABLE` que el backend
+ * le manda al modelo en el prefijo del prompt —nombres de tablas, sinónimos del
+ * dominio, «NO confundir con…»—, escrito para el modelo y no para el usuario, y
+ * el cliente no tiene cómo sanearlo. Una descripción para el usuario es trabajo
+ * del backend; hasta entonces, el conteo en la línea del alcance es lo único de
+ * las áreas que llega a la pantalla.
  *
  * Desaparece con el primer turno: el panel deja de montarlo.
  */
 export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoInicialProps) {
-  const descripciones = capacidades.cubre
-    .map((area) => area.descripcion)
-    .filter((descripcion): descripcion is string => Boolean(descripcion));
-
   return (
     <div className="adoc-asistente-inicio">
       <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
@@ -56,28 +53,17 @@ export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoIn
         </ul>
       )}
 
-      {(descripciones.length > 0 || capacidades.noPuede.length > 0) && (
+      {capacidades.noPuede.length > 0 && (
+        // Sin límites no queda ni el rótulo.
         <div className="adoc-asistente-inicio-detalle">
-          <Detalle rotulo="Puedo consultar:" items={descripciones} />
-          <Detalle rotulo="No puedo:" items={capacidades.noPuede} />
+          <p className="adoc-asistente-inicio-rotulo">No puedo:</p>
+          <ul className="adoc-asistente-inicio-lista">
+            {capacidades.noPuede.map((limite) => (
+              <li key={limite}>{limite}</li>
+            ))}
+          </ul>
         </div>
       )}
-    </div>
-  );
-}
-
-/** Una lista compacta con su rótulo. Sin ítems no deja ni el rótulo. */
-function Detalle({ rotulo, items }: { rotulo: string; items: string[] }) {
-  if (items.length === 0) return null;
-
-  return (
-    <div>
-      <p className="adoc-asistente-inicio-rotulo">{rotulo}</p>
-      <ul className="adoc-asistente-inicio-lista">
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
     </div>
   );
 }

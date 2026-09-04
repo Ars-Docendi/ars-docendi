@@ -1,9 +1,18 @@
+/// <reference types="node" />
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
 
 import { TablaDeResultado } from "./components/TablaDeResultado";
 import { montar } from "./test/soporte";
 import type { ColumnaDelResultado } from "./types";
+
+// La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer. Va por
+// `fs` y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
+// import de un `.css` —también con `?raw`— a una cadena vacía. Los tipos de node
+// se referencian acá y no en el tsconfig de la app, que no los carga.
+const hoja = readFileSync(join(import.meta.dirname, "asistente.css"), "utf8");
 
 // ============================================================
 // La tabla de resultados: su marco y la marca de columna sensible.
@@ -37,6 +46,19 @@ describe("El marco de la tabla", () => {
 
     expect(screen.getByText("42").closest("td")).toHaveClass("num");
     expect(screen.getByText("Gómez").closest("td")).not.toHaveClass("num");
+  });
+
+  it("las celdas numéricas se alinean a la derecha en la hoja del asistente", () => {
+    // `numeric` de la librería sólo cambia la tipografía y deja `text-align: start`:
+    // una columna de cantidades quedaba pegada a la izquierda. La alineación es
+    // de la hoja, así que se fija como texto: la regla sobre `td.num` dentro del
+    // marco propio, sin `!important`.
+    const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
+    const regla = sinComentarios.match(/\.adoc-asistente-tabla\s+td\.num\s*\{([^}]*)\}/);
+
+    expect(regla).not.toBeNull();
+    expect(regla?.[1]).toMatch(/text-align:\s*end;/);
+    expect(regla?.[1]).not.toMatch(/!important/);
   });
 });
 

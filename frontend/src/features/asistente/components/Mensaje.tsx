@@ -56,7 +56,7 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
       )}
 
       {respuesta && (
-        <div className={`adoc-asistente-respuesta estado-${respuesta.estado}`}>
+        <div className="adoc-asistente-respuesta">
           <span className="adoc-asistente-quien">Asistente</span>
 
           {respuesta.preguntaInterpretada && (

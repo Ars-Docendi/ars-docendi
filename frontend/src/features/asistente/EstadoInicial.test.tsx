@@ -12,9 +12,11 @@ import type { RespuestaDelAsistente } from "./types";
 // La pantalla vacía y el panel sin acceso.
 //
 // El estado inicial se arma SÓLO con lo que devuelve `GET /capacidades`: el
-// alcance, los ejemplos, la descripción de cada área y los límites. `cubre[].nombre`
-// es `schema.tabla` —una etiqueta interna que RNF-18 prohíbe— y la fixture lo trae
-// a propósito para que estos tests muerdan si alguien lo pinta.
+// alcance, los ejemplos, cuántas áreas hay y los límites. De cada área no se pinta
+// nada más: `cubre[].nombre` es `schema.tabla` —una etiqueta interna que RNF-18
+// prohíbe— y `cubre[].descripcion` es el comentario de la tabla que se le manda al
+// modelo, jerga incluida. La fixture trae los dos como llegan para que estos tests
+// muerdan si alguien los pinta.
 // ============================================================
 
 beforeEach(() => {
@@ -26,35 +28,60 @@ afterEach(() => {
 });
 
 describe("El estado inicial", () => {
-  it("presenta las áreas por su descripción y nunca por su nombre interno", async () => {
+  it("muestra el alcance, cuántas áreas hay y los límites", async () => {
     montar(<PanelDePrueba />);
 
     expect(
       await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
     expect(screen.getByText(/Ves los datos de todo el Departamento/)).toBeInTheDocument();
-
-    expect(screen.getByText("Puedo consultar:")).toBeInTheDocument();
-    expect(screen.getByText("Los pedidos del trámite.")).toBeInTheDocument();
-    expect(screen.getByText("El padrón de personas.")).toBeInTheDocument();
-    expect(screen.queryByText("designaciones.pedidos")).toBeNull();
-    expect(screen.queryByText("identity.personas")).toBeNull();
 
     expect(screen.getByText("No puedo:")).toBeInTheDocument();
     expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
   });
 
-  it("sin descripciones no hay lista de áreas, y el nombre interno tampoco la reemplaza", async () => {
+  it("no muestra el comentario de las áreas: se escribió para el modelo, no para el usuario", async () => {
+    // Lo que Secretaría veía en producción bajo «Puedo consultar:»: el `COMMENT ON
+    // TABLE` que el backend le manda al modelo en el prefijo del prompt. Nombres
+    // de tablas, sinónimos del dominio y advertencias para el modelo no son un
+    // texto para el usuario (RNF-18), y el cliente no puede sanearlo.
     vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
       ...CAPACIDADES,
-      cubre: [{ nombre: "designaciones.pedidos", descripcion: null, columnas: 12 }],
+      tablas: 1,
+      cubre: [
+        {
+          nombre: "identity.roles",
+          descripcion: "Roles. NO confundir con identity.roles ni con designaciones.designaciones.",
+          columnas: 3,
+        },
+      ],
     });
     montar(<PanelDePrueba />);
 
     await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" });
 
     expect(screen.queryByText("Puedo consultar:")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/identity\./);
     expect(document.body.textContent).not.toMatch(/designaciones\./);
+    expect(document.body.textContent).not.toMatch(/NO confundir/);
+    // El conteo sí: es lo único de las áreas que se le dice al usuario.
+    expect(screen.getByText(/Conozco 1 área de datos del sistema/)).toBeInTheDocument();
+  });
+
+  it("sin límites no queda ni el rótulo «No puedo:»", () => {
+    // El mismo criterio que Opciones y Sugerencias: lista vacía, nada en pantalla.
+    // Un rótulo sin lista debajo es un título que anuncia algo que no está.
+    render(
+      <EstadoInicial
+        capacidades={{ ...CAPACIDADES, noPuede: [] }}
+        onElegir={() => {}}
+        deshabilitado={false}
+      />,
+    );
+
+    expect(screen.queryByText(/No puedo/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/No puedo/);
   });
 
   it("un chip manda su pregunta tal cual", async () => {

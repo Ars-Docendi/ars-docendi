@@ -111,11 +111,10 @@
   color: var(--color-text-secondary);
 }
 
-/* Qué puede y qué no: lado a lado cuando entran, en columna cuando no. */
+/* Los límites, separados del resto por un filete. Era una grilla de dos columnas
+   con «Puedo consultar:» al lado, hasta que esa sección se fue: pintaba el
+   comentario de la tabla que se escribió para el modelo. */
 .adoc-asistente-inicio-detalle {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--space-4);
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border-subtle);
 }
@@ -249,6 +248,17 @@
   top: 0;
   z-index: 1;
   box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+
+/* `numeric` de la librería sólo cambia la tipografía —mono, en el tono
+   secundario— y deja `text-align: start`: una columna de cantidades quedaba
+   pegada a la izquierda, con las unidades desalineadas de una fila a otra. Las
+   cifras van a la derecha y en cifras tabulares, para que las columnas de
+   dígitos queden una bajo la otra. La clase del marco adelante le gana a la
+   regla de la librería sin `!important`. */
+.adoc-asistente-tabla td.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
 }
 
 .adoc-asistente-sensible {

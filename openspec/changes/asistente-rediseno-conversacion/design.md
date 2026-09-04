@@ -41,9 +41,11 @@ Se mantiene «Consultando…» a los 400 ms como único contenido textual; se le
 
 `<details>` nativo con resumen «Cómo lo interpreté», después del texto y la tabla, al lado de «Ver la consulta» (mismo patrón). Es parte de la respuesta, así que va **en la región viva**; el contenido de un `<details>` cerrado no se anuncia hasta abrirlo, así que no agrega ruido al lector. Renderizado condicional: sin razonamiento no queda hueco. `preguntaInterpretada` queda **visible** como «Entendí: …» (RF-10): esconderla derrota el aviso de que se reinterpretó la pregunta.
 
-### D4 — `metricas.categoria` sale del tipo; `cubre[].nombre` no se muestra
+### D4 — `metricas.categoria` sale del tipo; de `cubre[]` no se muestra ni `nombre` ni `descripcion`
 
-Son etiquetas internas (`consulta_simple`, `cruce_de_tablas`, `designaciones.pedidos`) y RNF-18 las prohíbe. `categoria` se quita de `MetricasDelTurno` con un comentario que diga por qué; el backend la sigue mandando y el cliente la ignora. El estado inicial usa `cubre[].descripcion` sólo cuando viene.
+Son etiquetas internas (`consulta_simple`, `cruce_de_tablas`, `designaciones.pedidos`) y RNF-18 las prohíbe. `categoria` se quita de `MetricasDelTurno` con un comentario que diga por qué; el backend la sigue mandando y el cliente la ignora.
+
+`cubre[].descripcion` tampoco se muestra, aunque la primera versión del estado inicial la listaba bajo «Puedo consultar:». Es el `COMMENT ON TABLE` de PostgreSQL, el mismo texto que el backend le manda al modelo en el prefijo del prompt (`ICatalogoDeCapacidades.cs`): nombres calificados de tablas, sinónimos del dominio y advertencias del estilo «NO confundir con identity.roles». Está escrito para el modelo y no para el usuario, y el cliente no tiene cómo sanearlo. De las áreas sólo se dice cuántas hay, en la línea del alcance. Una descripción pensada para el usuario es trabajo del backend y queda como ticket aparte.
 
 ### D5 — Reintentar reusa la clave, y sólo se ofrece cuando el turno terminó en error
 

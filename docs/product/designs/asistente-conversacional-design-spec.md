@@ -90,7 +90,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Cargando acceso     | No hay lanzador; `/asistente` muestra el panel sin estado inicial hasta que el catálogo responda                                                                                             | Primera carga de la app                                                        |
 | Sin acceso          | No hay lanzador; `/asistente` muestra sólo un `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón                                               | 403 del backend                                                                |
-| Inicial (vacío)     | Título + alcance + chips de ejemplos + áreas (por descripción) + límites; campo con foco                                                                                                     | Sin turnos                                                                     |
+| Inicial (vacío)     | Título + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                                                        | Sin turnos                                                                     |
 | En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                | Entre el envío y la respuesta                                                  |
 | Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                          | `estado = respondida`                                                          |
 | No contestable      | Texto del backend + sugerencias como chips                                                                                                                                                   | `estado = no_contestable`                                                      |
@@ -128,7 +128,11 @@ personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores 
   `<details>` nativo con resumen «Cómo lo interpreté»: parte de la respuesta, en la región viva, y
   no se anuncia hasta abrirlo. `preguntaInterpretada` queda **visible** (RF-10), no dentro.
 - **`metricas.categoria` no se muestra y sale del tipo TS**: es una etiqueta interna
-  (`consulta_simple`, `cruce_de_tablas`…). `cubre[].nombre` tampoco se muestra; sí `descripcion`.
+  (`consulta_simple`, `cruce_de_tablas`…). De `cubre[]` no se muestra ni `nombre` —`schema.tabla`—
+  ni `descripcion`: es el comentario de la tabla en PostgreSQL, el mismo texto que el backend le
+  manda al modelo en el prompt, con nombres de tablas y advertencias para el modelo. De las áreas
+  sólo se dice cuántas hay, en la línea del alcance; una descripción para el usuario es trabajo del
+  backend.
 - **Sólo acciones reales por mensaje: copiar.** Copiar usa el portapapeles del navegador; si no
   está disponible, el botón no se renderiza. No hay regenerar, feedback, editar ni adjuntar.
 - **Reintentar reusa la clave de idempotencia del intento, y sólo aparece en un turno que terminó
@@ -183,7 +187,8 @@ personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores 
 - Persistir la conversación en `localStorage`/`sessionStorage`.
 - Botones de regenerar, pulgar arriba/abajo, editar mensaje, adjuntar, voz, historial de
   conversaciones: no hay backend.
-- Mostrar `estado`, `metricas.categoria`, `cubre[].nombre`, códigos HTTP, nombres de excepciones.
+- Mostrar `estado`, `metricas.categoria`, `cubre[].nombre`, `cubre[].descripcion` —el comentario
+  escrito para el modelo—, códigos HTTP, nombres de excepciones.
 - Contar filas faltantes («ves 3 de 124»).
 - Región viva sobre el contenedor entero; métricas dentro del log.
 - Ocultar acciones sólo detrás de hover.

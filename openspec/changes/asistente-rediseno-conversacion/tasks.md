@@ -65,6 +65,7 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 - [x] 7.3 `PanelAsistente.tsx`: con `tieneAcceso === false` renderiza sólo `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón.
 - [x] 7.4 `Opciones.tsx` / `Sugerencias.tsx`: sólo clases (barra de acento a la izquierda / chips pastilla `ghost`); textos intactos.
 - [x] 7.5 Verde y commit `feat(asistente): …`.
+- [x] 7.6 fix — el estado inicial NO muestra `cubre[].descripcion`: es el `COMMENT ON TABLE` que el backend le manda al modelo (`ICatalogoDeCapacidades.cs`), y en runtime pintaba «NO confundir con identity.roles», «produce una fila en designaciones.designaciones» y demás jerga bajo «Puedo consultar:». Test rojo primero en `EstadoInicial.test.tsx` con un comentario real; la fixture de `test/soporte.tsx` trae el comentario como llega. Se quita la sección; de las áreas queda sólo el conteo en la línea del alcance. Corregidos D4 de `design.md`, el spec delta y el design spec. Una descripción para el usuario es trabajo del backend (ticket aparte). En el mismo commit: `Mensaje.tsx` deja de meter `estado-<estado>` como clase (ninguna regla la usaba) y `asistente.css` alinea a la derecha las celdas numéricas (`numeric` de la librería sólo cambia la tipografía).
 
 ## 8. feat(asistente): reintentar, «Dejar de esperar», nueva conversación, conversación que sobrevive al cierre, foco del modal
 

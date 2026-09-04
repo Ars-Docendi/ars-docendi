@@ -592,8 +592,10 @@ derrotaría su razón de ser.
 **Ninguna etiqueta interna llega a la pantalla.** `metricas.categoria` —el carril
 que resolvió el turno— salió del tipo del cliente: el backend la sigue mandando y lo
 que no está en el tipo no se puede pintar por descuido. `cubre[].nombre` es
-`schema.tabla` y tampoco se muestra; las áreas del catálogo se presentan por su
-descripción, y cuando no viene, no se listan.
+`schema.tabla` y tampoco se muestra, ni `cubre[].descripcion`: es el comentario de
+la tabla en PostgreSQL, el mismo texto que va al modelo en el prefijo del prompt,
+con nombres de tablas y advertencias para el modelo. De las áreas del catálogo
+sólo se dice cuántas hay, en la línea del alcance.
 
 Las columnas sensibles se renderizan como tabla con los **valores reales** —nunca
 viajaron al modelo— y **se marcan**: candado en la cabecera y una leyenda bajo la

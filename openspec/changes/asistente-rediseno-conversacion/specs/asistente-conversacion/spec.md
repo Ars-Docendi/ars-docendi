@@ -71,14 +71,14 @@ El sistema SHALL mostrar un botón de envío con la etiqueta visible «Enviar»,
 
 ### Requirement: El estado inicial usa sólo el catálogo
 
-El sistema SHALL construir el estado inicial con el alcance, los ejemplos, las descripciones de las áreas y los límites que devuelve el catálogo de capacidades, MUST NOT mostrar el nombre interno de ninguna área, y SHALL quitar el estado inicial con el primer turno.
+El sistema SHALL construir el estado inicial con el alcance, los ejemplos, la cantidad de áreas y los límites que devuelve el catálogo de capacidades, MUST NOT mostrar el nombre interno ni la descripción de ninguna área —la descripción es el comentario de la tabla que se le manda al modelo, no un texto para el usuario—, y SHALL quitar el estado inicial con el primer turno.
 
-#### Scenario: Las áreas se muestran por su descripción
+#### Scenario: De las áreas sólo se dice cuántas hay
 
-- **GIVEN** un catálogo cuya área tiene nombre interno y descripción
+- **GIVEN** un catálogo cuya área tiene nombre interno y un comentario escrito para el modelo
 - **WHEN** el usuario ve el estado inicial
-- **THEN** lee la descripción
-- **AND** el nombre interno no aparece en ningún lugar de la página
+- **THEN** lee cuántas áreas de datos conoce el asistente
+- **AND** ni el nombre interno ni el comentario aparecen en ningún lugar de la página
 
 #### Scenario: Un ejemplo se envía al elegirlo
 

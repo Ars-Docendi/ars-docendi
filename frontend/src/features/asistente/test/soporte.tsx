@@ -15,9 +15,22 @@ import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
 // ============================================================
 
 export const CAPACIDADES: CapacidadesDelAsistente = {
+  // `descripcion` llega como el backend la manda de verdad: el `COMMENT ON TABLE`
+  // que se escribió para el modelo, con nombres de tablas y «NO confundir con…».
+  // La fixture lo trae así a propósito para que muerda cualquier test que monte
+  // el panel vacío si alguien lo pinta.
   cubre: [
-    { nombre: "designaciones.pedidos", descripcion: "Los pedidos del trámite.", columnas: 12 },
-    { nombre: "identity.personas", descripcion: "El padrón de personas.", columnas: 5 },
+    {
+      nombre: "designaciones.pedidos",
+      descripcion:
+        "Pedidos de novedad docente. Aprobado produce una fila en designaciones.designaciones.",
+      columnas: 12,
+    },
+    {
+      nombre: "identity.personas",
+      descripcion: "Padrón de personas (identity.users). NO confundir con identity.roles.",
+      columnas: 5,
+    },
   ],
   tablas: 2,
   columnas: 17,
