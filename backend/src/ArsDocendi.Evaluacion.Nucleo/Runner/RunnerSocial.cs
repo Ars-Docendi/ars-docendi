@@ -131,6 +131,12 @@ public sealed class RunnerSocial(
 
     private static ResultadoDeItem EvaluarNoContestable(ItemSocial item, ResultadoDelTurno turno)
     {
+        // Resolvió «no contestable» sin que el modelo decidiera nada: no se acredita.
+        if (turno.Categoria == GeneracionDeSql.CategoriaTruncada)
+        {
+            return ResultadoDeItem.PorGeneracionTruncada(item.Id, item.Clase);
+        }
+
         var seAbstuvo = turno.Estado is EstadoDelTurno.NoContestable
             or EstadoDelTurno.NecesitaAclaracion;
 

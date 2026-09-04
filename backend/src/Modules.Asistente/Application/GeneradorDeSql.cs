@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
@@ -24,8 +25,25 @@ public sealed record GeneracionDeSql(
     public static GeneracionDeSql NoContestable(string razonamiento) =>
         new(false, null, razonamiento, CategoriaNoContestable);
 
+    /// <summary>
+    /// Generación que se cortó por el techo de tokens antes de poder decidir.
+    /// </summary>
+    /// <remarks>
+    /// Para el usuario es una abstención más: mismo estado y mismo texto, porque
+    /// contarle que hubo un problema de presupuesto es contarle cómo está hecho el
+    /// sistema (RNF-18). La diferencia va en la categoría, que es lo que leen el
+    /// registro analítico y el evaluador: una abstención es una decisión del modelo
+    /// y esto no lo es, y la métrica primaria —corrección con abstención— no puede
+    /// acreditar como acierto un turno que no llegó a decidir nada.
+    /// </remarks>
+    public static GeneracionDeSql Truncada(string razonamiento) =>
+        new(false, null, razonamiento, CategoriaTruncada);
+
     /// <summary>Categoría con que se marca una pregunta fuera de alcance.</summary>
     public const string CategoriaNoContestable = "no_contestable";
+
+    /// <summary>Categoría con que se marca una generación cortada por el techo de tokens.</summary>
+    public const string CategoriaTruncada = "truncado_en_generacion";
 }
 
 /// <summary>
@@ -41,7 +59,8 @@ public sealed class GeneradorDeSql(
     ISelectorDeEjemplos ejemplos,
     IProveedorDeModelo modelo,
     IFechaDeReferencia fecha,
-    IOptions<OpcionesAsistente> opciones)
+    IOptions<OpcionesAsistente> opciones,
+    ILogger<GeneradorDeSql> log)
 {
 
     /// <summary>
@@ -79,7 +98,27 @@ public sealed class GeneradorDeSql(
             },
             ct);
 
-        return Interpretar(respuesta.Texto);
+        var interpretada = InterpretarSiSePuede(respuesta.Texto);
+
+        if (respuesta.SeQuedoSinTokens)
+        {
+            if (interpretada is null)
+            {
+                // El modelo gastó el presupuesto antes de cerrar el objeto. NO es
+                // una abstención: el modelo no decidió nada, y contarla como tal
+                // haría que un techo corto se viera igual que un asistente prudente
+                // —en el registro y, peor, en la métrica—.
+                return GeneracionDeSql.Truncada(RazonamientoIninteligible);
+            }
+
+            // El objeto llegó entero y lo que se cortó fue algo después. Se usa,
+            // pero queda dicho: es la señal de que el techo está al límite.
+            log.LogWarning(
+                "La generación agotó su techo de tokens pero el objeto llegó completo; "
+                + "se usa igual. El presupuesto de la llamada está al límite.");
+        }
+
+        return interpretada ?? GeneracionDeSql.NoContestable(RazonamientoIninteligible);
     }
 
     /// <summary>
@@ -121,12 +160,23 @@ public sealed class GeneradorDeSql(
     /// un fallo de formato en la ejecución de una consulta que nadie declaró como
     /// tal, que es exactamente el caso que el validador existe para evitar.
     /// </remarks>
-    internal static GeneracionDeSql Interpretar(string texto)
+    internal static GeneracionDeSql Interpretar(string texto) =>
+        InterpretarSiSePuede(texto) ?? GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+
+    /// <summary>
+    /// Interpreta la respuesta, o nulo si no tiene la forma esperada.
+    /// </summary>
+    /// <remarks>
+    /// Devuelve nulo en lugar de resolver por abstención porque quien llama necesita
+    /// la diferencia: la misma respuesta ininteligible es una abstención si el modelo
+    /// terminó de escribir y un corte por presupuesto si no.
+    /// </remarks>
+    private static GeneracionDeSql? InterpretarSiSePuede(string texto)
     {
         var json = ExtraerObjeto(texto);
         if (json is null)
         {
-            return GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+            return null;
         }
 
         RespuestaDeGeneracion? interpretada;
@@ -136,12 +186,12 @@ public sealed class GeneradorDeSql(
         }
         catch (JsonException)
         {
-            return GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+            return null;
         }
 
         if (interpretada is null)
         {
-            return GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+            return null;
         }
 
         var razonamiento = string.IsNullOrWhiteSpace(interpretada.Razonamiento)

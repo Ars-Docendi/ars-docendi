@@ -111,6 +111,17 @@ public sealed record Reporte(
                 "Un fallo no acredita ni castiga al modelo, pero\n"
                 + "> sí cuenta en el denominador. Un número alto acá invalida la corrida.\n\n");
         }
+
+        var truncados = Conteos[DesenlaceDeItem.GeneracionTruncada];
+        if (truncados > 0)
+        {
+            texto.Append(CultureInfo.InvariantCulture,
+                $"> **{truncados} generación(es) se cortaron por el techo de tokens.** ");
+            texto.Append(
+                "No acreditan ni castigan,\n"
+                + "> pero cuentan en el denominador: el modelo no llegó a decidir. Subí\n"
+                + "> `MaximoDeTokensDeGeneracion` o bajá el esfuerzo antes de comparar corridas.\n\n");
+        }
     }
 
     private void EscribirCategorias(StringBuilder texto)
@@ -149,6 +160,7 @@ public sealed record Reporte(
         DesenlaceDeItem.AbstencionCorrecta => "Abstención correcta",
         DesenlaceDeItem.IntentoSobreLoInfactible => "Intentó responder lo infactible",
         DesenlaceDeItem.Fallo => "Falló el turno",
+        DesenlaceDeItem.GeneracionTruncada => "Generación truncada por presupuesto",
         _ => desenlace.ToString(),
     };
 }

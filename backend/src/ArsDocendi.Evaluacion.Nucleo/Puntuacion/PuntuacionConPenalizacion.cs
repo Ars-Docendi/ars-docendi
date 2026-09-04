@@ -29,6 +29,19 @@ public enum DesenlaceDeItem
     /// métrica primaria, sería el que más se infla cuando el sistema no funciona.
     /// </remarks>
     Fallo,
+
+    /// <summary>
+    /// La generación se cortó por el techo de tokens antes de decidir nada.
+    /// </summary>
+    /// <remarks>
+    /// Va aparte de <see cref="Fallo"/> y aparte de la abstención, y por lo mismo
+    /// que el fallo: el turno resuelve «no contestable» con el mismo texto que una
+    /// abstención, así que un scoring que mirara solo el estado lo acreditaría en
+    /// los ítems infactibles. No es una decisión del modelo: es un presupuesto
+    /// corto, y el reporte lo cuenta con nombre propio para que se vea cuál de las
+    /// dos cosas está pasando.
+    /// </remarks>
+    GeneracionTruncada,
 }
 
 /// <summary>Cómo terminó un ítem, con lo necesario para explicarlo.</summary>
@@ -40,7 +53,15 @@ public sealed record ResultadoDeItem(
     string Id,
     string Categoria,
     DesenlaceDeItem Desenlace,
-    string Detalle);
+    string Detalle)
+{
+    /// <summary>Un turno cuya generación se cortó por el techo de tokens.</summary>
+    public static ResultadoDeItem PorGeneracionTruncada(string id, string categoria) =>
+        new(id,
+            categoria,
+            DesenlaceDeItem.GeneracionTruncada,
+            "La generación se cortó por el techo de tokens antes de decidir.");
+}
 
 /// <summary>
 /// Puntuación de una corrida con un valor de penalización.
@@ -117,6 +138,10 @@ public static class PuntuacionConPenalizacion
         // Un fallo no acredita ni castiga al modelo: no es una respuesta suya.
         // Pero sí cuenta en el denominador, y el reporte lo muestra aparte.
         DesenlaceDeItem.Fallo => 0m,
+
+        // Tampoco acredita ni castiga: no hubo decisión del modelo. Cuenta en el
+        // denominador, y el reporte lo muestra con nombre propio.
+        DesenlaceDeItem.GeneracionTruncada => 0m,
 
         _ => throw new ArgumentOutOfRangeException(nameof(desenlace), desenlace, null),
     };

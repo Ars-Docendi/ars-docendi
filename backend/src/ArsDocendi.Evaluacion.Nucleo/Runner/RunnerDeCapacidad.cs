@@ -122,6 +122,14 @@ public sealed class RunnerDeCapacidad(
             return Fallo(item, "El turno resolvió servicio degradado.");
         }
 
+        // Tampoco lo es una generación cortada por el techo de tokens: resuelve «no
+        // contestable» con el mismo texto que una abstención, pero el modelo no
+        // decidió nada. Se cuenta con nombre propio, ni acierto ni fallo del modelo.
+        if (turno.Categoria == GeneracionDeSql.CategoriaTruncada)
+        {
+            return ResultadoDeItem.PorGeneracionTruncada(item.Id, item.Categoria);
+        }
+
         return item.EsInfactible
             ? EvaluarInfactible(item, turno)
             : await EvaluarFactibleAsync(item, turno, actor, ct);

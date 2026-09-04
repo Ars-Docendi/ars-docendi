@@ -133,8 +133,14 @@ public sealed class CarrilSql(
         {
             // Corta acá: sin consulta no hay nada que ejecutar y no hay nada que
             // redactar, así que la segunda llamada no se hace.
+            //
+            // La categoría es la de la generación y no la constante: es lo único
+            // que distingue, en el registro analítico y en el evaluador, una
+            // abstención de una generación cortada por el techo de tokens. El
+            // usuario ve lo mismo en las dos.
             return NoContestable(
-                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoNoContestable);
+                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoNoContestable,
+                generacion.Categoria);
         }
 
         var veredicto = ValidadorDeSql.Validar(generacion.Sql);
@@ -146,7 +152,8 @@ public sealed class CarrilSql(
                 "El validador rechazó la consulta generada: {Motivo}", veredicto.Motivo);
 
             return NoContestable(
-                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador);
+                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador,
+                GeneracionDeSql.CategoriaNoContestable);
         }
 
         var resultado = await ejecutor.EjecutarAsync(
@@ -250,7 +257,11 @@ public sealed class CarrilSql(
             Sql: LaConsulta(generacion, perfil));
 
     private ResultadoDelTurno NoContestable(
-        GeneracionDeSql generacion, string pregunta, string? aMostrar, string texto) =>
+        GeneracionDeSql generacion,
+        string pregunta,
+        string? aMostrar,
+        string texto,
+        string categoria) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             generacion.Razonamiento,
@@ -259,7 +270,7 @@ public sealed class CarrilSql(
             [],
             Truncado: false,
             [],
-            GeneracionDeSql.CategoriaNoContestable,
+            categoria,
             contador.Llamadas,
             Sugerencias: Sugerencias.Para(pregunta, ejemplos));
 

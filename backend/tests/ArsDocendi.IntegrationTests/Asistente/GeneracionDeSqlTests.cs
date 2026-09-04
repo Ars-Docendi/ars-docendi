@@ -1,4 +1,5 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Application;
@@ -221,6 +222,65 @@ public sealed class GeneracionDeSqlTests
         Assert.DoesNotContain("tabla", razonamiento, StringComparison.OrdinalIgnoreCase);
     }
 
+    // ------------------------------------------------- corte por presupuesto
+
+    [Fact]
+    public async Task Una_generacion_cortada_por_el_techo_de_tokens_no_se_confunde_con_una_abstencion()
+    {
+        // El JSON llega por la mitad porque el modelo gastó el presupuesto antes de
+        // terminar de escribir. Para el usuario es lo mismo que una abstención; para
+        // el registro y el evaluador NO: una es una decisión del modelo y la otra un
+        // presupuesto corto, y contarla como abstención correcta infla la métrica.
+        var proveedor = new ProveedorGuionado(
+            """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""")
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var generacion = await Componer(proveedor).GenerarAsync(
+            "¿Cuántos pedidos hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
+
+        Assert.False(generacion.EsContestable);
+        Assert.Equal("truncado_en_generacion", generacion.Categoria);
+
+        // El razonamiento lo lee el usuario final: no puede hablar de presupuesto.
+        Assert.DoesNotContain("token", generacion.Razonamiento, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Si_el_JSON_llego_entero_el_corte_por_presupuesto_no_descarta_la_interpretacion()
+    {
+        // El proveedor avisa que paró por presupuesto, pero el objeto está completo:
+        // lo que se cortó fue algo después —prosa, un cierre de bloque—. Descartar
+        // una consulta bien formada por el aviso sería abstenerse de más.
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT 1 FROM identity.carreras"))
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var generacion = await Componer(proveedor).GenerarAsync(
+            "¿Qué carreras hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
+
+        Assert.True(generacion.EsContestable);
+        Assert.Equal("SELECT 1 FROM identity.carreras", generacion.Sql);
+    }
+
+    [Fact]
+    public async Task Sin_el_aviso_del_proveedor_un_JSON_cortado_sigue_siendo_no_contestable()
+    {
+        // La categoría la decide el aviso del proveedor y no la forma del texto: un
+        // JSON roto sin aviso es un modelo que contestó mal, no un presupuesto corto.
+        var proveedor = new ProveedorGuionado(
+            """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""");
+
+        var generacion = await Componer(proveedor).GenerarAsync(
+            "¿Cuántos pedidos hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
+
+        Assert.False(generacion.EsContestable);
+        Assert.Equal(GeneracionDeSql.CategoriaNoContestable, generacion.Categoria);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static GeneradorDeSql Componer(ProveedorGuionado proveedor, DateOnly? fecha = null) =>
@@ -228,7 +288,8 @@ public sealed class GeneracionDeSqlTests
             new SelectorDeEjemplos(),
             proveedor,
             new FechaDeReferenciaFija(fecha ?? Hoy),
-            Options.Create(new OpcionesAsistente()));
+            Options.Create(new OpcionesAsistente()),
+            NullLogger<GeneradorDeSql>.Instance);
 
     /// <summary>Proveedor de esquema fijo, para no necesitar una base.</summary>
     private sealed class EsquemaDeGuion : IProveedorDeEsquema

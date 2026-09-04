@@ -66,6 +66,16 @@ public sealed class PuntuacionTests
         Assert.Equal(0m, PuntuacionConPenalizacion.Puntuar(DesenlaceDeItem.Fallo, 2m));
     }
 
+    [Fact]
+    public void Una_generacion_truncada_no_acredita_ni_castiga()
+    {
+        // Resolvió «no contestable» sin que el modelo decidiera nada: es un
+        // presupuesto corto, no una abstención. Acreditarla inflaría justo la
+        // métrica primaria; castigarla culparía al modelo de un techo que no eligió.
+        Assert.Equal(
+            0m, PuntuacionConPenalizacion.Puntuar(DesenlaceDeItem.GeneracionTruncada, 2m));
+    }
+
     // --------------------------------------------------- la trampa del eje
 
     [Fact]

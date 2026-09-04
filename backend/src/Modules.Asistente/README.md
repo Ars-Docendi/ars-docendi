@@ -173,6 +173,13 @@ quiera sugerir algo la distinción se pierde del todo.
 `necesita_aclaracion`, `servicio_degradado`) y no con el nombre del enum: renombrarlo
 adentro no puede romper a los clientes en silencio.
 
+`metricas.categoria` es más fina que `estado`. Una generación cortada por el techo de
+tokens llega como `no_contestable` con el mismo texto que una abstención, pero con
+`categoria = truncado_en_generacion`: el registro operativo guarda el estado y ve una
+abstención más; el analítico guarda la categoría y las distingue. Es lo que le permite
+al evaluador no acreditar como abstención correcta un turno en que el modelo no
+decidió nada.
+
 `sql` solo viaja con `asistente.ver_consulta`, y el chequeo está donde se arma la
 respuesta —no en el controller—, para que cualquier camino nuevo lo herede.
 
@@ -259,11 +266,15 @@ anunciado para no antes de octubre de 2026.
 
 El esfuerzo va en `medium` por costo **y** por un riesgo concreto: los modelos
 actuales piensan por defecto, esos tokens se facturan como salida y cuentan contra
-el techo de la llamada. La generación de SQL tiene techo de 1200 tokens, así que
-con esfuerzo alto el modelo podría gastar el presupuesto pensando y truncar el
-JSON — que el generador resuelve como «no pude interpretar la pregunta». Todavía
-es una hipótesis; el síntoma serían abstenciones sin explicación sobre preguntas
-contestables.
+el techo de la llamada (`MaximoDeTokensDeGeneracion`). Con esfuerzo alto el modelo
+puede gastar el presupuesto pensando y cortar el JSON antes de cerrarlo. Para el
+usuario eso es «no pude interpretar la pregunta», el mismo texto que una abstención
+genuina (RNF-18: nada de presupuestos ni de formatos), pero **ya no se confunde con
+una**: cuando el proveedor declara que paró por presupuesto y el objeto no se puede
+interpretar, el turno sale con `categoria = truncado_en_generacion`, y el evaluador
+lo cuenta aparte —ni acierto ni abstención—. Si esa fila aparece en el reporte, el
+techo es lo que hay que subir. Ya no es una hipótesis que se infiere de abstenciones
+sin explicación: se mide.
 
 Las dos elecciones se confirman o se corrigen con una corrida del evaluador, que
 para eso existe. Cambiar de modelo entre corridas es una variable de ambiente.

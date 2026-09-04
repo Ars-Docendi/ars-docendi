@@ -106,6 +106,27 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Una_generacion_cortada_por_presupuesto_abstiene_igual_pero_no_se_registra_como_abstencion()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""")
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        // Lo que ve el usuario no cambia: mismo estado y mismo texto que una
+        // abstención (RNF-18). Lo que cambia es la categoría, que es lo que leen el
+        // registro analítico y el evaluador.
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, turno.Respuesta);
+        Assert.Equal("truncado_en_generacion", turno.Categoria);
+    }
+
+    [Fact]
     public async Task Una_consulta_rechazada_por_el_validador_no_se_reintenta_a_ciegas()
     {
         await SembrarAsync();
@@ -433,7 +454,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             new SelectorDeEjemplos(),
             conTecho,
             new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)),
-            Options.Create(new OpcionesAsistente()));
+            Options.Create(new OpcionesAsistente()),
+            NullLogger<GeneradorDeSql>.Instance);
 
         return new CarrilSql(
             generador,

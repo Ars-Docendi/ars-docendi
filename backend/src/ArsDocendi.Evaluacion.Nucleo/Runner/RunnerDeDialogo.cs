@@ -117,6 +117,14 @@ public sealed class RunnerDeDialogo(
                 $"Arrastró «{arrastrado}» del turno anterior en la pregunta interpretada.");
         }
 
+        // Después del arrastre y antes de todo lo demás: un turno cortado por el
+        // techo de tokens no decidió nada, así que no se acredita ni se castiga por
+        // lo que no llegó a decidir. El diálogo sigue, igual que en producción.
+        if (respuesta.Categoria == GeneracionDeSql.CategoriaTruncada)
+        {
+            return ResultadoDeItem.PorGeneracionTruncada(id, dialogo.Id);
+        }
+
         if (turno.EsperaAclaracion)
         {
             var pidio = respuesta.Estado == EstadoDelTurno.NecesitaAclaracion;

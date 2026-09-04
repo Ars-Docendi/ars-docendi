@@ -248,6 +248,29 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Una_generacion_cortada_por_presupuesto_no_cuenta_como_abstencion()
+    {
+        await SembrarAsync();
+
+        // El proveedor aprueba el preflight y después devuelve cada generación
+        // cortada por el techo de tokens. El turno resuelve «no contestable» con el
+        // mismo texto que una abstención, y el ítem infactible se acreditaría como
+        // abstención correcta sin que el modelo haya decidido nada: es la misma
+        // trampa del turno degradado, con otra causa.
+        var corrida = await CorrerAsync(
+            new ProveedorDeCortesia { TruncaLaGeneracion = true }, DatasetMinimo);
+
+        Assert.True(corrida.HayReporte, corrida.Motivo);
+        Assert.Equal(0, corrida.Reporte!.Conteos[DesenlaceDeItem.AbstencionCorrecta]);
+        Assert.Equal(0, corrida.Reporte.Conteos[DesenlaceDeItem.AbstencionSobreloFactible]);
+        Assert.Equal(2, corrida.Reporte.Conteos[DesenlaceDeItem.GeneracionTruncada]);
+        Assert.All(corrida.Reporte.Puntajes, puntaje => Assert.Equal(0m, puntaje.Puntaje));
+
+        // Y el reporte lo dice con todas las letras, no lo esconde en un fallo.
+        Assert.Contains("truncad", corrida.Reporte.Renderizar(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Una_traduccion_correcta_se_acredita()
     {
         await SembrarAsync();
@@ -398,7 +421,8 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
                 new SelectorDeEjemplos(),
                 conTecho,
                 new FechaDeReferenciaFija(new DateOnly(2026, 3, 2)),
-                Options.Create(new OpcionesAsistente())),
+                Options.Create(new OpcionesAsistente()),
+                NullLogger<GeneradorDeSql>.Instance),
             ejecutor,
             new ConsultorDeAlcance(basica),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
@@ -470,6 +494,15 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         /// </summary>
         public IReadOnlyList<string?> Generaciones { get; init; } = [];
 
+        /// <summary>
+        /// Si las generaciones llegan cortadas por el techo de tokens.
+        /// </summary>
+        /// <remarks>
+        /// El JSON se corta a la mitad y el proveedor lo declara, que es lo que
+        /// hace el adaptador real cuando el modelo para por presupuesto.
+        /// </remarks>
+        public bool TruncaLaGeneracion { get; init; }
+
         public int Llamadas => _llamadas;
 
         public Task<RespuestaDelModelo> CompletarAsync(
@@ -488,8 +521,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
                 throw new HttpRequestException("la cuota se agotó a mitad de la corrida");
             }
 
-            return Task.FromResult(new RespuestaDelModelo(
-                Responder(solicitud), TokensDeEntrada, TokensDeSalida, EsSimulada: false));
+            return Task.FromResult(Responder(solicitud));
         }
 
         /// <summary>
@@ -501,32 +533,47 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         /// reintento de generación ante un resultado vacío, y el guion se
         /// desalinearía sin que el test lo dijera.
         /// </remarks>
-        private string Responder(SolicitudAlModelo solicitud)
+        private RespuestaDelModelo Responder(SolicitudAlModelo solicitud)
         {
             if (solicitud.PrefijoEstable == RedactorDeRespuesta.Instrucciones)
             {
-                return "Respuesta redactada sobre las filas.";
+                return Completa("Respuesta redactada sobre las filas.");
             }
 
             if (!solicitud.PrefijoEstable.Contains(
                 "ESQUEMA DISPONIBLE", StringComparison.Ordinal))
             {
                 // El preflight: no lleva esquema ni instrucciones de redacción.
-                return "listo";
+                return Completa("listo");
+            }
+
+            if (TruncaLaGeneracion)
+            {
+                // Cortado a la mitad Y declarado: es lo que llega cuando el modelo
+                // gasta el presupuesto antes de cerrar el objeto.
+                return new RespuestaDelModelo(
+                    """{"es_contestable": true, "sql": "SELECT count(*) AS total FROM designaci""",
+                    TokensDeEntrada,
+                    TokensDeSalida,
+                    EsSimulada: false,
+                    SeQuedoSinTokens: true);
             }
 
             if (_generaciones >= Generaciones.Count)
             {
-                return ProveedorGuionado.NoContestable();
+                return Completa(ProveedorGuionado.NoContestable());
             }
 
             var guionada = Generaciones[_generaciones];
             _generaciones++;
 
-            return guionada is null
+            return Completa(guionada is null
                 ? ProveedorGuionado.NoContestable()
-                : ProveedorGuionado.Generacion(guionada);
+                : ProveedorGuionado.Generacion(guionada));
         }
+
+        private RespuestaDelModelo Completa(string texto) =>
+            new(texto, TokensDeEntrada, TokensDeSalida, EsSimulada: false);
 
         private int _generaciones;
     }

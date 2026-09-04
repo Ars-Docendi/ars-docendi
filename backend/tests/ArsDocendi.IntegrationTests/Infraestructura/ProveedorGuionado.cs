@@ -54,6 +54,15 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
     /// </remarks>
     public Action? Antes { get; init; }
 
+    /// <summary>
+    /// Si declara que cada respuesta se cortó por el techo de tokens.
+    /// </summary>
+    /// <remarks>
+    /// El guion trae el texto ya cortado; esta bandera es lo que el adaptador real
+    /// agrega cuando el proveedor dice que paró por presupuesto y no porque terminó.
+    /// </remarks>
+    public bool SeQuedaSinTokens { get; init; }
+
     public Task<RespuestaDelModelo> CompletarAsync(SolicitudAlModelo solicitud, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
@@ -77,7 +86,8 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
 
         _entregadas++;
 
-        return Task.FromResult(new RespuestaDelModelo(texto, 100, 50, EsSimulada: EsSimulado));
+        return Task.FromResult(new RespuestaDelModelo(
+            texto, 100, 50, EsSimulada: EsSimulado, SeQuedoSinTokens: SeQuedaSinTokens));
     }
 
     /// <summary>Arma la respuesta JSON de una generación contestable.</summary>

@@ -168,14 +168,15 @@ con las que se lo evalúa.
 
 ## La puntuación
 
-| Situación                        | Vale                          |
-| -------------------------------- | ----------------------------- |
-| Factible, traducción correcta    | **+1**                        |
-| Infactible, se abstuvo sin error | **+1**                        |
-| Factible, se abstuvo             | 0                             |
-| Factible, traducción incorrecta  | **−penalización**             |
-| Infactible, intentó responder    | **−penalización**             |
-| El turno falló                   | 0, y cuenta en el denominador |
+| Situación                              | Vale                          |
+| -------------------------------------- | ----------------------------- |
+| Factible, traducción correcta          | **+1**                        |
+| Infactible, se abstuvo sin error       | **+1**                        |
+| Factible, se abstuvo                   | 0                             |
+| Factible, traducción incorrecta        | **−penalización**             |
+| Infactible, intentó responder          | **−penalización**             |
+| El turno falló                         | 0, y cuenta en el denominador |
+| La generación se cortó por presupuesto | 0, y cuenta en el denominador |
 
 Abstenerse ante algo contestable es una falta de capacidad, no una mentira: no
 suma, tampoco resta. Responder mal sí resta.
@@ -211,7 +212,10 @@ reporte escrito sobre una corrida inválida es peor que no tener reporte: el que
 existe se nota, el que miente no.
 
 La misma trampa se cubre del otro lado, en el scoring: un turno que resolvió
-servicio degradado cuenta como **fallo**, nunca como abstención.
+servicio degradado cuenta como **fallo**, nunca como abstención. Y una generación
+cortada por el techo de tokens —que resuelve «no contestable» con el mismo texto que
+una abstención— se reconoce por `categoria = truncado_en_generacion` y se cuenta
+**aparte**: ni acierto ni fallo del modelo, con su propia fila en el reporte.
 
 ## El sello de los reportes
 
