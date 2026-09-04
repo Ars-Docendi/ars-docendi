@@ -5,10 +5,10 @@
   --ui-zoom: 1.125;
   zoom: var(--ui-zoom);
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-  font-size: 16px;
+  font-size: var(--text-body-size);
   line-height: 1.5;
-  color: #1f2933;
-  background: #f7f7f9;
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
 }
 
 * {
@@ -16,10 +16,34 @@
 }
 
 body {
-  margin: 0;
+  margin: var(--space-0);
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* ============================================================
+   Override puntual del design system: badge "Prioritario".
+   ------------------------------------------------------------
+   `@ars-docendi/ui` lo define en `neutral-900` sólido con texto blanco — el
+   único badge invertido de los siete, para que se lea como un ATRIBUTO y no
+   como un estado. El cliente prefiere la paleta `danger`, con el mismo
+   tratamiento outline que el resto de los badges.
+
+   Consecuencia asumida y comunicada: queda visualmente idéntico al badge
+   "Rechazado", que usa la misma paleta. No se cruzan en las pestañas de área de
+   la Tabla de revisión (ahí nunca hay rechazados), pero sí pueden convivir en
+   "Todos" y "Finalizados" si un pedido rechazado venía marcado como prioritario.
+
+   Es un override de una librería externa (`github:Ars-Docendi/ui-lib`) y por eso
+   está registrado como TD-004: corresponde subirlo a ui-lib y bumpear la
+   versión, no dejarlo acá. Vive en `index.css` y no en el CSS de la feature
+   porque el badge se usa en toda la app, no solo en la Tabla de revisión.
+   ============================================================ */
+.adoc-badge.s-prioritario {
+  background: var(--danger-100);
+  color: var(--danger-700);
+  border-color: var(--danger-500);
 }

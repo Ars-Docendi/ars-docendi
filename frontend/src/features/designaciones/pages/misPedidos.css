@@ -7,7 +7,7 @@
 .adoc-mp-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 /* El filtro (Docente/N° fijos + "+ Añadir filtro") vive en el componente
@@ -19,7 +19,7 @@
   --mp-cols: 120px minmax(0, 1fr) 100px 230px 180px 110px 220px 190px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
-  background: #fff;
+  background: var(--color-bg-raised);
 }
 .adoc-mp-head,
 .adoc-mp-row {
@@ -34,13 +34,13 @@
   border-radius: var(--radius-xs) var(--radius-xs) 0 0;
 }
 .adoc-mp-head span {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   letter-spacing: 0.48px;
   color: var(--color-text-tertiary);
 }
 .adoc-mp-row {
-  padding: 12px;
+  padding: var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 .adoc-mp-row:last-child {
@@ -59,25 +59,25 @@
 .adoc-mp-num,
 .adoc-mp-env {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
 }
 .adoc-mp-doc {
   overflow: hidden;
-  font-size: 14px;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-primary);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 .adoc-mp-leg {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
 }
 .adoc-mp-cat,
 .adoc-mp-nov {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: var(--space-1);
 }
 /* Ver/Editar/Eliminar son fijos (siempre ocupan el mismo lugar en la fila) — cuando la
    acción no está disponible, el botón queda semitransparente en vez de desaparecer. */
@@ -136,11 +136,11 @@
   padding: 0 14px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
-  background: #fff;
+  background: var(--color-bg-raised);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 .adoc-mp-pager-btn:disabled {
@@ -154,7 +154,7 @@
 .adoc-mp-pages {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .adoc-mp-page {
   display: inline-flex;
@@ -167,7 +167,7 @@
   background: transparent;
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   cursor: pointer;
 }
 .adoc-mp-page:hover {
@@ -176,7 +176,7 @@
 .adoc-mp-page.activa {
   background: var(--accent-100);
   color: var(--color-text-link);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 .adoc-mp-pager-right {
   display: flex;
@@ -185,6 +185,6 @@
   gap: 6px;
 }
 .adoc-mp-pager-meta {
-  font-size: 12px;
+  font-size: var(--text-micro-size);
   color: var(--color-text-tertiary);
 }
