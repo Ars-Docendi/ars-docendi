@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Modules.Portal.Application;
 using Modules.Portal.Contracts.Dtos;
 using Modules.Portal.Domain;

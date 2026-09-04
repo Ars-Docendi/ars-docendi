@@ -15,6 +15,12 @@ internal sealed class RepositorioPortal(PortalDbContext db) : IRepositorioPortal
     {
         if (typeof(T) == typeof(DocenteHabilidad))
             return await db.DocenteHabilidades.FirstOrDefaultAsync(x => x.PerfilId == id, ct) as T;
+        if (typeof(T) == typeof(Proyecto))
+            return await db.Proyectos.Include(x => x.Documento)
+                .Join(db.Perfiles, item => item.PerfilId, perfil => perfil.Id,
+                    (item, perfil) => new { item, perfil })
+                .Where(x => x.item.Id == id && x.perfil.PersonaId == personaId)
+                .Select(x => x.item).FirstOrDefaultAsync(ct) as T;
 
         var entidad = db.Set<T>();
         return await entidad.Join(db.Perfiles, item => EF.Property<Guid>(item, "PerfilId"), perfil => perfil.Id,

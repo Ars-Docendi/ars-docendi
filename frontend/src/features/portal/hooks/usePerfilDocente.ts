@@ -116,9 +116,11 @@ async function sincronizar<T extends { id: string }>(
   eliminar: (id: string) => Promise<void>,
 ) {
   await Promise.all([
-    ...siguiente.map((item) =>
-      anterior.some((x) => x.id === item.id) ? editar(item.id, item) : crear(item),
-    ),
+    ...siguiente
+      .filter((item) => anterior.find((x) => x.id === item.id) !== item)
+      .map((item) =>
+        anterior.some((x) => x.id === item.id) ? editar(item.id, item) : crear(item),
+      ),
     ...anterior
       .filter((item) => !siguiente.some((x) => x.id === item.id))
       .map((item) => eliminar(item.id)),

@@ -13,6 +13,7 @@ import {
   eliminarPeriodo,
   listarPeriodos,
 } from "../features/designaciones/api/periodosApi";
+import { crearProyecto, editarProyecto } from "../features/portal/api/portalApi";
 
 vi.mock("../shared/api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -199,5 +200,29 @@ describe("adapters HTTP administrativos", () => {
     await editarPeriodo("p1", periodo);
     await eliminarPeriodo("p1");
     expect(apiClient.delete).toHaveBeenCalledWith("/api/designaciones/periodos/p1");
+  });
+
+  it("portal adapta la metadata del documento de proyectos", async () => {
+    const proyecto = {
+      nombre: "Proyecto",
+      rol: "Directora",
+      descripcion: "Descripción",
+      desde: "2026-01-01",
+      hasta: null,
+      documento: { nombre: "informe.pdf" },
+      doi: "",
+    };
+    vi.mocked(apiClient.post).mockResolvedValue({ data: proyecto });
+    vi.mocked(apiClient.put).mockResolvedValue({ data: proyecto });
+
+    await crearProyecto(proyecto);
+    await editarProyecto("p1", proyecto);
+
+    const payload = expect.objectContaining({
+      documentoNombre: "informe.pdf",
+      documentoUri: null,
+    });
+    expect(apiClient.post).toHaveBeenCalledWith("/api/portal/perfil/proyectos", payload);
+    expect(apiClient.put).toHaveBeenCalledWith("/api/portal/perfil/proyectos/p1", payload);
   });
 });

@@ -1,6 +1,6 @@
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Modules.Portal.Infrastructure.Migrations;
 

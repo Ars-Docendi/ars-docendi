@@ -4,10 +4,10 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Modules.Designaciones.Contracts.Administracion;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
-using Modules.Designaciones.Contracts.Administracion;
 
 namespace Modules.Designaciones;
 

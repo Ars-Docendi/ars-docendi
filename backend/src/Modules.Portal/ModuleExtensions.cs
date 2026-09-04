@@ -4,8 +4,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Modules.Portal.Infrastructure;
 using Modules.Portal.Application;
+using Modules.Portal.Infrastructure;
 using Modules.Portal.Repositories;
 
 namespace Modules.Portal;

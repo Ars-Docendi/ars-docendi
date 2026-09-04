@@ -62,11 +62,19 @@ export async function eliminarCertificacion(id: string) {
 }
 
 export async function crearProyecto(datos: DatosProyecto) {
-  return (await apiClient.post("/api/portal/perfil/proyectos", datos)).data;
+  return (await apiClient.post("/api/portal/perfil/proyectos", payloadProyecto(datos))).data;
 }
 export async function editarProyecto(id: string, datos: DatosProyecto) {
-  return (await apiClient.put(`/api/portal/perfil/proyectos/${id}`, datos)).data;
+  return (await apiClient.put(`/api/portal/perfil/proyectos/${id}`, payloadProyecto(datos))).data;
 }
 export async function eliminarProyecto(id: string) {
   await apiClient.delete(`/api/portal/perfil/proyectos/${id}`);
+}
+
+function payloadProyecto({ documento, ...datos }: DatosProyecto) {
+  return {
+    ...datos,
+    documentoNombre: documento?.nombre ?? null,
+    documentoUri: null,
+  };
 }
