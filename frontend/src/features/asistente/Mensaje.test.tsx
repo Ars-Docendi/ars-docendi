@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { AccionesDelMensaje } from "./components/AccionesDelMensaje";
 import { Mensaje } from "./components/Mensaje";
 import * as api from "./api/asistenteApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
@@ -116,5 +117,74 @@ describe("Lo que nunca se muestra", () => {
     expect(document.body.textContent).not.toMatch(
       /consulta_simple|respondida|designaciones\.|identity\./,
     );
+  });
+});
+
+// ------------------------------------------------------------------- copiar
+
+const TABLA: Partial<RespuestaDelAsistente> = {
+  columnas: [
+    { nombre: "apellido", sensible: false },
+    { nombre: "horas", sensible: false },
+  ],
+  filas: [["Gómez", 42]],
+};
+
+describe("Copiar", () => {
+  // `userEvent.setup()` instala un portapapeles de mentira en `navigator`: lo
+  // que se escribe se puede leer después.
+  it("«Copiar respuesta» deja el texto en el portapapeles y confirma con «Copiado»", async () => {
+    const user = userEvent.setup();
+    montarMensaje(turno());
+
+    await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
+
+    expect(await navigator.clipboard.readText()).toBe("Hay 4 docentes designados.");
+    expect(await screen.findByRole("button", { name: "Copiado" })).toBeInTheDocument();
+  });
+
+  it("«Copiar tabla» deja la tabla como texto tabulado con cabecera", async () => {
+    const user = userEvent.setup();
+    montarMensaje(turno(TABLA));
+
+    await user.click(screen.getByRole("button", { name: "Copiar tabla" }));
+
+    expect(await navigator.clipboard.readText()).toBe("apellido\thoras\nGómez\t42");
+  });
+
+  it("sin tabla no hay «Copiar tabla»", () => {
+    userEvent.setup();
+    montarMensaje(turno());
+
+    expect(screen.getByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copiar tabla" })).toBeNull();
+  });
+
+  it("«Copiado» vuelve a ser la etiqueta de siempre pasado un momento", async () => {
+    const user = userEvent.setup();
+    montar(<AccionesDelMensaje texto="algo" duracionDelCopiadoMs={20} />);
+
+    await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
+    await screen.findByRole("button", { name: "Copiado" });
+
+    expect(await screen.findByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
+  });
+
+  it("sin portapapeles no hay ningún botón de copiar", () => {
+    // Un contexto sin portapapeles —http sin TLS, un navegador viejo— no puede
+    // copiar nada: un botón que falla al pulsarlo es fake UI, así que no se
+    // renderiza ninguno.
+    const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+
+    try {
+      montarMensaje(turno(TABLA));
+
+      expect(screen.queryByRole("button", { name: /Copiar/ })).toBeNull();
+      expect(screen.getByText("Hay 4 docentes designados.")).toBeVisible();
+    } finally {
+      if (original) Object.defineProperty(navigator, "clipboard", original);
+      else Reflect.deleteProperty(navigator, "clipboard");
+    }
   });
 });

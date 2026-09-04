@@ -5,9 +5,11 @@ import { Conversacion } from "./Conversacion";
 import { EntradaDePregunta } from "./EntradaDePregunta";
 import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
+import { IrAlFinal } from "./IrAlFinal";
 import { NuevaConversacion } from "./NuevaConversacion";
 import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
+import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
 import type { Asistente } from "../hooks/useAsistente";
 
 interface PanelAsistenteProps {
@@ -47,7 +49,6 @@ export function PanelAsistente({
   const { turnos, enVuelo, preguntar, reintentar, detener } = asistente;
   const [borrador, setBorrador] = useState("");
   const entrada = useRef<HTMLTextAreaElement>(null);
-  const hilo = useRef<HTMLDivElement>(null);
   const sinTurnos = turnos.length === 0;
 
   // El foco vuelve al campo cuando el turno termina —también cuando se lo dejó de
@@ -60,16 +61,10 @@ export function PanelAsistente({
     if (!enVuelo) entrada.current?.focus();
   }, [enVuelo, sinTurnos]);
 
-  // El hilo sigue a lo último. Con el campo de entrada fijo abajo, una respuesta que
-  // aparece bajo el pliegue es una respuesta que no se ve: quien preguntó se queda
-  // mirando la pregunta anterior sin saber que ya le contestaron.
-  //
-  // `auto` y no `smooth` a propósito: la animación tarda, y durante ese rato el
-  // texto se mueve debajo de quien está tratando de leerlo.
-  useEffect(() => {
-    const contenedor = hilo.current;
-    if (contenedor) contenedor.scrollTop = contenedor.scrollHeight;
-  }, [turnos, enVuelo]);
+  // El hilo sigue a quien está abajo y no arrastra a quien subió: al enviar va al
+  // fondo, la respuesta se muestra desde su inicio, y si el usuario subió a releer
+  // se queda donde está con «Ir al final» a mano.
+  const { hilo, anclado, irAlFinal, onScroll } = useAnclaAlFinal(turnos);
 
   async function enviar(mensaje: string) {
     // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el
@@ -104,16 +99,29 @@ export function PanelAsistente({
           campo de entrada se va hacia abajo con cada respuesta y hay que perseguirlo;
           acá se queda quieto y lo que se mueve es la conversación, que es lo que uno
           espera de un chat. */}
-      <div className="adoc-asistente-hilo" ref={hilo}>
-        {sinTurnos && capacidades && (
-          <EstadoInicial capacidades={capacidades} onElegir={enviar} deshabilitado={enVuelo} />
-        )}
+      <div className="adoc-asistente-hilo-marco">
+        <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
+          {sinTurnos && capacidades && (
+            <EstadoInicial capacidades={capacidades} onElegir={enviar} deshabilitado={enVuelo} />
+          )}
 
-        <Conversacion
-          turnos={turnos}
-          onElegir={enviar}
-          onReintentar={(id) => void reintentar(id)}
-          enVuelo={enVuelo}
+          <Conversacion
+            turnos={turnos}
+            onElegir={enviar}
+            onReintentar={(id) => void reintentar(id)}
+            enVuelo={enVuelo}
+          />
+        </div>
+
+        {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
+            el foco que tenía se iría a ninguna parte: pasa al campo, que es lo que
+            hay en el final al que se acaba de ir. */}
+        <IrAlFinal
+          visible={!anclado}
+          onClick={() => {
+            irAlFinal();
+            entrada.current?.focus();
+          }}
         />
       </div>
 

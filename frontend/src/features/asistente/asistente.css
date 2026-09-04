@@ -23,6 +23,17 @@
   box-sizing: border-box;
 }
 
+/* El marco del hilo: lo que le da a «Ir al final» contra qué flotar. Es también
+   el contenedor de posición de las tarjetas —el hilo no lo es a propósito—, así
+   que `tarjeta.offsetTop - hilo.offsetTop` mide desde el mismo origen. */
+.adoc-asistente-hilo-marco {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* La región que scrollea. `min-height: 0` no es decorativo: sin él, un hijo flex
    no se encoge por debajo de su contenido y el desbordamiento se lo come el
    contenedor de abajo —que acá es el campo de entrada, y desaparece—. */
@@ -34,6 +45,34 @@
   flex-direction: column;
   gap: var(--space-4);
   padding-right: var(--space-1);
+}
+
+/* «Ir al final»: abajo a la derecha del hilo, corrido de la barra de scroll, y
+   sólo mientras el usuario está arriba. Aparece con un fundido corto; el
+   movimiento se apaga más abajo, con el resto. */
+.adoc-asistente-ir-al-final {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-3);
+  z-index: var(--z-sticky);
+  animation: adoc-asistente-aparecer var(--motion-fast) var(--ease-enter);
+}
+
+/* Despegado del contenido sobre el que flota. */
+.adoc-asistente-ir-al-final > button {
+  box-shadow: var(--elev-3);
+}
+
+@keyframes adoc-asistente-aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ───────────────────────────── el encabezado del panel ─────────────────────── */
@@ -200,6 +239,18 @@
   min-width: 100%;
 }
 
+/* La cabecera se queda a la vista mientras las filas scrollean dentro del marco.
+   La librería ya le da fondo, así que las filas no se transparentan debajo. Con
+   bordes colapsados el borde inferior no viaja con la celda pegajosa —es un
+   límite conocido de los navegadores—, y por eso la línea se dibuja como sombra
+   interior. */
+.adoc-asistente-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+
 .adoc-asistente-sensible {
   display: inline-flex;
   align-items: center;
@@ -326,6 +377,16 @@
   background: var(--color-bg-raised);
   font-family: var(--font-mono);
   font-size: var(--text-caption-size);
+}
+
+/* «Copiar respuesta» y «Copiar tabla», al pie y siempre a la vista: el hover no
+   existe con el teclado ni con el dedo. Botones fantasma: son acciones de
+   servicio, no la respuesta. */
+.adoc-asistente-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-inline-start: calc(-1 * var(--space-3));
 }
 
 /* ─────────────────────────────── la franja de estado ───────────────────────── */
@@ -626,5 +687,9 @@
     box-shadow:
       8px 0 0 currentColor,
       16px 0 0 currentColor;
+  }
+
+  .adoc-asistente-ir-al-final {
+    animation: none;
   }
 }

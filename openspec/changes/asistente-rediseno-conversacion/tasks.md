@@ -82,15 +82,15 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 9. feat(asistente): scroll anclado al inicio de la respuesta + «Ir al final»; tabla sticky; copiar
 
-- [ ] 9.1 Tests — `useAnclaAlFinal.test.tsx` (nuevo): «El hilo no arrastra si el usuario subió» (`Object.defineProperty(hilo, "scrollHeight", { value: 1000 })`, `clientHeight` 300, `scrollTop` 0; `fireEvent.scroll(hilo)`; llega una respuesta; `scrollTop` sigue en 0 y aparece «Ir al final»; clic → `scrollTop === scrollHeight - clientHeight`); «Anclado abajo, sí sigue» (`scrollTop = 700`; tras la respuesta queda en el inicio de la tarjeta, `offsetTop` fingido; sin botón).
-- [ ] 9.2 Tests — `utils/portapapeles.test.ts` (nuevo): `tablaComoTsv` produce cabecera + filas separadas por tab. `Mensaje.test.tsx`: «Copiar respuesta escribe en el portapapeles» (`userEvent.setup()` instala el stub; clic; `await navigator.clipboard.readText()` === texto; etiqueta «Copiado»); «Sin portapapeles no hay botón» (`Object.defineProperty(navigator, "clipboard", { value: undefined })` → `queryByRole("button", { name: /Copiar/ })` nulo).
-- [ ] 9.3 `hooks/useAnclaAlFinal.ts` (nuevo): `onScroll`, anclado ≤ 24 px; al enviar → fondo; respuesta con anclado → `scrollTop = tarjeta.offsetTop - hilo.offsetTop`; no anclado → no mover; `irAlFinal()` con `auto`. Reemplaza el salto ciego de `PanelAsistente`.
-- [ ] 9.4 `components/IrAlFinal.tsx` (nuevo): `Button secondary sm` con `arrowDownIcon`, flotante abajo a la derecha del hilo, fuera del `<ul role="log">`.
-- [ ] 9.5 `utils/portapapeles.ts` (nuevo): `tablaComoTsv(columnas, filas)` y `copiar(texto)`, puras.
-- [ ] 9.6 `components/AccionesDelMensaje.tsx` (nuevo): «Copiar respuesta» y, si hay tabla, «Copiar tabla», `ghost sm` con `copyIcon`, siempre visibles, «Copiado» dos segundos; `null` si `!navigator.clipboard`. Se monta en el pie de `Mensaje`.
-- [ ] 9.7 `asistente.css`: `.adoc-asistente-tabla thead th { position: sticky; top: 0; z-index: 1 }`; botón flotante con transición apagada bajo `prefers-reduced-motion`.
-- [ ] 9.8 `app/shell/icons.tsx`: `copyIcon`, `arrowDownIcon`.
-- [ ] 9.9 Verde y commit `feat(asistente): …`.
+- [x] 9.1 Tests — `useAnclaAlFinal.test.tsx` (nuevo): «El hilo no arrastra si el usuario subió» (`Object.defineProperty(hilo, "scrollHeight", { value: 1000 })`, `clientHeight` 300, `scrollTop` 0; `fireEvent.scroll(hilo)`; llega una respuesta; `scrollTop` sigue en 0 y aparece «Ir al final»; clic → `scrollTop === scrollHeight - clientHeight`); «Anclado abajo, sí sigue» (`scrollTop = 700`; tras la respuesta queda en el inicio de la tarjeta, `offsetTop` fingido; sin botón).
+- [x] 9.2 Tests — `utils/portapapeles.test.ts` (nuevo): `tablaComoTsv` produce cabecera + filas separadas por tab. `Mensaje.test.tsx`: «Copiar respuesta escribe en el portapapeles» (`userEvent.setup()` instala el stub; clic; `await navigator.clipboard.readText()` === texto; etiqueta «Copiado»); «Sin portapapeles no hay botón» (`Object.defineProperty(navigator, "clipboard", { value: undefined })` → `queryByRole("button", { name: /Copiar/ })` nulo).
+- [x] 9.3 `hooks/useAnclaAlFinal.ts` (nuevo): `onScroll`, anclado ≤ 24 px; al enviar → fondo; respuesta con anclado → `scrollTop = tarjeta.offsetTop - hilo.offsetTop`; no anclado → no mover; `irAlFinal()` con `auto`. Reemplaza el salto ciego de `PanelAsistente`.
+- [x] 9.4 `components/IrAlFinal.tsx` (nuevo): `Button secondary sm` con `arrowDownIcon`, flotante abajo a la derecha del hilo, fuera del `<ul role="log">`.
+- [x] 9.5 `utils/portapapeles.ts` (nuevo): `tablaComoTsv(columnas, filas)` y `copiar(texto)`, puras.
+- [x] 9.6 `components/AccionesDelMensaje.tsx` (nuevo): «Copiar respuesta» y, si hay tabla, «Copiar tabla», `ghost sm` con `copyIcon`, siempre visibles, «Copiado» dos segundos; `null` si `!navigator.clipboard`. Se monta en el pie de `Mensaje`.
+- [x] 9.7 `asistente.css`: `.adoc-asistente-tabla thead th { position: sticky; top: 0; z-index: 1 }`; botón flotante con transición apagada bajo `prefers-reduced-motion`.
+- [x] 9.8 `app/shell/icons.tsx`: `copyIcon`, `arrowDownIcon`.
+- [x] 9.9 Verde y commit `feat(asistente): …`.
 
 ## 10. docs(asistente): domains/asistente.md y tech-debt
 

@@ -191,4 +191,24 @@ export const stopIcon = (
   </svg>
 );
 
+/**
+ * Dos hojas superpuestas. Va delante de «Copiar respuesta» y «Copiar tabla» en
+ * el asistente.
+ */
+export const copyIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="6.5" y="6.5" width="9" height="9" rx="1" />
+    <path d="M4.5 11.5h-1a1 1 0 01-1-1v-7a1 1 0 011-1h7a1 1 0 011 1v1" />
+  </svg>
+);
+
+/**
+ * Flecha hacia abajo. Va delante de «Ir al final» en el hilo del asistente.
+ */
+export const arrowDownIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 3.5v11M4.5 10l4.5 4.5 4.5-4.5" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

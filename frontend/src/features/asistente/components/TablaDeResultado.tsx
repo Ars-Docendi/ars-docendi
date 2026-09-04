@@ -1,6 +1,7 @@
 import { Table } from "@ars-docendi/ui";
 
 import { MarcaSensible } from "./MarcaSensible";
+import { formatearCelda } from "../utils/celdas";
 import type { ColumnaDelResultado } from "../types";
 
 interface TablaDeResultadoProps {
@@ -48,7 +49,7 @@ export function TablaDeResultado({ columnas, filas, truncado }: TablaDeResultado
               <Table.Row key={indiceDeFila}>
                 {fila.map((valor, indiceDeColumna) => (
                   <Table.Cell key={indiceDeColumna} numeric={typeof valor === "number"}>
-                    {formatear(valor)}
+                    {formatearCelda(valor)}
                   </Table.Cell>
                 ))}
               </Table.Row>
@@ -75,10 +76,4 @@ export function TablaDeResultado({ columnas, filas, truncado }: TablaDeResultado
       )}
     </div>
   );
-}
-
-function formatear(valor: unknown): string {
-  if (valor === null || valor === undefined) return "—";
-  if (typeof valor === "boolean") return valor ? "Sí" : "No";
-  return String(valor);
 }

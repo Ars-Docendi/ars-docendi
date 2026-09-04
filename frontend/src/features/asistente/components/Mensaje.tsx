@@ -1,9 +1,11 @@
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
+import { AccionesDelMensaje } from "./AccionesDelMensaje";
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
 import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
+import { hayPortapapeles } from "../utils/portapapeles";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 
 interface MensajeProps {
@@ -85,9 +87,10 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
             deshabilitado={enVuelo}
           />
 
-          {(respuesta.razonamiento || respuesta.sql) && (
-            // El pie: lo que se puede desplegar a pedido, después de todo lo que
-            // hay que leer. Sólo existe cuando hay algo que desplegar.
+          {(respuesta.razonamiento || respuesta.sql || hayPortapapeles()) && (
+            // El pie: lo que se puede desplegar a pedido y lo que se puede hacer
+            // con el mensaje, después de todo lo que hay que leer. Sólo existe
+            // cuando hay algo que poner: un pie vacío dejaría un hueco.
             <div className="adoc-asistente-pie">
               <Razonamiento razonamiento={respuesta.razonamiento} />
 
@@ -100,6 +103,15 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
                   <pre>{respuesta.sql}</pre>
                 </details>
               )}
+
+              <AccionesDelMensaje
+                texto={respuesta.respuesta}
+                tabla={
+                  respuesta.columnas.length > 0 && respuesta.filas.length > 0
+                    ? { columnas: respuesta.columnas, filas: respuesta.filas }
+                    : undefined
+                }
+              />
             </div>
           )}
         </div>
