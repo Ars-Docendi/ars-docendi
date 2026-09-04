@@ -21,4 +21,14 @@
     <ProjectReference Include="..\Modules.Portal.Contracts\Modules.Portal.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <SqlPortal Include="$(MSBuildThisFileDirectory)..\..\..\database\portal\*.sql" />
+    <EmbeddedResource Include="@(SqlPortal)" Link="Sql\portal\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlPortal)' == ''"
+           Text="No se encontró ningún .sql en database/portal/." />
+  </Target>
+
 </Project>

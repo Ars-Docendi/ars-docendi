@@ -48,13 +48,17 @@ de prioritario. La pantalla MUST ofrecer un filtro con dos campos de texto siemp
 **Docente** (angosto, mismo ancho que el campo equivalente de la pantalla Usuarios) y **N°** — más un
 mecanismo para agregar como filtros opcionales **Legajo**, **Tipo** y **Estado** (mismo patrón que el
 filtro de la pantalla de Usuarios, implementado mediante un componente de filtro genérico y reutilizable
-por otras pantallas). Cada fila MUST navegar al detalle del pedido al hacer click
-en cualquier parte de la fila. Al final de la fila, un botón **"Ver"** MUST estar siempre visible
-(navega al mismo detalle) y un botón **"Editar"** MUST mostrarse únicamente cuando el pedido es
-editable por el actor — ambos con el mismo formato que las acciones de fila de la pantalla Usuarios
-(`Button variant="ghost" size="sm"`, sin ícono). Cuando el pedido está en `borrador`, la fila MUST
-mostrar además un control "Eliminar" (X roja, ver "Eliminar un pedido en borrador"). La pantalla MUST
-representar explícitamente los cuatro estados de carga: Loading, Empty, Error y Success.
+por otras pantallas); el filtro **Tipo** SHALL ofrecer únicamente las tres novedades vigentes ("Alta",
+"Baja", "Cambio de cargo o dedicación") — la novedad "Sin novedad" ya no existe en el sistema. Cada fila
+MUST navegar al detalle del pedido al hacer click en cualquier parte de la fila. Al final de la fila,
+los controles **"Ver"**, **"Editar"** y **"Eliminar"** (X) MUST estar siempre visibles y en la misma
+posición — ninguno se oculta condicionalmente. "Ver" SHALL estar siempre habilitado. "Editar" y
+"Eliminar" MUST deshabilitarse (no ocultarse) cuando el pedido no es editable, o no está en `borrador`,
+respectivamente — un botón deshabilitado SHALL verse semitransparente (mismo estilo `ghost`, opacidad
+reducida) y no disparar su acción al clickearlo. "Ver" y "Editar" usan el mismo formato que las acciones
+de fila de la pantalla Usuarios (`Button variant="ghost" size="sm"`, sin ícono); "Eliminar" es la X roja
+(ver "Eliminar un pedido en borrador"). La pantalla MUST representar explícitamente los cuatro estados
+de carga: Loading, Empty, Error y Success.
 
 #### Scenario: Lista con pedidos existentes
 
@@ -76,25 +80,20 @@ representar explícitamente los cuatro estados de carga: Loading, Empty, Error y
 - **AND WHEN** la consulta falla
 - **THEN** la pantalla muestra el estado Error sin romper la navegación
 
-#### Scenario: Precarga de docentes del período anterior
-
-- **GIVEN** un período abierto recién disponible para el Jefe de Cátedra
-- **WHEN** abre "Mis pedidos" por primera vez
-- **THEN** ve precargados los docentes del período anterior como pedidos con novedad "Sin novedad"
-
 #### Scenario: Click en la fila abre el detalle del pedido
 
 - **GIVEN** cualquier pedido listado, en cualquier estado
 - **WHEN** el Jefe de Cátedra hace click en la fila (fuera del botón "Editar")
 - **THEN** el sistema navega a `/designaciones/pedidos/:id` de ese pedido
 
-#### Scenario: El botón Editar solo aparece cuando el pedido es editable
+#### Scenario: El botón Editar es fijo: habilitado si el pedido es editable, deshabilitado si no
 
-- **GIVEN** un pedido en `borrador`, o `devuelto` con el Jefe de Cátedra como propietario actual
-- **WHEN** se lista en "Mis pedidos"
-- **THEN** su fila MUST mostrar el botón "Editar"
-- **AND** un pedido en cualquier otro estado (en revisión, rechazado, cancelado, en lote) NO MUST
-  mostrar ese botón
+- **GIVEN** un pedido en `borrador`, o `devuelto` con el Jefe de Cátedra como propietario actual, y otro
+  en cualquier otro estado (en revisión, rechazado, cancelado, en lote)
+- **WHEN** se listan en "Mis pedidos"
+- **THEN** ambas filas MUST mostrar el botón "Editar"
+- **AND** el del primer grupo MUST estar habilitado
+- **AND** el del segundo MUST estar deshabilitado (semitransparente), no oculto
 
 #### Scenario: El botón Ver está siempre disponible y navega al detalle
 
@@ -103,12 +102,14 @@ representar explícitamente los cuatro estados de carga: Loading, Empty, Error y
 - **THEN** el sistema navega a `/designaciones/pedidos/:id` de ese pedido, sin disparar dos veces la
   navegación (el click en "Ver" no burbujea al `onClick` de la fila)
 
-#### Scenario: La X roja de eliminar solo aparece en pedidos en borrador
+#### Scenario: La X de eliminar es fija: habilitada solo en borrador, deshabilitada en el resto
 
 - **GIVEN** una fila con un pedido en `borrador` y otra con un pedido `devuelto`
-- **WHEN** se lista en "Mis pedidos"
-- **THEN** la fila del `borrador` MUST mostrar el control "Eliminar" (X roja)
-- **AND** la fila del `devuelto` (y de cualquier otro estado) NO MUST mostrarlo
+- **WHEN** se listan en "Mis pedidos"
+- **THEN** ambas filas MUST mostrar el control "Eliminar" (X roja)
+- **AND** la del `borrador` MUST estar habilitada
+- **AND** la del `devuelto` (y de cualquier otro estado) MUST estar deshabilitada (semitransparente),
+  no oculta
 
 #### Scenario: El legajo se muestra en la tabla, o un placeholder si el docente no tiene uno todavía
 
@@ -133,18 +134,44 @@ representar explícitamente los cuatro estados de carga: Loading, Empty, Error y
 - **AND** puede quitarlo con el botón "×", volviendo a ver todos los pedidos sujetos al resto de los
   filtros activos
 
+#### Scenario: Precarga de docentes del período anterior
+
+- **GIVEN** un período abierto recién disponible para el Jefe de Cátedra
+- **WHEN** abre "Mis pedidos" por primera vez
+- **THEN** la pantalla no crea pedidos ficticios ni precarga docentes con una novedad inexistente
+
+#### Scenario: El botón Editar solo aparece cuando el pedido es editable
+
+- **GIVEN** un pedido editable y otro que no lo es
+- **WHEN** se listan en "Mis pedidos"
+- **THEN** ambos muestran el control "Editar", pero solo el pedido editable lo tiene habilitado
+
+#### Scenario: La X roja de eliminar solo aparece en pedidos en borrador
+
+- **GIVEN** una fila con un pedido en `borrador` y otra con un pedido `devuelto`
+- **WHEN** se lista en "Mis pedidos"
+- **THEN** ambas filas muestran el control "Eliminar", pero solo el borrador lo tiene habilitado
+
+#### Scenario: El filtro Tipo ya no ofrece "Sin novedad"
+
+- **GIVEN** el filtro opcional Tipo agregado
+- **WHEN** el Jefe de Cátedra abre el `Select` de Tipo
+- **THEN** ve únicamente "Alta", "Baja" y "Cambio de cargo o dedicación" — sin la opción "Sin novedad"
+
 ### Requirement: Creación de pedido de designación
 
 El sistema SHALL permitir al Jefe de Cátedra crear un pedido de designación desde
-`/designaciones/pedidos/nuevo`, capturando los datos comunes del pedido: docente (DNI, nombre),
-antigüedad, cargo y dedicación actual (read-only), la materia de su cátedra con su carga horaria,
-horas de investigación, horas externas (otro departamento) y novedad. El pedido se crea en
-estado `borrador`.
+`/designaciones/pedidos/nuevo`, capturando los datos comunes del pedido: docente (DNI, nombre,
+**legajo**), antigüedad, cargo y dedicación actual (read-only, mock), una o más asignaciones de
+materia con sus horas, horas de investigación, horas externas (otro departamento) y novedad. El
+**legajo** es **opcional** en un pedido de Alta (el docente todavía no existe en el sistema, no tiene
+legajo asignado) y se precarga automáticamente (solo lectura) para el resto de las novedades, tomado
+del catálogo de docentes existentes. El pedido se crea en estado `borrador`.
 
 #### Scenario: Alta de un pedido en borrador
 
 - **GIVEN** un Jefe de Cátedra en el form de nuevo pedido
-- **WHEN** completa los datos comunes, la carga horaria de la materia y una novedad válida
+- **WHEN** completa los datos comunes, al menos una asignación de materia válida y una novedad válida
   con sus campos requeridos
 - **THEN** el pedido se persiste en estado `borrador` y aparece en "Mis pedidos"
 
@@ -154,31 +181,42 @@ estado `borrador`.
 - **WHEN** el Jefe de Cátedra intenta crear un segundo pedido para ese mismo docente en el mismo
   período
 - **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en
-  el período, **sin importar si el segundo pedido corresponde a otra cátedra**
+  el período, sin importar si las materias asociadas al segundo pedido difieren de las del primero
 
 #### Scenario: El bloqueo por duplicado no expone datos de una cátedra ajena [BR-designaciones-001]
 
 - **GIVEN** un docente con un pedido no terminal cargado por el Jefe de Cátedra de otra materia
 - **WHEN** el Jefe de Cátedra de la cátedra actual intenta crear un pedido para ese docente
 - **THEN** el sistema MUST rechazar la creación informando que ya existe un trámite en curso para ese
-  docente en el período, **sin revelar la cátedra, el contenido ni el autor del pedido bloqueante**
+  docente en el período, sin revelar la cátedra, el contenido ni el autor del pedido bloqueante
+
+#### Scenario: Un Alta no tiene legajo todavía
+
+- **GIVEN** un Jefe de Cátedra creando un pedido de Alta (docente nuevo, no existe en el sistema)
+- **WHEN** completa los datos del docente a mano (DNI, nombre)
+- **THEN** el pedido se crea sin legajo asignado — el form no ofrece un campo para tipearlo
+
+#### Scenario: El legajo se precarga al elegir un docente existente
+
+- **GIVEN** un Jefe de Cátedra creando un pedido de Baja, Cambio o Sin novedad
+- **WHEN** selecciona un docente del catálogo de docentes existentes
+- **THEN** el pedido queda con el legajo de ese docente, tomado del catálogo (solo lectura)
 
 ### Requirement: Secciones condicionales por novedad
 
-El form de pedido SHALL mostrar u ocultar secciones según la novedad seleccionada (Radio: "Sin
-novedad" / "Alta" / "Baja" / "Cambio de cargo o dedicación"). "Alta" y "Cambio de cargo o dedicación"
-exponen cargo y dedicación solicitados, más horas de investigación y horas externas; "Baja" expone el
-tipo de baja; "Sin novedad" no expone campos adicionales más allá de la materia y horas vigentes del
-docente (solo lectura).
+El form de pedido SHALL mostrar u ocultar secciones según la novedad seleccionada (Radio: "Alta" /
+"Baja" / "Cambio de cargo o dedicación" — la novedad "Sin novedad" ya no existe en el sistema, el radio
+tiene exactamente estas tres opciones). "Alta" y "Cambio de cargo o dedicación" exponen cargo y
+dedicación solicitados, más horas de investigación, horas externas y si el docente es agente externo;
+"Baja" expone el tipo de baja.
 
 #### Scenario: La sección de solicitud aparece solo para Alta y Cambio
 
 - **WHEN** el usuario selecciona la novedad "Alta" o "Cambio de cargo o dedicación"
-- **THEN** el form muestra los campos de cargo y dedicación solicitados, y los campos de horas de
-  investigación y horas externas
-- **AND WHEN** selecciona "Sin novedad"
-- **THEN** el form oculta los campos de cargo y dedicación solicitados y los de horas de investigación
-  y externas
+- **THEN** el form muestra los campos de cargo y dedicación solicitados, los campos de horas de
+  investigación y horas externas, y el checkbox de agente externo
+- **AND WHEN** selecciona "Baja"
+- **THEN** el form oculta esos campos (Baja no tiene designación solicitada, es la baja del docente)
 
 #### Scenario: La sección de adjuntos se adapta a la novedad
 
@@ -188,42 +226,131 @@ docente (solo lectura).
 
 ### Requirement: Materia y horas del pedido
 
-El pedido de designación SHALL corresponder a exactamente una materia —la cátedra sobre la que el Jefe de Cátedra opera— con su carga horaria. La materia MUST NOT ser editable en ninguna novedad: proviene del ámbito del actor, no del formulario, porque determina a qué Coordinador se rutea el pedido. La carga horaria SHALL ser editable en "Alta" y en "Cambio de cargo o dedicación", y de solo lectura en "Baja" y "Sin novedad", donde es contexto de qué queda vacante o qué sigue vigente. El formulario MUST NOT ofrecer agregar ni quitar materias.
+El sistema SHALL permitir que un pedido de novedad "Alta" o "Cambio de cargo o dedicación" incluya
+cero o más asignaciones de materia, cada una con su propia carga horaria (materia + horas), agregables,
+quitables y con la materia seleccionable/cambiable desde el form — el mismo patrón de lista, y la misma
+regla, en ambas novedades: **ninguna de las dos exige un mínimo de materias** (regla de negocio: el
+docente se da de alta, o se le procesa un cambio, solo con cargo y dedicación — las materias se asignan
+después, fuera de este flujo). El sistema NO MUST impedir quitar la última fila restante en Alta ni en
+Cambio. En Cambio, la lista SHALL precargarse con las materias que ya tiene el docente seleccionado,
+pero queda igual de abierta a vaciarse por completo.
+
+Para la novedad "Baja", el sistema SHALL mostrar el mismo listado de materias y horas que ya tiene el
+docente (`materiasActuales`), pero íntegramente de solo lectura: ni la materia ni las horas ni el
+listado en sí (agregar/quitar) son editables — es información de contexto sobre qué queda vacante, no
+un dato a modificar.
+
+El listado de materias reemplaza cualquier mención de la materia en el panel de datos actuales de
+solo lectura (evita duplicar la misma información en dos lugares del form) en Cambio y en Baja.
+
+#### Scenario: Alta con múltiples materias
+
+- **GIVEN** un Jefe de Cátedra cargando un pedido de "Alta"
+- **WHEN** agrega una segunda fila de materia + horas mediante la acción "Agregar materia"
+- **THEN** el pedido guarda ambas asignaciones (materia + horas) sin necesidad de crear un segundo
+  pedido para el mismo docente
+
+#### Scenario: Cambio precarga el listado de materias del docente, editable
+
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" sobre un docente con una o más
+  materias asignadas
+- **WHEN** el Jefe de Cátedra visualiza el form
+- **THEN** ve una fila por cada materia a la que pertenece el docente, con la materia seleccionable en
+  un `Select` y la carga horaria en un campo editable
+
+#### Scenario: Cambio permite agregar, quitar y cambiar materias
+
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" con su listado de materias precargado
+- **WHEN** el Jefe de Cátedra agrega una fila nueva, quita una fila existente, o cambia la materia
+  seleccionada en una fila
+- **THEN** el pedido guarda el listado resultante de asignaciones (materia + horas)
+
+#### Scenario: Cambio también permite quitar la última fila de materia
+
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" con una única fila de materia restante
+  en el listado
+- **WHEN** el Jefe de Cátedra intenta quitar esa última fila
+- **THEN** el sistema MUST permitir la acción, dejando el listado en cero materias
+
+#### Scenario: Alta se puede guardar y enviar sin ninguna materia
+
+- **GIVEN** un pedido de novedad "Alta" con cargo y dedicación solicitados completos, adjuntos
+  obligatorios cargados, y el listado de materias vacío (el Jefe de Cátedra quitó la única fila que
+  traía por default)
+- **WHEN** el Jefe de Cátedra hace click en "Guardar y enviar"
+- **THEN** el sistema MUST guardar y enviar el pedido sin exigir ninguna materia — la validación NO MUST
+  bloquear por `asignaciones` vacío en esta novedad
+
+#### Scenario: Cambio se puede guardar y enviar sin ninguna materia
+
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" con cargo y dedicación solicitados
+  completos, justificación cargada, docente con legajo, y el listado de materias vacío
+- **WHEN** el Jefe de Cátedra hace click en "Guardar y enviar"
+- **THEN** el sistema MUST guardar y enviar el pedido sin exigir ninguna materia — la validación NO MUST
+  bloquear por `asignaciones` vacío en esta novedad
+
+#### Scenario: Baja sigue exigiendo al menos una materia
+
+- **GIVEN** un pedido de novedad "Baja" cuyo `asignaciones` llegara vacío (no debería pasar en el flujo
+  normal, que precarga desde el docente existente)
+- **WHEN** el Jefe de Cátedra intenta guardar y enviar
+- **THEN** la validación MUST rechazarlo por falta de materias — a diferencia de Alta y Cambio, Baja no
+  quedó incluida en la regla de negocio nueva
+
+#### Scenario: Cambio y Baja no repiten la materia como columna plana en la franja superior
+
+- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" o "Baja"
+- **WHEN** el Jefe de Cátedra visualiza la franja superior del panel de datos actuales (Antigüedad /
+  Cargo / Dedicación)
+- **THEN** esa franja MUST mostrar antigüedad, cargo actual y dedicación actual sin una columna plana
+  de "Materia" — la materia vive en la sección de materias y horas (Cambio: editable, arriba del
+  panel; Baja: listado de solo lectura) y, en Cambio, también en la sub-sección de transición del
+  propio panel (ver "Resumen de cambios en el panel de datos actuales")
 
 #### Scenario: Alta captura la materia de la cátedra y sus horas
 
-- **GIVEN** un Jefe de Cátedra cargando un pedido de novedad "Alta"
-- **WHEN** completa la carga horaria de la materia
-- **THEN** el pedido guarda la materia de su cátedra junto con esas horas, sin haberle ofrecido elegir la materia
+- **GIVEN** un Jefe de Cátedra creando un pedido de Alta
+- **WHEN** carga una asignación de materia y horas
+- **THEN** el sistema conserva esa asignación si fue informada, aunque no exige que exista una
 
 #### Scenario: Cambio permite editar las horas, no la materia
 
-- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación"
-- **WHEN** el Jefe de Cátedra visualiza el formulario
-- **THEN** ve la carga horaria en un campo editable y la materia fijada a la cátedra del pedido, sin control para cambiarla
+- **GIVEN** un pedido de Cambio con asignaciones precargadas
+- **WHEN** el Jefe de Cátedra modifica las horas
+- **THEN** el sistema guarda las horas resultantes y mantiene la materia seleccionada
 
 #### Scenario: Cambio precarga las horas vigentes de esa cátedra
 
-- **GIVEN** un docente con designaciones vigentes en más de una materia
-- **WHEN** el Jefe de Cátedra lo selecciona en un pedido de "Cambio de cargo o dedicación"
-- **THEN** el formulario precarga únicamente las horas de la cátedra del pedido, sin considerar las de sus otras materias
+- **GIVEN** un docente existente con horas asignadas
+- **WHEN** se crea un pedido de Cambio
+- **THEN** las asignaciones se precargan con sus horas vigentes
 
 #### Scenario: Baja y Sin novedad muestran materia y horas de solo lectura
 
-- **GIVEN** un pedido de novedad "Baja" o "Sin novedad"
-- **WHEN** el Jefe de Cátedra visualiza el formulario
-- **THEN** ve la materia y las horas vigentes sin ningún control editable
+- **GIVEN** un pedido de Baja
+- **WHEN** se muestran sus asignaciones
+- **THEN** la materia y las horas aparecen como información no editable; la novedad Sin novedad ya no
+  está disponible para nuevos pedidos
 
 #### Scenario: El formulario no ofrece agregar ni quitar materias
 
-- **WHEN** el Jefe de Cátedra visualiza el formulario de pedido en cualquier novedad
-- **THEN** MUST no existir acción de "Agregar materia" ni control para quitar una fila de materia
+- **GIVEN** un pedido de Baja
+- **WHEN** el usuario visualiza las asignaciones
+- **THEN** no puede agregar ni quitar filas, aunque Alta y Cambio sí permiten gestionar su listado
 
 #### Scenario: Un docente en dos cátedras requiere un pedido por cada una
 
-- **GIVEN** un docente que dicta en dos materias con Jefes de Cátedra distintos
-- **WHEN** se necesita tramitar novedades sobre ambas
-- **THEN** cada cátedra MUST cargar su propio pedido, sujeto a la restricción de BR-designaciones-001
+- **GIVEN** un docente con asignaciones en dos cátedras
+- **WHEN** se crean pedidos válidos para cada ámbito
+- **THEN** cada pedido conserva sus propias asignaciones y el sistema no mezcla los datos entre
+  cátedras
+
+#### Scenario: Baja muestra el listado de materias y horas del docente, de solo lectura
+
+- **GIVEN** un pedido de novedad "Baja" sobre un docente con una o más materias asignadas
+- **WHEN** el Jefe de Cátedra visualiza el form
+- **THEN** ve una fila por cada materia a la que pertenece el docente, con su carga horaria, sin
+  ningún control editable (ni `Select` de materia, ni `Input` de horas, ni acción de agregar/quitar)
 
 ### Requirement: Cargo solicitado sin restricción de jerarquía
 
@@ -272,9 +399,11 @@ aplica esta restricción (no hay dedicación actual con la cual comparar).
 
 En "Cambio de cargo o dedicación", el panel de solo lectura de datos actuales SHALL mostrar, además de
 antigüedad, la transición `actual → solicitado` de **todos** los campos que Cambio puede modificar:
-cargo, dedicación, la carga horaria de la materia, y horas de investigación/externas. Un campo sin
-cambios SHALL mostrarse con su valor plano (sin flecha de transición). En "Baja" y "Sin novedad" el
-panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
+cargo, dedicación, cada materia con su carga horaria, y horas de investigación/externas. Un campo sin
+cambios SHALL mostrarse con su valor plano (sin flecha de transición). En "Baja" el panel NO MUST
+mostrar transiciones (no hay valores "solicitados" que comparar). El campo "agente externo" (ver
+"Horas de investigación y horas externas del pedido") NO MUST mostrarse en este panel — no tiene un
+valor "actual" contra el cual comparar (es un dato nuevo, sin histórico previo).
 
 #### Scenario: El panel muestra la transición de cargo y dedicación
 
@@ -284,18 +413,14 @@ panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
 - **THEN** ve "Adjunto → Titular" en la fila de cargo y "Categoría 3 → Categoría 1" en la fila de
   dedicación
 
-#### Scenario: El panel muestra la transición de la carga horaria de la materia
+#### Scenario: El panel compara el listado de materias por nombre
 
-- **GIVEN** un pedido de Cambio sobre una cátedra donde el docente tenía 6h y el Jefe de Cátedra
-  cargó 8h
+- **GIVEN** un pedido de Cambio donde el docente tenía "Programación I (6h)" y "Programación II (4h)",
+  y el Jefe de Cátedra cambió las horas de "Programación I" a 8h, quitó "Programación II" y agregó
+  "Bases de Datos (4h)"
 - **WHEN** visualiza el panel de datos actuales
-- **THEN** ve la fila de la materia con "6h → 8h"
-
-#### Scenario: Una carga horaria sin cambios se muestra sin transición
-
-- **GIVEN** un pedido de Cambio donde el Jefe de Cátedra no modificó la carga horaria
-- **WHEN** visualiza el panel de datos actuales
-- **THEN** ve la carga horaria con su valor plano, sin flecha de transición
+- **THEN** ve tres filas: "Programación I: 6h → 8h", "Programación II: 6h · quitada" (o equivalente) y
+  "Bases de Datos: nueva · 4h" (o equivalente)
 
 #### Scenario: El panel muestra la transición de horas de investigación y externas
 
@@ -304,11 +429,34 @@ panel NO MUST mostrar transiciones (no hay valores "solicitados" que comparar).
 - **WHEN** visualiza el panel de datos actuales
 - **THEN** ve "Investigación: 2h → 4h" y "Externas: 0h" (sin flecha, no cambió)
 
+#### Scenario: El panel muestra la transición de la carga horaria de la materia
+
+- **GIVEN** un pedido de Cambio donde cambia las horas de una materia
+- **WHEN** el Jefe de Cátedra visualiza el panel de datos actuales
+- **THEN** ve la carga horaria actual y la solicitada como una transición
+
+#### Scenario: Una carga horaria sin cambios se muestra sin transición
+
+- **GIVEN** un pedido de Cambio donde la carga horaria de una materia no cambia
+- **WHEN** el Jefe de Cátedra visualiza el panel de datos actuales
+- **THEN** ve el valor de horas sin flecha de transición
+
 ### Requirement: Horas de investigación y horas externas del pedido
 
 El sistema SHALL permitir cargar, en las novedades "Alta" y "Cambio de cargo o dedicación", horas de
 investigación y horas externas (otro departamento) como campos numéricos libres del pedido, sin
-validar que su suma junto con las horas de materia cierre contra la dedicación solicitada o actual.
+validar que su suma junto con las horas de materia cierre contra la dedicación solicitada o actual. El
+sistema SHALL además permitir, junto al campo de horas externas, marcar si el docente es agente
+externo (`esAgenteExterno`, checkbox booleano, sin marcar por default) — mismo alcance de novedades
+(Alta y Cambio); no tiene un "valor actual" contra el cual comparar (ver "Resumen de cambios en el
+panel de datos actuales (Cambio)"). Cuando el checkbox "Docente es agente externo" está marcado, el
+sistema SHALL mostrar un `Select` **"Departamento a cargo"** (`departamentoAgenteExterno`) con un
+catálogo cerrado de 7 opciones: Departamento de Arquitectura, Departamento de Salud, Departamento de
+Derecho, Departamento de Económicas, Departamento de Humanidades, Departamento de Odontología y
+Secretaría Académica. El `Select` NO MUST mostrarse cuando el checkbox está desmarcado, y el sistema
+MUST exigir un valor seleccionado antes de permitir "Guardar y enviar" mientras el checkbox esté
+marcado. Al desmarcar el checkbox, el sistema MUST limpiar cualquier departamento previamente
+seleccionado.
 
 #### Scenario: Carga de horas de investigación y externas
 
@@ -322,6 +470,43 @@ validar que su suma junto con las horas de materia cierre contra la dedicación 
 - **GIVEN** un pedido con horas de materia, investigación y externas cargadas
 - **WHEN** la suma de esas horas no coincide con lo esperable para la dedicación solicitada
 - **THEN** el sistema NO MUST bloquear el guardado por esa discrepancia (las horas son campos libres)
+
+#### Scenario: Marcar al docente como agente externo
+
+- **GIVEN** un Jefe de Cátedra cargando un pedido de "Alta" o "Cambio de cargo o dedicación"
+- **WHEN** marca el checkbox "Docente es agente externo", ubicado junto al campo "Horas externas (otro
+  depto.)"
+- **THEN** el pedido guarda `esAgenteExterno: true`, visible luego en el resumen de detalle del pedido
+
+#### Scenario: Agente externo no aplica a Baja
+
+- **GIVEN** un pedido de novedad "Baja"
+- **WHEN** el Jefe de Cátedra visualiza el form
+- **THEN** NO MUST ver el checkbox "Docente es agente externo" (Baja no muestra la sección de
+  designación solicitada)
+
+#### Scenario: Marcar agente externo habilita el selector de departamento
+
+- **GIVEN** un Jefe de Cátedra cargando un pedido de "Alta" o "Cambio de cargo o dedicación", sin
+  marcar "Docente es agente externo"
+- **WHEN** marca el checkbox
+- **THEN** aparece el `Select` "Departamento a cargo" con las 7 opciones del catálogo cerrado
+
+#### Scenario: Desmarcar agente externo limpia el departamento
+
+- **GIVEN** un pedido con "Docente es agente externo" marcado y un departamento seleccionado
+- **WHEN** el Jefe de Cátedra desmarca el checkbox
+- **THEN** el `Select` "Departamento a cargo" desaparece y el sistema MUST limpiar el valor
+  seleccionado (no queda guardado un departamento sin su checkbox)
+
+#### Scenario: Agente externo sin departamento bloquea el envío
+
+- **GIVEN** un pedido de "Alta" o "Cambio de cargo o dedicación" con "Docente es agente externo"
+  marcado y ningún departamento seleccionado
+- **WHEN** el Jefe de Cátedra hace click en "Guardar y enviar"
+- **THEN** el sistema MUST bloquear el envío e indicar que el departamento a cargo es obligatorio
+- **AND** "Guardar pedido" (sin enviar) NO MUST bloquearse por esta razón, igual que el resto de los
+  campos obligatorios del pedido
 
 ### Requirement: Tipificación de la baja
 

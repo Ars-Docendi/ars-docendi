@@ -1,8 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render as testingRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { IndexPage } from "./IndexPage";
+import { obtenerPerfilInstitucional, perfilDe } from "../mock/mockStore";
+
+vi.mock("../api/portalApi", async () => {
+  const real = await vi.importActual<typeof import("../api/portalApi")>("../api/portalApi");
+  return {
+    ...real,
+    obtenerPerfil: async () => {
+      const institucional = obtenerPerfilInstitucional(sesion.upn);
+      if (!institucional) throw new Error("no encontrado");
+      return perfilDe(institucional);
+    },
+  };
+});
 
 // admin.aulas es el único usuario de la sesión mock sin perfil cargado: es el
 // que permite recorrer el estado vacío.
@@ -10,13 +24,23 @@ const sesion = vi.hoisted(() => ({ upn: "admin.aulas@unlam.edu.ar" }));
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
   useCurrentUser: () => ({
-    name: "P. Gómez",
-    initials: "PG",
-    upn: sesion.upn,
-    role: "Docente",
-    roles: ["Docente"],
+    user: {
+      name: "P. Gómez",
+      initials: "PG",
+      upn: sesion.upn,
+      role: "Docente",
+      roles: ["Docente"],
+    },
   }),
 }));
+
+function render(ui: React.ReactElement) {
+  return testingRender(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
+    ),
+  });
+}
 
 /** La sección cuyo encabezado es `titulo`, para acotar las consultas. */
 function seccion(titulo: string): HTMLElement {

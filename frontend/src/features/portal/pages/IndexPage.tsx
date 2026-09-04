@@ -2,7 +2,7 @@ import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { usePerfilDocente } from "../hooks/usePerfilDocente";
-import { agregarTag, quitarTag } from "../mock/mockStore";
+import { agregarTag, quitarTag } from "../helpers";
 import { AvisoGuardado } from "../components/AvisoGuardado";
 import { SeccionCertificaciones } from "../components/SeccionCertificaciones";
 import { SeccionContacto } from "../components/SeccionContacto";

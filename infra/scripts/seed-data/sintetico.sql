@@ -233,4 +233,51 @@ ON CONFLICT (id) DO UPDATE SET
     etapa = EXCLUDED.etapa, comentario = EXCLUDED.comentario,
     created_at = EXCLUDED.created_at;
 
+-- Portal docente: perfil completo, parcial y vacío. Los UUID son estables para
+-- que el seed pueda reejecutarse sin tocar filas ajenas.
+INSERT INTO portal.perfiles (id, persona_id) VALUES
+    ('f0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000003'),
+    ('f0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000001'),
+    ('f0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000006')
+ON CONFLICT (id) DO UPDATE SET persona_id = EXCLUDED.persona_id;
+
+INSERT INTO portal.contactos (id, perfil_id, telefono, mail) VALUES
+    ('f0100000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', '11-4555-0101', 'marina.personal@example.com'),
+    ('f0100000-0000-4000-8000-000000000002', 'f0000000-0000-4000-8000-000000000002', '11-4555-0102', NULL)
+ON CONFLICT (id) DO UPDATE SET telefono = EXCLUDED.telefono, mail = EXCLUDED.mail;
+
+INSERT INTO portal.cvs (id, perfil_id, nombre, fecha_carga, uri) VALUES
+    ('f0200000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', 'cv-marina-diaz.pdf', TIMESTAMPTZ '2026-08-20 12:00:00+00', 'synthetic://portal/cv/marina')
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, fecha_carga = EXCLUDED.fecha_carga, uri = EXCLUDED.uri;
+
+INSERT INTO portal.experiencias (id, perfil_id, puesto, organizacion, descripcion, desde, hasta) VALUES
+    ('f0300000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', 'Docente investigadora', 'UNLaM', 'Ingeniería de software.', DATE '2018-03-01', NULL)
+ON CONFLICT (id) DO UPDATE SET puesto = EXCLUDED.puesto, organizacion = EXCLUDED.organizacion, descripcion = EXCLUDED.descripcion, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta;
+
+INSERT INTO portal.educaciones (id, perfil_id, nivel, carrera, institucion, desde, hasta) VALUES
+    ('f0400000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', 'Maestría', 'Ingeniería de Software', 'UNLaM', DATE '2015-03-01', DATE '2018-12-01')
+ON CONFLICT (id) DO UPDATE SET nivel = EXCLUDED.nivel, carrera = EXCLUDED.carrera, institucion = EXCLUDED.institucion, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta;
+
+INSERT INTO portal.certificaciones (id, perfil_id, nombre, emisor, fecha, vencimiento) VALUES
+    ('f0500000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', 'AWS Cloud Practitioner', 'AWS', DATE '2025-05-10', NULL)
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, emisor = EXCLUDED.emisor, fecha = EXCLUDED.fecha, vencimiento = EXCLUDED.vencimiento;
+
+INSERT INTO portal.proyectos (id, perfil_id, nombre, rol, descripcion, desde, hasta, doi) VALUES
+    ('f0600000-0000-4000-8000-000000000001', 'f0000000-0000-4000-8000-000000000001', 'Plataforma educativa', 'Directora', 'Proyecto institucional.', DATE '2022-01-01', NULL, '10.0000/portal.demo')
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, rol = EXCLUDED.rol, descripcion = EXCLUDED.descripcion, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta, doi = EXCLUDED.doi;
+
+INSERT INTO portal.proyecto_documentos (id, proyecto_id, nombre, fecha_carga, uri) VALUES
+    ('f0700000-0000-4000-8000-000000000001', 'f0600000-0000-4000-8000-000000000001', 'informe-plataforma.pdf', TIMESTAMPTZ '2026-08-20 12:00:00+00', 'synthetic://portal/proyectos/plataforma')
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre, fecha_carga = EXCLUDED.fecha_carga, uri = EXCLUDED.uri;
+
+INSERT INTO portal.habilidades (id, termino, termino_norm, sugerido) VALUES
+    ('f0800000-0000-4000-8000-000000000001', 'Bases de datos', 'BASES DE DATOS', FALSE),
+    ('f0800000-0000-4000-8000-000000000002', 'Investigación educativa', 'INVESTIGACIÓN EDUCATIVA', TRUE)
+ON CONFLICT (id) DO UPDATE SET termino = EXCLUDED.termino, termino_norm = EXCLUDED.termino_norm, sugerido = EXCLUDED.sugerido;
+
+INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES
+    ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000001', 'habilidad'),
+    ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000002', 'interes')
+ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
+
 COMMIT;

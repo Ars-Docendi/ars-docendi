@@ -74,9 +74,13 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 | `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                     | No  |
 | `designaciones`    | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia. `origen_pedido_id` NULL = carga administrativa directa | No  |
 
-### Aulas, Portal, Tareas
+### Portal (`schema: portal`)
 
-Sin modelar todavía: sus `types.ts` en el frontend están vacíos y no hay pantalla que valide un modelo. Se definen cuando tengan superficie.
+`perfiles` vincula una persona canónica con `contactos`, `cvs`, `experiencias`,
+`educaciones`, `certificaciones`, `proyectos`, `proyecto_documentos`,
+`habilidades` y `docente_habilidades`. La identidad institucional se lee desde
+`identity`; Portal no la modifica. CV y documentos almacenan solo metadata/URI,
+nunca bytes. Todas las tablas tienen `created_at` y `audit.attach`.
 
 ### Por qué el historial no sale de `audit.change_log`
 
