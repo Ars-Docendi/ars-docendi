@@ -83,3 +83,70 @@ describe("ABREVIATURA_CARRERA", () => {
     expect(ABREVIATURA_CARRERA["Ingeniería Electrónica"]).toBe("Electrónica");
   });
 });
+
+describe("aplicarFiltros — período de designación", () => {
+  const delActivo = pedido({
+    docente: { dni: "a", nombre: "Del Activo", antiguedad: 3 },
+    periodoId: "1",
+  });
+  const delAnterior = pedido({
+    docente: { dni: "b", nombre: "Del Anterior", antiguedad: 3 },
+    periodoId: "3",
+  });
+
+  function nombres(periodo: string) {
+    return aplicarFiltros([delActivo, delAnterior], { ...FILTROS_INICIALES, periodo }).map(
+      (p) => p.docente.nombre,
+    );
+  }
+
+  it("acota por el período del pedido", () => {
+    // El período es una entidad del dominio, ya creada y con nombre: no hay que
+    // adivinar fechas de corte como con un rango libre.
+    expect(nombres("1")).toEqual(["Del Activo"]);
+    expect(nombres("3")).toEqual(["Del Anterior"]);
+  });
+
+  it("'todos' no acota", () => {
+    expect(nombres("todos")).toEqual(["Del Activo", "Del Anterior"]);
+  });
+});
+
+describe("aplicarFiltros — días sin movimiento", () => {
+  function movidoHaceDias(dias: number, nombre: string): PedidoDesignacion {
+    const fecha = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
+    return pedido({
+      docente: { dni: nombre, nombre, antiguedad: 3 },
+      historial: [
+        {
+          id: `e-${nombre}`,
+          accion: "aceptar",
+          porRol: "Coordinador",
+          porNombre: "M. Díaz",
+          etapa: "en_revision_secretaria",
+          fecha,
+        },
+      ],
+    });
+  }
+
+  const recien = movidoHaceDias(2, "Recién");
+  const hace10 = movidoHaceDias(10, "Hace10");
+  const hace40 = movidoHaceDias(40, "Hace40");
+
+  function nombres(sinMovimiento: FiltrosTablero["sinMovimiento"]) {
+    return aplicarFiltros([recien, hace10, hace40], { ...FILTROS_INICIALES, sinMovimiento }).map(
+      (p) => p.docente.nombre,
+    );
+  }
+
+  it("deja solo los que superan el umbral de días quietos", () => {
+    expect(nombres("7")).toEqual(["Hace10", "Hace40"]);
+    expect(nombres("15")).toEqual(["Hace40"]);
+    expect(nombres("30")).toEqual(["Hace40"]);
+  });
+
+  it("'todos' no acota", () => {
+    expect(nombres("todos")).toEqual(["Recién", "Hace10", "Hace40"]);
+  });
+});

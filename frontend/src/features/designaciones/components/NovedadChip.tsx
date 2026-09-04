@@ -68,28 +68,3 @@ export function NovedadChip({ novedad }: { novedad: Novedad }) {
     </span>
   );
 }
-
-/** Bandera de prioridad (Lucide `flag`, roja) sin etiqueta — para la columna Prioritario de la Tabla. */
-export function PrioridadFlagIcono() {
-  return (
-    <span className="adoc-bandera-prioridad" aria-label="Prioritario">
-      <IconoLucide>
-        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-        <line x1="4" x2="4" y1="22" y2="15" />
-      </IconoLucide>
-    </span>
-  );
-}
-
-/** Flechita de devuelto (Lucide `corner-up-left`, ámbar) sin etiqueta — mismo ícono que usa
- * `EstadoPedidoPill` para "Devuelto"; acá sin la etiqueta de texto, junto a la bandera de prioridad. */
-export function DevueltoFlechaIcono() {
-  return (
-    <span className="adoc-bandera-devuelto" aria-label="Devuelto">
-      <IconoLucide>
-        <polyline points="9 14 4 9 9 4" />
-        <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-      </IconoLucide>
-    </span>
-  );
-}

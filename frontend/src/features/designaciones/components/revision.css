@@ -1,83 +1,50 @@
 /* ============================================================
-   Tablero de revisión (SCRUM-8, tema E) — vista Tabla única.
-   Réplica 1:1 del frame "Designaciones - Revisión de pedidos (Tabla)"
-   (docs/product/designs/screens.pen). Usa los tokens del design
-   system (@ars-docendi/ui); sin colores hardcodeados.
+   Tabla de revisión de pedidos.
+   La tabla en sí es el componente `Table` del design system (mismo que
+   Usuarios / Docentes / Períodos); acá solo viven los pocos detalles propios
+   de esta pantalla: el chip de novedad, el avatar de iniciales y la celda de
+   docente. Sin colores ni tamaños hardcodeados — todo por tokens.
    ============================================================ */
 
-.adoc-tablero-filtros {
+.adoc-revision {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
-/* Filtros: chips rectangulares (radius-xs), height 32. Override del Select. */
-.adoc-tablero-filtros .adoc-select-wrap {
-  display: inline-block;
-}
-.adoc-tablero-filtros .adoc-select {
-  width: auto;
-  height: 32px;
-  border-radius: var(--radius-xs);
-  background: #fff;
-  font-size: 13px;
-  font-weight: 500;
-}
-.adoc-tablero-filtros .adoc-filtro-activo .adoc-select {
-  background: var(--accent-100);
-  border-color: var(--color-accent);
-  color: var(--color-text-link);
-  font-weight: 600;
-}
-.adoc-tablero-filtros .adoc-filtro-activo::after {
-  border-right-color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
+/* La tabla tiene 7 columnas: en pantallas angostas scrollea ella sola, sin
+   arrastrar la página entera en horizontal (mismo patrón que TablaUsuarios). */
+.adoc-tabla-scroll {
+  overflow-x: auto;
 }
 
-/* Empty state (sin pedidos, reusado por la vista Tabla). */
-.adoc-kanban-col-empty {
+.adoc-revision-vacio {
   margin: 0;
-  padding: var(--space-2);
+  padding: var(--space-4);
   color: var(--color-text-tertiary);
-  font-size: 12px;
+  font-size: var(--text-caption-size);
 }
 
-/* --- Mini-stepper (4 barras), reusado por EstadoAvance en la Tabla --- */
-.adoc-pedido-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex: 0 0 auto;
-}
-.adoc-pedido-stepper-bar {
-  width: 16px;
-  height: 4px;
-  border-radius: var(--radius-pill);
-  background: var(--neutral-300);
-}
-.adoc-pedido-stepper-bar.lleno {
-  background: var(--color-accent);
-}
-
-/* --- Chip de novedad --- */
+/* --- Chip de novedad (Alta / Baja / Cambio) --- */
 .adoc-novedad-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   height: 20px;
-  padding: 0 9px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   line-height: 1;
+  white-space: nowrap;
 }
 .adoc-novedad-chip svg {
   width: 11px;
   height: 11px;
+  flex: 0 0 auto;
 }
 .adoc-novedad-chip.alta {
-  background: var(--accent-200);
+  background: var(--color-status-success-bg);
   color: var(--color-status-success-fg);
 }
 .adoc-novedad-chip.cambio {
@@ -93,255 +60,41 @@
   color: var(--color-status-neutral-fg);
 }
 
-/* --- Flag de prioridad (lucide flag, rojo), solo ícono, para la columna Prioritario de la Tabla --- */
-.adoc-bandera-prioridad {
+/* --- Celda Docente: avatar de iniciales + nombre --- */
+.adoc-tabla-docente {
   display: inline-flex;
   align-items: center;
-  color: var(--danger-500);
+  gap: var(--space-2);
+  min-width: 0;
 }
-.adoc-bandera-prioridad svg {
-  width: 13px;
-  height: 13px;
-}
-/* --- Flechita de devuelto (lucide corner-up-left, ámbar), mismo patrón que la bandera --- */
-.adoc-bandera-devuelto {
-  display: inline-flex;
-  align-items: center;
-  color: var(--warning-500);
-}
-.adoc-bandera-devuelto svg {
-  width: 13px;
-  height: 13px;
-}
-
-/* --- Avatar (iniciales) --- */
 .adoc-pedido-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   border-radius: var(--radius-pill);
   background: var(--accent-200);
   color: var(--accent-700);
-  font-size: 9px;
-  font-weight: 600;
-}
-
-/* --- Celda Estado combinada (vista Tabla): estado + avance en una línea --- */
-.adoc-estado-avance {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-.adoc-estado-avance-txt {
-  overflow: hidden;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.adoc-estado-avance.acento .adoc-estado-avance-txt {
-  color: var(--accent-700);
-}
-.adoc-estado-avance.exito .adoc-estado-avance-txt {
-  color: var(--color-status-success-fg);
-}
-.adoc-estado-avance.peligro .adoc-estado-avance-txt {
-  color: var(--color-status-danger-fg);
-}
-.adoc-estado-avance.alerta .adoc-estado-avance-txt {
-  color: var(--color-status-warning-fg);
-}
-/* Dot de los estados terminales (sin avance): Aceptado, Devuelto, Rechazado. */
-.adoc-estado-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-pill);
-}
-.adoc-estado-avance.exito .adoc-estado-dot {
-  background: var(--success-500);
-}
-.adoc-estado-avance.alerta .adoc-estado-dot {
-  background: var(--warning-500);
-}
-.adoc-estado-avance.peligro .adoc-estado-dot {
-  background: var(--danger-500);
-}
-
-/* ============================================================
-   Vista Tabla del tablero de revisión (opción D)
-   ============================================================ */
-.adoc-tabla {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.adoc-tabla-head,
-.adoc-tabla-row {
-  display: grid;
-  grid-template-columns:
-    minmax(160px, 1.6fr) minmax(80px, 0.6fr) minmax(100px, 0.8fr) minmax(140px, 1.6fr)
-    minmax(110px, 0.9fr) minmax(110px, 0.9fr) minmax(180px, 1.5fr) 60px;
-  align-items: center;
-  gap: var(--space-4);
-}
-.adoc-tabla-head {
-  padding: 10px 16px;
-  /* Mismo fondo que el título del desplegable (`.adoc-seccion-header`) — pedido explícito del
-     cliente. La línea de arriba es lo que ahora separa uno de otro (antes no había nada entre
-     medio, y al compartir color quedaban fundidos en un solo bloque). */
-  background: var(--neutral-100);
-  border-top: 1px solid var(--color-border-default);
-  border-bottom: 1px solid var(--color-border-strong);
-}
-.adoc-tabla-h {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  color: var(--color-text-tertiary);
-}
-.adoc-tabla-row {
-  width: 100%;
-  padding: 12px 16px;
-  text-align: left;
-  font: inherit;
-  background: var(--color-bg-raised);
-  border: none;
-  border-bottom: 1px solid var(--color-border-subtle);
-  cursor: pointer;
-}
-.adoc-tabla-row:last-child {
-  border-bottom: none;
-}
-.adoc-tabla-row:hover {
-  background: var(--color-bg-canvas);
-}
-/* Fila entera de color: prioritario (rojo) y devuelto (amarillo) — si un pedido es
-   ambas cosas, gana prioritario (ver `claseFondoFila` en TablaRevision.tsx). */
-.adoc-tabla-row--prioritario {
-  background: var(--danger-100);
-}
-.adoc-tabla-row--prioritario:hover {
-  background: var(--danger-100);
-  filter: brightness(0.96);
-}
-.adoc-tabla-row--devuelto {
-  background: var(--warning-100);
-}
-.adoc-tabla-row--devuelto:hover {
-  background: var(--warning-100);
-  filter: brightness(0.96);
-}
-.adoc-tabla-c {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.adoc-tabla-docente {
-  gap: 10px;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-semibold);
 }
 .adoc-tabla-nombre {
   overflow: hidden;
-  font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.adoc-tabla-asig {
-  overflow: hidden;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.adoc-tabla-legajo,
-.adoc-tabla-carrera,
-.adoc-tabla-fecha {
-  overflow: hidden;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-/* Con un solo ícono (bandera o flechita), queda centrado en la columna. Con los dos, el mismo
-   centrado los deja como un par — separados por `gap`, bandera a la izquierda y flechita a la
-   derecha (orden en el que aparecen en el JSX). */
-.adoc-tabla-prio {
-  justify-content: center;
-  gap: 6px;
-}
 
-/* --- Secciones desplegables por etapa del circuito: cada una es su propia
-   card, separadas entre sí por `gap` en `.adoc-tabla` (no apiladas/pegadas). --- */
-/* Card en `--neutral-100` (no `--color-bg-raised`, blanco #fff puro y sin matiz) + franja de color
-   en el borde izquierdo: el fondo de página (`--color-bg-canvas` = `--neutral-200`) es un cálido
-   casi-neutro (oklch hue 75). `--neutral-100` comparte ese mismo matiz 75° (apenas más claro que el
-   fondo, oklch 98% vs 95%) — combina en vez de chocar como un blanco frío/sin matiz. La franja da la
-   identidad de color sin teñir toda la card. */
-.adoc-seccion-tabla {
-  overflow: hidden;
-  border: 1px solid var(--color-border-default);
-  border-left: 4px solid var(--accent-500);
-  border-radius: var(--radius-xs);
-  background: var(--neutral-100);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-.adoc-seccion-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 10px 16px;
-  background: var(--neutral-100);
-  border: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.adoc-seccion-chevron {
+/* --- Celda Estado: el badge del estado y, si aplica, el de prioridad --- */
+/* Sin `flex-wrap`: si los dos badges se apilaran, esas filas quedarían más altas que
+   el resto y la tabla perdería el ritmo. Al no poder envolver, la tabla le asigna a
+   la columna el ancho que necesita. */
+.adoc-estado-badges {
   display: inline-flex;
-  flex: 0 0 auto;
-  color: var(--color-text-tertiary);
-  transition: transform 0.15s ease;
-}
-.adoc-seccion-chevron svg {
-  width: 16px;
-  height: 16px;
-}
-.adoc-seccion-chevron--colapsado {
-  transform: rotate(-90deg);
-}
-/* Color distinto al de los headers de columna (`.adoc-tabla-h`, gris chico)
-   para que el título de la sección no se confunda con las columnas. */
-.adoc-seccion-titulo {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent-700);
-}
-.adoc-seccion-subtitulo {
-  flex: 1;
-  overflow: hidden;
-  font-size: 12px;
-  color: var(--color-text-tertiary);
+  align-items: center;
+  gap: var(--space-1);
   white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.adoc-seccion-contador {
-  flex: 0 0 auto;
-  min-width: 20px;
-  padding: 1px 8px;
-  border-radius: var(--radius-pill);
-  /* La card volvió a ser blanca (franja de color en el borde, no fill) — el contador puede volver
-     a ser un pill de color: un área chica de acento no choca con el fondo cálido como sí lo hacía
-     teñir toda la card. */
-  background: var(--accent-100);
-  color: var(--accent-700);
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
 }
