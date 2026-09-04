@@ -41,14 +41,14 @@ Cada fase es un commit. Antes de cada commit: `pnpm exec prettier --write <archi
 
 ## 5. feat(asistente): composer (`EntradaDePregunta`, contador, «Enviar», auto-grow fallback)
 
-- [ ] 5.1 Tests — `EntradaDePregunta.test.tsx` (nuevo): «El contador aparece recién cerca del límite» (`type` de 1 799 caracteres → `queryByText(/\/ 2.?000/)` nulo; uno más → visible; el textarea tiene `maxLength` 2000); «Enter hace salto con puntero grueso» (`window.matchMedia = () => ({ matches: true, … })`; `type("a{Enter}")` → `consultar` no llamado, el valor contiene `\n`).
-- [ ] 5.2 Ajustar `asistente.test.tsx` «manda la pregunta y muestra la respuesta»: el botón de envío pasa de «Preguntar» a «Enviar» (renombre deliberado). El test del lanzador «Preguntar» queda intacto.
-- [ ] 5.3 `components/EntradaDePregunta.tsx` (nuevo): props `{ valor, onCambiar, onEnviar, enVuelo, maxCaracteres = 2000, umbralDelContador = 1800 }` + `ref` al textarea; destello; `Textarea` con `maxLength` y `aria-describedby` al contador (sin `aria-live`); botón «Enviar» con `sendIcon` y etiqueta visible, deshabilitado en vuelo o vacío, sin spinner; Enter/Shift+Enter; `matchMedia("(pointer: coarse)")` guardado si falta.
-- [ ] 5.4 `hooks/useAltoAutomatico.ts` (nuevo): `style.height = scrollHeight` hasta 6 líneas como fallback de `field-sizing: content`.
-- [ ] 5.5 `app/shell/icons.tsx`: `sendIcon`.
-- [ ] 5.6 `PanelAsistente.tsx` usa `EntradaDePregunta` y conserva el foco al campo al terminar el turno.
-- [ ] 5.7 CSS del contador y del botón de envío con tokens.
-- [ ] 5.8 Verde y commit `feat(asistente): …`.
+- [x] 5.1 Tests — `EntradaDePregunta.test.tsx` (nuevo): «El contador aparece recién cerca del límite» (`type` de 1 799 caracteres → `queryByText(/\/ 2.?000/)` nulo; uno más → visible; el textarea tiene `maxLength` 2000); «Enter hace salto con puntero grueso» (`window.matchMedia = () => ({ matches: true, … })`; `type("a{Enter}")` → `consultar` no llamado, el valor contiene `\n`).
+- [x] 5.2 Ajustar `asistente.test.tsx` «manda la pregunta y muestra la respuesta»: el botón de envío pasa de «Preguntar» a «Enviar» (renombre deliberado). El test del lanzador «Preguntar» queda intacto.
+- [x] 5.3 `components/EntradaDePregunta.tsx` (nuevo): props `{ valor, onCambiar, onEnviar, enVuelo, maxCaracteres = 2000, umbralDelContador = 1800 }` + `ref` al textarea; destello; `Textarea` con `maxLength` y `aria-describedby` al contador (sin `aria-live`); botón «Enviar» con `sendIcon` y etiqueta visible, deshabilitado en vuelo o vacío, sin spinner; Enter/Shift+Enter; `matchMedia("(pointer: coarse)")` guardado si falta.
+- [x] 5.4 `hooks/useAltoAutomatico.ts` (nuevo): `style.height = scrollHeight` hasta 6 líneas como fallback de `field-sizing: content`.
+- [x] 5.5 `app/shell/icons.tsx`: `sendIcon`.
+- [x] 5.6 `PanelAsistente.tsx` usa `EntradaDePregunta` y conserva el foco al campo al terminar el turno.
+- [x] 5.7 CSS del contador y del botón de envío con tokens.
+- [x] 5.8 Verde y commit `feat(asistente): …`.
 
 ## 6. feat(asistente): razonamiento + `categoria` fuera del tipo (cierra ARS-79 v1)
 

@@ -159,4 +159,17 @@ export const lockIcon = (
   </svg>
 );
 
+/**
+ * Avión de papel. Va delante de «Enviar» en el composer del asistente.
+ *
+ * Acompaña a la etiqueta, no la reemplaza: un ícono solo obliga a descubrir qué
+ * hace, y Enter es un atajo y no la única vía de envío.
+ */
+export const sendIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M15.5 2.5L2.5 8l5.5 2 2 5.5z" />
+    <path d="M15.5 2.5L8 10" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

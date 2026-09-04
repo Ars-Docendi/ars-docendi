@@ -291,15 +291,18 @@
 
 /* ────────────────────────────────── la entrada ─────────────────────────────── */
 
+/* Una grilla de tres columnas —destello, campo, botón— y una segunda fila para el
+   contador, que sólo existe cerca del límite. Con el destello como celda propia
+   ya no hace falta posicionarlo en absoluto ni reservarle relleno: se centra en
+   la fila del campo, no en el formulario entero, así que cuando el contador
+   aparece abajo el destello no se descuelga. */
 .adoc-asistente-entrada {
-  position: relative;
   flex: none;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-2);
-  /* El relleno izquierdo deja lugar al destello: su posición, su ancho y un hueco. */
-  padding: var(--space-1) var(--space-2) var(--space-1)
-    calc(var(--space-3) + 1.125rem + var(--space-2));
+  column-gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
   border: 2px solid var(--color-accent);
   border-radius: var(--radius-sm);
   background: var(--color-bg-raised);
@@ -309,13 +312,7 @@
   box-shadow: var(--focus-ring);
 }
 
-/* Centrado sobre el alto real del campo, no sobre el del formulario: el
-   formulario crece con el botón y el ícono quedaría descolgado abajo. */
 .adoc-asistente-destello {
-  position: absolute;
-  top: 50%;
-  left: var(--space-3);
-  transform: translateY(-50%);
   display: inline-flex;
   width: 1.125rem;
   height: 1.125rem;
@@ -330,7 +327,6 @@
 .adoc-asistente-entrada textarea,
 .adoc-asistente-entrada textarea:focus,
 .adoc-asistente-entrada textarea:focus-visible {
-  flex: 1;
   min-width: 0;
   border: 0;
   outline: none;
@@ -340,13 +336,27 @@
   padding: var(--space-2) 0;
 
   /* La librería le pone un alto mínimo pensado para un campo de formulario. Acá es
-     una línea de chat: arranca en una línea y crece hasta cuatro, que es donde una
-     pregunta larga sigue entrando sin que el campo se coma la conversación. */
+     una línea de chat: arranca en una línea y crece hasta seis, que es donde una
+     pregunta larga sigue entrando sin que el campo se coma la conversación. El
+     tope son seis líneas más el relleno vertical, en `em` para seguir al tamaño
+     de letra del campo. `field-sizing` hace crecer; donde el navegador no lo
+     entiende, `useAltoAutomatico` fija el alto a mano con el mismo tope. */
   min-height: 0;
   height: auto;
   field-sizing: content;
-  max-height: 6.5rem;
+  max-height: calc(6 * 1.45em + 2 * var(--space-2));
   line-height: 1.45;
+}
+
+/* «1 850 / 2 000». Debajo del campo y alineado con el botón, en el tono de una
+   nota: informa, no alarma. Cifras tabulares para que no baile a cada tecla. */
+.adoc-asistente-contador {
+  grid-column: 2 / -1;
+  justify-self: end;
+  padding-bottom: var(--space-1);
+  font-size: var(--text-caption-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

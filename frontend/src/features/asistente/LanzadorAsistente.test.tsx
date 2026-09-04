@@ -36,4 +36,17 @@ describe("El modal del asistente", () => {
       within(dialogo).getByRole("region", { name: "Asistente conversacional" }),
     ).toBeInTheDocument();
   });
+
+  it("abierto, hay un solo «Preguntar» —el lanzador— y el envío se llama «Enviar»", async () => {
+    // Dos botones con el mismo nombre en el DOM son dos candidatos iguales para
+    // quien navega por lista de controles; el que manda la pregunta dice qué hace.
+    const user = userEvent.setup();
+    montar(<LanzadorAsistente />);
+
+    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
+    const dialogo = await screen.findByRole("dialog", { name: "Asistente" });
+
+    expect(screen.getAllByRole("button", { name: "Preguntar" })).toHaveLength(1);
+    expect(within(dialogo).getByRole("button", { name: "Enviar" })).toBeInTheDocument();
+  });
 });

@@ -122,7 +122,9 @@ describe("El panel del asistente", () => {
     montar(<PanelAsistente />);
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "¿cuántos docentes hay?");
-    await user.click(screen.getByRole("button", { name: "Preguntar" }));
+    // «Enviar» y no «Preguntar»: con el modal abierto habría dos botones con el
+    // mismo nombre en el DOM, el lanzador y éste.
+    await user.click(screen.getByRole("button", { name: "Enviar" }));
 
     expect(await screen.findByText("Hay 4 docentes designados.")).toBeInTheDocument();
     expect(consultar).toHaveBeenCalledOnce();

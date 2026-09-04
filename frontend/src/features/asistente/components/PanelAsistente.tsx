@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, Textarea } from "@ars-docendi/ui";
-
-import { sparkIcon } from "../../../app/shell/icons";
 
 import { Conversacion } from "./Conversacion";
+import { EntradaDePregunta } from "./EntradaDePregunta";
 import { FranjaDeEstado } from "./FranjaDeEstado";
 import { Sugerencias } from "./Sugerencias";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
@@ -86,44 +84,13 @@ export function PanelAsistente({ umbralDelIndicadorMs }: PanelAsistenteProps) {
       {/* Una sola fila, FUERA de la región viva a propósito. */}
       <FranjaDeEstado enVuelo={enVuelo} turnos={turnos} umbralMs={umbralDelIndicadorMs} />
 
-      <form
-        className="adoc-asistente-entrada"
-        onSubmit={(evento) => {
-          evento.preventDefault();
-          void enviar(borrador);
-        }}
-      >
-        {/* El mismo destello del lanzador: es la misma promesa —«acá le hablás al
-            asistente»— y dos símbolos para lo mismo obligan a aprender dos. */}
-        <span className="adoc-asistente-destello ico" aria-hidden="true">
-          {sparkIcon}
-        </span>
-
-        <Textarea
-          ref={entrada}
-          rows={1}
-          value={borrador}
-          onChange={(evento) => setBorrador(evento.target.value)}
-          placeholder="Escribí tu pregunta y presioná Enter..."
-          aria-label="Tu pregunta"
-          onKeyDown={(evento) => {
-            // Enter envía, Shift+Enter hace salto de línea: es lo que espera
-            // cualquiera que haya usado un chat. En vuelo, Enter no hace nada —
-            // tampoco inserta un salto que después viajaría con la pregunta.
-            if (evento.key === "Enter" && !evento.shiftKey) {
-              evento.preventDefault();
-              void enviar(borrador);
-            }
-          }}
-        />
-        {/* El botón se queda aunque el placeholder diga «presioná Enter». Enter es
-            un atajo, no una vía única: dejar el envío solo en una tecla saca del
-            formulario a quien navega con lector de pantalla o desde un teléfono. Es
-            visualmente discreto, no ausente. */}
-        <Button type="submit" disabled={enVuelo || borrador.trim().length === 0}>
-          Preguntar
-        </Button>
-      </form>
+      <EntradaDePregunta
+        ref={entrada}
+        valor={borrador}
+        onCambiar={setBorrador}
+        onEnviar={() => void enviar(borrador)}
+        enVuelo={enVuelo}
+      />
     </section>
   );
 }
