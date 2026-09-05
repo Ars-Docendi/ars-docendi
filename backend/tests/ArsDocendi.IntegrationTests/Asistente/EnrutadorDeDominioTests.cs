@@ -8,15 +8,25 @@ using Npgsql;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica la decisión de carril y el banco de preguntas que NO debe capturar.
+/// Verifica la decisión de carril y la tabla dorada sobre el corpus de evaluación.
 /// </summary>
 /// <remarks>
-/// <b>El banco negativo es la mitad que importa.</b> Que el enrutador capture lo que
+/// <b>El corpus ajeno es la mitad que importa.</b> Que el enrutador capture lo que
 /// tiene que capturar lo prueban unos pocos casos; que no capture lo que no le
 /// corresponde no se puede probar con casos escritos a mano, porque uno escribe los
 /// que ya sabe que fallan. Por eso las preguntas salen de los datasets de
 /// evaluación: los escribió otra tarea con otro objetivo, así que son legítimas y
 /// ajenas al catálogo.
+///
+/// <b>Sobre ese corpus se fija una tabla dorada</b> —un archivo versionado con el
+/// mapeo ítem → intención capturada o nulo— en vez de un assert booleano. La
+/// diferencia no es de estilo: el booleano produce un veredicto y la tabla produce
+/// un número, que es lo que hace falta para fundamentar el pedido de los edges de
+/// ARS-46. Y ante una intención nueva legítima, el booleano sólo se podía satisfacer
+/// debilitándola; la tabla se actualiza y el diff muestra la decisión.
+///
+/// Todo esto cuesta <b>cero llamadas al modelo</b>: el enrutador es determinista y no
+/// tiene por dónde llamar.
 /// </remarks>
 [Collection(ColeccionPostgres.Nombre)]
 public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
@@ -81,52 +91,160 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
         Assert.DoesNotContain(typeof(CarrilSql), parametros);
     }
 
-    // ------------------------------------------- el banco de preguntas negativas
+    // ---------------------------------------------------- la tabla dorada
 
-    [Theory]
-    [InlineData("capacidad.json", "items")]
-    [InlineData("robustez.json", "items")]
-    public async Task Ninguna_pregunta_del_dataset_se_captura(string archivo, string coleccion)
+    [Fact]
+    public async Task El_mapeo_de_los_datasets_coincide_con_la_tabla_dorada()
     {
+        // REEMPLAZA AL ASSERT BOOLEANO «ninguna se captura», y no convive con él.
+        // Los dos fallan en las mismas situaciones, pero ante un rojo piden arreglos
+        // opuestos: el booleano afirma «no captura ninguna» y ante una intención
+        // nueva legítima que DEBE capturar un ítem sólo se puede satisfacer
+        // debilitando la intención o sacando el ítem del dataset. La tabla afirma
+        // «captura exactamente esto», así que se actualiza la entrada y el diff
+        // muestra la decisión.
+        //
+        // Y produce un NÚMERO en vez de un veredicto: cuántos ítems del corpus
+        // captura el catálogo. Es la mitad del dato que fundamenta el pedido de los
+        // edges de ARS-46, y se obtiene hoy, sin tráfico real.
+        //
+        // CUESTA CERO LLAMADAS AL MODELO. No porque esta corrida no haya llamado sino
+        // porque el enrutador no tiene por dónde: lo sostiene
+        // `El_enrutador_no_recibe_por_donde_llamar_al_modelo`, sobre las dependencias.
+        //
+        // LA TABLA NO SE REGENERA COMO EFECTO DE CORRER ESTO. Se edita a mano y el
+        // diff del archivo es lo que se revisa. Si regenerar fuera automático, una
+        // intención demasiado laxa se absorbería sola en el primer commit que la
+        // causara y nada la detectaría nunca.
         await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-        var enrutador = Enrutador();
 
-        var capturadas = new List<string>();
+        var dorada = await TablaDoradaAsync();
+        var observado = await ObservadoAsync();
 
-        foreach (var item in await ItemsAsync(archivo, coleccion))
-        {
-            var pregunta = item.GetProperty("pregunta").GetString()!;
-            var decidida = await enrutador.DecidirAsync(pregunta, ct);
+        var derivas = dorada
+            .Where(entrada => observado[entrada.Id] != entrada.Intencion)
+            .Select(entrada => Deriva(entrada, observado[entrada.Id]))
+            .ToList();
 
-            if (decidida is not null)
-            {
-                capturadas.Add(
-                    $"{item.GetProperty("id").GetString()} «{pregunta}» "
-                    + $"la capturó {decidida.Intencion.Nombre}");
-            }
-        }
-
-        // Nombrar la pregunta Y la intención culpable: sin la segunda, quien agregue
-        // una intención demasiado laxa ve el test rojo y no sabe cuál sacar.
-        Assert.True(capturadas.Count == 0,
-            $"El enrutador capturó preguntas de {archivo}, que son legítimas y ajenas "
-            + "al catálogo. Es una intención demasiado laxa, no un dataset mal "
-            + "escrito:\n" + string.Join("\n", capturadas));
+        Assert.True(derivas.Count == 0,
+            "El enrutador decide distinto de lo que fija la tabla dorada "
+            + $"({RutaDeLaTablaDorada}). Cada línea dice el ítem, en qué dirección se "
+            + "movió y qué lectura tiene:\n" + string.Join("\n", derivas));
     }
 
     [Fact]
-    public async Task El_banco_negativo_no_esta_vacio()
+    public async Task La_tabla_dorada_cubre_exactamente_los_items_de_los_dos_datasets()
     {
-        // Un banco vacío daría verde para siempre. El test que protege al catálogo
-        // necesita que alguien proteja al test.
-        var capacidad = await ItemsAsync("capacidad.json", "items");
-        var robustez = await ItemsAsync("robustez.json", "items");
+        // EL GUARD QUE LA TABLA HEREDA DEL BANCO NEGATIVO. Una tabla vacía —o a la
+        // que le falte justo el ítem que se rompió— daría verde para siempre: el test
+        // que protege al catálogo necesita que alguien proteja al test.
+        var dorada = await TablaDoradaAsync();
+        var items = await ItemsDeLosDosDatasetsAsync();
 
-        Assert.True(capacidad.Count + robustez.Count >= 30);
+        var enLaTabla = dorada.Select(entrada => entrada.Id).ToHashSet(StringComparer.Ordinal);
+        var enLosDatasets = items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+
+        var sinEntrada = enLosDatasets.Except(enLaTabla).Order(StringComparer.Ordinal).ToList();
+        var sobrantes = enLaTabla.Except(enLosDatasets).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(sinEntrada.Count == 0,
+            "Estos ítems de los datasets no tienen entrada en la tabla dorada, así que "
+            + "nadie mira qué decide el enrutador para ellos: "
+            + string.Join(", ", sinEntrada));
+
+        Assert.True(sobrantes.Count == 0,
+            "Estas entradas de la tabla dorada no las reclama ningún ítem de los "
+            + "datasets; sobraron de un ítem borrado o renombrado: "
+            + string.Join(", ", sobrantes));
+
+        // El corpus tiene que seguir siendo un corpus. Es el mismo piso que sostenía
+        // al banco negativo antes de que la tabla lo subsumiera.
+        Assert.True(items.Count >= 30,
+            $"El corpus quedó en {items.Count} ítems: demasiado chico para que la "
+            + "cobertura signifique algo.");
     }
 
     // ------------------------------------------------------------ apoyo
+
+    /// <summary>Ruta del archivo de tabla dorada, relativa a la raíz del repo.</summary>
+    private const string RutaDeLaTablaDorada =
+        "backend/tests/ArsDocendi.IntegrationTests/Asistente/tabla-dorada-enrutador.json";
+
+    /// <summary>Una entrada de la tabla dorada: un ítem y lo que captura.</summary>
+    private sealed record EntradaDorada(string Id, string? Intencion);
+
+    /// <summary>Un ítem de los datasets, con el origen si es una paráfrasis.</summary>
+    private sealed record ItemDelCorpus(string Id, string Pregunta, string? Origen);
+
+    /// <summary>
+    /// Cómo se lee una diferencia entre lo observado y lo fijado.
+    /// </summary>
+    /// <remarks>
+    /// Las tres direcciones piden arreglos distintos, y decirlo en el mensaje es lo
+    /// que evita que la tabla se actualice a ciegas para volver el rojo verde.
+    /// </remarks>
+    private static string Deriva(EntradaDorada fijada, string? observada) =>
+        (fijada.Intencion, observada) switch
+        {
+            (null, not null) =>
+                $"{fijada.Id}: nulo → «{observada}». POSIBLE LAXITUD: una intención "
+                + "empezó a capturar una pregunta legítima y ajena al catálogo. Se "
+                + "revisa la intención, no el dataset.",
+            (not null, null) =>
+                $"{fijada.Id}: «{fijada.Intencion}» → nulo. CAPTURA PERDIDA: el "
+                + "catálogo dejó de reconocer algo que reconocía. O se estrechó una "
+                + "intención sin querer, o cambió el fraseo del ítem.",
+            var (antes, ahora) =>
+                $"{fijada.Id}: «{antes}» → «{ahora}». CAMBIÓ QUIÉN LO CAPTURA: dos "
+                + "intenciones se solapan y el orden del catálogo decide cuál gana.",
+        };
+
+    private async Task<Dictionary<string, string?>> ObservadoAsync()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enrutador = Enrutador();
+        var observado = new Dictionary<string, string?>(StringComparer.Ordinal);
+
+        foreach (var item in await ItemsDeLosDosDatasetsAsync())
+        {
+            var decidida = await enrutador.DecidirAsync(item.Pregunta, ct);
+            observado[item.Id] = decidida?.Intencion.Nombre;
+        }
+
+        return observado;
+    }
+
+    private static async Task<List<EntradaDorada>> TablaDoradaAsync()
+    {
+        var documento = JsonDocument.Parse(
+            await File.ReadAllTextAsync(
+                Path.Combine([RaizRepositorio.Ruta(), .. RutaDeLaTablaDorada.Split('/')]),
+                TestContext.Current.CancellationToken));
+
+        return
+        [
+            .. documento.RootElement.GetProperty("entradas").EnumerateArray()
+                .Select(entrada => new EntradaDorada(
+                    entrada.GetProperty("id").GetString()!,
+                    entrada.GetProperty("intencion").GetString())),
+        ];
+    }
+
+    private static async Task<List<ItemDelCorpus>> ItemsDeLosDosDatasetsAsync()
+    {
+        List<ItemDelCorpus> corpus = [];
+
+        foreach (var archivo in (string[])["capacidad.json", "robustez.json"])
+        {
+            corpus.AddRange((await ItemsAsync(archivo, "items")).Select(item =>
+                new ItemDelCorpus(
+                    item.GetProperty("id").GetString()!,
+                    item.GetProperty("pregunta").GetString()!,
+                    item.TryGetProperty("origen", out var origen) ? origen.GetString() : null)));
+        }
+
+        return corpus;
+    }
 
     private EnrutadorDeDominio Enrutador()
     {

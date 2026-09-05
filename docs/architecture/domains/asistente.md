@@ -311,11 +311,15 @@ El enrutador de dominio corre entre el reescritor y el detector de ambigüedad. 
 
 Está cableado igual porque ese pedido de aprobación se fundamenta con un número —qué proporción del tráfico real captura un catálogo de cinco intenciones y cuántas veces se equivoca— y ese número no existe si la decisión no se toma nunca. No cambia ninguna respuesta, así que no puede romper nada, y se saca borrando unas líneas.
 
-### El banco de preguntas negativas
+### El corpus ajeno y la tabla dorada
 
 Que el enrutador capture lo que le corresponde lo prueban unos pocos casos. Que **no** capture lo que no le corresponde no se puede probar con casos escritos a mano: uno escribe los que ya sabe que fallan.
 
-Por eso el banco sale de `capacidad.json` y `robustez.json`. Los escribió otra tarea con otro objetivo —medir traducción a SQL y tolerancia al fraseo—, así que son preguntas legítimas y ajenas al catálogo. Cuando el catálogo crezca, el banco crece con él sin que nadie lo mantenga, y es el único test que puede fallar por agregar una intención demasiado laxa. El fallo nombra la pregunta **y** la intención culpable: sin la segunda, quien la agregó ve rojo y no sabe cuál sacar.
+Por eso el corpus sale de `capacidad.json` y `robustez.json`. Los escribió otra tarea con otro objetivo —medir traducción a SQL y tolerancia al fraseo—, así que son preguntas legítimas y ajenas al catálogo. Cuando el catálogo crezca, el corpus crece con él sin que nadie lo mantenga, y es lo único que puede fallar por agregar una intención demasiado laxa.
+
+Sobre ese corpus se fija una **tabla dorada** —`backend/tests/ArsDocendi.IntegrationTests/Asistente/tabla-dorada-enrutador.json`, una entrada por ítem con la intención que captura o nulo— y no un assert booleano «ninguna se captura». Los dos fallan en las mismas situaciones, pero piden arreglos opuestos: ante una intención nueva y legítima que **debe** capturar un ítem, el booleano sólo se podía satisfacer debilitando la intención o sacando el ítem del dataset; la tabla se actualiza y el diff muestra la decisión. Y produce un **número** en vez de un veredicto —cuántos ítems del corpus captura el catálogo, hoy 0 de 39—, que es la mitad del dato con que se fundamenta el pedido de los edges y se obtiene sin tráfico real ni una llamada al modelo.
+
+El mensaje de fallo nombra el ítem, la **dirección** del cambio y su lectura: `nulo → intención` es posible laxitud y se revisa la intención, no el dataset; `intención → nulo` es una captura perdida. La tabla **no se regenera** como efecto de correr el test —si lo hiciera, una laxitud se absorbería sola en el commit que la causara— y hereda el guard del banco que reemplaza: otro test verifica que cubra exactamente los ítems de los dos datasets, porque una tabla vacía daría verde para siempre.
 
 **Ya encontró una.** «¿Cuántas solicitudes de baja se presentaron?» caía en `pedidos-de-una-novedad`, porque «solicitudes» normaliza a «pedido» y «baja» es una novedad válida. La intención existe para **listar** los pedidos de una novedad; la pregunta pide **contarlos**, que tiene otra forma de respuesta.
 

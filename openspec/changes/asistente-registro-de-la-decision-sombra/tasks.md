@@ -29,14 +29,14 @@
 
 ## 4. La tabla dorada offline
 
-- [ ] 4.1 Archivo de tabla dorada versionado con una entrada por ítem de `capacidad.json` y de `robustez.json`, cada una con su intención capturada o nulo
-- [ ] 4.2 Test que corre el enrutador sobre los dos datasets y compara contra la tabla dorada, sin ninguna llamada al proveedor del modelo
-- [ ] 4.3 El mensaje de fallo nombra el ítem, la dirección del cambio (`nulo → intención` es posible laxitud; `intención → nulo` es captura perdida) y qué lectura corresponde a cada una
-- [ ] 4.4 Test: falla si un ítem de los datasets no tiene entrada en la tabla, y falla si la tabla tiene una entrada que ningún ítem reclama
-- [ ] 4.5 Verificar en rojo: cambiar a mano una entrada de la tabla dorada hace fallar nombrando ese ítem
-- [ ] 4.6 Verificar en rojo: sacarle el término excluido a `pedidos-de-una-novedad` hace fallar nombrando el ítem que pasa a capturarse
-- [ ] 4.7 Reemplazar el assert booleano `Ninguna_pregunta_del_dataset_se_captura` por la tabla dorada, que lo subsume (D5), y trasladar su guard de banco no vacío a la cobertura de 4.4
-- [ ] 4.8 Escribir en el test que la tabla no se regenera como efecto de correrlo: se edita a mano y el diff es lo que se revisa
+- [x] 4.1 Archivo de tabla dorada versionado con una entrada por ítem de `capacidad.json` y de `robustez.json`, cada una con su intención capturada o nulo
+- [x] 4.2 Test que corre el enrutador sobre los dos datasets y compara contra la tabla dorada, sin ninguna llamada al proveedor del modelo
+- [x] 4.3 El mensaje de fallo nombra el ítem, la dirección del cambio (`nulo → intención` es posible laxitud; `intención → nulo` es captura perdida) y qué lectura corresponde a cada una
+- [x] 4.4 Test: falla si un ítem de los datasets no tiene entrada en la tabla, y falla si la tabla tiene una entrada que ningún ítem reclama
+- [x] 4.5 Verificar en rojo: cambiar a mano una entrada de la tabla dorada hace fallar nombrando ese ítem
+- [x] 4.6 Verificar en rojo: sacarle el término excluido a `pedidos-de-una-novedad` hace fallar nombrando el ítem que pasa a capturarse
+- [x] 4.7 Reemplazar el assert booleano `Ninguna_pregunta_del_dataset_se_captura` por la tabla dorada, que lo subsume (D5), y trasladar su guard de banco no vacío a la cobertura de 4.4
+- [x] 4.8 Escribir en el test que la tabla no se regenera como efecto de correrlo: se edita a mano y el diff es lo que se revisa
 
 ## 5. Consistencia de fraseo y el número
 
