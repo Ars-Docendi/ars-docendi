@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-xs);
   background: var(--color-bg-canvas);
 }
@@ -17,7 +17,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .adoc-filtros-input {
   flex: 1 1 150px;
@@ -38,7 +38,7 @@
 .adoc-filtros-opcional {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   flex: 0 0 auto;
 }
 .adoc-filtros-quitar {
@@ -49,9 +49,9 @@
   height: 36px;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
-  background: #fff;
+  background: var(--color-bg-raised);
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: var(--text-body-sm-size);
   cursor: pointer;
   flex: 0 0 auto;
 }

@@ -82,10 +82,13 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 
 ### Portal (`/api/portal/`)
 
-| Método | Path    | Rol mínimo | Descripción                           |
-| ------ | ------- | ---------- | ------------------------------------- |
-| GET    | `/ping` | (anónimo)  | Health check del módulo               |
-| ...    | ...     | ...        | _(a documentar en specs por feature)_ |
+| Método          | Path                                                                                       | Rol mínimo  | Descripción                     |
+| --------------- | ------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
+| GET             | `/ping`                                                                                    | (anónimo)   | Health check del módulo         |
+| GET             | `/perfil`                                                                                  | autenticado | Perfil propio completo          |
+| PUT/DELETE      | `/perfil/contacto`, `/perfil/cv`                                                           | autenticado | Contacto y metadata de CV       |
+| POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
+| PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
 
 ### Tareas (`/api/tareas/`)
 

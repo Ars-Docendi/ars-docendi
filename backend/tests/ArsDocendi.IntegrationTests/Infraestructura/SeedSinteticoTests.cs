@@ -63,6 +63,33 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             """) > 0);
         Assert.Equal("sintetico", await EscalarAsync<string>(conexion,
             "SELECT valor FROM public.seed_metadata WHERE clave = 'origen_datos'"));
+        Assert.Equal(
+            await EscalarAsync<long>(conexion, "SELECT count(*) FROM identity.personas"),
+            await EscalarAsync<long>(conexion, "SELECT count(*) FROM portal.perfiles"));
+        Assert.Equal(
+            await EscalarAsync<long>(conexion, "SELECT count(*) FROM identity.personas"),
+            await EscalarAsync<long>(conexion, "SELECT count(*) FROM portal.contactos"));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion, """
+            SELECT count(*)
+            FROM designaciones.pedido_historial h
+            JOIN designaciones.pedidos p ON p.id = h.pedido_id
+            WHERE h.rol_id = 'a1000000-0000-4000-8000-000000000002'
+              AND h.actor_id = 'a0000000-0000-4000-8000-000000000002'
+              AND h.accion IN ('crear', 'enviar', 'cancelar')
+              AND p.materia_id <> '70000000-0000-4000-8000-000000000101'
+            """));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion, """
+            SELECT count(*)
+            FROM designaciones.pedido_historial h
+            WHERE h.actor_id IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM identity.user_roles ur
+                  WHERE ur.user_id = h.actor_id
+                    AND ur.role_id = h.rol_id
+                    AND ur.deleted_at IS NULL
+              )
+            """));
     }
 
     [Fact]

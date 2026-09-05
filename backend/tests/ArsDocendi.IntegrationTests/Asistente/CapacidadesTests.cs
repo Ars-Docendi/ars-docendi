@@ -39,8 +39,12 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     /// </summary>
     private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
 
-    /// <summary>Tiene los seis roles del sistema asignados a la vez.</summary>
-    private static readonly Guid Multirol = Guid.Parse("a0000000-0000-4000-8000-000000000009");
+    /// <summary>
+    /// El rol de Secretaría Académica, de alcance global. No es un actor: es el
+    /// SEGUNDO rol que el test le suma a un actor que ya tiene uno, para armarse el
+    /// caso multirol que el seed compartido dejó de traer.
+    /// </summary>
+    private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
 
     private static readonly string[] ColumnasPersonales =
         ["documento", "cuil", "fecha_nacimiento", "telefono", "upn"];
@@ -299,10 +303,18 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         // SIN TABLA DE PRECEDENCIA, y a propósito: elegir que «secretaria gana a
         // jefe_catedra» sería inventar una jerarquía que nadie pidió para decidir un
         // saludo. Un genérico correcto es mejor que un específico adivinado.
+        //
+        // EL ACTOR MULTIROL LO ARMA EL TEST, y ya no lo trae el seed compartido. El
+        // usuario «Demo Multirol» se dio de baja cuando el seed pasó a exigir que
+        // cada actor del historial tuviera de verdad el rol con el que actuó, y seis
+        // roles sobre dos materias no entraban en esa coherencia. Concederlo acá deja
+        // la condición a la vista —dos roles vigentes sobre el mismo actor— en vez de
+        // esconderla en una fila de fixture que cualquier otro cambio se lleva puesta.
         await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        await SumarleUnSegundoRolAsync(Jefe, ct);
 
-        var puede = await Catalogo().ObtenerAsync(
-            Multirol, TestContext.Current.CancellationToken);
+        var puede = await Catalogo().ObtenerAsync(Jefe, ct);
 
         Assert.Equal(PresentacionPorRol.Generica, puede.Presentacion);
     }
@@ -422,6 +434,27 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             pii,
             ClasificadorDeSensibilidad(),
             configuracion ?? new OpcionesAsistente { CupoDeLlamadasPorActor = 0 });
+    }
+
+    /// <summary>
+    /// Le suma al actor una segunda asignación de rol vigente.
+    /// </summary>
+    /// <remarks>
+    /// La fila va sin materia ni carrera porque <c>secretaria</c> es de alcance
+    /// global: el trigger <c>identity.enforce_role_scope</c> rechaza cualquier otra
+    /// combinación. El id, <c>granted_at</c> y <c>created_at</c> los pone el default
+    /// de la tabla, y <c>granted_by</c> queda nulo porque acá no hay quién conceda.
+    /// </remarks>
+    private async Task SumarleUnSegundoRolAsync(Guid actor, CancellationToken ct)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "INSERT INTO identity.user_roles (user_id, role_id) VALUES (@actor, @rol)",
+            conexion);
+
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("rol", RolSecretaria);
+        await comando.ExecuteNonQueryAsync(ct);
     }
 
     private async Task SembrarAsync()

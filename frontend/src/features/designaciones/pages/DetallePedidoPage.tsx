@@ -32,10 +32,10 @@ const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
 const TITULO_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "Actualización de docente",
   Alta: "Alta de docente",
   Baja: "Baja de docente",
   "Cambio de cargo o dedicación": "Cambio de cargo o dedicación",
-  "Sin novedad": "Sin novedad",
 };
 
 export function DetallePedidoPage() {

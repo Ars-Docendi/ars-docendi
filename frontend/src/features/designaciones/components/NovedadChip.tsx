@@ -4,10 +4,10 @@ import { etiquetaNovedad } from "./tableroRevisionModelo";
 
 /** Clase de color del chip según la novedad (mapea a los tonos del design system). */
 const CLASE_POR_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "sin-novedad",
   Alta: "alta",
   Baja: "baja",
   "Cambio de cargo o dedicación": "cambio",
-  "Sin novedad": "neutro",
 };
 
 /** Wrapper de icono Lucide (viewBox 24, stroke currentColor) — tal cual el screens.pen. */
@@ -54,37 +54,19 @@ const ICONO_USER_MINUS = (
   </IconoLucide>
 );
 
-const ICONO_MINUS = (
-  <IconoLucide>
-    <path d="M5 12h14" />
-  </IconoLucide>
-);
-
 const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
+  "Sin novedad": ICONO_REFRESH,
   Alta: ICONO_USER_PLUS,
   Baja: ICONO_USER_MINUS,
   "Cambio de cargo o dedicación": ICONO_REFRESH,
-  "Sin novedad": ICONO_MINUS,
 };
 
-/** Chip de novedad (Alta / Baja / Cambio / Sin novedad) con icono Lucide y color de estado. */
+/** Chip de novedad (Alta / Baja / Cambio) con icono Lucide y color de estado. */
 export function NovedadChip({ novedad }: { novedad: Novedad }) {
   return (
     <span className={`adoc-novedad-chip ${CLASE_POR_NOVEDAD[novedad]}`}>
       {ICONO_POR_NOVEDAD[novedad]}
       {etiquetaNovedad(novedad)}
-    </span>
-  );
-}
-
-/** Bandera de prioridad (Lucide `flag`, roja) sin etiqueta — para la columna Prioritario de la Tabla. */
-export function PrioridadFlagIcono() {
-  return (
-    <span className="adoc-bandera-prioridad" aria-label="Prioritario">
-      <IconoLucide>
-        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-        <line x1="4" x2="4" y1="22" y2="15" />
-      </IconoLucide>
     </span>
   );
 }

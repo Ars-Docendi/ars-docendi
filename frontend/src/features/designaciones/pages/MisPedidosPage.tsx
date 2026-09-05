@@ -23,7 +23,7 @@ import "./misPedidos.css";
 
 const PAGE_SIZE = 9;
 
-const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
+const NOVEDADES: Novedad[] = ["Alta", "Baja", "Cambio de cargo o dedicación"];
 
 const FILTROS_FIJOS: CampoFiltroFijo[] = [
   { clave: "docente", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },

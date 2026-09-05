@@ -13,6 +13,13 @@ import {
   eliminarPeriodo,
   listarPeriodos,
 } from "../features/designaciones/api/periodosApi";
+import {
+  crearEducacion,
+  crearExperiencia,
+  crearProyecto,
+  editarProyecto,
+  guardarCv,
+} from "../features/portal/api/portalApi";
 
 vi.mock("../shared/api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -199,5 +206,71 @@ describe("adapters HTTP administrativos", () => {
     await editarPeriodo("p1", periodo);
     await eliminarPeriodo("p1");
     expect(apiClient.delete).toHaveBeenCalledWith("/api/designaciones/periodos/p1");
+  });
+
+  it("portal adapta la metadata del documento de proyectos", async () => {
+    const proyecto = {
+      nombre: "Proyecto",
+      rol: "Directora",
+      descripcion: "Descripción",
+      desde: "2026",
+      hasta: null,
+      documento: { nombre: "informe.pdf" },
+      doi: "",
+    };
+    vi.mocked(apiClient.post).mockResolvedValue({ data: proyecto });
+    vi.mocked(apiClient.put).mockResolvedValue({ data: proyecto });
+
+    await crearProyecto(proyecto);
+    await editarProyecto("p1", proyecto);
+
+    const payload = expect.objectContaining({
+      desde: "2026-01-01",
+      documentoNombre: "informe.pdf",
+      documentoUri: null,
+    });
+    expect(apiClient.post).toHaveBeenCalledWith("/api/portal/perfil/proyectos", payload);
+    expect(apiClient.put).toHaveBeenCalledWith("/api/portal/perfil/proyectos/p1", payload);
+  });
+
+  it("portal completa los períodos parciales para el contrato DateOnly", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: {} });
+
+    await crearExperiencia({
+      puesto: "Docente",
+      organizacion: "UNLaM",
+      descripcion: "Descripción",
+      desde: "2020",
+      hasta: null,
+    });
+    await crearEducacion({
+      nivel: "Grado",
+      carrera: "Ingeniería",
+      institucion: "UNLaM",
+      desde: "2015-03",
+      hasta: "2020",
+    });
+
+    expect(apiClient.post).toHaveBeenNthCalledWith(
+      1,
+      "/api/portal/perfil/experiencia",
+      expect.objectContaining({ desde: "2020-01-01", hasta: null }),
+    );
+    expect(apiClient.post).toHaveBeenNthCalledWith(
+      2,
+      "/api/portal/perfil/educacion",
+      expect.objectContaining({ desde: "2015-03-01", hasta: "2020-01-01" }),
+    );
+  });
+
+  it("portal envía al guardar el CV solamente los campos aceptados por el backend", async () => {
+    vi.mocked(apiClient.put).mockResolvedValue({ data: {} });
+
+    await guardarCv({ nombre: "cv.pdf" });
+
+    expect(apiClient.put).toHaveBeenCalledWith("/api/portal/perfil/cv", {
+      nombre: "cv.pdf",
+      uri: null,
+    });
   });
 });

@@ -13,8 +13,10 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// impone el motor: el dueño está exento de las policies, así que consultarlo
 /// desde su conexión no probaría nada.
 ///
-/// Datos del seed sintético: la carrera INF tiene cuatro materias y siete pedidos;
-/// la carrera IND tiene una materia y un pedido. Ocho en total.
+/// Los conteos esperados NO se fijan a mano: se derivan del seed con la conexión
+/// del dueño —exenta de las policies— y el predicado de ámbito reescrito acá. Un
+/// literal ata el test a la edición de turno del seed y lo pone rojo cada vez que
+/// alguien mueve una materia, sin que el alcance haya cambiado en nada.
 /// </remarks>
 [Collection(ColeccionPostgres.Nombre)]
 public sealed class RlsAlcanceTests(PostgresFixture postgres)
@@ -24,6 +26,25 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
+
+    /// <summary>Ámbito del coordinador y del jefe de cátedra en el seed.</summary>
+    /// <remarks>
+    /// Los identificadores de fixture son estables y reservados por diseño; los
+    /// conteos no lo son. Por eso acá se fija el ámbito y el número se cuenta
+    /// contra la base.
+    /// </remarks>
+    private static readonly Guid CarreraInformatica = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid MateriaIngenieriaDeSoftware = Guid.Parse("70000000-0000-4000-8000-000000000101");
+
+    /// <summary>Designaciones de la carrera que el coordinador NO tiene.</summary>
+    private const string SqlAjenas =
+        """
+        SELECT count(*)
+          FROM designaciones.designaciones d
+         WHERE d.materia_id IN (
+               SELECT m.id FROM identity.materias m
+                WHERE m.carrera_id = 'c0000000-0000-4000-8000-000000000202')
+        """;
 
     private static readonly string[] Protegidas =
     [
@@ -104,9 +125,18 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         var deCarrera = await ContarComoActorAsync(Coordinador, "designaciones.pedidos");
         var deMateria = await ContarComoActorAsync(Jefe, "designaciones.pedidos");
 
-        Assert.Equal(8, global);
-        Assert.Equal(7, deCarrera);   // INF: cuatro materias, siete pedidos
-        Assert.Equal(2, deMateria);   // solo Ingeniería de Software
+        Assert.Equal(await ContarPedidosDelSeedAsync("TRUE"), global);
+        Assert.Equal(
+            await ContarPedidosDelSeedAsync("m.carrera_id = @ambito", CarreraInformatica),
+            deCarrera);
+        Assert.Equal(
+            await ContarPedidosDelSeedAsync("m.id = @ambito", MateriaIngenieriaDeSoftware),
+            deMateria);
+
+        // El seed dejó de tener pedidos fuera de Informática, así que hoy el conteo
+        // del coordinador coincide con el global POR DATO, no por permiso: sin esta
+        // desigualdad el test pasaría aunque el predicado de ámbito desapareciera.
+        Assert.True(deMateria < global);
     }
 
     [Fact]
@@ -157,19 +187,19 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
                    SELECT m.id FROM identity.materias m
                     WHERE m.carrera_id = 'c0000000-0000-4000-8000-000000000202')
             """);
-        var fueraDeAlcance = await EscalarComoActorAsync<long>(
-            Coordinador,
-            """
-            SELECT count(*)
-              FROM designaciones.pedidos p
-             WHERE p.materia_id IN (
-                   SELECT m.id FROM identity.materias m
-                    WHERE m.carrera_id = 'c0000000-0000-4000-8000-000000000202')
-            """);
+        // LA SONDA VA CONTRA designaciones.designaciones Y NO CONTRA pedidos, y el
+        // motivo importa: el seed dejó de tener pedidos fuera de Informática, así que
+        // pedirle a esta consulta filas ajenas devolvería cero aunque RLS estuviera
+        // apagada. Un test que no puede fallar es peor que uno rojo, porque no avisa.
+        // designaciones sí conserva una fila de la otra carrera.
+        var ajenasQueExisten = await EscalarAsync<long>(SqlAjenas);
+        var ajenasVisibles = await EscalarComoActorAsync<long>(Coordinador, SqlAjenas);
 
-        // Nada de la otra carrera se cuela por ninguna de las cuatro puertas.
+        // La premisa, asertada y no supuesta: si el seed se quedara sin filas ajenas
+        // el test volvería a vaciarse en silencio, que es exactamente lo que pasó acá.
+        Assert.True(ajenasQueExisten > 0);
         Assert.True(deCarrera > 0);
-        Assert.Equal(0, fueraDeAlcance);
+        Assert.Equal(0, ajenasVisibles);
     }
 
     // ----------------------------------------------------------------- no regresión
@@ -223,6 +253,14 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     /// Corre la consulta como el rol de solo lectura del asistente, con el actor
     /// fijado transaction-local, igual que un turno real.
     /// </summary>
+    /// <summary>Escalar leído con la conexión del dueño, exenta de las policies.</summary>
+    private async Task<T> EscalarAsync<T>(string sql)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion);
+        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
+
     private async Task<T> EscalarComoActorAsync<T>(Guid actor, string sql)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -238,6 +276,35 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
 
         await using var comando = new NpgsqlCommand(sql, conexion, transaccion);
         return (T)(await comando.ExecuteScalarAsync(ct))!;
+    }
+
+    /// <summary>
+    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el
+    /// predicado de ámbito escrito acá, para usarlo como expectativa.
+    /// </summary>
+    /// <remarks>
+    /// No es tautológico: el predicado se reescribe desde la definición del ámbito
+    /// en vez de pasar por <c>identity.asistente_materias_visibles()</c>, que es
+    /// justamente lo que se está probando. Si alguien le cambia el ámbito al actor
+    /// en el seed, la expectativa deja de coincidir y el test lo dice.
+    /// </remarks>
+    private async Task<int> ContarPedidosDelSeedAsync(string filtro, Guid? ambito = null)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            $"""
+            SELECT count(*)
+              FROM designaciones.pedidos p
+              JOIN identity.materias m ON m.id = p.materia_id
+             WHERE {filtro}
+            """, conexion);
+
+        if (ambito is { } valor)
+        {
+            comando.Parameters.AddWithValue("ambito", valor);
+        }
+
+        return (int)(long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
     private async Task SembrarAsync()

@@ -20,8 +20,8 @@
 .adoc-det-headactions .adoc-badge {
   height: 28px;
   padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
 }
 
 /* --- Card base + divisores + eyebrow --- */
@@ -35,10 +35,10 @@
   background: var(--color-border-subtle);
 }
 .adoc-eyebrow {
-  margin: 0;
+  margin: var(--space-0);
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--color-text-tertiary);
@@ -123,12 +123,12 @@
   color: var(--color-text-tertiary);
 }
 .adoc-cadena-detalle {
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
 }
 .adoc-cadena-seg.actual .adoc-cadena-detalle {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 /* --- Layout de dos columnas --- */
@@ -180,8 +180,8 @@
   border-radius: var(--radius-pill);
   background: var(--accent-200);
   color: var(--accent-700);
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
 }
 .adoc-det-namecol {
   display: flex;
@@ -196,7 +196,7 @@
 }
 .adoc-det-name {
   font-size: 17px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
 .adoc-det-rolechip {
@@ -204,11 +204,11 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border-default);
   background: var(--color-status-neutral-bg);
-  font-size: 12px;
+  font-size: var(--text-micro-size);
   color: var(--color-text-secondary);
 }
 .adoc-det-meta {
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-tertiary);
 }
 .adoc-det-tipo {
@@ -217,8 +217,8 @@
   flex: 0 0 auto;
   padding: 2px 12px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-semibold);
 }
 .adoc-det-tipo.success {
   background: var(--color-status-success-bg);
@@ -255,8 +255,8 @@
   min-width: 0;
 }
 .adoc-dato-val {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-primary);
 }
 .adoc-dato-trans {
@@ -266,7 +266,7 @@
 }
 .adoc-dato-from {
   color: var(--color-text-tertiary);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 .adoc-dato-arrow {
   width: 14px;
@@ -276,7 +276,7 @@
 }
 .adoc-dato-to {
   color: var(--accent-700);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 .adoc-dato-horas {
   display: inline-flex;
@@ -284,13 +284,13 @@
   gap: var(--space-2);
 }
 .adoc-portal-tag {
-  padding: 0 8px;
+  padding: var(--space-0) var(--space-2);
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border-default);
   background: var(--color-bg-canvas);
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   color: var(--color-text-tertiary);
 }
 
@@ -301,12 +301,12 @@
   gap: var(--space-2);
 }
 .adoc-justif-quote {
-  margin: 0;
+  margin: var(--space-0);
   padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--color-accent);
   border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   background: var(--color-bg-canvas);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
@@ -324,8 +324,8 @@
 }
 .adoc-adjuntos-list {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: var(--space-0);
+  padding: var(--space-0);
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -334,7 +334,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   min-width: 0;
 }
 .adoc-adjunto-tipo {
@@ -343,7 +343,7 @@
   background: var(--color-status-neutral-bg);
   color: var(--color-text-secondary);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   flex: 0 0 auto;
 }
 .adoc-adjunto-nombre {
@@ -366,9 +366,9 @@
   gap: var(--space-2);
 }
 .adoc-hist-title {
-  margin: 0;
+  margin: var(--space-0);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
 .adoc-hist-note {
@@ -385,9 +385,9 @@
   padding: var(--space-5);
 }
 .adoc-acc-title {
-  margin: 0;
+  margin: var(--space-0);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
 .adoc-acc-field {
@@ -402,8 +402,8 @@
   gap: var(--space-2);
 }
 .adoc-acc-lblrow label {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
 }
 .adoc-acc-help {
@@ -411,8 +411,8 @@
   color: var(--color-text-tertiary);
 }
 .adoc-acc-error {
-  margin: 0;
-  font-size: 12px;
+  margin: var(--space-0);
+  font-size: var(--text-micro-size);
   color: var(--color-text-danger);
 }
 .adoc-acc-row {
@@ -426,7 +426,7 @@
   padding: var(--space-3);
   border-radius: var(--radius-xs);
   background: var(--color-bg-canvas);
-  font-size: 12px;
+  font-size: var(--text-micro-size);
   line-height: 1.45;
   color: var(--color-text-secondary);
 }
@@ -449,9 +449,9 @@
   padding: var(--space-4) var(--space-4) var(--space-2);
 }
 .adoc-meta-title {
-  margin: 0;
+  margin: var(--space-0);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
 }
 .adoc-meta-body {
@@ -467,12 +467,12 @@
   border-top: 1px solid var(--color-border-subtle);
 }
 .adoc-meta-k {
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-tertiary);
 }
 .adoc-meta-v {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-primary);
   text-align: right;
 }
@@ -485,7 +485,7 @@
   background: var(--color-status-danger-bg);
   color: var(--color-status-danger-fg);
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 .adoc-meta-prio svg {
   width: 11px;
@@ -504,13 +504,13 @@
 /* Header: ícono en círculo + título + subtítulo (dentro del <h4> de la lib). */
 .adoc-macc header h4 {
   flex: 1;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   letter-spacing: normal;
 }
 .adoc-macc-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--space-3);
 }
 .adoc-macc-ico {
   flex: 0 0 auto;
@@ -545,13 +545,13 @@
 }
 .adoc-macc-title {
   font-size: 17px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   line-height: 1.3;
   color: var(--color-text-primary);
 }
 .adoc-macc-sub {
-  font-size: 12px;
-  font-weight: 400;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-regular);
   color: var(--color-text-tertiary);
 }
 
@@ -562,8 +562,8 @@
   gap: 14px;
 }
 .adoc-macc-text {
-  margin: 0;
-  font-size: 14px;
+  margin: var(--space-0);
+  font-size: var(--text-body-sm-size);
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
@@ -574,7 +574,7 @@
   gap: 9px;
   padding: 11px 12px;
   border-radius: var(--radius-xs);
-  font-size: 12px;
+  font-size: var(--text-micro-size);
   line-height: 1.45;
 }
 .adoc-macc-aviso-ico {
@@ -606,13 +606,13 @@
   justify-content: space-between;
 }
 .adoc-macc-lblrow label {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
 }
 .adoc-macc-req {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
   color: var(--color-text-danger);
 }
 .adoc-macc-opt {

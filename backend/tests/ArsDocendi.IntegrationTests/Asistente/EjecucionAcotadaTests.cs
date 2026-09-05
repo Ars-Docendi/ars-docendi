@@ -16,8 +16,11 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// transaction-local. El validador es una cuarta que corre antes y se prueba
 /// aparte, en memoria.
 ///
-/// Datos del seed sintético: ocho pedidos en total, siete de la carrera INF y uno
-/// de IND.
+/// Los conteos esperados se derivan del seed con la conexión del dueño —exenta de
+/// las policies—, no se fijan a mano: un literal ata el test a la edición de turno
+/// del seed. El actor acotado es el jefe de cátedra y no el coordinador porque el
+/// seed dejó de tener pedidos fuera de Informática: contra el coordinador el conteo
+/// acotado y el global coinciden, y entonces el test no distinguiría nada.
 /// </remarks>
 [Collection(ColeccionPostgres.Nombre)]
 public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
@@ -25,7 +28,11 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
 {
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
+    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
+
+    /// <summary>Ámbito del jefe de cátedra en el seed: una sola materia.</summary>
+    private static readonly Guid MateriaIngenieriaDeSoftware = Guid.Parse("70000000-0000-4000-8000-000000000101");
 
     /// <summary>Identificador del directorio externo de la secretaria.</summary>
     /// <remarks>
@@ -44,10 +51,17 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         await SembrarAsync();
 
         var global = await EjecutarAsync(ContarPedidos, Secretaria);
-        var deCarrera = await EjecutarAsync(ContarPedidos, Coordinador);
+        var deMateria = await EjecutarAsync(ContarPedidos, Jefe);
 
-        Assert.Equal(8L, global.Filas[0][0]);
-        Assert.Equal(7L, deCarrera.Filas[0][0]);
+        var todos = await ContarPedidosDelSeedAsync("TRUE");
+        var deLaMateria = await ContarPedidosDelSeedAsync(
+            "m.id = @ambito", MateriaIngenieriaDeSoftware);
+
+        // Si los dos conteos fueran iguales el test no probaría nada: pasaría
+        // aunque el ejecutor no acotara por actor. La desigualdad es la premisa.
+        Assert.True(deLaMateria < todos);
+        Assert.Equal(todos, global.Filas[0][0]);
+        Assert.Equal(deLaMateria, deMateria.Filas[0][0]);
     }
 
     [Fact]
@@ -58,13 +72,19 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var ct = TestContext.Current.CancellationToken;
 
         var primero = await ejecutor.EjecutarAsync(ContarPedidos, Secretaria, false, ct);
-        var segundo = await ejecutor.EjecutarAsync(ContarPedidos, Coordinador, false, ct);
+        var segundo = await ejecutor.EjecutarAsync(ContarPedidos, Jefe, false, ct);
+
+        var todos = await ContarPedidosDelSeedAsync("TRUE");
+        var deLaMateria = await ContarPedidosDelSeedAsync(
+            "m.id = @ambito", MateriaIngenieriaDeSoftware);
 
         // Con un ajuste de sesión en vez de transaction-local, el segundo turno
-        // habría heredado el actor del primero y contestado 8. Ese fallo no tira
-        // error: responde con el alcance equivocado.
-        Assert.Equal(8L, primero.Filas[0][0]);
-        Assert.Equal(7L, segundo.Filas[0][0]);
+        // habría heredado el actor del primero y contestado el conteo global. Ese
+        // fallo no tira error: responde con el alcance equivocado. Por eso los dos
+        // conteos tienen que ser DISTINTOS para que este test signifique algo.
+        Assert.True(deLaMateria < todos);
+        Assert.Equal(todos, primero.Filas[0][0]);
+        Assert.Equal(deLaMateria, segundo.Filas[0][0]);
     }
 
     [Fact]
@@ -377,6 +397,34 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
 
         return Ejecutor(tope).EjecutarAsync(
             consulta, actor, false, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// Cuenta pedidos con la conexión del dueño —exenta de las policies— y el
+    /// predicado de ámbito escrito acá, para usarlo como expectativa.
+    /// </summary>
+    /// <remarks>
+    /// No es tautológico: el predicado se reescribe desde la definición del ámbito
+    /// en vez de pasar por <c>identity.asistente_materias_visibles()</c>, que es
+    /// justamente lo que se está probando.
+    /// </remarks>
+    private async Task<long> ContarPedidosDelSeedAsync(string filtro, Guid? ambito = null)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            $"""
+            SELECT count(*)
+              FROM designaciones.pedidos p
+              JOIN identity.materias m ON m.id = p.materia_id
+             WHERE {filtro}
+            """, conexion);
+
+        if (ambito is { } valor)
+        {
+            comando.Parameters.AddWithValue("ambito", valor);
+        }
+
+        return (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
     private async Task SembrarAsync()

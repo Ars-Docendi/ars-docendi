@@ -28,13 +28,23 @@ const ETIQUETA_POR_ESTADO: Record<EstadoPedido, string> = {
 interface EstadoPedidoBadgeProps {
   estado: EstadoPedido;
   prioritario?: boolean;
+  /**
+   * Reemplaza la etiqueta por defecto del estado. Lo usa la Tabla de revisión
+   * para que un Devuelto diga de quién depende que avance ("Devuelto — corregís
+   * vos") en vez del genérico "Devuelto", sin duplicar el mapeo de kinds.
+   */
+  etiqueta?: string;
 }
 
 /** Badge de estado del pedido (+ badge extra de prioridad). */
-export function EstadoPedidoBadge({ estado, prioritario = false }: EstadoPedidoBadgeProps) {
+export function EstadoPedidoBadge({
+  estado,
+  prioritario = false,
+  etiqueta,
+}: EstadoPedidoBadgeProps) {
   return (
-    <span style={{ display: "inline-flex", gap: "var(--space-1)", alignItems: "center" }}>
-      <StatusBadge kind={KIND_POR_ESTADO[estado]} label={ETIQUETA_POR_ESTADO[estado]} />
+    <span className="adoc-estado-badges">
+      <StatusBadge kind={KIND_POR_ESTADO[estado]} label={etiqueta ?? ETIQUETA_POR_ESTADO[estado]} />
       {prioritario && <StatusBadge kind="prioritario" label="Prioritario" />}
     </span>
   );

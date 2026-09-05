@@ -11,19 +11,12 @@ export type Role =
   | "Administración"
   | "Docente";
 
-export interface OpcionRolActual {
-  codigo: string;
-  nombre: Role;
-}
-
 export interface CurrentUser {
   name: string;
   initials: string;
   upn: string;
   role: Role;
   roleCode: string;
-  roles: Role[];
-  roleOptions: OpcionRolActual[];
 }
 
 export interface CurrentUserState {
@@ -53,10 +46,6 @@ function useCurrentUserDesarrollo(): CurrentUserState {
   const identidad = consulta.data?.find((item) => item.usuarioId === sesion?.usuarioId);
   const rol = identidad?.roles.find((item) => item.codigo === sesion?.rolCodigo);
   const nombreRol = rol ? NOMBRES_ROL[rol.codigo] : undefined;
-  const roleOptions =
-    identidad?.roles
-      .map((item) => ({ codigo: item.codigo, nombre: NOMBRES_ROL[item.codigo] }))
-      .filter((item): item is OpcionRolActual => item.nombre !== undefined) ?? [];
   const user =
     identidad && rol && nombreRol
       ? {
@@ -65,8 +54,6 @@ function useCurrentUserDesarrollo(): CurrentUserState {
           upn: identidad.upn,
           role: nombreRol,
           roleCode: rol.codigo,
-          roles: [...new Set(roleOptions.map((item) => item.nombre))],
-          roleOptions,
         }
       : null;
   const seleccionInvalida = Boolean(consulta.data && sesion && !user);

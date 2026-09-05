@@ -14,6 +14,7 @@ Este inventario clasifica las fuentes alcanzables desde el runtime. La migració
 | `features/designaciones/api/pedidosStore.ts`           | seam `pedidosApi`                            | API de Designaciones                                         |
 | `features/designaciones/api/periodosMock.ts`           | períodos, formularios, detalle y listas      | `designaciones.periodos`                                     |
 | registros de `features/designaciones/api/catalogos.ts` | formulario y datos actuales                  | cargos, personas, materias y designaciones vigentes          |
+| `features/portal/mock/`                                | solo tests aislados                          | `portal.perfiles` y tablas de sección                        |
 | `shared/auth/dev/mockUsers.ts`                         | login y cambio de rol                        | identidades sintéticas consultadas al backend                |
 
 `shared/configuracion/ConfiguracionContext.tsx` no contiene fixtures propias, pero mantiene copias mutables de roles y membresías. También debe desaparecer como fuente de estado remoto.

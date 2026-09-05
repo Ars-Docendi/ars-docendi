@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
+using Modules.Portal.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -75,6 +76,11 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using (var identity = CrearIdentity(cadena))
         {
             await identity.Database.MigrateAsync();
+        }
+
+        await using (var portal = CrearPortal(cadena))
+        {
+            await portal.Database.MigrateAsync();
         }
 
         await using (var designaciones = CrearDesignaciones(cadena))
@@ -157,6 +163,14 @@ public sealed class PostgresFixture : IAsyncLifetime
             .UseNpgsql(cadena)
             .Options;
         return new DesignacionesDbContext(opciones);
+    }
+
+    public static PortalDbContext CrearPortal(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<PortalDbContext>()
+            .UseNpgsql(cadena)
+            .Options;
+        return new PortalDbContext(opciones);
     }
 }
 
