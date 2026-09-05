@@ -55,14 +55,14 @@
 
 ## 6. El manifiesto poblado con el grafo de hoy
 
-- [ ] 6.1 Enumerar los trece proyectos de `backend/src` con su estado
-- [ ] 6.2 `Modules.Asistente.Contracts` entra como `huerfano` con el motivo que hoy vive en un párrafo del documento
-- [ ] 6.3 Declarar todas las aristas reales con su motivo, migrando los motivos que la tabla del documento ya tenía
-- [ ] 6.4 Registrar `ArsDocendi.Host` → `ArsDocendi.Shared`, que faltaba en la tabla
-- [ ] 6.5 Registrar `ArsDocendi.Evaluacion.Nucleo` → `Modules.Asistente` como excepción, con el motivo del comentario de su `.csproj` y su ticket
-- [ ] 6.6 No escribir la fila `ArsDocendi.Host` → `Modules.Aulas/Portal/Tareas.Contracts`: es una fila de papel, ningún `.csproj` la referencia
-- [ ] 6.7 No escribir aristas proyectadas: las de ARS-46 llegan con ARS-46
-- [ ] 6.8 Correr la suite completa y verla en verde
+- [x] 6.1 Enumerar los trece proyectos de `backend/src` con su estado
+- [x] 6.2 `Modules.Asistente.Contracts` entra como `huerfano` con el motivo que hoy vive en un párrafo del documento
+- [x] 6.3 Declarar todas las aristas reales con su motivo, migrando los motivos que la tabla del documento ya tenía
+- [x] 6.4 Registrar `ArsDocendi.Host` → `ArsDocendi.Shared`, que faltaba en la tabla
+- [x] 6.5 Registrar `ArsDocendi.Evaluacion.Nucleo` → `Modules.Asistente` como excepción, con el motivo del comentario de su `.csproj` y su ticket
+- [x] 6.6 No escribir la fila `ArsDocendi.Host` → `Modules.Aulas/Portal/Tareas.Contracts`: es una fila de papel, ningún `.csproj` la referencia
+- [x] 6.7 No escribir aristas proyectadas: las de ARS-46 llegan con ARS-46
+- [x] 6.8 Correr la suite completa y verla en verde
 
 ## 7. Documentación
 

@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "descripcion": "Declaración única de las aristas del grafo de proyectos de backend/src. Enumera TODO proyecto y TODA referencia de proyecto real: lo que no figura acá no existe, y lo que figura acá tiene que existir en un .csproj. ManifiestoDeAristasTests compara este archivo contra los ProjectReference reales y falla en tres direcciones: arista en el código sin fila, fila sin arista en el código, y proyecto sin clasificar. El mismo test comprueba que el grafo leído del código sea acíclico (invariante #2). Este archivo reemplaza al «Edge registry» de docs/architecture/dependency-graph.md, que era una tabla markdown que ningún test leía. Registrar no es aprobar: el manifiesto se escribió con el grafo tal como está, y cada arista lleva el motivo por el que existe.",
+  "alcance": {
+    "incluye": "Todo .csproj bajo backend/src, sin filtrar por prefijo Modules.",
+    "excluye": "backend/tests y backend/eval. Un proyecto de tests referencia todo por definición y su grafo no dice nada sobre las fronteras del sistema. Las dependencias de paquete NuGet tampoco son aristas de este grafo."
+  },
+  "proyectos": [
+    {
+      "nombre": "ArsDocendi.Host",
+      "estado": "activo"
+    },
+    {
+      "nombre": "ArsDocendi.Shared",
+      "estado": "activo"
+    },
+    {
+      "nombre": "ArsDocendi.Evaluacion.Nucleo",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Designaciones",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Designaciones.Contracts",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Aulas",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Aulas.Contracts",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Portal",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Portal.Contracts",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Tareas",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Tareas.Contracts",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Asistente",
+      "estado": "activo"
+    },
+    {
+      "nombre": "Modules.Asistente.Contracts",
+      "estado": "huerfano",
+      "motivo": "Ningún proyecto lo referencia y él no referencia a nadie: el asistente consume Contracts ajenos y nadie lo consume a él, así que su .Contracts nació vacío. Se conserva sin referencias a propósito, para que la decisión de mantenerlo o borrarlo quede visible en cada build en vez de esconderse detrás de una referencia de cortesía desde Modules.Asistente. La decisión abierta está planteada en backend/src/Modules.Asistente.Contracts/README.md."
+    }
+  ],
+  "aristas": [
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Composición del root: autenticación, la persistencia de los schemas identity y audit, y la superficie de administración de personas y roles, que es la única que puede escribirlos. La tabla del documento no tenía esta fila aunque el .csproj la referencia desde siempre."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Designaciones",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Designaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "IAdministracionDesignaciones: consulta y reemplazo de designaciones vigentes desde la orquestación administrativa de docentes, sin tocar los internals del módulo."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Aulas",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Portal",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Tareas",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Asistente",
+      "via": "project-reference",
+      "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "Modules.Designaciones",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales y lectura de identity para autorizar."
+    },
+    {
+      "origen": "Modules.Designaciones",
+      "destino": "Modules.Designaciones.Contracts",
+      "via": "project-reference",
+      "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
+    },
+    {
+      "origen": "Modules.Aulas",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales y lectura de identity para autorizar."
+    },
+    {
+      "origen": "Modules.Aulas",
+      "destino": "Modules.Aulas.Contracts",
+      "via": "project-reference",
+      "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
+    },
+    {
+      "origen": "Modules.Portal",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales y lectura de identity para autorizar."
+    },
+    {
+      "origen": "Modules.Portal",
+      "destino": "Modules.Portal.Contracts",
+      "via": "project-reference",
+      "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
+    },
+    {
+      "origen": "Modules.Tareas",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales y lectura de identity para autorizar."
+    },
+    {
+      "origen": "Modules.Tareas",
+      "destino": "Modules.Tareas.Contracts",
+      "via": "project-reference",
+      "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
+    },
+    {
+      "origen": "Modules.Asistente",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales y lectura de identity para autorizar. Es su ÚNICA referencia: las aristas hacia Contracts ajenos llegan con el carril determinista de API (ARS-46), y hasta entonces cualquier referencia nueva es un error y no una decisión."
+    },
+    {
+      "origen": "ArsDocendi.Evaluacion.Nucleo",
+      "destino": "Modules.Asistente",
+      "via": "project-reference",
+      "motivo": "El núcleo del evaluador puntúa el pipeline del asistente, así que necesita sus tipos internos: el turno, la consulta generada y la abstención. El reparto de proyectos del evaluador no es por «qué es de evaluación» sino por qué cuesta dinero — el ejecutable que instancia un proveedor real quedó fuera de la solución, y este núcleo quedó adentro para que el CI pruebe las piezas donde un error hace que el número mienta.",
+      "excepcion": {
+        "invariante": "#1",
+        "ticket": "ARS-63"
+      }
+    }
+  ]
+}
