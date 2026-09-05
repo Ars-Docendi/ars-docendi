@@ -37,12 +37,12 @@
 
 ## 4. La aciclicidad del grafo (invariante #2)
 
-- [ ] 4.1 DFS sobre las aristas leídas del código, no sobre las declaradas en el manifiesto
-- [ ] 4.2 Un ciclo se reporta enumerando los proyectos que lo forman
-- [ ] 4.3 Test: el grafo real de `backend/src` es acíclico
-- [ ] 4.4 Test sintético: una arista que cierra un ciclo lo detecta y lo enumera
-- [ ] 4.5 Test: un ciclo en el código se detecta aunque el manifiesto declare un conjunto sin ciclos
-- [ ] 4.6 Verificar en rojo: un DFS que no marca los nodos en curso hace fallar 4.4
+- [x] 4.1 DFS sobre las aristas leídas del código, no sobre las declaradas en el manifiesto
+- [x] 4.2 Un ciclo se reporta enumerando los proyectos que lo forman
+- [x] 4.3 Test: el grafo real de `backend/src` es acíclico
+- [x] 4.4 Test sintético: una arista que cierra un ciclo lo detecta y lo enumera
+- [x] 4.5 Test: un ciclo en el código se detecta aunque el manifiesto declare un conjunto sin ciclos
+- [x] 4.6 Verificar en rojo: un DFS que no marca los nodos en curso hace fallar 4.4
 
 ## 5. Las excepciones son filas, no párrafos
 
