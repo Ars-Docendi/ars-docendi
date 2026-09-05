@@ -55,6 +55,87 @@ internal sealed class AlmacenDeCassettes(string directorio)
     }
 
     /// <summary>
+    /// El cuerpo grabado para una clave, verificado contra lo vigente.
+    /// </summary>
+    /// <remarks>
+    /// La verificación va ANTES de devolver nada. Un cassette es una respuesta
+    /// grabada contra <b>un</b> esquema y <b>un</b> fixture; servirlo contra otros
+    /// dos no es reproducir, es contestar una pregunta que ya no es la misma con la
+    /// ventaja de que nada falla mientras tanto.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Si el sello no corresponde al prefijo o al fixture vigentes, o si no se sabe
+    /// cuál es el fixture vigente: un cassette que no se puede verificar es
+    /// indistinguible de uno grabado contra una base con datos importados.
+    /// </exception>
+    public string? Reproducir(
+        string clave, string hashDelPrefijoVigente, string hashDelFixtureVigente)
+    {
+        var cassette = Leer(clave);
+
+        if (cassette is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(hashDelFixtureVigente))
+        {
+            throw new InvalidOperationException(
+                $"No se puede servir el cassette '{cassette.Archivo}': no se sabe cuál es el "
+                + "hash del fixture vigente, así que no hay contra qué verificar que se grabó "
+                + "contra datos sintéticos.");
+        }
+
+        if (!string.Equals(
+                cassette.Sello.HashDelPrefijo, hashDelPrefijoVigente, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"El cassette '{cassette.Archivo}' se grabó con otro prefijo del esquema "
+                + $"({cassette.Sello.HashDelPrefijo}, y el vigente es {hashDelPrefijoVigente}). "
+                + "No se sirve: la respuesta que guarda la dio el modelo sobre otras columnas. "
+                + "Volvé a grabarlo.");
+        }
+
+        if (!string.Equals(
+                cassette.Sello.HashDelFixture, hashDelFixtureVigente, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"El cassette '{cassette.Archivo}' se grabó contra otro fixture "
+                + $"({cassette.Sello.HashDelFixture}, y el vigente es {hashDelFixtureVigente}). "
+                + "No se sirve: una respuesta grabada sobre otros datos describe otro sistema. "
+                + "Volvé a grabarlo.");
+        }
+
+        return cassette.Cuerpo;
+    }
+
+    /// <summary>
+    /// Por qué no hay cassette para una clave, dicho de forma accionable.
+    /// </summary>
+    /// <remarks>
+    /// «Falta este cassette» y «los cassettes que hay son de otro prefijo» mandan a
+    /// hacer cosas distintas —grabar esa pregunta, o regrabarlas todas—, y sin la
+    /// distinción el segundo caso se ve igual que el primero y alguien termina
+    /// grabando de a una para siempre.
+    /// </remarks>
+    public string ExplicarAusencia(string clave, string hashDelPrefijoVigente)
+    {
+        var presentes = HashesDePrefijoPresentes();
+
+        var mensaje =
+            $"No hay cassette para la clave '{clave}' en '{directorio}', y la re-grabación "
+            + "no está puesta: no se emite ninguna llamada de red.";
+
+        return presentes.Count > 0
+            && !presentes.Contains(hashDelPrefijoVigente, StringComparer.Ordinal)
+                ? mensaje
+                    + " Los cassettes que hay son todos de otro prefijo del esquema "
+                    + $"({string.Join(", ", presentes)}, y el vigente es "
+                    + $"{hashDelPrefijoVigente}): hay que volver a grabarlos."
+                : mensaje;
+    }
+
+    /// <summary>
     /// Escribe el cassette de una clave, pisando el que hubiera.
     /// </summary>
     /// <remarks>

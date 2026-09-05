@@ -21,12 +21,12 @@
 
 ## 3. El sello se verifica antes de servir
 
-- [ ] 3.1 Test rojo primero: un cassette sellado con otro hash de prefijo se rechaza en vez de servirse
-- [ ] 3.2 Test rojo primero: con el directorio lleno de cassettes de otro prefijo, el error dice que el prefijo cambió
-- [ ] 3.3 Test rojo primero: un cassette sin el hash del fixture vigente no se sirve
-- [ ] 3.4 Verificación del sello contra el prefijo vigente y el fixture vigente, antes de devolver nada
-- [ ] 3.5 Mensajes de error que distinguen «falta el cassette» de «los cassettes son de otro prefijo»
-- [ ] 3.6 Verificar en rojo: servir el cassette sin mirar el sello hace fallar 3.1
+- [x] 3.1 Test rojo primero: un cassette sellado con otro hash de prefijo se rechaza en vez de servirse
+- [x] 3.2 Test rojo primero: con el directorio lleno de cassettes de otro prefijo, el error dice que el prefijo cambió
+- [x] 3.3 Test rojo primero: un cassette sin el hash del fixture vigente no se sirve
+- [x] 3.4 Verificación del sello contra el prefijo vigente y el fixture vigente, antes de devolver nada
+- [x] 3.5 Mensajes de error que distinguen «falta el cassette» de «los cassettes son de otro prefijo»
+- [x] 3.6 Verificar en rojo: servir el cassette sin mirar el sello hace fallar 3.1
 
 ## 4. El handler en el pipeline
 
