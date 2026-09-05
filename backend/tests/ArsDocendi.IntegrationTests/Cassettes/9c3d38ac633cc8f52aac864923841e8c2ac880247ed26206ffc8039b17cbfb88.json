@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-05",
+  "hash_del_prefijo": "dec95ed0099683b9d12cdeef710e9438759ef1febc117b2380c4fe87f6951b64",
+  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekWr2BzWXBtE8cxemv67\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT p.nombre, p.apellido, c.nombre AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE m.name = 'Análisis Matemático' AND ca.name = 'Ingeniería en Informática' AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido\\\", \\\"razonamiento\\\": \\\"Se buscan las personas con designación vigente en la materia Análisis Matemático de la carrera Ingeniería en Informática, junto con su cargo.\\\", \\\"categoria\\\": \\\"cruce_de_tablas\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":719,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":7796,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":300,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

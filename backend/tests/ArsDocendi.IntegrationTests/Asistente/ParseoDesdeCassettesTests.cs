@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using ArsDocendi.Evaluacion.Nucleo.Runner;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
@@ -46,6 +47,19 @@ public sealed class ParseoDesdeCassettesTests
     private static readonly string HuellaDeReescritura =
         ClaveDeCassette.HuellaDe(ReescritorDePreguntas.Instrucciones);
 
+    /// <summary>
+    /// El sondeo de conectividad del evaluador, que NO es una llamada del pipeline.
+    /// </summary>
+    /// <remarks>
+    /// El grabador vive en el transporte y no sabe quién llama, así que el preflight
+    /// deja su cassette como cualquier otra llamada. Su cuerpo es la palabra «listo»:
+    /// no es una generación, no pretende serlo, y pedirle al generador que la
+    /// interprete es pedirle que interprete algo que nadie generó. La primera corrida
+    /// financiada lo dejó y rompió la suite justamente por eso.
+    /// </remarks>
+    private static readonly string HuellaDelPreflight =
+        ClaveDeCassette.HuellaDe(Preflight.PrefijoDePrueba);
+
     // ---------------------------------------------- un directorio vacío no pasa
 
     [Fact]
@@ -83,9 +97,17 @@ public sealed class ParseoDesdeCassettesTests
         // ES LA PROPIEDAD QUE HACE QUE AGREGAR UN CASSETTE SUME UN CASO. Si la
         // clasificación dejara alguno afuera, el archivo entraría al repositorio y
         // no ejercitaría nada, que se ve exactamente igual que no haberlo agregado.
+        //
+        // El sondeo del preflight cuenta como carril propio y no como generación: es
+        // una llamada real que el grabador captura —vive en el transporte, no sabe
+        // quién llama— pero no la produce el pipeline. Sumarlo acá es lo que impide
+        // que «no es de nadie» y «lo dejamos afuera a propósito» se confundan.
         Assert.Equal(
             todos,
-            DeGeneracion().Count + DeRedaccion().Count + DeReescritura().Count);
+            DeGeneracion().Count
+            + DeRedaccion().Count
+            + DeReescritura().Count
+            + DelPreflight().Count);
         Assert.True(todos > 0);
     }
 
@@ -176,23 +198,31 @@ public sealed class ParseoDesdeCassettesTests
         new AlmacenDeCassettes(RaizRepositorio.Cassettes()).Todos();
 
     /// <summary>
-    /// Los que NO son de redacción ni de reescritura son de generación.
+    /// Los que no son de redacción, ni de reescritura, ni del sondeo, son de
+    /// generación.
     /// </summary>
     /// <remarks>
-    /// Las otras dos llamadas tienen un prefijo constante y por lo tanto una huella
+    /// Las otras llamadas tienen un prefijo constante y por lo tanto una huella
     /// conocida. La de generación es el prefijo del esquema, que cambia con los
     /// privilegios efectivos: enumerarla sería fijar un valor que el sistema
-    /// recalcula solo.
+    /// recalcula solo. Por eso la regla es por descarte — y por eso cada llamada
+    /// nueva con prefijo propio hay que descartarla acá explícitamente, o el
+    /// generador termina interpretando algo que no generó.
     /// </remarks>
     private static IReadOnlyList<CassetteEnDisco> DeGeneracion() =>
         [.. Todos().Where(cassette =>
-            !EsDe(cassette, HuellaDeRedaccion) && !EsDe(cassette, HuellaDeReescritura))];
+            !EsDe(cassette, HuellaDeRedaccion)
+            && !EsDe(cassette, HuellaDeReescritura)
+            && !EsDe(cassette, HuellaDelPreflight))];
 
     private static IReadOnlyList<CassetteEnDisco> DeRedaccion() =>
         [.. Todos().Where(cassette => EsDe(cassette, HuellaDeRedaccion))];
 
     private static IReadOnlyList<CassetteEnDisco> DeReescritura() =>
         [.. Todos().Where(cassette => EsDe(cassette, HuellaDeReescritura))];
+
+    private static IReadOnlyList<CassetteEnDisco> DelPreflight() =>
+        [.. Todos().Where(cassette => EsDe(cassette, HuellaDelPreflight))];
 
     private static bool EsDe(CassetteEnDisco cassette, string huella) =>
         string.Equals(cassette.Sello.HashDelPrefijo, huella, StringComparison.Ordinal);

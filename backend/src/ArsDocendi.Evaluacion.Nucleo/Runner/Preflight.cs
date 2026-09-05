@@ -34,6 +34,18 @@ public static class Preflight
     private const string PreguntaDePrueba =
         "Respondé únicamente con la palabra listo.";
 
+    /// <summary>Prefijo del sondeo de conectividad.</summary>
+    /// <remarks>
+    /// Es <b>constante y público</b> a propósito. Con la grabación de cassettes
+    /// activada, este sondeo deja uno como cualquier otra llamada —el grabador está
+    /// en el transporte y no sabe quién llama—, y su cuerpo es la palabra «listo»,
+    /// que no es una generación ni pretende serlo. Los tests que ejercitan el parseo
+    /// clasifican los cassettes por la huella de su prefijo, así que necesitan poder
+    /// nombrar ésta para dejarla afuera. Escrita como literal allá, se desincronizaría
+    /// de acá sin que nada falle.
+    /// </remarks>
+    public const string PrefijoDePrueba = "Prueba de conectividad del evaluador.";
+
     /// <summary>Pide una completación trivial y verifica que sea real.</summary>
     public static async Task<ResultadoDePreflight> VerificarAsync(
         IProveedorDeModelo proveedor, CancellationToken ct)
@@ -54,7 +66,7 @@ public static class Preflight
             respuesta = await proveedor.CompletarAsync(
                 new SolicitudAlModelo
                 {
-                    PrefijoEstable = "Prueba de conectividad del evaluador.",
+                    PrefijoEstable = PrefijoDePrueba,
                     Mensaje = PreguntaDePrueba,
                     Temperatura = 0.0m,
 

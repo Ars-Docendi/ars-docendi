@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-05",
+  "hash_del_prefijo": "9ed7d8ac3ffe98c2154d49e38fc66b43081e0bc09dacbff57e23a5bd8473c446",
+  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekWpCiTKxm4rsaWMqacU\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"En Bases de Datos hay dos docentes a cargo: Elena Gómez como Profesor Asociado con 7 horas, e Irene Giménez como Jefe de Trabajos Prácticos con 11 horas.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":417,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":76,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

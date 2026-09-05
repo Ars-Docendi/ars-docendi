@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-05",
+  "hash_del_prefijo": "dec95ed0099683b9d12cdeef710e9438759ef1febc117b2380c4fe87f6951b64",
+  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekWsN4rq8Avbekr8Hiva\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": false, \\\"sql\\\": null, \\\"razonamiento\\\": \\\"El sistema no maneja información académica de alumnos ni notas de exámenes, solo designaciones docentes y padrón de personal.\\\", \\\"categoria\\\": \\\"no_contestable\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":84,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":7796,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":83,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

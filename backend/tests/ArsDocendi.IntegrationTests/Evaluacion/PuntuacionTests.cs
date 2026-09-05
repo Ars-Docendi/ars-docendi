@@ -257,6 +257,57 @@ public sealed class PuntuacionTests
     }
 
     [Fact]
+    public void Una_columna_de_mas_no_es_un_error_de_traduccion()
+    {
+        // EL CASO QUE LA PRIMERA CORRIDA FINANCIADA EXPUSO. Las referencias del
+        // dataset proyectan una sola columna —`SELECT nombre FROM cargos`— y el
+        // asistente devuelve tablas ricas a propósito, porque la interfaz muestra
+        // una tabla. Nueve de once «traducciones incorrectas» eran esto: mismo
+        // conteo de filas, misma respuesta, una columna de contexto de más.
+        var respuesta = Resultado(
+            [["Profesor Titular", 1], ["Profesor Adjunto", 3]], ["cargo", "orden"]);
+        var referencia = Resultado([["Profesor Titular"], ["Profesor Adjunto"]], ["nombre"]);
+
+        Assert.True(ComparadorDeResultados.Coinciden(respuesta, referencia, ordenImporta: false));
+    }
+
+    [Fact]
+    public void Una_columna_de_menos_si_lo_es()
+    {
+        // El otro lado de la moneda: la respuesta tiene que CONTENER lo que la
+        // referencia pide. Perder una columna es perder parte de la respuesta.
+        var respuesta = Resultado([["Gómez"], ["Pérez"]], ["apellido"]);
+        var referencia = Resultado([["Gómez", "Ana"], ["Pérez", "Luis"]], ["apellido", "nombre"]);
+
+        Assert.False(ComparadorDeResultados.Coinciden(respuesta, referencia, ordenImporta: false));
+    }
+
+    [Fact]
+    public void Una_columna_de_mas_no_alcanza_si_las_filas_no_son_las_pedidas()
+    {
+        // La indulgencia es con la PROYECCIÓN, no con el filtro. Devolver la tabla
+        // entera con la columna correcta adentro sigue siendo otra respuesta.
+        var respuesta = Resultado([["Gómez", 1], ["Pérez", 2]], ["apellido", "id"]);
+        var referencia = Resultado([["Gómez"], ["Díaz"]], ["apellido"]);
+
+        Assert.False(ComparadorDeResultados.Coinciden(respuesta, referencia, ordenImporta: false));
+    }
+
+    [Fact]
+    public void Con_orden_declarado_la_columna_de_mas_tampoco_lo_altera()
+    {
+        var respuesta = Resultado(
+            [["Titular", 9], ["Adjunto", 4]], ["cargo", "total"]);
+        var referencia = Resultado([["Titular"], ["Adjunto"]], ["cargo"]);
+
+        Assert.True(ComparadorDeResultados.Coinciden(respuesta, referencia, ordenImporta: true));
+        Assert.False(ComparadorDeResultados.Coinciden(
+            Resultado([["Adjunto", 4], ["Titular", 9]], ["cargo", "total"]),
+            referencia,
+            ordenImporta: true));
+    }
+
+    [Fact]
     public void Un_separador_dentro_del_valor_no_confunde_dos_filas_distintas()
     {
         // Con un separador imprimible, ("a|b", "c") y ("a", "b|c") producirían el
