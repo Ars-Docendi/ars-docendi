@@ -59,12 +59,12 @@
 
 ## 7. Grabar y reproducir punta a punta, sin clave
 
-- [ ] 7.1 Test rojo primero: grabar contra un transporte que impersona la API deja el cassette en un directorio temporal
-- [ ] 7.2 Test rojo primero: reproducir ese cassette con un terminal que falla si lo llaman devuelve la misma `RespuestaDelModelo`
-- [ ] 7.3 Test: el motivo de corte por techo de tokens sobrevive el viaje a disco y vuelve como `SeQuedoSinTokens`
-- [ ] 7.4 Test: los tokens de entrada, de salida y de caché salen del cuerpo grabado
-- [ ] 7.5 Test: un cuerpo sin bloque de texto se reproduce como texto vacío y no como falla de transporte
-- [ ] 7.6 Verificar en rojo: apuntar la reproducción a un directorio equivocado hace fallar 7.2 por el terminal que explota
+- [x] 7.1 Test rojo primero: grabar contra un transporte que impersona la API deja el cassette en un directorio temporal
+- [x] 7.2 Test rojo primero: reproducir ese cassette con un terminal que falla si lo llaman devuelve la misma `RespuestaDelModelo`
+- [x] 7.3 Test: el motivo de corte por techo de tokens sobrevive el viaje a disco y vuelve como `SeQuedoSinTokens`
+- [x] 7.4 Test: los tokens de entrada, de salida y de caché salen del cuerpo grabado
+- [x] 7.5 Test: un cuerpo sin bloque de texto se reproduce como texto vacío y no como falla de transporte
+- [x] 7.6 Verificar en rojo: apuntar la reproducción a un directorio equivocado hace fallar 7.2 por el terminal que explota
 
 ## 8. Higiene: sin credencial, sin PII, sin excepción de arquitectura
 
