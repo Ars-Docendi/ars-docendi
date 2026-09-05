@@ -66,12 +66,12 @@
 
 ## 7. Documentación
 
-- [ ] 7.1 `docs/architecture/dependency-graph.md` — borrar la tabla del Edge registry y citar el manifiesto como fuente única
-- [ ] 7.2 Rotular el diagrama Mermaid como dibujo de orientación, no normativo, con el puntero al manifiesto
-- [ ] 7.3 Reescribir «Agregar un edge nuevo» como la edición del manifiesto, y decir que una excepción exige motivo y ticket
-- [ ] 7.4 Mover al manifiesto el párrafo sobre `Modules.Asistente.Contracts` huérfano; el documento deja de repetirlo
-- [ ] 7.5 Las secciones reescritas dicen «arista» (invariante #13)
-- [ ] 7.6 `CLAUDE.md` — el invariante #2 nombra el manifiesto como el registro contra el que se chequea
-- [ ] 7.7 `.claude/skills/architecture-drift-check/SKILL.md` — detección 2 (ciclos) y detección 5 (aristas no registradas) se apoyan en el test, no en un `grep` contra una tabla
-- [ ] 7.8 `docs/quality/tech-debt.md` — el diagrama Mermaid no verificado y `backend/tests` fuera del barrido
-- [ ] 7.9 `pnpm exec prettier --write` sobre los `.md` y el `.json` tocados
+- [x] 7.1 `docs/architecture/dependency-graph.md` — borrar la tabla del Edge registry y citar el manifiesto como fuente única
+- [x] 7.2 Rotular el diagrama Mermaid como dibujo de orientación, no normativo, con el puntero al manifiesto
+- [x] 7.3 Reescribir «Agregar un edge nuevo» como la edición del manifiesto, y decir que una excepción exige motivo y ticket
+- [x] 7.4 Mover al manifiesto el párrafo sobre `Modules.Asistente.Contracts` huérfano; el documento deja de repetirlo
+- [x] 7.5 Las secciones reescritas dicen «arista» (invariante #13)
+- [x] 7.6 `CLAUDE.md` — el invariante #2 nombra el manifiesto como el registro contra el que se chequea
+- [x] 7.7 `.claude/skills/architecture-drift-check/SKILL.md` — detección 2 (ciclos) y detección 5 (aristas no registradas) se apoyan en el test, no en un `grep` contra una tabla
+- [x] 7.8 `docs/quality/tech-debt.md` — el diagrama Mermaid no verificado y `backend/tests` fuera del barrido
+- [x] 7.9 `pnpm exec prettier --write` sobre los `.md` y el `.json` tocados
