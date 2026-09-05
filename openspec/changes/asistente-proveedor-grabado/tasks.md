@@ -10,14 +10,14 @@
 
 ## 2. El sobre en disco
 
-- [ ] 2.1 Test rojo primero: el cassette escrito declara modelo, fecha, hash del prefijo y hash del fixture
-- [ ] 2.2 Test rojo primero: el cuerpo almacenado es byte por byte el recibido
-- [ ] 2.3 Test rojo primero: un cassette al que le falta un campo del sello no se sirve y el error nombra archivo y campo
-- [ ] 2.4 `SelloDelCassette` — los cuatro campos, y la escritura falla si falta cualquiera
-- [ ] 2.5 `AlmacenDeCassettes` — leer y escribir el sobre JSON: sello arriba, cuerpo verbatim abajo
-- [ ] 2.6 La escritura es atómica: un fallo a mitad de camino no deja archivo a medio escribir
-- [ ] 2.7 Test: una escritura interrumpida no deja archivo en el directorio
-- [ ] 2.8 Verificar en rojo: reserializar el cuerpo con `JsonSerializer` hace fallar 2.2
+- [x] 2.1 Test rojo primero: el cassette escrito declara modelo, fecha, hash del prefijo y hash del fixture
+- [x] 2.2 Test rojo primero: el cuerpo almacenado es byte por byte el recibido
+- [x] 2.3 Test rojo primero: un cassette al que le falta un campo del sello no se sirve y el error nombra archivo y campo
+- [x] 2.4 `SelloDelCassette` — los cuatro campos, y la escritura falla si falta cualquiera
+- [x] 2.5 `AlmacenDeCassettes` — leer y escribir el sobre JSON: sello arriba, cuerpo verbatim abajo
+- [x] 2.6 La escritura es atómica: un fallo a mitad de camino no deja archivo a medio escribir
+- [x] 2.7 Test: una escritura interrumpida no deja archivo en el directorio
+- [x] 2.8 Verificar en rojo: reserializar el cuerpo con `JsonSerializer` hace fallar 2.2
 
 ## 3. El sello se verifica antes de servir
 
