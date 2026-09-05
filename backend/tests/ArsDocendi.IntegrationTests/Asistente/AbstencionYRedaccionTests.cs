@@ -59,7 +59,7 @@ public sealed class AbstencionYRedaccionTests
         // RLS convierte «no tenés permiso» en cero filas, que es la MISMA firma
         // que «el literal no matcheó». Reintentar acá gasta el único reintento en
         // un caso donde ningún reintento puede ayudar.
-        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), actorEsGlobal: false));
+        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), alcanzaTodo: false));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class AbstencionYRedaccionTests
     {
         // Para un actor global, cero filas sí significa cero filas: el
         // comportamiento no cambia respecto del caso base.
-        Assert.True(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), actorEsGlobal: true));
+        Assert.True(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), alcanzaTodo: true));
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void El_vacio_de_un_actor_acotado_no_afirma_inexistencia()
     {
-        var texto = PoliticaDeAbstencion.TextoDeResultadoVacio(actorEsGlobal: false);
+        var texto = PoliticaDeAbstencion.TextoDeResultadoVacio(alcanzaTodo: false);
 
         // «No hay designaciones registradas» sería falso: la verdad es «no podés
         // verlas».
@@ -99,7 +99,7 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void El_vacio_de_un_actor_global_si_puede_decir_que_no_hay()
     {
-        var texto = PoliticaDeAbstencion.TextoDeResultadoVacio(actorEsGlobal: true);
+        var texto = PoliticaDeAbstencion.TextoDeResultadoVacio(alcanzaTodo: true);
 
         Assert.NotEqual(PoliticaDeAbstencion.TextoDeResultadoVacio(false), texto);
         Assert.DoesNotContain("alcance", texto, StringComparison.OrdinalIgnoreCase);
@@ -151,7 +151,7 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void Con_actor_acotado_el_prompt_prohibe_afirmar_inexistencia()
     {
-        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(actorEsGlobal: false, truncado: false);
+        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: false, truncado: false);
 
         Assert.Single(reglas);
         Assert.Contains("no existe", reglas[0], StringComparison.OrdinalIgnoreCase);
@@ -161,13 +161,13 @@ public sealed class AbstencionYRedaccionTests
     [Fact]
     public void Con_actor_global_y_sin_truncado_el_prompt_no_agrega_reglas()
     {
-        Assert.Empty(PoliticaDeAbstencion.ReglasDeRedaccion(actorEsGlobal: true, truncado: false));
+        Assert.Empty(PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: true, truncado: false));
     }
 
     [Fact]
     public void Con_truncado_el_prompt_prohibe_afirmar_conteos()
     {
-        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(actorEsGlobal: true, truncado: true);
+        var reglas = PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: true, truncado: true);
 
         Assert.Single(reglas);
         Assert.Contains("total", reglas[0], StringComparison.OrdinalIgnoreCase);
@@ -178,7 +178,7 @@ public sealed class AbstencionYRedaccionTests
     public void Los_dos_casos_juntos_agregan_las_dos_reglas()
     {
         Assert.Equal(
-            2, PoliticaDeAbstencion.ReglasDeRedaccion(actorEsGlobal: false, truncado: true).Count);
+            2, PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo: false, truncado: true).Count);
     }
 
     // ------------------------------------------------ prompt de redacción
@@ -189,7 +189,7 @@ public sealed class AbstencionYRedaccionTests
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
             "¿Quiénes dan Bases de Datos?",
             Resultado([["Pérez", "Ana"], ["Gómez", "Luis"]], ["apellido", "nombre"]),
-            actorEsGlobal: true);
+            alcanzaTodo: true);
 
         Assert.Contains("Pérez | Ana", mensaje, StringComparison.Ordinal);
         Assert.Contains("Gómez | Luis", mensaje, StringComparison.Ordinal);
@@ -200,7 +200,7 @@ public sealed class AbstencionYRedaccionTests
     public void La_pregunta_llega_al_prompt_de_redaccion()
     {
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), actorEsGlobal: true);
+            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: true);
 
         Assert.Contains("¿Quiénes dan Bases de Datos?", mensaje, StringComparison.Ordinal);
     }
@@ -209,7 +209,7 @@ public sealed class AbstencionYRedaccionTests
     public void El_marco_de_alcance_aparece_en_el_prompt_cuando_el_actor_es_acotado()
     {
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), actorEsGlobal: false);
+            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: false);
 
         Assert.Contains("alcance", mensaje, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("no existe", mensaje, StringComparison.OrdinalIgnoreCase);
@@ -221,7 +221,7 @@ public sealed class AbstencionYRedaccionTests
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
             "¿Quiénes dan Bases de Datos?",
             Resultado([["Pérez"]], truncado: true),
-            actorEsGlobal: true);
+            alcanzaTodo: true);
 
         Assert.Contains("recortó", mensaje, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("cuántos quedaron afuera", mensaje, StringComparison.OrdinalIgnoreCase);
@@ -231,7 +231,7 @@ public sealed class AbstencionYRedaccionTests
     public void Sin_truncado_y_con_actor_global_el_prompt_no_lleva_advertencias()
     {
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), actorEsGlobal: true);
+            "¿Quiénes dan Bases de Datos?", Resultado([["Pérez"]]), alcanzaTodo: true);
 
         Assert.DoesNotContain("IMPORTANTE", mensaje, StringComparison.Ordinal);
     }
@@ -244,7 +244,7 @@ public sealed class AbstencionYRedaccionTests
             .ToArray();
 
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Quiénes dan clases?", Resultado(filas), actorEsGlobal: true);
+            "¿Quiénes dan clases?", Resultado(filas), alcanzaTodo: true);
 
         // El tope del prompt es por costo, no por seguridad. Pero si entran menos
         // filas de las que hay, el modelo tiene que saberlo o narraría un total.
@@ -256,7 +256,7 @@ public sealed class AbstencionYRedaccionTests
     public void Los_nulos_se_muestran_como_falta_de_dato()
     {
         var mensaje = RedactorDeRespuesta.ArmarMensaje(
-            "¿Qué teléfonos hay?", Resultado([["Pérez", null]]), actorEsGlobal: true);
+            "¿Qué teléfonos hay?", Resultado([["Pérez", null]]), alcanzaTodo: true);
 
         // Un nulo renderizado como cadena vacía se lee como «el valor es vacío»,
         // que no es lo mismo que «no hay valor».

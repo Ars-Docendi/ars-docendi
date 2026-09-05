@@ -39,6 +39,22 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
     private const string PermisoDeVerLaConsulta = "asistente.ver_consulta";
 
     /// <summary>
+    /// El permiso que la policy de RLS conjuga con el ámbito sobre las cuatro tablas
+    /// del trámite.
+    /// </summary>
+    /// <remarks>
+    /// Hay que leerlo acá porque <b>el ámbito solo no dice si el actor alcanza los
+    /// datos</b>: la policy exige las dos cosas, así que un actor global sin este
+    /// permiso ve cero filas igual que uno cuyo literal no matcheó. Ver
+    /// <see cref="PerfilDelActor.AlcanzaTodo"/>.
+    ///
+    /// Es UN permiso porque hoy hay UN dominio con policies. Cuando haya un segundo
+    /// —`portal` es el candidato inmediato— esto deja de ser un booleano y pasa a
+    /// depender de qué tablas tocó la consulta.
+    /// </remarks>
+    private const string PermisoDeDominio = "designaciones.ver";
+
+    /// <summary>
     /// SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.
     /// Es el que usa <c>identity.asistente_actor()</c> cuando el identificador no
     /// corresponde a un usuario activo.
@@ -128,8 +144,21 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeVerLaConsulta));
 
+        // LA CONJUNCIÓN ES LA MISMA QUE HACE LA POLICY, y por eso se lee acá en vez
+        // de reusar `esGlobal`. Los dos ejes son independientes: sin el permiso, el
+        // ámbito global no alcanza ninguna fila, y con el permiso, un ámbito de
+        // materia sigue sin alcanzar el resto. Cero filas solo significa «no hay»
+        // cuando se cumplen los dos.
+        var alcanzaTodo = esGlobal && await LeerBooleanoAsync(
+            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
+            ("permiso", PermisoDeDominio));
+
         return new PerfilDelActor(
-            esGlobal, veDatosPersonales, veLaConsulta, await LeerRolUnicoAsync(conexion, transaccion, ct));
+            esGlobal,
+            veDatosPersonales,
+            veLaConsulta,
+            await LeerRolUnicoAsync(conexion, transaccion, ct),
+            alcanzaTodo);
     }
 
     /// <summary>

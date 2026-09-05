@@ -31,10 +31,10 @@ public static class PoliticaDeAbstencion
     /// Para un actor global, en cambio, cero filas sí significa cero filas, y el
     /// reintento se comporta como en el caso base.
     /// </remarks>
-    public static bool ConvieneReintentar(ResultadoDeConsulta resultado, bool actorEsGlobal)
+    public static bool ConvieneReintentar(ResultadoDeConsulta resultado, bool alcanzaTodo)
     {
         ArgumentNullException.ThrowIfNull(resultado);
-        return resultado.EstaVacio && actorEsGlobal;
+        return resultado.EstaVacio && alcanzaTodo;
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ public static class PoliticaDeAbstencion
     /// una instrucción del prompt — que es la diferencia entre una garantía y un
     /// pedido.
     /// </remarks>
-    public static string TextoDeResultadoVacio(bool actorEsGlobal) => actorEsGlobal
+    public static string TextoDeResultadoVacio(bool alcanzaTodo) => alcanzaTodo
         ? "No encontré ningún registro que responda esa pregunta."
         : "No encontré nada dentro de lo que podés consultar. Puede que el dato exista "
           + "y esté fuera de tu alcance; en ese caso vas a necesitar pedírselo a quien "
@@ -158,11 +158,11 @@ public static class PoliticaDeAbstencion
     /// código, y éstos —donde sí hay filas que narrar— dependen del prompt porque
     /// no hay otra forma de restringir una narración.
     /// </remarks>
-    public static IReadOnlyList<string> ReglasDeRedaccion(bool actorEsGlobal, bool truncado)
+    public static IReadOnlyList<string> ReglasDeRedaccion(bool alcanzaTodo, bool truncado)
     {
         var reglas = new List<string>();
 
-        if (!actorEsGlobal)
+        if (!alcanzaTodo)
         {
             reglas.Add(
                 "El usuario ve solo una parte del Departamento. NO afirmes que algo no existe "

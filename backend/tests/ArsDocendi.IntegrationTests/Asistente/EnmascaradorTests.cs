@@ -226,5 +226,5 @@ public sealed class EnmascaradorTests
     /// por el nombre de una columna.
     /// </summary>
     private static string Texto(ResultadoDeConsulta resultado) =>
-        RedactorDeRespuesta.ArmarMensaje("¿Quiénes son?", resultado, actorEsGlobal: true);
+        RedactorDeRespuesta.ArmarMensaje("¿Quiénes son?", resultado, alcanzaTodo: true);
 }

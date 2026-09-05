@@ -159,7 +159,7 @@ public sealed class CarrilSql(
         var resultado = await ejecutor.EjecutarAsync(
             generacion.Sql, actor, perfil.VeDatosPersonales, ct);
 
-        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, perfil.EsGlobal))
+        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, perfil.AlcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
                 actor, pregunta, generacion, resultado, perfil, ct);
@@ -217,7 +217,7 @@ public sealed class CarrilSql(
         // dos líneas, o pasarle `resultado` al redactor, manda datos personales al
         // proveedor sin que nada falle.
         var paraElModelo = Enmascarador.Enmascarar(resultado);
-        var texto = await redactor.RedactarAsync(mensaje, paraElModelo, perfil.EsGlobal, ct);
+        var texto = await redactor.RedactarAsync(mensaje, paraElModelo, perfil.AlcanzaTodo, ct);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
@@ -245,7 +245,7 @@ public sealed class CarrilSql(
     private ResultadoDelTurno Vacio(
         GeneracionDeSql generacion, string? aMostrar, PerfilDelActor perfil) =>
         new(EstadoDelTurno.Respondida,
-            PoliticaDeAbstencion.TextoDeResultadoVacio(perfil.EsGlobal),
+            PoliticaDeAbstencion.TextoDeResultadoVacio(perfil.AlcanzaTodo),
             generacion.Razonamiento,
             aMostrar,
             [],

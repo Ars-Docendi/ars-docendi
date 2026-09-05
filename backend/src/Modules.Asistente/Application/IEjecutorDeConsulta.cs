@@ -36,11 +36,15 @@ public interface IEjecutorDeConsulta
 /// decisión de alcance, de permisos ni de conexión lo mira, y las notas de esa
 /// clase explican por qué acá el rol sí se puede leer sin fallar abierto.
 /// </param>
+/// <param name="AlcanzaTodo">
+/// Si para este actor <b>cero filas significa que no hay filas</b>.
+/// </param>
 public sealed record PerfilDelActor(
     bool EsGlobal,
     bool VeDatosPersonales,
     bool VeLaConsulta = false,
-    string? CodigoDeRol = null);
+    string? CodigoDeRol = null,
+    bool AlcanzaTodo = false);
 
 /// <summary>
 /// Resuelve el alcance y el acceso a datos personales del actor.
