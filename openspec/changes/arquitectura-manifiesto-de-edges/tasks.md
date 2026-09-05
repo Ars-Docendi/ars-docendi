@@ -21,19 +21,19 @@
 
 ## 3. El comparador y sus tres direcciones
 
-- [ ] 3.1 `ComparadorDeAristas` — devuelve desviaciones tipadas, no un booleano
-- [ ] 3.2 Dirección 1: arista presente en el código sin fila en el manifiesto
-- [ ] 3.3 Dirección 2: fila en el manifiesto sin arista en el código
-- [ ] 3.4 Dirección 3: proyecto de `backend/src` sin clasificar en el manifiesto, y proyecto declarado que ya no existe
-- [ ] 3.5 Un proyecto que ninguna arista alcanza se declara `huerfano` y exige motivo escrito
-- [ ] 3.6 Cada desviación nombra el objeto: origen y destino, o el proyecto
-- [ ] 3.7 `ManifiestoDeAristasTests` en `backend/tests/ArsDocendi.IntegrationTests/Backend/`, junto a `ArquitecturaIdentityTests`
-- [ ] 3.8 Test sintético: agregar una arista al código sin fila dispara la dirección 1
-- [ ] 3.9 Test sintético: agregar una fila sin arista real dispara la dirección 2
-- [ ] 3.10 Test sintético: un proyecto nuevo sin clasificar dispara la dirección 3
-- [ ] 3.11 Test sintético: un proyecto huérfano sin motivo dispara una desviación
-- [ ] 3.12 Test contra el repo real: las tres direcciones sobre el manifiesto y el código de verdad
-- [ ] 3.13 Verificar en rojo: con el manifiesto todavía vacío, 3.12 falla con las trece filas de proyecto y todas las aristas sin declarar
+- [x] 3.1 `ComparadorDeAristas` — devuelve desviaciones tipadas, no un booleano
+- [x] 3.2 Dirección 1: arista presente en el código sin fila en el manifiesto
+- [x] 3.3 Dirección 2: fila en el manifiesto sin arista en el código
+- [x] 3.4 Dirección 3: proyecto de `backend/src` sin clasificar en el manifiesto, y proyecto declarado que ya no existe
+- [x] 3.5 Un proyecto que ninguna arista alcanza se declara `huerfano` y exige motivo escrito
+- [x] 3.6 Cada desviación nombra el objeto: origen y destino, o el proyecto
+- [x] 3.7 `ManifiestoDeAristasTests` en `backend/tests/ArsDocendi.IntegrationTests/Backend/`, junto a `ArquitecturaIdentityTests`
+- [x] 3.8 Test sintético: agregar una arista al código sin fila dispara la dirección 1
+- [x] 3.9 Test sintético: agregar una fila sin arista real dispara la dirección 2
+- [x] 3.10 Test sintético: un proyecto nuevo sin clasificar dispara la dirección 3
+- [x] 3.11 Test sintético: un proyecto huérfano sin motivo dispara una desviación
+- [x] 3.12 Test contra el repo real: las tres direcciones sobre el manifiesto y el código de verdad
+- [x] 3.13 Verificar en rojo: con el manifiesto todavía vacío, 3.12 falla con las trece filas de proyecto y todas las aristas sin declarar
 
 ## 4. La aciclicidad del grafo (invariante #2)
 

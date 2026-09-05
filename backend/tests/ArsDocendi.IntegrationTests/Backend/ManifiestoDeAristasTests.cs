@@ -122,6 +122,158 @@ public sealed class ManifiestoDeAristasTests
         }
     }
 
+    // ------------------------------------------- las tres direcciones, sobre el comparador
+
+    [Fact]
+    public void Una_arista_nueva_sin_fila_dispara_la_direccion_uno()
+    {
+        var (manifiesto, grafo) = Reales();
+        var conAristaNueva = grafo with
+        {
+            Aristas = [.. grafo.Aristas, new AristaReal("Modules.Portal", "Modules.Tareas.Contracts")],
+        };
+
+        var desviaciones = ComparadorDeAristas.Comparar(manifiesto, conAristaNueva);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.AristaNoDeclarada);
+        Assert.Equal("Modules.Portal -> Modules.Tareas.Contracts", detectada.Objeto);
+    }
+
+    [Fact]
+    public void Una_fila_sin_arista_real_dispara_la_direccion_dos()
+    {
+        var (manifiesto, grafo) = Reales();
+        var conFilaDePapel = manifiesto with
+        {
+            Aristas =
+            [
+                .. manifiesto.Aristas,
+                new AristaDeclarada
+                {
+                    Origen = "ArsDocendi.Host",
+                    Destino = "Modules.Aulas.Contracts",
+                    Via = "project-reference",
+                    Motivo = "DI / interfaces de composición",
+                },
+            ],
+        };
+
+        // Es literalmente la fila que la tabla del documento tenía y que ningún
+        // .csproj referencia. Una fila de papel no protege nada: describe un grafo
+        // que no existe.
+        var desviaciones = ComparadorDeAristas.Comparar(conFilaDePapel, grafo);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.AristaDeclaradaInexistente);
+        Assert.Equal("ArsDocendi.Host -> Modules.Aulas.Contracts", detectada.Objeto);
+    }
+
+    [Fact]
+    public void Un_proyecto_nuevo_sin_clasificar_dispara_la_direccion_tres()
+    {
+        var (manifiesto, grafo) = Reales();
+        var conProyectoNuevo = grafo with
+        {
+            Proyectos = [.. grafo.Proyectos, "Modules.Encuestas"],
+        };
+
+        // La misma dirección que atrapó __EFMigrationsHistory en el manifiesto de
+        // privilegios, aplicada a proyectos: uno nuevo rompe el CI en vez de entrar
+        // sin que nadie lo mire.
+        var desviaciones = ComparadorDeAristas.Comparar(manifiesto, conProyectoNuevo);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.ProyectoSinClasificar);
+        Assert.Equal("Modules.Encuestas", detectada.Objeto);
+    }
+
+    [Fact]
+    public void Un_proyecto_declarado_que_ya_no_existe_dispara_la_direccion_tres()
+    {
+        var (manifiesto, grafo) = Reales();
+        var sinElProyecto = grafo with
+        {
+            Proyectos = [.. grafo.Proyectos.Where(n => n != "Modules.Tareas.Contracts")],
+            Aristas = [.. grafo.Aristas.Where(a => a.Destino != "Modules.Tareas.Contracts")],
+        };
+
+        var desviaciones = ComparadorDeAristas.Comparar(manifiesto, sinElProyecto);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.ProyectoDeclaradoInexistente);
+        Assert.Equal("Modules.Tareas.Contracts", detectada.Objeto);
+    }
+
+    [Fact]
+    public void Un_proyecto_huerfano_sin_motivo_dispara_una_desviacion()
+    {
+        var (manifiesto, grafo) = Reales();
+        var sinMotivo = manifiesto with
+        {
+            Proyectos =
+            [
+                .. manifiesto.Proyectos.Select(p =>
+                    p.EsHuerfano ? p with { Motivo = null } : p),
+            ],
+        };
+
+        // El motivo es lo que hace que un huérfano sea una decisión visible y no un
+        // proyecto que quedó ahí. Sin él, la fila solo dice que nadie lo referencia,
+        // que es lo que ya se veía sin manifiesto.
+        var desviaciones = ComparadorDeAristas.Comparar(sinMotivo, grafo);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.HuerfanoSinMotivo);
+        Assert.Equal("Modules.Asistente.Contracts", detectada.Objeto);
+    }
+
+    [Fact]
+    public void Un_proyecto_que_ninguna_arista_alcanza_declarado_activo_es_incoherente()
+    {
+        var (manifiesto, grafo) = Reales();
+        var comoActivo = manifiesto with
+        {
+            Proyectos =
+            [
+                .. manifiesto.Proyectos.Select(p =>
+                    p.EsHuerfano ? p with { Estado = "activo", Motivo = null } : p),
+            ],
+        };
+
+        var desviaciones = ComparadorDeAristas.Comparar(comoActivo, grafo);
+
+        var detectada = Assert.Single(
+            desviaciones, d => d.Tipo == TipoDesviacionDeArista.EstadoDeProyectoIncoherente);
+        Assert.Equal("Modules.Asistente.Contracts", detectada.Objeto);
+    }
+
+    // --------------------------------------------- las tres direcciones, contra el repo
+
+    [Fact]
+    public void El_manifiesto_no_se_desvia_del_grafo_real_de_backend_src()
+    {
+        var (manifiesto, grafo) = Reales();
+
+        // El test que hace falsable al registro. Las tres direcciones a la vez sobre
+        // el manifiesto y los .csproj de verdad: si alguien agrega una referencia sin
+        // fila, borra una referencia que el manifiesto declara, o suma un proyecto,
+        // esto se pone en rojo.
+        var desviaciones = ComparadorDeAristas.Comparar(manifiesto, grafo);
+
+        Assert.True(desviaciones.Count == 0, Describir(desviaciones));
+    }
+
+    // ------------------------------------------------------------------------ apoyo
+
+    private static (ManifiestoDeAristas Manifiesto, GrafoDeProyectos Grafo) Reales() =>
+        (ManifiestoDeAristas.Cargar(), LectorDeAristas.LeerBackendSrc());
+
+    private static string Describir(IReadOnlyCollection<DesviacionDeArista> desviaciones) =>
+        desviaciones.Count == 0
+            ? string.Empty
+            : $"{desviaciones.Count} desviación(es):\n" + string.Join("\n", desviaciones);
+
     private static void EscribirProyecto(string raiz, string subdirectorio, string nombre)
     {
         var directorio = Path.Combine(raiz, subdirectorio);
