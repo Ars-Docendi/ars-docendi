@@ -178,7 +178,7 @@ la API no tiene.
 | RNF-06 | Deny by default con manifiesto versionado; el test falla en **tres** direcciones                                     |
 | RNF-07 | PII controlada por GRANT de columna; segundo rol para el carril con PII                                              |
 | RNF-08 | Sin reloj en la SQL: el validador lo rechaza                                                                         |
-| RNF-09 | Techo total por turno: **30 s**, medido punta a punta y no por etapa                                                 |
+| RNF-09 | Techo total por turno, medido **punta a punta y no por etapa**, configurable; el default vive en `OpcionesAsistente` |
 | RNF-10 | Techo de llamadas al LLM por turno (**4**), global y no por capa                                                     |
 | RNF-11 | Reintento con backoff y jitter; `400` excluido del reintento                                                         |
 | RNF-12 | Techo de gasto configurado en la consola del proveedor, por ambiente                                                 |

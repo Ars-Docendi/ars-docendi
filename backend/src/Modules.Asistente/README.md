@@ -397,14 +397,26 @@ turno: para eso tiene su propio máximo de intentos.
 | ------------------------------ | ------- | ---------------------------------------------------------------- |
 | `MaximoDeLlamadasPorTurno`     | 4       | Llamadas al modelo de un turno, global y no por capa             |
 | `MaximoDeIntentosDeTransporte` | 3       | Intentos de red **dentro** de una llamada                        |
-| `PresupuestoDelTurnoSegundos`  | 30      | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota |
-| `TimeoutDeLlamadaSegundos`     | 20      | Una llamada al proveedor                                         |
+| `PresupuestoDelTurnoSegundos`  | 150     | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota |
+| `TimeoutDeLlamadaSegundos`     | 60      | Una llamada al proveedor                                         |
 | `CupoDeLlamadasPorActor`       | 60      | Llamadas de un actor por ventana. **Cero desactiva la cuota**    |
 | `VentanaDeCuotaMinutos`        | 60      | La ventana deslizante del cupo                                   |
 | `FallosParaAbrirElBreaker`     | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker    |
 | `EsperaDelBreakerSegundos`     | 30      | Cuánto espera antes de probar de nuevo                           |
 | `RetencionDeRegistrosDias`     | 90      | Cuánto viven las filas de los dos registros                      |
 | `PeriodoDePurgaHoras`          | 24      | Cada cuánto corre la purga                                       |
+
+**Las dos cotas de tiempo subieron con los modelos que razonan.** El presupuesto del
+turno pasó de 30 s a 150 y el timeout por llamada de 20 s a 60: el razonamiento ocurre
+**antes** del primer token de la respuesta, así que una generación que antes tardaba
+segundos ahora puede tardar decenas. Con los valores viejos el corte llegaba antes que
+la respuesta y el turno degradaba como si el proveedor estuviera caído. Son techos, no
+esperas: un turno que resuelve rápido no paga nada porque el techo sea alto.
+
+Esta tabla la verifica `OpcionesDocumentadasTests` contra `new OpcionesAsistente()`. Un
+default que se mueve sin tocar acá falla el CI, por el mismo criterio con que
+`manifiesto-privilegios.json` se compara contra los privilegios efectivos: un valor
+operativo documentado es un dato verificado, no prosa.
 
 En desarrollo y en los ambientes efímeros conviene `CupoDeLlamadasPorActor: 0`: el
 proveedor es el simulado y no cuesta nada.
