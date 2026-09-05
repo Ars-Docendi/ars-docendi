@@ -328,6 +328,23 @@ la dio el modelo sobre otro esquema o sobre otros datos.
 > modelo real devolvió. Si la traducción es buena o mala lo mide el evaluador, y
 > nada de esto lo reemplaza.
 
+Los cassettes versionados viven en
+`backend/tests/ArsDocendi.IntegrationTests/Cassettes/`, con el nombre de su clave.
+Los tests de parseo **iteran el directorio**: agregar uno suma un caso sin tocar
+ningún archivo de test, y un directorio vacío falla en vez de pasar en verde con
+cero cobertura. Se clasifican por el hash del prefijo del sello, que las tres
+llamadas del pipeline tienen distinto.
+
+Los que hay hoy se grabaron contra el transporte que impersona la API, para que el
+mecanismo tenga con qué probarse. **Los cassettes de salida real del modelo llegan
+con la primera corrida financiada del evaluador, que bloquea ARS-67 y que este
+trabajo no incluye**: lo que se entrega acá es el mecanismo, probado punta a punta
+sin clave. Ver [`backend/eval/README.md`](../../eval/README.md).
+
+Lo que la fixture congelada **no** detecta —un cambio de formato de cable del
+proveedor, que dejaría los tests en verde mientras la API real devuelve otra cosa—
+está registrado como **TD-017**.
+
 ### Levantar el asistente entero en local
 
 El asistente es el único módulo que necesita **dos roles de PostgreSQL extra**, y

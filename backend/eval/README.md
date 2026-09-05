@@ -228,6 +228,46 @@ ser reproducibles, sin que nadie lo note.
 
 Los reportes van a `reportes/` y son **generados**: no se editan a mano.
 
+## Lo que la corrida deja grabado
+
+**La primera corrida financiada es un evento caro y único, y tiene que dejar más
+que un reporte.** Con `Asistente__DirectorioDeCassettes` y
+`Asistente__RegrabarCassettes` puestas, cada llamada al proveedor deja además su
+**cassette**: el cuerpo crudo de la respuesta, sellado con el modelo, la fecha, el
+hash del prefijo y el hash del fixture.
+
+```bash
+export Asistente__DirectorioDeCassettes=backend/tests/ArsDocendi.IntegrationTests/Cassettes
+export Asistente__RegrabarCassettes=1
+dotnet run --project backend/eval/ArsDocendi.Evaluacion
+```
+
+**Esos archivos se commitean.** Son el activo permanente que sobrevive al
+presupuesto que los produjo: alimentan los tests de parseo del módulo —un caso por
+cassette, sin escribir una línea de test— y son lo único del proyecto que prueba
+`GeneradorDeSql.Interpretar`, el redactor y el reescritor contra la salida real de
+un modelo. Un cassette que no se commitea es una corrida financiada tirada.
+
+Tres cosas que conviene tener presentes antes de correrla:
+
+- **Con el cassette ya presente no se re-graba**, aunque la variable esté puesta.
+  Re-grabar es una operación sobre las claves que faltan, no un modo en que cada
+  corrida vuelva a pagar por respuestas que ya están en disco.
+- **Sin la variable, una llamada sin cassette falla y no sale a la red.** Es lo que
+  hace imposible que el CI gaste plata por este camino.
+- **Un cassette prueba el parseo, no la calidad.** Congela una respuesta, no la
+  competencia del modelo: si la traducción es buena o mala lo miden los cuatro ejes
+  de acá, y ningún cassette los reemplaza.
+
+El mecanismo está probado punta a punta **sin clave y sin red** —se graba contra un
+transporte que impersona la API y se reproduce contra uno que revienta si lo
+llaman—, para que el día de la corrida no se descubra que no andaba. Detalle en
+`backend/src/Modules.Asistente/README.md`.
+
+Lo que **no** cubre está registrado como **TD-017**: una fixture congelada sin
+recaptura programada no detecta un cambio de formato de cable del proveedor. La
+mitigación es regrabar en cada corrida que se financie.
+
 ## El gate de regresión
 
 Lock **por ítem** contra un archivo versionado en `lineas-de-base/`, no umbral
@@ -260,10 +300,11 @@ runners reciben ahora una fábrica y arman el pipeline por ítem; hay un test qu
 
 ## Qué falta
 
-| Qué                                                | Estado                                                     |
-| -------------------------------------------------- | ---------------------------------------------------------- |
-| **Una implementación de proveedor de modelo real** | Bloqueado por TD-008                                       |
-| Las cuatro líneas de base                          | Salen de una corrida real, así que dependen de lo anterior |
+| Qué                                                | Estado                                                         |
+| -------------------------------------------------- | -------------------------------------------------------------- |
+| **Una implementación de proveedor de modelo real** | Bloqueado por TD-008                                           |
+| Las cuatro líneas de base                          | Salen de una corrida real, así que dependen de lo anterior     |
+| Los cassettes de salida real del proveedor         | Ídem: el mecanismo ya está, los cassettes salen de esa corrida |
 
 Sin proveedor real, los cuatro ejes están completos y probados pero **no se pueden
 correr**. Una línea de base generada con el proveedor simulado registraría el

@@ -87,8 +87,8 @@
 
 ## 10. Documentación
 
-- [ ] 10.1 `docs/quality/tech-debt.md` — TD-017: fixture congelada sin recaptura programada no detecta un cambio de formato de cable
-- [ ] 10.2 `backend/eval/README.md` — qué deja grabado la corrida financiada y por qué se commitea
-- [ ] 10.3 `backend/src/Modules.Asistente/README.md` — las dos opciones nuevas y que un cassette prueba el parseo, no la calidad
-- [ ] 10.4 `docs/architecture/domains/asistente.md` — el grabador en el pipeline y por qué va por fuera del reintento
-- [ ] 10.5 Dejar escrito que la corrida financiada la bloquea ARS-67 y que este cambio no la incluye
+- [x] 10.1 `docs/quality/tech-debt.md` — TD-017: fixture congelada sin recaptura programada no detecta un cambio de formato de cable
+- [x] 10.2 `backend/eval/README.md` — qué deja grabado la corrida financiada y por qué se commitea
+- [x] 10.3 `backend/src/Modules.Asistente/README.md` — las dos opciones nuevas y que un cassette prueba el parseo, no la calidad
+- [x] 10.4 `docs/architecture/domains/asistente.md` — el grabador en el pipeline y por qué va por fuera del reintento
+- [x] 10.5 Dejar escrito que la corrida financiada la bloquea ARS-67 y que este cambio no la incluye

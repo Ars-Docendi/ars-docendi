@@ -115,6 +115,18 @@ public static class Program
         servicios.AddAsistenteModule(
             configuracion, interno => medidor = new MedidorDeConsumo(interno));
 
+        // La huella del fixture, para el sellado de los cassettes del proveedor.
+        //
+        // La registra el evaluador y no el módulo porque el módulo no referencia al
+        // núcleo de evaluación ni debe hacerlo, y acá ya se recalcula en cada corrida
+        // para sellar los reportes. Sin ella el grabador no graba ni sirve nada: un
+        // cassette que no se puede verificar contra el fixture vigente es
+        // indistinguible de uno grabado contra una base con datos importados.
+        //
+        // Sin `Asistente__DirectorioDeCassettes` el handler ni se registra y esto
+        // queda sin consumidor, que es el caso normal.
+        servicios.AddSingleton(new HuellaDelFixture(fixture.Huella()));
+
         // La fecha de referencia se clava en el ancla del fixture. El pipeline la
         // pasa como parámetro y nunca usa el reloj, así que fijarla acá es lo que
         // hace que «los nombramientos abiertos» signifique lo mismo hoy que dentro
