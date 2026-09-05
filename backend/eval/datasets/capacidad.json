@@ -11,10 +11,11 @@
     },
     {
       "id": "cap-002",
-      "pregunta": "¿Cuáles son los cargos docentes que existen?",
+      "pregunta": "¿Cuáles son los cargos docentes, de mayor a menor jerarquía?",
       "categoria": "consulta_simple",
       "actor": "global",
-      "sql_referencia": "SELECT nombre FROM designaciones.cargos WHERE activo ORDER BY orden"
+      "sql_referencia": "SELECT nombre FROM designaciones.cargos WHERE activo ORDER BY orden",
+      "orden_importa": true
     },
     {
       "id": "cap-003",
@@ -67,11 +68,10 @@
     },
     {
       "id": "cap-010",
-      "pregunta": "¿Cuáles son los tres cargos con más gente nombrada, de mayor a menor?",
+      "pregunta": "¿Cuántas personas hay nombradas en cada cargo?",
       "categoria": "agregacion",
       "actor": "global",
-      "orden_importa": true,
-      "sql_referencia": "SELECT c.nombre AS cargo, count(*) AS total FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.vigente_hasta IS NULL GROUP BY c.id, c.nombre ORDER BY total DESC, c.nombre"
+      "sql_referencia": "SELECT c.nombre AS cargo, count(*) AS total FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.vigente_hasta IS NULL GROUP BY c.id, c.nombre ORDER BY c.nombre"
     },
     {
       "id": "cap-011",
@@ -82,7 +82,7 @@
     },
     {
       "id": "cap-012",
-      "pregunta": "¿Qué solicitudes quedaron sin aprobar?",
+      "pregunta": "¿Qué solicitudes fueron rechazadas?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT pe.numero FROM designaciones.pedidos pe WHERE pe.estado = 'rechazado' ORDER BY pe.numero"

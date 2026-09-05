@@ -19,12 +19,11 @@
       "clase": "sin_tildes",
       "pregunta": "Que asignaturas se dictan en Ingenieria Industrial?"
     },
-
     {
       "id": "rob-004",
       "origen": "cap-002",
       "clase": "tipeo",
-      "pregunta": "¿Cuáles son los carogs docentes que existen?"
+      "pregunta": "¿Cuáles son los carogs docentes, de mayor a menor jerarquía?"
     },
     {
       "id": "rob-005",
@@ -38,7 +37,6 @@
       "clase": "tipeo",
       "pregunta": "¿Qué cilcos de designación están cargados en el sistema?"
     },
-
     {
       "id": "rob-007",
       "origen": "cap-001",
@@ -55,9 +53,8 @@
       "id": "rob-009",
       "origen": "cap-012",
       "clase": "sinonimo",
-      "pregunta": "¿Qué pedidos siguen sin aprobación?"
+      "pregunta": "¿Qué pedidos se rechazaron?"
     },
-
     {
       "id": "rob-010",
       "origen": "cap-001",
@@ -76,7 +73,6 @@
       "clase": "parcial",
       "pregunta": "solicitudes urgentes"
     },
-
     {
       "id": "rob-013",
       "origen": "cap-001",

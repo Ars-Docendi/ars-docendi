@@ -58,12 +58,12 @@
         },
         {
           "pregunta": "¿Cuántas solicitudes de baja se presentaron?",
-          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE tipo_novedad = 'baja'",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE novedad = 'Baja'",
           "terminos_prohibidos": ["Ingeniería Industrial", "asignaturas", "materias"]
         },
         {
-          "pregunta": "¿y cuántas de esas quedaron sin aprobar?",
-          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE tipo_novedad = 'baja' AND estado <> 'aprobado'",
+          "pregunta": "¿y cuántas de esas fueron rechazadas?",
+          "sql_referencia": "SELECT count(*) AS cantidad FROM designaciones.pedidos WHERE novedad = 'Baja' AND estado = 'rechazado'",
           "terminos_prohibidos": ["Ingeniería Industrial"]
         }
       ]
