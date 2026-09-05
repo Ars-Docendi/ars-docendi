@@ -291,6 +291,43 @@ Faltando la clave, el Host **arranca igual** y el ping responde: el error llega
 recién a quien pida el proveedor, y nombra el valor que falta. Un ambiente a medio
 configurar tiene que poder levantar.
 
+### Los cassettes del proveedor
+
+Graban el cuerpo **crudo** de la respuesta del proveedor y lo vuelven a servir
+desde disco, con el mismo criterio que cualquier suite de fixtures VCR: si el
+cassette existe y la variable de re-grabación no está, se lee del disco; si no
+está, se llama a la API real y se graba.
+
+| Variable                           | Default | Qué decide                                                            |
+| ---------------------------------- | ------- | --------------------------------------------------------------------- |
+| `Asistente__DirectorioDeCassettes` | vacío   | Dónde viven los cassettes. **Vacío apaga el mecanismo entero**        |
+| `Asistente__RegrabarCassettes`     | vacío   | Cualquier valor no vacío permite salir a la red a grabar lo que falte |
+
+**Con el directorio vacío el handler ni siquiera se registra**, así que el
+pipeline del cliente HTTP queda idéntico al de antes de que el mecanismo
+existiera: producción no paga nada y no hay nada que se pueda misconfigurar. La
+única forma de encenderlo es escribir una ruta.
+
+**Con una ruta puesta y sin la variable de re-grabación, una llamada sin cassette
+falla y NO sale a la red.** Es lo que hace imposible que el CI gaste plata por
+este camino (RNF-15, RNF-16): el handler lanza sin invocar hacia adentro, y el
+error nombra la clave que faltó y el directorio donde se la buscó.
+
+**Con el cassette presente no se re-graba**, aunque la variable esté puesta.
+Re-grabar es una operación deliberada sobre las claves que faltan, no un modo en
+que cada corrida vuelva a pagar por respuestas que ya están en disco.
+
+Cada cassette lleva un sello con el modelo, la fecha, el hash del prefijo y el
+hash del fixture contra el que se grabó. Uno cuyo sello no corresponda al prefijo
+o al fixture vigentes **se rechaza en vez de servirse**: la respuesta que guarda
+la dio el modelo sobre otro esquema o sobre otros datos.
+
+> **Un cassette prueba el parseo, no la calidad.** Congela una respuesta, no la
+> competencia del modelo: lo que estos tests cubren es que
+> `GeneradorDeSql.Interpretar`, el redactor y el reescritor sepan leer lo que un
+> modelo real devolvió. Si la traducción es buena o mala lo mide el evaluador, y
+> nada de esto lo reemplaza.
+
 ### Levantar el asistente entero en local
 
 El asistente es el único módulo que necesita **dos roles de PostgreSQL extra**, y

@@ -50,12 +50,12 @@
 
 ## 6. Configuración y apagado por default
 
-- [ ] 6.1 `OpcionesAsistente` — directorio de cassettes y variable de re-grabación, las dos vacías por default
-- [ ] 6.2 Con el directorio vacío el handler NO se registra; el pipeline queda idéntico al de hoy
-- [ ] 6.3 Test rojo primero: sin configuración, el pipeline del cliente del proveedor es el de antes del cambio
-- [ ] 6.4 Test: el `ping` responde con el mecanismo apagado
-- [ ] 6.5 Test: `OpcionesDocumentadasTests` cubre las dos opciones nuevas
-- [ ] 6.6 Verificar en rojo: registrar el handler siempre hace fallar 6.3
+- [x] 6.1 `OpcionesAsistente` — directorio de cassettes y variable de re-grabación, las dos vacías por default
+- [x] 6.2 Con el directorio vacío el handler NO se registra; el pipeline queda idéntico al de hoy
+- [x] 6.3 Test rojo primero: sin configuración, el pipeline del cliente del proveedor es el de antes del cambio
+- [x] 6.4 Test: el `ping` responde con el mecanismo apagado
+- [x] 6.5 Test: `OpcionesDocumentadasTests` cubre las dos opciones nuevas
+- [x] 6.6 Verificar en rojo: registrar el handler siempre hace fallar 6.3
 
 ## 7. Grabar y reproducir punta a punta, sin clave
 
