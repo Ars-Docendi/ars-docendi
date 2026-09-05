@@ -106,6 +106,16 @@ Borrar el diagrama sería consistente pero empobrece el documento: es lo que ori
 
 **Gotcha conocido**: los `.csproj` escriben las rutas con separador de Windows (`..\Modules.Asistente\...`). `ArquitecturaAsistenteTests` ya tiene el comentario que lo advierte; el lector de aristas normaliza el separador antes de resolver el nombre del proyecto destino.
 
+### D11 — El guard del asistente convive con el manifiesto; no lo reemplaza
+
+`ArquitecturaAsistenteTests.El_modulo_solo_referencia_ArsDocendi_Shared` fija que `Modules.Asistente` tenga exactamente una referencia. El manifiesto lee los mismos `.csproj`, así que la tentación es borrarlo por duplicado.
+
+**Se conserva, porque afirman cosas distintas.** El manifiesto afirma que _toda arista real tiene su fila_: se pone en rojo si alguien agrega una referencia sin registrarla, y vuelve a verde en cuanto escribe la fila. El guard del asistente afirma una _prohibición_: hasta que llegue ARS-46 con el carril determinista, cualquier referencia nueva de ese módulo es un error y no una decisión. Registrar no es aprobar.
+
+El caso que lo decide: si el manifiesto lo reemplazara, agregar `Modules.Asistente → Modules.Designaciones.Contracts` **con** su fila pasaría en verde, y eso es exactamente lo que hoy está prohibido.
+
+**Costo aceptado**: el día que ARS-46 agregue esa arista habrá que tocar dos lugares —la fila del manifiesto y esa aserción—. Es la fricción buscada: el segundo lugar es donde alguien lee «cualquier referencia nueva es un error, no una decisión» y tiene que decidir borrarlo.
+
 ## Risks / Trade-offs
 
 - **El manifiesto se escribe con el grafo tal como está, desviaciones incluidas.** Alguien puede leerlo como aprobación retroactiva de las dos aristas que no tenían fila → cada una entra con su motivo escrito, y la de `Evaluacion.Nucleo` entra marcada como excepción con ticket. Registrar no es aprobar, pero registrar con motivo obliga a escribir por qué.

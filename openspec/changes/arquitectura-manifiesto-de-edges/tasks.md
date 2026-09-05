@@ -1,12 +1,12 @@
 ## 1. Leer el grafo real desde los `.csproj`
 
-- [ ] 1.1 `LectorDeAristas` — barre todos los `.csproj` de `backend/src`, sin filtrar por prefijo `Modules.`
-- [ ] 1.2 Resuelve el nombre del proyecto destino normalizando el separador de ruta de Windows que escriben los `.csproj`
-- [ ] 1.3 Usa `RaizRepositorio` en vez de escribir una décima búsqueda privada de raíz (TD-007)
-- [ ] 1.4 Test: el barrido encuentra los trece proyectos de `backend/src`, `ArsDocendi.Evaluacion.Nucleo` incluido
-- [ ] 1.5 Test: el barrido encuentra la arista `ArsDocendi.Evaluacion.Nucleo` → `Modules.Asistente`, que el glob de `ArquitecturaIdentityTests` no alcanza
-- [ ] 1.6 Test: un barrido que no encuentra ningún `.csproj` falla, en vez de pasar en verde con cero aristas
-- [ ] 1.7 Verificar en rojo: apuntando el barrido a un directorio vacío, 1.6 falla y 1.4 y 1.5 se quedan sin datos
+- [x] 1.1 `LectorDeAristas` — barre todos los `.csproj` de `backend/src`, sin filtrar por prefijo `Modules.`
+- [x] 1.2 Resuelve el nombre del proyecto destino normalizando el separador de ruta de Windows que escriben los `.csproj`
+- [x] 1.3 Usa `RaizRepositorio` en vez de escribir una décima búsqueda privada de raíz (TD-007)
+- [x] 1.4 Test: el barrido encuentra los trece proyectos de `backend/src`, `ArsDocendi.Evaluacion.Nucleo` incluido
+- [x] 1.5 Test: el barrido encuentra la arista `ArsDocendi.Evaluacion.Nucleo` → `Modules.Asistente`, que el glob de `ArquitecturaIdentityTests` no alcanza
+- [x] 1.6 Test: un barrido que no encuentra ningún `.csproj` falla, en vez de pasar en verde con cero aristas
+- [x] 1.7 Verificar en rojo: apuntando el barrido a un directorio vacío, 1.6 falla y 1.4 y 1.5 se quedan sin datos
 
 ## 2. El manifiesto: modelo y carga
 
