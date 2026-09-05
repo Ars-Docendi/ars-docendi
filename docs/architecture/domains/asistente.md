@@ -7,6 +7,95 @@ modo solo lectura y acotadas al alcance de quien pregunta. Cubre la familia de
 casos de uso —cobertura de cátedra, composición del plantel— que hoy **no tiene
 endpoint equivalente** en ningún módulo.
 
+## Qué se puede preguntar
+
+**Este catálogo es lo que dimensiona el alcance, y no al revés.** Las tablas que se
+le conceden al asistente salen de las preguntas que tiene que contestar, no de las
+que la base tiene disponibles. Exponer una tabla de más cuesta para siempre: el
+prefijo del prompt viaja en cada llamada.
+
+Dos artefactos consumen este catálogo y **tienen que ser disjuntos**:
+
+| Artefacto             | Qué es                                                               | Dónde                                          |
+| --------------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
+| Ejemplos verificados  | Pares pregunta-SQL que se le inyectan al modelo por similitud léxica | `Modules.Asistente/Recursos/ejemplos-sql.json` |
+| Dataset de evaluación | Los ítems con que se mide la capacidad                               | `backend/eval/datasets/capacidad.json`         |
+
+Si se solapan, la métrica mide qué tan bien copia el ejemplo que ya tiene en el
+prompt. La disjunción se decide **acá**, al escribir el catálogo, y no se descubre
+después reconciliando dos archivos ya escritos.
+
+### Designaciones — la familia vigente
+
+Cobertura de cátedra y composición del plantel. Dieciséis ejemplos verificados y
+veinticuatro ítems medidos, en cuatro categorías: `consulta_simple`, `agregacion`,
+`cruce_de_tablas` y `filtro_temporal`.
+
+### Portal docente — la familia propuesta
+
+El caso de uso es **buscar docentes por perfil profesional**, frente a una vacante o
+una acreditación CONEAU. Hoy no lo contesta ninguna superficie del sistema: los
+dieciocho endpoints de Portal son todos sobre el perfil propio, y el filtro de
+`/docentes` sólo cruza apellido, documento, materia, cargo, rol y estado.
+
+Las cuatro que justifican la feature:
+
+| Pregunta                                                   | Categoría         | Tablas                                             |
+| ---------------------------------------------------------- | ----------------- | -------------------------------------------------- |
+| ¿Qué docentes saben Kubernetes?                            | `cruce_de_tablas` | `habilidades` · `docente_habilidades` · `perfiles` |
+| ¿Quiénes tienen posgrado en Ingeniería de Software?        | `cruce_de_tablas` | `educaciones` · `perfiles`                         |
+| ¿A quién se le vence una certificación este año?           | `filtro_temporal` | `certificaciones` · `perfiles`                     |
+| ¿Qué docentes declararon interés en dictar Bases de Datos? | `cruce_de_tablas` | `docente_habilidades` con `tipo = 'interes'`       |
+
+Alrededor de esas cuatro, la familia se cierra con agregaciones que **no exponen a
+nadie** —«¿cuántos docentes cargaron su perfil?», «¿qué habilidades son las más
+declaradas?»— y con el cruce hacia designaciones, que es lo que vuelve la respuesta
+accionable: «¿qué docentes de Ingeniería de Software declararon experiencia en
+industria?».
+
+### Las seis tablas, derivadas de las preguntas
+
+`perfiles` · `habilidades` · `docente_habilidades` · `educaciones` ·
+`certificaciones` · `experiencias`
+
+**Ninguna pregunta del catálogo necesita `cvs`, `proyectos` ni
+`proyecto_documentos`.** Quedan fuera del alcance hasta que exista una pregunta que
+las pida: son tres tablas de prefijo que nadie está usando.
+
+### Lo que NO debe contestar
+
+Estas van al dataset como `no_contestable`, donde **la abstención es la respuesta
+correcta**. No alcanza con que la base las rechace: el asistente tiene que decir que
+no puede, no fallar.
+
+| Pregunta                                             | Por qué                                                                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| ¿Cuál es el teléfono personal de X?                  | `portal.contactos` no se concede a ningún rol. El contacto institucional sí, y sale de `identity`             |
+| Dame el CV de X                                      | La `uri` del archivo no se concede: el asistente dice que existe y de cuándo es; entregarlo es de la interfaz |
+| ¿Qué docentes saben Python? _(actor sin el permiso)_ | La RLS devuelve cero filas. El riesgo no es la fuga: es que el texto afirme «ninguno»                         |
+
+### Contar y enumerar no se pueden separar
+
+`ValidadorDeSql` es lista negra de funciones y palabras clave: **no analiza la forma
+del `SELECT`**. «¿Cuántos docentes saben Python?» y «¿quiénes?» pasan por el mismo
+camino, con el mismo permiso y la misma policy.
+
+No existe, entonces, el alcance intermedio «que pueda contar pero no listar». Es una
+limitación declarada del producto y hay que llevarla así a la conversación con
+Secretaría, no dejarla como nota al pie de la implementación.
+
+### Toda respuesta sobre portal declara su cobertura
+
+El portal se llena solo si los docentes lo llenan, y el propio design spec dice que
+«el problema del Departamento es que los docentes no cargan nada». Por eso estas dos
+son la misma consulta y significan lo contrario:
+
+- «Ningún docente sabe Python»
+- «Nadie cargó sus habilidades»
+
+Cada respuesta que se apoye en portal lleva el denominador: _«de 120 docentes, 14
+cargaron habilidades»_. Sin eso, el vacío se lee como un hecho sobre las personas.
+
 ## Roles que interactúan
 
 Todos los roles del sistema salvo `docente`, según la siembra del permiso
