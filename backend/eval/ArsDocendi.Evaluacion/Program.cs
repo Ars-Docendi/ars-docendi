@@ -27,12 +27,24 @@ public static class Program
 {
     private const int CodigoDeUso = 64;
     private const int CodigoSinProveedor = 3;
+    private const int CodigoDeRegresion = 4;
 
     public static async Task<int> Main(string[] argumentos)
     {
         var raiz = RaizDelRepositorio();
         var datasets = Path.Combine(raiz, "backend", "eval", "datasets");
         var reportes = Path.Combine(raiz, "backend", "eval", "reportes");
+        var lineasDeBase = Path.Combine(raiz, "backend", "eval", "lineas-de-base");
+
+        // CONGELAR ES EXPLÍCITO Y NUNCA UN EFECTO DE CORRER EL EJE. Si regenerar la
+        // línea de base fuera automático, una regresión real se absorbería sola en
+        // el primer commit que la causara y el gate no detectaría nada nunca: el
+        // archivo diría siempre lo mismo que la corrida que lo escribió.
+        //
+        // Congelar y comparar son excluyentes. Congelar ES el acto de aceptar el
+        // comportamiento actual como referencia; compararlo contra sí mismo en la
+        // misma corrida no informaría nada.
+        var congelar = argumentos.Contains("--congelar", StringComparer.Ordinal);
 
         // El fixture se EMITE, no se aplica. El evaluador no tiene —ni debería
         // tener— la cadena del dueño: corre con los roles de solo lectura del
@@ -221,6 +233,41 @@ public static class Program
                 await File.WriteAllTextAsync(ruta, resultado.Reporte!.Renderizar());
 
                 Console.WriteLine($"  {resultado.Reporte.Total} ítems · reporte en {ruta}");
+
+                var rutaDeLinea = Path.Combine(lineasDeBase, $"{nombre}.json");
+
+                if (congelar)
+                {
+                    Directory.CreateDirectory(lineasDeBase);
+                    await File.WriteAllTextAsync(
+                        rutaDeLinea, LineaDeBase.De(resultado.Reporte).Serializar());
+
+                    Console.WriteLine($"  línea de base congelada en {rutaDeLinea}");
+                    continue;
+                }
+
+                var linea = LineaDeBase.Cargar(rutaDeLinea);
+
+                if (linea is null)
+                {
+                    // No es un error: el gate no puede opinar sobre un eje que nunca
+                    // se congeló. Se avisa para que la ausencia sea visible en vez de
+                    // parecer un gate que pasó.
+                    Console.WriteLine("  sin línea de base: el gate no compara este eje.");
+                    continue;
+                }
+
+                var veredicto = GateDeRegresion.Comparar(resultado.Reporte, linea);
+                Console.WriteLine($"  {veredicto.Renderizar()}");
+
+                // El sello distinto NO es una regresión: es que no hay con qué
+                // comparar. Se distingue en el código de salida porque el que lo lea
+                // tiene que hacer cosas distintas — regenerar la línea, o mirar qué
+                // se rompió.
+                if (!veredicto.Pasa && veredicto.ExigeRegenerar is null)
+                {
+                    salida = CodigoDeRegresion;
+                }
             }
 
             Console.WriteLine(
@@ -277,6 +324,14 @@ public static class Program
         Emitir el SQL del fixture por salida estándar, para aplicarlo:
 
           dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --fixture
+
+        Congelar la corrida como línea de base del gate de regresión:
+
+          dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --congelar
+
+        Sin --congelar, cada eje que tenga línea de base se compara contra ella
+        ítem por ítem, y una regresión devuelve 4. Congelar es a mano y a
+        propósito: si fuera automático, una regresión se absorbería sola.
 
         Necesita:
           · una base PostgreSQL con el esquema migrado y el fixture aplicado;

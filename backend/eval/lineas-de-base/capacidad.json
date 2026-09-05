@@ -1,0 +1,34 @@
+{
+  "Eje": "capacidad",
+  "Sello": {
+    "Prefijo": "8e3013fe0116e538671fc2c3b3a0c04e767e73325b7a63999ceda973da00a2e5",
+    "Dataset": "446d3ce5b100fdc1da169b84e64b1a25b29d968e5d047f010386d06eefa55c23",
+    "Fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8"
+  },
+  "Items": {
+    "cap-001": "traduccion_correcta",
+    "cap-002": "traduccion_correcta",
+    "cap-003": "traduccion_correcta",
+    "cap-004": "traduccion_correcta",
+    "cap-005": "traduccion_correcta",
+    "cap-006": "traduccion_correcta",
+    "cap-007": "traduccion_correcta",
+    "cap-008": "traduccion_correcta",
+    "cap-009": "abstencion_sobrelo_factible",
+    "cap-010": "traduccion_correcta",
+    "cap-011": "traduccion_correcta",
+    "cap-012": "traduccion_correcta",
+    "cap-013": "traduccion_correcta",
+    "cap-014": "traduccion_correcta",
+    "cap-015": "traduccion_correcta",
+    "cap-016": "traduccion_correcta",
+    "cap-017": "abstencion_correcta",
+    "cap-018": "abstencion_correcta",
+    "cap-019": "abstencion_correcta",
+    "cap-020": "abstencion_correcta",
+    "cap-021": "abstencion_correcta",
+    "cap-022": "traduccion_correcta",
+    "cap-023": "traduccion_correcta",
+    "cap-024": "traduccion_correcta"
+  }
+}

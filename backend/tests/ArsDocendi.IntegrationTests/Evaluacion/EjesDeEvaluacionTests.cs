@@ -433,18 +433,51 @@ public sealed class EjesDeEvaluacionTests
         Assert.Null(LineaDeBase.Cargar(Path.Combine(Path.GetTempPath(), "no-existe-jamas.json")));
     }
 
-    [Fact]
-    public void No_hay_ninguna_linea_de_base_versionada_todavia()
+    [Theory]
+    [InlineData("capacidad")]
+    [InlineData("robustez")]
+    [InlineData("dialogo")]
+    [InlineData("social")]
+    public void Cada_eje_tiene_su_linea_de_base_versionada_y_legible(string eje)
     {
-        // Generar una exige una corrida REAL, y una corrida real exige un proveedor
-        // que todavía no está elegido (TD-008). Un archivo generado con el proveedor
-        // simulado registraría el comportamiento del simulador, no el del asistente,
-        // y el gate empezaría a defender el número equivocado.
-        var directorio = Path.Combine(
-            RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base");
+        // ANTES ESTE TEST AFIRMABA LO CONTRARIO —que no había ninguna— porque no
+        // había proveedor real con qué generarlas. Ya lo hay, y las cuatro se
+        // congelaron reproduciendo los cassettes, sin gastar una corrida.
+        //
+        // Que el archivo exista no alcanza: se interpreta, porque una línea de base
+        // corrupta hace que el gate se niegue a comparar, y un gate que no compara
+        // se ve igual que uno que pasa.
+        var ruta = Path.Combine(
+            RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json");
 
-        Assert.True(Directory.Exists(directorio));
-        Assert.Empty(Directory.GetFiles(directorio, "*.json"));
+        var linea = LineaDeBase.Cargar(ruta);
+
+        Assert.NotNull(linea);
+        Assert.NotEmpty(linea.Items);
+
+        // El sello es lo primero que mira el gate: sin los tres hashes no sabe
+        // contra qué se midió y se niega a comparar.
+        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Prefijo));
+        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Dataset));
+        Assert.False(string.IsNullOrWhiteSpace(linea.Sello.Fixture));
+    }
+
+    [Fact]
+    public void Las_cuatro_lineas_de_base_se_midieron_contra_el_mismo_prefijo_y_fixture()
+    {
+        // Los datasets son distintos por eje —cada uno se sella con el suyo— pero el
+        // prefijo del prompt y el fixture son del sistema, no del eje. Cuatro líneas
+        // con prefijos distintos significan que se congelaron en momentos distintos,
+        // y entonces no se pueden leer juntas: una diría que portal existe y otra que
+        // no, sin que nada lo delate.
+        var sellos = new[] { "capacidad", "robustez", "dialogo", "social" }
+            .Select(eje => LineaDeBase.Cargar(Path.Combine(
+                RaizRepositorio.Ruta(), "backend", "eval", "lineas-de-base", $"{eje}.json")))
+            .Select(linea => Assert.IsType<LineaDeBase>(linea).Sello)
+            .ToArray();
+
+        Assert.Single(sellos.Select(sello => sello.Prefijo).Distinct(StringComparer.Ordinal));
+        Assert.Single(sellos.Select(sello => sello.Fixture).Distinct(StringComparer.Ordinal));
     }
 
     // ------------------------------------------------------------------ apoyo

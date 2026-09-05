@@ -40,9 +40,47 @@ La abstención sobre algo contestable **no** cuenta como pasar —es una falta d
 capacidad, aunque no reste puntos—, así que un ítem que va de «tradujo bien» a «se
 abstuvo» **es** una regresión y el gate la ve.
 
-## Todavía no hay ninguna
+## Cómo se congela
 
-Generar una línea de base exige una corrida real, y una corrida real exige un proveedor
-de modelo que todavía no está elegido (TD-008). Este directorio queda con su
-documentación y sin archivos: un archivo de línea de base generado con el proveedor
-simulado registraría el comportamiento del simulador, no el del asistente.
+```bash
+dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --congelar
+```
+
+Sin `--congelar`, cada eje que tenga línea de base se compara contra ella y una
+regresión devuelve **4**. Con la bandera, se escribe y **no** se compara: congelar ES
+el acto de aceptar el comportamiento actual como referencia, y compararlo contra sí
+mismo en la misma corrida no informaría nada.
+
+## Las cuatro vigentes
+
+Congeladas reproduciendo los 107 cassettes, así que **no costaron una corrida
+financiada**. Modelo `claude-sonnet-5`.
+
+| Eje       | Ítems | Aciertos | Normalizado |
+| --------- | ----- | -------- | ----------- |
+| Capacidad | 24    | 23       | 95,8 %      |
+| Robustez  | 15    | 14       | 93,3 %      |
+| Diálogo   | 9     | 8        | 88,9 %      |
+| Social    | 20    | 20       | 100,0 %     |
+
+El ítem que no acierta en diálogo es `dia-003-pivote-duro#1`, que **se abstiene ante
+algo contestable**. Queda congelado así a propósito: la línea de base registra el
+comportamiento que hay, no el que se querría. Que mejore va a aparecer como «mejora»
+en el gate, que es donde se lo quiere ver.
+
+**Ojo con ese ítem si el gate llegara a correr contra el modelo en vivo.** Reproducido
+de cassette es determinista —tres corridas dieron reportes idénticos byte a byte—, pero
+en vivo osciló entre acierto y abstención sin que nada cambiara. Un ítem que oscila
+produce regresiones falsas con lock por ítem. Mientras el gate reproduzca cassettes, no
+es un problema; el día que se corra en vivo, hay que decidir si se lo marca como
+tolerante o se lo reformula.
+
+## Por qué el sello es lo primero que mira el gate
+
+Los tres hashes identifican **contra qué** se midió. Con cualquiera distinto el gate se
+niega a comparar y lo dice —«cambió el prefijo del prompt. Regenerá la línea de base y
+volvé a correr»— en vez de emitir un veredicto sobre dos cosas que no son la misma.
+
+Es lo que va a pasar cuando `portal` entre al esquema del asistente: el prefijo cambia,
+las cuatro líneas quedan obsoletas de golpe, y hay que regenerarlas en la misma corrida
+financiada que regrabe los cassettes.
