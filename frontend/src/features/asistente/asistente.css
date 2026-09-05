@@ -617,23 +617,32 @@
 
 /* ─────────────────────────────────── la ruta ───────────────────────────────── */
 
-/* Columna de lectura con alto fijo. Lo que hay alrededor son la barra —56px, el
-   `grid-template-rows` de shell.css— y el relleno de `.adoc-main` —24px arriba y
-   48px abajo—; el vh se divide por el zoom como hace `.adoc-app`. El encabezado va
-   adentro de la columna y toma su alto natural, así que no hay que medirlo y no se
-   desajusta si su texto se parte en dos líneas. Sin el alto fijo scrollea
-   `.adoc-main` entero y el campo de entrada baja con cada respuesta: el defecto
-   que el modal ya no tiene. */
+/* Columna de lectura que llena su contenedor y no lo desborda. Sin esto scrollea
+   `.adoc-main` entero y el campo de entrada se va con la rueda: el defecto que el
+   modal no tiene.
+
+   `height: 100%` y NO una resta de medidas del shell. `.adoc-app` es un grid de
+   alto definido —`calc(100vh / var(--ui-zoom))` con filas `56px 1fr`—, así que
+   `.adoc-main` tiene alto propio y el 100% resuelve contra su caja de contenido,
+   relleno ya descontado. Restar 56, 24 y 48 a mano daba el mismo número hoy y se
+   desajustaba en silencio el día que el shell cambiara cualquiera de los tres:
+   el síntoma sería justamente el input moviéndose, que es difícil de atribuir.
+
+   `min-height: 0` es lo que deja que el hilo absorba la falta de espacio en una
+   ventana baja. Sin él, el mínimo de contenido del hilo infla la columna, la
+   columna desborda `.adoc-main`, y volvemos al input que se va con la rueda. */
 .adoc-asistente-pagina {
   display: flex;
   flex-direction: column;
   max-width: 880px;
   margin-inline: auto;
-  height: calc(100vh / var(--ui-zoom, 1) - 56px - 24px - 48px);
+  height: 100%;
+  min-height: 0;
 }
 
 .adoc-asistente-pagina .adoc-asistente {
   flex: 1;
+  min-height: 0;
 }
 
 /* ───────────────────────────────── pantallas chicas ────────────────────────── */
