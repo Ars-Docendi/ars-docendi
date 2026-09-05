@@ -489,6 +489,64 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Un_turno_capturado_que_responde_por_SQL_registra_las_dos_cosas()
+    {
+        // Las dos columnas en la MISMA fila, que es donde se ve que no se pisan.
+        // `carril` dice por dónde se resolvió el turno de verdad —SQL, porque el
+        // carril determinista todavía no resuelve ninguno— y `intencion_sombra` por
+        // dónde se habría resuelto.
+        await SembrarAsync();
+
+        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
+            .ResponderAsync(
+                Alguien, null, "¿en qué estado está el pedido de Gómez?",
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["Sql · estado-del-pedido-de-una-persona"],
+            await LeerAsync<string>(
+                """
+                SELECT carril || ' · ' || intencion_sombra
+                  FROM asistente.registro_operativo
+                """));
+    }
+
+    [Fact]
+    public async Task El_registro_analitico_no_tiene_ninguna_columna_para_la_intencion()
+    {
+        // EN VERDE DESDE EL PRIMER DÍA, A PROPÓSITO. Su valor no es lo que prueba hoy
+        // sino cuándo se pone en rojo: el día que alguien agregue la columna acá por
+        // simetría con el operativo. La desvinculación de los dos registros no se
+        // sostiene con una convención de escritura sino con la AUSENCIA de columnas
+        // con las que cruzarlos.
+        var columnas = await ColumnasDeAsync("registro_analitico");
+
+        Assert.DoesNotContain("intencion_sombra", columnas);
+        Assert.DoesNotContain(columnas, c => c.Contains("intencion", StringComparison.Ordinal));
+        Assert.DoesNotContain(columnas, c => c.Contains("sombra", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Un_turno_capturado_no_deja_rastro_de_la_intencion_en_el_analitico()
+    {
+        // La otra mitad: no alcanza con que no haya columna, tampoco tiene que
+        // aparecer el nombre de la intención dentro de ninguna de las que hay.
+        await SembrarAsync();
+
+        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
+            .ResponderAsync(
+                Alguien, null, "¿en qué estado está el pedido de Gómez?",
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["categoria", "dia", "estado", "id", "pregunta"],
+            await ColumnasDeAsync("registro_analitico"));
+
+        Assert.Empty(
+            await BuscarTextoAsync("registro_analitico", "estado-del-pedido-de-una-persona"));
+    }
+
+    [Fact]
     public async Task Un_saludo_queda_registrado_en_el_carril_sin_datos()
     {
         await SembrarAsync();

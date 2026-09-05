@@ -327,6 +327,72 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Un_turno_capturado_que_pide_aclaracion_registra_el_carril_de_aclaracion()
+    {
+        // Las dos columnas son dos hechos distintos y ninguno implica al otro. Acá se
+        // ven separadas: el enrutador captura —«Gómez» resuelve el único slot que la
+        // intención exige— y el turno igual termina en el menú, porque la pregunta
+        // nombra ADEMÁS una materia que colisiona.
+        //
+        // `carril` tiene que decir «aclaración», que es lo que pasó de verdad, y no
+        // el carril determinista, que no resolvió nada.
+        await SembrarAsync();
+        await AgregarColisionesAsync();
+
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria,
+            null,
+            "¿en qué estado está el pedido de Gómez de Bases de Datos?",
+            TestContext.Current.CancellationToken);
+
+        var fila = ((RegistroEnMemoria)banco.Registro).Turnos.Single();
+
+        Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
+        Assert.Equal(CarrilDelTurno.Aclaracion, fila.Carril);
+        Assert.Equal("estado-del-pedido-de-una-persona", fila.IntencionSombra);
+    }
+
+    [Fact]
+    public async Task La_respuesta_al_usuario_es_la_misma_con_captura_y_sin_ella()
+    {
+        // LA PROPIEDAD QUE HACE SEGURO AL MODO SOMBRA, probada contra sí misma: la
+        // MISMA pregunta, el MISMO guion, y la única diferencia es si el catálogo la
+        // capturó o no.
+        //
+        // Se la hace no capturar vaciando el catálogo del DOMINIO —ningún slot
+        // resuelve, ninguna intención queda reconocida— y no colisionando la entidad,
+        // que dispararía el detector de ambigüedad y cambiaría el turno entero en vez
+        // de cambiar solamente la decisión sombra.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        const string pregunta = "¿en qué estado está el pedido de Gómez?";
+
+        var conCaptura = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var capturado = await conCaptura.Capa().ResponderAsync(Secretaria, null, pregunta, ct);
+
+        var sinCaptura = BancoSinDominio(
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var suelto = await sinCaptura.Capa().ResponderAsync(Secretaria, null, pregunta, ct);
+
+        // Primero, que las dos corridas efectivamente decidieron distinto. Sin esto
+        // el test compararía dos veces lo mismo y daría verde sin probar nada.
+        Assert.Equal(
+            "estado-del-pedido-de-una-persona",
+            ((RegistroEnMemoria)conCaptura.Registro).Turnos.Single().IntencionSombra);
+        Assert.Null(((RegistroEnMemoria)sinCaptura.Registro).Turnos.Single().IntencionSombra);
+
+        Assert.Equal(capturado.Estado, suelto.Estado);
+        Assert.Equal(capturado.Respuesta, suelto.Respuesta);
+        Assert.Equal(capturado.Categoria, suelto.Categoria);
+        Assert.Equal(capturado.PreguntaInterpretada, suelto.PreguntaInterpretada);
+        Assert.Equal(capturado.LlamadasAlModelo, suelto.LlamadasAlModelo);
+        Assert.Equal(capturado.Columnas, suelto.Columnas);
+        Assert.Equal(capturado.Filas.Count, suelto.Filas.Count);
+    }
+
+    [Fact]
     public async Task Una_colision_termina_en_aclaracion_y_no_en_el_carril_determinista()
     {
         // El enrutador corre ANTES del detector de ambigüedad, así que hay que
@@ -363,6 +429,32 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     private IAlmacenDeHilos NuevosHilos() =>
         new AlmacenDeHilosEnMemoria(
             Options.Create(new OpcionesAsistente()), TimeProvider.System);
+
+    /// <summary>Un banco cuyo enrutador no puede capturar nada.</summary>
+    /// <remarks>
+    /// El catálogo del dominio vacío deja a todos los slots sin resolver, así que
+    /// ninguna intención queda reconocida. Sólo lo consume el resolutor: el detector
+    /// de ambigüedad y el de cambio de tema leen el índice de entidades, que sigue
+    /// completo, y por eso el resto del turno corre idéntico.
+    /// </remarks>
+    private BancoDelAsistente BancoSinDominio(params string[] guion)
+    {
+        var (basica, pii) = CadenasDeLectura();
+
+        return BancoDelAsistente.Armar(
+            basica,
+            pii,
+            ClasificadorDeSensibilidad(),
+            hilos: NuevosHilos(),
+            dominio: new DominioSinValores(),
+            guion: guion);
+    }
+
+    private sealed class DominioSinValores : ICatalogoDelDominio
+    {
+        public Task<CatalogoDelDominio> ObtenerAsync(CancellationToken ct) =>
+            Task.FromResult(new CatalogoDelDominio([]));
+    }
 
     private async Task AgregarColisionesAsync()
     {

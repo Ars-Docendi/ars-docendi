@@ -20,12 +20,12 @@
 
 ## 3. Lo que el registro no debe perder ni ganar
 
-- [ ] 3.1 Test: un turno capturado que responde por SQL registra `carril` del carril SQL y la intención en su columna
-- [ ] 3.2 Test: un turno capturado que termina pidiendo aclaración registra el carril de aclaración, no el determinista
-- [ ] 3.3 Confirmar que `CarrilDe` sigue derivando del estado del turno y no de la decisión sombra
-- [ ] 3.4 Test: la respuesta al usuario es la misma con y sin captura — el modo sombra no cambia ninguna respuesta
-- [ ] 3.5 Test: `asistente.registro_analitico` no tiene ninguna columna para la intención sombra (D2). Queda en verde desde el primer día a propósito: su valor es ponerse en rojo el día que alguien la agregue por consistencia
-- [ ] 3.6 Test: un turno capturado deja la fila analítica con solo pregunta, categoría, estado y día
+- [x] 3.1 Test: un turno capturado que responde por SQL registra `carril` del carril SQL y la intención en su columna
+- [x] 3.2 Test: un turno capturado que termina pidiendo aclaración registra el carril de aclaración, no el determinista
+- [x] 3.3 Confirmar que `CarrilDe` sigue derivando del estado del turno y no de la decisión sombra
+- [x] 3.4 Test: la respuesta al usuario es la misma con y sin captura — el modo sombra no cambia ninguna respuesta
+- [x] 3.5 Test: `asistente.registro_analitico` no tiene ninguna columna para la intención sombra (D2). Queda en verde desde el primer día a propósito: su valor es ponerse en rojo el día que alguien la agregue por consistencia
+- [x] 3.6 Test: un turno capturado deja la fila analítica con solo pregunta, categoría, estado y día
 
 ## 4. La tabla dorada offline
 

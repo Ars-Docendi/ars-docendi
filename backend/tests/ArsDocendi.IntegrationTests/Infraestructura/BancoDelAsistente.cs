@@ -57,6 +57,7 @@ internal sealed class BancoDelAsistente
         ProveedorGuionado? proveedor = null,
         IRegistroDelTurno? registro = null,
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
+        ICatalogoDelDominio? dominio = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
@@ -95,10 +96,15 @@ internal sealed class BancoDelAsistente
         // catálogo del dominio es un caché, y uno por turno no cachearía nada. Está
         // en MODO SOMBRA —decide y el turno sigue por SQL igual—, así que agregarlo
         // acá no cambia ninguna respuesta esperada de los tests que ya existían.
+        //
+        // El catálogo del dominio se puede sustituir: es la única forma honesta de
+        // correr la MISMA pregunta con captura y sin ella, que es como se prueba que
+        // el modo sombra no cambia ninguna respuesta. Colisionar la entidad no sirve,
+        // porque eso dispara el detector de ambigüedad y cambia el turno entero.
         var enrutador = new EnrutadorDeDominio(
             new ResolutorDeIntenciones(
                 CatalogoDeIntenciones.Cargar(),
-                new CatalogoDelDominioReal(indice, basica)),
+                dominio ?? new CatalogoDelDominioReal(indice, basica)),
             NullLogger<EnrutadorDeDominio>.Instance);
 
         return new BancoDelAsistente
