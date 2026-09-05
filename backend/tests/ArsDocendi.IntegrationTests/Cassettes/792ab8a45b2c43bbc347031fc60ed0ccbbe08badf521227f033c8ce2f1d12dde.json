@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-05",
+  "hash_del_prefijo": "95a4c2849393b9c2fbbcc45db0d6747c01b0e79fca45fec7e41e968d7b7b6c48",
+  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
+  "cuerpo": "{\n  \"id\": \"msg_falso\",\n  \"type\": \"message\",\n  \"role\": \"assistant\",\n  \"model\": \"claude-opus-5\",\n  \"content\": [{\"type\":\"text\",\"text\":\"\\u00BFQu\\u00E9 docentes tienen designaci\\u00F3n vigente en Bases de Datos de la carrera de Sistemas?\"}],\n  \"stop_reason\": \"end_turn\",\n  \"stop_sequence\": null,\n  \"usage\": { \"input_tokens\": 310, \"output_tokens\": 24 }\n}"
+}

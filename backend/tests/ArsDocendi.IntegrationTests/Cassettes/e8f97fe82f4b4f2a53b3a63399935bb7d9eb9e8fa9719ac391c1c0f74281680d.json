@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-05",
+  "hash_del_prefijo": "c6b802ac00d0a02a88479f32e0cfd7ad5edd94216171b21f38e37a585115fd69",
+  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
+  "cuerpo": "{\n  \"id\": \"msg_falso\",\n  \"type\": \"message\",\n  \"role\": \"assistant\",\n  \"model\": \"claude-opus-5\",\n  \"content\": [{\"type\":\"text\",\"text\":\"{\\u0022es_contestable\\u0022: false, \\u0022sql\\u0022: null, \\u0022razonamiento\\u0022: \\u0022El esquema no tiene ninguna tabla con remuneraciones ni valores de hora c\\u00E1tedra, as\\u00ED que no puedo responder eso con los datos disponibles.\\u0022, \\u0022categoria\\u0022: \\u0022no_contestable\\u0022}\"}],\n  \"stop_reason\": \"end_turn\",\n  \"stop_sequence\": null,\n  \"usage\": { \"input_tokens\": 9080, \"output_tokens\": 96,\"cache_read_input_tokens\":8940 }\n}"
+}

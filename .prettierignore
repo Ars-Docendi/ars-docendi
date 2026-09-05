@@ -25,6 +25,11 @@ yarn.lock
 # Auto-generated docs indexes
 docs/**/_index.md
 
+# Cassettes del proveedor del asistente: sobres GENERADOS por el grabador, con el
+# cuerpo crudo de la respuesta verbatim adentro. Se rehacen grabando, no editando,
+# y la corrida financiada del evaluador deja decenas de golpe.
+backend/tests/ArsDocendi.IntegrationTests/Cassettes
+
 # Generated TypeScript build info
 *.tsbuildinfo
 

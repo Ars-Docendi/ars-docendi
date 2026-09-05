@@ -33,4 +33,15 @@ public static class RaizRepositorio
 
     /// <summary>Ruta absoluta de <c>backend/src</c>.</summary>
     public static string BackendSrc() => Path.Combine(Ruta(), "backend", "src");
+
+    /// <summary>
+    /// Ruta absoluta del directorio de cassettes versionados del proveedor.
+    /// </summary>
+    /// <remarks>
+    /// Viven bajo el proyecto de tests y entran al repositorio como cualquier otro
+    /// fixture: son el activo que el mecanismo de grabación existe para producir, y
+    /// un cassette que no se commitea es una corrida financiada tirada.
+    /// </remarks>
+    public static string Cassettes() => Path.Combine(
+        Ruta(), "backend", "tests", "ArsDocendi.IntegrationTests", "Cassettes");
 }

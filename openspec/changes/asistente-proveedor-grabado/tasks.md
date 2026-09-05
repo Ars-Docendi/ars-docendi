@@ -68,11 +68,11 @@
 
 ## 8. Higiene: sin credencial, sin PII, sin excepción de arquitectura
 
-- [ ] 8.1 Test rojo primero: un guard barre los cassettes versionados buscando la forma de la credencial y no encuentra nada
-- [ ] 8.2 Test rojo primero: el detector reconoce una credencial en un cassette sintético
-- [ ] 8.3 Test rojo primero: todos los cassettes versionados declaran el hash del fixture sintético vigente
-- [ ] 8.4 Test: `El_SDK_del_proveedor_se_nombra_en_un_solo_archivo` sigue en verde sin sumar excepciones
-- [ ] 8.5 Test: el módulo sigue referenciando solo `ArsDocendi.Shared`
+- [x] 8.1 Test rojo primero: un guard barre los cassettes versionados buscando la forma de la credencial y no encuentra nada
+- [x] 8.2 Test rojo primero: el detector reconoce una credencial en un cassette sintético
+- [x] 8.3 Test rojo primero: todos los cassettes versionados declaran el hash del fixture sintético vigente
+- [x] 8.4 Test: `El_SDK_del_proveedor_se_nombra_en_un_solo_archivo` sigue en verde sin sumar excepciones
+- [x] 8.5 Test: el módulo sigue referenciando solo `ArsDocendi.Shared`
 
 ## 9. Los cassettes alimentan el parseo
 
@@ -81,7 +81,7 @@
 - [ ] 9.3 `GeneradorDeSql.Interpretar` sobre cada cassette de generación
 - [ ] 9.4 El redactor sobre cada cassette de redacción
 - [ ] 9.5 El reescritor sobre cada cassette de reescritura
-- [ ] 9.6 Los primeros cassettes versionados, grabados contra el transporte que impersona la API
+- [x] 9.6 Los primeros cassettes versionados, grabados contra el transporte que impersona la API
 - [ ] 9.7 Test: agregar un cassette al directorio suma un caso sin tocar ningún archivo de test
 - [ ] 9.8 Verificar en rojo: vaciar el directorio hace fallar 9.1
 
