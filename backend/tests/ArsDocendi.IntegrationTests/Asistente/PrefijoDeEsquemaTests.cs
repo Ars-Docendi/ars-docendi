@@ -38,6 +38,38 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task La_busqueda_de_comentarios_cubre_todo_schema_que_el_manifiesto_expone()
+    {
+        // ESTE TEST CUIDA A LOS DOS DE ARRIBA. Ellos recorren las tablas concedidas y
+        // las buscan en un diccionario; si el diccionario se arma con una lista de
+        // schemas escrita a mano, una tabla concedida de un schema que la lista no
+        // nombra aparece como «sin comentario» AUNQUE LO TENGA. El mensaje manda a
+        // escribir un comentario que ya está escrito, y nadie encuentra el problema
+        // hasta que lo busca en la consulta y no en el esquema.
+        //
+        // Se afirma la cobertura y no la lista: que para cada schema expuesto con
+        // tablas comentadas en la base, el diccionario traiga alguna.
+        var comentadas = await ComentariosDeTablaAsync();
+
+        // ITERA EL MANIFIESTO Y NO EL HELPER, a propósito. Recorrer `SchemasExpuestos()`
+        // haría el test autorreferencial: quien achicara esa lista achicaría también lo
+        // que el test verifica, y seguiría en verde. El manifiesto es la fuente contra
+        // la que hay que contrastar.
+        foreach (var schema in Manifiesto.Cargar().SchemasExpuestos)
+        {
+            var enLaBase = await ContarTablasComentadasAsync(schema);
+            if (enLaBase == 0)
+            {
+                continue;
+            }
+
+            Assert.Contains(
+                comentadas.Keys,
+                clave => clave.StartsWith($"{schema}.", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
     public async Task Toda_columna_concedida_por_el_manifiesto_tiene_comentario()
     {
         var manifiesto = Manifiesto.Cargar();
@@ -317,6 +349,23 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     private Task<Modules.Asistente.Application.EsquemaParaPrompt> PrefijoAsync(bool conDatosPersonales) =>
         ProveedorNuevo().ObtenerAsync(conDatosPersonales, TestContext.Current.CancellationToken);
 
+    /// <summary>
+    /// Los schemas que el manifiesto declara expuestos.
+    /// </summary>
+    /// <remarks>
+    /// SE DERIVAN, NO SE ESCRIBEN. La lista estuvo clavada como
+    /// <c>IN ('identity', 'designaciones')</c>, y eso deja a los tests que exigen
+    /// comentarios sin ver las tablas de cualquier schema nuevo: los COMMENT podrían
+    /// faltar por completo y la suite pasaría en verde. Y cuando finalmente fallara,
+    /// fallaría apuntando al lugar equivocado — alguien leería «faltan comentarios en
+    /// portal.X» teniéndolos escritos, porque el filtro los excluía de la consulta
+    /// que los busca.
+    ///
+    /// Filtrar donde habría que afirmar es lo que deja un test sin filo. Es el mismo
+    /// criterio que la cuarta dirección del manifiesto.
+    /// </remarks>
+    private static string[] SchemasExpuestos() => [.. Manifiesto.Cargar().SchemasExpuestos];
+
     private async Task<IReadOnlyDictionary<string, string>> ComentariosDeTablaAsync() =>
         await LeerDiccionarioAsync(
             """
@@ -325,7 +374,7 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
               FROM pg_catalog.pg_class c
               JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
              WHERE c.relkind = 'r'
-               AND n.nspname IN ('identity', 'designaciones')
+               AND n.nspname = ANY(@schemas)
                AND pg_catalog.obj_description(c.oid, 'pg_class') IS NOT NULL
             """);
 
@@ -340,9 +389,27 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
              WHERE c.relkind = 'r'
                AND a.attnum > 0
                AND NOT a.attisdropped
-               AND n.nspname IN ('identity', 'designaciones')
+               AND n.nspname = ANY(@schemas)
                AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL
             """);
+
+    /// <summary>Cuántas tablas con comentario tiene un schema en la base.</summary>
+    private async Task<long> ContarTablasComentadasAsync(string schema)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT count(*)
+              FROM pg_catalog.pg_class c
+              JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+             WHERE c.relkind = 'r'
+               AND n.nspname = @schema
+               AND pg_catalog.obj_description(c.oid, 'pg_class') IS NOT NULL
+            """, conexion);
+
+        comando.Parameters.AddWithValue("schema", schema);
+        return (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
 
     private async Task<IReadOnlyDictionary<string, string>> LeerDiccionarioAsync(string sql)
     {
@@ -351,6 +418,7 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
 
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion);
+        comando.Parameters.AddWithValue("schemas", SchemasExpuestos());
         await using var lector = await comando.ExecuteReaderAsync(ct);
 
         while (await lector.ReadAsync(ct))
