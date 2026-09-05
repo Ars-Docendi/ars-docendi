@@ -162,5 +162,33 @@ public sealed record AristaDeclarada
     [JsonPropertyName("motivo")]
     public string Motivo { get; init; } = string.Empty;
 
+    /// <summary>Presente sólo cuando la arista excede un invariante de arquitectura.</summary>
+    [JsonPropertyName("excepcion")]
+    public ExcepcionDeclarada? Excepcion { get; init; }
+
+    public bool EsExcepcion => Excepcion is not null;
+
     public override string ToString() => $"{Origen} -> {Destino}";
+}
+
+/// <summary>
+/// La excepción a un invariante, con el invariante que excede y el ticket que la aprobó.
+/// </summary>
+/// <remarks>
+/// El reparto entre archivos es deliberado: el manifiesto guarda las INSTANCIAS de
+/// excepción; <c>CLAUDE.md</c> guarda el TEXTO del invariante. Ninguno repite al otro.
+///
+/// La escapatoria se diseña antes de necesitarla, mientras todavía se puede exigir
+/// que cada uso lleve motivo y ticket. El día que alguien agregue una arista y el CI
+/// se ponga en rojo, la salida barata es declararla excepción — y esa salida cuesta
+/// abrir un ticket, que es exactamente la fricción buscada.
+/// </remarks>
+public sealed record ExcepcionDeclarada
+{
+    /// <summary>El invariante que la arista excede, tal como lo numera <c>CLAUDE.md</c>.</summary>
+    [JsonPropertyName("invariante")]
+    public string Invariante { get; init; } = string.Empty;
+
+    [JsonPropertyName("ticket")]
+    public string Ticket { get; init; } = string.Empty;
 }

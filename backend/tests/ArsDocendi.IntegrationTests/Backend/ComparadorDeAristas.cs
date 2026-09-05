@@ -20,6 +20,15 @@ public enum TipoDesviacionDeArista
 
     /// <summary>Un proyecto huérfano sin el motivo escrito que explica por qué se lo conserva.</summary>
     HuerfanoSinMotivo,
+
+    /// <summary>Una arista declarada como excepción sin el ticket que la aprobó.</summary>
+    ExcepcionSinTicket,
+
+    /// <summary>Una arista declarada como excepción sin motivo escrito.</summary>
+    ExcepcionSinMotivo,
+
+    /// <summary>Una arista declarada como excepción sin decir a qué invariante excede.</summary>
+    ExcepcionSinInvariante,
 }
 
 /// <summary>Una desviación entre lo declarado y el código, con el objeto nombrado.</summary>
@@ -86,9 +95,51 @@ public static class ComparadorDeAristas
             }
         }
 
+        desviaciones.AddRange(RevisarExcepciones(manifiesto));
         desviaciones.AddRange(CompararProyectos(manifiesto, grafo, reales));
 
         return desviaciones;
+    }
+
+    /// <summary>
+    /// Una excepción a un invariante es una fila con invariante, ticket y motivo.
+    /// </summary>
+    /// <remarks>
+    /// Sólo se revisa lo declarado excepción: si el comparador exigiera ticket a toda
+    /// arista, las filas comunes estarían en rojo y la salida sería quitar el guard.
+    ///
+    /// Es la misma forma que <c>Toda_denegacion_explicita_lleva_motivo_escrito</c> en
+    /// el manifiesto de privilegios: lo que se aparta de la regla lleva escrito por
+    /// qué, y quién lo aprobó.
+    /// </remarks>
+    private static IEnumerable<DesviacionDeArista> RevisarExcepciones(ManifiestoDeAristas manifiesto)
+    {
+        foreach (var arista in manifiesto.Aristas.Where(a => a.EsExcepcion))
+        {
+            if (string.IsNullOrWhiteSpace(arista.Excepcion!.Ticket))
+            {
+                yield return new DesviacionDeArista(
+                    TipoDesviacionDeArista.ExcepcionSinTicket,
+                    arista.ToString(),
+                    "está declarada excepción a un invariante y no indica el ticket que la aprobó");
+            }
+
+            if (string.IsNullOrWhiteSpace(arista.Excepcion!.Invariante))
+            {
+                yield return new DesviacionDeArista(
+                    TipoDesviacionDeArista.ExcepcionSinInvariante,
+                    arista.ToString(),
+                    "está declarada excepción y no indica a qué invariante excede");
+            }
+
+            if (string.IsNullOrWhiteSpace(arista.Motivo))
+            {
+                yield return new DesviacionDeArista(
+                    TipoDesviacionDeArista.ExcepcionSinMotivo,
+                    arista.ToString(),
+                    "está declarada excepción a un invariante y no tiene motivo escrito");
+            }
+        }
     }
 
     /// <summary>Dirección 3: todo proyecto real está clasificado, y todo clasificado existe.</summary>

@@ -46,12 +46,12 @@
 
 ## 5. Las excepciones son filas, no párrafos
 
-- [ ] 5.1 `excepcion` opcional en una arista, con `invariante` y `ticket`
-- [ ] 5.2 Una arista declarada como excepción sin `ticket` es una desviación
-- [ ] 5.3 Una arista declarada como excepción sin motivo escrito es una desviación
-- [ ] 5.4 Test: excepción sin ticket falla nombrando la arista
-- [ ] 5.5 Test: excepción sin motivo falla nombrando la arista
-- [ ] 5.6 Verificar en rojo: quitando el ticket a la excepción real del manifiesto, 5.4 falla
+- [x] 5.1 `excepcion` opcional en una arista, con `invariante` y `ticket`
+- [x] 5.2 Una arista declarada como excepción sin `ticket` es una desviación
+- [x] 5.3 Una arista declarada como excepción sin motivo escrito es una desviación
+- [x] 5.4 Test: excepción sin ticket falla nombrando la arista
+- [x] 5.5 Test: excepción sin motivo falla nombrando la arista
+- [x] 5.6 Verificar en rojo: quitando el ticket a la excepción real del manifiesto, 5.4 falla
 
 ## 6. El manifiesto poblado con el grafo de hoy
 
