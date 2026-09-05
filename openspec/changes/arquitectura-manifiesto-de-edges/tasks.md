@@ -10,14 +10,14 @@
 
 ## 2. El manifiesto: modelo y carga
 
-- [ ] 2.1 `ManifiestoDeAristas` — modelo de `proyectos` y `aristas`, cargado desde `backend/manifiesto-de-aristas.json`
-- [ ] 2.2 La clave de un proyecto es el nombre del `.csproj` sin extensión
-- [ ] 2.3 La carga falla si dos `.csproj` de `backend/src` comparten nombre: una clave que se degrada en silencio no es una clave
-- [ ] 2.4 La carga falla nombrando la arista si `origen`, `destino`, `via` o `motivo` están vacíos
-- [ ] 2.5 `via` acepta solo el vocabulario cerrado que el verificador sabe comprobar; hoy, `project-reference`
-- [ ] 2.6 Test: una arista sin motivo no carga y la nombra
-- [ ] 2.7 Test: una `via` fuera del vocabulario no carga y nombra la arista y la vía
-- [ ] 2.8 Test: dos proyectos homónimos hacen fallar la carga
+- [x] 2.1 `ManifiestoDeAristas` — modelo de `proyectos` y `aristas`, cargado desde `backend/manifiesto-de-aristas.json`
+- [x] 2.2 La clave de un proyecto es el nombre del `.csproj` sin extensión
+- [x] 2.3 La carga falla si dos `.csproj` de `backend/src` comparten nombre: una clave que se degrada en silencio no es una clave
+- [x] 2.4 La carga falla nombrando la arista si `origen`, `destino`, `via` o `motivo` están vacíos
+- [x] 2.5 `via` acepta solo el vocabulario cerrado que el verificador sabe comprobar; hoy, `project-reference`
+- [x] 2.6 Test: una arista sin motivo no carga y la nombra
+- [x] 2.7 Test: una `via` fuera del vocabulario no carga y nombra la arista y la vía
+- [x] 2.8 Test: dos proyectos homónimos hacen fallar la carga
 
 ## 3. El comparador y sus tres direcciones
 

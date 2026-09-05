@@ -56,6 +56,24 @@ public static class LectorDeAristas
             .Select(nombre => nombre!)
             .ToArray();
 
+        // La clave de un proyecto en el manifiesto es el nombre de su .csproj sin
+        // extensión. Con dos homónimos esa clave deja de identificar y la fila diría
+        // «Modules.Aulas» sin saber cuál: una clave que se degrada en silencio no es
+        // una clave.
+        var homonimos = proyectos
+            .GroupBy(nombre => nombre, StringComparer.Ordinal)
+            .Where(grupo => grupo.Count() > 1)
+            .Select(grupo => grupo.Key)
+            .OrderBy(nombre => nombre, StringComparer.Ordinal)
+            .ToArray();
+
+        if (homonimos.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "Hay .csproj homónimos bajo " + directorio + ", y el nombre del proyecto es la " +
+                "clave del manifiesto de aristas: " + string.Join(", ", homonimos));
+        }
+
         var aristas = archivos
             .SelectMany(archivo => ReferenciasDe(archivo)
                 .Select(destino => new AristaReal(Path.GetFileNameWithoutExtension(archivo), destino)))
