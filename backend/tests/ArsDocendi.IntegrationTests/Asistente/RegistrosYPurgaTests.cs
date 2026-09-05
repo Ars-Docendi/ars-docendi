@@ -86,6 +86,46 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task La_intencion_sombra_es_texto_anulable_y_sin_valor_por_omision()
+    {
+        // Nulo es el caso NORMAL y no un dato faltante: un catálogo de cinco
+        // intenciones no captura la mayoría de las preguntas y no pretende hacerlo.
+        // Por eso admite nulo, y por eso va sin DEFAULT — un valor por omisión
+        // convertiría «no capturó» en una decisión que nadie tomó.
+        var forma = await LeerAsync<string>(
+            """
+            SELECT data_type || ' · ' || is_nullable
+                   || ' · ' || coalesce(column_default, 'sin default')
+              FROM information_schema.columns
+             WHERE table_schema = 'asistente' AND table_name = 'registro_operativo'
+               AND column_name = 'intencion_sombra'
+            """);
+
+        Assert.Equal(["text · YES · sin default"], forma);
+    }
+
+    [Fact]
+    public async Task La_intencion_sombra_lleva_un_comentario_que_la_distingue_del_carril()
+    {
+        // Quien arme un tablero se encuentra las dos columnas juntas y no responden
+        // la misma pregunta: `carril` es la ruta REAL del turno y `intencion_sombra`
+        // la que se habría tomado. El comentario es lo único de esa advertencia que
+        // viaja con el esquema.
+        var comentario = await LeerAsync<string>(
+            """
+            SELECT pg_catalog.col_description(c.oid, a.attnum)
+              FROM pg_catalog.pg_class c
+              JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+              JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+             WHERE n.nspname = 'asistente' AND c.relname = 'registro_operativo'
+               AND a.attname = 'intencion_sombra'
+               AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL
+            """);
+
+        Assert.Contains("carril", Assert.Single(comentario), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task El_analitico_no_guarda_actor_ni_hora()
     {
         await RegistrarAsync(Turno());

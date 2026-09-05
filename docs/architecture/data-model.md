@@ -215,12 +215,18 @@ Ninguno de los dos es una lista de roles en código, por el mismo motivo: `ident
 
 Es el único schema que el asistente escribe, y lo escribe con la **conexión dueña**. Sus propios roles de solo lectura lo tienen revocado entero.
 
-| Tabla                          | Guarda                                                                                                            | No guarda                                              |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens, latencia, reintento, truncado, `proveedor` | El texto de la pregunta, y la credencial del proveedor |
-| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                                | El actor y la hora exacta                              |
+| Tabla                          | Guarda                                                                                                                                                                          | No guarda                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens de entrada, de salida y `tokens_de_cache`, latencia, reintento, truncado, `proveedor`, `intencion_sombra` | El texto de la pregunta, y la credencial del proveedor |
+| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                                                                                              | El actor y la hora exacta                              |
 
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni detrás de un flag.
+
+**`tokens_de_cache` es un subconjunto de `tokens_de_entrada`**, no un sumando aparte: el total de entrada es idéntico con caché y sin ella, y sin esta columna no hay forma de saber si la caché del prefijo está pegando.
+
+**`intencion_sombra` no es otro valor de `carril`, y la distinción es la que sostiene la métrica.** `carril` dice por dónde se resolvió el turno **de verdad**; `intencion_sombra` guarda la intención del catálogo que el enrutador de dominio —hoy en [modo sombra](domains/asistente.md#el-enrutador-y-el-modo-sombra)— eligió, es decir por dónde **se habría** resuelto. Son dos hechos distintos y ninguno implica al otro: un turno capturado se resuelve igual por SQL, y también puede terminar en aclaración o en fallo sin dejar de haber sido capturado. Colapsarlas en `carril` cambiaría el significado de la serie «cuántos turnos resolvió SQL» sin que ninguna consulta se enterara.
+
+Es anulable y va **sin `DEFAULT`**: nulo es el caso normal —un catálogo de cinco intenciones no captura la mayoría de las preguntas y no pretende hacerlo— y un valor por omisión convertiría «no capturó» en una decisión que nadie tomó. **No existe en el registro analítico, a propósito**: las capturas son la minoría, así que cada intención concreta es un valor raro, y un valor raro en el analítico es el selector que le daría utilidad al canal residual de TD-012. Además no compraría nada, porque cada registro escribe exactamente una fila por turno y la cobertura sale del operativo solo.
 
 Tres decisiones de esquema que sostienen la desvinculación, y las tres están escritas en [`002_asistente_registros.sql`](../../database/asistente/002_asistente_registros.sql):
 

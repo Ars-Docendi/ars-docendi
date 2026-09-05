@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
     hubo_reintento     boolean     NOT NULL,
     truncado           boolean     NOT NULL,
     proveedor          text        NOT NULL,
-    tokens_de_cache    integer     NOT NULL
+    tokens_de_cache    integer     NOT NULL,
+    intencion_sombra   text        NULL
 );
 
 -- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
@@ -72,11 +73,35 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
 -- migra, se vuelve a aprovisionar; los ambientes de este sistema son efímeros y esa
 -- es la vía prevista.
 
+-- `intencion_sombra` guarda el nombre de la intención del catálogo que el enrutador
+-- de dominio eligió, mientras ese enrutador corre en modo sombra: decide y el turno
+-- sigue por SQL igual. Es lo que permite responder «qué proporción del tráfico
+-- captura un catálogo de cinco intenciones» sin minar logs que rotan.
+--
+-- NO ES OTRO VALOR DE `carril`, Y LA DISTINCIÓN SOSTIENE TODO LO DEMÁS. `carril`
+-- dice por dónde se resolvió el turno DE VERDAD; esta columna, por dónde SE HABRÍA
+-- resuelto. Un turno capturado se resuelve igual por SQL, y también puede terminar
+-- en aclaración o en fallo sin dejar de haber sido capturado. Meterla en `carril`
+-- cambiaría el significado de la serie «cuántos turnos resolvió SQL» sin que ninguna
+-- consulta se enterara, que es la peor forma de romper una métrica: sigue
+-- devolviendo un número.
+--
+-- ANULABLE Y SIN DEFAULT, y por el mismo motivo que las dos de arriba más uno
+-- propio: nulo es el caso NORMAL y no un dato faltante. Un catálogo de cinco
+-- intenciones no captura la mayoría de las preguntas y no pretende hacerlo, así que
+-- un valor por omisión convertiría «no capturó» en una decisión que nadie tomó.
+--
+-- Y NO VA AL REGISTRO ANALÍTICO, a propósito. El motivo está escrito abajo, al
+-- lado de esa tabla, que es donde alguien la agregaría por consistencia.
+
 -- Sin clave foránea a identity.users a propósito: el registro tiene que poder
 -- purgarse y conservarse con independencia del padrón, y una baja de usuario no
 -- puede quedar bloqueada por una fila de telemetría.
 COMMENT ON TABLE asistente.registro_operativo IS
     'Uso y costo del asistente por actor. No guarda el texto de la pregunta, la consulta generada ni las filas devueltas. Retención de 90 días con purga automática.';
+
+COMMENT ON COLUMN asistente.registro_operativo.intencion_sombra IS
+    'Intención del catálogo que el enrutador de dominio eligió en modo sombra, o nulo si ninguna capturó la pregunta. NO es lo mismo que `carril`: `carril` es la ruta REAL por la que se resolvió el turno y esta columna la que se habría tomado. Nulo es el caso normal.';
 
 CREATE INDEX IF NOT EXISTS ix_registro_operativo_ocurrido_en
     ON asistente.registro_operativo (ocurrido_en);
@@ -91,6 +116,24 @@ CREATE TABLE IF NOT EXISTS asistente.registro_analitico (
     estado    text NOT NULL,
     dia       date NOT NULL
 );
+
+-- EL ANALÍTICO NO LLEVA `intencion_sombra`, Y ES UNA DECISIÓN.
+-- Es la columna que el operativo sí tiene, así que alguien va a querer completarla
+-- acá por simetría. No:
+--
+--   La reidentificación vive en las colas, no en el promedio. Los ~2,6 bits de una
+--   categórica de seis valores son un promedio, y por construcción los valores no
+--   son equiprobables: las capturas van a ser la minoría, así que cada intención
+--   concreta es un valor RARO. Una fila analítica con una intención rara en un `dia`
+--   dado, cruzada con las operativas de ese día, deja el conjunto anónimo en quien
+--   haya preguntado por eso. Con treinta usuarios eso no es un conjunto, es un
+--   nombre — y le da al canal residual de arriba el selector que hoy le falta.
+--
+--   Y no compra nada. La cobertura es la proporción de filas del operativo con la
+--   columna no nula, y cada registro escribe exactamente una fila por turno: el
+--   numerador y el denominador ya están en el operativo, solos.
+--
+-- Hay un test que falla si a esta tabla le aparece la columna.
 
 COMMENT ON TABLE asistente.registro_analitico IS
     'Qué se le pregunta al asistente. No guarda actor ni hora exacta: con la escala de usuarios de este sistema, cruzarlo con el registro operativo permitiría reidentificar al autor. Retención de 90 días con purga automática.';

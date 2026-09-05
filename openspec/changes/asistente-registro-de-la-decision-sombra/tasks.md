@@ -1,10 +1,10 @@
 ## 1. La columna en el registro operativo
 
-- [ ] 1.1 Test rojo primero: `intencion_sombra` existe en `asistente.registro_operativo`, es `text`, admite nulo y no declara `DEFAULT`
-- [ ] 1.2 Agregar la columna al `CREATE TABLE` de `database/asistente/002_asistente_registros.sql` — no un `003` con `ALTER`, que el guard de arquitectura prohíbe (D4)
-- [ ] 1.3 `COMMENT ON COLUMN` que la distinga de `carril`: una es la ruta real y la otra la que se habría tomado
-- [ ] 1.4 Escribir en el archivo, junto a la columna, por qué va sin `DEFAULT`: nulo es «no capturó», y un default inventaría una decisión
-- [ ] 1.5 Verificar que el guard `El_DDL_del_asistente_no_borra_ni_altera_nada_ni_siquiera_lo_propio` sigue en verde
+- [x] 1.1 Test rojo primero: `intencion_sombra` existe en `asistente.registro_operativo`, es `text`, admite nulo y no declara `DEFAULT`
+- [x] 1.2 Agregar la columna al `CREATE TABLE` de `database/asistente/002_asistente_registros.sql` — no un `003` con `ALTER`, que el guard de arquitectura prohíbe (D4)
+- [x] 1.3 `COMMENT ON COLUMN` que la distinga de `carril`: una es la ruta real y la otra la que se habría tomado
+- [x] 1.4 Escribir en el archivo, junto a la columna, por qué va sin `DEFAULT`: nulo es «no capturó», y un default inventaría una decisión
+- [x] 1.5 Verificar que el guard `El_DDL_del_asistente_no_borra_ni_altera_nada_ni_siquiera_lo_propio` sigue en verde
 
 ## 2. La decisión viaja del paso 5 al registro
 
@@ -48,8 +48,8 @@
 
 ## 6. Documentación
 
-- [ ] 6.1 `docs/architecture/data-model.md` — `intencion_sombra` en la fila de `asistente.registro_operativo`, en el MISMO commit que el DDL (invariante #6)
-- [ ] 6.2 En el mismo renglón, completar `tokens_de_cache`, que la tabla del doc también omite
+- [x] 6.1 `docs/architecture/data-model.md` — `intencion_sombra` en la fila de `asistente.registro_operativo`, en el MISMO commit que el DDL (invariante #6)
+- [x] 6.2 En el mismo renglón, completar `tokens_de_cache`, que la tabla del doc también omite
 - [ ] 6.3 README de `Modules.Asistente` — la consulta ejecutable que produce la cobertura sobre tráfico real desde el registro operativo
 - [ ] 6.4 README — la advertencia junto a la consulta: `carril` es la ruta real, `intencion_sombra` la que se habría tomado, y no responden la misma pregunta
 - [ ] 6.5 README — dónde vive la tabla dorada, qué mide y cómo se la regenera a mano
