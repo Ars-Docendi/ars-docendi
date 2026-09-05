@@ -23,6 +23,13 @@ interface IndicadorDeProcesoProps {
  * exactamente el fake UI que el invariante #7 prohíbe. Se muestra un solo estado
  * honesto.
  *
+ * Lo que sí ocurre, y no contradice lo anterior: los turnos que no llaman al modelo
+ * se retienen en el cliente para que duren como uno que sí —ver
+ * `utils/esperaPareja.ts`—, así que este indicador también aparece en ellos. La
+ * diferencia es de qué se afirma: acá no se dice un paso que no está pasando, sólo
+ * se demora cuándo aparece una respuesta que ya está. El umbral de 400 ms sigue
+ * siendo el que fija el piso de esa espera: más corta, y esto parpadearía.
+ *
  * Vive FUERA de la región viva de los mensajes: es un estado, no un mensaje de la
  * conversación, y por eso lleva `role="status"` propio.
  */

@@ -124,6 +124,30 @@ personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores 
 - **Un solo estado de proceso con umbral, sin etapas.** Etapas reales exigen SSE (definición
   §4.6); etapas por temporizador son fake UI (invariante #7). Se mantiene «Consultando…» a los
   400 ms; se le agregan puntos que laten por CSS, apagados con `prefers-reduced-motion`.
+
+- **Espera pareja para los turnos que no llaman al modelo.** Los carriles deterministas
+  contestan en milisegundos y el carril SQL en segundos: un orden de magnitud. Una respuesta
+  instantánea después de otra que tardó cinco segundos no se lee como «fue rápido», se lee como
+  «no hizo nada» o «no me entendió». El cliente retiene esas respuestas hasta que el turno se
+  parezca a uno con modelo.
+
+  Tres cosas la mantienen honesta y la separan del progreso simulado que la lista de
+  anti-patterns prohíbe. **Uno**: no inventa etapas — el indicador sigue diciendo una sola cosa
+  cierta, y lo único que cambia es cuándo aparece la respuesta, no qué dice. **Dos**: el número
+  sale de los turnos reales de la sesión —el cliente promedia los últimos cinco que sí llamaron
+  al modelo— y no de una constante, así que se adapta al proveedor y a la red del día. **Tres**:
+  el retardo vive en el cliente, nunca en el servidor, porque `latencia_ms` del registro
+  operativo mide trabajo real y un retardo del lado del backend la habría corrompido.
+
+  Acotada entre 1 s y 2,5 s. El piso no es arbitrario: con el indicador apareciendo a los
+  400 ms, una espera más corta lo haría parpadear, que es exactamente lo que ese umbral existe
+  para evitar. El techo impide que un día lento del proveedor convierta un saludo en una espera
+  de ocho segundos.
+
+  **Los errores y el servicio degradado quedan afuera: llegan al instante.** La espera pareja
+  empareja respuestas; hacer esperar a alguien para darle una mala noticia es coherencia que no
+  vale lo que cuesta.
+
 - **`razonamiento` va dentro del mensaje, colapsado** (cierra ARS-79 variante 1, RF-11). Un
   `<details>` nativo con resumen «Cómo lo interpreté»: parte de la respuesta, en la región viva, y
   no se anuncia hasta abrirlo. `preguntaInterpretada` queda **visible** (RF-10), no dentro.
@@ -179,8 +203,12 @@ personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores 
 
 ## Anti-patterns a evitar (específicos de esta feature)
 
-- Etapas de progreso («Interpretando… consultando…») o barras de progreso simuladas.
+- Etapas de progreso («Interpretando… consultando…») o barras de progreso simuladas. La espera
+  pareja no es esto: no afirma nada sobre qué está pasando, sólo demora cuándo aparece una
+  respuesta que ya está.
 - Streaming aparente (texto que «se escribe solo» con un temporizador).
+- Retener un error, un servicio degradado, o cualquier respuesta del lado del **servidor**: la
+  espera pareja vive en el cliente justamente para que `latencia_ms` siga siendo cierto.
 - Un «Dejar de esperar» que diga «cancelar» o insinúe que no se cobró la consulta.
 - «Reintentar» sobre un turno en vuelo o que se dejó de esperar: el backend ejecutaría el turno dos
   veces con la misma clave.

@@ -170,6 +170,16 @@ describe("El panel del asistente", () => {
 
 // ------------------------------------------------------------ los cuatro estados
 
+/**
+ * Tope de espera para un turno que NO llama al modelo.
+ *
+ * Esos turnos se retienen a propósito para que se sientan como uno que sí llamó
+ * —ver `utils/esperaPareja.ts`—, y el sorteo llega hasta 2,5 s. El default de
+ * `findBy*` es 1 s, así que sin este tope la espera deliberada se leería como una
+ * falla intermitente.
+ */
+const TOPE_DE_ESPERA_PAREJA = { timeout: 4000 };
+
 describe("Los cuatro estados", () => {
   it("el degradado se muestra como aviso y no como error", async () => {
     // Un banner rojo le diría al usuario que hizo algo mal. Su pregunta no tiene
@@ -189,6 +199,37 @@ describe("Los cuatro estados", () => {
     expect(await screen.findByText("El asistente no está disponible ahora")).toBeInTheDocument();
   });
 
+  it("una respuesta sin modelo se retiene para que el turno no se sienta vacío", async () => {
+    // Un carril determinista contesta en milisegundos. Sin la espera pareja, la
+    // respuesta aparece antes de que el usuario suelte la tecla y se lee como que
+    // el asistente no hizo nada. Acá se afirma que NO está todavía a los 400 ms
+    // —el umbral del indicador— y que llega después.
+    const user = userEvent.setup();
+    vi.spyOn(api, "consultar").mockResolvedValue(
+      respuesta({ respuesta: "Hola.", metricas: { llamadasAlModelo: 0 } }),
+    );
+    montar(<PanelDePrueba />);
+
+    await user.type(await screen.findByLabelText("Tu pregunta"), "hola{Enter}");
+    await new Promise((r) => setTimeout(r, 400));
+
+    expect(screen.queryByText("Hola.")).not.toBeInTheDocument();
+    expect(await screen.findByText("Hola.", undefined, TOPE_DE_ESPERA_PAREJA)).toBeInTheDocument();
+  });
+
+  it("un error no se retiene: la mala noticia llega enseguida", async () => {
+    // La espera pareja empareja RESPUESTAS. Hacer esperar a alguien para decirle
+    // que algo falló es coherencia que no vale lo que cuesta.
+    const user = userEvent.setup();
+    vi.spyOn(api, "consultar").mockRejectedValue(new Error("se cayó"));
+    montar(<PanelDePrueba />);
+
+    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
+    await new Promise((r) => setTimeout(r, 400));
+
+    expect(screen.getByText("No se pudo consultar")).toBeInTheDocument();
+  });
+
   it("una aclaración ofrece sus opciones para continuar", async () => {
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(
@@ -206,7 +247,9 @@ describe("Los cuatro estados", () => {
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
-    expect(await screen.findByText("Elegí una para continuar:")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Elegí una para continuar:", undefined, TOPE_DE_ESPERA_PAREJA),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Bases de Datos (Informática)" }));
 
@@ -373,7 +416,7 @@ describe("Accesibilidad de la conversación", () => {
     const entrada = await screen.findByLabelText("Tu pregunta");
     await user.type(entrada, "algo{Enter}");
 
-    await user.click(await screen.findByRole("button", { name: "Una" }));
+    await user.click(await screen.findByRole("button", { name: "Una" }, TOPE_DE_ESPERA_PAREJA));
     await screen.findByText("Hay 4 docentes designados.");
 
     expect(entrada).toHaveFocus();

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { consultar } from "../api/asistenteApi";
 import { esCancelacion, esHiloPerdido, mensajeDeError } from "../errores";
 import type { TurnoDeLaConversacion } from "../types";
+import { crearMedidorDeEspera, esperarHasta } from "../utils/esperaPareja";
 
 export interface Asistente {
   turnos: TurnoDeLaConversacion[];
@@ -43,6 +44,9 @@ export function useAsistente(): Asistente {
   // render.
   const enCurso = useRef<TurnoEnCurso | null>(null);
   const montado = useRef(true);
+  // Aprende de los turnos que sí llamaron al modelo para saber cuánto retener los
+  // que no. Vive en un ref porque es memoria de la sesión, no estado que se pinte.
+  const medidor = useRef(crearMedidorDeEspera());
 
   // Quien se desmonta con un turno en vuelo se lleva el request consigo. Sin esto
   // el pedido sobrevive al componente y la respuesta cae sobre un estado que ya no
@@ -63,6 +67,8 @@ export function useAsistente(): Asistente {
     enCurso.current = { id, aborto };
     setEnVuelo(true);
 
+    const arranco = performance.now();
+
     try {
       const respuesta = await consultar({ mensaje: texto, hilo: hilo.current }, id, {
         signal: aborto.signal,
@@ -72,6 +78,26 @@ export function useAsistente(): Asistente {
       // conversación que el usuario dio por cerrada.
       if (aborto.signal.aborted) return;
       hilo.current = respuesta.hilo;
+
+      const tardo = performance.now() - arranco;
+
+      if (respuesta.metricas.llamadasAlModelo > 0) {
+        // De acá sale la media con la que se retiene a los otros.
+        medidor.current.anotar(tardo);
+      } else if (respuesta.estado !== "servicio_degradado") {
+        // ESPERA PAREJA. Un carril determinista contesta en milisegundos, y esa
+        // respuesta instantánea se lee como «no hizo nada». Se retiene hasta
+        // parecerse a un turno con modelo, con lo que ya tardó descontado.
+        //
+        // El degradado queda AFUERA a propósito: es el sistema avisando que no
+        // está disponible, y hacer esperar a alguien para darle esa noticia es la
+        // clase de coherencia que no vale lo que cuesta.
+        await esperarHasta(medidor.current.objetivoMs() - tardo, aborto.signal);
+        // La espera es abortable: si se dejó de esperar mientras corría, esta
+        // respuesta ya no es de nadie.
+        if (aborto.signal.aborted) return;
+      }
+
       if (!montado.current) return;
       setTurnos((previos) => previos.map((t) => (t.id === id ? { ...t, respuesta } : t)));
     } catch (error) {
