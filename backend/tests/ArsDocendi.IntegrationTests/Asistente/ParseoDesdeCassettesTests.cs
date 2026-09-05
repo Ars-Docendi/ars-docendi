@@ -7,14 +7,23 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// El parseo del pipeline, corrido sobre cuerpos que produjo un modelo.
+/// El parseo del pipeline, corrido sobre cuerpos de cassette en vez de sobre
+/// respuestas escritas dentro del propio test.
 /// </summary>
 /// <remarks>
 /// Es la mitad que ningún test cubría. <c>ProveedorGuionado</c> devuelve el JSON
 /// que escribimos nosotros —y por eso es la capa correcta para afirmar sobre lo
 /// que se le <b>manda</b> al modelo—, así que el parseo de
 /// <c>GeneradorDeSql.Interpretar</c>, el del redactor y el del reescritor nunca
-/// corrieron contra la salida real de uno.
+/// corrieron contra un cuerpo que el pipeline no hubiera fabricado.
+///
+/// <b>Los cassettes versionados todavía NO son salida de un modelo real</b>: se
+/// grabaron contra el transporte que impersona la API, que es lo único que se
+/// puede hacer sin clave ni presupuesto. Lo que estos casos prueban hoy es el
+/// mecanismo —que el cuerpo se guarda y se reproduce byte por byte, y que el
+/// parseo corre sobre lo que salió del sobre y no sobre un literal—. El propósito
+/// declarado, ejercitar el parseo contra salida real, se cumple recién cuando la
+/// corrida financiada regrabe este directorio; hasta entonces vive en TD-017.
 ///
 /// <b>Los casos se descubren, no se escriben.</b> Un caso por cassette encontrado:
 /// el día que la corrida financiada deje cuarenta, son cuarenta casos sin tocar un
