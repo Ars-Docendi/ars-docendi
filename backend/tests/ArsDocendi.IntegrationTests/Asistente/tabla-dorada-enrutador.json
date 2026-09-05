@@ -7,7 +7,9 @@
     "El enrutador es determinista y cuesta CERO llamadas al modelo, así que este mapeo",
     "se puede fijar hoy, sin tráfico real y sin gastar un centavo.",
     "",
-    "QUÉ MIDE: cobertura —cuántos ítems del corpus captura el catálogo, hoy 0 de 39— y,",
+    "QUÉ MIDE: cobertura —cuántos ítems del corpus captura el catálogo, hoy 0 de 39, y",
+    "el bloque `cobertura` de abajo lo dice en un número que un test verifica contra las",
+    "entradas y contra los datasets, para que el pedido de ARS-46 lo pueda citar— y,",
     "junto con el `origen` de robustez.json, consistencia de fraseo: una paráfrasis y su",
     "pregunta de origen tienen que decidir lo mismo.",
     "",
@@ -26,6 +28,7 @@
     "que fundamenta el pedido de los edges de ARS-46 arranca en «0 de 39 sobre el corpus",
     "de evaluación», y ese cero es un dato, no un vacío."
   ],
+  "cobertura": { "capturados": 0, "total": 39 },
   "entradas": [
     { "id": "cap-001", "intencion": null },
     { "id": "cap-002", "intencion": null },

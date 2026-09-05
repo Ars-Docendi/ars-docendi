@@ -40,11 +40,11 @@
 
 ## 5. Consistencia de fraseo y el número
 
-- [ ] 5.1 Test rojo primero: cada ítem de `robustez.json` y su `origen` de `capacidad.json` capturan la misma intención, o ninguno captura
-- [ ] 5.2 El mensaje de fallo nombra los dos ítems y las dos decisiones divergentes
-- [ ] 5.3 Test: un `origen` que no corresponde a ningún ítem de capacidad hace fallar nombrando el ítem y el origen
-- [ ] 5.4 El test deja el número a la vista: cuántos ítems del corpus captura el catálogo, sobre el total
-- [ ] 5.5 Escribir en el test que NO afirma que la intención capturada sea la correcta para la pregunta (D7), porque los datasets llevan `sql_referencia` y no una intención esperada
+- [x] 5.1 Test rojo primero: cada ítem de `robustez.json` y su `origen` de `capacidad.json` capturan la misma intención, o ninguno captura
+- [x] 5.2 El mensaje de fallo nombra los dos ítems y las dos decisiones divergentes
+- [x] 5.3 Test: un `origen` que no corresponde a ningún ítem de capacidad hace fallar nombrando el ítem y el origen
+- [x] 5.4 El test deja el número a la vista: cuántos ítems del corpus captura el catálogo, sobre el total
+- [x] 5.5 Escribir en el test que NO afirma que la intención capturada sea la correcta para la pregunta (D7), porque los datasets llevan `sql_referencia` y no una intención esperada
 
 ## 6. Documentación
 

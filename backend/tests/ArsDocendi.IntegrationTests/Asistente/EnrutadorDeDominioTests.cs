@@ -164,6 +164,92 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
             + "cobertura signifique algo.");
     }
 
+    // --------------------------------- consistencia de fraseo y el número
+
+    [Fact]
+    public async Task Cada_parafrasis_decide_lo_mismo_que_su_pregunta_de_origen()
+    {
+        // LA MITAD «CUÁNTAS VECES SE EQUIVOCA», Y SALE GRATIS. Cada ítem de
+        // robustez.json declara su `origen` en capacidad.json: es la MISMA pregunta
+        // dicha de otra manera —sin tildes, con un tipeo, con un sinónimo—, así que
+        // el enrutador tiene que decidir lo mismo para las dos. Capturar el fraseo
+        // canónico y no la paráfrasis, o al revés, es un error del enrutador medible
+        // hoy, sin tráfico real y sin una llamada al modelo.
+        //
+        // NO AFIRMA QUE LA INTENCIÓN CAPTURADA SEA LA CORRECTA para la pregunta. Los
+        // datasets llevan `sql_referencia`, no una intención esperada, y escribirla
+        // sería redactar la clave de respuestas de lo que se está midiendo. Lo único
+        // que se afirma acá es que las dos formas de preguntar lo mismo se deciden
+        // igual; la corrección de la elección la juzga un humano leyendo un diff.
+        await SembrarAsync();
+
+        var items = await ItemsDeLosDosDatasetsAsync();
+        var observado = await ObservadoAsync();
+        var porId = items.ToDictionary(item => item.Id, StringComparer.Ordinal);
+
+        var divergencias = items
+            .Where(item => item.Origen is not null && porId.ContainsKey(item.Origen))
+            .Where(item => observado[item.Id] != observado[item.Origen!])
+            .Select(item =>
+                $"{item.Id} «{item.Pregunta}» → {Decidido(observado[item.Id])}, "
+                + $"pero su origen {item.Origen} «{porId[item.Origen!].Pregunta}» → "
+                + $"{Decidido(observado[item.Origen!])}")
+            .ToList();
+
+        // Los dos ítems y las dos decisiones: sin la pregunta de cada lado, quien vea
+        // el rojo no puede saber cuál de los dos fraseos es el que el catálogo no
+        // tolera.
+        Assert.True(divergencias.Count == 0,
+            "El enrutador decide distinto para dos formas de decir la misma pregunta. "
+            + "Es un error del enrutador, no de los datasets:\n"
+            + string.Join("\n", divergencias));
+    }
+
+    [Fact]
+    public async Task Todo_origen_de_robustez_apunta_a_un_item_de_capacidad()
+    {
+        // Sin esto, la consistencia de fraseo se degrada en silencio: un `origen` mal
+        // escrito no rompe nada, simplemente deja al ítem sin par y lo saca de la
+        // medición. El test de arriba lo saltearía sin decir una palabra.
+        var items = await ItemsDeLosDosDatasetsAsync();
+        var conocidos = items.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+
+        var huerfanos = items
+            .Where(item => item.Origen is not null && !conocidos.Contains(item.Origen))
+            .Select(item => $"{item.Id} declara origen «{item.Origen}», que no existe")
+            .ToList();
+
+        Assert.True(huerfanos.Count == 0,
+            "Hay paráfrasis cuyo origen no corresponde a ningún ítem, así que quedan "
+            + "fuera de la medición de consistencia de fraseo:\n"
+            + string.Join("\n", huerfanos));
+    }
+
+    [Fact]
+    public async Task La_cobertura_del_catalogo_esta_escrita_en_la_tabla_y_verificada()
+    {
+        // EL NÚMERO, A LA VISTA Y NO DERIVADO A MANO. El pedido de los edges de
+        // ARS-46 lo tiene que citar, y una métrica que hay que recalcular cada vez se
+        // reconstruye distinta cada vez. Está escrito en el archivo —que es el
+        // artefacto que el pedido cita— y este test lo compara contra las entradas y
+        // contra los datasets, por el mismo criterio con que el repo trata a
+        // `manifiesto-privilegios.json`: un valor documentado es un dato verificado,
+        // no prosa.
+        var (capturados, total) = await CoberturaDeclaradaAsync();
+        var dorada = await TablaDoradaAsync();
+        var items = await ItemsDeLosDosDatasetsAsync();
+
+        var capturadosEnLaTabla = dorada.Count(entrada => entrada.Intencion is not null);
+
+        Assert.True(total == items.Count,
+            $"La tabla dorada declara un corpus de {total} ítems y los datasets tienen "
+            + $"{items.Count}.");
+
+        Assert.True(capturados == capturadosEnLaTabla,
+            $"La tabla dorada declara {capturados} ítems capturados y sus entradas "
+            + $"tienen {capturadosEnLaTabla}.");
+    }
+
     // ------------------------------------------------------------ apoyo
 
     /// <summary>Ruta del archivo de tabla dorada, relativa a la raíz del repo.</summary>
@@ -228,6 +314,24 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
                     entrada.GetProperty("id").GetString()!,
                     entrada.GetProperty("intencion").GetString())),
         ];
+    }
+
+    /// <summary>Cómo se nombra una decisión en un mensaje de fallo.</summary>
+    private static string Decidido(string? intencion) =>
+        intencion is null ? "nadie lo captura" : $"«{intencion}»";
+
+    /// <summary>La cobertura que el archivo declara: capturados sobre el total.</summary>
+    private static async Task<(int Capturados, int Total)> CoberturaDeclaradaAsync()
+    {
+        var documento = JsonDocument.Parse(
+            await File.ReadAllTextAsync(
+                Path.Combine([RaizRepositorio.Ruta(), .. RutaDeLaTablaDorada.Split('/')]),
+                TestContext.Current.CancellationToken));
+
+        var cobertura = documento.RootElement.GetProperty("cobertura");
+
+        return (cobertura.GetProperty("capturados").GetInt32(),
+                cobertura.GetProperty("total").GetInt32());
     }
 
     private static async Task<List<ItemDelCorpus>> ItemsDeLosDosDatasetsAsync()
