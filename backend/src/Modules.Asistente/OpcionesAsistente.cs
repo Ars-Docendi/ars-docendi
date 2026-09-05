@@ -357,4 +357,54 @@ public sealed class OpcionesAsistente
     /// tokens pueden agotarse antes de escribir la primera palabra.
     /// </remarks>
     public int MaximoDeTokensDeReescritura { get; set; } = 1000;
+
+    /// <summary>
+    /// Directorio donde viven los cassettes del proveedor. Vacío apaga el mecanismo.
+    /// </summary>
+    /// <remarks>
+    /// <b>Vacío es el default y con eso el handler ni siquiera se registra</b>: el
+    /// pipeline del cliente HTTP del proveedor queda exactamente como estaba, así
+    /// que producción no paga nada y no hay nada que se pueda misconfigurar. La
+    /// única forma de encender el mecanismo es escribir una ruta.
+    ///
+    /// Con una ruta puesta, cada llamada al proveedor se busca en disco por la
+    /// huella de la solicitud. Si el cassette está, se sirve; si no está y
+    /// <see cref="RegrabarCassettes"/> tampoco, la llamada <b>falla</b> sin salir a
+    /// la red (RNF-15, RNF-16).
+    ///
+    /// Un cassette prueba el <b>parseo</b>, no la calidad de la traducción: congela
+    /// una respuesta, no la competencia del modelo. Eso lo mide el evaluador.
+    /// </remarks>
+    public string DirectorioDeCassettes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.
+    /// </summary>
+    /// <remarks>
+    /// <b>Es la única perilla del módulo que puede gastar plata</b>, y está vacía
+    /// por default. Es una cadena y no un booleano porque lo que importa es que
+    /// <b>esté puesta</b>, igual que la variable de re-grabación de cualquier suite
+    /// de fixtures: se exporta para una corrida y se saca.
+    ///
+    /// Con el cassette ya presente NO se re-graba aunque esté puesta. Re-grabar es
+    /// una operación deliberada sobre las claves que faltan, no un modo en que cada
+    /// corrida vuelva a pagar por respuestas que ya están en disco.
+    /// </remarks>
+    public string RegrabarCassettes { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Huella del fixture sintético contra el que se graban los cassettes.
+/// </summary>
+/// <remarks>
+/// La registra quien sabe cuál es —el evaluador, que ya la recalcula en cada
+/// corrida para sellar sus reportes—, y no el módulo: el módulo no referencia al
+/// núcleo de evaluación ni debe hacerlo.
+///
+/// <b>Si no está registrada, no se graba ni se sirve ningún cassette.</b> Es lo
+/// que hace mecánica la garantía de que ningún cassette lleva filas reales: sin
+/// con qué comparar, un cassette es indistinguible de uno grabado contra una base
+/// de desarrollo con datos importados.
+/// </remarks>
+/// <param name="Valor">La huella, en hexadecimal.</param>
+public sealed record HuellaDelFixture(string Valor);

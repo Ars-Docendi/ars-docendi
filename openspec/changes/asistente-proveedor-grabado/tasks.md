@@ -42,11 +42,11 @@
 
 ## 5. El orden respecto del reintento
 
-- [ ] 5.1 Test rojo primero: un transporte que falla y después responde deja UN solo cassette, con el cuerpo exitoso
-- [ ] 5.2 Test rojo primero: reproducir un cassette de una llamada que necesitó reintentos no espera ningún backoff
-- [ ] 5.3 Registrar el grabador ANTES de `ReintentoDeTransporte` en `AddHttpClient(ClienteDelProveedor)`
-- [ ] 5.4 Test: el reintento sigue presente en el pipeline y conserva su comportamiento (`ReintentoYTechoTests` en verde)
-- [ ] 5.5 Verificar en rojo: registrarlo después del reintento hace fallar 5.1
+- [x] 5.1 Test rojo primero: un transporte que falla y después responde deja UN solo cassette, con el cuerpo exitoso
+- [x] 5.2 Test rojo primero: reproducir un cassette de una llamada que necesitó reintentos no espera ningún backoff
+- [x] 5.3 Registrar el grabador ANTES de `ReintentoDeTransporte` en `AddHttpClient(ClienteDelProveedor)`
+- [x] 5.4 Test: el reintento sigue presente en el pipeline y conserva su comportamiento (`ReintentoYTechoTests` en verde)
+- [x] 5.5 Verificar en rojo: registrarlo después del reintento hace fallar 5.1
 
 ## 6. Configuración y apagado por default
 

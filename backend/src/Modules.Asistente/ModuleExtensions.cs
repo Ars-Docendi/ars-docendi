@@ -243,16 +243,57 @@ public static class ModuleExtensions
         // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,
         // pero se registra acá para que esa implementación lo pida por nombre y no
         // tenga que saber nada de reintentos.
-        services.AddHttpClient(ClienteDelProveedor)
-            .AddHttpMessageHandler(sp =>
+        var clienteDelProveedor = services.AddHttpClient(ClienteDelProveedor);
+
+        // EL GRABADOR VA PRIMERO, y por lo tanto POR FUERA del reintento.
+        //
+        // En AddHttpMessageHandler el orden de registración es de afuera hacia
+        // adentro, así que el pipeline queda:
+        //
+        //     adaptador → grabador → reintento → transporte
+        //
+        // Con ese orden el grabador ve UNA solicitud por llamada lógica y la
+        // respuesta que el reintento resolvió. Del lado de adentro vería cada
+        // intento: los cuatro campos de la clave son iguales en los tres, así que
+        // distinguirlos exigiría meter el número de intento en la clave —estado del
+        // transporte y no de la pregunta—, y reproducir un fallo reproduciría el
+        // backoff de verdad.
+        //
+        // Se lee de la configuración y no de IOptions porque la decisión es de
+        // REGISTRACIÓN: con el directorio vacío el handler no se registra y el
+        // pipeline queda idéntico al de antes de que este mecanismo existiera.
+        var directorioDeCassettes = configuration[
+            $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.DirectorioDeCassettes)}"];
+
+        if (!string.IsNullOrWhiteSpace(directorioDeCassettes))
+        {
+            clienteDelProveedor.AddHttpMessageHandler(sp =>
             {
                 var opciones = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
-                return new ReintentoDeTransporte(
-                    opciones.MaximoDeIntentosDeTransporte,
-                    TimeSpan.FromMilliseconds(opciones.EsperaBaseMs),
-                    TimeSpan.FromMilliseconds(opciones.EsperaMaximaMs),
-                    Random.Shared);
+
+                return new GrabadorDeCassettes(
+                    new AlmacenDeCassettes(opciones.DirectorioDeCassettes),
+                    !string.IsNullOrWhiteSpace(opciones.RegrabarCassettes),
+
+                    // Opcional a propósito: la registra quien sabe cuál es —el
+                    // evaluador—, y sin ella no se graba ni se sirve nada. Un
+                    // cassette que no se puede verificar contra el fixture vigente
+                    // es indistinguible de uno grabado contra datos importados.
+                    sp.GetService<HuellaDelFixture>()?.Valor ?? string.Empty,
+                    sp.GetRequiredService<TimeProvider>(),
+                    sp.GetRequiredService<ILogger<GrabadorDeCassettes>>());
             });
+        }
+
+        clienteDelProveedor.AddHttpMessageHandler(sp =>
+        {
+            var opciones = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+            return new ReintentoDeTransporte(
+                opciones.MaximoDeIntentosDeTransporte,
+                TimeSpan.FromMilliseconds(opciones.EsperaBaseMs),
+                TimeSpan.FromMilliseconds(opciones.EsperaMaximaMs),
+                Random.Shared);
+        });
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);
