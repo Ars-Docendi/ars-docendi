@@ -8,15 +8,15 @@
 
 ## 2. La decisión viaja del paso 5 al registro
 
-- [ ] 2.1 Test rojo primero: una pregunta capturada deja su intención en la fila del registro operativo
-- [ ] 2.2 Portador con alcance de turno para la decisión sombra, con la forma de `ContadorDeLlamadasDelTurno` (D6), registrado `AddScoped`
-- [ ] 2.3 `TurnoParaRegistrar` suma el campo de la intención sombra, documentado como «va solo al registro operativo»
-- [ ] 2.4 `CapaConversacional` anota la decisión del paso 5 en el portador y `RegistrarAsync` la lee
-- [ ] 2.5 `RegistroDelTurno` la escribe en el `INSERT` del operativo, y no toca el del analítico
-- [ ] 2.6 Test: una pregunta que ninguna intención cubre deja nulo y no falla
-- [ ] 2.7 Test: un turno que termina antes del paso 5 —un saludo, una meta-pregunta— deja nulo
-- [ ] 2.8 Test: un turno que se cae después de decidir conserva la intención en la fila del fallo
-- [ ] 2.9 Verificar en rojo: no anotar la decisión en el portador hace fallar 2.1 y 2.8
+- [x] 2.1 Test rojo primero: una pregunta capturada deja su intención en la fila del registro operativo
+- [x] 2.2 Portador con alcance de turno para la decisión sombra, con la forma de `ContadorDeLlamadasDelTurno` (D6), registrado `AddScoped`
+- [x] 2.3 `TurnoParaRegistrar` suma el campo de la intención sombra, documentado como «va solo al registro operativo»
+- [x] 2.4 `CapaConversacional` anota la decisión del paso 5 en el portador y `RegistrarAsync` la lee
+- [x] 2.5 `RegistroDelTurno` la escribe en el `INSERT` del operativo, y no toca el del analítico
+- [x] 2.6 Test: una pregunta que ninguna intención cubre deja nulo y no falla
+- [x] 2.7 Test: un turno que termina antes del paso 5 —un saludo, una meta-pregunta— deja nulo
+- [x] 2.8 Test: un turno que se cae después de decidir conserva la intención en la fila del fallo
+- [x] 2.9 Verificar en rojo: no anotar la decisión en el portador hace fallar 2.1 y 2.8
 
 ## 3. Lo que el registro no debe perder ni ganar
 

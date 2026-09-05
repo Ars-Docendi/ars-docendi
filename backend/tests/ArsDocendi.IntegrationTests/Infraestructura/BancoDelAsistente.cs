@@ -113,6 +113,10 @@ internal sealed class BancoDelAsistente
             {
                 var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
 
+                // Por turno, igual que el contador: es la decisión de ESTE turno la
+                // que tiene que llegar a su fila del registro.
+                var decisionSombra = new DecisionSombraDelTurno();
+
                 var conBreaker = new ProveedorConBreaker(
                     visto,
                     breaker,
@@ -149,6 +153,7 @@ internal sealed class BancoDelAsistente
                     disponibilidad,
                     cuota,
                     contador,
+                    decisionSombra,
                     opciones,
                     elReloj,
                     NullLogger<CapaConversacional>.Instance);

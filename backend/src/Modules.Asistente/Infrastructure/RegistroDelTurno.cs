@@ -2,6 +2,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Logging;
 using Modules.Asistente.Application;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace Modules.Asistente.Infrastructure;
 
@@ -39,10 +40,10 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
             INSERT INTO asistente.registro_operativo
                 (actor_id, ocurrido_en, carril, estado, llamadas_al_modelo,
                  tokens_de_entrada, tokens_de_salida, latencia_ms, hubo_reintento,
-                 truncado, proveedor, tokens_de_cache)
+                 truncado, proveedor, tokens_de_cache, intencion_sombra)
             VALUES (@actor, @cuando, @carril, @estado, @llamadas,
                     @entrada, @salida, @latencia, @reintento, @truncado, @proveedor,
-                    @cache)
+                    @cache, @intencion)
             """,
             conexion);
 
@@ -62,6 +63,16 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         // anónimo; acá es lo que permite atribuir el costo a quien lo generó.
         comando.Parameters.AddWithValue("proveedor", turno.Proveedor);
         comando.Parameters.AddWithValue("cache", turno.TokensDeCache);
+
+        // También va solo al operativo, y el motivo es el mismo de arriba más uno
+        // propio: las capturas son la minoría, así que cada intención concreta es un
+        // valor raro, y un valor raro en el analítico es el selector que le daría
+        // utilidad al canal residual de TD-012.
+        //
+        // Nulo se manda como nulo y no como cadena vacía: «no capturó» es el caso
+        // normal, y una cadena vacía sería una intención sin nombre.
+        comando.Parameters.AddWithValue(
+            "intencion", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
 
         await comando.ExecuteNonQueryAsync(ct);
     }

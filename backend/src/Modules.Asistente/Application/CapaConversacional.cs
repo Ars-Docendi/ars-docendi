@@ -31,6 +31,7 @@ public sealed class CapaConversacional(
     IDisponibilidadDelModelo disponibilidad,
     ICuotaDelActor cuota,
     ContadorDeLlamadasDelTurno contador,
+    DecisionSombraDelTurno decisionSombra,
     IOptions<OpcionesAsistente> opciones,
     TimeProvider reloj,
     ILogger<CapaConversacional> log)
@@ -142,7 +143,8 @@ public sealed class CapaConversacional(
                 turno.Truncado,
                 mensaje,
                 turno.Categoria,
-                proveedor.Nombre),
+                proveedor.Nombre,
+                decisionSombra.Intencion),
             ct);
     }
 
@@ -266,6 +268,12 @@ public sealed class CapaConversacional(
 
         if (determinista is not null)
         {
+            // Al portador y no al resultado del turno: el registro se escribe afuera
+            // del pipeline, también en las dos ramas de `catch`, donde no hay ningún
+            // `ResultadoDelTurno` del que leerla. Y un turno que se cae después de
+            // acá conserva la decisión en su fila, igual que conserva las llamadas.
+            decisionSombra.Anotar(determinista.Intencion.Nombre);
+
             log.LogInformation(
                 "El carril determinista habría resuelto este turno con {Intencion}; "
                 + "sigue por SQL porque todavía no hay a dónde enrutar.",

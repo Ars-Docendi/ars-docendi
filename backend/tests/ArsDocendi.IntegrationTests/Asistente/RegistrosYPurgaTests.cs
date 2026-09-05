@@ -429,6 +429,65 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
         Assert.True(entrada > 0, "El turno facturó tokens de entrada y el registro los perdió.");
     }
 
+    // --------------------------------------- la decisión del enrutador sombra
+
+    [Fact]
+    public async Task Un_turno_capturado_deja_su_intencion_en_la_fila_operativa()
+    {
+        // La decisión se toma en el paso 5 y hasta ahora moría en un LogInformation.
+        // Ésta es la fila de la que sale el número que ARS-46 pide.
+        await SembrarAsync();
+
+        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
+            .ResponderAsync(
+                Alguien, null, "¿en qué estado está el pedido de Gómez?",
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["estado-del-pedido-de-una-persona"],
+            await LeerAsync<string>(
+                "SELECT intencion_sombra FROM asistente.registro_operativo"));
+    }
+
+    [Fact]
+    public async Task Una_pregunta_que_ninguna_intencion_cubre_deja_la_columna_en_nulo()
+    {
+        // Nulo es el caso NORMAL, no un dato faltante ni un error: un catálogo de
+        // cinco intenciones no cubre la mayoría de las preguntas y no pretende
+        // hacerlo. El turno se resuelve igual.
+        await SembrarAsync();
+
+        var turno = await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
+            .ResponderAsync(
+                Alguien, null, "¿cuántos docentes están designados?",
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            """
+            SELECT count(*) FROM asistente.registro_operativo
+             WHERE intencion_sombra IS NULL
+            """));
+    }
+
+    [Fact]
+    public async Task Un_turno_que_termina_antes_del_enrutador_deja_la_columna_en_nulo()
+    {
+        // Un saludo corta en el paso 1 y nunca llega al paso 5. No hubo decisión que
+        // registrar, así que la columna queda nula por la misma razón que la anterior
+        // y no por una distinta.
+        await SembrarAsync();
+
+        await Capa().ResponderAsync(
+            Alguien, null, "hola", TestContext.Current.CancellationToken);
+
+        Assert.Equal(1L, await EscalarAsync<long>(
+            """
+            SELECT count(*) FROM asistente.registro_operativo
+             WHERE intencion_sombra IS NULL
+            """));
+    }
+
     [Fact]
     public async Task Un_saludo_queda_registrado_en_el_carril_sin_datos()
     {
@@ -555,7 +614,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             Truncado: false,
             pregunta,
             "cruce_de_tablas",
-            Proveedor: "anthropic/claude-sonnet-5");
+            Proveedor: "anthropic/claude-sonnet-5",
+            IntencionSombra: null);
 
     private async Task RegistrarAsync(TurnoParaRegistrar turno)
     {

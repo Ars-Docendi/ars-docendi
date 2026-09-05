@@ -51,6 +51,22 @@ public enum CarrilDelTurno
 /// nunca su credencial. Va solo al registro operativo, porque es una propiedad del
 /// costo del turno y no de la pregunta.
 /// </param>
+/// <param name="IntencionSombra">
+/// La intención del catálogo que el enrutador de dominio eligió mientras corre en
+/// modo sombra, o nulo si ninguna capturó la pregunta.
+/// </param>
+/// <remarks>
+/// <b><see cref="IntencionSombra"/> va solo al registro operativo</b>, y esa es una
+/// decisión de privacidad tomada explícitamente. En el analítico sería una dimensión
+/// más por la cual agrupar preguntas, y las capturas van a ser la minoría: cada
+/// intención concreta es un valor raro, y un valor raro en el analítico es el
+/// selector que le daría utilidad al canal residual que TD-012 declara. Además no
+/// compraría nada, porque cada registro escribe una fila por turno y la cobertura
+/// sale del operativo solo.
+///
+/// <b>No es lo mismo que <see cref="Carril"/>.</b> El carril es la ruta REAL del
+/// turno; esta es la que se habría tomado.
+/// </remarks>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
     DateTimeOffset Cuando,
@@ -65,7 +81,8 @@ public sealed record TurnoParaRegistrar(
     bool Truncado,
     string Pregunta,
     string Categoria,
-    string Proveedor);
+    string Proveedor,
+    string? IntencionSombra);
 
 /// <summary>
 /// Escribe los dos registros desvinculados (RF-16).

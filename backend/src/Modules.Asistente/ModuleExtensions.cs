@@ -209,6 +209,11 @@ public static class ModuleExtensions
         services.AddScoped<ResolutorDeIntenciones>();
         services.AddScoped<EnrutadorDeDominio>();
 
+        // El portador de la decisión sombra es SCOPED por el mismo motivo que el
+        // contador de llamadas: la decisión es de UN turno, y uno singleton le
+        // devolvería al registro la intención del turno anterior.
+        services.AddScoped<DecisionSombraDelTurno>();
+
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
 
