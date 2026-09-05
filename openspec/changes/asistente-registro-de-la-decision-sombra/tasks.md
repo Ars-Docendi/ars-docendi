@@ -50,7 +50,7 @@
 
 - [x] 6.1 `docs/architecture/data-model.md` — `intencion_sombra` en la fila de `asistente.registro_operativo`, en el MISMO commit que el DDL (invariante #6)
 - [x] 6.2 En el mismo renglón, completar `tokens_de_cache`, que la tabla del doc también omite
-- [ ] 6.3 README de `Modules.Asistente` — la consulta ejecutable que produce la cobertura sobre tráfico real desde el registro operativo
-- [ ] 6.4 README — la advertencia junto a la consulta: `carril` es la ruta real, `intencion_sombra` la que se habría tomado, y no responden la misma pregunta
-- [ ] 6.5 README — dónde vive la tabla dorada, qué mide y cómo se la regenera a mano
-- [ ] 6.6 README — qué pasa con la columna cuando ARS-46 se apruebe: pasa a registrar la intención que sí enrutó, no se borra ni se renombra (D3)
+- [x] 6.3 README de `Modules.Asistente` — la consulta ejecutable que produce la cobertura sobre tráfico real desde el registro operativo
+- [x] 6.4 README — la advertencia junto a la consulta: `carril` es la ruta real, `intencion_sombra` la que se habría tomado, y no responden la misma pregunta
+- [x] 6.5 README — dónde vive la tabla dorada, qué mide y cómo se la regenera a mano
+- [x] 6.6 README — qué pasa con la columna cuando ARS-46 se apruebe: pasa a registrar la intención que sí enrutó, no se borra ni se renombra (D3)

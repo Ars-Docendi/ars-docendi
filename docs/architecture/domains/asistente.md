@@ -311,6 +311,12 @@ El enrutador de dominio corre entre el reescritor y el detector de ambigüedad. 
 
 Está cableado igual porque ese pedido de aprobación se fundamenta con un número —qué proporción del tráfico real captura un catálogo de cinco intenciones y cuántas veces se equivoca— y ese número no existe si la decisión no se toma nunca. No cambia ninguna respuesta, así que no puede romper nada, y se saca borrando unas líneas.
 
+**Dónde queda la decisión.** En `asistente.registro_operativo.intencion_sombra`, con el nombre de la intención o nulo si ninguna capturó la pregunta; nulo es el caso normal. Viaja desde el paso 5 hasta el escritor por un portador con alcance de turno —la misma forma que `ContadorDeLlamadasDelTurno`—, porque el registro se escribe afuera del pipeline, también cuando el turno se cae: una pregunta capturada que después revienta conserva su decisión en la fila del fallo. **No va al registro analítico**, y es una decisión de privacidad tomada explícitamente: las capturas son la minoría, así que cada intención concreta es un valor raro, y un valor raro ahí es el selector que le daría utilidad al canal residual de TD-012.
+
+`carril` **no** cambia de significado: sigue siendo la ruta real del turno. Son dos hechos distintos y ninguno implica al otro — un turno capturado puede terminar en aclaración o en fallo sin dejar de haber sido capturado. La consulta que produce la cobertura sobre tráfico real, con esa advertencia al lado, está en el [README del módulo](../../../backend/src/Modules.Asistente/README.md#el-enrutador-en-sombra-y-cómo-se-lo-mide).
+
+**Cuando ARS-46 se apruebe la columna no se borra ni se renombra**: pasa a registrar la intención que sí enrutó. Borrarla partiría la serie justo cuando se vuelve interesante, porque comparar el antes con el después es la única forma de saber si la sombra predijo bien.
+
 ### El corpus ajeno y la tabla dorada
 
 Que el enrutador capture lo que le corresponde lo prueban unos pocos casos. Que **no** capture lo que no le corresponde no se puede probar con casos escritos a mano: uno escribe los que ya sabe que fallan.
@@ -646,6 +652,9 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
 - `openspec/changes/asistente-proveedor-anthropic/` — el primer adaptador real del puerto
 - `openspec/changes/asistente-rediseno-conversacion/` — la conversación: reintento con la misma clave, «Dejar de esperar», conversación nueva y que sobrevive al cierre del modal, foco, columnas sensibles marcadas y el aspecto con tokens del tema
+- `openspec/changes/asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite
+- `openspec/changes/asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra
+- `openspec/changes/asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
 
 ## Evaluación
 

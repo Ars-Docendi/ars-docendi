@@ -456,6 +456,88 @@ Con el corte abierto o el cupo agotado: un saludo responde con cero llamadas, un
 pregunta ambigua devuelve su menú, y la respuesta a un menú abierto se reconoce. Solo
 una pregunta que exige generar una consulta termina en servicio degradado.
 
+## El enrutador en sombra y cómo se lo mide
+
+`EnrutadorDeDominio` corre en **modo sombra**: decide en cada turno y el turno sigue
+por el carril SQL igual. No hay a dónde enrutar hasta que existan los edges hacia los
+`Contracts` (ARS-46) y los adaptadores de respuesta. Detalle del pipeline y del
+catálogo en
+[domains/asistente.md](../../../docs/architecture/domains/asistente.md#el-enrutador-y-el-modo-sombra).
+
+Está cableado igual porque ese pedido de aprobación se fundamenta con un número, y el
+número no existe si la decisión no se toma nunca. La decisión va a
+`asistente.registro_operativo.intencion_sombra`: el nombre de la intención del
+catálogo, o nulo si ninguna capturó la pregunta. **Nulo es el caso normal**, no un
+dato faltante.
+
+### La cobertura sobre tráfico real
+
+```sql
+SELECT count(*) FILTER (WHERE intencion_sombra IS NOT NULL) AS capturados,
+       count(*)                                             AS turnos,
+       round(100.0 * count(*) FILTER (WHERE intencion_sombra IS NOT NULL)
+             / nullif(count(*), 0), 1)                      AS cobertura_pct
+  FROM asistente.registro_operativo
+ WHERE ocurrido_en >= now() - interval '30 days';
+```
+
+Y el desglose, que es lo que dice **cuál** de las cinco intenciones vale la pena
+conectar primero:
+
+```sql
+SELECT coalesce(intencion_sombra, '(ninguna)') AS intencion,
+       count(*)                                AS turnos
+  FROM asistente.registro_operativo
+ WHERE ocurrido_en >= now() - interval '30 days'
+ GROUP BY 1
+ ORDER BY turnos DESC, intencion;
+```
+
+> **`carril` e `intencion_sombra` no responden la misma pregunta.** `carril` es la
+> ruta **real** por la que se resolvió el turno; `intencion_sombra` es la que **se
+> habría** tomado. Un turno capturado se resuelve igual por SQL, y también puede
+> terminar en `Aclaracion` o en `Fallo` sin dejar de haber sido capturado. Agrupar por
+> `carril` para contar capturas devuelve un número, y ese número está mal.
+
+### La tabla dorada: el mismo número sin esperar tráfico
+
+El resolutor es determinista y cuesta cero llamadas al modelo, así que se lo corre
+sobre los datasets de evaluación y se obtiene la cota que se puede tener hoy.
+[`tabla-dorada-enrutador.json`](../../tests/ArsDocendi.IntegrationTests/Asistente/tabla-dorada-enrutador.json)
+fija una entrada por ítem de `capacidad.json` y `robustez.json` con la intención que
+captura o nulo, más el bloque `cobertura` con el número —hoy **0 de 39**—.
+
+Mide dos cosas. **Cobertura**: cuántos ítems del corpus captura el catálogo.
+**Consistencia de fraseo**: cada ítem de `robustez.json` declara su `origen` en
+`capacidad.json`, y como es la misma pregunta dicha de otra manera, el enrutador tiene
+que decidir lo mismo para las dos; una divergencia es un error suyo, medible sin
+tráfico. Lo que **no** afirma es que la intención capturada sea la correcta para la
+pregunta: los datasets llevan `sql_referencia`, no una intención esperada.
+
+**Se regenera a mano y nunca como efecto de correr el test.** Si regenerar fuera
+automático, una intención demasiado laxa se absorbería sola en el primer commit que la
+causara. Cuando el test falla, dice el ítem y la dirección: `nulo → intención` es
+posible laxitud —se revisa la intención, no el dataset— y `intención → nulo` es una
+captura perdida. Se edita la entrada, y el diff del archivo es lo que se revisa. Es la
+disciplina que [`backend/eval/lineas-de-base/README.md`](../../eval/lineas-de-base/README.md)
+ya documenta para el gate de regresión.
+
+**El número offline no es el número del tráfico real**, y no pretende serlo: el corpus
+se escribió para medir traducción a SQL, no para parecerse a la demanda. Da la línea de
+base contra la que comparar la del tráfico cuando la haya, y el pedido de ARS-46 tiene
+que citar las dos diciendo cuál es cuál.
+
+### Qué pasa con la columna cuando ARS-46 se apruebe
+
+**No se borra ni se renombra: pasa a registrar la intención que sí enrutó.** Borrarla
+partiría la serie justo en el momento en que se vuelve interesante, porque comparar el
+antes con el después es la única forma de saber si la sombra predijo bien. Y un
+`RENAME` es un `ALTER`, que el guard del DDL prohíbe, y además rompería toda consulta
+escrita contra la serie que la columna existe para preservar.
+
+Corolario aceptado: después del cutover el nombre miente un poco. Lo que se actualiza
+es su `COMMENT ON COLUMN`.
+
 ## Conexiones
 
 El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la
