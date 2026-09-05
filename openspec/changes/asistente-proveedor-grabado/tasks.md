@@ -30,15 +30,15 @@
 
 ## 4. El handler en el pipeline
 
-- [ ] 4.1 Test rojo primero: sin cassette y sin la variable de re-grabación, el transporte de adentro recibe cero solicitudes
-- [ ] 4.2 Test rojo primero: el error de falla cerrada nombra la clave faltante y el directorio donde se la buscó
-- [ ] 4.3 Test rojo primero: con la re-grabación puesta y sin cassette, la llamada sale y queda grabada
-- [ ] 4.4 Test rojo primero: con el cassette presente, la llamada no sale aunque la re-grabación esté puesta
-- [ ] 4.5 `GrabadorDeCassettes : DelegatingHandler` — reproducir, grabar o fallar cerrado
-- [ ] 4.6 No nombra el SDK: lee campos del cable (`system`, `messages`, `model`, `output_config`)
-- [ ] 4.7 Nunca almacena cabeceras de la solicitud
-- [ ] 4.8 Structured logging con Serilog: qué clave se sirvió, cuál se grabó, cuál faltó
-- [ ] 4.9 Verificar en rojo: llamar a `base.SendAsync` antes de decidir hace fallar 4.1
+- [x] 4.1 Test rojo primero: sin cassette y sin la variable de re-grabación, el transporte de adentro recibe cero solicitudes
+- [x] 4.2 Test rojo primero: el error de falla cerrada nombra la clave faltante y el directorio donde se la buscó
+- [x] 4.3 Test rojo primero: con la re-grabación puesta y sin cassette, la llamada sale y queda grabada
+- [x] 4.4 Test rojo primero: con el cassette presente, la llamada no sale aunque la re-grabación esté puesta
+- [x] 4.5 `GrabadorDeCassettes : DelegatingHandler` — reproducir, grabar o fallar cerrado
+- [x] 4.6 No nombra el SDK: lee campos del cable (`system`, `messages`, `model`, `output_config`)
+- [x] 4.7 Nunca almacena cabeceras de la solicitud
+- [x] 4.8 Structured logging con Serilog: qué clave se sirvió, cuál se grabó, cuál faltó
+- [x] 4.9 Verificar en rojo: llamar a `base.SendAsync` antes de decidir hace fallar 4.1
 
 ## 5. El orden respecto del reintento
 
