@@ -128,7 +128,59 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeVerLaConsulta));
 
-        return new PerfilDelActor(esGlobal, veDatosPersonales, veLaConsulta);
+        return new PerfilDelActor(
+            esGlobal, veDatosPersonales, veLaConsulta, await LeerRolUnicoAsync(conexion, transaccion, ct));
+    }
+
+    /// <summary>
+    /// El código del único rol vigente del actor, o <c>null</c> si tiene varios.
+    /// </summary>
+    /// <remarks>
+    /// <b>ES LA ÚNICA LECTURA DE ROL DE TODO EL MÓDULO, Y CONVIENE DECIR POR QUÉ SE
+    /// PUEDE.</b> Las funciones de <c>identity</c> evitan a propósito nombrar
+    /// cualquier código de rol: <c>identity.roles</c> no es un catálogo cerrado
+    /// —Secretaría crea roles desde la aplicación— así que una lista embebida en el
+    /// código falla ABIERTA y dejaría pasar por default a un rol que nadie evaluó.
+    /// Esa regla protege la AUTORIZACIÓN, y sigue intacta: nada de lo que decide
+    /// este consultor —alcance, datos personales, ver la consulta— mira este valor.
+    /// Lo consume solamente <see cref="PresentacionPorRol"/>, para elegir el texto
+    /// de bienvenida, donde no conocer un rol cae al genérico y no promete nada.
+    ///
+    /// Sale de <c>identity.user_roles</c> y <c>identity.roles</c>, las dos ya
+    /// concedidas al rol de lectura, con los mismos filtros que
+    /// <c>identity.asistente_es_global()</c>: una asignación dada de baja o un rol
+    /// desactivado no cuentan.
+    ///
+    /// <c>DISTINCT</c> porque un Jefe de Cátedra de dos materias tiene dos
+    /// asignaciones del mismo rol y eso sigue siendo un solo rol. <c>LIMIT 2</c>
+    /// porque la pregunta es «¿uno solo?»: alcanza con saber si hay un segundo.
+    /// </remarks>
+    private static async Task<string?> LeerRolUnicoAsync(
+        NpgsqlConnection conexion, NpgsqlTransaction transaccion, CancellationToken ct)
+    {
+        const string Consulta = """
+            SELECT DISTINCT r.code
+              FROM identity.user_roles ur
+              JOIN identity.roles r ON r.id = ur.role_id
+             WHERE ur.user_id = identity.asistente_actor()
+               AND ur.deleted_at IS NULL
+               AND r.is_active
+             LIMIT 2
+            """;
+
+        await using var comando = new NpgsqlCommand(Consulta, conexion, transaccion);
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+
+        if (!await lector.ReadAsync(ct))
+        {
+            return null;
+        }
+
+        var codigo = lector.GetString(0);
+
+        // Un segundo rol es indistinguible de ninguno para lo que sigue: los dos
+        // casos son la presentación genérica, sin tabla de precedencia.
+        return await lector.ReadAsync(ct) ? null : codigo;
     }
 
     private static async Task<bool> LeerBooleanoAsync(

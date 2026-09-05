@@ -21,11 +21,18 @@ public sealed record AreaCubierta(string Nombre, string? Descripcion, int Column
 /// <b>qué filas</b> se ven, no <b>qué se puede preguntar</b>, y meterlo en los
 /// conteos los haría mentir en las dos direcciones.
 /// </param>
+/// <param name="Presentacion">
+/// Por qué cosas suele venir a preguntar este actor, según su rol
+/// (<see cref="PresentacionPorRol"/>). Es lo único del catálogo que mira el rol y
+/// no los GRANT, y por eso no toca nada más: el alcance, los ejemplos y los
+/// conteos se siguen derivando de los privilegios efectivos.
+/// </param>
 public sealed record CapacidadesDelActor(
     IReadOnlyList<AreaCubierta> Cubre,
     IReadOnlyList<string> Ejemplos,
     IReadOnlyList<string> NoPuede,
-    string Alcance)
+    string Alcance,
+    string Presentacion)
 {
     /// <summary>Cuántas tablas puede consultar.</summary>
     public int Tablas => Cubre.Count;

@@ -55,7 +55,11 @@ internal sealed class CatalogoDeCapacidades(
             resuelto.Cubre,
             resuelto.Ejemplos,
             PoliticaDeAbstencion.LimitesDelAsistente,
-            PoliticaDeAbstencion.TextoDeAlcance(perfil.EsGlobal));
+            PoliticaDeAbstencion.TextoDeAlcance(perfil.EsGlobal),
+            // Fuera de la caché a propósito: lo cacheado se indexa por rol de
+            // lectura —dos variantes— y la presentación es del actor, como el
+            // alcance. Meterla adentro le devolvería a todos la del primero.
+            PresentacionPorRol.Texto(perfil.CodigoDeRol));
     }
 
     private Task<Resuelto> ResolverAsync(Guid actor, bool conDatosPersonales, CancellationToken ct) =>

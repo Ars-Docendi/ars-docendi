@@ -143,6 +143,9 @@ public sealed record CapacidadesDto
     /// <summary>Qué filas ve, dicho aparte de los conteos.</summary>
     public required string Alcance { get; init; }
 
+    /// <summary>Por qué cosas suele venir a preguntar este actor, según su rol.</summary>
+    public required string Presentacion { get; init; }
+
     /// <summary>Arma el DTO a partir del catálogo.</summary>
     public static CapacidadesDto De(CapacidadesDelActor capacidades)
     {
@@ -156,6 +159,7 @@ public sealed record CapacidadesDto
             Ejemplos = capacidades.Ejemplos,
             NoPuede = capacidades.NoPuede,
             Alcance = capacidades.Alcance,
+            Presentacion = capacidades.Presentacion,
         };
     }
 }

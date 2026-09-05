@@ -31,6 +31,12 @@ public static class RedaccionDeCapacidades
 
         var texto = new StringBuilder();
 
+        // La misma presentación que la pantalla inicial, y no una redacción propia:
+        // las dos superficies contestan la misma pregunta —«¿qué podés hacer?»— y
+        // que se contradijeran sería el defecto más visible de las dos.
+        texto.AppendLine(capacidades.Presentacion);
+        texto.AppendLine();
+
         texto.Append(CultureInfo.InvariantCulture, $"Puedo consultar {Cuantas(capacidades)}. ");
         texto.Append(capacidades.Alcance);
 

@@ -34,8 +34,9 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 1. Desde cualquier pantalla, el usuario pulsa **«Preguntar»** en la barra superior (pastilla con
    destello). Se abre un modal centrado titulado «Asistente» con el foco en el campo de pregunta.
    Alternativa: navega a `/asistente` y ve la misma vista a página completa.
-2. Ve el **estado inicial**: título «¿Qué querés saber del sistema?», una línea con el alcance de
-   sus datos, chips con preguntas de ejemplo verificadas, qué áreas puede consultar y qué no puede
+2. Ve el **estado inicial**: título «¿Qué querés saber del sistema?», una presentación escrita para
+   su rol —por qué cosas suele venir a preguntar—, debajo y en secundario el alcance de sus datos
+   con cuántas áreas conoce el asistente, chips con preguntas de ejemplo verificadas y qué no puede
    hacer el asistente.
 3. Escribe la pregunta (Enter envía; Shift+Enter hace salto de línea; en pantallas táctiles Enter
    hace salto y se envía con **«Enviar»**) o pulsa un chip. La pregunta aparece en burbuja de
@@ -90,7 +91,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Cargando acceso     | No hay lanzador; `/asistente` muestra el panel sin estado inicial hasta que el catálogo responda                                                                                             | Primera carga de la app                                                        |
 | Sin acceso          | No hay lanzador; `/asistente` muestra sólo un `InlineAlert info` «No tenés acceso al asistente con tus permisos actuales.», sin campo ni botón                                               | 403 del backend                                                                |
-| Inicial (vacío)     | Título + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                                                        | Sin turnos                                                                     |
+| Inicial (vacío)     | Título + presentación según el rol + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                            | Sin turnos                                                                     |
 | En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                | Entre el envío y la respuesta                                                  |
 | Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                          | `estado = respondida`                                                          |
 | No contestable      | Texto del backend + sugerencias como chips                                                                                                                                                   | `estado = no_contestable`                                                      |
@@ -118,6 +119,25 @@ consulta ya salió y cuenta para tu cupo.», «El asistente tardó demasiado en 
 una pregunta más acotada.», «(dato personal)», «Las columnas con candado contienen datos
 personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores de `estado` ni
 `metricas.categoria`.
+
+**La presentación del estado inicial la escribe el backend, una por rol**, y llega en
+`capacidades.presentacion`. El cliente no tiene ninguna copy de rol: `identity.roles` no es un
+catálogo cerrado —Secretaría crea roles desde la aplicación— así que una tabla embebida en el
+cliente se desactualizaría sola. Todas están en modo consulta, porque el asistente sólo consulta:
+
+| Rol                   | Presentación                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `jefe_catedra`        | «Preguntá por las designaciones y los pedidos de tu cátedra: quién está designado, en qué materia y en qué estado quedó cada trámite.»     |
+| `coordinador_carrera` | «Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión, en qué estado está cada trámite y quién quedó designado.»          |
+| `secretaria`          | «Preguntá por cualquier cátedra del Departamento: designaciones, pedidos, períodos y cómo viene el trámite en cada carrera.»               |
+| `decanato`            | «Preguntá por cómo viene el trámite en todo el Departamento: qué llegó a la aprobación final, qué quedó pendiente y quién está designado.» |
+| `administrativo`      | «Preguntá por los datos del trámite y los catálogos del sistema: períodos, cargos, materias y en qué estado está cada pedido.»             |
+| `docente`             | «Preguntá por tus designaciones: en qué materias estás designado, con qué cargo y desde cuándo.»                                           |
+| genérica              | «Preguntá por las designaciones, los pedidos y los períodos del sistema.»                                                                  |
+
+La genérica es la de quien tiene **varios** roles, **ninguno**, o uno que la tabla no conoce. No hay
+tabla de precedencia: inventar que «secretaria gana a jefe_catedra» sería fabricar una jerarquía que
+nadie pidió para elegir un saludo, y un genérico correcto es mejor que un específico adivinado.
 
 ## Decisiones de diseño
 
@@ -157,6 +177,15 @@ personales.». Ningún texto contiene códigos HTTP, nombres de tablas, valores 
   manda al modelo en el prompt, con nombres de tablas y advertencias para el modelo. De las áreas
   sólo se dice cuántas hay, en la línea del alcance; una descripción para el usuario es trabajo del
   backend.
+- **El rol elige el wording y nada más.** El repo evita ramificar por rol a propósito —una lista de
+  roles embebida falla ABIERTA, y por eso la autorización pregunta por el permiso— pero esa regla
+  protege la autorización, no la copy. Acá el rol elige un texto de bienvenida: un rol desconocido
+  cae al genérico, que no promete nada de más, así que el modo de falla es inocuo. El rol no toca el
+  alcance, los permisos, la conexión ni los ejemplos, que se siguen derivando de los GRANT efectivos
+  y de la matriz de permisos, en vivo.
+- **El conteo de áreas no se pierde con la presentación.** Es la única señal honesta de amplitud que
+  tiene la pantalla: sin él, «Preguntá por los pedidos de tu carrera» se leería como el techo de lo
+  que el asistente sabe. Queda debajo, en secundario, junto al alcance.
 - **Sólo acciones reales por mensaje: copiar.** Copiar usa el portapapeles del navegador; si no
   está disponible, el botón no se renderiza. No hay regenerar, feedback, editar ni adjuntar.
 - **Reintentar reusa la clave de idempotencia del intento, y sólo aparece en un turno que terminó

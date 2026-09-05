@@ -37,6 +37,8 @@ export const CAPACIDADES: CapacidadesDelAsistente = {
   ejemplos: ["¿Qué carreras están vigentes?", "¿Cuántos pedidos hay en cada estado?"],
   noPuede: ["No modifica nada: solo consulta."],
   alcance: "Ves los datos de todo el Departamento.",
+  presentacion:
+    "Preguntá por cualquier cátedra del Departamento: designaciones, pedidos, períodos y cómo viene el trámite en cada carrera.",
 };
 
 export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): RespuestaDelAsistente {

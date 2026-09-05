@@ -69,6 +69,12 @@ export interface CapacidadesDelAsistente {
   noPuede: string[];
   /** Qué filas ve. Va aparte de los conteos: el ámbito no cambia qué se puede preguntar. */
   alcance: string;
+  /**
+   * Por qué cosas suele venir a preguntar este usuario, según su rol. La escribe el
+   * backend —el cliente no tiene catálogo de roles ni debería crecer uno— y un rol
+   * que no reconoce recibe un texto genérico.
+   */
+  presentacion: string;
 }
 
 /** Un turno ya renderizable, del lado del cliente. */

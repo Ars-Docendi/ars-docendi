@@ -106,8 +106,21 @@
   font-weight: var(--text-heading-weight);
 }
 
+/* La presentación y el alcance son una sola idea: por qué venís y hasta dónde ves.
+   Van juntos, con menos aire entre ellos que el `gap` del bloque de inicio. */
+.adoc-asistente-inicio-entrada {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-inicio-presentacion {
+  margin: 0;
+}
+
 .adoc-asistente-inicio-alcance {
   margin: 0;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
 }
 

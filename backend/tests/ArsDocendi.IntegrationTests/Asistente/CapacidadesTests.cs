@@ -30,6 +30,18 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
     /// <summary>Ámbito de materia: mismo acceso a datos que el coordinador.</summary>
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
 
+    /// <summary>Ámbito de materia también, y con eso el mismo alcance que el jefe.</summary>
+    private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
+
+    /// <summary>
+    /// <c>sys_admin</c>: un rol de sistema que el catálogo de presentaciones no
+    /// nombra. Es el caso «rol desconocido» con datos reales, sin fixture propia.
+    /// </summary>
+    private static readonly Guid Sistemas = Guid.Parse("a0000000-0000-4000-8000-000000000007");
+
+    /// <summary>Tiene los seis roles del sistema asignados a la vez.</summary>
+    private static readonly Guid Multirol = Guid.Parse("a0000000-0000-4000-8000-000000000009");
+
     private static readonly string[] ColumnasPersonales =
         ["documento", "cuil", "fecha_nacimiento", "telefono", "upn"];
 
@@ -246,6 +258,76 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         Assert.Equal(2, catalogo.Lecturas);
     }
 
+    // -------------------------------------------------- la presentación por rol
+
+    [Theory]
+    [InlineData("a0000000-0000-4000-8000-000000000002", "las designaciones y los pedidos de tu cátedra")]
+    [InlineData("a0000000-0000-4000-8000-000000000003", "los pedidos de tu carrera")]
+    [InlineData("a0000000-0000-4000-8000-000000000004", "cualquier cátedra del Departamento")]
+    [InlineData("a0000000-0000-4000-8000-000000000005", "cómo viene el trámite en todo el Departamento")]
+    [InlineData("a0000000-0000-4000-8000-000000000006", "los catálogos del sistema")]
+    [InlineData("a0000000-0000-4000-8000-000000000001", "tus designaciones")]
+    public async Task Cada_rol_conocido_recibe_su_propia_presentacion(string actor, string fragmento)
+    {
+        await SembrarAsync();
+
+        var puede = await Catalogo().ObtenerAsync(
+            Guid.Parse(actor), TestContext.Current.CancellationToken);
+
+        Assert.Contains(fragmento, puede.Presentacion, StringComparison.Ordinal);
+        Assert.NotEqual(PresentacionPorRol.Generica, puede.Presentacion);
+    }
+
+    [Fact]
+    public async Task Un_rol_que_la_tabla_no_conoce_cae_a_la_presentacion_generica()
+    {
+        // `sys_admin` existe en identity.roles y no está en la tabla de
+        // presentaciones. El default correcto es el texto que no promete nada de
+        // más: acá el rol elige un saludo, no un permiso, así que no conocerlo no
+        // abre nada.
+        await SembrarAsync();
+
+        var puede = await Catalogo().ObtenerAsync(
+            Sistemas, TestContext.Current.CancellationToken);
+
+        Assert.Equal(PresentacionPorRol.Generica, puede.Presentacion);
+    }
+
+    [Fact]
+    public async Task Con_varios_roles_a_la_vez_la_presentacion_es_la_generica()
+    {
+        // SIN TABLA DE PRECEDENCIA, y a propósito: elegir que «secretaria gana a
+        // jefe_catedra» sería inventar una jerarquía que nadie pidió para decidir un
+        // saludo. Un genérico correcto es mejor que un específico adivinado.
+        await SembrarAsync();
+
+        var puede = await Catalogo().ObtenerAsync(
+            Multirol, TestContext.Current.CancellationToken);
+
+        Assert.Equal(PresentacionPorRol.Generica, puede.Presentacion);
+    }
+
+    [Fact]
+    public async Task El_rol_elige_la_presentacion_y_nada_mas()
+    {
+        // ES EL GATE DE ESTA PIEZA. Docente y Jefe de Cátedra tienen los dos ámbito
+        // de materia y el mismo rol de lectura: si el rol se filtrara a los conteos
+        // o al alcance, el módulo habría empezado a decidir por rol lo que hasta
+        // ahora deriva de los GRANT y de la matriz de permisos.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var catalogo = Catalogo();
+
+        var deDocente = await catalogo.ObtenerAsync(Docente, ct);
+        var deJefe = await catalogo.ObtenerAsync(Jefe, ct);
+
+        Assert.NotEqual(deDocente.Presentacion, deJefe.Presentacion);
+        Assert.Equal(deDocente.Alcance, deJefe.Alcance);
+        Assert.Equal(deDocente.Columnas, deJefe.Columnas);
+        Assert.Equal(deDocente.Tablas, deJefe.Tablas);
+        Assert.Equal(deDocente.Ejemplos, deJefe.Ejemplos);
+    }
+
     // ------------------------------------------------------ la meta-pregunta
 
     [Fact]
@@ -285,6 +367,21 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
         Assert.NotEmpty(turno.Sugerencias!);
         Assert.Equal(0, banco.Proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task La_meta_pregunta_abre_con_la_misma_presentacion_que_la_pantalla_inicial()
+    {
+        // Las dos superficies contestan «¿qué podés hacer?». Si cada una redactara
+        // la suya, el sistema se contradiría sobre sí mismo en el lugar más visible.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var puede = await Catalogo().ObtenerAsync(Jefe, ct);
+        var texto = RedaccionDeCapacidades.Texto(puede);
+
+        Assert.StartsWith(puede.Presentacion, texto, StringComparison.Ordinal);
+        Assert.NotEqual(PresentacionPorRol.Generica, puede.Presentacion);
     }
 
     [Fact]

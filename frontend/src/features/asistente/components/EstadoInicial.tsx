@@ -11,10 +11,20 @@ interface EstadoInicialProps {
 /**
  * La pantalla vacía, armada SÓLO con el catálogo de `GET /capacidades`.
  *
- * Nada de acá se inventa en el cliente: el alcance, los ejemplos, las áreas y los
- * límites los manda el backend, que es quien sabe qué puede responder para este
- * usuario. Los ejemplos son preguntas verificadas, así que un chip es una pregunta
- * que se sabe que funciona, y se manda tal cual.
+ * Nada de acá se inventa en el cliente: la presentación, el alcance, los ejemplos,
+ * las áreas y los límites los manda el backend, que es quien sabe qué puede
+ * responder para este usuario. Los ejemplos son preguntas verificadas, así que un
+ * chip es una pregunta que se sabe que funciona, y se manda tal cual.
+ *
+ * LA PRESENTACIÓN LA ESCRIBE EL BACKEND, y no el cliente con una tabla de roles.
+ * `identity.roles` no es un catálogo cerrado —Secretaría crea roles desde la
+ * aplicación— así que una lista embebida acá se desactualizaría sola, con el mismo
+ * argumento por el que `useAccesoAlAsistente` le pregunta al backend en vez de
+ * decidir por rol.
+ *
+ * EL CONTEO DE ÁREAS SIGUE ABAJO, con el alcance: es la única señal de amplitud que
+ * tiene la pantalla. Sin él, una presentación acotada —«los pedidos de tu carrera»—
+ * se leería como el techo de lo que el asistente sabe.
  *
  * DE LAS ÁREAS SÓLO SE DICE CUÁNTAS HAY. `cubre[].nombre` es `schema.tabla`
  * —«designaciones.pedidos»—, una etiqueta interna que RNF-18 prohíbe mostrar. Y
@@ -32,9 +42,12 @@ export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoIn
     <div className="adoc-asistente-inicio">
       <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
 
-      <p className="adoc-asistente-inicio-alcance">
-        Conozco {areasDeDatos(capacidades.tablas)} del sistema. {capacidades.alcance}
-      </p>
+      <div className="adoc-asistente-inicio-entrada">
+        <p className="adoc-asistente-inicio-presentacion">{capacidades.presentacion}</p>
+        <p className="adoc-asistente-inicio-alcance">
+          {capacidades.alcance} Conozco {areasDeDatos(capacidades.tablas)} del sistema.
+        </p>
+      </div>
 
       {capacidades.ejemplos.length > 0 && (
         <ul className="adoc-asistente-chips" aria-label="Preguntas de ejemplo">

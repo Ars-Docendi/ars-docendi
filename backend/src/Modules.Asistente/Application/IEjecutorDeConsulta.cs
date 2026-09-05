@@ -29,8 +29,18 @@ public interface IEjecutorDeConsulta
 /// <param name="VeDatosPersonales">
 /// Si corresponde usar la conexión con acceso a las columnas personales.
 /// </param>
+/// <param name="CodigoDeRol">
+/// El código del <b>único</b> rol vigente del actor, o <c>null</c> si no tiene
+/// ninguno o tiene más de uno. Lo consume solamente
+/// <see cref="PresentacionPorRol"/>, para elegir un texto de bienvenida; ninguna
+/// decisión de alcance, de permisos ni de conexión lo mira, y las notas de esa
+/// clase explican por qué acá el rol sí se puede leer sin fallar abierto.
+/// </param>
 public sealed record PerfilDelActor(
-    bool EsGlobal, bool VeDatosPersonales, bool VeLaConsulta = false);
+    bool EsGlobal,
+    bool VeDatosPersonales,
+    bool VeLaConsulta = false,
+    string? CodigoDeRol = null);
 
 /// <summary>
 /// Resuelve el alcance y el acceso a datos personales del actor.

@@ -205,6 +205,33 @@ Lo que sí sobrevive al request es el resultado de leer el catálogo de PostgreS
 vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variantes y los
 `GRANT` no cambian en runtime.
 
+`Presentacion` queda **fuera** de esa caché, como el alcance: es del actor y no del rol de
+lectura, así que cachearla le devolvería a todos la del primero.
+
+### La única lectura de rol del módulo
+
+`PresentacionPorRol` elige la línea con que el asistente se presenta —por qué cosas suele
+venir a preguntar este usuario— a partir del código de rol que `ConsultorDeAlcance` lee de
+`identity.user_roles`.
+
+Es la única pieza que nombra códigos de rol, y las funciones de `identity` explican por qué
+el resto no lo hace: `identity.roles` no es un catálogo cerrado —Secretaría crea roles desde
+la aplicación— así que una lista embebida **falla ABIERTA**, dejando pasar por default a
+cualquier rol que nadie evaluó. Esa regla protege la **autorización**, y sigue intacta: nada
+de lo que decide el consultor —alcance, datos personales, ver la consulta— mira este valor.
+
+Acá el rol elige un saludo. El modo de falla es el opuesto y es inocuo: un rol que la tabla
+no conoce cae a la presentación genérica, que no promete nada que el asistente no haga.
+
+**Un actor con varios roles recibe la genérica**, sin tabla de precedencia. Decidir que
+«secretaria gana a jefe_catedra» sería inventar una jerarquía que nadie pidió con el único fin
+de elegir un texto. La regla entera es: un solo rol vigente y conocido, su texto; cualquier
+otro caso, el genérico.
+
+`RedaccionDeCapacidades` —la respuesta a la meta-pregunta, que cuesta cero tokens— abre con
+esa misma presentación. Las dos superficies contestan «¿qué podés hacer?», y que se
+contradijeran sería el defecto más visible de las dos.
+
 ## Proveedor del modelo
 
 `IProveedorDeModelo` (en `Application/`) es la interfaz propia detrás de la cual

@@ -41,6 +41,40 @@ describe("El estado inicial", () => {
     expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
   });
 
+  it("pinta la presentación que le manda el backend, y sigue diciendo cuántas áreas hay", async () => {
+    // La presentación es la primera línea y el conteo NO se pierde: es la única
+    // señal honesta de amplitud que tiene la pantalla, y sin ella «Preguntá por los
+    // pedidos de tu carrera» se leería como el techo de lo que el asistente sabe.
+    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
+      ...CAPACIDADES,
+      presentacion: "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión.",
+    });
+    montar(<PanelDePrueba />);
+
+    expect(
+      await screen.findByText(
+        "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
+  });
+
+  it("la copy del rol viene del backend: el cliente no tiene ninguna", () => {
+    // Un rol que el backend no reconoce recibe de él un texto genérico. Si el
+    // cliente tuviera su propia tabla de roles se desactualizaría sola:
+    // `identity.roles` no es cerrado y Secretaría crea roles desde la aplicación.
+    render(
+      <EstadoInicial
+        capacidades={{ ...CAPACIDADES, presentacion: "Preguntá por lo que el backend diga." }}
+        onElegir={() => {}}
+        deshabilitado={false}
+      />,
+    );
+
+    expect(screen.getByText("Preguntá por lo que el backend diga.")).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/cátedra del Departamento/);
+  });
+
   it("no muestra el comentario de las áreas: se escribió para el modelo, no para el usuario", async () => {
     // Lo que Secretaría veía en producción bajo «Puedo consultar:»: el `COMMENT ON
     // TABLE` que el backend le manda al modelo en el prefijo del prompt. Nombres
