@@ -76,14 +76,14 @@
 
 ## 9. Los cassettes alimentan el parseo
 
-- [ ] 9.1 Test rojo primero: un directorio de cassettes vacío falla diciendo que no hay nada que ejercitar
-- [ ] 9.2 Los tests de parseo iteran el directorio: un caso por cassette encontrado
-- [ ] 9.3 `GeneradorDeSql.Interpretar` sobre cada cassette de generación
-- [ ] 9.4 El redactor sobre cada cassette de redacción
-- [ ] 9.5 El reescritor sobre cada cassette de reescritura
+- [x] 9.1 Test rojo primero: un directorio de cassettes vacío falla diciendo que no hay nada que ejercitar
+- [x] 9.2 Los tests de parseo iteran el directorio: un caso por cassette encontrado
+- [x] 9.3 `GeneradorDeSql.Interpretar` sobre cada cassette de generación
+- [x] 9.4 El redactor sobre cada cassette de redacción
+- [x] 9.5 El reescritor sobre cada cassette de reescritura
 - [x] 9.6 Los primeros cassettes versionados, grabados contra el transporte que impersona la API
-- [ ] 9.7 Test: agregar un cassette al directorio suma un caso sin tocar ningún archivo de test
-- [ ] 9.8 Verificar en rojo: vaciar el directorio hace fallar 9.1
+- [x] 9.7 Test: agregar un cassette al directorio suma un caso sin tocar ningún archivo de test
+- [x] 9.8 Verificar en rojo: vaciar el directorio hace fallar 9.1
 
 ## 10. Documentación
 
