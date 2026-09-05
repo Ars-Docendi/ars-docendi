@@ -1,12 +1,12 @@
 ## 1. La clave y el sello, sin tocar HTTP
 
-- [ ] 1.1 Test rojo primero: la misma solicitud produce la misma clave en dos procesos distintos
-- [ ] 1.2 Test rojo primero: cambiar prefijo, mensaje, esfuerzo o modelo —de a uno— cambia la clave
-- [ ] 1.3 Test rojo primero: cambiar solo el techo de tokens NO cambia la clave
-- [ ] 1.4 `ClaveDeCassette` — huella SHA-256 de los cuatro campos, con el criterio de `ProveedorSimulado.Huella`
-- [ ] 1.5 Los cuatro campos se leen del cuerpo de la solicitud; un campo esperado ausente falla nombrándolo
-- [ ] 1.6 Test: un cuerpo sin el campo del modelo falla ruidoso y no produce una clave sobre cadena vacía
-- [ ] 1.7 Verificar en rojo: hashear el cuerpo completo hace fallar 1.3
+- [x] 1.1 Test rojo primero: la misma solicitud produce la misma clave en dos procesos distintos
+- [x] 1.2 Test rojo primero: cambiar prefijo, mensaje, esfuerzo o modelo —de a uno— cambia la clave
+- [x] 1.3 Test rojo primero: cambiar solo el techo de tokens NO cambia la clave
+- [x] 1.4 `ClaveDeCassette` — huella SHA-256 de los cuatro campos, con el criterio de `ProveedorSimulado.Huella`
+- [x] 1.5 Los cuatro campos se leen del cuerpo de la solicitud; un campo esperado ausente falla nombrándolo
+- [x] 1.6 Test: un cuerpo sin el campo del modelo falla ruidoso y no produce una clave sobre cadena vacía
+- [x] 1.7 Verificar en rojo: hashear el cuerpo completo hace fallar 1.3
 
 ## 2. El sobre en disco
 
