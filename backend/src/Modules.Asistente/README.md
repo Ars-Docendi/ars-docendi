@@ -406,6 +406,14 @@ turno: para eso tiene su propio máximo de intentos.
 | `RetencionDeRegistrosDias`     | 90      | Cuánto viven las filas de los dos registros                      |
 | `PeriodoDePurgaHoras`          | 24      | Cada cuánto corre la purga                                       |
 
+**Un turno que se cae deja fila.** La cuota se cobra en un `finally` —un fallo no puede
+ser una forma de consultar gratis—, así que el registro tiene que cobrar en el mismo
+lugar: una excepción no prevista escribe una fila con carril y estado `Fallo` y las
+llamadas que alcanzó a emitir, y después se relanza. Quien llamó sigue viendo la
+excepción; el contrato HTTP no cambia, y de hecho `Fallo` **no tiene nombre en el
+contrato**: el mapeo del estado revienta si se le pide uno, que es lo que garantiza que
+no se filtre como un quinto estado a los clientes.
+
 **Las dos cotas de tiempo subieron con los modelos que razonan.** El presupuesto del
 turno pasó de 30 s a 150 y el timeout por llamada de 20 s a 60: el razonamiento ocurre
 **antes** del primer token de la respuesta, así que una generación que antes tardaba

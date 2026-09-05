@@ -1,5 +1,6 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente;
+using Modules.Asistente.Api;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -401,6 +402,58 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.ServicioDegradado, degradado.Estado);
         Assert.Equal(EstadoDelTurno.NoContestable, noContestable.Estado);
         Assert.NotEqual(degradado.Respuesta, noContestable.Respuesta);
+    }
+
+    // --------------------------------------------------- el turno que se cae
+
+    [Fact]
+    public async Task Un_turno_que_se_cae_deja_fila_con_las_llamadas_que_alcanzo_a_hacer()
+    {
+        // La cuota se cobra en un `finally` y el registro no: un turno que revienta
+        // pagaba llamadas que después no aparecían en ningún lado. El registro
+        // operativo es la única fuente para responder «cuántas veces falló», y era
+        // justo la pregunta que no podía contestar.
+        await SembrarAsync();
+
+        var banco = BancoCon(
+            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
+            null,
+            new ProveedorGuionado { Falla = new InvalidOperationException("el proveedor explotó") });
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => banco.Capa().ResponderAsync(
+                Secretaria, null, "¿cuántos docentes hay?", TestContext.Current.CancellationToken));
+
+        var fila = ((RegistroEnMemoria)banco.Registro).Turnos.Single();
+
+        Assert.Equal(CarrilDelTurno.Fallo, fila.Carril);
+        Assert.Equal(EstadoDelTurno.Fallo, fila.Estado);
+
+        // El número que importa: el registro dice lo mismo que se le cobró al actor.
+        Assert.Equal(banco.Proveedor.Llamadas, fila.LlamadasAlModelo);
+        Assert.Equal(1, fila.LlamadasAlModelo);
+    }
+
+    [Fact]
+    public void El_estado_de_un_turno_caido_no_tiene_nombre_en_el_contrato()
+    {
+        // `Fallo` existe sólo para el registro. Que el mapeo del contrato reviente
+        // ante él es lo que garantiza que no se filtre como un quinto estado a los
+        // clientes, que sólo conocen los cuatro de RF-14.
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => RespuestaDelAsistente.De(
+                new ResultadoDelTurno(
+                    EstadoDelTurno.Fallo,
+                    "irrelevante",
+                    Razonamiento: string.Empty,
+                    PreguntaInterpretada: null,
+                    [],
+                    [],
+                    Truncado: false,
+                    [],
+                    GeneracionDeSql.CategoriaNoContestable,
+                    LlamadasAlModelo: 0,
+                    Guid.NewGuid())));
     }
 
     // ------------------------------------------------------------------ apoyo

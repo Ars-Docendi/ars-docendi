@@ -1,6 +1,13 @@
 namespace Modules.Asistente.Application;
 
-/// <summary>Los cuatro estados en que puede terminar un turno (RF-14).</summary>
+/// <summary>
+/// Los cuatro estados en que puede terminar un turno (RF-14), más el que no sale.
+/// </summary>
+/// <remarks>
+/// El contrato tiene cuatro y sólo cuatro. <see cref="Fallo"/> es del registro: un
+/// turno que revienta no produce cuerpo HTTP, así que nunca necesita nombre público
+/// y el mapeo del contrato revienta si se le pide uno.
+/// </remarks>
 public enum EstadoDelTurno
 {
     /// <summary>Se respondió con datos.</summary>
@@ -14,6 +21,12 @@ public enum EstadoDelTurno
 
     /// <summary>El proveedor no está disponible o el turno se quedó sin cupo.</summary>
     ServicioDegradado,
+
+    /// <summary>
+    /// El turno terminó en una excepción no prevista. <b>Sólo para el registro</b>:
+    /// nunca viaja al cliente, que ve la excepción y no un cuerpo.
+    /// </summary>
+    Fallo,
 }
 
 /// <summary>

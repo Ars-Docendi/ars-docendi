@@ -14,6 +14,16 @@ public enum CarrilDelTurno
 
     /// <summary>No había modelo disponible.</summary>
     Degradado,
+
+    /// <summary>
+    /// El turno se cayó por una excepción no prevista, en cualquier paso.
+    /// </summary>
+    /// <remarks>
+    /// No es un carril del pipeline sino la ausencia de uno: cuando el turno
+    /// revienta no se sabe cuál lo habría resuelto, y decir «SQL» porque ahí murió
+    /// mezclaría fallas con turnos que sí llegaron a consultar.
+    /// </remarks>
+    Fallo,
 }
 
 /// <summary>

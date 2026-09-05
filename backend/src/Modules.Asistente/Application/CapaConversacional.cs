@@ -82,6 +82,22 @@ public sealed class CapaConversacional(
 
             return turno;
         }
+        catch (Exception excepcion) when (!presupuesto.Vencio)
+        {
+            // El turno se cayó. La cuota ya lo cobra en el `finally` de abajo, así
+            // que sin esta rama el actor pagaba llamadas que no aparecían en ningún
+            // lado: el registro operativo —la única fuente para «cuántas veces
+            // falló»— sub-contaba justo las fallas duras.
+            //
+            // Se registra y se relanza: quien llamó sigue viendo la excepción y el
+            // contrato HTTP no cambia. La fila no es una respuesta, es telemetría.
+            log.LogError(
+                excepcion, "El turno del asistente terminó en una excepción no prevista.");
+
+            await RegistrarAsync(actor, mensaje, Caido(conversacion), arranco, ct);
+
+            throw;
+        }
         finally
         {
             // Se anota en `finally` para que un turno que se cayó a la mitad pague
@@ -132,6 +148,10 @@ public sealed class CapaConversacional(
 
     private static CarrilDelTurno CarrilDe(ResultadoDelTurno turno) => turno.Estado switch
     {
+        // Va primero y no se deriva de las llamadas: un turno que se cayó sin llegar
+        // a pedirle nada al modelo pasaría por «sin datos», que es el carril de los
+        // saludos, y quedaría contado como un turno resuelto gratis.
+        EstadoDelTurno.Fallo => CarrilDelTurno.Fallo,
         EstadoDelTurno.ServicioDegradado => CarrilDelTurno.Degradado,
         EstadoDelTurno.NecesitaAclaracion => CarrilDelTurno.Aclaracion,
         _ when turno.LlamadasAlModelo == 0 => CarrilDelTurno.SinDatos,
@@ -372,6 +392,32 @@ public sealed class CapaConversacional(
             : PoliticaDeAbstencion.TextoServicioDegradado;
 
     /// <summary>Un turno que termina sin modelo: cero llamadas al proveedor.</summary>
+    /// <summary>El turno que se cayó, sólo para el registro.</summary>
+    /// <remarks>
+    /// No lo ve nadie: se construye para pasar por el mismo camino de registro que
+    /// los demás y que la separación en dos filas siga ocurriendo en un solo lugar.
+    /// El texto va vacío a propósito — un turno caído no tiene respuesta, y poner
+    /// una haría que el registro sugiriera que el usuario leyó algo.
+    /// </remarks>
+    private ResultadoDelTurno Caido(HiloConversacional conversacion) =>
+        new(EstadoDelTurno.Fallo,
+            string.Empty,
+            Razonamiento: string.Empty,
+            PreguntaInterpretada: null,
+            [],
+            [],
+            Truncado: false,
+            [],
+            CategoriaDelFallo,
+            // Las que alcanzó a emitir, que son exactamente las que la cuota le va a
+            // cobrar al actor en el `finally`. Si el registro dijera cero, las dos
+            // fuentes discreparían justo en el caso que se está registrando.
+            contador.Llamadas,
+            conversacion.Id);
+
+    /// <summary>Categoría con que el registro analítico marca un turno caído.</summary>
+    internal const string CategoriaDelFallo = "fallo";
+
     private static ResultadoDelTurno Degradado(HiloConversacional conversacion, string texto) =>
         new(EstadoDelTurno.ServicioDegradado,
             texto,
