@@ -29,6 +29,16 @@
       "nombre": "asistente",
       "estado": "denegado",
       "motivo": "Los dos registros del propio asistente. registro_analitico guarda el texto de las preguntas de TODOS los usuarios: un asistente que pudiera leerlo respondería «qué le preguntó fulano» a cualquiera con el permiso de consulta. registro_operativo guarda actor y timestamp preciso, y poder leerlo desde el carril SQL reconstruiría por dentro el cruce que separar las dos tablas existe para impedir. Se deniega el schema completo con REVOKE ALL ON SCHEMA, declarado en 002_asistente_registros.sql junto al CREATE SCHEMA porque un REVOKE sobre un schema inexistente falla."
+    },
+    {
+      "nombre": "portal",
+      "estado": "denegado",
+      "motivo": "El portal docente guarda datos que la persona carga sobre sí misma: formación, experiencia laboral, certificaciones, proyectos, habilidades, y el teléfono y el mail PERSONALES. Hoy no se concede ni una columna, y la denegación es del schema entero para que un GRANT hecho sin pensar tenga que pasar por editar esta entrada. Abrirlo es una decisión de finalidad bajo la Ley 25.326 y no una de ingeniería: ver ARS-83. `portal.contactos` queda denegada aun cuando el resto se abra, porque el contacto institucional ya se concede por identity.personas.telefono y identity.users.upn, y el personal no responde ninguna pregunta que aquél no cubra."
+    },
+    {
+      "nombre": "public",
+      "estado": "denegado",
+      "motivo": "No es un schema de dominio: tiene el historial de migraciones de EF y las dos tablas de metadatos del seed sintético (seed_metadata, seed_identities). Nada de eso responde una pregunta de nadie, y seed_identities enumera qué usuarios son sembrados, que es información sobre el sistema y no sobre el Departamento."
     }
   ],
   "objetos_no_cubiertos": {

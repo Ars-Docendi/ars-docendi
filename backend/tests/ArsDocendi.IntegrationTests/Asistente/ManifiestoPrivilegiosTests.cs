@@ -67,6 +67,44 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
         Assert.Contains("tabla_que_alguien_agrego", detectada.Objeto, StringComparison.Ordinal);
     }
 
+    // ------------------------------------------- dirección 4, el schema que nadie clasificó
+
+    [Fact]
+    public async Task Todo_schema_de_la_base_esta_clasificado_en_el_manifiesto()
+    {
+        // LA DIRECCIÓN QUE FALTABA, y el agujero que tapa es de schema entero.
+        //
+        // Las otras tres recorren SOLO los schemas que el manifiesto marca como
+        // expuestos, o miran privilegios efectivos. Entre las dos cosas queda un
+        // hueco: un schema nuevo, sin ningún GRANT todavía y sin entrada en el
+        // manifiesto, es invisible para las cuatro. La suite pasa en verde y la
+        // decisión de exponerlo o no queda registrada únicamente en la cabeza de
+        // quien escribió el PR.
+        //
+        // Pasó con `portal`, que entró con un merge y estuvo sin clasificar. Va a
+        // volver a pasar con `tareas` y con `aulas`.
+        //
+        // Se exige la ENTRADA, no un estado en particular: `denegado` con motivo es
+        // una respuesta perfectamente válida, y es la que corresponde casi siempre.
+        // Lo que no se acepta es el silencio.
+        var manifiesto = Manifiesto.Cargar();
+        var declarados = manifiesto.Schemas
+            .Select(schema => schema.Nombre)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var sinClasificar = (await LeerSchemasRealesAsync())
+            .Where(schema => !declarados.Contains(schema))
+            .ToList();
+
+        Assert.True(
+            sinClasificar.Count == 0,
+            "Hay schemas en la base que el manifiesto de privilegios no clasifica: "
+            + string.Join(", ", sinClasificar)
+            + ". Agregá una entrada por cada uno, con estado 'expuesto' o 'denegado' "
+            + "y su motivo. Un schema sin entrada no lo mira ninguna de las otras "
+            + "tres direcciones.");
+    }
+
     // ------------------------------------------------------- el manifiesto dice lo que promete
 
     [Fact]
@@ -224,6 +262,39 @@ public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
     }
 
     // ------------------------------------------------------------------------------ lectura
+
+    /// <summary>
+    /// Los schemas de usuario que la base tiene realmente.
+    /// </summary>
+    /// <remarks>
+    /// Se excluyen los del motor —<c>pg_*</c> e <c>information_schema</c>— porque no
+    /// son decisiones nuestras y clasificarlos no diría nada. Todo lo demás es algo
+    /// que alguien de este repositorio creó, y entonces alguien tiene que haber
+    /// decidido si el asistente lo ve.
+    /// </remarks>
+    private async Task<List<string>> LeerSchemasRealesAsync()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT nspname
+              FROM pg_catalog.pg_namespace
+             WHERE nspname NOT LIKE 'pg\_%'
+               AND nspname <> 'information_schema'
+             ORDER BY nspname
+            """, conexion);
+
+        await using var lector = await comando.ExecuteReaderAsync(
+            TestContext.Current.CancellationToken);
+
+        var schemas = new List<string>();
+        while (await lector.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            schemas.Add(lector.GetString(0));
+        }
+
+        return schemas;
+    }
 
     private async Task<List<ColumnaReal>> LeerColumnasRealesAsync(IReadOnlyList<string> schemas)
     {
