@@ -173,12 +173,25 @@ public sealed partial class ArquitecturaAsistenteTests
     }
 
     [Fact]
-    public void El_DDL_del_asistente_no_borra_ni_altera_nada_ni_siquiera_lo_propio()
+    public void El_DDL_del_asistente_no_borra_ni_reescribe_nada_de_lo_que_ya_existe()
     {
-        // DROP y ALTER no tienen excepción de schema. Una migración que altera lo
-        // que otra creó deja el esquema dependiendo del orden de aplicación, y este
-        // módulo no lleva historial de migraciones: sus scripts son idempotentes por
-        // construcción.
+        // LO PROHIBIDO ES LO DESTRUCTIVO Y LO QUE DEPENDE DEL ORDEN: `DROP`,
+        // `RENAME` y `ALTER COLUMN ... TYPE`. Este módulo no lleva historial de
+        // migraciones, así que una sentencia que reescribe lo que otro archivo creó
+        // deja el esquema dependiendo del orden de aplicación.
+        //
+        // LO PERMITIDO ES EXACTAMENTE UNO: `ALTER TABLE <tabla propia> ADD COLUMN
+        // IF NOT EXISTS`. No es una excepción de conveniencia — es la única forma
+        // que no tiene ninguno de los dos problemas: agrega lo que falta, no toca lo
+        // que está, y aplicada dos veces da lo mismo que aplicada una. Sin ella el
+        // `CREATE TABLE IF NOT EXISTS` es un no-op contra una base que ya tiene la
+        // tabla, la columna nueva nunca aparece y el INSERT que la nombra falla en
+        // cada turno. Eso pasó de verdad, y en la columna sin `COMMENT` pasó en
+        // silencio.
+        //
+        // La guarda `IF NOT EXISTS` es parte de lo permitido y no un detalle de
+        // estilo: sin ella la segunda corrida aborta, que es justo lo que
+        // `IMigradorModulo` prohíbe.
         var archivos = DdlDelAsistente();
 
         Assert.NotEmpty(archivos);
@@ -210,10 +223,47 @@ public sealed partial class ArquitecturaAsistenteTests
         [
             new("007_baja.sql", "DROP TABLE designaciones.pedidos;"),
             new("008_baja_propia.sql", "DROP TABLE asistente.registro_operativo;"),
-            new("009_alter.sql", "ALTER TABLE asistente.registro_analitico ADD COLUMN x text;"),
+            new("009_columna_sin_guarda.sql",
+                "ALTER TABLE asistente.registro_analitico ADD COLUMN x text;"),
+            new("010_baja_de_columna.sql",
+                "ALTER TABLE asistente.registro_operativo DROP COLUMN proveedor;"),
+            new("011_cambio_de_tipo.sql",
+                "ALTER TABLE asistente.registro_operativo ALTER COLUMN latencia_ms TYPE bigint;"),
+            new("012_renombre.sql",
+                "ALTER TABLE asistente.registro_operativo RENAME COLUMN carril TO ruta;"),
+            new("013_columna_ajena.sql",
+                "ALTER TABLE designaciones.pedidos ADD COLUMN IF NOT EXISTS x text;"),
+            // Con coma, la sentencia lleva más de una acción y la segunda queda
+            // fuera de lo que el patrón puede leer. Se rechaza entera: una columna
+            // por sentencia es lo que hace verificable la forma permitida.
+            new("014_dos_acciones.sql",
+                """
+                ALTER TABLE asistente.registro_operativo
+                    ADD COLUMN IF NOT EXISTS a text, ADD COLUMN b text;
+                """),
         ];
 
-        Assert.Equal(3, Detectar(sinteticos, DestruccionEnSql()).Count);
+        Assert.Equal(8, Detectar(sinteticos, DestruccionEnSql()).Count);
+    }
+
+    [Fact]
+    public void Agregar_una_columna_con_guarda_al_schema_propio_no_es_una_infraccion()
+    {
+        // LA LÍNEA EXACTA DEL GUARD NUEVO. Es la única sentencia que repara una base
+        // que ya tenía la tabla, y es idempotente y sin orden: agrega lo que falta y
+        // no toca lo que está.
+        Archivo[] sinteticos =
+        [
+            new("015_columna_propia.sql",
+                "ALTER TABLE asistente.registro_operativo ADD COLUMN IF NOT EXISTS x text;"),
+            new("016_columna_propia_en_dos_lineas.sql",
+                """
+                ALTER TABLE asistente.registro_operativo
+                    ADD COLUMN IF NOT EXISTS tokens_de_cache integer;
+                """),
+        ];
+
+        Assert.Empty(Detectar(sinteticos, DestruccionEnSql()));
     }
 
     // --------------------------------------------- el ping no arrastra dependencias
@@ -456,9 +506,24 @@ public sealed partial class ArquitecturaAsistenteTests
         RegexOptions.IgnoreCase)]
     private static partial Regex MutacionEnSql();
 
-    // DROP y ALTER van aparte y sin excepción de schema: no hay caso en que este
-    // módulo tenga que borrar o alterar algo, ni siquiera lo propio.
-    [GeneratedRegex(@"\bDROP\s+\w+\b|\bALTER\s+TABLE\b", RegexOptions.IgnoreCase)]
+    // Lo destructivo y lo que depende del orden, con UNA forma permitida.
+    //
+    // `DROP` y `RENAME` no tienen excepción de schema: no hay caso en que este
+    // módulo tenga que borrar o renombrar algo, ni siquiera lo propio.
+    //
+    // De `ALTER TABLE` se permite exactamente una forma, y la lista de lo que la
+    // sentencia tiene que decir es la lista de sus propiedades:
+    //   · `asistente.` — sobre una tabla del schema propio, no de otro módulo;
+    //   · `ADD COLUMN` — solo agrega, así que no reescribe lo que otro archivo creó
+    //     y no depende del orden de aplicación (un `ALTER COLUMN ... TYPE` sí);
+    //   · `IF NOT EXISTS` — la segunda corrida es un no-op en vez de un aborto;
+    //   · `[^;,]+;` — una acción por sentencia. Con coma la sentencia lleva más de
+    //     una y el patrón solo puede leer la primera, así que se rechaza entera:
+    //     una forma permitida que no se puede verificar no es una forma permitida.
+    [GeneratedRegex(
+        @"\bDROP\s+\w+\b|\bRENAME\b|" +
+        @"\bALTER\s+TABLE\s+(?!""?asistente""?\.""?\w+""?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+[^;,]+;)",
+        RegexOptions.IgnoreCase)]
     private static partial Regex DestruccionEnSql();
 
     // El namespace raíz del SDK y sus tipos propios. Alcanza con el namespace: no

@@ -66,7 +66,9 @@ El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el arg
 
 Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna**; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente.
 
-El orden de ejecución es el orden de registración en `Program.cs`. `Modules.Asistente` va **último** a propósito: no tiene schema ni entidades propias, y su migrador solo concede privilegios de lectura sobre tablas de otros schemas. Si corriera antes, cada `GRANT` fallaría con «relation does not exist». Por lo mismo, su migrador no envuelve un `DbContext`: ejecuta SQL idempotente por construcción (`CREATE EXTENSION IF NOT EXISTS` y `GRANT`, que repetido es un no-op) sin historial de migraciones que llevar.
+El orden de ejecución es el orden de registración en `Program.cs`. `Modules.Asistente` va **último** a propósito: no tiene entidades propias, y su migrador concede privilegios de lectura sobre tablas de otros schemas. Si corriera antes, cada `GRANT` fallaría con «relation does not exist». Por lo mismo, su migrador no envuelve un `DbContext`: ejecuta SQL que converge por construcción (`CREATE ... IF NOT EXISTS`, `GRANT` y `ADD COLUMN IF NOT EXISTS`, que repetidos son no-op) sin historial de migraciones que llevar.
+
+Sin historial, nada garantiza que esa convergencia se haya escrito: un `CREATE TABLE IF NOT EXISTS` contra una base que ya tiene la tabla no agrega la columna nueva. Por eso el migrador del asistente **verifica al final** contra `information_schema.columns` que la base tenga las columnas que el módulo escribe, y **falla nombrando la que falta** en vez de dejar arrancar. Es la red debajo de los `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` del DDL: sin ella, una columna faltante hace reventar el `INSERT` del registro en cada turno, el fallo se traga para no tumbar el servicio y el registro deja de guardar en silencio.
 
 ## Entidades por schema
 
@@ -223,6 +225,8 @@ Es el único schema que el asistente escribe, y lo escribe con la **conexión du
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni detrás de un flag.
 
 **`tokens_de_cache` es un subconjunto de `tokens_de_entrada`**, no un sumando aparte: el total de entrada es idéntico con caché y sin ella, y sin esta columna no hay forma de saber si la caché del prefijo está pegando.
+
+**`proveedor`, `tokens_de_cache` e `intencion_sombra` llegaron después de la tabla**, así que además del `CREATE TABLE` van como `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`: sin eso, una base que ya la tenía no las recibe nunca. Las tres son **anulables**, y en las dos primeras nulo significa «esta fila es anterior a la columna». Un `ADD COLUMN ... NOT NULL` sin `DEFAULT` lo rechaza PostgreSQL cuando la tabla tiene filas, y ponerle `DEFAULT` sería peor: `tokens_de_cache` con default `0` diría «la caché no pegó» de turnos donde nadie midió. La aplicación nunca escribe nulo en ellas, y el chequeo de arranque garantiza que las columnas existan.
 
 **`intencion_sombra` no es otro valor de `carril`, y la distinción es la que sostiene la métrica.** `carril` dice por dónde se resolvió el turno **de verdad**; `intencion_sombra` guarda la intención del catálogo que el enrutador de dominio —hoy en [modo sombra](domains/asistente.md#el-enrutador-y-el-modo-sombra)— eligió, es decir por dónde **se habría** resuelto. Son dos hechos distintos y ninguno implica al otro: un turno capturado se resuelve igual por SQL, y también puede terminar en aclaración o en fallo sin dejar de haber sido capturado. Colapsarlas en `carril` cambiaría el significado de la serie «cuántos turnos resolvió SQL» sin que ninguna consulta se enterara.
 

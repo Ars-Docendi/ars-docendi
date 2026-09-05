@@ -30,8 +30,13 @@
 -- enmascaramiento acaba de sacar del camino de salida. La consulta generada
 -- tampoco: un WHERE puede llevar un documento.
 --
--- Idempotente: IF NOT EXISTS en todo. Re-ejecutar converge, que es lo que
--- IMigradorModulo exige.
+-- IDEMPOTENTE EN LOS DOS SENTIDOS QUE IMigradorModulo EXIGE, y hacen falta los dos.
+-- `IF NOT EXISTS` en todo hace que re-ejecutar no falle. Que CONVERJA es otra cosa:
+-- un `CREATE TABLE IF NOT EXISTS` contra una base que ya tiene la tabla es un no-op,
+-- así que una columna agregada al CREATE no aparece nunca. Por eso toda columna que
+-- se sume después de que la tabla exista va TAMBIÉN como
+-- `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, abajo, y el migrador verifica al
+-- arrancar que la base tenga las columnas que el módulo escribe.
 
 CREATE SCHEMA IF NOT EXISTS asistente;
 
@@ -50,10 +55,42 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
     latencia_ms        integer     NOT NULL,
     hubo_reintento     boolean     NOT NULL,
     truncado           boolean     NOT NULL,
-    proveedor          text        NOT NULL,
-    tokens_de_cache    integer     NOT NULL,
+    proveedor          text        NULL,
+    tokens_de_cache    integer     NULL,
     intencion_sombra   text        NULL
 );
+
+-- LAS TRES ÚLTIMAS COLUMNAS SE AGREGARON DESPUÉS DE QUE LA TABLA EXISTIERA, y por
+-- eso van también acá. Contra una base que ya tenía la tabla, el CREATE de arriba es
+-- un no-op: la columna no aparece y el INSERT del registro falla en cada turno. Pasó
+-- de verdad, con `tokens_de_cache`, y pasó EN SILENCIO: el fallo del INSERT se traga
+-- a propósito para no tumbar el turno, así que el registro dejó de guardar un día
+-- entero sin que nada avisara. Que con `intencion_sombra` la migración abortara con
+-- 42703 fue suerte —lo delató su `COMMENT ON COLUMN`—, no diseño.
+--
+-- REGLA PARA LA PRÓXIMA COLUMNA: va en los DOS lugares. El guard de arquitectura
+-- permite exactamente esta forma —`ADD COLUMN IF NOT EXISTS` sobre una tabla del
+-- schema propio, una por sentencia— y sigue prohibiendo DROP, RENAME y
+-- ALTER COLUMN ... TYPE, que son las que reescriben lo ya creado y dejan el esquema
+-- dependiendo del orden. Si alguien igual se olvida, el migrador no deja arrancar.
+--
+-- LAS TRES SON ANULABLES, Y ESO NO ES UN DESCUIDO. Un `ADD COLUMN ... NOT NULL` sin
+-- `DEFAULT` sobre una tabla con filas lo rechaza PostgreSQL, y en producción la tabla
+-- tiene noventa días de filas. Poner un `DEFAULT` sería peor que el problema:
+-- `tokens_de_cache` con default 0 diría «la caché no pegó» de turnos donde nadie
+-- midió, y esa serie sigue devolviendo un número mientras miente. Nulo es el único
+-- valor que significa «esta fila es anterior a la columna»: los agregados lo saltean
+-- solos y `count(columna)` contra `count(*)` dice cuántas filas sí se midieron. La
+-- aplicación nunca escribe nulo acá —manda siempre un valor— y el chequeo de arranque
+-- garantiza que la columna exista, así que el nulo no puede aparecer en filas nuevas.
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS proveedor text;
+
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS tokens_de_cache integer;
+
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS intencion_sombra text;
 
 -- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
 -- Es la identidad que expone el puerto —IProveedorDeModelo.Nombre—, nunca la
@@ -67,11 +104,12 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
 -- unos 9.000 tokens por llamada, eso es lo que separa una factura razonable de una
 -- que no lo es — y hasta ahora era invisible.
 --
--- Va sin DEFAULT y sin un ALTER que la agregue a una tabla ya creada, porque este
--- archivo no puede alterar nada: el módulo no lleva historial de migraciones y hay
--- un test de arquitectura que lo sostiene. Una base que ya tenía la tabla no se
--- migra, se vuelve a aprovisionar; los ambientes de este sistema son efímeros y esa
--- es la vía prevista.
+-- Ella y `proveedor` llegaron a una tabla que ya existía, así que la vía es el
+-- `ADD COLUMN IF NOT EXISTS` de arriba y no reaprovisionar. Este archivo decía lo
+-- contrario —«una base que ya tenía la tabla no se migra, se vuelve a aprovisionar;
+-- los ambientes de este sistema son efímeros»—, y era falso donde importa: el
+-- sistema queda en la universidad, y ahí reaprovisionar significa tirar noventa
+-- días de registros.
 
 -- `intencion_sombra` guarda el nombre de la intención del catálogo que el enrutador
 -- de dominio eligió, mientras ese enrutador corre en modo sombra: decide y el turno
@@ -86,10 +124,11 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
 -- consulta se enterara, que es la peor forma de romper una métrica: sigue
 -- devolviendo un número.
 --
--- ANULABLE Y SIN DEFAULT, y por el mismo motivo que las dos de arriba más uno
--- propio: nulo es el caso NORMAL y no un dato faltante. Un catálogo de cinco
--- intenciones no captura la mayoría de las preguntas y no pretende hacerlo, así que
--- un valor por omisión convertiría «no capturó» en una decisión que nadie tomó.
+-- ANULABLE Y SIN DEFAULT, y no por el motivo de las dos de arriba: en ellas nulo
+-- marca una fila anterior a la columna, acá nulo es el caso NORMAL y no un dato
+-- faltante. Un catálogo de cinco intenciones no captura la mayoría de las preguntas
+-- y no pretende hacerlo, así que un valor por omisión convertiría «no capturó» en
+-- una decisión que nadie tomó.
 --
 -- Y NO VA AL REGISTRO ANALÍTICO, a propósito. El motivo está escrito abajo, al
 -- lado de esa tabla, que es donde alguien la agregaría por consistencia.
@@ -116,6 +155,10 @@ CREATE TABLE IF NOT EXISTS asistente.registro_analitico (
     estado    text NOT NULL,
     dia       date NOT NULL
 );
+
+-- Esta tabla no lleva ningún ALTER porque no ganó ninguna columna desde que se
+-- creó: las cuatro nacieron con ella. La próxima que se sume va acá y arriba, igual
+-- que en el operativo.
 
 -- EL ANALÍTICO NO LLEVA `intencion_sombra`, Y ES UNA DECISIÓN.
 -- Es la columna que el operativo sí tiene, así que alguien va a querer completarla

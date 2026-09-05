@@ -24,6 +24,33 @@ namespace Modules.Asistente.Infrastructure;
 internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTurno> log)
     : IRegistroDelTurno
 {
+    /// <summary>Las columnas que este escritor pone, tabla por tabla.</summary>
+    /// <remarks>
+    /// ES LA ÚNICA LISTA, Y TIENE QUE SEGUIR SIÉNDOLO. Los dos INSERT de abajo se
+    /// arman desde acá, y <see cref="MigradorAsistente"/> verifica contra acá que la
+    /// base las tenga antes de dejar arrancar. Escribirla dos veces —una acá y otra
+    /// en el chequeo— haría que el próximo desajuste fuera entre las dos listas, que
+    /// es el mismo defecto una capa más arriba y sin nadie que lo mire.
+    ///
+    /// Los nombres son a la vez los de las columnas y los de los parámetros: el
+    /// INSERT se arma con ambos desde esta lista, así que agregar una columna es
+    /// agregar un renglón acá y su <c>AddWithValue</c> con el mismo nombre.
+    /// </remarks>
+    internal static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ColumnasQueEscribe =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+        {
+            ["registro_operativo"] =
+            [
+                "actor_id", "ocurrido_en", "carril", "estado", "llamadas_al_modelo",
+                "tokens_de_entrada", "tokens_de_salida", "latencia_ms", "hubo_reintento",
+                "truncado", "proveedor", "tokens_de_cache", "intencion_sombra",
+            ],
+            ["registro_analitico"] = ["pregunta", "categoria", "estado", "dia"],
+        };
+
+    private static readonly string InsertarEnOperativo = Insertar("registro_operativo");
+    private static readonly string InsertarEnAnalitico = Insertar("registro_analitico");
+
     public async Task RegistrarAsync(TurnoParaRegistrar turno, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(turno);
@@ -35,34 +62,24 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
     private static async Task OperativoAsync(
         NpgsqlConnection conexion, TurnoParaRegistrar turno, CancellationToken ct)
     {
-        await using var comando = new NpgsqlCommand(
-            """
-            INSERT INTO asistente.registro_operativo
-                (actor_id, ocurrido_en, carril, estado, llamadas_al_modelo,
-                 tokens_de_entrada, tokens_de_salida, latencia_ms, hubo_reintento,
-                 truncado, proveedor, tokens_de_cache, intencion_sombra)
-            VALUES (@actor, @cuando, @carril, @estado, @llamadas,
-                    @entrada, @salida, @latencia, @reintento, @truncado, @proveedor,
-                    @cache, @intencion)
-            """,
-            conexion);
+        await using var comando = new NpgsqlCommand(InsertarEnOperativo, conexion);
 
-        comando.Parameters.AddWithValue("actor", turno.Actor);
-        comando.Parameters.AddWithValue("cuando", turno.Cuando);
+        comando.Parameters.AddWithValue("actor_id", turno.Actor);
+        comando.Parameters.AddWithValue("ocurrido_en", turno.Cuando);
         comando.Parameters.AddWithValue("carril", turno.Carril.ToString());
         comando.Parameters.AddWithValue("estado", turno.Estado.ToString());
-        comando.Parameters.AddWithValue("llamadas", turno.LlamadasAlModelo);
-        comando.Parameters.AddWithValue("entrada", turno.TokensDeEntrada);
-        comando.Parameters.AddWithValue("salida", turno.TokensDeSalida);
-        comando.Parameters.AddWithValue("latencia", turno.LatenciaMs);
-        comando.Parameters.AddWithValue("reintento", turno.HuboReintento);
+        comando.Parameters.AddWithValue("llamadas_al_modelo", turno.LlamadasAlModelo);
+        comando.Parameters.AddWithValue("tokens_de_entrada", turno.TokensDeEntrada);
+        comando.Parameters.AddWithValue("tokens_de_salida", turno.TokensDeSalida);
+        comando.Parameters.AddWithValue("latencia_ms", turno.LatenciaMs);
+        comando.Parameters.AddWithValue("hubo_reintento", turno.HuboReintento);
         comando.Parameters.AddWithValue("truncado", turno.Truncado);
 
         // Va al operativo y NO al analítico. En el analítico sería una columna más
         // por la cual agrupar preguntas, y con esta escala eso achica el conjunto
         // anónimo; acá es lo que permite atribuir el costo a quien lo generó.
         comando.Parameters.AddWithValue("proveedor", turno.Proveedor);
-        comando.Parameters.AddWithValue("cache", turno.TokensDeCache);
+        comando.Parameters.AddWithValue("tokens_de_cache", turno.TokensDeCache);
 
         // También va solo al operativo, y el motivo es el mismo de arriba más uno
         // propio: las capturas son la minoría, así que cada intención concreta es un
@@ -72,7 +89,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         // Nulo se manda como nulo y no como cadena vacía: «no capturó» es el caso
         // normal, y una cadena vacía sería una intención sin nombre.
         comando.Parameters.AddWithValue(
-            "intencion", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
+            "intencion_sombra", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
 
         await comando.ExecuteNonQueryAsync(ct);
     }
@@ -80,12 +97,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
     private static async Task AnaliticoAsync(
         NpgsqlConnection conexion, TurnoParaRegistrar turno, CancellationToken ct)
     {
-        await using var comando = new NpgsqlCommand(
-            """
-            INSERT INTO asistente.registro_analitico (pregunta, categoria, estado, dia)
-            VALUES (@pregunta, @categoria, @estado, @dia)
-            """,
-            conexion);
+        await using var comando = new NpgsqlCommand(InsertarEnAnalitico, conexion);
 
         comando.Parameters.AddWithValue("pregunta", turno.Pregunta);
         comando.Parameters.AddWithValue("categoria", turno.Categoria);
@@ -101,6 +113,21 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         comando.Parameters.AddWithValue("dia", DateOnly.FromDateTime(turno.Cuando.UtcDateTime));
 
         await comando.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Arma el INSERT de una tabla desde <see cref="ColumnasQueEscribe"/>.
+    /// </summary>
+    /// <remarks>
+    /// Las columnas no se interpolan de ningún valor de afuera: salen de la
+    /// constante de arriba y nada más. Los valores siguen viajando por parámetro.
+    /// </remarks>
+    private static string Insertar(string tabla)
+    {
+        var columnas = ColumnasQueEscribe[tabla];
+
+        return $"INSERT INTO asistente.{tabla} ({string.Join(", ", columnas)}) "
+            + $"VALUES ({string.Join(", ", columnas.Select(columna => "@" + columna))})";
     }
 
     private async Task EscribirAsync(

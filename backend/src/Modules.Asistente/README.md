@@ -669,8 +669,22 @@ migradores: los `GRANT` necesitan que las tablas de `identity` y `designaciones`
 ya existan.
 
 No usa EF Core. El módulo no tiene entidades de dominio, así que no hay nada que
-versionar con un historial de migraciones; los scripts son idempotentes por
-construcción y re-ejecutarlos converge.
+versionar con un historial de migraciones; los scripts convergen por construcción y
+re-ejecutarlos no cambia nada.
+
+**Convergir no es lo mismo que no fallar, y la diferencia costó un defecto.** Un
+`CREATE TABLE IF NOT EXISTS` contra una base que ya tiene la tabla es un no-op: una
+columna agregada al `CREATE` no aparece nunca ahí. Por eso toda columna que se sume
+después de que la tabla exista va **en los dos lugares** —el `CREATE TABLE` y un
+`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`—, que es la única forma que el guard de
+arquitectura permite: agrega lo que falta, no toca lo que está y no depende del
+orden. `DROP`, `RENAME` y `ALTER COLUMN ... TYPE` siguen prohibidos.
+
+Y si alguien se olvida del ALTER, `MigradorAsistente` **no deja arrancar**: después
+de aplicar los scripts verifica contra `information_schema.columns` que estén todas
+las columnas que el registro escribe, y falla nombrando la que falta. Sin esa red, la
+columna faltante hace reventar el `INSERT` del registro en cada turno, el escritor se
+traga el fallo para no tumbar el servicio y el registro deja de guardar en silencio.
 
 Los dos archivos corren en orden y el orden importa: `001_asistente_grants.sql`
 concede la lectura, y `002_asistente_registros.sql` crea el schema propio y se lo

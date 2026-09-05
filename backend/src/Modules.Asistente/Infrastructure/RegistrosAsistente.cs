@@ -21,7 +21,9 @@ public static class RegistrosAsistente
     public const string RecursoSql = "asistente/002_asistente_registros.sql";
 
     /// <summary>
-    /// Aplica el DDL de los registros. Idempotente: re-ejecutar converge.
+    /// Aplica el DDL de los registros. Converge también sobre una base que ya tenía
+    /// las tablas: lo que el <c>CREATE TABLE IF NOT EXISTS</c> no puede agregar lo
+    /// agrega un <c>ALTER TABLE ... ADD COLUMN IF NOT EXISTS</c> por columna.
     /// </summary>
     /// <remarks>
     /// Los nombres de rol llevan sufijo de ambiente, así que viajan como GUC de
