@@ -68,6 +68,52 @@ public static class PoliticaDeAbstencion
         return cobertura is null ? texto : $"{texto} {cobertura.Frase()}";
     }
 
+    /// <summary>
+    /// Aclaración que acompaña al razonamiento de un turno que no devolvió filas.
+    /// </summary>
+    /// <remarks>
+    /// Habla de lo que se buscó y de lo que se encontró, sin nombrar consulta,
+    /// esquema ni tablas: la lee el usuario final, igual que el resto de los
+    /// textos de esta clase (D15).
+    /// </remarks>
+    public const string AclaracionDeRazonamientoSinFilas =
+        "Eso es lo que busqué, no lo que encontré: la búsqueda no devolvió ningún resultado.";
+
+    /// <summary>
+    /// El razonamiento de un turno que terminó sin filas.
+    /// </summary>
+    /// <remarks>
+    /// <b>EL RAZONAMIENTO SE ESCRIBE ANTES DE EJECUTAR LA CONSULTA.</b> Sale de la
+    /// primera llamada al modelo, junto con el SQL, así que sólo puede describir lo
+    /// que el modelo se propuso hacer. Cuando además promete el resultado —«y
+    /// devuelvo tres materias distintas»— y la consulta vuelve vacía, el turno
+    /// afirma dos cosas incompatibles: el texto principal dice que no encontró
+    /// nada, y la explicación dice que devolvió tres. De las dos, la que suena
+    /// informada es la falsa.
+    ///
+    /// Pasó de verdad, y el caso muestra por qué importa: el modelo escribió el
+    /// literal «Ingeniería Informática» contra una carrera que se llama «Ingeniería
+    /// en Informática». Cero filas por un literal mal escrito, con una explicación
+    /// que seguía prometiendo tres materias. Quien lee concluye que no hay
+    /// profesores en esa carrera.
+    ///
+    /// <b>La aclaración se agrega y el texto del modelo NO se descarta.</b> Es lo
+    /// único que deja ver cómo se leyó la pregunta, y fue exactamente lo que
+    /// permitió encontrar el literal mal escrito. Se le saca la promesa, no la
+    /// información.
+    ///
+    /// <b>Va acá y no en el prompt</b>, por el mismo motivo que
+    /// <see cref="TextoDeResultadoVacio"/>: el prompt también se endureció —ver
+    /// <c>RenderizadorDeEsquema</c>—, pero eso es un pedido y esto es una garantía.
+    /// Un modelo que igual promete filas encuentra acá el desmentido.
+    /// </remarks>
+    public static string RazonamientoDeResultadoVacio(string razonamiento) =>
+        // Sin razonamiento no hay nada que aclarar, y una aclaración suelta sería
+        // ruido: el usuario ya leyó que no se encontró nada dos renglones arriba.
+        string.IsNullOrWhiteSpace(razonamiento)
+            ? razonamiento
+            : $"{razonamiento.TrimEnd()} {AclaracionDeRazonamientoSinFilas}";
+
     /// <summary>Texto de una pregunta que el esquema no cubre (caso 1).</summary>
     /// <remarks>
     /// No enumera qué tablas o columnas existen. Un rechazo que dijera «no existe

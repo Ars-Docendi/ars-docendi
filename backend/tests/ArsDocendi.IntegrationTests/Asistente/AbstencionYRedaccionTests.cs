@@ -1,4 +1,5 @@
 using Modules.Asistente.Application;
+using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
@@ -273,6 +274,76 @@ public sealed class AbstencionYRedaccionTests
             "No agregues datos", RedactorDeRespuesta.Instrucciones, StringComparison.Ordinal);
         Assert.Contains(
             "No menciones nombres de tablas", RedactorDeRespuesta.Instrucciones, StringComparison.Ordinal);
+    }
+
+    // ------------------------------- el razonamiento de un turno sin filas
+
+    // EL RAZONAMIENTO SE ESCRIBE ANTES DE EJECUTAR LA CONSULTA, así que sólo puede
+    // hablar de lo que el modelo BUSCÓ. Cuando además promete lo que va a devolver
+    // —«y devuelvo tres materias distintas»— y la consulta vuelve vacía, el turno
+    // afirma dos cosas contradictorias: el texto principal dice que no encontró
+    // nada y la explicación dice que devolvió tres. Quien lee se queda con la que
+    // suena informada.
+    //
+    // Pasó de verdad: una consulta cuyo literal decía «Ingeniería Informática»
+    // contra una carrera llamada «Ingeniería en Informática» volvió vacía, y la
+    // explicación siguió prometiendo tres materias.
+
+    [Fact]
+    public void El_razonamiento_de_un_turno_vacio_aclara_que_no_hubo_filas()
+    {
+        var razonamiento = PoliticaDeAbstencion.RazonamientoDeResultadoVacio(
+            "Interpreté 'profesores' como titular, asociado y adjunto, y devuelvo tres materias.");
+
+        Assert.Contains("no devolvió", razonamiento, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("busqué", razonamiento, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void La_aclaracion_conserva_como_se_interpreto_la_pregunta()
+    {
+        // No se descarta el texto del modelo: es lo único que deja ver que el
+        // literal estaba mal escrito, y fue lo que permitió diagnosticar el caso
+        // real. Se le quita la promesa, no la información.
+        const string Original = "Interpreté 'profesores' como los cargos de jerarquía.";
+
+        Assert.StartsWith(
+            Original,
+            PoliticaDeAbstencion.RazonamientoDeResultadoVacio(Original),
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Sin_razonamiento_no_se_inventa_ninguno(string vacio)
+    {
+        // Una aclaración sola, sin nada que aclarar, sería ruido: el usuario ya
+        // leyó «no encontré ningún registro» dos renglones más arriba.
+        Assert.Equal(vacio, PoliticaDeAbstencion.RazonamientoDeResultadoVacio(vacio));
+    }
+
+    [Fact]
+    public void La_aclaracion_no_habla_de_esquema_ni_de_sql()
+    {
+        // Misma regla que el resto de los textos de abstención: lo lee el usuario
+        // final (D15).
+        var razonamiento = PoliticaDeAbstencion.RazonamientoDeResultadoVacio("Algo.");
+
+        Assert.DoesNotContain("SQL", razonamiento, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tabla", razonamiento, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void El_prompt_de_generacion_prohibe_prometer_resultados()
+    {
+        // El arreglo mecánico de arriba es la garantía; esto es la fuente. Sin
+        // esta regla el modelo sigue escribiendo la promesa y la aclaración queda
+        // contradiciéndola en cada turno vacío.
+        Assert.Contains(
+            "todavía no se ejecutó",
+            RenderizadorDeEsquema.Instrucciones,
+            StringComparison.Ordinal);
     }
 
     // ------------------------------------------------------------------ apoyo

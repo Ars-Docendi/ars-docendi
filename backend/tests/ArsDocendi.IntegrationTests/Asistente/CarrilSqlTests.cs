@@ -227,6 +227,42 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Un_turno_vacio_no_deja_el_razonamiento_prometiendo_filas()
+    {
+        await SembrarAsync();
+
+        // El razonamiento que el modelo escribe ANTES de ejecutar promete filas.
+        // La consulta no devuelve ninguna. Sin el guard, el turno afirma las dos
+        // cosas a la vez y el usuario se queda con la que suena informada.
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'",
+            razonamiento: "Busqué los trámites con ese número y devuelvo los tres que hay."));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Docente, "¿Qué pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Empty(turno.Filas);
+        Assert.Contains("Busqué los trámites", turno.Razonamiento, StringComparison.Ordinal);
+        Assert.Contains("no devolvió", turno.Razonamiento, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_turno_con_filas_deja_el_razonamiento_intacto()
+    {
+        await SembrarAsync();
+
+        // La aclaración es del caso vacío y de ningún otro: acá las filas están a
+        // la vista y contradicen solas cualquier promesa mal calibrada.
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            ContarPedidos, razonamiento: "Conté los pedidos del sistema."));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Conté los pedidos del sistema.", turno.Razonamiento);
+    }
+
+    [Fact]
     public async Task El_reintento_se_queda_con_la_segunda_consulta_si_esa_trae_datos()
     {
         await SembrarAsync();

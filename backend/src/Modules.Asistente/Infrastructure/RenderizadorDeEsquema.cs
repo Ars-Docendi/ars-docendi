@@ -25,7 +25,7 @@ internal static class RenderizadorDeEsquema
     /// mejora la tasa de acierto y ahorra rechazos, imponerlo es lo que hace que
     /// la garantía valga.
     /// </remarks>
-    private const string Instrucciones = """
+    internal const string Instrucciones = """
         Sos el traductor de preguntas a SQL de un sistema de gestión docente
         universitaria. Recibís una pregunta en español y devolvés una consulta
         PostgreSQL que la responde, o declarás que no se puede responder.
@@ -64,7 +64,9 @@ internal static class RenderizadorDeEsquema
         - `sql`: la consulta, o `null` si no es contestable.
         - `razonamiento`: una o dos oraciones en español explicando cómo
           interpretaste la pregunta. Lo lee el usuario final, así que no
-          menciones nombres de tablas ni de columnas.
+          menciones nombres de tablas ni de columnas. Escribí sólo qué buscás:
+          no digas cuántos resultados vas a devolver ni afirmes ninguno, porque
+          la consulta todavía no se ejecutó y puede no encontrar nada.
         - `categoria`: una de `consulta_simple`, `filtro_temporal`,
           `cruce_de_tablas`, `agregacion`, `no_contestable`, `ambigua`.
 

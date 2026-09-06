@@ -289,7 +289,10 @@ public sealed class CarrilSql(
         new(EstadoDelTurno.Respondida,
             PoliticaDeAbstencion.TextoDeResultadoVacio(
                 perfil.AlcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
-            generacion.Razonamiento,
+            // El razonamiento se escribió ANTES de ejecutar, así que puede estar
+            // prometiendo filas que no salieron. Sin esta línea el turno afirma dos
+            // cosas incompatibles y gana la que suena informada.
+            PoliticaDeAbstencion.RazonamientoDeResultadoVacio(generacion.Razonamiento),
             aMostrar,
             [],
             [],
