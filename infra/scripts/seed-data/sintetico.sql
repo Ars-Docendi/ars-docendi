@@ -311,4 +311,119 @@ INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES
     ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000002', 'interes')
 ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
 
+-- ---------------------------------------------------------------------------
+-- Trayectoria de una MINORÍA del padrón.
+--
+-- ES UNA MINORÍA A PROPÓSITO, y no un seed a medias. El design spec del portal
+-- parte de que los docentes no cargan sus datos, y BR-portal-005 exige que toda
+-- respuesta apoyada en portal declare sobre cuántos existe el dato. Un seed donde
+-- todos cargaron mediría un sistema que no existe y dejaría sin probar justamente
+-- el caso que más importa: que el asistente diga «de 15 docentes, 7 cargaron sus
+-- habilidades» en lugar de presentar el vacío como un hecho.
+--
+-- Los perfiles se resuelven por `persona_id` y no por id fijo: los crea el INSERT
+-- ... SELECT de más arriba con UUID aleatorio, así que clavarlos acá haría que el
+-- seed dependiera de qué corrida los generó.
+--
+-- `termino_norm` va EN MAYÚSCULAS y conservando acentos. No es cosmética: la
+-- aplicación normaliza así y las consultas comparan por esa columna. Escribirlo en
+-- minúscula hace que toda búsqueda por habilidad devuelva cero sin que nada falle
+-- —pasó, y costó una corrida financiada del evaluador—.
+-- ---------------------------------------------------------------------------
+
+INSERT INTO portal.habilidades (id, termino, termino_norm, sugerido) VALUES
+    ('f0800000-0000-4000-8000-000000000003', 'Python', 'PYTHON', FALSE),
+    ('f0800000-0000-4000-8000-000000000004', 'Kubernetes', 'KUBERNETES', FALSE),
+    ('f0800000-0000-4000-8000-000000000005', 'Docker', 'DOCKER', FALSE),
+    ('f0800000-0000-4000-8000-000000000006', 'Redes de computadoras', 'REDES DE COMPUTADORAS', FALSE),
+    ('f0800000-0000-4000-8000-000000000007', 'Inteligencia artificial', 'INTELIGENCIA ARTIFICIAL', FALSE),
+    ('f0800000-0000-4000-8000-000000000008', 'Testing automatizado', 'TESTING AUTOMATIZADO', FALSE),
+    ('f0800000-0000-4000-8000-000000000009', 'Gestión de proyectos', 'GESTIÓN DE PROYECTOS', TRUE),
+    ('f0800000-0000-4000-8000-00000000000a', 'Estadística aplicada', 'ESTADÍSTICA APLICADA', FALSE)
+ON CONFLICT (id) DO UPDATE SET
+    termino = EXCLUDED.termino, termino_norm = EXCLUDED.termino_norm,
+    sugerido = EXCLUDED.sugerido;
+
+INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo)
+SELECT pf.id, h.habilidad_id, h.tipo
+FROM (VALUES
+    ('d0000000-0000-4000-8000-000000000002'::UUID, 'f0800000-0000-4000-8000-000000000001'::UUID, 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000002', 'f0800000-0000-4000-8000-000000000003', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000002', 'f0800000-0000-4000-8000-000000000008', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000003', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000004', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000005', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000007', 'interes'),
+    ('d0000000-0000-4000-8000-000000000010', 'f0800000-0000-4000-8000-000000000004', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000010', 'f0800000-0000-4000-8000-000000000006', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000011', 'f0800000-0000-4000-8000-000000000007', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000011', 'f0800000-0000-4000-8000-00000000000a', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000012', 'f0800000-0000-4000-8000-000000000009', 'habilidad'),
+    ('d0000000-0000-4000-8000-000000000012', 'f0800000-0000-4000-8000-000000000003', 'interes'),
+    ('d0000000-0000-4000-8000-000000000013', 'f0800000-0000-4000-8000-000000000008', 'habilidad')
+) AS h(persona_id, habilidad_id, tipo)
+JOIN portal.perfiles pf ON pf.persona_id = h.persona_id
+ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
+
+INSERT INTO portal.educaciones (id, perfil_id, nivel, carrera, institucion, desde, hasta)
+SELECT e.id, pf.id, e.nivel, e.carrera, e.institucion, e.desde, e.hasta
+FROM (VALUES
+    ('f0400000-0000-4000-8000-000000000002'::UUID, 'd0000000-0000-4000-8000-000000000002'::UUID,
+     'Doctorado', 'Ciencias Informáticas', 'UNLP', DATE '2016-03-01', DATE '2021-11-15'),
+    ('f0400000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001',
+     'Maestría', 'Ciencia de Datos', 'UBA', DATE '2019-03-01', DATE '2022-07-30'),
+    ('f0400000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000010',
+     'Especialización', 'Redes y Seguridad', 'UTN', DATE '2020-08-01', DATE '2022-03-20'),
+    -- Sin fecha de fin: un posgrado EN CURSO. Sin este caso, «¿quiénes tienen un
+    -- posgrado terminado?» y «¿quiénes cursan uno?» dan lo mismo y el dataset no
+    -- distingue una consulta de la otra.
+    ('f0400000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000011',
+     'Doctorado', 'Matemática Aplicada', 'UNLaM', DATE '2024-03-01', NULL),
+    ('f0400000-0000-4000-8000-000000000006', 'd0000000-0000-4000-8000-000000000012',
+     'Maestría', 'Dirección de Proyectos', 'UCA', DATE '2021-03-01', DATE '2023-12-10')
+) AS e(id, persona_id, nivel, carrera, institucion, desde, hasta)
+JOIN portal.perfiles pf ON pf.persona_id = e.persona_id
+ON CONFLICT (id) DO UPDATE SET
+    nivel = EXCLUDED.nivel, carrera = EXCLUDED.carrera,
+    institucion = EXCLUDED.institucion, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta;
+
+INSERT INTO portal.certificaciones (id, perfil_id, nombre, emisor, fecha, vencimiento)
+SELECT c.id, pf.id, c.nombre, c.emisor, c.fecha, c.vencimiento
+FROM (VALUES
+    -- Vencen DENTRO DEL AÑO de referencia del seed, que es lo que hace contestable
+    -- «¿a qué docentes se les vence una certificación este año?».
+    ('f0500000-0000-4000-8000-000000000002'::UUID, 'd0000000-0000-4000-8000-000000000002'::UUID,
+     'Certified Kubernetes Administrator', 'CNCF', DATE '2023-11-02', DATE '2026-11-02'),
+    ('f0500000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001',
+     'Scrum Master Certified', 'Scrum Alliance', DATE '2024-10-01', DATE '2026-10-01'),
+    -- Ya vencida: separa «vence» de «venció», que son preguntas distintas.
+    ('f0500000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000010',
+     'CCNA', 'Cisco', DATE '2022-04-18', DATE '2025-04-18'),
+    -- Sin vencimiento: una certificación que no caduca.
+    ('f0500000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000011',
+     'TensorFlow Developer', 'Google', DATE '2025-06-12', NULL)
+) AS c(id, persona_id, nombre, emisor, fecha, vencimiento)
+JOIN portal.perfiles pf ON pf.persona_id = c.persona_id
+ON CONFLICT (id) DO UPDATE SET
+    nombre = EXCLUDED.nombre, emisor = EXCLUDED.emisor,
+    fecha = EXCLUDED.fecha, vencimiento = EXCLUDED.vencimiento;
+
+INSERT INTO portal.experiencias (id, perfil_id, puesto, organizacion, descripcion, desde, hasta)
+SELECT x.id, pf.id, x.puesto, x.organizacion, x.descripcion, x.desde, x.hasta
+FROM (VALUES
+    ('f0300000-0000-4000-8000-000000000002'::UUID, 'd0000000-0000-4000-8000-000000000002'::UUID,
+     'Arquitecto de software', 'Consultora privada', 'Sistemas distribuidos.',
+     DATE '2014-02-01', DATE '2019-12-31'),
+    ('f0300000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000001',
+     'Analista de datos', 'Organismo público', 'Modelos predictivos.',
+     DATE '2020-01-15', NULL),
+    ('f0300000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000012',
+     'Coordinadora de proyectos', 'ONG educativa', 'Gestión de programas.',
+     DATE '2018-06-01', DATE '2023-05-31')
+) AS x(id, persona_id, puesto, organizacion, descripcion, desde, hasta)
+JOIN portal.perfiles pf ON pf.persona_id = x.persona_id
+ON CONFLICT (id) DO UPDATE SET
+    puesto = EXCLUDED.puesto, organizacion = EXCLUDED.organizacion,
+    descripcion = EXCLUDED.descripcion, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta;
+
 COMMIT;
