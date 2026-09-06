@@ -231,6 +231,14 @@ public static class ModuleExtensions
         // Singleton también: la caché de idempotencia tiene que sobrevivir al
         // request, que es literalmente para lo que existe.
         services.AddSingleton<IIdempotencia, IdempotenciaEnMemoria>();
+
+        // El puerto de vínculos arranca SIN resolver nada. Quién puede abrir un
+        // trámite lo sabe el módulo de designaciones, y este módulo no lo
+        // referencia: la composición la hace el Host, que ve a los dos, y su
+        // registro reemplaza a éste. Con el Host sin componerlo, los turnos
+        // responden igual y no ofrecen vínculos, que es la degradación correcta.
+        services.AddScoped<IResolutorDeVinculos, SinVinculos>();
+
         services.AddScoped<CapaConversacional>();
 
         // -------------------------------------------- registros y su purga

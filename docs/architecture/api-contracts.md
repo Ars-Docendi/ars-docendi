@@ -127,12 +127,17 @@ Respuesta:
 | `columnas[]`           | Nombre y marca de sensibilidad                                                 |
 | `filas[]`              | Los valores reales, incluidos los que no viajaron al modelo                    |
 | `truncado`             | Booleano, **nunca** un conteo                                                  |
+| `vinculos[]`           | Qué celdas llevan a una pantalla del sistema                                   |
 | `sql`                  | Solo con `asistente.ver_consulta`                                              |
 | `metricas`             | Llamadas al modelo y categoría                                                 |
 
 `opciones` y `sugerencias` son campos distintos a propósito, y colapsarlos borraría el tercer estado: las opciones esperan una elección para poder seguir, las sugerencias no esperan nada.
 
 `estado` usa etiquetas propias del contrato y no el nombre del enum del backend: renombrar un valor interno no puede romper a los clientes en silencio.
+
+**`vinculos[]`** trae `{ fila, columna, tipo, id }` y **no una URL**: el backend dice qué clase de recurso identifica cada celda y con qué identificador se abre, y la ruta la resuelve el cliente, que es donde viven las rutas. Un cliente que no reconoce un `tipo` **no pinta nada** — así, el día que se ofrezcan vínculos a otro módulo, un cliente viejo no muestra un enlace roto.
+
+Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas las filtra el motor con las policies de RLS del asistente; la pantalla la autoriza el módulo dueño del recurso, con su propia regla. **No son la misma regla y divergen hoy**: el ámbito departamental es una lista fija de códigos de rol en el módulo y `identity.roles.scope` en las funciones del asistente; los roles del módulo salen del token y están acotados al rol seleccionado en la sesión, y los del asistente son las asignaciones vigentes leídas en vivo; el permiso es un claim de un lado y la matriz en vivo del otro. Por eso el vínculo se le pregunta al módulo dueño —`IDesignacionesQueries.UbicarPedidosAsync` para el trámite— y no se deduce de que la fila haya llegado: deducirlo produce un botón que responde 403 al apretarlo, que es lo que el invariante #7 prohíbe.
 
 **`Idempotency-Key` obligatoria.** Cada turno cuesta dos o tres llamadas al modelo, así que un doble submit se factura completo dos veces. Se resuelve **en memoria con expiración corta y acotada por actor** — no se reusa ni se copia `designaciones.idempotencia_comandos`, que guarda el cuerpo completo de la respuesta HTTP, que es exactamente lo que este módulo decidió no persistir.
 

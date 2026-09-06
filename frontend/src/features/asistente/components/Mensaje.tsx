@@ -80,6 +80,7 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
             columnas={respuesta.columnas}
             filas={respuesta.filas}
             truncado={respuesta.truncado}
+            vinculos={respuesta.vinculos}
           />
 
           <Opciones opciones={respuesta.opciones} onElegir={onElegir} deshabilitado={enVuelo} />

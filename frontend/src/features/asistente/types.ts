@@ -28,6 +28,24 @@ export interface ColumnaDelResultado {
   sensible: boolean;
 }
 
+/**
+ * Una celda que identifica algo que el usuario puede abrir.
+ *
+ * NO TRAE LA URL, y eso es del contrato: el backend dice QUÉ —qué clase de cosa y
+ * con qué identificador— y la ruta la resuelve el cliente, que es donde viven las
+ * rutas. Un `tipo` que este cliente no conoce no se pinta, así que un backend que
+ * empiece a mandar uno nuevo no rompe nada.
+ *
+ * Que una fila esté en `filas` no implica que traiga vínculo: las filas las filtra
+ * el motor y la pantalla la autoriza el módulo dueño, que son dos reglas distintas.
+ */
+export interface VinculoDelResultado {
+  fila: number;
+  columna: number;
+  tipo: string;
+  id: string;
+}
+
 export interface MetricasDelTurno {
   llamadasAlModelo: number;
   // El backend también manda `categoria` («consulta_simple», «cruce_de_tablas»…) y
@@ -50,6 +68,8 @@ export interface RespuestaDelAsistente {
   filas: unknown[][];
   /** Booleano y nunca un conteo: cuántas filas faltan es un canal de inferencia. */
   truncado: boolean;
+  /** Las celdas que llevan a una pantalla del sistema. Vacío si ninguna. */
+  vinculos: VinculoDelResultado[];
   /** Solo llega con el permiso `asistente.ver_consulta`. */
   sql?: string | null;
   metricas: MetricasDelTurno;

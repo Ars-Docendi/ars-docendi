@@ -99,6 +99,38 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositor
             : throw new ErrorDominioPedido($"No se pudo resolver la carrera del pedido {pedidoId}.");
     }
 
+    // Cruza a identity.materias por la misma razón y con el mismo mecanismo que
+    // ObtenerCarreraDelPedidoAsync: la carrera del pedido se deriva de la materia y
+    // no se desnormaliza en designaciones.pedidos.
+    //
+    // El `= ANY` con un arreglo parametrizado, y no un IN armado a mano: los números
+    // llegan de afuera del módulo —de lo que el asistente vio en un resultado— y
+    // concatenarlos sería interpolar entrada ajena en SQL.
+    public async Task<IReadOnlyList<PedidoUbicado>> UbicarPorNumerosAsync(
+        IReadOnlyCollection<string> numeros, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(numeros);
+
+        if (numeros.Count == 0)
+        {
+            return [];
+        }
+
+        var buscados = numeros.ToArray();
+
+        return await db.Database
+            .SqlQuery<PedidoUbicado>($"""
+                SELECT p.id         AS "Id",
+                       p.numero     AS "Numero",
+                       p.materia_id AS "MateriaId",
+                       m.carrera_id AS "CarreraId"
+                  FROM designaciones.pedidos p
+                  JOIN identity.materias m ON m.id = p.materia_id
+                 WHERE p.numero = ANY({buscados})
+                """)
+            .ToListAsync(ct);
+    }
+
     public async Task<string> SiguienteNumeroAsync(CancellationToken ct)
     {
         var numeros = await db.Database

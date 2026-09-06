@@ -26,6 +26,20 @@ public sealed record ConsultaDelAsistente(
 /// <summary>Una opción del menú de aclaración.</summary>
 public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);
 
+/// <summary>
+/// Un vínculo a la pantalla que muestra lo que una celda identifica.
+/// </summary>
+/// <param name="Fila">Índice de la fila dentro de <c>filas</c>.</param>
+/// <param name="Columna">Índice de la columna dentro de esa fila.</param>
+/// <param name="Tipo">Qué clase de recurso es. El cliente lo traduce a una ruta.</param>
+/// <param name="Id">Con qué identificador se abre.</param>
+/// <remarks>
+/// <b>Sin URL, a propósito.</b> La ruta es una decisión de la interfaz, y un
+/// cliente que no reconozca el <paramref name="Tipo"/> no pinta nada — así un tipo
+/// nuevo no rompe a un cliente viejo, sólo no lo aprovecha.
+/// </remarks>
+public sealed record VinculoDto(int Fila, int Columna, string Tipo, string Id);
+
 /// <summary>Una columna del resultado, con su marca de sensibilidad.</summary>
 /// <param name="Sensible">
 /// Si la columna trae un dato personal. Lo necesita quien renderiza: con columnas
@@ -73,6 +87,17 @@ public sealed record RespuestaDelAsistente
     /// <summary>La consulta que se ejecutó. Presente solo con el permiso correspondiente.</summary>
     public string? Sql { get; init; }
 
+    /// <summary>
+    /// Las celdas que identifican algo que el actor <b>puede abrir</b>. Vacío si no
+    /// hay ninguna.
+    /// </summary>
+    /// <remarks>
+    /// Que una fila esté en <c>filas</c> no implica que su recurso tenga vínculo:
+    /// las filas las filtra el motor y la pantalla la autoriza el módulo dueño, que
+    /// son dos reglas distintas. Este campo trae el veredicto de la segunda.
+    /// </remarks>
+    public IReadOnlyList<VinculoDto> Vinculos { get; init; } = [];
+
     /// <summary>Lo que costó el turno.</summary>
     public required MetricasDto Metricas { get; init; }
 
@@ -95,6 +120,8 @@ public sealed record RespuestaDelAsistente
             Filas = turno.Filas,
             Truncado = turno.Truncado,
             Sql = turno.Sql,
+            Vinculos = [.. (turno.Vinculos ?? []).Select(
+                v => new VinculoDto(v.Fila, v.Columna, v.Tipo, v.Id))],
             Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
         };
     }

@@ -381,6 +381,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* La celda que lleva a una pantalla del sistema.
+
+   SE VE COMO ENLACE Y NO COMO BOTÓN: navega, no ejecuta nada, y el subrayado es lo
+   que lo distingue de las celdas de al lado sin agregarle peso a una tabla que ya
+   es densa. El `offset` lo separa de los descendentes para que el número siga
+   siendo legible de un vistazo. */
+.adoc-asistente-vinculo {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.adoc-asistente-vinculo:hover {
+  text-decoration-thickness: 2px;
+}
+
+.adoc-asistente-vinculo:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .adoc-asistente-sensible {
   display: inline-flex;
   align-items: center;

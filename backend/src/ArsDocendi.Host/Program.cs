@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Asistente;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.Shared;
 using ArsDocendi.Shared.Persistencia;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Asistente;
+using Modules.Asistente.Application;
 using Modules.Aulas;
 using Modules.Designaciones;
 using Modules.Portal;
@@ -77,6 +79,12 @@ builder.Services
     .AddPortalModule(builder.Configuration)
     .AddTareasModule(builder.Configuration)
     .AddAsistenteModule(builder.Configuration);
+
+// VA DESPUÉS DE AddAsistenteModule, y el orden es el mecanismo: el módulo del
+// asistente registra una implementación que no resuelve nada —no conoce a ningún
+// otro módulo— y ésta la reemplaza. Es el único proyecto que ve a los dos, así que
+// es el único que puede componerlos sin agregar una arista entre módulos.
+builder.Services.AddScoped<IResolutorDeVinculos, VinculosDeDesignaciones>();
 
 var app = builder.Build();
 

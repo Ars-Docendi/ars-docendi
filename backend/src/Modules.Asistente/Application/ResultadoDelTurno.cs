@@ -105,6 +105,15 @@ public enum EstadoDelTurno
 /// explique. <b>Este campo no se mapea al DTO de la API</b>, y hay un test que lo
 /// verifica.
 /// </remarks>
+/// <param name="Vinculos">
+/// Las celdas del resultado que identifican algo que el actor puede abrir, con qué
+/// clase de cosa es y con qué identificador. Vacío o nulo cuando no hay ninguna.
+/// </param>
+/// <remarks>
+/// <b>Los resuelve una autoridad ajena al carril</b>, y por eso llegan acá y no se
+/// calculan adentro: quién puede abrir un trámite lo decide el módulo dueño, no la
+/// policy que dejó pasar la fila. Ver <see cref="IResolutorDeVinculos"/>.
+/// </remarks>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -120,4 +129,5 @@ public sealed record ResultadoDelTurno(
     IReadOnlyList<OpcionDeAclaracion>? Opciones = null,
     IReadOnlyList<string>? Sugerencias = null,
     string? Sql = null,
-    string? SqlEjecutado = null);
+    string? SqlEjecutado = null,
+    IReadOnlyList<VinculoDelResultado>? Vinculos = null);

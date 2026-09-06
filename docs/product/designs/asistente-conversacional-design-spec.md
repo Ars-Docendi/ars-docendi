@@ -79,6 +79,10 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
   `actions`; el panel centrado a 880 px y con alto fijo para que el hilo scrollee solo.
 - **Tarjeta de respuesta**: fondo `--color-bg-sunken`, radio `--radius-sm`, texto a `72ch`; la
   tabla ocupa todo el ancho de la tarjeta, con cabecera pegajosa y `max-height: 50vh`.
+- **Celda con vínculo**: la celda que identifica algo abrible se pinta como enlace
+  (`--color-accent`, subrayado con `text-underline-offset: 2px`). **No hay columna «Ver»**: en el
+  modal el ancho ya está comprometido y el identificador es lo que la mano iba a buscar de todos
+  modos. Nombre accesible «Ver el trámite 2026-9005», no el número solo.
 - **Burbuja del usuario**: `--color-accent` / `--color-text-on-accent`, alineada a la derecha.
 - **Opciones de aclaración**: bloque con barra de acento a la izquierda, botones `secondary`.
 - **Sugerencias**: chips pastilla `ghost`, bajo el texto «Probá con alguna de estas:».
@@ -225,6 +229,17 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   focus trap y retorno propios: queda como deuda técnica y el workaround se quita cuando lo traiga.
 - **Tokens del tema, nada propio.** Se eliminan todos los fallbacks slate/indigo del CSS actual.
   Íconos SVG a mano en `app/shell/icons.tsx`, en la grilla del shell; sin `lucide-react`.
+- **El vínculo al detalle sale del backend, y la ausencia de vínculo también.** Que una fila se
+  muestre no significa que su pantalla esté abierta para quien pregunta: las filas las filtra la
+  RLS del asistente y el detalle lo autoriza el módulo de designaciones, con reglas que **hoy
+  divergen** (el ámbito departamental es una lista de códigos de rol allá y `roles.scope` acá; el
+  permiso es un claim del token allá y la matriz en vivo acá). La interfaz no adivina: pinta
+  enlace donde el backend dijo que hay, y texto donde no. Un enlace que termina en 403 es fake UI
+  (invariante #7), y la dirección segura del error es no ofrecerlo — el dato se lee igual.
+- **Seguir un vínculo cierra el modal y conserva la conversación.** Quedarse tapando la pantalla
+  a la que se acaba de llegar no tendría sentido. El hilo sobrevive porque vive en el lanzador,
+  que sigue montado en la barra mientras la aplicación navega por debajo; al reabrir, la
+  conversación está donde estaba.
 - **Móvil a pantalla completa** desde 640 px hacia abajo; Enter hace salto en puntero grueso.
 - **Copy en voseo rioplatense**, coherente con el backend y la definición, aunque los principios
   generales pidan evitar el «vos» informal en mensajes del sistema: la superficie entera del

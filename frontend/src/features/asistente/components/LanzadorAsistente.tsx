@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Modal } from "@ars-docendi/ui";
 
 import { AyudaDelAsistente } from "./AyudaDelAsistente";
@@ -31,6 +32,12 @@ import { sparkIcon } from "../../../app/shell/icons";
  * esa pantalla no se la está mirando. El modal también centra el foco del teclado,
  * que es lo que corresponde cuando lo que se abre es donde hay que escribir.
  *
+ * NAVEGAR CIERRA EL MODAL. La única forma de navegar con el modal abierto es seguir
+ * un vínculo de una respuesta, y quedarse tapando la pantalla a la que se acaba de
+ * llegar no tendría sentido. Se resuelve mirando la ubicación desde acá —que es el
+ * dueño del estado de apertura— y no pasando un callback por tres componentes hasta
+ * la celda de la tabla.
+ *
  * LA CONVERSACIÓN VIVE ACÁ, NO EN EL PANEL. El panel se monta al abrir y se
  * desmonta al cerrar, y Esc o un clic afuera —también sin querer— cierran: con el
  * hilo en el panel, un clic fuera lo tiraba. El lanzador vive con la barra, así que
@@ -43,6 +50,21 @@ export function LanzadorAsistente() {
   const [abierto, setAbierto] = useState(false);
   const asistente = useAsistente();
   const lanzador = useRef<HTMLButtonElement>(null);
+  const { pathname } = useLocation();
+  const [rutaVista, setRutaVista] = useState(pathname);
+
+  // AJUSTE DE ESTADO EN RENDER, no un efecto. Cerrar en un `useEffect` pinta el
+  // modal una vez encima de la pantalla nueva y lo saca en el commit siguiente;
+  // acá React descarta ese render y vuelve a correr el componente antes de pintar
+  // nada. Es el patrón que la documentación de React llama «ajustar estado cuando
+  // cambia una prop», y el mismo que usa el grupo colapsable del nav.
+  //
+  // La conversación no se pierde: vive en este componente, que sigue montado en la
+  // barra mientras la aplicación navega por debajo.
+  if (rutaVista !== pathname) {
+    setRutaVista(pathname);
+    setAbierto(false);
+  }
 
   // EL MODAL DE LA LIBRERÍA NO GESTIONA EL FOCO: ni lo contiene ni lo devuelve. Se
   // portalea a `body`, hermano de `#root`, así que hacer inerte la raíz mientras

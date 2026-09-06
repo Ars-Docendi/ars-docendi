@@ -92,3 +92,81 @@ describe("La columna sensible", () => {
     expect(screen.queryByText(/dato personal/)).toBeNull();
   });
 });
+
+// ============================================================
+// Los vínculos: qué celda lleva a una pantalla del sistema.
+//
+// QUÉ CELDAS SON ENLACE NO LO DECIDE LA TABLA. Lo decide el backend contra el
+// módulo dueño del recurso, y por eso acá se prueba lo que la tabla hace con esa
+// decisión: la pinta, la ubica en la celda correcta, y NO la inventa para las de
+// al lado.
+// ============================================================
+
+const TRAMITES: ColumnaDelResultado[] = [
+  { nombre: "numero", sensible: false },
+  { nombre: "estado", sensible: false },
+];
+
+const DOS_TRAMITES: unknown[][] = [
+  ["2026-9005", "devuelto"],
+  ["2026-9006", "en_lote"],
+];
+
+describe("El vínculo de una celda", () => {
+  it("la celda con vínculo es un enlace al detalle y dice a dónde va", () => {
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "pedido-designacion", id: "abc-123" }]}
+      />,
+    );
+
+    // El nombre accesible no es el número solo: «enlace, 2026-9005» no dice a
+    // dónde lleva, y es lo único que oye quien no ve la tabla alrededor.
+    const enlace = screen.getByRole("link", { name: "Ver el trámite 2026-9005" });
+    expect(enlace).toHaveAttribute("href", "/designaciones/pedidos/abc-123");
+  });
+
+  it("las celdas sin vínculo quedan como texto", () => {
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "pedido-designacion", id: "abc-123" }]}
+      />,
+    );
+
+    // ES LA MITAD QUE MUERDE. Sin ella, una tabla que enlazara TODAS las celdas
+    // pasaría el test de arriba: el vínculo llegó para una sola fila y una sola
+    // columna, y el resto del resultado tiene que quedar tal cual.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByText("2026-9006")).toBeVisible();
+    expect(screen.getByText("devuelto")).toBeVisible();
+  });
+
+  it("un tipo que este cliente no conoce deja la celda como texto", () => {
+    // COMPATIBILIDAD HACIA ADELANTE, y en la dirección que importa: el día que el
+    // backend ofrezca vínculos a perfiles de portal, un cliente viejo no muestra un
+    // enlace roto — muestra el dato, como antes.
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "perfil-de-portal", id: "abc-123" }]}
+      />,
+    );
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("2026-9005")).toBeVisible();
+  });
+
+  it("sin vínculos la tabla no cambia en nada", () => {
+    montar(<TablaDeResultado columnas={TRAMITES} filas={DOS_TRAMITES} truncado={false} />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+});

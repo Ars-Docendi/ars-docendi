@@ -1,13 +1,16 @@
 import { Table } from "@ars-docendi/ui";
+import { Link } from "react-router-dom";
 
 import { MarcaSensible } from "./MarcaSensible";
 import { formatearCelda } from "../utils/celdas";
-import type { ColumnaDelResultado } from "../types";
+import { destinoDe } from "../utils/destinos";
+import type { ColumnaDelResultado, VinculoDelResultado } from "../types";
 
 interface TablaDeResultadoProps {
   columnas: ColumnaDelResultado[];
   filas: unknown[][];
   truncado: boolean;
+  vinculos?: VinculoDelResultado[];
 }
 
 /**
@@ -22,11 +25,27 @@ interface TablaDeResultadoProps {
  * `overflow: hidden` y la tabla `width: 100%`: con más columnas de las que entran,
  * las de la derecha se recortaban sin aviso. La clase propia que recibe el `Table`
  * es lo que `asistente.css` usa para sobreescribirlo, sin `!important` ni fork.
+ *
+ * LA CELDA QUE IDENTIFICA ALGO ABRIBLE SE VUELVE ENLACE, y no hay una columna
+ * «Ver» aparte: en el modal el ancho ya está comprometido y una columna más le
+ * roba lugar al dato. El identificador es además lo que el usuario ya iba a copiar,
+ * así que la acción queda donde la mano ya estaba.
+ *
+ * QUÉ CELDAS SON ENLACE NO LO DECIDE ESTE COMPONENTE. Lo decide el backend, contra
+ * el módulo dueño del recurso: que una fila esté acá no significa que su pantalla
+ * esté abierta para quien pregunta. Sin vínculo, la celda es texto — y el dato se
+ * ve igual.
  */
-export function TablaDeResultado({ columnas, filas, truncado }: TablaDeResultadoProps) {
+export function TablaDeResultado({
+  columnas,
+  filas,
+  truncado,
+  vinculos = [],
+}: TablaDeResultadoProps) {
   if (columnas.length === 0 || filas.length === 0) return null;
 
   const haySensibles = columnas.some((columna) => columna.sensible);
+  const porCelda = new Map(vinculos.map((v) => [`${v.fila}:${v.columna}`, v]));
 
   return (
     <div className="adoc-asistente-tabla">
@@ -49,7 +68,10 @@ export function TablaDeResultado({ columnas, filas, truncado }: TablaDeResultado
               <Table.Row key={indiceDeFila}>
                 {fila.map((valor, indiceDeColumna) => (
                   <Table.Cell key={indiceDeColumna} numeric={typeof valor === "number"}>
-                    {formatearCelda(valor)}
+                    <Celda
+                      valor={valor}
+                      vinculo={porCelda.get(`${indiceDeFila}:${indiceDeColumna}`)}
+                    />
                   </Table.Cell>
                 ))}
               </Table.Row>
@@ -75,5 +97,30 @@ export function TablaDeResultado({ columnas, filas, truncado }: TablaDeResultado
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * El contenido de una celda: texto, o enlace si lleva a algún lado.
+ *
+ * EL NOMBRE ACCESIBLE DICE A DÓNDE VA. «Enlace, 2026-9005» no informa nada; «Ver el
+ * trámite 2026-9005» sí, y es lo único que oye quien no ve la tabla alrededor.
+ */
+function Celda({ valor, vinculo }: { valor: unknown; vinculo?: VinculoDelResultado }) {
+  const texto = formatearCelda(valor);
+  const destino = vinculo && destinoDe(vinculo.tipo);
+
+  // Sin destino conocido queda texto. Pasa con un tipo que este cliente todavía no
+  // traduce, y es la degradación correcta: el dato se lee igual.
+  if (!vinculo || !destino) return <>{texto}</>;
+
+  return (
+    <Link
+      className="adoc-asistente-vinculo"
+      to={destino.ruta(vinculo.id)}
+      aria-label={`Ver el ${destino.sustantivo} ${texto}`}
+    >
+      {texto}
+    </Link>
   );
 }

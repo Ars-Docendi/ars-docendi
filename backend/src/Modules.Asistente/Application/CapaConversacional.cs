@@ -30,6 +30,7 @@ public sealed class CapaConversacional(
     IRegistroDelTurno registro,
     IDisponibilidadDelModelo disponibilidad,
     ICuotaDelActor cuota,
+    IResolutorDeVinculos vinculos,
     ContadorDeLlamadasDelTurno contador,
     DecisionSombraDelTurno decisionSombra,
     IOptions<OpcionesAsistente> opciones,
@@ -327,7 +328,53 @@ public sealed class CapaConversacional(
                 ? interpretada
                 : resultado.PreguntaInterpretada,
             Respuesta = TextoDelRechazo(resultado, historial, interpretada),
+            Vinculos = await VinculosAsync(resultado, ct),
         };
+    }
+
+    /// <summary>
+    /// Los vínculos del resultado, o ninguno.
+    /// </summary>
+    /// <remarks>
+    /// <b>Va en esta capa y no en el carril.</b> El carril responde una pregunta con
+    /// datos; ofrecer una pantalla donde seguir es de la superficie de conversación,
+    /// y el evaluador —que corre el carril sin interfaz— no tiene qué hacer con
+    /// ellos.
+    ///
+    /// <b>Sin filas no se le pregunta nada a nadie.</b> Es el caso mayoritario
+    /// —abstenciones, saludos, aclaraciones— y no tiene por qué pagar una consulta.
+    ///
+    /// <b>Un fallo acá no puede tumbar el turno</b>, por el mismo motivo que la
+    /// cobertura de portal: el vínculo es un atajo sobre la respuesta, no la
+    /// respuesta. Responder sin el atajo es peor que tenerlo y muchísimo mejor que
+    /// un error sobre una pregunta que se contestó bien.
+    /// </remarks>
+    private async Task<IReadOnlyList<VinculoDelResultado>> VinculosAsync(
+        ResultadoDelTurno resultado, CancellationToken ct)
+    {
+        if (resultado.Filas.Count == 0)
+        {
+            return [];
+        }
+
+        var candidatos = BuscadorDeVinculos.Candidatos(resultado.Filas);
+
+        if (candidatos.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            var destinos = await vinculos.ResolverAsync(candidatos, ct);
+            return BuscadorDeVinculos.Ubicar(resultado.Filas, destinos);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudieron resolver los vínculos del turno; se responde sin ellos.");
+            return [];
+        }
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CanceledError } from "axios";
+import { useLocation } from "react-router-dom";
 
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
@@ -152,5 +153,53 @@ describe("La conversación del modal", () => {
     await user.click(screen.getByRole("button", { name: "Preguntar" }));
 
     expect(await screen.findByText("Hay 4 docentes designados.")).toBeInTheDocument();
+  });
+});
+
+// ============================================================
+// Seguir un vínculo desde el modal.
+//
+// El asistente se abre ENCIMA de otra pantalla, así que quedarse tapando la que se
+// acaba de abrir no tendría sentido. Y la conversación no puede perderse: vive en
+// el lanzador, que sigue montado en la barra mientras la aplicación navega.
+// ============================================================
+
+const TURNO_CON_VINCULO: Partial<RespuestaDelAsistente> = {
+  respuesta: "El 2026-9005 está devuelto.",
+  columnas: [{ nombre: "numero", sensible: false }],
+  filas: [["2026-9005"]],
+  vinculos: [{ fila: 0, columna: 0, tipo: "pedido-designacion", id: "abc-123" }],
+};
+
+/** Pinta la ruta actual: el router del banco es de memoria, así que `window.location` no la refleja. */
+function Ubicacion() {
+  return <p data-testid="ubicacion">{useLocation().pathname}</p>;
+}
+
+describe("Seguir un vínculo", () => {
+  it("cierra el modal, navega, y la conversación sigue al reabrirlo", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "consultar").mockResolvedValue(respuesta(TURNO_CON_VINCULO));
+    montar(
+      <>
+        <LanzadorAsistente />
+        <Ubicacion />
+      </>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
+    await user.type(await screen.findByLabelText("Tu pregunta"), "¿y el 9005?{Enter}");
+
+    await user.click(await screen.findByRole("link", { name: "Ver el trámite 2026-9005" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent("/designaciones/pedidos/abc-123");
+
+    // LA MITAD QUE MUERDE. Cerrar el modal es fácil; conservar el hilo es la
+    // propiedad real, y se rompería el día que alguien mueva `useAsistente` al
+    // panel — que es donde estaba antes.
+    await user.click(screen.getByRole("button", { name: "Preguntar" }));
+
+    expect(await screen.findByText("El 2026-9005 está devuelto.")).toBeInTheDocument();
   });
 });

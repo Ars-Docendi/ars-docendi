@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 
 import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
 
@@ -51,6 +52,7 @@ export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): Respues
     columnas: [],
     filas: [],
     truncado: false,
+    vinculos: [],
     metricas: { llamadasAlModelo: 2 },
     ...parcial,
   };
@@ -62,8 +64,14 @@ export function montar(nodo: ReactNode, contenedor?: HTMLElement) {
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
 
+  // EL ROUTER VA SIEMPRE. La tabla puede renderizar enlaces a las pantallas del
+  // sistema y el lanzador observa la ubicación para cerrarse al navegar: sin router
+  // el banco probaría una composición que no existe, y ninguno de los dos podría
+  // montarse.
   return render(
-    <QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>
+    </MemoryRouter>,
     contenedor && { container: contenedor },
   );
 }

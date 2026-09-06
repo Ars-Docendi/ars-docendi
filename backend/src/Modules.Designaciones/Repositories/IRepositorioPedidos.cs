@@ -42,6 +42,17 @@ internal interface IRepositorioPedidos
     /// <summary>Carrera a la que pertenece la materia del pedido, derivada de identity.</summary>
     Task<Guid> ObtenerCarreraDelPedidoAsync(Guid pedidoId, CancellationToken ct);
 
+    /// <summary>
+    /// Ubica pedidos por su número legible, con lo justo para decidir el ámbito.
+    /// </summary>
+    /// <remarks>
+    /// No trae adjuntos, historial ni cargo: quien llama sólo necesita saber si el
+    /// actor alcanza el trámite y con qué identificador abrirlo. Cargar el agregado
+    /// entero para eso serían cuatro consultas por número.
+    /// </remarks>
+    Task<IReadOnlyList<PedidoUbicado>> UbicarPorNumerosAsync(
+        IReadOnlyCollection<string> numeros, CancellationToken ct);
+
     /// <summary>Reserva el próximo número de trámite legible (formato <c>AAAA-NNNN</c>).</summary>
     Task<string> SiguienteNumeroAsync(CancellationToken ct);
 
@@ -63,4 +74,23 @@ internal interface IRepositorioPedidos
     /// </para>
     /// </summary>
     Task GuardarCambiosAsync(CancellationToken ct);
+}
+
+/// <summary>
+/// Un pedido reducido a lo que hace falta para decidir si el actor lo alcanza.
+/// </summary>
+/// <remarks>
+/// Clase con propiedades asignables y no <c>record</c>: la materializa EF Core
+/// desde SQL crudo sobre un tipo no mapeado, y ese camino exige constructor sin
+/// parámetros y propiedades escribibles.
+/// </remarks>
+internal sealed class PedidoUbicado
+{
+    public Guid Id { get; set; }
+
+    public string Numero { get; set; } = string.Empty;
+
+    public Guid MateriaId { get; set; }
+
+    public Guid CarreraId { get; set; }
 }

@@ -1,51 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { PanelDePrueba } from "./test/PanelDePrueba";
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
-import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "./types";
-
-// ------------------------------------------------------------------- fixtures
-
-const CAPACIDADES: CapacidadesDelAsistente = {
-  cubre: [
-    { nombre: "designaciones.pedidos", descripcion: "Los pedidos del trámite.", columnas: 12 },
-    { nombre: "identity.personas", descripcion: "El padrón de personas.", columnas: 5 },
-  ],
-  tablas: 2,
-  columnas: 17,
-  ejemplos: ["¿Qué carreras están vigentes?", "¿Cuántos pedidos hay en cada estado?"],
-  noPuede: ["No modifica nada: solo consulta."],
-  alcance: "Ves los datos de todo el Departamento.",
-  presentacion:
-    "Preguntá por cualquier cátedra del Departamento: designaciones, pedidos, períodos y cómo viene el trámite en cada carrera.",
-};
-
-function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): RespuestaDelAsistente {
-  return {
-    estado: "respondida",
-    respuesta: "Hay 4 docentes designados.",
-    hilo: "11111111-1111-4111-8111-111111111111",
-    opciones: [],
-    sugerencias: [],
-    columnas: [],
-    filas: [],
-    truncado: false,
-    metricas: { llamadasAlModelo: 2 },
-    ...parcial,
-  };
-}
-
-function montar(nodo: React.ReactNode) {
-  const cliente = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
-
-  return render(<QueryClientProvider client={cliente}>{nodo}</QueryClientProvider>);
-}
+import type { RespuestaDelAsistente } from "./types";
+// Las fixtures y el montaje son los de `test/soporte`, y no una copia local. La
+// copia existía de antes de que soporte existiera, y se quedó atrás sola: el día
+// que el montaje real sumó un router, este archivo siguió montando sin él y cuatro
+// tests reventaron por una diferencia de banco que ningún test estaba probando.
+import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);

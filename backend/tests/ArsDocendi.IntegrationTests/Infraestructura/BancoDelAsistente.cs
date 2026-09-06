@@ -58,12 +58,17 @@ internal sealed class BancoDelAsistente
         IRegistroDelTurno? registro = null,
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         ICatalogoDelDominio? dominio = null,
+        IResolutorDeVinculos? vinculos = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
         var opciones = Options.Create(valores);
         var elReloj = reloj ?? TimeProvider.System;
         var elProveedor = proveedor ?? new ProveedorGuionado(guion);
+
+        // Sin adaptador compuesto, igual que el módulo sin el Host: los turnos
+        // responden y no ofrecen vínculos. Un test que quiera vínculos pasa el suyo.
+        var losVinculos = vinculos ?? new SinVinculos();
 
         // El envoltorio permite meter un medidor entre el guionado y el pipeline. El
         // eje social lo necesita: afirma «cero tokens de entrada», y ese número sale
@@ -159,6 +164,7 @@ internal sealed class BancoDelAsistente
                     elRegistro,
                     disponibilidad,
                     cuota,
+                    losVinculos,
                     contador,
                     decisionSombra,
                     opciones,

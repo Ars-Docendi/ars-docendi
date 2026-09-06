@@ -80,6 +80,28 @@ public static class MaquinaEstadosPedido
     /// </summary>
     public static bool AlcanzaAmbito(Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
     {
+        ArgumentNullException.ThrowIfNull(pedido);
+        return AlcanzaAmbito(pedido.MateriaId, carreraDelPedido, actor);
+    }
+
+    /// <summary>
+    /// La misma regla, sobre la materia y la carrera sueltas.
+    /// </summary>
+    /// <remarks>
+    /// Existe porque hay un caso que necesita el veredicto de ámbito sin necesitar
+    /// el pedido: ubicar trámites por su número legible para ofrecer el vínculo al
+    /// detalle. Cargar el agregado entero —adjuntos, historial, cargo— para leerle
+    /// un <c>Guid</c> es caro y, sobre todo, invita a resolver el ámbito con una
+    /// copia de estas tres líneas en otro lado.
+    ///
+    /// <b>La sobrecarga que toma el <see cref="Pedido"/> delega en ésta.</b> Dos
+    /// implementaciones de la misma regla es exactamente la forma en que un
+    /// vínculo termina prometiendo una pantalla que después responde 403.
+    /// </remarks>
+    public static bool AlcanzaAmbito(Guid materiaDelPedido, Guid carreraDelPedido, ActorContexto actor)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+
         if (actor.EsDeptoWide)
         {
             return true;
@@ -92,7 +114,7 @@ public static class MaquinaEstadosPedido
         }
 
         return actor.Tiene(RolesCircuito.JefeCatedra)
-            && actor.MateriasACargo.Contains(pedido.MateriaId);
+            && actor.MateriasACargo.Contains(materiaDelPedido);
     }
 
     /// <summary>¿El actor puede ejecutar acciones de revisión sobre este pedido?</summary>
