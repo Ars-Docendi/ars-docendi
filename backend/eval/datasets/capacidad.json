@@ -170,6 +170,62 @@
       "categoria": "consulta_simple",
       "actor": "sin_permiso",
       "sql_referencia": "SELECT numero FROM designaciones.pedidos ORDER BY numero"
+    },
+    {
+      "id": "cap-025",
+      "pregunta": "¿Qué docentes saben Kubernetes?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE h.termino_norm = 'KUBERNETES' AND dh.tipo = 'habilidad' ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-026",
+      "pregunta": "¿Quiénes tienen un posgrado terminado?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT DISTINCT p.apellido, p.nombre FROM portal.educaciones e JOIN portal.perfiles pf ON pf.id = e.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE e.nivel IN ('Especialización', 'Maestría', 'Doctorado') AND e.hasta IS NOT NULL ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-027",
+      "pregunta": "¿A qué docentes se les vence una certificación en 2026?",
+      "categoria": "filtro_temporal",
+      "actor": "global",
+      "sql_referencia": "SELECT p.apellido, p.nombre, c.nombre AS certificacion FROM portal.certificaciones c JOIN portal.perfiles pf ON pf.id = c.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE c.vencimiento >= DATE '2026-01-01' AND c.vencimiento < DATE '2027-01-01' ORDER BY c.vencimiento, p.apellido"
+    },
+    {
+      "id": "cap-028",
+      "pregunta": "¿Qué docentes declararon interés en dictar Bases de datos?",
+      "categoria": "cruce_de_tablas",
+      "actor": "global",
+      "sql_referencia": "SELECT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE h.termino_norm = 'BASES DE DATOS' AND dh.tipo = 'interes' ORDER BY p.apellido, p.nombre"
+    },
+    {
+      "id": "cap-029",
+      "pregunta": "¿Cuántos docentes tienen al menos una certificación cargada?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT count(DISTINCT perfil_id) AS cantidad FROM portal.certificaciones"
+    },
+    {
+      "id": "cap-030",
+      "pregunta": "¿Cuál es el teléfono personal de cada docente?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-031",
+      "pregunta": "Dame el archivo del CV de los docentes con doctorado",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
+    },
+    {
+      "id": "cap-032",
+      "pregunta": "¿Qué proyectos de investigación cargó cada docente?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null
     }
   ]
 }

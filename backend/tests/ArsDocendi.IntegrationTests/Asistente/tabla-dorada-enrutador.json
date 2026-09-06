@@ -28,46 +28,198 @@
     "que fundamenta el pedido de los edges de ARS-46 arranca en «0 de 39 sobre el corpus",
     "de evaluación», y ese cero es un dato, no un vacío."
   ],
-  "cobertura": { "capturados": 0, "total": 39 },
+  "cobertura": {
+    "capturados": 0,
+    "total": 47
+  },
   "entradas": [
-    { "id": "cap-001", "intencion": null },
-    { "id": "cap-002", "intencion": null },
-    { "id": "cap-003", "intencion": null },
-    { "id": "cap-004", "intencion": null },
-    { "id": "cap-005", "intencion": null },
-    { "id": "cap-006", "intencion": null },
-    { "id": "cap-007", "intencion": null },
-    { "id": "cap-008", "intencion": null },
-    { "id": "cap-009", "intencion": null },
-    { "id": "cap-010", "intencion": null },
-    { "id": "cap-011", "intencion": null },
-    { "id": "cap-012", "intencion": null },
-    { "id": "cap-013", "intencion": null },
-    { "id": "cap-014", "intencion": null },
-    { "id": "cap-015", "intencion": null },
-    { "id": "cap-016", "intencion": null },
-    { "id": "cap-017", "intencion": null },
-    { "id": "cap-018", "intencion": null },
-    { "id": "cap-019", "intencion": null },
-    { "id": "cap-020", "intencion": null },
-    { "id": "cap-021", "intencion": null },
-    { "id": "cap-022", "intencion": null },
-    { "id": "cap-023", "intencion": null },
-    { "id": "cap-024", "intencion": null },
-    { "id": "rob-001", "intencion": null },
-    { "id": "rob-002", "intencion": null },
-    { "id": "rob-003", "intencion": null },
-    { "id": "rob-004", "intencion": null },
-    { "id": "rob-005", "intencion": null },
-    { "id": "rob-006", "intencion": null },
-    { "id": "rob-007", "intencion": null },
-    { "id": "rob-008", "intencion": null },
-    { "id": "rob-009", "intencion": null },
-    { "id": "rob-010", "intencion": null },
-    { "id": "rob-011", "intencion": null },
-    { "id": "rob-012", "intencion": null },
-    { "id": "rob-013", "intencion": null },
-    { "id": "rob-014", "intencion": null },
-    { "id": "rob-015", "intencion": null }
+    {
+      "id": "cap-001",
+      "intencion": null
+    },
+    {
+      "id": "cap-002",
+      "intencion": null
+    },
+    {
+      "id": "cap-003",
+      "intencion": null
+    },
+    {
+      "id": "cap-004",
+      "intencion": null
+    },
+    {
+      "id": "cap-005",
+      "intencion": null
+    },
+    {
+      "id": "cap-006",
+      "intencion": null
+    },
+    {
+      "id": "cap-007",
+      "intencion": null
+    },
+    {
+      "id": "cap-008",
+      "intencion": null
+    },
+    {
+      "id": "cap-009",
+      "intencion": null
+    },
+    {
+      "id": "cap-010",
+      "intencion": null
+    },
+    {
+      "id": "cap-011",
+      "intencion": null
+    },
+    {
+      "id": "cap-012",
+      "intencion": null
+    },
+    {
+      "id": "cap-013",
+      "intencion": null
+    },
+    {
+      "id": "cap-014",
+      "intencion": null
+    },
+    {
+      "id": "cap-015",
+      "intencion": null
+    },
+    {
+      "id": "cap-016",
+      "intencion": null
+    },
+    {
+      "id": "cap-017",
+      "intencion": null
+    },
+    {
+      "id": "cap-018",
+      "intencion": null
+    },
+    {
+      "id": "cap-019",
+      "intencion": null
+    },
+    {
+      "id": "cap-020",
+      "intencion": null
+    },
+    {
+      "id": "cap-021",
+      "intencion": null
+    },
+    {
+      "id": "cap-022",
+      "intencion": null
+    },
+    {
+      "id": "cap-023",
+      "intencion": null
+    },
+    {
+      "id": "cap-024",
+      "intencion": null
+    },
+    {
+      "id": "rob-001",
+      "intencion": null
+    },
+    {
+      "id": "rob-002",
+      "intencion": null
+    },
+    {
+      "id": "rob-003",
+      "intencion": null
+    },
+    {
+      "id": "rob-004",
+      "intencion": null
+    },
+    {
+      "id": "rob-005",
+      "intencion": null
+    },
+    {
+      "id": "rob-006",
+      "intencion": null
+    },
+    {
+      "id": "rob-007",
+      "intencion": null
+    },
+    {
+      "id": "rob-008",
+      "intencion": null
+    },
+    {
+      "id": "rob-009",
+      "intencion": null
+    },
+    {
+      "id": "rob-010",
+      "intencion": null
+    },
+    {
+      "id": "rob-011",
+      "intencion": null
+    },
+    {
+      "id": "rob-012",
+      "intencion": null
+    },
+    {
+      "id": "rob-013",
+      "intencion": null
+    },
+    {
+      "id": "rob-014",
+      "intencion": null
+    },
+    {
+      "id": "rob-015",
+      "intencion": null
+    },
+    {
+      "id": "cap-025",
+      "intencion": null
+    },
+    {
+      "id": "cap-026",
+      "intencion": null
+    },
+    {
+      "id": "cap-027",
+      "intencion": null
+    },
+    {
+      "id": "cap-028",
+      "intencion": null
+    },
+    {
+      "id": "cap-029",
+      "intencion": null
+    },
+    {
+      "id": "cap-030",
+      "intencion": null
+    },
+    {
+      "id": "cap-031",
+      "intencion": null
+    },
+    {
+      "id": "cap-032",
+      "intencion": null
+    }
   ]
 }

@@ -53,6 +53,59 @@ public sealed class GeneradorDeFixture
         ("Inglés Técnico", 2),
     ];
 
+    /// <summary>
+    /// Cuántas personas cargaron algo en su perfil del portal.
+    /// </summary>
+    /// <remarks>
+    /// <b>ES UNA MINORÍA A PROPÓSITO.</b> El design spec del portal dice que «el
+    /// problema del Departamento es que los docentes no cargan nada», y un fixture
+    /// donde todos cargaron mediría un sistema que no existe. Además dejaría sin
+    /// probar el caso que más importa: que el asistente declare la cobertura en vez
+    /// de presentar el vacío como un hecho.
+    /// </remarks>
+    public const int PerfilesCargados = 7;
+
+    /// <summary>
+    /// Habilidades del vocabulario, con cuántas personas declaran cada una y de qué
+    /// tipo.
+    /// </summary>
+    /// <remarks>
+    /// Cardinalidades declaradas y verificadas por test, igual que las colisiones de
+    /// apellido. Un ítem que pregunta «quiénes saben X» no discrimina si todos
+    /// saben X o si no lo sabe nadie: los conteos tienen que ser distintos entre sí
+    /// y ninguno puede ser cero ni el total.
+    ///
+    /// «Kubernetes» y «Bases de datos» aparecen como habilidad Y como interés, que
+    /// es lo que hace medible la distinción: preguntar quién SABE algo y quién
+    /// QUERRÍA dictarlo tienen que dar conjuntos distintos.
+    /// </remarks>
+    public static readonly IReadOnlyList<(string Termino, int Habilidad, int Interes)> Habilidades =
+    [
+        ("Kubernetes", 2, 1),
+        ("Bases de datos", 4, 2),
+        ("Python", 3, 0),
+        ("Investigación educativa", 1, 3),
+    ];
+
+    /// <summary>
+    /// Niveles de formación, con cuántas personas alcanzaron cada uno.
+    /// </summary>
+    /// <remarks>
+    /// «Posgrado» en el lenguaje del Departamento abarca Especialización, Maestría y
+    /// Doctorado: los tres suman 4 de 7, así que preguntar por posgrado no devuelve
+    /// ni todos ni ninguno.
+    ///
+    /// Una de las de Doctorado queda SIN terminar —`hasta` nulo— para que el ítem
+    /// que pregunta por títulos obtenidos distinga «lo tiene» de «lo está cursando».
+    /// </remarks>
+    public static readonly IReadOnlyList<(string Nivel, int Personas)> Formacion =
+    [
+        ("Grado", 3),
+        ("Especialización", 1),
+        ("Maestría", 2),
+        ("Doctorado", 1),
+    ];
+
     /// <summary>Apellidos compartidos, con cuántas personas los llevan.</summary>
     /// <remarks>
     /// Lista y no diccionario: la enumeración de un diccionario no está garantizada
@@ -157,6 +210,7 @@ public sealed class GeneradorDeFixture
         EscribirPeriodos(sql);
         EscribirDesignaciones(sql);
         EscribirPedidos(sql);
+        EscribirPortal(sql);
 
         return sql.ToString();
     }
@@ -448,6 +502,175 @@ public sealed class GeneradorDeFixture
     private static string Identificador(char prefijo, int indice) =>
         string.Create(CultureInfo.InvariantCulture, $"{prefijo}0000000-0000-4000-8000-{indice:D12}");
 
+    /// <summary>
+    /// El portal docente: perfiles, formación, certificaciones, experiencia y
+    /// habilidades declaradas.
+    /// </summary>
+    /// <remarks>
+    /// <b>SÓLO UNA MINORÍA CARGA ALGO</b>, y es lo que hace que este fixture mida el
+    /// sistema real. Los perfiles son de las primeras <c>PerfilesCargados</c>
+    /// personas; el resto del padrón no tiene ninguno, que es el caso normal según el
+    /// design spec del portal.
+    ///
+    /// Las cardinalidades salen de las listas declaradas arriba y no de una fuente de
+    /// azar: un ítem que pregunta «quiénes saben X» no discrimina nada si todos saben
+    /// X o si no lo sabe nadie.
+    /// </remarks>
+    private void EscribirPortal(StringBuilder sql)
+    {
+        var perfiles = Math.Min(PerfilesCargados, _personas);
+
+        sql.Append("\nINSERT INTO portal.perfiles (id, persona_id) VALUES\n");
+        sql.Append(string.Join(",\n", Enumerable.Range(0, perfiles).Select(indice =>
+            $"    ('{IdDePerfil(indice)}', '{IdDePersona(indice)}')")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+
+        EscribirFormacion(sql, perfiles);
+        EscribirCertificaciones(sql, perfiles);
+        EscribirExperiencias(sql, perfiles);
+        EscribirHabilidades(sql, perfiles);
+    }
+
+    /// <summary>
+    /// La formación declarada, repartida por nivel según <see cref="Formacion"/>.
+    /// </summary>
+    /// <remarks>
+    /// El ÚLTIMO doctorado queda con <c>hasta</c> nulo, o sea EN CURSO. Sin esa fila,
+    /// «quiénes tienen doctorado» y «quiénes están haciendo un doctorado» darían el
+    /// mismo conjunto y el ítem no probaría que el modelo leyó el comentario que
+    /// explica qué significa el nulo.
+    /// </remarks>
+    private static void EscribirFormacion(StringBuilder sql, int perfiles)
+    {
+        var filas = new List<string>();
+        var indice = 0;
+
+        foreach (var (nivel, personas) in Formacion)
+        {
+            for (var cuantas = 0; cuantas < personas && indice < perfiles; cuantas++, indice++)
+            {
+                var enCurso = nivel == "Doctorado" && cuantas == personas - 1;
+                var desde = Ancla.AddYears(-8 + indice);
+
+                filas.Add(
+                    $"    ('{IdDeFormacion(indice)}', '{IdDePerfil(indice)}', '{nivel}', "
+                    + $"'Ingeniería de Software', 'Universidad Nacional de La Matanza', "
+                    + $"DATE '{desde:yyyy-MM-dd}', "
+                    + (enCurso ? "NULL)" : $"DATE '{desde.AddYears(3):yyyy-MM-dd}')"));
+            }
+        }
+
+        sql.Append(
+            "\nINSERT INTO portal.educaciones "
+            + "(id, perfil_id, nivel, carrera, institucion, desde, hasta) VALUES\n");
+        sql.Append(string.Join(",\n", filas));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// Certificaciones con tres desenlaces distintos respecto de la fecha ancla.
+    /// </summary>
+    /// <remarks>
+    /// Vence este año, ya venció, y no vence nunca —<c>vencimiento</c> nulo—. Los
+    /// tres casos tienen que existir o el ítem «a quién se le vence una
+    /// certificación» no distingue entre leer bien el nulo y tratarlo como vencido.
+    /// </remarks>
+    private static void EscribirCertificaciones(StringBuilder sql, int perfiles)
+    {
+        var filas = new List<string>();
+
+        for (var indice = 0; indice < perfiles; indice++)
+        {
+            var vencimiento = (indice % 3) switch
+            {
+                0 => $"DATE '{Ancla.AddMonths(4):yyyy-MM-dd}'",
+                1 => $"DATE '{Ancla.AddMonths(-6):yyyy-MM-dd}'",
+                _ => "NULL",
+            };
+
+            filas.Add(
+                $"    ('{IdDeCertificacion(indice)}', '{IdDePerfil(indice)}', "
+                + $"'Certificación profesional {indice + 1:D2}', 'Organismo {indice % 3 + 1}', "
+                + $"DATE '{Ancla.AddYears(-2):yyyy-MM-dd}', {vencimiento})");
+        }
+
+        sql.Append(
+            "\nINSERT INTO portal.certificaciones "
+            + "(id, perfil_id, nombre, emisor, fecha, vencimiento) VALUES\n");
+        sql.Append(string.Join(",\n", filas));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// Experiencia laboral, con y sin fecha de salida.
+    /// </summary>
+    /// <remarks>
+    /// El nulo en <c>hasta</c> significa que sigue en el puesto. La mitad lo tiene,
+    /// para que «dónde trabaja hoy» y «dónde trabajó» no den lo mismo.
+    /// </remarks>
+    private static void EscribirExperiencias(StringBuilder sql, int perfiles)
+    {
+        var filas = Enumerable.Range(0, perfiles).Select(indice =>
+        {
+            var desde = Ancla.AddYears(-6 + (indice % 4));
+            var sigue = indice % 2 == 0;
+
+            return $"    ('{IdDeExperiencia(indice)}', '{IdDePerfil(indice)}', "
+                + $"'Puesto {indice + 1:D2}', 'Organización {indice % 4 + 1}', '', "
+                + $"DATE '{desde:yyyy-MM-dd}', "
+                + (sigue ? "NULL)" : $"DATE '{desde.AddYears(2):yyyy-MM-dd}')");
+        });
+
+        sql.Append(
+            "\nINSERT INTO portal.experiencias "
+            + "(id, perfil_id, puesto, organizacion, descripcion, desde, hasta) VALUES\n");
+        sql.Append(string.Join(",\n", filas));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>
+    /// El vocabulario de habilidades y quién declaró cada término.
+    /// </summary>
+    /// <remarks>
+    /// Los que declaran una habilidad son los PRIMEROS perfiles y los que la
+    /// declaran como interés son los ÚLTIMOS, así que los dos conjuntos se solapan lo
+    /// menos posible. Si coincidieran, un ítem que confundiera habilidad con interés
+    /// pasaría igual.
+    /// </remarks>
+    private static void EscribirHabilidades(StringBuilder sql, int perfiles)
+    {
+        sql.Append("\nINSERT INTO portal.habilidades (id, termino, termino_norm) VALUES\n");
+        sql.Append(string.Join(",\n", Habilidades.Select((h, indice) =>
+            $"    ('{IdDeHabilidad(indice)}', '{Escapar(h.Termino)}', "
+            + $"'{Escapar(h.Termino.ToUpperInvariant())}')")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+
+        var puentes = new List<string>();
+
+        for (var indice = 0; indice < Habilidades.Count; indice++)
+        {
+            var (_, habilidad, interes) = Habilidades[indice];
+
+            for (var cuantos = 0; cuantos < habilidad && cuantos < perfiles; cuantos++)
+            {
+                puentes.Add(
+                    $"    ('{IdDePerfil(cuantos)}', '{IdDeHabilidad(indice)}', 'habilidad')");
+            }
+
+            for (var cuantos = 0; cuantos < interes && cuantos < perfiles; cuantos++)
+            {
+                puentes.Add(
+                    $"    ('{IdDePerfil(perfiles - 1 - cuantos)}', "
+                    + $"'{IdDeHabilidad(indice)}', 'interes')");
+            }
+        }
+
+        sql.Append(
+            "\nINSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES\n");
+        sql.Append(string.Join(",\n", puentes));
+        sql.Append("\nON CONFLICT DO NOTHING;\n");
+    }
+
     /// <summary>Identificador de carrera, derivado del índice.</summary>
     public static string IdDeCarrera(int indice) => Identificador('c', indice);
 
@@ -470,6 +693,17 @@ public sealed class GeneradorDeFixture
     private static string IdDeDesignacion(int indice) => Identificador('f', indice);
 
     private static string IdDePedido(int indice) => Identificador('8', indice);
+
+    /// <summary>Identificador de perfil de portal, derivado del índice.</summary>
+    public static string IdDePerfil(int indice) => Identificador('1', indice);
+
+    private static string IdDeHabilidad(int indice) => Identificador('2', indice);
+
+    private static string IdDeFormacion(int indice) => Identificador('3', indice);
+
+    private static string IdDeCertificacion(int indice) => Identificador('4', indice);
+
+    private static string IdDeExperiencia(int indice) => Identificador('5', indice);
 
     /// <summary>
     /// Identificador del cargo. Los cargos ya vienen sembrados por la migración de
