@@ -48,6 +48,12 @@ internal static class RenderizadorDeEsquema
         6. No agregues `LIMIT`: el sistema envuelve tu consulta y le pone el suyo.
         7. Calificá siempre las tablas con su esquema: `identity.personas`, no
            `personas`.
+        8. Nunca copies al `WHERE` las palabras con que el usuario nombró algo.
+           Si la columna aparece en «VALORES POSIBLES», usá el valor exacto de esa
+           lista. Si no aparece, compará con `ILIKE '%...%'` sobre la palabra más
+           distintiva en lugar de con `=`. Lo que alguien escribe casi nunca
+           coincide carácter por carácter con lo que hay guardado, y una consulta
+           válida que no matchea nada se ve igual que un dato que no existe.
 
         SOBRE EL ALCANCE
 
@@ -83,12 +89,30 @@ internal static class RenderizadorDeEsquema
         no existe para vos.
         """;
 
+    /// <summary>Encabezado de los valores de catálogo cerrado.</summary>
+    /// <remarks>
+    /// Dice «todos» sin matices a propósito: el lector devuelve la columna entera
+    /// o no la devuelve, justamente para que esta afirmación no pueda ser falsa
+    /// —ver <c>LectorDeValoresDeCatalogo</c>—.
+    /// </remarks>
+    private const string EncabezadoDelVocabulario = """
+
+        VALORES POSIBLES
+
+        Éstos son TODOS los valores que existen para estas columnas. Cuando la
+        pregunta nombre uno de estos conceptos, filtrá por el valor exacto de la
+        lista —no por las palabras del usuario—. Si lo que nombró no está acá, no
+        existe.
+        """;
+
     public static string Renderizar(
         IReadOnlyList<ColumnaLegible> columnas,
-        IReadOnlyList<ReferenciaLegible> referencias)
+        IReadOnlyList<ReferenciaLegible> referencias,
+        IReadOnlyList<VocabularioDeUnaColumna> vocabularios)
     {
         var texto = new StringBuilder(Instrucciones);
         texto.Append('\n');
+        EscribirVocabulario(texto, vocabularios);
         texto.Append(EncabezadoDelEsquema);
         texto.Append('\n');
 
@@ -105,6 +129,27 @@ internal static class RenderizadorDeEsquema
         EscribirReferencias(texto, referencias);
 
         return texto.ToString();
+    }
+
+    private static void EscribirVocabulario(
+        StringBuilder texto, IReadOnlyList<VocabularioDeUnaColumna> vocabularios)
+    {
+        if (vocabularios.Count == 0)
+        {
+            return;
+        }
+
+        texto.Append(EncabezadoDelVocabulario);
+        texto.Append('\n');
+
+        foreach (var vocabulario in vocabularios)
+        {
+            texto.Append(CultureInfo.InvariantCulture,
+                $"\n- {vocabulario.Cualificado}: "
+                + $"{string.Join(", ", vocabulario.Valores.Select(v => $"'{v}'"))}");
+        }
+
+        texto.Append('\n');
     }
 
     private static void EscribirTabla(

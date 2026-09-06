@@ -338,7 +338,103 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.All(esquema.Huella, caracter => Assert.Contains(caracter, "0123456789abcdef"));
     }
 
+    // ------------------------------- valores de los catálogos cerrados
+
+    // EL CASO QUE MOTIVÓ TODO ESTO. Alguien preguntó por «ingeniería informática»,
+    // el modelo copió esas palabras al WHERE y la carrera se llama «Ingeniería EN
+    // Informática». Cero filas, SQL válido, y el turno respondió que no había nada.
+    // Ni el motor ni el validador pueden notarlo: un literal que no matchea es
+    // indistinguible de un dato que no existe.
+
+    [Fact]
+    public async Task El_prefijo_enumera_los_valores_de_los_catalogos_cerrados()
+    {
+        await SembrarAsync();
+        var esquema = await PrefijoAsync(conDatosPersonales: false);
+
+        // El nombre exacto, con el «en» que el modelo no tenía forma de adivinar.
+        Assert.Contains("Ingeniería en Informática", esquema.Prefijo, StringComparison.Ordinal);
+        Assert.Contains("Profesor Titular", esquema.Prefijo, StringComparison.Ordinal);
+        Assert.Contains("VALORES POSIBLES", esquema.Prefijo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Ninguna_columna_declarada_pasa_el_tope_de_valores()
+    {
+        // El tope no es un presupuesto de tokens: es la definición de «catálogo
+        // cerrado». Una columna que lo pasa dejó de serlo y hay que sacarla de la
+        // lista, no subir el número — porque el prompt afirma que los valores
+        // listados son TODOS, y con una lista recortada esa afirmación es falsa.
+        await SembrarAsync();
+
+        var vocabularios = await ValoresAsync();
+
+        Assert.Equal(LectorDeValoresDeCatalogo.CatalogosCerrados.Count, vocabularios.Count);
+        Assert.All(vocabularios, v => Assert.InRange(v.Valores.Count, 1, LectorDeValoresDeCatalogo.MaximoDeValores));
+    }
+
+    [Fact]
+    public void Solo_se_enumeran_tablas_de_catalogo_sin_datos_personales()
+    {
+        // ESTE TEST ES LA FRONTERA. El vocabulario viaja entero al proveedor del
+        // modelo dentro del prefijo, así que agregar acá `identity.personas.apellido`
+        // publicaría el padrón sin que nada falle. La lista de tablas admitidas se
+        // escribe acá y no se deriva de la otra, a propósito: derivarla haría que
+        // ampliar una ampliara la otra sola.
+        string[] admitidas = ["identity.carreras", "designaciones.cargos"];
+
+        Assert.All(
+            LectorDeValoresDeCatalogo.CatalogosCerrados,
+            c => Assert.Contains($"{c.Esquema}.{c.Tabla}", admitidas));
+    }
+
+    [Fact]
+    public void Los_identificadores_declarados_son_simples()
+    {
+        // Los identificadores se interpolan en el SQL porque no pueden ir como
+        // parámetros. Salen de una constante del ensamblado y nunca de una pregunta,
+        // pero eso lo garantiza la lectura del código y esto lo garantiza la suite.
+        Assert.All(
+            LectorDeValoresDeCatalogo.CatalogosCerrados,
+            c => Assert.All(
+                new[] { c.Esquema, c.Tabla, c.Columna },
+                identificador => Assert.Matches("^[a-z_][a-z0-9_]*$", identificador)));
+    }
+
+    [Fact]
+    public void El_prompt_prohibe_copiar_las_palabras_del_usuario_al_filtro()
+    {
+        // La regla cubre lo que la enumeración no: las materias no son un catálogo
+        // cerrado —un departamento suma materias— así que para ésas la salida es
+        // comparar por la palabra distintiva en vez de por igualdad.
+        Assert.Contains(
+            "VALORES POSIBLES", RenderizadorDeEsquema.Instrucciones, StringComparison.Ordinal);
+        Assert.Contains(
+            "ILIKE", RenderizadorDeEsquema.Instrucciones, StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ apoyo
+
+    private async Task SembrarAsync()
+    {
+        var sql = await File.ReadAllTextAsync(
+            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
+            TestContext.Current.CancellationToken);
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<IReadOnlyList<VocabularioDeUnaColumna>> ValoresAsync()
+    {
+        var (basica, _) = CadenasDeLectura();
+        await using var conexion = new NpgsqlConnection(basica.Valor);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+
+        return await LectorDeValoresDeCatalogo.LeerAsync(
+            conexion, TestContext.Current.CancellationToken);
+    }
 
     private ProveedorDeEsquema ProveedorNuevo()
     {

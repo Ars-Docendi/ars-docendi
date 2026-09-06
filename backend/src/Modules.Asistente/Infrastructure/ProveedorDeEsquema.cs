@@ -82,9 +82,14 @@ internal sealed class ProveedorDeEsquema(
 
         var columnas = await LectorDeCatalogo.LeerColumnasAsync(conexion, ct);
         var referencias = await LectorDeCatalogo.LeerReferenciasAsync(conexion, ct);
+
+        // Los valores de los catálogos cerrados viajan con el esquema y se cachean
+        // igual: son tan estables como los nombres de las columnas, y sin ellos el
+        // modelo tiene que adivinar cómo está escrito «Ingeniería en Informática».
+        var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct);
         Lecturas++;
 
-        var prefijo = RenderizadorDeEsquema.Renderizar(columnas, referencias);
+        var prefijo = RenderizadorDeEsquema.Renderizar(columnas, referencias, vocabularios);
         return new EsquemaParaPrompt(prefijo, Huella(prefijo));
     }
 

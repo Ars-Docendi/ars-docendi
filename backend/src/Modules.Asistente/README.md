@@ -156,6 +156,32 @@ Los dos roles tienen prefijos distintos, con huellas distintas: el prefijo se
 deriva de los privilegios **efectivos** de cada conexión, no de una lista en el
 código.
 
+### Los valores de los catálogos cerrados
+
+El prefijo lleva, además del esquema, **los valores que existen** para un puñado
+de columnas de catálogo (`LectorDeValoresDeCatalogo`). No es cosmética: sin eso,
+un literal que el modelo arma con las palabras del usuario es una adivinanza.
+
+El caso que lo motivó: alguien preguntó por «ingeniería informática», el modelo
+copió esas palabras al `WHERE`, y la carrera se llama «Ingeniería **en**
+Informática». Cero filas con SQL válido — indistinguible de un dato que no
+existe, y ni el motor ni el validador pueden notarlo.
+
+Tres decisiones que conviene no deshacer sin leer:
+
+- **La lista de columnas se declara, no se detecta.** «Enumerar las tablas
+  chicas» funciona hoy y es una fuga mañana: el vocabulario viaja entero al
+  proveedor del modelo, y la tabla de ocho filas puede tener apellidos el mes que
+  viene. Hay un test que falla si alguien agrega una tabla fuera de las
+  admitidas.
+- **Una columna que pasa el tope se omite entera, no se recorta.** El prompt
+  afirma que los valores listados son _todos_; con una lista recortada esa
+  afirmación es falsa, y un valor que quedó afuera pasa a no existir para el
+  modelo — que se abstendría con total convicción.
+- **`identity.materias` queda afuera**, aunque sea lo que más se nombra en las
+  preguntas. No es un catálogo cerrado. Para ésas está la regla 8 del prompt:
+  comparar con `ILIKE` sobre la palabra distintiva en vez de con `=`.
+
 ## Endpoints (superficie HTTP)
 
 - `GET /api/asistente/ping` — smoke test, `[AllowAnonymous]`. No toca la base ni
@@ -306,7 +332,7 @@ sin explicación: se mide.
 Las dos elecciones se confirman o se corrigen con una corrida del evaluador, que
 para eso existe. Cambiar de modelo entre corridas es una variable de ambiente.
 
-Para levantarlo en desarrollo con clave real, sin escribirla a ningún archivo:
+Para levantarlo en desarrollo con clave real, exportándola en la terminal:
 
 ```bash
 export Asistente__Proveedor=anthropic
@@ -317,6 +343,40 @@ dotnet run --project backend/src/ArsDocendi.Host
 Faltando la clave, el Host **arranca igual** y el ping responde: el error llega
 recién a quien pida el proveedor, y nombra el valor que falta. Un ambiente a medio
 configurar tiene que poder levantar.
+
+#### La clave desde el `.env` del proyecto
+
+Exportar a mano cansa y se olvida entre terminales, así que en **Development** el
+Host suma el `.env` de la raíz del repositorio como una fuente más de
+configuración (`ArchivoDeEntorno`, en el Host). Las mismas dos líneas de arriba,
+sin el `export`:
+
+```dotenv
+Asistente__Proveedor=anthropic
+Asistente__ClaveDelProveedor=sk-ant-...
+```
+
+Es el mismo archivo que ya lee `docker compose`, y `.gitignore` lo excluye desde
+antes de que esto existiera.
+
+Tres propiedades que hacen que esto no sea un agujero, y que están cubiertas por
+`ArchivoDeEntornoTests`:
+
+- **Sólo en Development.** En los ambientes desplegados la credencial la inyecta
+  `infra/scripts/spin-up.sh` y no hay ningún `.env` que leer; un lector activo
+  allá sería un segundo camino hacia la credencial, más débil y preferido en
+  silencio si alguien deja un archivo olvidado. Staging queda afuera aunque no
+  sea producción, por lo mismo.
+- **Las variables de ambiente reales le ganan al archivo.** Un `export` en la
+  terminal sigue mandando. Al revés, un `.env` viejo pisaría lo que alguien acaba
+  de exportar para probar, y eso se ve como «el cambio no tomó».
+- **Nunca se registra un valor.** El log de arranque nombra la ruta y la cantidad
+  de claves, nada más.
+
+**El archivo NO puede elegir el ambiente.** `ASPNETCORE_ENVIRONMENT` se resuelve
+antes de que esta fuente exista, así que la línea que el `.env.example` trae para
+la sección de deploy no tiene efecto acá — y no podría tenerlo, porque el lector
+se apaga justamente fuera de Development.
 
 ### Los cassettes del proveedor
 
