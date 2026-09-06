@@ -49,13 +49,14 @@ public sealed class RedactorDeRespuesta(
         string pregunta,
         ResultadoDeConsulta resultado,
         bool alcanzaTodo,
+        IReadOnlyList<CoberturaDeUnDato> cobertura,
         CancellationToken ct)
     {
         var respuesta = await modelo.CompletarAsync(
             new SolicitudAlModelo
             {
                 PrefijoEstable = Instrucciones,
-                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo),
+                Mensaje = ArmarMensaje(pregunta, resultado, alcanzaTodo, cobertura),
                 Temperatura = Temperatura,
                 // Bajo a propósito: las filas ya están y esto es convertirlas en
                 // una oración. Cada nivel de más es tiempo que el usuario mira una
@@ -99,14 +100,17 @@ public sealed class RedactorDeRespuesta(
     /// modelo probaría al modelo, no a este código.
     /// </remarks>
     internal static string ArmarMensaje(
-        string pregunta, ResultadoDeConsulta resultado, bool alcanzaTodo)
+        string pregunta,
+        ResultadoDeConsulta resultado,
+        bool alcanzaTodo,
+        IReadOnlyList<CoberturaDeUnDato>? cobertura = null)
     {
         ArgumentNullException.ThrowIfNull(resultado);
 
         var mensaje = new StringBuilder();
         mensaje.Append(CultureInfo.InvariantCulture, $"Pregunta del usuario:\n{pregunta}\n");
 
-        foreach (var regla in PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo, resultado.Truncado))
+        foreach (var regla in PoliticaDeAbstencion.ReglasDeRedaccion(alcanzaTodo, resultado.Truncado, cobertura))
         {
             mensaje.Append(CultureInfo.InvariantCulture, $"\nIMPORTANTE: {regla}\n");
         }

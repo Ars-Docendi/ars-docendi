@@ -364,6 +364,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             new ConsultorDeAlcance(basica),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
+            new ConsultorDeCobertura(basica),
             contador,
             registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());
     }

@@ -23,6 +23,7 @@ public sealed class CarrilSql(
     IPerfilDelActor perfiles,
     RedactorDeRespuesta redactor,
     ISelectorDeEjemplos ejemplos,
+    IConsultorDeCobertura cobertura,
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
@@ -166,8 +167,10 @@ public sealed class CarrilSql(
         }
 
         return resultado.EstaVacio
-            ? Vacio(generacion, aMostrar, perfil)
-            : await RedactadoAsync(mensaje, generacion, aMostrar, resultado, perfil, ct);
+            ? Vacio(generacion, aMostrar, perfil, await CoberturaAsync(generacion, actor, ct))
+            : await RedactadoAsync(
+                mensaje, generacion, aMostrar, resultado, perfil,
+                await CoberturaAsync(generacion, actor, ct), ct);
     }
 
     /// <summary>
@@ -204,12 +207,47 @@ public sealed class CarrilSql(
         return resultado.EstaVacio ? (original, resultadoOriginal) : (segunda, resultado);
     }
 
+    /// <summary>
+    /// Cuánta gente cargó los datos de portal que la consulta tocó.
+    /// </summary>
+    /// <remarks>
+    /// Devuelve vacío —y no consulta nada— cuando la pregunta no tocó portal, que es
+    /// el caso mayoritario. La consulta extra se paga sólo en los turnos que la
+    /// necesitan.
+    ///
+    /// <b>Un fallo acá no puede tumbar el turno.</b> La cobertura es contexto que
+    /// mejora la respuesta, no la respuesta: si el conteo falla, se responde igual y
+    /// sin el denominador, que es peor que tenerlo y muchísimo mejor que un error.
+    /// </remarks>
+    private async Task<IReadOnlyList<CoberturaDeUnDato>> CoberturaAsync(
+        GeneracionDeSql generacion, Guid actor, CancellationToken ct)
+    {
+        var tablas = CoberturaDelPortal.TablasQueToca(generacion.Sql);
+
+        if (tablas.Count == 0)
+        {
+            return [];
+        }
+
+        try
+        {
+            return await cobertura.ObtenerAsync(tablas, actor, ct);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudo calcular la cobertura de portal; se responde sin ella.");
+            return [];
+        }
+    }
+
     private async Task<ResultadoDelTurno> RedactadoAsync(
         string mensaje,
         GeneracionDeSql generacion,
         string? aMostrar,
         ResultadoDeConsulta resultado,
         PerfilDelActor perfil,
+        IReadOnlyList<CoberturaDeUnDato> cobertura,
         CancellationToken ct)
     {
         // LA FRONTERA DE SALIDA. Lo que va al modelo es el resultado enmascarado;
@@ -217,7 +255,8 @@ public sealed class CarrilSql(
         // dos líneas, o pasarle `resultado` al redactor, manda datos personales al
         // proveedor sin que nada falle.
         var paraElModelo = Enmascarador.Enmascarar(resultado);
-        var texto = await redactor.RedactarAsync(mensaje, paraElModelo, perfil.AlcanzaTodo, ct);
+        var texto = await redactor.RedactarAsync(
+            mensaje, paraElModelo, perfil.AlcanzaTodo, cobertura, ct);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
@@ -243,9 +282,13 @@ public sealed class CarrilSql(
     /// depender de que el modelo respete una instrucción del prompt.
     /// </remarks>
     private ResultadoDelTurno Vacio(
-        GeneracionDeSql generacion, string? aMostrar, PerfilDelActor perfil) =>
+        GeneracionDeSql generacion,
+        string? aMostrar,
+        PerfilDelActor perfil,
+        IReadOnlyList<CoberturaDeUnDato> cobertura) =>
         new(EstadoDelTurno.Respondida,
-            PoliticaDeAbstencion.TextoDeResultadoVacio(perfil.AlcanzaTodo),
+            PoliticaDeAbstencion.TextoDeResultadoVacio(
+                perfil.AlcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
             generacion.Razonamiento,
             aMostrar,
             [],

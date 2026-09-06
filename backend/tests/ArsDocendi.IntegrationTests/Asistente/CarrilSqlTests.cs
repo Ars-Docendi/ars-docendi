@@ -463,6 +463,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             new ConsultorDeAlcance(basica),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
+            new ConsultorDeCobertura(basica),
             contadorDelTurno,
             NullLogger<CarrilSql>.Instance);
     }

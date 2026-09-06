@@ -181,6 +181,7 @@ public static class ModuleExtensions
             new FechaDeReferenciaFija(DateOnly.FromDateTime(DateTime.UtcNow)));
 
         services.AddScoped<IPerfilDelActor, ConsultorDeAlcance>();
+        services.AddScoped<IConsultorDeCobertura, ConsultorDeCobertura>();
         services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();

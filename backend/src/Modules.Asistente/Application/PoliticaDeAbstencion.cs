@@ -48,11 +48,25 @@ public static class PoliticaDeAbstencion
     /// una instrucción del prompt — que es la diferencia entre una garantía y un
     /// pedido.
     /// </remarks>
-    public static string TextoDeResultadoVacio(bool alcanzaTodo) => alcanzaTodo
-        ? "No encontré ningún registro que responda esa pregunta."
-        : "No encontré nada dentro de lo que podés consultar. Puede que el dato exista "
-          + "y esté fuera de tu alcance; en ese caso vas a necesitar pedírselo a quien "
-          + "tenga acceso al ámbito correspondiente.";
+    public static string TextoDeResultadoVacio(
+        bool alcanzaTodo, CoberturaDeUnDato? cobertura = null)
+    {
+        var texto = alcanzaTodo
+            ? "No encontré ningún registro que responda esa pregunta."
+            : "No encontré nada dentro de lo que podés consultar. Puede que el dato exista "
+              + "y esté fuera de tu alcance; en ese caso vas a necesitar pedírselo a quien "
+              + "tenga acceso al ámbito correspondiente.";
+
+        // LA SEGUNDA RAZÓN POR LA QUE UN RESULTADO PUEDE VENIR VACÍO, y hasta acá el
+        // sistema sólo contaba la primera. «No hay nadie con ese título» y «nadie
+        // cargó su formación» son el mismo cero, y decir el primero cuando la verdad
+        // es el segundo afirma algo falso sobre personas reales.
+        //
+        // Va DESPUÉS del texto de alcance y no en su lugar: los dos límites pueden
+        // ser ciertos a la vez, y quien pregunta necesita los dos para saber qué
+        // hacer —pedir acceso, o pedirle a la gente que cargue el dato—.
+        return cobertura is null ? texto : $"{texto} {cobertura.Frase()}";
+    }
 
     /// <summary>Texto de una pregunta que el esquema no cubre (caso 1).</summary>
     /// <remarks>
@@ -158,9 +172,25 @@ public static class PoliticaDeAbstencion
     /// código, y éstos —donde sí hay filas que narrar— dependen del prompt porque
     /// no hay otra forma de restringir una narración.
     /// </remarks>
-    public static IReadOnlyList<string> ReglasDeRedaccion(bool alcanzaTodo, bool truncado)
+    public static IReadOnlyList<string> ReglasDeRedaccion(
+        bool alcanzaTodo,
+        bool truncado,
+        IReadOnlyList<CoberturaDeUnDato>? cobertura = null)
     {
         var reglas = new List<string>();
+
+        foreach (var declarada in cobertura ?? [])
+        {
+            // El dato del portal es AUTODECLARADO y opcional. Sin esta regla, el
+            // modelo narra las filas que ve como si fueran el Departamento entero:
+            // «hay tres docentes con doctorado» cuando lo cierto es «tres de los
+            // catorce que cargaron su formación».
+            reglas.Add(
+                $"{declarada.Frase()} Es un dato que cada docente carga sobre sí mismo y "
+                + "la mayoría no lo hizo. NO presentes lo que ves como el total del "
+                + "Departamento, y NO afirmes que nadie cumple una condición: decí "
+                + "sobre cuántos se sabe.");
+        }
 
         if (!alcanzaTodo)
         {

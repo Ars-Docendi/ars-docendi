@@ -143,6 +143,7 @@ internal sealed class BancoDelAsistente
                     new ConsultorDeAlcance(basica),
                     new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
                     new SelectorDeEjemplos(),
+                    new ConsultorDeCobertura(basica),
                     contador,
                     NullLogger<CarrilSql>.Instance);
 
