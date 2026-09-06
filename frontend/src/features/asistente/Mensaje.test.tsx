@@ -108,6 +108,15 @@ describe("Lo que nunca se muestra", () => {
     );
     montar(<PanelDePrueba />);
 
+    // CON LA AYUDA ABIERTA. El conteo y las áreas viven ahí desde que la pantalla
+    // vacía se limpió, y con ella cerrada esta aserción pasaría sin verificar nada:
+    // los nombres internos no aparecerían porque no se renderizó el bloque, no
+    // porque se los haya excluido.
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Qué puede y qué no puede hacer el asistente",
+      }),
+    );
     await screen.findByText(/áreas de datos del sistema/);
     expect(document.body.textContent).not.toMatch(/designaciones\.|identity\./);
 

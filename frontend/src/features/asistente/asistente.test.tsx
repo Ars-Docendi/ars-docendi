@@ -109,12 +109,19 @@ describe("El lanzador del asistente", () => {
 
 describe("El panel del asistente", () => {
   it("arranca mostrando el catálogo real y sus ejemplos", async () => {
+    const user = userEvent.setup();
     montar(<PanelDePrueba />);
 
-    expect(await screen.findByText(/2 áreas de datos del sistema/)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "¿Qué carreras están vigentes?" }),
+      await screen.findByRole("button", { name: "¿Qué carreras están vigentes?" }),
     ).toBeInTheDocument();
+
+    // El alcance y los límites se movieron detrás del «?»: la pantalla vacía deja
+    // a la vista el título y los ejemplos, que es lo accionable.
+    await user.click(
+      screen.getByRole("button", { name: "Qué puede y qué no puede hacer el asistente" }),
+    );
+    expect(screen.getByText(/2 áreas de datos del sistema/)).toBeInTheDocument();
     expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
   });
 

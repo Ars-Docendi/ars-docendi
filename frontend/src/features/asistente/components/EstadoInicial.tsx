@@ -1,5 +1,7 @@
 import { Button } from "@ars-docendi/ui";
 
+import { AyudaDelAsistente } from "./AyudaDelAsistente";
+
 import type { CapacidadesDelAsistente } from "../types";
 
 interface EstadoInicialProps {
@@ -22,9 +24,15 @@ interface EstadoInicialProps {
  * argumento por el que `useAccesoAlAsistente` le pregunta al backend en vez de
  * decidir por rol.
  *
- * EL CONTEO DE ÁREAS SIGUE ABAJO, con el alcance: es la única señal de amplitud que
- * tiene la pantalla. Sin él, una presentación acotada —«los pedidos de tu carrera»—
- * se leería como el techo de lo que el asistente sabe.
+ * LA PRESENTACIÓN, EL ALCANCE Y LOS LÍMITES VIVEN DETRÁS DEL «?». Ocupaban la mitad
+ * de la pantalla y competían con lo único accionable que hay acá: los ejemplos.
+ * Nadie los relee, y quien entra por primera vez tampoco los lee antes de probar.
+ * Siguen a un clic porque cuando hacen falta —«¿por qué no me contestó esto?»— son
+ * exactamente lo que responde. Ver `AyudaDelAsistente`.
+ *
+ * EL CONTEO DE ÁREAS VA CON EL ALCANCE, y por eso se calcula acá y se le pasa: es
+ * la única señal de amplitud que hay. Sin él, una presentación acotada —«los pedidos
+ * de tu carrera»— se leería como el techo de lo que el asistente sabe.
  *
  * DE LAS ÁREAS SÓLO SE DICE CUÁNTAS HAY. `cubre[].nombre` es `schema.tabla`
  * —«designaciones.pedidos»—, una etiqueta interna que RNF-18 prohíbe mostrar. Y
@@ -40,13 +48,9 @@ interface EstadoInicialProps {
 export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoInicialProps) {
   return (
     <div className="adoc-asistente-inicio">
-      <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
-
       <div className="adoc-asistente-inicio-entrada">
-        <p className="adoc-asistente-inicio-presentacion">{capacidades.presentacion}</p>
-        <p className="adoc-asistente-inicio-alcance">
-          {capacidades.alcance} Conozco {areasDeDatos(capacidades.tablas)} del sistema.
-        </p>
+        <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
+        <AyudaDelAsistente capacidades={capacidades} areas={areasDeDatos(capacidades.tablas)} />
       </div>
 
       {capacidades.ejemplos.length > 0 && (
@@ -64,18 +68,6 @@ export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoIn
             </li>
           ))}
         </ul>
-      )}
-
-      {capacidades.noPuede.length > 0 && (
-        // Sin límites no queda ni el rótulo.
-        <div className="adoc-asistente-inicio-detalle">
-          <p className="adoc-asistente-inicio-rotulo">No puedo:</p>
-          <ul className="adoc-asistente-inicio-lista">
-            {capacidades.noPuede.map((limite) => (
-              <li key={limite}>{limite}</li>
-            ))}
-          </ul>
-        </div>
       )}
     </div>
   );

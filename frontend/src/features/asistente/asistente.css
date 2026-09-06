@@ -116,10 +116,65 @@
 
 /* La presentación y el alcance son una sola idea: por qué venís y hasta dónde ves.
    Van juntos, con menos aire entre ellos que el `gap` del bloque de inicio. */
+/* El título y el «?» en una fila. La ayuda que antes ocupaba media pantalla vive
+   detrás de ese botón; ver `AyudaDelAsistente`. */
 .adoc-asistente-inicio-entrada {
   display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ────────────────────────────────── la ayuda ───────────────────────────────── */
+
+/* `relative` porque el popover se ancla acá y no al hilo, que scrollea: anclado al
+   hilo, la ayuda se quedaría donde se abrió mientras la conversación se mueve. */
+.adoc-asistente-ayuda {
+  position: relative;
+  display: inline-flex;
+}
+
+.adoc-asistente-ayuda-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-ayuda-boton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-sunken);
+}
+
+.adoc-asistente-ayuda-boton .ico {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Ancho acotado para que el párrafo se lea: a lo ancho del modal serían líneas de
+   más de cien caracteres. El `max-height` con scroll propio es para la ventana
+   baja — sin él, el popover se sale del modal y no hay forma de leer el final. */
+.adoc-asistente-ayuda-pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-sticky);
+  width: min(28rem, calc(100vw - 4rem));
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-2);
 }
 
 .adoc-asistente-inicio-presentacion {

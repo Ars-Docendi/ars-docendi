@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { EstadoInicial } from "./components/EstadoInicial";
@@ -27,18 +27,49 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Abre la ayuda del «?», que es donde viven la presentación, el alcance y los límites. */
+async function abrirAyuda() {
+  await userEvent.setup().click(
+    await screen.findByRole("button", {
+      name: "Qué puede y qué no puede hacer el asistente",
+    }),
+  );
+}
+
 describe("El estado inicial", () => {
-  it("muestra el alcance, cuántas áreas hay y los límites", async () => {
+  it("la pantalla vacía deja a la vista el título y los ejemplos, nada más", async () => {
+    // Lo demás —presentación, alcance y límites— se movió detrás del «?». Ocupaba
+    // la mitad de la pantalla y competía con lo único accionable que hay acá.
     montar(<PanelDePrueba />);
 
     expect(
       await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" }),
     ).toBeInTheDocument();
+    expect(screen.queryByText("No puedo:")).toBeNull();
+    expect(screen.queryByText(/Conozco 2 áreas de datos del sistema/)).toBeNull();
+  });
+
+  it("el alcance, cuántas áreas hay y los límites están en la ayuda", async () => {
+    montar(<PanelDePrueba />);
+    await abrirAyuda();
+
     expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
     expect(screen.getByText(/Ves los datos de todo el Departamento/)).toBeInTheDocument();
 
     expect(screen.getByText("No puedo:")).toBeInTheDocument();
     expect(screen.getByText("No modifica nada: solo consulta.")).toBeInTheDocument();
+  });
+
+  it("la ayuda se cierra con Escape", async () => {
+    // Se abre con clic y se cierra sola: un panel que sólo se cierra volviendo al
+    // botón obliga a buscarlo con el puntero para seguir leyendo lo de atrás.
+    const user = userEvent.setup();
+    montar(<PanelDePrueba />);
+    await abrirAyuda();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByText("No puedo:")).toBeNull();
   });
 
   it("pinta la presentación que le manda el backend, y sigue diciendo cuántas áreas hay", async () => {
@@ -50,16 +81,15 @@ describe("El estado inicial", () => {
       presentacion: "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión.",
     });
     montar(<PanelDePrueba />);
+    await abrirAyuda();
 
     expect(
-      await screen.findByText(
-        "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión.",
-      ),
+      screen.getByText("Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión."),
     ).toBeInTheDocument();
     expect(screen.getByText(/Conozco 2 áreas de datos del sistema/)).toBeInTheDocument();
   });
 
-  it("la copy del rol viene del backend: el cliente no tiene ninguna", () => {
+  it("la copy del rol viene del backend: el cliente no tiene ninguna", async () => {
     // Un rol que el backend no reconoce recibe de él un texto genérico. Si el
     // cliente tuviera su propia tabla de roles se desactualizaría sola:
     // `identity.roles` no es cerrado y Secretaría crea roles desde la aplicación.
@@ -70,6 +100,8 @@ describe("El estado inicial", () => {
         deshabilitado={false}
       />,
     );
+
+    await abrirAyuda();
 
     expect(screen.getByText("Preguntá por lo que el backend diga.")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/cátedra del Departamento/);
@@ -93,7 +125,10 @@ describe("El estado inicial", () => {
     });
     montar(<PanelDePrueba />);
 
-    await screen.findByRole("heading", { name: "¿Qué querés saber del sistema?" });
+    // CON LA AYUDA ABIERTA, que es donde vive el conteo. Con ella cerrada, las
+    // aserciones de «no aparece» pasarían sin verificar nada: el texto no está en
+    // la página porque no se renderizó, no porque se lo haya excluido.
+    await abrirAyuda();
 
     expect(screen.queryByText("Puedo consultar:")).toBeNull();
     expect(document.body.textContent).not.toMatch(/identity\./);
@@ -154,7 +189,14 @@ describe("El estado inicial", () => {
     // vive en el componente, como en las opciones y las sugerencias.
     render(<EstadoInicial capacidades={CAPACIDADES} onElegir={() => {}} deshabilitado />);
 
-    const chips = screen.getAllByRole("button");
+    // Acotado a la lista de ejemplos y no a todos los botones de la pantalla: el
+    // «?» de la ayuda también es un botón, y contarlo mezclaba dos cosas. Además
+    // el «?» NO se deshabilita a propósito —leer qué puede hacer el asistente
+    // mientras espera una respuesta no rompe nada—, así que un `getAllByRole`
+    // suelto empezaría a fallar por el motivo equivocado.
+    const chips = within(screen.getByRole("list", { name: "Preguntas de ejemplo" })).getAllByRole(
+      "button",
+    );
 
     expect(chips).toHaveLength(CAPACIDADES.ejemplos.length);
     for (const chip of chips) expect(chip).toBeDisabled();
