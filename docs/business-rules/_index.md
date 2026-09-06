@@ -4,4 +4,6 @@
 
 | Módulo / archivo |
 | --- |
-| [C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\designaciones](./C:\Users\Usuario\Desktop\ProyectoFinal\ars-docendi\docs\business-rules\designaciones.md) |
+| [asistente](./asistente.md) |
+| [designaciones](./designaciones.md) |
+| [portal](./portal.md) |
