@@ -168,6 +168,13 @@
 /* «Vos» y «Asistente». La alineación de las burbujas hace el trabajo visual, así
    que la etiqueta se oculta —sigue en el DOM para el lector de pantalla, que no
    ve de qué lado está cada una—. */
+/* Etiqueta de quién habla, sólo para lectores de pantalla: la burbuja y la
+   alineación dicen lo mismo a quien ve, y un lector de pantalla no las tiene.
+   Está en el DOM aunque no se vea, así que entra en la SELECCIÓN — y copiar la
+   pregunta arrastraba «Vos» pegado a la primera palabra. Alguien pegó eso en el
+   input y la pregunta que llegó al modelo fue «Vosdame 3 materias…».
+   `user-select: none` la deja afuera del portapapeles sin sacarla del árbol de
+   accesibilidad, que es lo único que se quiere conservar. */
 .adoc-asistente-quien {
   position: absolute;
   width: 1px;
@@ -177,6 +184,7 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+  user-select: none;
 }
 
 /* Lo que escribió el usuario: burbuja de acento, a la derecha, con ancho acotado. */

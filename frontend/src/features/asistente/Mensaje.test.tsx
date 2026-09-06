@@ -191,3 +191,40 @@ describe("Copiar", () => {
     }
   });
 });
+
+// ============================================================
+// La etiqueta de quién habla.
+//
+// «Vos» y «Asistente» son etiquetas para lectores de pantalla: la burbuja y la
+// alineación dicen quién habló a quien ve, y un lector de pantalla no las tiene.
+// Están ocultas con `clip-path`, así que existen en el DOM aunque no se vean —y
+// eso las mete en dos caminos que nadie miró.
+// ============================================================
+
+describe("La etiqueta de quién habla", () => {
+  it("no se pega al texto de la pregunta", () => {
+    // ESTO PASÓ DE VERDAD. Sin separador, un lector de pantalla anuncia
+    // «Vosdame 3 materias…» en cada turno, y el texto copiado arranca con «Vos»
+    // pegado a la primera palabra. Un usuario pegó eso en el input y la pregunta
+    // que llegó al modelo —y quedó en el registro— fue «Vosdame 3 materias…».
+    montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
+
+    const pregunta = screen.getByText(/dame 3 materias/).closest("p");
+
+    // La propiedad es que haya un separador entre la etiqueta y el texto, no que
+    // el separador sea uno en particular: cualquier espacio en blanco sirve para
+    // que el lector de pantalla no lea las dos cosas de corrido.
+    expect(pregunta?.textContent).toMatch(/^Vos\S*\s+dame 3 materias/);
+  });
+
+  it("no entra en la selección, así que copiar la pregunta no la arrastra", () => {
+    // `user-select: none` es lo que la deja afuera del portapapeles sin sacarla
+    // del árbol de accesibilidad. Se afirma sobre la clase y no sobre el
+    // resultado de copiar porque jsdom no implementa selección de texto: el
+    // contrato verificable acá es que la etiqueta lleve esa clase, y el estilo
+    // vive en `asistente.css`.
+    montarMensaje({ id: "t-1", pregunta: "dame 3 materias", respuesta: respuesta() });
+
+    expect(screen.getByText("Vos:")).toHaveClass("adoc-asistente-quien");
+  });
+});

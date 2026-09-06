@@ -22,8 +22,11 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
   return (
     <li className="adoc-asistente-turno">
       <p className="adoc-asistente-pregunta">
-        <span className="adoc-asistente-quien">Vos</span>
-        {turno.pregunta}
+        {/* Los dos puntos y el espacio NO son cosmética: sin separador, un lector
+            de pantalla anuncia «Vosdame 3 materias…» de corrido. La clase la saca
+            además de la selección, para que copiar la pregunta no arrastre la
+            etiqueta al portapapeles — pasó, y el texto pegado volvió al modelo. */}
+        <span className="adoc-asistente-quien">Vos:</span> {turno.pregunta}
       </p>
 
       {turno.error && (
@@ -57,7 +60,7 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
 
       {respuesta && (
         <div className="adoc-asistente-respuesta">
-          <span className="adoc-asistente-quien">Asistente</span>
+          <span className="adoc-asistente-quien">Asistente:</span>
 
           {respuesta.preguntaInterpretada && (
             // Solo llega cuando difiere de lo que se escribió, así que mostrarla
