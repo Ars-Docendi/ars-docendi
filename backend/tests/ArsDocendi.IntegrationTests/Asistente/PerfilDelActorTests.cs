@@ -36,6 +36,9 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
     /// <summary>Jefe de cátedra: ámbito de materia, con el permiso de dominio.</summary>
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
 
+    /// <summary>Decanato: ámbito global, autoridad de aprobación final.</summary>
+    private static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
+
     private const string PermisoDeDominio = "designaciones.ver";
 
     [Fact]
@@ -148,4 +151,58 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
+    // -------------------------------------------- la matriz de la base
+
+    [Fact]
+    public async Task Decanato_alcanza_los_datos_personales_del_padron()
+    {
+        // Decanato es la autoridad de aprobación final y necesita el contacto de un
+        // docente para resolver un trámite. Es global, así que sólo le faltaba
+        // `usuarios.ver` — la conjunción que abre la conexión con datos personales.
+        //
+        // Se afirma sobre el PERFIL RESUELTO y no sobre la fila de rol_permisos: lo
+        // que importa no es que el INSERT esté, sino que el actor termine con la
+        // conexión que puede leer teléfono y mail.
+        await SembrarAsync();
+
+        var perfil = await Consultor().ObtenerAsync(
+            Decanato, TestContext.Current.CancellationToken);
+
+        Assert.True(perfil.EsGlobal);
+        Assert.True(perfil.VeDatosPersonales);
+    }
+
+    [Fact]
+    public async Task Decanato_no_puede_administrar_usuarios()
+    {
+        // LA MITAD QUE EL CAMBIO NO DEBE MOVER. `usuarios.ver` es de lectura; las
+        // escrituras van por `usuarios.administrar`. Si alguien concediera los dos
+        // «para simplificar», Decanato pasaría a poder dar de baja usuarios sin que
+        // nada lo señale.
+        await SembrarAsync();
+
+        var permisos = new List<string>();
+
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand(
+            """
+            SELECT p.code
+              FROM identity.roles r
+              JOIN identity.rol_permisos rp ON rp.rol_id = r.id
+              JOIN identity.permisos p ON p.id = rp.permiso_id
+             WHERE r.code = 'decanato'
+            """, conexion))
+        await using (var lector = await comando.ExecuteReaderAsync(
+            TestContext.Current.CancellationToken))
+        {
+            while (await lector.ReadAsync(TestContext.Current.CancellationToken))
+            {
+                permisos.Add(lector.GetString(0));
+            }
+        }
+
+        Assert.Contains("usuarios.ver", permisos);
+        Assert.DoesNotContain("usuarios.administrar", permisos);
+    }
+
 }
