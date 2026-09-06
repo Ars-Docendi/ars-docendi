@@ -326,8 +326,36 @@ public sealed class CapaConversacional(
             PreguntaInterpretada = pivote
                 ? interpretada
                 : resultado.PreguntaInterpretada,
+            Respuesta = TextoDelRechazo(resultado, historial, interpretada),
         };
     }
+
+    /// <summary>
+    /// El texto de un rechazo, especializado cuando el seguimiento no se resolvió.
+    /// </summary>
+    /// <remarks>
+    /// <b>Las TRES condiciones hacen falta, y ninguna sola alcanza.</b>
+    ///
+    /// Hubo <b>historial</b>, así que el turno era un seguimiento y no una pregunta
+    /// suelta. La pregunta interpretada <b>todavía apunta a algo que no nombra</b>,
+    /// o sea que el reescritor no cumplió lo que promete. Y el turno <b>terminó en
+    /// rechazo</b>: mientras el generador pueda contestar —y con el arrastre de la
+    /// consulta anterior muchas veces puede—, no hay nada que explicar.
+    ///
+    /// Sin la tercera, el asistente le echaría la culpa a la referencia cada vez que
+    /// una pregunta con demostrativo se rechaza por estar fuera del esquema. Eso es
+    /// exactamente la clase de explicación falsa que el resto de esta política
+    /// existe para evitar: suena informada y manda a corregir lo que no estaba mal.
+    /// </remarks>
+    private static string TextoDelRechazo(
+        ResultadoDelTurno resultado,
+        IReadOnlyList<TurnoDelHilo> historial,
+        string interpretada) =>
+        resultado.Estado == EstadoDelTurno.NoContestable
+        && historial.Count > 0
+        && PoliticaDeAbstencion.HayReferenciaSinResolver(interpretada)
+            ? PoliticaDeAbstencion.TextoReferenciaSinResolver
+            : resultado.Respuesta;
 
     /// <summary>
     /// Resuelve la respuesta del usuario a un menú abierto.

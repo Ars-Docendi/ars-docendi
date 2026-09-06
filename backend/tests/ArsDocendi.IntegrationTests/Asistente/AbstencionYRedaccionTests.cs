@@ -346,6 +346,59 @@ public sealed class AbstencionYRedaccionTests
             StringComparison.Ordinal);
     }
 
+    // ----------------------------- la referencia que la reescritura no resolvió
+
+    // EL CONTRATO QUE NADIE VERIFICABA. El reescritor promete «una pregunta que se
+    // entienda sola» y a veces devuelve algo que no se entiende solo: expande la
+    // anáfora sin resolverla —«los profesores de esa materia mencionada entre las 3
+    // materias»— y el generador se abstiene, que es correcto sobre una pregunta que
+    // no se entiende. Lo que estaba mal era el mensaje: «no puedo responder eso con
+    // la información que tengo disponible» hace pensar que el dato no existe.
+
+    [Theory]
+    [InlineData("¿y los profesores de esa materia?")]
+    [InlineData("dame el detalle de ese pedido")]
+    [InlineData("¿cuántos hay en la misma carrera?")]
+    [InlineData("mostrame los del anterior")]
+    public void Un_demostrativo_sin_resolver_se_reconoce(string pregunta)
+    {
+        Assert.True(PoliticaDeAbstencion.HayReferenciaSinResolver(pregunta));
+    }
+
+    [Theory]
+    [InlineData("¿los profesores de Ingeniería de Software?")]
+    [InlineData("¿cuántos docentes están designados?")]
+    [InlineData("dame las materias de la carrera de Informática")]
+    public void Una_pregunta_autocontenida_no_se_marca(string pregunta)
+    {
+        // ESTE ES EL TEST QUE IMPORTA, y el que se rompe si alguien «deduplica» esta
+        // lista contra la de DetectorDeCambioDeTema. Aquélla incluye `el`, `los` y
+        // `las` a propósito —le sirve para NO pivotar ante cualquier atadura al
+        // contexto—, y como detector de referencia sin resolver marcaría casi toda
+        // frase en español. Son dos listas parecidas que responden preguntas
+        // distintas.
+        Assert.False(PoliticaDeAbstencion.HayReferenciaSinResolver(pregunta));
+    }
+
+    [Fact]
+    public void El_texto_dice_que_no_se_pudo_resolver_la_referencia_y_pide_nombrarla()
+    {
+        var texto = PoliticaDeAbstencion.TextoReferenciaSinResolver;
+
+        // No afirma que el dato no exista, que es justo lo que decía el genérico.
+        Assert.NotEqual(PoliticaDeAbstencion.TextoNoContestable, texto);
+        Assert.Contains("referís", texto, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void El_texto_de_la_referencia_tampoco_habla_de_esquema_ni_de_sql()
+    {
+        var texto = PoliticaDeAbstencion.TextoReferenciaSinResolver;
+
+        Assert.DoesNotContain("consulta", texto, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tabla", texto, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ResultadoDeConsulta Resultado(

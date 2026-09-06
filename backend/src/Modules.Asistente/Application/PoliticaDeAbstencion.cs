@@ -114,6 +114,63 @@ public static class PoliticaDeAbstencion
             ? razonamiento
             : $"{razonamiento.TrimEnd()} {AclaracionDeRazonamientoSinFilas}";
 
+    /// <summary>
+    /// Demostrativos que dejan una referencia sin resolver.
+    /// </summary>
+    /// <remarks>
+    /// <b>NO ES la lista de <c>DetectorDeCambioDeTema</c>, y no hay que
+    /// «deduplicarlas».</b> Aquélla incluye <c>el</c>, <c>los</c>, <c>las</c> y
+    /// <c>lo</c> a propósito, porque su pregunta es «¿esto se ata de algún modo a lo
+    /// anterior?» y ante la duda conviene NO pivotar. La pregunta de acá es otra
+    /// —«¿esto quedó sin resolver?»— y con esa lista marcaría casi toda frase en
+    /// español: «los profesores de Ingeniería de Software» lleva <c>los</c> y está
+    /// perfectamente resuelta.
+    ///
+    /// Son demostrativos y referencias de posición, sin artículos ni pronombres
+    /// átonos. Ya normalizados: sin acentos y en minúscula.
+    /// </remarks>
+    private static readonly HashSet<string> Demostrativos = new(StringComparer.Ordinal)
+    {
+        "eso", "esa", "ese", "esos", "esas", "esto", "estos", "estas",
+        "aquel", "aquella", "aquellos", "aquellas",
+        "dicho", "dicha", "dichos", "dichas",
+        "mismo", "misma", "mismos", "mismas",
+        "anterior", "anteriores", "ultimo", "ultima", "ultimos", "ultimas",
+    };
+
+    /// <summary>
+    /// Si la pregunta todavía apunta a algo que no nombra.
+    /// </summary>
+    /// <remarks>
+    /// <b>Cierra un contrato que nadie verificaba.</b> El reescritor promete «una
+    /// pregunta que se entienda sola», y a veces devuelve algo que no se entiende
+    /// solo: expande la anáfora sin resolverla —«los profesores de esa materia
+    /// mencionada entre las 3 materias»— porque el hilo no tenía con qué. El
+    /// generador se abstiene, que es lo correcto sobre una pregunta que no se
+    /// entiende, pero el texto genérico hace pensar que el dato no existe.
+    ///
+    /// <b>Es una señal, no un veredicto.</b> Por sí sola no decide nada: una
+    /// pregunta con demostrativo que el generador SÍ pudo contestar se contesta y
+    /// listo. Sólo cambia el texto cuando además hubo abstención, y por eso no
+    /// importa que sea generosa.
+    /// </remarks>
+    public static bool HayReferenciaSinResolver(string pregunta) =>
+        !string.IsNullOrWhiteSpace(pregunta)
+        && NormalizadorLexico.Palabras(pregunta).Any(Demostrativos.Contains);
+
+    /// <summary>
+    /// Texto de un seguimiento cuya referencia no se pudo resolver.
+    /// </summary>
+    /// <remarks>
+    /// Dice lo que pasó de verdad y pide lo único que destraba el turno. El
+    /// genérico —«no puedo responder eso con la información que tengo
+    /// disponible»— es una afirmación sobre los DATOS, y acá el problema es la
+    /// pregunta: quien lo lee concluye que el dato no existe.
+    /// </remarks>
+    public const string TextoReferenciaSinResolver =
+        "No pude entender a qué te referís. Nombralo y vuelvo a intentar: "
+        + "por ejemplo, en lugar de «esa materia», la materia por su nombre.";
+
     /// <summary>Texto de una pregunta que el esquema no cubre (caso 1).</summary>
     /// <remarks>
     /// No enumera qué tablas o columnas existen. Un rechazo que dijera «no existe

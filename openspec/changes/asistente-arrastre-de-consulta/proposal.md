@@ -29,6 +29,7 @@ El SQL no agrega ningún dato al hilo que no estuviera ya: sus literales salen d
 
 - `asistente-hilo`: el hilo pasa a guardar, además de la pregunta interpretada, la consulta que la respondió — y sigue sin guardar ninguna fila.
 - `asistente-seguimiento`: un seguimiento se resuelve editando o anidando la consulta del turno anterior, con el mismo recorte por segmento y tope que ya rige para las preguntas.
+- `asistente-aclaracion`: cuando el seguimiento igual no se resuelve, el rechazo dice que no se entendió la referencia en vez de afirmar que el dato no existe.
 
 ## Impact
 

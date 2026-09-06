@@ -35,6 +35,13 @@
 - [x] 6.1 Test de integración con proveedor guionado: turno 1 devuelve materias, turno 2 pregunta «los profesores de esa materia» y la generación recibe la consulta del turno 1.
 - [ ] 6.2 Un ejemplo del caso en el dataset de evaluación, en el eje de diálogo.
 
+## 6b. La red de seguridad: el seguimiento que igual no se resuelve
+
+- [x] 6b.1 `PoliticaDeAbstencion.HayReferenciaSinResolver` con lista propia de demostrativos. **No reusar la de `DetectorDeCambioDeTema`**: incluye artículos a propósito y marcaría casi toda frase.
+- [x] 6b.2 Texto propio, que no afirma nada sobre los datos.
+- [x] 6b.3 Las tres condiciones en `CapaConversacional`: hubo historial, quedó demostrativo, y el turno se rechazó.
+- [x] 6b.4 Tests de las tres condiciones, incluida la que evita la explicación falsa.
+
 ## 7. Medición
 
 - [ ] 7.1 Regrabar el corpus de cassettes: la regla nueva cambia el prefijo.

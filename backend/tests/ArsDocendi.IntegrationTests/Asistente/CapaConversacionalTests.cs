@@ -365,6 +365,96 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
             ContarDocentes, generaciones[0].Mensaje, StringComparison.Ordinal);
     }
 
+    // ------------------------- el seguimiento cuya referencia no se resolvió
+
+    [Fact]
+    public async Task Un_seguimiento_sin_resolver_dice_que_no_entendio_a_que_se_referia()
+    {
+        // El reescritor promete «una pregunta que se entienda sola» y a veces
+        // devuelve algo que no se entiende solo. El generador se abstiene, que es
+        // correcto; lo que estaba mal era decir «no puedo responder eso con la
+        // información que tengo disponible», que es una afirmación sobre los DATOS.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            "¿los profesores de esa materia?",
+            ProveedorGuionado.NoContestable());
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct);
+
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿los profesores de esa materia?", ct);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, segundo.Estado);
+        Assert.Equal(PoliticaDeAbstencion.TextoReferenciaSinResolver, segundo.Respuesta);
+    }
+
+    [Fact]
+    public async Task Un_rechazo_sin_demostrativo_conserva_el_texto_generico()
+    {
+        // LA CONDICIÓN QUE EVITA LA EXPLICACIÓN FALSA. Un seguimiento que se rechaza
+        // por estar fuera del esquema no tiene ningún problema de referencia, y
+        // decirle al usuario que nombre algo lo manda a corregir lo que no estaba
+        // mal.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            "¿cuánto cobran los docentes?",
+            ProveedorGuionado.NoContestable());
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct);
+
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿cuánto cobran los docentes?", ct);
+
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, segundo.Respuesta);
+    }
+
+    [Fact]
+    public async Task Un_primer_turno_con_demostrativo_conserva_el_texto_generico()
+    {
+        // Sin historial no hubo seguimiento que resolver: el demostrativo es del
+        // usuario, no un residuo de la reescritura.
+        await SembrarAsync();
+        var banco = Banco(ProveedorGuionado.NoContestable());
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿cuánto cobran esos docentes?",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, turno.Respuesta);
+    }
+
+    [Fact]
+    public async Task Un_seguimiento_con_demostrativo_que_se_resuelve_no_cambia_nada()
+    {
+        // Mientras el generador pueda contestar —y con el arrastre muchas veces
+        // puede— no hay nada que explicar.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            "¿los profesores de esa materia?",
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Ahí van.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct);
+
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿los profesores de esa materia?", ct);
+
+        Assert.Equal(EstadoDelTurno.Respondida, segundo.Estado);
+        Assert.Equal("Ahí van.", segundo.Respuesta);
+    }
+
     // ------------------------------------------- enrutador de dominio, en sombra
 
     [Fact]
