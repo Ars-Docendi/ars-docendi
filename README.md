@@ -40,6 +40,14 @@ docker compose up -d
 docker compose ps            # postgres debe quedar healthy
 ```
 
+> **El `.env` también configura el backend, y sólo en Development.** Además de
+> `docker compose`, el Host lo suma como fuente de configuración: cualquier clave
+> con la forma de una variable de ambiente de .NET (`Seccion__Clave=valor`) entra
+> ahí sin exportar nada. Las variables de ambiente reales le ganan al archivo, y
+> fuera de Development el archivo no se lee. Es el lugar para la clave del
+> asistente en desarrollo — ver
+> [Modules.Asistente/README.md](backend/src/Modules.Asistente/README.md).
+
 #### 2. Node deps (raíz + frontend workspace)
 
 ```bash

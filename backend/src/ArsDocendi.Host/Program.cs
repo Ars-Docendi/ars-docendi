@@ -16,6 +16,12 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Va ANTES de leer nada de la configuración: el archivo es una fuente más, y
+// tiene que estar puesta antes de que alguien consulte una clave. Sólo hace algo
+// en Development; ver ArchivoDeEntorno.
+var archivoDeEntorno = ArchivoDeEntorno.Sumar(
+    builder.Environment, builder.Configuration, builder.Environment.ContentRootPath);
+
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .Enrich.FromLogContext()
@@ -73,6 +79,17 @@ builder.Services
     .AddAsistenteModule(builder.Configuration);
 
 var app = builder.Build();
+
+// Recién acá hay logger. Se registra la RUTA y la CANTIDAD, nunca las claves ni
+// los valores: el archivo existe justamente para tener una credencial adentro.
+if (archivoDeEntorno is not null)
+{
+    app.Logger.LogInformation(
+        "Configuración de desarrollo tomada de {Ruta} ({Claves} claves; "
+        + "las variables de ambiente reales le ganan)",
+        archivoDeEntorno.Ruta,
+        archivoDeEntorno.Claves);
+}
 
 // Arranque one-shot de migraciones: aplica las migraciones de cada módulo y
 // termina con exit 0, sin levantar el web server. Lo invoca la infra de deploy
