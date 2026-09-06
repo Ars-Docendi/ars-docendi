@@ -46,6 +46,7 @@ BEGIN
   -- sería inalcanzable: el motor rechaza antes de llegar a la tabla.
   EXECUTE format('GRANT USAGE ON SCHEMA identity TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT USAGE ON SCHEMA designaciones TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT USAGE ON SCHEMA portal TO %I, %I', rol_basico, rol_pii);
 
   -- El schema audit queda FUERA DE ALCANCE, entero. change_log.old_row y
   -- change_log.new_row guardan la fila completa en JSON: cualquier dato personal
@@ -121,5 +122,37 @@ BEGIN
   EXECUTE format('GRANT SELECT (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at) ON designaciones.pedido_historial TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, horas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, horas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_pii);
+  -- ------------------------------------------------------------------
+  -- portal
+  -- ------------------------------------------------------------------
+  -- LAS SEIS TABLAS QUE EL CATÁLOGO DE PREGUNTAS NECESITA, y ninguna más. El
+  -- alcance se derivó de las preguntas y no de lo que la base tiene disponible:
+  -- `cvs`, `proyectos` y `proyecto_documentos` quedan afuera porque ninguna
+  -- pregunta las pide, y una tabla expuesta que nadie consulta es prefijo de prompt
+  -- que se paga en cada llamada, para siempre.
+  --
+  -- LOS DOS ROLES RECIBEN LO MISMO, a diferencia de identity. Ahí la distinción
+  -- existe porque hay columnas personales —documento, CUIL, teléfono— que sólo el
+  -- rol PII lee. Acá la tabla que las tendría, `portal.contactos`, no se concede a
+  -- ninguno de los dos, así que no queda nada que separar.
+  --
+  -- CONCEDER ESTO NO ABRE EL PADRÓN. El predicado de RLS es «mi propio perfil OR
+  -- tengo portal.ver_trayectoria_ajena», y ese permiso está concedido A NADIE. Con
+  -- el GRANT puesto, cada actor ve exactamente su propio perfil y nada más; el
+  -- disyunto ajeno queda inerte hasta que Secretaría decida a quién dárselo, que es
+  -- una acción de administración y no un despliegue.
+  --
+  -- Cuatro columnas NO se conceden y el motivo va en manifiesto-privilegios.json:
+  -- `habilidades.usos` es un contador agregado sobre todo el padrón y una policy por
+  -- fila no puede acotarlo; `sugerido` y `canonica_id` son curaduría del vocabulario;
+  -- y `experiencias.descripcion` es texto libre autodeclarado que el enmascarador no
+  -- puede proteger, porque una expresión sobre esa columna reporta OID 0 y se trata
+  -- como pública.
+  EXECUTE format('GRANT SELECT (id, persona_id, created_at) ON portal.perfiles TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, perfil_id, nivel, carrera, institucion, desde, hasta, created_at) ON portal.educaciones TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, perfil_id, nombre, emisor, fecha, vencimiento, created_at) ON portal.certificaciones TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, perfil_id, puesto, organizacion, desde, hasta, created_at) ON portal.experiencias TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, termino, termino_norm, created_at) ON portal.habilidades TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (perfil_id, habilidad_id, tipo, created_at) ON portal.docente_habilidades TO %I, %I', rol_basico, rol_pii);
 END
 $asistente_grants$;

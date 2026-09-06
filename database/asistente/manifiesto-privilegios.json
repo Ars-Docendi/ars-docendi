@@ -32,8 +32,8 @@
     },
     {
       "nombre": "portal",
-      "estado": "denegado",
-      "motivo": "El portal docente guarda datos que la persona carga sobre sí misma: formación, experiencia laboral, certificaciones, proyectos, habilidades, y el teléfono y el mail PERSONALES. Hoy no se concede ni una columna, y la denegación es del schema entero para que un GRANT hecho sin pensar tenga que pasar por editar esta entrada. Abrirlo es una decisión de finalidad bajo la Ley 25.326 y no una de ingeniería: ver ARS-83. `portal.contactos` queda denegada aun cuando el resto se abra, porque el contacto institucional ya se concede por identity.personas.telefono y identity.users.upn, y el personal no responde ninguna pregunta que aquél no cubra."
+      "estado": "expuesto",
+      "motivo": "Seis de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional. `contactos` queda denegada entera y `cvs`, `proyectos` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR tengo portal.ver_trayectoria_ajena», y ese permiso está concedido a nadie."
     },
     {
       "nombre": "public",
@@ -392,6 +392,166 @@
       "tabla": "__EFMigrationsHistory",
       "estado": "denegada-explicita",
       "motivo": "Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto en su primera corrida, que es exactamente el caso que la dirección 3 existe para atrapar.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "perfiles",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "persona_id", "created_at"],
+        "asistente_ro_pii": ["id", "persona_id", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "educaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "nivel",
+          "carrera",
+          "institucion",
+          "desde",
+          "hasta",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nivel",
+          "carrera",
+          "institucion",
+          "desde",
+          "hasta",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "certificaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "emisor",
+          "fecha",
+          "vencimiento",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "emisor",
+          "fecha",
+          "vencimiento",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "experiencias",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "puesto",
+          "organizacion",
+          "desde",
+          "hasta",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "puesto",
+          "organizacion",
+          "desde",
+          "hasta",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "descripcion",
+          "motivo": "Texto libre donde el docente escribe lo que quiera sobre sí mismo. Clasificarla como sensible NO alcanza: el enmascarador identifica la columna por (OID, attnum), y toda expresión —un upper(descripcion), por ejemplo— reporta OID 0, que se trata como pública. O no se concede, o viaja verbatim al proveedor del modelo."
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "habilidades",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "termino", "termino_norm", "created_at"],
+        "asistente_ro_pii": ["id", "termino", "termino_norm", "created_at"]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "usos",
+          "motivo": "Contador AGREGADO sobre todo el padrón. Una policy por fila no puede acotarlo —la fila es una sola y su número ya vio todo—, así que sería el único canal de esta tabla que la RLS no cierra: diría cuánta gente declaró un término aun sin poder ver a ninguna."
+        },
+        {
+          "columna": "sugerido",
+          "motivo": "Maquinaria de curaduría del vocabulario, no dominio. No responde ninguna pregunta del catálogo."
+        },
+        {
+          "columna": "canonica_id",
+          "motivo": "Ídem sugerido: apunta al término canónico cuando alguien deduplica el vocabulario. Es mantenimiento interno."
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "docente_habilidades",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["perfil_id", "habilidad_id", "tipo", "created_at"],
+        "asistente_ro_pii": ["perfil_id", "habilidad_id", "tipo", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "contactos",
+      "estado": "denegada-explicita",
+      "motivo": "El teléfono y el mail INSTITUCIONALES ya se conceden por identity.personas.telefono e identity.users.upn al rol PII, así que esta tabla no habilita ninguna pregunta que aquéllos no cubran. Los que guarda son los PERSONALES, que el docente carga en una pantalla que —por decisión de diseño explícita— no declara quién va a verlos. Todo el riesgo del paquete y ningún valor nuevo. Denegada entera y no columna por columna, para que reabrirla exija editar esta entrada.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "cvs",
+      "estado": "denegada-explicita",
+      "motivo": "Ninguna pregunta del catálogo la necesita, y su columna uri es la ubicación del archivo: mismo criterio que designaciones.pedido_adjuntos.uri —el asistente puede decir que existe y de cuándo es, entregarlo es de la interfaz—. Se deniega entera en vez de conceder la metadata porque una tabla expuesta que nadie consulta es prefijo de prompt que se paga en cada llamada.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "proyectos",
+      "estado": "denegada-explicita",
+      "motivo": "Ninguna pregunta del catálogo la necesita. El alcance se derivó de las preguntas y no de lo que la base tiene disponible: exponerla costaría prefijo permanente sin comprar ninguna respuesta. Además descripcion es texto libre autodeclarado, con el mismo problema de enmascarado que experiencias.descripcion.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "proyecto_documentos",
+      "estado": "denegada-explicita",
+      "motivo": "Cuelga de proyectos, que no se concede, y su uri es la ubicación de un archivo. Mismo criterio que pedido_adjuntos.uri y que cvs.",
       "columnas_concedidas": {},
       "columnas_denegadas": []
     }

@@ -536,6 +536,183 @@
           "clasificacion": "publica"
         }
       ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "perfiles",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "persona_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "educaciones",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "perfil_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nivel",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "carrera",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "institucion",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "certificaciones",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "perfil_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "emisor",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "fecha",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "vencimiento",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "experiencias",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "perfil_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "puesto",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "organizacion",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "desde",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "hasta",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "habilidades",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "termino",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "termino_norm",
+          "clasificacion": "publica",
+          "motivo": "La protección de portal es el GRANT y la RLS, no la máscara: lo que no se puede mostrar no se concede. Enmascarar esta columna haría imposible la respuesta que el catálogo de preguntas promete."
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "docente_habilidades",
+      "columnas": [
+        {
+          "columna": "perfil_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "habilidad_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "tipo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
     }
   ]
 }

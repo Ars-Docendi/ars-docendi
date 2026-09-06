@@ -7,15 +7,12 @@ namespace ArsDocendi.IntegrationTests.Portal;
 /// Las policies de RLS que acotan el portal para el asistente.
 /// </summary>
 /// <remarks>
-/// <b>Se prueban con un rol DESCARTABLE y no con los del asistente.</b> Los roles
-/// del asistente todavía no tienen <c>USAGE</c> sobre <c>portal</c> —el
-/// <c>GRANT</c> es una decisión aparte, con su propio gate de finalidad— así que
-/// probar con ellos mediría la ausencia del grant y no el predicado. Acá se crea un
-/// rol sin privilegios especiales, se le concede lo mínimo, y se ejercita la policy
-/// sola.
-///
-/// El rol es <c>NOSUPERUSER NOBYPASSRLS</c> a propósito: sin las dos cosas, todo
-/// pasaría en verde sin que ninguna policy se evaluara.
+/// <b>El predicado se prueba con un rol DESCARTABLE, y el estado desplegado con los
+/// roles REALES.</b> Son dos preguntas distintas: la policy se puede verificar sin
+/// depender de qué se concedió, y lo que hay que verificar del sistema tal como
+/// queda es que el GRANT no haya abierto el padrón. El rol descartable es
+/// <c>NOSUPERUSER NOBYPASSRLS</c> a propósito: sin las dos cosas, todo pasaría en
+/// verde sin que ninguna policy se evaluara.
 /// </remarks>
 [Collection(ColeccionPostgres.Nombre)]
 public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
@@ -173,6 +170,73 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
 
         await ConcederPermisoAsync(Docente);
         Assert.Equal(comoDueno, await ContarComoActorAsync(Docente, "portal.habilidades"));
+    }
+
+    // ------------------------------------- con los roles REALES del asistente
+
+    [Fact]
+    public async Task Con_el_GRANT_puesto_el_asistente_no_ve_ningun_perfil_ajeno()
+    {
+        // ES LA VERIFICACIÓN DE QUE CONCEDER PORTAL NO ABRIÓ EL PADRÓN, y va con los
+        // roles REALES del asistente y no con el descartable: acá lo que se prueba no
+        // es el predicado sino el estado del sistema tal como queda desplegado.
+        //
+        // El GRANT da acceso a las tablas; el permiso `portal.ver_trayectoria_ajena`
+        // da acceso a las filas ajenas, y está concedido A NADIE. Mientras siga así,
+        // cada actor ve exactamente su propio perfil.
+        await SembrarAsync();
+
+        var total = await ContarComoDuenoAsync("portal.perfiles");
+        Assert.True(total > 1, $"El seed tiene {total} perfiles; hace falta más de uno.");
+
+        foreach (var actor in new[] { Docente, Secretaria })
+        {
+            await using var conexion = await AbrirConexionComoAsistenteAsync(false);
+            await using var transaccion = await conexion.BeginTransactionAsync(
+                TestContext.Current.CancellationToken);
+
+            await using (var ajuste = new NpgsqlCommand(
+                "SELECT set_config('app.asistente_user_id', @actor, TRUE)",
+                conexion, transaccion))
+            {
+                ajuste.Parameters.AddWithValue("actor", actor.ToString());
+                await ajuste.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+            }
+
+            await using var comando = new NpgsqlCommand(
+                "SELECT count(*) FROM portal.perfiles", conexion, transaccion);
+
+            var visibles = (long)(await comando.ExecuteScalarAsync(
+                TestContext.Current.CancellationToken))!;
+
+            Assert.True(
+                visibles <= 1,
+                $"El actor {actor} ve {visibles} perfiles con el permiso concedido a nadie. "
+                + "Tiene que ver a lo sumo el propio.");
+        }
+    }
+
+    [Fact]
+    public async Task El_asistente_no_llega_a_las_tablas_que_no_se_le_conceden()
+    {
+        // La otra mitad de la frontera: contacto personal, CV y proyectos no se
+        // conceden, así que el motor rechaza antes de evaluar ninguna policy. Es
+        // permission denied y no cero filas, que es la diferencia entre una tabla
+        // fuera de alcance y una vacía.
+        await SembrarAsync();
+
+        foreach (var tabla in new[] { "contactos", "cvs", "proyectos", "proyecto_documentos" })
+        {
+            await using var conexion = await AbrirConexionComoAsistenteAsync(true);
+            await using var comando = new NpgsqlCommand(
+                $"SELECT count(*) FROM portal.{tabla}", conexion);
+
+            var error = await Assert.ThrowsAsync<PostgresException>(
+                () => comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+
+            // 42501 es insufficient_privilege.
+            Assert.Equal("42501", error.SqlState);
+        }
     }
 
     // ------------------------------------------------------------------ no regresión
