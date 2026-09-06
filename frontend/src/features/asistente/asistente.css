@@ -75,14 +75,22 @@
   }
 }
 
-/* ───────────────────────────── el encabezado del panel ─────────────────────── */
+/* ──────────────────────── «Nueva conversación» en el modal ──────────────────── */
 
-/* Sólo en el modal: una fila con «Nueva conversación» a la derecha. El título ya
-   lo pone el Modal, y en la ruta el botón va en el encabezado de la página. */
-.adoc-asistente-encabezado {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
+/* Vive en el CUERPO del Modal y se dibuja sobre su fila de encabezado. La librería
+   no expone un slot de acciones ahí —sólo `title`, `children` y `footer`—, y pasarlo
+   como parte del título lo mete adentro del `h4` que nombra al diálogo: el lector
+   de pantalla anunciaba «Asistente Nueva conversación». Los tests del nombre lo
+   atajaron, y por eso está acá y no allá. El arreglo de verdad es TD-020.
+
+   Antes ocupaba una fila entera del cuerpo, que en un modal ajustado de alto salía
+   del hilo. El `right` deja lugar para la «×» del Modal; el `top` alinea con el
+   relleno de su encabezado (18px). `.adoc-modal` ya es `position: relative`. */
+.adoc-asistente-acciones-modal {
+  position: absolute;
+  top: 14px;
+  right: 52px;
+  z-index: 1;
 }
 
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
@@ -627,12 +635,37 @@
   font-size: inherit;
 }
 
-/* Alto fijo para que el campo de entrada no se mueva a medida que la conversación
-   crece: un input que baja con cada respuesta obliga a perseguirlo. El vh se
-   divide por el zoom de la aplicación igual que hace el escenario del modal; sin
-   eso, 72vh serían 81 de la pantalla real. */
+/* EL ALTO LO FIJA EL MODAL Y EL PANEL LO HEREDA. Una sola fuente de verdad, y no
+   es prolijidad: antes el panel llevaba `min(72vh/zoom, 680px)`, calculado EN
+   PARALELO al espacio que el cuerpo del modal realmente tiene —alto del escenario,
+   menos su relleno, menos el encabezado—. Los dos números quedaban a pocos píxeles
+   uno del otro, así que cualquier variación —un encabezado que envuelve, otro zoom
+   del navegador— volcaba el panel por encima del cuerpo.
+
+   Y el cuerpo del Modal de la librería trae `overflow: auto`. Al desbordar por unos
+   píxeles se convertía en el contenedor que atrapa la rueda: con el puntero sobre
+   el campo de entrada, scrollear movía el panel entero y el input se iba de la
+   pantalla. Está reportado y reproducido; la captura muestra el hilo cortado arriba
+   y un vacío debajo del input.
+
+   `overflow: hidden` en el cuerpo es lo que cierra el defecto de raíz: deja de
+   haber un contenedor scrolleable entre el hilo y el diálogo. El único que scrollea
+   es `.adoc-asistente-hilo`, que es lo que uno espera de un chat. */
+/* Va en el MISMO elemento que `.adoc-modal`: `className` del Modal se aplica sobre
+   el diálogo, no sobre un contenedor. Escrito como descendiente no seleccionaba
+   nada y el panel crecía con la conversación. */
+.adoc-asistente-modal {
+  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), 900px);
+}
+
+.adoc-asistente-modal .body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .adoc-asistente-modal .adoc-asistente {
-  height: min(calc(72vh / var(--ui-zoom, 1)), 680px);
+  height: 100%;
   padding: var(--space-4) var(--space-5);
 }
 

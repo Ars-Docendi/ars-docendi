@@ -6,7 +6,6 @@ import { EntradaDePregunta } from "./EntradaDePregunta";
 import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
 import { IrAlFinal } from "./IrAlFinal";
-import { NuevaConversacion } from "./NuevaConversacion";
 import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
@@ -18,11 +17,6 @@ interface PanelAsistenteProps {
    * página para la ruta— y no el panel, para que sobreviva a cerrar el modal.
    */
   asistente: Asistente;
-  /**
-   * Con un encabezado propio que lleva «Nueva conversación». Lo pide el modal; en
-   * la ruta el botón va en el encabezado de la página.
-   */
-  mostrarEncabezado?: boolean;
   /** Para el test del umbral, que no puede esperar el tiempo real. */
   umbralDelIndicadorMs?: number;
 }
@@ -40,11 +34,7 @@ interface PanelAsistenteProps {
  * afuera, también sin querer, cierran—. Lo que sí es suyo es lo que se está
  * escribiendo y el foco.
  */
-export function PanelAsistente({
-  asistente,
-  mostrarEncabezado = false,
-  umbralDelIndicadorMs,
-}: PanelAsistenteProps) {
+export function PanelAsistente({ asistente, umbralDelIndicadorMs }: PanelAsistenteProps) {
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar, reintentar, detener } = asistente;
   const [borrador, setBorrador] = useState("");
@@ -89,12 +79,6 @@ export function PanelAsistente({
 
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
-      {mostrarEncabezado && (
-        <div className="adoc-asistente-encabezado">
-          <NuevaConversacion asistente={asistente} />
-        </div>
-      )}
-
       {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando, el
           campo de entrada se va hacia abajo con cada respuesta y hay que perseguirlo;
           acá se queda quieto y lo que se mueve es la conversación, que es lo que uno

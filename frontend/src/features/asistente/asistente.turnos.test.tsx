@@ -191,13 +191,14 @@ describe("Nueva conversación", () => {
   });
 
   it("está deshabilitada sin turnos y mientras hay uno en vuelo", async () => {
-    // En el modal el botón va en el encabezado del panel.
+    // El botón vive fuera del panel —en el título del Modal para el modal, en el
+    // encabezado de página para la ruta—, así que acá se monta al lado.
     const user = userEvent.setup();
     let resolver: (valor: RespuestaDelAsistente) => void = () => {};
     vi.spyOn(api, "consultar").mockImplementationOnce(
       () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
     );
-    montar(<PanelDePrueba mostrarEncabezado />);
+    montar(<PanelDePrueba conNuevaConversacion />);
 
     const boton = await screen.findByRole("button", { name: "Nueva conversación" });
     expect(boton).toBeDisabled();

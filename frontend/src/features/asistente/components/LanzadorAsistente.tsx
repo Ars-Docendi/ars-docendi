@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@ars-docendi/ui";
 
+import { NuevaConversacion } from "./NuevaConversacion";
 import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
@@ -77,7 +78,16 @@ export function LanzadorAsistente() {
 
       {/* Con título, el Modal pinta un encabezado que dice qué es esto y nombra el
           diálogo por él; sin título quedaba un encabezado con sólo la «×» y un
-          nombre que sólo el lector de pantalla oía. */}
+          nombre que sólo el lector de pantalla oía.
+
+          EL TÍTULO ES UNA CADENA Y NO UN NODO, a propósito. Meter «Nueva
+          conversación» adentro del título lo pone en la fila del encabezado en una
+          línea, pero la librería renderiza el título dentro del `h4` que NOMBRA al
+          diálogo: el lector de pantalla pasaba a anunciar «Asistente Nueva
+          conversación». Los tests del nombre lo atajaron.
+
+          Así que el botón entra por el cuerpo y se posiciona sobre esa fila. La
+          alternativa honesta es un `headerActions` en la librería — TD-020. */}
       <Modal
         open={abierto}
         onOpenChange={setAbierto}
@@ -85,8 +95,11 @@ export function LanzadorAsistente() {
         className="adoc-asistente-modal"
       >
         {/* Es sólo la vista: la conversación está arriba, y por eso cerrar no la
-            pierde. Con encabezado propio, porque acá no hay encabezado de página. */}
-        <PanelAsistente asistente={asistente} mostrarEncabezado />
+            pierde. */}
+        <div className="adoc-asistente-acciones-modal">
+          <NuevaConversacion asistente={asistente} />
+        </div>
+        <PanelAsistente asistente={asistente} />
       </Modal>
     </>
   );
