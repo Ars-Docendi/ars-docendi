@@ -239,8 +239,15 @@ public static class Program
                 if (congelar)
                 {
                     Directory.CreateDirectory(lineasDeBase);
+
+                    // EL SALTO FINAL NO ES COSMÉTICA. Estos archivos se versionan y el
+                    // CI corre `prettier --check .` sobre el repositorio entero;
+                    // `JsonSerializer` no lo escribe, así que sin esto cada corrida
+                    // con --congelar deja el CI rojo por formato. Arreglarlo a mano en
+                    // los archivos duraría hasta la próxima regeneración.
                     await File.WriteAllTextAsync(
-                        rutaDeLinea, LineaDeBase.De(resultado.Reporte).Serializar());
+                        rutaDeLinea,
+                        LineaDeBase.De(resultado.Reporte).Serializar() + Environment.NewLine);
 
                     Console.WriteLine($"  línea de base congelada en {rutaDeLinea}");
                     continue;
