@@ -294,13 +294,20 @@ public static class PoliticaDeAbstencion
     /// Los tres están verificados por otros tests: el primero por los guards de
     /// arquitectura del módulo, el segundo por la única referencia de proyecto del
     /// csproj, y el tercero por los tests de RLS y de privilegios por columna.
+    ///
+    /// <b>Se acortaron sin perder ninguno.</b> Eran cuatro renglones de dos líneas
+    /// cada uno y nadie los leía. Lo único que conserva su segunda oración es el
+    /// tercero —«si algo no aparece, puede existir fuera de tu alcance»— porque no
+    /// es una aclaración sino la advertencia central del sistema: es lo que impide
+    /// leer un resultado vacío como un hecho, y es la misma distinción que
+    /// <see cref="TextoDeResultadoVacio"/> sostiene en cada respuesta.
     /// </remarks>
     public static readonly IReadOnlyList<string> LimitesDelAsistente =
     [
-        "No modifica nada: solo consulta. No puede cargar, aprobar ni cambiar el estado de un trámite.",
-        "Solo consulta datos de este sistema. No accede a Guaraní, a planillas ni a ninguna otra fuente.",
-        "Solo te muestra lo que tu rol ya puede ver. Si algo no aparece, puede existir y estar fuera de tu alcance.",
-        "No inventa: si no puede responder con lo que ve, lo dice.",
+        "No modifica nada: solo consulta.",
+        "Solo lee este sistema: no Guaraní, ni planillas, ni otras fuentes.",
+        "Solo ve lo que tu rol ya puede ver: si algo no aparece, puede existir fuera de tu alcance.",
+        "No inventa: si no puede responder, lo dice.",
     ];
 
     /// <summary>Cómo se le describe al actor el alcance de lo que ve.</summary>

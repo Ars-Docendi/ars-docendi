@@ -1,4 +1,5 @@
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { AyudaDelAsistente } from "../components/AyudaDelAsistente";
 import { NuevaConversacion } from "../components/NuevaConversacion";
 import { PanelAsistente } from "../components/PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
@@ -27,7 +28,14 @@ export function AsistentePage() {
         meta="Consultá en lenguaje natural lo que ya podés ver en el sistema"
         // Sin acceso el panel muestra sólo el aviso, y un botón al lado que nunca va
         // a poder hacer nada es la promesa vacía que el invariante #7 prohíbe.
-        actions={tieneAcceso === true ? <NuevaConversacion asistente={asistente} /> : undefined}
+        actions={
+          tieneAcceso === true ? (
+            <div className="adoc-asistente-acciones-pagina">
+              <AyudaDelAsistente />
+              <NuevaConversacion asistente={asistente} />
+            </div>
+          ) : undefined
+        }
       />
       <PanelAsistente asistente={asistente} />
     </div>

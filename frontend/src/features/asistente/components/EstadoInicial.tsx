@@ -1,7 +1,5 @@
 import { Button } from "@ars-docendi/ui";
 
-import { AyudaDelAsistente } from "./AyudaDelAsistente";
-
 import type { CapacidadesDelAsistente } from "../types";
 
 interface EstadoInicialProps {
@@ -24,15 +22,10 @@ interface EstadoInicialProps {
  * argumento por el que `useAccesoAlAsistente` le pregunta al backend en vez de
  * decidir por rol.
  *
- * LA PRESENTACIÓN, EL ALCANCE Y LOS LÍMITES VIVEN DETRÁS DEL «?». Ocupaban la mitad
- * de la pantalla y competían con lo único accionable que hay acá: los ejemplos.
- * Nadie los relee, y quien entra por primera vez tampoco los lee antes de probar.
- * Siguen a un clic porque cuando hacen falta —«¿por qué no me contestó esto?»— son
- * exactamente lo que responde. Ver `AyudaDelAsistente`.
- *
- * EL CONTEO DE ÁREAS VA CON EL ALCANCE, y por eso se calcula acá y se le pasa: es
- * la única señal de amplitud que hay. Sin él, una presentación acotada —«los pedidos
- * de tu carrera»— se leería como el techo de lo que el asistente sabe.
+ * LA PRESENTACIÓN, EL ALCANCE Y LOS LÍMITES NO ESTÁN ACÁ: viven en el «?» del
+ * encabezado —`AyudaDelAsistente`—, que además sigue disponible después del primer
+ * turno. Ocupaban la mitad de esta pantalla y competían con lo único accionable que
+ * hay: los ejemplos.
  *
  * DE LAS ÁREAS SÓLO SE DICE CUÁNTAS HAY. `cubre[].nombre` es `schema.tabla`
  * —«designaciones.pedidos»—, una etiqueta interna que RNF-18 prohíbe mostrar. Y
@@ -48,10 +41,7 @@ interface EstadoInicialProps {
 export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoInicialProps) {
   return (
     <div className="adoc-asistente-inicio">
-      <div className="adoc-asistente-inicio-entrada">
-        <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
-        <AyudaDelAsistente capacidades={capacidades} areas={areasDeDatos(capacidades.tablas)} />
-      </div>
+      <h2 className="adoc-asistente-inicio-titulo">¿Qué querés saber del sistema?</h2>
 
       {capacidades.ejemplos.length > 0 && (
         <ul className="adoc-asistente-chips" aria-label="Preguntas de ejemplo">
@@ -71,9 +61,4 @@ export function EstadoInicial({ capacidades, onElegir, deshabilitado }: EstadoIn
       )}
     </div>
   );
-}
-
-/** «1 área de datos», «2 áreas de datos». */
-function areasDeDatos(cantidad: number): string {
-  return cantidad === 1 ? "1 área de datos" : `${cantidad} áreas de datos`;
 }

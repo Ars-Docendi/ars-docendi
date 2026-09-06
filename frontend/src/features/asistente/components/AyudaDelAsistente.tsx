@@ -1,13 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { helpIcon } from "../../../app/shell/icons";
-import type { CapacidadesDelAsistente } from "../types";
-
-interface AyudaDelAsistenteProps {
-  capacidades: CapacidadesDelAsistente;
-  /** Cuántas áreas de datos conoce, ya redactado. */
-  areas: string;
-}
+import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 
 /**
  * Qué es el asistente, hasta dónde llega y qué no hace, detrás de un «?».
@@ -25,10 +19,15 @@ interface AyudaDelAsistenteProps {
  * los lee antes de probar. Sigue disponible porque cuando hace falta —«¿por qué no
  * me contestó esto?»— es exactamente lo que responde.
  *
- * El texto lo escribe el backend y acá no se inventa nada: es el mismo contenido
- * de `GET /capacidades` que la pantalla mostraba abierto.
+ * VIVE EN EL ENCABEZADO Y NO EN LA PANTALLA VACÍA, así que sigue disponible después
+ * del primer turno — que es cuando aparece la pregunta que responde. Pide el
+ * catálogo por su cuenta: `useAccesoAlAsistente` es la misma consulta de React
+ * Query que ya hizo el panel, así que no es un pedido más.
+ *
+ * El texto lo escribe el backend y acá no se inventa nada.
  */
-export function AyudaDelAsistente({ capacidades, areas }: AyudaDelAsistenteProps) {
+export function AyudaDelAsistente() {
+  const { capacidades } = useAccesoAlAsistente();
   const [abierta, setAbierta] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
@@ -54,6 +53,10 @@ export function AyudaDelAsistente({ capacidades, areas }: AyudaDelAsistenteProps
     };
   }, [abierta]);
 
+  // Sin catálogo no hay nada que contar. Un «?» que se abre vacío es peor que no
+  // tenerlo: promete una explicación que no llega.
+  if (!capacidades) return null;
+
   return (
     <div className="adoc-asistente-ayuda" ref={contenedor}>
       <button
@@ -70,7 +73,7 @@ export function AyudaDelAsistente({ capacidades, areas }: AyudaDelAsistenteProps
         <div className="adoc-asistente-ayuda-pop" role="group" aria-label="Sobre el asistente">
           <p className="adoc-asistente-inicio-presentacion">{capacidades.presentacion}</p>
           <p className="adoc-asistente-inicio-alcance">
-            {capacidades.alcance} Conozco {areas} del sistema.
+            {capacidades.alcance} Conozco {areasDeDatos(capacidades.tablas)} del sistema.
           </p>
 
           {capacidades.noPuede.length > 0 && (
@@ -88,4 +91,9 @@ export function AyudaDelAsistente({ capacidades, areas }: AyudaDelAsistenteProps
       )}
     </div>
   );
+}
+
+/** «1 área de datos», «2 áreas de datos». */
+function areasDeDatos(cantidad: number): string {
+  return cantidad === 1 ? "1 área de datos" : `${cantidad} áreas de datos`;
 }

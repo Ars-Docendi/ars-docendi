@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@ars-docendi/ui";
 
+import { AyudaDelAsistente } from "./AyudaDelAsistente";
 import { NuevaConversacion } from "./NuevaConversacion";
 import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
@@ -97,6 +98,7 @@ export function LanzadorAsistente() {
         {/* Es sólo la vista: la conversación está arriba, y por eso cerrar no la
             pierde. */}
         <div className="adoc-asistente-acciones-modal">
+          <AyudaDelAsistente />
           <NuevaConversacion asistente={asistente} />
         </div>
         <PanelAsistente asistente={asistente} />

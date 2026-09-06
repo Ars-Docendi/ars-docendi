@@ -91,6 +91,16 @@
   top: 14px;
   right: 52px;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* En la ruta van los dos juntos, dentro de las acciones del encabezado de página. */
+.adoc-asistente-acciones-pagina {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
@@ -162,7 +172,9 @@
 .adoc-asistente-ayuda-pop {
   position: absolute;
   top: calc(100% + var(--space-2));
-  left: 0;
+  /* Anclado por la DERECHA: el «?» vive en el encabezado, pegado al borde. Con
+     `left: 0` el panel se salía del modal por ese lado. */
+  right: 0;
   z-index: var(--z-sticky);
   width: min(28rem, calc(100vw - 4rem));
   max-height: 60vh;

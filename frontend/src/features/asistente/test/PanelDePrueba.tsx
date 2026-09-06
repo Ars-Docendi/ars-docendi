@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 
+import { AyudaDelAsistente } from "../components/AyudaDelAsistente";
 import { NuevaConversacion } from "../components/NuevaConversacion";
 import { PanelAsistente } from "../components/PanelAsistente";
 import { useAsistente } from "../hooks/useAsistente";
@@ -28,6 +29,10 @@ export function PanelDePrueba({ conNuevaConversacion = false, ...props }: Props)
 
   return (
     <>
+      {/* La ayuda va SIEMPRE: en los dos montajes reales vive en el encabezado
+          —el título del modal, el de la página— y no en el panel, así que un banco
+          sin ella probaría una composición que no existe. */}
+      <AyudaDelAsistente />
       {conNuevaConversacion && <NuevaConversacion asistente={asistente} />}
       <PanelAsistente asistente={asistente} {...props} />
     </>

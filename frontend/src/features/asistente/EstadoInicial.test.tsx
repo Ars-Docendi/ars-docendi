@@ -93,13 +93,11 @@ describe("El estado inicial", () => {
     // Un rol que el backend no reconoce recibe de él un texto genérico. Si el
     // cliente tuviera su propia tabla de roles se desactualizaría sola:
     // `identity.roles` no es cerrado y Secretaría crea roles desde la aplicación.
-    render(
-      <EstadoInicial
-        capacidades={{ ...CAPACIDADES, presentacion: "Preguntá por lo que el backend diga." }}
-        onElegir={() => {}}
-        deshabilitado={false}
-      />,
-    );
+    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
+      ...CAPACIDADES,
+      presentacion: "Preguntá por lo que el backend diga.",
+    });
+    montar(<PanelDePrueba />);
 
     await abrirAyuda();
 

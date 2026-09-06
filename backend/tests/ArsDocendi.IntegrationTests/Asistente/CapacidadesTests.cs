@@ -266,10 +266,10 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
 
     [Theory]
     [InlineData("a0000000-0000-4000-8000-000000000002", "las designaciones y los pedidos de tu cátedra")]
-    [InlineData("a0000000-0000-4000-8000-000000000003", "los pedidos de tu carrera")]
-    [InlineData("a0000000-0000-4000-8000-000000000004", "cualquier cátedra del Departamento")]
+    [InlineData("a0000000-0000-4000-8000-000000000003", "de tu carrera")]
+    [InlineData("a0000000-0000-4000-8000-000000000004", "cualquier cátedra")]
     [InlineData("a0000000-0000-4000-8000-000000000005", "cómo viene el trámite en todo el Departamento")]
-    [InlineData("a0000000-0000-4000-8000-000000000006", "los catálogos del sistema")]
+    [InlineData("a0000000-0000-4000-8000-000000000006", "los catálogos")]
     [InlineData("a0000000-0000-4000-8000-000000000001", "tus designaciones")]
     public async Task Cada_rol_conocido_recibe_su_propia_presentacion(string actor, string fragmento)
     {
@@ -427,7 +427,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var puede = await Catalogo().ObtenerAsync(
             Secretaria, TestContext.Current.CancellationToken);
 
-        Assert.Contains("tu propio perfil", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("tu perfil profesional", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("buscar docentes", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
     }
 

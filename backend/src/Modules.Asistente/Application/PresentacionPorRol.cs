@@ -50,24 +50,14 @@ public static class PresentacionPorRol
     /// </remarks>
     private static readonly Dictionary<string, string> PorCodigo = new(StringComparer.Ordinal)
     {
-        ["jefe_catedra"] =
-            "Preguntá por las designaciones y los pedidos de tu cátedra: quién está designado, "
-            + "en qué materia y en qué estado quedó cada trámite.",
-        ["coordinador_carrera"] =
-            "Preguntá por los pedidos de tu carrera: qué hay pendiente de revisión, en qué "
-            + "estado está cada trámite y quién quedó designado.",
+        ["jefe_catedra"] = "Preguntá por las designaciones y los pedidos de tu cátedra.",
+        ["coordinador_carrera"] = "Preguntá por los pedidos y las designaciones de tu carrera.",
         ["secretaria"] =
-            "Preguntá por cualquier cátedra del Departamento: designaciones, pedidos, períodos "
-            + "y cómo viene el trámite en cada carrera.",
-        ["decanato"] =
-            "Preguntá por cómo viene el trámite en todo el Departamento: qué llegó a la "
-            + "aprobación final, qué quedó pendiente y quién está designado.",
+            "Preguntá por las designaciones, los pedidos y los períodos de cualquier cátedra.",
+        ["decanato"] = "Preguntá por cómo viene el trámite en todo el Departamento.",
         ["administrativo"] =
-            "Preguntá por los datos del trámite y los catálogos del sistema: períodos, cargos, "
-            + "materias y en qué estado está cada pedido.",
-        ["docente"] =
-            "Preguntá por tus designaciones: en qué materias estás designado, con qué cargo y "
-            + "desde cuándo.",
+            "Preguntá por los datos del trámite y los catálogos: períodos, cargos y materias.",
+        ["docente"] = "Preguntá por tus designaciones: materia, cargo y desde cuándo.",
     };
 
     /// <summary>
@@ -104,7 +94,6 @@ public static class PresentacionPorRol
     /// GRANT como todo lo demás.
     /// </remarks>
     private static string DelPortal(bool veTrayectoriaAjena) => veTrayectoriaAjena
-        ? "También podés buscar docentes por su formación, sus certificaciones o las "
-          + "habilidades que declararon en su perfil."
-        : "También podés consultar tu propio perfil profesional.";
+        ? "También podés buscar docentes por formación, certificaciones o habilidades."
+        : "También podés consultar tu perfil profesional.";
 }
