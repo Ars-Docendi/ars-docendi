@@ -62,6 +62,31 @@ public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task El_seguimiento_al_resultado_apunta_a_una_sola_materia()
+    {
+        // LA PREMISA DEL ÍTEM dia-005, y sin ella el ítem mide otra cosa. Si el
+        // primer turno devolviera varias materias, «esa materia» sería ambiguo y el
+        // ítem pasaría a medir desambiguación en vez de arrastre de la consulta —y
+        // fallaría por un motivo que su nombre no explica.
+        //
+        // Depende del fixture, no del código, así que el día que cambien las
+        // cardinalidades este test dice exactamente qué hay que revisar.
+        await AplicarFixtureAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var referencia = Referencias().Single(r => r.Id == "dia-005-referencia-al-resultado#1");
+
+        await using var conexion = new NpgsqlConnection(Cadena);
+        await conexion.OpenAsync(ct);
+        await using var comando = new NpgsqlCommand(referencia.Sql, conexion);
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+
+        Assert.True(await lector.ReadAsync(ct));
+        Assert.Equal("Señales y Sistemas", lector.GetString(0));
+        Assert.False(await lector.ReadAsync(ct));
+    }
+
+    [Fact]
     public async Task Ninguna_referencia_devuelve_cero_filas_sin_declararlo()
     {
         // Una referencia vacía convierte el ítem en «el asistente acierta si tampoco

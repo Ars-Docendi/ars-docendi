@@ -33,7 +33,7 @@
 ## 6. De punta a punta
 
 - [x] 6.1 Test de integración con proveedor guionado: turno 1 devuelve materias, turno 2 pregunta «los profesores de esa materia» y la generación recibe la consulta del turno 1.
-- [ ] 6.2 Un ejemplo del caso en el dataset de evaluación, en el eje de diálogo.
+- [x] 6.2 Un ejemplo del caso en el dataset de evaluación, en el eje de diálogo.
 
 ## 6b. La red de seguridad: el seguimiento que igual no se resuelve
 

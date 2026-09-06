@@ -67,6 +67,22 @@
           "terminos_prohibidos": ["Ingeniería Industrial"]
         }
       ]
+    },
+    {
+      "id": "dia-005-referencia-al-resultado",
+      "actor": "global",
+      "es_pivote_duro": false,
+      "notas": "El seguimiento se refiere a algo que apareció en la RESPUESTA y nunca en una pregunta. Es el único ítem que mide el arrastre de la consulta anterior: con sólo preguntas en el hilo, el reescritor no tiene con qué resolver «esa materia» y el turno se abstiene. El primer turno devuelve UNA sola materia a propósito, para que la referencia no sea ambigua y el ítem mida el arrastre y no la desambiguación. El segundo turno pregunta por designados y no por «profesores» también a propósito: la distinción entre profesor y auxiliar es otra capacidad, y mezclarlas haría que un fallo no dijera cuál de las dos se rompió.",
+      "turnos": [
+        {
+          "pregunta": "¿Qué materias de Ingeniería Electrónica tienen algún profesor titular designado?",
+          "sql_referencia": "SELECT DISTINCT m.name FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = m.carrera_id JOIN designaciones.cargos ca ON ca.id = d.cargo_id WHERE c.name = 'Ingeniería Electrónica' AND ca.codigo = 'titular' AND d.vigente_hasta IS NULL"
+        },
+        {
+          "pregunta": "¿y quiénes están designados en esa materia?",
+          "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id WHERE m.name = 'Señales y Sistemas' AND d.vigente_hasta IS NULL"
+        }
+      ]
     }
   ]
 }
