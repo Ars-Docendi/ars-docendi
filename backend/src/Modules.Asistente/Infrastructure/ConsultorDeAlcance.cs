@@ -158,7 +158,7 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
         // ámbito global no alcanza ninguna fila, y con el permiso, un ámbito de
         // materia sigue sin alcanzar el resto. Cero filas solo significa «no hay»
         // cuando se cumplen los dos.
-        var alcanzaTodo = esGlobal && await LeerBooleanoAsync(
+        var alcanzaDesignaciones = esGlobal && await LeerBooleanoAsync(
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeDominio));
 
@@ -171,7 +171,7 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             veDatosPersonales,
             veLaConsulta,
             await LeerRolUnicoAsync(conexion, transaccion, ct),
-            alcanzaTodo,
+            alcanzaDesignaciones,
             veTrayectoriaAjena);
     }
 

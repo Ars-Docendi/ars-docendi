@@ -65,11 +65,14 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
             "SELECT qual FROM pg_policies WHERE schemaname = 'portal'");
 
         Assert.Equal(6, predicados.Count);
+
+        // El predicado se mudó a `identity.asistente_alcanza_a`, así que lo que cada
+        // policy tiene que nombrar es ESA función y no las dos de antes. La
+        // propiedad no cambió: la policy hija sigue invocando el predicado completo
+        // por su cuenta, y no depende de que la del padre se aplique adentro de su
+        // subconsulta.
         Assert.All(predicados, qual =>
-        {
-            Assert.Contains("asistente_tiene_permiso", qual, StringComparison.Ordinal);
-            Assert.Contains("asistente_persona", qual, StringComparison.Ordinal);
-        });
+            Assert.Contains("asistente_alcanza_a", qual, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -168,8 +171,25 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
 
         Assert.True(comoDueno > sinPermiso, "El término del otro docente tiene que quedar afuera.");
 
+        // CON EL PERMISO YA NO ALCANZA TODO, y ése es el cambio. El ámbito del
+        // docente es una materia, así que ve el vocabulario de quienes están
+        // designados ahí — no el del padrón. El vocabulario se angosta con el
+        // alcance a propósito: un término raro identifica a una persona por sí solo,
+        // así que verlo ya dice que alguien alcanzable lo declaró.
         await ConcederPermisoAsync(Docente);
-        Assert.Equal(comoDueno, await ContarComoActorAsync(Docente, "portal.habilidades"));
+        var acotado = await ContarComoActorAsync(Docente, "portal.habilidades");
+
+        Assert.True(
+            acotado >= sinPermiso,
+            $"El permiso no puede quitarle vocabulario: sin permiso {sinPermiso}, con permiso {acotado}.");
+        Assert.True(
+            acotado < comoDueno,
+            $"Un actor de ámbito de materia no puede ver el vocabulario entero: vio {acotado} de {comoDueno}.");
+
+        // Y el ámbito global sí llega al vocabulario completo, que es la otra mitad
+        // de la regla: Secretaría, Administración y Decanato alcanzan a todos.
+        await ConcederPermisoAsync(Secretaria);
+        Assert.Equal(comoDueno, await ContarComoActorAsync(Secretaria, "portal.habilidades"));
     }
 
     // ------------------------------------- con los roles REALES del asistente
@@ -268,6 +288,10 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
             GRANT EXECUTE ON FUNCTION identity.asistente_actor() TO "{_lector}";
             GRANT EXECUTE ON FUNCTION identity.asistente_persona() TO "{_lector}";
             GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_es_global() TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_alcanza_a(UUID) TO "{_lector}";
+            GRANT USAGE ON SCHEMA designaciones TO "{_lector}";
             """);
     }
 

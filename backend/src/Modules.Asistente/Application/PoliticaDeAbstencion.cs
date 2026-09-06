@@ -15,6 +15,48 @@ namespace Modules.Asistente.Application;
 public static class PoliticaDeAbstencion
 {
     /// <summary>
+    /// Si para este actor, <b>en esta consulta</b>, cero filas significa que no hay
+    /// filas.
+    /// </summary>
+    /// <remarks>
+    /// <b>SE DECIDE POR TURNO Y NO POR ACTOR, y ése es el arreglo.</b> Era un
+    /// booleano del perfil —ámbito global y <c>designaciones.ver</c>— y funcionó
+    /// mientras hubo un solo dominio con policies. Con portal empezó a mentir: un
+    /// actor global con el permiso del trámite y sin el de portal lo tenía en
+    /// verdadero, y a «¿qué docentes saben Python?» —que tres personas declararon—
+    /// contestaba «no encontré ningún registro». Afirmación falsa, dicha con
+    /// seguridad, sobre personas reales.
+    ///
+    /// El propio <c>ConsultorDeAlcance</c> lo había anotado: «es UN permiso porque
+    /// hoy hay UN dominio con policies. Cuando haya un segundo —portal es el
+    /// candidato inmediato— esto deja de ser un booleano y pasa a depender de qué
+    /// tablas tocó la consulta». Portal llegó y el booleano no se movió.
+    ///
+    /// <b>Portal SUMA una condición, no reemplaza ninguna.</b> Una consulta que no
+    /// toca portal se evalúa exactamente como antes: el permiso de portal no puede
+    /// pasar a hacer falta para preguntas que no son de portal.
+    ///
+    /// <b>Es conservador por construcción.</b> Equivocarse hacia «no alcanzás a
+    /// verlo» degrada la respuesta; hacia «no hay» la vuelve falsa. Por eso las
+    /// condiciones se conjugan y ninguna se asume.
+    /// </remarks>
+    /// <param name="perfil">Los ingredientes del alcance, resueltos una vez por turno.</param>
+    /// <param name="laConsultaTocaPortal">
+    /// Si la consulta generada lee alguna tabla de portal. Lo decide
+    /// <see cref="CoberturaDelPortal.TablasQueToca"/>, que es la <b>misma</b>
+    /// detección que alimenta la declaración de cobertura: dos detectores del mismo
+    /// hecho es cómo una respuesta declara cobertura de portal y a la vez afirma que
+    /// no hay datos.
+    /// </param>
+    public static bool AlcanzaTodo(PerfilDelActor perfil, bool laConsultaTocaPortal)
+    {
+        ArgumentNullException.ThrowIfNull(perfil);
+
+        return perfil.AlcanzaDesignaciones
+            && (!laConsultaTocaPortal || perfil.VeTrayectoriaAjena);
+    }
+
+    /// <summary>
     /// Si un resultado vacío justifica gastar el reintento de generación.
     /// </summary>
     /// <remarks>

@@ -36,9 +36,20 @@ public interface IEjecutorDeConsulta
 /// decisión de alcance, de permisos ni de conexión lo mira, y las notas de esa
 /// clase explican por qué acá el rol sí se puede leer sin fallar abierto.
 /// </param>
-/// <param name="AlcanzaTodo">
-/// Si para este actor <b>cero filas significa que no hay filas</b>.
+/// <param name="AlcanzaDesignaciones">
+/// Si el actor alcanza <b>todo el dominio del trámite</b>: ámbito global y permiso
+/// de designaciones, que es la conjunción que hace la policy.
 /// </param>
+/// <remarks>
+/// <b>NO ES «alcanza todo».</b> Lo era cuando había un solo dominio con policies, y
+/// ese nombre se volvió mentira al llegar portal: un actor global con
+/// <c>designaciones.ver</c> y sin el permiso de portal lo tenía en verdadero y
+/// recibía «no encontré ningún registro» sobre perfiles que existen y no alcanza.
+///
+/// Si «cero filas significa que no hay» se decide por turno, contra los dominios
+/// que la consulta tocó — ver <see cref="PoliticaDeAbstencion.AlcanzaTodo"/>. Este
+/// campo es uno de sus ingredientes, no la respuesta.
+/// </remarks>
 /// <param name="VeTrayectoriaAjena">
 /// Si puede consultar el perfil profesional de OTRA persona.
 /// </param>
@@ -53,7 +64,7 @@ public sealed record PerfilDelActor(
     bool VeDatosPersonales,
     bool VeLaConsulta = false,
     string? CodigoDeRol = null,
-    bool AlcanzaTodo = false,
+    bool AlcanzaDesignaciones = false,
     bool VeTrayectoriaAjena = false);
 
 /// <summary>

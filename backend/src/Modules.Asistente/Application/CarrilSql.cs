@@ -169,16 +169,32 @@ public sealed class CarrilSql(
         var resultado = await ejecutor.EjecutarAsync(
             generacion.Sql, actor, perfil.VeDatosPersonales, ct);
 
-        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, perfil.AlcanzaTodo))
+        // EL ALCANCE ES DEL TURNO, NO DEL ACTOR, y por eso se calcula acá: recién
+        // con la consulta generada se sabe qué dominios tocó. La detección de portal
+        // sale de `CoberturaDelPortal`, la MISMA que alimenta la declaración de
+        // cobertura — dos detectores del mismo hecho es cómo una respuesta declara
+        // cobertura de portal y a la vez afirma que no hay datos.
+        var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
+            perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
+
+        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
                 actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct);
+
+            // El reintento pudo cambiar la consulta, y con ella los dominios que
+            // toca: una segunda generación que agrega portal cambia el alcance del
+            // turno. Sin este recálculo, el texto se decidiría con la forma de una
+            // consulta que ya no es la que respondió.
+            alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
+                perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
         }
 
         return resultado.EstaVacio
-            ? Vacio(generacion, aMostrar, perfil, await CoberturaAsync(generacion, actor, ct))
+            ? Vacio(generacion, aMostrar, perfil, alcanzaTodo,
+                await CoberturaAsync(generacion, actor, ct))
             : await RedactadoAsync(
-                mensaje, generacion, aMostrar, resultado, perfil,
+                mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
                 await CoberturaAsync(generacion, actor, ct), ct);
     }
 
@@ -258,6 +274,7 @@ public sealed class CarrilSql(
         string? aMostrar,
         ResultadoDeConsulta resultado,
         PerfilDelActor perfil,
+        bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
         CancellationToken ct)
     {
@@ -267,7 +284,7 @@ public sealed class CarrilSql(
         // proveedor sin que nada falle.
         var paraElModelo = Enmascarador.Enmascarar(resultado);
         var texto = await redactor.RedactarAsync(
-            mensaje, paraElModelo, perfil.AlcanzaTodo, cobertura, ct);
+            mensaje, paraElModelo, alcanzaTodo, cobertura, ct);
 
         return new ResultadoDelTurno(
             EstadoDelTurno.Respondida,
@@ -300,10 +317,11 @@ public sealed class CarrilSql(
         GeneracionDeSql generacion,
         string? aMostrar,
         PerfilDelActor perfil,
+        bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura) =>
         new(EstadoDelTurno.Respondida,
             PoliticaDeAbstencion.TextoDeResultadoVacio(
-                perfil.AlcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
+                alcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
             // El razonamiento se escribió ANTES de ejecutar, así que puede estar
             // prometiendo filas que no salieron. Sin esta línea el turno afirma dos
             // cosas incompatibles y gana la que suena informada.

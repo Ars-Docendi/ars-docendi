@@ -26,6 +26,14 @@ Tres hechos condicionaron todo el diseño, y los tres se verificaron antes de es
 
 **Consecuencia asumida y explícita:** un Coordinador con el permiso ve **todo el padrón**, no sólo su carrera. Es más de lo que un lector esperaría de «alcance de carrera», y por eso está acá y en `BR-portal-002`.
 
+> **Enmendada por `asistente-portal-por-ambito`.** El ámbito entra al predicado: `es mi perfil OR (tengo el permiso AND la persona está en mi ámbito)`.
+>
+> El argumento original —«el ámbito no dice nada sobre un dato de persona»— era correcto **a falta de una definición del cliente**, y la consecuencia se asumió justamente por eso. Secretaría después definió el alcance que quiere: el jefe de cátedra ve a los designados en sus materias, el coordinador a los de su carrera, y Secretaría, Administración y Decanato a todos. Con esa definición sobre la mesa, «un Coordinador ve todo el padrón» dejó de ser una consecuencia asumible y pasó a ser una diferencia con lo pedido.
+>
+> Lo que **no** cambia: la primera rama sigue sin pedir nada. El ámbito acota lo ajeno, nunca lo propio.
+>
+> Se escribe la enmienda en vez de argumentar que el texto «ya lo permitía» —decía lo contrario, y con todas las letras—, por el mismo motivo que el invariante #14: una regla reinterpretada deja de restringir a nadie.
+
 ### D2 — El permiso nace concedido a nadie, y eso es un default y no una frontera
 
 Conceder es una acción de `/membresia-roles`: treinta segundos, sin migración. La RLS **impone** el permiso; no decide quién lo tiene.

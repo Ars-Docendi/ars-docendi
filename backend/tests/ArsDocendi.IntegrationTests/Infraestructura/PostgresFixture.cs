@@ -78,14 +78,24 @@ public sealed class PostgresFixture : IAsyncLifetime
             await identity.Database.MigrateAsync();
         }
 
-        await using (var portal = CrearPortal(cadena))
-        {
-            await portal.Database.MigrateAsync();
-        }
-
+        // EL ORDEN ES EL DEL HOST, y no es indiferente. `Program` compone
+        // identity → designaciones → aulas → portal → tareas → asistente, y la
+        // RLS de portal invoca una función que referencia
+        // `designaciones.designaciones`: con portal primero, el CREATE FUNCTION
+        // falla con «relation does not exist».
+        //
+        // Estuvo al revés y no rompía nada, porque hasta que portal no dependió de
+        // designaciones las dos secuencias eran equivalentes. Un fixture que migra
+        // en un orden que producción no usa prueba otro sistema, y sólo se nota el
+        // día que el orden empieza a importar.
         await using (var designaciones = CrearDesignaciones(cadena))
         {
             await designaciones.Database.MigrateAsync();
+        }
+
+        await using (var portal = CrearPortal(cadena))
+        {
+            await portal.Database.MigrateAsync();
         }
 
         await CrearRolesDelAsistenteAsync(nombre, rolSoloLectura, rolSoloLecturaPii);

@@ -399,6 +399,63 @@ public sealed class AbstencionYRedaccionTests
         Assert.DoesNotContain("tabla", texto, StringComparison.OrdinalIgnoreCase);
     }
 
+    // ------------------------------------------- el alcance por dominio
+
+    // EL DEFECTO QUE ESTO CIERRA, medido contra el padrón sintético. El actor de
+    // Decanato es global y tiene `designaciones.ver`, así que el booleano del turno
+    // daba verdadero; la RLS de portal le devolvía un solo perfil —el suyo— y a
+    // «¿qué docentes saben Python?» —que tres personas declararon— el asistente
+    // contestaba «no encontré ningún registro». Es la violación de BR-asistente-003
+    // sobre el dominio que esa regla no cubría.
+    //
+    // El propio ConsultorDeAlcance lo había anticipado: «es UN permiso porque hoy
+    // hay UN dominio con policies. Cuando haya un segundo —portal es el candidato
+    // inmediato— esto deja de ser un booleano».
+
+    [Fact]
+    public void Sin_el_permiso_de_portal_una_consulta_de_portal_no_alcanza_todo()
+    {
+        var perfil = new PerfilDelActor(
+            EsGlobal: true, VeDatosPersonales: true,
+            AlcanzaDesignaciones: true, VeTrayectoriaAjena: false);
+
+        Assert.False(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: true));
+    }
+
+    [Fact]
+    public void Con_el_permiso_de_portal_una_consulta_de_portal_si_alcanza_todo()
+    {
+        var perfil = new PerfilDelActor(
+            EsGlobal: true, VeDatosPersonales: true,
+            AlcanzaDesignaciones: true, VeTrayectoriaAjena: true);
+
+        Assert.True(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: true));
+    }
+
+    [Fact]
+    public void Una_consulta_que_no_toca_portal_conserva_su_evaluacion()
+    {
+        // La mitad que no se puede romper al arreglar la otra: el permiso de portal
+        // no puede pasar a hacer falta para preguntas que no son de portal.
+        var perfil = new PerfilDelActor(
+            EsGlobal: true, VeDatosPersonales: true,
+            AlcanzaDesignaciones: true, VeTrayectoriaAjena: false);
+
+        Assert.True(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: false));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Un_actor_no_global_nunca_alcanza_todo(bool tocaPortal)
+    {
+        var perfil = new PerfilDelActor(
+            EsGlobal: false, VeDatosPersonales: false,
+            AlcanzaDesignaciones: false, VeTrayectoriaAjena: true);
+
+        Assert.False(PoliticaDeAbstencion.AlcanzaTodo(perfil, tocaPortal));
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ResultadoDeConsulta Resultado(

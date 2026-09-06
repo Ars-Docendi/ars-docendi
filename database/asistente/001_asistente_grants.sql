@@ -100,6 +100,7 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_persona() TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_alcanza_a(UUID) TO %I, %I', rol_basico, rol_pii);
 
   -- ------------------------------------------------------------------
   -- designaciones

@@ -83,15 +83,26 @@ Necesitamos la finalidad escrita: _«buscar docentes con perfil adecuado ante un
 vacante o una acreditación»_ es una respuesta válida. _«Para tenerlo disponible»_ no
 lo es — sin una tarea concreta no hay finalidad declarada que citar.
 
-### 2. ¿Qué roles lo reciben?
+### 2. ¿A quiénes alcanza cada rol?
 
-La propuesta técnica alcanza a los roles de alcance departamental —Secretaría,
-Decanato, Administración— **y al Coordinador de Carrera**.
+Cada rol ve dentro de su ámbito, y eso ya está construido así:
 
-**Ojo con esto:** por cómo está archivado el portal, un Coordinador con el permiso
-ve **todo el padrón**, no sólo su carrera. No hay forma de acotarlo por carrera de
-manera confiable, porque un docente entre períodos no está asociado a ninguna. Si
-eso no es aceptable, la salida es no dárselo al Coordinador.
+| Rol                                  | Alcanza a                                            |
+| ------------------------------------ | ---------------------------------------------------- |
+| Jefe de Cátedra                      | los docentes con designación vigente en sus materias |
+| Coordinador de Carrera               | los docentes designados en materias de su carrera    |
+| Secretaría, Administración, Decanato | todo el padrón                                       |
+
+**Lo que hay que confirmar, y tiene filo:** un docente **sin designación vigente**
+no lo ve ni su jefe ni su coordinador — sólo los tres roles departamentales. Es
+coherente con «sus docentes asignados»: sin designación no es de nadie. Pero
+significa que **entre períodos un docente desaparece de la vista de su jefe**,
+justo cuando hay que mirarlo para renovarlo.
+
+Las dos alternativas se descartaron por el mismo motivo: conservar la última
+designación aunque esté cerrada, o una ventana de gracia de N meses, hacen que el
+alcance nunca se achique. Si a Secretaría el hueco le molesta, la ventana de gracia
+es un cambio chico — pero hay que fijar el N y que ellos lo aprueben.
 
 ### 3. ¿Quién puede otorgar el permiso, y con qué criterio?
 

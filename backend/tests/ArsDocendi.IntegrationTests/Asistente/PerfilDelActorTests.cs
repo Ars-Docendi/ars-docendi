@@ -49,7 +49,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
         // El caso base, y está acá para que el test de abajo signifique algo: sin
         // éste, «no alcanza todo» podría ser que el perfil nunca alcanza nada.
         Assert.True(perfil.EsGlobal);
-        Assert.True(perfil.AlcanzaTodo);
+        Assert.True(perfil.AlcanzaDesignaciones);
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
             Secretaria, TestContext.Current.CancellationToken);
 
         Assert.True(perfil.EsGlobal);
-        Assert.False(perfil.AlcanzaTodo);
+        Assert.False(perfil.AlcanzaDesignaciones);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
             Jefe, TestContext.Current.CancellationToken);
 
         Assert.False(perfil.EsGlobal);
-        Assert.False(perfil.AlcanzaTodo);
+        Assert.False(perfil.AlcanzaDesignaciones);
     }
 
     [Fact]

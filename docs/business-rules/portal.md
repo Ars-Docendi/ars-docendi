@@ -34,6 +34,17 @@
 - **Roles afectados:** quien administra la matriz de roles.
 - **Consecuencia asumida:** el sistema **no puede impedir** una concesión indebida; sólo puede dejarla registrada. Esta regla existe para que el registro sea la política y no una formalidad.
 
+### BR-`portal`-007 El permiso se ejerce dentro del ámbito del rol
+
+- **Statement:** `portal.ver_trayectoria_ajena` habilita a ver la trayectoria de otras personas **dentro del ámbito del actor**: el jefe de cátedra alcanza a quienes tienen designación vigente en sus materias, el coordinador a los de su carrera, y los roles de ámbito departamental —Secretaría, Administración, Decanato— a todo el padrón.
+- **Rationale:** el permiso solo era una frontera de todo o nada, y con él un Coordinador veía el padrón completo. Es más de lo que «alcance de carrera» significa en el resto del sistema, y más de lo que Secretaría pidió. El ámbito ya vive en `identity.user_roles` y el motor sabe evaluarlo; reproducirlo con permisos distintos por rol lo movería a la matriz de permisos, donde nada impediría dárselo a alguien sin cátedra.
+- **Provenance:** `from_regulation`
+- **Fuente normativa:** Ley 25.326, art. 4 inc. 1 (pertinencia y no excesividad respecto de la finalidad). _(Cita pendiente de verificación.)_
+- **Consecuencia asumida:** un docente **sin designación vigente** no lo alcanza ningún rol no global. Es la lectura literal de «sus profesores asignados» y tiene filo: entre períodos, un docente desaparece de la vista de su jefe justo cuando hay que renovarlo. Se eligió sobre las alternativas —última designación, o período de gracia— porque las dos hacen que el alcance nunca se achique.
+- **Roles afectados:** todos los que pueden usar el asistente.
+- **Implementación:** `identity.asistente_alcanza_a(persona)`, invocada por las seis policies de `database/portal/005_portal_rls_ambito.sql`.
+- **Mapping a test:** `RlsPortalAsistenteTests`, en particular `El_vocabulario_de_habilidades_sigue_al_alcance_de_quien_las_declaro`.
+
 ### BR-`portal`-003 El contacto personal no es consultable por el asistente
 
 - **Statement:** El teléfono y el mail que el docente carga en la sección Contacto de su portal no se exponen al asistente conversacional, para ningún rol y bajo ningún permiso.

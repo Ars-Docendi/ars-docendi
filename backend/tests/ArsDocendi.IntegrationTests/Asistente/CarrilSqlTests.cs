@@ -262,6 +262,56 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Equal("Conté los pedidos del sistema.", turno.Razonamiento);
     }
 
+    // -------------------------------------------- el alcance por dominio
+
+    [Fact]
+    public async Task Sin_el_permiso_de_portal_un_vacio_de_portal_no_se_narra_como_inexistencia()
+    {
+        // EL DEFECTO MEDIDO. Secretaría es global y tiene `designaciones.ver`, así
+        // que el booleano del turno daba verdadero; la RLS de portal le devuelve un
+        // solo perfil —el suyo— y a una pregunta por una habilidad que otros
+        // declararon el asistente contestaba «no encontré ningún registro». Hay
+        // gente con esa habilidad: es una afirmación falsa sobre personas reales.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            """
+            SELECT p.apellido
+              FROM portal.docente_habilidades dh
+              JOIN portal.perfiles pf ON pf.id = dh.perfil_id
+              JOIN identity.personas p ON p.id = pf.persona_id
+              JOIN portal.habilidades h ON h.id = dh.habilidad_id
+             WHERE h.termino_norm = 'PYTHON'
+            """));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿qué docentes saben Python?", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(turno.Filas);
+        Assert.Contains("alcance", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Una_consulta_que_no_toca_portal_conserva_su_evaluacion()
+    {
+        // LA MITAD QUE NO SE PUEDE ROMPER AL ARREGLAR LA OTRA. El permiso de portal
+        // no puede pasar a hacer falta para preguntas que no son de portal: si
+        // pasara, todo vacío de designaciones se narraría como límite de alcance y
+        // el asistente dejaría de poder decir «no hay» nunca.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"),
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'tampoco'"));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Existe el trámite no-existe?", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("alcance", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task El_reintento_se_queda_con_la_segunda_consulta_si_esa_trae_datos()
     {

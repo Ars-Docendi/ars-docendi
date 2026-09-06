@@ -294,6 +294,10 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
             GRANT EXECUTE ON FUNCTION identity.asistente_actor() TO "{_lector}";
             GRANT EXECUTE ON FUNCTION identity.asistente_persona() TO "{_lector}";
             GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_es_global() TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO "{_lector}";
+            GRANT EXECUTE ON FUNCTION identity.asistente_alcanza_a(UUID) TO "{_lector}";
+            GRANT USAGE ON SCHEMA designaciones TO "{_lector}";
             """);
     }
 
