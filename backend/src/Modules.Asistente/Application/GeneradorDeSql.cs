@@ -75,7 +75,10 @@ public sealed class GeneradorDeSql(
 
     /// <summary>Genera la consulta para una pregunta.</summary>
     public async Task<GeneracionDeSql> GenerarAsync(
-        string pregunta, bool conDatosPersonales, CancellationToken ct)
+        string pregunta,
+        bool conDatosPersonales,
+        CancellationToken ct,
+        IReadOnlyList<string>? consultasAnteriores = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
@@ -86,7 +89,7 @@ public sealed class GeneradorDeSql(
             new SolicitudAlModelo
             {
                 PrefijoEstable = prefijo.Prefijo,
-                Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy()),
+                Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy(), consultasAnteriores),
                 Temperatura = 0.0m,
                 // La llamada que MÁS se beneficia de deliberar: elegir el join
                 // correcto entre catorce tablas es el trabajo que mejora pensando, y
@@ -125,8 +128,17 @@ public sealed class GeneradorDeSql(
     /// Arma el prompt de usuario. Todo lo variable del turno está acá y nada de
     /// esto puede filtrarse al prefijo.
     /// </summary>
+    /// <param name="consultasAnteriores">
+    /// Las consultas del segmento vigente, de la más vieja a la más reciente. Van
+    /// ACÁ y no en el prefijo: el prefijo se cachea y su huella sella los reportes
+    /// de evaluación, así que meterle algo que cambia por turno lo invalidaría en
+    /// cada llamada y pagaría escritura a 1,25× en vez de lectura a 0,1×.
+    /// </param>
     internal static string ArmarMensaje(
-        string pregunta, IReadOnlyList<EjemploSql> elegidos, DateOnly hoy)
+        string pregunta,
+        IReadOnlyList<EjemploSql> elegidos,
+        DateOnly hoy,
+        IReadOnlyList<string>? consultasAnteriores = null)
     {
         var mensaje = new StringBuilder();
 
@@ -143,6 +155,24 @@ public sealed class GeneradorDeSql(
             {
                 mensaje.Append(CultureInfo.InvariantCulture,
                     $"\nPregunta: {ejemplo.Pregunta}\nSQL: {ejemplo.Sql}\n");
+            }
+        }
+
+        // DESPUÉS DE LOS EJEMPLOS Y ANTES DE LA PREGUNTA, a propósito. Los ejemplos
+        // enseñan la FORMA del esquema y son intercambiables entre turnos; esto es
+        // el estado de ESTA conversación y lo que la pregunta continúa. Ponerlo
+        // entre los ejemplos lo dejaría a merced de que el modelo lo lea como uno
+        // más y copie su forma en vez de continuarla.
+        if (consultasAnteriores is { Count: > 0 })
+        {
+            mensaje.Append(
+                "\nConsultas de los turnos anteriores de esta conversación, de la más "
+                + "vieja a la más reciente. Si la pregunta continúa alguna de ellas, "
+                + "editala o anidala en lugar de escribir una nueva desde cero:\n");
+
+            foreach (var consulta in consultasAnteriores)
+            {
+                mensaje.Append(CultureInfo.InvariantCulture, $"\nSQL: {consulta}\n");
             }
         }
 

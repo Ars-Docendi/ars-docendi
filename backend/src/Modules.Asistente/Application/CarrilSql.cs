@@ -43,11 +43,17 @@ public sealed class CarrilSql(
     /// La pregunta autocontenida, cuando el turno viene de un seguimiento y hubo
     /// que resolver una anáfora. Nula mientras no exista la capa conversacional.
     /// </param>
+    /// <param name="consultasAnteriores">
+    /// Las consultas de los turnos anteriores del segmento vigente, para que un
+    /// seguimiento se resuelva editándolas en vez de rehaciéndolas. Vacío o nulo en
+    /// un primer turno y después de un pivote.
+    /// </param>
     public async Task<ResultadoDelTurno> ResponderAsync(
         Guid actor,
         string mensaje,
         string? preguntaInterpretada,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<string>? consultasAnteriores = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -62,7 +68,8 @@ public sealed class CarrilSql(
         try
         {
             var perfil = await perfiles.ObtenerAsync(actor, ct);
-            return await ResolverAsync(actor, mensaje, pregunta, aMostrar, perfil, ct);
+            return await ResolverAsync(
+                actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct);
         }
         catch (PostgresException excepcion) when (excepcion.SqlState == PrivilegioDenegado)
         {
@@ -126,9 +133,11 @@ public sealed class CarrilSql(
         string pregunta,
         string? aMostrar,
         PerfilDelActor perfil,
+        IReadOnlyList<string>? consultasAnteriores,
         CancellationToken ct)
     {
-        var generacion = await generador.GenerarAsync(pregunta, perfil.VeDatosPersonales, ct);
+        var generacion = await generador.GenerarAsync(
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores);
 
         if (!generacion.EsContestable || generacion.Sql is null)
         {
@@ -163,7 +172,7 @@ public sealed class CarrilSql(
         if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, perfil.AlcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
-                actor, pregunta, generacion, resultado, perfil, ct);
+                actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct);
         }
 
         return resultado.EstaVacio
@@ -188,11 +197,13 @@ public sealed class CarrilSql(
         GeneracionDeSql original,
         ResultadoDeConsulta resultadoOriginal,
         PerfilDelActor perfil,
+        IReadOnlyList<string>? consultasAnteriores,
         CancellationToken ct)
     {
         contador.MarcarReintento();
 
-        var segunda = await generador.GenerarAsync(pregunta, perfil.VeDatosPersonales, ct);
+        var segunda = await generador.GenerarAsync(
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores);
 
         if (!segunda.EsContestable
             || segunda.Sql is null
@@ -269,7 +280,11 @@ public sealed class CarrilSql(
             [.. Enumerable.Range(0, resultado.Columnas.Count).Select(resultado.SensibilidadDe)],
             generacion.Categoria,
             contador.Llamadas,
-            Sql: LaConsulta(generacion, perfil));
+            Sql: LaConsulta(generacion, perfil),
+            // La ÚNICA rama que la anota, y por eso la anota acá y no arriba: es la
+            // única en la que hubo filas. `generacion` ya es la del reintento cuando
+            // hubo reintento, así que ésta es la consulta que de verdad respondió.
+            SqlEjecutado: generacion.Sql);
     }
 
     /// <summary>

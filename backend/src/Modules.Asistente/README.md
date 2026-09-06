@@ -36,7 +36,8 @@ autocontenida; la capa es quien la calcula.
 CapaConversacional.ResponderAsync(actor, hilo, mensaje)
   │
   ├─ IAlmacenDeHilos        ──► hilo en memoria, TTL 2 h, atado al actor
-  │                             guarda PREGUNTAS, nunca filas
+  │                             guarda PREGUNTAS y la CONSULTA que respondió,
+  │                             nunca filas
   │
   ├─ EnrutadorSocial        ──► CARRIL SIN DATOS · 0 tokens
   │                             se SALTEA si hay aclaración pendiente

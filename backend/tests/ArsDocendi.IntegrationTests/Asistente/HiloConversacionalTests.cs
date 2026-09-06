@@ -204,6 +204,90 @@ public sealed class HiloConversacionalTests
         Assert.Contains("2. Ingeniería Industrial", texto, StringComparison.Ordinal);
     }
 
+    // ------------------------------------- la consulta que respondió el turno
+
+    // EL HILO GUARDA LA CONSULTA, NUNCA LAS FILAS. La consulta se puede guardar
+    // porque sus literales salen de la pregunta del usuario —que el hilo ya
+    // guardaba—; ninguna fila leída de la base aparece en ella. Ver la enmienda a
+    // D1 en `asistente-capa-conversacional/design.md`.
+
+    [Fact]
+    public void Un_turno_respondido_anota_la_consulta_que_lo_respondio()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("¿Qué materias hay?", Inicio, "SELECT 1");
+
+        Assert.Equal("SELECT 1", Assert.Single(hilo.Turnos).SqlEjecutado);
+    }
+
+    [Fact]
+    public void Un_turno_sin_filas_no_anota_ninguna_consulta()
+    {
+        // Nulo no es «no se generó consulta»: es «no hay nada que continuar».
+        // Ofrecerle al modelo una consulta que no encontró nada lo invita a
+        // repetirla, y el turno siguiente hereda el error del anterior.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("¿Qué materias hay?", Inicio);
+
+        Assert.Null(Assert.Single(hilo.Turnos).SqlEjecutado);
+        Assert.Empty(hilo.ConsultasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void Las_consultas_vigentes_van_de_la_mas_vieja_a_la_mas_reciente()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("primera", Inicio, "SELECT 1");
+        hilo.Agregar("segunda", Inicio, "SELECT 2");
+
+        Assert.Equal(["SELECT 1", "SELECT 2"], hilo.ConsultasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void Un_turno_vacio_en_el_medio_no_corta_el_arrastre()
+    {
+        // El turno sin filas no aporta consulta, pero tampoco invalida las de
+        // antes: la conversación sigue siendo la misma.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("primera", Inicio, "SELECT 1");
+        hilo.Agregar("no encontró nada", Inicio);
+        hilo.Agregar("tercera", Inicio, "SELECT 3");
+
+        Assert.Equal(["SELECT 1", "SELECT 3"], hilo.ConsultasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void El_pivote_suelta_las_consultas_igual_que_suelta_las_preguntas()
+    {
+        // No hay una segunda regla de recorte: `ConsultasVigentes` se deriva de
+        // `HistorialVigente`. Si alguien la reimplementara aparte, este test es el
+        // que se rompe cuando las dos se desincronicen.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("antes del pivote", Inicio, "SELECT 1");
+
+        hilo.SoltarElTema();
+
+        Assert.Empty(hilo.ConsultasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void El_tope_acota_cuantas_consultas_viajan()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        for (var indice = 1; indice <= 5; indice++)
+        {
+            hilo.Agregar($"pregunta {indice}", Inicio, $"SELECT {indice}");
+        }
+
+        // Las más recientes, no las primeras: lo que se continúa es lo último.
+        Assert.Equal(["SELECT 3", "SELECT 4", "SELECT 5"], hilo.ConsultasVigentes(tope: 3));
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static (AlmacenDeHilosEnMemoria Almacen, RelojFijo Reloj) Almacen(

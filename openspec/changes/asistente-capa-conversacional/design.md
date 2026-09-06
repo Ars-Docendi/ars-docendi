@@ -22,7 +22,17 @@ resolver hilo
 
 El reescritor necesita saber qué se preguntó antes, no qué se respondió. Guardar las filas sería cómodo para dar más contexto y es exactamente lo que no hay que hacer: el cambio anterior sacó los datos personales del camino de salida hacia el proveedor, y guardarlos en el hilo los devolvería al prompt por la puerta del historial —además de contradecir «las filas nunca se persisten», que ya está verificado por test.
 
-Lo que se guarda por turno es la pregunta interpretada y su marca de tiempo. Nada más.
+Lo que se guarda por turno es la pregunta interpretada y su marca de tiempo.
+
+> **Enmendada por `asistente-arrastre-de-consulta`.** Se suma un tercer campo: la **consulta SQL** que produjo la respuesta que el usuario vio.
+>
+> Se escribe la enmienda en vez de argumentar que el texto original «ya lo permitía» —decía «nada más»—, por el mismo motivo que el invariante #14 de `CLAUDE.md`: una regla reinterpretada deja de restringir a nadie.
+>
+> **La propiedad que D1 protege sigue en pie, y por eso la enmienda es admisible.** Lo que D1 impide es que un dato leído de la base vuelva al prompt esquivando al enmascarador. La consulta no es eso: sus literales salen de la pregunta del usuario, que el hilo ya guardaba, y ninguna fila del resultado aparece en ella. El hilo no gana ninguna clase de dato que no tuviera.
+>
+> **Lo que sigue prohibido, sin cambios:** guardar filas, guardar valores extraídos de filas, y guardar el diccionario de marcadores del enmascarador —que sobrevivir al turno lo convertiría en la tabla de datos personales que D1 evita, sólo que un nivel más abajo.
+>
+> El motivo de la enmienda es un caso real: «los profesores de esa materia» se refiere a algo que apareció en la **respuesta**, nunca en una pregunta, y con sólo preguntas en el hilo no hay forma de resolverlo. La consulta anterior sí alcanza, porque define «esas materias» como conjunto y el seguimiento se responde anidándola.
 
 ### D2 — El ancla del recorte es el inicio del segmento, no el turno cero
 

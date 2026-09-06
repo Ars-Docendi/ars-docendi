@@ -302,9 +302,20 @@ public sealed class CapaConversacional(
             ? null
             : interpretada;
 
-        var resultado = await carril.ResponderAsync(actor, mensaje, aMostrar, ct);
+        // Del SEGMENTO VIGENTE y con el mismo tope que el historial de preguntas.
+        // Se deriva de `HistorialVigente`, así que el pivote suelta las consultas
+        // por el mismo mecanismo con que suelta las preguntas: no hay una segunda
+        // regla de recorte que pueda quedar desincronizada de la primera.
+        var consultasAnteriores = conversacion.ConsultasVigentes(
+            valores.TopeDeTurnosDelHistorial);
 
-        conversacion.Agregar(interpretada, reloj.GetUtcNow());
+        var resultado = await carril.ResponderAsync(
+            actor, mensaje, aMostrar, ct, consultasAnteriores);
+
+        // La consulta que respondió, no la que se generó: con reintento el carril ya
+        // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
+        // anota nula a propósito — ver TurnoDelHilo.
+        conversacion.Agregar(interpretada, reloj.GetUtcNow(), resultado.SqlEjecutado);
 
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema

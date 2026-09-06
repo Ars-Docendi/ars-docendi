@@ -281,10 +281,88 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
             Secretaria, null, "¿Qué documentos hay cargados?", ct);
 
         var hilo = banco.Hilos.Resolver(turno.Hilo, Secretaria);
-        var todo = string.Join("\n", hilo.Turnos.Select(t => t.Pregunta));
+
+        // RECORRE TODO LO QUE EL TURNO GUARDA, no sólo la pregunta. Miraba sólo
+        // `Pregunta`, y el día que el hilo sumó la consulta ejecutada este test
+        // habría seguido en verde con un valor de fila adentro del SQL. Un test que
+        // filtra lo que revisa deja de proteger sin dejar de pasar.
+        var todo = string.Join(
+            "\n", hilo.Turnos.Select(t => $"{t.Pregunta}\n{t.SqlEjecutado}"));
 
         Assert.DoesNotContain("28341567", todo, StringComparison.Ordinal);
         Assert.DoesNotContain("López", todo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_hilo_arrastra_la_consulta_que_respondio()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct);
+
+        var hilo = banco.Hilos.Resolver(turno.Hilo, Secretaria);
+
+        Assert.Equal(ContarDocentes, hilo.Turnos[0].SqlEjecutado);
+    }
+
+    [Fact]
+    public async Task Un_turno_sin_filas_no_deja_consulta_para_arrastrar()
+    {
+        // Ofrecerle al modelo una consulta que no encontró nada lo invita a
+        // repetirla, y el turno siguiente heredaría el error del anterior.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"),
+            ProveedorGuionado.Generacion(
+                "SELECT numero FROM designaciones.pedidos WHERE numero = 'tampoco'"));
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Existe el trámite no-existe?", ct);
+
+        var hilo = banco.Hilos.Resolver(turno.Hilo, Secretaria);
+
+        Assert.Null(hilo.Turnos[0].SqlEjecutado);
+    }
+
+    [Fact]
+    public async Task Un_seguimiento_recibe_la_consulta_del_turno_anterior()
+    {
+        // EL CASO QUE MOTIVÓ EL CAMBIO. «esa materia» se refiere a algo que apareció
+        // en la RESPUESTA, nunca en una pregunta: con sólo preguntas en el hilo no
+        // hay forma de resolverlo. Se afirma sobre lo que se le MANDÓ al modelo,
+        // no sobre su salida, igual que el test del pivote del reescritor.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            "¿y los profesores de esa materia?",
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Ahí van.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct);
+
+        await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿y los profesores de esa materia?", ct);
+
+        // La generación del segundo turno tiene que haber visto la consulta del
+        // primero. Es la última generación del guion.
+        // Por «Fecha de referencia» y no por «Pregunta del usuario»: los mensajes de
+        // REDACCIÓN también llevan esa segunda frase, así que filtrar por ella
+        // seleccionaba la redacción del último turno en vez de su generación.
+        var generaciones = banco.Proveedor.Recibidas
+            .Where(s => s.Mensaje.Contains("Fecha de referencia", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Contains(ContarDocentes, generaciones[^1].Mensaje, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            ContarDocentes, generaciones[0].Mensaje, StringComparison.Ordinal);
     }
 
     // ------------------------------------------- enrutador de dominio, en sombra

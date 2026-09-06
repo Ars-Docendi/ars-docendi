@@ -281,6 +281,86 @@ public sealed class GeneracionDeSqlTests
         Assert.Equal(GeneracionDeSql.CategoriaNoContestable, generacion.Categoria);
     }
 
+    // ------------------------------------------ el arrastre de la consulta
+
+    // POR QUÉ SE AFIRMA SOBRE EL MENSAJE Y NO SOBRE LA RESPUESTA. Lo que este
+    // código controla es QUÉ SE LE MANDA al modelo; verificarlo por la salida
+    // probaría al modelo, no a esto. Es el mismo criterio con que se prueba el
+    // pivote del reescritor.
+
+    [Fact]
+    public void Un_primer_turno_no_lleva_ninguna_consulta_anterior()
+    {
+        var mensaje = GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy);
+
+        Assert.DoesNotContain("turnos anteriores", mensaje, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Un_seguimiento_lleva_las_consultas_anteriores_en_orden()
+    {
+        var mensaje = GeneradorDeSql.ArmarMensaje(
+            "¿y los profesores de esa materia?", [], Hoy, ["SELECT 1", "SELECT 2"]);
+
+        var primera = mensaje.IndexOf("SELECT 1", StringComparison.Ordinal);
+        var segunda = mensaje.IndexOf("SELECT 2", StringComparison.Ordinal);
+
+        Assert.InRange(primera, 0, int.MaxValue);
+        Assert.InRange(segunda, primera + 1, int.MaxValue);
+    }
+
+    [Fact]
+    public void Una_lista_vacia_de_consultas_no_agrega_el_bloque()
+    {
+        // El caso mayoritario —primer turno, o pivote— tiene que producir el mismo
+        // mensaje que antes de que este mecanismo existiera.
+        Assert.Equal(
+            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy),
+            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, []));
+    }
+
+    [Fact]
+    public void Las_consultas_van_despues_de_los_ejemplos_y_antes_de_la_pregunta()
+    {
+        // Los ejemplos enseñan la FORMA del esquema y son intercambiables entre
+        // turnos; la consulta anterior es el estado de ESTA conversación. Entre los
+        // ejemplos, el modelo la lee como uno más y copia su forma en vez de
+        // continuarla.
+        var mensaje = GeneradorDeSql.ArmarMensaje(
+            "¿y los profesores de esa materia?",
+            [new EjemploSql("¿cuántos pedidos hay?", "SELECT count(*) FROM designaciones.pedidos", "agregacion")],
+            Hoy,
+            ["SELECT m.name FROM identity.materias m"]);
+
+        var ejemplo = mensaje.IndexOf("SELECT count(*)", StringComparison.Ordinal);
+        var anterior = mensaje.IndexOf("FROM identity.materias", StringComparison.Ordinal);
+        var pregunta = mensaje.IndexOf("Pregunta del usuario", StringComparison.Ordinal);
+
+        Assert.InRange(anterior, ejemplo + 1, pregunta - 1);
+    }
+
+    [Fact]
+    public void El_arrastre_no_toca_el_prefijo_estable()
+    {
+        // LA PROPIEDAD QUE PROTEGE EL COSTO. El prefijo se cachea y su huella sella
+        // los reportes de evaluación: si la consulta anterior se colara ahí, cada
+        // turno pagaría escritura de caché a 1,25× sobre el bloque más grande del
+        // prompt en vez de lectura a 0,1×, y dos turnos del mismo hilo dejarían de
+        // ser comparables.
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT 1"),
+            ProveedorGuionado.Generacion("SELECT 2"));
+        var generador = Componer(proveedor);
+        var ct = TestContext.Current.CancellationToken;
+
+        _ = generador.GenerarAsync("primera", false, ct).GetAwaiter().GetResult();
+        _ = generador.GenerarAsync("segunda", false, ct, ["SELECT 1"]).GetAwaiter().GetResult();
+
+        Assert.Equal(
+            proveedor.Recibidas[0].PrefijoEstable,
+            proveedor.Recibidas[1].PrefijoEstable);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static GeneradorDeSql Componer(ProveedorGuionado proveedor, DateOnly? fecha = null) =>

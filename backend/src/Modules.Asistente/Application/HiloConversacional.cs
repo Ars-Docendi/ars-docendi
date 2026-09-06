@@ -6,7 +6,20 @@ namespace Modules.Asistente.Application;
 /// nota de <see cref="HiloConversacional"/>.
 /// </param>
 /// <param name="Cuando">Cuándo se resolvió.</param>
-public sealed record TurnoDelHilo(string Pregunta, DateTimeOffset Cuando);
+/// <summary>Un turno ya resuelto del hilo.</summary>
+/// <param name="Pregunta">La pregunta interpretada, autocontenida.</param>
+/// <param name="Cuando">Cuándo se resolvió.</param>
+/// <param name="SqlEjecutado">
+/// La consulta que produjo la respuesta que el usuario vio, o <c>null</c> si el
+/// turno no llegó a devolver filas.
+/// </param>
+/// <remarks>
+/// <b>Nulo no es «no se generó consulta»: es «no hay nada que continuar».</b> Un
+/// turno vacío, abstenido o degradado no anota consulta a propósito — ofrecerle al
+/// modelo una consulta que no encontró nada lo invita a repetirla.
+/// </remarks>
+public sealed record TurnoDelHilo(
+    string Pregunta, DateTimeOffset Cuando, string? SqlEjecutado = null);
 
 /// <summary>
 /// El estado conversacional de una charla: sus turnos, dónde arranca el segmento
@@ -53,13 +66,34 @@ public sealed class HiloConversacional(Guid id, Guid actor)
     public IReadOnlyList<TurnoDelHilo> Turnos => _turnos;
 
     /// <summary>Agrega un turno resuelto y renueva la vigencia.</summary>
-    public void Agregar(string pregunta, DateTimeOffset cuando)
+    /// <param name="pregunta">La pregunta interpretada.</param>
+    /// <param name="cuando">Cuándo se resolvió.</param>
+    /// <param name="sqlEjecutado">
+    /// La consulta que respondió, o <c>null</c> si el turno no devolvió filas.
+    /// <b>Nunca un valor leído de la base</b>: lo que entra acá son literales que
+    /// vinieron de la pregunta del usuario, y ésa ya se guardaba.
+    /// </param>
+    public void Agregar(string pregunta, DateTimeOffset cuando, string? sqlEjecutado = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
-        _turnos.Add(new TurnoDelHilo(pregunta, cuando));
+        _turnos.Add(new TurnoDelHilo(pregunta, cuando, sqlEjecutado));
         UltimaActividad = cuando;
     }
+
+    /// <summary>
+    /// Las consultas del segmento vigente, de la más vieja a la más reciente.
+    /// </summary>
+    /// <remarks>
+    /// Se deriva de <see cref="HistorialVigente"/> y no de <see cref="Turnos"/>:
+    /// así el pivote suelta las consultas por el mismo mecanismo con que suelta las
+    /// preguntas, sin código propio que pueda quedar desincronizado.
+    /// </remarks>
+    public IReadOnlyList<string> ConsultasVigentes(int tope) =>
+        [.. HistorialVigente(tope)
+            .Select(turno => turno.SqlEjecutado)
+            .Where(sql => !string.IsNullOrWhiteSpace(sql))
+            .Select(sql => sql!)];
 
     /// <summary>Renueva la vigencia sin agregar un turno.</summary>
     public void Tocar(DateTimeOffset cuando) => UltimaActividad = cuando;

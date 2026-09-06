@@ -222,6 +222,32 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task La_consulta_que_el_hilo_arrastra_no_sale_por_la_API()
+    {
+        // `ResultadoDelTurno` lleva DOS campos con el mismo texto y distinta
+        // pregunta: `Sql` es «¿esto se le puede MOSTRAR?» y depende de
+        // `asistente.ver_consulta`; `SqlEjecutado` es «¿esto sirve para continuar la
+        // conversación?» y no depende de ningún permiso porque nunca sale del
+        // servidor.
+        //
+        // El día que alguien mapee el segundo al DTO «por simetría», la consulta
+        // generada se le publica a todo actor sin el permiso, y nada más falla. Se
+        // afirma sobre el JSON CRUDO y no sobre el DTO tipado: un campo nuevo en el
+        // contrato aparece en el JSON aunque el DTO del test no lo declare.
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await Preguntar(
+            cliente, "¿cuántos docentes hay?", Guid.NewGuid().ToString());
+        var json = await respuesta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("sqlEjecutado", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("SELECT", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task El_estado_del_contrato_no_es_el_nombre_del_enum()
     {
         // El nombre del enum es un detalle interno del backend: renombrarlo no puede

@@ -89,6 +89,22 @@ public enum EstadoDelTurno
 /// No es transparencia gratuita: un <c>WHERE</c> puede llevar un documento. Por eso
 /// va detrás de un permiso propio, que no se concede a ningún rol por omisión.
 /// </remarks>
+/// <param name="SqlEjecutado">
+/// La consulta que respondió, para que el hilo la arrastre al turno siguiente.
+/// Nula si el turno no devolvió filas.
+/// </param>
+/// <remarks>
+/// <b>ES OTRO CAMPO QUE <c>Sql</c>, Y NO UNA DUPLICACIÓN.</b> Los dos llevan el
+/// mismo texto cuando el actor tiene el permiso, pero responden a preguntas
+/// distintas: <c>Sql</c> es «¿esto se le puede MOSTRAR?» y depende de
+/// <c>asistente.ver_consulta</c>; éste es «¿esto sirve para continuar la
+/// conversación?» y no depende de ningún permiso, porque nunca sale del servidor.
+///
+/// Reusar <c>Sql</c> para las dos cosas ataría el seguimiento a un permiso que no
+/// tiene nada que ver: un actor sin él perdería el arrastre sin que nada lo
+/// explique. <b>Este campo no se mapea al DTO de la API</b>, y hay un test que lo
+/// verifica.
+/// </remarks>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -103,4 +119,5 @@ public sealed record ResultadoDelTurno(
     Guid Hilo = default,
     IReadOnlyList<OpcionDeAclaracion>? Opciones = null,
     IReadOnlyList<string>? Sugerencias = null,
-    string? Sql = null);
+    string? Sql = null,
+    string? SqlEjecutado = null);

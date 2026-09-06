@@ -55,6 +55,18 @@ internal static class RenderizadorDeEsquema
            coincide carácter por carácter con lo que hay guardado, y una consulta
            válida que no matchea nada se ve igual que un dato que no existe.
 
+        SOBRE LOS SEGUIMIENTOS
+
+        Si el mensaje trae consultas de turnos anteriores, la pregunta puede estar
+        continuándolas. Cuando lo haga, editá la última o anidala como subconsulta
+        en lugar de escribir una nueva desde cero: es lo que hace que «los
+        profesores de esa materia» se responda sobre las materias que el turno
+        anterior devolvió, y no sobre cualquiera.
+
+        Cuando la pregunta cambie de tema, ignoralas: seguir editando una consulta
+        que el usuario ya dejó atrás devuelve un resultado correcto para una
+        pregunta que nadie hizo.
+
         SOBRE EL ALCANCE
 
         La consulta se ejecuta con los permisos del usuario que pregunta, y la
