@@ -39,12 +39,22 @@ public interface IEjecutorDeConsulta
 /// <param name="AlcanzaTodo">
 /// Si para este actor <b>cero filas significa que no hay filas</b>.
 /// </param>
+/// <param name="VeTrayectoriaAjena">
+/// Si puede consultar el perfil profesional de OTRA persona.
+/// </param>
+/// <remarks>
+/// <c>VeTrayectoriaAjena</c> lo consume únicamente la presentación, para no
+/// anunciarle una capacidad a quien no la tiene —que es fake UI por otro camino, y
+/// el invariante #7 lo prohíbe—. El alcance real no lo decide este booleano sino la
+/// policy de RLS, que vuelve a preguntar por el permiso en cada consulta.
+/// </remarks>
 public sealed record PerfilDelActor(
     bool EsGlobal,
     bool VeDatosPersonales,
     bool VeLaConsulta = false,
     string? CodigoDeRol = null,
-    bool AlcanzaTodo = false);
+    bool AlcanzaTodo = false,
+    bool VeTrayectoriaAjena = false);
 
 /// <summary>
 /// Resuelve el alcance y el acceso a datos personales del actor.

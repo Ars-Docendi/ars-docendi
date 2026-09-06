@@ -294,7 +294,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var puede = await Catalogo().ObtenerAsync(
             Sistemas, TestContext.Current.CancellationToken);
 
-        Assert.Equal(PresentacionPorRol.Generica, puede.Presentacion);
+        // La genérica es la BASE del texto, no el texto entero: la frase del portal
+        // se agrega para todos los roles y depende del permiso, no del rol.
+        Assert.StartsWith(PresentacionPorRol.Generica, puede.Presentacion, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -316,7 +318,9 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
 
         var puede = await Catalogo().ObtenerAsync(Jefe, ct);
 
-        Assert.Equal(PresentacionPorRol.Generica, puede.Presentacion);
+        // La genérica es la BASE del texto, no el texto entero: la frase del portal
+        // se agrega para todos los roles y depende del permiso, no del rol.
+        Assert.StartsWith(PresentacionPorRol.Generica, puede.Presentacion, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -410,7 +414,77 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         Assert.DoesNotContain("designaciones.", texto, StringComparison.Ordinal);
     }
 
+    // ---------------------------------------------------------- portal docente
+
+    [Fact]
+    public async Task Sin_el_permiso_la_presentacion_ofrece_el_perfil_propio_y_no_la_busqueda()
+    {
+        // INVARIANTE #7 POR OTRO CAMINO. Anunciarle a alguien que busque docentes por
+        // habilidad cuando el permiso no lo tiene nadie es prometer una capacidad que
+        // no va a poder ejercer: el mismo defecto que un botón que no anda, sin botón.
+        await SembrarAsync();
+
+        var puede = await Catalogo().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.Contains("tu propio perfil", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("buscar docentes", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Con_el_permiso_la_presentacion_ofrece_la_busqueda_por_perfil()
+    {
+        // La otra mitad: el día que Secretaría conceda el permiso, la capacidad se
+        // anuncia sola. No hace falta desplegar nada — el catálogo lo lee en vivo.
+        await SembrarAsync();
+        await ConcederTrayectoriaAjenaAsync(Secretaria);
+
+        var puede = await Catalogo().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.Contains("buscar docentes", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tu propio perfil", puede.Presentacion, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task La_presentacion_no_promete_el_contacto_ni_el_archivo_del_CV()
+    {
+        // Las dos cosas que el asistente NO hace sobre portal, y que son justo las
+        // que alguien esperaría de un «perfil»: el contacto personal está denegado y
+        // del CV sólo se puede decir que existe.
+        await SembrarAsync();
+        await ConcederTrayectoriaAjenaAsync(Secretaria);
+
+        var texto = (await Catalogo().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken)).Presentacion;
+
+        foreach (var prohibida in new[] { "teléfono", "mail", "correo", "CV", "currículum" })
+        {
+            Assert.DoesNotContain(prohibida, texto, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     // ------------------------------------------------------------------ apoyo
+
+    /// <summary>Le concede al actor el permiso de leer la trayectoria ajena.</summary>
+    private async Task ConcederTrayectoriaAjenaAsync(Guid actor)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT ur.role_id, p.id
+              FROM identity.user_roles ur
+             CROSS JOIN identity.permisos p
+             WHERE ur.user_id = @actor
+               AND ur.deleted_at IS NULL
+               AND p.code = 'portal.ver_trayectoria_ajena'
+            ON CONFLICT DO NOTHING
+            """, conexion);
+
+        comando.Parameters.AddWithValue("actor", actor);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
 
     private CatalogoDeCapacidades Catalogo()
     {

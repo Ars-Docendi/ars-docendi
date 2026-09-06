@@ -77,8 +77,34 @@ public static class PresentacionPorRol
     /// El código del único rol vigente del actor. <c>null</c> cuando no tiene
     /// ninguno o tiene más de uno: los dos casos son el genérico.
     /// </param>
-    public static string Texto(string? codigoDeRol) =>
-        codigoDeRol is not null && PorCodigo.TryGetValue(codigoDeRol, out var texto)
-            ? texto
+    public static string Texto(string? codigoDeRol, bool veTrayectoriaAjena = false)
+    {
+        var texto = codigoDeRol is not null && PorCodigo.TryGetValue(codigoDeRol, out var propio)
+            ? propio
             : Generica;
+
+        return $"{texto} {DelPortal(veTrayectoriaAjena)}";
+    }
+
+    /// <summary>
+    /// La frase del portal docente, que depende del permiso y no del rol.
+    /// </summary>
+    /// <remarks>
+    /// <b>SE ANUNCIA LO QUE EL ACTOR PUEDE HACER, NO LO QUE EL SISTEMA SABE HACER.</b>
+    /// Prometerle a un Coordinador que busque docentes por habilidad cuando el
+    /// permiso no lo tiene nadie es fake UI por otro camino, y el invariante #7 lo
+    /// prohíbe igual que a un botón que no anda.
+    ///
+    /// Por eso son dos frases y no un texto con condicionales: el perfil propio lo
+    /// puede consultar cualquiera —mirar lo propio no es un privilegio— y la búsqueda
+    /// ajena aparece únicamente cuando el permiso está concedido de verdad.
+    ///
+    /// No dice «tu formación y tus certificaciones» enumerando: la enumeración
+    /// envejece con el esquema, y lo que el actor ve de su perfil se deriva de los
+    /// GRANT como todo lo demás.
+    /// </remarks>
+    private static string DelPortal(bool veTrayectoriaAjena) => veTrayectoriaAjena
+        ? "También podés buscar docentes por su formación, sus certificaciones o las "
+          + "habilidades que declararon en su perfil."
+        : "También podés consultar tu propio perfil profesional.";
 }

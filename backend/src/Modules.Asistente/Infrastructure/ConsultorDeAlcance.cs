@@ -54,6 +54,15 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
     /// </remarks>
     private const string PermisoDeDominio = "designaciones.ver";
 
+    /// <summary>El permiso de leer el perfil profesional de otra persona.</summary>
+    /// <remarks>
+    /// Se lee sólo para decidir qué anuncia la presentación. La frontera real la
+    /// impone la policy de portal, que vuelve a preguntar por él en cada consulta:
+    /// si este booleano quedara desactualizado, el actor vería un anuncio de más y
+    /// cero filas, nunca filas de más.
+    /// </remarks>
+    private const string PermisoDeTrayectoriaAjena = "portal.ver_trayectoria_ajena";
+
     /// <summary>
     /// SQLSTATE con que PostgreSQL reporta un <c>RAISE EXCEPTION</c> de plpgsql.
     /// Es el que usa <c>identity.asistente_actor()</c> cuando el identificador no
@@ -153,12 +162,17 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeDominio));
 
+        var veTrayectoriaAjena = await LeerBooleanoAsync(
+            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
+            ("permiso", PermisoDeTrayectoriaAjena));
+
         return new PerfilDelActor(
             esGlobal,
             veDatosPersonales,
             veLaConsulta,
             await LeerRolUnicoAsync(conexion, transaccion, ct),
-            alcanzaTodo);
+            alcanzaTodo,
+            veTrayectoriaAjena);
     }
 
     /// <summary>

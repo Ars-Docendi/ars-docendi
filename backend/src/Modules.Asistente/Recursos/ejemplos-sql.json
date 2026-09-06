@@ -81,6 +81,26 @@
       "pregunta": "¿Cuántas materias tiene cada carrera?",
       "categoria": "agregacion",
       "sql": "SELECT ca.name AS carrera, count(m.id) AS cantidad FROM identity.carreras ca LEFT JOIN identity.materias m ON m.carrera_id = ca.id AND m.is_active WHERE ca.is_active GROUP BY ca.id, ca.name ORDER BY ca.name"
+    },
+    {
+      "pregunta": "¿Cuántos docentes cargaron su perfil profesional?",
+      "categoria": "agregacion",
+      "sql": "SELECT count(*) AS con_perfil, (SELECT count(*) FROM identity.personas) AS total_padron FROM portal.perfiles"
+    },
+    {
+      "pregunta": "¿Cuántos docentes tienen doctorado?",
+      "categoria": "agregacion",
+      "sql": "SELECT count(DISTINCT e.perfil_id) AS cantidad FROM portal.educaciones e WHERE e.nivel = 'Doctorado' AND e.hasta IS NOT NULL"
+    },
+    {
+      "pregunta": "¿Qué docentes declararon la habilidad Bases de datos?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE h.termino_norm = 'BASES DE DATOS' AND dh.tipo = 'habilidad' ORDER BY p.apellido"
+    },
+    {
+      "pregunta": "¿Dónde trabajó cada docente que cargó su experiencia?",
+      "categoria": "cruce_de_tablas",
+      "sql": "SELECT p.apellido, p.nombre, x.puesto, x.organizacion, x.desde FROM portal.experiencias x JOIN portal.perfiles pf ON pf.id = x.perfil_id JOIN identity.personas p ON p.id = pf.persona_id ORDER BY p.apellido, x.desde DESC"
     }
   ]
 }
