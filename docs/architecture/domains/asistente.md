@@ -117,9 +117,15 @@ El asistente no tiene ninguna rama de código que decida qué puede ver quién.
 - **Pertenece**: la traducción de lenguaje natural a consulta, la validación de esa
   consulta, la política de abstención y la redacción de la respuesta. El catálogo
   de ejemplos pregunta-SQL.
-- **No pertenece**: los datos. Todos son de otros bounded contexts —`identity` y
-  `designaciones`— y el asistente los lee a través de dos roles de PostgreSQL con
-  privilegios enumerados columna por columna. No hay ninguna entidad canónica acá.
+- **No pertenece**: los datos. Todos son de otros bounded contexts —`identity`,
+  `designaciones` y `portal`— y el asistente los lee a través de dos roles de
+  PostgreSQL con privilegios enumerados columna por columna. No hay ninguna entidad
+  canónica acá.
+
+  De `portal` se conceden **seis de las diez tablas**, y su predicado de RLS no
+  conjuga el ámbito sino un permiso propio, `portal.ver_trayectoria_ajena`, que nace
+  concedido a nadie. El detalle está en [data-model](../data-model.md) y las reglas
+  que lo gobiernan en [`business-rules/portal.md`](../../business-rules/portal.md).
 
 ## Entidades principales
 
