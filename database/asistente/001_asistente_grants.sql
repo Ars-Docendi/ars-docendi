@@ -85,15 +85,20 @@ BEGIN
   EXECUTE format('GRANT SELECT (rol_id, permiso_id, created_at) ON identity.rol_permisos TO %I', rol_pii);
 
   -- ------------------------------------------------------------------
-  -- funciones de resolución del actor (migración identity/012)
+  -- funciones de resolución del actor (migraciones identity/012 y identity/016)
   -- ------------------------------------------------------------------
-  -- Las cuatro son SECURITY DEFINER y PUBLIC no las ejecuta. El GRANT va acá y no
+  -- Las cinco son SECURITY DEFINER y PUBLIC no las ejecuta. El GRANT va acá y no
   -- en la migración de identity porque los nombres de rol llevan sufijo de
   -- ambiente, y esta es la migración que los conoce.
+  --
+  -- CREATE, REVOKE FROM PUBLIC y este GRANT son una unidad indivisible. Sin el
+  -- GRANT, una policy que use la función no devuelve cero filas: tira «permission
+  -- denied for function», que es un modo de falla distinto y mucho más ruidoso.
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_actor() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_es_global() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_persona() TO %I, %I', rol_basico, rol_pii);
 
   -- ------------------------------------------------------------------
   -- designaciones
