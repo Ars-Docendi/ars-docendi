@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-06",
+  "hash_del_prefijo": "3581593809339902f893b49658a2053d22be22b5d2d6c677afc33a1b35a02dad",
+  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRnzwB7NFRW3ArQ9u2Y\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT p.apellido, p.nombre, c.nombre AS certificacion, c.emisor, c.vencimiento FROM portal.certificaciones c JOIN portal.perfiles pf ON pf.id = c.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE c.vencimiento IS NOT NULL AND c.vencimiento >= DATE '2026-01-01' AND c.vencimiento <= DATE '2026-12-31' ORDER BY c.vencimiento, p.apellido\\\", \\\"razonamiento\\\": \\\"Busco certificaciones con fecha de vencimiento dentro del año 2026, uniendo perfil y persona para obtener el docente, excluyendo las que no vencen (vencimiento nulo).\\\", \\\"categoria\\\": \\\"filtro_temporal\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":699,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":10609,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":293,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

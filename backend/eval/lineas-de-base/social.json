@@ -1,9 +1,9 @@
 {
   "Eje": "social y meta",
   "Sello": {
-    "Prefijo": "8e3013fe0116e538671fc2c3b3a0c04e767e73325b7a63999ceda973da00a2e5",
+    "Prefijo": "96d5e7ef737c257a149ac999c1b8c06d7028ce5bb962c741ae8563fdfffe29d4",
     "Dataset": "e0368ea178c6524733f3c4681e2190a5e7a51524442965e6c7f240dc36a346b0",
-    "Fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8"
+    "Fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79"
   },
   "Items": {
     "soc-001": "traduccion_correcta",

@@ -113,7 +113,7 @@ COMMENT ON COLUMN portal.habilidades.id IS
 COMMENT ON COLUMN portal.habilidades.termino IS
     'El término tal como lo escribió quien lo declaró primero, con mayúsculas y acentos.';
 COMMENT ON COLUMN portal.habilidades.termino_norm IS
-    'El mismo término normalizado, que es por donde conviene comparar y agrupar: buscar por termino falla ante una diferencia de mayúsculas o de acentos.';
+    'El mismo término normalizado A MAYÚSCULAS, que es por donde hay que comparar y agrupar: buscar por termino falla ante una diferencia de mayúsculas. Para filtrar por un término hay que escribirlo en mayúsculas —termino_norm = ''KUBERNETES''— o normalizar el literal con upper(); comparar contra un literal en minúsculas no devuelve nada.';
 COMMENT ON COLUMN portal.habilidades.created_at IS
     'Momento en que alguien declaró el término por primera vez. Metadato del sistema.';
 

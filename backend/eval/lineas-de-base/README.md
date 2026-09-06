@@ -75,27 +75,18 @@ produce regresiones falsas con lock por ítem. Mientras el gate reproduzca casse
 es un problema; el día que se corra en vivo, hay que decidir si se lo marca como
 tolerante o se lo reformula.
 
-## Estas cuatro quedaron obsoletas al conceder portal
+## Las cuatro vigentes son de después de portal
 
-El `GRANT` sobre `portal` cambió el prefijo del prompt de
-`8e3013fe0116e538…` a `0147ac99779b98ec…`, así que el gate **se niega a comparar** y
-lo dice: «cambió el prefijo del prompt. Regenerá la línea de base y volvé a correr».
-Es el comportamiento correcto y no una falla.
+Se regeneraron con la corrida financiada que regrabó los cassettes contra el
+prefijo nuevo (`0147ac99…` y sucesores, 20 tablas). Las de antes están en
+[`antes-de-portal/`](./antes-de-portal/README.md), que explica qué costó el cambio.
 
-Se conservan igual, sin regenerar, porque son el registro de cómo se comportaba el
-asistente **antes** de portal. Ese es el único punto de comparación que existe para
-responder después si portal degradó designaciones, y regenerarlas ahora lo borraría.
-
-El crecimiento del alcance, para tenerlo escrito:
-
-|                        | Antes | Después |
-| ---------------------- | ----- | ------- |
-| Tablas concedidas      | 14    | 20      |
-| Columnas al rol básico | 103   | 136     |
-
-Los 107 cassettes también quedaron inalcanzables —su clave incluye el prefijo— así
-que la evaluación no puede correr sin red hasta que se regraben. Es lo que hace la
-corrida financiada de ARS-99, en el mismo PR que el fixture y los ítems de portal.
+| Eje       | Ítems | Aciertos | Normalizado |
+| --------- | ----- | -------- | ----------- |
+| Capacidad | 32    | 31       | 96,9 %      |
+| Robustez  | 15    | 13       | 86,7 %      |
+| Diálogo   | 9     | 8        | 88,9 %      |
+| Social    | 20    | 20       | 100,0 %     |
 
 ## Por qué el sello es lo primero que mira el gate
 

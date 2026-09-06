@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-05",
-  "hash_del_prefijo": "8e3013fe0116e538671fc2c3b3a0c04e767e73325b7a63999ceda973da00a2e5",
-  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekWg28zDizBdWdcPdnnG\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, pe.novedad, pe.estado FROM designaciones.pedidos pe JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id ORDER BY pe.created_at DESC\\\", \\\"razonamiento\\\": \\\"Interpreto que se pide el listado de pedidos visibles para el usuario según su ámbito de carrera, que el sistema filtra automáticamente según sus permisos.\\\", \\\"categoria\\\": \\\"cruce_de_tablas\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":608,\"cache_creation_input_tokens\":7641,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":7641,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":217,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

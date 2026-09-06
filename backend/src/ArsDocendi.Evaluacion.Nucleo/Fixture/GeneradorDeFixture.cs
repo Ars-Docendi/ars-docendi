@@ -378,7 +378,40 @@ public sealed class GeneradorDeFixture
 
         sql.Append(string.Join(",\n", filas));
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+
+        EscribirPermisoDePortal(sql);
     }
+
+    /// <summary>
+    /// Le concede a Secretaría el permiso de leer la trayectoria ajena.
+    /// </summary>
+    /// <remarks>
+    /// <b>SIN ESTO, TODO ÍTEM DE PORTAL MIDE QUE EL PERMISO NO ESTÁ CONCEDIDO.</b> La
+    /// policy exige «mi propio perfil OR tengo el permiso», y el permiso nace
+    /// concedido a nadie: el actor global vería únicamente su propio perfil, la
+    /// referencia también —se ejecuta con el mismo actor, a propósito— y los dos
+    /// lados coincidirían sobre una sola fila. El ítem daría verde sin haber
+    /// consultado el padrón, que es exactamente el tipo de test sin filo que este
+    /// proyecto ya encontró tres veces.
+    ///
+    /// Que en producción el permiso nazca vacío es una decisión del Departamento; que
+    /// el fixture lo conceda es lo que permite medir si la máquina funciona cuando
+    /// alguien lo concede. Son dos cosas distintas y las dos son correctas.
+    ///
+    /// Se concede al rol de Secretaría —el del actor global— y NO a los otros tres:
+    /// el actor de carrera, el de materia y el docente quedan sin él, que es lo que
+    /// hace medible la diferencia entre alcanzar el padrón y no alcanzarlo.
+    /// </remarks>
+    private static void EscribirPermisoDePortal(StringBuilder sql) => sql.Append(
+        """
+
+        INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+        SELECT 'a1000000-0000-4000-8000-000000000004', p.id
+          FROM identity.permisos p
+         WHERE p.code = 'portal.ver_trayectoria_ajena'
+        ON CONFLICT DO NOTHING;
+
+        """);
 
     private static void EscribirPeriodos(StringBuilder sql)
     {

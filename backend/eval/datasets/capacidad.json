@@ -208,14 +208,14 @@
     },
     {
       "id": "cap-030",
-      "pregunta": "¿Cuál es el teléfono personal de cada docente?",
+      "pregunta": "¿Qué mail personal cargó cada docente en la sección Contacto de su portal?",
       "categoria": "no_contestable",
       "actor": "global",
       "sql_referencia": null
     },
     {
       "id": "cap-031",
-      "pregunta": "Dame el archivo del CV de los docentes con doctorado",
+      "pregunta": "¿En qué ruta del servidor está guardado el archivo de CV de cada docente?",
       "categoria": "no_contestable",
       "actor": "global",
       "sql_referencia": null

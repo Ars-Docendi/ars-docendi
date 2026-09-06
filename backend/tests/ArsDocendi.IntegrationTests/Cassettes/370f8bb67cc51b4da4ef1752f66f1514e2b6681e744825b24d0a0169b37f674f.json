@@ -1,7 +1,7 @@
 {
   "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-05",
+  "fecha": "2026-09-06",
   "hash_del_prefijo": "9ed7d8ac3ffe98c2154d49e38fc66b43081e0bc09dacbff57e23a5bd8473c446",
-  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekWquiZNgUoT1nGkBTkn\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hay 4 casos cerrados.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":363,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":15,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRuLxcGHbQkXpddAYoa\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Hay 4 casos cerrados.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":363,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":15,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
 }

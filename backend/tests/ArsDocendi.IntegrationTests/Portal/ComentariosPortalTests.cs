@@ -148,6 +148,21 @@ public sealed class ComentariosPortalTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task El_comentario_de_termino_norm_dice_en_qué_caja_esta_normalizado()
+    {
+        // LO ENCONTRÓ LA CORRIDA FINANCIADA. El modelo tradujo «qué docentes saben
+        // Kubernetes» a `termino_norm = lower('Kubernetes')` y no devolvió nada: la
+        // normalización real es a MAYÚSCULAS y el comentario decía que había que
+        // comparar por esa columna sin decir cómo. No es un error del modelo —
+        // adivinó, porque el esquema no se lo decía— y hacía fallar TODA pregunta por
+        // habilidad, en silencio y con cero filas.
+        var columnas = await ComentariosDeColumnaAsync();
+
+        Assert.Contains(
+            "MAYÚSCULAS", columnas["habilidades.termino_norm"], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Los_comentarios_nombran_sinonimos_del_dominio()
     {
         // Sin los sinónimos, «quiénes tienen posgrado» no encuentra

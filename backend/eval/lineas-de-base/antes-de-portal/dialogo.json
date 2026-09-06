@@ -1,0 +1,19 @@
+{
+  "Eje": "di\u00E1logo",
+  "Sello": {
+    "Prefijo": "8e3013fe0116e538671fc2c3b3a0c04e767e73325b7a63999ceda973da00a2e5",
+    "Dataset": "c8256e17fcdf34a7828cbd348e5b7e81588d73b334a03abf13a55b2c0929dcfd",
+    "Fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8"
+  },
+  "Items": {
+    "dia-001-seguimiento#1": "traduccion_correcta",
+    "dia-001-seguimiento#2": "traduccion_correcta",
+    "dia-002-aclaracion#1": "abstencion_correcta",
+    "dia-002-aclaracion#2": "traduccion_correcta",
+    "dia-003-pivote-duro#1": "abstencion_sobrelo_factible",
+    "dia-003-pivote-duro#2": "traduccion_correcta",
+    "dia-004-pivote-y-vuelta#1": "traduccion_correcta",
+    "dia-004-pivote-y-vuelta#2": "traduccion_correcta",
+    "dia-004-pivote-y-vuelta#3": "traduccion_correcta"
+  }
+}

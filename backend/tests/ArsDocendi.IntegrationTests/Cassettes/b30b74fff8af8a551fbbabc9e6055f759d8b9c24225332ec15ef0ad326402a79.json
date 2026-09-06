@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-05",
-  "hash_del_prefijo": "dec95ed0099683b9d12cdeef710e9438759ef1febc117b2380c4fe87f6951b64",
-  "hash_del_fixture": "f83cc62194a250b8ff46fa1f74a0aaa3b8ec1a516949b8f628d4d9f128fb3ed8",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CekbGj2nVTjQrtvEjEBUo\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT count(*) AS cantidad FROM designaciones.pedidos pe WHERE pe.novedad = 'Baja' AND pe.estado = 'rechazado'\\\", \\\"razonamiento\\\": \\\"Cuento los pedidos cuya novedad es Baja y cuyo estado final es rechazado.\\\", \\\"categoria\\\": \\\"agregacion\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":709,\"cache_creation_input_tokens\":7796,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":7796,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":132,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}
