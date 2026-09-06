@@ -97,8 +97,10 @@ export function LanzadorAsistente() {
       >
         {/* Es sólo la vista: la conversación está arriba, y por eso cerrar no la
             pierde. */}
-        <div className="adoc-asistente-acciones-modal">
+        <div className="adoc-asistente-ayuda-modal">
           <AyudaDelAsistente />
+        </div>
+        <div className="adoc-asistente-acciones-modal">
           <NuevaConversacion asistente={asistente} />
         </div>
         <PanelAsistente asistente={asistente} />

@@ -158,9 +158,15 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
         // ámbito global no alcanza ninguna fila, y con el permiso, un ámbito de
         // materia sigue sin alcanzar el resto. Cero filas solo significa «no hay»
         // cuando se cumplen los dos.
-        var alcanzaDesignaciones = esGlobal && await LeerBooleanoAsync(
+        // Se guardan los DOS: el permiso suelto y su conjunción con el ámbito. No es
+        // redundancia — responden preguntas distintas. «¿Puede ver alguna fila del
+        // trámite?» es el permiso, y sirve para anunciar el área; «¿cero filas
+        // significa que no hay?» es la conjunción, que es lo que la policy exige.
+        var veDesignaciones = await LeerBooleanoAsync(
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
             ("permiso", PermisoDeDominio));
+
+        var alcanzaDesignaciones = esGlobal && veDesignaciones;
 
         var veTrayectoriaAjena = await LeerBooleanoAsync(
             conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
@@ -172,7 +178,8 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
             veLaConsulta,
             await LeerRolUnicoAsync(conexion, transaccion, ct),
             alcanzaDesignaciones,
-            veTrayectoriaAjena);
+            veTrayectoriaAjena,
+            veDesignaciones);
     }
 
     /// <summary>

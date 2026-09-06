@@ -53,6 +53,18 @@ public interface IEjecutorDeConsulta
 /// <param name="VeTrayectoriaAjena">
 /// Si puede consultar el perfil profesional de OTRA persona.
 /// </param>
+/// <param name="VeDesignaciones">
+/// Si tiene el permiso de dominio del trámite, <b>sin conjugar con el ámbito</b>.
+/// </param>
+/// <remarks>
+/// <c>VeDesignaciones</c> y <see cref="AlcanzaDesignaciones"/> parecen lo mismo y
+/// no lo son: el segundo es este permiso <b>Y</b> ámbito global, que es lo que la
+/// policy exige para ver TODAS las filas. Éste responde otra pregunta —«¿puede ver
+/// alguna?»— y es la que corresponde para anunciar un área: un jefe de cátedra con
+/// el permiso ve las designaciones de su cátedra, así que anunciárselas no promete
+/// nada que no pueda ejercer. Usar el conjugado dejaría a todos los roles acotados
+/// sin el anuncio de lo que sí consultan.
+/// </remarks>
 /// <remarks>
 /// <c>VeTrayectoriaAjena</c> lo consume únicamente la presentación, para no
 /// anunciarle una capacidad a quien no la tiene —que es fake UI por otro camino, y
@@ -65,7 +77,8 @@ public sealed record PerfilDelActor(
     bool VeLaConsulta = false,
     string? CodigoDeRol = null,
     bool AlcanzaDesignaciones = false,
-    bool VeTrayectoriaAjena = false);
+    bool VeTrayectoriaAjena = false,
+    bool VeDesignaciones = false);
 
 /// <summary>
 /// Resuelve el alcance y el acceso a datos personales del actor.

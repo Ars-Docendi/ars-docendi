@@ -30,70 +30,94 @@ namespace Modules.Asistente.Application;
 public static class PresentacionPorRol
 {
     /// <summary>
-    /// La presentación de quien no cae en ninguna entrada de la tabla.
+    /// La presentación del actor: su ámbito, y las áreas que de verdad alcanza.
     /// </summary>
-    /// <remarks>
-    /// Nombra las tres áreas del dominio que cualquier rol con acceso al asistente
-    /// puede consultar, sin prometer ningún ámbito: el alcance lo dice
-    /// <see cref="PoliticaDeAbstencion.TextoDeAlcance"/>, que sí se deriva de la base.
-    /// </remarks>
-    public const string Generica =
-        "Preguntá por las designaciones, los pedidos y los períodos del sistema.";
-
-    /// <summary>
-    /// Los códigos de rol que el sistema siembra, con su presentación.
-    /// </summary>
-    /// <remarks>
-    /// Son los códigos de <c>identity.roles</c>, que <c>es_sistema</c> protege de
-    /// renombres. Un rol creado por Secretaría no está acá y cae al genérico, que
-    /// es el comportamiento correcto y no un agujero: ver las notas de la clase.
-    /// </remarks>
-    private static readonly Dictionary<string, string> PorCodigo = new(StringComparer.Ordinal)
-    {
-        ["jefe_catedra"] = "Preguntá por las designaciones y los pedidos de tu cátedra.",
-        ["coordinador_carrera"] = "Preguntá por los pedidos y las designaciones de tu carrera.",
-        ["secretaria"] =
-            "Preguntá por las designaciones, los pedidos y los períodos de cualquier cátedra.",
-        ["decanato"] = "Preguntá por cómo viene el trámite en todo el Departamento.",
-        ["administrativo"] =
-            "Preguntá por los datos del trámite y los catálogos: períodos, cargos y materias.",
-        ["docente"] = "Preguntá por tus designaciones: materia, cargo y desde cuándo.",
-    };
-
-    /// <summary>
-    /// La presentación del actor, o la genérica si su rol no está en la tabla.
-    /// </summary>
-    /// <param name="codigoDeRol">
-    /// El código del único rol vigente del actor. <c>null</c> cuando no tiene
-    /// ninguno o tiene más de uno: los dos casos son el genérico.
+    /// <param name="perfil">
+    /// El perfil resuelto del actor. Se pasa entero y no sus campos sueltos porque
+    /// de él salen las TRES cosas que componen la frase: el rol da el ámbito, y los
+    /// permisos deciden qué áreas se nombran.
     /// </param>
-    public static string Texto(string? codigoDeRol, bool veTrayectoriaAjena = false)
+    /// <remarks>
+    /// <b>LAS ÁREAS SE DERIVAN DE PERMISOS, NO DE UNA FRASE POR ROL.</b> La versión
+    /// anterior tenía una oración fija por rol —«preguntá por cómo viene el trámite
+    /// en todo el Departamento»— y eso decía menos de lo que el asistente hace: no
+    /// nombraba las materias, los cargos ni el perfil profesional, así que quien
+    /// leía la ayuda no se enteraba de que podía preguntar por ellos.
+    ///
+    /// Ahora la frase enumera lo que ESTE actor alcanza, y cada cláusula tiene su
+    /// condición. El invariante #7 es el que manda: anunciar un área que el actor no
+    /// puede consultar es prometer una capacidad que no va a poder ejercer — el
+    /// mismo defecto que un botón que no anda, sin botón (BR-asistente-004).
+    ///
+    /// <b>NO SE NOMBRAN TAREAS NI AULAS, y no es un olvido.</b> El asistente tiene
+    /// USAGE sobre <c>identity</c>, <c>designaciones</c> y <c>portal</c>, y sobre
+    /// nada más: los schemas de esos dos módulos no se le conceden. Nombrarlos sería
+    /// prometer respuestas que el motor va a rechazar. El día que se concedan, entra
+    /// su cláusula acá y el manifiesto de privilegios es lo que lo habilita.
+    /// </remarks>
+    public static string Texto(PerfilDelActor perfil)
     {
-        var texto = codigoDeRol is not null && PorCodigo.TryGetValue(codigoDeRol, out var propio)
-            ? propio
-            : Generica;
+        ArgumentNullException.ThrowIfNull(perfil);
 
-        return $"{texto} {DelPortal(veTrayectoriaAjena)}";
+        var areas = new List<string>();
+
+        // El trámite es lo que más se pregunta, así que va primero — y sólo si el
+        // actor tiene el permiso de dominio: sin él la RLS le devuelve cero filas
+        // sobre las cuatro tablas del trámite, y anunciarlo sería prometer vacío.
+        //
+        // Se mira `VeDesignaciones` y NO `AlcanzaDesignaciones`: el segundo conjuga
+        // con el ámbito global, y con él un jefe de cátedra —que ve las de su
+        // cátedra— se quedaría sin el anuncio de lo que sí consulta.
+        if (perfil.VeDesignaciones)
+        {
+            areas.Add($"los trámites y las designaciones {AmbitoDe(perfil.CodigoDeRol)}");
+        }
+
+        // Los catálogos no llevan permiso propio: se le conceden a los dos roles de
+        // lectura y no tienen policy. Cualquiera que use el asistente los alcanza.
+        areas.Add("las materias, las carreras y los cargos del sistema");
+
+        areas.Add(perfil.VeTrayectoriaAjena
+            ? "los perfiles profesionales de los docentes"
+            : "tu propio perfil profesional");
+
+        return $"Preguntá por {Enumerar(areas)}.";
     }
 
     /// <summary>
-    /// La frase del portal docente, que depende del permiso y no del rol.
+    /// Cómo se nombra el ámbito del actor dentro de la frase.
     /// </summary>
     /// <remarks>
-    /// <b>SE ANUNCIA LO QUE EL ACTOR PUEDE HACER, NO LO QUE EL SISTEMA SABE HACER.</b>
-    /// Prometerle a un Coordinador que busque docentes por habilidad cuando el
-    /// permiso no lo tiene nadie es fake UI por otro camino, y el invariante #7 lo
-    /// prohíbe igual que a un botón que no anda.
-    ///
-    /// Por eso son dos frases y no un texto con condicionales: el perfil propio lo
-    /// puede consultar cualquiera —mirar lo propio no es un privilegio— y la búsqueda
-    /// ajena aparece únicamente cuando el permiso está concedido de verdad.
-    ///
-    /// No dice «tu formación y tus certificaciones» enumerando: la enumeración
-    /// envejece con el esquema, y lo que el actor ve de su perfil se deriva de los
-    /// GRANT como todo lo demás.
+    /// Es lo único que sigue saliendo del rol, y por el mismo motivo de siempre: el
+    /// ámbito real lo impone la RLS y esto es sólo cómo se lo nombra. Un rol que la
+    /// tabla no conoce cae a «del sistema», que no promete ningún ámbito — el
+    /// alcance exacto lo dice <see cref="PoliticaDeAbstencion.TextoDeAlcance"/>, que
+    /// sí se deriva de la base.
     /// </remarks>
-    private static string DelPortal(bool veTrayectoriaAjena) => veTrayectoriaAjena
-        ? "También podés buscar docentes por formación, certificaciones o habilidades."
-        : "También podés consultar tu perfil profesional.";
+    private static string AmbitoDe(string? codigoDeRol) =>
+        codigoDeRol is not null && AmbitoPorCodigo.TryGetValue(codigoDeRol, out var ambito)
+            ? ambito
+            : AmbitoGenerico;
+
+    /// <summary>El ámbito de quien no cae en ninguna entrada de la tabla.</summary>
+    public const string AmbitoGenerico = "del sistema";
+
+    private static readonly Dictionary<string, string> AmbitoPorCodigo =
+        new(StringComparer.Ordinal)
+        {
+            ["jefe_catedra"] = "de tu cátedra",
+            ["coordinador_carrera"] = "de tu carrera",
+            ["secretaria"] = "de todo el Departamento",
+            ["decanato"] = "de todo el Departamento",
+            ["administrativo"] = "de todo el Departamento",
+            ["docente"] = "tuyas",
+        };
+
+    /// <summary>«a», «a y b», «a, b y c».</summary>
+    private static string Enumerar(IReadOnlyList<string> partes) => partes.Count switch
+    {
+        1 => partes[0],
+        2 => $"{partes[0]} y {partes[1]}",
+        _ => $"{string.Join(", ", partes.Take(partes.Count - 1))} y {partes[^1]}",
+    };
 }
