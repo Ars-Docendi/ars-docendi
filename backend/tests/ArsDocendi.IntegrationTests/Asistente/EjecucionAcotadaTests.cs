@@ -43,6 +43,35 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
 
     private const string ContarPedidos = "SELECT count(*) AS cantidad FROM designaciones.pedidos";
 
+    // ------------------------------------------------- la comparación por nombre
+
+    [Fact]
+    public async Task Comparar_un_nombre_sin_tilde_solo_encuentra_con_unaccent()
+    {
+        // LA GARANTÍA DE LA QUE DEPENDE LA REGLA DEL PROMPT. Se le pide al modelo
+        // que compare texto libre con `public.unaccent` de los dos lados; esto fija
+        // que el rol de solo lectura del asistente REALMENTE pueda hacerlo —schema
+        // `public` alcanzable con `search_path` vacío, extensión creada, EXECUTE
+        // concedido—. Si alguna de esas tres se cayera, el prompt seguiría pidiendo
+        // una consulta que el motor rechaza, y el síntoma sería idéntico al defecto
+        // que la regla vino a arreglar.
+        await SembrarAsync();
+
+        const string Cruda =
+            "SELECT apellido FROM identity.personas WHERE apellido ILIKE '%Diaz%'";
+        const string Normalizada =
+            "SELECT apellido FROM identity.personas "
+            + "WHERE public.unaccent(apellido) ILIKE public.unaccent('%Diaz%')";
+
+        var cruda = await EjecutarAsync(Cruda, Secretaria);
+        var normalizada = await EjecutarAsync(Normalizada, Secretaria);
+
+        // La contraprueba va primero y es la mitad que muerde: sin ella, un padrón
+        // sin tildes haría pasar el test sin que `unaccent` hiciera nada.
+        Assert.Empty(cruda.Filas);
+        Assert.Equal("Díaz", Assert.Single(normalizada.Filas)[0]);
+    }
+
     // ------------------------------------------------------------- el alcance
 
     [Fact]

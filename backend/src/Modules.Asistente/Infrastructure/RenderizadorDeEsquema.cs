@@ -50,10 +50,17 @@ internal static class RenderizadorDeEsquema
            `personas`.
         8. Nunca copies al `WHERE` las palabras con que el usuario nombró algo.
            Si la columna aparece en «VALORES POSIBLES», usá el valor exacto de esa
-           lista. Si no aparece, compará con `ILIKE '%...%'` sobre la palabra más
-           distintiva en lugar de con `=`. Lo que alguien escribe casi nunca
-           coincide carácter por carácter con lo que hay guardado, y una consulta
-           válida que no matchea nada se ve igual que un dato que no existe.
+           lista. Si no aparece, compará sobre la palabra más distintiva con
+           `public.unaccent(columna) ILIKE public.unaccent('%...%')`, en lugar de
+           con `=`. Lo que alguien escribe casi nunca coincide carácter por
+           carácter con lo que hay guardado, y una consulta válida que no matchea
+           nada se ve igual que un dato que no existe.
+
+           `public.unaccent` va de LOS DOS LADOS, y calificada con su esquema.
+           `ILIKE` ignora mayúsculas pero NO tildes: `apellido ILIKE '%Diaz%'` no
+           encuentra a «Díaz», y aplicarla sólo a la columna tampoco alcanza,
+           porque el acento puede faltar del lado del usuario. Vale para nombres,
+           apellidos y cualquier texto que la persona haya tipeado.
 
         SOBRE LOS SEGUIMIENTOS
 

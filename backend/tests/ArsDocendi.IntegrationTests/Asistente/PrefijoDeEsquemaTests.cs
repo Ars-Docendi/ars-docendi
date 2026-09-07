@@ -413,6 +413,36 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
             "ILIKE", RenderizadorDeEsquema.Instrucciones, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void El_prompt_manda_ignorar_las_tildes_al_comparar_texto_libre()
+    {
+        // ESTO PASÓ DE VERDAD. «dame la información de contacto de Marina Diaz»
+        // terminó en «No encontré ningún registro» sobre una persona que está en el
+        // padrón: se guarda como «Díaz» y `ILIKE` ignora mayúsculas pero NO tildes.
+        //
+        // Y no falló en silencio: falló AFIRMANDO. El actor era global, así que el
+        // vacío se narró como inexistencia, y la misma pregunta reformulada dos
+        // turnos después devolvió el teléfono y el correo. Dos respuestas
+        // contradictorias sobre el mismo dato, y la primera dicha con seguridad.
+        //
+        // `public.unaccent` ya estaba instalada y concedida —`001_asistente_grants.sql`
+        // la crea con un comentario que dice para qué—, y el prompt nunca la nombró:
+        // provisión muerta contra exactamente el defecto que existía para evitar.
+        var instrucciones = RenderizadorDeEsquema.Instrucciones;
+
+        // LAS DOS MITADES, y por eso se cuenta en vez de buscar la palabra. Con
+        // `public.unaccent` sólo sobre la columna, «Diaz» sigue sin encontrar a
+        // «Díaz»: el literal del usuario también llega con lo que el usuario tipeó.
+        var veces = instrucciones.Split("public.unaccent", StringSplitOptions.None).Length - 1;
+
+        Assert.True(
+            veces >= 2,
+            $"El prompt nombra `public.unaccent` {veces} vez/veces; hace falta a los dos "
+            + "lados de la comparación, sobre la columna y sobre el literal.");
+        Assert.Contains(
+            "tilde", instrucciones, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private async Task SembrarAsync()
