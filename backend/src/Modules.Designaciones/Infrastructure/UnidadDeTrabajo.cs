@@ -16,13 +16,7 @@ namespace Modules.Designaciones.Infrastructure;
 /// legible y mantiene a EF fuera de la capa de servicios.
 /// </para>
 /// </summary>
-internal interface IUnidadDeTrabajo
-{
-    Task EjecutarEnTransaccionAsync(Func<CancellationToken, Task> trabajo, CancellationToken ct);
-}
-
-/// <inheritdoc cref="IUnidadDeTrabajo" />
-internal sealed class UnidadDeTrabajo(DesignacionesDbContext db) : IUnidadDeTrabajo
+internal sealed class UnidadDeTrabajo(DesignacionesDbContext db)
 {
     public async Task EjecutarEnTransaccionAsync(
         Func<CancellationToken, Task> trabajo, CancellationToken ct)

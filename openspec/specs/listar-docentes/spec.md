@@ -13,7 +13,7 @@ El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila
 #### Scenario: Carga inicial de la tabla
 
 - **WHEN** el usuario con rol Secretaría o Administración navega a `/docentes`
-- **THEN** se muestra la tabla con todos los docentes del store mock
+- **THEN** se muestra la tabla con los docentes devueltos por la API
 
 #### Scenario: Visualización de roles — múltiples
 
@@ -89,7 +89,7 @@ El sistema SHALL permitir el acceso a `/docentes` a usuarios con rol `Secretarí
 
 ### Requirement: Vista "Mis Docentes" para Jefe de Cátedra
 
-Cuando el usuario autenticado tiene rol `Jefe de Cátedra`, la pantalla SHALL mostrar el título "Mis Docentes" y filtrar automáticamente la tabla para mostrar solo docentes que compartan al menos una materia con el JdC. El JdC se identifica por su UPN en el store de docentes.
+Cuando el usuario autenticado tiene rol `Jefe de Cátedra`, la pantalla SHALL mostrar el título "Mis Docentes" y la API MUST devolver sólo docentes con una designación vigente en alguna materia a cargo del Jefe.
 
 #### Scenario: Título y filtro automático para JdC
 
@@ -98,7 +98,7 @@ Cuando el usuario autenticado tiene rol `Jefe de Cátedra`, la pantalla SHALL mo
 
 #### Scenario: JdC sin registro de docente
 
-- **WHEN** el JdC autenticado no tiene registro en el store de docentes (UPN no encontrada)
+- **WHEN** el JdC autenticado no tiene materias a cargo
 - **THEN** la tabla muestra cero docentes
 
 #### Scenario: Botón "Nuevo docente" oculto para JdC

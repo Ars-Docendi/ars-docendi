@@ -1,7 +1,7 @@
 ---
 status: review
 owner: "Equipo Ars Docendi"
-feature: "openspec/changes/modelo-datos-identity-designaciones/specs/pedidos-designacion/spec.md"
+feature: "openspec/specs/pedidos-designacion/spec.md"
 last_updated: 2026-08-18
 ---
 
@@ -91,8 +91,8 @@ equivalente “ese docente”. Ambos deben conservar el mismo contenido informat
 ## Referencias
 
 - [Principios de diseño](../design-principles.md)
-- [Delta spec de pedidos](../../../openspec/changes/modelo-datos-identity-designaciones/specs/pedidos-designacion/spec.md)
-- [Persistencia de designaciones](../../../openspec/changes/modelo-datos-identity-designaciones/specs/persistencia-designaciones/spec.md)
+- [Spec de pedidos](../../../openspec/specs/pedidos-designacion/spec.md)
+- [Persistencia de designaciones](../../../openspec/specs/persistencia-designaciones/spec.md)
 - [BR-designaciones-001](../../business-rules/designaciones.md)
 - [Design spec del flujo de pedidos](./proyecto-docente-design-spec.md)
 

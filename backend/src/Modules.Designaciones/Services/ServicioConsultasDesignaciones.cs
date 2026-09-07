@@ -7,7 +7,7 @@ namespace Modules.Designaciones.Services;
 
 /// <inheritdoc cref="IDesignacionesQueries" />
 internal sealed partial class ServicioConsultasDesignaciones(
-    IRepositorioPedidos repositorio,
+    RepositorioPedidos repositorio,
     ResolutorActor resolutorActor) : IDesignacionesQueries
 {
     /// <summary>

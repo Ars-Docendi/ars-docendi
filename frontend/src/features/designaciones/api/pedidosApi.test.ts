@@ -97,6 +97,36 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
+  it("usa el snapshot histórico completo cuando existe", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          horas: 40,
+          horasInvestigacion: 8,
+          horasExternas: 6,
+          snapshot: {
+            cargo: "JTP",
+            dedicacion: "Categoría 3",
+            materia: "Materia histórica",
+            horas: 10,
+            horasInvestigacion: 2,
+            horasExternas: 1,
+          },
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0]).toMatchObject({
+      catedra: "Materia histórica",
+      cargoActual: "JTP",
+      dedicacionActual: "Categoría 3",
+      horas: 10,
+      horasInvestigacion: 2,
+      horasExternas: 1,
+    });
+  });
+
   it("crea con IDs canónicos resueltos desde catálogos HTTP", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearPedido(

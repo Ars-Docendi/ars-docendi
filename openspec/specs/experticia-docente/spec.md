@@ -24,7 +24,7 @@ El sistema SHALL ofrecer al docente **dos listas de tags distintas**: **Habilida
 
 ### Requirement: Administración de tags desde el vocabulario
 
-El sistema SHALL permitir al docente agregar y quitar tags en cada lista, seleccionándolos desde un vocabulario compartido. Los cambios se persisten en el store mock local.
+El sistema SHALL permitir al docente agregar y quitar tags en cada lista, seleccionándolos desde un vocabulario compartido. Los cambios MUST persistirse mediante la API del Portal.
 
 #### Scenario: Agregar un tag desde el vocabulario
 

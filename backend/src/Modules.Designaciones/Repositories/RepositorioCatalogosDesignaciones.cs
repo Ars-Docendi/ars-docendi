@@ -4,16 +4,7 @@ using Modules.Designaciones.Infrastructure;
 
 namespace Modules.Designaciones.Repositories;
 
-public interface IRepositorioCatalogosDesignaciones
-{
-    Task<IReadOnlyList<Periodo>> ListarPeriodosAsync(CancellationToken ct);
-    Task<IReadOnlyList<Cargo>> ListarCargosActivosAsync(CancellationToken ct);
-    Task<IReadOnlySet<Guid>> ListarPersonasConPedidoVivoAsync(Guid periodoId, CancellationToken ct);
-    Task<IReadOnlyList<Designacion>> ListarDesignacionesVigentesAsync(CancellationToken ct);
-}
-
-internal sealed class RepositorioCatalogosDesignaciones(DesignacionesDbContext db)
-    : IRepositorioCatalogosDesignaciones
+public sealed class RepositorioCatalogosDesignaciones(DesignacionesDbContext db)
 {
     public async Task<IReadOnlyList<Periodo>> ListarPeriodosAsync(CancellationToken ct) =>
         await db.Periodos.AsNoTracking()

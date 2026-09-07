@@ -4,16 +4,7 @@ using Modules.Designaciones.Infrastructure;
 
 namespace Modules.Designaciones.Repositories;
 
-internal interface IRepositorioIdempotencia
-{
-    Task BloquearAsync(Guid actorId, string ruta, Guid clave, CancellationToken ct);
-    Task<ComandoIdempotente?> ObtenerVigenteAsync(
-        Guid actorId, string ruta, Guid clave, CancellationToken ct);
-    void Agregar(ComandoIdempotente comando);
-    Task GuardarAsync(CancellationToken ct);
-}
-
-internal sealed class RepositorioIdempotencia(DesignacionesDbContext db) : IRepositorioIdempotencia
+internal sealed class RepositorioIdempotencia(DesignacionesDbContext db)
 {
     public async Task BloquearAsync(Guid actorId, string ruta, Guid clave, CancellationToken ct)
     {

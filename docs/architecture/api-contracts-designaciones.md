@@ -36,21 +36,21 @@ Los valores cerrados pueden viajar en `CatalogosDto` para un contrato uniforme, 
 ## Pedidos
 
 | Método | Ruta                                           | Permiso                   | Entrada / salida                     |
-| ------ | ---------------------------------------------- | ------------------------- | ------------------------------------ | -------------------------------- |
-| GET    | `/api/designaciones/pedidos?vista=propios      | revision`                 | `designaciones.ver`                  | `PedidoDto[]` filtrado por actor |
+| ------ | ---------------------------------------------- | ------------------------- | ------------------------------------ |
+| GET    | `/api/designaciones/pedidos?periodoId={uuid}`  | `designaciones.ver`       | `PedidoDto[]` filtrado por actor     |
 | GET    | `/api/designaciones/pedidos/{id}`              | `designaciones.ver`       | `PedidoDto` si es visible            |
 | POST   | `/api/designaciones/pedidos`                   | `designaciones.gestionar` | `GuardarPedidoDto` → `201 PedidoDto` |
-| PUT    | `/api/designaciones/pedidos/{id}`              | `designaciones.gestionar` | `GuardarPedidoDto` → `PedidoDto`     |
+| PUT    | `/api/designaciones/pedidos/{id}`              | `designaciones.ver`       | `GuardarPedidoDto` → `PedidoDto`     |
 | DELETE | `/api/designaciones/pedidos/{id}`              | `designaciones.gestionar` | `204`, sólo borrador propio          |
 | POST   | `/api/designaciones/pedidos/{id}/enviar`       | `designaciones.gestionar` | `PedidoDto`                          |
-| POST   | `/api/designaciones/pedidos/{id}/reenviar`     | `designaciones.gestionar` | `PedidoDto`                          |
+| POST   | `/api/designaciones/pedidos/{id}/reenviar`     | `designaciones.ver`       | `PedidoDto`                          |
 | POST   | `/api/designaciones/pedidos/{id}/aceptar`      | permiso de etapa          | `AccionPedidoDto` → `PedidoDto`      |
 | POST   | `/api/designaciones/pedidos/{id}/rechazar`     | permiso de etapa          | comentario obligatorio → `PedidoDto` |
 | POST   | `/api/designaciones/pedidos/{id}/devolver`     | permiso de etapa          | comentario obligatorio → `PedidoDto` |
-| POST   | `/api/designaciones/pedidos/{id}/priorizar`    | permiso de etapa          | comentario obligatorio → `PedidoDto` |
-| POST   | `/api/designaciones/pedidos/{id}/despriorizar` | permiso de etapa          | comentario opcional → `PedidoDto`    |
+| POST   | `/api/designaciones/pedidos/{id}/priorizar`    | `designaciones.ver`       | comentario obligatorio → `PedidoDto` |
+| POST   | `/api/designaciones/pedidos/{id}/despriorizar` | `designaciones.ver`       | comentario opcional → `PedidoDto`    |
 
-Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.aprobar_secretaria` o `designaciones.aprobar_decanato`. Administración conserva los alcances excepcionales definidos por las reglas vigentes, no un permiso implícito de aceptar.
+Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.aprobar_secretaria` o `designaciones.aprobar_decanato`; la política también deja pasar a Administración para rechazar o devolver, y el dominio le impide aceptar. En edición, reenvío y prioridad, `designaciones.ver` abre el endpoint y la máquina de estados valida rol, estado y ámbito.
 
 ## Idempotencia
 

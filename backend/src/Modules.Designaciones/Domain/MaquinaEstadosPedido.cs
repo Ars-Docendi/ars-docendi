@@ -62,11 +62,11 @@ public static class MaquinaEstadosPedido
         return accion switch
         {
             AccionPedido.Enviar => Enviar(pedido, actor),
-            AccionPedido.Cancelar => Cancelar(pedido, actor),
+            AccionPedido.Cancelar => Cancelar(pedido, carreraDelPedido, actor),
             AccionPedido.Aceptar a => Aceptar(pedido, carreraDelPedido, actor, a.Comentario),
             AccionPedido.Rechazar a => Rechazar(pedido, carreraDelPedido, actor, a.Justificativo),
             AccionPedido.Devolver a => Devolver(pedido, carreraDelPedido, actor, a.Comentario),
-            AccionPedido.Reenviar => Reenviar(pedido, actor),
+            AccionPedido.Reenviar => Reenviar(pedido, carreraDelPedido, actor),
             AccionPedido.Priorizar a => Priorizar(pedido, carreraDelPedido, actor, a.Motivo, true),
             AccionPedido.Despriorizar a => Priorizar(pedido, carreraDelPedido, actor, a.Comentario, false),
             _ => throw new ErrorDominioPedido($"Acción no soportada: {accion.GetType().Name}"),
@@ -190,7 +190,8 @@ public static class MaquinaEstadosPedido
             RolesCircuito.JefeCatedra);
     }
 
-    private static TransicionPedido Cancelar(Pedido pedido, ActorContexto actor)
+    private static TransicionPedido Cancelar(
+        Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
     {
         if (pedido.Estado != EstadosPedido.Borrador)
         {
@@ -201,6 +202,11 @@ public static class MaquinaEstadosPedido
         if (!actor.Tiene(RolesCircuito.JefeCatedra))
         {
             throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede cancelar el pedido.");
+        }
+
+        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        {
+            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }
 
         return new TransicionPedido(
@@ -299,7 +305,8 @@ public static class MaquinaEstadosPedido
             Comentario: texto);
     }
 
-    private static TransicionPedido Reenviar(Pedido pedido, ActorContexto actor)
+    private static TransicionPedido Reenviar(
+        Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
     {
         if (pedido.Estado != EstadosPedido.Devuelto)
         {
@@ -311,6 +318,11 @@ public static class MaquinaEstadosPedido
         {
             throw new ErrorDominioPedido(
                 "Sólo el propietario del pedido devuelto puede reenviarlo [BR-designaciones-014].");
+        }
+
+        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        {
+            throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }
 
         if (pedido.EtapaRetorno is null)

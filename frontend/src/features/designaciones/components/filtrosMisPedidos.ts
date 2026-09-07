@@ -6,13 +6,7 @@
 import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
 
 export type FiltroEstado =
-  | "todos"
-  | "borrador"
-  | "revision"
-  | "aprobado"
-  | "rechazado"
-  | "devuelto"
-  | "cancelado";
+  "todos" | "borrador" | "revision" | "aprobado" | "rechazado" | "devuelto" | "cancelado";
 
 export interface FiltrosMisPedidosState {
   docente: string;

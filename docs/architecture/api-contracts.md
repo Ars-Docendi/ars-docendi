@@ -53,8 +53,8 @@ Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepcion
 Los DTOs, permisos, códigos de error y respuestas exactas están detallados en [Administración y desarrollo](./api-contracts-administracion.md) y [Designaciones](./api-contracts-designaciones.md).
 
 | Superficie       | Rutas principales                                                                                 | Autorización                                                        |
-| ---------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------- |
-| Usuarios         | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar                     | desactivar`                                                         | `usuarios.ver` / `usuarios.administrar` |
+| ---------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Usuarios         | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
 | Docentes         | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
 | Roles y permisos | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
 | Períodos         | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |

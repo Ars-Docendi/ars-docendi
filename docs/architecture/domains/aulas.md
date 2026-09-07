@@ -36,7 +36,7 @@ Gestión de **pedidos y asignación de aulas y laboratorios** para mesas de exam
 
 ## Reglas de negocio
 
-Ver [`docs/business-rules/aulas.md`](../../business-rules/aulas.md) (a crear).
+Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.
 
 ## Dependencias
 

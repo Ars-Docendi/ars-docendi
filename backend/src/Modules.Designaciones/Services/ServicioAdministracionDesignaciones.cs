@@ -4,7 +4,7 @@ using Modules.Designaciones.Repositories;
 
 namespace Modules.Designaciones.Services;
 
-internal sealed class ServicioAdministracionDesignaciones(IRepositorioDesignaciones repositorio)
+internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignaciones repositorio)
     : IAdministracionDesignaciones
 {
     public async Task<IReadOnlyList<DesignacionVigenteDto>> ListarVigentesAsync(CancellationToken ct) =>

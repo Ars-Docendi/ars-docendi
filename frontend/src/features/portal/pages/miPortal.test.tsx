@@ -5,10 +5,67 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { apiClient } from "../../../shared/api/client";
 import { IndexPage } from "./IndexPage";
-import { obtenerPerfilInstitucional, perfilDe } from "../mock/mockStore";
 
 vi.mock("../../../shared/api/client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
+
+const perfiles = vi.hoisted(() => ({
+  "admin.aulas@unlam.edu.ar": {
+    institucional: {
+      nombre: "Paula",
+      apellido: "Gómez",
+      upn: "admin.aulas@unlam.edu.ar",
+      documento: "35678901",
+      legajo: "0058",
+      cuil: "27-35678901-9",
+    },
+    contacto: { telefono: null, mail: null },
+    cv: null,
+    experiencia: [],
+    educacion: [],
+    certificaciones: [],
+    proyectos: [],
+    habilidades: [],
+    intereses: [],
+  },
+  "marina.diaz@unlam.edu.ar": {
+    institucional: {
+      nombre: "Marina",
+      apellido: "Díaz",
+      upn: "marina.diaz@unlam.edu.ar",
+      documento: "31089234",
+      legajo: "0033",
+      cuil: "27-31089234-8",
+    },
+    contacto: { telefono: null, mail: null },
+    cv: null,
+    experiencia: [],
+    educacion: [],
+    certificaciones: [
+      {
+        id: "cert-1",
+        nombre: "AWS Certified Solutions Architect",
+        emisor: "AWS",
+        fecha: "2024-05-10",
+        vencimiento: null,
+      },
+    ],
+    proyectos: [
+      {
+        id: "proyecto-1",
+        nombre: "Detección de anomalías en tráfico SCADA",
+        rol: "Investigadora",
+        descripcion: "Investigación aplicada.",
+        desde: "2022",
+        hasta: null,
+        documento: null,
+        doi: null,
+      },
+    ],
+    habilidades: [{ termino: "Bases de datos", sugerido: false }],
+    intereses: [{ termino: "Machine learning", sugerido: false }],
+  },
 }));
 
 vi.mock("../api/portalApi", async () => {
@@ -16,26 +73,13 @@ vi.mock("../api/portalApi", async () => {
   return {
     ...real,
     obtenerPerfil: async () => {
-      const institucional = obtenerPerfilInstitucional(sesion.upn);
-      if (!institucional) throw new Error("no encontrado");
-      const perfil = perfilDe(institucional);
-      return {
-        ...perfil,
-        contacto: {
-          telefono: perfil.contacto.telefono || null,
-          mail: perfil.contacto.mail || null,
-        },
-        proyectos: perfil.proyectos.map((proyecto) => ({
-          ...proyecto,
-          doi: proyecto.doi || null,
-        })),
-      };
+      const perfil = perfiles[sesion.upn as keyof typeof perfiles];
+      if (!perfil) throw new Error("no encontrado");
+      return structuredClone(perfil);
     },
   };
 });
 
-// admin.aulas es el único usuario de la sesión mock sin perfil cargado: es el
-// que permite recorrer el estado vacío.
 const sesion = vi.hoisted(() => ({ upn: "admin.aulas@unlam.edu.ar" }));
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({

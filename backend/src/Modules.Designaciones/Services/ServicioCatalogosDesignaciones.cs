@@ -6,7 +6,7 @@ using Modules.Designaciones.Repositories;
 namespace Modules.Designaciones.Services;
 
 public sealed class ServicioCatalogosDesignaciones(
-    IRepositorioCatalogosDesignaciones repositorio,
+    RepositorioCatalogosDesignaciones repositorio,
     IConsultasIdentity identity,
     ResolutorActor resolutorActor)
 {
@@ -19,7 +19,7 @@ public sealed class ServicioCatalogosDesignaciones(
         var actor = await resolutorActor.ResolverAsync(ct);
         var periodos = await repositorio.ListarPeriodosAsync(ct);
         var activo = periodos.SingleOrDefault(p => p.Activo);
-        var materias = await identity.ListarMateriasActivasAsync(ct);
+        var materias = (await identity.ListarMateriasAsync(ct)).Where(m => m.Activo).ToArray();
         var visibles = actor.EsDeptoWide
             ? materias
             : actor.Tiene(RolesCircuito.JefeCatedra)

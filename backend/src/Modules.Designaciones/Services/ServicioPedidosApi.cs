@@ -30,11 +30,11 @@ public interface IServicioPedidosApi
 
 internal sealed class ServicioPedidosApi(
     ServicioPedidos servicio,
-    IRepositorioPedidos repositorio,
+    RepositorioPedidos repositorio,
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
-    IRepositorioIdempotencia repositorioIdempotencia,
-    IUnidadDeTrabajo unidadDeTrabajo) : IServicioPedidosApi
+    RepositorioIdempotencia repositorioIdempotencia,
+    UnidadDeTrabajo unidadDeTrabajo) : IServicioPedidosApi
 {
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
 
@@ -158,7 +158,7 @@ internal sealed class ServicioPedidosApi(
     {
         var actor = await resolutorActor.ResolverAsync(ct);
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
-        var materias = (await identity.ListarMateriasActivasAsync(ct)).ToDictionary(m => m.Id);
+        var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
         var usuarios = (await identity.ListarUsuariosAsync(ct)).ToDictionary(u => u.Id);
         var resultado = new List<PedidoDto>();
         foreach (var pedido in pedidos)

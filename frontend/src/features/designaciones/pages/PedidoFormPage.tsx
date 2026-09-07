@@ -37,9 +37,10 @@ export function PedidoFormPage() {
   const materiaSeleccionada =
     catalogos.data?.materias.find((materia) => materia.id === materiaSeleccionadaId) ??
     catalogos.data?.materias[0];
+  const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
 
   function volver() {
-    navegar(RUTA_MIS_PEDIDOS);
+    navegar(rutaRetorno);
   }
 
   function handleGuardar(datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) {
@@ -96,7 +97,7 @@ export function PedidoFormPage() {
         items={[
           { label: "Inicio", href: "/" },
           { label: "Designaciones", href: "/designaciones" },
-          { label: "Mis pedidos", href: RUTA_MIS_PEDIDOS },
+          { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
           { label: esEdicion ? crumbEdicion : "Nuevo pedido" },
         ]}
       />
@@ -107,15 +108,13 @@ export function PedidoFormPage() {
 
       {esEdicion && isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado.{" "}
-          <a href={RUTA_MIS_PEDIDOS}>Volver a Mis pedidos</a>.
+          No pudimos cargar el pedido solicitado. <a href={rutaRetorno}>Volver</a>.
         </InlineAlert>
       )}
 
       {esEdicion && pedidoInicial && !pedidoInicial.accionesPermitidas?.includes("editar") && (
         <InlineAlert severity="info" title="Este pedido no es editable">
-          El pedido ya fue enviado a revisión y quedó de solo lectura para el Jefe de Cátedra (salvo
-          que sea devuelto). <a href={RUTA_MIS_PEDIDOS}>Volver a Mis pedidos</a>.
+          El pedido no admite edición para el actor actual. <a href={rutaRetorno}>Volver</a>.
         </InlineAlert>
       )}
 

@@ -114,7 +114,7 @@ El sistema SHALL permitir al revisor de la etapa (o a Administración) rechazar 
 
 ### Requirement: Devolución que retrocede un nivel y permite reenvío
 
-El sistema SHALL permitir al revisor de la etapa (o a Administración) devolver un pedido, llevándolo a `devuelto` con `propietarioActual` y `etapaRetorno` correspondientes a un retroceso de un nivel [BR-designaciones-014]: desde `en_revision_coordinador` vuelve al Jefe de Cátedra; desde `en_revision_secretaria` al Coordinador; desde `en_revision_decanato` a la Secretaría. El comentario MUST ser obligatorio [BR-designaciones-005]. El propietario del pedido devuelto SHALL poder reenviarlo, retomando la etapa desde la que se devolvió (`etapaRetorno`).
+El sistema SHALL permitir al revisor de la etapa (o a Administración) devolver un pedido, llevándolo a `devuelto` con `propietarioActual` y `etapaRetorno` correspondientes a un retroceso de un nivel [BR-designaciones-014]: desde `en_revision_coordinador` vuelve al Jefe de Cátedra; desde `en_revision_secretaria` al Coordinador; desde `en_revision_decanato` a la Secretaría. El comentario MUST ser obligatorio [BR-designaciones-005]. El propietario del pedido devuelto SHALL poder editarlo y reenviarlo desde la interfaz, retomando la etapa desde la que se devolvió (`etapaRetorno`).
 
 #### Scenario: Devolución sin comentario es denegada [BR-designaciones-005]
 
@@ -191,12 +191,11 @@ ofrecer las acciones Aceptar, Rechazar, Devolver, y **Marcar prioritario o Quita
 corresponda** (nunca ambas a la vez — Marcar cuando el pedido no es prioritario, Quitar cuando ya lo
 es), mediante un modal que aplica la regla de comentario obligatorio [BR-designaciones-005] (Marcar
 prioritario también, ver BR-017; Quitar prioritario no). Para el resto de los roles, el detalle MUST
-ser de solo lectura salvo el botón Volver — excepto que, para el Jefe de Cátedra propietario de un
-pedido en `borrador` o `devuelto`, el detalle también ofrece un botón **Editar** que navega al form de
-edición (`/designaciones/pedidos/:id/editar`, mismo guard `puedeEditarPedido` que ya gatea el botón
-homónimo en "Mis pedidos") y, únicamente si además está en `borrador`, la acción **Eliminar** (ver
-"Eliminar un pedido en borrador" en `pedidos-designacion`) — Editar y Eliminar pueden convivir en un
-borrador, pero un devuelto solo ofrece Editar. Un pedido `rechazado` MUST mostrar su motivo de rechazo
+ser de solo lectura salvo el botón Volver — excepto que el propietario actual de un pedido `devuelto`
+(Jefe de Cátedra, Coordinador o Secretaría), o el Jefe de un `borrador`, recibe un botón **Editar** que
+navega al formulario (`/designaciones/pedidos/:id/editar`). Únicamente el Jefe de un `borrador` recibe
+además la acción **Eliminar** (ver "Eliminar un pedido en borrador" en `pedidos-designacion`). Un pedido
+`rechazado` MUST mostrar su motivo de rechazo
 destacado (citado, diferenciado del resto del detalle).
 
 #### Scenario: El revisor de la etapa ve las acciones, incluida la que corresponde de prioridad
@@ -239,9 +238,9 @@ destacado (citado, diferenciado del resto del detalle).
 - **WHEN** hace click en "Volver"
 - **THEN** el sistema navega de regreso a "Mis pedidos", no a la Tabla de revisión
 
-#### Scenario: El Jefe de Cátedra ve el botón Editar en un borrador o un devuelto propio
+#### Scenario: El propietario ve el botón Editar en un borrador o un devuelto propio
 
-- **GIVEN** un Jefe de Cátedra viendo el detalle de un pedido propio en `borrador`, y otro en
+- **GIVEN** un Jefe de Cátedra viendo un borrador propio, o un Jefe, Coordinador o Secretaría viendo un
   `devuelto` del que es propietario actual
 - **WHEN** abre cada detalle
 - **THEN** ambos MUST mostrar el botón "Editar", que navega a `/designaciones/pedidos/:id/editar`
@@ -277,7 +276,7 @@ El sistema SHALL permitir, mediante un usuario "Demo (todos los roles)", cambiar
 
 ### Requirement: Routing y gating de las superficies de revisión
 
-El sistema SHALL exponer la ruta `revision` protegida por `RequireRole` para Coordinador, Secretaría, Decanato y Administración, y la ruta `pedidos/:id` accesible a cualquier rol con la visibilidad acotada por ámbito y las acciones gated por etapa. La navegación SHALL ofrecer el ítem "Revisión" únicamente a los roles revisores, sin links muertos (invariante #7).
+El sistema SHALL exponer la ruta `revision` protegida por `RequireRole` para Coordinador, Secretaría, Decanato y Administración, y las rutas `pedidos/:id` y `pedidos/:id/editar` accesibles a cualquier rol autenticado, con visibilidad y edición acotadas por la respuesta autoritativa del backend. La navegación SHALL ofrecer el ítem "Revisión" únicamente a los roles revisores, sin links muertos (invariante #7).
 
 #### Scenario: Un rol no revisor no accede al tablero
 

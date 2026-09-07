@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  Button,
-  DatePicker,
-  Field,
-  Input,
-  InlineAlert,
-  Modal,
-  Tabs,
-  type TabItem,
-} from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Modal, Tabs, type TabItem } from "@ars-docendi/ui";
 import {
   nombreCompleto,
   type AsignacionMateria,
@@ -18,6 +9,7 @@ import {
   type MateriaMock,
 } from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
+import { CamposPersonaDocente, type CamposPersonaDocenteDatos } from "./CamposPersonaDocente";
 
 interface ModalEditarDocenteProps {
   docente: DocenteMock | null;
@@ -37,7 +29,7 @@ const PESTAÑAS: TabItem[] = [
 
 type PestañaId = "docentes" | "personales";
 
-function camposDesde(d: DocenteMock | null) {
+function camposDesde(d: DocenteMock | null): CamposPersonaDocenteDatos {
   return {
     nombre: d?.nombre ?? "",
     apellido: d?.apellido ?? "",
@@ -94,7 +86,7 @@ export function ModalEditarDocente({
     setPestaña("docentes");
   }
 
-  function set<K extends keyof ReturnType<typeof camposDesde>>(campo: K, valor: string) {
+  function set<K extends keyof CamposPersonaDocenteDatos>(campo: K, valor: string) {
     setCampos((p) => ({ ...p, [campo]: valor }));
   }
 
@@ -138,12 +130,6 @@ export function ModalEditarDocente({
       !campos.fecha_nacimiento ||
       !campos.upn ||
       upnDuplicada);
-
-  const grilla: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1.25rem",
-  };
 
   return (
     <Modal
@@ -244,105 +230,13 @@ export function ModalEditarDocente({
       {pestaña === "personales" && (
         <div role="tabpanel" id="panel-personales" aria-labelledby="tab-personales">
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            <div style={grilla}>
-              <Field
-                label="Nombre"
-                required
-                error={enviado && !campos.nombre ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.nombre}
-                  onChange={(e) => set("nombre", e.target.value)}
-                  placeholder="Ej: María"
-                />
-              </Field>
-              <Field
-                label="Apellido"
-                required
-                error={enviado && !campos.apellido ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.apellido}
-                  onChange={(e) => set("apellido", e.target.value)}
-                  placeholder="Ej: González"
-                />
-              </Field>
-            </div>
-
-            <div style={grilla}>
-              <Field
-                label="Documento (DNI)"
-                required
-                error={enviado && !campos.documento ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.documento}
-                  onChange={(e) => set("documento", e.target.value)}
-                  placeholder="Ej: 30123456"
-                />
-              </Field>
-              <Field
-                label="Legajo"
-                required
-                error={enviado && !campos.legajo ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.legajo}
-                  onChange={(e) => set("legajo", e.target.value)}
-                  placeholder="Ej: 0421"
-                />
-              </Field>
-            </div>
-
-            <div style={grilla}>
-              <Field label="CUIL">
-                <Input
-                  value={campos.cuil}
-                  onChange={(e) => set("cuil", e.target.value)}
-                  placeholder="Ej: 27-30123456-4"
-                />
-              </Field>
-              <Field
-                label="Fecha de nacimiento"
-                required
-                error={enviado && !campos.fecha_nacimiento ? "Campo obligatorio" : undefined}
-              >
-                <DatePicker
-                  value={campos.fecha_nacimiento}
-                  onChange={(e) => set("fecha_nacimiento", e.target.value)}
-                />
-              </Field>
-            </div>
-
-            <div style={grilla}>
-              <div style={{ gridColumn: "span 2" }}>
-                <Field
-                  label="UPN / Email institucional"
-                  required
-                  error={enviado && !campos.upn ? "Campo obligatorio" : undefined}
-                >
-                  <Input
-                    type="email"
-                    value={campos.upn}
-                    onChange={(e) => set("upn", e.target.value)}
-                    placeholder="nombre@unlam.edu.ar"
-                  />
-                </Field>
-                {upnDuplicada && (
-                  <div style={{ marginTop: "6px" }}>
-                    <InlineAlert severity="danger" title="Ya existe otro docente con esa UPN." />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <Field label="Teléfono">
-              <Input
-                value={campos.telefono}
-                onChange={(e) => set("telefono", e.target.value)}
-                placeholder="Ej: 11-4523-8801"
-              />
-            </Field>
+            <CamposPersonaDocente
+              campos={campos}
+              enviado={enviado}
+              upnDuplicada={upnDuplicada}
+              onChange={set}
+              mensajeUpnDuplicada="Ya existe otro docente con esa UPN."
+            />
           </div>
         </div>
       )}

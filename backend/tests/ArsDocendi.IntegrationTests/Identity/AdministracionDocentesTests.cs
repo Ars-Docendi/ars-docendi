@@ -243,7 +243,7 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
+            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");

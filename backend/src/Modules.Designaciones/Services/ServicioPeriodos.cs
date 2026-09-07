@@ -5,7 +5,7 @@ using Modules.Designaciones.Repositories;
 
 namespace Modules.Designaciones.Services;
 
-public sealed class ServicioPeriodos(IRepositorioPeriodos repositorio)
+public sealed class ServicioPeriodos(RepositorioPeriodos repositorio)
 {
     public async Task<IReadOnlyList<PeriodoDto>> ListarAsync(CancellationToken ct) =>
         (await repositorio.ListarAsync(ct)).Select(Mapear).ToArray();

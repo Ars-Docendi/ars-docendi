@@ -4,7 +4,7 @@ using Modules.Portal.Infrastructure;
 
 namespace Modules.Portal.Repositories;
 
-internal sealed class RepositorioPortal(PortalDbContext db) : IRepositorioPortal
+public sealed class RepositorioPortal(PortalDbContext db)
 {
     public Task<Perfil?> ObtenerAsync(Guid personaId, CancellationToken ct) => Consulta(personaId).FirstOrDefaultAsync(ct);
 

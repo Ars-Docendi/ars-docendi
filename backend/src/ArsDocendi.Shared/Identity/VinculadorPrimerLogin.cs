@@ -76,7 +76,6 @@ internal sealed class VinculadorPrimerLogin(IdentityDbContext db) : IVinculadorP
             usuario.Upn = upn;
             usuario.NombreParaMostrar = datos.NombreParaMostrar.Trim();
             usuario.PersonaId = persona.Id;
-            usuario.Activo = true;
             usuario.UltimoLoginEn = DateTimeOffset.UtcNow;
         }
 

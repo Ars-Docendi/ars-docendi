@@ -104,10 +104,9 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Select(m => (Guid?)m.CarreraId)
                 .FirstOrDefaultAsync(ct);
 
-    public async Task<IReadOnlyList<Materia>> ListarMateriasActivasAsync(CancellationToken ct) =>
+    public async Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct) =>
         await db.Materias.AsNoTracking()
             .Include(m => m.Carrera)
-            .Where(m => m.Activo)
             .OrderBy(m => m.Nombre)
             .ToListAsync(ct);
 

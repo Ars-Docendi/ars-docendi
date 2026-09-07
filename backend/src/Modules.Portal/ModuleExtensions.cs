@@ -1,6 +1,5 @@
 using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Persistencia;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,11 +18,9 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorPortal>();
-        services.AddScoped<IRepositorioPortal, RepositorioPortal>();
+        services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());
-
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<PortalDbContext>());
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

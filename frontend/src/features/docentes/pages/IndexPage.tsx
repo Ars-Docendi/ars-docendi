@@ -6,8 +6,7 @@ import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaDocentes } from "../components/TablaDocentes";
 import { FiltrosDocentes, type FiltrosState } from "../components/FiltrosDocentes";
 import { ModalNuevoDocente } from "../components/ModalNuevoDocente";
-import { ModalConfirmarDesactivacion } from "../components/ModalConfirmarDesactivacion";
-import { ModalConfirmarActivacion } from "../components/ModalConfirmarActivacion";
+import { ModalConfirmarEstado } from "../components/ModalConfirmarEstado";
 import { ModalEditarDocente } from "../components/ModalEditarDocente";
 import { useDocentes } from "../hooks/useDocentes";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
@@ -178,14 +177,15 @@ export function IndexPage() {
         rolesDisponibles={rolesDisponibles}
       />
 
-      <ModalConfirmarDesactivacion
+      <ModalConfirmarEstado
         docente={docenteADesactivar}
         onConfirmar={handleDesactivar}
         onCerrar={() => setDocenteADesactivar(null)}
       />
 
-      <ModalConfirmarActivacion
+      <ModalConfirmarEstado
         docente={docenteAActivar}
+        activar
         onConfirmar={handleActivar}
         onCerrar={() => setDocenteAActivar(null)}
       />

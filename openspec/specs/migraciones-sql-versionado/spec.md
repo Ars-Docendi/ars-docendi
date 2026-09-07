@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD — Documentar el propósito estable de esta capability después del archivo del change que la introdujo.
+Definir el DDL versionado como fuente autorizada y su aplicación idempotente mediante migraciones de Entity Framework Core.
 
 ## Requirements
 

@@ -8,7 +8,7 @@ Permite al docente administrar su experiencia laboral y trayectoria profesional.
 
 ### Requirement: Gestión de la experiencia laboral
 
-El sistema SHALL permitir al docente administrar su experiencia como una lista de ítems, pudiendo agregar, editar y eliminar entradas. Cada ítem MUST tener puesto, organización, período y una descripción de qué se trató. El período MUST admitir marcarse como vigente ("actual") en lugar de una fecha de fin. El alta y la edición MUST hacerse en un diálogo y los cambios se persisten en el store mock local.
+El sistema SHALL permitir al docente administrar su experiencia como una lista de ítems, pudiendo agregar, editar y eliminar entradas mediante la API del Portal. Cada ítem MUST tener puesto, organización, período y una descripción de qué se trató. El período MUST admitir marcarse como vigente ("actual") en lugar de una fecha de fin. El alta y la edición MUST hacerse en un diálogo.
 
 #### Scenario: Agregar un empleo
 
@@ -56,7 +56,7 @@ El sistema SHALL permitir al docente administrar sus proyectos como una lista de
 
 ### Requirement: Documentación del proyecto por archivo o por enlace
 
-El sistema SHALL permitir adjuntar a cada proyecto un documento en PDF, un enlace DOI, ambos o ninguno. El archivo se registra como metadata mock, sin storage real. El sistema MUST NOT exigir documentación para guardar un proyecto.
+El sistema SHALL permitir registrar para cada proyecto un documento PDF, un enlace DOI, ambos o ninguno. La API persiste la metadata y una URI opcional; el almacenamiento binario queda fuera de este alcance. El sistema MUST NOT exigir documentación para guardar un proyecto.
 
 #### Scenario: Proyecto con PDF
 
