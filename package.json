@@ -2,15 +2,15 @@
   "name": "ars-docendi",
   "private": true,
   "description": "Sistema de gestión docente del Departamento de Ingeniería - UNLaM. Monorepo .NET + React.",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@12.3.4",
   "engines": {
-    "node": ">=20.19"
+    "node": ">=24.15"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "^1.4.1",
+    "@fission-ai/openspec": "^1.12.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1"
+    "lint-staged": "^17.5.0",
+    "prettier": "^3.9.6"
   },
   "scripts": {
     "format": "prettier --write .",

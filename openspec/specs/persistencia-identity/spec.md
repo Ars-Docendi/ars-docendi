@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD — Documentar el propósito estable de esta capability después del archivo del change que la introdujo.
+Definir la persistencia canónica de personas, usuarios, roles y permisos, junto con sus fronteras de lectura, escritura y auditoría.
 
 ## Requirements
 

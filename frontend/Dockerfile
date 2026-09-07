@@ -4,7 +4,7 @@
 # Contexto de build = raíz del monorepo para usar su único lockfile.
 
 # --- Stage build: Node + pnpm ---
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # git: necesario para resolver la dependencia `@ars-docendi/ui` (referencia
@@ -29,7 +29,7 @@ RUN pnpm --filter frontend build
 FROM nginx:alpine AS runtime
 
 # Reemplaza el server block default por el nuestro (fallback SPA + /api fuera de juego).
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/frontend/dist /usr/share/nginx/html
 
 # Coincide con la label de Traefik (loadbalancer.server.port=80) de compose.base.yml.

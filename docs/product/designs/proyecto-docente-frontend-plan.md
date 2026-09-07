@@ -236,22 +236,12 @@ export function useAceptarPedido() {
 
 ```ts
 export type Rol =
-  | "Jefe de Cátedra"
-  | "Coordinador"
-  | "Secretaría"
-  | "Decanato"
-  | "Administración"
-  | "Docente";
+  "Jefe de Cátedra" | "Coordinador" | "Secretaría" | "Decanato" | "Administración" | "Docente";
 
 export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
 export type Cargo = "Titular" | "Adjunto" | "JTP" | "Ayudante";
 export type Dedicacion =
-  | "Categoría 1"
-  | "Categoría 2"
-  | "Categoría 3"
-  | "Categoría 4"
-  | "Categoría 5"
-  | "Categoría 6";
+  "Categoría 1" | "Categoría 2" | "Categoría 3" | "Categoría 4" | "Categoría 5" | "Categoría 6";
 
 export type EstadoPedido =
   | "borrador"

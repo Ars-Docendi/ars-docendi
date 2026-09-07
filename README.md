@@ -15,8 +15,8 @@ Monolito modular en monorepo:
 ## Requisitos
 
 - .NET 10 SDK
-- Node 20.19+ (LTS)
-- pnpm 9+ (o `corepack enable` para usar la versión declarada en `package.json`)
+- Node 24.15+ (LTS)
+- pnpm 12.3.4+ (o `corepack enable` para usar la versión declarada en `package.json`)
 - Docker + Docker Compose (para Postgres local)
 - `gh` CLI (para flujos de PRs)
 
@@ -87,7 +87,6 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 /
 ├── backend/                  # .NET 10, monolito modular
 │   ├── ArsDocendi.slnx
-│   ├── global.json
 │   └── src/
 │       ├── ArsDocendi.Host/
 │       ├── ArsDocendi.Shared/
@@ -105,6 +104,7 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 ├── .github/workflows/        # ci.yml (path filtering + openspec validate)
 ├── .husky/pre-commit
 ├── lint-staged.config.mjs
+├── global.json               # fija el SDK y el runner de tests .NET
 ├── package.json              # hospeda husky/lint-staged/prettier
 ├── pnpm-workspace.yaml       # declara frontend como workspace
 ├── docker-compose.yml

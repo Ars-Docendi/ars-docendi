@@ -23,6 +23,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'global.json'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'pnpm-lock.yaml'
@@ -48,7 +49,7 @@ jobs:
           package_json_file: package.json
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -68,7 +69,7 @@ jobs:
           package_json_file: package.json
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - name: Install deps
         run: pnpm install --frozen-lockfile
@@ -114,7 +115,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install deps

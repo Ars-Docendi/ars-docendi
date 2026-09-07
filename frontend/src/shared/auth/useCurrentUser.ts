@@ -4,12 +4,7 @@ import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/sessio
 import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
 
 export type Role =
-  | "Jefe de Cátedra"
-  | "Coordinador"
-  | "Secretaría"
-  | "Decanato"
-  | "Administración"
-  | "Docente";
+  "Jefe de Cátedra" | "Coordinador" | "Secretaría" | "Decanato" | "Administración" | "Docente";
 
 export interface CurrentUser {
   name: string;

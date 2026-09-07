@@ -32,11 +32,11 @@
 
 ## Endpoints HTTP
 
-| Método          | Path                                                               | Rol         | Descripción                 |
-| --------------- | ------------------------------------------------------------------ | ----------- | --------------------------- | ----------- | ----------- | ------------------- |
-| GET             | `/api/portal/ping`                                                 | (anónimo)   | Health check                |
-| PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses` | autenticado | Actualización independiente |
-| POST/PUT/DELETE | `/api/portal/perfil/{experiencia                                   | educacion   | certificaciones             | proyectos}` | autenticado | CRUD de colecciones |
+| Método          | Path                                                                   | Rol         | Descripción                 |
+| --------------- | ---------------------------------------------------------------------- | ----------- | --------------------------- |
+| GET             | `/api/portal/ping`                                                     | (anónimo)   | Health check                |
+| PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses`     | autenticado | Actualización independiente |
+| POST/PUT/DELETE | `/api/portal/perfil/{experiencia,educacion,certificaciones,proyectos}` | autenticado | CRUD de colecciones         |
 
 ## Reglas de negocio
 
