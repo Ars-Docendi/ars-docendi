@@ -61,7 +61,7 @@ IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
 # van ANTES de la imagen:
 #   psql_en_docker [args-docker...] "$IMAGEN_PSQL" psql [args-psql...]
 psql_en_docker() {
-  docker run --rm --network "$RED_DATOS" \
+  docker run --rm -i --network "$RED_DATOS" \
     -e PGHOST -e PGPORT -e PGUSER -e PGPASSWORD \
     "$@"
 }
