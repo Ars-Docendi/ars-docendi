@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-06",
-  "hash_del_prefijo": "3581593809339902f893b49658a2053d22be22b5d2d6c677afc33a1b35a02dad",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRnFD8gyAL2zXSWb94i\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT p.apellido, p.nombre FROM portal.docente_habilidades dh JOIN portal.habilidades h ON h.id = dh.habilidad_id JOIN portal.perfiles pf ON pf.id = dh.perfil_id JOIN identity.personas p ON p.id = pf.persona_id WHERE dh.tipo = 'habilidad' AND h.termino_norm = 'KUBERNETES' ORDER BY p.apellido, p.nombre\\\", \\\"razonamiento\\\": \\\"Busco entre los docentes que declararon la habilidad (no interés) 'Kubernetes' en su perfil del portal, comparando el término normalizado en mayúsculas.\\\", \\\"categoria\\\": \\\"cruce_de_tablas\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":695,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":10609,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":265,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

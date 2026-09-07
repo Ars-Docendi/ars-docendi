@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-07",
+  "hash_del_prefijo": "9ed7d8ac3ffe98c2154d49e38fc66b43081e0bc09dacbff57e23a5bd8473c446",
+  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011Ceo8vVPvR2ALb1fTBazby\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Se rechazaron dos pedidos: el N.º 2026-000005 de Olivia Rodríguez, correspondiente a Circuitos Eléctricos, y el N.º 2026-000011 de Rocío Cabrera, correspondiente a Algoritmos y Estructuras de Datos. Ambos fueron registrados el 7 de septiembre de 2026.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":458,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":127,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

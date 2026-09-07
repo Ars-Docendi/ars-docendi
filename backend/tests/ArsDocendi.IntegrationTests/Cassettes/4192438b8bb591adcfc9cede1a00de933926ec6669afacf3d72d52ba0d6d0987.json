@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-06",
-  "hash_del_prefijo": "3581593809339902f893b49658a2053d22be22b5d2d6c677afc33a1b35a02dad",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRk4pkEtmdFB13hjLrK\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, pe.estado, pe.created_at FROM designaciones.pedidos pe JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id WHERE pe.prioritario = true ORDER BY pe.created_at DESC\\\", \\\"razonamiento\\\": \\\"Interpreto 'urgentes' como pedidos marcados con la bandera de tratamiento prioritario.\\\", \\\"categoria\\\": \\\"consulta_simple\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":724,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":10609,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":207,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

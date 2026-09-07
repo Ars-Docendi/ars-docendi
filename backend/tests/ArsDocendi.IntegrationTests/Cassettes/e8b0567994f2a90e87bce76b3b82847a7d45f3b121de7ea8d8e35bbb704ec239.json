@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-06",
-  "hash_del_prefijo": "96d5e7ef737c257a149ac999c1b8c06d7028ce5bb962c741ae8563fdfffe29d4",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRn4HJuudxfXQuub3TY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"```json\\n{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, pe.novedad, pe.estado, pe.created_at FROM designaciones.pedidos pe JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id ORDER BY pe.created_at DESC\\\", \\\"razonamiento\\\": \\\"Interpreto 'solicitudes' como los pedidos de designación registrados en el sistema, mostrando persona, materia, tipo de novedad y estado.\\\", \\\"categoria\\\": \\\"consulta_simple\\\"}\\n```\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":719,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":10454,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":222,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

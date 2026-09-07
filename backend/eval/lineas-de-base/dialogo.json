@@ -1,8 +1,8 @@
 {
   "Eje": "di\u00E1logo",
   "Sello": {
-    "Prefijo": "96d5e7ef737c257a149ac999c1b8c06d7028ce5bb962c741ae8563fdfffe29d4",
-    "Dataset": "c8256e17fcdf34a7828cbd348e5b7e81588d73b334a03abf13a55b2c0929dcfd",
+    "Prefijo": "0e4dd3a64c2f9f6da9f7f68863b5b3bf37ca1a83752380609997e9ebcbc63fdc",
+    "Dataset": "de884bd890ac071ac3fe83756762fe2ae1d0cc33527f31fe16c6147628460bc6",
     "Fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79"
   },
   "Items": {
@@ -14,6 +14,8 @@
     "dia-003-pivote-duro#2": "traduccion_correcta",
     "dia-004-pivote-y-vuelta#1": "traduccion_correcta",
     "dia-004-pivote-y-vuelta#2": "traduccion_correcta",
-    "dia-004-pivote-y-vuelta#3": "traduccion_correcta"
+    "dia-004-pivote-y-vuelta#3": "traduccion_correcta",
+    "dia-005-referencia-al-resultado#1": "traduccion_correcta",
+    "dia-005-referencia-al-resultado#2": "abstencion_sobrelo_factible"
   }
 }

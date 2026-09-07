@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-07",
+  "hash_del_prefijo": "0e4dd3a64c2f9f6da9f7f68863b5b3bf37ca1a83752380609997e9ebcbc63fdc",
+  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011Ceo8n4SWjRcND9KtZvgyi\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT pe.numero, p.apellido, p.nombre, m.name AS materia, pe.novedad, pe.estado FROM designaciones.pedidos pe JOIN identity.personas p ON p.id = pe.persona_id JOIN identity.materias m ON m.id = pe.materia_id ORDER BY pe.created_at DESC\\\", \\\"razonamiento\\\": \\\"Busco las solicitudes de designación correspondientes a materias, dejando que el sistema filtre según la carrera y permisos del usuario que consulta.\\\", \\\"categoria\\\": \\\"consulta_simple\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":608,\"cache_creation_input_tokens\":11444,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":11444,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":208,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}
