@@ -14,7 +14,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 
 ### Dueño de `identity` y `audit`
 
-No son de ningún módulo: viven en **`ArsDocendi.Shared`**, porque son infraestructura transversal de la que dependen los 4 módulos. Es la única I/O admitida en ese proyecto — ver invariante #4 en [CLAUDE.md](../../CLAUDE.md), enmendado en el change `modelo-datos-identity-designaciones`.
+No son de ningún módulo: viven en **`ArsDocendi.Shared`**, porque son infraestructura transversal de la que dependen los 4 módulos. Es la única I/O admitida en ese proyecto — ver [AGENTS.md](../../AGENTS.md).
 
 Consecuencia a vigilar: todos los módulos alcanzan `identity` sin pasar por Contracts. Leen para autorizar, vía `IConsultasIdentity`; escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración. Ver [dependency-graph.md](dependency-graph.md#frontera-de-lectura-sobre-identity).
 

@@ -16,7 +16,7 @@ y de abrir los changes OpenSpec correspondientes.
 > Cada tema derivará luego en su propio design-spec + change OpenSpec.
 
 > **Actualización (2026-07-10):** los temas **A + B + D** ya bajaron a código en el change
-> [`openspec/changes/rediseno-form-pedido-designaciones/`](../../../openspec/changes/rediseno-form-pedido-designaciones/)
+> [`openspec/specs/pedidos-designacion/`](../../../openspec/specs/pedidos-designacion/)
 > (implementación completa, no solo mockup — ver su `proposal.md`/`design.md`/`tasks.md`). Durante
 > la implementación se corrigieron/ampliaron varias decisiones respecto a lo que este documento
 > describía originalmente: Cambio pasó a tener el mismo listado editable de materias que Alta (no
@@ -32,7 +32,7 @@ y de abrir los changes OpenSpec correspondientes.
 > pendientes, cada uno como change propio.
 >
 > **Actualización (2026-07-11):** el tema **E (Revisión → solo grilla)** bajó a código en el change
-> [`openspec/changes/rediseno-revision-solo-grilla/`](../../../openspec/changes/rediseno-revision-solo-grilla/)
+> [`openspec/specs/tablero-revision-tabla/`](../../../openspec/specs/tablero-revision-tabla/)
 > (implementación completa). Se sacaron el Tablero Kanban y su switcher (`TableroRevision.tsx`,
 > `ColumnaKanban.tsx`, `PedidoCard.tsx`, `SwitchVista.tsx` eliminados; frames `q6OrQB`/`kWSjh`/`Z0S9T`
 > retirados de `screens.pen`), quedando la Tabla como única vista; se agregó "Quitar prioritario"
@@ -431,4 +431,4 @@ Para quien continúe el mockup en `docs/product/designs/screens.pen`:
 - Mockups: [`screens.pen`](./screens.pen)
 - Business rules: [`docs/business-rules/designaciones.md`](../../business-rules/designaciones.md)
 - Spec funcional pedidos: [`openspec/specs/pedidos-designacion/spec.md`](../../../openspec/specs/pedidos-designacion/spec.md)
-- Changes en vuelo: `openspec/changes/admin-docentes/`, `openspec/changes/roles-membresia/`
+- Specs vigentes: `openspec/specs/listar-docentes/`, `openspec/specs/listar-roles/` y `openspec/specs/listar-membresia-roles/`

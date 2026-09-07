@@ -21,6 +21,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
     [Fact]
     public async Task Controller_crea_obtiene_edita_envia_reenvia_y_elimina()
@@ -51,6 +52,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
         Assert.Equal("enviar", enviado.Historial.Last().Accion);
         Assert.NotNull(enviado.Snapshot);
+        Assert.Equal(enviado.Materia.Nombre, enviado.Snapshot.Materia);
 
         var devueltoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
         var reenviado = await controller.Reenviar(devueltoId, Guid.NewGuid().ToString(), ct);
@@ -79,6 +81,52 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         Assert.False(await db.Pedidos.AnyAsync(p => p.PersonaId == datos.PersonaId, ct));
         Assert.False(await db.PedidoHistorial.AnyAsync(h => h.ActorId ==
             Guid.Parse("a0000000-0000-4000-8000-000000000001"), ct));
+    }
+
+    [Fact]
+    public async Task Backend_exige_documentacion_justificacion_y_legajo_segun_novedad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(Jefe, identityDb, db);
+        var personaConLegajo = Guid.Parse("d0000000-0000-4000-8000-000000000002");
+        var personaSinLegajo = Guid.Parse("d0000000-0000-4000-8000-000000000012");
+
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(personaConLegajo) with { Novedad = Novedades.Alta }, ct));
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(personaConLegajo) with { Novedad = Novedades.Baja }, ct));
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(personaConLegajo) with { Novedad = Novedades.CambioDeCargoODedicacion }, ct));
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(personaSinLegajo) with
+            {
+                Novedad = Novedades.Baja,
+                TipoBaja = TiposBaja.Renuncia,
+                Adjuntos = [new GuardarAdjuntoPedidoDto(TiposAdjunto.Justificativo, "baja.pdf")],
+            }, ct));
+
+        Assert.False(await db.Pedidos.AnyAsync(p =>
+            p.PersonaId == personaConLegajo && p.Numero.StartsWith(DateTime.UtcNow.Year.ToString()), ct));
+    }
+
+    [Fact]
+    public async Task Un_pedido_historico_con_materia_inactiva_sigue_visible()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var materia = await identityDb.Materias.SingleAsync(m => m.Id == Materia, ct);
+        materia.Activo = false;
+        await identityDb.SaveChangesAsync(ct);
+        var servicio = CrearServicio(Secretaria, identityDb, db);
+        var pedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
+
+        Assert.Contains(await servicio.ListarAsync(Periodo, ct), p => p.Id == pedidoId);
+        Assert.Equal(Materia, (await servicio.ObtenerAsync(pedidoId, ct)).Materia.Id);
     }
 
     [Fact]
@@ -205,7 +253,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
+            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");

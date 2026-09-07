@@ -42,11 +42,17 @@ builder.Services.AddAuthorization(opciones =>
             politica.RequireClaim(ArsDocendi.Shared.Auth.Permisos.Claim, permiso));
     }
     opciones.AddPolicy(ArsDocendi.Shared.Auth.Permisos.DesignacionesRevisar, politica =>
-        politica.RequireAssertion(contexto => contexto.User.Claims.Any(c =>
-            c.Type == ArsDocendi.Shared.Auth.Permisos.Claim
-            && (c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarCoordinacion
-                || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarSecretaria
-                || c.Value == ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarDecanato))));
+        politica.RequireAssertion(contexto =>
+            contexto.User.IsInRole(Modules.Designaciones.Domain.RolesCircuito.Administrativo)
+            || contexto.User.HasClaim(
+                ArsDocendi.Shared.Auth.Permisos.Claim,
+                ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarCoordinacion)
+            || contexto.User.HasClaim(
+                ArsDocendi.Shared.Auth.Permisos.Claim,
+                ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarSecretaria)
+            || contexto.User.HasClaim(
+                ArsDocendi.Shared.Auth.Permisos.Claim,
+                ArsDocendi.Shared.Auth.Permisos.DesignacionesAprobarDecanato)));
     opciones.AddPolicy(ArsDocendi.Shared.Auth.Politicas.DocentesVer, politica =>
         politica.RequireAssertion(contexto =>
             contexto.User.HasClaim(

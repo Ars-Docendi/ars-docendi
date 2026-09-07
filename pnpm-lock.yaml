@@ -20,9 +20,6 @@ importers:
       prettier:
         specifier: ^3.8.1
         version: 3.8.3
-      tsx:
-        specifier: ^4.19.3
-        version: 4.22.3
 
   frontend:
     dependencies:
@@ -69,9 +66,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0))
-      '@vitest/coverage-v8':
-        specifier: ^4.1.9
-        version: 4.1.9(vitest@4.1.9)
       eslint:
         specifier: ^10.4.1
         version: 10.4.1
@@ -106,7 +100,7 @@ packages:
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
   '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a':
-    resolution: {gitHosted: true, tarball: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a}
+    resolution: {tarball: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a}
     version: 1.0.1
     peerDependencies:
       react: ^19.0.0
@@ -2256,7 +2250,8 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@bcoe/v8-coverage@1.0.2': {}
+  '@bcoe/v8-coverage@1.0.2':
+    optional: true
 
   '@bramus/specificity@2.4.2':
     dependencies:
@@ -2854,6 +2849,7 @@ snapshots:
       std-env: 4.1.0
       tinyrainbow: 3.1.0
       vitest: 4.1.9(@types/node@24.13.2)(@vitest/coverage-v8@4.1.9)(jsdom@29.1.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(tsx@4.22.3)(yaml@2.9.0))
+    optional: true
 
   '@vitest/expect@4.1.9':
     dependencies:
@@ -2944,6 +2940,7 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
       js-tokens: 10.0.0
+    optional: true
 
   asynckit@0.4.0: {}
 
@@ -3126,6 +3123,7 @@ snapshots:
       '@esbuild/win32-arm64': 0.28.0
       '@esbuild/win32-ia32': 0.28.0
       '@esbuild/win32-x64': 0.28.0
+    optional: true
 
   escalade@3.2.0: {}
 
@@ -3309,7 +3307,8 @@ snapshots:
 
   gopd@1.2.0: {}
 
-  has-flag@4.0.0: {}
+  has-flag@4.0.0:
+    optional: true
 
   has-symbols@1.1.0: {}
 
@@ -3333,7 +3332,8 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  html-escaper@2.0.2: {}
+  html-escaper@2.0.2:
+    optional: true
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -3380,20 +3380,24 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  istanbul-lib-coverage@3.2.2: {}
+  istanbul-lib-coverage@3.2.2:
+    optional: true
 
   istanbul-lib-report@3.0.1:
     dependencies:
       istanbul-lib-coverage: 3.2.2
       make-dir: 4.0.0
       supports-color: 7.2.0
+    optional: true
 
   istanbul-reports@3.2.0:
     dependencies:
       html-escaper: 2.0.2
       istanbul-lib-report: 3.0.1
+    optional: true
 
-  js-tokens@10.0.0: {}
+  js-tokens@10.0.0:
+    optional: true
 
   js-tokens@4.0.0: {}
 
@@ -3543,10 +3547,12 @@ snapshots:
       '@babel/parser': 7.29.7
       '@babel/types': 7.29.7
       source-map-js: 1.2.1
+    optional: true
 
   make-dir@4.0.0:
     dependencies:
       semver: 7.8.4
+    optional: true
 
   math-intrinsics@1.1.0: {}
 
@@ -3800,6 +3806,7 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
+    optional: true
 
   symbol-tree@3.2.4: {}
 
@@ -3844,6 +3851,7 @@ snapshots:
       esbuild: 0.28.0
     optionalDependencies:
       fsevents: 2.3.3
+    optional: true
 
   type-check@0.4.0:
     dependencies:

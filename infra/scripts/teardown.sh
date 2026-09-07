@@ -29,4 +29,15 @@ docker compose -p "$ambiente" \
 # 2. Base del ambiente (drop-db es idempotente y valida que no sea prod).
 "$scripts_dir/drop-db.sh" "$ambiente"
 
+# 3. Rol exclusivo del ambiente. El nombre se deriva del ambiente igual que en CI,
+#    por lo que teardown no acepta un rol arbitrario como objetivo destructivo.
+rol="app_${ambiente//-/_}"
+psql_admin --set=app_db_user="$rol" -c "
+  SELECT set_config('arsdocendi.app_db_user', :'app_db_user', false);
+  DO \$\$
+  BEGIN
+    EXECUTE format('DROP ROLE IF EXISTS %I', current_setting('arsdocendi.app_db_user'));
+  END
+  \$\$;"
+
 log_info msg="teardown OK" ambiente="$ambiente"

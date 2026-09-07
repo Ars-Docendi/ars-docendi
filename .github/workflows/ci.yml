@@ -51,7 +51,7 @@ jobs:
           node-version: "20"
           cache: "pnpm"
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
 
@@ -71,7 +71,7 @@ jobs:
           node-version: "20"
           cache: "pnpm"
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Validate changes and specs
         run: pnpm exec openspec validate --all --strict
 
@@ -118,7 +118,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm --filter frontend lint
@@ -126,7 +126,5 @@ jobs:
       - name: Build
         run: pnpm --filter frontend build
 
-      # Test step pendiente: el frontend todavía no tiene runner configurado (Vitest/Jest).
-      # Cuando se agregue, sumar:
-      # - name: Test
-      #   run: pnpm --filter frontend test
+      - name: Test
+        run: pnpm --filter frontend test:run

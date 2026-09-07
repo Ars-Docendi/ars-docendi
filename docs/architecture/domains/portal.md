@@ -40,7 +40,7 @@
 
 ## Reglas de negocio
 
-Ver [`docs/business-rules/portal.md`](../../business-rules/portal.md) (a crear).
+Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.
 
 ## Dependencias
 
@@ -56,4 +56,4 @@ _(autogenerable a futuro)_
 
 - **Identidad desde Azure AD**: el ID del docente se vincula al `oid` (object ID) del token de Azure AD. NO se manejan credenciales propias.
 - **PII sensible**: ver `data-model.md` para tratamiento de PII (encriptación, logs, backup).
-- **Vocabulario de experticia por folksonomía**: no hay catálogo curado de antemano. Los docentes escriben el término y el autocompletado sobre lo ya cargado evita que se fragmente; `nombre_norm` (único) corta duplicados y `canonica_id` permite fusionar variantes sin perder datos. Decidido el 2026-09-03 — ver D13 en `openspec/changes/portal-docente-perfil/design.md`.
+- **Vocabulario de experticia por folksonomía**: no hay catálogo curado de antemano. Los docentes escriben el término y el autocompletado sobre lo ya cargado evita que se fragmente; `nombre_norm` (único) corta duplicados y `canonica_id` permite fusionar variantes sin perder datos. Ver `openspec/specs/experticia-docente/spec.md`.

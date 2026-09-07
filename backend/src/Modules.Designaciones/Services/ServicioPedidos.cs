@@ -13,12 +13,12 @@ namespace Modules.Designaciones.Services;
 /// pedido termina de recorrer el circuito.
 /// </summary>
 internal sealed class ServicioPedidos(
-    IRepositorioPedidos pedidos,
-    IRepositorioDesignaciones designaciones,
+    RepositorioPedidos pedidos,
+    RepositorioDesignaciones designaciones,
     MaterializadorDesignaciones materializador,
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
-    IUnidadDeTrabajo unidadDeTrabajo,
+    UnidadDeTrabajo unidadDeTrabajo,
     ILogger<ServicioPedidos> logger)
 {
     /// <summary>
@@ -40,7 +40,7 @@ internal sealed class ServicioPedidos(
                 "Sólo el Jefe de Cátedra de la materia puede cargar un pedido sobre esa cátedra [BR-designaciones-009].");
         }
 
-        await ValidarDatosAsync(datos, ct);
+        await ValidarDatosAsync(datos, actor, ct);
 
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datos.PeriodoId, datos.PersonaId, null, ct))
@@ -85,16 +85,13 @@ internal sealed class ServicioPedidos(
         var actor = await resolutorActor.ResolverAsync(ct);
         var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
+        var carrera = await pedidos.ObtenerCarreraDelPedidoAsync(pedidoId, ct);
         if (!MaquinaEstadosPedido.PuedeEditar(pedido, actor)
-            || !actor.MateriasACargo.Contains(pedido.MateriaId))
+            || !MaquinaEstadosPedido.AlcanzaAmbito(pedido, carrera, actor))
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
-        if (!actor.MateriasACargo.Contains(datos.MateriaId))
-        {
-            throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
-        }
-        await ValidarDatosAsync(datos, ct);
+        await ValidarDatosAsync(datos, actor, ct);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datos.PeriodoId, datos.PersonaId, pedidoId, ct))
         {
@@ -205,17 +202,23 @@ internal sealed class ServicioPedidos(
             return await pedidos.ListarDelPeriodoAsync(periodoId, ct);
         }
 
+        var resultado = new List<Pedido>();
         if (actor.Tiene(RolesCircuito.CoordinadorCarrera) && actor.CarrerasACargo.Count > 0)
         {
-            return await pedidos.ListarPorCarrerasAsync(periodoId, [.. actor.CarrerasACargo], ct);
+            resultado.AddRange(await pedidos.ListarPorCarrerasAsync(
+                periodoId, [.. actor.CarrerasACargo], ct));
         }
 
         if (actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Count > 0)
         {
-            return await pedidos.ListarPorMateriasAsync(periodoId, [.. actor.MateriasACargo], ct);
+            resultado.AddRange(await pedidos.ListarPorMateriasAsync(
+                periodoId, [.. actor.MateriasACargo], ct));
         }
 
-        return [];
+        return resultado.DistinctBy(p => p.Id)
+            .OrderByDescending(p => p.Prioritario)
+            .ThenByDescending(p => p.CreadoEn)
+            .ToArray();
     }
 
     private static void AplicarTransicion(Pedido pedido, TransicionPedido transicion)
@@ -272,27 +275,37 @@ internal sealed class ServicioPedidos(
     private async Task<SnapshotPedido> ArmarSnapshotAsync(Pedido pedido, CancellationToken ct)
     {
         var vigente = await designaciones.ObtenerVigenteAsync(pedido.PersonaId, pedido.MateriaId, ct);
+        var materia = (await identity.ListarMateriasAsync(ct)).Single(m => m.Id == pedido.MateriaId);
 
         return new SnapshotPedido(
             Cargo: vigente?.Cargo?.Nombre,
             Dedicacion: vigente?.Dedicacion,
             Horas: vigente?.Horas,
-            Materia: pedido.MateriaId.ToString(),
+            Materia: materia.Nombre,
             HorasInvestigacion: pedido.HorasInvestigacion,
             HorasExternas: pedido.HorasExternas);
     }
 
-    private async Task ValidarDatosAsync(DatosPedido datos, CancellationToken ct)
+    private async Task ValidarDatosAsync(
+        DatosPedido datos, ActorContexto actor, CancellationToken ct)
     {
         if (!Novedades.Todas.Contains(datos.Novedad))
             throw new ErrorDominioPedido($"Novedad no reconocida: \"{datos.Novedad}\".");
         var periodo = await pedidos.ObtenerPeriodoActivoAsync(ct);
         if (periodo is null || periodo.Id != datos.PeriodoId)
             throw new ErrorDominioPedido("El pedido debe pertenecer al período activo.");
-        if (!(await identity.ListarPersonasAsync(ct)).Any(p => p.Id == datos.PersonaId))
+        var persona = (await identity.ListarPersonasAsync(ct)).SingleOrDefault(p => p.Id == datos.PersonaId);
+        if (persona is null)
             throw new ErrorDominioPedido("La persona seleccionada no existe.");
-        if (!(await identity.ListarMateriasActivasAsync(ct)).Any(m => m.Id == datos.MateriaId))
+        var materia = (await identity.ListarMateriasAsync(ct)).SingleOrDefault(m => m.Id == datos.MateriaId);
+        if (materia is null || !materia.Activo)
             throw new ErrorDominioPedido("La materia seleccionada no existe o está inactiva.");
+        if (!actor.EsDeptoWide
+            && !(actor.Tiene(RolesCircuito.CoordinadorCarrera)
+                && actor.CarrerasACargo.Contains(materia.CarreraId))
+            && !(actor.Tiene(RolesCircuito.JefeCatedra)
+                && actor.MateriasACargo.Contains(materia.Id)))
+            throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
         if (datos.CargoSolicitadoId is { } cargoId
             && !await pedidos.ExisteCargoActivoAsync(cargoId, ct))
             throw new ErrorDominioPedido("El cargo seleccionado no existe o está inactivo.");
@@ -307,6 +320,26 @@ internal sealed class ServicioPedidos(
             throw new ErrorDominioPedido("La dedicación solicitada no es válida.");
         if (datos.Adjuntos.Any(a => !EsTipoAdjuntoValido(a.Tipo) || string.IsNullOrWhiteSpace(a.Nombre)))
             throw new ErrorDominioPedido("Uno de los adjuntos tiene tipo o nombre inválido.");
+
+        var tiposAdjuntos = datos.Adjuntos.Select(a => a.Tipo).ToHashSet();
+        if (datos.Novedad == Novedades.Alta
+            && !new[] { TiposAdjunto.Cv, TiposAdjunto.DniFrente, TiposAdjunto.DniDorso }
+                .All(tiposAdjuntos.Contains))
+            throw new ErrorDominioPedido(
+                "El alta exige adjuntar CV, DNI frente y DNI dorso [BR-designaciones-002].");
+        if (datos.Novedad == Novedades.Baja
+            && (!tiposAdjuntos.Contains(TiposAdjunto.Justificativo)
+                || string.IsNullOrWhiteSpace(datos.TipoBaja)))
+            throw new ErrorDominioPedido(
+                "La baja exige tipo y adjunto justificativo [BR-designaciones-003].");
+        if (datos.Novedad == Novedades.CambioDeCargoODedicacion
+            && string.IsNullOrWhiteSpace(datos.Justificacion))
+            throw new ErrorDominioPedido(
+                "El cambio de cargo o dedicación exige justificación [BR-designaciones-004].");
+        if ((datos.Novedad is Novedades.Baja or Novedades.CambioDeCargoODedicacion)
+            && string.IsNullOrWhiteSpace(persona.Legajo))
+            throw new ErrorDominioPedido(
+                "La baja y el cambio exigen un docente con legajo [BR-designaciones-018].");
     }
 
     private static void AplicarDatos(Pedido pedido, DatosPedido datos)

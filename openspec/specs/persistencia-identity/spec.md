@@ -148,7 +148,7 @@ El sistema SHALL alojar los schemas `identity` y `audit` dentro de `ArsDocendi.S
 
 #### Scenario: El invariante enmendado está enunciado de forma consistente
 
-- **WHEN** se revisan `CLAUDE.md`, `openspec/config.yaml` y `docs/quality/golden-principles.md`
+- **WHEN** se revisan `AGENTS.md`, `openspec/config.yaml` y `docs/quality/golden-principles.md`
 - **THEN** los tres MUST enunciar la misma excepción acotada, sin que quede ninguna copia con la redacción anterior
 
 #### Scenario: Las migraciones son idempotentes

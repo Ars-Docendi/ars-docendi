@@ -174,6 +174,6 @@ Si el glue en `.claude/commands/opsx/` queda desincronizado de la versión de la
 ## Recursos
 
 - [README.md](README.md) — Setup + comandos
-- [CLAUDE.md](CLAUDE.md) — Contexto del proyecto, invariantes, skills
+- [AGENTS.md](AGENTS.md) — Contexto del proyecto y reglas de implementación
 - [docs/](docs/) — System of record completo
 - [docs/workflows/](docs/workflows/) — Playbooks operacionales

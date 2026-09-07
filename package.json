@@ -10,14 +10,12 @@
     "@fission-ai/openspec": "^1.4.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1",
-    "tsx": "^4.19.3"
+    "prettier": "^3.8.1"
   },
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "lint-staged": "lint-staged",
-    "generate-indexes": "tsx scripts/generate-indexes.ts"
+    "lint-staged": "lint-staged"
   }
 }

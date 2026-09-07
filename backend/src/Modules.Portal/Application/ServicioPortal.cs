@@ -9,7 +9,7 @@ using Modules.Portal.Repositories;
 namespace Modules.Portal.Application;
 
 public sealed class ServicioPortal(
-    IRepositorioPortal repositorio,
+    RepositorioPortal repositorio,
     IConsultasIdentity identity,
     ICurrentUser usuario) : IPortalQueries
 {
@@ -66,14 +66,52 @@ public sealed class ServicioPortal(
         await repositorio.GuardarAsync(ct);
     }
 
-    public Task<ExperienciaDto> CrearAsync(GuardarExperienciaDto d, CancellationToken ct) { Validar(d); return GuardarItemAsync(new Experiencia { Id = Guid.NewGuid(), Puesto = d.Puesto, Organizacion = d.Organizacion, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta }, ct, Mapear); }
-    public Task<EducacionDto> CrearAsync(GuardarEducacionDto d, CancellationToken ct) { Validar(d); return GuardarItemAsync(new Educacion { Id = Guid.NewGuid(), Nivel = d.Nivel, Carrera = d.Carrera, Institucion = d.Institucion, Desde = d.Desde, Hasta = d.Hasta }, ct, Mapear); }
-    public Task<CertificacionDto> CrearAsync(GuardarCertificacionDto d, CancellationToken ct) { Validar(d); return GuardarItemAsync(new Certificacion { Id = Guid.NewGuid(), Nombre = d.Nombre, Emisor = d.Emisor, Fecha = d.Fecha, Vencimiento = d.Vencimiento }, ct, Mapear); }
-    public Task<ProyectoDto> CrearAsync(GuardarProyectoDto d, CancellationToken ct) { Validar(d); return GuardarItemAsync(CrearProyecto(d), ct, Mapear); }
+    public async Task<ExperienciaDto> CrearAsync(GuardarExperienciaDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var item = new Experiencia { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Puesto = d.Puesto, Organizacion = d.Organizacion, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta };
+        repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
+    }
+    public async Task<EducacionDto> CrearAsync(GuardarEducacionDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var item = new Educacion { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Nivel = d.Nivel, Carrera = d.Carrera, Institucion = d.Institucion, Desde = d.Desde, Hasta = d.Hasta };
+        repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
+    }
+    public async Task<CertificacionDto> CrearAsync(GuardarCertificacionDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var item = new Certificacion { Id = Guid.NewGuid(), PerfilId = (await PerfilActualAsync(ct)).Id, Nombre = d.Nombre, Emisor = d.Emisor, Fecha = d.Fecha, Vencimiento = d.Vencimiento };
+        repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
+    }
+    public async Task<ProyectoDto> CrearAsync(GuardarProyectoDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var item = CrearProyecto(d); item.PerfilId = (await PerfilActualAsync(ct)).Id;
+        repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return Mapear(item);
+    }
 
-    public Task<ExperienciaDto> EditarAsync(Guid id, GuardarExperienciaDto d, CancellationToken ct) { Validar(d); return EditarItemAsync(id, new Experiencia { Puesto = d.Puesto, Organizacion = d.Organizacion, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta }, ct, Mapear); }
-    public Task<EducacionDto> EditarAsync(Guid id, GuardarEducacionDto d, CancellationToken ct) { Validar(d); return EditarItemAsync(id, new Educacion { Nivel = d.Nivel, Carrera = d.Carrera, Institucion = d.Institucion, Desde = d.Desde, Hasta = d.Hasta }, ct, Mapear); }
-    public Task<CertificacionDto> EditarAsync(Guid id, GuardarCertificacionDto d, CancellationToken ct) { Validar(d); return EditarItemAsync(id, new Certificacion { Nombre = d.Nombre, Emisor = d.Emisor, Fecha = d.Fecha, Vencimiento = d.Vencimiento }, ct, Mapear); }
+    public async Task<ExperienciaDto> EditarAsync(Guid id, GuardarExperienciaDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var actual = await ObtenerItemActualAsync<Experiencia>(id, ct);
+        actual.Puesto = d.Puesto; actual.Organizacion = d.Organizacion; actual.Descripcion = d.Descripcion; actual.Desde = d.Desde; actual.Hasta = d.Hasta;
+        await repositorio.GuardarAsync(ct); return Mapear(actual);
+    }
+    public async Task<EducacionDto> EditarAsync(Guid id, GuardarEducacionDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var actual = await ObtenerItemActualAsync<Educacion>(id, ct);
+        actual.Nivel = d.Nivel; actual.Carrera = d.Carrera; actual.Institucion = d.Institucion; actual.Desde = d.Desde; actual.Hasta = d.Hasta;
+        await repositorio.GuardarAsync(ct); return Mapear(actual);
+    }
+    public async Task<CertificacionDto> EditarAsync(Guid id, GuardarCertificacionDto d, CancellationToken ct)
+    {
+        Validar(d);
+        var actual = await ObtenerItemActualAsync<Certificacion>(id, ct);
+        actual.Nombre = d.Nombre; actual.Emisor = d.Emisor; actual.Fecha = d.Fecha; actual.Vencimiento = d.Vencimiento;
+        await repositorio.GuardarAsync(ct); return Mapear(actual);
+    }
     public async Task<ProyectoDto> EditarAsync(Guid id, GuardarProyectoDto d, CancellationToken ct)
     {
         Validar(d);
@@ -118,17 +156,8 @@ public sealed class ServicioPortal(
         await repositorio.ReemplazarTagsAsync(await PerfilActualAsync(ct), tipo, datos.Terminos, ct);
     }
 
-    private async Task<TDto> GuardarItemAsync<T, TDto>(T item, CancellationToken ct, Func<T, TDto> map) where T : class
-    { item.GetType().GetProperty("PerfilId")!.SetValue(item, (await PerfilActualAsync(ct)).Id); repositorio.Agregar(item); await repositorio.GuardarAsync(ct); return map(item); }
-    private async Task<TDto> EditarItemAsync<T, TDto>(Guid id, T valores, CancellationToken ct, Func<T, TDto> map) where T : class
-    {
-        var persona = await PersonaActualAsync(ct);
-        var actual = await repositorio.ObtenerItemAsync<T>(id, persona.Id, ct) ?? throw NoEncontrado();
-        foreach (var propiedad in typeof(T).GetProperties().Where(x => x.CanWrite && x.Name is not ("Id" or "PerfilId" or "CreadoEn")))
-            propiedad.SetValue(actual, propiedad.GetValue(valores));
-        await repositorio.GuardarAsync(ct);
-        return map(actual);
-    }
+    private async Task<T> ObtenerItemActualAsync<T>(Guid id, CancellationToken ct) where T : class =>
+        await repositorio.ObtenerItemAsync<T>(id, (await PersonaActualAsync(ct)).Id, ct) ?? throw NoEncontrado();
     private Proyecto CrearProyecto(GuardarProyectoDto d) => new() { Id = Guid.NewGuid(), Nombre = d.Nombre, Rol = d.Rol, Descripcion = d.Descripcion, Desde = d.Desde, Hasta = d.Hasta, Doi = d.Doi, Documento = string.IsNullOrWhiteSpace(d.DocumentoNombre) ? null : new DocumentoProyecto { Id = Guid.NewGuid(), Nombre = d.DocumentoNombre, Uri = d.DocumentoUri, FechaCarga = DateTimeOffset.UtcNow } };
     private async Task<Persona> PersonaActualAsync(CancellationToken ct) => Guid.TryParse(usuario.UserId, out var uid) ? (await identity.ListarUsuariosAsync(ct)).FirstOrDefault(x => x.Id == uid)?.Persona ?? throw NoEncontrado() : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
     private async Task<Perfil> PerfilActualAsync(CancellationToken ct) => await repositorio.ObtenerOCrearAsync((await PersonaActualAsync(ct)).Id, ct);

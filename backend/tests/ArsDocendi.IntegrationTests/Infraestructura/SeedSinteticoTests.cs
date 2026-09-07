@@ -178,7 +178,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md")))
+            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
             {
                 return directorio.FullName;
             }

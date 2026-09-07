@@ -49,6 +49,34 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Primer_login_no_reactiva_una_cuenta_desactivada()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var persona = NuevaPersona("30222999");
+        var usuario = new Usuario
+        {
+            Id = Guid.NewGuid(),
+            AzureOid = Guid.NewGuid(),
+            Upn = "desactivado@unlam.edu.ar",
+            NombreParaMostrar = "Docente desactivado",
+            Activo = false,
+            PersonaId = persona.Id,
+            CreadoEn = DateTimeOffset.UtcNow,
+        };
+        db.Personas.Add(persona);
+        await db.SaveChangesAsync(ct);
+        usuario.PersonaId = persona.Id;
+        db.Usuarios.Add(usuario);
+        await db.SaveChangesAsync(ct);
+
+        await new VinculadorPrimerLogin(db).VincularAsync(new DatosPrimerLogin(
+            usuario.AzureOid, usuario.Upn, usuario.NombreParaMostrar, persona.Documento), ct);
+
+        Assert.False(usuario.Activo);
+    }
+
+    [Fact]
     public async Task Documento_duplicado_es_rechazado()
     {
         await using var conexion = await AbrirConexionAsync();

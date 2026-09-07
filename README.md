@@ -1,6 +1,6 @@
 # Ars Docendi — Gestión Docente
 
-Sistema web para el Departamento de Ingeniería de la UNLaM. Para el contexto funcional (módulos, roles, reglas de negocio) ver [CLAUDE.md](CLAUDE.md).
+Sistema web para el Departamento de Ingeniería de la UNLaM. Para las reglas de trabajo y el contexto funcional ver [AGENTS.md](AGENTS.md).
 
 > **¿Primera vez en el proyecto?** Leé [ONBOARDING.md](ONBOARDING.md) — explica cómo trabajar con las skills, el flujo de features, y la cheat sheet del día a día.
 
@@ -74,7 +74,6 @@ pnpm --filter frontend dev
 ```bash
 pnpm format               # formatea todo el repo (prettier)
 pnpm format:check         # verifica formato sin modificar
-pnpm generate-indexes     # regenera _index.md de docs/business-rules/
 dotnet test backend/ArsDocendi.slnx
 pnpm --filter frontend lint
 pnpm --filter frontend build
@@ -98,10 +97,10 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 │       └── Modules.Tareas/         + .Contracts/
 ├── frontend/                 # Vite + React 19 + TS
 │   └── src/{app,shared,features}/
-├── openspec/                 # Planning: specs vigentes + changes activos/archivados (fuente de verdad)
+├── openspec/                 # Planning: specs vigentes + changes activos (fuente de verdad)
 ├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
 ├── infra/                    # Skeleton para deploy (nginx + systemd samples)
-├── scripts/                  # setup.sh + generate-indexes.ts (solo business-rules)
+├── scripts/                  # setup local
 ├── .claude/skills/           # Skills Claude Code project-scoped
 ├── .github/workflows/        # ci.yml (path filtering + openspec validate)
 ├── .husky/pre-commit
@@ -118,10 +117,10 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 - Cada módulo expone `GET /api/{x}/ping` como smoke test.
 - En el frontend, las features no se importan entre sí; lo común sube a `src/shared/`.
 
-Detalle completo en [CLAUDE.md → Invariantes](CLAUDE.md#invariantes-no-negociables) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
+Detalle completo en [AGENTS.md](AGENTS.md) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
 
 ## Próximos pasos
 
 - ¿Empezás a trabajar? → [ONBOARDING.md](ONBOARDING.md)
 - ¿Vas a abrir un PR? → [CONTRIBUTING.md](CONTRIBUTING.md)
-- ¿Contexto del proyecto y reglas no negociables? → [CLAUDE.md](CLAUDE.md)
+- ¿Contexto del proyecto y reglas no negociables? → [AGENTS.md](AGENTS.md)

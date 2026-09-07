@@ -87,7 +87,7 @@ public sealed partial class ArquitecturaIdentityTests
         while (directorio is not null)
         {
             if (Directory.Exists(Path.Combine(directorio.FullName, "backend", "src"))
-                && File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md")))
+                && File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
             {
                 return directorio.FullName;
             }

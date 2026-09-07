@@ -5,8 +5,7 @@ using Npgsql;
 
 namespace Modules.Designaciones.Repositories;
 
-/// <inheritdoc cref="IRepositorioPedidos" />
-internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositorioPedidos
+internal sealed class RepositorioPedidos(DesignacionesDbContext db)
 {
     /// <summary>
     /// Nombre del índice único parcial que impone BR-designaciones-001. Debe coincidir

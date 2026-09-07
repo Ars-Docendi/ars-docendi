@@ -43,6 +43,28 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         Assert.Equal(8, global.Count);
         Assert.DoesNotContain(typeof(PedidosController).GetMethods().SelectMany(m => m.GetParameters()),
             p => p.ParameterType == typeof(ActorContexto));
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            INSERT INTO identity.user_roles
+                (id, user_id, role_id, materia_id, carrera_id, granted_by)
+            VALUES
+                ('e0000000-0000-4000-8000-000000000099',
+                 'a0000000-0000-4000-8000-000000000003',
+                 'a1000000-0000-4000-8000-000000000002',
+                 '70000000-0000-4000-8000-000000000201',
+                 'c0000000-0000-4000-8000-000000000202',
+                 'a0000000-0000-4000-8000-000000000007');
+            UPDATE designaciones.pedidos
+            SET materia_id = '70000000-0000-4000-8000-000000000201'
+            WHERE id = 'd5000000-0000-4000-8000-000000000008';
+            """, conexion);
+        await comando.ExecuteNonQueryAsync(ct);
+
+        var multirol = await CrearServicio(Coordinador, identityDb, db).ListarAsync(Periodo, ct);
+        Assert.Contains(multirol, p => p.Materia.Id == Materia);
+        Assert.Contains(multirol, p => p.Materia.Id ==
+            Guid.Parse("70000000-0000-4000-8000-000000000201"));
     }
 
     [Fact]
@@ -91,6 +113,12 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             CargoSolicitadoId = cargo,
             DedicacionSolicitada = "Categoría 2",
             Horas = 16,
+            Adjuntos =
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, "cv.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
+            ],
         }, ct);
         pedido = await CrearServicio(Jefe, identityDb, db)
             .AplicarAccionAsync(pedido.Id, new AccionPedido.Enviar(), ct);
@@ -232,6 +260,25 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             pedido, Guid.Empty, new AccionPedido.Devolver("Corregir"), actor).EstadoResultante);
     }
 
+    [Fact]
+    public void Cancelar_y_reenviar_exigen_ambito()
+    {
+        var fueraDeAmbito = new ActorContexto(
+            Guid.NewGuid(),
+            new HashSet<string> { RolesCircuito.JefeCatedra },
+            new HashSet<Guid>(),
+            new HashSet<Guid>());
+        var borrador = PedidoEn(EstadosPedido.Borrador);
+        var devuelto = PedidoEn(EstadosPedido.Devuelto);
+        devuelto.PropietarioActual = RolesCircuito.JefeCatedra;
+        devuelto.EtapaRetorno = EstadosPedido.EnRevisionCoordinador;
+
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            borrador, Guid.NewGuid(), new AccionPedido.Cancelar(), fueraDeAmbito));
+        Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+            devuelto, Guid.NewGuid(), new AccionPedido.Reenviar(), fueraDeAmbito));
+    }
+
     private static Pedido PedidoEn(string estado) => new()
     {
         Id = Guid.NewGuid(),
@@ -289,7 +336,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
+            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");

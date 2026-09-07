@@ -134,8 +134,3 @@ export function validarPedido(
 
   return errores;
 }
-
-/** True si no hay errores de validación. */
-export function esPedidoValido(errores: ErroresValidacion): boolean {
-  return Object.keys(errores).length === 0;
-}

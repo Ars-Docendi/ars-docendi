@@ -8,11 +8,11 @@ Ofrece al docente autenticado una vista única para consultar y mantener su perf
 
 ### Requirement: Pantalla "Mi Portal" del docente autenticado
 
-El sistema SHALL ofrecer al docente autenticado una pantalla "Mi Portal" en la ruta `/portal` que presente su perfil en una **sola página**, con las secciones Perfil, Contacto, CV, Experiencia, Educación, Certificaciones, Proyectos, Habilidades e Intereses. La pantalla MUST NOT organizar las secciones en pestañas. Los datos MUST provenir del store mock local, sin llamadas HTTP reales.
+El sistema SHALL ofrecer al docente autenticado una pantalla "Mi Portal" en la ruta `/portal` que presente su perfil en una **sola página**, con las secciones Perfil, Contacto, CV, Experiencia, Educación, Certificaciones, Proyectos, Habilidades e Intereses. La pantalla MUST NOT organizar las secciones en pestañas. Los datos MUST provenir de la API persistente del Portal.
 
 #### Scenario: Perfil con datos cargados
 
-- **GIVEN** un docente autenticado con datos en el store mock
+- **GIVEN** un docente autenticado con un perfil persistido
 - **WHEN** abre `/portal`
 - **THEN** ve su perfil en una sola página con todas las secciones visibles
 

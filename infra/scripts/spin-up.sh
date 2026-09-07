@@ -34,7 +34,15 @@ compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 base="$(nombre_base "$ambiente")"
 host_publico="${ambiente}.${DOMINIO}"
-url_base="Host=${PGHOST};Port=${PGPORT:-5432};Database=${base};Username=${APP_DB_USER};Password=${APP_DB_PASSWORD}"
+
+# Npgsql admite valores entre comillas dobles; una comilla interna se duplica.
+# URL_BASE_DATOS se exporta al proceso de Compose para no serializar la clave en
+# el archivo .env temporal, donde `$`, comillas y saltos tienen otra semántica.
+valor_npgsql() {
+  local valor="${1//\"/\"\"}"
+  printf '"%s"' "$valor"
+}
+export URL_BASE_DATOS="Host=$(valor_npgsql "$PGHOST");Port=$(valor_npgsql "${PGPORT:-5432}");Database=$(valor_npgsql "$base");Username=$(valor_npgsql "$APP_DB_USER");Password=$(valor_npgsql "$APP_DB_PASSWORD")"
 
 log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="$base"
 
@@ -52,7 +60,6 @@ TAG_FRONTEND=${TAG_FRONTEND}
 TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
 DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
-URL_BASE_DATOS=${url_base}
 EOF
 
 docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d

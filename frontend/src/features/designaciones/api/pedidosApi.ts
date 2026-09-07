@@ -36,7 +36,14 @@ interface PedidoDto {
   tipoBajaDetalle: string | null;
   etapaRetorno: EstadoPedido | null;
   propietarioActual: string | null;
-  snapshot: { cargo: string | null; dedicacion: string | null } | null;
+  snapshot: {
+    cargo: string | null;
+    dedicacion: string | null;
+    horas: number | null;
+    materia: string | null;
+    horasInvestigacion: number | null;
+    horasExternas: number | null;
+  } | null;
   version: number;
   adjuntos: { id: string; tipo: TipoAdjunto; nombre: string }[];
   historial: {
@@ -136,7 +143,7 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     periodoNombre: dto.periodo.nombre,
     personaId: dto.persona.id,
     materiaId: dto.materia.id,
-    catedra: dto.materia.nombre,
+    catedra: dto.snapshot?.materia ?? dto.materia.nombre,
     carrera: dto.materia.carreraNombre,
     docente: {
       dni: dto.persona.documento,
@@ -144,7 +151,7 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
       legajo: dto.persona.legajo ?? undefined,
       antiguedad: 0,
     },
-    horas: dto.horas ?? 0,
+    horas: dto.snapshot ? (dto.snapshot.horas ?? 0) : (dto.horas ?? 0),
     cargoActual: (dto.snapshot?.cargo as Cargo) ?? null,
     dedicacionActual: dto.snapshot?.dedicacion ?? null,
     novedad: dto.novedad,
@@ -154,8 +161,10 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     justificacion: dto.justificacion ?? undefined,
     tipoBaja: dto.tipoBaja as PedidoDesignacion["tipoBaja"],
     tipoBajaDetalle: dto.tipoBajaDetalle ?? undefined,
-    horasExternas: dto.horasExternas ?? 0,
-    horasInvestigacion: dto.horasInvestigacion ?? 0,
+    horasExternas: dto.snapshot ? (dto.snapshot.horasExternas ?? 0) : (dto.horasExternas ?? 0),
+    horasInvestigacion: dto.snapshot
+      ? (dto.snapshot.horasInvestigacion ?? 0)
+      : (dto.horasInvestigacion ?? 0),
     adjuntos: dto.adjuntos,
     estado: dto.estado,
     prioritario: dto.prioritario,

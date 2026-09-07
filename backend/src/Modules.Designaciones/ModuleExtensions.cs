@@ -1,6 +1,5 @@
 using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Persistencia;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,12 +20,12 @@ public static class ModuleExtensions
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
 
-        services.AddScoped<IUnidadDeTrabajo, UnidadDeTrabajo>();
-        services.AddScoped<IRepositorioPedidos, RepositorioPedidos>();
-        services.AddScoped<IRepositorioDesignaciones, RepositorioDesignaciones>();
-        services.AddScoped<IRepositorioPeriodos, RepositorioPeriodos>();
-        services.AddScoped<IRepositorioCatalogosDesignaciones, RepositorioCatalogosDesignaciones>();
-        services.AddScoped<IRepositorioIdempotencia, RepositorioIdempotencia>();
+        services.AddScoped<UnidadDeTrabajo>();
+        services.AddScoped<RepositorioPedidos>();
+        services.AddScoped<RepositorioDesignaciones>();
+        services.AddScoped<RepositorioPeriodos>();
+        services.AddScoped<RepositorioCatalogosDesignaciones>();
+        services.AddScoped<RepositorioIdempotencia>();
         services.AddScoped<MaterializadorDesignaciones>();
         services.AddScoped<ResolutorActor>();
         services.AddScoped<ServicioPedidos>();
@@ -34,8 +33,6 @@ public static class ModuleExtensions
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
-
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<DesignacionesDbContext>());
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

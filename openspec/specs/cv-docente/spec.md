@@ -8,7 +8,7 @@ Permite al docente administrar un único CV en formato PDF dentro de su perfil p
 
 ### Requirement: Carga del CV en PDF
 
-El sistema SHALL permitir al docente cargar un CV en formato PDF como archivo **único** de su perfil. La sección CV sin archivo cargado MUST presentarse como una **zona de arrastre**, no como una fila con control de alta, de modo que la acción se entienda por la forma del control y sin texto explicativo. El archivo se registra como metadata mock (nombre y fecha de carga), sin storage real.
+El sistema SHALL permitir al docente cargar un CV en formato PDF como archivo **único** de su perfil. La sección CV sin archivo cargado MUST presentarse como una **zona de arrastre**, no como una fila con control de alta, de modo que la acción se entienda por la forma del control y sin texto explicativo. La API persiste el nombre, la fecha de carga y una URI opcional; el almacenamiento binario queda fuera de este alcance.
 
 #### Scenario: Sección CV vacía
 
