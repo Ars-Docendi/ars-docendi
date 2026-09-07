@@ -64,6 +64,15 @@ jobs:
       ASISTENTE_RO_PII_PASSWORD: ${{ secrets.ASISTENTE_RO_PII_PASSWORD_PREVIEW }}
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
+      # Proveedor del modelo. Sin estos dos secrets en el environment el ambiente
+      # levanta con el simulado, que es el default y el comportamiento seguro:
+      # este job corre `spin-up.sh` DESDE EL CHECKOUT DEL PR con los secrets del
+      # environment a la vista, así que cualquier credencial que se ponga acá es
+      # legible por quien pueda abrir un PR y conseguir la label. Las compuertas
+      # (label + required reviewers) autorizan el deploy; no auditan el diff del
+      # script. Conviene que la clave tenga presupuesto acotado propio.
+      ASISTENTE_PROVEEDOR: ${{ secrets.ASISTENTE__PROVEEDOR }}
+      ASISTENTE_CLAVE: ${{ secrets.ASISTENTE__CLAVEDELPROVEEDOR }}
     steps:
       # Checkout del código del PR (el SHA del head) — recién acá, post-gate.
       - uses: actions/checkout@v6

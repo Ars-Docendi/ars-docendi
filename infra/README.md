@@ -166,6 +166,22 @@ ASISTENTE_RO_PASSWORD_STAGING     ASISTENTE_RO_PII_PASSWORD_STAGING
 ASISTENTE_RO_PASSWORD_PREVIEW     ASISTENTE_RO_PII_PASSWORD_PREVIEW
 ```
 
+**El proveedor del modelo va aparte, y por defecto es el simulado.** El backend
+recibe `Asistente__Proveedor` y `Asistente__ClaveDelProveedor` desde
+`ASISTENTE_PROVEEDOR` y `ASISTENTE_CLAVE`; sin la segunda, `spin-up.sh` **degrada a
+`simulado`** en vez de levantar un ambiente que falla recién cuando alguien
+pregunta. En los ambientes de PR los dos vienen del environment `pr-preview`, con
+los nombres de secret `ASISTENTE__PROVEEDOR` y `ASISTENTE__CLAVEDELPROVEEDOR`.
+
+> **Por qué el default es el simulado y no un descuido.** El job de
+> `pr-env-deploy.yml` hace checkout del SHA del PR y corre `spin-up.sh` **desde ese
+> checkout**, con los secrets del environment a la vista. Quien pueda abrir un PR y
+> conseguir la label `deploy-preview` puede editar ese script. Las dos compuertas
+> —la label y los required reviewers del environment— autorizan el **deploy**, no
+> auditan el **diff del script**. Una clave real acá tiene que tener presupuesto
+> acotado propio; la alternativa más barata es dejar el asistente real sólo en
+> staging, que no ejecuta código venido de un PR.
+
 > **Límite conocido**: igual que `APP_DB_PASSWORD_PREVIEW`, los dos secrets
 > `*_PREVIEW` los comparten **todos** los pr-N. Los nombres de rol sí son distintos
 > por ambiente, y el `REVOKE ... FROM PUBLIC` impide que un pr-N alcance la base de

@@ -52,6 +52,11 @@ services:
       # ejecuta un script que viene del propio pull request en un job con los
       # secrets del environment. Usar uno real exige ponerlo explícitamente.
       Asistente__Proveedor: ${ASISTENTE_PROVEEDOR:-simulado}
+      # La clave viaja VACÍA salvo que el ambiente la ponga. Vacía no rompe nada:
+      # con el proveedor simulado nadie la pide, y `spin-up.sh` no deja quedar
+      # `anthropic` sin clave — un proveedor real sin credencial fallaría recién
+      # cuando alguien pregunte, que es el peor momento para enterarse.
+      Asistente__ClaveDelProveedor: ${ASISTENTE_CLAVE:-}
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida
