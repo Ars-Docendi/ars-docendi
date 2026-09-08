@@ -1,5 +1,6 @@
 using ArsDocendi.Shared.Aplicacion;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace ArsDocendi.Shared.Identity.Administracion;
 
@@ -70,7 +71,6 @@ public sealed class ServicioUsuarios(
         CancellationToken ct)
     {
         ValidarDatos(datos);
-        var usuario = await ObtenerRequeridoAsync(id, ct);
         if (datos.Version is null)
         {
             throw new ExcepcionAplicacion(
@@ -79,28 +79,53 @@ public sealed class ServicioUsuarios(
                 "Falta la versión del usuario.",
                 new Dictionary<string, string[]> { ["version"] = ["Campo obligatorio."] });
         }
-        repositorio.EsperarVersion(usuario, datos.Version.Value);
-        var persona = usuario.Persona!;
-        var upn = NormalizarUpn(datos.Upn);
-        var documento = datos.Documento.Trim();
-        await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
-        var nuevas = await ConstruirAsignacionesAsync(datos.Membresias, ct);
 
-        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
-        persona.Documento = documento;
-        persona.Cuil = NormalizarOpcional(datos.Cuil);
-        persona.Legajo = NormalizarOpcional(datos.Legajo);
-        persona.Nombre = datos.Nombre.Trim();
-        persona.Apellido = datos.Apellido.Trim();
-        persona.FechaNacimiento = datos.FechaNacimiento;
-        persona.Telefono = NormalizarOpcional(datos.Telefono);
-        usuario.Upn = upn;
-        usuario.NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}";
-        db.Entry(usuario).Property(u => u.NombreParaMostrar).IsModified = true;
-        ReemplazarAsignaciones(usuario, nuevas);
-        await repositorio.GuardarAsync(ct);
-        await transaccion.CommitAsync(ct);
-        return Mapear(usuario);
+        // ponytail: tres intentos sólo para bloqueos transitorios; un conflicto de
+        // versión sigue rechazándose para no pisar cambios ajenos.
+        for (var intento = 0; intento < 3; intento++)
+        {
+            try
+            {
+                db.ChangeTracker.Clear();
+                var usuario = await ObtenerRequeridoAsync(id, ct);
+                repositorio.EsperarVersion(usuario, datos.Version.Value);
+                var persona = usuario.Persona!;
+                var upn = NormalizarUpn(datos.Upn);
+                var documento = datos.Documento.Trim();
+                await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
+                var nuevas = await ConstruirAsignacionesAsync(datos.Membresias, ct);
+
+                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+                persona.Documento = documento;
+                persona.Cuil = NormalizarOpcional(datos.Cuil);
+                persona.Legajo = NormalizarOpcional(datos.Legajo);
+                persona.Nombre = datos.Nombre.Trim();
+                persona.Apellido = datos.Apellido.Trim();
+                persona.FechaNacimiento = datos.FechaNacimiento;
+                persona.Telefono = NormalizarOpcional(datos.Telefono);
+                usuario.Upn = upn;
+                usuario.NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}";
+                db.Entry(usuario).Property(u => u.NombreParaMostrar).IsModified = true;
+                ReemplazarAsignaciones(usuario, nuevas);
+                await repositorio.GuardarAsync(ct);
+                await transaccion.CommitAsync(ct);
+                return Mapear(usuario);
+            }
+            catch (Exception error) when (EsBloqueoTransitorio(error))
+            {
+                if (intento == 2)
+                {
+                    throw new ExcepcionAplicacion(
+                        TipoErrorAplicacion.Conflicto,
+                        "concurrency-conflict",
+                        "El recurso está siendo modificado. Actualizá los datos y volvé a intentar.");
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * (intento + 1)), ct);
+            }
+        }
+
+        throw new InvalidOperationException("No se pudo editar el usuario.");
     }
 
     public async Task<UsuarioAdministracionDto> CambiarEstadoAsync(
@@ -230,6 +255,22 @@ public sealed class ServicioUsuarios(
 
     private static (Guid RolId, Guid? MateriaId, Guid? CarreraId) Clave(UsuarioRol asignacion) =>
         (asignacion.RolId, asignacion.MateriaId, asignacion.CarreraId);
+
+    private static bool EsBloqueoTransitorio(Exception error)
+    {
+        for (var actual = error; actual is not null; actual = actual.InnerException)
+        {
+            if (actual is PostgresException postgres
+                && postgres.SqlState is PostgresErrorCodes.DeadlockDetected
+                    or PostgresErrorCodes.SerializationFailure
+                    or PostgresErrorCodes.LockNotAvailable)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static void ValidarDatos(GuardarUsuarioDto datos)
     {
