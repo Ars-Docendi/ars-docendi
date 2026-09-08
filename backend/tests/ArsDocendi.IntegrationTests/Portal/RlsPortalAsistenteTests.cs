@@ -387,11 +387,4 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
         return filas;
     }
 
-    private async Task EjecutarAsync(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
 }

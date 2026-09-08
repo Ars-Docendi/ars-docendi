@@ -314,13 +314,6 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
             ON CONFLICT DO NOTHING;
             """);
 
-    private async Task EjecutarAsync(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     private async Task SembrarAsync() => await EjecutarAsync(
         await File.ReadAllTextAsync(
             Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),

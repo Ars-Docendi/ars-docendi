@@ -474,10 +474,4 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         return filas;
     }
 
-    private async Task EjecutarAsync(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
 }

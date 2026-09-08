@@ -249,18 +249,6 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     private async Task<int> ContarComoActorAsync(Guid actor, string tabla) =>
         (int)await EscalarComoActorAsync<long>(actor, $"SELECT count(*) FROM {tabla}");
 
-    /// <summary>
-    /// Corre la consulta como el rol de solo lectura del asistente, con el actor
-    /// fijado transaction-local, igual que un turno real.
-    /// </summary>
-    /// <summary>Escalar leído con la conexión del dueño, exenta de las policies.</summary>
-    private async Task<T> EscalarAsync<T>(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
-    }
-
     private async Task<T> EscalarComoActorAsync<T>(Guid actor, string sql)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -327,10 +315,4 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         return filas;
     }
 
-    private async Task EjecutarAsync(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
 }

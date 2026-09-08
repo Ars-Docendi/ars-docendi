@@ -198,20 +198,6 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         return valores;
     }
 
-    private async Task<T> EscalarAsync<T>(string sql, params (string Nombre, object Valor)[] parametros)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = Preparar(conexion, sql, parametros);
-        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
-    }
-
-    private async Task EjecutarAsync(string sql, params (string Nombre, object Valor)[] parametros)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = Preparar(conexion, sql, parametros);
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     private static NpgsqlCommand Preparar(
         NpgsqlConnection conexion, string sql, (string Nombre, object Valor)[] parametros)
     {

@@ -134,20 +134,6 @@ public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private async Task<T> EscalarAsync<T>(
-        string sql, params (string Nombre, object Valor)[] parametros)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion);
-
-        foreach (var (nombre, valor) in parametros)
-        {
-            comando.Parameters.AddWithValue(nombre, valor);
-        }
-
-        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
-    }
-
     private async Task<T> EscalarComoActorAsync<T>(Guid actor, string sql)
     {
         await using var conexion = await AbrirConexionComoAsistenteAsync(false);

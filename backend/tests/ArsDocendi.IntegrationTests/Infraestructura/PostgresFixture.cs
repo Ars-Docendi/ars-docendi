@@ -232,6 +232,49 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
     }
 
     /// <summary>
+    /// Techo de cada comando de test, en segundos.
+    /// </summary>
+    /// <remarks>
+    /// Está acá y no como parámetro porque ningún llamador quiere otro valor: lo
+    /// que hacía falta era que dejara de ser un detalle que cada copia recordaba o
+    /// se olvidaba. Tres de las copias que esto reemplaza no lo ponían.
+    /// </remarks>
+    private const int TimeoutDeComandoSegundos = 60;
+
+    /// <summary>Arma un comando con sus parámetros y el techo de la clase.</summary>
+    protected static NpgsqlCommand Preparar(
+        NpgsqlConnection conexion, string sql, params (string Nombre, object Valor)[] parametros)
+    {
+        var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = TimeoutDeComandoSegundos };
+
+        foreach (var (nombre, valor) in parametros)
+        {
+            comando.Parameters.AddWithValue(nombre, valor);
+        }
+
+        return comando;
+    }
+
+    /// <summary>Ejecuta SQL sin resultado sobre la base de la clase.</summary>
+    protected async Task EjecutarAsync(
+        string sql, params (string Nombre, object Valor)[] parametros)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = Preparar(conexion, sql, parametros);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Lee el primer valor de la primera fila.</summary>
+    protected async Task<T> EscalarAsync<T>(
+        string sql, params (string Nombre, object Valor)[] parametros)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = Preparar(conexion, sql, parametros);
+
+        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
+    }
+
+    /// <summary>
     /// El seed sintético, leído una sola vez por corrida.
     /// </summary>
     /// <remarks>

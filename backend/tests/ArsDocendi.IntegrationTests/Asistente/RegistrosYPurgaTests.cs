@@ -738,11 +738,4 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
         return valores;
     }
 
-    private async Task<T> EscalarAsync<T>(string sql)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion);
-
-        return (T)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
-    }
 }
