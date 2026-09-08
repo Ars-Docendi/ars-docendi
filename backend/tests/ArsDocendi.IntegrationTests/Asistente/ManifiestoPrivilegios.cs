@@ -165,6 +165,14 @@ public sealed record Desviacion(TipoDesviacion Tipo, string Objeto, string Detal
 /// </summary>
 public static class ComparadorManifiesto
 {
+    /// <summary>
+    /// Las desviaciones en un texto legible, para el mensaje de la aserción.
+    /// </summary>
+    public static string Describir(IReadOnlyCollection<Desviacion> desviaciones) =>
+        desviaciones.Count == 0
+            ? string.Empty
+            : $"{desviaciones.Count} desviación(es):\n" + string.Join("\n", desviaciones);
+
     public static IReadOnlyList<Desviacion> Comparar(
         Manifiesto manifiesto,
         IReadOnlyCollection<PrivilegioEfectivo> efectivos,
