@@ -15,7 +15,7 @@ public sealed class DocentesController(
     ResolutorAlcanceDocentes resolutorAlcance) : ControllerBase
 {
     [HttpGet]
-    [Authorize(Policy = Politicas.DocentesVer)]
+    [Authorize(Policy = Permisos.DocentesVer)]
     public async Task<IReadOnlyList<DocenteAdministracionDto>> Listar(
         [FromQuery] string? busqueda,
         [FromQuery] Guid? materiaId,
@@ -25,12 +25,12 @@ public sealed class DocentesController(
             busqueda, materiaId, rol, activo, await ObtenerMateriasVisiblesAsync(ct), ct);
 
     [HttpGet("catalogos")]
-    [Authorize(Policy = Politicas.DocentesVer)]
+    [Authorize(Policy = Permisos.DocentesVer)]
     public async Task<CatalogosDocentesDto> ObtenerCatalogos(CancellationToken ct) =>
         await servicio.ObtenerCatalogosAsync(await ObtenerMateriasVisiblesAsync(ct), ct);
 
     [HttpGet("{personaId:guid}")]
-    [Authorize(Policy = Politicas.DocentesVer)]
+    [Authorize(Policy = Permisos.DocentesVer)]
     public async Task<DocenteAdministracionDto> Obtener(Guid personaId, CancellationToken ct) =>
         await servicio.ObtenerAsync(personaId, await ObtenerMateriasVisiblesAsync(ct), ct);
 

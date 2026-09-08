@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Identity.Desarrollo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -114,6 +115,70 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         using var respuesta = await cliente.SendAsync(solicitud, ct);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Catalogo_de_permisos_y_defaults_expone_las_pantallas_explicitas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Administrativo.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "administrativo");
+
+        var permisos = await cliente.GetFromJsonAsync<PermisoAdministracionDto[]>(
+            "/api/administracion/permisos", ct);
+        var roles = await cliente.GetFromJsonAsync<RolAdministracionDto[]>(
+            "/api/administracion/roles", ct);
+
+        Assert.NotNull(permisos);
+        Assert.Contains(permisos, permiso => permiso.Codigo == "docentes.ver");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "designaciones.revisar");
+        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
+            permiso => permiso.Codigo == "docentes.ver");
+        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
+            permiso => permiso.Codigo == "designaciones.revisar");
+    }
+
+    [Fact]
+    public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        var rolActivo = Guid.NewGuid();
+        var rolInactivo = Guid.NewGuid();
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand("""
+            INSERT INTO identity.roles (id, code, name, scope, is_active)
+            VALUES (@activo, 'revisor_custom', 'Revisor personalizado', 'global', TRUE),
+                   (@inactivo, 'inactivo_custom', 'Inactivo personalizado', 'global', FALSE);
+            INSERT INTO identity.rol_permisos (rol_id, permiso_id)
+            SELECT @activo, id FROM identity.permisos
+            WHERE code IN ('designaciones.ver', 'docentes.ver', 'designaciones.revisar');
+            INSERT INTO identity.user_roles (user_id, role_id)
+            VALUES (@usuario, @activo);
+            """, conexion))
+        {
+            comando.Parameters.AddWithValue("activo", rolActivo);
+            comando.Parameters.AddWithValue("inactivo", rolInactivo);
+            comando.Parameters.AddWithValue("usuario", Jefe);
+            await comando.ExecuteNonQueryAsync(ct);
+        }
+
+        using var host = CrearHost("Development", true);
+        using var cliente = host.CreateClient();
+        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
+            "/api/desarrollo/identidades", ct);
+        var jefe = Assert.Single(identidades!, identidad => identidad.UsuarioId == Jefe);
+        var custom = Assert.Single(jefe.Roles, rol => rol.Codigo == "revisor_custom");
+        Assert.Contains("docentes.ver", custom.Permisos);
+        Assert.DoesNotContain(jefe.Roles, rol => rol.Codigo == "inactivo_custom");
+
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "revisor_custom");
+        using var docentes = await cliente.GetAsync("/api/administracion/docentes", ct);
+        Assert.Equal(HttpStatusCode.OK, docentes.StatusCode);
     }
 
     [Theory]

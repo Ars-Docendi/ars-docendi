@@ -59,6 +59,12 @@ public sealed class ServicioIdentidadesDesarrollo(IdentityDbContext db)
             .Select(g => new RolDesarrolloDto(
                 g.Key.Codigo,
                 g.Key.Nombre,
+                g.SelectMany(a => a.Rol!.Permisos)
+                    .Where(rp => rp.Permiso is not null)
+                    .Select(rp => rp.Permiso!.Codigo)
+                    .Distinct()
+                    .Order()
+                    .ToArray(),
                 g.Where(a => a.Materia is not null)
                     .Select(a => new AmbitoDesarrolloDto(
                         a.Materia!.Id, a.Materia.Codigo, a.Materia.Nombre))

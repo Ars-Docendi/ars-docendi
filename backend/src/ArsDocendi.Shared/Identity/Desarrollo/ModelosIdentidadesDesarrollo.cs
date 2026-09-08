@@ -5,6 +5,7 @@ public sealed record AmbitoDesarrolloDto(Guid Id, string Codigo, string Nombre);
 public sealed record RolDesarrolloDto(
     string Codigo,
     string Nombre,
+    IReadOnlyList<string> Permisos,
     IReadOnlyList<AmbitoDesarrolloDto> Materias,
     IReadOnlyList<AmbitoDesarrolloDto> Carreras);
 

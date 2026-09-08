@@ -176,7 +176,7 @@ Todo BR-\* debe tener al menos un test verificando la regla.
 - **Catálogo de cargos.** `designaciones.cargos` es la fuente única y la API sirve hoy seis cargos. La nomenclatura definitiva viene del convenio colectivo y del estatuto UNLaM: **la define el cliente, no el equipo**. Corregirla es un `INSERT`/`UPDATE`, no una migración.
 - **Alcance de BR-001.** Se implementó la versión literal (por docente y período, sin importar la cátedra), que bloquea al segundo Jefe de Cátedra cuando un docente dicta en dos. Si el cliente confirma que debía ser **por cátedra**, es agregar `materia_id` al índice único.
 - **Reintento tras rechazo.** El índice excluye `rechazado` y `cancelado`, o sea que hoy se puede volver a presentar tras un rechazo dentro del mismo período. Si un rechazo debe cerrar el período para ese docente, se saca `'rechazado'` del `WHERE` (y de `EstadosPedido.NoOcupanCupo`).
-- **Matriz inicial de permisos.** `identity.rol_permisos` se siembra con una matriz derivada de las responsabilidades institucionales de cada rol, **no** del mock del frontend (que le asignaba "Aprobar designaciones — Decanato" al rol Docente). Es provisional y se ajusta desde `/membresia-roles` sin migración, pero conviene que Secretaría la valide.
+- **Matriz inicial de permisos.** `identity.rol_permisos` se siembra con una matriz derivada de las responsabilidades institucionales de cada rol, **no** del mock del frontend (que le asignaba "Aprobar designaciones — Decanato" al rol Docente). Es provisional y se ajusta desde `/roles` sin migración, pero conviene que Secretaría la valide.
 
 ## Aprobación
 

@@ -7,12 +7,13 @@ Complementa [api-contracts.md](./api-contracts.md). Todas las rutas administrati
 | Recurso               | Lectura                                    | Escritura                   |
 | --------------------- | ------------------------------------------ | --------------------------- |
 | Usuarios              | `usuarios.ver`                             | `usuarios.administrar`      |
-| Docentes              | `usuarios.ver` o JdC con ámbito de materia | `usuarios.administrar`      |
+| Docentes              | `docentes.ver` o JdC con ámbito de materia | `usuarios.administrar`      |
 | Roles                 | `roles.ver`                                | `roles.administrar`         |
 | Membresía de permisos | `roles.ver`                                | `roles.gestionar_membresia` |
+| Revisión de pedidos   | `designaciones.revisar`                    | —                           |
 | Catálogos             | permiso de lectura del recurso consumidor  | —                           |
 
-Docentes reutiliza los permisos de usuarios porque administra la misma identidad canónica y sus designaciones vigentes. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras.
+Docentes usa `docentes.ver` para lectura global. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras. `usuarios.ver` conserva acceso de lectura global por compatibilidad con la administración de identidad.
 
 ## DTOs
 
@@ -33,16 +34,22 @@ DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, 
                            roles[], membresias[], designaciones[] }
 GuardarDocenteDto      = { personaId? | personaNueva, datosPersona..., membresias[],
                            designaciones[], version? }
-RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo }
-CrearRolDto            = { codigo, nombre, descripcion?, ambito, rolBaseId? }
-EditarRolDto           = { nombre, descripcion?, ambito }
+RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo, version, permisos[] }
+CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
+EditarRolDto           = { nombre, descripcion?, ambito, version }
+EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
-ReemplazarPermisosDto  = { permisoIds[] }
+ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
                            carreras[], materias[{ id, codigo, nombre, carreraId? }], personasElegibles[] }
 ```
 
-La edición de un rol de sistema ignora ninguna protección: código, ámbito y marca de sistema no aparecen como campos editables. Si llegan por payload adicional, la validación los rechaza.
+Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
+activos. Un rol base debe estar activo y la copia de permisos ocurre sólo al crear el nuevo rol.
+La baja de un rol personalizado es lógica (`activo = false`): conserva el registro, permisos y
+asignaciones históricas, pero lo excluye de listados, asignaciones nuevas y roles base. Los roles de
+sistema mantienen inmutables código, nombre, descripción, ámbito, marca y estado; sus permisos sí
+pueden reemplazarse.
 
 ## Rutas de usuarios
 
@@ -88,17 +95,18 @@ Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaI
 | GET    | `/api/administracion/roles/{id}`          | `roles.ver`                 | `RolDto`                                   |
 | POST   | `/api/administracion/roles`               | `roles.administrar`         | `CrearRolDto` → `201 RolDto`               |
 | PUT    | `/api/administracion/roles/{id}`          | `roles.administrar`         | `EditarRolDto` con `version` → `RolDto`    |
+| DELETE | `/api/administracion/roles/{id}`          | `roles.administrar`         | `{ version }` → `204 No Content`           |
 | GET    | `/api/administracion/roles/{id}/permisos` | `roles.ver`                 | `PermisoDto[]`                             |
 | PUT    | `/api/administracion/roles/{id}/permisos` | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
 | GET    | `/api/administracion/permisos`            | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
 
 ## Desarrollo
 
-`GET /api/desarrollo/identidades` devuelve únicamente:
+`GET /api/desarrollo/identidades` devuelve únicamente roles y permisos activos:
 
 ```text
 IdentidadDesarrolloDto = { usuarioId, nombreParaMostrar, upn, roles[
-  { codigo, nombre, materias[{id,codigo,nombre}], carreras[{id,codigo,nombre}] }
+  { codigo, nombre, permisos[], materias[{id,codigo,nombre}], carreras[{id,codigo,nombre}] }
 ] }
 ```
 
@@ -106,20 +114,21 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 ## Códigos de error
 
-| Código                          | HTTP | Uso                                                    |
-| ------------------------------- | ---- | ------------------------------------------------------ |
-| `validation`                    | 400  | forma o campos inválidos; extensión `errors` por campo |
-| `not-authenticated`             | 401  | identidad ausente o inválida                           |
-| `forbidden`                     | 403  | permiso o ámbito insuficiente                          |
-| `resource-not-found`            | 404  | recurso inexistente o no visible                       |
-| `identity-upn-conflict`         | 409  | UPN usada por otra cuenta                              |
-| `identity-document-conflict`    | 409  | documento usado por otra persona                       |
-| `identity-file-number-conflict` | 409  | legajo usado por otra persona                          |
-| `identity-role-scope-conflict`  | 422  | ámbito incompatible con el rol                         |
-| `identity-protected-role`       | 422  | mutación prohibida de rol de sistema                   |
-| `identity-permission-invalid`   | 422  | permiso inexistente o membresía duplicada              |
-| `identity-role-code-conflict`   | 409  | el código normalizado del rol ya existe                |
-| `concurrency-conflict`          | 409  | el recurso cambió desde su lectura                     |
+| Código                          | HTTP | Uso                                                               |
+| ------------------------------- | ---- | ----------------------------------------------------------------- |
+| `validation`                    | 400  | forma o campos inválidos; extensión `errors` por campo            |
+| `not-authenticated`             | 401  | identidad ausente o inválida                                      |
+| `forbidden`                     | 403  | permiso o ámbito insuficiente                                     |
+| `resource-not-found`            | 404  | recurso inexistente o no visible                                  |
+| `identity-upn-conflict`         | 409  | UPN usada por otra cuenta                                         |
+| `identity-document-conflict`    | 409  | documento usado por otra persona                                  |
+| `identity-file-number-conflict` | 409  | legajo usado por otra persona                                     |
+| `identity-role-scope-conflict`  | 422  | ámbito incompatible con el rol                                    |
+| `identity-protected-role`       | 422  | mutación prohibida de identidad o ciclo de vida de rol de sistema |
+| `identity-role-name-conflict`   | 409  | el nombre ya pertenece a otro rol activo                          |
+| `identity-permission-invalid`   | 422  | permiso inexistente o membresía duplicada                         |
+| `identity-role-code-conflict`   | 409  | el código normalizado del rol ya existe                           |
+| `concurrency-conflict`          | 409  | el recurso cambió desde su lectura                                |
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 

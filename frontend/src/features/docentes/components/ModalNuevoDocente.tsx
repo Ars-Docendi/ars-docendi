@@ -284,7 +284,20 @@ export function ModalNuevoDocente({
                   fontSize: "0.875rem",
                   lineHeight: 1.6,
                 }}
+                aria-label="Datos personales de solo lectura"
               >
+                <div
+                  style={{
+                    marginBottom: "0.25rem",
+                    color: "var(--color-text-secondary)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Datos personales · solo lectura
+                </div>
                 <strong>{nombreCompleto(personaSeleccionada)}</strong>
                 <br />
                 DNI {personaSeleccionada.documento} · Legajo {personaSeleccionada.legajo}

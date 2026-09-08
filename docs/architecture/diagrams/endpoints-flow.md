@@ -5,12 +5,12 @@ flowchart LR
     subgraph Frontend["Frontend API adapters"]
         UsersUI["/usuarios"]
         TeachersUI["/docentes"]
-        RolesUI["/roles<br/>/membresia-roles"]
+        RolesUI["/roles<br/>(ruta histórica redirige)"]
         RequestsUI["/designaciones/*"]
         EmptyUI["/aulas<br/>/portal<br/>/tareas"]
     end
 
-    Auth["RequireAuth / role guards<br/>Axios apiClient"]
+    Auth["RequireAuth / permission guards<br/>Axios apiClient"]
     Policies["ASP.NET authorization policies"]
 
     subgraph Controllers["HTTP surface"]

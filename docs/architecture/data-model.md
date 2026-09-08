@@ -56,12 +56,20 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | `personas`     | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018) | **Sí** — documento, CUIL, teléfono, fecha nac. |
 | `users`        | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                        | Parcial — UPN, display name                    |
-| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger                                                                                                  | No                                             |
-| `permisos`     | Catálogo **cerrado** de 20. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
-| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización                                                                                                                      | No                                             |
-| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; la API la expone como `membresias` y deriva `roles` únicos                                 | No                                             |
+| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica              | No                                             |
+| `permisos`     | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
+| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                    | No                                             |
+| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                 | No                                             |
 | `carreras`     | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                           | No                                             |
 | `materias`     | Catálogo. Es también la unidad de "cátedra"                                                                                                                                                | No                                             |
+
+`identity.roles.is_active` es el estado operativo del rol. Las consultas de catálogo, creación,
+edición, roles base, asignaciones nuevas y resolución de permisos sólo consideran roles activos.
+`DELETE /api/administracion/roles/{id}` no elimina filas: exige la `version` vigente, marca
+`is_active = false`, conserva `rol_permisos` y `user_roles`, y nunca permite desactivar roles de
+sistema. El código generado de un rol personalizado no cambia al renombrarlo; la combinación del
+nombre entre roles activos debe ser única. Los permisos de los roles de sistema sí son mutables
+porque integran la autorización persistida de las pantallas.
 
 ### Designaciones (`schema: designaciones`)
 

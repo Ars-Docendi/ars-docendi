@@ -1,7 +1,7 @@
 -- identity.rol_permisos
 -- Membresía rol -> permiso. Es la parte EDITABLE del modelo de autorización:
 -- el catálogo de roles de sistema y el de permisos están cerrados, pero qué
--- permisos tiene cada rol lo gestiona Secretaría desde /membresia-roles.
+-- permisos tiene cada rol lo gestiona Secretaría desde /roles.
 
 CREATE TABLE identity.rol_permisos (
     rol_id      UUID         NOT NULL REFERENCES identity.roles(id)    ON DELETE CASCADE,
@@ -20,7 +20,7 @@ CREATE INDEX rol_permisos_permiso_idx
 --
 -- PENDIENTE DE CONFIRMACIÓN CON EL CLIENTE. Un sistema que arranca sin ninguna
 -- membresía queda inoperable, así que se siembra un default defendible; la
--- matriz definitiva se ajusta desde /membresia-roles sin migración.
+-- matriz definitiva se ajusta desde /roles sin migración.
 INSERT INTO identity.rol_permisos (rol_id, permiso_id)
 SELECT r.id, p.id
   FROM identity.roles r
@@ -31,11 +31,11 @@ SELECT r.id, p.id
             WHEN 'jefe_catedra' THEN ARRAY[
                 'portal.ver', 'portal.editar',
                 'designaciones.ver', 'designaciones.gestionar',
-                'aulas.ver']
+                'aulas.ver', 'docentes.ver']
             WHEN 'coordinador_carrera' THEN ARRAY[
                 'portal.ver', 'portal.editar',
                 'designaciones.ver', 'designaciones.aprobar_coordinacion',
-                'aulas.ver', 'reportes.ver']
+                'aulas.ver', 'reportes.ver', 'designaciones.revisar']
             WHEN 'secretaria' THEN ARRAY[
                 'portal.ver', 'portal.editar',
                 'designaciones.ver', 'designaciones.aprobar_secretaria',
@@ -43,17 +43,18 @@ SELECT r.id, p.id
                 'usuarios.ver', 'usuarios.administrar',
                 'roles.ver', 'roles.administrar', 'roles.gestionar_membresia',
                 'periodos.administrar', 'sistema.parametrizar',
-                'tareas.ver', 'tareas.gestionar', 'reportes.ver']
+                'tareas.ver', 'tareas.gestionar', 'reportes.ver',
+                'designaciones.revisar', 'docentes.ver']
             WHEN 'decanato' THEN ARRAY[
                 'portal.ver', 'portal.editar',
-                'designaciones.ver', 'designaciones.aprobar_decanato',
+                'designaciones.ver', 'designaciones.aprobar_decanato', 'designaciones.revisar',
                 'reportes.ver']
             WHEN 'administrativo' THEN ARRAY[
                 'portal.ver', 'portal.editar',
                 'designaciones.ver',
                 'aulas.ver', 'aulas.gestionar', 'aulas.aprobar',
                 'usuarios.ver', 'usuarios.administrar',
-                'tareas.ver', 'tareas.gestionar']
+                'tareas.ver', 'tareas.gestionar', 'designaciones.revisar', 'docentes.ver']
             WHEN 'sys_admin' THEN ARRAY(SELECT code FROM identity.permisos)
             ELSE ARRAY[]::TEXT[]
         END);

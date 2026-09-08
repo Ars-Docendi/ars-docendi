@@ -1,5 +1,5 @@
 -- Administración puede operar las mismas pantallas de configuración de roles
--- que Secretaría. La navegación y los guards de /roles y /membresia-roles ya
+-- que Secretaría. La navegación y los guards de /roles ya
 -- exponen ambas superficies a este rol; su matriz debe conceder los permisos
 -- que las políticas HTTP exigen.
 INSERT INTO identity.rol_permisos (rol_id, permiso_id)

@@ -7,6 +7,7 @@ export interface AmbitoDesarrollo {
 export interface RolDesarrollo {
   codigo: string;
   nombre: string;
+  permisos: string[];
   materias: AmbitoDesarrollo[];
   carreras: AmbitoDesarrollo[];
 }

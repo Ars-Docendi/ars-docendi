@@ -15,6 +15,7 @@ public static class Permisos
     public const string DesignacionesAprobarSecretaria = "designaciones.aprobar_secretaria";
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
+    public const string DocentesVer = "docentes.ver";
 
     public static readonly string[] Todos =
     [
@@ -29,5 +30,7 @@ public static class Permisos
         DesignacionesAprobarCoordinacion,
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
+        DesignacionesRevisar,
+        DocentesVer,
     ];
 }

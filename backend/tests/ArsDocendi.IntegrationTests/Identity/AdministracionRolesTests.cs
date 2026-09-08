@@ -1,5 +1,6 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Aplicacion;
+using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.EntityFrameworkCore;
 
@@ -66,6 +67,81 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
             new EditarRolDto("Soporte Curricular", "Actualizado", "carrera", creado.Version), ct);
         Assert.Equal("Soporte Curricular", editado.Nombre);
         Assert.Equal("carrera", editado.Ambito);
+    }
+
+    [Fact]
+    public async Task Renombrar_rol_custom_conserva_codigo_y_rechaza_nombre_duplicado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var creado = await servicio.CrearAsync(new CrearRolDto("Rol editable", null, "global"), ct);
+
+        var editado = await servicio.EditarAsync(creado.Id,
+            new EditarRolDto("Rol renombrado", null, "global", creado.Version), ct);
+
+        Assert.Equal(creado.Codigo, editado.Codigo);
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CrearAsync(
+            new CrearRolDto("Rol renombrado", null, "global"), ct));
+        Assert.Equal("identity-role-name-conflict", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Rol_custom_se_baja_logicamente_y_conserva_relaciones()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var creado = await servicio.CrearAsync(new CrearRolDto("Rol a retirar", null, "global"), ct);
+        var usuario = Guid.NewGuid();
+        db.Usuarios.Add(new Usuario
+        {
+            Id = usuario,
+            AzureOid = Guid.NewGuid(),
+            Upn = $"{usuario:N}@example.test",
+            NombreParaMostrar = "Usuario test",
+            Activo = true,
+            CreadoEn = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(ct);
+        db.UsuarioRoles.Add(new UsuarioRol
+        {
+            Id = Guid.NewGuid(),
+            UsuarioId = usuario,
+            RolId = creado.Id,
+            OtorgadoEn = DateTimeOffset.UtcNow,
+            CreadoEn = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(ct);
+
+        await servicio.EliminarAsync(creado.Id, new EliminarRolDto(creado.Version), ct);
+
+        db.ChangeTracker.Clear();
+        Assert.DoesNotContain(await servicio.ListarAsync(ct), r => r.Id == creado.Id);
+        Assert.False(await db.Roles.AsNoTracking().Where(r => r.Id == creado.Id)
+            .Select(r => r.Activo).SingleAsync(ct));
+        Assert.Equal(1, await db.UsuarioRoles.AsNoTracking().CountAsync(r => r.RolId == creado.Id, ct));
+    }
+
+    [Fact]
+    public async Task Baja_de_rol_de_sistema_y_version_obsoleta_son_rechazadas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var sistema = await servicio.ObtenerAsync(RolSecretaria, ct);
+
+        var protegido = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.EliminarAsync(
+            RolSecretaria, new EliminarRolDto(sistema.Version), ct));
+        Assert.Equal("identity-protected-role", protegido.Codigo);
+
+        var creado = await servicio.CrearAsync(new CrearRolDto("Rol concurrente", null, "global"), ct);
+        await servicio.EditarAsync(creado.Id,
+            new EditarRolDto("Rol concurrente actualizado", null, "global", creado.Version), ct);
+        var conflicto = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => servicio.EliminarAsync(
+            creado.Id, new EliminarRolDto(creado.Version), ct));
+        Assert.NotNull(conflicto);
+        Assert.True((await servicio.ObtenerAsync(creado.Id, ct)).Activo);
     }
 
     [Fact]

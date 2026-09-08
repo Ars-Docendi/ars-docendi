@@ -22,7 +22,16 @@ filas conservan `rolId`, `materiaId` y `carreraId`; los nombres sólo son presen
 combinar roles diferentes en materias distintas, no repetir una asignación exacta y no generar
 productos cartesianos entre listas.
 
+## Editor de asignaciones docentes
+
+Cada fila distribuye materia, cargo y dedicación en controles amplios y legibles, con horas como
+campo compacto separado; el layout puede ocupar dos renglones para evitar cortar los textos.
+
 ## Estados y accesibilidad
+
+- En alta desde "Persona del sistema", los datos personales se muestran en una tarjeta con el
+  indicador visible "Datos personales · solo lectura"; no se editan desde este flujo.
+- Las fechas usan el control nativo del navegador, sin un SVG de calendario separado del campo.
 
 Los errores de concurrencia mantienen abierto el modal y explican que se debe recargar antes de
 reintentar. Los conflictos de UPN, documento, legajo y ámbito se muestran como mensajes accionables.

@@ -382,8 +382,8 @@ Tabla de transiciones. `maquinaEstados.ts` la implementa como función pura `apl
   - `pedidos/nuevo` y `pedidos/:id/editar` → `PedidoFormPage` (gate rol JC)
   - `pedidos/:id` → `DetallePedidoPage` (cualquier rol con visibilidad por ámbito; acciones gated por etapa)
   - `revision` → `TableroRevisionPage` (gate roles Coordinador / Secretaría / Decanato / Administración)
-- **`RequireRole`** (componente existente) envuelve los grupos de rutas por rol.
-- **`nav.ts`** (`NAV_BY_ROLE`) — agregar los ítems por rol respetando invariante #7 (sin links muertos): "Mis pedidos" para JC; "Revisión" para los revisores; "Períodos" sigue para Secretaría.
+- **`RequirePermission`** envuelve las rutas según el permiso efectivo de la sesión.
+- **`nav.ts`** — filtrar el registro estático de pantallas por permisos efectivos respetando invariante #7 (sin links muertos): "Mis pedidos", "Revisión" y "Períodos" aparecen según sus permisos.
 
 ### 6.9 Personas mock (extiende `mockUsers.ts`)
 
