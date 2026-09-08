@@ -236,7 +236,7 @@ public sealed class ServicioUsuarios(
         "identity-role-scope-conflict",
         mensaje);
 
-    private static void ReemplazarAsignaciones(Usuario usuario, IReadOnlyCollection<UsuarioRol> nuevas)
+    private void ReemplazarAsignaciones(Usuario usuario, IReadOnlyCollection<UsuarioRol> nuevas)
     {
         var pendientes = nuevas.ToDictionary(Clave);
         var ahora = DateTimeOffset.UtcNow;
@@ -250,6 +250,7 @@ public sealed class ServicioUsuarios(
         {
             asignacion.UsuarioId = usuario.Id;
             usuario.Roles.Add(asignacion);
+            db.UsuarioRoles.Add(asignacion);
         }
     }
 

@@ -205,6 +205,27 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Edicion_reemplaza_la_membresia_del_usuario()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var creado = await servicio.CrearAsync(
+            DatosValidos("put-rol@unlam.edu.ar", "50999223"), ct);
+
+        var editado = await servicio.EditarAsync(creado.Id, DatosValidos(
+            "put-rol@unlam.edu.ar", "50999223") with
+        {
+            Version = creado.Version,
+            Membresias = [new GuardarAsignacionRolDto(RolDocente, Materia, Carrera)],
+        }, ct);
+
+        Assert.Single(editado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia);
+        Assert.DoesNotContain(editado.Membresias, m => m.Codigo == "secretaria");
+    }
+
+    [Fact]
     public async Task Una_cuenta_puede_combinar_roles_docentes_por_materia()
     {
         var ct = TestContext.Current.CancellationToken;
