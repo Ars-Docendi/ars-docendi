@@ -5,7 +5,7 @@ import { Button, RoleBadge } from "@ars-docendi/ui";
 import { clearToken } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { bellIcon, /*collapseIcon,*/ searchIcon } from "./icons";
-import { LanzadorAsistente } from "../../features/asistente/components/LanzadorAsistente";
+import { LanzadorAsistente } from "../../features/asistente";
 
 interface TopBarProps {
   collapsed: boolean;

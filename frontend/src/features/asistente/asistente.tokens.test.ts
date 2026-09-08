@@ -1,8 +1,9 @@
 /// <reference types="node" />
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
+
+import { hojaDeLaFeature, sinComentarios as sinComentariosDe } from "./test/hojas";
 
 // Como texto y no como estilos: acá se lee la hoja, no se aplica. Va por `fs`
 // y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
@@ -11,7 +12,7 @@ import { describe, it, expect } from "vitest";
 // como lo publica la librería (`exports["./theme.css"]`), no por una ruta a
 // `node_modules` que un bump puede mover. Los tipos de node se referencian acá
 // y no en el tsconfig de la app, que no los carga.
-const hoja = readFileSync(join(import.meta.dirname, "asistente.css"), "utf8");
+const hoja = hojaDeLaFeature();
 const tema = readFileSync(
   createRequire(import.meta.url).resolve("@ars-docendi/ui/theme.css"),
   "utf8",
@@ -27,7 +28,7 @@ const tema = readFileSync(
 // hoja usa está definido en el tema, y ningún color se escribe a mano.
 // ============================================================
 
-const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
+const sinComentarios = sinComentariosDe(hoja);
 
 describe("La hoja de estilos del asistente", () => {
   it("se lee de verdad: ni la hoja ni el tema son cadenas vacías", () => {

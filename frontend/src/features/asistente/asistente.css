@@ -147,16 +147,6 @@
   font-weight: var(--text-heading-weight);
 }
 
-/* La presentación y el alcance son una sola idea: por qué venís y hasta dónde ves.
-   Van juntos, con menos aire entre ellos que el `gap` del bloque de inicio. */
-/* El título y el «?» en una fila. La ayuda que antes ocupaba media pantalla vive
-   detrás de ese botón; ver `AyudaDelAsistente`. */
-.adoc-asistente-inicio-entrada {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 /* ────────────────────────────────── la ayuda ───────────────────────────────── */
 
 /* `relative` porque el popover se ancla acá y no al hilo, que scrollea: anclado al

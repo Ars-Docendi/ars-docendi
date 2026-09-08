@@ -8,6 +8,7 @@ import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
 import { sparkIcon } from "../../../app/shell/icons";
+import "../asistente.css";
 
 /**
  * El asistente desde cualquier pantalla.

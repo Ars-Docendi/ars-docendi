@@ -1,7 +1,7 @@
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
+
+import { hojaDeLaFeature } from "./test/hojas";
 
 // jsdom no calcula layout, así que «el input no se mueve con la rueda» no se
 // puede afirmar montando el componente. Lo que sí se puede afirmar es la regla
@@ -11,7 +11,7 @@ import { describe, it, expect } from "vitest";
 // El import de `.css` no sirve acá: con `test.css: false` en vite.config.ts
 // vitest lo resuelve a cadena vacía —también con `?raw`— y el test pasaría sobre
 // la nada.
-const hoja = readFileSync(join(import.meta.dirname, "asistente.css"), "utf8");
+const hoja = hojaDeLaFeature();
 
 /** El cuerpo de una regla, por selector exacto. */
 function reglaDe(selector: string): string {

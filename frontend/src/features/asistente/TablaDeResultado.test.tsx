@@ -1,7 +1,7 @@
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, it, expect } from "vitest";
+
+import { hojaDeLaFeature } from "./test/hojas";
 import { screen } from "@testing-library/react";
 
 import { TablaDeResultado } from "./components/TablaDeResultado";
@@ -12,7 +12,7 @@ import type { ColumnaDelResultado } from "./types";
 // `fs` y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
 // import de un `.css` —también con `?raw`— a una cadena vacía. Los tipos de node
 // se referencian acá y no en el tsconfig de la app, que no los carga.
-const hoja = readFileSync(join(import.meta.dirname, "asistente.css"), "utf8");
+const hoja = hojaDeLaFeature();
 
 // ============================================================
 // La tabla de resultados: su marco y la marca de columna sensible.
