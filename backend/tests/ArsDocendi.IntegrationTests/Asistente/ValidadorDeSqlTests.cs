@@ -78,6 +78,40 @@ public sealed class ValidadorDeSqlTests
         Assert.False(ValidadorDeSql.Validar(sql).EsValida);
     }
 
+    [Theory]
+    // La forma corta: cuatro dígitos hexadecimales detrás del carácter de escape.
+    [InlineData("""SELECT U&"\0073et_config"('a','b',true)""")]
+    // La forma larga: un signo más y seis dígitos.
+    [InlineData("""SELECT U&"\+000073et_config"('a','b',true)""")]
+    // El carácter de escape se puede redefinir, y la cláusula que lo redefine
+    // viene DESPUÉS de la comilla de cierre.
+    [InlineData("""SELECT U&"!0073et_config" UESCAPE '!' ('a','b',true)""")]
+    // El prefijo no es sensible a mayúsculas.
+    [InlineData("""SELECT u&"\0073ET_CONFIG"('a','b',true)""")]
+    public void Los_escapes_unicode_del_identificador_no_evaden(string sql)
+    {
+        // PostgreSQL resuelve los escapes ANTES de resolver el nombre: las cuatro
+        // formas de acá son la función set_config para el motor. Un tokenizador
+        // que emita el texto crudo se las pasa enteras a una lista negra que
+        // busca «set_config», y no encuentra nada.
+        //
+        // Verificadas contra PostgreSQL 18: las cuatro ejecutan la función.
+        Assert.False(ValidadorDeSql.Validar(sql).EsValida);
+    }
+
+    [Theory]
+    // Un identificador acentuado escrito con escapes es legítimo y frecuente.
+    [InlineData("""SELECT c.name AS U&"n\00F3mina" FROM identity.carreras c""")]
+    // El carácter de escape duplicado es el carácter literal, no el comienzo de
+    // una secuencia: acá el identificador tiene una barra adentro y nada más.
+    [InlineData("""SELECT c.name AS U&"a\\0073b" FROM identity.carreras c""")]
+    public void Acepta_un_identificador_unicode_legitimo(string sql)
+    {
+        var veredicto = ValidadorDeSql.Validar(sql);
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
     [Fact]
     public void Acepta_un_alias_entrecomillado_legitimo()
     {

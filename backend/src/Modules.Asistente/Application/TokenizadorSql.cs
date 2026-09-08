@@ -74,6 +74,11 @@ internal static class TokenizadorSql
                     posicion = SaltarLiteralDeTexto(sql, posicion + 1);
                     break;
 
+                case 'u' or 'U'
+                    when Siguiente(sql, posicion) == '&' && Siguiente(sql, posicion + 1) == '"':
+                    posicion = LeerIdentificadorConEscapes(sql, posicion, tokens);
+                    break;
+
                 case '"':
                     posicion = LeerIdentificador(sql, posicion, tokens);
                     break;
@@ -205,6 +210,168 @@ internal static class TokenizadorSql
         }
 
         throw new SqlSinCerrar("un identificador entrecomillado");
+    }
+
+    /// <summary>
+    /// Lee un identificador con escapes Unicode —<c>U&amp;"…"</c>— y lo emite ya
+    /// <b>decodificado</b>.
+    /// </summary>
+    /// <remarks>
+    /// PostgreSQL resuelve los escapes antes de resolver el nombre:
+    /// <c>U&amp;"\0073et_config"</c> es la función <c>set_config</c>. Emitir el
+    /// texto crudo le entrega a la lista negra una cadena que no se parece a
+    /// ningún nombre prohibido, y deja pasar exactamente la función que fija el
+    /// actor de la sesión —el ataque contra el que existe esta clase—.
+    ///
+    /// La cláusula <c>UESCAPE 'c'</c> viene <b>después</b> de la comilla de
+    /// cierre, así que el carácter de escape no se conoce hasta terminar de leer:
+    /// se junta el contenido crudo, se mira si sigue un <c>UESCAPE</c>, y recién
+    /// ahí se decodifica.
+    /// </remarks>
+    private static int LeerIdentificadorConEscapes(string sql, int posicion, List<TokenSql> tokens)
+    {
+        // Saltea «U&"» y queda sobre el primer carácter del contenido.
+        posicion += 3;
+        var crudo = new System.Text.StringBuilder();
+
+        while (posicion < sql.Length)
+        {
+            if (sql[posicion] != '"')
+            {
+                crudo.Append(sql[posicion]);
+                posicion++;
+                continue;
+            }
+
+            if (Siguiente(sql, posicion) == '"')
+            {
+                crudo.Append('"');
+                posicion += 2;
+                continue;
+            }
+
+            posicion++;
+            var escape = LeerCaracterDeEscape(sql, ref posicion);
+
+            tokens.Add(new TokenSql(
+                ClaseDeToken.IdentificadorEntrecomillado,
+                Decodificar(crudo.ToString(), escape).ToLowerInvariant()));
+
+            return posicion;
+        }
+
+        throw new SqlSinCerrar("un identificador entrecomillado");
+    }
+
+    /// <summary>
+    /// Si detrás del identificador viene <c>UESCAPE 'c'</c>, devuelve ese carácter
+    /// y consume la cláusula. Si no, devuelve la barra invertida, que es el
+    /// carácter de escape por defecto.
+    /// </summary>
+    private static char LeerCaracterDeEscape(string sql, ref int posicion)
+    {
+        const string palabra = "uescape";
+        var recorrido = SaltarBlancos(sql, posicion);
+
+        if (recorrido + palabra.Length > sql.Length
+            || !sql.AsSpan(recorrido, palabra.Length).Equals(palabra, StringComparison.OrdinalIgnoreCase))
+        {
+            return '\\';
+        }
+
+        // «uescapex» no es la cláusula: es un nombre que empieza igual.
+        var despues = recorrido + palabra.Length;
+        if (despues < sql.Length && (char.IsLetterOrDigit(sql[despues]) || sql[despues] == '_'))
+        {
+            return '\\';
+        }
+
+        recorrido = SaltarBlancos(sql, despues);
+
+        if (recorrido + 2 >= sql.Length || sql[recorrido] != '\'' || sql[recorrido + 2] != '\'')
+        {
+            return '\\';
+        }
+
+        var escape = sql[recorrido + 1];
+        posicion = recorrido + 3;
+        return escape;
+    }
+
+    private static int SaltarBlancos(string sql, int posicion)
+    {
+        while (posicion < sql.Length && char.IsWhiteSpace(sql[posicion]))
+        {
+            posicion++;
+        }
+
+        return posicion;
+    }
+
+    /// <summary>
+    /// Resuelve las secuencias de escape de un identificador Unicode: la corta
+    /// —<c>\XXXX</c>—, la larga —<c>\+XXXXXX</c>— y el carácter de escape
+    /// duplicado, que vale por el carácter literal.
+    /// </summary>
+    /// <remarks>
+    /// Una secuencia mal formada se emite <b>verbatim</b>. PostgreSQL la rechaza
+    /// con error de sintaxis, así que esa consulta no llega a ejecutarse nunca:
+    /// inventarle acá un nombre decodificado sería afirmar algo que el motor no
+    /// va a ver.
+    /// </remarks>
+    private static string Decodificar(string crudo, char escape)
+    {
+        if (crudo.IndexOf(escape) < 0)
+        {
+            return crudo;
+        }
+
+        var decodificado = new System.Text.StringBuilder(crudo.Length);
+        var posicion = 0;
+
+        while (posicion < crudo.Length)
+        {
+            if (crudo[posicion] != escape)
+            {
+                decodificado.Append(crudo[posicion]);
+                posicion++;
+                continue;
+            }
+
+            if (posicion + 1 < crudo.Length && crudo[posicion + 1] == escape)
+            {
+                decodificado.Append(escape);
+                posicion += 2;
+                continue;
+            }
+
+            var largo = posicion + 1 < crudo.Length && crudo[posicion + 1] == '+';
+            var inicio = posicion + (largo ? 2 : 1);
+            var digitos = largo ? 6 : 4;
+
+            if (inicio + digitos > crudo.Length
+                || !int.TryParse(
+                       crudo.AsSpan(inicio, digitos),
+                       System.Globalization.NumberStyles.AllowHexSpecifier,
+                       System.Globalization.CultureInfo.InvariantCulture,
+                       out var punto)
+                || punto > 0x10FFFF)
+            {
+                decodificado.Append(crudo[posicion]);
+                posicion++;
+                continue;
+            }
+
+            // Los sustitutos sueltos se agregan tal cual: dos escapes seguidos
+            // forman el par en UTF-16 sin que haya que juntarlos a mano.
+            decodificado.Append(punto <= char.MaxValue
+                ? ((char)punto).ToString()
+                : char.ConvertFromUtf32(punto));
+
+            posicion = inicio + digitos;
+        }
+
+        return decodificado.ToString();
     }
 
     /// <summary>
