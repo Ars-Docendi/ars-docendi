@@ -53,9 +53,9 @@ public sealed class PrefijoDeEsquemaPuroTests
         // cerrado —un departamento suma materias— así que para ésas la salida es
         // comparar por la palabra distintiva en vez de por igualdad.
         Assert.Contains(
-            "VALORES POSIBLES", RenderizadorDeEsquema.Instrucciones, StringComparison.Ordinal);
+            "VALORES POSIBLES", InstruccionesDeGeneracion.Instrucciones, StringComparison.Ordinal);
         Assert.Contains(
-            "ILIKE", RenderizadorDeEsquema.Instrucciones, StringComparison.Ordinal);
+            "ILIKE", InstruccionesDeGeneracion.Instrucciones, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class PrefijoDeEsquemaPuroTests
         // `public.unaccent` ya estaba instalada y concedida —`001_asistente_grants.sql`
         // la crea con un comentario que dice para qué—, y el prompt nunca la nombró:
         // provisión muerta contra exactamente el defecto que existía para evitar.
-        var instrucciones = RenderizadorDeEsquema.Instrucciones;
+        var instrucciones = InstruccionesDeGeneracion.Instrucciones;
 
         // LAS DOS MITADES, y por eso se cuenta en vez de buscar la palabra. Con
         // `public.unaccent` sólo sobre la columna, «Diaz» sigue sin encontrar a

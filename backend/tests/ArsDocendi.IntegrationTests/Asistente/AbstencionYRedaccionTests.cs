@@ -342,7 +342,7 @@ public sealed class AbstencionYRedaccionTests
         // contradiciéndola en cada turno vacío.
         Assert.Contains(
             "todavía no se ejecutó",
-            RenderizadorDeEsquema.Instrucciones,
+            InstruccionesDeGeneracion.Instrucciones,
             StringComparison.Ordinal);
     }
 
