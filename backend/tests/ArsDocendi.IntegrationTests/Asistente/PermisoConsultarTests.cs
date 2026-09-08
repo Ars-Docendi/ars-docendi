@@ -198,16 +198,4 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         return valores;
     }
 
-    private static NpgsqlCommand Preparar(
-        NpgsqlConnection conexion, string sql, (string Nombre, object Valor)[] parametros)
-    {
-        var comando = new NpgsqlCommand(sql, conexion);
-        foreach (var (nombre, valor) in parametros)
-        {
-            comando.Parameters.AddWithValue(nombre, valor);
-        }
-
-        return comando;
-    }
-
 }
