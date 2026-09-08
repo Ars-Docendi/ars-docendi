@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, RoleBadge } from "@ars-docendi/ui";
 
@@ -6,6 +6,7 @@ import { clearToken } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { bellIcon, /*collapseIcon,*/ searchIcon } from "./icons";
 import { LanzadorAsistente } from "../../features/asistente";
+import { useDescartarAlClicAfuera } from "../../shared/hooks/useDescartarAlClicAfuera";
 
 interface TopBarProps {
   collapsed: boolean;
@@ -18,21 +19,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
+  useDescartarAlClicAfuera(menuOpen, menuRef, () => setMenuOpen(false));
 
   function handleLogout() {
     clearToken();

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { helpIcon } from "../../../app/shell/icons";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
+import { useDescartarAlClicAfuera } from "../../../shared/hooks/useDescartarAlClicAfuera";
 
 /**
  * Qué es el asistente, hasta dónde llega y qué no hace, detrás de un «?».
@@ -31,27 +32,7 @@ export function AyudaDelAsistente() {
   const [abierta, setAbierta] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!abierta) return;
-
-    function alApuntar(evento: MouseEvent) {
-      if (contenedor.current && !contenedor.current.contains(evento.target as Node)) {
-        setAbierta(false);
-      }
-    }
-
-    function alTeclear(evento: KeyboardEvent) {
-      if (evento.key === "Escape") setAbierta(false);
-    }
-
-    document.addEventListener("mousedown", alApuntar);
-    document.addEventListener("keydown", alTeclear);
-
-    return () => {
-      document.removeEventListener("mousedown", alApuntar);
-      document.removeEventListener("keydown", alTeclear);
-    };
-  }, [abierta]);
+  useDescartarAlClicAfuera(abierta, contenedor, () => setAbierta(false));
 
   // Sin catálogo no hay nada que contar. Un «?» que se abre vacío es peor que no
   // tenerlo: promete una explicación que no llega.
