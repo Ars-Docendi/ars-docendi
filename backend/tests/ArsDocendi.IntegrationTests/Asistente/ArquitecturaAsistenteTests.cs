@@ -266,6 +266,106 @@ public sealed partial class ArquitecturaAsistenteTests
         Assert.Empty(Detectar(sinteticos, DestruccionEnSql()));
     }
 
+    // ------------------------------------------- el actor se fija en un solo lugar
+
+    /// <summary>El único archivo que puede armar el preámbulo de lectura.</summary>
+    private const string ArchivoDelPreambulo = "PreambuloDelActor.cs";
+
+    /// <summary>
+    /// Archivos que abren transacción <b>sin</b> actor, y por qué.
+    /// </summary>
+    /// <remarks>
+    /// Los dos corren DDL de migración con la conexión del dueño que les pasa el
+    /// migrador: no hay actor que fijar, y RLS no aplica al dueño de la tabla.
+    /// La lista crece solo con un motivo escrito.
+    /// </remarks>
+    private static readonly string[] TransaccionesSinActor =
+    [
+        "PrivilegiosAsistente.cs",
+        "RegistrosAsistente.cs",
+    ];
+
+    [Fact]
+    public void El_preambulo_de_lectura_se_arma_en_un_solo_archivo()
+    {
+        var archivos = CodigoDelModulo();
+
+        // El ajuste del actor y la declaración de solo lectura viven juntos en un
+        // solo archivo porque juntos son la afirmación que sostiene el invariante
+        // #14: toda transacción que fija el actor es de solo lectura. Escritos
+        // sueltos, esa frase es una intención; escritos acá, no queda forma de
+        // fijar el actor sin declarar la transacción.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, PreambuloDeLectura())
+            .Where(ruta => !Path.GetFileName(ruta).Equals(ArchivoDelPreambulo, StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "El ajuste del actor y el SET TRANSACTION READ ONLY solo pueden estar en "
+            + $"{ArchivoDelPreambulo}. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_un_preambulo_suelto()
+    {
+        Archivo[] sinteticos =
+        [
+            new("Infrastructure/ConsultorNuevo.cs",
+                "var c = new NpgsqlCommand(\"SELECT set_config('app.asistente_user_id', @a, true)\");"),
+            new("Infrastructure/OtroConsultor.cs",
+                "var c = new NpgsqlCommand(\"SET TRANSACTION READ ONLY\", conexion, transaccion);"),
+        ];
+
+        Assert.Equal(2, Detectar(sinteticos, PreambuloDeLectura()).Count);
+    }
+
+    [Fact]
+    public void Toda_transaccion_de_lectura_pasa_por_el_preambulo()
+    {
+        var archivos = CodigoDelModulo();
+
+        // ESTE ES EL GUARD QUE ATRAPA AL QUINTO CONSULTOR. El de arriba impide
+        // escribir el ajuste en otro lado; este impide OLVIDARLO, que es el modo de
+        // falla que importa y el único que es silencioso: sin el ajuste,
+        // identity.asistente_actor() devuelve NULL, la policy da falso, y el
+        // asistente contesta «no hay datos» en vez de «no podés verlos». Eso no
+        // tira error: produce una respuesta falsa.
+        Assert.NotEmpty(archivos);
+        var culpables = archivos
+            .Where(a => !TransaccionesSinActor.Contains(Path.GetFileName(a.Ruta)))
+            .Where(a => !Path.GetFileName(a.Ruta).Equals(ArchivoDelPreambulo, StringComparison.Ordinal))
+            .Where(SinPreambulo)
+            .Select(a => a.Ruta)
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "Hay una transacción de lectura que no aplica el preámbulo del actor. "
+            + "Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_transaccion_sin_preambulo()
+    {
+        var olvidadizo = new Archivo(
+            "Infrastructure/ConsultorNuevo.cs",
+            """
+            await using var transaccion = await conexion.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted, ct);
+            await using var leer = new NpgsqlCommand("SELECT 1", conexion, transaccion);
+            """);
+
+        Assert.True(SinPreambulo(olvidadizo));
+
+        // Y el que sí lo aplica, no.
+        var correcto = olvidadizo with
+        {
+            Contenido = olvidadizo.Contenido
+                + "\nawait PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);",
+        };
+
+        Assert.False(SinPreambulo(correcto));
+    }
+
     // --------------------------------------------- el ping no arrastra dependencias
 
     [Fact]
@@ -379,6 +479,13 @@ public sealed partial class ArquitecturaAsistenteTests
         archivos.Where(a => patron.IsMatch(a.Contenido)).Select(a => a.Ruta).ToList();
 
     /// <summary>
+    /// Si el archivo abre una transacción y no nombra el preámbulo del actor.
+    /// </summary>
+    private static bool SinPreambulo(Archivo archivo) =>
+        AperturaDeTransaccion().IsMatch(archivo.Contenido)
+        && !UsoDelPreambulo().IsMatch(archivo.Contenido);
+
+    /// <summary>
     /// Igual que <see cref="Detectar"/>, pero perdona lo que apunta al schema propio.
     /// </summary>
     /// <remarks>
@@ -483,6 +590,18 @@ public sealed partial class ArquitecturaAsistenteTests
 
     [GeneratedRegex(@"\bCadenaDuena\b")]
     private static partial Regex UsoDeCadenaDuena();
+
+    // Las dos mitades del preámbulo, en un solo patrón: el nombre del ajuste del
+    // actor y la declaración de solo lectura. Que estén juntas es lo que hace
+    // verificable la frase que sostiene el invariante #14.
+    [GeneratedRegex(@"app\.asistente_user_id|SET\s+TRANSACTION\s+READ\s+ONLY", RegexOptions.IgnoreCase)]
+    private static partial Regex PreambuloDeLectura();
+
+    [GeneratedRegex(@"\bBeginTransactionAsync\s*\(")]
+    private static partial Regex AperturaDeTransaccion();
+
+    [GeneratedRegex(@"\bPreambuloDelActor\b")]
+    private static partial Regex UsoDelPreambulo();
 
     // TRUNCATE exige un objetivo —igual que las otras tres formas de este patrón—
     // y no aparece suelto. El validador de la SQL generada tiene que ENUMERAR las

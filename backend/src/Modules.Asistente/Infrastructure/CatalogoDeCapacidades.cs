@@ -37,9 +37,6 @@ internal sealed class CatalogoDeCapacidades(
     private const int MinimoDeEjemplos = 4;
     private const int MaximoDeEjemplos = 6;
 
-    /// <summary>Ajuste de sesión con el actor, igual que en el ejecutor.</summary>
-    private const string AjusteDelActor = "app.asistente_user_id";
-
     /// <summary>SQLSTATE de <c>insufficient_privilege</c>.</summary>
     private const string PrivilegioDenegado = "42501";
 
@@ -167,20 +164,8 @@ internal sealed class CatalogoDeCapacidades(
 
         try
         {
-            await using (var soloLectura = new NpgsqlCommand(
-                "SET TRANSACTION READ ONLY", conexion, transaccion))
-            {
-                await soloLectura.ExecuteNonQueryAsync(ct);
-            }
-
-            // El actor va fijado igual que en el ejecutor: las policies RLS invocan
-            // funciones que no resuelven sin él.
-            await using (var fijarActor = new NpgsqlCommand(
-                $"SELECT set_config('{AjusteDelActor}', @actor, true)", conexion, transaccion))
-            {
-                fijarActor.Parameters.AddWithValue("actor", actor.ToString());
-                await fijarActor.ExecuteNonQueryAsync(ct);
-            }
+            // Las policies RLS invocan funciones que no resuelven sin el actor.
+            await PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);
 
             await using var explicar = new NpgsqlCommand($"EXPLAIN {sql}", conexion, transaccion);
             await explicar.ExecuteNonQueryAsync(ct);

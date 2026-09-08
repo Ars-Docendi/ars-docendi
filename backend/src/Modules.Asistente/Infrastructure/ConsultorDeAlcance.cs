@@ -78,24 +78,7 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);
 
-        await using (var soloLectura = new NpgsqlCommand(
-            "SET TRANSACTION READ ONLY", conexion, transaccion))
-        {
-            await soloLectura.ExecuteNonQueryAsync(ct);
-        }
-
-        // Comandos separados y no una sola expresión con AND: PostgreSQL no
-        // garantiza el orden de evaluación de los operandos, así que fijar el
-        // ajuste y leerlo en la misma expresión podría leerlo antes de escribirlo,
-        // y un AND que corte al primer operando falso podría saltearse la
-        // validación del actor.
-        await using (var fijarActor = new NpgsqlCommand(
-            "SELECT set_config('app.asistente_user_id', @actor, true)",
-            conexion, transaccion))
-        {
-            fijarActor.Parameters.AddWithValue("actor", actor.ToString());
-            await fijarActor.ExecuteNonQueryAsync(ct);
-        }
+        await PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);
 
         await using (var validarActor = new NpgsqlCommand(
             "SELECT identity.asistente_actor()", conexion, transaccion))

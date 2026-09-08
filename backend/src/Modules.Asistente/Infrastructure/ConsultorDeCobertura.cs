@@ -46,18 +46,7 @@ internal sealed class ConsultorDeCobertura(CadenaSoloLectura cadena) : IConsulto
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);
 
-        await using (var soloLectura = new NpgsqlCommand(
-            "SET TRANSACTION READ ONLY", conexion, transaccion))
-        {
-            await soloLectura.ExecuteNonQueryAsync(ct);
-        }
-
-        await using (var fijarActor = new NpgsqlCommand(
-            "SELECT set_config('app.asistente_user_id', @actor, true)", conexion, transaccion))
-        {
-            fijarActor.Parameters.AddWithValue("actor", actor.ToString());
-            await fijarActor.ExecuteNonQueryAsync(ct);
-        }
+        await PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);
 
         var ramas = tablas.Select(tabla =>
             $"""

@@ -27,12 +27,6 @@ internal sealed class EjecutorDeConsulta(
     IClasificadorDeSensibilidad clasificador,
     IOptions<OpcionesAsistente> opciones) : IEjecutorDeConsulta
 {
-    /// <summary>
-    /// Ajuste transaction-local donde viaja el actor. Lo leen las funciones
-    /// <c>SECURITY DEFINER</c> del schema <c>identity</c>.
-    /// </summary>
-    private const string AjusteDelActor = "app.asistente_user_id";
-
     public async Task<ResultadoDeConsulta> EjecutarAsync(
         string sql, Guid actor, bool conDatosPersonales, CancellationToken ct)
     {
@@ -54,55 +48,14 @@ internal sealed class EjecutorDeConsulta(
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);
 
-        await PrepararTransaccionAsync(conexion, transaccion, actor, valores, ct);
+        await PreambuloDelActor.AplicarAsync(
+            conexion, transaccion, actor, ct, valores.TimeoutDeSentenciaMs);
 
         // La resolución del manifiesto va antes de leer: si fallara después, ya
         // tendríamos las filas en memoria sin saber cuáles se pueden mandar afuera.
         await clasificador.PrepararAsync(ct);
 
         return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, clasificador, ct);
-    }
-
-    /// <summary>
-    /// Deja la transacción en solo lectura, con el timeout de sentencia y con el
-    /// actor fijado.
-    /// </summary>
-    /// <remarks>
-    /// El tercer parámetro de <c>set_config</c> en verdadero es lo que hace el
-    /// ajuste <b>transaction-local</b>. Con una variante de sesión, el ajuste
-    /// sobreviviría al <c>COMMIT</c> y a la devolución de la conexión al pool, y
-    /// el turno siguiente que tomara esa conexión física heredaría el actor del
-    /// anterior. Ese fallo no tira error: responde con el alcance equivocado.
-    ///
-    /// <c>SET TRANSACTION READ ONLY</c> va antes que cualquier otra cosa de la
-    /// transacción porque PostgreSQL no lo admite una vez que la transacción tocó
-    /// datos.
-    /// </remarks>
-    private static async Task PrepararTransaccionAsync(
-        NpgsqlConnection conexion,
-        NpgsqlTransaction transaccion,
-        Guid actor,
-        OpcionesAsistente valores,
-        CancellationToken ct)
-    {
-        await using (var soloLectura = new NpgsqlCommand(
-            "SET TRANSACTION READ ONLY", conexion, transaccion))
-        {
-            await soloLectura.ExecuteNonQueryAsync(ct);
-        }
-
-        await using var preparacion = new NpgsqlCommand(
-            $"""
-            SELECT set_config('statement_timeout', @timeout, true),
-                   set_config('{AjusteDelActor}', @actor, true)
-            """, conexion, transaccion);
-
-        preparacion.Parameters.AddWithValue(
-            "timeout",
-            valores.TimeoutDeSentenciaMs.ToString(CultureInfo.InvariantCulture));
-        preparacion.Parameters.AddWithValue("actor", actor.ToString());
-
-        await preparacion.ExecuteNonQueryAsync(ct);
     }
 
     /// <summary>
