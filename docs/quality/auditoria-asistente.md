@@ -7,6 +7,25 @@
 > para escribir el test rojo vive en `.claude/skills/refactor-asistente/COLA.md`.
 >
 > Ejecución: `/refactor-asistente --estado`.
+>
+> ---
+>
+> **ESTADO AL 2026-09-08 — 19 de los 30 renglones ejecutados.** Este informe describe el árbol
+> del **2026-09-06** y se conserva así a propósito: es el diagnóstico contra el que se trabajó, y
+> reescribirlo borraría con qué comparar. Lo que cambió desde entonces:
+>
+> | Qué                                              | En este informe | Hoy                  |
+> | ------------------------------------------------ | --------------- | -------------------- |
+> | Suite completa                                   | 3 m 53 s        | **1 m 43 s**         |
+> | Carril rápido                                    | no existía      | **1 s** (793 casos)  |
+> | `Application/` archivos sueltos                  | 47              | 0 (ocho subcarpetas) |
+> | `CapaConversacional.cs`                          | 551 líneas      | 398                  |
+> | Cachés perezosos copiados                        | 5               | 1 tipo compartido    |
+> | `pg_catalog` alcanzable por la consulta generada | sí              | no                   |
+> | Escapes `U&"…"` evaden el validador              | sí              | no                   |
+>
+> El tablero renglón por renglón, con el motivo de cada uno de los once que quedan abiertos, está
+> en `.claude/skills/refactor-asistente/COLA.md`.
 
 # Informe de estado y deuda — Módulo Asistente
 
