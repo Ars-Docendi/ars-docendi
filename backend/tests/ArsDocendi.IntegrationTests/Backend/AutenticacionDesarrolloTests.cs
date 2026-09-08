@@ -18,7 +18,12 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
-    private static readonly Guid MateriaDelJefe = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid[] MateriasDelJefe =
+    [
+        Guid.Parse("70000000-0000-4000-8000-000000000101"),
+        Guid.Parse("70000000-0000-4000-8000-000000000102"),
+        Guid.Parse("70000000-0000-4000-8000-000000000103"),
+    ];
 
     [Fact]
     public async Task Catalogo_y_handler_aceptan_usuario_activo_con_rol_asignado()
@@ -58,17 +63,17 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         var catalogos = await cliente.GetFromJsonAsync<CatalogosDocentesDto>(
             "/api/administracion/docentes/catalogos", ct);
         using var detalleFueraDeAmbito = await cliente.GetAsync(
-            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000003", ct);
+            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000010", ct);
         using var alta = await cliente.PostAsJsonAsync(
             "/api/administracion/docentes", new { }, ct);
 
         Assert.NotNull(docentes);
         Assert.NotEmpty(docentes);
         Assert.All(docentes, docente =>
-            Assert.Contains(docente.Asignaciones, asignacion =>
-                asignacion.MateriaId == MateriaDelJefe));
+            Assert.Contains(docente.Asignaciones, asignacion => MateriasDelJefe.Contains(asignacion.MateriaId)));
         Assert.NotNull(catalogos);
-        Assert.All(catalogos.Materias, materia => Assert.Equal(MateriaDelJefe, materia.Id));
+        Assert.Equal(MateriasDelJefe.Length, catalogos.Materias.Count);
+        Assert.All(catalogos.Materias, materia => Assert.Contains(materia.Id, MateriasDelJefe));
         Assert.Empty(catalogos.PersonasElegibles);
         Assert.Equal(HttpStatusCode.NotFound, detalleFueraDeAmbito.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, alta.StatusCode);

@@ -19,6 +19,9 @@ public static class Novedades
 
     public static readonly IReadOnlySet<string> Todas =
         new HashSet<string> { SinNovedad, Alta, Baja, CambioDeCargoODedicacion };
+
+    public static readonly IReadOnlySet<string> Admitidas =
+        new HashSet<string> { Alta, Baja, CambioDeCargoODedicacion };
 }
 
 /// <summary>Estados del pedido. Coincide con el CHECK <c>pedidos_estado_valido</c>.</summary>

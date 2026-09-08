@@ -23,7 +23,7 @@ const CATALOGOS = {
     },
   ],
   cargos: ["Titular", "Adjunto", "JTP", "Ayudante"],
-  dedicaciones: Array.from({ length: 7 }, (_, i) => `Categoría ${i}`),
+  dedicaciones: Array.from({ length: 6 }, (_, i) => `Categoría ${i + 1}`),
   tiposBaja: ["Renuncia", "Jubilación", "Otro"],
 };
 
@@ -59,11 +59,19 @@ async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText("Dedicación solicitada"), "Categoría 5");
 }
 
+async function adjuntar(user: ReturnType<typeof userEvent.setup>, titulo: string, nombre: string) {
+  const input = screen.getByText(titulo).parentElement?.querySelector("input[type=file]");
+  if (!(input instanceof HTMLInputElement)) throw new Error(`No se encontró el adjunto ${titulo}`);
+  await user.upload(input, new File(["contenido"], nombre, { type: "application/pdf" }));
+}
+
 describe("PedidoForm", () => {
   describe("secciones condicionales por novedad", () => {
-    it("en 'Sin novedad' muestra el selector de docente y oculta solicitud/documentación", () => {
+    it("inicia sin novedad seleccionada y no ofrece Sin novedad", () => {
       renderForm();
-      expect(screen.getByLabelText("Docente")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Sin novedad")).not.toBeInTheDocument();
+      expect(screen.getByText("Seleccioná una novedad para continuar.")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Docente")).not.toBeInTheDocument();
       expect(screen.queryByText("Designación solicitada")).not.toBeInTheDocument();
       expect(screen.queryByText(/Documentación obligatoria/)).not.toBeInTheDocument();
       expect(screen.queryByText("Justificación")).not.toBeInTheDocument();
@@ -151,7 +159,7 @@ describe("PedidoForm", () => {
     });
   });
 
-  describe("cargo libre, dedicación restringida a mejorar (D-6/D-7)", () => {
+  describe("cargo y dedicación libres (D-6/D-7)", () => {
     it("en Cambio, el cargo solicitado admite cualquier valor del catálogo (D-6)", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
@@ -164,7 +172,7 @@ describe("PedidoForm", () => {
       expect(selectCargo).toHaveValue("Ayudante");
     });
 
-    it("en Cambio, el Select de dedicación solo ofrece opciones mejores que la actual (D-7)", async () => {
+    it("en Cambio, el Select de dedicación ofrece las seis categorías (D-7)", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       // Lucía Fernández tiene dedicación actual "Categoría 3".
@@ -172,7 +180,15 @@ describe("PedidoForm", () => {
 
       const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
       const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
-      expect(opciones).toEqual(["", "Categoría 0", "Categoría 1", "Categoría 2"]);
+      expect(opciones).toEqual([
+        "",
+        "Categoría 1",
+        "Categoría 2",
+        "Categoría 3",
+        "Categoría 4",
+        "Categoría 5",
+        "Categoría 6",
+      ]);
 
       await user.selectOptions(selectDedicacion, "Categoría 1");
       expect(selectDedicacion).toHaveValue("Categoría 1");
@@ -186,7 +202,6 @@ describe("PedidoForm", () => {
       const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
       expect(opciones).toEqual([
         "",
-        "Categoría 0",
         "Categoría 1",
         "Categoría 2",
         "Categoría 3",
@@ -298,19 +313,88 @@ describe("PedidoForm", () => {
       expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
     });
 
-    it("permite guardar un 'Sin novedad' al seleccionar un docente existente", async () => {
+    it("no permite guardar sin seleccionar una novedad", async () => {
       const onGuardar = vi.fn<(datos: DatosEditablesPedido) => void>();
       const { user } = renderForm(onGuardar);
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-
       await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
 
-      expect(onGuardar).toHaveBeenCalledTimes(1);
-      expect(onGuardar.mock.calls[0][0].docente.dni).toBe("28341567");
+      expect(onGuardar).not.toHaveBeenCalled();
+      expect(screen.getByText("Seleccioná una novedad admitida.")).toBeInTheDocument();
     });
   });
 
   describe("Guardar y enviar / Guardar y reenviar", () => {
+    it("edita un devuelto con solicitud editable y snapshot histórico separado", async () => {
+      const onGuardar = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <PedidoForm
+          catedra="Ingeniería de Software"
+          pedidoInicial={{
+            id: "p-devuelto",
+            numero: "N°-2026-0001",
+            periodoId: "1",
+            catedra: "Ingeniería de Software",
+            carrera: "Ingeniería en Informática",
+            docente: { dni: "28341567", nombre: "Lucía Fernández", antiguedad: 8, legajo: "1001" },
+            horas: 12,
+            horasActuales: 8,
+            horasInvestigacion: 4,
+            horasInvestigacionActuales: 2,
+            horasExternas: 3,
+            horasExternasActuales: 1,
+            cargoActual: "Adjunto",
+            dedicacionActual: "Categoría 3",
+            cargoSolicitado: "Titular",
+            dedicacionSolicitada: "Categoría 1",
+            justificacion: "Actualización de la carga",
+            novedad: "Cambio de cargo o dedicación",
+            snapshot: {
+              cargo: "Adjunto",
+              dedicacion: "Categoría 3",
+              horas: 8,
+              horasInvestigacion: 2,
+              horasExternas: 1,
+              materia: "Ingeniería de Software",
+            },
+            adjuntos: [],
+            estado: "devuelto",
+            propietarioActual: "Jefe de Cátedra",
+            etapaRetorno: "en_revision_coordinador",
+            prioritario: false,
+            historial: [],
+          }}
+          pedidosExistentes={[]}
+          esEdicion
+          onGuardar={onGuardar}
+          onCancelar={vi.fn()}
+          {...CATALOGOS}
+        />,
+      );
+
+      expect(screen.getByLabelText("Horas")).toHaveValue(12);
+      expect(screen.getByLabelText("Horas de investigación")).toHaveValue(4);
+      expect(screen.getByLabelText("Horas externas (otro depto.)")).toHaveValue(3);
+      const panel = within(panelDatosActuales());
+      expect(panel.getByText("8h")).toBeInTheDocument();
+      expect(panel.getByText("2h")).toBeInTheDocument();
+      expect(panel.getByText("1h")).toBeInTheDocument();
+
+      await user.clear(screen.getByLabelText("Horas"));
+      await user.type(screen.getByLabelText("Horas"), "16");
+      await user.clear(screen.getByLabelText("Horas de investigación"));
+      await user.type(screen.getByLabelText("Horas de investigación"), "5");
+      await user.clear(screen.getByLabelText("Horas externas (otro depto.)"));
+      await user.type(screen.getByLabelText("Horas externas (otro depto.)"), "2");
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
+
+      expect(onGuardar).toHaveBeenCalledWith(
+        expect.objectContaining({ horas: 16, horasInvestigacion: 5, horasExternas: 2 }),
+        undefined,
+      );
+      expect(onGuardar.mock.calls[0][0]).not.toHaveProperty("snapshot");
+    });
+
     it("un pedido nuevo (o en borrador) muestra 'Guardar y enviar'", () => {
       renderForm();
       expect(screen.getByRole("button", { name: "Guardar y enviar" })).toBeInTheDocument();
@@ -367,7 +451,11 @@ describe("PedidoForm", () => {
     it("con datos válidos, 'Guardar y enviar' llama a onGuardar con { enviar: true }", async () => {
       const onGuardar = vi.fn();
       const { user } = renderForm(onGuardar);
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.click(screen.getByLabelText("Alta"));
+      await completarAlta(user);
+      await adjuntar(user, "CV (PDF)", "cv.pdf");
+      await adjuntar(user, "DNI · Frente", "frente.pdf");
+      await adjuntar(user, "DNI · Dorso", "dorso.pdf");
 
       await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
 

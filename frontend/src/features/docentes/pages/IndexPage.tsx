@@ -168,6 +168,7 @@ export function IndexPage() {
         onCerrar={() => setModalNuevo(false)}
         materias={materias}
         cargos={cargos}
+        dedicaciones={remoto.catalogos.data?.dedicaciones.filter((d) => d.activo) ?? []}
         personas={personas}
         error={
           remoto.crear.error
@@ -197,6 +198,7 @@ export function IndexPage() {
         onCerrar={() => setDocenteAEditar(null)}
         materias={materias}
         cargos={cargos}
+        dedicaciones={remoto.catalogos.data?.dedicaciones.filter((d) => d.activo) ?? []}
         error={
           remoto.editar.error
             ? mensajeProblema(remoto.editar.error, "No se pudo editar el docente.")

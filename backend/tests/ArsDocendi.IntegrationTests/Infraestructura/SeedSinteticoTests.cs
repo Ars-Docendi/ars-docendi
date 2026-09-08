@@ -73,10 +73,15 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             SELECT count(*)
             FROM designaciones.pedido_historial h
             JOIN designaciones.pedidos p ON p.id = h.pedido_id
-            WHERE h.rol_id = 'a1000000-0000-4000-8000-000000000002'
-              AND h.actor_id = 'a0000000-0000-4000-8000-000000000002'
-              AND h.accion IN ('crear', 'enviar', 'cancelar')
-              AND p.materia_id <> '70000000-0000-4000-8000-000000000101'
+            WHERE h.accion IN ('crear', 'enviar', 'cancelar')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM identity.user_roles ur
+                  WHERE ur.user_id = h.actor_id
+                    AND ur.role_id = h.rol_id
+                    AND ur.materia_id = p.materia_id
+                    AND ur.deleted_at IS NULL
+              )
             """));
         Assert.Equal(0L, await EscalarAsync<long>(conexion, """
             SELECT count(*)
@@ -90,6 +95,79 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
                     AND ur.deleted_at IS NULL
               )
             """));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion, """
+            SELECT count(*)
+            FROM designaciones.pedido_historial h
+            JOIN designaciones.pedidos p ON p.id = h.pedido_id
+            WHERE h.accion = 'crear'
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM identity.user_roles ur
+                  JOIN identity.roles r ON r.id = ur.role_id
+                  WHERE ur.user_id = h.actor_id
+                    AND ur.role_id = h.rol_id
+                    AND r.code = 'jefe_catedra'
+                    AND ur.materia_id = p.materia_id
+                    AND ur.deleted_at IS NULL
+              )
+            """));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion, """
+            SELECT count(*)
+            FROM designaciones.pedidos p
+            WHERE p.estado IN ('en_revision_coordinador', 'en_revision_secretaria', 'en_revision_decanato')
+              AND NOT EXISTS (
+                  SELECT 1 FROM designaciones.pedido_historial h
+                  WHERE h.pedido_id = p.id AND h.accion = 'enviar'
+              )
+            """));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion, """
+            SELECT count(*)
+            FROM designaciones.pedidos p
+            WHERE p.novedad = 'Alta'
+              AND EXISTS (
+                  SELECT 1 FROM designaciones.designaciones d
+                  WHERE d.persona_id = p.persona_id AND d.materia_id = p.materia_id
+              )
+            """));
+    }
+
+    [Fact]
+    public async Task Seed_cubre_seis_dedicaciones_cargas_y_continuidad()
+    {
+        await EjecutarSeedAsync(TestContext.Current.CancellationToken);
+        await using var conexion = await AbrirConexionAsync();
+
+        Assert.Equal(6L, await EscalarAsync<long>(conexion,
+            "SELECT count(*) FROM designaciones.dedicaciones WHERE codigo BETWEEN 1 AND 6"));
+        Assert.Equal(0L, await EscalarAsync<long>(conexion,
+            "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%' AND novedad = 'Sin novedad'"));
+        Assert.Equal(12, await EscalarAsync<int>(conexion, """
+            SELECT horas FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(4, await EscalarAsync<int>(conexion, """
+            SELECT horas_investigacion FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(3, await EscalarAsync<int>(conexion, """
+            SELECT horas_externas FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(10, await EscalarAsync<int>(conexion, """
+            SELECT (snapshot->>'horas')::INTEGER FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(3, await EscalarAsync<int>(conexion, """
+            SELECT (snapshot->>'horas_investigacion')::INTEGER FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(2, await EscalarAsync<int>(conexion, """
+            SELECT (snapshot->>'horas_externas')::INTEGER FROM designaciones.pedidos WHERE numero = '2026-9006'
+            """));
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
+            SELECT count(*) FROM designaciones.designaciones
+            WHERE origen_pedido_id = 'd5000000-0000-4000-8000-000000000006'
+            """));
+        Assert.True(await EscalarAsync<long>(conexion, """
+            SELECT count(*) FROM designaciones.designaciones
+            WHERE persona_id = 'd0000000-0000-4000-8000-000000000014'
+              AND vigente_hasta IS NULL
+            """ ) > 1);
     }
 
     [Fact]
@@ -139,11 +217,100 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         Assert.Contains("PROHIBIDO", copia.Error, StringComparison.Ordinal);
     }
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
+    [Fact]
+    public async Task Spin_up_reconstruye_descartables_en_orden_y_no_resetea_prod()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var raiz = BuscarRaizRepositorio();
+        var ruta = Path.Combine(raiz, "infra", "scripts", "spin-up.sh");
+        var sintaxis = new ProcessStartInfo("bash")
+        {
+            WorkingDirectory = raiz,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        sintaxis.ArgumentList.Add("-n");
+        sintaxis.ArgumentList.Add(ruta);
+        using var proceso = Process.Start(sintaxis)!;
+        var error = await proceso.StandardError.ReadToEndAsync(ct);
+        await proceso.WaitForExitAsync(ct);
+
+        Assert.True(proceso.ExitCode == 0, error);
+        var script = await File.ReadAllTextAsync(ruta, ct);
+        var reset = script.IndexOf("drop-db.sh", StringComparison.Ordinal);
+        var provision = script.IndexOf("provision-db.sh", StringComparison.Ordinal);
+        var migraciones = script.IndexOf("run --rm backend", StringComparison.Ordinal);
+        var seed = script.IndexOf("seed.sh", StringComparison.Ordinal);
+        var servicio = script.IndexOf("up -d", StringComparison.Ordinal);
+        Assert.True(reset >= 0 && reset < provision && provision < migraciones && migraciones < seed && seed < servicio);
+        Assert.Contains("if [[ \"$ambiente\" != \"prod\" ]]", script, StringComparison.Ordinal);
+        Assert.Contains("flock 9", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Reconstruccion_local_reinicia_una_base_y_preserva_la_vecina()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var baseRecreable = string.Empty;
+        var baseVecina = string.Empty;
+        try
+        {
+            baseRecreable = await Postgres.CrearBaseMigradaAsync("reconstruible");
+            baseVecina = await Postgres.CrearBaseMigradaAsync("vecina");
+            await EjecutarSeedAsync(baseRecreable, ct);
+            await EjecutarSeedAsync(baseVecina, ct);
+
+            await using (var conexion = new NpgsqlConnection(baseRecreable))
+            {
+                await conexion.OpenAsync(ct);
+                await EjecutarAsync(conexion, """
+                    INSERT INTO identity.personas (id, documento, nombre, apellido)
+                    VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeed', 'TEST-RESET', 'Fila', 'Temporal')
+                    """);
+            }
+
+            await using (var conexion = new NpgsqlConnection(baseVecina))
+            {
+                await conexion.OpenAsync(ct);
+                await EjecutarAsync(conexion, """
+                    INSERT INTO identity.personas (id, documento, nombre, apellido)
+                    VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'TEST-VECINA', 'Fila', 'Vecina')
+                    """);
+            }
+
+            await Postgres.EliminarBaseAsync(baseRecreable);
+            baseRecreable = await Postgres.CrearBaseMigradaAsync("reconstruible");
+            await EjecutarSeedAsync(baseRecreable, ct);
+
+            await using var recreada = new NpgsqlConnection(baseRecreable);
+            await recreada.OpenAsync(ct);
+            Assert.Equal(0L, await EscalarAsync<long>(recreada,
+                "SELECT count(*) FROM identity.personas WHERE documento = 'TEST-RESET'"));
+            Assert.Equal(8L, await EscalarAsync<long>(recreada,
+                "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%'"));
+            Assert.Equal("2026.09.1", await EscalarAsync<string>(recreada,
+                "SELECT valor FROM public.seed_metadata WHERE clave = 'dataset_version'"));
+
+            await using var vecina = new NpgsqlConnection(baseVecina);
+            await vecina.OpenAsync(ct);
+            Assert.Equal(1L, await EscalarAsync<long>(vecina,
+                "SELECT count(*) FROM identity.personas WHERE documento = 'TEST-VECINA'"));
+        }
+        finally
+        {
+            if (baseRecreable.Length > 0) await Postgres.EliminarBaseAsync(baseRecreable);
+            if (baseVecina.Length > 0) await Postgres.EliminarBaseAsync(baseVecina);
+        }
+    }
+
+    private Task EjecutarSeedAsync(CancellationToken ct) => EjecutarSeedAsync(Cadena, ct);
+
+    private async Task EjecutarSeedAsync(string cadena, CancellationToken ct)
     {
         var sql = await File.ReadAllTextAsync(
             Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(ct);
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
     }

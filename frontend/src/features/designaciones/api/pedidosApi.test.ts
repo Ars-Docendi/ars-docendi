@@ -78,7 +78,7 @@ const catalogos = {
       orden: 3,
     },
   ],
-  dedicaciones: ["Categoría 2"],
+  dedicaciones: [{ id: "dedicacion-2", codigo: 2, nombre: "Categoría 2", orden: 2 }],
   tiposBaja: ["Renuncia"],
   novedades: ["Alta"],
 };
@@ -97,19 +97,51 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
-  it("usa el snapshot histórico completo cuando existe", async () => {
+  it("mantiene separadas las horas solicitadas y las históricas de un Alta", async () => {
     vi.mocked(apiClient.get).mockResolvedValue({
       data: [
         {
           ...dto,
-          horas: 40,
-          horasInvestigacion: 8,
-          horasExternas: 6,
+          horas: 12,
+          horasInvestigacion: 3,
+          horasExternas: 2,
+          snapshot: {
+            cargo: null,
+            dedicacion: null,
+            materia: "Materia nueva",
+            horas: null,
+            horasInvestigacion: null,
+            horasExternas: null,
+          },
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0]).toMatchObject({
+      catedra: "Materia nueva",
+      horas: 12,
+      horasInvestigacion: 3,
+      horasExternas: 2,
+      horasActuales: null,
+      horasInvestigacionActuales: null,
+      horasExternasActuales: null,
+    });
+  });
+
+  it("mantiene separadas las horas solicitadas y el snapshot de un Cambio devuelto", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          estado: "devuelto",
+          horas: 12,
+          horasInvestigacion: 4,
+          horasExternas: 3,
           snapshot: {
             cargo: "JTP",
             dedicacion: "Categoría 3",
             materia: "Materia histórica",
-            horas: 10,
+            horas: 8,
             horasInvestigacion: 2,
             horasExternas: 1,
           },
@@ -121,9 +153,12 @@ describe("pedidosApi HTTP", () => {
       catedra: "Materia histórica",
       cargoActual: "JTP",
       dedicacionActual: "Categoría 3",
-      horas: 10,
-      horasInvestigacion: 2,
-      horasExternas: 1,
+      horas: 12,
+      horasInvestigacion: 4,
+      horasExternas: 3,
+      horasActuales: 8,
+      horasInvestigacionActuales: 2,
+      horasExternasActuales: 1,
     });
   });
 
@@ -152,6 +187,7 @@ describe("pedidosApi HTTP", () => {
         personaId: "persona-1",
         materiaId: "materia-1",
         cargoSolicitadoId: "cargo-1",
+        dedicacionSolicitadaId: "dedicacion-2",
       }),
     );
   });

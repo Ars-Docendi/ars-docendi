@@ -25,7 +25,7 @@ UsuarioResumenDto      = { id, personaId, nombre, apellido, documento, legajo?, 
 GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
                            telefono?, upn, roles[{ rolId, materiaId?, carreraId? }] }
 DesignacionVigenteDto  = { id, materia{id,codigo,nombre}, cargo{id,codigo,nombre,abreviatura},
-                           dedicacion?, horas, vigenteDesde }
+                           dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
 DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., activo?, roles[], designaciones[] }
 GuardarDocenteDto      = { personaId? | personaNueva, usuarioId?, roles[], designaciones[] }
 RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo }
@@ -105,3 +105,5 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 | `concurrency-conflict`         | 409  | el recurso cambió desde su lectura                     |
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
+
+El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.

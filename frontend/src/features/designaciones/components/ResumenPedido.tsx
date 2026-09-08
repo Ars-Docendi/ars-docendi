@@ -64,6 +64,16 @@ function Transicion({
   return <>{hacia ?? desde ?? "—"}</>;
 }
 
+function HorasPedido({ actual, solicitadas }: { actual?: number | null; solicitadas: number }) {
+  if (actual === undefined || actual === solicitadas) return <>{solicitadas}h</>;
+  return (
+    <Transicion
+      desde={actual === null ? "—" : String(actual) + "h"}
+      hacia={String(solicitadas) + "h"}
+    />
+  );
+}
+
 /**
  * Tarjeta "Datos del pedido": cabecera del docente (avatar + identidad + chip de
  * novedad), grilla de datos (cátedra/carrera/cargo/dedicación/horas), el
@@ -118,14 +128,24 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
         <Dato etiqueta="Dedicación">
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
-        <Dato etiqueta="Materias">{`${pedido.catedra} (${pedido.horas}h)`}</Dato>
+        <Dato etiqueta="Materias">
+          {pedido.catedra} (<HorasPedido actual={pedido.horasActuales} solicitadas={pedido.horas} />
+          )
+        </Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
-            {pedido.horasInvestigacion} h semanales
+            <HorasPedido
+              actual={pedido.horasInvestigacionActuales}
+              solicitadas={pedido.horasInvestigacion}
+            />{" "}
+            semanales
             <span className="adoc-portal-tag">Portal</span>
           </span>
         </Dato>
-        <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
+        <Dato etiqueta="Horas externas">
+          <HorasPedido actual={pedido.horasExternasActuales} solicitadas={pedido.horasExternas} />{" "}
+          semanales
+        </Dato>
         <Dato etiqueta="Agente externo">
           {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
         </Dato>

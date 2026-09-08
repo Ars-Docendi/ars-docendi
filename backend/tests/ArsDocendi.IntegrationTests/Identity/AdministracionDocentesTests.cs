@@ -96,7 +96,7 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
             Nombre = "Ada editada",
             Version = creado.Version,
             Roles = ["docente", "jefe_catedra"],
-            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoAdjunto, "Categoría 2", 20)],
+            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoAdjunto, Guid.Parse("d6000000-0000-4000-8000-000000000002"), 20)],
         }, ct);
 
         Assert.Equal("Ada editada", editado.Nombre);
@@ -119,9 +119,15 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
             Upn = "rollback@unlam.edu.ar",
             Documento = "60999888",
             Legajo = "ROLLBACK",
-            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoTitular, "Categoría inválida", 10)],
+            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoTitular, Guid.Parse("d6000000-0000-4000-8000-000000000001"), 10)],
         };
 
+        await modulo.Database.ExecuteSqlRawAsync("""
+            CREATE FUNCTION designaciones.fallar_escritura_prueba() RETURNS trigger
+            LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Falla de persistencia de prueba'; END $$;
+            CREATE TRIGGER fallar_escritura_prueba BEFORE INSERT OR UPDATE ON designaciones.designaciones
+            FOR EACH ROW EXECUTE FUNCTION designaciones.fallar_escritura_prueba();
+            """, ct);
         await Assert.ThrowsAsync<DbUpdateException>(() => servicio.GuardarAsync(null, datos, ct));
 
         identity.ChangeTracker.Clear();
@@ -144,9 +150,15 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         {
             Nombre = "No debe quedar",
             Version = creado.Version,
-            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoAdjunto, "Inválida", 30)],
+            Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoAdjunto, Guid.Parse("d6000000-0000-4000-8000-000000000002"), 30)],
         };
 
+        await modulo.Database.ExecuteSqlRawAsync("""
+            CREATE FUNCTION designaciones.fallar_escritura_prueba() RETURNS trigger
+            LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Falla de persistencia de prueba'; END $$;
+            CREATE TRIGGER fallar_escritura_prueba BEFORE INSERT OR UPDATE ON designaciones.designaciones
+            FOR EACH ROW EXECUTE FUNCTION designaciones.fallar_escritura_prueba();
+            """, ct);
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             servicio.GuardarAsync(creado.PersonaId, invalido, ct));
 
@@ -174,6 +186,7 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
             PersonaId = PersonaActiva,
             MateriaId = segundaMateria,
             CargoId = CargoAdjunto,
+            DedicacionId = Guid.Parse("d6000000-0000-4000-8000-000000000002"),
             Horas = 6,
             VigenteDesde = new DateOnly(2026, 8, 1),
             CreadoEn = DateTimeOffset.UtcNow,
@@ -193,6 +206,31 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
             d => Assert.Contains("jefe_catedra", d.Roles));
         Assert.Contains(await servicio.ListarAsync("Sofía", null, null, false, ct),
             d => d.PersonaId == PersonaInactiva);
+    }
+
+    [Fact]
+    public async Task Dedicaciones_ofrece_seis_opciones_y_rechaza_referencias_invalidas_e_inactivas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        await PrepararCatalogoAsync(identity, ct);
+        await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(identity, modulo);
+        var catalogo = await modulo.Dedicaciones.OrderBy(d => d.Codigo).ToArrayAsync(ct);
+        Assert.Equal([1, 2, 3, 4, 5, 6], catalogo.Select(d => (int)d.Codigo));
+        var creado = await servicio.GuardarAsync(null, DatosValidos(null), ct);
+        foreach (var id in new[] { Guid.NewGuid(), catalogo[5].Id })
+        {
+            catalogo[5].Activo = false;
+            await modulo.SaveChangesAsync(ct);
+            await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.GuardarAsync(
+                creado.PersonaId, DatosValidos(creado.PersonaId) with
+                {
+                    Version = creado.Version,
+                    Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoTitular, id, 12)],
+                }, ct));
+        }
+        Assert.Equal(catalogo[0].Id, Assert.Single((await servicio.ObtenerAsync(creado.PersonaId, ct)).Asignaciones).DedicacionId);
     }
 
     private static ServicioDocentes CrearServicio(
@@ -260,5 +298,5 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         null,
         "ada.docente@unlam.edu.ar",
         ["docente"],
-        [new GuardarDesignacionVigenteDto(Materia, CargoTitular, "Categoría 1", 12)]);
+        [new GuardarDesignacionVigenteDto(Materia, CargoTitular, Guid.Parse("d6000000-0000-4000-8000-000000000001"), 12)]);
 }

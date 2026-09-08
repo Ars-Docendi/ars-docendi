@@ -295,7 +295,7 @@ describe("inicioEnCircuito / ultimaActualizacion (fechas de la Tabla)", () => {
     const abierto = pedido("en_revision_coordinador", { historial: [CREACION, ENVIO] });
 
     // El tiempo que el pedido estuvo en borrador no es tiempo de revisión.
-    expect(inicioEnCircuito(abierto)).toBe("10/03/2026");
+    expect(inicioEnCircuito(abierto)).toBe("09/03/2026 21:00");
   });
 
   it("sin `enviar` en el historial no hay inicio de circuito", () => {
@@ -308,7 +308,7 @@ describe("inicioEnCircuito / ultimaActualizacion (fechas de la Tabla)", () => {
       historial: [CREACION, ENVIO, aceptaCoord],
     });
 
-    expect(ultimaActualizacion(enSecretaria)).toBe("31/03/2026");
+    expect(ultimaActualizacion(enSecretaria)).toBe("30/03/2026 21:00");
   });
 });
 

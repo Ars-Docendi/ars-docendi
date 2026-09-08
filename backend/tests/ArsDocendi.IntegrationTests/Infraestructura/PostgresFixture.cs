@@ -1,5 +1,7 @@
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Npgsql;
@@ -25,7 +27,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_contenedor.DisposeAsync().AsTask());
 
-    public async Task<string> CrearBaseMigradaAsync(string prefijo)
+    public async Task<string> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
         var nombre = $"{prefijo}_{Guid.NewGuid():N}";
         await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
@@ -53,7 +55,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         await using (var designaciones = CrearDesignaciones(cadena))
         {
-            await designaciones.Database.MigrateAsync();
+            await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
         }
 
         return cadena;
@@ -100,6 +102,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
 public abstract class ClasePostgresAislada(PostgresFixture postgres, string prefijo) : IAsyncLifetime
 {
+    protected PostgresFixture Postgres => postgres;
     protected string Cadena { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()

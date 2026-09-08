@@ -4,9 +4,9 @@
 // Devuelve un mapa campo → mensaje; vacío ⇒ el pedido es válido.
 // ============================================================
 import type { Adjunto, DatosEditablesPedido, PedidoDesignacion, TipoAdjunto } from "./types";
-import { indiceDedicacion } from "./api/catalogos";
 
 export type CampoPedido =
+  | "novedad"
   | "docente"
   | "horas"
   | "cargoSolicitado"
@@ -42,6 +42,10 @@ export function validarPedido(
   contexto: ContextoValidacion,
 ): ErroresValidacion {
   const errores: ErroresValidacion = {};
+
+  if (!datos.novedad || datos.novedad === "Sin novedad") {
+    errores.novedad = "Seleccioná una novedad admitida.";
+  }
 
   // Campos comunes obligatorios.
   if (!datos.docente.dni.trim()) {
@@ -93,13 +97,6 @@ export function validarPedido(
     }
     if (!datos.dedicacionSolicitada) {
       errores.dedicacionSolicitada = "Seleccioná la dedicación solicitada.";
-    } else if (
-      datos.novedad === "Cambio de cargo o dedicación" &&
-      datos.dedicacionActual &&
-      indiceDedicacion(datos.dedicacionSolicitada) >= indiceDedicacion(datos.dedicacionActual)
-    ) {
-      // La dedicación solo puede mejorar en un Cambio (Categoría 0 = mayor jerarquía).
-      errores.dedicacionSolicitada = "La dedicación solicitada debe ser mejor que la actual.";
     }
   }
 

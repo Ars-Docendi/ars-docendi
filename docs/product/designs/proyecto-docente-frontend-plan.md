@@ -1,5 +1,9 @@
 # Plan de implementación — Prototipo frontend "Proyecto Docente" (SCRUM-7 + SCRUM-8)
 
+> **Documento histórico:** este plan describe el prototipo mock inicial y no es la fuente vigente de
+> comportamiento. Para el flujo implementado consultar el [design spec](./proyecto-docente-design-spec.md)
+> y el change [`ajustes-designaciones-y-datos-ejemplo`](../../../openspec/changes/ajustes-designaciones-y-datos-ejemplo/).
+
 > **Qué es esto.** Un plan maestro auto-contenido para construir un **prototipo de alta fidelidad, SOLO frontend con datos mockeados**, de la carga de pedidos de designación (SCRUM-7) y su flujo de aprobación (SCRUM-8). El backend se define e implementa después; cada punto de contacto con el backend queda marcado con `// TODO(backend)` en el seam de la capa `api/`.
 >
 > **Cómo usarlo.** Alimentá este archivo a un contexto nuevo de Claude Code y arrancá por la sección [§14 Cómo arrancar](#14-cómo-arrancar-en-el-contexto-nuevo). El plan ya tiene resueltas todas las decisiones de diseño (ver [§4](#4-registro-de-decisiones-grill)).

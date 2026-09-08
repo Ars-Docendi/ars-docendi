@@ -88,6 +88,10 @@ La disciplina, corolario del invariante #4 enmendado:
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
 
+La exportación de lote de Designaciones conserva esta frontera: usa `IConsultasIdentity`
+para completar personas, materias y usuarios, y no introduce una dependencia de
+proyecto hacia otro módulo ni modifica el DAG.
+
 `/pr-review` y `/architecture-drift-check` deben tratar cualquier escritura a identity desde un `Modules.*` como violación. `ArquitecturaIdentityTests` verifica automáticamente la frontera Controller → Service → Repository, la escritura administrativa exclusiva y que ningún proyecto consuma internals de otro módulo.
 
 ## Orquestación administrativa de docentes

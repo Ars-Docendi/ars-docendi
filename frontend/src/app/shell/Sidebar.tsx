@@ -41,9 +41,8 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
           "1C"
         ) : (
           <>
-            Cuatrimestre activo · <b style={{ color: "var(--color-text-primary)" }}>2026 · 1C</b>
             <br />
-            Versión 0.1 · Borrador
+            Versión 0.0.1 · Ars Docendi
           </>
         )}
       </div>

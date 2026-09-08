@@ -122,7 +122,7 @@ describe("adapters HTTP administrativos", () => {
     });
   });
 
-  it("docentes usa IDs canónicos de materia y cargo", async () => {
+  it("docentes usa IDs canónicos de materia, cargo y dedicación", async () => {
     const dto = {
       personaId: "p1",
       nombre: "Ana",
@@ -145,7 +145,8 @@ describe("adapters HTTP administrativos", () => {
           cargoId: "c1",
           cargoNombre: "Adjunto",
           cargoAbreviatura: "Adj.",
-          dedicacion: null,
+          dedicacion: "Categoría 2",
+          dedicacionId: "ded-2",
           horas: 10,
         },
       ],
@@ -168,6 +169,7 @@ describe("adapters HTTP administrativos", () => {
           {
             materia: { id: "m1", codigo: "03500", nombre: "Software" },
             cargo: "Adjunto",
+            dedicacionId: "ded-2",
             horas: 10,
           },
         ],
@@ -177,12 +179,15 @@ describe("adapters HTTP administrativos", () => {
         materias: [{ id: "m1", codigo: "03500", nombre: "Software" }],
         cargos: [{ id: "c1", codigo: "adjunto", nombre: "Adjunto", abreviatura: "Adj." }],
         personasElegibles: [],
+        dedicaciones: [{ id: "ded-2", nombre: "Categoría 2", activo: true }],
       },
     );
     expect(apiClient.post).toHaveBeenCalledWith(
       "/api/administracion/docentes",
       expect.objectContaining({
-        designaciones: [expect.objectContaining({ materiaId: "m1", cargoId: "c1" })],
+        designaciones: [
+          expect.objectContaining({ materiaId: "m1", cargoId: "c1", dedicacionId: "ded-2" }),
+        ],
       }),
     );
   });

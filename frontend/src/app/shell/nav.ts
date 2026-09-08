@@ -7,12 +7,8 @@
 // Inbox count badges are intentionally absent until a backend can
 // supply real numbers.
 //
-// Agrupación colapsable (diseño screens.pen, frame "Designaciones -
-// Periodos"): el ítem "Designaciones" es un padre navegable que
-// agrupa sus sub-rutas /designaciones/* (children). El resto de los
-// módulos (aulas, tareas, usuarios, portal) quedan como ítems
-// top-level. La presencia de `children` es lo que el Sidebar usa
-// para renderizar el grupo desplegable.
+// Las pantallas del circuito viven en el sector DESIGNACIONES. No se agrega
+// un enlace padre: cada pantalla autorizada es un enlace directo.
 // ============================================================
 import type { Role } from "../../shared/auth/useCurrentUser";
 import type { NavIconKey } from "./icons";
@@ -35,15 +31,11 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   "Jefe de Cátedra": [
     {
       label: "Trabajo",
-      items: [
-        {
-          to: "/designaciones",
-          icon: "designaciones",
-          label: "Designaciones",
-          children: [{ to: "/designaciones/mis-pedidos", icon: "pedidos", label: "Mis pedidos" }],
-        },
-        { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
-      ],
+      items: [{ to: "/aulas", icon: "aulas", label: "Reserva de aulas" }],
+    },
+    {
+      label: "DESIGNACIONES",
+      items: [{ to: "/designaciones/mis-pedidos", icon: "pedidos", label: "Mis pedidos" }],
     },
     {
       label: "Configuración",
@@ -57,15 +49,11 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   Coordinador: [
     {
       label: "Trabajo",
-      items: [
-        {
-          to: "/designaciones",
-          icon: "designaciones",
-          label: "Designaciones",
-          children: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
-        },
-        { to: "/tareas", icon: "tareas", label: "Tareas" },
-      ],
+      items: [{ to: "/tareas", icon: "tareas", label: "Tareas" }],
+    },
+    {
+      label: "DESIGNACIONES",
+      items: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
     },
     {
       label: "Personal",
@@ -76,17 +64,15 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        {
-          to: "/designaciones",
-          icon: "designaciones",
-          label: "Designaciones",
-          children: [
-            { to: "/designaciones/revision", icon: "revision", label: "Revisión" },
-            { to: "/designaciones/periodos", icon: "periodos", label: "Períodos" },
-          ],
-        },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
+      ],
+    },
+    {
+      label: "DESIGNACIONES",
+      items: [
+        { to: "/designaciones/revision", icon: "revision", label: "Revisión" },
+        { to: "/designaciones/periodos", icon: "periodos", label: "Períodos" },
       ],
     },
     {
@@ -106,15 +92,11 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
   Decanato: [
     {
       label: "Trabajo",
-      items: [
-        {
-          to: "/designaciones",
-          icon: "designaciones",
-          label: "Designaciones",
-          children: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
-        },
-        { to: "/tareas", icon: "tareas", label: "Tareas" },
-      ],
+      items: [{ to: "/tareas", icon: "tareas", label: "Tareas" }],
+    },
+    {
+      label: "DESIGNACIONES",
+      items: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
     },
     {
       label: "Personal",
@@ -125,15 +107,13 @@ export const NAV_BY_ROLE: Record<Role, NavGroup[]> = {
     {
       label: "Trabajo",
       items: [
-        {
-          to: "/designaciones",
-          icon: "designaciones",
-          label: "Designaciones",
-          children: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
-        },
         { to: "/aulas", icon: "aulas", label: "Reserva de aulas" },
         { to: "/tareas", icon: "tareas", label: "Tareas" },
       ],
+    },
+    {
+      label: "DESIGNACIONES",
+      items: [{ to: "/designaciones/revision", icon: "revision", label: "Revisión" }],
     },
     {
       label: "Configuración",

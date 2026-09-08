@@ -25,6 +25,7 @@ export interface AsignacionMateria {
   cargoAbreviatura?: string;
   horas: number;
   dedicacion?: string | null;
+  dedicacionId?: string | null;
 }
 export interface DocenteMock {
   id: string;

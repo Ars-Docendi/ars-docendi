@@ -2,7 +2,7 @@
 status: exploration # exploration | draft | review | approved
 owner: "Julian Castellana"
 branch: feature/rediseno-designaciones-ui
-last_updated: 2026-07-06
+last_updated: 2026-09-08
 ---
 
 # Exploración: rediseño de nuevas designaciones
@@ -15,7 +15,9 @@ y de abrir los changes OpenSpec correspondientes.
 > cambios de diseño en temas, fija las decisiones estructurales y lista las preguntas abiertas.
 > Cada tema derivará luego en su propio design-spec + change OpenSpec.
 
-> **Actualización (2026-07-10):** los temas **A + B + D** ya bajaron a código en el change
+> **Vigencia 2026-09-08:** el change [`ajustes-designaciones-y-datos-ejemplo`](../../../openspec/changes/ajustes-designaciones-y-datos-ejemplo/) reemplaza las decisiones anteriores sobre este flujo. Las solicitudes nuevas sólo admiten Alta, Baja y Cambio; la continuidad se obtiene de las designaciones vigentes. La dedicación se elige libremente entre Categorías 1–6, las tres horas se conservan separadas, el historial se ordena por fecha y hora y el número del pedido es la identificación visible. Revisión usa una sola tabla con pestañas y filtro Estado; Finalizados ofrece Exportar a Secretaría, Decanato y Administración con el período configurado.
+
+> **Actualización (2026-09-08):** los temas **A + B + D** ya bajaron a código en el change
 > [`openspec/specs/pedidos-designacion/`](../../../openspec/specs/pedidos-designacion/)
 > (implementación completa, no solo mockup — ver su `proposal.md`/`design.md`/`tasks.md`). Durante
 > la implementación se corrigieron/ampliaron varias decisiones respecto a lo que este documento
@@ -23,9 +25,8 @@ y de abrir los changes OpenSpec correspondientes.
 > una sola fila fija), Baja también lista todas las materias del docente (de solo lectura, no
 > contemplado acá), y el hint "solo cargo superior" que se había mockeado en `tZANr` se **sacó**
 > (pertenece al tema C, fuera de alcance — el cargo queda con selección libre). Revisión posterior
-> del cliente (mismo día, ya con el código andando): la **dedicación sí tiene una restricción real**
-> en Cambio — solo puede mejorar (Categoría 0 = mayor jerarquía, Categoría 6 = menor), a diferencia
-> del cargo que sigue libre; y el panel de "datos actuales" en Cambio se convirtió en un **resumen de
+> del cliente (2026-09-08): la **dedicación se elige libremente entre Categorías 1–6**; el panel de
+> "datos actuales" en Cambio se convirtió en un **resumen de
 > cambios** que muestra la transición `actual → solicitado` de cargo, dedicación, cada materia (con
 > sus horas) y horas de investigación/externas — no solo dedicación como en el mockup original (ver
 > D-6 a D-9 en el `design.md` del change). Los temas **C, F, G** y la pantalla Datos Docente siguen
@@ -70,9 +71,8 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 - ✅ Horas de investigación → mockeado en Alta (`n1zz2M`) y Cambio (`tZANr`).
 - ✅ Modificar horas docente → **corrección (2026-07-06):** esto es modificar las horas de materia
   **dentro del pedido**, no la pantalla Datos Docente (son dos ítems distintos). Ya está mockeado:
-  Alta vía "Materias y horas asignadas", Cambio vía el campo editable "Horas · Programación I". No
-  se tocó para "Sin novedad" (no existe un frame propio en el mockup para esa novedad — a definir si
-  hace falta) ni para Baja (no aplica, el docente se va).
+  Alta vía "Materias y horas asignadas" y Cambio vía el campo editable de horas. La continuidad no
+  crea un pedido y las horas de Baja se muestran en solo lectura.
 
 **Alta**
 
@@ -90,10 +90,8 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 
 **Cambio**
 
-- ✅ No se puede bajar el cargo, solo superiores → **decidido y mockeado**: hint de texto agregado
-  bajo "Cargo solicitado" en `tZANr` ("Solo podés solicitar un cargo superior al actual (Adjunto)").
-  Es solo la señal visual — la restricción real la impone el dominio (BR + jerarquía de 7 cargos), acá
-  solo se comunica al usuario.
+- ✅ Cargo y dedicación de Cambio → selección libre del catálogo de cargos y de Categorías 1–6; las
+  tres cargas se editan como campos separados.
 - ✅ Horas de materia / investigación / externas → mockeado en `tZANr` (y de paso se completó
   "Dedicación solicitada", que faltaba desde antes).
 
@@ -107,7 +105,7 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 
 - ✅ Check depto externo → **resuelto distinto de lo planteado**: en vez de reinterpretar el toggle,
   se **eliminó** y se reemplazó por el campo explícito "Horas externas" (mockeado en Alta y Cambio).
-- 📝 Restricción de período abierto → decidida como BR candidata (tema G), **no mockeada**.
+- ✅ Restricción de período abierto → la carga y la descarga validan el período activo en backend.
 
 **Nueva — Historial de pedidos**
 
@@ -125,25 +123,22 @@ Cada bullet es tal como lo trajo el profesor/cliente, mapeado 1:1 a su estado re
 > documento. Solo sigue abierto "Simplificar bastante la info" (juicio de diseño, fuera de alcance de
 > ese change).
 
-- ✅ Mostrar bien el tipo de cambio (alta/baja/cambio) → **ya existe** en `q6OrQB` (Kanban: `tipoChip`
-  con ícono+color por novedad) y en `ebl4U` (Tabla: columna Novedad con el mismo chip). Nada que
-  agregar; solo sobrevive con la Tabla al eliminar el Kanban.
-- 📝 Estado más cerca del título / más visible → en `hcCfk` (Detalle) el badge de estado **ya está en
-  la misma fila que el título** (no está lejos estructuralmente). El reclamo ("se pierde") es de **peso
-  visual**, no de posición — falta una iteración de diseño, no agregarlo de cero.
-- ⏳ Sacar el prioritario si cargo mayor → **confirmado ausente**: solo existe "Priorizar novedad"
-  (marcar); no hay ninguna acción de "despriorizar/quitar" en `hcCfk` ni en los modales. Decidido como
-  BR (P1, falta el umbral >/≥) — genuinamente pendiente de mockear.
+- ✅ Mostrar el tipo de cambio (Alta/Baja/Cambio) → la tabla actual lo expone como chip en la columna
+  Tipo y conserva el filtro Estado para el avance del circuito.
+- ✅ Estado visible → el detalle conserva el badge y la tabla suma la columna Estado, pestañas por área
+  y foco visible en controles.
+- 📝 Sacar el prioritario si cargo mayor → la acción de quitar prioridad existe; la restricción por
+  jerarquía y el umbral siguen fuera de este change (tema C).
 - ⏳ Simplificar bastante la info → juicio de diseño, no verificable como "hecho/no hecho" en el
   archivo; sigue abierto.
-- ⏳ Agregar botón de Volver → **confirmado ausente** en `hcCfk` y en `ebl4U`. Pendiente, trivial.
-- 📝 Vista modo grilla para todos → la grilla (`ebl4U`, con columna Estado+avance y Novedad) **ya
-  existe** desde antes; lo que falta es **sacar el Kanban y el switcher** (`viewSwitch` en `ebl4U`),
-  no construir la grilla de cero. Frames a limpiar: `q6OrQB`/`kWSjh`/`Z0S9T` (Kanban, 3 variantes).
+- ✅ Botón de Volver → persiste en el detalle.
+- ✅ Vista de revisión → una tabla única con pestañas, filtro Estado, foco y hover; Finalizados agrega
+  Exportar para Secretaría, Decanato y Administración.
 
 **Resumen:** mockeados e implementados — form de pedido completo (Alta + Baja + Cambio, temas
-A+B+C+D), Mis Pedidos (tema G + micro-UX) y Revisión (tema E: solo Tabla, sin Kanban/switcher; Quitar
-prioritario; botón Volver; badge reforzado; motivo de rechazo destacado en el detalle). **Falta:**
+A+B+D), Mis Pedidos (tema G + micro-UX) y Revisión (tema E: solo Tabla, sin Kanban/switcher; Quitar
+prioritario; botón Volver; badge reforzado; motivo de rechazo destacado en el detalle; filtro Estado y
+Exportar en Finalizados). **Falta:**
 Historial (tema F, de cero), la pantalla Datos Docente (parte de tema A, de cero), la jerarquía de
 cargos (tema C) y la "simplificación de la info" del detalle de Revisión (juicio de diseño abierto).
 
@@ -168,9 +163,9 @@ cargo y la dedicación no varían por materia. Es la lógica del modelo de negoc
 
 ### D2 — Las horas son campos libres (no cierran contra la dedicación)
 
-La dedicación (Simple / Semiexclusiva / Exclusiva) **no** fija un techo que la suma de horas deba
-respetar. Las horas de materia + investigación + externas se cargan sueltas, sin validación de
-cierre contra la dedicación. Simplifica el form (menos validación cruzada).
+La dedicación (Categorías 1–6) **no** fija un techo que la suma de horas deba respetar. Las horas de
+materia + investigación + externas se cargan sueltas, sin validación de cierre contra la dedicación.
+Simplifica el form (menos validación cruzada).
 
 ### D3 — Múltiples materias dentro de un mismo pedido
 
@@ -187,7 +182,7 @@ D1–D3:
 ```
 Docente
  ├── cargo        (único — CARGOS_DOCENTES, jerárquicos; ver "Jerarquía de cargos")
- ├── dedicación   (única — Simple / Semiexclusiva / Exclusiva)
+  ├── dedicación   (única — Categorías 1–6)
  └── horas (libres, sin cierre contra dedicación)
        ├── horas de materia      · Materia A: Xh
        │                         · Materia B: Yh   ← múltiples materias (D3)
@@ -225,13 +220,10 @@ SeccionDesignacionSolicitada.tsx` + `DatosActualesPanel.tsx`): ahí **Cargo y De
   solicitados se editan juntos también en Cambio** (la materia es lo único condicional a Alta), y la
   transición "Cat. 3 → Cat. 2" del panel de datos actuales se calcula reactivamente a partir de ese
   Select. Se agregó el campo al mockup para que quede consistente con el código real. **Confirmado
-  por el cliente: la dedicación se puede subir o bajar libremente, sin restricción** (a diferencia
-  del cargo, que solo sube — tema C).
-- **Hallazgo — catálogo real de "Dedicación" (`Categoría N`) necesita agregar Categoría 0.** El
-  código real (`frontend/src/features/designaciones/api/catalogos.ts` → `DEDICACIONES`) hoy define
-  **Categoría 1 a 6** (6 valores). El cliente pidió agregar **Categoría 0**, quedando el catálogo en
-  **0 a 6** (7 valores). Es un cambio de catálogo en código (no solo de mockup) — a aplicar cuando
-  esta línea de trabajo baje a implementación.
+  por el cliente: la dedicación se puede elegir libremente entre las Categorías 1–6.
+- **Catálogo vigente de dedicación:** `frontend/src/features/designaciones/api/catalogos.ts` y la
+  API persistida ofrecen Categorías 1–6. Categoría 0 no se ofrece como nueva selección; un valor
+  histórico fuera de catálogo sólo se conserva para lectura.
 - **Nota — fragmentación del catálogo de cargos entre 3 fuentes.** De paso se detectó que "cargo"
   hoy vive en tres catálogos distintos y **no coinciden entre sí**: `designaciones/api/catalogos.ts`
   → `CARGOS` (4: Titular, Adjunto, JTP, Ayudante); `docentes/mock/mockStore.ts` → `CARGOS_DOCENTES`
@@ -257,28 +249,27 @@ Capturas actualizadas en `exports/rediseno-designaciones-ui/`:
 - **`JOHDw`** ("Designaciones - Pedido (Baja)") — [pedido-baja.png](./exports/rediseno-designaciones-ui/pedido-baja.png):
   tema D — Select **"Tipo de baja"** agregado antes de "Motivo de la baja", ejemplo "Renuncia".
 - **`tZANr`** (Cambio) — [pedido-editar-cambio.png](./exports/rediseno-designaciones-ui/pedido-editar-cambio.png):
-  tema C — hint de texto **"Solo podés solicitar un cargo superior al actual (Adjunto)"** bajo "Cargo
-  solicitado". Es solo la señal visual; la restricción real la impone el dominio (BR + jerarquía).
+  muestra cargo y dedicación solicitados, con las tres horas separadas. La dedicación permite elegir
+  libremente Categorías 1–6.
 - Los tres verificados sin problemas de layout (`snapshot_layout`).
 
-**Con esto, el checklist de "Estado de los comentarios del profesor" queda así:** mockeados Mis
-Pedidos (G), Baja (D) y Cambio (A+B+C) completos. Faltan de cero: Historial (F) y Datos Docente
-(resto de A). Revisión (E) es **parcial** (ver corrección más abajo, verificada directo en el
-archivo): el tipo de cambio y la vista de grilla ya existían de antes; lo acotado que falta es sacar
-Kanban/switcher, "quitar prioritario", botón Volver, y refinar visualmente el estado.
+**Con esto, el checklist de "Estado de los comentarios del profesor" queda así:** Mis Pedidos,
+Baja, Cambio y Revisión tienen su flujo implementado. La Revisión usa una tabla única con pestañas,
+filtro Estado, foco y hover; Finalizados agrega Exportar con progreso y manejo de errores. Historial
+independiente y Datos Docente siguen fuera del alcance de este change.
 
 ## Mapa de temas
 
-| #     | Tema                                                                                                                                                       | Pantallas                                      | Estado                                                                                                                                                                                                                                                                                                                                                                                                     | Agrupación (change)          |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| **A** | **Modelo de horas** (materia / investigación / externas; modificar horas docente)                                                                          | Form (todo tipo, Alta, Cambio) + Datos Docente | ✅✅ **Implementado en código** (change `rediseno-form-pedido-designaciones`) en Alta/Cambio/Baja. Falta la pantalla **Datos Docente** en sí (fuera de ese change)                                                                                                                                                                                                                                         | Propio (el más profundo)     |
-| **B** | **Múltiples materias en el pedido** (D3)                                                                                                                   | Form Alta/Cambio                               | ✅✅ **Implementado en código**, en Alta **y** Cambio (ampliado respecto al mockup original, que solo cubría Alta)                                                                                                                                                                                                                                                                                         | Junto con A                  |
-| **C** | **Jerarquía de cargos** (cambio solo a cargo superior; quitar prioritario si tenés cargo mayor)                                                            | Form Cambio + Revisión                         | ⏳ El hint de "solo cargo superior" que se había mockeado en Cambio (`tZANr`) se **sacó** — el cargo queda sin restricción en el change de A+B+D. Tema C (jerarquía de cargos, "quitar prioritario") sigue sin implementar. Nota: la **dedicación** sí quedó con una restricción propia ("solo puede mejorar") decidida durante ese mismo change — no es tema C, es una regla de D-7, ver banner de arriba | BRs nuevas + orden de cargos |
-| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | ✅✅ **Implementado en código** (change `rediseno-form-pedido-designaciones`). Check depto externo resuelto distinto (toggle eliminado)                                                                                                                                                                                                                                                                    | Con el form                  |
-| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | ✅✅ **Implementado en código** (change `rediseno-revision-solo-grilla`): Kanban/switcher eliminados (solo Tabla), "Quitar prioritario" (sin justificativo, sin restricción de cargo — eso es tema C), botón Volver, badge de estado reforzado, motivo de rechazo destacado movido al detalle. **Falta:** "simplificar la info" (juicio de diseño abierto, fuera de ese change)                            | UX-only, propio              |
-| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente). **No mockeado todavía**                                                                                                                                                                                                                                                                                                                             | Propio                       |
-| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | ✅ Alerta mockeada en `m3xg`. Falta la BR de restricción de carga (conecta con `gestion-periodos`)                                                                                                                                                                                                                                                                                                         | Con Mis Pedidos              |
-| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | ✅ Mockeado como hint de texto en `m3xg`                                                                                                                                                                                                                                                                                                                                                                   | Trivial, con E o G           |
+| #     | Tema                                                                                                                                                       | Pantallas                                      | Estado                                                                                                                                                                                                                                                                                                                                                                          | Agrupación (change)      |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **A** | **Modelo de horas** (materia / investigación / externas; modificar horas docente)                                                                          | Form (todo tipo, Alta, Cambio) + Datos Docente | ✅✅ **Implementado en código** (change `rediseno-form-pedido-designaciones`) en Alta/Cambio/Baja. Falta la pantalla **Datos Docente** en sí (fuera de ese change)                                                                                                                                                                                                              | Propio (el más profundo) |
+| **B** | **Múltiples materias en el pedido** (D3)                                                                                                                   | Form Alta/Cambio                               | ✅✅ **Implementado en código**, en Alta **y** Cambio (ampliado respecto al mockup original, que solo cubría Alta)                                                                                                                                                                                                                                                              | Junto con A              |
+| **C** | **Jerarquía de cargos y quitar prioridad**                                                                                                                 | Form Cambio + Revisión                         | Fuera del alcance de este change. Cargo de Cambio y dedicación Categorías 1–6 se seleccionan libremente.                                                                                                                                                                                                                                                                        | BRs futuras              |
+| **D** | **Tipificaciones** (tipo de baja: Renuncia/Jubilación/Otro; check "depto externo" = solo menciona que trabaja en otro depto)                               | Form Baja + toggle depto                       | ✅✅ **Implementado en código** (change `rediseno-form-pedido-designaciones`). Check depto externo resuelto distinto (toggle eliminado)                                                                                                                                                                                                                                         | Con el form              |
+| **E** | **Rediseño Revisión** (tipo de cambio visible; estado cerca del título; simplificar info; botón Volver; **solo grilla, sin switcher**; quitar prioritario) | Revisión (grilla) + Detalle                    | ✅✅ **Implementado en código** (change `rediseno-revision-solo-grilla`): Kanban/switcher eliminados (solo Tabla), "Quitar prioritario" (sin justificativo, sin restricción de cargo — eso es tema C), botón Volver, badge de estado reforzado, motivo de rechazo destacado movido al detalle. **Falta:** "simplificar la info" (juicio de diseño abierto, fuera de ese change) | UX-only, propio          |
+| **F** | **Historial de pedidos** (pantalla nueva)                                                                                                                  | Nueva                                          | Nuevo (distinto del AuditLog por-pedido ya existente). **No mockeado todavía**                                                                                                                                                                                                                                                                                                  | Propio                   |
+| **G** | **Período abierto** (alerta de tiempo en Mis Pedidos; restricción de carga fuera de período)                                                               | Mis Pedidos (inicio)                           | ✅ Alerta mockeada en `m3xg`; la carga y la descarga validan el período activo en backend                                                                                                                                                                                                                                                                                       | Con Mis Pedidos          |
+| —     | **Doble click para abrir** (además del kebab ⋮)                                                                                                            | Mis Pedidos                                    | ✅ Mockeado como hint de texto en `m3xg`                                                                                                                                                                                                                                                                                                                                        | Trivial, con E o G       |
 
 ### Detalle por pantalla (crudo del cliente, mapeado a tema)
 
@@ -291,41 +282,23 @@ Kanban/switcher, "quitar prioritario", botón Volver, y refinar visualmente el e
 - **Reglas de negocio:** check depto externo = solo menciona que trabaja en otro depto [D] · restricción de período abierto [G].
 - **Revisión (Dedicaciones):** mostrar bien el tipo de cambio (alta/baja/cambio) · estado más cerca del título / más visible · quitar prioritario si tenés cargo mayor que quien lo puso [C] · simplificar la info · botón Volver · vista modo grilla para todos [todo E].
 
-## Reglas de negocio nuevas (candidatas a BR-designaciones-\*)
+## Reglas vigentes del lote `ajustes-designaciones-y-datos-ejemplo`
 
-A registrar en `docs/business-rules/designaciones.md` cuando se aprueben los changes (invariante #11,
-con cita normativa a confirmar con el cliente):
+La fuente de comportamiento es el change OpenSpec enlazado arriba y sus specs resultantes:
 
-- **BR nueva — Cambio de cargo solo hacia arriba.** "Cambio de cargo o dedicación" solo puede proponer
-  un cargo **superior**; no se puede bajar. Usa la jerarquía de cargos (ver abajo).
-- **BR nueva — Quitar prioritario acotado por cargo (P1).** Solo puede sacar el flag _prioritario_ quien
-  tenga un **cargo docente superior** a quien lo marcó. Decisión de escala (ronda 2): se compara por el
-  **cargo académico de la persona** (Titular, Adjunto…), **no** por el rol de sistema (Coordinador,
-  Secretaría…) — misma jerarquía que "cambio hacia arriba". Implicación de modelo: el actor que revisa
-  debe **llevar su cargo docente** (hoy el flujo lo maneja por rol). Falta cerrar: si el umbral es
-  estricto (>) o incluye igual (≥).
-- **BR nueva — Carga acotada al período abierto.** No se pueden crear/enviar pedidos fuera del
-  período abierto de designaciones (conecta con `gestion-periodos`; ver tema G).
-- **✅ Resuelto — check "depto externo".** Se **eliminó el toggle** "hace más horas en otro
-  Departamento"; queda reemplazado por el campo explícito **Horas externas** (ver "Mockup en
-  Pencil"). Ya no queda ambigüedad de semántica: las horas externas se cargan como número, no como
-  flag.
+- Las solicitudes nuevas admiten Alta, Baja y Cambio; la continuidad se representa por la
+  designación vigente y no genera un pedido.
+- Cargo y dedicación se seleccionan desde sus catálogos. La dedicación ofrece Categorías 1–6 sin
+  restricción de mejora; los valores históricos fuera del catálogo sólo se leen.
+- Horas de materia, investigación y externas son campos separados. El campo externo es numérico y
+  reemplaza el antiguo toggle.
+- La carga se valida contra el período activo. El historial conserva fecha y hora en orden ascendente
+  y la UI usa el número de pedido como identificación.
+- Revisión es una tabla única con pestañas y filtro Estado. En Finalizados, los roles habilitados
+  pueden exportar el lote del período configurado, incluyendo las continuidades.
 
-**Jerarquía de cargos (a confirmar por el cliente)** — de menor a mayor:
-
-```
-1. Ayudante alumno        ▼ menor
-2. Ayudante de Segunda
-3. Ayudante de Primera
-4. Jefe de Trabajos Prácticos (JTP)
-5. Profesor Adjunto
-6. Profesor Asociado
-7. Profesor Titular       ▲ mayor
-```
-
-⚠️ Difiere del catálogo actual `CARGOS_DOCENTES` (6 cargos) en dos puntos: suma **"Ayudante alumno"**
-(⇒ hay que extender el catálogo en `admin-docentes/mock/mockStore.ts`) y fija **Segunda por debajo de
-Primera** (convención UNLaM). Un cargo es "superior" si tiene índice mayor en esta escala.
+La jerarquía de cargos, quitar prioridad por cargo y el alcance de la pantalla independiente de
+Historial siguen fuera de este change y no se presentan como reglas implementadas.
 
 ## Cruces con changes en vuelo
 
@@ -341,17 +314,11 @@ Primera** (convención UNLaM). Un cargo es "superior" si tiene índice mayor en 
 
 ### Decidido (ronda 2, 2026-07-05)
 
-- **Jerarquía de cargos (C):** ladder de **7** cargos (menor→mayor): Ayudante alumno < Ay. de Segunda <
-  Ay. de Primera < JTP < Adjunto < Asociado < Titular. **A confirmar por el cliente.** Se hace explícito
-  y autoritativo; extiende el catálogo actual (suma "Ayudante alumno", fija Segunda < Primera). Ver
-  "Reglas de negocio nuevas".
-- **P1 — escala de "quitar prioritario" (C):** se compara por **cargo docente de la persona**, no por
-  rol de sistema. Misma jerarquía de cargos de arriba. (Queda pendiente solo el umbral > vs ≥.)
+- **Jerarquía de cargos y quitar prioritario (C):** siguen fuera de este change y no forman parte del
+  comportamiento implementado.
 - **Tipos de baja (D):** enum cerrado = **Renuncia · Jubilación · Otro** (Otro con texto libre).
-- **Vista de Revisión (E):** se **elimina el formato Kanban**. La Revisión queda **solo grilla/tabla**
-  y **desaparece el switcher** Tabla/Tablero. ✅ Bajado a código (`rediseno-revision-solo-grilla`):
-  `proyecto-docente-design-spec.md` y las specs `tablero-revision-tabla` /
-  `aprobacion-pedidos-designacion` ya están actualizadas.
+- **Vista de Revisión (E):** la Revisión queda como tabla única con pestañas, filtro Estado, subrayado
+  activo y foco visible. Finalizados incorpora Exportar para los tres roles departamentales habilitados.
 - **Semántica check "depto externo" (D):** resuelto — toggle **eliminado**, reemplazado por el campo
   **Horas externas** (ver "Mockup en Pencil", actualización del mismo día).
 
@@ -361,12 +328,10 @@ Primera** (convención UNLaM). Un cargo es "superior" si tiene índice mayor en 
   docente ve **todas las designaciones que hizo** y entra a una para ver las de ese período. Falta:
   alcance por rol (¿solo propio o depto-wide para revisores?), filtros, y si reusa la tabla de Mis
   Pedidos. A explorar/diseñar en Pencil.
-- **Restricción real de período abierto (G):** hoy solo existe la alerta informativa en `m3xg`; falta
-  la validación/BR que efectivamente bloquee crear o enviar pedidos fuera del período abierto (no hay
-  ninguna acción deshabilitada ni mensaje de bloqueo mockeado todavía).
-- **"Sin novedad" en el form de pedido:** no existe un frame propio para esta novedad en `screens.pen`
-  (solo Alta/Baja/Cambio). Falta definir si necesita su propia sección de horas editables o si de
-  verdad no expone campos adicionales (como dice la spec vigente).
+- **Restricción real de período abierto (G):** implementada en la carga/descarga del flujo y reflejada
+  en la información del período activo.
+- **Continuidad:** no tiene formulario propio ni crea pedidos; se representa con designaciones
+  vigentes en el lote.
 - **Reconciliación `admin-docentes`:** cuándo y cómo alinear `AsignacionMateria.cargo` con D1.
 
 ### Parking lot (definido más adelante, no bloquea el mockup)
@@ -420,10 +385,8 @@ Para quien continúe el mockup en `docs/product/designs/screens.pen`:
   actuales) **ya están implementadas** (`SeccionDesignacionSolicitada.tsx`, `DatosActualesPanel.tsx`,
   `catalogos.ts`), no son solo mockup. El mockup en Pencil a veces está desactualizado respecto al
   código (así se encontró el "Dedicación solicitada" faltante en Cambio).
-- Catálogos con inconsistencias detectadas a tener en cuenta si el mockup necesita mostrar valores
-  de ejemplo: `CARGOS` (4, en `designaciones/api/catalogos.ts`) vs `CARGOS_DOCENTES` (6, en
-  `docentes/mock/mockStore.ts`) vs la jerarquía de 7 de este doc; `DEDICACIONES` (hoy 1–6, falta
-  agregar Categoría 0).
+- Catálogos con inconsistencias de cargos quedan como deuda separada; `DEDICACIONES` ofrece
+  Categorías 1–6 y conserva valores históricos fuera de catálogo sólo para lectura.
 
 ## Referencias
 

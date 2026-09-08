@@ -23,10 +23,12 @@ export interface CatalogosDesignaciones {
       cargoNombre: string;
       dedicacion: string | null;
       horas: number;
+      horasInvestigacion: number | null;
+      horasExternas: number | null;
     }[];
   }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string; orden: number }[];
-  dedicaciones: string[];
+  dedicaciones: { id: string; codigo: number; nombre: string; orden: number }[];
   tiposBaja: string[];
   novedades: string[];
 }
@@ -50,9 +52,11 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
         materiasActuales: persona.designacionesVigentes.map((d) => ({
           materia: d.materiaNombre,
           horas: d.horas,
+          horasInvestigacion: d.horasInvestigacion,
+          horasExternas: d.horasExternas,
         })),
-        horasInvestigacionActuales: 0,
-        horasExternasActuales: 0,
+        horasInvestigacionActuales: primera.horasInvestigacion,
+        horasExternasActuales: primera.horasExternas,
       },
     ];
   });
@@ -69,13 +73,13 @@ export function personasDesdeCatalogo(catalogos: CatalogosDesignaciones): Person
     }));
 }
 
-export function indiceDedicacion(dedicacion: Dedicacion): number {
-  return Number(dedicacion.replace("Categoría ", ""));
-}
 export function formatearDni(dni: string): string {
   const limpio = dni.replace(/\D/g, "");
   return limpio ? limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : dni;
 }
 export function horasVigentesEnCatedra(docente: DocenteExistente | undefined, catedra: string) {
-  return docente?.materiasActuales.find((asignacion) => asignacion.materia === catedra)?.horas;
+  return asignacionVigenteEnCatedra(docente, catedra)?.horas;
+}
+export function asignacionVigenteEnCatedra(docente: DocenteExistente | undefined, catedra: string) {
+  return docente?.materiasActuales.find((asignacion) => asignacion.materia === catedra);
 }

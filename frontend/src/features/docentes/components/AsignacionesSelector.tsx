@@ -5,6 +5,8 @@ export interface AsignacionRow {
   materia: string;
   cargo: string;
   horas: string;
+  dedicacionId: string;
+  dedicacionLegada?: string;
 }
 
 interface AsignacionesSelectorProps {
@@ -13,6 +15,7 @@ interface AsignacionesSelectorProps {
   error?: string;
   materias: MateriaMock[];
   cargos: string[];
+  dedicaciones: { id: string; nombre: string }[];
 }
 
 export function AsignacionesSelector({
@@ -21,13 +24,24 @@ export function AsignacionesSelector({
   error,
   materias,
   cargos,
+  dedicaciones,
 }: AsignacionesSelectorProps) {
   function actualizarFila(i: number, campo: keyof AsignacionRow, valor: string) {
-    onChange(rows.map((r, idx) => (idx === i ? { ...r, [campo]: valor } : r)));
+    onChange(
+      rows.map((r, idx) =>
+        idx === i
+          ? {
+              ...r,
+              [campo]: valor,
+              ...(campo === "materia" ? { dedicacionLegada: undefined } : {}),
+            }
+          : r,
+      ),
+    );
   }
 
   function agregarFila() {
-    onChange([...rows, { materia: "", cargo: "", horas: "" }]);
+    onChange([...rows, { materia: "", cargo: "", horas: "", dedicacionId: "" }]);
   }
 
   function quitarFila(i: number) {
@@ -37,7 +51,7 @@ export function AsignacionesSelector({
   const materiasUsadas = rows.map((r) => r.materia).filter(Boolean);
 
   return (
-    <Field label="Asignaciones (materia + cargo + horas)" required error={error}>
+    <Field label="Asignaciones (materia, cargo, dedicación y horas)" required error={error}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {rows.map((fila, i) => {
           const opcionesMateria = materias.filter(
@@ -70,6 +84,24 @@ export function AsignacionesSelector({
                 {cargos.map((c) => (
                   <option key={c} value={c}>
                     {c}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                value={fila.dedicacionId}
+                onChange={(e) => actualizarFila(i, "dedicacionId", e.target.value)}
+                aria-label={`Dedicación de asignación ${i + 1}`}
+              >
+                <option value="">{fila.dedicacionLegada ?? "Dedicación…"}</option>
+                {fila.dedicacionId && !dedicaciones.some((d) => d.id === fila.dedicacionId) && (
+                  <option value={fila.dedicacionId} disabled>
+                    {fila.dedicacionLegada ?? "Dedicación inactiva"}
+                  </option>
+                )}
+                {dedicaciones.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.nombre}
                   </option>
                 ))}
               </Select>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Table, Tabs } from "@ars-docendi/ui";
-import type { ActorContexto, PedidoDesignacion } from "../types";
+import type { ActorContexto, PedidoDesignacion, PeriodoDesignacion } from "../types";
 import {
   PESTANIAS,
   areaActual,
@@ -26,6 +26,10 @@ interface TablaRevisionProps {
   actor: ActorContexto;
   filtros: FiltrosTablero;
   onSeleccionar: (pedido: PedidoDesignacion) => void;
+  periodoActivo?: PeriodoDesignacion | null;
+  onExportar?: () => void;
+  exportando?: boolean;
+  errorExportacion?: string;
 }
 
 /** Columnas ordenables y su rótulo. "Área" y "Acciones" quedan fuera a propósito. */
@@ -48,7 +52,16 @@ const COLUMNAS: { id: ColumnaOrdenable; etiqueta: string }[] = [
  * pestañas ya salen filtrados— así que meterlos dentro de la tabla los hacía
  * leer como si fueran de la pestaña abierta.
  */
-export function TablaRevision({ pedidos, actor, filtros, onSeleccionar }: TablaRevisionProps) {
+export function TablaRevision({
+  pedidos,
+  actor,
+  filtros,
+  onSeleccionar,
+  periodoActivo,
+  onExportar,
+  exportando = false,
+  errorExportacion,
+}: TablaRevisionProps) {
   const [pestania, setPestania] = useState<IdPestania>(() => pestaniaInicial(actor));
   const [orden, setOrden] = useState<OrdenTabla | null>(null);
 
@@ -62,15 +75,48 @@ export function TablaRevision({ pedidos, actor, filtros, onSeleccionar }: TablaR
   // El área solo aporta en "Todos": en una pestaña de área es constante en todas las
   // filas y ya la dice la pestaña. En Finalizados no hay área que mostrar.
   const mostrarArea = pestania === "todos";
+  const puedeExportar =
+    actor.rol === "Secretaría" || actor.rol === "Decanato" || actor.rol === "Administración";
+  const mostrarExportar = pestania === "finalizados" && puedeExportar && Boolean(onExportar);
 
   return (
     <div className="adoc-revision">
-      <Tabs
-        items={items}
-        value={pestania}
-        onChange={(id) => setPestania(id as IdPestania)}
-        aria-label="Área del circuito"
-      />
+      <div className="adoc-revision-tabs-row">
+        <Tabs
+          items={items}
+          value={pestania}
+          onChange={(id) => setPestania(id as IdPestania)}
+          aria-label="Área del circuito"
+        />
+        {mostrarExportar && (
+          <div className="adoc-revision-exportar">
+            <span className="adoc-revision-periodo">
+              {periodoActivo ? `Período: ${periodoActivo.nombre}` : "Sin período activo"}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={!periodoActivo || exportando}
+              loading={exportando}
+              onClick={onExportar}
+              aria-describedby={!periodoActivo ? "revision-sin-periodo" : undefined}
+            >
+              Exportar
+            </Button>
+            {!periodoActivo && (
+              <span id="revision-sin-periodo" className="adoc-revision-exportar-ayuda">
+                Configurá un período activo para descargar el lote.
+              </span>
+            )}
+            {exportando && <span role="status">Exportando…</span>}
+          </div>
+        )}
+      </div>
+      {errorExportacion && (
+        <p className="adoc-revision-exportar-error" role="alert">
+          {errorExportacion}
+        </p>
+      )}
 
       <div className="adoc-tabla-scroll">
         <Table>

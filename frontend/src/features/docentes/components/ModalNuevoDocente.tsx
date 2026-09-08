@@ -32,6 +32,7 @@ interface ModalNuevoDocenteProps {
   onCerrar: () => void;
   materias: MateriaMock[];
   cargos: string[];
+  dedicaciones: { id: string; nombre: string }[];
   personas: PersonaSistema[];
   error?: string;
   rolesDisponibles: string[];
@@ -40,8 +41,17 @@ interface ModalNuevoDocenteProps {
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
   const completas = rows.filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0);
   if (completas.length === 0) return "Agregá al menos una asignación";
-  if (rows.some((r) => !r.materia || !r.cargo || !r.horas || Number(r.horas) <= 0)) {
-    return "Completá o quitá las filas incompletas (materia, cargo y horas > 0)";
+  if (
+    rows.some(
+      (r) =>
+        !r.materia ||
+        !r.cargo ||
+        !r.horas ||
+        Number(r.horas) <= 0 ||
+        (!r.dedicacionId && !r.dedicacionLegada),
+    )
+  ) {
+    return "Completá o quitá las filas incompletas (materia, cargo, dedicación y horas > 0)";
   }
   return undefined;
 }
@@ -53,6 +63,7 @@ export function ModalNuevoDocente({
   onCerrar,
   materias,
   cargos,
+  dedicaciones,
   personas,
   error,
   rolesDisponibles,
@@ -62,7 +73,7 @@ export function ModalNuevoDocente({
   const [campos, setCampos] = useState(CAMPOS_PERSONA_VACIOS);
   const [rol, setRol] = useState<string>("");
   const [asignacionRows, setAsignacionRows] = useState<AsignacionRow[]>([
-    { materia: "", cargo: "", horas: "" },
+    { materia: "", cargo: "", horas: "", dedicacionId: "" },
   ]);
   const [enviado, setEnviado] = useState(false);
 
@@ -71,7 +82,7 @@ export function ModalNuevoDocente({
     setPersonaId("");
     setCampos(CAMPOS_PERSONA_VACIOS);
     setRol("");
-    setAsignacionRows([{ materia: "", cargo: "", horas: "" }]);
+    setAsignacionRows([{ materia: "", cargo: "", horas: "", dedicacionId: "" }]);
     setEnviado(false);
     onCerrar();
   }
@@ -131,6 +142,7 @@ export function ModalNuevoDocente({
         materia: materias.find((m) => m.codigo === r.materia)!,
         cargo: r.cargo as CargoDocente,
         horas: Number(r.horas),
+        dedicacionId: r.dedicacionId || null,
       }));
 
     onCrear({
@@ -278,6 +290,7 @@ export function ModalNuevoDocente({
           error={errorAsignaciones}
           materias={materias}
           cargos={cargos}
+          dedicaciones={dedicaciones}
         />
       </div>
     </Modal>

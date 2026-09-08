@@ -18,6 +18,7 @@ interface ModalEditarDocenteProps {
   onCerrar: () => void;
   materias: MateriaMock[];
   cargos: string[];
+  dedicaciones: { id: string; nombre: string }[];
   error?: string;
   rolesDisponibles: string[];
 }
@@ -43,19 +44,31 @@ function camposDesde(d: DocenteMock | null): CamposPersonaDocenteDatos {
 }
 
 function asignacionesDesde(d: DocenteMock | null): AsignacionRow[] {
-  if (!d || d.asignaciones.length === 0) return [{ materia: "", cargo: "", horas: "" }];
+  if (!d || d.asignaciones.length === 0)
+    return [{ materia: "", cargo: "", horas: "", dedicacionId: "" }];
   return d.asignaciones.map((a) => ({
     materia: a.materia.codigo,
     cargo: a.cargo,
     horas: String(a.horas),
+    dedicacionId: a.dedicacionId ?? "",
+    dedicacionLegada: a.dedicacion ?? "Sin dato histórico",
   }));
 }
 
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
   const completas = rows.filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0);
   if (completas.length === 0) return "Agregá al menos una asignación";
-  if (rows.some((r) => !r.materia || !r.cargo || !r.horas || Number(r.horas) <= 0)) {
-    return "Completá o quitá las filas incompletas (materia, cargo y horas > 0)";
+  if (
+    rows.some(
+      (r) =>
+        !r.materia ||
+        !r.cargo ||
+        !r.horas ||
+        Number(r.horas) <= 0 ||
+        (!r.dedicacionId && !r.dedicacionLegada),
+    )
+  ) {
+    return "Completá o quitá las filas incompletas (materia, cargo, dedicación y horas > 0)";
   }
   return undefined;
 }
@@ -67,6 +80,7 @@ export function ModalEditarDocente({
   onCerrar,
   materias,
   cargos,
+  dedicaciones,
   error,
   rolesDisponibles,
 }: ModalEditarDocenteProps) {
@@ -109,6 +123,7 @@ export function ModalEditarDocente({
         materia: materias.find((m) => m.codigo === r.materia)!,
         cargo: r.cargo as CargoDocente,
         horas: Number(r.horas),
+        dedicacionId: r.dedicacionId || null,
       }));
 
     onGuardar({
@@ -221,6 +236,7 @@ export function ModalEditarDocente({
               error={errorAsignaciones}
               materias={materias}
               cargos={cargos}
+              dedicaciones={dedicaciones}
             />
           </div>
         </div>

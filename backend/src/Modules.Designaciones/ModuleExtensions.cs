@@ -22,6 +22,7 @@ public static class ModuleExtensions
 
         services.AddScoped<UnidadDeTrabajo>();
         services.AddScoped<RepositorioPedidos>();
+        services.AddScoped<RepositorioLoteDesignaciones>();
         services.AddScoped<RepositorioDesignaciones>();
         services.AddScoped<RepositorioPeriodos>();
         services.AddScoped<RepositorioCatalogosDesignaciones>();
@@ -30,6 +31,7 @@ public static class ModuleExtensions
         services.AddScoped<ResolutorActor>();
         services.AddScoped<ServicioPedidos>();
         services.AddScoped<IServicioPedidosApi, ServicioPedidosApi>();
+        services.AddScoped<IServicioLoteDesignaciones, ServicioLoteDesignaciones>();
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();

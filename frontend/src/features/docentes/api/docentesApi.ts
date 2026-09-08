@@ -23,10 +23,12 @@ interface DocenteDto {
     cargoNombre: string;
     cargoAbreviatura: string;
     dedicacion: string | null;
+    dedicacionId: string | null;
     horas: number;
   }[];
 }
 export interface CatalogosDocentes {
+  dedicaciones: { id: string; nombre: string; activo: boolean }[];
   roles: { id: string; codigo: string; nombre: string }[];
   materias: { id: string; codigo: string; nombre: string }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string }[];
@@ -101,7 +103,7 @@ function payload(datos: Omit<DocenteMock, "id" | "is_active">, catalogos: Catalo
     designaciones: datos.asignaciones.map((a) => ({
       materiaId: catalogos.materias.find((m) => m.codigo === a.materia.codigo)?.id,
       cargoId: catalogos.cargos.find((c) => c.nombre === a.cargo)?.id,
-      dedicacion: a.dedicacion ?? null,
+      dedicacionId: a.dedicacionId ?? null,
       horas: a.horas,
     })),
     version: datos.version,
@@ -131,6 +133,7 @@ function mapear(dto: DocenteDto): DocenteMock {
       cargoId: a.cargoId,
       cargoAbreviatura: a.cargoAbreviatura,
       dedicacion: a.dedicacion,
+      dedicacionId: a.dedicacionId,
       horas: a.horas,
     })),
   };

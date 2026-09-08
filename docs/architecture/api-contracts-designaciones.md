@@ -14,7 +14,7 @@ PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,
                      tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?,
                      adjuntos[], historial[], accionesPermitidas[] }
 GuardarPedidoDto = { periodoId, personaId, materiaId, novedad, cargoSolicitadoId?,
-                     dedicacionSolicitada?, horas?, horasInvestigacion?, horasExternas?,
+                     dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
                      justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[] }
 AccionPedidoDto  = { comentario? }
 CatalogosDto     = { periodoActivo?, periodos[], personas[], materias[], cargos[],
@@ -32,6 +32,20 @@ Los valores cerrados pueden viajar en `CatalogosDto` para un contrato uniforme, 
 | PUT    | `/api/designaciones/periodos/{id}` | `periodos.administrar`                          | `GuardarPeriodoDto` → `PeriodoDto`     |
 | DELETE | `/api/designaciones/periodos/{id}` | `periodos.administrar`                          | `204`                                  |
 | GET    | `/api/designaciones/catalogos`     | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor        |
+
+## Exportación del lote
+
+| Método | Ruta                                         | Permiso y ámbito                                                          | Salida |
+| ------ | -------------------------------------------- | ------------------------------------------------------------------------- | ------ |
+| GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.ver` + Secretaría, Decanato o Administración departamental | XLSX   |
+
+La ruta sólo acepta el período activo indicado por `{id}`. El archivo fijo
+`lote-designaciones.xlsx` contiene `Pedidos finalizados` (pedidos `en_lote` del
+período) y `Designaciones resultantes` (todas las designaciones vigentes,
+incluidas las continuidades sin pedido aprobado). No recibe filtros: la
+exportación siempre representa el lote completo del período. Devuelve `401` sin
+autenticación, `403` fuera del ámbito departamental, `404` si el período no
+existe y `409` si dejó de estar activo.
 
 ## Pedidos
 
@@ -73,3 +87,5 @@ Crear, editar y eliminar usan constraints y control de concurrencia, pero no el 
 | `periodo-in-use`            | 409  | eliminación con pedidos asociados     |
 | `idempotency-key-required`  | 400  | falta header en una transición        |
 | `idempotency-key-reused`    | 409  | clave reutilizada para otra operación |
+
+El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las seis categorías activas 1–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura conserva `dedicacionSolicitada` como nombre histórico y agrega el ID opcional.

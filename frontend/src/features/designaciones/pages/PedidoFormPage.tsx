@@ -149,7 +149,7 @@ export function PedidoFormPage() {
             docentes={docentesDesdeCatalogo(catalogos.data)}
             personas={personasDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
-            dedicaciones={catalogos.data.dedicaciones}
+            dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
             tiposBaja={catalogos.data.tiposBaja}
           />
         </>
@@ -171,7 +171,7 @@ export function PedidoFormPage() {
             docentes={docentesDesdeCatalogo(catalogos.data)}
             personas={personasDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
-            dedicaciones={catalogos.data.dedicaciones}
+            dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
             tiposBaja={catalogos.data.tiposBaja}
           />
         )}

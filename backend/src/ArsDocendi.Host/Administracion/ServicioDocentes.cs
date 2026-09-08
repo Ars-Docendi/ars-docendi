@@ -95,7 +95,8 @@ public sealed class ServicioDocentes(
             materias.Where(m => materiasVisibles is null || materiasVisibles.Contains(m.Id))
                 .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre)).ToArray(),
             cargos.Where(c => c.Activo).ToArray(),
-            elegibles);
+            elegibles,
+            (await designaciones.ListarDedicacionesAsync(ct)).Where(d => d.Activo).ToArray());
     }
 
     public async Task<DocenteAdministracionDto> GuardarAsync(
@@ -203,7 +204,7 @@ public sealed class ServicioDocentes(
         string documento,
         CancellationToken ct)
     {
-        await designaciones.ValidarReemplazoAsync(datos.Designaciones, ct);
+        await designaciones.ValidarReemplazoAsync(existente?.Id, datos.Designaciones, ct);
         if (await repositorio.ExisteUpnAsync(upn, existente?.Usuario?.Id, ct))
         {
             throw new ExcepcionAplicacion(
@@ -323,7 +324,8 @@ public sealed class ServicioDocentes(
                 d.CargoNombre,
                 d.CargoAbreviatura,
                 d.Dedicacion,
-                d.Horas)).ToArray());
+                d.Horas,
+                d.DedicacionId, d.HorasInvestigacion, d.HorasExternas)).ToArray());
 
     private static string? NormalizarOpcional(string? valor) =>
         string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();

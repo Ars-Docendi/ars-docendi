@@ -58,26 +58,36 @@ export function iniciales(nombre: string): string {
   return (letras[0] ?? "").concat(letras[letras.length - 1] ?? "").toUpperCase() || "?";
 }
 
-/** Formatea un ISO a dd/mm/yyyy de forma determinista (UTC), sin depender del locale. */
+/** Formatea un ISO en hora local de Argentina, con fecha y hora visible. */
 export function formatearFecha(iso: string): string {
-  const fecha = new Date(iso);
-  const dia = String(fecha.getUTCDate()).padStart(2, "0");
-  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
-  return `${dia}/${mes}/${fecha.getUTCFullYear()}`;
+  const partes = new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) =>
+    partes.find((parte) => parte.type === tipo)?.value ?? "";
+  return `${valor("day")}/${valor("month")}/${valor("year")} ${valor("hour")}:${valor("minute")}`;
 }
 
 /** Convierte el historial del pedido en entradas para `AuditLog`. */
 export function historialAAuditEntries(historial: EventoHistorial[]): AuditEntry[] {
-  return historial.map((evento) => ({
-    id: evento.id,
-    actor: evento.porNombre,
-    initials: iniciales(evento.porNombre),
-    verb: accionAAuditVerb(evento.accion),
-    verbLabel: ETIQUETA_POR_ACCION[evento.accion],
-    detail: evento.porRol,
-    when: formatearFecha(evento.fecha),
-    comment: evento.comentario,
-  }));
+  return [...historial]
+    .sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha) || a.id.localeCompare(b.id))
+    .map((evento) => ({
+      id: evento.id,
+      actor: evento.porNombre,
+      initials: iniciales(evento.porNombre),
+      verb: accionAAuditVerb(evento.accion),
+      verbLabel: ETIQUETA_POR_ACCION[evento.accion],
+      detail: evento.porRol,
+      when: formatearFecha(evento.fecha),
+      comment: evento.comentario,
+    }));
 }
 
 // ============================================================

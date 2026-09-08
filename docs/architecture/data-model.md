@@ -65,14 +65,33 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 
 ### Designaciones (`schema: designaciones`)
 
-| Tabla              | Descripción                                                                                                                   | PII |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | --- |
-| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                | No  |
-| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                              | No  |
-| `pedidos`          | **El trámite.** Cubre exactamente una materia; `snapshot` congela los datos vigentes al enviar                                | No  |
-| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                          | No  |
-| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                     | No  |
-| `designaciones`    | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia. `origen_pedido_id` NULL = carga administrativa directa | No  |
+La migración `20260907000000_CatalogoDedicaciones` incorpora el catálogo auditado
+`dedicaciones`: UUID, código único 1–6, nombre, orden único, activo y `created_at`.
+`pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id` lo referencian
+mediante FK nullable. La migración vincula únicamente los textos exactos Categoría
+1 a 6; conserva Categoría 0 y los snapshots históricos sin recategorizarlos.
+La migración `20260907000100_SeleccionDedicaciones` impide insertar texto libre
+o cambiar los textos legados. Nuevas designaciones y solicitudes Alta/Cambio
+requieren una referencia activa; una actualización sin cambio de dedicación
+conserva el valor histórico, incluso si su categoría fue desactivada.
+
+`pedidos` conserva por separado las horas solicitadas de materia,
+investigación y externas, además del `snapshot` congelado al enviar. En
+`designaciones`, `horas` es la carga de materia y `horas_investigacion` /
+`horas_externas` son cargas complementarias nullable: `NULL` significa que el
+valor vigente es desconocido. Las designaciones resultantes de un pedido
+aprobado recuperan esas dos cargas cuando el origen está identificado;
+continuidades y cargas administrativas pueden conservarlas en `NULL`.
+
+| Tabla              | Descripción                                                                                                                     | PII |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                  | No  |
+| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                | No  |
+| `dedicaciones`     | Catálogo activo de Categorías 1–6; conserva referencias históricas si una categoría se desactiva                                | No  |
+| `pedidos`          | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar            | No  |
+| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
+| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
+| `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
 
 ### Portal (`schema: portal`)
 
@@ -241,7 +260,7 @@ Es idempotente (`Database.Migrate()`), así que re-ejecutarlo sobre una base ya 
 
 El dataset de ejemplo no productivo vive en [`infra/scripts/seed-data/sintetico.sql`](../../infra/scripts/seed-data/sintetico.sql). Es una fuente transversal explícita, no una migración EF ni un inicializador de módulo. `infra/scripts/seed.sh <ambiente>` lo aplica sólo después de migrar la base.
 
-- `public.seed_metadata` registra `dataset_version` (`2026.08.1`), origen y última ejecución.
+- `public.seed_metadata` registra `dataset_version` (`2026.09.1`), origen y última ejecución.
 - `public.seed_identities` marca exactamente qué cuentas pueden usarse con la autenticación de desarrollo.
 - UUIDs reservados relacionan personas, cuentas, roles y ámbitos con carreras, materias, cargos, períodos, pedidos, historial y designaciones vigentes.
 - Una transacción y un advisory lock vuelven atómica la ejecución y serializan reintentos concurrentes.
