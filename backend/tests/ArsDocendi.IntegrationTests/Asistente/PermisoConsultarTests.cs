@@ -136,7 +136,7 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
     public async Task Conceder_y_revocar_cambia_la_autorizacion_sin_redesplegar()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
 
         Assert.Contains(Permisos.AsistenteConsultar, await PermisosDelJefeAsync(ct));
 
@@ -224,12 +224,4 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         return comando;
     }
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
 }

@@ -186,17 +186,6 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
             basica, pii, ClasificadorDeSensibilidad(), vinculos: resolutor, guion: guion);
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     /// <summary>Resuelve lo que se le dijo, y anota qué le preguntaron.</summary>
     private sealed class ResolutorEspia(params (string Numero, string Id)[] ubicables)
         : IResolutorDeVinculos

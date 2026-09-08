@@ -6,10 +6,6 @@ namespace ArsDocendi.IntegrationTests.Infraestructura;
 /// <remarks>
 /// Los tests de arquitectura leen archivos del repo —.csproj, .cs, .sql—, así que
 /// necesitan la raíz real y no la carpeta bin.
-///
-/// Hay nueve copias privadas de esta misma búsqueda en otras clases de test, todas
-/// anteriores a este archivo. Están registradas como deuda (TD-007); este tipo es
-/// el destino al que hay que migrarlas.
 /// </remarks>
 public static class RaizRepositorio
 {

@@ -231,6 +231,34 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
         }
     }
 
+    /// <summary>
+    /// El seed sintético, leído una sola vez por corrida.
+    /// </summary>
+    /// <remarks>
+    /// El <c>Lazy</c> no recibe token a propósito: el <c>Task</c> es compartido por
+    /// todas las clases de test, y atarlo al token del primero lo cancelaría para
+    /// los que vengan después.
+    /// </remarks>
+    private static readonly Lazy<Task<string>> Semilla = new(() => File.ReadAllTextAsync(
+        Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql")));
+
+    /// <summary>Aplica el seed sintético sobre la base de la clase.</summary>
+    protected Task SembrarAsync() => SembrarAsync(TestContext.Current.CancellationToken);
+
+    /// <inheritdoc cref="SembrarAsync()"/>
+    /// <remarks>
+    /// El <c>CommandTimeout</c> alto no es defensivo: el seed son cientos de líneas
+    /// de SQL en un solo comando y con el default de Npgsql llega justo.
+    /// </remarks>
+    protected async Task SembrarAsync(CancellationToken ct)
+    {
+        var sql = await Semilla.Value;
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
+        await comando.ExecuteNonQueryAsync(ct);
+    }
+
     protected async Task<NpgsqlConnection> AbrirConexionAsync()
     {
         var conexion = new NpgsqlConnection(Cadena);

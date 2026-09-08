@@ -18,7 +18,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     public async Task Listado_incluye_persona_roles_y_ambitos_sin_tracking()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var servicio = CrearServicio(db);
 
@@ -190,23 +190,4 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         new DateOnly(1990, 1, 1), null, upn,
         [new GuardarAsignacionRolDto(RolSecretaria)]);
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 }

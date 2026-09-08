@@ -11,7 +11,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     public async Task Seed_es_idempotente_restaura_fixtures_y_preserva_filas_ajenas()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var conexion = await AbrirConexionAsync();
         var personaAjena = Guid.NewGuid();
         await EjecutarAsync(conexion, """
@@ -23,7 +23,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
 
         var pedidosAntes = await EscalarAsync<long>(conexion,
             "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%'");
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
 
         Assert.Equal(pedidosAntes, await EscalarAsync<long>(conexion,
             "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%'"));
@@ -36,7 +36,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     [Fact]
     public async Task Seed_cubre_roles_ambitos_estados_y_persona_sin_cuenta()
     {
-        await EjecutarSeedAsync(TestContext.Current.CancellationToken);
+        await SembrarAsync(TestContext.Current.CancellationToken);
         await using var conexion = await AbrirConexionAsync();
 
         Assert.Equal(7L, await EscalarAsync<long>(conexion, """
@@ -108,7 +108,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
                 ALTER DATABASE "{baseActual}" OWNER TO "{rolAplicacion}";
                 """);
 
-            await EjecutarSeedAsync(ct);
+            await SembrarAsync(ct);
 
             await EjecutarAsync(conexion, $"SET ROLE \"{rolAplicacion}\";");
             Assert.True(await EscalarAsync<bool>(conexion,
@@ -139,22 +139,13 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         Assert.Contains("PROHIBIDO", copia.Error, StringComparison.Ordinal);
     }
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
     private static async Task<ResultadoProceso> EjecutarScriptSeedAsync(
         string ambiente,
         string? origen = null)
     {
         var inicio = new ProcessStartInfo("bash")
         {
-            WorkingDirectory = BuscarRaizRepositorio(),
+            WorkingDirectory = RaizRepositorio.Ruta(),
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
@@ -171,20 +162,6 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         var error = await proceso.StandardError.ReadToEndAsync();
         await proceso.WaitForExitAsync();
         return new ResultadoProceso(proceso.ExitCode, error);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md")))
-            {
-                return directorio.FullName;
-            }
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 
     private static async Task EjecutarAsync(

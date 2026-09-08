@@ -18,7 +18,7 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     public async Task Catalogos_respetan_materias_y_carreras_del_actor()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var designacionesDb = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -45,7 +45,7 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     public async Task Catalogos_devuelven_periodo_personas_elegibles_y_cargos_activos()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var designacionesDb = PostgresFixture.CrearDesignaciones(Cadena);
         var catalogos = await CrearServicio(
@@ -71,26 +71,6 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             new RepositorioCatalogosDesignaciones(designacionesDb),
             identity,
             new ResolutorActor(new UsuarioActualFalso(usuarioId), identity));
-    }
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser

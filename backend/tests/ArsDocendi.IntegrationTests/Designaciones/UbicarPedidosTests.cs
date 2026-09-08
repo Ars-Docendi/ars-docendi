@@ -140,17 +140,6 @@ public sealed class UbicarPedidosTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private async Task SembrarAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            ct);
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
     private static IDesignacionesQueries Consultas(
         Guid usuarioId,
         IdentityDbContext identityDb,

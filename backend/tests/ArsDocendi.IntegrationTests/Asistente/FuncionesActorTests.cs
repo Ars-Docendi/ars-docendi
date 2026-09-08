@@ -363,14 +363,6 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
         return usuario;
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-        await EjecutarAsync(sql);
-    }
-
     private async Task<IReadOnlyList<string>> LeerColumnaAsync(
         string sql, params (string Nombre, object Valor)[] parametros)
     {

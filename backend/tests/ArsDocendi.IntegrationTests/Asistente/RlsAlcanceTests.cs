@@ -307,14 +307,6 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         return (int)(long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-        await EjecutarAsync(sql);
-    }
-
     private async Task<IReadOnlyList<string>> LeerFilasAsync(
         string sql, params (string Nombre, object Valor)[] parametros)
     {

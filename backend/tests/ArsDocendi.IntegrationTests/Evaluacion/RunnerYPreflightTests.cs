@@ -437,17 +437,6 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
             DatasetDeCapacidad.Interpretar(dataset), Sello, TestContext.Current.CancellationToken);
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     /// <summary>Resuelve los actores del seed sintético.</summary>
     private sealed class ActoresDePrueba : IResolutorDeActores
     {

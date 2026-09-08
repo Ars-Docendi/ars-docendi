@@ -375,17 +375,6 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     private async Task<IReadOnlyList<VocabularioDeUnaColumna>> ValoresAsync()
     {
         var (basica, _) = CadenasDeLectura();

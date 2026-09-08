@@ -646,17 +646,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             guion: guion).Capa();
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
     private static TurnoParaRegistrar Turno(
         Guid? actor = null, DateTimeOffset? cuando = null, string pregunta = "¿cuántos docentes hay?") =>
         new(actor ?? Alguien,

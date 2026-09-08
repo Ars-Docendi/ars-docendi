@@ -164,7 +164,7 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
     public async Task Listado_y_filtros_incluyen_multiples_designaciones_y_estados_de_cuenta()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         var segundaMateria = Guid.Parse("70000000-0000-4000-8000-000000000104");
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
         await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
@@ -227,26 +227,6 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         });
         await identity.SaveChangesAsync(ct);
         identity.ChangeTracker.Clear();
-    }
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 
     private static GuardarDocenteDto DatosValidos(Guid? personaId) => new(

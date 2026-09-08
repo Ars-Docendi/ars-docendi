@@ -23,7 +23,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
     public async Task Http_crea_obtiene_edita_envia_reenvia_y_elimina_con_historial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
@@ -74,7 +74,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
     public async Task Http_filtra_por_actor_e_ignora_ambito_falsificado_por_cliente()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Coordinador, RolesCircuito.CoordinadorCarrera);
@@ -139,23 +139,4 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
                 "true");
         });
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 }

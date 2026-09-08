@@ -9,7 +9,7 @@ public sealed partial class ArquitecturaIdentityTests
     [Fact]
     public void Controllers_no_acceden_a_dbcontext_ni_repositorios()
     {
-        var raiz = BuscarRaizRepositorio();
+        var raiz = RaizRepositorio.Ruta();
         var controllers = Directory.EnumerateFiles(
             Path.Combine(raiz, "backend", "src"), "*Controller.cs", SearchOption.AllDirectories)
             .ToArray();
@@ -34,7 +34,7 @@ public sealed partial class ArquitecturaIdentityTests
     [Fact]
     public void Proyectos_de_modulo_no_referencian_internals_de_otro_modulo()
     {
-        var raiz = BuscarRaizRepositorio();
+        var raiz = RaizRepositorio.Ruta();
         var proyectos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "Modules.*.csproj", SearchOption.AllDirectories)
             .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal))
@@ -73,7 +73,7 @@ public sealed partial class ArquitecturaIdentityTests
     [Fact]
     public void Modulos_no_escriben_entidades_protegidas_de_identity()
     {
-        var raiz = BuscarRaizRepositorio();
+        var raiz = RaizRepositorio.Ruta();
         var archivos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "*.cs", SearchOption.AllDirectories)
             .Where(ruta => Path.GetRelativePath(Path.Combine(raiz, "backend", "src"), ruta)
@@ -102,8 +102,6 @@ public sealed partial class ArquitecturaIdentityTests
             "Los módulos sólo pueden leer identity mediante su contrato público. " +
             $"Escrituras o acceso directo detectados en: {string.Join(", ", infracciones)}");
     }
-
-    private static string BuscarRaizRepositorio() => RaizRepositorio.Ruta();
 
     private static string QuitarComentarios(string codigo) =>
         Comentarios().Replace(codigo, string.Empty);

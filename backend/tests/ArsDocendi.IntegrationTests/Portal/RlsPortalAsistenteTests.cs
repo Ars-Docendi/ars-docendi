@@ -394,12 +394,4 @@ public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
-    private async Task SembrarAsync()
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken);
-
-        await EjecutarAsync(sql);
-    }
 }
