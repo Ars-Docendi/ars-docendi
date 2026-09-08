@@ -314,8 +314,4 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
             ON CONFLICT DO NOTHING;
             """);
 
-    private async Task SembrarAsync() => await EjecutarAsync(
-        await File.ReadAllTextAsync(
-            Path.Combine(RaizRepositorio.Ruta(), "infra", "scripts", "seed-data", "sintetico.sql"),
-            TestContext.Current.CancellationToken));
 }

@@ -28,6 +28,72 @@ Un renglón nuevo se agrega a esta tabla **y** a Linear bajo ARS-102. Si diverge
 
 ---
 
+## Tablero — corrida del 2026-09-08
+
+Ejecutada de corrido sobre `feature/asistente-conversacional`, un commit por
+renglón. **19 de 30 cerrados.** Las precondiciones de esta tabla ya no matchean
+para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
+
+| Bloque             | Cerrados           | Abiertos   |
+| ------------------ | ------------------ | ---------- |
+| A — seguridad      | A1, A2, A4         | **A3**, A5 |
+| B — verdad         | B1                 | B2, **B3** |
+| C — suite          | C1, C2, C3, C4, C5 | —          |
+| D — frontera       | D1, D4, D5         | **D2**, D3 |
+| E — reorganización | E1, E4, E5         | E2, E3     |
+| F — frontend       | F1, F2, F3, F4     | —          |
+| G — rendimiento    | G1, G3             | G2         |
+
+**Lo medido, no lo estimado:**
+
+| Qué                                       | Antes    | Después  |
+| ----------------------------------------- | -------- | -------- |
+| Suite completa                            | 3 m 53 s | 1 m 43 s |
+| Carril rápido (`--filter 'carril!=base'`) | no había | 1 s      |
+| Casos                                     | 1287     | 1319     |
+| `Application/` archivos sueltos           | 47       | 0        |
+| `CapaConversacional.cs`                   | 551      | 398      |
+| `SemaphoreSlim` en `Infrastructure/`      | 5        | 1        |
+
+### Por qué los once que quedan quedaron
+
+Ninguno se salteó por falta de tiempo. Cada uno tiene una razón que no es esa:
+
+- **A3** — el renglón manda sacar `comentario` del GRANT, pero **dos ejemplos
+  canónicos de `Recursos/ejemplos-sql.json` lo seleccionan** (`:38` el historial
+  del trámite, `:63` «¿Qué pedidos fueron rechazados y con qué fundamento?»), y el
+  manifiesto declara ese caso de uso EN ALCANCE. Ejecutarlo como está escrito borra
+  una capacidad. Hay tres salidas y elegir es del equipo: (1) quitar el GRANT y la
+  capacidad; (2) dejarlo y cerrar el fail-open por el otro lado —denegar en el
+  validador las funciones que borran la procedencia de columna: `to_jsonb`,
+  `json_agg`, `row_to_json`—, que no pierde capacidad pero es rediseño y no este
+  renglón; (3) quitar sólo `justificacion` y `tipo_baja_detalle`.
+- **A5** y **D3** — ruta `opsx`: piden change OpenSpec. A5 además toca
+  `provision-db.sh`, que aprovisiona ambientes reales.
+- **B2** — bloqueado hasta que la rama esté mergeada (Step 0).
+- **B3** y **D2** — decisión del equipo. No las decide un agente.
+- **E2** y **E3** — E2 depende de A5; E3 depende de E2.
+- **G2** — sacar el `[Collection]` compartido introduce fallos INTERMITENTES, y una
+  sola corrida verde no descarta un fallo intermitente. Es el único renglón de la
+  cola cuyo modo de falla no se puede verificar sin supervisión.
+
+### Lo que la corrida encontró y la cola no sabía
+
+- **Hay un quinto productor de `PrefijoEstable`**: el preflight del evaluador
+  (`Preflight.PrefijoDePrueba`). La cola contaba «las tres huellas de
+  instrucciones»; con los dos prefijos de esquema son **cinco**, no cuatro. Lo
+  descubrió el guard de G3 apenas se escribió.
+- **`EnmascaramientoDelTurnoTests` también afirmaba sobre `PostgresException`**, no
+  sólo `EjecucionAcotadaTests:188` como decía la trampa de D1.
+- **Las copias del seed eran seis variantes, no dos**, y tres de ellas se salteaban
+  el `CommandTimeout = 60` que el resto ponía.
+- **La fila de TD-007 apuntaba a «nueve copias» y eran once.** Al borrarla queda
+  colgada la referencia de `docs/product/designs/portal-docente-design-spec.md:166`,
+  que ya apuntaba mal antes (habla de la migración de un widget, no de
+  `BuscarRaizRepositorio`). No se tocó: es de otro renglón.
+
+---
+
 ### Bloque A — Seguridad (primero; sus tests rojos no esperan a nada)
 
 | ID     | Qué                                                                                                                                                                                                                                                                                                                 | Ruta        | Precondición                                                                                                                                                                                      | Trampa                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
