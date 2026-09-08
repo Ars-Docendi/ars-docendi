@@ -154,13 +154,14 @@ La skill `/add-feature` se conserva como orquestador principal de features: apli
 
 ### Implementación
 
-| Skill            | Cuándo                                                     |
-| ---------------- | ---------------------------------------------------------- |
-| `/create-module` | Scaffold nuevo módulo .NET (Modules.X + Contracts)         |
-| `/modify-module` | Cambiar módulo existente con análisis de impacto Contracts |
-| `/fix-bug`       | Bug fix red-green con check de escalación                  |
-| `/add-tests`     | Agregar tests (lane business BR-\* o technical smoke)      |
-| `/ci-fix`        | Arreglar CI fallido en PR existente                        |
+| Skill                 | Cuándo                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `/create-module`      | Scaffold nuevo módulo .NET (Modules.X + Contracts)                                                             |
+| `/modify-module`      | Cambiar módulo existente con análisis de impacto Contracts                                                     |
+| `/fix-bug`            | Bug fix red-green con check de escalación                                                                      |
+| `/add-tests`          | Agregar tests (lane business BR-\* o technical smoke)                                                          |
+| `/ci-fix`             | Arreglar CI fallido en PR existente                                                                            |
+| `/refactor-asistente` | Ejecutar un renglón de la cola de refactor del Asistente. Ver [auditoría](docs/quality/auditoria-asistente.md) |
 
 ### Review / Quality
 
