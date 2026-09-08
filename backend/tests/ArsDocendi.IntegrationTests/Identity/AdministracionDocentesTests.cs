@@ -21,6 +21,9 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
     private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid CargoTitular = Guid.Parse("c3000000-0000-4000-8000-000000000001");
     private static readonly Guid CargoAdjunto = Guid.Parse("c3000000-0000-4000-8000-000000000003");
+    private static readonly Guid RolDocente = Guid.Parse("a1000000-0000-4000-8000-000000000001");
+    private static readonly Guid RolJefe = Guid.Parse("a1000000-0000-4000-8000-000000000002");
+    private static readonly Guid MateriaB = Guid.Parse("70000000-0000-4000-8000-000000000102");
     private static readonly Guid PersonaActiva = Guid.Parse("d0000000-0000-4000-8000-000000000001");
     private static readonly Guid PersonaInactiva = Guid.Parse("d0000000-0000-4000-8000-000000000008");
     private static readonly Guid PersonaSinCuenta = Guid.Parse("d0000000-0000-4000-8000-000000000010");
@@ -38,7 +41,7 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
 
         Assert.True(creado.TieneCuenta);
         Assert.True(creado.Activo);
-        Assert.Equal(["docente"], creado.Roles);
+        Assert.Equal(["docente"], creado.Roles.Select(r => r.Codigo));
         var asignacion = Assert.Single(creado.Asignaciones);
         Assert.Equal(CargoTitular, asignacion.CargoId);
         Assert.Equal(12, asignacion.Horas);
@@ -95,12 +98,16 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         {
             Nombre = "Ada editada",
             Version = creado.Version,
-            Roles = ["docente", "jefe_catedra"],
+            Membresias =
+            [
+                new GuardarAsignacionRolDto(RolDocente, Materia, Carrera),
+                new GuardarAsignacionRolDto(RolJefe, Materia, Carrera),
+            ],
             Designaciones = [new GuardarDesignacionVigenteDto(Materia, CargoAdjunto, Guid.Parse("d6000000-0000-4000-8000-000000000002"), 20)],
         }, ct);
 
         Assert.Equal("Ada editada", editado.Nombre);
-        Assert.Equal(["docente", "jefe_catedra"], editado.Roles);
+        Assert.Equal(["docente", "jefe_catedra"], editado.Roles.Select(r => r.Codigo));
         var asignacion = Assert.Single(editado.Asignaciones);
         Assert.Equal(CargoAdjunto, asignacion.CargoId);
         Assert.Equal(20, asignacion.Horas);
@@ -203,9 +210,39 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         Assert.All(await servicio.ListarAsync(null, segundaMateria, null, null, ct),
             d => Assert.Contains(d.Asignaciones, a => a.MateriaId == segundaMateria));
         Assert.All(await servicio.ListarAsync(null, null, "jefe_catedra", null, ct),
-            d => Assert.Contains("jefe_catedra", d.Roles));
+            d => Assert.Contains(d.Roles, r => r.Codigo == "jefe_catedra"));
         Assert.Contains(await servicio.ListarAsync("Sofía", null, null, false, ct),
             d => d.PersonaId == PersonaInactiva);
+    }
+
+    [Fact]
+    public async Task Roles_distintos_por_materia_no_se_propagan_a_materias_ajenas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        await PrepararCatalogoAsync(identity, ct);
+        await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(identity, modulo);
+
+        var creado = await servicio.GuardarAsync(null, DatosValidos(null) with
+        {
+            Membresias =
+            [
+                new GuardarAsignacionRolDto(RolDocente, Materia, Carrera),
+                new GuardarAsignacionRolDto(RolJefe, MateriaB, Carrera),
+            ],
+            Designaciones =
+            [
+                new GuardarDesignacionVigenteDto(Materia, CargoTitular, Guid.Parse("d6000000-0000-4000-8000-000000000001"), 12),
+                new GuardarDesignacionVigenteDto(MateriaB, CargoAdjunto, Guid.Parse("d6000000-0000-4000-8000-000000000002"), 8),
+            ],
+        }, ct);
+
+        Assert.Equal(2, creado.Membresias.Count);
+        Assert.Contains(creado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia);
+        Assert.Contains(creado.Membresias, m => m.Codigo == "jefe_catedra" && m.MateriaId == MateriaB);
+        Assert.DoesNotContain(creado.Membresias, m => m.Codigo == "jefe_catedra" && m.MateriaId == Materia);
+        Assert.DoesNotContain(creado.Membresias, m => m.Codigo == "docente" && m.MateriaId == MateriaB);
     }
 
     [Fact]
@@ -263,6 +300,15 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
             Activo = true,
             CreadoEn = DateTimeOffset.UtcNow,
         });
+        identity.Materias.Add(new Materia
+        {
+            Id = MateriaB,
+            Codigo = "03620",
+            Nombre = "Algoritmos",
+            CarreraId = Carrera,
+            Activo = true,
+            CreadoEn = DateTimeOffset.UtcNow,
+        });
         await identity.SaveChangesAsync(ct);
         identity.ChangeTracker.Clear();
     }
@@ -297,6 +343,6 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         new DateOnly(1985, 12, 10),
         null,
         "ada.docente@unlam.edu.ar",
-        ["docente"],
+        [new GuardarAsignacionRolDto(RolDocente, Materia, Carrera)],
         [new GuardarDesignacionVigenteDto(Materia, CargoTitular, Guid.Parse("d6000000-0000-4000-8000-000000000001"), 12)]);
 }

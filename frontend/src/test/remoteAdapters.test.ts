@@ -42,31 +42,31 @@ describe("adapters HTTP administrativos", () => {
       upn: "ana@test",
       activo: true,
       version: 3,
-      roles: [
-        {
-          id: "ur1",
-          rolId: "r1",
-          codigo: "jefe_catedra",
-          nombre: "Jefe de Cátedra",
-          ambito: "materia",
-          materiaId: "m1",
-          carreraId: "c1",
-        },
-      ],
+      perfilDocente: { esDocente: true, cantidadMaterias: 3 },
+      roles: [{ id: "r1", codigo: "jefe_catedra", nombre: "Jefe de Cátedra" }],
+      membresias: ["m1", "m2", "m3"].map((materiaId, indice) => ({
+        id: `ur${indice + 1}`,
+        rolId: "r1",
+        codigo: "jefe_catedra",
+        nombre: "Jefe de Cátedra",
+        ambito: "materia",
+        materiaId,
+        carreraId: "c1",
+      })),
     };
     vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
     expect((await listarUsuarios())[0]).toMatchObject({
       id: "u1",
       roles: ["Jefe de Cátedra"],
+      membresias: expect.arrayContaining([
+        expect.objectContaining({ id: "ur1", rolId: "r1", materiaId: "m1", carreraId: "c1" }),
+        expect.objectContaining({ id: "ur2", rolId: "r1", materiaId: "m2", carreraId: "c1" }),
+        expect.objectContaining({ id: "ur3", rolId: "r1", materiaId: "m3", carreraId: "c1" }),
+      ]),
       version: 3,
     });
 
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
-    const catalogos = {
-      roles: [{ id: "r1", codigo: "jefe_catedra", nombre: "Jefe de Cátedra", ambito: "materia" }],
-      materias: [{ id: "m1", codigo: "1", nombre: "Software" }],
-      carreras: [{ id: "c1", codigo: "INF", nombre: "Informática" }],
-    };
     const formulario = {
       nombre: "Ana",
       apellido: "Pérez",
@@ -76,16 +76,24 @@ describe("adapters HTTP administrativos", () => {
       fecha_nacimiento: "",
       telefono: "",
       upn: "ana@test",
-      roles: ["Jefe de Cátedra" as const],
+      membresias: [
+        { rolId: "r1", materiaId: "m1", carreraId: "c1" },
+        { rolId: "r1", materiaId: "m2", carreraId: "c1" },
+        { rolId: "r1", materiaId: "m3", carreraId: "c1" },
+      ],
     };
-    await crearUsuario(formulario, catalogos);
+    await crearUsuario(formulario);
     expect(apiClient.post).toHaveBeenCalledWith(
       "/api/administracion/usuarios",
       expect.objectContaining({
-        roles: [{ rolId: "r1", materiaId: "m1", carreraId: "c1" }],
+        membresias: [
+          { rolId: "r1", materiaId: "m1", carreraId: "c1" },
+          { rolId: "r1", materiaId: "m2", carreraId: "c1" },
+          { rolId: "r1", materiaId: "m3", carreraId: "c1" },
+        ],
       }),
     );
-    await cambiarEstadoUsuario({ ...formulario, id: "u1", is_active: true, version: 3 }, false);
+    await cambiarEstadoUsuario((await listarUsuarios())[0], false);
     expect(apiClient.post).toHaveBeenLastCalledWith("/api/administracion/usuarios/u1/desactivar", {
       version: 3,
     });
@@ -135,7 +143,19 @@ describe("adapters HTTP administrativos", () => {
       upn: "ana@test",
       activo: true,
       version: 2,
-      roles: ["docente"],
+      tieneCuenta: true,
+      roles: [{ id: "r1", codigo: "docente", nombre: "Docente" }],
+      membresias: [
+        {
+          id: "ur1",
+          rolId: "r1",
+          codigo: "docente",
+          nombre: "Docente",
+          ambito: "materia",
+          materiaId: "m1",
+          carreraId: "c1",
+        },
+      ],
       asignaciones: [
         {
           id: "d1",
@@ -164,7 +184,20 @@ describe("adapters HTTP administrativos", () => {
         fecha_nacimiento: "",
         telefono: "",
         upn: "ana@test",
-        roles: ["Docente"],
+        persona_id: "p1",
+        tieneCuenta: true,
+        roles: [],
+        membresias: [
+          {
+            id: "",
+            rolId: "r1",
+            codigo: "",
+            nombre: "",
+            ambito: "materia",
+            materiaId: "m1",
+            carreraId: "c1",
+          },
+        ],
         asignaciones: [
           {
             materia: { id: "m1", codigo: "03500", nombre: "Software" },
@@ -175,7 +208,7 @@ describe("adapters HTTP administrativos", () => {
         ],
       },
       {
-        roles: [{ id: "r1", codigo: "docente", nombre: "Docente" }],
+        roles: [{ id: "r1", codigo: "docente", nombre: "Docente", ambito: "materia" }],
         materias: [{ id: "m1", codigo: "03500", nombre: "Software" }],
         cargos: [{ id: "c1", codigo: "adjunto", nombre: "Adjunto", abreviatura: "Adj." }],
         personasElegibles: [],

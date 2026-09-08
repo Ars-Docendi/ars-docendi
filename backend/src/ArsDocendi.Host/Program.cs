@@ -24,6 +24,7 @@ builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
 builder.Services.AddScoped<ServicioDocentes>();
+builder.Services.AddScoped<ServicioUsuariosAdministracion>();
 builder.Services.AddScoped<ResolutorAlcanceDocentes>();
 var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
     && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
@@ -67,6 +68,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new() { Title = "Ars Docendi API", Version = "v1" });
+    o.CustomSchemaIds(tipo => tipo.FullName!.Replace('+', '.'));
 });
 
 builder.Services

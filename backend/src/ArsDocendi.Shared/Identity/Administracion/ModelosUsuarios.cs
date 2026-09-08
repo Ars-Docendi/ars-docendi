@@ -9,6 +9,10 @@ public sealed record AsignacionRolDto(
     Guid? MateriaId,
     Guid? CarreraId);
 
+public sealed record RolResumenDto(Guid Id, string Codigo, string Nombre);
+
+public sealed record PerfilDocenteDto(bool EsDocente, int CantidadMaterias);
+
 public sealed record UsuarioAdministracionDto(
     Guid Id,
     Guid PersonaId,
@@ -22,7 +26,9 @@ public sealed record UsuarioAdministracionDto(
     string Upn,
     bool Activo,
     uint Version,
-    IReadOnlyList<AsignacionRolDto> Roles);
+    IReadOnlyList<RolResumenDto> Roles,
+    IReadOnlyList<AsignacionRolDto> Membresias,
+    PerfilDocenteDto PerfilDocente);
 
 public sealed record GuardarAsignacionRolDto(
     Guid RolId,
@@ -38,12 +44,12 @@ public sealed record GuardarUsuarioDto(
     DateOnly? FechaNacimiento,
     string? Telefono,
     string Upn,
-    IReadOnlyList<GuardarAsignacionRolDto> Roles,
+    IReadOnlyList<GuardarAsignacionRolDto> Membresias,
     uint? Version = null);
 
 public sealed record CambiarEstadoUsuarioDto(uint Version);
 
-public sealed record OpcionCatalogoDto(Guid Id, string Codigo, string Nombre);
+public sealed record OpcionCatalogoDto(Guid Id, string Codigo, string Nombre, Guid? CarreraId = null);
 
 public sealed record RolCatalogoDto(
     Guid Id,

@@ -1,8 +1,10 @@
 import { apiClient } from "../../../shared/api/client";
-import type { RolSistema, UsuarioMock } from "../models";
+import type { RolCatalogoUsuario, RolSistema, UsuarioFormulario, UsuarioMock } from "../models";
 
 interface AsignacionDto {
+  id: string;
   rolId: string;
+  codigo: string;
   nombre: string;
   ambito: string;
   materiaId: string | null;
@@ -10,6 +12,7 @@ interface AsignacionDto {
 }
 interface UsuarioDto {
   id: string;
+  personaId: string;
   nombre: string;
   apellido: string;
   documento: string;
@@ -20,12 +23,14 @@ interface UsuarioDto {
   upn: string;
   activo: boolean;
   version: number;
-  roles: AsignacionDto[];
+  roles: { id: string; codigo: string; nombre: string }[];
+  membresias: AsignacionDto[];
+  perfilDocente: { esDocente: boolean; cantidadMaterias: number };
 }
 export interface CatalogosUsuarios {
-  roles: { id: string; codigo: string; nombre: string; ambito: string }[];
+  roles: RolCatalogoUsuario[];
   carreras: { id: string; codigo: string; nombre: string }[];
-  materias: { id: string; codigo: string; nombre: string }[];
+  materias: { id: string; codigo: string; nombre: string; carreraId?: string | null }[];
 }
 
 export async function listarUsuarios(): Promise<UsuarioMock[]> {
@@ -35,24 +40,14 @@ export async function listarUsuarios(): Promise<UsuarioMock[]> {
 export async function obtenerCatalogosUsuarios(): Promise<CatalogosUsuarios> {
   return (await apiClient.get<CatalogosUsuarios>("/api/administracion/catalogos")).data;
 }
-export async function crearUsuario(
-  datos: Omit<UsuarioMock, "id" | "is_active">,
-  catalogos: CatalogosUsuarios,
-): Promise<UsuarioMock> {
-  const { data } = await apiClient.post<UsuarioDto>(
-    "/api/administracion/usuarios",
-    payload(datos, catalogos),
-  );
+export async function crearUsuario(datos: UsuarioFormulario): Promise<UsuarioMock> {
+  const { data } = await apiClient.post<UsuarioDto>("/api/administracion/usuarios", payload(datos));
   return mapearUsuario(data);
 }
-export async function editarUsuario(
-  id: string,
-  datos: Omit<UsuarioMock, "id" | "is_active">,
-  catalogos: CatalogosUsuarios,
-): Promise<UsuarioMock> {
+export async function editarUsuario(id: string, datos: UsuarioFormulario): Promise<UsuarioMock> {
   const { data } = await apiClient.put<UsuarioDto>(
     `/api/administracion/usuarios/${id}`,
-    payload(datos, catalogos),
+    payload(datos),
   );
   return mapearUsuario(data);
 }
@@ -68,7 +63,7 @@ export async function cambiarEstadoUsuario(
   return mapearUsuario(data);
 }
 
-function payload(datos: Omit<UsuarioMock, "id" | "is_active">, catalogos: CatalogosUsuarios) {
+function payload(datos: UsuarioFormulario) {
   return {
     nombre: datos.nombre,
     apellido: datos.apellido,
@@ -79,32 +74,14 @@ function payload(datos: Omit<UsuarioMock, "id" | "is_active">, catalogos: Catalo
     telefono: datos.telefono || null,
     upn: datos.upn,
     version: datos.version,
-    roles: datos.roles.map((nombre) => {
-      const rol = catalogos.roles.find((item) => item.nombre === nombre);
-      if (!rol) throw new Error(`El rol ${nombre} no está disponible.`);
-      if (rol.ambito === "materia") {
-        const materiaId =
-          datos.asignaciones?.find((a) => a.rolId === rol.id)?.materiaId ??
-          catalogos.materias[0]?.id;
-        const carreraId =
-          datos.asignaciones?.find((a) => a.rolId === rol.id)?.carreraId ??
-          catalogos.carreras[0]?.id;
-        return { rolId: rol.id, materiaId, carreraId };
-      }
-      if (rol.ambito === "carrera") {
-        const carreraId =
-          datos.asignaciones?.find((a) => a.rolId === rol.id)?.carreraId ??
-          catalogos.carreras[0]?.id;
-        return { rolId: rol.id, carreraId };
-      }
-      return { rolId: rol.id };
-    }),
+    membresias: datos.membresias,
   };
 }
 
 function mapearUsuario(dto: UsuarioDto): UsuarioMock {
   return {
     id: dto.id,
+    persona_id: dto.personaId,
     nombre: dto.nombre,
     apellido: dto.apellido,
     documento: dto.documento,
@@ -116,6 +93,7 @@ function mapearUsuario(dto: UsuarioDto): UsuarioMock {
     is_active: dto.activo,
     roles: dto.roles.map((r) => r.nombre as RolSistema),
     version: dto.version,
-    asignaciones: dto.roles,
+    membresias: dto.membresias,
+    perfilDocente: dto.perfilDocente,
   };
 }

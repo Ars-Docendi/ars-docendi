@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Breadcrumbs, Button } from "@ars-docendi/ui";
+import { useSearchParams } from "react-router-dom";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
@@ -20,6 +21,7 @@ const FILTROS_VACIOS: FiltrosState = {
   materia: "",
   cargo: "",
   rol: "",
+  cuenta: "",
   estado: "",
 };
 const SIN_DOCENTES: DocenteMock[] = [];
@@ -29,7 +31,8 @@ export function IndexPage() {
   const docentes = remoto.consulta.data ?? SIN_DOCENTES;
   const materias = remoto.catalogos.data?.materias ?? [];
   const cargos = remoto.catalogos.data?.cargos.map((c) => c.nombre) ?? [];
-  const rolesDisponibles = remoto.catalogos.data?.roles.map((rol) => rol.nombre) ?? [];
+  const rolesDisponibles = remoto.catalogos.data?.roles ?? [];
+  const nombresRoles = rolesDisponibles.map((rol) => rol.nombre);
   const personas =
     remoto.catalogos.data?.personasElegibles.map((p) => ({
       id: p.id,
@@ -48,6 +51,16 @@ export function IndexPage() {
   const [docenteADesactivar, setDocenteADesactivar] = useState<DocenteMock | null>(null);
   const [docenteAActivar, setDocenteAActivar] = useState<DocenteMock | null>(null);
   const [docenteAEditar, setDocenteAEditar] = useState<DocenteMock | null>(null);
+  const [parametros, setParametros] = useSearchParams();
+  const docenteDesdeUrl = docentes.find(
+    (candidato) => candidato.persona_id === parametros.get("personaId"),
+  );
+  const docenteEnEdicion = docenteAEditar ?? docenteDesdeUrl ?? null;
+
+  function cerrarEdicion() {
+    setDocenteAEditar(null);
+    if (parametros.has("personaId")) setParametros({}, { replace: true });
+  }
 
   const { user: usuario } = useCurrentUser();
   const esJdC = usuario?.role === "Jefe de Cátedra";
@@ -71,6 +84,8 @@ export function IndexPage() {
       if (materiaBuscada && !d.asignaciones.some((a) => a.materia.codigo === materiaBuscada))
         return false;
       if (filtros.rol && !d.roles.some((r) => r === filtros.rol)) return false;
+      if (filtros.cuenta === "con_cuenta" && !d.tieneCuenta) return false;
+      if (filtros.cuenta === "sin_cuenta" && d.tieneCuenta) return false;
       if (filtros.estado === "activo" && !d.is_active) return false;
       if (filtros.estado === "inactivo" && d.is_active) return false;
       return true;
@@ -82,11 +97,8 @@ export function IndexPage() {
   }
 
   function handleEditar(datos: Omit<DocenteMock, "id" | "is_active">) {
-    if (!docenteAEditar) return;
-    remoto.editar.mutate(
-      { docente: docenteAEditar, datos },
-      { onSuccess: () => setDocenteAEditar(null) },
-    );
+    if (!docenteEnEdicion) return;
+    remoto.editar.mutate({ docente: docenteEnEdicion, datos }, { onSuccess: cerrarEdicion });
   }
 
   function handleDesactivar() {
@@ -150,7 +162,7 @@ export function IndexPage() {
         filtros={filtros}
         onChange={setFiltros}
         materias={materias}
-        roles={rolesDisponibles}
+        roles={nombresRoles}
       />
 
       <TablaDocentes
@@ -192,10 +204,10 @@ export function IndexPage() {
       />
 
       <ModalEditarDocente
-        docente={docenteAEditar}
-        upnsExistentes={docentes.filter((d) => d.id !== docenteAEditar?.id).map((d) => d.upn)}
+        docente={docenteEnEdicion}
+        upnsExistentes={docentes.filter((d) => d.id !== docenteEnEdicion?.id).map((d) => d.upn)}
         onGuardar={handleEditar}
-        onCerrar={() => setDocenteAEditar(null)}
+        onCerrar={cerrarEdicion}
         materias={materias}
         cargos={cargos}
         dedicaciones={remoto.catalogos.data?.dedicaciones.filter((d) => d.activo) ?? []}

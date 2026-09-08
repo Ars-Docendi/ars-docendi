@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Field, InlineAlert, Modal, Select } from "@ars-docendi/ui";
+import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
 import {
   nombreCompleto,
   type AsignacionMateria,
@@ -7,7 +8,7 @@ import {
   type DocenteMock,
   type PersonaSistema,
   type MateriaMock,
-  type RolDocente,
+  type RolCatalogoDocente,
 } from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
 import { CamposPersonaDocente, type CamposPersonaDocenteDatos } from "./CamposPersonaDocente";
@@ -35,7 +36,7 @@ interface ModalNuevoDocenteProps {
   dedicaciones: { id: string; nombre: string }[];
   personas: PersonaSistema[];
   error?: string;
-  rolesDisponibles: string[];
+  rolesDisponibles: RolCatalogoDocente[];
 }
 
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
@@ -56,6 +57,20 @@ function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
   return undefined;
 }
 
+function validarMembresias(filas: MembresiaFila[]): string | undefined {
+  if (filas.length === 0) return "Seleccioná al menos una membresía";
+  if (
+    new Set(filas.map((fila) => `${fila.rolId}:${fila.materiaId}:${fila.carreraId}`)).size !==
+    filas.length
+  ) {
+    return "No se puede repetir la misma membresía";
+  }
+  if (filas.some((fila) => !fila.rolId || !fila.materiaId || !fila.carreraId)) {
+    return "Completá las filas de membresía";
+  }
+  return undefined;
+}
+
 export function ModalNuevoDocente({
   open,
   upnsExistentes,
@@ -71,7 +86,9 @@ export function ModalNuevoDocente({
   const [modo, setModo] = useState<Modo>("nueva");
   const [personaId, setPersonaId] = useState("");
   const [campos, setCampos] = useState(CAMPOS_PERSONA_VACIOS);
-  const [rol, setRol] = useState<string>("");
+  const [membresias, setMembresias] = useState<MembresiaFila[]>([
+    { rolId: "", materiaId: "", carreraId: "" },
+  ]);
   const [asignacionRows, setAsignacionRows] = useState<AsignacionRow[]>([
     { materia: "", cargo: "", horas: "", dedicacionId: "" },
   ]);
@@ -81,7 +98,7 @@ export function ModalNuevoDocente({
     setModo("nueva");
     setPersonaId("");
     setCampos(CAMPOS_PERSONA_VACIOS);
-    setRol("");
+    setMembresias([{ rolId: "", materiaId: "", carreraId: "" }]);
     setAsignacionRows([{ materia: "", cargo: "", horas: "", dedicacionId: "" }]);
     setEnviado(false);
     onCerrar();
@@ -133,7 +150,8 @@ export function ModalNuevoDocente({
           );
 
     const errorAsignaciones = validarAsignaciones(asignacionRows);
-    if (!personaOk || !rol || errorAsignaciones) return;
+    const errorMembresias = validarMembresias(membresias);
+    if (!personaOk || errorMembresias || errorAsignaciones) return;
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
 
     const asignaciones: AsignacionMateria[] = asignacionRows
@@ -148,8 +166,18 @@ export function ModalNuevoDocente({
     onCrear({
       ...campos,
       upn: campos.upn.toLowerCase(),
-      roles: [rol as RolDocente],
+      roles: [],
+      membresias: membresias.map((fila) => ({
+        id: "",
+        codigo: "",
+        nombre: "",
+        ambito: "materia",
+        rolId: fila.rolId,
+        materiaId: fila.materiaId,
+        carreraId: fila.carreraId,
+      })),
       asignaciones,
+      tieneCuenta: true,
       persona_id: modo === "existente" ? personaId : undefined,
     });
     handleCerrar();
@@ -160,6 +188,7 @@ export function ModalNuevoDocente({
 
   const upnDuplicada = enviado && !!campos.upn && upnsExistentes.includes(campos.upn.toLowerCase());
   const errorAsignaciones = enviado ? validarAsignaciones(asignacionRows) : undefined;
+  const errorMembresias = enviado ? validarMembresias(membresias) : undefined;
 
   const estiloTab = (activo: boolean): React.CSSProperties => ({
     flex: 1,
@@ -272,17 +301,13 @@ export function ModalNuevoDocente({
           </>
         )}
 
-        {/* Rol y asignaciones — comunes a ambos modos */}
-        <Field label="Rol" required error={enviado && !rol ? "Campo obligatorio" : undefined}>
-          <Select value={rol} onChange={(e) => setRol(e.target.value)}>
-            <option value="">Seleccioná un rol…</option>
-            {rolesDisponibles.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MembresiasSelector
+          filas={membresias}
+          onChange={setMembresias}
+          roles={rolesDisponibles}
+          materias={materias}
+          error={errorMembresias}
+        />
 
         <AsignacionesSelector
           rows={asignacionRows}

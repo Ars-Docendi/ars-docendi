@@ -2,6 +2,7 @@ using System.Text.Json;
 using ArsDocendi.Host.Api;
 using ArsDocendi.Shared.Aplicacion;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ArsDocendi.IntegrationTests.Backend;
@@ -52,6 +53,18 @@ public sealed class ManejadorExcepcionesApiTests
         Assert.Equal(500, respuesta.Status);
         Assert.Equal("Ocurrió un error inesperado", respuesta.Json.GetProperty("title").GetString());
         Assert.DoesNotContain("secreto interno", respuesta.Json.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Concurrencia_responde_conflicto_con_tipo_estable_y_mensaje_accionable()
+    {
+        var respuesta = await EjecutarAsync(new DbUpdateConcurrencyException());
+
+        Assert.Equal(409, respuesta.Status);
+        Assert.Equal(
+            "https://ars-docendi.unlam.edu.ar/errors/concurrency-conflict",
+            respuesta.Json.GetProperty("type").GetString());
+        Assert.Contains("Actualizá", respuesta.Json.GetProperty("detail").GetString());
     }
 
     private static async Task<RespuestaProblema> EjecutarAsync(Exception excepcion)

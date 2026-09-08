@@ -2,6 +2,22 @@ export interface MateriaMock {
   id: string;
   codigo: string;
   nombre: string;
+  carreraId?: string | null;
+}
+export interface MembresiaRolDocente {
+  id: string;
+  rolId: string;
+  codigo: string;
+  nombre: string;
+  ambito: string;
+  materiaId: string | null;
+  carreraId: string | null;
+}
+export interface RolCatalogoDocente {
+  id: string;
+  codigo: string;
+  nombre: string;
+  ambito: string;
 }
 export interface PersonaSistema {
   id: string;
@@ -38,7 +54,9 @@ export interface DocenteMock {
   telefono: string;
   upn: string;
   roles: RolDocente[];
+  membresias: MembresiaRolDocente[];
   asignaciones: AsignacionMateria[];
+  tieneCuenta: boolean;
   is_active: boolean;
   version?: number;
   persona_id?: string;

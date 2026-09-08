@@ -10,20 +10,29 @@ export interface FiltrosState {
   materia: string;
   cargo: string;
   rol: string;
+  cuenta: "con_cuenta" | "sin_cuenta" | "";
   estado: "activo" | "inactivo" | "";
 }
 
-type FiltroOpcional = "codigoMateria" | "materia" | "cargo" | "rol" | "estado";
+type FiltroOpcional = "codigoMateria" | "materia" | "cargo" | "rol" | "cuenta" | "estado";
 
 const ETIQUETAS: Record<FiltroOpcional, string> = {
   codigoMateria: "Código de materia",
   materia: "Materia",
   cargo: "Cargo",
   rol: "Rol",
+  cuenta: "Cuenta",
   estado: "Estado",
 };
 
-const TODOS_OPCIONALES: FiltroOpcional[] = ["codigoMateria", "materia", "cargo", "rol", "estado"];
+const TODOS_OPCIONALES: FiltroOpcional[] = [
+  "codigoMateria",
+  "materia",
+  "cargo",
+  "rol",
+  "cuenta",
+  "estado",
+];
 
 const estiloBotonQuitar: React.CSSProperties = {
   border: "1px solid var(--color-border-default)",
@@ -228,6 +237,28 @@ export function FiltrosDocentes({ filtros, onChange, materias, roles }: FiltrosD
               <button
                 onClick={() => quitarFiltro("estado")}
                 aria-label="Quitar filtro de estado"
+                style={estiloBotonQuitar}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {activados.includes("cuenta") && (
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: "0 0 auto" }}>
+              <Select
+                value={filtros.cuenta}
+                onChange={(e) => set("cuenta", e.target.value as "con_cuenta" | "sin_cuenta" | "")}
+                aria-label="Filtrar por cuenta"
+                style={{ width: "auto" }}
+              >
+                <option value="">Todas las cuentas</option>
+                <option value="con_cuenta">Con cuenta</option>
+                <option value="sin_cuenta">Sin cuenta</option>
+              </Select>
+              <button
+                onClick={() => quitarFiltro("cuenta")}
+                aria-label="Quitar filtro de cuenta"
                 style={estiloBotonQuitar}
               >
                 ×
