@@ -34,30 +34,13 @@ internal sealed class CatalogoDelDominioReal(
         ("pedidos_tipo_baja_valido", ClaseDeSlot.TipoDeBaja),
     ];
 
-    private readonly SemaphoreSlim _turnoDeCalculo = new(1, 1);
-    private CatalogoDelDominio? _catalogo;
+    private readonly ValorPerezoso<CatalogoDelDominio> _catalogo = new();
 
     /// <summary>Veces que se consultó la base. Existe para los tests del caché.</summary>
-    internal int Lecturas { get; private set; }
+    internal int Lecturas => _catalogo.Calculos;
 
-    public async Task<CatalogoDelDominio> ObtenerAsync(CancellationToken ct)
-    {
-        if (_catalogo is not null)
-        {
-            return _catalogo;
-        }
-
-        await _turnoDeCalculo.WaitAsync(ct);
-        try
-        {
-            _catalogo ??= await ConstruirAsync(ct);
-            return _catalogo;
-        }
-        finally
-        {
-            _turnoDeCalculo.Release();
-        }
-    }
+    public Task<CatalogoDelDominio> ObtenerAsync(CancellationToken ct) =>
+        _catalogo.ObtenerAsync(ConstruirAsync, ct);
 
     private async Task<CatalogoDelDominio> ConstruirAsync(CancellationToken ct)
     {
@@ -74,7 +57,6 @@ internal sealed class CatalogoDelDominioReal(
 
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
-        Lecturas++;
 
         var vocabularios = await LectorDeVocabulario.VocabulariosAsync(
             conexion,

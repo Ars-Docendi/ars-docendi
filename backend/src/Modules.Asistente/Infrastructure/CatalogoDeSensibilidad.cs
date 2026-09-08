@@ -42,15 +42,17 @@ internal sealed class CatalogoDeSensibilidad(
            AND n.nspname = ANY(@esquemas)
         """;
 
-    private readonly SemaphoreSlim _turnoDeCalculo = new(1, 1);
-    private IReadOnlyDictionary<(uint Oid, short Atributo), SensibilidadDeColumna>? _resuelto;
+    private readonly ValorPerezoso<
+        IReadOnlyDictionary<(uint Oid, short Atributo), SensibilidadDeColumna>> _resuelto = new();
 
     /// <summary>Veces que se consultó el catálogo. Existe para los tests del caché.</summary>
-    internal int Lecturas { get; private set; }
+    internal int Lecturas => _resuelto.Calculos;
 
     public SensibilidadDeColumna Clasificar(uint oidDeTabla, short numeroDeAtributo)
     {
-        if (_resuelto is null)
+        var resuelto = _resuelto.Calculado;
+
+        if (resuelto is null)
         {
             throw new InvalidOperationException(
                 $"Se pidió clasificar una columna sin haber llamado antes a " +
@@ -66,33 +68,12 @@ internal sealed class CatalogoDeSensibilidad(
             return SensibilidadDeColumna.Desconocida;
         }
 
-        return _resuelto.TryGetValue((oidDeTabla, numeroDeAtributo), out var sensibilidad)
+        return resuelto.TryGetValue((oidDeTabla, numeroDeAtributo), out var sensibilidad)
             ? sensibilidad
             : SensibilidadDeColumna.Desconocida;
     }
 
-    public async Task PrepararAsync(CancellationToken ct)
-    {
-        if (_resuelto is not null)
-        {
-            return;
-        }
-
-        await _turnoDeCalculo.WaitAsync(ct);
-        try
-        {
-            if (_resuelto is not null)
-            {
-                return;
-            }
-
-            _resuelto = await ResolverAsync(ct);
-        }
-        finally
-        {
-            _turnoDeCalculo.Release();
-        }
-    }
+    public Task PrepararAsync(CancellationToken ct) => _resuelto.ObtenerAsync(ResolverAsync, ct);
 
     private async Task<IReadOnlyDictionary<(uint, short), SensibilidadDeColumna>> ResolverAsync(
         CancellationToken ct)
@@ -120,7 +101,6 @@ internal sealed class CatalogoDeSensibilidad(
             }
         }
 
-        Lecturas++;
 
         var resuelto = new Dictionary<(uint, short), SensibilidadDeColumna>();
         var faltantes = new List<string>();

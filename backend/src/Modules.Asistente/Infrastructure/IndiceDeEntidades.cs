@@ -45,35 +45,13 @@ internal sealed class IndiceDeEntidades(CadenaSoloLectura cadena) : IIndiceDeEnt
           FROM identity.personas p
         """;
 
-    private readonly SemaphoreSlim _turnoDeCalculo = new(1, 1);
-    private CatalogoDeEntidades? _catalogo;
+    private readonly ValorPerezoso<CatalogoDeEntidades> _catalogo = new();
 
     /// <summary>Veces que se consultó la base. Existe para los tests del caché.</summary>
-    internal int Lecturas { get; private set; }
+    internal int Lecturas => _catalogo.Calculos;
 
-    public async Task<CatalogoDeEntidades> ObtenerAsync(CancellationToken ct)
-    {
-        if (_catalogo is not null)
-        {
-            return _catalogo;
-        }
-
-        await _turnoDeCalculo.WaitAsync(ct);
-        try
-        {
-            if (_catalogo is not null)
-            {
-                return _catalogo;
-            }
-
-            _catalogo = await ConstruirAsync(ct);
-            return _catalogo;
-        }
-        finally
-        {
-            _turnoDeCalculo.Release();
-        }
-    }
+    public Task<CatalogoDeEntidades> ObtenerAsync(CancellationToken ct) =>
+        _catalogo.ObtenerAsync(ConstruirAsync, ct);
 
     private async Task<CatalogoDeEntidades> ConstruirAsync(CancellationToken ct)
     {
@@ -99,8 +77,6 @@ internal sealed class IndiceDeEntidades(CadenaSoloLectura cadena) : IIndiceDeEnt
                 Normalizar(valor),
                 lector.GetString(2)));
         }
-
-        Lecturas++;
 
         // Las personas se indexan por apellido, así que dos homónimos exactos
         // producirían dos entradas iguales y una colisión que no se puede

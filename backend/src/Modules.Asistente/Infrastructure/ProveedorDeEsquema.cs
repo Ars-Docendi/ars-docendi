@@ -27,51 +27,14 @@ internal sealed class ProveedorDeEsquema(
     CadenaSoloLectura cadenaBasica,
     CadenaSoloLecturaPii cadenaConDatosPersonales) : IProveedorDeEsquema
 {
-    private readonly SemaphoreSlim _turnoDeCalculo = new(1, 1);
-    private EsquemaParaPrompt? _basico;
-    private EsquemaParaPrompt? _conDatosPersonales;
+    private readonly ValorPerezosoPorRol<EsquemaParaPrompt> _porRol = new();
 
     /// <summary>Veces que se consultó la base. Existe para los tests del caché.</summary>
-    internal int Lecturas { get; private set; }
+    internal int Lecturas => _porRol.Calculos;
 
-    public async Task<EsquemaParaPrompt> ObtenerAsync(bool conDatosPersonales, CancellationToken ct)
-    {
-        var cacheado = conDatosPersonales ? _conDatosPersonales : _basico;
-        if (cacheado is not null)
-        {
-            return cacheado;
-        }
-
-        // El semáforo evita que varios turnos concurrentes lo calculen a la vez
-        // durante un arranque en frío. Se vuelve a mirar el caché adentro porque
-        // el que esperó puede encontrarlo ya listo.
-        await _turnoDeCalculo.WaitAsync(ct);
-        try
-        {
-            cacheado = conDatosPersonales ? _conDatosPersonales : _basico;
-            if (cacheado is not null)
-            {
-                return cacheado;
-            }
-
-            var construido = await ConstruirAsync(conDatosPersonales, ct);
-
-            if (conDatosPersonales)
-            {
-                _conDatosPersonales = construido;
-            }
-            else
-            {
-                _basico = construido;
-            }
-
-            return construido;
-        }
-        finally
-        {
-            _turnoDeCalculo.Release();
-        }
-    }
+    public Task<EsquemaParaPrompt> ObtenerAsync(bool conDatosPersonales, CancellationToken ct) =>
+        _porRol.ObtenerAsync(
+            conDatosPersonales, token => ConstruirAsync(conDatosPersonales, token), ct);
 
     private async Task<EsquemaParaPrompt> ConstruirAsync(bool conDatosPersonales, CancellationToken ct)
     {
@@ -87,7 +50,6 @@ internal sealed class ProveedorDeEsquema(
         // igual: son tan estables como los nombres de las columnas, y sin ellos el
         // modelo tiene que adivinar cómo está escrito «Ingeniería en Informática».
         var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct);
-        Lecturas++;
 
         var prefijo = RenderizadorDeEsquema.Renderizar(columnas, referencias, vocabularios);
         return new EsquemaParaPrompt(prefijo, Huella(prefijo));
