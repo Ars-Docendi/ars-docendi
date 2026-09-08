@@ -184,6 +184,27 @@ public sealed class PostgresFixture : IAsyncLifetime
     }
 }
 
+/// <summary>
+/// Base de toda clase de test que necesita una base de datos propia.
+/// </summary>
+/// <remarks>
+/// <b>El <c>[Trait]</c> está acá y no en cada clase</b>, y esa es la decisión.
+/// xUnit hereda los traits de la clase base, así que marcar la base marca a las
+/// 45 derivadas sin que ninguna tenga que acordarse: <b>heredar es la marca</b>, y
+/// no puede desincronizarse. Una clase que necesite base y no herede de acá es un
+/// hallazgo, no algo a parchear pegándole la etiqueta a mano.
+///
+/// Sirve para el ciclo corto local:
+/// <c>dotnet test backend/ArsDocendi.slnx --filter 'carril!=base'</c> corre los
+/// casos puros —los que no levantan Docker— en menos de un segundo. El filtro va
+/// escrito con <c>!=</c> a propósito, que es <b>fail-safe</b>: si el trait
+/// desapareciera, la corrida incluiría todo. Con <c>carril=base</c> un typo
+/// correría cero tests en verde, que es la forma peor.
+///
+/// <b>El gate del PR sigue siendo la suite completa</b>: este filtro es una
+/// comodidad del ciclo de trabajo, no un recorte de lo que se verifica.
+/// </remarks>
+[Trait("carril", "base")]
 public abstract class ClasePostgresAislada(PostgresFixture postgres, string prefijo) : IAsyncLifetime
 {
     private BaseDePrueba? _base;
