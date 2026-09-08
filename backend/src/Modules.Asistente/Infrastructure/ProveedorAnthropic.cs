@@ -197,7 +197,26 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
         return Traducir(respuesta, solicitud);
     }
 
-    public void Dispose() => _cliente.Dispose();
+    private bool _dispuesto;
+
+    /// <summary>Libera el cliente del SDK. Idempotente.</summary>
+    /// <remarks>
+    /// Idempotente porque la composición tiene dos cadenas —generar y redactar— y
+    /// con `ModeloDeRedaccion` vacío las dos apuntan a esta misma instancia. Hoy el
+    /// contenedor la dispone una sola vez, porque es un solo servicio registrado;
+    /// esto es lo que hace que un cambio en esa registración no se pague con una
+    /// excepción al apagar el proceso.
+    /// </remarks>
+    public void Dispose()
+    {
+        if (_dispuesto)
+        {
+            return;
+        }
+
+        _dispuesto = true;
+        _cliente.Dispose();
+    }
 
     /// <summary>
     /// Convierte la respuesta del SDK al contrato del puerto.

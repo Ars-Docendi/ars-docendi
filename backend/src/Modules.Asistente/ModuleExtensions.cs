@@ -81,7 +81,20 @@ public static class ModuleExtensions
         // proveedor y la selección va por ambiente, así que sumar uno nuevo —otro
         // proveedor, o un modelo propio corriendo en la nube— es un brazo más acá y
         // una clase en Infrastructure. No hay nada del pipeline que rehacer.
-        services.AddSingleton(sp =>
+        // EL ADAPTADOR CRUDO VA BAJO CLAVE PROPIA, y esa es toda la corrección.
+        //
+        // Antes se construía adentro de la fábrica de `ProveedorBase` y quedaba
+        // guardado en el record. Para el contenedor, el servicio registrado era el
+        // record —que no es `IDisposable`—, así que el `Dispose()` de
+        // `ProveedorAnthropic` era inalcanzable y el cliente HTTP que envuelve no
+        // se liberaba nunca. Registrado como servicio propio, el contenedor es su
+        // dueño y lo dispone al cerrarse, exactamente una vez.
+        //
+        // `envolverProveedor` se conserva y sigue envolviendo: sin eso el evaluador
+        // pierde el medidor de consumo y el eje social —que afirma «cero tokens de
+        // entrada»— se auto-rechaza en silencio. Lo que cambia es que el envoltorio
+        // ya no es el dueño del envuelto.
+        services.AddKeyedSingleton<IProveedorDeModelo>(AdaptadorDeGeneracion, (sp, _) =>
         {
             var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
             var elegido = valores.Proveedor;
@@ -93,9 +106,14 @@ public static class ModuleExtensions
             // enterarse al arrancar, no correr un mes con un esfuerzo que no eligió.
             ValidarEsfuerzos(valores);
 
-            var proveedor = ConstruirProveedor(sp, valores, valores.Modelo);
+            return ConstruirProveedor(sp, valores, valores.Modelo);
+        });
 
-            return new ProveedorBase(envolverProveedor?.Invoke(proveedor) ?? proveedor);
+        services.AddSingleton(sp =>
+        {
+            var crudo = sp.GetRequiredKeyedService<IProveedorDeModelo>(AdaptadorDeGeneracion);
+
+            return new ProveedorBase(envolverProveedor?.Invoke(crudo) ?? crudo);
         });
         // La base que redacta. Es el MISMO switch —el registro de adaptadores sigue
         // siendo uno solo— con otro modelo. Vacío significa «el mismo que genera»,
@@ -105,9 +123,21 @@ public static class ModuleExtensions
         {
             var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
 
+            // Con `ModeloDeRedaccion` vacío se reusa la MISMA instancia, así que el
+            // adaptador de redacción no se resuelve, no se construye y no se
+            // dispone: hay un solo dueño para un solo objeto. Con un modelo propio
+            // se resuelve el segundo, que el contenedor dispone por su cuenta.
             return string.IsNullOrWhiteSpace(valores.ModeloDeRedaccion)
                 ? new BaseDeRedaccion(sp.GetRequiredService<ProveedorBase>().Valor)
-                : new BaseDeRedaccion(ConstruirProveedor(sp, valores, valores.ModeloDeRedaccion));
+                : new BaseDeRedaccion(
+                    sp.GetRequiredKeyedService<IProveedorDeModelo>(AdaptadorDeRedaccion));
+        });
+
+        services.AddKeyedSingleton<IProveedorDeModelo>(AdaptadorDeRedaccion, (sp, _) =>
+        {
+            var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+
+            return ConstruirProveedor(sp, valores, valores.ModeloDeRedaccion);
         });
 
         // Contador y decorador son SCOPED: el techo es por turno, y un turno no
@@ -335,6 +365,19 @@ public static class ModuleExtensions
 
     /// <summary>Clave del proveedor que redacta, en el contenedor.</summary>
     public const string ProveedorDeRedaccion = "asistente-redaccion";
+
+    /// <summary>
+    /// Clave del adaptador crudo que genera, antes de cualquier decorador.
+    /// </summary>
+    /// <remarks>
+    /// Es un servicio del contenedor y no un objeto guardado adentro de otro
+    /// porque el contenedor sólo dispone lo que registra: un adaptador escondido
+    /// en un record no recibe `Dispose()` nunca.
+    /// </remarks>
+    public const string AdaptadorDeGeneracion = "asistente-adaptador-generacion";
+
+    /// <summary>Clave del adaptador crudo que redacta, si es un modelo distinto.</summary>
+    public const string AdaptadorDeRedaccion = "asistente-adaptador-redaccion";
 
     /// <summary>
     /// Envuelve un proveedor con el corte y el techo del turno.

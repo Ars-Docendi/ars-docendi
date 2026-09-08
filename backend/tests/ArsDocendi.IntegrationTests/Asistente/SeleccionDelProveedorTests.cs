@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Asistente;
 using Modules.Asistente.Application;
+using Modules.Asistente.Infrastructure;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
@@ -162,9 +163,88 @@ public sealed class SeleccionDelProveedorTests
 
     private static string Ajuste(string nombre) => $"{OpcionesAsistente.Seccion}:{nombre}";
 
+    // ------------------------------------------------- disposición del adaptador
+
+    [Fact]
+    public void El_adaptador_crudo_es_un_servicio_del_contenedor()
+    {
+        // ES LO QUE HACE QUE SE DISPONGA. El contenedor libera lo que él construyó
+        // y registró; un adaptador guardado adentro de un record marcador —que no
+        // es IDisposable— nunca recibe Dispose(), y su cliente HTTP queda vivo
+        // hasta que el proceso muera. Así estaba antes.
+        using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+
+        var crudo = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+
+        Assert.IsAssignableFrom<IDisposable>(crudo);
+
+        // Y es singleton: dos resoluciones dan el mismo objeto, así que hay un solo
+        // dueño para un solo cliente.
+        Assert.Same(
+            crudo,
+            servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+                ModuleExtensions.AdaptadorDeGeneracion));
+    }
+
+    [Fact]
+    public void Sin_modelo_de_redaccion_propio_las_dos_cadenas_comparten_una_instancia()
+    {
+        // LA VARIANTE QUE HARÍA DOBLE UNA DISPOSICIÓN INGENUA. Con
+        // `ModeloDeRedaccion` vacío —el default— redactar usa el mismo adaptador
+        // que generar. Si cada cadena hubiera sido dueña de lo suyo, el mismo
+        // objeto se dispondría dos veces.
+        //
+        // El adaptador de redacción no se resuelve, así que no se construye: no hay
+        // segundo objeto ni segunda disposición.
+        using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+
+        var generacion = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+        var redaccion = servicios.GetRequiredService<BaseDeRedaccion>().Valor;
+
+        Assert.Same(generacion, redaccion);
+    }
+
+    [Fact]
+    public void Con_modelo_de_redaccion_propio_son_dos_adaptadores_distintos()
+    {
+        // La otra variante: dos modelos, dos adaptadores, dos clientes, y el
+        // contenedor dueño de los dos. Cada uno se dispone una vez.
+        using var servicios = Componer(clave: "clave-de-prueba", modeloDeRedaccion: "claude-haiku-4-5")
+            .BuildServiceProvider();
+
+        var generacion = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+        var redaccion = servicios.GetRequiredService<BaseDeRedaccion>().Valor;
+
+        Assert.NotSame(generacion, redaccion);
+        Assert.Same(
+            redaccion,
+            servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+                ModuleExtensions.AdaptadorDeRedaccion));
+    }
+
+    [Fact]
+    public void Disponer_el_adaptador_dos_veces_no_falla()
+    {
+        // El contenedor lo dispone una sola vez, pero la idempotencia es lo que
+        // hace que un cambio futuro en la registración no se pague con una
+        // excepción al apagar el proceso.
+        var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+        var crudo = (IDisposable)servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+
+        crudo.Dispose();
+        crudo.Dispose();
+
+        servicios.Dispose();
+    }
+
     private static ServiceCollection Componer(
         string? clave,
         string esfuerzo = "alto",
+        string? modeloDeRedaccion = null,
         TransporteFalso? transporte = null,
         int? intentos = null,
         int? fallosParaAbrir = null)
@@ -177,6 +257,11 @@ public sealed class SeleccionDelProveedorTests
             [Ajuste(nameof(OpcionesAsistente.EsperaBaseMs))] = "1",
             [Ajuste(nameof(OpcionesAsistente.EsperaMaximaMs))] = "2",
         };
+
+        if (modeloDeRedaccion is not null)
+        {
+            valores[Ajuste(nameof(OpcionesAsistente.ModeloDeRedaccion))] = modeloDeRedaccion;
+        }
 
         if (clave is not null)
         {
