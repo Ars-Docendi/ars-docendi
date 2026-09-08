@@ -352,20 +352,13 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             new OpcionesAsistente().MaximoDeLlamadasPorTurno);
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
 
-        return new CarrilSql(
-            new GeneradorDeSql(
-                new ProveedorDeEsquema(basica, pii),
-                new SelectorDeEjemplos(),
-                conTecho,
-                new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)),
-                opciones,
-                NullLogger<GeneradorDeSql>.Instance),
+        return BancoDelAsistente.ArmarCarrilSql(
+            basica,
+            pii,
             new EjecutorDeConsulta(basica, pii, ClasificadorDeSensibilidad(), opciones),
-            new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
-            new SelectorDeEjemplos(),
-            new ConsultorDeCobertura(basica),
+            conTecho,
             contador,
+            opciones,
             registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());
     }
 

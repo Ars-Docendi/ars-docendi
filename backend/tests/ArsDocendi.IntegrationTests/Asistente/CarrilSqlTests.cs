@@ -535,22 +535,13 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             new OpcionesAsistente().MaximoDeLlamadasPorTurno);
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contadorDelTurno);
 
-        var generador = new GeneradorDeSql(
-            new ProveedorDeEsquema(basica, conDatosPersonales),
-            new SelectorDeEjemplos(),
-            conTecho,
-            new FechaDeReferenciaFija(new DateOnly(2026, 8, 24)),
-            Options.Create(new OpcionesAsistente()),
-            NullLogger<GeneradorDeSql>.Instance);
-
-        return new CarrilSql(
-            generador,
+        return BancoDelAsistente.ArmarCarrilSql(
+            basica,
+            conDatosPersonales,
             new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones),
-            new ConsultorDeAlcance(basica),
-            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
-            new SelectorDeEjemplos(),
-            new ConsultorDeCobertura(basica),
+            conTecho,
             contadorDelTurno,
+            Options.Create(new OpcionesAsistente()),
             NullLogger<CarrilSql>.Instance);
     }
 

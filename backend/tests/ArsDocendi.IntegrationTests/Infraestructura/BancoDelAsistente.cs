@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -136,20 +137,13 @@ internal sealed class BancoDelAsistente
 
                 var conTecho = new ProveedorConTechoDeLlamadas(conBreaker, contador);
 
-                var carril = new CarrilSql(
-                    new GeneradorDeSql(
-                        new ProveedorDeEsquema(basica, conDatosPersonales),
-                        new SelectorDeEjemplos(),
-                        conTecho,
-                        new FechaDeReferenciaFija(new DateOnly(2026, 8, 25)),
-                        opciones,
-                        NullLogger<GeneradorDeSql>.Instance),
+                var carril = ArmarCarrilSql(
+                    basica,
+                    conDatosPersonales,
                     new EjecutorDeConsulta(basica, conDatosPersonales, clasificador, opciones),
-                    new ConsultorDeAlcance(basica),
-                    new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
-                    new SelectorDeEjemplos(),
-                    new ConsultorDeCobertura(basica),
+                    conTecho,
                     contador,
+                    opciones,
                     NullLogger<CarrilSql>.Instance);
 
                 return new CapaConversacional(
@@ -173,4 +167,56 @@ internal sealed class BancoDelAsistente
             },
         };
     }
+
+    /// <summary>
+    /// La fecha contra la que resuelven «el año pasado», «este cuatrimestre» y
+    /// demás.
+    /// </summary>
+    /// <remarks>
+    /// Fija y compartida. Estaba escrita tres veces con dos valores distintos, y
+    /// dos tests del mismo grafo que resuelven fechas relativas de forma diferente
+    /// son dos sistemas. La del evaluador NO es ésta y no se toca: apunta
+    /// deliberadamente a <c>GeneradorDeFixture.Ancla</c>.
+    /// </remarks>
+    internal static readonly DateOnly FechaDeReferencia = new(2026, 8, 25);
+
+    /// <summary>
+    /// Arma el grafo del carril SQL: generador, ejecutor, alcance, redactor,
+    /// ejemplos y cobertura.
+    /// </summary>
+    /// <remarks>
+    /// Recibe ya construidos el ejecutor, el proveedor con techo y el contador
+    /// porque son las tres piezas que cada test necesita poder mirar o sustituir:
+    /// el contador es <b>por turno</b>, el techo es lo que se afirma cuando se
+    /// cuenta el costo, y el ejecutor lleva el clasificador de sensibilidad.
+    /// Todo el resto del grafo es igual en los tres sitios que lo armaban a mano.
+    ///
+    /// <paramref name="opcionesDelGenerador"/> va aparte a propósito: el redactor
+    /// se construye siempre con las opciones por defecto, y el generador no
+    /// —el banco le pasa las configuradas—. Unificar los dos cambiaría lo que los
+    /// tests ejercitan.
+    /// </remarks>
+    internal static CarrilSql ArmarCarrilSql(
+        CadenaSoloLectura basica,
+        CadenaSoloLecturaPii conDatosPersonales,
+        IEjecutorDeConsulta ejecutor,
+        IProveedorDeModelo conTecho,
+        ContadorDeLlamadasDelTurno contador,
+        IOptions<OpcionesAsistente> opcionesDelGenerador,
+        ILogger<CarrilSql> log) =>
+        new(
+            new GeneradorDeSql(
+                new ProveedorDeEsquema(basica, conDatosPersonales),
+                new SelectorDeEjemplos(),
+                conTecho,
+                new FechaDeReferenciaFija(FechaDeReferencia),
+                opcionesDelGenerador,
+                NullLogger<GeneradorDeSql>.Instance),
+            ejecutor,
+            new ConsultorDeAlcance(basica),
+            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
+            new SelectorDeEjemplos(),
+            new ConsultorDeCobertura(basica),
+            contador,
+            log);
 }
