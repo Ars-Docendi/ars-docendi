@@ -79,7 +79,7 @@ public sealed class CapaConversacional(
                 "El turno del asistente agotó su presupuesto de {Segundos}s.",
                 valores.PresupuestoDelTurnoSegundos);
 
-            var turno = Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
+            var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
             await RegistrarAsync(actor, mensaje, turno, arranco, ct);
 
             return turno;
@@ -96,7 +96,7 @@ public sealed class CapaConversacional(
             log.LogError(
                 excepcion, "El turno del asistente terminó en una excepción no prevista.");
 
-            await RegistrarAsync(actor, mensaje, Caido(conversacion), arranco, ct);
+            await RegistrarAsync(actor, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas), arranco, ct);
 
             throw;
         }
@@ -198,7 +198,7 @@ public sealed class CapaConversacional(
             {
                 var puede = await capacidades.ObtenerAsync(actor, ct);
 
-                return SinDatos(
+                return FabricasDelResultado.SinDatos(
                     conversacion,
                     RedaccionDeCapacidades.Texto(puede),
                     puede.Ejemplos);
@@ -206,7 +206,7 @@ public sealed class CapaConversacional(
 
             if (intencion != IntencionSocial.Ninguna)
             {
-                return SinDatos(conversacion, EnrutadorSocial.Responder(intencion));
+                return FabricasDelResultado.SinDatos(conversacion, EnrutadorSocial.Responder(intencion));
             }
         }
 
@@ -288,7 +288,7 @@ public sealed class CapaConversacional(
         if (aclaracion is not null)
         {
             conversacion.Pendiente(aclaracion);
-            return NecesitaAclaracion(conversacion, aclaracion, interpretada, mensaje);
+            return FabricasDelResultado.NecesitaAclaracion(conversacion, aclaracion, interpretada, mensaje);
         }
 
         // 7 — CARRIL SQL. Es el único paso que no puede resolverse sin modelo: sin
@@ -296,7 +296,7 @@ public sealed class CapaConversacional(
         // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
         if (!hayModelo)
         {
-            return Degradado(conversacion, TextoSinModelo(actor, motivo));
+            return FabricasDelResultado.Degradado(conversacion, TextoSinModelo(actor, motivo));
         }
 
         var aMostrar = string.Equals(interpretada, mensaje, StringComparison.Ordinal)
@@ -327,82 +327,10 @@ public sealed class CapaConversacional(
             PreguntaInterpretada = pivote
                 ? interpretada
                 : resultado.PreguntaInterpretada,
-            Respuesta = TextoDelRechazo(resultado, historial, interpretada),
-            Vinculos = await VinculosAsync(resultado, ct),
+            Respuesta = CierreDelTurno.TextoDelRechazo(resultado, historial, interpretada),
+            Vinculos = await CierreDelTurno.VinculosAsync(resultado, vinculos, log, ct),
         };
     }
-
-    /// <summary>
-    /// Los vínculos del resultado, o ninguno.
-    /// </summary>
-    /// <remarks>
-    /// <b>Va en esta capa y no en el carril.</b> El carril responde una pregunta con
-    /// datos; ofrecer una pantalla donde seguir es de la superficie de conversación,
-    /// y el evaluador —que corre el carril sin interfaz— no tiene qué hacer con
-    /// ellos.
-    ///
-    /// <b>Sin filas no se le pregunta nada a nadie.</b> Es el caso mayoritario
-    /// —abstenciones, saludos, aclaraciones— y no tiene por qué pagar una consulta.
-    ///
-    /// <b>Un fallo acá no puede tumbar el turno</b>, por el mismo motivo que la
-    /// cobertura de portal: el vínculo es un atajo sobre la respuesta, no la
-    /// respuesta. Responder sin el atajo es peor que tenerlo y muchísimo mejor que
-    /// un error sobre una pregunta que se contestó bien.
-    /// </remarks>
-    private async Task<IReadOnlyList<VinculoDelResultado>> VinculosAsync(
-        ResultadoDelTurno resultado, CancellationToken ct)
-    {
-        if (resultado.Filas.Count == 0)
-        {
-            return [];
-        }
-
-        var candidatos = BuscadorDeVinculos.Candidatos(resultado.Filas);
-
-        if (candidatos.Count == 0)
-        {
-            return [];
-        }
-
-        try
-        {
-            var destinos = await vinculos.ResolverAsync(candidatos, ct);
-            return BuscadorDeVinculos.Ubicar(resultado.Filas, destinos);
-        }
-        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
-        {
-            log.LogWarning(
-                excepcion, "No se pudieron resolver los vínculos del turno; se responde sin ellos.");
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// El texto de un rechazo, especializado cuando el seguimiento no se resolvió.
-    /// </summary>
-    /// <remarks>
-    /// <b>Las TRES condiciones hacen falta, y ninguna sola alcanza.</b>
-    ///
-    /// Hubo <b>historial</b>, así que el turno era un seguimiento y no una pregunta
-    /// suelta. La pregunta interpretada <b>todavía apunta a algo que no nombra</b>,
-    /// o sea que el reescritor no cumplió lo que promete. Y el turno <b>terminó en
-    /// rechazo</b>: mientras el generador pueda contestar —y con el arrastre de la
-    /// consulta anterior muchas veces puede—, no hay nada que explicar.
-    ///
-    /// Sin la tercera, el asistente le echaría la culpa a la referencia cada vez que
-    /// una pregunta con demostrativo se rechaza por estar fuera del esquema. Eso es
-    /// exactamente la clase de explicación falsa que el resto de esta política
-    /// existe para evitar: suena informada y manda a corregir lo que no estaba mal.
-    /// </remarks>
-    private static string TextoDelRechazo(
-        ResultadoDelTurno resultado,
-        IReadOnlyList<TurnoDelHilo> historial,
-        string interpretada) =>
-        resultado.Estado == EstadoDelTurno.NoContestable
-        && historial.Count > 0
-        && PoliticaDeAbstencion.HayReferenciaSinResolver(interpretada)
-            ? PoliticaDeAbstencion.TextoReferenciaSinResolver
-            : resultado.Respuesta;
 
     /// <summary>
     /// Resuelve la respuesta del usuario a un menú abierto.
@@ -449,27 +377,9 @@ public sealed class CapaConversacional(
                 Sugerencias: Sugerencias.Para(pendiente.PreguntaOriginal, ejemplos)));
         }
 
-        return (mensaje, NecesitaAclaracion(
+        return (mensaje, FabricasDelResultado.NecesitaAclaracion(
             conversacion, pendiente, pendiente.PreguntaOriginal, mensaje));
     }
-
-    private static ResultadoDelTurno NecesitaAclaracion(
-        HiloConversacional conversacion,
-        Aclaracion aclaracion,
-        string interpretada,
-        string mensaje) =>
-        new(EstadoDelTurno.NecesitaAclaracion,
-            aclaracion.Texto(),
-            Razonamiento: string.Empty,
-            string.Equals(interpretada, mensaje, StringComparison.Ordinal) ? null : interpretada,
-            [],
-            [],
-            Truncado: false,
-            [],
-            GeneracionDeSql.CategoriaNoContestable,
-            LlamadasAlModelo: 0,
-            conversacion.Id,
-            aclaracion.Opciones);
 
     /// <summary>
     /// El texto de la degradación, que distingue las dos causas.
@@ -485,67 +395,4 @@ public sealed class CapaConversacional(
             ? PoliticaDeAbstencion.TextoCuotaAgotada(disponibilidad.CupoVuelveA(actor))
             : PoliticaDeAbstencion.TextoServicioDegradado;
 
-    /// <summary>Un turno que termina sin modelo: cero llamadas al proveedor.</summary>
-    /// <summary>El turno que se cayó, sólo para el registro.</summary>
-    /// <remarks>
-    /// No lo ve nadie: se construye para pasar por el mismo camino de registro que
-    /// los demás y que la separación en dos filas siga ocurriendo en un solo lugar.
-    /// El texto va vacío a propósito — un turno caído no tiene respuesta, y poner
-    /// una haría que el registro sugiriera que el usuario leyó algo.
-    /// </remarks>
-    private ResultadoDelTurno Caido(HiloConversacional conversacion) =>
-        new(EstadoDelTurno.Fallo,
-            string.Empty,
-            Razonamiento: string.Empty,
-            PreguntaInterpretada: null,
-            [],
-            [],
-            Truncado: false,
-            [],
-            CategoriaDelFallo,
-            // Las que alcanzó a emitir, que son exactamente las que la cuota le va a
-            // cobrar al actor en el `finally`. Si el registro dijera cero, las dos
-            // fuentes discreparían justo en el caso que se está registrando.
-            contador.Llamadas,
-            conversacion.Id);
-
-    /// <summary>Categoría con que el registro analítico marca un turno caído.</summary>
-    internal const string CategoriaDelFallo = "fallo";
-
-    private static ResultadoDelTurno Degradado(HiloConversacional conversacion, string texto) =>
-        new(EstadoDelTurno.ServicioDegradado,
-            texto,
-            Razonamiento: string.Empty,
-            PreguntaInterpretada: null,
-            [],
-            [],
-            Truncado: false,
-            [],
-            GeneracionDeSql.CategoriaNoContestable,
-            LlamadasAlModelo: 0,
-            conversacion.Id);
-
-    /// <summary>Un turno del carril sin datos: cero llamadas al modelo.</summary>
-    /// <remarks>
-    /// Las sugerencias viajan acá aunque el turno esté respondido, y no es una
-    /// contradicción con el rechazo cooperativo: las sugerencias no bloquean. Son
-    /// los ejemplos ejecutables que acompañan a la meta-pregunta, y es lo que hace
-    /// que «¿qué podés hacer?» termine en algo clicable en vez de en un párrafo.
-    /// </remarks>
-    private static ResultadoDelTurno SinDatos(
-        HiloConversacional conversacion,
-        string texto,
-        IReadOnlyList<string>? sugerencias = null) =>
-        new(EstadoDelTurno.Respondida,
-            texto,
-            Razonamiento: string.Empty,
-            PreguntaInterpretada: null,
-            [],
-            [],
-            Truncado: false,
-            [],
-            GeneracionDeSql.CategoriaNoContestable,
-            LlamadasAlModelo: 0,
-            conversacion.Id,
-            Sugerencias: sugerencias);
 }
