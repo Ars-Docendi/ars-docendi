@@ -133,6 +133,44 @@ public sealed class ValidadorDeSqlTests
         Assert.True(veredicto.EsValida, veredicto.Motivo);
     }
 
+    // --------------------------------------------------- catálogo del motor
+
+    [Theory]
+    // Sin calificar: pg_catalog está en la ruta de búsqueda por defecto, así que
+    // una regla escrita sobre el ESQUEMA no vería ninguna de estas.
+    [InlineData("SELECT relname FROM pg_class")]
+    [InlineData("SELECT rolname FROM pg_roles")]
+    [InlineData("SELECT nspname FROM pg_namespace")]
+    [InlineData("SELECT pg_typeof(c.id) FROM identity.carreras c")]
+    // Calificando el esquema.
+    [InlineData("SELECT relname FROM pg_catalog.pg_class")]
+    // Entre comillas dobles, los dos brazos del chequeo.
+    [InlineData("SELECT \"relname\" FROM \"pg_class\"")]
+    [InlineData("SELECT \"table_name\" FROM \"information_schema\".\"columns\"")]
+    // El otro catálogo, el del estándar.
+    [InlineData("SELECT table_name FROM information_schema.columns")]
+    [InlineData("SELECT column_name FROM information_schema.column_privileges")]
+    public void Rechaza_el_catalogo_del_motor(string sql)
+    {
+        // El catálogo describe el esquema entero, los roles y los privilegios:
+        // material que la política de redacción prohíbe que salga del turno, y el
+        // mapa que hace falta para escribir el próximo intento. Ninguna pregunta
+        // del catálogo de capacidades lo necesita.
+        Assert.False(ValidadorDeSql.Validar(sql).EsValida);
+    }
+
+    [Theory]
+    // La regla es el prefijo «pg_», no las dos letras.
+    [InlineData("SELECT c.name AS pgrado FROM identity.carreras c")]
+    // `public` no entra: public.unaccent es la regla 8 del prefijo de esquema.
+    [InlineData("SELECT public.unaccent(c.name) FROM identity.carreras c")]
+    public void Acepta_lo_que_solo_se_parece_al_catalogo(string sql)
+    {
+        var veredicto = ValidadorDeSql.Validar(sql);
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
     // ------------------------------------------------------------------- reloj
 
     [Theory]

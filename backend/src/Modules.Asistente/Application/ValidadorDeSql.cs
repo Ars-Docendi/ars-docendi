@@ -104,6 +104,26 @@ public static class ValidadorDeSql
     };
 
     /// <summary>
+    /// Con qué empiezan los nombres del catálogo del sistema. Es un conjunto
+    /// cerrado por el motor: toda relación de <c>pg_catalog</c> —y toda función
+    /// del catálogo— empieza con <c>pg_</c>.
+    /// </summary>
+    /// <remarks>
+    /// La regla es sobre el <b>nombre</b> y no sobre el esquema a propósito.
+    /// <c>pg_catalog</c> está siempre en la ruta de búsqueda, así que
+    /// <c>FROM pg_class</c> sin calificar nombra el catálogo igual y una regla
+    /// escrita sobre el esquema no lo vería.
+    ///
+    /// Ninguna tabla ni columna del manifiesto de privilegios empieza con
+    /// <c>pg_</c>: la regla no tiene falsos positivos sobre el dominio.
+    /// <c>public</c> no entra —<c>public.unaccent</c> es una llamada legítima—.
+    /// </remarks>
+    private const string PrefijoDelCatalogo = "pg_";
+
+    /// <summary>El catálogo del estándar, que no lleva prefijo: se nombra entero.</summary>
+    private const string CatalogoDelEstandar = "information_schema";
+
+    /// <summary>
     /// Con qué palabra puede empezar una consulta. Es una lista blanca a
     /// propósito: las listas de prohibiciones se quedan cortas, y acá alcanza con
     /// dos entradas para cubrir todo lo que el carril necesita.
@@ -173,6 +193,12 @@ public static class ValidadorDeSql
         ClaseDeToken.Palabra when PalabrasClaveProhibidas.Contains(token.Texto) =>
             $"La consulta usa la palabra clave prohibida '{token.Texto}'.",
 
+        // El catálogo del motor se deniega en las dos clases de token: entre
+        // comillas dobles sigue nombrando la misma relación.
+        ClaseDeToken.Palabra or ClaseDeToken.IdentificadorEntrecomillado
+            when EsDelCatalogoDelMotor(token.Texto) =>
+            $"La consulta nombra el catálogo del motor ('{token.Texto}').",
+
         // Un identificador entrecomillado se chequea contra funciones y nada más.
         // En PostgreSQL las comillas dobles no hacen del nombre una cadena: siguen
         // nombrando al mismo objeto.
@@ -181,4 +207,15 @@ public static class ValidadorDeSql
 
         _ => null,
     };
+
+    /// <summary>
+    /// Si el nombre pertenece al catálogo del motor. El catálogo describe el
+    /// esquema entero, los roles y los privilegios: es el mapa que hace falta
+    /// para escribir el próximo intento, y material que la política de redacción
+    /// prohíbe que salga del turno. Ninguna pregunta del catálogo de capacidades
+    /// lo necesita.
+    /// </summary>
+    private static bool EsDelCatalogoDelMotor(string texto) =>
+        texto.StartsWith(PrefijoDelCatalogo, StringComparison.Ordinal)
+        || string.Equals(texto, CatalogoDelEstandar, StringComparison.Ordinal);
 }
