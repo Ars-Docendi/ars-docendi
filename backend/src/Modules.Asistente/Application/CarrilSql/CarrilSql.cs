@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Npgsql;
 
 namespace Modules.Asistente.Application;
 
@@ -27,11 +26,6 @@ public sealed class CarrilSql(
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
-    /// <summary>
-    /// SQLSTATE de PostgreSQL para falta de privilegio (<c>insufficient_privilege</c>).
-    /// </summary>
-    private const string PrivilegioDenegado = "42501";
-
     /// <summary>Responde una pregunta acotada al actor.</summary>
     /// <param name="actor">
     /// Identificador de <c>identity.users</c> del usuario autenticado. Lo resuelve
@@ -71,7 +65,7 @@ public sealed class CarrilSql(
             return await ResolverAsync(
                 actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct);
         }
-        catch (PostgresException excepcion) when (excepcion.SqlState == PrivilegioDenegado)
+        catch (ConsultaSinPrivilegio)
         {
             // La defensa de más abajo hizo lo suyo: el actor pidió una columna que
             // su rol no puede leer y el motor rechazó la consulta. Sin este catch,
@@ -84,14 +78,14 @@ public sealed class CarrilSql(
                 "El motor rechazó la lectura por falta de privilegio del rol del asistente.");
             return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
         }
-        catch (PostgresException excepcion)
+        catch (ConsultaRechazadaPorElMotor excepcion)
         {
             // Cualquier otro rechazo del motor: SQL que el validador dejó pasar y
             // no ejecuta, un tipo incompatible, un timeout de sentencia. El mensaje
             // crudo nombra tablas y columnas, así que va al registro y no a la
             // respuesta.
             log.LogWarning(
-                excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.SqlState);
+                excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.Estado);
             return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
         }
         catch (TechoDeLlamadasSuperado)

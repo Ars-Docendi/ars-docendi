@@ -48,14 +48,24 @@ internal sealed class EjecutorDeConsulta(
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);
 
-        await PreambuloDelActor.AplicarAsync(
-            conexion, transaccion, actor, ct, valores.TimeoutDeSentenciaMs);
+        // El rechazo del motor sale traducido al tipo del módulo. Quien decide qué
+        // contestarle a una persona no tiene por qué conocer el driver de la base,
+        // y el mensaje crudo de PostgreSQL nombra tablas y columnas.
+        try
+        {
+            await PreambuloDelActor.AplicarAsync(
+                conexion, transaccion, actor, ct, valores.TimeoutDeSentenciaMs);
 
-        // La resolución del manifiesto va antes de leer: si fallara después, ya
-        // tendríamos las filas en memoria sin saber cuáles se pueden mandar afuera.
-        await clasificador.PrepararAsync(ct);
+            // La resolución del manifiesto va antes de leer: si fallara después, ya
+            // tendríamos las filas en memoria sin saber cuáles se pueden mandar afuera.
+            await clasificador.PrepararAsync(ct);
 
-        return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, clasificador, ct);
+            return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, clasificador, ct);
+        }
+        catch (PostgresException excepcion)
+        {
+            throw FallaDelMotor.Traducir(excepcion);
+        }
     }
 
     /// <summary>

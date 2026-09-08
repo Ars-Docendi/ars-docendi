@@ -72,6 +72,21 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
 
     public async Task<PerfilDelActor> ObtenerAsync(Guid actor, CancellationToken ct)
     {
+        // Igual que el ejecutor: el rechazo del motor sale traducido. `ActorNoResuelto`
+        // se lanza adentro y no lo toca este catch, porque ya no es una
+        // PostgresException cuando llega acá.
+        try
+        {
+            return await LeerPerfilAsync(actor, ct);
+        }
+        catch (PostgresException excepcion)
+        {
+            throw FallaDelMotor.Traducir(excepcion);
+        }
+    }
+
+    private async Task<PerfilDelActor> LeerPerfilAsync(Guid actor, CancellationToken ct)
+    {
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
 

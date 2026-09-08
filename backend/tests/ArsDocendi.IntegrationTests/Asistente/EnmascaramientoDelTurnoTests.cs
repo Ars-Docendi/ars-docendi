@@ -272,11 +272,15 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         // que se olvide del filtro falla igual.
         await SembrarAsync();
 
-        var excepcion = await Assert.ThrowsAsync<PostgresException>(
+        var excepcion = await Assert.ThrowsAsync<ConsultaSinPrivilegio>(
             () => EjecutarAsync(
                 "SELECT telefono FROM identity.personas", Secretaria, conDatosPersonales: false));
 
-        Assert.Equal("42501", excepcion.SqlState);
+        // Se afirma el SQLSTATE sobre la causa y no sobre el tipo del módulo: lo
+        // que este test prueba es que el rechazo lo produjo el MOTOR por falta de
+        // privilegio, y eso sigue estando aunque el ejecutor lo traduzca.
+        var delMotor = Assert.IsType<PostgresException>(excepcion.InnerException);
+        Assert.Equal("42501", delMotor.SqlState);
     }
 
     [Fact]

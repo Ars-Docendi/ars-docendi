@@ -185,7 +185,10 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         // una CTE que modifica datos solo en el nivel superior de la sentencia, y
         // acá siempre queda adentro de un SELECT ... FROM (...). Ni siquiera llega
         // a la capa de solo lectura.
-        await Assert.ThrowsAsync<PostgresException>(() =>
+        // La excepción sale del ejecutor ya traducida al tipo del módulo: el carril
+        // no atrapa `PostgresException`, porque la capa que decide qué contestarle
+        // a una persona no conoce el driver de la base.
+        await Assert.ThrowsAnyAsync<FallaDeLaConsulta>(() =>
             EjecutarAsync(
                 "SELECT 1 AS uno",
                 Secretaria,
