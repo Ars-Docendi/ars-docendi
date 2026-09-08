@@ -199,42 +199,15 @@ internal sealed class CatalogoDeCapacidades(
 /// </remarks>
 internal sealed class CacheDeCapacidades
 {
-    private readonly Dictionary<bool, CatalogoDeCapacidades.Resuelto> _porRol = [];
-    private readonly SemaphoreSlim _candado = new(1, 1);
+    private readonly ValorPerezosoPorRol<CatalogoDeCapacidades.Resuelto> _porRol = new();
 
     /// <summary>Cuántas veces hubo que leer la base. Lo mira el test del caché.</summary>
-    internal int Lecturas { get; private set; }
+    internal int Lecturas => _porRol.Calculos;
 
     /// <summary>Devuelve lo cacheado, o lo calcula una sola vez.</summary>
-    public async Task<CatalogoDeCapacidades.Resuelto> ObtenerAsync(
+    public Task<CatalogoDeCapacidades.Resuelto> ObtenerAsync(
         bool conDatosPersonales,
         Func<Task<CatalogoDeCapacidades.Resuelto>> calcular,
-        CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(calcular);
-
-        if (_porRol.TryGetValue(conDatosPersonales, out var cacheado))
-        {
-            return cacheado;
-        }
-
-        await _candado.WaitAsync(ct);
-        try
-        {
-            if (_porRol.TryGetValue(conDatosPersonales, out cacheado))
-            {
-                return cacheado;
-            }
-
-            Lecturas++;
-            var resuelto = await calcular();
-            _porRol[conDatosPersonales] = resuelto;
-
-            return resuelto;
-        }
-        finally
-        {
-            _candado.Release();
-        }
-    }
+        CancellationToken ct) =>
+        _porRol.ObtenerAsync(conDatosPersonales, _ => calcular(), ct);
 }
