@@ -246,7 +246,8 @@ public sealed class OpcionesAsistente
     /// </remarks>
     /// <remarks>
     /// Subió de 20 s por el mismo motivo que el presupuesto del turno: con
-    /// <see cref="Esfuerzo"/> configurado, el modelo piensa antes de escribir y esa
+    /// <see cref="EsfuerzoDeGeneracion"/> —o cualquiera de los otros dos—
+    /// configurado, el modelo piensa antes de escribir y esa
     /// pausa entra dentro de esta cota. Con 20 s el corte llegaba antes que la
     /// respuesta, y el turno degradaba como si el proveedor estuviera caído.
     /// </remarks>
@@ -317,8 +318,9 @@ public sealed class OpcionesAsistente
     /// Techo de tokens de la llamada que genera la consulta.
     /// </summary>
     /// <remarks>
-    /// <b>El razonamiento sale de este mismo presupuesto.</b> Con <see cref="Esfuerzo"/>
-    /// configurado, el modelo piensa antes de escribir y esos tokens cuentan contra
+    /// <b>El razonamiento sale de este mismo presupuesto.</b> Con
+    /// <see cref="EsfuerzoDeGeneracion"/> configurado, el modelo piensa antes de
+    /// escribir y esos tokens cuentan contra
     /// este techo, así que el número que alcanzaba para escribir la consulta puede
     /// no alcanzar para pensarla y escribirla.
     ///
@@ -392,19 +394,3 @@ public sealed class OpcionesAsistente
     /// </remarks>
     public string RegrabarCassettes { get; set; } = string.Empty;
 }
-
-/// <summary>
-/// Huella del fixture sintético contra el que se graban los cassettes.
-/// </summary>
-/// <remarks>
-/// La registra quien sabe cuál es —el evaluador, que ya la recalcula en cada
-/// corrida para sellar sus reportes—, y no el módulo: el módulo no referencia al
-/// núcleo de evaluación ni debe hacerlo.
-///
-/// <b>Si no está registrada, no se graba ni se sirve ningún cassette.</b> Es lo
-/// que hace mecánica la garantía de que ningún cassette lleva filas reales: sin
-/// con qué comparar, un cassette es indistinguible de uno grabado contra una base
-/// de desarrollo con datos importados.
-/// </remarks>
-/// <param name="Valor">La huella, en hexadecimal.</param>
-public sealed record HuellaDelFixture(string Valor);

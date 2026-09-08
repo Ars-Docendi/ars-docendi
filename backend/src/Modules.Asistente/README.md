@@ -9,19 +9,26 @@ Change de planning: `openspec/changes/asistente-fundaciones/`.
 
 ## Estado
 
-**Carril SQL construido, sin superficie de usuario.** El módulo traduce una
-pregunta en español a una consulta, la valida, la ejecuta acotada al actor y
-redacta la respuesta. `CarrilSql` es un servicio, no un endpoint.
+**El asistente responde de punta a punta.** Una pregunta en español entra por
+`POST /api/asistente/consultas`, se reescribe contra el hilo, se traduce a una
+consulta, se valida, se ejecuta acotada al actor, se enmascara y se redacta. Hay
+superficie de usuario en `frontend/src/features/asistente/`.
 
-Lo que falta y dónde va:
+De las cinco épicas que esta tabla listaba como pendientes, cuatro están
+construidas y una sigue abierta de verdad:
 
-| Qué                                                          | Épica |
-| ------------------------------------------------------------ | ----- |
-| Enmascaramiento de columnas sensibles                        | E4    |
-| Hilo conversacional, reescritor y detector de ambigüedad     | E5    |
-| Carril determinista de API vía `Modules.<X>.Contracts`       | E6    |
-| `POST /api/asistente/consultas` y contrato de cuatro estados | E7    |
-| Cuota por actor, circuit breaker y registros                 | E8    |
+| Qué                                                          | Épica | Estado        |
+| ------------------------------------------------------------ | ----- | ------------- |
+| Enmascaramiento de columnas sensibles                        | E4    | Construida    |
+| Hilo conversacional, reescritor y detector de ambigüedad     | E5    | Construida    |
+| Carril determinista de API vía `Modules.<X>.Contracts`       | E6    | **Pendiente** |
+| `POST /api/asistente/consultas` y contrato de cuatro estados | E7    | Construida    |
+| Cuota por actor, circuit breaker y registros                 | E8    | Construida    |
+
+**E6 es la que falta, y no es un detalle de redacción.** `Modules.Asistente.Contracts`
+no tiene ningún `.cs`, y el enrutador determinista corre **en modo sombra**: decide
+y registra su decisión, pero el turno sigue por el carril SQL igual. Está declarado
+y argumentado en `openspec/changes/asistente-enrutador-de-dominio/design.md` (D2).
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
 tiene entidades propias — lee las de otros schemas y orquesta. Si algún día

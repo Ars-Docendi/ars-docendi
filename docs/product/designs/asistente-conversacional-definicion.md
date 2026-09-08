@@ -1,5 +1,5 @@
 ---
-status: draft # draft | review | approved
+status: review # draft | review | approved
 owner: ""
 feature: "" # link al spec en openspec/specs/<capability>/spec.md cuando exista el change
 last_updated: 2026-08-23
@@ -122,20 +122,20 @@ la API no tiene.
 
 ### 2.1 No-alcance
 
-| #   | Fuera                                        | Motivo                                                                          |
-| --- | -------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1   | Acciones, cambios de estado, escritura       | Solo lectura, decisión firme                                                    |
-| 2   | Cualquier dato fuera de la base del sistema  | Sin APIs externas, planillas ni Intraconsulta                                   |
-| 3   | Normativa y reglamento (`BR-*`)              | No está en la base                                                              |
-| 4   | Aulas, Portal, Tareas                        | **No existen las tablas** — `[TEMPORAL]`, el backend es WIP                     |
-| 5   | Alumnos, inscripciones, cupos                | No existen en el esquema                                                        |
-| 6   | «¿Quién tiene horas disponibles?»            | No hay columna de techo de horas                                                |
-| 7   | «¿Cuántos faltan para completar la cátedra?» | No existe el tamaño objetivo de cátedra                                         |
-| 8   | `audit.change_log`                           | Guarda filas enteras en JSON: fuga por la ventana de atrás                      |
-| 9   | `designaciones.idempotencia_comandos`        | `response_body JSONB` con respuestas HTTP completas                             |
-| 10  | Rol `docente`                                | Provisional                                                                     |
-| 11  | Escape a un agente humano                    | No existe el canal — una salida que no existe es una promesa falsa              |
-| 12  | Persistencia del hilo conversacional         | Postergado. El hilo vive en memoria; se pierde en cada redeploy y eso se acepta |
+| #   | Fuera                                        | Motivo                                                                                                                  |
+| --- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 1   | Acciones, cambios de estado, escritura       | Solo lectura, decisión firme                                                                                            |
+| 2   | Cualquier dato fuera de la base del sistema  | Sin APIs externas, planillas ni Intraconsulta                                                                           |
+| 3   | Normativa y reglamento (`BR-*`)              | No está en la base                                                                                                      |
+| 4   | Aulas y Tareas                               | **No existen las tablas** — el backend es WIP. Portal SALIÓ de esta fila: sus seis tablas están concedidas y en alcance |
+| 5   | Alumnos, inscripciones, cupos                | No existen en el esquema                                                                                                |
+| 6   | «¿Quién tiene horas disponibles?»            | No hay columna de techo de horas                                                                                        |
+| 7   | «¿Cuántos faltan para completar la cátedra?» | No existe el tamaño objetivo de cátedra                                                                                 |
+| 8   | `audit.change_log`                           | Guarda filas enteras en JSON: fuga por la ventana de atrás                                                              |
+| 9   | `designaciones.idempotencia_comandos`        | `response_body JSONB` con respuestas HTTP completas                                                                     |
+| 10  | Rol `docente`                                | Provisional                                                                                                             |
+| 11  | Escape a un agente humano                    | No existe el canal — una salida que no existe es una promesa falsa                                                      |
+| 12  | Persistencia del hilo conversacional         | Postergado. El hilo vive en memoria; se pierde en cada redeploy y eso se acepta                                         |
 
 ---
 

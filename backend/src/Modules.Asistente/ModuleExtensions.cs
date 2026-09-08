@@ -321,19 +321,6 @@ public static class ModuleExtensions
     }
 
     /// <summary>
-    /// Arma el adaptador de Anthropic con el cliente HTTP que ya trae el reintento.
-    /// </summary>
-    /// <remarks>
-    /// El transporte sale de la fábrica con nombre y no de un <c>HttpClient</c>
-    /// propio: ahí adentro está <see cref="ReintentoDeTransporte"/>, que es la
-    /// única autoridad de reintento del módulo. Un cliente propio dejaría al
-    /// adaptador sin reintento, o —peor— lo tentaría a poner el suyo y multiplicar
-    /// en silencio la cota de requests que el módulo documenta.
-    /// </remarks>
-    /// <summary>
-    /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
-    /// </summary>
-    /// <summary>
     /// El registro de adaptadores. Un proveedor nuevo es un brazo más acá.
     /// </summary>
     private static IProveedorDeModelo ConstruirProveedor(
@@ -369,6 +356,9 @@ public static class ModuleExtensions
                 sp.GetRequiredService<TimeProvider>()),
             sp.GetRequiredService<ContadorDeLlamadasDelTurno>());
 
+    /// <summary>
+    /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
+    /// </summary>
     private static void ValidarEsfuerzos(OpcionesAsistente valores)
     {
         EsfuerzoConfigurado.Interpretar(
@@ -379,6 +369,16 @@ public static class ModuleExtensions
             valores.EsfuerzoDeReescritura, nameof(OpcionesAsistente.EsfuerzoDeReescritura));
     }
 
+    /// <summary>
+    /// Arma el adaptador de Anthropic con el cliente HTTP que ya trae el reintento.
+    /// </summary>
+    /// <remarks>
+    /// El transporte sale de la fábrica con nombre y no de un <c>HttpClient</c>
+    /// propio: ahí adentro está <see cref="ReintentoDeTransporte"/>, que es la
+    /// única autoridad de reintento del módulo. Un cliente propio dejaría al
+    /// adaptador sin reintento, o —peor— lo tentaría a poner el suyo y multiplicar
+    /// en silencio la cota de requests que el módulo documenta.
+    /// </remarks>
     private static ProveedorAnthropic ArmarAnthropic(IServiceProvider sp, string modelo) =>
         new(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),

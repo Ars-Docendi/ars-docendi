@@ -18,13 +18,15 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <c>GeneradorDeSql.Interpretar</c>, el del redactor y el del reescritor nunca
 /// corrieron contra un cuerpo que el pipeline no hubiera fabricado.
 ///
-/// <b>Los cassettes versionados todavía NO son salida de un modelo real</b>: se
-/// grabaron contra el transporte que impersona la API, que es lo único que se
-/// puede hacer sin clave ni presupuesto. Lo que estos casos prueban hoy es el
-/// mecanismo —que el cuerpo se guarda y se reproduce byte por byte, y que el
-/// parseo corre sobre lo que salió del sobre y no sobre un literal—. El propósito
-/// declarado, ejercitar el parseo contra salida real, se cumple recién cuando la
-/// corrida financiada regrabe este directorio; hasta entonces vive en TD-017.
+/// <b>Los cassettes versionados SON salida de un modelo real</b> desde la
+/// regrabación financiada: el directorio se recapturó contra el proveedor de
+/// verdad, así que estos casos ejercitan el parseo contra cuerpos que escribió el
+/// modelo y no contra literales que escribimos nosotros. Eso era el propósito
+/// declarado y está cumplido.
+///
+/// Lo que TD-017 sigue registrando es otra cosa: que el fixture contra el que se
+/// grabaron está congelado y no hay recaptura programada. Es deuda de frescura,
+/// no de procedencia.
 ///
 /// <b>Los casos se descubren, no se escriben.</b> Un caso por cassette encontrado:
 /// el día que la corrida financiada deje cuarenta, son cuarenta casos sin tocar un
