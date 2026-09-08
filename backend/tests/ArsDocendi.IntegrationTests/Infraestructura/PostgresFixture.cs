@@ -53,41 +53,105 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// Se les dan los mismos atributos que en producción —en particular
     /// <c>NOBYPASSRLS</c>— para que lo que se prueba acá sea lo que se despliega.
     /// </remarks>
-    public async Task<BaseDePrueba> CrearBaseMigradaAsync(string prefijo)
+    /// <summary>
+    /// La base plantilla: migrada una sola vez por corrida y nunca usada por un
+    /// test.
+    /// </summary>
+    /// <remarks>
+    /// Las 45 clases de test creaban su base y corrían las tres migraciones cada
+    /// una. Las migraciones son idénticas siempre —no dependen del test— así que
+    /// se corren una vez y el resto de las bases se clonan con
+    /// <c>CREATE DATABASE … TEMPLATE</c>, que PostgreSQL resuelve copiando
+    /// archivos.
+    ///
+    /// <b>La plantilla NO lleva roles ni privilegios</b>, y eso no es una omisión.
+    /// Los roles son objetos de CLUSTER y los GRANT los nombran: clonar una base
+    /// con GRANT adentro dejaría el clon concediéndole a los roles de la
+    /// plantilla, no a los de la clase. Se crean después del clon, sobre él, con
+    /// el mismo código que usa el migrador del módulo.
+    ///
+    /// Ese orden resuelve además la trampa del <c>search_path</c>: vive en
+    /// <c>pg_db_role_setting</c>, cuya clave es el OID de la base, y <b>no se
+    /// clona</b>. Como los roles se crean sobre el clon ya existente, el
+    /// <c>ALTER ROLE … IN DATABASE</c> apunta al OID correcto. Si algún día la
+    /// plantilla llevara roles, esto pasaría a ser un falso verde silencioso en
+    /// todos los tests que sostienen el invariante #14; hay un test que lo vigila.
+    /// </remarks>
+    private string? _plantilla;
+
+    private readonly SemaphoreSlim _candadoDeLaPlantilla = new(1, 1);
+
+    private async Task<string> PlantillaAsync()
     {
-        var identificador = Guid.NewGuid();
-        var nombre = $"{prefijo}_{identificador:N}";
-        var sufijoRol = identificador.ToString("N")[..8];
-        var rolSoloLectura = $"asistente_ro_t{sufijoRol}";
-        var rolSoloLecturaPii = $"asistente_ro_pii_t{sufijoRol}";
-        await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
+        if (_plantilla is not null)
         {
-            await conexion.OpenAsync();
-            await using var comando = new NpgsqlCommand($"CREATE DATABASE \"{nombre}\"", conexion);
-            await comando.ExecuteNonQueryAsync();
+            return _plantilla;
         }
 
-        var cadena = new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
+        await _candadoDeLaPlantilla.WaitAsync();
+        try
+        {
+            if (_plantilla is not null)
+            {
+                return _plantilla;
+            }
+
+            var nombre = $"plantilla_{Guid.NewGuid():N}";
+            await CrearBaseVaciaAsync(nombre);
+            await MigrarAsync(CadenaDe(nombre));
+
+            // Sin esto, la primera clonación falla: PostgreSQL no admite
+            // CREATE DATABASE … TEMPLATE mientras alguien esté conectado a la
+            // plantilla, y EF deja conexiones vivas después de migrar.
+            NpgsqlConnection.ClearAllPools();
+
+            _plantilla = nombre;
+            return nombre;
+        }
+        finally
+        {
+            _candadoDeLaPlantilla.Release();
+        }
+    }
+
+    private async Task CrearBaseVaciaAsync(string nombre, string? plantilla = null)
+    {
+        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+        await conexion.OpenAsync();
+        await using var comando = new NpgsqlCommand(
+            plantilla is null
+                ? $"CREATE DATABASE \"{nombre}\""
+                : $"CREATE DATABASE \"{nombre}\" TEMPLATE \"{plantilla}\"",
+            conexion);
+        await comando.ExecuteNonQueryAsync();
+    }
+
+    private string CadenaDe(string nombre) =>
+        new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
         {
             Database = nombre,
             Pooling = false,
         }.ConnectionString;
 
+    /// <summary>Corre las tres migraciones, en el orden del Host.</summary>
+    /// <remarks>
+    /// EL ORDEN ES EL DEL HOST, y no es indiferente. <c>Program</c> compone
+    /// identity → designaciones → aulas → portal → tareas → asistente, y la RLS de
+    /// portal invoca una función que referencia <c>designaciones.designaciones</c>:
+    /// con portal primero, el CREATE FUNCTION falla con «relation does not exist».
+    ///
+    /// Estuvo al revés y no rompía nada, porque hasta que portal no dependió de
+    /// designaciones las dos secuencias eran equivalentes. Un fixture que migra en
+    /// un orden que producción no usa prueba otro sistema, y sólo se nota el día
+    /// que el orden empieza a importar.
+    /// </remarks>
+    private static async Task MigrarAsync(string cadena)
+    {
         await using (var identity = CrearIdentity(cadena))
         {
             await identity.Database.MigrateAsync();
         }
 
-        // EL ORDEN ES EL DEL HOST, y no es indiferente. `Program` compone
-        // identity → designaciones → aulas → portal → tareas → asistente, y la
-        // RLS de portal invoca una función que referencia
-        // `designaciones.designaciones`: con portal primero, el CREATE FUNCTION
-        // falla con «relation does not exist».
-        //
-        // Estuvo al revés y no rompía nada, porque hasta que portal no dependió de
-        // designaciones las dos secuencias eran equivalentes. Un fixture que migra
-        // en un orden que producción no usa prueba otro sistema, y sólo se nota el
-        // día que el orden empieza a importar.
         await using (var designaciones = CrearDesignaciones(cadena))
         {
             await designaciones.Database.MigrateAsync();
@@ -97,6 +161,19 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             await portal.Database.MigrateAsync();
         }
+    }
+
+    public async Task<BaseDePrueba> CrearBaseMigradaAsync(string prefijo)
+    {
+        var identificador = Guid.NewGuid();
+        var nombre = $"{prefijo}_{identificador:N}";
+        var sufijoRol = identificador.ToString("N")[..8];
+        var rolSoloLectura = $"asistente_ro_t{sufijoRol}";
+        var rolSoloLecturaPii = $"asistente_ro_pii_t{sufijoRol}";
+
+        await CrearBaseVaciaAsync(nombre, await PlantillaAsync());
+
+        var cadena = CadenaDe(nombre);
 
         await CrearRolesDelAsistenteAsync(nombre, rolSoloLectura, rolSoloLecturaPii);
 

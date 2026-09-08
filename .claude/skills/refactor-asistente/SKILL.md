@@ -103,12 +103,12 @@ no prueba nada.
 Los cuatro comandos, verbatim. Estaban verdes al escribir esto. Si alguno cambia de valor,
 el PR está mal: revertir.
 
-| #   | Regla                                                       | Chequeo                                                                                                          |
-| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| G1  | El evaluador sigue **fuera** de la solución                 | `! grep -q 'eval/ArsDocendi.Evaluacion' backend/ArsDocendi.slnx`                                                 |
-| G2  | `ArsDocendi.Evaluacion.Nucleo` no se muda de `backend/src/` | `grep -q 'src/ArsDocendi.Evaluacion.Nucleo' backend/ArsDocendi.slnx`                                             |
-| G3  | Orden de migración: identity → designaciones → portal       | `grep -n MigrateAsync backend/tests/ArsDocendi.IntegrationTests/Infraestructura/PostgresFixture.cs` → 78, 93, 98 |
-| G4  | Sin Polly ni `AddStandardResilienceHandler()`               | `grep -rliE 'polly\|AddStandardResilienceHandler' backend/src backend/tests backend/eval` → vacío                |
+| #   | Regla                                                       | Chequeo                                                                                                                                                                                                          |
+| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | El evaluador sigue **fuera** de la solución                 | `! grep -q 'eval/ArsDocendi.Evaluacion' backend/ArsDocendi.slnx`                                                                                                                                                 |
+| G2  | `ArsDocendi.Evaluacion.Nucleo` no se muda de `backend/src/` | `grep -q 'src/ArsDocendi.Evaluacion.Nucleo' backend/ArsDocendi.slnx`                                                                                                                                             |
+| G3  | Orden de migración: identity → designaciones → portal       | `grep -n MigrateAsync backend/tests/ArsDocendi.IntegrationTests/Infraestructura/PostgresFixture.cs` → tres líneas, EN ESE ORDEN (los números se movieron con G1; lo que se chequea es la secuencia, no la línea) |
+| G4  | Sin Polly ni `AddStandardResilienceHandler()`               | `grep -rliE 'polly\|AddStandardResilienceHandler' backend/src backend/tests backend/eval` → vacío                                                                                                                |
 
 `grep` en este entorno es **ugrep**: la alternancia `|` sin `-E` es literal y devuelve 0
 siempre. Usá `-E` o escapá `\|`. Un chequeo que "pasa" porque el comando está mal escrito
