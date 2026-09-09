@@ -2,7 +2,7 @@
 
 Ninguna tarea posterior arranca antes de que estas dos cierren. Si el equipo rechaza la enmienda, el cambio se cancela y el asistente no se construye.
 
-- [ ] 0.1 Presentar al equipo el invariante #14 (texto en `design.md`, decisión D2) y obtener acuerdo explícito
+- [x] 0.1 Presentar al equipo el invariante #14 (texto en `design.md`, decisión D2) y obtener acuerdo explícito — **ratificado el 2026-09-08 por Franco Garcete**. La marca de «pendiente de acuerdo» sale de `CLAUDE.md` en el mismo commit.
 - [ ] 0.2 Acordar con el dueño de la superficie de administración la migración que agrega `asistente.consultar` a `identity.permisos`, dado que el invariante #4 reserva esa escritura a esa superficie
 
 ## 1. Manifiesto de privilegios

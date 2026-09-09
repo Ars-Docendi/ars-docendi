@@ -18,7 +18,7 @@
 - [x] 1.6 Cuarta dirección del manifiesto: todo schema de la base tiene que estar clasificado (ARS-87)
 - [x] 1.7 FK `portal.perfiles.persona_id → identity.personas.id`, sin `ON DELETE` (ARS-88)
 - [x] 1.8 Derivar del manifiesto la lista de schemas de `PrefijoDeEsquemaTests`, que estaba clavada (ARS-89)
-- [x] 1.9 Escribir el invariante #14 en `CLAUDE.md`, marcado como pendiente de acuerdo (ARS-85)
+- [x] 1.9 Escribir el invariante #14 en `CLAUDE.md`, marcado como pendiente de acuerdo (ARS-85) — ratificado el 2026-09-08; la marca ya no está
 
 ## 2. El catálogo de preguntas, que dimensiona todo lo demás
 

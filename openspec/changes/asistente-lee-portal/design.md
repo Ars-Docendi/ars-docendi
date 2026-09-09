@@ -85,4 +85,4 @@ Podrían apoyarse en que la RLS del padre se aplique dentro de su propia subcons
 
 - La finalidad escrita de Secretaría (ARS-90) es precondición de conceder el permiso, no de mergear el código.
 - Las citas de la Ley 25.326 en `docs/business-rules/portal.md` están **pendientes de verificación** contra el texto vigente.
-- El invariante #14 sigue sin acuerdo explícito del equipo.
+- El invariante #14 fue ratificado el 2026-09-08 (tarea 0.1 de `asistente-fundaciones`).
