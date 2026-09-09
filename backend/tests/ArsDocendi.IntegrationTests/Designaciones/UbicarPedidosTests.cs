@@ -53,6 +53,25 @@ public sealed class UbicarPedidosTests(PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         await SembrarAsync(ct);
+
+        // El seed le da al jefe varias materias, entre ellas las de los otros dos
+        // pedidos — así que «de otra cátedra» dejaba de ser de otra cátedra y el
+        // test fallaba SIN que nada estuviera roto. La premisa es del test: acá se
+        // lo deja a cargo únicamente de la cátedra de su pedido.
+        await EjecutarAsync(
+            """
+            UPDATE identity.user_roles
+               SET deleted_at = now()
+             WHERE user_id = @actor
+               AND materia_id IS NOT NULL
+               AND deleted_at IS NULL
+               AND materia_id <> (SELECT p.materia_id
+                                    FROM designaciones.pedidos p
+                                   WHERE p.numero = @suyo)
+            """,
+            ("actor", Jefe),
+            ("suyo", DeSuCatedra));
+
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
 

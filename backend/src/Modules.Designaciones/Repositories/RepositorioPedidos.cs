@@ -17,8 +17,9 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
     public Task<Pedido?> ObtenerPorIdAsync(Guid pedidoId, CancellationToken ct) =>
         db.Pedidos
           .Include(p => p.Adjuntos)
-          .Include(p => p.Historial.OrderBy(h => h.CreadoEn))
+          .Include(p => p.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id))
           .Include(p => p.CargoSolicitado)
+          .Include(p => p.DedicacionSolicitadaCatalogo)
           .Include(p => p.Periodo)
           .AsSplitQuery()
           .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
@@ -38,6 +39,9 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
     public Task<Periodo?> ObtenerPeriodoActivoAsync(CancellationToken ct) =>
         db.Periodos.AsNoTracking().SingleOrDefaultAsync(p => p.Activo, ct);
 
+    public Task<bool> ExisteDedicacionActivaAsync(Guid dedicacionId, CancellationToken ct) =>
+        db.Dedicaciones.AsNoTracking().AnyAsync(d => d.Id == dedicacionId && d.Activo, ct);
+
     public Task<bool> ExisteCargoActivoAsync(Guid cargoId, CancellationToken ct) =>
         db.Cargos.AsNoTracking().AnyAsync(c => c.Id == cargoId && c.Activo, ct);
 
@@ -47,6 +51,7 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .AsNoTracking()
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
+          .Include(p => p.DedicacionSolicitadaCatalogo)
                 .Include(p => p.Adjuntos)
                 .Include(p => p.Historial)
                 .AsSplitQuery()
@@ -74,6 +79,7 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .AsNoTracking()
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
+          .Include(p => p.DedicacionSolicitadaCatalogo)
                 .Include(p => p.Adjuntos)
                 .Include(p => p.Historial)
                 .AsSplitQuery()

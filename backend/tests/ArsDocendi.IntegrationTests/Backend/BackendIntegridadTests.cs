@@ -126,14 +126,17 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
                 VALUES (@periodo, 'Periodo test', DATE '2026-01-01', DATE '2026-02-01',
                         DATE '2026-03-01', DATE '2026-12-31');
             INSERT INTO designaciones.pedidos
-                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, cargo_solicitado_id, horas)
+                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, cargo_solicitado_id,
+                 dedicacion_solicitada_id, horas)
                 VALUES (@pedido, 'TEST-CAMBIO-ROLLBACK', @periodo, @persona, @materia,
                         'Cambio de cargo o dedicación', 'en_lote',
-                        'c3000000-0000-4000-8000-000000000003', 20);
+                        'c3000000-0000-4000-8000-000000000003',
+                        'd6000000-0000-4000-8000-000000000001', 20);
             INSERT INTO designaciones.designaciones
-                (id, persona_id, materia_id, cargo_id, horas, vigente_desde)
+                (id, persona_id, materia_id, cargo_id, dedicacion_id, horas, vigente_desde)
                 VALUES (@designacion, @persona, @materia,
-                        'c3000000-0000-4000-8000-000000000004', 10, DATE '2025-01-01');
+                        'c3000000-0000-4000-8000-000000000004',
+                        'd6000000-0000-4000-8000-000000000001', 10, DATE '2025-01-01');
             """, new NpgsqlParameter("carrera", carrera), new NpgsqlParameter("codigo_carrera", $"C-{carrera:N}"),
             new NpgsqlParameter("materia", materia), new NpgsqlParameter("codigo_materia", $"M-{materia:N}"),
             new NpgsqlParameter("persona", persona), new NpgsqlParameter("documento", $"D-{persona:N}"),

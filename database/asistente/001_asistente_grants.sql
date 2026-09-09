@@ -111,18 +111,23 @@ BEGIN
   -- puede decir que existe un adjunto y de qué tipo; entregarlo es de la interfaz.
   -- designaciones.idempotencia_comandos no aparece: denegada entera, porque
   -- response_body guarda el cuerpo HTTP completo de cada comando.
+  -- El catálogo de dedicaciones. Es cerrado —seis categorías— y sin él el
+  -- asistente no puede nombrar la dedicación de una designación: desde la
+  -- migración 009 el dato vive en la FK y la columna textual quedó como historia.
+  EXECUTE format('GRANT SELECT (id, codigo, nombre, orden, activo, created_at) ON designaciones.dedicaciones TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, codigo, nombre, orden, activo, created_at) ON designaciones.dedicaciones TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, codigo, nombre, abreviatura, orden, activo, created_at) ON designaciones.cargos TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, codigo, nombre, abreviatura, orden, activo, created_at) ON designaciones.cargos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, nombre, carga_desde, carga_hasta, impacto_desde, impacto_hasta, activo, created_at) ON designaciones.periodos TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, nombre, carga_desde, carga_hasta, impacto_desde, impacto_hasta, activo, created_at) ON designaciones.periodos TO %I', rol_pii);
-  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_basico);
-  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, pedido_id, tipo, nombre, created_at) ON designaciones.pedido_adjuntos TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, pedido_id, tipo, nombre, created_at) ON designaciones.pedido_adjuntos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at) ON designaciones.pedido_historial TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at) ON designaciones.pedido_historial TO %I', rol_pii);
-  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, horas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_basico);
-  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, horas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_pii);
   -- ------------------------------------------------------------------
   -- portal
   -- ------------------------------------------------------------------

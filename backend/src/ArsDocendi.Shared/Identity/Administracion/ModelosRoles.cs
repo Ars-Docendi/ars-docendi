@@ -32,3 +32,5 @@ public sealed record EditarRolDto(
 public sealed record ReemplazarPermisosDto(
     IReadOnlyList<Guid> PermisoIds,
     uint Version);
+
+public sealed record EliminarRolDto(uint Version);

@@ -8,7 +8,8 @@ public interface IRepositorioDocentes
 {
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
     Task<Persona?> ObtenerPersonaAsync(Guid id, bool tracking, CancellationToken ct);
-    Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(IReadOnlyCollection<string> codigos, CancellationToken ct);
+    Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct);
     Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
     Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct);
@@ -44,13 +45,20 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
     }
 
     public async Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(
-        IReadOnlyCollection<string> codigos,
+        IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
         await db.Roles
-            .Where(r => codigos.Contains(r.Codigo)
+            .Where(r => ids.Contains(r.Id)
                 && r.EsSistema
                 && r.Activo
                 && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct) =>
+        await db.Roles
+            .Where(r => r.EsSistema && r.Activo
+                && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
+            .OrderBy(r => r.Nombre)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(
@@ -100,6 +108,10 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
                 "users_upn_key" => Conflicto("identity-upn-conflict", "Ya existe otro usuario con esa UPN."),
                 "personas_documento_key" => Conflicto("identity-document-conflict", "Ya existe otra persona con ese documento."),
                 "personas_legajo_key" => Conflicto("identity-file-number-conflict", "Ya existe otra persona con ese legajo."),
+                "user_roles_unique_assignment" => new ExcepcionAplicacion(
+                    TipoErrorAplicacion.ReglaDeNegocio,
+                    "identity-role-scope-conflict",
+                    "No se puede repetir la misma asignación de rol y ámbito."),
                 _ => null,
             };
             if (traducido is not null) throw traducido;

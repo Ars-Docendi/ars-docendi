@@ -78,13 +78,13 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     public async Task El_actor_acota_el_resultado()
     {
         await SembrarAsync();
+        await AcotarAUnaSolaMateriaAsync(Jefe);
 
         var global = await EjecutarAsync(ContarPedidos, Secretaria);
         var deMateria = await EjecutarAsync(ContarPedidos, Jefe);
 
         var todos = await ContarPedidosDelSeedAsync("TRUE");
-        var deLaMateria = await ContarPedidosDelSeedAsync(
-            "m.id = @ambito", MateriaIngenieriaDeSoftware);
+        var deLaMateria = await ContarPedidosDeLasMateriasDeAsync(Jefe);
 
         // Si los dos conteos fueran iguales el test no probaría nada: pasaría
         // aunque el ejecutor no acotara por actor. La desigualdad es la premisa.
@@ -97,6 +97,7 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     public async Task Dos_turnos_consecutivos_no_heredan_el_actor()
     {
         await SembrarAsync();
+        await AcotarAUnaSolaMateriaAsync(Jefe);
         var ejecutor = Ejecutor();
         var ct = TestContext.Current.CancellationToken;
 
@@ -104,8 +105,7 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         var segundo = await ejecutor.EjecutarAsync(ContarPedidos, Jefe, false, ct);
 
         var todos = await ContarPedidosDelSeedAsync("TRUE");
-        var deLaMateria = await ContarPedidosDelSeedAsync(
-            "m.id = @ambito", MateriaIngenieriaDeSoftware);
+        var deLaMateria = await ContarPedidosDeLasMateriasDeAsync(Jefe);
 
         // Con un ajuste de sesión en vez de transaction-local, el segundo turno
         // habría heredado el actor del primero y contestado el conteo global. Ese
@@ -456,4 +456,52 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
         return (long)(await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken))!;
     }
 
+    /// <summary>
+    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente.
+    /// </summary>
+    /// <remarks>
+    /// Reemplaza a clavar una materia. El seed le da al jefe de cátedra más de una,
+    /// y contar sólo la primera hacía que el test midiera menos de lo que la policy
+    /// deja ver — o sea que fallara con la RLS funcionando perfecto. La pregunta
+    /// correcta es la que hace la policy: «los pedidos de las materias del actor».
+    /// </remarks>
+    private Task<long> ContarPedidosDeLasMateriasDeAsync(Guid actor) =>
+        ContarPedidosDelSeedAsync(
+            "m.id IN (SELECT ur.materia_id FROM identity.user_roles ur "
+            + "WHERE ur.user_id = @ambito AND ur.materia_id IS NOT NULL "
+            + "AND ur.deleted_at IS NULL)",
+            actor);
+
+    /// <summary>
+    /// Deja al actor con UNA sola materia a cargo, dando de baja el resto.
+    /// </summary>
+    /// <remarks>
+    /// La premisa de estos tests es «un actor de ámbito de una materia ve menos que
+    /// uno global». El seed le da al jefe de cátedra varias, y con todas llega a ver
+    /// lo mismo que el global — así que la premisa se cae y el test falla SIN que
+    /// nada esté roto. Acotarlo acá hace que la premisa sea del test y no del seed,
+    /// que es lo que la vuelve confiable.
+    /// </remarks>
+    private async Task AcotarAUnaSolaMateriaAsync(Guid actor)
+    {
+        await EjecutarAsync(
+            """
+            UPDATE identity.user_roles
+               SET deleted_at = now()
+             WHERE user_id = @actor
+               AND materia_id IS NOT NULL
+               AND deleted_at IS NULL
+               -- PostgreSQL no tiene min(uuid); se ordena por texto, que alcanza:
+               -- lo único que hace falta es que la materia elegida sea SIEMPRE la
+               -- misma, no cuál sea.
+               AND materia_id <> (SELECT materia_id
+                                    FROM identity.user_roles
+                                   WHERE user_id = @actor
+                                     AND materia_id IS NOT NULL
+                                     AND deleted_at IS NULL
+                                   ORDER BY materia_id::text
+                                   LIMIT 1)
+            """,
+            ("actor", actor));
+    }
 }

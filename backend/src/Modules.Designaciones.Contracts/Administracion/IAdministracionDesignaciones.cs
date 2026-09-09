@@ -8,6 +8,8 @@ public sealed record CargoAdministracionDto(
     short Orden,
     bool Activo);
 
+public sealed record DedicacionAdministracionDto(Guid Id, short Codigo, string Nombre, short Orden, bool Activo);
+
 public sealed record DesignacionVigenteDto(
     Guid Id,
     Guid PersonaId,
@@ -17,12 +19,15 @@ public sealed record DesignacionVigenteDto(
     string CargoAbreviatura,
     string? Dedicacion,
     int Horas,
-    DateOnly VigenteDesde);
+    DateOnly VigenteDesde,
+    Guid? DedicacionId = null,
+    int? HorasInvestigacion = null,
+    int? HorasExternas = null);
 
 public sealed record GuardarDesignacionVigenteDto(
     Guid MateriaId,
     Guid CargoId,
-    string? Dedicacion,
+    Guid? DedicacionId,
     int Horas);
 
 /// <summary>
@@ -33,7 +38,9 @@ public interface IAdministracionDesignaciones
 {
     Task<IReadOnlyList<DesignacionVigenteDto>> ListarVigentesAsync(CancellationToken ct);
     Task<IReadOnlyList<CargoAdministracionDto>> ListarCargosAsync(CancellationToken ct);
+    Task<IReadOnlyList<DedicacionAdministracionDto>> ListarDedicacionesAsync(CancellationToken ct);
     Task ValidarReemplazoAsync(
+        Guid? personaId,
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct);
     Task<IReadOnlyList<DesignacionVigenteDto>> ReemplazarVigentesAsync(

@@ -27,12 +27,12 @@ interface SeccionDocentePedidoProps {
   /** La cátedra del pedido: un pedido cubre exactamente una materia. */
   materia: string;
   /** Horas vigentes del docente en esa cátedra. */
-  horasActuales?: number;
+  horasActuales?: number | null;
   /** Cambio: horas tal como quedan editadas en el form. */
   horasSolicitadas?: number;
-  horasInvestigacionActuales?: number;
+  horasInvestigacionActuales?: number | null;
   horasInvestigacionSolicitadas?: number;
-  horasExternasActuales?: number;
+  horasExternasActuales?: number | null;
   horasExternasSolicitadas?: number;
   /** Selección de un docente existente por DNI. */
   onSeleccionarDocente: (dni: string) => void;

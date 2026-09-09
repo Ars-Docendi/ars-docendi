@@ -69,7 +69,7 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
             .ToListAsync(ct);
         var materias = await db.Materias.AsNoTracking().Where(m => m.Activo)
             .OrderBy(m => m.Nombre)
-            .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre))
+            .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre, m.CarreraId))
             .ToListAsync(ct);
         return new CatalogosUsuariosDto(roles, carreras, materias);
     }
@@ -105,6 +105,10 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
                     TipoErrorAplicacion.Conflicto,
                     "identity-file-number-conflict",
                     "Ya existe otra persona con ese legajo."),
+                "user_roles_unique_assignment" => new ExcepcionAplicacion(
+                    TipoErrorAplicacion.ReglaDeNegocio,
+                    "identity-role-scope-conflict",
+                    "No se puede repetir la misma asignación de rol y ámbito."),
                 _ => null,
             };
             if (traducido is not null) throw traducido;

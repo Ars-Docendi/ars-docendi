@@ -9,19 +9,21 @@ export interface FiltrosState {
   legajo: string;
   mail: string;
   rol: RolSistema | "";
+  perfilDocente: "si" | "no" | "";
   estado: "activo" | "inactivo" | "";
 }
 
-type FiltroOpcional = "legajo" | "mail" | "rol" | "estado";
+type FiltroOpcional = "legajo" | "mail" | "rol" | "perfilDocente" | "estado";
 
 const ETIQUETAS: Record<FiltroOpcional, string> = {
   legajo: "Legajo",
   mail: "Mail / UPN",
   rol: "Rol",
+  perfilDocente: "Perfil docente",
   estado: "Estado",
 };
 
-const TODOS_OPCIONALES: FiltroOpcional[] = ["legajo", "mail", "rol", "estado"];
+const TODOS_OPCIONALES: FiltroOpcional[] = ["legajo", "mail", "rol", "perfilDocente", "estado"];
 
 const estiloBotonQuitar: React.CSSProperties = {
   border: "1px solid var(--color-border-default)",
@@ -201,6 +203,28 @@ export function FiltrosUsuarios({ filtros, onChange, roles }: FiltrosUsuariosPro
               <button
                 onClick={() => quitarFiltro("estado")}
                 aria-label="Quitar filtro de estado"
+                style={estiloBotonQuitar}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {activados.includes("perfilDocente") && (
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: "0 0 auto" }}>
+              <Select
+                value={filtros.perfilDocente}
+                onChange={(e) => set("perfilDocente", e.target.value as "si" | "no" | "")}
+                aria-label="Filtrar por perfil docente"
+                style={{ width: "auto" }}
+              >
+                <option value="">Todos los perfiles</option>
+                <option value="si">Con perfil docente</option>
+                <option value="no">Sin perfil docente</option>
+              </Select>
+              <button
+                onClick={() => quitarFiltro("perfilDocente")}
+                aria-label="Quitar filtro de perfil docente"
                 style={estiloBotonQuitar}
               >
                 ×

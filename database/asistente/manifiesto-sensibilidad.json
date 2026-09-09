@@ -306,6 +306,36 @@
     },
     {
       "schema": "designaciones",
+      "tabla": "dedicaciones",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "orden",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
       "tabla": "periodos",
       "columnas": [
         {
@@ -384,6 +414,10 @@
         },
         {
           "columna": "dedicacion_solicitada",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "dedicacion_solicitada_id",
           "clasificacion": "publica"
         },
         {
@@ -516,7 +550,19 @@
           "clasificacion": "publica"
         },
         {
+          "columna": "dedicacion_id",
+          "clasificacion": "publica"
+        },
+        {
           "columna": "horas",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas_investigacion",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "horas_externas",
           "clasificacion": "publica"
         },
         {

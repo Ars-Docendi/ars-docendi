@@ -172,8 +172,25 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
             "SELECT id::text FROM identity.materias WHERE carrera_id = @carrera",
             ("carrera", CarreraDelCoordinador));
 
+        // Las materias del jefe salen de sus asignaciones y no de una constante: el
+        // seed le da más de una, y clavar la primera hacía que este test midiera
+        // menos de lo que la función devuelve — fallando con ella funcionando bien.
+        var materiasDelJefe = await LeerColumnaAsync(
+            """
+            SELECT ur.materia_id::text
+              FROM identity.user_roles ur
+             WHERE ur.user_id = @actor AND ur.materia_id IS NOT NULL
+               AND ur.deleted_at IS NULL
+            """,
+            ("actor", Jefe));
+
         Assert.Equal(todas, deSecretaria);
-        Assert.Equal([MateriaDelJefe.ToString()], delJefe);
+        Assert.NotEmpty(materiasDelJefe);
+        Assert.Equal(materiasDelJefe.Order(), delJefe.Order());
+
+        // Y sigue viendo MENOS que todas: sin esto, la aserción de arriba pasaría
+        // aunque la función devolviera el catálogo entero.
+        Assert.True(delJefe.Count < todas);
         Assert.Equal(materiasDeLaCarrera.Order(), delCoordinador.Order());
     }
 

@@ -55,7 +55,8 @@ public sealed record PedidoDto(
     uint Version,
     IReadOnlyList<AdjuntoPedidoDto> Adjuntos,
     IReadOnlyList<HistorialPedidoDto> Historial,
-    IReadOnlyList<string> AccionesPermitidas);
+    IReadOnlyList<string> AccionesPermitidas,
+    Guid? DedicacionSolicitadaId = null);
 
 public sealed record GuardarPedidoDto(
     Guid PeriodoId,
@@ -63,7 +64,7 @@ public sealed record GuardarPedidoDto(
     Guid MateriaId,
     string Novedad,
     Guid? CargoSolicitadoId,
-    string? DedicacionSolicitada,
+    Guid? DedicacionSolicitadaId,
     int? Horas,
     int? HorasInvestigacion,
     int? HorasExternas,

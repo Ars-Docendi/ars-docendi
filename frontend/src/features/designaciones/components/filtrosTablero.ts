@@ -17,11 +17,23 @@
 // - prioridad: filtra por el flag de prioritario.
 // - carrera: filtra por carrera exacta (Select cerrado, no texto libre).
 // ============================================================
-import type { Novedad, PedidoDesignacion } from "../types";
+import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
 
 export type FiltroTipo = "todos" | Novedad;
+export type FiltroEstado = "todos" | Exclude<EstadoPedido, "borrador">;
 export type FiltroPrioridad = "todos" | "prioritarios" | "normales";
 export type FiltroSinMovimiento = "todos" | "7" | "15" | "30";
+
+export const OPCIONES_ESTADO: { value: FiltroEstado; label: string }[] = [
+  { value: "todos", label: "Estado: Todos" },
+  { value: "en_revision_coordinador", label: "En revisión · Coordinador" },
+  { value: "en_revision_secretaria", label: "En revisión · Secretaría" },
+  { value: "en_revision_decanato", label: "En revisión · Decanato" },
+  { value: "devuelto", label: "Devuelto" },
+  { value: "en_lote", label: "En lote" },
+  { value: "rechazado", label: "Rechazado" },
+  { value: "cancelado", label: "Cancelado" },
+];
 
 /**
  * Catálogo cerrado de carreras (D-5/D-6 de `ajustes-pedido-y-revision`): 5 carreras
@@ -47,6 +59,7 @@ export const ABREVIATURA_CARRERA: Record<string, string> = {
 
 export interface FiltrosTablero {
   tipo: FiltroTipo;
+  estado: FiltroEstado;
   prioridad: FiltroPrioridad;
   carrera: string;
   nombre: string;
@@ -67,6 +80,7 @@ export const PERIODO_POR_DEFECTO = "todos";
 
 export const FILTROS_INICIALES: FiltrosTablero = {
   tipo: "todos",
+  estado: "todos",
   prioridad: "todos",
   carrera: "todos",
   nombre: "",
@@ -94,8 +108,8 @@ function diasSinMovimiento(pedido: PedidoDesignacion): number {
 }
 
 /**
- * Acota los pedidos por nombre/legajo del docente, novedad, prioridad, carrera,
- * período de designación y días sin movimiento.
+ * Acota los pedidos por nombre/legajo del docente, novedad, estado, prioridad,
+ * carrera, período de designación y días sin movimiento.
  */
 export function aplicarFiltros(
   pedidos: PedidoDesignacion[],
@@ -105,6 +119,7 @@ export function aplicarFiltros(
   const legajo = normalizarTexto(filtros.legajo);
   return pedidos.filter((pedido) => {
     if (filtros.tipo !== "todos" && pedido.novedad !== filtros.tipo) return false;
+    if (filtros.estado !== "todos" && pedido.estado !== filtros.estado) return false;
     if (filtros.prioridad === "prioritarios" && !pedido.prioritario) return false;
     if (filtros.prioridad === "normales" && pedido.prioritario) return false;
     if (filtros.carrera !== "todos" && pedido.carrera !== filtros.carrera) return false;

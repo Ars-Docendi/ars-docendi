@@ -6,6 +6,9 @@ namespace Modules.Designaciones.Repositories;
 
 public sealed class RepositorioCatalogosDesignaciones(DesignacionesDbContext db)
 {
+    public async Task<IReadOnlyList<Dedicacion>> ListarDedicacionesActivasAsync(CancellationToken ct) =>
+        await db.Dedicaciones.AsNoTracking().Where(d => d.Activo).OrderBy(d => d.Orden).ToListAsync(ct);
+
     public async Task<IReadOnlyList<Periodo>> ListarPeriodosAsync(CancellationToken ct) =>
         await db.Periodos.AsNoTracking()
             .OrderByDescending(p => p.ImpactoDesde)
@@ -30,6 +33,7 @@ public sealed class RepositorioCatalogosDesignaciones(DesignacionesDbContext db)
     public async Task<IReadOnlyList<Designacion>> ListarDesignacionesVigentesAsync(CancellationToken ct) =>
         await db.Designaciones.AsNoTracking()
             .Include(d => d.Cargo)
+                .Include(d => d.DedicacionCatalogo)
             .Where(d => d.VigenteHasta == null)
             .ToListAsync(ct);
 }

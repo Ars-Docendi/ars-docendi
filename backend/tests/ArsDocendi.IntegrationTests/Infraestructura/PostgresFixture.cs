@@ -1,15 +1,16 @@
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore;
-using Modules.Asistente;
+using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
+using Modules.Asistente;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
-
 namespace ArsDocendi.IntegrationTests.Infraestructura;
 
 [CollectionDefinition(Nombre)]
@@ -147,7 +148,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// un orden que producción no usa prueba otro sistema, y sólo se nota el día
     /// que el orden empieza a importar.
     /// </remarks>
-    private static async Task MigrarAsync(string cadena)
+    private static async Task MigrarAsync(string cadena, string? migracionDesignaciones = null)
     {
         await using (var identity = CrearIdentity(cadena))
         {
@@ -156,7 +157,14 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         await using (var designaciones = CrearDesignaciones(cadena))
         {
-            await designaciones.Database.MigrateAsync();
+            if (migracionDesignaciones is null)
+            {
+                await designaciones.Database.MigrateAsync();
+            }
+            else
+            {
+                await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
+            }
         }
 
         await using (var portal = CrearPortal(cadena))
@@ -165,7 +173,19 @@ public sealed class PostgresFixture : IAsyncLifetime
         }
     }
 
-    public async Task<BaseDePrueba> CrearBaseMigradaAsync(string prefijo)
+    /// <param name="migracionDesignaciones">
+    /// Hasta qué migración de designaciones migrar. En <c>null</c> —lo normal— va
+    /// hasta la última y la base se CLONA de la plantilla.
+    /// </param>
+    /// <remarks>
+    /// <b>Pedir una migración concreta desactiva la plantilla</b>, y no es una
+    /// omisión: un clon ya viene con el historial entero aplicado, así que no hay
+    /// forma de que quede a mitad de camino. Ese caso migra desde una base vacía y
+    /// paga el precio completo — por eso lo usa un solo test, el que verifica cómo
+    /// se comportaba el esquema ANTES de una migración.
+    /// </remarks>
+    public async Task<BaseDePrueba> CrearBaseMigradaAsync(
+        string prefijo, string? migracionDesignaciones = null)
     {
         var identificador = Guid.NewGuid();
         var nombre = $"{prefijo}_{identificador:N}";
@@ -173,7 +193,15 @@ public sealed class PostgresFixture : IAsyncLifetime
         var rolSoloLectura = $"asistente_ro_t{sufijoRol}";
         var rolSoloLecturaPii = $"asistente_ro_pii_t{sufijoRol}";
 
-        await CrearBaseVaciaAsync(nombre, await PlantillaAsync());
+        if (migracionDesignaciones is null)
+        {
+            await CrearBaseVaciaAsync(nombre, await PlantillaAsync());
+        }
+        else
+        {
+            await CrearBaseVaciaAsync(nombre);
+            await MigrarAsync(CadenaDe(nombre), migracionDesignaciones);
+        }
 
         var cadena = CadenaDe(nombre);
 
@@ -182,8 +210,14 @@ public sealed class PostgresFixture : IAsyncLifetime
         // Los GRANT se aplican con el MISMO código que el migrador del módulo, no
         // con una copia del script: si acá se probara una copia, la prueba diría
         // que la copia funciona.
-        await using (var conexion = new NpgsqlConnection(cadena))
+        //
+        // NO se aplican sobre un esquema a medio migrar: los privilegios del
+        // asistente nombran tablas y columnas del esquema COMPLETO, así que sobre
+        // un estado histórico fallan con «relation does not exist». Quien pide una
+        // migración parcial está probando la migración, no los privilegios.
+        if (migracionDesignaciones is null)
         {
+            await using var conexion = new NpgsqlConnection(cadena);
             await conexion.OpenAsync();
             await PrivilegiosAsistente.AplicarAsync(
                 conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
@@ -288,6 +322,16 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
 {
     private BaseDePrueba? _base;
 
+    /// <summary>
+    /// La fixture, para los tests que crean bases EXTRA por su cuenta.
+    /// </summary>
+    /// <remarks>
+    /// Lo usan los que necesitan más de una base a la vez —comparar dos, o migrar
+    /// hasta un punto concreto del historial—, que es un caso distinto del de la
+    /// base propia que esta clase provisiona sola.
+    /// </remarks>
+    protected PostgresFixture Postgres => postgres;
+
     protected string Cadena => _base?.Cadena ?? string.Empty;
 
     /// <summary>Rol de solo lectura del asistente, sin datos personales.</summary>
@@ -375,11 +419,22 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
     /// El <c>CommandTimeout</c> alto no es defensivo: el seed son cientos de líneas
     /// de SQL en un solo comando y con el default de Npgsql llega justo.
     /// </remarks>
-    protected async Task SembrarAsync(CancellationToken ct)
+    protected Task SembrarAsync(CancellationToken ct) => SembrarAsync(Cadena, ct);
+
+    /// <summary>
+    /// Aplica el seed sobre una base CUALQUIERA, no la de esta clase.
+    /// </summary>
+    /// <remarks>
+    /// Existe para los tests que crean bases extra —comparar dos, verificar que
+    /// reconstruir una no toca a la vecina—. Comparte el archivo cacheado con la
+    /// sobrecarga de arriba: es el mismo seed, leído una sola vez por corrida.
+    /// </remarks>
+    protected static async Task SembrarAsync(string cadena, CancellationToken ct)
     {
         var sql = await Semilla.Value;
 
-        await using var conexion = await AbrirConexionAsync();
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(ct);
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
     }

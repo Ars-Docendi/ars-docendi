@@ -28,6 +28,7 @@ interface PedidoDto {
   prioritario: boolean;
   cargoSolicitado: { id: string; codigo: string; nombre: string } | null;
   dedicacionSolicitada: string | null;
+  dedicacionSolicitadaId: string | null;
   horas: number | null;
   horasInvestigacion: number | null;
   horasExternas: number | null;
@@ -123,7 +124,8 @@ function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones)
     materiaId,
     novedad: datos.novedad,
     cargoSolicitadoId,
-    dedicacionSolicitada: datos.dedicacionSolicitada ?? null,
+    dedicacionSolicitadaId:
+      catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ?? null,
     horas: datos.horas,
     horasInvestigacion: datos.horasInvestigacion,
     horasExternas: datos.horasExternas,
@@ -151,20 +153,23 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
       legajo: dto.persona.legajo ?? undefined,
       antiguedad: 0,
     },
-    horas: dto.snapshot ? (dto.snapshot.horas ?? 0) : (dto.horas ?? 0),
+    horas: dto.horas ?? 0,
     cargoActual: (dto.snapshot?.cargo as Cargo) ?? null,
     dedicacionActual: dto.snapshot?.dedicacion ?? null,
     novedad: dto.novedad,
     cargoSolicitado: dto.cargoSolicitado?.nombre,
     cargoSolicitadoId: dto.cargoSolicitado?.id,
     dedicacionSolicitada: dto.dedicacionSolicitada ?? undefined,
+    dedicacionSolicitadaId: dto.dedicacionSolicitadaId ?? undefined,
     justificacion: dto.justificacion ?? undefined,
     tipoBaja: dto.tipoBaja as PedidoDesignacion["tipoBaja"],
     tipoBajaDetalle: dto.tipoBajaDetalle ?? undefined,
-    horasExternas: dto.snapshot ? (dto.snapshot.horasExternas ?? 0) : (dto.horasExternas ?? 0),
-    horasInvestigacion: dto.snapshot
-      ? (dto.snapshot.horasInvestigacion ?? 0)
-      : (dto.horasInvestigacion ?? 0),
+    horasExternas: dto.horasExternas ?? 0,
+    horasInvestigacion: dto.horasInvestigacion ?? 0,
+    snapshot: dto.snapshot,
+    horasActuales: dto.snapshot?.horas,
+    horasInvestigacionActuales: dto.snapshot?.horasInvestigacion,
+    horasExternasActuales: dto.snapshot?.horasExternas,
     adjuntos: dto.adjuntos,
     estado: dto.estado,
     prioritario: dto.prioritario,

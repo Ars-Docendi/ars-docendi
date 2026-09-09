@@ -130,13 +130,26 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
             await ContarPedidosDelSeedAsync("m.carrera_id = @ambito", CarreraInformatica),
             deCarrera);
         Assert.Equal(
-            await ContarPedidosDelSeedAsync("m.id = @ambito", MateriaIngenieriaDeSoftware),
+            await ContarPedidosDeLasMateriasDeAsync(Jefe),
             deMateria);
 
-        // El seed dejó de tener pedidos fuera de Informática, así que hoy el conteo
-        // del coordinador coincide con el global POR DATO, no por permiso: sin esta
-        // desigualdad el test pasaría aunque el predicado de ámbito desapareciera.
-        Assert.True(deMateria < global);
+        // ACÁ ESTABA EL AGUJERO. La desigualdad `deMateria < global` dependía de que
+        // el seed tuviera pedidos fuera del alcance del jefe, y dejó de tenerlos
+        // cuando le dieron una tercera materia: con las tres, el jefe ve los ocho
+        // pedidos y la desigualdad se cae SIN que la RLS esté rota.
+        //
+        // Un test cuyo poder de detección depende de cuántas filas tenga el seed no
+        // detecta nada de forma confiable. Así que el pedido ajeno se fabrica acá:
+        // una materia que el jefe no dicta, un pedido en ella, y la afirmación de
+        // que no lo alcanza. Eso vale con cualquier seed.
+        var ajeno = await SembrarPedidoFueraDelAlcanceDeAsync(Jefe);
+
+        Assert.NotEqual(Guid.Empty, ajeno);
+
+        // El conteo NO se movió: el pedido nuevo existe y el jefe no lo alcanza. Si
+        // la policy dejara de filtrar, acá habría uno más.
+        Assert.Equal(deMateria, await ContarComoActorAsync(Jefe, "designaciones.pedidos"));
+        Assert.Equal(global + 1, await ContarComoActorAsync(Secretaria, "designaciones.pedidos"));
     }
 
     [Fact]
@@ -315,4 +328,66 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         return filas;
     }
 
+    /// <summary>
+    /// Los pedidos de TODAS las materias donde el actor tiene un rol vigente.
+    /// </summary>
+    /// <remarks>
+    /// Reemplaza a clavar una materia. El seed le da al jefe de cátedra más de una,
+    /// y contar sólo la primera hacía que el test midiera menos de lo que la policy
+    /// deja ver — o sea que fallara con la RLS funcionando perfecto. La pregunta
+    /// correcta es la que hace la policy: «los pedidos de las materias del actor».
+    /// </remarks>
+    private Task<int> ContarPedidosDeLasMateriasDeAsync(Guid actor) =>
+        ContarPedidosDelSeedAsync(
+            "m.id IN (SELECT ur.materia_id FROM identity.user_roles ur "
+            + "WHERE ur.user_id = @ambito AND ur.materia_id IS NOT NULL "
+            + "AND ur.deleted_at IS NULL)",
+            actor);
+
+    /// <summary>
+    /// Crea un pedido en una materia que el actor NO dicta, y devuelve su id.
+    /// </summary>
+    /// <remarks>
+    /// Es lo que le devuelve al test su poder de detección. Antes se apoyaba en que
+    /// el seed tuviera filas fuera del alcance; fabricarlo acá hace que la
+    /// afirmación valga con cualquier seed, que es lo único que un guard de RLS
+    /// puede prometer.
+    /// </remarks>
+    private async Task<Guid> SembrarPedidoFueraDelAlcanceDeAsync(Guid actor)
+    {
+        var id = Guid.NewGuid();
+
+        await EjecutarAsync(
+            """
+            INSERT INTO designaciones.pedidos
+                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario)
+            SELECT @id, 'AJENO-' || left(@id::text, 8), per.id, sin_pedido.id,
+                   ajena.id, 'Sin novedad', 'borrador', FALSE
+              FROM designaciones.periodos per
+              -- Una persona SIN pedido en ese período: hay un único pedido por
+              -- docente y período, así que reusar una cualquiera choca.
+              CROSS JOIN LATERAL (
+                  SELECT pe.id
+                    FROM identity.personas pe
+                   WHERE NOT EXISTS (SELECT FROM designaciones.pedidos x
+                                      WHERE x.persona_id = pe.id AND x.periodo_id = per.id)
+                   LIMIT 1) sin_pedido
+              -- Una materia que el actor NO dicta.
+              CROSS JOIN LATERAL (
+                  SELECT mm.id
+                    FROM identity.materias mm
+                   WHERE mm.id NOT IN (SELECT ur.materia_id
+                                         FROM identity.user_roles ur
+                                        WHERE ur.user_id = @actor
+                                          AND ur.materia_id IS NOT NULL
+                                          AND ur.deleted_at IS NULL)
+                   LIMIT 1) ajena
+             WHERE per.activo
+             LIMIT 1
+            """,
+            ("id", id),
+            ("actor", actor));
+
+        return id;
+    }
 }

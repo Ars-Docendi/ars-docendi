@@ -10,8 +10,6 @@ public sealed class ServicioCatalogosDesignaciones(
     IConsultasIdentity identity,
     ResolutorActor resolutorActor)
 {
-    private static readonly string[] Dedicaciones =
-        ["Categoría 0", "Categoría 1", "Categoría 2", "Categoría 3", "Categoría 4", "Categoría 5", "Categoría 6"];
     private static readonly string[] TiposBaja = ["Renuncia", "Jubilación", "Otro"];
 
     public async Task<CatalogosDesignacionesDto> ObtenerAsync(CancellationToken ct)
@@ -46,8 +44,9 @@ public sealed class ServicioCatalogosDesignaciones(
                         materiasPorId[d.MateriaId].Nombre,
                         d.CargoId,
                         d.Cargo!.Nombre,
-                        d.Dedicacion,
-                        d.Horas))
+                        d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
+                        d.Horas,
+                        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas))
                     .ToArray()))
             .ToArray();
         var cargos = (await repositorio.ListarCargosActivosAsync(ct))
@@ -62,9 +61,10 @@ public sealed class ServicioCatalogosDesignaciones(
                 m.Id, m.Codigo, m.Nombre, m.CarreraId)).ToArray(),
             personas,
             cargos,
-            Dedicaciones,
+            (await repositorio.ListarDedicacionesActivasAsync(ct))
+                .Select(d => new DedicacionDesignacionesDto(d.Id, d.Codigo, d.Nombre, d.Orden)).ToArray(),
             TiposBaja,
-            Novedades.Todas.Order().ToArray());
+            Novedades.Admitidas.Order().ToArray());
     }
 
     private static PeriodoDto Mapear(Periodo p) => new(

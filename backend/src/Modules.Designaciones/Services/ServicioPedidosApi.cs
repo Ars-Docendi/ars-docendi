@@ -187,7 +187,7 @@ internal sealed class ServicioPedidosApi(
                     pedido.CargoSolicitado.Id,
                     pedido.CargoSolicitado.Codigo,
                     pedido.CargoSolicitado.Nombre),
-                pedido.DedicacionSolicitada,
+                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada,
                 pedido.Horas,
                 pedido.HorasInvestigacion,
                 pedido.HorasExternas,
@@ -200,7 +200,7 @@ internal sealed class ServicioPedidosApi(
                 pedido.Version,
                 pedido.Adjuntos.Select(a => new AdjuntoPedidoDto(
                     a.Id, a.Tipo, a.Nombre, a.Uri)).ToArray(),
-                pedido.Historial.OrderBy(h => h.CreadoEn).Select(h => new HistorialPedidoDto(
+                pedido.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id).Select(h => new HistorialPedidoDto(
                     h.Id,
                     h.Accion,
                     h.RolId,
@@ -212,7 +212,8 @@ internal sealed class ServicioPedidosApi(
                     h.Etapa,
                     h.Comentario,
                     h.CreadoEn)).ToArray(),
-                AccionesPermitidas(pedido, carrera, actor)));
+                AccionesPermitidas(pedido, carrera, actor),
+                pedido.DedicacionSolicitadaId));
         }
         return resultado;
     }

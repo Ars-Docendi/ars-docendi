@@ -4,6 +4,8 @@ using ArsDocendi.Shared.Identity;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
 using Npgsql;
+using Microsoft.EntityFrameworkCore;
+using Modules.Designaciones.Domain;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
@@ -32,9 +34,13 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             Guid.Parse("a0000000-0000-4000-8000-000000000004"), identityDb, designacionesDb)
             .ObtenerAsync(ct);
 
-        Assert.Single(jefe.Materias);
-        Assert.All(jefe.Materias, m => Assert.Equal(
-            Guid.Parse("70000000-0000-4000-8000-000000000101"), m.Id));
+        Assert.Equal(3, jefe.Materias.Count);
+        Assert.All(jefe.Materias, m => Assert.True(new[]
+        {
+            Guid.Parse("70000000-0000-4000-8000-000000000101"),
+            Guid.Parse("70000000-0000-4000-8000-000000000102"),
+            Guid.Parse("70000000-0000-4000-8000-000000000103"),
+        }.Contains(m.Id)));
         Assert.Equal(4, coordinador.Materias.Count);
         Assert.All(coordinador.Materias, m => Assert.Equal(
             Guid.Parse("c0000000-0000-4000-8000-000000000201"), m.CarreraId));
@@ -57,8 +63,17 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
         Assert.Equal(6, catalogos.Cargos.Count);
         Assert.DoesNotContain(catalogos.Personas, p => p.Id == PersonaConPedidoVivo);
         Assert.Contains(catalogos.Personas, p => p.Id == PersonaConPedidoRechazado);
-        Assert.Contains("Categoría 6", catalogos.Dedicaciones);
+        Assert.Equal(6, catalogos.Dedicaciones.Count);
+        Assert.Contains(catalogos.Dedicaciones, d => d.Nombre == "Categoría 6");
         Assert.Contains("Cambio de cargo o dedicación", catalogos.Novedades);
+        Assert.DoesNotContain(Novedades.SinNovedad, catalogos.Novedades);
+        Assert.Equal([1, 2, 3, 4, 5, 6], catalogos.Dedicaciones.Select(d => (int)d.Codigo));
+        var dedicacion = await designacionesDb.Dedicaciones.SingleAsync(d => d.Codigo == 6, ct);
+        dedicacion.Activo = false;
+        await designacionesDb.SaveChangesAsync(ct);
+        var actualizado = await CrearServicio(
+            Guid.Parse("a0000000-0000-4000-8000-000000000004"), identityDb, designacionesDb).ObtenerAsync(ct);
+        Assert.DoesNotContain(actualizado.Dedicaciones, d => d.Id == dedicacion.Id);
     }
 
     private static ServicioCatalogosDesignaciones CrearServicio(

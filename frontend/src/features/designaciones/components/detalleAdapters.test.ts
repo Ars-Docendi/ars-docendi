@@ -61,8 +61,44 @@ describe("historialAAuditEntries", () => {
     const [entrada] = historialAAuditEntries(historial);
     expect(entrada.verb).toBe("approve");
     expect(entrada.initials).toBe("MD");
-    expect(entrada.when).toBe("06/03/2026");
+    expect(entrada.when).toBe("06/03/2026 07:00");
     expect(entrada.actor).toBe("M. Díaz");
+  });
+
+  it("ordena por instante, desempata por ID y muestra la hora argentina", () => {
+    const entradas = historialAAuditEntries([
+      {
+        id: "e2",
+        accion: "editar",
+        porRol: "Jefe de Cátedra",
+        porNombre: "A. Pérez",
+        etapa: "borrador",
+        fecha: "2026-03-06T12:00:00.000Z",
+      },
+      {
+        id: "e1",
+        accion: "crear",
+        porRol: "Jefe de Cátedra",
+        porNombre: "A. Pérez",
+        etapa: "borrador",
+        fecha: "2026-03-06T12:00:00.000Z",
+      },
+      {
+        id: "e0",
+        accion: "enviar",
+        porRol: "Jefe de Cátedra",
+        porNombre: "A. Pérez",
+        etapa: "en_revision_coordinador",
+        fecha: "2026-03-06T10:00:00.000Z",
+      },
+    ]);
+
+    expect(entradas.map((entrada) => entrada.id)).toEqual(["e0", "e1", "e2"]);
+    expect(entradas.map((entrada) => entrada.when)).toEqual([
+      "06/03/2026 07:00",
+      "06/03/2026 09:00",
+      "06/03/2026 09:00",
+    ]);
   });
 });
 

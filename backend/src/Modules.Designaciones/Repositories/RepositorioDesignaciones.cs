@@ -12,12 +12,14 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
         Guid personaId, CancellationToken ct) =>
         await db.Designaciones
                 .Include(d => d.Cargo)
+                .Include(d => d.DedicacionCatalogo)
                 .Where(d => d.PersonaId == personaId && d.VigenteHasta == null)
                 .ToListAsync(ct);
 
     public Task<Designacion?> ObtenerVigenteAsync(Guid personaId, Guid materiaId, CancellationToken ct) =>
         db.Designaciones
           .Include(d => d.Cargo)
+                .Include(d => d.DedicacionCatalogo)
           .FirstOrDefaultAsync(
               d => d.PersonaId == personaId && d.MateriaId == materiaId && d.VigenteHasta == null, ct);
 
@@ -25,6 +27,7 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
         Guid materiaId, CancellationToken ct) =>
         await db.Designaciones
                 .Include(d => d.Cargo)
+                .Include(d => d.DedicacionCatalogo)
                 .Where(d => d.MateriaId == materiaId && d.VigenteHasta == null)
                 .ToListAsync(ct);
 
@@ -32,6 +35,7 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
         await db.Designaciones
             .AsNoTracking()
             .Include(d => d.Cargo)
+                .Include(d => d.DedicacionCatalogo)
             .Where(d => d.VigenteHasta == null)
             .OrderBy(d => d.PersonaId)
             .ThenBy(d => d.MateriaId)
@@ -44,6 +48,9 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
         IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
         await db.Cargos.AsNoTracking().Where(c => ids.Contains(c.Id) && c.Activo).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Dedicacion>> ListarDedicacionesAsync(CancellationToken ct) =>
+        await db.Dedicaciones.AsNoTracking().OrderBy(d => d.Orden).ToListAsync(ct);
 
     public void Agregar(Designacion designacion) => db.Designaciones.Add(designacion);
 

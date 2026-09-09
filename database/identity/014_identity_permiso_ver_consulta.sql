@@ -1,3 +1,9 @@
+-- EL ID ES ...025 Y NO ...022. Misma historia que `asistente.consultar` en la
+-- migración 011: `database-schema` reservó ...022 para `docentes.ver` en la
+-- migración fundacional 007, y esta rama lo había tomado para
+-- `asistente.ver_consulta`. Cede el del asistente por el mismo criterio: el
+-- catálogo base de permisos vive en 007.
+--
 -- Permiso de ver la consulta que el asistente generó.
 --
 -- POR QUÉ NO SE REUSÓ `asistente.consultar`
@@ -18,7 +24,7 @@
 -- Idempotente: ON CONFLICT DO NOTHING.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000022', 'asistente.ver_consulta', 'Ver la consulta del asistente', 'Ver la consulta SQL que el asistente generó para responder. Es superficie de diagnóstico: el filtro de una consulta puede contener datos personales que la respuesta redactada no muestra.')
+    ('b2000000-0000-4000-8000-000000000025', 'asistente.ver_consulta', 'Ver la consulta del asistente', 'Ver la consulta SQL que el asistente generó para responder. Es superficie de diagnóstico: el filtro de una consulta puede contener datos personales que la respuesta redactada no muestra.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda de sys_admin, igual que en 011: `sys_admin` NO hereda permisos nuevos,

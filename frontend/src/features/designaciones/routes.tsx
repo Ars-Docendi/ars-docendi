@@ -1,5 +1,5 @@
 import type { RouteObject } from "react-router-dom";
-import { RequireRole } from "../../shared/auth/RequireRole";
+import { RequirePermission } from "../../shared/auth/RequirePermission";
 
 export const routes: RouteObject = {
   path: "designaciones",
@@ -10,7 +10,7 @@ export const routes: RouteObject = {
     },
     {
       // Gestión de períodos es exclusiva de Secretaría Académica.
-      element: <RequireRole allowedRoles={["Secretaría"]} />,
+      element: <RequirePermission permission="periodos.administrar" />,
       children: [
         {
           path: "periodos",
@@ -22,8 +22,7 @@ export const routes: RouteObject = {
       ],
     },
     {
-      // SCRUM-7: la carga de pedidos es del Jefe de Cátedra.
-      element: <RequireRole allowedRoles={["Jefe de Cátedra"]} />,
+      element: <RequirePermission permission="designaciones.gestionar" />,
       children: [
         {
           path: "mis-pedidos",
@@ -49,10 +48,7 @@ export const routes: RouteObject = {
         })),
     },
     {
-      // SCRUM-8: el tablero de revisión es de los revisores (Coord/Secretaría/Decanato/Administración).
-      element: (
-        <RequireRole allowedRoles={["Coordinador", "Secretaría", "Decanato", "Administración"]} />
-      ),
+      element: <RequirePermission permission="designaciones.revisar" />,
       children: [
         {
           path: "revision",

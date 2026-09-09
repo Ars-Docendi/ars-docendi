@@ -1,4 +1,4 @@
-import { DatePicker, Field, Input, InlineAlert } from "@ars-docendi/ui";
+import { Field, Input, InlineAlert } from "@ars-docendi/ui";
 import type { CSSProperties } from "react";
 
 export interface CamposPersonaDocenteDatos {
@@ -78,7 +78,8 @@ export function CamposPersonaDocente({
           />
         </Field>
         <Field label="Fecha de nacimiento" required error={campo("fecha_nacimiento")}>
-          <DatePicker
+          <Input
+            type="date"
             value={campos.fecha_nacimiento}
             onChange={(e) => onChange("fecha_nacimiento", e.target.value)}
           />

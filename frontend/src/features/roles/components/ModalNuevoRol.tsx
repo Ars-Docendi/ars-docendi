@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import { ETIQUETAS_SCOPE, SCOPES_ROL, type DatosRolNuevo, type RolMock } from "../models";
+import {
+  ETIQUETAS_SCOPE,
+  normalizarTexto,
+  SCOPES_ROL,
+  type DatosRolNuevo,
+  type RolMock,
+} from "../models";
 
 interface ModalNuevoRolProps {
   open: boolean;
@@ -38,9 +44,8 @@ export function ModalNuevoRol({
 
   function handleConfirmar() {
     setEnviado(true);
-    if (!campos.nombre.trim() || !campos.descripcion.trim()) return;
-    if (nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase()))
-      return;
+    if (!campos.nombre.trim()) return;
+    if (nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre))) return;
     onCrear(
       {
         nombre: campos.nombre.trim(),
@@ -58,7 +63,7 @@ export function ModalNuevoRol({
   const nombreDuplicado =
     enviado &&
     !!campos.nombre.trim() &&
-    nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase());
+    nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre));
 
   return (
     <Modal
@@ -104,11 +109,7 @@ export function ModalNuevoRol({
           <InlineAlert severity="danger" title="Ya existe un rol con ese nombre." />
         )}
 
-        <Field
-          label="Descripción"
-          required
-          error={enviado && !campos.descripcion.trim() ? "Campo obligatorio" : undefined}
-        >
+        <Field label="Descripción">
           <Input
             value={campos.descripcion}
             onChange={(e) => setCampos((p) => ({ ...p, descripcion: e.target.value }))}

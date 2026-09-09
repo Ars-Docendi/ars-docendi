@@ -1,5 +1,6 @@
 using ArsDocendi.Shared.Aplicacion;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace ArsDocendi.Shared.Identity.Administracion;
 
@@ -24,7 +25,7 @@ public sealed class ServicioUsuarios(
         var upn = NormalizarUpn(datos.Upn);
         var documento = datos.Documento.Trim();
         await ValidarUnicidadAsync(upn, documento, null, null, ct);
-        var asignaciones = await ConstruirAsignacionesAsync(datos.Roles, ct);
+        var asignaciones = await ConstruirAsignacionesAsync(datos.Membresias, ct);
         var ahora = DateTimeOffset.UtcNow;
         var persona = new Persona
         {
@@ -61,7 +62,7 @@ public sealed class ServicioUsuarios(
         repositorio.Agregar(persona, usuario);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
-        return Mapear(usuario);
+        return await ObtenerAsync(usuario.Id, ct);
     }
 
     public async Task<UsuarioAdministracionDto> EditarAsync(
@@ -70,7 +71,6 @@ public sealed class ServicioUsuarios(
         CancellationToken ct)
     {
         ValidarDatos(datos);
-        var usuario = await ObtenerRequeridoAsync(id, ct);
         if (datos.Version is null)
         {
             throw new ExcepcionAplicacion(
@@ -79,37 +79,53 @@ public sealed class ServicioUsuarios(
                 "Falta la versión del usuario.",
                 new Dictionary<string, string[]> { ["version"] = ["Campo obligatorio."] });
         }
-        repositorio.EsperarVersion(usuario, datos.Version.Value);
-        var persona = usuario.Persona!;
-        var upn = NormalizarUpn(datos.Upn);
-        var documento = datos.Documento.Trim();
-        await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
-        var nuevas = await ConstruirAsignacionesAsync(datos.Roles, ct);
 
-        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
-        persona.Documento = documento;
-        persona.Cuil = NormalizarOpcional(datos.Cuil);
-        persona.Legajo = NormalizarOpcional(datos.Legajo);
-        persona.Nombre = datos.Nombre.Trim();
-        persona.Apellido = datos.Apellido.Trim();
-        persona.FechaNacimiento = datos.FechaNacimiento;
-        persona.Telefono = NormalizarOpcional(datos.Telefono);
-        usuario.Upn = upn;
-        usuario.NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}";
+        // ponytail: tres intentos sólo para bloqueos transitorios; un conflicto de
+        // versión sigue rechazándose para no pisar cambios ajenos.
+        for (var intento = 0; intento < 3; intento++)
+        {
+            try
+            {
+                db.ChangeTracker.Clear();
+                var usuario = await ObtenerRequeridoAsync(id, ct);
+                repositorio.EsperarVersion(usuario, datos.Version.Value);
+                var persona = usuario.Persona!;
+                var upn = NormalizarUpn(datos.Upn);
+                var documento = datos.Documento.Trim();
+                await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
+                var nuevas = await ConstruirAsignacionesAsync(datos.Membresias, ct);
 
-        foreach (var actual in usuario.Roles)
-        {
-            actual.EliminadoEn = DateTimeOffset.UtcNow;
+                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+                persona.Documento = documento;
+                persona.Cuil = NormalizarOpcional(datos.Cuil);
+                persona.Legajo = NormalizarOpcional(datos.Legajo);
+                persona.Nombre = datos.Nombre.Trim();
+                persona.Apellido = datos.Apellido.Trim();
+                persona.FechaNacimiento = datos.FechaNacimiento;
+                persona.Telefono = NormalizarOpcional(datos.Telefono);
+                usuario.Upn = upn;
+                usuario.NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}";
+                db.Entry(usuario).Property(u => u.NombreParaMostrar).IsModified = true;
+                ReemplazarAsignaciones(usuario, nuevas);
+                await repositorio.GuardarAsync(ct);
+                await transaccion.CommitAsync(ct);
+                return Mapear(usuario);
+            }
+            catch (Exception error) when (EsBloqueoTransitorio(error))
+            {
+                if (intento == 2)
+                {
+                    throw new ExcepcionAplicacion(
+                        TipoErrorAplicacion.Conflicto,
+                        "concurrency-conflict",
+                        "El recurso está siendo modificado. Actualizá los datos y volvé a intentar.");
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * (intento + 1)), ct);
+            }
         }
-        await repositorio.GuardarAsync(ct);
-        foreach (var asignacion in nuevas)
-        {
-            asignacion.UsuarioId = usuario.Id;
-            usuario.Roles.Add(asignacion);
-        }
-        await repositorio.GuardarAsync(ct);
-        await transaccion.CommitAsync(ct);
-        return Mapear(usuario);
+
+        throw new InvalidOperationException("No se pudo editar el usuario.");
     }
 
     public async Task<UsuarioAdministracionDto> CambiarEstadoAsync(
@@ -220,6 +236,43 @@ public sealed class ServicioUsuarios(
         "identity-role-scope-conflict",
         mensaje);
 
+    private void ReemplazarAsignaciones(Usuario usuario, IReadOnlyCollection<UsuarioRol> nuevas)
+    {
+        var pendientes = nuevas.ToDictionary(Clave);
+        var ahora = DateTimeOffset.UtcNow;
+        foreach (var actual in usuario.Roles.Where(r => r.EliminadoEn is null))
+        {
+            if (pendientes.Remove(Clave(actual))) continue;
+            actual.EliminadoEn = ahora;
+        }
+
+        foreach (var asignacion in pendientes.Values)
+        {
+            asignacion.UsuarioId = usuario.Id;
+            usuario.Roles.Add(asignacion);
+            db.UsuarioRoles.Add(asignacion);
+        }
+    }
+
+    private static (Guid RolId, Guid? MateriaId, Guid? CarreraId) Clave(UsuarioRol asignacion) =>
+        (asignacion.RolId, asignacion.MateriaId, asignacion.CarreraId);
+
+    private static bool EsBloqueoTransitorio(Exception error)
+    {
+        for (var actual = error; actual is not null; actual = actual.InnerException)
+        {
+            if (actual is PostgresException postgres
+                && postgres.SqlState is PostgresErrorCodes.DeadlockDetected
+                    or PostgresErrorCodes.SerializationFailure
+                    or PostgresErrorCodes.LockNotAvailable)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static void ValidarDatos(GuardarUsuarioDto datos)
     {
         var errores = new Dictionary<string, string[]>();
@@ -229,7 +282,7 @@ public sealed class ServicioUsuarios(
         Requerido(datos.Legajo, "legajo", errores);
         Requerido(datos.Upn, "upn", errores);
         if (datos.FechaNacimiento is null) errores["fechaNacimiento"] = ["Campo obligatorio."];
-        if (datos.Roles.Count == 0) errores["roles"] = ["Seleccioná al menos un rol."];
+        if (datos.Membresias.Count == 0) errores["membresias"] = ["Seleccioná al menos una membresía."];
         if (errores.Count > 0)
         {
             throw new ExcepcionAplicacion(
@@ -256,7 +309,7 @@ public sealed class ServicioUsuarios(
     {
         var persona = usuario.Persona
             ?? throw new InvalidOperationException("El usuario administrativo no tiene persona vinculada.");
-        var roles = usuario.Roles.Where(r => r.EliminadoEn is null).Select(r => new AsignacionRolDto(
+        var membresias = usuario.Roles.Where(r => r.EliminadoEn is null).Select(r => new AsignacionRolDto(
             r.Id,
             r.RolId,
             r.Rol?.Codigo ?? string.Empty,
@@ -264,9 +317,22 @@ public sealed class ServicioUsuarios(
             r.Rol?.Ambito ?? string.Empty,
             r.MateriaId,
             r.CarreraId)).ToArray();
+        var roles = membresias
+            .GroupBy(r => r.RolId)
+            .Select(g => new RolResumenDto(g.Key, g.First().Codigo, g.First().Nombre))
+            .OrderBy(r => r.Nombre)
+            .ToArray();
+        var materiasDocentes = membresias
+            .Where(r => r.Codigo is "docente" or "jefe_catedra")
+            .Select(r => r.MateriaId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .Count();
         return new UsuarioAdministracionDto(
             usuario.Id, persona.Id, persona.Nombre, persona.Apellido,
             persona.Documento, persona.Legajo, persona.Cuil, persona.FechaNacimiento,
-            persona.Telefono, usuario.Upn, usuario.Activo, usuario.Version, roles);
+            persona.Telefono, usuario.Upn, usuario.Activo, usuario.Version, roles, membresias,
+            new PerfilDocenteDto(materiasDocentes > 0, materiasDocentes));
     }
 }

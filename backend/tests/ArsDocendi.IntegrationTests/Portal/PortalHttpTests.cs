@@ -121,9 +121,9 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
             .SelectMany(ruta => ruta.Value!.AsObject().Select(metodo => (ruta.Key, metodo.Key)))
             .ToArray();
         // El número cuenta TODA la superficie del Host, no sólo la de Portal: se mueve
-        // cada vez que cualquier módulo suma o saca un endpoint. Hoy son 67 porque el
-        // módulo Asistente aporta ping, capacidades y consultas.
-        Assert.Equal(67, operaciones.Length);
+        // cada vez que cualquier módulo suma o saca un endpoint. Los tres del módulo
+        // Asistente —ping, capacidades y consultas— están adentro de esta cuenta.
+        Assert.Equal(69, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

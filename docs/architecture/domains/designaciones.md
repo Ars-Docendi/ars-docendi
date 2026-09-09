@@ -18,14 +18,15 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 
 ## Entidades principales
 
-| Entidad           | Descripción                                                                    | Schema/Tabla                     |
-| ----------------- | ------------------------------------------------------------------------------ | -------------------------------- |
-| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional | `designaciones.cargos`           |
-| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez             | `designaciones.periodos`         |
-| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra | `designaciones.pedidos`          |
-| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                           | `designaciones.pedido_adjuntos`  |
-| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario    | `designaciones.pedido_historial` |
-| `Designacion`     | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia          | `designaciones.designaciones`    |
+| Entidad           | Descripción                                                                                 | Schema/Tabla                     |
+| ----------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
+| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional              | `designaciones.cargos`           |
+| `Dedicacion`      | Catálogo seleccionable de Categorías 1–6; valores históricos fuera de catálogo sólo se leen | `designaciones.dedicaciones`     |
+| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                          | `designaciones.periodos`         |
+| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra              | `designaciones.pedidos`          |
+| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                        | `designaciones.pedido_adjuntos`  |
+| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario                 | `designaciones.pedido_historial` |
+| `Designacion`     | **El estado vigente** `(persona, materia, cargo, dedicación y tres horas)` con vigencia     | `designaciones.designaciones`    |
 
 ### Pedido vs Designación
 
@@ -48,7 +49,7 @@ Aprobar un pedido se traduce a escrituras sobre `designaciones` en una única tr
 Alta        → INSERT de una designación nueva
 Baja        → UPDATE de vigente_hasta sobre la vigente
 Cambio      → cierra la vigente y abre una nueva con lo solicitado
-Sin novedad → no toca nada
+Continuidad → se conserva la designación vigente y no crea pedido
 ```
 
 `origen_pedido_id` en NULL significa **carga administrativa directa**: la pantalla de administración de docentes escribe esta misma tabla. Son dos caminos de escritura hacia una sola tabla, y esa columna es lo único que permite distinguirlos.
@@ -74,12 +75,13 @@ Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde
 
 ## Endpoints HTTP
 
-| Recurso            | Path                                       | Autoridad                                           |
-| ------------------ | ------------------------------------------ | --------------------------------------------------- |
-| Períodos           | `/api/designaciones/periodos`              | permiso `periodos.administrar`                      |
-| Catálogos acotados | `/api/designaciones/catalogos`             | identidad y ámbitos persistidos                     |
-| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`        | permisos y visibilidad resueltos por backend        |
-| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}` | máquina de estados, permiso de etapa e idempotencia |
+| Recurso            | Path                                         | Autoridad                                                           |
+| ------------------ | -------------------------------------------- | ------------------------------------------------------------------- |
+| Períodos           | `/api/designaciones/periodos`                | permiso `periodos.administrar`                                      |
+| Catálogos acotados | `/api/designaciones/catalogos`               | identidad y ámbitos persistidos                                     |
+| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`          | permisos y visibilidad resueltos por backend                        |
+| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`   | máquina de estados, permiso de etapa e idempotencia                 |
+| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx` | Secretaría, Decanato o Administración departamental; período activo |
 
 El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 
@@ -92,6 +94,7 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 ## Dependencias
 
 - **Hacia `identity`** (vía `IConsultasIdentity`, sólo lectura): resolver la persona, validar el rol de Jefe de Cátedra sobre la materia del pedido, derivar la carrera. El módulo **no escribe** identity.
+- **Exportación**: el lote lee pedidos del período y designaciones vigentes dentro de una lectura `RepeatableRead`; completa nombres y autores a través de `IConsultasIdentity` y no agrega una dependencia entre módulos.
 - **Hacia adentro**: `Modules.Portal.Contracts` (consultar áreas de experticia — proyectado, no confirmado).
 - **Hacia afuera**: ninguna por ahora.
 - **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).

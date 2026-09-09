@@ -279,18 +279,18 @@ internal sealed class ServicioPedidos(
 
         return new SnapshotPedido(
             Cargo: vigente?.Cargo?.Nombre,
-            Dedicacion: vigente?.Dedicacion,
+            Dedicacion: vigente?.DedicacionCatalogo?.Nombre ?? vigente?.Dedicacion,
             Horas: vigente?.Horas,
             Materia: materia.Nombre,
-            HorasInvestigacion: pedido.HorasInvestigacion,
-            HorasExternas: pedido.HorasExternas);
+            HorasInvestigacion: vigente?.HorasInvestigacion,
+            HorasExternas: vigente?.HorasExternas);
     }
 
     private async Task ValidarDatosAsync(
         DatosPedido datos, ActorContexto actor, CancellationToken ct)
     {
-        if (!Novedades.Todas.Contains(datos.Novedad))
-            throw new ErrorDominioPedido($"Novedad no reconocida: \"{datos.Novedad}\".");
+        if (!Novedades.Admitidas.Contains(datos.Novedad))
+            throw new ErrorDominioPedido($"La novedad no está admitida para nuevos pedidos: \"{datos.Novedad}\".");
         var periodo = await pedidos.ObtenerPeriodoActivoAsync(ct);
         if (periodo is null || periodo.Id != datos.PeriodoId)
             throw new ErrorDominioPedido("El pedido debe pertenecer al período activo.");
@@ -315,8 +315,9 @@ internal sealed class ServicioPedidos(
             throw new ErrorDominioPedido("El tipo de baja no es válido.");
         if (datos.TipoBaja == TiposBaja.Otro && string.IsNullOrWhiteSpace(datos.TipoBajaDetalle))
             throw new ErrorDominioPedido("El tipo de baja Otro exige un detalle.");
-        if (datos.DedicacionSolicitada is not null
-            && !Dedicaciones.EnOrdenDescendente.Contains(datos.DedicacionSolicitada))
+        if ((datos.Novedad is Novedades.Alta or Novedades.CambioDeCargoODedicacion && datos.DedicacionSolicitadaId is null)
+            || (datos.DedicacionSolicitadaId is { } dedicacionId
+                && !await pedidos.ExisteDedicacionActivaAsync(dedicacionId, ct)))
             throw new ErrorDominioPedido("La dedicación solicitada no es válida.");
         if (datos.Adjuntos.Any(a => !EsTipoAdjuntoValido(a.Tipo) || string.IsNullOrWhiteSpace(a.Nombre)))
             throw new ErrorDominioPedido("Uno de los adjuntos tiene tipo o nombre inválido.");
@@ -345,7 +346,8 @@ internal sealed class ServicioPedidos(
     private static void AplicarDatos(Pedido pedido, DatosPedido datos)
     {
         pedido.CargoSolicitadoId = datos.CargoSolicitadoId;
-        pedido.DedicacionSolicitada = Normalizar(datos.DedicacionSolicitada);
+        pedido.DedicacionSolicitadaId = datos.DedicacionSolicitadaId;
+        pedido.DedicacionSolicitada = null;
         pedido.Horas = datos.Horas;
         pedido.HorasInvestigacion = datos.HorasInvestigacion;
         pedido.HorasExternas = datos.HorasExternas;

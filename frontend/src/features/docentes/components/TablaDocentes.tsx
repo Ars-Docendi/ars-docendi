@@ -26,7 +26,9 @@ export function TablaDocentes({
               <Table.HeaderCell>Documento</Table.HeaderCell>
               <Table.HeaderCell>Legajo</Table.HeaderCell>
               <Table.HeaderCell>Rol</Table.HeaderCell>
+              <Table.HeaderCell>Ámbitos</Table.HeaderCell>
               <Table.HeaderCell>Asignaciones</Table.HeaderCell>
+              <Table.HeaderCell>Cuenta</Table.HeaderCell>
               <Table.HeaderCell style={{ whiteSpace: "nowrap", width: "1%" }}>
                 Estado
               </Table.HeaderCell>
@@ -60,6 +62,7 @@ export function TablaDocentes({
                     ))}
                   </div>
                 </Table.Cell>
+                <Table.Cell>{resumenAmbitos(docente.membresias)}</Table.Cell>
                 <Table.Cell>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                     {docente.asignaciones.map((a) => (
@@ -72,6 +75,17 @@ export function TablaDocentes({
                       </span>
                     ))}
                   </div>
+                </Table.Cell>
+                <Table.Cell>
+                  {docente.tieneCuenta ? (
+                    <a
+                      href={`/usuarios?personaId=${encodeURIComponent(docente.persona_id ?? docente.id)}`}
+                    >
+                      Ver usuario
+                    </a>
+                  ) : (
+                    "Sin cuenta"
+                  )}
                 </Table.Cell>
                 <Table.Cell style={{ whiteSpace: "nowrap", width: "1%" }}>
                   <StatusBadge
@@ -104,5 +118,20 @@ export function TablaDocentes({
         </Table.Root>
       </Table>
     </div>
+  );
+}
+
+function resumenAmbitos(membresias: DocenteMock["membresias"]): string {
+  const materias = membresias.filter((membresia) => membresia.ambito === "materia").length;
+  const carreras = membresias.filter((membresia) => membresia.ambito === "carrera").length;
+  const globales = membresias.filter((membresia) => membresia.ambito === "global").length;
+  return (
+    [
+      materias && `${materias} materia${materias === 1 ? "" : "s"}`,
+      carreras && `${carreras} carrera${carreras === 1 ? "" : "s"}`,
+      globales && `${globales} global${globales === 1 ? "" : "es"}`,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "Sin ámbito"
   );
 }

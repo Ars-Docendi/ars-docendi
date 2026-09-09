@@ -11,6 +11,7 @@ public interface IRepositorioRoles
     Task<IReadOnlyList<Permiso>> ListarPermisosAsync(CancellationToken ct);
     Task<IReadOnlyList<Permiso>> ObtenerPermisosAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<bool> ExisteCodigoAsync(string codigo, Guid? exceptoId, CancellationToken ct);
+    Task<bool> ExisteNombreAsync(string nombre, Guid? exceptoId, CancellationToken ct);
     void Agregar(Rol rol);
     void ReemplazarPermisos(Rol rol, IReadOnlyCollection<Guid> permisoIds);
     void EsperarVersion(Rol rol, uint version);
@@ -35,6 +36,11 @@ internal sealed class RepositorioRoles(IdentityDbContext db) : IRepositorioRoles
         IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
         await db.Permisos.AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync(ct);
+
+    public Task<bool> ExisteNombreAsync(string nombre, Guid? exceptoId, CancellationToken ct) =>
+        db.Roles.AsNoTracking().AnyAsync(r => r.Activo
+            && r.Nombre.ToLower() == nombre.Trim().ToLower()
+            && r.Id != exceptoId, ct);
 
     public Task<bool> ExisteCodigoAsync(string codigo, Guid? exceptoId, CancellationToken ct) =>
         db.Roles.AsNoTracking().AnyAsync(r => r.Codigo == codigo && r.Id != exceptoId, ct);
@@ -85,6 +91,7 @@ internal sealed class RepositorioRoles(IdentityDbContext db) : IRepositorioRoles
 
     private IQueryable<Rol> ConsultaCompleta(bool tracking) =>
         (tracking ? db.Roles : db.Roles.AsNoTracking())
+            .Where(r => r.Activo)
             .Include(r => r.Permisos)
             .ThenInclude(rp => rp.Permiso)
             .AsSplitQuery();

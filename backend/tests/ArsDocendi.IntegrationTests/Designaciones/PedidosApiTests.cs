@@ -21,6 +21,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
     [Fact]
@@ -66,6 +67,38 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Historial_ordenado_por_instante_y_desempate_estable()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            UPDATE designaciones.pedido_historial
+               SET created_at = CASE id
+                   WHEN 'd7000000-0000-4000-8000-000000000004' THEN TIMESTAMPTZ '2026-06-14 12:00:00+00'
+                   WHEN 'd7000000-0000-4000-8000-000000000005' THEN TIMESTAMPTZ '2026-06-14 12:00:00+00'
+                   ELSE created_at
+               END
+             WHERE pedido_id = 'd5000000-0000-4000-8000-000000000003'
+            """, conexion);
+        await comando.ExecuteNonQueryAsync(ct);
+
+        var pedido = await CrearServicio(Secretaria, identityDb, db).ObtenerAsync(
+            Guid.Parse("d5000000-0000-4000-8000-000000000003"), ct);
+
+        Assert.Equal(["crear", "enviar", "aceptar", "priorizar"], pedido.Historial.Select(h => h.Accion));
+        Assert.Equal(
+            [
+                Guid.Parse("d7000000-0000-4000-8000-000000000014"),
+                Guid.Parse("d7000000-0000-4000-8000-000000000003"),
+                Guid.Parse("d7000000-0000-4000-8000-000000000004"),
+                Guid.Parse("d7000000-0000-4000-8000-000000000005"),
+            ], pedido.Historial.Select(h => h.Id));
+    }
+
+    [Fact]
     public async Task Actor_sin_jefatura_no_puede_crear_y_un_error_no_deja_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -95,11 +128,15 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var personaSinLegajo = Guid.Parse("d0000000-0000-4000-8000-000000000012");
 
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
-            Datos(personaConLegajo) with { Novedad = Novedades.Alta }, ct));
+            Datos(personaConLegajo) with { Novedad = Novedades.Alta, Adjuntos = [] }, ct));
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
             Datos(personaConLegajo) with { Novedad = Novedades.Baja }, ct));
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
-            Datos(personaConLegajo) with { Novedad = Novedades.CambioDeCargoODedicacion }, ct));
+            Datos(personaConLegajo) with
+            {
+                Novedad = Novedades.CambioDeCargoODedicacion,
+                Justificacion = null,
+            }, ct));
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
             Datos(personaSinLegajo) with
             {
@@ -110,6 +147,48 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         Assert.False(await db.Pedidos.AnyAsync(p =>
             p.PersonaId == personaConLegajo && p.Numero.StartsWith(DateTime.UtcNow.Year.ToString()), ct));
+    }
+
+    [Fact]
+    public async Task Sin_novedad_no_se_crea_ni_se_edita_y_un_legado_se_lee_sin_poder_aceptarse()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand("UPDATE designaciones.pedidos SET novedad = 'Sin novedad' WHERE id = 'd5000000-0000-4000-8000-000000000002'", conexion))
+        {
+            await comando.ExecuteNonQueryAsync(ct);
+        }
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var persona = Guid.Parse("d0000000-0000-4000-8000-000000000003");
+        var servicioJefe = CrearServicio(Jefe, identityDb, db);
+
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicioJefe.CrearAsync(
+            Datos(persona) with { Novedad = Novedades.SinNovedad }, ct));
+        Assert.False(await db.Pedidos.AnyAsync(p => p.PersonaId == persona, ct));
+
+        var creado = await servicioJefe.CrearAsync(Datos(persona), ct);
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicioJefe.EditarAsync(
+            creado.Id,
+            Datos(persona) with { Novedad = Novedades.SinNovedad, Version = creado.Version },
+            ct));
+
+        var servicioCoordinador = CrearServicio(Coordinador, identityDb, db);
+        var legado = await servicioCoordinador.ObtenerAsync(
+            Guid.Parse("d5000000-0000-4000-8000-000000000002"), ct);
+        Assert.Equal(Novedades.SinNovedad, legado.Novedad);
+        var historial = await db.PedidoHistorial.CountAsync(h => h.PedidoId == legado.Id, ct);
+        var estado = await db.Pedidos.Where(p => p.Id == legado.Id)
+            .Select(p => new { p.Estado, p.Version }).SingleAsync(ct);
+
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicioCoordinador.AplicarAccionAsync(
+            legado.Id, new AccionPedido.Aceptar(), ct));
+
+        var posterior = await db.Pedidos.Where(p => p.Id == legado.Id)
+            .Select(p => new { p.Estado, p.Version }).SingleAsync(ct);
+        Assert.Equal(estado, posterior);
+        Assert.Equal(historial, await db.PedidoHistorial.CountAsync(h => h.PedidoId == legado.Id, ct));
     }
 
     [Fact]
@@ -140,7 +219,12 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var creado = await servicio.CrearAsync(Datos(
             Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
         {
-            Adjuntos = [new GuardarAdjuntoPedidoDto("cv", "original.pdf")],
+            Adjuntos =
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, "original.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "frente.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dorso.pdf"),
+            ],
         }, ct);
 
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.EditarAsync(creado.Id, Datos(creado.Persona.Id) with
@@ -153,7 +237,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         db.ChangeTracker.Clear();
         var posterior = await servicio.ObtenerAsync(creado.Id, ct);
         Assert.Equal(10, posterior.Horas);
-        Assert.Equal("original.pdf", Assert.Single(posterior.Adjuntos).Nombre);
+        Assert.Contains(posterior.Adjuntos, a => a.Nombre == "original.pdf");
         Assert.DoesNotContain(posterior.Historial, h => h.Accion == "editar");
     }
 
@@ -225,19 +309,20 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(
-        Periodo,
-        personaId,
-        Materia,
-        Novedades.SinNovedad,
-        null,
-        null,
+        Periodo, personaId, Materia, Novedades.Alta,
+        Guid.Parse("c3000000-0000-4000-8000-000000000001"),
+        Guid.Parse("d6000000-0000-4000-8000-000000000001"),
         10,
         0,
         0,
+        "Solicitud de alta",
         null,
         null,
-        null,
-        []);
+        [
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, "cv.pdf"),
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
+        ]);
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

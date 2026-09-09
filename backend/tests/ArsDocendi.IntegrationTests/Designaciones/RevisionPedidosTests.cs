@@ -36,7 +36,12 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         var global = await CrearServicio(Secretaria, identityDb, db).ListarAsync(Periodo, ct);
 
         Assert.NotEmpty(jefe);
-        Assert.All(jefe, p => Assert.Equal(Materia, p.Materia.Id));
+        Assert.All(jefe, p => Assert.True(new[]
+        {
+            Materia,
+            Guid.Parse("70000000-0000-4000-8000-000000000102"),
+            Guid.Parse("70000000-0000-4000-8000-000000000103"),
+        }.Contains(p.Materia.Id)));
         Assert.NotEmpty(coordinador);
         Assert.All(coordinador, p => Assert.Equal(
             Guid.Parse("c0000000-0000-4000-8000-000000000201"), p.Materia.CarreraId));
@@ -75,7 +80,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var pedido = await CrearServicio(Jefe, identityDb, db).CrearAsync(
-            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")), ct);
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000004")), ct);
         pedido = await CrearServicio(Jefe, identityDb, db)
             .AplicarAccionAsync(pedido.Id, new AccionPedido.Enviar(), ct);
 
@@ -111,7 +116,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         {
             Novedad = Novedades.Alta,
             CargoSolicitadoId = cargo,
-            DedicacionSolicitada = "Categoría 2",
+            DedicacionSolicitadaId = Guid.Parse("d6000000-0000-4000-8000-000000000002"),
             Horas = 16,
             Adjuntos =
             [
@@ -145,6 +150,70 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
                 Guid.Parse("a1000000-0000-4000-8000-000000000005"), ct));
     }
 
+    [Fact]
+    public async Task Alta_y_cambio_conservan_separadas_las_tres_cargas_del_pedido_y_snapshot()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+
+        var altaId = Guid.Parse("d5000000-0000-4000-8000-000000000003");
+        var alta = await db.Pedidos.SingleAsync(p => p.Id == altaId, ct);
+        alta.HorasInvestigacion = 3;
+        alta.HorasExternas = 2;
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
+
+        await CrearServicio(Secretaria, identityDb, db).AplicarAccionAsync(
+            altaId, new AccionPedido.Aceptar(), ct);
+        await CrearServicio(Decanato, identityDb, db).AplicarAccionAsync(
+            altaId, new AccionPedido.Aceptar(), ct);
+
+        var altaMaterializada = await db.Designaciones.AsNoTracking().SingleAsync(d =>
+            d.PersonaId == Guid.Parse("d0000000-0000-4000-8000-000000000011")
+            && d.MateriaId == Materia && d.VigenteHasta == null, ct);
+        Assert.Equal(8, altaMaterializada.Horas);
+        Assert.Equal(3, altaMaterializada.HorasInvestigacion);
+        Assert.Equal(2, altaMaterializada.HorasExternas);
+
+        var vigente = await db.Designaciones.SingleAsync(d =>
+            d.PersonaId == Guid.Parse("d0000000-0000-4000-8000-000000000001")
+            && d.MateriaId == Materia && d.VigenteHasta == null, ct);
+        vigente.HorasInvestigacion = 11;
+        vigente.HorasExternas = 4;
+        var cambioId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
+        var cambio = await db.Pedidos.SingleAsync(p => p.Id == cambioId, ct);
+        cambio.HorasInvestigacion = 7;
+        cambio.HorasExternas = 5;
+        await db.SaveChangesAsync(ct);
+        db.ChangeTracker.Clear();
+
+        var enviado = await CrearServicio(Jefe, identityDb, db).AplicarAccionAsync(
+            cambioId, new AccionPedido.Enviar(), ct);
+        Assert.Equal(11, enviado.Snapshot!.HorasInvestigacion);
+        Assert.Equal(4, enviado.Snapshot.HorasExternas);
+        await CrearServicio(Coordinador, identityDb, db).AplicarAccionAsync(
+            cambioId, new AccionPedido.Aceptar(), ct);
+        await CrearServicio(Secretaria, identityDb, db).AplicarAccionAsync(
+            cambioId, new AccionPedido.Aceptar(), ct);
+        await CrearServicio(Decanato, identityDb, db).AplicarAccionAsync(
+            cambioId, new AccionPedido.Aceptar(), ct);
+
+        var designaciones = await db.Designaciones.AsNoTracking()
+            .Where(d => d.PersonaId == Guid.Parse("d0000000-0000-4000-8000-000000000001")
+                && d.MateriaId == Materia)
+            .OrderByDescending(d => d.VigenteHasta == null)
+            .ToArrayAsync(ct);
+        var anterior = Assert.Single(designaciones, d => d.VigenteHasta is not null);
+        var nueva = Assert.Single(designaciones, d => d.VigenteHasta is null);
+        Assert.Equal(11, anterior.HorasInvestigacion);
+        Assert.Equal(4, anterior.HorasExternas);
+        Assert.Equal(20, nueva.Horas);
+        Assert.Equal(7, nueva.HorasInvestigacion);
+        Assert.Equal(5, nueva.HorasExternas);
+    }
+
     [Theory]
     [InlineData("rechazar")]
     [InlineData("devolver")]
@@ -158,7 +227,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             PeriodoId = Periodo,
             PersonaId = Guid.NewGuid(),
             MateriaId = Materia,
-            Novedad = Novedades.SinNovedad,
+            Novedad = Novedades.Alta,
             Estado = accion == "priorizar" ? EstadosPedido.Borrador : EstadosPedido.EnRevisionCoordinador,
         };
         var actor = accion == "priorizar"
@@ -190,7 +259,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             PeriodoId = Periodo,
             PersonaId = Guid.NewGuid(),
             MateriaId = Materia,
-            Novedad = Novedades.SinNovedad,
+            Novedad = Novedades.Alta,
             Estado = estado,
         };
         Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
@@ -286,7 +355,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         PeriodoId = Periodo,
         PersonaId = Guid.NewGuid(),
         MateriaId = Materia,
-        Novedad = Novedades.SinNovedad,
+        Novedad = Novedades.Alta,
         Estado = estado,
     };
 
@@ -319,8 +388,15 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(
-        Periodo, personaId, Materia, Novedades.SinNovedad,
-        null, null, 10, 0, 0, null, null, null, []);
+        Periodo, personaId, Materia, Novedades.Alta,
+        Guid.Parse("c3000000-0000-4000-8000-000000000001"),
+        Guid.Parse("d6000000-0000-4000-8000-000000000001"),
+        10, 0, 0, "Solicitud de alta", null, null,
+        [
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, "cv.pdf"),
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
+            new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
+        ]);
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

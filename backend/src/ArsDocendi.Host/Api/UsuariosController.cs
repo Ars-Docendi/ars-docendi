@@ -1,3 +1,4 @@
+using ArsDocendi.Host.Administracion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +9,7 @@ namespace ArsDocendi.Host.Api;
 [ApiController]
 [Route("api/administracion/usuarios")]
 [Authorize]
-public sealed class UsuariosController(ServicioUsuarios servicio) : ControllerBase
+public sealed class UsuariosController(ServicioUsuariosAdministracion servicio) : ControllerBase
 {
     [HttpGet]
     [Authorize(Policy = Permisos.UsuariosVer)]

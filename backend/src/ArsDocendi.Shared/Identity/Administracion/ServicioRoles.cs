@@ -24,6 +24,10 @@ public sealed partial class ServicioRoles(
     public async Task<RolAdministracionDto> CrearAsync(CrearRolDto datos, CancellationToken ct)
     {
         Validar(datos.Nombre, datos.Ambito);
+        if (await repositorio.ExisteNombreAsync(datos.Nombre, null, ct))
+        {
+            throw ConflictoNombre();
+        }
         var codigo = GenerarCodigo(datos.Nombre);
         if (await repositorio.ExisteCodigoAsync(codigo, null, ct))
         {
@@ -72,9 +76,15 @@ public sealed partial class ServicioRoles(
     {
         Validar(datos.Nombre, datos.Ambito);
         var rol = await ObtenerRequeridoAsync(id, true, ct);
-        if (rol.EsSistema && rol.Ambito != datos.Ambito)
+        if (rol.EsSistema && (rol.Nombre != datos.Nombre.Trim()
+            || rol.Descripcion != NormalizarOpcional(datos.Descripcion)
+            || rol.Ambito != datos.Ambito))
         {
-            throw Protegido("El ámbito de un rol de sistema es inmutable.");
+            throw Protegido("Los metadatos de un rol de sistema son inmutables.");
+        }
+        if (!rol.EsSistema && await repositorio.ExisteNombreAsync(datos.Nombre, id, ct))
+        {
+            throw ConflictoNombre();
         }
         repositorio.EsperarVersion(rol, datos.Version);
         rol.Nombre = datos.Nombre.Trim();
@@ -107,6 +117,20 @@ public sealed partial class ServicioRoles(
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
         return permisos.OrderBy(p => p.Nombre).Select(Mapear).ToArray();
+    }
+
+    public async Task EliminarAsync(Guid id, EliminarRolDto datos, CancellationToken ct)
+    {
+        var rol = await ObtenerRequeridoAsync(id, true, ct);
+        if (rol.EsSistema)
+        {
+            throw Protegido("Los roles de sistema no se pueden eliminar.");
+        }
+        repositorio.EsperarVersion(rol, datos.Version);
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        rol.Activo = false;
+        await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
     }
 
     private async Task<Rol> ObtenerRequeridoAsync(Guid id, bool tracking, CancellationToken ct) =>
@@ -148,6 +172,11 @@ public sealed partial class ServicioRoles(
         TipoErrorAplicacion.Conflicto,
         "identity-role-code-conflict",
         "Ya existe un rol con ese código.");
+
+    private static ExcepcionAplicacion ConflictoNombre() => new(
+        TipoErrorAplicacion.Conflicto,
+        "identity-role-name-conflict",
+        "Ya existe un rol activo con ese nombre.");
 
     private static ExcepcionAplicacion Protegido(string mensaje) => new(
         TipoErrorAplicacion.ReglaDeNegocio, "identity-protected-role", mensaje);

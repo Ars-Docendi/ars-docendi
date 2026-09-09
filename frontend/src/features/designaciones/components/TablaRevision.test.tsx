@@ -3,7 +3,13 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TablaRevision } from "./TablaRevision";
 import type { FiltrosTablero } from "./filtrosTablero";
-import type { ActorContexto, EstadoPedido, EventoHistorial, PedidoDesignacion } from "../types";
+import type {
+  ActorContexto,
+  EstadoPedido,
+  EventoHistorial,
+  PedidoDesignacion,
+  PeriodoDesignacion,
+} from "../types";
 
 const COORD: ActorContexto = {
   rol: "Coordinador",
@@ -13,9 +19,19 @@ const COORD: ActorContexto = {
 const SECRE: ActorContexto = { rol: "Secretaría", nombre: "L. Fernández" };
 const DECANO: ActorContexto = { rol: "Decanato", nombre: "R. Sosa" };
 const ADMIN: ActorContexto = { rol: "Administración", nombre: "Admin" };
+const PERIODO_ACTIVO: PeriodoDesignacion = {
+  id: "periodo-1",
+  nombre: "Segundo cuatrimestre 2026",
+  cargaDesde: "2026-06-01",
+  cargaHasta: "2026-07-31",
+  impactoDesde: "2026-08-01",
+  impactoHasta: "2026-12-31",
+  activo: true,
+};
 
 const SIN_FILTROS: FiltrosTablero = {
   tipo: "todos",
+  estado: "todos",
   prioridad: "todos",
   carrera: "todos",
   nombre: "",
@@ -157,6 +173,130 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(pestania(/En Cátedra/)).toBeInTheDocument();
     expect(pestania(/En Coordinación/)).toHaveAttribute("aria-selected", "true");
     expect(filasVisibles()).toEqual(["En Coordinación"]);
+  });
+
+  it("la pestaña activa conserva su selección al pasar por hover y permite foco de teclado", async () => {
+    const user = userEvent.setup();
+    render(
+      <TablaRevision
+        pedidos={[pedido("en_lote")]}
+        actor={ADMIN}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    const finalizados = pestania(/Finalizados/);
+    await user.click(finalizados);
+    await user.hover(finalizados);
+
+    expect(finalizados).toHaveClass("active");
+    finalizados.focus();
+    expect(document.activeElement).toBe(finalizados);
+  });
+
+  it("muestra Exportar sólo en Finalizados con el período explícito", async () => {
+    const user = userEvent.setup();
+    const onExportar = vi.fn();
+    render(
+      <TablaRevision
+        pedidos={[pedido("en_lote")]}
+        actor={ADMIN}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+        periodoActivo={PERIODO_ACTIVO}
+        onExportar={onExportar}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Exportar" })).not.toBeInTheDocument();
+    await user.click(pestania(/Finalizados/));
+    expect(screen.getByText("Período: Segundo cuatrimestre 2026")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Exportar" }));
+    expect(onExportar).toHaveBeenCalledOnce();
+  });
+
+  it.each([COORD, SECRE, DECANO, ADMIN])(
+    "muestra Exportar sólo a roles de revisión habilitados (%s)",
+    async (actor) => {
+      const user = userEvent.setup();
+      render(
+        <TablaRevision
+          pedidos={[pedido("en_lote")]}
+          actor={actor}
+          filtros={SIN_FILTROS}
+          onSeleccionar={vi.fn()}
+          periodoActivo={PERIODO_ACTIVO}
+          onExportar={vi.fn()}
+        />,
+      );
+
+      await user.click(pestania(/Finalizados/));
+      if (
+        actor.rol === "Secretaría" ||
+        actor.rol === "Decanato" ||
+        actor.rol === "Administración"
+      ) {
+        expect(screen.getByRole("button", { name: "Exportar" })).toBeInTheDocument();
+      } else {
+        expect(screen.queryByRole("button", { name: "Exportar" })).not.toBeInTheDocument();
+      }
+    },
+  );
+
+  it("deja Exportar deshabilitado y explica la falta de período activo", async () => {
+    const user = userEvent.setup();
+    render(
+      <TablaRevision
+        pedidos={[pedido("en_lote")]}
+        actor={ADMIN}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+        periodoActivo={null}
+        onExportar={vi.fn()}
+      />,
+    );
+
+    await user.click(pestania(/Finalizados/));
+    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
+    expect(
+      screen.getByText("Configurá un período activo para descargar el lote."),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra progreso y permite reintentar tras un error", async () => {
+    const user = userEvent.setup();
+    const onExportar = vi.fn();
+    const { rerender } = render(
+      <TablaRevision
+        pedidos={[pedido("en_lote")]}
+        actor={ADMIN}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+        periodoActivo={PERIODO_ACTIVO}
+        onExportar={onExportar}
+        exportando
+      />,
+    );
+
+    await user.click(pestania(/Finalizados/));
+    expect(screen.getByRole("button", { name: "Exportar" })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Exportando…");
+
+    rerender(
+      <TablaRevision
+        pedidos={[pedido("en_lote")]}
+        actor={ADMIN}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+        periodoActivo={PERIODO_ACTIVO}
+        onExportar={onExportar}
+        errorExportacion="No se pudo descargar el lote. Reintentá."
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Reintentá");
+    await user.click(screen.getByRole("button", { name: "Exportar" }));
+    expect(onExportar).toHaveBeenCalledOnce();
   });
 
   it("cambiar de pestaña cambia las filas de la misma tabla", async () => {
@@ -326,6 +466,37 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getByText("Devuelto")).toBeInTheDocument();
   });
 
+  it("Estado filtra devueltos de distintas áreas y actualiza los contadores", () => {
+    const aCatedra = pedido("devuelto", {
+      docente: { dni: "30", nombre: "Devuelto Cátedra", antiguedad: 3 },
+      propietarioActual: "Jefe de Cátedra",
+      etapaRetorno: "en_revision_coordinador",
+    });
+    const aSecretaria = pedido("devuelto", {
+      docente: { dni: "31", nombre: "Devuelto Secretaría", antiguedad: 3 },
+      propietarioActual: "Secretaría",
+      etapaRetorno: "en_revision_decanato",
+    });
+    const enRevision = pedido("en_revision_coordinador", {
+      docente: { dni: "32", nombre: "En revisión", antiguedad: 3 },
+    });
+
+    render(
+      <TablaRevision
+        pedidos={[aCatedra, aSecretaria, enRevision]}
+        actor={ADMIN}
+        filtros={{ ...SIN_FILTROS, estado: "devuelto" }}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    expect(filasVisibles()).toEqual(["Devuelto Cátedra", "Devuelto Secretaría"]);
+    expect(pestania(/Todos/)).toHaveTextContent("2");
+    expect(pestania(/En Cátedra/)).toHaveTextContent("1");
+    expect(pestania(/En Secretaría/)).toHaveTextContent("1");
+    expect(pestania(/En Coordinación/)).toHaveTextContent("0");
+  });
+
   it("Inicio es el envío a revisión, no la creación del borrador", () => {
     render(
       <TablaRevision
@@ -347,7 +518,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getByText("1005")).toBeInTheDocument();
     expect(screen.queryByText("05/01/2026")).not.toBeInTheDocument();
     // El envío es además el último evento: misma fecha en Inicio y Últ. actualización.
-    expect(screen.getAllByText("10/03/2026")).toHaveLength(2);
+    expect(screen.getAllByText("09/03/2026 21:00")).toHaveLength(2);
   });
 
   it("el botón Ver de la fila navega al detalle del pedido", async () => {
@@ -376,7 +547,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
       <TablaRevision
         pedidos={[pedido("en_revision_coordinador")]}
         actor={COORD}
-        filtros={SIN_FILTROS}
+        filtros={{ ...SIN_FILTROS, estado: "cancelado" }}
         onSeleccionar={vi.fn()}
       />,
     );

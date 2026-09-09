@@ -220,6 +220,17 @@
     },
     {
       "schema": "designaciones",
+      "tabla": "dedicaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "codigo", "nombre", "orden", "activo", "created_at"],
+        "asistente_ro_pii": ["id", "codigo", "nombre", "orden", "activo", "created_at"]
+      },
+      "columnas_denegadas": [],
+      "nota": "Catálogo cerrado de seis categorías. Se concede porque desde la migración 009 la dedicación vive en la FK: sin esta tabla el asistente no puede nombrarla."
+    },
+    {
+      "schema": "designaciones",
       "tabla": "periodos",
       "estado": "concedida",
       "columnas_concedidas": {
@@ -262,6 +273,7 @@
           "prioritario",
           "cargo_solicitado_id",
           "dedicacion_solicitada",
+          "dedicacion_solicitada_id",
           "horas",
           "horas_investigacion",
           "horas_externas",
@@ -283,6 +295,7 @@
           "prioritario",
           "cargo_solicitado_id",
           "dedicacion_solicitada",
+          "dedicacion_solicitada_id",
           "horas",
           "horas_investigacion",
           "horas_externas",
@@ -357,7 +370,10 @@
           "materia_id",
           "cargo_id",
           "dedicacion",
+          "dedicacion_id",
           "horas",
+          "horas_externas",
+          "horas_investigacion",
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",
@@ -369,7 +385,10 @@
           "materia_id",
           "cargo_id",
           "dedicacion",
+          "dedicacion_id",
           "horas",
+          "horas_externas",
+          "horas_investigacion",
           "vigente_desde",
           "vigente_hasta",
           "origen_pedido_id",

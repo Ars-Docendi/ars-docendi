@@ -25,6 +25,46 @@
   font-size: var(--text-caption-size);
 }
 
+.adoc-revision-tabs-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.adoc-revision-tabs-row .adoc-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-revision-exportar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  white-space: nowrap;
+}
+.adoc-revision-periodo,
+.adoc-revision-exportar-ayuda,
+.adoc-revision-exportar [role="status"] {
+  color: var(--color-text-secondary);
+  font-size: var(--text-micro-size);
+}
+.adoc-revision-exportar-ayuda {
+  white-space: normal;
+}
+.adoc-revision-exportar-error {
+  margin: calc(var(--space-3) * -1) 0 0;
+  color: var(--color-text-danger);
+  font-size: var(--text-caption-size);
+}
+
+/* El hover global de Tabs usa un neutro que oculta la intención del tablero. */
+.adoc-revision .adoc-tabs button:hover {
+  background: var(--color-accent-subtle);
+  color: var(--accent-700);
+}
+.adoc-revision .adoc-tabs button.active:hover {
+  border-bottom-color: var(--color-accent);
+}
+
 /* --- Chip de novedad (Alta / Baja / Cambio) --- */
 .adoc-novedad-chip {
   display: inline-flex;

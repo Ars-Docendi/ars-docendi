@@ -87,7 +87,13 @@ de prod.
 
 ### Dataset sintético y autenticación de desarrollo
 
-Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.08.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project, elimina la base con `drop-db.sh`, la aprovisiona, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+
+Una falla de `down`, reset, migración o seed detiene `spin-up.sh` por
+`set -euo pipefail` y evita `up -d`; la recuperación de un ambiente descartable
+es corregir la versión y repetir el comando. En `prod` no se ejecutan `down`,
+`drop-db.sh` ni `seed.sh`; el rollback se hace con el backup y el despliegue
+conjunto de la versión anterior.
 
 La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
 

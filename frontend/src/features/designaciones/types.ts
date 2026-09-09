@@ -26,6 +26,7 @@ export interface PeriodoDesignacion {
 export type Rol = Role;
 
 export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
+export type NovedadAdmitida = Exclude<Novedad, "Sin novedad">;
 export type Cargo = string;
 export type Dedicacion = string;
 
@@ -49,6 +50,8 @@ export type DepartamentoAgenteExterno =
 export interface AsignacionMateria {
   materia: string;
   horas: number;
+  horasInvestigacion?: number | null;
+  horasExternas?: number | null;
 }
 
 export type EstadoPedido =
@@ -124,8 +127,17 @@ export interface DocenteExistente {
   /** Materias a las que pertenece el docente, con su carga horaria. Mínimo 1 elemento. */
   materiasActuales: AsignacionMateria[];
   /** Horas de investigación/externas vigentes del docente (base de comparación en Cambio). */
-  horasInvestigacionActuales: number;
-  horasExternasActuales: number;
+  horasInvestigacionActuales: number | null;
+  horasExternasActuales: number | null;
+}
+
+export interface SnapshotPedido {
+  cargo: Cargo | null;
+  dedicacion: Dedicacion | null;
+  horas: number | null;
+  materia: string | null;
+  horasInvestigacion: number | null;
+  horasExternas: number | null;
 }
 
 export interface PedidoDesignacion {
@@ -142,7 +154,7 @@ export interface PedidoDesignacion {
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
   docente: DocentePedido;
-  /** Carga horaria del docente en la cátedra del pedido. */
+  /** Carga horaria solicitada en la cátedra del pedido. */
   horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
@@ -154,6 +166,11 @@ export interface PedidoDesignacion {
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
   horasInvestigacion: number; // integración cross-module con Portal pendiente
+  /** Valores vigentes fotografiados al enviar, separados de la solicitud. */
+  snapshot?: SnapshotPedido | null;
+  horasActuales?: number | null;
+  horasInvestigacionActuales?: number | null;
+  horasExternasActuales?: number | null;
   esAgenteExterno?: boolean;
   departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
@@ -168,6 +185,7 @@ export interface PedidoDesignacion {
   personaId?: string;
   materiaId?: string;
   cargoSolicitadoId?: string;
+  dedicacionSolicitadaId?: string;
 }
 
 /**
@@ -187,7 +205,7 @@ export interface DatosEditablesPedido {
   horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
-  novedad: Novedad;
+  novedad: Novedad | "";
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   justificacion?: string;
@@ -201,6 +219,7 @@ export interface DatosEditablesPedido {
   personaId?: string;
   materiaId?: string;
   cargoSolicitadoId?: string;
+  dedicacionSolicitadaId?: string;
   periodoId?: string;
   version?: number;
 }

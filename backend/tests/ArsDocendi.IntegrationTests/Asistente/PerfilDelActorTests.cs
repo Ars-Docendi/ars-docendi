@@ -294,8 +294,17 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
             INSERT INTO identity.user_roles (id, user_id, role_id, materia_id, carrera_id, deleted_at)
             SELECT gen_random_uuid(), ur.user_id, ur.role_id, m.id, ur.carrera_id, NULL
               FROM identity.user_roles ur
+              -- Una materia que el actor NO tenga ya: `user_roles_unique_assignment`
+              -- rechaza repetir (usuario, rol, materia, carrera), y el seed le da
+              -- varias materias al jefe.
               JOIN identity.materias m
-                ON m.id <> ur.materia_id AND m.carrera_id = ur.carrera_id
+                ON m.carrera_id = ur.carrera_id
+               AND m.id NOT IN (SELECT otra.materia_id
+                                  FROM identity.user_roles otra
+                                 WHERE otra.user_id = ur.user_id
+                                   AND otra.role_id = ur.role_id
+                                   AND otra.materia_id IS NOT NULL
+                                   AND otra.deleted_at IS NULL)
              WHERE ur.user_id = @actor AND ur.deleted_at IS NULL
              LIMIT 1
             """,

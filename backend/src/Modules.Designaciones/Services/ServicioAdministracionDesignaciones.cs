@@ -13,7 +13,12 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
     public async Task<IReadOnlyList<CargoAdministracionDto>> ListarCargosAsync(CancellationToken ct) =>
         (await repositorio.ListarCargosAsync(ct)).Select(Mapear).ToArray();
 
+    public async Task<IReadOnlyList<DedicacionAdministracionDto>> ListarDedicacionesAsync(CancellationToken ct) =>
+        (await repositorio.ListarDedicacionesAsync(ct))
+            .Select(d => new DedicacionAdministracionDto(d.Id, d.Codigo, d.Nombre, d.Orden, d.Activo)).ToArray();
+
     public async Task ValidarReemplazoAsync(
+        Guid? personaId,
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct)
     {
@@ -24,6 +29,17 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         if (designaciones.Any(d => d.Horas <= 0))
         {
             throw new ErrorDominioPedido("Las horas de una designación deben ser mayores a cero.");
+        }
+        var actuales = personaId is { } id
+            ? await repositorio.ListarVigentesDePersonaAsync(id, ct)
+            : [];
+        var dedicaciones = await repositorio.ListarDedicacionesAsync(ct);
+        foreach (var deseada in designaciones)
+        {
+            var actual = actuales.SingleOrDefault(d => d.MateriaId == deseada.MateriaId);
+            if (actual is not null && actual.DedicacionId == deseada.DedicacionId) continue;
+            if (!dedicaciones.Any(d => d.Id == deseada.DedicacionId && d.Activo))
+                throw new ErrorDominioPedido("La dedicación no existe o está inactiva.");
         }
         var cargos = designaciones.Select(d => d.CargoId).Distinct().ToArray();
         if ((await repositorio.ObtenerCargosActivosAsync(cargos, ct)).Count != cargos.Length)
@@ -37,7 +53,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct)
     {
-        await ValidarReemplazoAsync(designaciones, ct);
+        await ValidarReemplazoAsync(personaId, designaciones, ct);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(personaId, ct);
         var deseadas = designaciones.ToDictionary(d => d.MateriaId);
         var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -53,7 +69,11 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
             }
 
             actual.CargoId = deseada.CargoId;
-            actual.Dedicacion = NormalizarOpcional(deseada.Dedicacion);
+            if (actual.DedicacionId != deseada.DedicacionId)
+            {
+                actual.DedicacionId = deseada.DedicacionId;
+                actual.Dedicacion = null;
+            }
             actual.Horas = deseada.Horas;
             // Una edición administrativa deja de atribuir el estado resultante
             // al pedido original; audit.change_log conserva quién y qué cambió.
@@ -68,7 +88,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
                 PersonaId = personaId,
                 MateriaId = deseada.MateriaId,
                 CargoId = deseada.CargoId,
-                Dedicacion = NormalizarOpcional(deseada.Dedicacion),
+                DedicacionId = deseada.DedicacionId,
                 Horas = deseada.Horas,
                 VigenteDesde = hoy,
                 CreadoEn = DateTimeOffset.UtcNow,
@@ -83,9 +103,6 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
             .ToArray();
     }
 
-    private static string? NormalizarOpcional(string? valor) =>
-        string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
-
     private static DesignacionVigenteDto Mapear(Designacion d) => new(
         d.Id,
         d.PersonaId,
@@ -93,9 +110,10 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         d.CargoId,
         d.Cargo?.Nombre ?? string.Empty,
         d.Cargo?.Abreviatura ?? string.Empty,
-        d.Dedicacion,
+        d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
         d.Horas,
-        d.VigenteDesde);
+        d.VigenteDesde,
+        d.DedicacionId, d.HorasInvestigacion, d.HorasExternas);
 
     private static CargoAdministracionDto Mapear(Cargo c) => new(
         c.Id, c.Codigo, c.Nombre, c.Abreviatura, c.Orden, c.Activo);

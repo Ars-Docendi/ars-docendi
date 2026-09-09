@@ -6,19 +6,20 @@ import type {
   DocenteExistente,
   EstadoPedido,
   Novedad,
+  NovedadAdmitida,
   PedidoDesignacion,
   PersonaCatalogoPedido,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { horasVigentesEnCatedra } from "../api/catalogos";
+import { asignacionVigenteEnCatedra, horasVigentesEnCatedra } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
 import { SeccionAdjuntosPedido } from "./SeccionAdjuntosPedido";
 import "./pedidoForm.css";
 
-const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
+const NOVEDADES: NovedadAdmitida[] = ["Alta", "Baja", "Cambio de cargo o dedicación"];
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
@@ -57,7 +58,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     horas: pedido?.horas ?? 0,
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
-    novedad: pedido?.novedad ?? "Sin novedad",
+    novedad: pedido?.novedad ?? "",
     cargoSolicitado: pedido?.cargoSolicitado,
     dedicacionSolicitada: pedido?.dedicacionSolicitada,
     justificacion: pedido?.justificacion,
@@ -118,9 +119,16 @@ export function PedidoForm({
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
-      materiasActuales: [{ materia: pedidoInicial.catedra, horas: pedidoInicial.horas }],
-      horasInvestigacionActuales: pedidoInicial.horasInvestigacion,
-      horasExternasActuales: pedidoInicial.horasExternas,
+      materiasActuales: [
+        {
+          materia: pedidoInicial.catedra,
+          horas: pedidoInicial.horasActuales ?? pedidoInicial.horas,
+          horasInvestigacion: pedidoInicial.horasInvestigacionActuales ?? null,
+          horasExternas: pedidoInicial.horasExternasActuales ?? null,
+        },
+      ],
+      horasInvestigacionActuales: pedidoInicial.horasInvestigacionActuales ?? null,
+      horasExternasActuales: pedidoInicial.horasExternasActuales ?? null,
     });
   }
 
@@ -129,6 +137,16 @@ export function PedidoForm({
   const docenteSeleccionado = opcionesDocente.find(
     (item) => item.dni === datos.docente.dni.replace(/\D/g, ""),
   );
+  const asignacionSeleccionada = asignacionVigenteEnCatedra(docenteSeleccionado, catedra);
+  const usaSnapshot = pedidoInicial?.snapshot != null;
+  const horasActuales = usaSnapshot ? pedidoInicial?.horasActuales : asignacionSeleccionada?.horas;
+  const horasInvestigacionActuales = usaSnapshot
+    ? pedidoInicial?.horasInvestigacionActuales
+    : (asignacionSeleccionada?.horasInvestigacion ??
+      docenteSeleccionado?.horasInvestigacionActuales);
+  const horasExternasActuales = usaSnapshot
+    ? pedidoInicial?.horasExternasActuales
+    : (asignacionSeleccionada?.horasExternas ?? docenteSeleccionado?.horasExternasActuales);
 
   function seleccionarDocente(dni: string) {
     const docente = opcionesDocente.find((item) => item.dni === dni.replace(/\D/g, ""));
@@ -158,8 +176,8 @@ export function PedidoForm({
       // Sólo las horas de la cátedra del pedido: un pedido cubre exactamente una
       // materia, así que el resto de las designaciones del docente no participan.
       horas: horasVigentesEnCatedra(docente, catedra) ?? 0,
-      horasInvestigacion: docente.horasInvestigacionActuales,
-      horasExternas: docente.horasExternasActuales,
+      horasInvestigacion: docente.horasInvestigacionActuales ?? 0,
+      horasExternas: docente.horasExternasActuales ?? 0,
       personaId: personas.find((persona) => persona.dni === docente.dni)?.id,
     }));
   }
@@ -233,7 +251,9 @@ export function PedidoForm({
       }}
     >
       <header className="adoc-pf-head">
-        <p className="adoc-pf-eyebrow">DESIGNACIONES · {novedad.toUpperCase()}</p>
+        <p className="adoc-pf-eyebrow">
+          DESIGNACIONES · {novedad ? novedad.toUpperCase() : "NOVEDAD"}
+        </p>
         <h1 className="adoc-pf-title">{titulo}</h1>
         <p className="adoc-pf-subtitle">{subtitulo}</p>
       </header>
@@ -263,28 +283,41 @@ export function PedidoForm({
               />
             ))}
           </div>
+          {!novedad && <p className="adoc-pf-note">Seleccioná una novedad para continuar.</p>}
+          {errores.novedad && (
+            <p className="adoc-pf-materias-error" role="alert">
+              {errores.novedad}
+            </p>
+          )}
+          {esSinNovedad && (
+            <p className="adoc-pf-note">
+              Este pedido legado conserva «Sin novedad». Elegí una novedad admitida para editarlo.
+            </p>
+          )}
         </section>
 
-        <SeccionDocentePedido
-          novedad={novedad}
-          docente={datos.docente}
-          errorDocente={errores.docente}
-          opcionesDocente={opcionesDocente}
-          personasAlta={personas}
-          cargoActual={datos.cargoActual}
-          cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
-          dedicacionActual={datos.dedicacionActual}
-          dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
-          materia={catedra}
-          horasActuales={horasVigentesEnCatedra(docenteSeleccionado, catedra)}
-          horasSolicitadas={esCambio ? datos.horas : undefined}
-          horasInvestigacionActuales={docenteSeleccionado?.horasInvestigacionActuales}
-          horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
-          horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
-          horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
-          onSeleccionarDocente={seleccionarDocente}
-          onSeleccionarPersonaAlta={seleccionarPersonaAlta}
-        />
+        {novedad && (
+          <SeccionDocentePedido
+            novedad={novedad}
+            docente={datos.docente}
+            errorDocente={errores.docente}
+            opcionesDocente={opcionesDocente}
+            personasAlta={personas}
+            cargoActual={datos.cargoActual}
+            cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
+            dedicacionActual={datos.dedicacionActual}
+            dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
+            materia={catedra}
+            horasActuales={horasActuales}
+            horasSolicitadas={esCambio ? datos.horas : undefined}
+            horasInvestigacionActuales={horasInvestigacionActuales}
+            horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
+            horasExternasActuales={horasExternasActuales}
+            horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
+            onSeleccionarDocente={seleccionarDocente}
+            onSeleccionarPersonaAlta={seleccionarPersonaAlta}
+          />
+        )}
 
         {muestraSolicitud && (
           <SeccionDesignacionSolicitada
@@ -292,7 +325,6 @@ export function PedidoForm({
             horas={datos.horas}
             cargoSolicitado={datos.cargoSolicitado}
             dedicacionSolicitada={datos.dedicacionSolicitada}
-            dedicacionActual={datos.dedicacionActual}
             horasInvestigacion={datos.horasInvestigacion}
             horasExternas={datos.horasExternas}
             errores={errores}
@@ -306,7 +338,7 @@ export function PedidoForm({
           />
         )}
 
-        {!esSinNovedad && (
+        {novedad && !esSinNovedad && (
           <section className="adoc-pf-sec">
             <h2 className="adoc-pf-sec-h">Justificación</h2>
             {esBaja && (
@@ -358,7 +390,7 @@ export function PedidoForm({
           </section>
         )}
 
-        {!esSinNovedad && (
+        {novedad && !esSinNovedad && (
           <SeccionAdjuntosPedido
             novedad={novedad}
             errorAdjuntos={errores.adjuntos}
@@ -391,7 +423,7 @@ export function PedidoForm({
 
 /** Subtítulo del encabezado, según novedad / si es edición. */
 function construirSubtitulo(
-  novedad: Novedad,
+  novedad: Novedad | "",
   esEdicion: boolean,
   pedidoInicial: PedidoDesignacion | undefined,
   numero: string,
@@ -410,6 +442,8 @@ function construirSubtitulo(
       return `Registrá la baja de un docente · período ${periodoLabel}`;
     case "Cambio de cargo o dedicación":
       return `Cargá un cambio de cargo o dedicación · período ${periodoLabel}`;
+    case "":
+      return `Seleccioná una novedad · período ${periodoLabel}`;
     default:
       return `Reconfirmá la designación de un docente · período ${periodoLabel}`;
   }
