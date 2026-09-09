@@ -34,23 +34,23 @@ Ejecutada de corrido sobre `feature/asistente-conversacional`, un commit por
 renglón. **29 de 30 resueltos.** Las precondiciones de esta tabla ya no matchean
 para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
 
-| Bloque             | Cerrados           | Abiertos   |
-| ------------------ | ------------------ | ---------- |
-| A — seguridad      | A1, A2, A4         | **A3**, A5 |
-| B — verdad         | B1                 | B2, **B3** |
-| C — suite          | C1, C2, C3, C4, C5 | —          |
-| D — frontera       | D1, D4, D5         | **D2**, D3 |
-| E — reorganización | E1, E4, E5         | E2, E3     |
-| F — frontend       | F1, F2, F3, F4     | —          |
-| G — rendimiento    | G1, G3             | G2         |
+| Bloque             | Cerrados                          | Abiertos |
+| ------------------ | --------------------------------- | -------- |
+| A — seguridad      | A1, A2, A4, A5 · ~~A3~~ cancelado | —        |
+| B — verdad         | B1, B3                            | **B2**   |
+| C — suite          | C1, C2, C3, C4, C5                | —        |
+| D — frontera       | D1, D2, D3, D4, D5                | —        |
+| E — reorganización | E1, E2, E3, E4, E5                | —        |
+| F — frontend       | F1, F2, F3, F4                    | —        |
+| G — rendimiento    | G1, G3 · ~~G2~~ descartado        | —        |
 
 **Lo medido, no lo estimado:**
 
 | Qué                                       | Antes    | Después  |
 | ----------------------------------------- | -------- | -------- |
-| Suite completa                            | 3 m 53 s | 1 m 43 s |
+| Suite completa                            | 3 m 53 s | 1 m 34 s |
 | Carril rápido (`--filter 'carril!=base'`) | no había | 1 s      |
-| Casos                                     | 1287     | 1319     |
+| Casos                                     | 1287     | 1346     |
 | `Application/` archivos sueltos           | 47       | 0        |
 | `CapaConversacional.cs`                   | 551      | 398      |
 | `SemaphoreSlim` en `Infrastructure/`      | 5        | 1        |
