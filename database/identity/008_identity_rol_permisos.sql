@@ -14,8 +14,8 @@ CREATE INDEX rol_permisos_permiso_idx
     ON identity.rol_permisos (permiso_id);
 
 -- Matriz inicial PROVISIONAL, derivada de las responsabilidades de cada rol
--- documentadas en CLAUDE.md ("Roles"). NO se seedea desde el mock del frontend
--- (features/membresia-roles/mock/mockStore.ts): esa matriz es de relleno y
+-- documentadas en AGENTS.md. NO se seedea desde el antiguo mock del frontend
+-- de membresías del frontend: esa matriz era de relleno y
 -- asigna, por ejemplo, "Aprobar designaciones — Decanato" al rol Docente.
 --
 -- PENDIENTE DE CONFIRMACIÓN CON EL CLIENTE. Un sistema que arranca sin ninguna

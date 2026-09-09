@@ -23,6 +23,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'global.json'
               - 'package.json'
               - 'pnpm-workspace.yaml'
               - 'pnpm-lock.yaml'
@@ -48,10 +49,10 @@ jobs:
           package_json_file: package.json
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
 
@@ -68,10 +69,10 @@ jobs:
           package_json_file: package.json
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Validate changes and specs
         run: pnpm exec openspec validate --all --strict
 
@@ -126,11 +127,11 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install deps
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm --filter frontend lint
@@ -138,7 +139,5 @@ jobs:
       - name: Build
         run: pnpm --filter frontend build
 
-      # Test step pendiente: el frontend todavía no tiene runner configurado (Vitest/Jest).
-      # Cuando se agregue, sumar:
-      # - name: Test
-      #   run: pnpm --filter frontend test
+      - name: Test
+        run: pnpm --filter frontend test:run

@@ -32,7 +32,7 @@ Rúbrica para evaluar trabajo en Ars Docendi. La usan reviewers humanos, agentes
 | 4     | Estructura sólida, minor violaciones (sin impacto en mantenibilidad)                |
 | 3     | Aceptable; algunas violaciones de layer rules o cross-module sin justificar         |
 | 2     | Violaciones serias de arquitectura (referencias a Internal/ de otro módulo, ciclos) |
-| 1     | Código no mantenible; rompe invariantes del CLAUDE.md                               |
+| 1     | Código no mantenible; rompe las reglas de AGENTS.md                                 |
 
 ### Diseño / UX (20%)
 

@@ -4,6 +4,7 @@ using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
 using Npgsql;
@@ -94,6 +95,70 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, RolesCircuito.Secretaria);
         Assert.Equal(HttpStatusCode.Unauthorized,
             (await cliente.GetAsync("/api/designaciones/pedidos", ct)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("a0000000-0000-4000-8000-000000000003", RolesCircuito.CoordinadorCarrera, EstadosPedido.EnRevisionSecretaria)]
+    [InlineData("a0000000-0000-4000-8000-000000000004", RolesCircuito.Secretaria, EstadosPedido.EnRevisionDecanato)]
+    public async Task Propietario_edita_y_reenvia_un_pedido_devuelto_a_su_cargo(
+        string usuarioId,
+        string propietario,
+        string etapaRetorno)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        var pedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
+        await using (var db = PostgresFixture.CrearDesignaciones(Cadena))
+        {
+            var pedido = await db.Pedidos.SingleAsync(p => p.Id == pedidoId, ct);
+            pedido.PropietarioActual = propietario;
+            pedido.EtapaRetorno = etapaRetorno;
+            await db.SaveChangesAsync(ct);
+        }
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Guid.Parse(usuarioId), propietario);
+        var actual = await cliente.GetFromJsonAsync<PedidoDto>(
+            $"/api/designaciones/pedidos/{pedidoId}", ct);
+
+        using var edicion = await cliente.PutAsJsonAsync(
+            $"/api/designaciones/pedidos/{pedidoId}",
+            Datos(actual!.Persona.Id, actual.Version, 11), ct);
+        Assert.Equal(HttpStatusCode.OK, edicion.StatusCode);
+        using var reenvio = new HttpRequestMessage(
+            HttpMethod.Post, $"/api/designaciones/pedidos/{pedidoId}/reenviar");
+        reenvio.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        using var respuesta = await cliente.SendAsync(reenvio, ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal(etapaRetorno,
+            (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!.Estado);
+    }
+
+    [Fact]
+    public async Task Administrativo_puede_rechazar_desde_http()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(
+            cliente,
+            Guid.Parse("a0000000-0000-4000-8000-000000000006"),
+            RolesCircuito.Administrativo);
+        using var solicitud = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/designaciones/pedidos/d5000000-0000-4000-8000-000000000002/rechazar")
+        {
+            Content = JsonContent.Create(new AccionPedidoDto("No corresponde")),
+        };
+        solicitud.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal(EstadosPedido.Rechazado,
+            (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!.Estado);
     }
 
     private static async Task<PedidoDto> PostPedido(HttpClient cliente, Guid persona, CancellationToken ct)

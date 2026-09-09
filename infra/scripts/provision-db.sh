@@ -28,6 +28,8 @@ validar_ambiente "$ambiente"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
 : "${ASISTENTE_RO_PASSWORD:?msg=\"falta ASISTENTE_RO_PASSWORD\"}"
 : "${ASISTENTE_RO_PII_PASSWORD:?msg=\"falta ASISTENTE_RO_PII_PASSWORD\"}"
+[[ "$APP_DB_USER" == "app_${ambiente//-/_}" ]] ||
+  fatal "msg=\"APP_DB_USER no corresponde al ambiente\" ambiente=\"${ambiente}\""
 
 base="$(nombre_base "$ambiente")"
 rol_ro="$(rol_asistente "$ambiente" basico)"
@@ -50,7 +52,10 @@ asegurar_rol_login "$rol_ro_pii" "$ASISTENTE_RO_PII_PASSWORD" "$ATRIBUTOS_ROL_AS
 if existe_base "$base"; then
   log_info msg="base ya existe, no se recrea" base="$base"
 else
-  psql_admin -c "CREATE DATABASE \"${base}\" OWNER \"${APP_DB_USER}\";"
+  psql_admin --set=app_db_user="$APP_DB_USER" \
+    --set=base="$base" <<'SQL'
+CREATE DATABASE :"base" OWNER :"app_db_user";
+SQL
   log_info msg="base creada" base="$base"
 fi
 

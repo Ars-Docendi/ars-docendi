@@ -5,8 +5,7 @@ using Npgsql;
 
 namespace Modules.Designaciones.Repositories;
 
-/// <inheritdoc cref="IRepositorioPedidos" />
-internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositorioPedidos
+internal sealed class RepositorioPedidos(DesignacionesDbContext db)
 {
     /// <summary>
     /// Nombre del índice único parcial que impone BR-designaciones-001. Debe coincidir
@@ -179,4 +178,23 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db) : IRepositor
         ex.InnerException is PostgresException pg
         && pg.SqlState == PostgresErrorCodes.UniqueViolation
         && pg.ConstraintName == IndiceUnPedidoPorDocentePeriodo;
+}
+
+/// <summary>
+/// Un pedido reducido a lo que hace falta para decidir si el actor lo alcanza.
+/// </summary>
+/// <remarks>
+/// Clase con propiedades asignables y no <c>record</c>: la materializa EF Core
+/// desde SQL crudo sobre un tipo no mapeado, y ese camino exige constructor sin
+/// parámetros y propiedades escribibles.
+/// </remarks>
+internal sealed class PedidoUbicado
+{
+    public Guid Id { get; set; }
+
+    public string Numero { get; set; } = string.Empty;
+
+    public Guid MateriaId { get; set; }
+
+    public Guid CarreraId { get; set; }
 }

@@ -8,7 +8,7 @@ Permite al docente mantener sus datos de contacto de forma independiente y opcio
 
 ### Requirement: Edición de los datos de contacto
 
-El sistema SHALL permitir al docente editar su **teléfono** y su **mail** de contacto desde la sección Contacto de su Portal. La edición MUST hacerse en línea dentro de la sección, sin abrir un diálogo. Los valores se persisten en el store mock local. Ambos campos MUST poder quedar vacíos: no son obligatorios.
+El sistema SHALL permitir al docente editar su **teléfono** y su **mail** de contacto desde la sección Contacto de su Portal. La edición MUST hacerse en línea dentro de la sección, sin abrir un diálogo. Los valores MUST persistirse mediante la API de Portal. Ambos campos MUST poder quedar vacíos: no son obligatorios.
 
 #### Scenario: Cargar el teléfono y el mail
 

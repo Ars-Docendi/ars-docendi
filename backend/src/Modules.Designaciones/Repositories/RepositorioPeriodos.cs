@@ -6,18 +6,7 @@ using Npgsql;
 
 namespace Modules.Designaciones.Repositories;
 
-public interface IRepositorioPeriodos
-{
-    Task<IReadOnlyList<Periodo>> ListarAsync(CancellationToken ct);
-    Task<Periodo?> ObtenerAsync(Guid id, bool tracking, CancellationToken ct);
-    Task<bool> ExisteOtroActivoAsync(Guid? exceptoId, CancellationToken ct);
-    void Agregar(Periodo periodo);
-    void Eliminar(Periodo periodo);
-    void EsperarVersion(Periodo periodo, uint version);
-    Task GuardarAsync(CancellationToken ct);
-}
-
-internal sealed class RepositorioPeriodos(DesignacionesDbContext db) : IRepositorioPeriodos
+public sealed class RepositorioPeriodos(DesignacionesDbContext db)
 {
     public async Task<IReadOnlyList<Periodo>> ListarAsync(CancellationToken ct) =>
         await db.Periodos.AsNoTracking()

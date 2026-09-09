@@ -1,109 +1,48 @@
-# Module anatomy (.NET)
+# Anatomía de un módulo .NET
 
-Cada **módulo** es un bounded context con una **única superficie pública**: el proyecto `Modules.<Modulo>.Contracts`.
+Cada contexto vive en `backend/src/Modules.<Modulo>/`. Cuando otro módulo necesita consumirlo, la superficie pública vive en `Modules.<Modulo>.Contracts`; un módulo sin consumidores puede no tener contratos todavía.
 
-## Layout de directorios
+## Estructura vigente
 
-```
-backend/src/
-├── ArsDocendi.Host/                              # Composition root (referencia todos los Contracts + Modules)
-├── ArsDocendi.Shared/                            # Utilidades transversales + schemas identity y audit
-├── Modules.<Modulo>/                             # INTERNO — implementación
-│   ├── Modules.<Modulo>.csproj
-│   ├── Controllers/
-│   │   └── <Modulo>Controller.cs                 # Endpoints HTTP, validación, status codes
-│   ├── Services/
-│   │   └── <Modulo>Service.cs                    # Reglas de negocio, orquestación
-│   ├── Repositories/
-│   │   └── <Modulo>Repository.cs                 # Persistencia, queries
-│   ├── Domain/
-│   │   ├── Entities/                             # Entidades EF Core
-│   │   └── ValueObjects/
-│   ├── Infrastructure/
-│   │   └── <Modulo>DbContext.cs                  # EF Core context del schema del módulo
-│   ├── Internal/                                 # PRIVADO — mappers, helpers; NO importable desde fuera
-│   └── ModuleRegistration.cs                     # IServiceCollection extension para registrar el módulo
-└── Modules.<Modulo>.Contracts/                   # PÚBLICO — única superficie cross-module
-    ├── Modules.<Modulo>.Contracts.csproj
-    ├── DTOs/                                     # Public DTOs
-    ├── Interfaces/                               # Service interfaces para DI cross-module
-    └── Events/                                   # Domain events públicos (si aplica)
+```text
+Modules.<Modulo>/
+├── Api/                 # controllers y DTOs HTTP internos
+├── Application/         # casos de uso (Portal)
+├── Services/            # orquestación (Designaciones)
+├── Domain/              # entidades y reglas puras
+├── Repositories/        # consultas y persistencia EF
+├── Infrastructure/      # DbContext y migrador
+├── ModuleExtensions.cs  # registro en DI y MVC
+└── Modules.<Modulo>.csproj
+
+Modules.<Modulo>.Contracts/
+├── Dtos/
+├── Queries/ o Administracion/
+└── Modules.<Modulo>.Contracts.csproj
 ```
 
-## Reglas de capas
+No todos los módulos necesitan todas las carpetas. Aulas y Tareas, por ejemplo, sólo exponen hoy su ping y su infraestructura mínima; no se crean clases vacías para completar el dibujo.
 
-Dirección permitida:
+## Flujo
 
-`Controller` → `Service` → `Repository`
+La dirección habitual es `Controller → Service/Application → Repository → DbContext`. Los controllers traducen HTTP y aplican `[Authorize(Policy = ...)]`; las reglas y validaciones autoritativas viven en servicios o dominio. Un controller no consulta un repositorio directamente.
 
-- **Controllers**: HTTP, validación de DTOs, status codes, autorización por rol via `[Authorize(Roles = ...)]`.
-- **Services**: reglas de negocio, orquestación, transacciones.
-- **Repositories**: persistencia, queries EF Core.
+`ArsDocendi.Shared` contiene utilidades transversales y la persistencia común de `identity` y `audit`. Los módulos leen identidad mediante `IConsultasIdentity`; sólo la administración escribe sus catálogos.
 
-**Prohibido**: controller → repository directo.
+## Registro
 
-## Uso cross-module (interacción entre módulos)
+Cada módulo expone `Add<Modulo>Module(IConfiguration)`. El método registra DbContext, migrador, servicios concretos y sus contratos reales, y agrega el assembly a MVC. Las interfaces internas con una sola implementación no aportan una frontera y se evitan.
 
-1. Importar **solo** desde `Modules.<Otro>.Contracts` (interfaces y DTOs).
-2. Resolver el servicio del otro módulo via DI usando la interfaz pública.
-3. **Nunca** referenciar `Modules.<Otro>` directamente.
+## Ping
 
-Ejemplo (Designaciones consume Portal para validar docente existente):
+Cada módulo expone `GET /api/<modulo>/ping`, que responde:
 
-```csharp
-// En Modules.Designaciones — REFERENCIA solo Modules.Portal.Contracts
-using ArsDocendi.Modules.Portal.Contracts.Interfaces;
-
-public class DesignacionesService(IPortalDocenteQuery portalQuery) {
-    public async Task CrearDesignacionAsync(...) {
-        var docente = await portalQuery.ObtenerDocentePorIdAsync(...);
-        // ...
-    }
-}
+```json
+{ "module": "<modulo>", "status": "ok" }
 ```
 
-## Código compartido
+El endpoint no requiere una política de autorización y sirve como smoke test de composición. No incluye timestamp.
 
-- **Utilidades puras transversales**: `ArsDocendi.Shared` (cosas como `Result<T>`, helpers de fechas).
-- **Si un helper lo usa un solo módulo**: dentro de `Modules.<Modulo>/Internal/`.
-- **DTOs públicos compartidos entre módulos**: no aplica — cada módulo expone los suyos en su `.Contracts`. Si dos módulos necesitan el mismo DTO, indica que pertenece a un tercer concepto.
+## Dependencias entre módulos
 
-### Identidad y auditoría: leer sí, escribir no
-
-`ArsDocendi.Shared` hospeda además la persistencia de los schemas `identity` y `audit` — única I/O admitida ahí, por el invariante #4 enmendado. Como los 4 módulos referencian Shared, todos alcanzan `identity` directamente, **sin pasar por Contracts**.
-
-El invariante #1 no cubre este caso: referenciar Shared es legítimo, así que no hay relación cross-module que violar. La disciplina es:
-
-- **Leer**: siempre a través de `IConsultasIdentity`, que expone sólo consultas de autorización (persona, roles vigentes, rol sobre materia o carrera, permisos efectivos). Es la barrera que hace incómodo escribir aunque el `DbContext` esté al alcance.
-- **Escribir** `personas`, `roles`, `permisos` o `rol_permisos`: **exclusivo de la superficie de administración**. Un `Modules.*` que escriba identity es una violación, aunque compile.
-
-Detalle en [dependency-graph.md](dependency-graph.md#frontera-de-lectura-sobre-identity).
-
-## Smoke test obligatorio
-
-Cada módulo expone `GET /api/{modulo}/ping` que retorna `200 OK` con el nombre del módulo y un timestamp. Sirve como health check y como verificación de que el módulo está registrado en el Host.
-
-```csharp
-[ApiController]
-[Route("api/{modulo}")]
-public class <Modulo>Controller : ControllerBase {
-    [HttpGet("ping")]
-    [AllowAnonymous]
-    public IActionResult Ping() => Ok(new { module = "<modulo>", timestamp = DateTimeOffset.UtcNow });
-}
-```
-
-## Registración en el Host
-
-Cada módulo expone un método de extensión `IServiceCollection.Add<Modulo>Module()` que el Host invoca:
-
-```csharp
-// En ArsDocendi.Host/Program.cs
-builder.Services
-    .AddDesignacionesModule(builder.Configuration)
-    .AddAulasModule(builder.Configuration)
-    .AddPortalModule(builder.Configuration)
-    .AddTareasModule(builder.Configuration);
-```
-
-El método se define en cada `Modules.<Modulo>/ModuleRegistration.cs` y registra servicios, DbContext, configuración del módulo.
+Un proyecto `Modules.X` nunca referencia la implementación `Modules.Y`. Si necesita una capacidad pública de Y, referencia `Modules.Y.Contracts`; el Host conecta las implementaciones. El grafo vigente está en [dependency-graph.md](./dependency-graph.md).

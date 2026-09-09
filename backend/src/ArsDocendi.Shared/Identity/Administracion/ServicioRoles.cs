@@ -117,6 +117,7 @@ public sealed partial class ServicioRoles(
     {
         var errores = new Dictionary<string, string[]>();
         if (string.IsNullOrWhiteSpace(nombre)) errores["nombre"] = ["Campo obligatorio."];
+        else if (GenerarCodigo(nombre).Length == 0) errores["nombre"] = ["Debe incluir letras o números."];
         if (!Ambitos.Contains(ambito)) errores["ambito"] = ["Ámbito inválido."];
         if (errores.Count > 0)
         {

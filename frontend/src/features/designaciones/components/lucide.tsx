@@ -50,13 +50,6 @@ export const IconoCornerUpLeft = () => (
   </Svg>
 );
 
-export const IconoCornerUpRight = () => (
-  <Svg>
-    <polyline points="15 14 20 9 15 4" />
-    <path d="M4 20v-7a4 4 0 0 1 4-4h12" />
-  </Svg>
-);
-
 export const IconoFilePen = () => (
   <Svg>
     <path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10" />
@@ -77,19 +70,6 @@ export const IconoEllipsisVertical = () => (
     <circle cx="12" cy="12" r="1" />
     <circle cx="12" cy="5" r="1" />
     <circle cx="12" cy="19" r="1" />
-  </Svg>
-);
-
-export const IconoSearch = () => (
-  <Svg>
-    <circle cx="11" cy="11" r="8" />
-    <path d="m21 21-4.3-4.3" />
-  </Svg>
-);
-
-export const IconoChevronDown = () => (
-  <Svg>
-    <path d="m6 9 6 6 6-6" />
   </Svg>
 );
 
@@ -114,47 +94,10 @@ export const IconoPlus = () => (
   </Svg>
 );
 
-export const IconoPencil = () => (
-  <Svg>
-    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
-    <path d="m15 5 4 4" />
-  </Svg>
-);
-
-export const IconoSend = () => (
-  <Svg>
-    <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
-    <path d="m21.854 2.147-10.94 10.939" />
-  </Svg>
-);
-
-export const IconoEye = () => (
-  <Svg>
-    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
-    <circle cx="12" cy="12" r="3" />
-  </Svg>
-);
-
 export const IconoX = () => (
   <Svg>
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
-  </Svg>
-);
-
-export const IconoTriangleAlert = () => (
-  <Svg>
-    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-    <path d="M12 9v4" />
-    <path d="M12 17h.01" />
-  </Svg>
-);
-
-export const IconoTimer = () => (
-  <Svg>
-    <line x1="10" x2="14" y1="2" y2="2" />
-    <line x1="12" x2="15" y1="14" y2="11" />
-    <circle cx="12" cy="14" r="8" />
   </Svg>
 );
 
@@ -171,12 +114,5 @@ export const IconoTrash2 = () => (
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
     <line x1="10" x2="10" y1="11" y2="17" />
     <line x1="14" x2="14" y1="11" y2="17" />
-  </Svg>
-);
-
-export const IconoFlag = () => (
-  <Svg>
-    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-    <line x1="4" x2="4" y1="22" y2="15" />
   </Svg>
 );

@@ -30,7 +30,7 @@ public sealed class PedidosController(IServicioPedidosApi servicio) : Controller
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = Permisos.DesignacionesGestionar)]
+    [Authorize(Policy = Permisos.DesignacionesVer)]
     public Task<PedidoDto> Editar(Guid id, GuardarPedidoDto datos, CancellationToken ct) =>
         servicio.EditarAsync(id, datos, ct);
 
@@ -52,7 +52,7 @@ public sealed class PedidosController(IServicioPedidosApi servicio) : Controller
             id, new AccionPedido.Enviar(), RequerirClave(clave), "enviar", string.Empty, ct);
 
     [HttpPost("{id:guid}/reenviar")]
-    [Authorize(Policy = Permisos.DesignacionesGestionar)]
+    [Authorize(Policy = Permisos.DesignacionesVer)]
     public Task<PedidoDto> Reenviar(
         Guid id,
         [FromHeader(Name = "Idempotency-Key")] string? clave,

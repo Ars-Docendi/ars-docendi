@@ -68,6 +68,16 @@ public sealed class AdministracionRolesTests(PostgresFixture postgres)
         Assert.Equal("carrera", editado.Ambito);
     }
 
+    [Fact]
+    public async Task Creacion_rechaza_un_nombre_sin_letras_ni_numeros()
+    {
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => CrearServicio(db).CrearAsync(
+            new CrearRolDto("!!!", null, "global"), TestContext.Current.CancellationToken));
+
+        Assert.Equal("validation", error.Codigo);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

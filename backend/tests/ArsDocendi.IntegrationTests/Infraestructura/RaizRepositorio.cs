@@ -15,8 +15,12 @@ public static class RaizRepositorio
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
+            // Se busca AGENTS.md y no CLAUDE.md: las instrucciones del repositorio
+            // se mudaron ahí, y CLAUDE.md quedó como un adaptador de tres líneas
+            // que lo enlaza. Con las once copias de esta búsqueda ya centralizadas
+            // acá (TD-007), este cambio se hizo en un solo lugar en vez de once.
             if (Directory.Exists(Path.Combine(directorio.FullName, "backend", "src"))
-                && File.Exists(Path.Combine(directorio.FullName, "CLAUDE.md")))
+                && File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
             {
                 return directorio.FullName;
             }

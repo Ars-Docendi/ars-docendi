@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD — Documentar el propósito estable de esta capability después del archivo del change que la introdujo.
+Definir la persistencia, integridad y trazabilidad del estado vigente y del circuito de pedidos de designaciones.
 
 ## Requirements
 

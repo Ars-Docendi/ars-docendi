@@ -259,7 +259,7 @@ describe("PedidoForm", () => {
   });
 
   describe("tipificación de la baja", () => {
-    it("exige seleccionar el tipo de baja para enviar (no para guardar)", async () => {
+    it("exige seleccionar el tipo de baja antes de guardar", async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
@@ -287,16 +287,15 @@ describe("PedidoForm", () => {
   });
 
   describe("validación", () => {
-    it("'Guardar pedido' siempre guarda, aunque falten campos obligatorios", async () => {
+    it("'Guardar pedido' adelanta la validación autoritativa del backend", async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
-      await completarAlta(user); // sin adjuntos: inválido para enviar, pero guardable
+      await completarAlta(user);
 
       await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
 
-      expect(onGuardar).toHaveBeenCalledTimes(1);
-      expect(onGuardar.mock.calls[0][1]).toBeUndefined();
-      expect(screen.queryByText("Faltan adjuntos")).not.toBeInTheDocument();
+      expect(onGuardar).not.toHaveBeenCalled();
+      expect(screen.getByText("Faltan adjuntos")).toBeInTheDocument();
     });
 
     it("permite guardar un 'Sin novedad' al seleccionar un docente existente", async () => {
@@ -354,7 +353,7 @@ describe("PedidoForm", () => {
       expect(screen.queryByRole("button", { name: "Guardar y enviar" })).not.toBeInTheDocument();
     });
 
-    it("bloquea 'Guardar y enviar' si faltan campos obligatorios (a diferencia de 'Guardar pedido')", async () => {
+    it("bloquea 'Guardar y enviar' si faltan campos obligatorios", async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
       await completarAlta(user);

@@ -8,7 +8,7 @@ Permite al docente administrar su formación académica como información profes
 
 ### Requirement: Gestión de la formación académica
 
-El sistema SHALL permitir al docente administrar su formación como una lista de ítems, pudiendo agregar, editar y eliminar entradas. Cada ítem MUST tener un **nivel** (enum cerrado: Grado / Especialización / Maestría / Doctorado), la carrera o título, la institución y el período cursado. El alta y la edición MUST hacerse en un diálogo. Los cambios se persisten en el store mock local. La formación es **informativa**: el sistema MUST NOT someterla a ningún circuito de aprobación o validación.
+El sistema SHALL permitir al docente administrar su formación como una lista de ítems, pudiendo agregar, editar y eliminar entradas. Cada ítem MUST tener un **nivel** (enum cerrado: Grado / Especialización / Maestría / Doctorado), la carrera o título, la institución y el período cursado. El alta y la edición MUST hacerse en un diálogo. Los cambios MUST persistirse mediante la API de Portal. La formación es **informativa**: el sistema MUST NOT someterla a ningún circuito de aprobación o validación.
 
 #### Scenario: Agregar un título
 

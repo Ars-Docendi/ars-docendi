@@ -16,7 +16,7 @@ namespace Modules.Designaciones.Services;
 /// tiene que revertirse o el docente queda sin designación vigente.
 /// </para>
 /// </summary>
-internal sealed class MaterializadorDesignaciones(IRepositorioDesignaciones repositorio)
+internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repositorio)
 {
     public async Task MaterializarAsync(Pedido pedido, CancellationToken ct)
     {

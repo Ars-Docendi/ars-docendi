@@ -18,7 +18,7 @@ WORKDIR /src
 
 # global.json fija la versión del SDK; copiarlo primero para que el restore
 # la respete antes de traer el resto del código.
-COPY backend/global.json ./backend/
+COPY global.json ./
 COPY backend/ ./backend/
 
 # DDL versionado: input de compilación, no artefacto de runtime. La ruta relativa
