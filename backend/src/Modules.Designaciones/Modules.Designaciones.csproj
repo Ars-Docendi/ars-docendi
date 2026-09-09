@@ -22,8 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PlanillaDesignaciones Include="$(MSBuildThisFileDirectory)..\..\..\docs\business-rules\planilla_designaciones.xlsx" />
-    <EmbeddedResource Include="@(PlanillaDesignaciones)" Link="Resources\planilla_designaciones.xlsx" />
+    <EmbeddedResource Include="Resources\planilla_designaciones.xlsx" />
   </ItemGroup>
 
   <!--
