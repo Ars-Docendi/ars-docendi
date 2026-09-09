@@ -33,6 +33,13 @@ export type Dedicacion = string;
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
 
+export interface MateriaPedido {
+  id: string;
+  codigo?: string;
+  nombre: string;
+  carreraId?: string;
+}
+
 export type DepartamentoAgenteExterno =
   | "Departamento de Arquitectura"
   | "Departamento de Salud"
@@ -48,8 +55,11 @@ export type DepartamentoAgenteExterno =
  * un pedido cubre exactamente una materia y lleva sus horas como campo propio.
  */
 export interface AsignacionMateria {
+  materiaId: string;
   materia: string;
   horas: number;
+  cargoActual?: Cargo | null;
+  dedicacionActual?: Dedicacion | null;
   horasInvestigacion?: number | null;
   horasExternas?: number | null;
 }
@@ -97,16 +107,11 @@ export interface EventoHistorial {
 export interface DocentePedido {
   dni: string;
   nombre: string;
+  /** Nombre y apellido separados para el alta de una persona nueva. */
+  nombrePersona?: string;
+  apellido?: string;
   antiguedad: number;
   /** Legajo institucional. Puede faltar en una Alta: el docente todavía no existe en el sistema. */
-  legajo?: string;
-}
-
-/** Persona canónica disponible para un Alta, aun cuando todavía no tenga designación. */
-export interface PersonaCatalogoPedido {
-  id: string;
-  dni: string;
-  nombre: string;
   legajo?: string;
 }
 
@@ -117,6 +122,7 @@ export interface PersonaCatalogoPedido {
  * En el real provendría del módulo Portal / API Guaraní.
  */
 export interface DocenteExistente {
+  personaId: string;
   dni: string;
   nombre: string;
   /** Legajo institucional — un docente ya existente en el sistema siempre lo tiene. */
@@ -190,8 +196,8 @@ export interface PedidoDesignacion {
 
 /**
  * Subconjunto editable de un pedido (lo que el form de alta/edición produce).
- * NO incluye `catedra`: la materia del pedido viene del ámbito del actor, no del
- * form — un Jefe de Cátedra sólo carga pedidos sobre la cátedra que tiene a cargo.
+ * La `catedra` del payload es el nombre presentacional de la materia seleccionada;
+ * la autoridad real es `materiaId`.
  */
 export interface DatosEditablesPedido {
   docente: DocentePedido;

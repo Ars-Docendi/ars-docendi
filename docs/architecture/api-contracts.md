@@ -62,7 +62,7 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Pedidos          | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
 | Sesión dev       | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
 
-Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados.
+Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados. En pedidos, el Alta envía `persona { documento, nombre, apellido }` sin `personaId`; Baja y Cambio envían `personaId` y siempre `materiaId` explícito.
 
 ## Endpoints por módulo
 

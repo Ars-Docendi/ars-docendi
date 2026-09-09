@@ -106,7 +106,7 @@ export function MisPedidosPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Mis pedidos" },
         ]}
       />

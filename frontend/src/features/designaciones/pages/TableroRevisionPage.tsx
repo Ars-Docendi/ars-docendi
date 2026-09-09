@@ -159,7 +159,7 @@ export function TableroRevisionPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Tablero de revisión" },
         ]}
       />

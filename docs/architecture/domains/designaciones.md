@@ -60,6 +60,13 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 
 `identity.roles` define `jefe_catedra` con `scope = 'materia'`: cátedra **es** materia. Por eso el pedido lleva una sola `materia_id`, y la carrera se deriva de `identity.materias.carrera_id` en vez de desnormalizarse. Con una lista de N materias, un pedido podía abarcar dos carreras y dejar a dos Coordinadores compitiendo por él, sin que BR-designaciones-009 tuviera cómo resolverlo.
 
+El formulario resuelve la materia en contexto: Alta usa las materias activas del
+Jefe de Cátedra; Baja/Cambio intersectan esas materias con las designaciones
+vigentes del docente seleccionado. Una única opción se fija automáticamente y
+varias se eligen por UUID. El backend no confía en esa anticipación: valida el
+ámbito y exige `(persona_id, materia_id)` vigente para Baja/Cambio. Snapshot,
+horas y datos actuales se toman de esa designación, nunca de la primera del docente.
+
 ## API pública (contract)
 
 | Interfaz                       | Métodos                                             | Consumido por                      |
@@ -67,6 +74,11 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 | `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host |
 
 El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
+
+Para un Alta de pedido, Designaciones consume por DI la frontera pública
+`IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en
+Shared y sólo crea la persona canónica; Designaciones no accede al `IdentityDbContext`
+ni a repositorios de Identity.
 
 ## Endpoints HTTP
 
@@ -88,7 +100,7 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 
 ## Dependencias
 
-- **Hacia `identity`** (vía `IConsultasIdentity`, sólo lectura): resolver la persona, validar el rol de Jefe de Cátedra sobre la materia del pedido, derivar la carrera. El módulo **no escribe** identity.
+- **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
 - **Exportación**: el lote lee pedidos del período y designaciones vigentes dentro de una lectura `RepeatableRead`; completa nombres y autores a través de `IConsultasIdentity` y no agrega una dependencia entre módulos.
 - **Hacia adentro**: `Modules.Portal.Contracts` (consultar áreas de experticia — proyectado, no confirmado).
 - **Hacia afuera**: ninguna por ahora.

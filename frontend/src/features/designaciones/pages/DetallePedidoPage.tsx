@@ -63,7 +63,7 @@ export function DetallePedidoPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Revisión", href: RUTA_REVISION },
           { label: "Detalle del pedido" },
         ]}

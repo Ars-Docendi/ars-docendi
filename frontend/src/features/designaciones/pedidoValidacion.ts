@@ -8,6 +8,7 @@ import type { Adjunto, DatosEditablesPedido, PedidoDesignacion, TipoAdjunto } fr
 export type CampoPedido =
   | "novedad"
   | "docente"
+  | "materia"
   | "horas"
   | "cargoSolicitado"
   | "dedicacionSolicitada"
@@ -50,8 +51,14 @@ export function validarPedido(
   // Campos comunes obligatorios.
   if (!datos.docente.dni.trim()) {
     errores.docente = "El DNI del docente es obligatorio.";
-  } else if (!datos.docente.nombre.trim()) {
+  } else if (
+    !(datos.novedad === "Alta"
+      ? (datos.docente.nombrePersona ?? datos.docente.nombre).trim()
+      : datos.docente.nombre.trim())
+  ) {
     errores.docente = "El nombre del docente es obligatorio.";
+  } else if (datos.novedad === "Alta" && !datos.docente.apellido?.trim()) {
+    errores.docente = "El apellido del docente es obligatorio.";
   } else if (
     // BR-018: Baja/Cambio operan sobre un docente ya existente en el sistema,
     // que por eso ya tiene legajo asignado — a diferencia de Alta (docente nuevo).
@@ -59,6 +66,10 @@ export function validarPedido(
     !datos.docente.legajo?.trim()
   ) {
     errores.docente = "El legajo del docente es obligatorio para una baja o un cambio.";
+  }
+
+  if (datos.novedad && datos.novedad !== "Sin novedad" && !datos.materiaId) {
+    errores.materia = "Seleccioná una materia para el pedido.";
   }
   // Carga horaria de la cátedra. Las horas son un campo libre: no se valida que
   // cierren contra la dedicación solicitada (D2), sólo que sean positivas cuando el

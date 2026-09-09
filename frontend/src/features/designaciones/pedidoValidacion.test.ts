@@ -4,8 +4,16 @@ import type { Adjunto, DatosEditablesPedido, PedidoDesignacion } from "./types";
 
 function datosBase(overrides: Partial<DatosEditablesPedido> = {}): DatosEditablesPedido {
   return {
-    docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 5, legajo: "1001" },
+    docente: {
+      dni: "30111222",
+      nombre: "Ana Pérez",
+      nombrePersona: "Ana",
+      apellido: "Pérez",
+      antiguedad: 5,
+      legajo: "1001",
+    },
     catedra: "Ingeniería de Software",
+    materiaId: "materia-software",
     horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
@@ -305,7 +313,13 @@ describe("validarPedido", () => {
           cargoSolicitado: "Ayudante",
           dedicacionSolicitada: "Categoría 5",
           adjuntos: ADJUNTOS_ALTA,
-          docente: { dni: "30111222", nombre: "Ana Pérez", antiguedad: 0 },
+          docente: {
+            dni: "30111222",
+            nombre: "Ana Pérez",
+            nombrePersona: "Ana",
+            apellido: "Pérez",
+            antiguedad: 0,
+          },
         }),
         { pedidosExistentes: [] },
       );

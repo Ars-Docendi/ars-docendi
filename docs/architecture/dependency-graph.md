@@ -88,6 +88,12 @@ La disciplina, corolario del invariante #4 enmendado:
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
 
+La creación de una persona sin cuenta para un Alta mantiene esa frontera: el
+módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que
+`ServicioPersonas` y `IRepositorioDocentes` permanecen en Shared. No aparece una
+referencia de proyecto nueva ni una dependencia hacia implementaciones de otro
+módulo; el DAG y el edge `Modules.Designaciones → ArsDocendi.Shared` no cambian.
+
 La exportación de lote de Designaciones conserva esta frontera: usa `IConsultasIdentity`
 para completar personas, materias y usuarios, y no introduce una dependencia de
 proyecto hacia otro módulo ni modifica el DAG.

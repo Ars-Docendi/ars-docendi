@@ -14,6 +14,7 @@ public interface IRepositorioDocentes
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
     Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct);
     Task<bool> ExisteDocumentoAsync(string documento, Guid? exceptoPersonaId, CancellationToken ct);
+    void AgregarPersona(Persona persona);
     void Agregar(Persona? personaNueva, Usuario usuario);
     void AgregarAsignacion(UsuarioRol asignacion);
     void EsperarVersion(Usuario usuario, uint version);
@@ -83,6 +84,8 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
         CancellationToken ct) =>
         db.Personas.AsNoTracking().AnyAsync(p =>
             p.Documento == documento && p.Id != exceptoPersonaId, ct);
+
+    public void AgregarPersona(Persona persona) => db.Personas.Add(persona);
 
     public void Agregar(Persona? personaNueva, Usuario usuario)
     {

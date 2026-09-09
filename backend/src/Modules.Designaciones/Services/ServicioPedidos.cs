@@ -1,4 +1,5 @@
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
@@ -19,7 +20,8 @@ internal sealed class ServicioPedidos(
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     UnidadDeTrabajo unidadDeTrabajo,
-    ILogger<ServicioPedidos> logger)
+    ILogger<ServicioPedidos> logger,
+    IAdministracionIdentity? administracionIdentity = null)
 {
     /// <summary>
     /// Crea un pedido en borrador.
@@ -41,9 +43,10 @@ internal sealed class ServicioPedidos(
         }
 
         await ValidarDatosAsync(datos, actor, ct);
+        var datosResueltos = await ResolverPersonaAsync(datos, ct);
 
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
-            datos.PeriodoId, datos.PersonaId, null, ct))
+            datosResueltos.PeriodoId, datosResueltos.PersonaId!.Value, null, ct))
         {
             // Sin datos del pedido bloqueante: puede ser de una cátedra ajena al actor.
             throw new ErrorPedidoDuplicado(
@@ -55,14 +58,14 @@ internal sealed class ServicioPedidos(
             Id = Guid.NewGuid(),
             Numero = await pedidos.SiguienteNumeroAsync(ct),
             PeriodoId = datos.PeriodoId,
-            PersonaId = datos.PersonaId,
+            PersonaId = datosResueltos.PersonaId.Value,
             MateriaId = datos.MateriaId,
             Novedad = datos.Novedad,
             Estado = EstadosPedido.Borrador,
             CreadoEn = DateTimeOffset.UtcNow,
         };
-        AplicarDatos(pedido, datos);
-        foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datos.Adjuntos)) pedido.Adjuntos.Add(adjunto);
+        AplicarDatos(pedido, datosResueltos);
+        foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos)) pedido.Adjuntos.Add(adjunto);
 
         pedidos.Agregar(pedido);
         RegistrarEnHistorial(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null);
@@ -71,7 +74,7 @@ internal sealed class ServicioPedidos(
 
         logger.LogInformation(
             "Pedido {Numero} creado en período {PeriodoId} sobre materia {MateriaId}",
-            pedido.Numero, datos.PeriodoId, datos.MateriaId);
+            pedido.Numero, datosResueltos.PeriodoId, datosResueltos.MateriaId);
 
         return pedido;
     }
@@ -82,6 +85,8 @@ internal sealed class ServicioPedidos(
         {
             throw new ErrorDominioPedido("La edición requiere la versión vigente del pedido.");
         }
+        if (datos.PersonaId is null || datos.Persona is not null)
+            throw new ErrorDominioPedido("La edición debe referir a una persona canónica existente.");
         var actor = await resolutorActor.ResolverAsync(ct);
         var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
@@ -93,7 +98,7 @@ internal sealed class ServicioPedidos(
         }
         await ValidarDatosAsync(datos, actor, ct);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
-            datos.PeriodoId, datos.PersonaId, pedidoId, ct))
+            datos.PeriodoId, datos.PersonaId.Value, pedidoId, ct))
         {
             throw new ErrorPedidoDuplicado(
                 "Ya existe un pedido en curso para ese docente en el período [BR-designaciones-001].");
@@ -103,7 +108,7 @@ internal sealed class ServicioPedidos(
         {
             pedidos.EsperarVersion(pedido, datos.Version.Value);
             pedido.PeriodoId = datos.PeriodoId;
-            pedido.PersonaId = datos.PersonaId;
+            pedido.PersonaId = datos.PersonaId.Value;
             pedido.MateriaId = datos.MateriaId;
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
@@ -137,6 +142,7 @@ internal sealed class ServicioPedidos(
         // conserva su verdad histórica aunque la designación cambie después.
         if (transicion.AccionHistorial == AccionesHistorial.Enviar)
         {
+            await ValidarDesignacionVigenteAsync(pedido, ct);
             pedido.Snapshot = await ArmarSnapshotAsync(pedido, ct);
         }
 
@@ -294,8 +300,21 @@ internal sealed class ServicioPedidos(
         var periodo = await pedidos.ObtenerPeriodoActivoAsync(ct);
         if (periodo is null || periodo.Id != datos.PeriodoId)
             throw new ErrorDominioPedido("El pedido debe pertenecer al período activo.");
-        var persona = (await identity.ListarPersonasAsync(ct)).SingleOrDefault(p => p.Id == datos.PersonaId);
-        if (persona is null)
+        if (datos.Persona is not null && datos.Novedad != Novedades.Alta)
+            throw new ErrorDominioPedido("Sólo un alta puede recibir los datos de una persona nueva.");
+        if (datos.Persona is not null
+            && (string.IsNullOrWhiteSpace(datos.Persona.Documento)
+                || string.IsNullOrWhiteSpace(datos.Persona.Nombre)
+                || string.IsNullOrWhiteSpace(datos.Persona.Apellido)))
+            throw new ErrorDominioPedido("El alta exige documento, nombre y apellido.");
+        if (datos.Persona is not null && datos.PersonaId is not null)
+            throw new ErrorDominioPedido("El alta no puede enviar una persona nueva y una referencia canónica a la vez.");
+        if (datos.Persona is null && datos.PersonaId is null)
+            throw new ErrorDominioPedido("El pedido debe referir a una persona canónica.");
+        var persona = datos.PersonaId is { } personaId
+            ? (await identity.ListarPersonasAsync(ct)).SingleOrDefault(p => p.Id == personaId)
+            : null;
+        if (datos.PersonaId is not null && persona is null)
             throw new ErrorDominioPedido("La persona seleccionada no existe.");
         var materia = (await identity.ListarMateriasAsync(ct)).SingleOrDefault(m => m.Id == datos.MateriaId);
         if (materia is null || !materia.Activo)
@@ -338,9 +357,38 @@ internal sealed class ServicioPedidos(
             throw new ErrorDominioPedido(
                 "El cambio de cargo o dedicación exige justificación [BR-designaciones-004].");
         if ((datos.Novedad is Novedades.Baja or Novedades.CambioDeCargoODedicacion)
-            && string.IsNullOrWhiteSpace(persona.Legajo))
+            && (persona is null || string.IsNullOrWhiteSpace(persona.Legajo)))
             throw new ErrorDominioPedido(
                 "La baja y el cambio exigen un docente con legajo [BR-designaciones-018].");
+        if (datos.Novedad is Novedades.Baja or Novedades.CambioDeCargoODedicacion
+            && (persona is null
+                || await designaciones.ObtenerVigenteAsync(persona.Id, datos.MateriaId, ct) is null))
+            throw new ErrorDominioPedido(
+                "La persona no tiene una designación vigente en la materia seleccionada.");
+    }
+
+    private async Task<DatosPedido> ResolverPersonaAsync(DatosPedido datos, CancellationToken ct)
+    {
+        if (datos.Persona is null)
+        {
+            if (datos.PersonaId is null)
+                throw new ErrorDominioPedido("El pedido debe referir a una persona canónica.");
+            return datos;
+        }
+
+        if (administracionIdentity is null)
+            throw new InvalidOperationException("No está registrada la administración de identidad.");
+        var personaId = await administracionIdentity.CrearPersonaSinCuentaAsync(
+            new DatosPersonaSinCuenta(datos.Persona.Documento, datos.Persona.Nombre, datos.Persona.Apellido), ct);
+        return datos with { PersonaId = personaId, Persona = null };
+    }
+
+    private async Task ValidarDesignacionVigenteAsync(Pedido pedido, CancellationToken ct)
+    {
+        if (pedido.Novedad is Novedades.Baja or Novedades.CambioDeCargoODedicacion
+            && await designaciones.ObtenerVigenteAsync(pedido.PersonaId, pedido.MateriaId, ct) is null)
+            throw new ErrorDominioPedido(
+                "La persona ya no tiene una designación vigente en la materia seleccionada.");
     }
 
     private static void AplicarDatos(Pedido pedido, DatosPedido datos)

@@ -1,10 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
-import type {
-  Dedicacion,
-  DocenteExistente,
-  PeriodoDesignacion,
-  PersonaCatalogoPedido,
-} from "../types";
+import type { Dedicacion, DocenteExistente, PeriodoDesignacion } from "../types";
 
 export interface CatalogosDesignaciones {
   periodoActivo: PeriodoDesignacion | null;
@@ -43,6 +38,7 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
     if (!primera) return [];
     return [
       {
+        personaId: persona.id,
         dni: persona.documento,
         nombre: `${persona.apellido}, ${persona.nombre}`,
         legajo: persona.legajo ?? "",
@@ -50,8 +46,11 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
         cargoActual: primera.cargoNombre,
         dedicacionActual: (primera.dedicacion ?? "") as Dedicacion,
         materiasActuales: persona.designacionesVigentes.map((d) => ({
+          materiaId: d.materiaId,
           materia: d.materiaNombre,
           horas: d.horas,
+          cargoActual: d.cargoNombre,
+          dedicacionActual: d.dedicacion,
           horasInvestigacion: d.horasInvestigacion,
           horasExternas: d.horasExternas,
         })),
@@ -62,24 +61,15 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
   });
 }
 
-export function personasDesdeCatalogo(catalogos: CatalogosDesignaciones): PersonaCatalogoPedido[] {
-  return catalogos.personas
-    .filter((persona) => persona.designacionesVigentes.length === 0)
-    .map((persona) => ({
-      id: persona.id,
-      dni: persona.documento,
-      nombre: `${persona.apellido}, ${persona.nombre}`,
-      legajo: persona.legajo ?? undefined,
-    }));
-}
-
 export function formatearDni(dni: string): string {
   const limpio = dni.replace(/\D/g, "");
   return limpio ? limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : dni;
 }
-export function horasVigentesEnCatedra(docente: DocenteExistente | undefined, catedra: string) {
-  return asignacionVigenteEnCatedra(docente, catedra)?.horas;
-}
-export function asignacionVigenteEnCatedra(docente: DocenteExistente | undefined, catedra: string) {
-  return docente?.materiasActuales.find((asignacion) => asignacion.materia === catedra);
+export function asignacionVigenteEnMateria(
+  docente: DocenteExistente | undefined,
+  materiaId: string | undefined,
+) {
+  return materiaId
+    ? docente?.materiasActuales.find((asignacion) => asignacion.materiaId === materiaId)
+    : undefined;
 }

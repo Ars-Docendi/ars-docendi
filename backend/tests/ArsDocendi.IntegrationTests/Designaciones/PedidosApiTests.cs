@@ -2,6 +2,7 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -64,6 +65,50 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             Datos(Guid.Parse("d0000000-0000-4000-8000-000000000003")), ct)).Result).Value);
         Assert.IsType<NoContentResult>(await controller.Eliminar(borrador.Id, ct));
         Assert.Null(await db.Pedidos.FindAsync([borrador.Id], ct));
+    }
+
+    [Fact]
+    public async Task Alta_con_datos_nuevos_crea_persona_sin_cuenta_y_pedido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
+        var documento = "39999888";
+
+        var respuesta = await controller.Crear(new GuardarPedidoDto(
+            Periodo,
+            null,
+            Materia,
+            Novedades.Alta,
+            Guid.Parse("c3000000-0000-4000-8000-000000000001"),
+            Guid.Parse("d6000000-0000-4000-8000-000000000001"),
+            10,
+            0,
+            0,
+            "Solicitud de alta",
+            null,
+            null,
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, "cv.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
+            ],
+            Persona: new GuardarPersonaPedidoDto(documento, "Ada", "Lovelace")), ct);
+
+        var creado = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>(respuesta.Result).Value);
+        var persona = await identityDb.Personas.SingleAsync(p => p.Documento == documento, ct);
+
+        Assert.Equal(persona.Id, creado.Persona.Id);
+        Assert.Equal(persona.Id, await db.Pedidos.Where(p => p.Id == creado.Id)
+            .Select(p => p.PersonaId).SingleAsync(ct));
+        Assert.False(await identityDb.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
+
+        var usuario = await new VinculadorPrimerLogin(identityDb).VincularAsync(
+            new DatosPrimerLogin(Guid.NewGuid(), "ada@unlam.edu.ar", "Ada Lovelace", documento), ct);
+        Assert.Equal(persona.Id, usuario.PersonaId);
+        Assert.Equal(1, await identityDb.Personas.CountAsync(p => p.Documento == documento, ct));
     }
 
     [Fact]
@@ -147,6 +192,39 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         Assert.False(await db.Pedidos.AnyAsync(p =>
             p.PersonaId == personaConLegajo && p.Numero.StartsWith(DateTime.UtcNow.Year.ToString()), ct));
+    }
+
+    [Fact]
+    public async Task Backend_rechaza_materia_ajena_y_baja_sin_designacion_en_la_materia()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(Jefe, identityDb, db);
+        var pedidosAntes = await db.Pedidos.CountAsync(ct);
+
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+            {
+                MateriaId = Guid.Parse("70000000-0000-4000-8000-000000000201"),
+            }, ct));
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+            {
+                MateriaId = Guid.Parse("70000000-0000-4000-8000-000000000102"),
+                Novedad = Novedades.Baja,
+                TipoBaja = TiposBaja.Renuncia,
+                Adjuntos = [new GuardarAdjuntoPedidoDto(TiposAdjunto.Justificativo, "baja.pdf")],
+            }, ct));
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+            {
+                Persona = new GuardarPersonaPedidoDto("39999777", "Grace", "Hopper"),
+            }, ct));
+
+        Assert.Equal(pedidosAntes, await db.Pedidos.CountAsync(ct));
+        Assert.False(await identityDb.Personas.AnyAsync(p => p.Documento == "39999777", ct));
     }
 
     [Fact]
@@ -302,7 +380,8 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             resolutor,
             identity,
             new UnidadDeTrabajo(db),
-            NullLogger<ServicioPedidos>.Instance);
+            NullLogger<ServicioPedidos>.Instance,
+            new ServicioPersonas(new RepositorioDocentes(identityDb)));
         return new ServicioPedidosApi(
             core, pedidos, resolutor, identity,
             new RepositorioIdempotencia(db), new UnidadDeTrabajo(db));

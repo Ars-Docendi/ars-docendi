@@ -4,7 +4,7 @@ namespace Modules.Designaciones.Services;
 
 internal sealed record DatosPedido(
     Guid PeriodoId,
-    Guid PersonaId,
+    Guid? PersonaId,
     Guid MateriaId,
     string Novedad,
     Guid? CargoSolicitadoId,
@@ -16,7 +16,8 @@ internal sealed record DatosPedido(
     string? TipoBaja,
     string? TipoBajaDetalle,
     IReadOnlyList<GuardarAdjuntoPedidoDto> Adjuntos,
-    uint? Version)
+    uint? Version,
+    GuardarPersonaPedidoDto? Persona)
 {
     public static DatosPedido Desde(GuardarPedidoDto datos) => new(
         datos.PeriodoId,
@@ -32,5 +33,6 @@ internal sealed record DatosPedido(
         datos.TipoBaja,
         datos.TipoBajaDetalle,
         datos.Adjuntos,
-        datos.Version);
+        datos.Version,
+        datos.Persona);
 }

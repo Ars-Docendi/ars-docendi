@@ -15,7 +15,7 @@ const DevLoginModal = developmentAuthEnabled
 function usePostLoginTarget(): string {
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-  return from?.pathname ?? "/designaciones";
+  return from?.pathname ?? "/portal";
 }
 
 /** Microsoft four-square brand glyph (decorative, page-local). */
