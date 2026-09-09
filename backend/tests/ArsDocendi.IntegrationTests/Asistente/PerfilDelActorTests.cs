@@ -41,6 +41,16 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
 
     private const string PermisoDeDominio = "designaciones.ver";
 
+    /// <summary>
+    /// Un segundo rol de ámbito GLOBAL, para el actor que tiene dos.
+    /// </summary>
+    /// <remarks>
+    /// Tiene que ser global: el schema exige `materia_id` y `carrera_id` en las
+    /// asignaciones de un rol de ámbito de materia, así que sumarle «docente» a
+    /// Secretaría no es un caso que la base admita.
+    /// </remarks>
+    private const string RolGlobalExtra = "observador_departamento";
+
     [Fact]
     public async Task Un_actor_global_con_el_permiso_de_dominio_alcanza_todo()
     {
@@ -112,6 +122,71 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
 
         Assert.True(PoliticaDeAbstencion.ConvieneReintentar(vacio, alcanzaTodo: true));
         Assert.False(PoliticaDeAbstencion.ConvieneReintentar(vacio, alcanzaTodo: false));
+    }
+
+    // ------------------------------------------------------------ el rol único
+
+    [Fact]
+    public async Task El_actor_con_un_solo_rol_vigente_lo_devuelve()
+    {
+        // LA PRECONDICIÓN DE ESTE RENGLÓN: `CodigoDeRol` no lo cubría ninguna
+        // aserción contra la base. El único test que lo nombraba construía un
+        // `PerfilDelActor` a mano, así que la consulta que lo lee nunca se ejecutó
+        // en la suite. Sin esto, reescribirla es cambiar código que nadie mira.
+        await SembrarAsync();
+
+        var perfil = await Consultor().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.False(string.IsNullOrWhiteSpace(perfil.CodigoDeRol));
+    }
+
+    [Fact]
+    public async Task Con_dos_roles_vigentes_distintos_no_devuelve_ninguno()
+    {
+        // La pregunta que la consulta contesta es «¿tiene UNO solo?», y su `LIMIT 2`
+        // existe para eso. Con dos roles distintos el valor tiene que ser nulo:
+        // `PresentacionPorRol` cae al saludo genérico en vez de prometerle a alguien
+        // el ámbito de un rol que es sólo la mitad de lo que es.
+        await SembrarAsync();
+        await SumarRolAsync(Secretaria, RolGlobalExtra);
+
+        var perfil = await Consultor().ObtenerAsync(
+            Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.Null(perfil.CodigoDeRol);
+    }
+
+    [Fact]
+    public async Task Dos_asignaciones_del_MISMO_rol_siguen_siendo_un_rol()
+    {
+        // El `DISTINCT` de la consulta. Un Jefe de Cátedra de dos materias tiene dos
+        // filas en `user_roles` con el mismo rol, y eso sigue siendo un solo rol: sin
+        // el DISTINCT caería al genérico justo para el caso más común del sistema.
+        await SembrarAsync();
+        var antes = await Consultor().ObtenerAsync(Jefe, TestContext.Current.CancellationToken);
+        Assert.False(string.IsNullOrWhiteSpace(antes.CodigoDeRol));
+
+        await DuplicarAsignacionDeRolAsync(Jefe);
+
+        var despues = await Consultor().ObtenerAsync(Jefe, TestContext.Current.CancellationToken);
+
+        Assert.Equal(antes.CodigoDeRol, despues.CodigoDeRol);
+    }
+
+    [Fact]
+    public async Task Un_rol_dado_de_baja_no_cuenta()
+    {
+        // Los filtros `deleted_at IS NULL` y `r.is_active`. Un segundo rol dado de
+        // baja no puede hacer que el actor pierda el suyo.
+        await SembrarAsync();
+        var conUno = await Consultor().ObtenerAsync(Secretaria, TestContext.Current.CancellationToken);
+
+        await SumarRolAsync(Secretaria, RolGlobalExtra, dadoDeBaja: true);
+
+        var despues = await Consultor().ObtenerAsync(Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.Equal(conUno.CodigoDeRol, despues.CodigoDeRol);
     }
 
     // ------------------------------------------------------------------ apoyo
@@ -195,4 +270,35 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
         Assert.DoesNotContain("usuarios.administrar", permisos);
     }
 
+    /// <summary>Le agrega al actor otra asignación, de un rol distinto.</summary>
+    private async Task SumarRolAsync(Guid actor, string codigoDeRol, bool dadoDeBaja = false)
+    {
+        await EjecutarAsync(
+            $"""
+            INSERT INTO identity.user_roles (id, user_id, role_id, deleted_at)
+            SELECT gen_random_uuid(), @actor, r.id, {(dadoDeBaja ? "now()" : "NULL")}
+              FROM identity.roles r
+             WHERE r.code = @codigo
+            """,
+            ("actor", actor),
+            ("codigo", codigoDeRol));
+    }
+
+        /// <summary>
+    /// Le da al actor el MISMO rol sobre otra materia: dos filas, un solo rol.
+    /// </summary>
+    private async Task DuplicarAsignacionDeRolAsync(Guid actor)
+    {
+        await EjecutarAsync(
+            """
+            INSERT INTO identity.user_roles (id, user_id, role_id, materia_id, carrera_id, deleted_at)
+            SELECT gen_random_uuid(), ur.user_id, ur.role_id, m.id, ur.carrera_id, NULL
+              FROM identity.user_roles ur
+              JOIN identity.materias m
+                ON m.id <> ur.materia_id AND m.carrera_id = ur.carrera_id
+             WHERE ur.user_id = @actor AND ur.deleted_at IS NULL
+             LIMIT 1
+            """,
+            ("actor", actor));
+    }
 }

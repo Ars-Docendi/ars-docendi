@@ -85,8 +85,46 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         }
     }
 
+    /// <summary>
+    /// Los seis valores del perfil, en UNA consulta.
+    /// </summary>
+    /// <remarks>
+    /// Eran nueve viajes a la base por turno: uno por cada función de
+    /// <c>identity</c> más la lectura del rol. Ahora son tres —dos del preámbulo y
+    /// éste—, y el turno completo del asistente hace dos llamadas al modelo, así
+    /// que seis round-trips de menos no es cosmética.
+    ///
+    /// <b>Ya no hay cortocircuito sobre el permiso de datos personales.</b> Antes,
+    /// un actor no global no llegaba a preguntar por ese permiso; ahora la función
+    /// se evalúa siempre y la conjunción se hace en C#. El resultado observable es
+    /// idéntico —<c>esGlobal &amp;&amp; permiso</c> da lo mismo en los dos órdenes— y
+    /// lo que se cambia es una llamada de función dentro de la misma consulta por
+    /// un viaje de red entero.
+    ///
+    /// <c>identity.asistente_actor()</c> va primero en la lista de columnas por su
+    /// efecto, no por su valor: levanta <c>P0001</c> si el identificador no
+    /// corresponde a un usuario activo, y esa excepción sigue saliendo como
+    /// <see cref="ActorNoResuelto"/> igual que cuando era su propia consulta.
+    /// </remarks>
     private async Task<PerfilDelActor> LeerPerfilAsync(Guid actor, CancellationToken ct)
     {
+        const string Consulta = """
+            SELECT identity.asistente_actor()                    AS actor,
+                   identity.asistente_es_global()                AS es_global,
+                   identity.asistente_tiene_permiso(@personales) AS ve_datos_personales,
+                   identity.asistente_tiene_permiso(@consulta)   AS ve_la_consulta,
+                   identity.asistente_tiene_permiso(@dominio)    AS ve_designaciones,
+                   identity.asistente_tiene_permiso(@trayectoria) AS ve_trayectoria_ajena,
+                   (SELECT string_agg(codigo, ',')
+                      FROM (SELECT DISTINCT r.code AS codigo
+                              FROM identity.user_roles ur
+                              JOIN identity.roles r ON r.id = ur.role_id
+                             WHERE ur.user_id = identity.asistente_actor()
+                               AND ur.deleted_at IS NULL
+                               AND r.is_active
+                             LIMIT 2) roles)                     AS roles_vigentes
+            """;
+
         await using var conexion = await apertura.AbrirAsync(ct);
 
         await using var transaccion = await conexion.BeginTransactionAsync(
@@ -94,41 +132,27 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
 
         await PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);
 
-        await using (var validarActor = new NpgsqlCommand(
-            "SELECT identity.asistente_actor()", conexion, transaccion))
-        {
-            object? identificado;
-            try
-            {
-                identificado = await validarActor.ExecuteScalarAsync(ct);
-            }
-            catch (PostgresException excepcion) when (excepcion.SqlState == RaiseDeLaFuncion)
-            {
-                // La función ya levanta excepción con un mensaje que explica el
-                // caso. Se la envuelve en un tipo del módulo para que quien llama
-                // pueda distinguir «este actor no existe» de «la base no
-                // respondió»: el primero es un error de programación del llamador
-                // y el segundo es servicio degradado.
-                throw new ActorNoResuelto(actor, excepcion);
-            }
+        await using var comando = new NpgsqlCommand(Consulta, conexion, transaccion);
+        comando.Parameters.AddWithValue("personales", PermisoDeDatosPersonales);
+        comando.Parameters.AddWithValue("consulta", PermisoDeVerLaConsulta);
+        comando.Parameters.AddWithValue("dominio", PermisoDeDominio);
+        comando.Parameters.AddWithValue("trayectoria", PermisoDeTrayectoriaAjena);
 
-            if (identificado is null or DBNull)
-            {
-                throw new ActorNoResuelto(actor);
-            }
+        await using var lector = await LeerOTraducirAsync(comando, actor, ct);
+
+        if (!await lector.ReadAsync(ct) || await lector.IsDBNullAsync(0, ct))
+        {
+            throw new ActorNoResuelto(actor);
         }
 
-        var esGlobal = await LeerBooleanoAsync(
-            conexion, transaccion, "SELECT identity.asistente_es_global()", ct);
+        var esGlobal = lector.GetBoolean(1);
 
         // El acceso a datos personales exige alcance global ADEMÁS del permiso.
         // Ver la nota de IPerfilDelActor: la política de la aplicación es la
         // puerta, y el acotamiento de los datos es otra cosa que se aplica
         // después, en el controller. Sin la conjunción, el asistente heredaría la
         // puerta sin el acotamiento.
-        var veDatosPersonales = esGlobal && await LeerBooleanoAsync(
-            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
-            ("permiso", PermisoDeDatosPersonales));
+        var veDatosPersonales = esGlobal && lector.GetBoolean(2);
 
         // RIESGO RESIDUAL ACEPTADO, y registrado a propósito donde se toma la
         // decisión y no solo en un documento.
@@ -146,9 +170,7 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         // que acote por el alcance del actor, y tiene su propio ticket de
         // endurecimiento (ARS-69); no se adelanta acá porque es una migración con
         // impacto sobre consumidores que no son el asistente.
-        var veLaConsulta = await LeerBooleanoAsync(
-            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
-            ("permiso", PermisoDeVerLaConsulta));
+        var veLaConsulta = lector.GetBoolean(3);
 
         // LA CONJUNCIÓN ES LA MISMA QUE HACE LA POLICY, y por eso se lee acá en vez
         // de reusar `esGlobal`. Los dos ejes son independientes: sin el permiso, el
@@ -159,24 +181,38 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
         // redundancia — responden preguntas distintas. «¿Puede ver alguna fila del
         // trámite?» es el permiso, y sirve para anunciar el área; «¿cero filas
         // significa que no hay?» es la conjunción, que es lo que la policy exige.
-        var veDesignaciones = await LeerBooleanoAsync(
-            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
-            ("permiso", PermisoDeDominio));
-
-        var alcanzaDesignaciones = esGlobal && veDesignaciones;
-
-        var veTrayectoriaAjena = await LeerBooleanoAsync(
-            conexion, transaccion, "SELECT identity.asistente_tiene_permiso(@permiso)", ct,
-            ("permiso", PermisoDeTrayectoriaAjena));
+        var veDesignaciones = lector.GetBoolean(4);
 
         return new PerfilDelActor(
             esGlobal,
             veDatosPersonales,
             veLaConsulta,
-            await LeerRolUnicoAsync(conexion, transaccion, ct),
-            alcanzaDesignaciones,
-            veTrayectoriaAjena,
+            RolUnico(lector.IsDBNull(6) ? null : lector.GetString(6)),
+            esGlobal && veDesignaciones,
+            lector.GetBoolean(5),
             veDesignaciones);
+    }
+
+    /// <summary>
+    /// Ejecuta la consulta traduciendo el <c>RAISE</c> de <c>asistente_actor()</c>.
+    /// </summary>
+    /// <remarks>
+    /// La función ya levanta excepción con un mensaje que explica el caso. Se la
+    /// envuelve en un tipo del módulo para que quien llama pueda distinguir «este
+    /// actor no existe» de «la base no respondió»: el primero es un error de
+    /// programación del llamador y el segundo es servicio degradado.
+    /// </remarks>
+    private static async Task<NpgsqlDataReader> LeerOTraducirAsync(
+        NpgsqlCommand comando, Guid actor, CancellationToken ct)
+    {
+        try
+        {
+            return await comando.ExecuteReaderAsync(ct);
+        }
+        catch (PostgresException excepcion) when (excepcion.SqlState == RaiseDeLaFuncion)
+        {
+            throw new ActorNoResuelto(actor, excepcion);
+        }
     }
 
     /// <summary>
@@ -202,48 +238,14 @@ internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDe
     /// asignaciones del mismo rol y eso sigue siendo un solo rol. <c>LIMIT 2</c>
     /// porque la pregunta es «¿uno solo?»: alcanza con saber si hay un segundo.
     /// </remarks>
-    private static async Task<string?> LeerRolUnicoAsync(
-        NpgsqlConnection conexion, NpgsqlTransaction transaccion, CancellationToken ct)
-    {
-        const string Consulta = """
-            SELECT DISTINCT r.code
-              FROM identity.user_roles ur
-              JOIN identity.roles r ON r.id = ur.role_id
-             WHERE ur.user_id = identity.asistente_actor()
-               AND ur.deleted_at IS NULL
-               AND r.is_active
-             LIMIT 2
-            """;
+    /// <summary>
+    /// El código del único rol vigente, o <c>null</c> si el actor tiene varios.
+    /// </summary>
+    /// <remarks>
+    /// Recibe lo que agregó la consulta: hasta dos códigos separados por coma. Una
+    /// coma significa «hay un segundo», y ahí no hay un rol único que devolver.
+    /// </remarks>
+    private static string? RolUnico(string? codigos) =>
+        codigos is null || codigos.Contains(',', StringComparison.Ordinal) ? null : codigos;
 
-        await using var comando = new NpgsqlCommand(Consulta, conexion, transaccion);
-        await using var lector = await comando.ExecuteReaderAsync(ct);
-
-        if (!await lector.ReadAsync(ct))
-        {
-            return null;
-        }
-
-        var codigo = lector.GetString(0);
-
-        // Un segundo rol es indistinguible de ninguno para lo que sigue: los dos
-        // casos son la presentación genérica, sin tabla de precedencia.
-        return await lector.ReadAsync(ct) ? null : codigo;
-    }
-
-    private static async Task<bool> LeerBooleanoAsync(
-        NpgsqlConnection conexion,
-        NpgsqlTransaction transaccion,
-        string sql,
-        CancellationToken ct,
-        params (string Nombre, object Valor)[] parametros)
-    {
-        await using var comando = new NpgsqlCommand(sql, conexion, transaccion);
-
-        foreach (var (nombre, valor) in parametros)
-        {
-            comando.Parameters.AddWithValue(nombre, valor);
-        }
-
-        return await comando.ExecuteScalarAsync(ct) is true;
-    }
 }
