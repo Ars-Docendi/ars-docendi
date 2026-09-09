@@ -200,18 +200,21 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         var casos = new[]
         {
             (Guid.Parse("d0000000-0000-4000-8000-000000000002"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000001")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000004"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000002")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000006"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000006")),
+                Guid.Parse("d6000000-0000-4000-8000-000000000001"),
+                Guid.Parse("70000000-0000-4000-8000-000000000101")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000003"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000002"),
+                Guid.Parse("70000000-0000-4000-8000-000000000102")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000015"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000006"),
+                Guid.Parse("70000000-0000-4000-8000-000000000103")),
         };
 
-        foreach (var (persona, dedicacionId) in casos)
+        foreach (var (persona, dedicacionId, materiaId) in casos)
         {
             using var respuesta = await cliente.PostAsJsonAsync(
                 "/api/designaciones/pedidos",
-                Datos(persona, novedad: Novedades.CambioDeCargoODedicacion,
+                Datos(persona, materiaId: materiaId, novedad: Novedades.CambioDeCargoODedicacion,
                     dedicacionSolicitadaId: dedicacionId),
                 ct);
 
@@ -305,11 +308,12 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         int horasInvestigacion = 0,
         int horasExternas = 0,
         string novedad = Novedades.Alta,
-        Guid? dedicacionSolicitadaId = null) => new
+        Guid? dedicacionSolicitadaId = null,
+        Guid? materiaId = null) => new
     {
         periodoId = Periodo,
         personaId = persona,
-        materiaId = Materia,
+        materiaId = materiaId ?? Materia,
         novedad,
         cargoSolicitadoId = Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         dedicacionSolicitadaId = dedicacionSolicitadaId

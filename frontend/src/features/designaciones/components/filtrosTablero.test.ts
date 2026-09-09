@@ -3,6 +3,7 @@ import {
   ABREVIATURA_CARRERA,
   CARRERAS,
   FILTROS_INICIALES,
+  FILTROS_COLUMNAS_INICIALES,
   aplicarFiltros,
   type FiltrosTablero,
 } from "./filtrosTablero";
@@ -193,5 +194,52 @@ describe("aplicarFiltros — días sin movimiento", () => {
 
   it("'todos' no acota", () => {
     expect(nombres("todos")).toEqual(["Recién", "Hace10", "Hace40"]);
+  });
+});
+
+describe("aplicarFiltros — filtros de encabezado", () => {
+  it("combina Docente, Tipo, Estado y Área con AND", () => {
+    const coincidencia = pedido({
+      docente: { dni: "a", nombre: "Ana García", antiguedad: 3 },
+      novedad: "Alta",
+      estado: "en_revision_coordinador",
+    });
+    const distinto = pedido({
+      docente: { dni: "b", nombre: "Ana García", antiguedad: 3 },
+      novedad: "Baja",
+      estado: "en_revision_coordinador",
+    });
+
+    const resultado = aplicarFiltros([coincidencia, distinto], FILTROS_INICIALES, {
+      ...FILTROS_COLUMNAS_INICIALES,
+      docente: "garcia",
+      tipo: ["Alta"],
+      estado: ["en_revision_coordinador"],
+      area: ["Coordinación"],
+    });
+
+    expect(resultado).toEqual([coincidencia]);
+  });
+
+  it("busca las fechas del encabezado por valor visible o ISO", () => {
+    const pedidoConFecha = pedido({
+      historial: [
+        {
+          id: "envio",
+          accion: "enviar",
+          porRol: "Jefe de Cátedra",
+          porNombre: "J. Cátedra",
+          etapa: "en_revision_coordinador",
+          fecha: "2026-03-10T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(
+      aplicarFiltros([pedidoConFecha], FILTROS_INICIALES, {
+        ...FILTROS_COLUMNAS_INICIALES,
+        inicio: "2026-03-10",
+      }),
+    ).toEqual([pedidoConFecha]);
   });
 });

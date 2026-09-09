@@ -302,8 +302,8 @@ internal static class EscritorXlsxLote
     private static string DocumentoHoja(string dimension, StringBuilder contenido) => $"""
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <worksheet xmlns="{NamespaceSpreadsheet}" xmlns:r="{NamespaceRelationships}">
-          <sheetViews><sheetView workbookViewId="0"/></sheetViews>
           <dimension ref="{dimension}"/>
+          <sheetViews><sheetView workbookViewId="0"/></sheetViews>
           <sheetData>{contenido}</sheetData>
         </worksheet>
         """;

@@ -11,7 +11,7 @@ import {
 } from "../../../shared/ui/FiltrosLista";
 import { exportarLote } from "../api/loteApi";
 import { TablaRevision } from "../components/TablaRevision";
-import { CARRERAS, FILTROS_INICIALES, OPCIONES_ESTADO } from "../components/filtrosTablero";
+import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
 import type { FiltrosTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
@@ -19,27 +19,13 @@ import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
 
 /**
- * Siempre visibles: lo que se busca primero es un docente o un tipo de novedad.
- * **Período** también es fijo, y no opcional, porque arranca aplicado (en el período
- * abierto): un filtro que acota desde el vamos no puede estar escondido detrás de
- * "+ Añadir filtro" — el usuario vería una lista recortada sin saber por qué.
+ * Período es el único filtro general fijo. Docente, Tipo, Legajo y Estado viven
+ * en los encabezados de la tabla; así no aparecen dos controles para lo mismo.
  */
 function filtrosFijos(
   periodos: { id: string; nombre: string; activo: boolean }[],
 ): CampoFiltroFijo[] {
   return [
-    { clave: "nombre", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
-    {
-      tipo: "select",
-      clave: "tipo",
-      ariaLabel: "Filtrar por tipo",
-      opciones: [
-        { value: "todos", label: "Tipo: Todos" },
-        { value: "Alta", label: "Alta" },
-        { value: "Baja", label: "Baja" },
-        { value: "Cambio de cargo o dedicación", label: "Cambio" },
-      ],
-    },
     {
       tipo: "select",
       clave: "periodo",
@@ -62,14 +48,6 @@ function filtrosFijos(
  */
 function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
   return [
-    { tipo: "texto", clave: "legajo", etiqueta: "Legajo", placeholder: "Legajo…", ancho: "120px" },
-    {
-      tipo: "select",
-      clave: "estado",
-      etiqueta: "Estado",
-      valorInicial: "todos",
-      opciones: OPCIONES_ESTADO,
-    },
     {
       tipo: "select",
       clave: "prioridad",

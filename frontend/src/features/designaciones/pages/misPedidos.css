@@ -10,41 +10,15 @@
   gap: var(--space-3);
 }
 
-/* El filtro (Docente/N° fijos + "+ Añadir filtro") vive en el componente
-   genérico y reutilizable `shared/ui/FiltrosLista.tsx` (`.adoc-filtros-*`),
-   no acá — ver ese archivo para su CSS. */
-
 /* --- Tabla --- */
 .adoc-mp-table {
-  --mp-cols: 120px minmax(0, 1fr) 100px 230px 180px 110px 220px 190px;
+  overflow-x: auto;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
   background: var(--color-bg-raised);
 }
-.adoc-mp-head,
-.adoc-mp-row {
-  display: grid;
-  grid-template-columns: var(--mp-cols);
-  align-items: center;
-}
-.adoc-mp-head {
-  padding: 10px 12px;
-  background: var(--color-bg-canvas);
-  border-bottom: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
-}
-.adoc-mp-head span {
-  font-size: var(--text-micro-size);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.48px;
-  color: var(--color-text-tertiary);
-}
-.adoc-mp-row {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-.adoc-mp-row:last-child {
-  border-bottom: 0;
+.adoc-mp-table table {
+  min-width: 1120px;
 }
 .adoc-mp-row--clickeable {
   cursor: pointer;
@@ -61,6 +35,30 @@
   font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
+}
+.adoc-mp-table th:nth-child(1) {
+  width: 120px;
+}
+.adoc-mp-table th:nth-child(2) {
+  min-width: 190px;
+}
+.adoc-mp-table th:nth-child(3) {
+  width: 100px;
+}
+.adoc-mp-table th:nth-child(4) {
+  min-width: 180px;
+}
+.adoc-mp-table th:nth-child(5) {
+  min-width: 170px;
+}
+.adoc-mp-table th:nth-child(6) {
+  width: 110px;
+}
+.adoc-mp-table th:nth-child(7) {
+  min-width: 210px;
+}
+.adoc-mp-table th:nth-child(8) {
+  width: 190px;
 }
 .adoc-mp-doc {
   overflow: hidden;

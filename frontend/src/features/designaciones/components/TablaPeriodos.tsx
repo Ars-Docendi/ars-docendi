@@ -1,6 +1,19 @@
+import { Input, Table } from "@ars-docendi/ui";
 import { useState } from "react";
-import { Table, Input, Select } from "@ars-docendi/ui";
+import type { ReactNode } from "react";
+import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import type { PeriodoDesignacion } from "../types";
+import {
+  aplicarFiltrosYOrdenPeriodos,
+  formatearFecha,
+  formatearMesAnio,
+  FILTROS_PERIODOS_INICIALES,
+  siguienteOrdenPeriodos,
+  type ColumnaOrdenPeriodos,
+  type FiltroEstadoPeriodo,
+  type FiltrosPeriodos,
+  type OrdenPeriodos,
+} from "./filtrosPeriodos";
 import { MenuAccionesPeriodo } from "./MenuAccionesPeriodo";
 
 interface TablaPeriodosProps {
@@ -9,83 +22,128 @@ interface TablaPeriodosProps {
   onEliminar: (periodo: PeriodoDesignacion) => void;
 }
 
-type FiltroActivo = "todos" | "activos" | "inactivos";
-
-function formatearFecha(fechaIso: string): string {
-  const [anio, mes, dia] = fechaIso.split("-");
-  return `${dia}/${mes}/${anio}`;
-}
-
-const MESES = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
-
-function formatearMesAnio(fechaIso: string): string {
-  const [anio, mes] = fechaIso.split("-");
-  return `${MESES[Number(mes) - 1]} ${anio}`;
-}
-
+/** Tabla de períodos; los filtros y el orden son locales porque no hay paginación. */
 export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosProps) {
-  const [busqueda, setBusqueda] = useState("");
-  const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>("todos");
+  const [filtros, setFiltros] = useState<FiltrosPeriodos>(FILTROS_PERIODOS_INICIALES);
+  const [orden, setOrden] = useState<OrdenPeriodos | null>(null);
+  const visibles = aplicarFiltrosYOrdenPeriodos(periodos, filtros, orden);
 
-  const periodosOrdenadosYFiltrados = periodos
-    .filter((p) => {
-      const coincideNombre = p.nombre.toLowerCase().includes(busqueda.toLowerCase());
-      const coincideActivo =
-        filtroActivo === "todos" || (filtroActivo === "activos" ? p.activo : !p.activo);
-      return coincideNombre && coincideActivo;
-    })
-    .sort((a, b) => (b.impactoDesde < a.impactoDesde ? -1 : 1));
+  function cambiarFiltro<K extends keyof FiltrosPeriodos>(campo: K, valor: FiltrosPeriodos[K]) {
+    setFiltros((actual) => ({ ...actual, [campo]: valor }));
+  }
+
+  function alternarActivo(valor: FiltroEstadoPeriodo) {
+    const valores = filtros.activo;
+    cambiarFiltro(
+      "activo",
+      valores.includes(valor) ? valores.filter((actual) => actual !== valor) : [...valores, valor],
+    );
+  }
+
+  function limpiar(campo: keyof FiltrosPeriodos) {
+    cambiarFiltro(campo, (Array.isArray(filtros[campo]) ? [] : "") as never);
+  }
 
   return (
-    <Table>
-      <Table.Toolbar
-        left={
-          <Input
-            placeholder="Buscar por nombre…"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            style={{ width: 260 }}
-          />
-        }
-        right={
-          <Select
-            value={filtroActivo}
-            onChange={(e) => setFiltroActivo(e.target.value as FiltroActivo)}
-            style={{ width: 180 }}
-          >
-            <option value="todos">Todos</option>
-            <option value="activos">Activos</option>
-            <option value="inactivos">Inactivos</option>
-          </Select>
-        }
-      />
+    <Table className="adoc-periodos-table">
       <Table.Root>
         <Table.Head>
           <Table.Row>
-            <Table.HeaderCell>Nombre</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 110 }}>Carga desde</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 110 }}>Carga hasta</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 130 }}>Impacto desde</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 130 }}>Impacto hasta</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 90 }}>Activo</Table.HeaderCell>
-            <Table.HeaderCell style={{ width: 90 }}>Acciones</Table.HeaderCell>
+            <Encabezado
+              etiqueta="Nombre"
+              columna="nombre"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={Boolean(filtros.nombre.trim())}
+              onLimpiar={() => limpiar("nombre")}
+            >
+              <Input
+                className="adoc-filtro-encabezado-campo"
+                placeholder="Buscar nombre…"
+                aria-label="Buscar Nombre"
+                value={filtros.nombre}
+                onChange={(evento) => cambiarFiltro("nombre", evento.target.value)}
+              />
+            </Encabezado>
+            <Encabezado
+              etiqueta="Carga desde"
+              columna="cargaDesde"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={Boolean(filtros.cargaDesde.trim())}
+              onLimpiar={() => limpiar("cargaDesde")}
+            >
+              <Input
+                className="adoc-filtro-encabezado-campo"
+                placeholder="Buscar fecha…"
+                aria-label="Buscar Carga desde"
+                value={filtros.cargaDesde}
+                onChange={(evento) => cambiarFiltro("cargaDesde", evento.target.value)}
+              />
+            </Encabezado>
+            <Encabezado
+              etiqueta="Carga hasta"
+              columna="cargaHasta"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={Boolean(filtros.cargaHasta.trim())}
+              onLimpiar={() => limpiar("cargaHasta")}
+            >
+              <Input
+                className="adoc-filtro-encabezado-campo"
+                placeholder="Buscar fecha…"
+                aria-label="Buscar Carga hasta"
+                value={filtros.cargaHasta}
+                onChange={(evento) => cambiarFiltro("cargaHasta", evento.target.value)}
+              />
+            </Encabezado>
+            <Encabezado
+              etiqueta="Impacto desde"
+              columna="impactoDesde"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={Boolean(filtros.impactoDesde.trim())}
+              onLimpiar={() => limpiar("impactoDesde")}
+            >
+              <Input
+                className="adoc-filtro-encabezado-campo"
+                placeholder="Buscar mes o fecha…"
+                aria-label="Buscar Impacto desde"
+                value={filtros.impactoDesde}
+                onChange={(evento) => cambiarFiltro("impactoDesde", evento.target.value)}
+              />
+            </Encabezado>
+            <Encabezado
+              etiqueta="Impacto hasta"
+              columna="impactoHasta"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={Boolean(filtros.impactoHasta.trim())}
+              onLimpiar={() => limpiar("impactoHasta")}
+            >
+              <Input
+                className="adoc-filtro-encabezado-campo"
+                placeholder="Buscar mes o fecha…"
+                aria-label="Buscar Impacto hasta"
+                value={filtros.impactoHasta}
+                onChange={(evento) => cambiarFiltro("impactoHasta", evento.target.value)}
+              />
+            </Encabezado>
+            <Encabezado
+              etiqueta="Activo"
+              columna="activo"
+              orden={orden}
+              onOrden={(columna) => setOrden(siguienteOrdenPeriodos(orden, columna))}
+              activo={filtros.activo.length > 0}
+              onLimpiar={() => limpiar("activo")}
+            >
+              <Opciones valores={filtros.activo} onToggle={alternarActivo} />
+            </Encabezado>
+            <Table.HeaderCell>Acciones</Table.HeaderCell>
           </Table.Row>
         </Table.Head>
         <Table.Body>
-          {periodosOrdenadosYFiltrados.length === 0 ? (
+          {visibles.length === 0 ? (
             <Table.Row>
               <Table.Cell
                 colSpan={7}
@@ -95,7 +153,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
               </Table.Cell>
             </Table.Row>
           ) : (
-            periodosOrdenadosYFiltrados.map((periodo) => (
+            visibles.map((periodo) => (
               <Table.Row key={periodo.id}>
                 <Table.Cell>{periodo.nombre}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaDesde)}</Table.Cell>
@@ -116,5 +174,61 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
         </Table.Body>
       </Table.Root>
     </Table>
+  );
+}
+
+function Encabezado({
+  etiqueta,
+  columna,
+  orden,
+  onOrden,
+  activo,
+  onLimpiar,
+  children,
+}: {
+  etiqueta: string;
+  columna: ColumnaOrdenPeriodos;
+  orden: OrdenPeriodos | null;
+  onOrden: (columna: ColumnaOrdenPeriodos) => void;
+  activo: boolean;
+  onLimpiar: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Table.HeaderCell
+      aria-label={etiqueta}
+      sort={orden?.columna === columna ? orden.direccion : null}
+      onSortChange={() => onOrden(columna)}
+    >
+      <span>
+        {etiqueta}
+        <FiltroEncabezado etiqueta={etiqueta} activo={activo} onLimpiar={onLimpiar}>
+          {children}
+        </FiltroEncabezado>
+      </span>
+    </Table.HeaderCell>
+  );
+}
+
+function Opciones({
+  valores,
+  onToggle,
+}: {
+  valores: FiltroEstadoPeriodo[];
+  onToggle: (valor: FiltroEstadoPeriodo) => void;
+}) {
+  return (
+    <div className="adoc-filtro-encabezado-opciones">
+      {(["activo", "inactivo"] as const).map((opcion) => (
+        <label className="adoc-filtro-encabezado-opcion" key={opcion}>
+          <input
+            type="checkbox"
+            checked={valores.includes(opcion)}
+            onChange={() => onToggle(opcion)}
+          />
+          {opcion === "activo" ? "Activo" : "Inactivo"}
+        </label>
+      ))}
+    </div>
   );
 }
