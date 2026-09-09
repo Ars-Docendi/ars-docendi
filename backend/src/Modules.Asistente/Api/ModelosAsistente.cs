@@ -102,7 +102,7 @@ public sealed record RespuestaDelAsistente
     public required MetricasDto Metricas { get; init; }
 
     /// <summary>Arma la respuesta HTTP a partir del resultado del turno.</summary>
-    public static RespuestaDelAsistente De(ResultadoDelTurno turno)
+    internal static RespuestaDelAsistente De(ResultadoDelTurno turno)
     {
         ArgumentNullException.ThrowIfNull(turno);
 
@@ -174,7 +174,7 @@ public sealed record CapacidadesDto
     public required string Presentacion { get; init; }
 
     /// <summary>Arma el DTO a partir del catálogo.</summary>
-    public static CapacidadesDto De(CapacidadesDelActor capacidades)
+    internal static CapacidadesDto De(CapacidadesDelActor capacidades)
     {
         ArgumentNullException.ThrowIfNull(capacidades);
 

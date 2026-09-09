@@ -44,7 +44,7 @@ public sealed record Intencion(
 /// una intención mal escrita no rompería nada: simplemente no se reconocería nunca,
 /// y la única señal sería que las preguntas siguen tomando el camino caro.
 /// </remarks>
-public sealed class CatalogoDeIntencionesInvalido(string mensaje)
+internal sealed class CatalogoDeIntencionesInvalido(string mensaje)
     : InvalidOperationException(mensaje);
 
 /// <summary>

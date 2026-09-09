@@ -27,7 +27,7 @@ namespace Modules.Asistente.Application;
 /// la numeración de ningún módulo, así que el filtro es genérico —texto corto, sin
 /// espacios— y descartar lo que no corresponde es del que resuelve.
 /// </remarks>
-public static class BuscadorDeVinculos
+internal static class BuscadorDeVinculos
 {
     /// <summary>
     /// Largo máximo de un candidato.

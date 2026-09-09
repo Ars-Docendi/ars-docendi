@@ -86,7 +86,7 @@ public sealed class ContadorDeLlamadasDelTurno(int techo)
 /// <summary>
 /// El turno pidió más llamadas al modelo de las que su techo permite.
 /// </summary>
-public sealed class TechoDeLlamadasSuperado(int techo)
+internal sealed class TechoDeLlamadasSuperado(int techo)
     : Exception($"El turno agotó su techo de {techo} llamadas al modelo.")
 {
     /// <summary>Techo que se superó.</summary>

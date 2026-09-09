@@ -39,7 +39,7 @@ public sealed record CoberturaDeUnDato(string Tabla, long ConDato, long Total)
 /// cubre «hay filas que no ves»; esto cubre «nadie las cargó». Un resultado vacío
 /// puede ser por cualquiera de las dos, y quien pregunta necesita saber por cuál.
 /// </remarks>
-public static class CoberturaDelPortal
+internal static class CoberturaDelPortal
 {
     /// <summary>Las tablas de portal cuya ausencia de datos hay que declarar.</summary>
     /// <remarks>

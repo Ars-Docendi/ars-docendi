@@ -17,7 +17,7 @@ namespace Modules.Asistente.Application;
 /// Una sugerencia que no funciona es peor que ninguna: convierte un rechazo honesto
 /// en dos rechazos, y el segundo con la pregunta que el propio sistema propuso.
 /// </remarks>
-public static class Sugerencias
+internal static class Sugerencias
 {
     /// <summary>Cuántas se ofrecen como mucho.</summary>
     /// <remarks>

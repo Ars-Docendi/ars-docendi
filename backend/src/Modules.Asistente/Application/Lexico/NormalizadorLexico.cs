@@ -23,7 +23,7 @@ namespace Modules.Asistente.Application;
 /// distintos, el evaluador podría reportar un arrastre que el módulo no ve, o
 /// pasarle por al lado a uno que sí.
 /// </remarks>
-public static class NormalizadorLexico
+internal static class NormalizadorLexico
 {
     /// <summary>
     /// Palabras vacías del español. Se descartan porque aparecen en casi toda

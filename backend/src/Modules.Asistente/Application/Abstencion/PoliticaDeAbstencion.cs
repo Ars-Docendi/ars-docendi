@@ -12,7 +12,7 @@ namespace Modules.Asistente.Application;
 /// decide. Eso la hace testeable sin base y sin proveedor, que es lo que se
 /// quiere de la pieza que decide cuándo callarse.
 /// </remarks>
-public static class PoliticaDeAbstencion
+internal static class PoliticaDeAbstencion
 {
     /// <summary>
     /// Si para este actor, <b>en esta consulta</b>, cero filas significa que no hay

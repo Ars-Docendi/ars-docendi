@@ -397,6 +397,60 @@ public sealed partial class ArquitecturaAsistenteTests
             nombre => nombre.Equals("Ping", StringComparison.Ordinal));
     }
 
+    // ------------------------------------------------ la superficie pública
+
+    /// <summary>
+    /// Cuántos tipos de <c>Application</c> pueden ser públicos hoy.
+    /// </summary>
+    /// <remarks>
+    /// El número no es una meta: es el estado que el compilador impone. Casi toda
+    /// la superficie la arrastra el constructor de <c>CapaConversacional</c>, que
+    /// se registra con <c>AddScoped&lt;T&gt;()</c> y por eso necesita constructor
+    /// público, y el controller que la recibe. Bajarlo de acá exige rediseñar esa
+    /// activación, y eso es otro renglón.
+    ///
+    /// Lo que este guard impide es lo otro: que vuelva a subir por costumbre.
+    /// Estaba en 93 sin que nadie lo hubiera decidido.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 61;
+
+    [Fact]
+    public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
+    {
+        var publicos = TiposDeclarados(EsPublico());
+
+        // `public` es una promesa de estabilidad: dice «podés depender de mí, no te
+        // voy a romper». El módulo no le prometió nada a nadie —lo que ofrece a los
+        // otros módulos va en `Modules.Asistente.Contracts`, hoy vacío— así que cada
+        // tipo público de acá es una promesa que alguien tiene que poder justificar.
+        Assert.True(
+            publicos.Count <= SuperficiePublicaDeApplication,
+            $"La superficie pública de Application subió a {publicos.Count} (el tope es "
+            + $"{SuperficiePublicaDeApplication}). Un tipo nuevo va `internal` salvo que la "
+            + "superficie HTTP del módulo lo exija, y en ese caso se sube el tope con el "
+            + "motivo escrito. Públicos hoy: " + string.Join(", ", publicos));
+    }
+
+    [Fact]
+    public void El_detector_de_superficie_publica_reconoce_las_dos_formas()
+    {
+        // EL PAR SINTÉTICO. Una expresión regular que dejara de matchear reportaría
+        // cero públicos y este guard pasaría en verde para siempre.
+        Archivo[] sinteticos =
+        [
+            new("Application/Turno/Uno.cs", "public sealed class Uno { }"),
+            new("Application/Modelo/Dos.cs", "public interface Dos { }"),
+            new("Application/Lexico/Tres.cs", "public readonly record struct Tres(int A);"),
+            new("Application/Turno/Cuatro.cs", "internal sealed class Cuatro { }"),
+        ];
+
+        var publicos = sinteticos
+            .SelectMany(a => EsPublico().Matches(a.Contenido).Select(m => m.Groups["nombre"].Value))
+            .ToList();
+
+        Assert.Equal(["Uno", "Dos", "Tres"], publicos);
+    }
+
     // ------------------------------------------------------------- las referencias
 
     [Fact]
@@ -516,6 +570,13 @@ public sealed partial class ArquitecturaAsistenteTests
             || nombre.StartsWith("asistente.", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>Los tipos de <c>Application</c> que declara el patrón, ordenados.</summary>
+    private static IReadOnlyList<string> TiposDeclarados(Regex patron) =>
+        [.. CodigoDelModulo()
+            .Where(a => a.Ruta.Contains($"Application{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(a => patron.Matches(a.Contenido).Select(m => m.Groups["nombre"].Value))
+            .Order(StringComparer.Ordinal)];
+
     private static Archivo[] CodigoDelModulo()
     {
         var raiz = RaizRepositorio.Ruta();
@@ -590,6 +651,15 @@ public sealed partial class ArquitecturaAsistenteTests
 
     [GeneratedRegex(@"\bCadenaDuena\b")]
     private static partial Regex UsoDeCadenaDuena();
+
+    // Declaraciones públicas de nivel superior. El ancla de línea es lo que las
+    // distingue de los MIEMBROS públicos de un tipo, que van indentados y no son
+    // superficie del módulo sino de su tipo.
+    [GeneratedRegex(
+        @"^public (?:sealed |abstract |static |readonly |partial )*"
+        + @"(?:class|record struct|record|interface|enum|struct) (?<nombre>\w+)",
+        RegexOptions.Multiline)]
+    private static partial Regex EsPublico();
 
     // Las dos mitades del preámbulo, en un solo patrón: el nombre del ajuste del
     // actor y la declaración de solo lectura. Que estén juntas es lo que hace

@@ -17,7 +17,7 @@ namespace Modules.Asistente.Application;
 /// usuario cerró la pestaña». Sin esa distinción, cada abandono se registraría como
 /// una degradación del servicio y la métrica de disponibilidad mentiría.
 /// </remarks>
-public sealed class PresupuestoDelTurno : IDisposable
+internal sealed class PresupuestoDelTurno : IDisposable
 {
     private readonly CancellationToken _delRequest;
     private readonly CancellationTokenSource? _propio;

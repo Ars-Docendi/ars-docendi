@@ -1,7 +1,7 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>Cómo terminó el intento de reconocer la respuesta del usuario.</summary>
-public enum Reconocimiento
+internal enum Reconocimiento
 {
     /// <summary>Se identificó exactamente una opción.</summary>
     Elegida,
@@ -14,7 +14,7 @@ public enum Reconocimiento
 }
 
 /// <summary>El resultado de reconocer una respuesta a una aclaración.</summary>
-public sealed record RespuestaAAclaracion(Reconocimiento Estado, OpcionDeAclaracion? Opcion);
+internal sealed record RespuestaAAclaracion(Reconocimiento Estado, OpcionDeAclaracion? Opcion);
 
 /// <summary>
 /// Reconoce cuál de las opciones eligió el usuario, sin llamar al modelo.
@@ -30,7 +30,7 @@ public sealed record RespuestaAAclaracion(Reconocimiento Estado, OpcionDeAclarac
 ///
 /// Clase pura.
 /// </remarks>
-public static class ReconocedorDeAclaracion
+internal static class ReconocedorDeAclaracion
 {
     /// <summary>Reconoce la respuesta contra las opciones ofrecidas.</summary>
     public static RespuestaAAclaracion Reconocer(string respuesta, Aclaracion aclaracion)

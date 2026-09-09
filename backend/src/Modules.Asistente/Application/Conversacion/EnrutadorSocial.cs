@@ -39,7 +39,7 @@ public enum IntencionSocial
 ///
 /// Clase pura: se ejercita en memoria, sin base y sin red.
 /// </remarks>
-public static class EnrutadorSocial
+internal static class EnrutadorSocial
 {
     /// <summary>
     /// Palabras que forman una apertura o un cierre de cortesía y no aportan

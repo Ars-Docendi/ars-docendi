@@ -18,7 +18,7 @@ namespace Modules.Asistente.Application;
 ///
 /// Puro sobre el catálogo: quien lo carga es el índice.
 /// </remarks>
-public static class DetectorDeAmbiguedad
+internal static class DetectorDeAmbiguedad
 {
     /// <summary>
     /// Devuelve la aclaración que hace falta, o <c>null</c> si la pregunta no es

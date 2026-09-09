@@ -12,11 +12,11 @@ namespace Modules.Asistente.Application;
 /// atrapa —el carril y la capa conversacional— no puede depender de
 /// infraestructura.
 /// </remarks>
-public sealed class ProveedorNoDisponible()
+internal sealed class ProveedorNoDisponible()
     : Exception("El proveedor del modelo está fuera de servicio y no se lo llamó.");
 
 /// <summary>El proveedor no respondió dentro del tiempo de una llamada.</summary>
-public sealed class TimeoutDelProveedor(TimeSpan cuanto)
+internal sealed class TimeoutDelProveedor(TimeSpan cuanto)
     : Exception($"El proveedor del modelo no respondió en {cuanto.TotalSeconds:0.#} s.")
 {
     /// <summary>El tiempo que se le dio.</summary>

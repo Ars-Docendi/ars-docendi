@@ -27,7 +27,7 @@ namespace Modules.Asistente.Application;
 /// Los textos están todos en modo consulta —«Preguntá por…»— porque el asistente
 /// solo consulta: ninguno puede sugerir que carga, aprueba o cambia nada.
 /// </remarks>
-public static class PresentacionPorRol
+internal static class PresentacionPorRol
 {
     /// <summary>
     /// La presentación del actor: su ámbito, y las áreas que de verdad alcanza.

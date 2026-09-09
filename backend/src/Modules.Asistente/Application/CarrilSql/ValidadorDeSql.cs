@@ -9,7 +9,7 @@ namespace Modules.Asistente.Application;
 /// usuario</b>: nombra construcciones de SQL, y el texto que sale del turno no
 /// puede hablar de esquema ni de consultas.
 /// </param>
-public sealed record ResultadoDeValidacion(bool EsValida, string? Motivo)
+internal sealed record ResultadoDeValidacion(bool EsValida, string? Motivo)
 {
     /// <summary>Veredicto favorable.</summary>
     public static readonly ResultadoDeValidacion Valida = new(true, null);
@@ -30,7 +30,7 @@ public sealed record ResultadoDeValidacion(bool EsValida, string? Motivo)
 /// una abstención barata. No es lo que hace que el sistema sea seguro; es lo que
 /// hace que el sistema no dependa de que el modelo colabore.
 /// </remarks>
-public static class ValidadorDeSql
+internal static class ValidadorDeSql
 {
     /// <summary>
     /// Funciones prohibidas. Se chequean tanto en palabras sueltas como en

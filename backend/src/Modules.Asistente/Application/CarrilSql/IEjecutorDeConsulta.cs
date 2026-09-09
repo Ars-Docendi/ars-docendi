@@ -124,7 +124,7 @@ public interface IPerfilDelActor
 /// que responde «no encontré nada» sobre una base llena, que es un error mucho
 /// peor que uno que rompe.
 /// </remarks>
-public sealed class ActorNoResuelto(Guid actor, Exception? causa = null)
+internal sealed class ActorNoResuelto(Guid actor, Exception? causa = null)
     : Exception(
         $"El identificador '{actor}' no corresponde a ningún usuario activo del sistema.",
         causa)

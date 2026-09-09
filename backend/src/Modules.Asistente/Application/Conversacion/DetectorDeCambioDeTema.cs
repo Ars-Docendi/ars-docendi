@@ -11,7 +11,7 @@ namespace Modules.Asistente.Application;
 ///
 /// Clase pura.
 /// </remarks>
-public static class DetectorDeCambioDeTema
+internal static class DetectorDeCambioDeTema
 {
     /// <summary>
     /// Palabras que atan el mensaje a lo anterior.

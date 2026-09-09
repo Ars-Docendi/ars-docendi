@@ -23,7 +23,7 @@ namespace Modules.Asistente.Application;
 ///
 /// Es una función pura: se la puede ejercitar en memoria, sin base y sin proveedor.
 /// </remarks>
-public static class Enmascarador
+internal static class Enmascarador
 {
     /// <summary>
     /// Devuelve el resultado que puede viajar al modelo.

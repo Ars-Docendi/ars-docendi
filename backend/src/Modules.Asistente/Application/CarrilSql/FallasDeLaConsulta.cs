@@ -5,7 +5,7 @@ namespace Modules.Asistente.Application;
 /// hermanas de esto para que quien no necesita distinguirlas pueda atraparlas
 /// juntas.
 /// </summary>
-public abstract class FallaDeLaConsulta(string mensaje, Exception causa)
+internal abstract class FallaDeLaConsulta(string mensaje, Exception causa)
     : Exception(mensaje, causa);
 
 /// <summary>
@@ -21,7 +21,7 @@ public abstract class FallaDeLaConsulta(string mensaje, Exception causa)
 /// PostgreSQL nombra la tabla y la columna, y eso no puede salir del turno. El
 /// detalle viaja en la excepción interna, que va al registro.
 /// </remarks>
-public sealed class ConsultaSinPrivilegio(Exception causa)
+internal sealed class ConsultaSinPrivilegio(Exception causa)
     : FallaDeLaConsulta(
         "El rol de lectura del asistente no tiene privilegio sobre lo que la consulta pide.",
         causa);
@@ -34,7 +34,7 @@ public sealed class ConsultaSinPrivilegio(Exception causa)
 /// Igual que su hermana, sólo expone el SQLSTATE. Es lo único del rechazo que se
 /// puede loguear sin arrastrar nombres del esquema.
 /// </remarks>
-public sealed class ConsultaRechazadaPorElMotor(string? estado, Exception causa)
+internal sealed class ConsultaRechazadaPorElMotor(string? estado, Exception causa)
     : FallaDeLaConsulta($"El motor rechazó la consulta ({estado ?? "sin estado"}).", causa)
 {
     /// <summary>El SQLSTATE que devolvió PostgreSQL.</summary>

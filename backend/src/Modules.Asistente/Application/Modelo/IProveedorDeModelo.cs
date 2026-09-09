@@ -149,7 +149,7 @@ public sealed record RespuestaDelModelo(
 /// proveedor cambiaría qué configuraciones son válidas, que es lo contrario de lo
 /// que un puerto promete.
 /// </remarks>
-public static class EsfuerzoConfigurado
+internal static class EsfuerzoConfigurado
 {
     /// <summary>Interpreta el valor de configuración.</summary>
     /// <exception cref="InvalidOperationException">

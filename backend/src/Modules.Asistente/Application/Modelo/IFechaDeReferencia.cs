@@ -29,13 +29,13 @@ public interface IFechaDeReferencia
 /// recibe la fecha ya resuelta, así que un turno que empieza a las 23:59:59 no
 /// puede cambiar de día a la mitad.
 /// </remarks>
-public sealed class FechaDeReferenciaDelSistema : IFechaDeReferencia
+internal sealed class FechaDeReferenciaDelSistema : IFechaDeReferencia
 {
     public DateOnly Hoy() => DateOnly.FromDateTime(DateTime.UtcNow);
 }
 
 /// <summary>Fecha de referencia fija, para evaluación y para tests.</summary>
-public sealed class FechaDeReferenciaFija(DateOnly fecha) : IFechaDeReferencia
+internal sealed class FechaDeReferenciaFija(DateOnly fecha) : IFechaDeReferencia
 {
     public DateOnly Hoy() => fecha;
 }

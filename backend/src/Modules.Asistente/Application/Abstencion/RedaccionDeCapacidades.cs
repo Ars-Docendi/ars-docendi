@@ -15,7 +15,7 @@ namespace Modules.Asistente.Application;
 /// No nombra tablas ni schemas: son etiquetas internas (RNF-18). Lo que se muestra
 /// son los comentarios del catálogo, que están escritos para leerse.
 /// </remarks>
-public static class RedaccionDeCapacidades
+internal static class RedaccionDeCapacidades
 {
     /// <summary>Cuántas áreas se nombran antes de resumir el resto.</summary>
     /// <remarks>

@@ -18,7 +18,7 @@ namespace Modules.Asistente.Application;
 /// El criterio «la clasificación es de una sola fuente» se sostiene porque el test
 /// que verifica la cobertura carga <b>este mismo tipo</b>, no una copia suya.
 /// </remarks>
-public sealed class ManifiestoDeSensibilidad
+internal sealed class ManifiestoDeSensibilidad
 {
     /// <summary>Ruta lógica del recurso embebido, tal como la linkea el csproj.</summary>
     internal const string RutaDelRecurso = "asistente/manifiesto-sensibilidad.json";
@@ -146,7 +146,7 @@ public sealed class ManifiestoDeSensibilidad
 }
 
 /// <summary>Una tabla con todas sus columnas clasificadas.</summary>
-public sealed record TablaDeSensibilidad(
+internal sealed record TablaDeSensibilidad(
     string Schema, string Tabla, IReadOnlyList<EntradaDeSensibilidad> Columnas);
 
 /// <summary>La clasificación de una columna.</summary>
@@ -158,7 +158,7 @@ public sealed record TablaDeSensibilidad(
 /// conocerlo.
 /// </param>
 /// <param name="Motivo">Por qué está clasificada así, cuando no es pública.</param>
-public sealed record EntradaDeSensibilidad(
+internal sealed record EntradaDeSensibilidad(
     string Columna,
     ClasificacionDeSensibilidad Clasificacion,
     string? Etiqueta,

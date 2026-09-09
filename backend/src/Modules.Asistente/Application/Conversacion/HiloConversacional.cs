@@ -140,7 +140,7 @@ public sealed class HiloConversacional(Guid id, Guid actor)
 /// un caso normal que valga la pena tolerar: o es un error de programación del
 /// cliente, o es alguien probando identificadores. Las dos cosas se quieren ver.
 /// </remarks>
-public sealed class HiloAjeno(Guid hilo)
+internal sealed class HiloAjeno(Guid hilo)
     : Exception($"El hilo '{hilo}' pertenece a otro actor.")
 {
     /// <summary>El hilo que se intentó usar.</summary>
