@@ -1,32 +1,4 @@
-# exportacion-lote-designaciones Specification
-
-## Purpose
-
-Permitir descargar el lote docente del período configurado, reuniendo los pedidos aprobados y las designaciones que continúan vigentes sin necesidad de generar pedidos artificiales.
-
-## Requirements
-
-### Requirement: Descarga autorizada desde Finalizados
-
-En Revisión, la pestaña Finalizados SHALL ofrecer un botón Exportar en el extremo derecho de la fila de pestañas a Decanato, Secretaría Académica y Administrativo. La API MUST comprobar esos roles y su ámbito con la identidad persistida. La descarga MUST NOT modificar pedidos, designaciones, estados ni permisos de aprobación.
-
-#### Scenario: Rol habilitado descarga
-
-- **GIVEN** cualquiera de los tres roles habilitados en Finalizados
-- **WHEN** pulsa Exportar
-- **THEN** MUST descargar un archivo XLSX real, mostrando progreso y evitando solicitudes simultáneas desde el botón
-
-#### Scenario: Rol no habilitado llama directamente a la API
-
-- **GIVEN** un Jefe, Coordinador o Docente sin ninguno de los roles habilitados
-- **WHEN** intenta descargar el lote por API
-- **THEN** MUST recibir denegación sin datos del lote y MUST NOT ver el botón en UI
-
-#### Scenario: Fallo de descarga
-
-- **GIVEN** un error de servidor o red
-- **WHEN** se intenta exportar
-- **THEN** la UI MUST informar el error y permitir reintentar sin presentar un archivo fallido como exitoso
+## MODIFIED Requirements
 
 ### Requirement: Período asignado desde Períodos de Designación
 
@@ -138,19 +110,3 @@ conservarse sin sustituciones ficticias.
 - **GIVEN** una persona no tiene CUIL, correo o teléfono, o una fila no tiene datos persistidos para departamento o dedicación externa
 - **WHEN** se abre la planilla
 - **THEN** las celdas correspondientes MUST quedar vacías y MUST NOT reemplazarse por DNI, texto inventado ni números ficticios
-
-### Requirement: Integridad y seguridad del archivo
-
-La descarga SHALL representar una lectura consistente y quedar acotada al ámbito autorizado. Sus números y fechas SHALL ser celdas tipadas; los datos textuales MUST permanecer texto incluso si empiezan con caracteres de fórmula. UUIDs internos, credenciales y datos de ámbitos ajenos MUST NOT exportarse. Repetir una descarga sin cambios de negocio MUST conservar las mismas filas y valores, salvo la fecha de generación.
-
-#### Scenario: Aprobación concurrente
-
-- **GIVEN** una aprobación concurrente con la descarga
-- **WHEN** se generan ambas hojas
-- **THEN** MUST mostrar un estado consistente, sin combinar el pedido anterior con su designación posterior
-
-#### Scenario: Texto con apariencia de fórmula
-
-- **GIVEN** un campo textual que comienza con = o @ y un legajo con ceros iniciales
-- **WHEN** se abre el libro
-- **THEN** MUST conservarse como texto literal, sin ejecución de fórmula ni pérdida de ceros

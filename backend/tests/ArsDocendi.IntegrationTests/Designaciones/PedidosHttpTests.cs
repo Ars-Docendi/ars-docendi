@@ -266,12 +266,14 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
-        var pedidos = LeerXml(zip, "xl/worksheets/sheet1.xml").ToString();
-        var designaciones = LeerXml(zip, "xl/worksheets/sheet2.xml").ToString();
-        Assert.Contains(finalizado.Numero, pedidos, StringComparison.Ordinal);
-        Assert.Contains(finalizado.Numero, designaciones, StringComparison.Ordinal);
-        Assert.Contains("Continuidad", designaciones, StringComparison.Ordinal);
-        Assert.DoesNotContain(finalizado.Id.ToString(), designaciones, StringComparison.Ordinal);
+        var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml").ToString();
+        var altas = LeerXml(zip, "xl/worksheets/sheet2.xml").ToString();
+        var bajas = LeerXml(zip, "xl/worksheets/sheet3.xml").ToString();
+        Assert.Contains("Fernández, Lucía", propuesta, StringComparison.Ordinal);
+        Assert.Contains("Fernández, Lucía", altas, StringComparison.Ordinal);
+        Assert.Contains("Solicitud de alta", propuesta, StringComparison.Ordinal);
+        Assert.DoesNotContain("Fernández, Lucía", bajas, StringComparison.Ordinal);
+        Assert.DoesNotContain(finalizado.Id.ToString(), propuesta, StringComparison.Ordinal);
     }
 
     private static async Task<PedidoDto> PostPedido(HttpClient cliente, Guid persona, CancellationToken ct)

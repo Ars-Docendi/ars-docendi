@@ -101,8 +101,8 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 ## Dependencias
 
 - **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
-- **Exportación**: el lote lee pedidos del período y designaciones vigentes dentro de una lectura `RepeatableRead`; completa nombres y autores a través de `IConsultasIdentity` y no agrega una dependencia entre módulos.
-- **Hacia adentro**: `Modules.Portal.Contracts` (consultar áreas de experticia — proyectado, no confirmado).
+- **Exportación**: el lote lee el período, el período anterior por `ImpactoDesde`, pedidos y designaciones vigentes dentro de una lectura `RepeatableRead`; completa persona y materias mediante `IConsultasIdentity` y el correo de altas mediante `Modules.Portal.Contracts.Queries.IPortalQueries`. La proyección genera `PROPUESTA COMPLETA`, `ALTAS` y `BAJAS` —incluida la Alta aún no materializada— sin modificar el estado de negocio.
+- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`).
 - **Hacia afuera**: ninguna por ahora.
 - **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).
 

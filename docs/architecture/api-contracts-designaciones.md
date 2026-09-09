@@ -49,12 +49,27 @@ por documento a la persona ya creada.
 | GET    | `/api/designaciones/periodos/{id}/lote.xlsx` | `designaciones.ver` + Secretaría, Decanato o Administración departamental | XLSX   |
 
 La ruta sólo acepta el período activo indicado por `{id}`. El archivo fijo
-`lote-designaciones.xlsx` contiene `Pedidos finalizados` (pedidos `en_lote` del
-período) y `Designaciones resultantes` (todas las designaciones vigentes,
-incluidas las continuidades sin pedido aprobado). No recibe filtros: la
-exportación siempre representa el lote completo del período. Devuelve `401` sin
-autenticación, `403` fuera del ámbito departamental, `404` si el período no
-existe y `409` si dejó de estar activo.
+`lote-designaciones.xlsx` contiene exactamente tres hojas institucionales:
+
+- `PROPUESTA COMPLETA`: una fila por persona y materia vigente, baja aprobada o
+  Alta aprobada aún no materializada del período. Incluye CUIL,
+  cargo/dedicación anterior y propuesta, observación, horas semanales y
+  asignatura; departamento, dedicación externa y horas destinadas al ingreso
+  quedan vacíos porque no tienen fuente persistida.
+- `ALTAS`: sólo pedidos `en_lote` de novedad Alta del período activo, con CUIL,
+  cargo/dedicación, fecha de nacimiento, teléfono y correo de Portal cuando
+  exista.
+- `BAJAS`: sólo pedidos `en_lote` de novedad Baja del período activo, con CUIL,
+  cargo/dedicación anterior y el motivo compuesto por tipo, detalle y
+  justificación disponibles.
+
+Los encabezados usan el nombre del período activo y, en la primera hoja, el
+período anterior por `ImpactoDesde`; si no existe, la referencia anterior queda
+vacía. La exportación no recibe filtros: siempre representa el lote completo y
+las continuidades vigentes del período. Devuelve `401` sin autenticación, `403`
+fuera del ámbito departamental, `404` si el período no existe y `409` si dejó de
+estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
+`IPortalQueries` aporta únicamente `Contacto.Mail` para las altas.
 
 ## Pedidos
 

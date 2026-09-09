@@ -46,7 +46,7 @@ flowchart TD
   Portal --> PortalContracts
   Tareas --> TareasContracts
 
-  Designaciones -.->|"vía PortalContracts (TBD)"| PortalContracts
+  Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
   Aulas -.->|"vía PortalContracts (TBD)"| PortalContracts
 ```
 
@@ -64,6 +64,7 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 | `ArsDocendi.Host`       | `Modules.Aulas/Portal/Tareas.Contracts` | project reference | DI / interfaces de composición                                                                     |
 | `Modules.Designaciones` | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
 | `Modules.Designaciones` | `Modules.Designaciones.Contracts`       | project reference | Propio contract público                                                                            |
+| `Modules.Designaciones` | `Modules.Portal.Contracts`              | project reference | `IPortalQueries`: correo del perfil para exportar altas                                            |
 | `Modules.Aulas`         | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
 | `Modules.Aulas`         | `Modules.Aulas.Contracts`               | project reference | Propio contract público                                                                            |
 | `Modules.Portal`        | `ArsDocendi.Shared`                     | project reference | Utilidades                                                                                         |
@@ -94,9 +95,10 @@ módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que
 referencia de proyecto nueva ni una dependencia hacia implementaciones de otro
 módulo; el DAG y el edge `Modules.Designaciones → ArsDocendi.Shared` no cambian.
 
-La exportación de lote de Designaciones conserva esta frontera: usa `IConsultasIdentity`
-para completar personas, materias y usuarios, y no introduce una dependencia de
-proyecto hacia otro módulo ni modifica el DAG.
+La exportación de lote de Designaciones conserva esta frontera: usa
+`IConsultasIdentity` para completar personas y materias, y `IPortalQueries` para
+leer sólo el correo de las altas. No accede a `PortalDbContext` ni a entidades
+internas de Portal.
 
 `/pr-review` y `/architecture-drift-check` deben tratar cualquier escritura a identity desde un `Modules.*` como violación. `ArquitecturaIdentityTests` verifica automáticamente la frontera Controller → Service → Repository, la escritura administrativa exclusiva y que ningún proyecto consuma internals de otro módulo.
 
@@ -106,10 +108,9 @@ proyecto hacia otro módulo ni modifica el DAG.
 
 **Edges cross-module proyectados (a confirmar en spec respectiva)**:
 
-| From                    | To                         | Vía             | Razón                                                |
-| ----------------------- | -------------------------- | --------------- | ---------------------------------------------------- |
-| `Modules.Designaciones` | `Modules.Portal.Contracts` | DI via interfaz | Validar que el docente designado existe en el portal |
-| `Modules.Aulas`         | `Modules.Portal.Contracts` | DI via interfaz | Conocer el docente solicitante de la reserva         |
+| From            | To                         | Vía             | Razón                                        |
+| --------------- | -------------------------- | --------------- | -------------------------------------------- |
+| `Modules.Aulas` | `Modules.Portal.Contracts` | DI via interfaz | Conocer el docente solicitante de la reserva |
 
 ## Agregar un edge nuevo
 

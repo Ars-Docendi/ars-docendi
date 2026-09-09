@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.IO.Compression;
-using System.Security;
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Repositories;
+using Modules.Portal.Contracts.Queries;
 
 namespace Modules.Designaciones.Services;
 
@@ -20,6 +22,7 @@ internal sealed class ServicioLoteDesignaciones(
     RepositorioLoteDesignaciones repositorio,
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
+    IPortalQueries portal,
     Infrastructure.UnidadDeTrabajo unidadDeTrabajo) : IServicioLoteDesignaciones
 {
     public async Task<ArchivoLoteDesignaciones> ExportarAsync(Guid periodoId, CancellationToken ct)
@@ -56,409 +59,501 @@ internal sealed class ServicioLoteDesignaciones(
 
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
-        var usuarios = (await identity.ListarUsuariosAsync(ct)).ToDictionary(u => u.Id);
         var datos = consulta!;
-        var finalizados = datos.PedidosDelPeriodo
+        var pedidosEnLote = datos.PedidosDelPeriodo
             .Where(p => p.Estado == EstadosPedido.EnLote)
-            .Select(p => MapearPedido(p, personas, materias, usuarios))
+            .OrderBy(p => p.PersonaId)
+            .ThenBy(p => p.MateriaId)
+            .ThenBy(p => p.Numero, StringComparer.Ordinal)
             .ToArray();
-        var pedidosPorId = datos.PedidosDelPeriodo
-            .Where(p => p.Estado == EstadosPedido.EnLote)
-            .ToDictionary(p => p.Id);
-        var resultantes = datos.DesignacionesVigentes
-            .Select(d => MapearDesignacion(d, datos.Periodo, personas, materias, pedidosPorId))
+        var pedidosPorId = pedidosEnLote.ToDictionary(p => p.Id);
+        var designacionesPorClave = datos.DesignacionesVigentes
+            .GroupBy(d => (d.PersonaId, d.MateriaId))
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.VigenteDesde).ThenByDescending(d => d.CreadoEn).First());
+        var bajas = pedidosEnLote
+            .Where(p => p.Novedad == Novedades.Baja)
+            .GroupBy(p => (p.PersonaId, p.MateriaId))
+            .Select(g => g.First())
+            .ToArray();
+        var clavesBaja = bajas.Select(p => (p.PersonaId, p.MateriaId)).ToHashSet();
+        var altasSinDesignacion = pedidosEnLote
+            .Where(p => p.Novedad == Novedades.Alta)
+            .Where(p => !designacionesPorClave.ContainsKey((p.PersonaId, p.MateriaId)))
+            .Where(p => !clavesBaja.Contains((p.PersonaId, p.MateriaId)))
+            .Select(p => MapearPropuestaAlta(p, personas, materias));
+
+        var propuesta = datos.DesignacionesVigentes
+            .Where(d => !clavesBaja.Contains((d.PersonaId, d.MateriaId)))
+            .Select(d => MapearPropuesta(d, personas, materias, pedidosPorId))
+            .Concat(bajas.Select(p => MapearPropuestaBaja(p, personas, materias)))
+            .Concat(altasSinDesignacion)
+            .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(f => f.PersonaId)
+            .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(f => f.MateriaId)
+            .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
+            .ToArray();
+
+        var altas = new List<FilaAltaLote>();
+        foreach (var pedido in pedidosEnLote.Where(p => p.Novedad == Novedades.Alta))
+        {
+            personas.TryGetValue(pedido.PersonaId, out var persona);
+            designacionesPorClave.TryGetValue((pedido.PersonaId, pedido.MateriaId), out var designacion);
+            var perfil = await portal.ObtenerPerfilAsync(pedido.PersonaId, ct);
+            altas.Add(new FilaAltaLote(
+                pedido.PersonaId,
+                pedido.MateriaId,
+                Nombre(persona),
+                persona?.Cuil,
+                CargoDedicacion(
+                    designacion?.Cargo?.Nombre ?? pedido.CargoSolicitado?.Nombre,
+                    designacion?.DedicacionCatalogo?.Nombre
+                        ?? designacion?.Dedicacion
+                        ?? pedido.DedicacionSolicitadaCatalogo?.Nombre
+                        ?? pedido.DedicacionSolicitada),
+                persona?.FechaNacimiento,
+                perfil?.Contacto.Mail,
+                persona?.Telefono,
+                pedido.Numero,
+                materias.TryGetValue(pedido.MateriaId, out var materia) ? materia.Nombre : null));
+        }
+
+        var bajasExportar = bajas
+            .Select(p => MapearBaja(p, personas, materias))
+            .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(f => f.PersonaId)
+            .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(f => f.MateriaId)
+            .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
             .ToArray();
 
         return new ArchivoLoteDesignaciones(
-            EscritorXlsxLote.Escribir(datos.Periodo, finalizados, resultantes),
+            EscritorXlsxLote.Escribir(
+                datos.Periodo,
+                datos.PeriodoAnterior,
+                propuesta,
+                altas
+                    .OrderBy(f => f.Docente ?? string.Empty, StringComparer.Ordinal)
+                    .ThenBy(f => f.PersonaId)
+                    .ThenBy(f => f.Materia ?? string.Empty, StringComparer.Ordinal)
+                    .ThenBy(f => f.MateriaId)
+                    .ThenBy(f => f.NumeroPedido, StringComparer.Ordinal)
+                    .ToArray(),
+                bajasExportar),
             "lote-designaciones.xlsx");
     }
 
-    private static FilaPedidoLote MapearPedido(
-        Pedido pedido,
-        IReadOnlyDictionary<Guid, Persona> personas,
-        IReadOnlyDictionary<Guid, Materia> materias,
-        IReadOnlyDictionary<Guid, Usuario> usuarios)
-    {
-        personas.TryGetValue(pedido.PersonaId, out var persona);
-        materias.TryGetValue(pedido.MateriaId, out var materia);
-        var crear = pedido.Historial
-            .Where(h => h.Accion == AccionesHistorial.Crear)
-            .OrderBy(h => h.CreadoEn).ThenBy(h => h.Id)
-            .FirstOrDefault();
-        var enviar = pedido.Historial
-            .Where(h => h.Accion == AccionesHistorial.Enviar)
-            .OrderBy(h => h.CreadoEn).ThenBy(h => h.Id)
-            .FirstOrDefault();
-        var aprobacion = pedido.Historial
-            .Where(h => h.Accion == AccionesHistorial.Aceptar && h.Etapa == EstadosPedido.EnLote)
-            .OrderBy(h => h.CreadoEn).ThenBy(h => h.Id)
-            .LastOrDefault();
-
-        return new FilaPedidoLote(
-            pedido.Numero,
-            pedido.Periodo?.Nombre ?? string.Empty,
-            Nombre(persona),
-            persona?.Legajo,
-            materia?.Carrera?.Nombre,
-            materia?.Nombre,
-            pedido.Novedad,
-            pedido.CargoSolicitado?.Nombre,
-            pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada,
-            pedido.Horas,
-            pedido.HorasInvestigacion,
-            pedido.HorasExternas,
-            crear?.ActorId is { } actorId && usuarios.TryGetValue(actorId, out var usuario)
-                ? usuario.NombreParaMostrar
-                : null,
-            enviar?.CreadoEn,
-            aprobacion?.CreadoEn);
-    }
-
-    private static FilaDesignacionLote MapearDesignacion(
+    private static FilaPropuestaLote MapearPropuesta(
         Designacion designacion,
-        Periodo periodo,
         IReadOnlyDictionary<Guid, Persona> personas,
         IReadOnlyDictionary<Guid, Materia> materias,
         IReadOnlyDictionary<Guid, Pedido> pedidosPorId)
     {
         personas.TryGetValue(designacion.PersonaId, out var persona);
         materias.TryGetValue(designacion.MateriaId, out var materia);
-        var numeroPedido = designacion.OrigenPedidoId is { } origen
-            && pedidosPorId.TryGetValue(origen, out var pedido)
-                ? pedido.Numero
-                : "Continuidad";
+        var pedido = designacion.OrigenPedidoId is { } origen && pedidosPorId.TryGetValue(origen, out var encontrado)
+            ? encontrado
+            : null;
+        var anterior = pedido?.Novedad switch
+        {
+            Novedades.Alta => null,
+            Novedades.CambioDeCargoODedicacion => pedido.Snapshot,
+            _ => new SnapshotPedido(
+                designacion.Cargo?.Nombre,
+                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion,
+                designacion.Horas,
+                materia?.Nombre,
+                designacion.HorasInvestigacion,
+                designacion.HorasExternas),
+        };
 
-        return new FilaDesignacionLote(
-            periodo.Nombre,
-            periodo.ImpactoDesde,
-            periodo.ImpactoHasta,
+        return new FilaPropuestaLote(
+            designacion.PersonaId,
+            designacion.MateriaId,
             Nombre(persona),
-            persona?.Legajo,
-            materia?.Carrera?.Nombre,
-            materia?.Nombre,
-            designacion.Cargo?.Nombre,
-            designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion,
+            persona?.Cuil,
+            CargoDedicacion(anterior?.Cargo, anterior?.Dedicacion),
+            CargoDedicacion(
+                designacion.Cargo?.Nombre,
+                designacion.DedicacionCatalogo?.Nombre ?? designacion.Dedicacion),
+            pedido?.Justificacion,
             designacion.Horas,
-            designacion.HorasInvestigacion,
-            designacion.HorasExternas,
-            numeroPedido);
+            materia?.Nombre,
+            pedido?.Numero ?? string.Empty);
+    }
+
+    private static FilaPropuestaLote MapearPropuestaBaja(
+        Pedido pedido,
+        IReadOnlyDictionary<Guid, Persona> personas,
+        IReadOnlyDictionary<Guid, Materia> materias)
+    {
+        personas.TryGetValue(pedido.PersonaId, out var persona);
+        materias.TryGetValue(pedido.MateriaId, out var materia);
+        return new FilaPropuestaLote(
+            pedido.PersonaId,
+            pedido.MateriaId,
+            Nombre(persona),
+            persona?.Cuil,
+            CargoDedicacion(pedido.Snapshot?.Cargo, pedido.Snapshot?.Dedicacion),
+            null,
+            MotivoBaja(pedido),
+            pedido.Snapshot?.Horas,
+            pedido.Snapshot?.Materia ?? materia?.Nombre,
+            pedido.Numero);
+    }
+
+    private static FilaPropuestaLote MapearPropuestaAlta(
+        Pedido pedido,
+        IReadOnlyDictionary<Guid, Persona> personas,
+        IReadOnlyDictionary<Guid, Materia> materias)
+    {
+        personas.TryGetValue(pedido.PersonaId, out var persona);
+        materias.TryGetValue(pedido.MateriaId, out var materia);
+        return new FilaPropuestaLote(
+            pedido.PersonaId,
+            pedido.MateriaId,
+            Nombre(persona),
+            persona?.Cuil,
+            null,
+            CargoDedicacion(
+                pedido.CargoSolicitado?.Nombre,
+                pedido.DedicacionSolicitadaCatalogo?.Nombre ?? pedido.DedicacionSolicitada),
+            pedido.Justificacion,
+            pedido.Horas,
+            materia?.Nombre,
+            pedido.Numero);
+    }
+
+    private static FilaBajaLote MapearBaja(
+        Pedido pedido,
+        IReadOnlyDictionary<Guid, Persona> personas,
+        IReadOnlyDictionary<Guid, Materia> materias)
+    {
+        var fila = MapearPropuestaBaja(pedido, personas, materias);
+        return new FilaBajaLote(
+            fila.PersonaId,
+            fila.MateriaId,
+            fila.Docente,
+            fila.Cuil,
+            fila.CargoAnterior,
+            fila.Observacion,
+            fila.Horas,
+            fila.Materia,
+            fila.NumeroPedido);
     }
 
     private static string? Nombre(Persona? persona) =>
         persona is null ? null : $"{persona.Apellido}, {persona.Nombre}";
+
+    private static string? CargoDedicacion(string? cargo, string? dedicacion)
+    {
+        var partes = new[] { cargo, dedicacion }
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p!.Trim())
+            .ToArray();
+        return partes.Length == 0 ? null : string.Join(" / ", partes);
+    }
+
+    private static string? MotivoBaja(Pedido pedido)
+    {
+        var partes = new[] { pedido.TipoBaja, pedido.TipoBajaDetalle, pedido.Justificacion }
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p!.Trim())
+            .ToArray();
+        return partes.Length == 0 ? null : string.Join(" - ", partes);
+    }
 }
 
-internal sealed record FilaPedidoLote(
-    string Numero,
-    string Periodo,
+internal sealed record FilaPropuestaLote(
+    Guid PersonaId,
+    Guid MateriaId,
     string? Docente,
-    string? Legajo,
-    string? Carrera,
-    string? Materia,
-    string Novedad,
-    string? Cargo,
-    string? Dedicacion,
+    string? Cuil,
+    string? CargoAnterior,
+    string? CargoPropuesto,
+    string? Observacion,
     int? Horas,
-    int? HorasInvestigacion,
-    int? HorasExternas,
-    string? Solicitante,
-    DateTimeOffset? Inicio,
-    DateTimeOffset? Aprobacion);
-
-internal sealed record FilaDesignacionLote(
-    string Periodo,
-    DateOnly ImpactoDesde,
-    DateOnly ImpactoHasta,
-    string? Docente,
-    string? Legajo,
-    string? Carrera,
     string? Materia,
-    string? Cargo,
-    string? Dedicacion,
-    int Horas,
-    int? HorasInvestigacion,
-    int? HorasExternas,
     string NumeroPedido);
 
-/// <summary>Escritor concreto del libro fijo de dos hojas del lote.</summary>
+internal sealed record FilaAltaLote(
+    Guid PersonaId,
+    Guid MateriaId,
+    string? Docente,
+    string? Cuil,
+    string? CargoDedicacion,
+    DateOnly? FechaNacimiento,
+    string? Mail,
+    string? Telefono,
+    string NumeroPedido,
+    string? Materia);
+
+internal sealed record FilaBajaLote(
+    Guid PersonaId,
+    Guid MateriaId,
+    string? Docente,
+    string? Cuil,
+    string? CargoAnterior,
+    string? Motivo,
+    int? Horas,
+    string? Materia,
+    string NumeroPedido);
+
+/// <summary>Escritor de la planilla institucional a partir de la plantilla OOXML.</summary>
 internal static class EscritorXlsxLote
 {
-    private const string NamespaceSpreadsheet = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-    private const string NamespaceRelationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-    private static readonly TimeZoneInfo ZonaArgentina = TimeZoneInfo.FindSystemTimeZoneById(
-        "America/Argentina/Buenos_Aires");
+    private const string NombreRecurso = ".planilla_designaciones.xlsx";
+    private static readonly XNamespace Ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+    private static readonly XNamespace XmlNs = "http://www.w3.org/XML/1998/namespace";
 
     public static byte[] Escribir(
         Periodo periodo,
-        IReadOnlyList<FilaPedidoLote> pedidos,
-        IReadOnlyList<FilaDesignacionLote> designaciones)
+        Periodo? periodoAnterior,
+        IReadOnlyList<FilaPropuestaLote> propuesta,
+        IReadOnlyList<FilaAltaLote> altas,
+        IReadOnlyList<FilaBajaLote> bajas)
     {
-        using var archivo = new MemoryStream();
-        using (var zip = new ZipArchive(archivo, ZipArchiveMode.Create, true))
+        var nombre = typeof(EscritorXlsxLote).Assembly.GetManifestResourceNames()
+            .Single(n => n.EndsWith(NombreRecurso, StringComparison.Ordinal));
+        using var plantilla = typeof(EscritorXlsxLote).Assembly.GetManifestResourceStream(nombre)
+            ?? throw new InvalidOperationException("No se encontró la plantilla de exportación embebida.");
+        using var origen = new ZipArchive(plantilla, ZipArchiveMode.Read);
+        using var salida = new MemoryStream();
+        using (var zip = new ZipArchive(salida, ZipArchiveMode.Create, true))
         {
-            var generadoEn = DateTimeOffset.UtcNow;
-            Agregar(zip, "[Content_Types].xml", ContentTypes());
-            Agregar(zip, "_rels/.rels", RelacionesRaiz());
-            Agregar(zip, "xl/workbook.xml", Libro());
-            Agregar(zip, "xl/_rels/workbook.xml.rels", RelacionesLibro());
-            Agregar(zip, "xl/styles.xml", Estilos());
-            Agregar(zip, "xl/worksheets/sheet1.xml", HojaPedidos(periodo, pedidos, generadoEn));
-            Agregar(zip, "xl/worksheets/sheet2.xml", HojaDesignaciones(periodo, designaciones, generadoEn));
+            foreach (var entrada in origen.Entries)
+            {
+                var destino = zip.CreateEntry(entrada.FullName, CompressionLevel.Fastest);
+                using var stream = destino.Open();
+                switch (entrada.FullName)
+                {
+                    case "xl/workbook.xml":
+                        EscribirXml(stream, ModificarLibro(LeerXml(entrada)));
+                        break;
+                    case "xl/worksheets/sheet1.xml":
+                        EscribirXml(stream, ModificarPropuesta(LeerXml(entrada), periodo, periodoAnterior, propuesta));
+                        break;
+                    case "xl/worksheets/sheet2.xml":
+                        EscribirXml(stream, ModificarAltas(LeerXml(entrada), periodo, altas));
+                        break;
+                    case "xl/worksheets/sheet3.xml":
+                        EscribirXml(stream, ModificarBajas(LeerXml(entrada), periodo, bajas));
+                        break;
+                    case "xl/sharedStrings.xml":
+                        EscribirXml(stream, LimpiarPeriodosModelo(LeerXml(entrada)));
+                        break;
+                    case "docProps/app.xml":
+                        EscribirXml(stream, ModificarPropiedades(LeerXml(entrada)));
+                        break;
+                    default:
+                    {
+                        using var original = entrada.Open();
+                        original.CopyTo(stream);
+                        break;
+                    }
+                }
+            }
         }
-        return archivo.ToArray();
+        return salida.ToArray();
     }
 
-    private static string HojaPedidos(
+    private static XDocument ModificarLibro(XDocument documento)
+    {
+        var nombres = new[] { "PROPUESTA COMPLETA", "ALTAS", "BAJAS" };
+        var hojas = documento.Descendants(Ns + "sheet").ToArray();
+        if (hojas.Length != nombres.Length) throw new InvalidDataException("La plantilla no tiene tres hojas.");
+        for (var i = 0; i < nombres.Length; i++) hojas[i].SetAttributeValue("name", nombres[i]);
+        return documento;
+    }
+
+    private static XDocument ModificarPropuesta(
+        XDocument documento,
         Periodo periodo,
-        IReadOnlyList<FilaPedidoLote> filas,
-        DateTimeOffset generadoEn)
+        Periodo? anterior,
+        IReadOnlyList<FilaPropuestaLote> filas)
     {
-        var encabezados = new[]
+        PonerTexto(documento, "D1", Encabezado("DESIGNACIÓN", anterior?.Nombre));
+        PonerTexto(documento, "E1", Encabezado("PROPUESTA", periodo.Nombre));
+        EscribirFilas(documento, 5, "K", 4, filas.Count, (fila, indice) =>
         {
-            "N° trámite", "Período", "Docente", "Legajo", "Carrera", "Materia", "Novedad",
-            "Cargo solicitado", "Dedicación solicitada", "Horas materia", "Horas investigación",
-            "Horas externas", "Solicitante", "Inicio", "Aprobación final",
-        };
-        var contenido = new StringBuilder();
-        FilaClaveValor(contenido, 1, "Período configurado", periodo.Nombre);
-        FilaClaveValor(contenido, 2, "Generado en", generadoEn, true);
-        FilaClaveValor(contenido, 3, "Impacto", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
-        FilaEncabezados(contenido, 5, encabezados);
-
-        var fila = 6;
-        foreach (var pedido in filas)
-        {
-            AbrirFila(contenido, fila);
-            FilaTexto(contenido, fila, "A", pedido.Numero);
-            FilaTexto(contenido, fila, "B", pedido.Periodo);
-            FilaTexto(contenido, fila, "C", pedido.Docente);
-            FilaTexto(contenido, fila, "D", pedido.Legajo);
-            FilaTexto(contenido, fila, "E", pedido.Carrera);
-            FilaTexto(contenido, fila, "F", pedido.Materia);
-            FilaTexto(contenido, fila, "G", pedido.Novedad);
-            FilaTexto(contenido, fila, "H", pedido.Cargo);
-            FilaTexto(contenido, fila, "I", pedido.Dedicacion);
-            FilaNumero(contenido, fila, "J", pedido.Horas);
-            FilaNumero(contenido, fila, "K", pedido.HorasInvestigacion);
-            FilaNumero(contenido, fila, "L", pedido.HorasExternas);
-            FilaTexto(contenido, fila, "M", pedido.Solicitante);
-            FilaFecha(contenido, fila, "N", pedido.Inicio, true);
-            FilaFecha(contenido, fila, "O", pedido.Aprobacion, true);
-            CerrarFila(contenido);
-            fila++;
-        }
-
-        return DocumentoHoja($"A1:O{Math.Max(fila - 1, 5)}", contenido);
+            var propuesta = filas[indice - 1];
+            PonerNumero(fila, "A", indice);
+            PonerTexto(fila, "B", propuesta.Docente);
+            PonerTexto(fila, "C", propuesta.Cuil);
+            PonerTexto(fila, "D", propuesta.CargoAnterior);
+            PonerTexto(fila, "E", propuesta.CargoPropuesto);
+            PonerTexto(fila, "F", propuesta.Observacion);
+            PonerNumero(fila, "G", propuesta.Horas);
+            PonerTexto(fila, "H", propuesta.Materia);
+            PonerTexto(fila, "I", null);
+            PonerTexto(fila, "J", null);
+            PonerTexto(fila, "K", null);
+        });
+        return documento;
     }
 
-    private static string HojaDesignaciones(
+    private static XDocument ModificarAltas(
+        XDocument documento,
         Periodo periodo,
-        IReadOnlyList<FilaDesignacionLote> filas,
-        DateTimeOffset generadoEn)
+        IReadOnlyList<FilaAltaLote> filas)
     {
-        var encabezados = new[]
+        PonerTexto(documento, "D1", $"CARGO /DEDICACIÓN {periodo.Nombre}");
+        EscribirFilas(documento, 2, "G", 1, filas.Count, (fila, indice) =>
         {
-            "Período destino", "Impacto desde", "Impacto hasta", "Docente", "Legajo", "Carrera",
-            "Materia", "Cargo", "Dedicación", "Horas materia", "Horas investigación", "Horas externas",
-            "Pedido de origen",
-        };
-        var contenido = new StringBuilder();
-        FilaClaveValor(contenido, 1, "Período configurado", periodo.Nombre);
-        FilaClaveValor(contenido, 2, "Generado en", generadoEn, true);
-        FilaClaveValor(contenido, 3, "Impacto", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
-        FilaEncabezados(contenido, 5, encabezados);
+            var alta = filas[indice - 1];
+            PonerNumero(fila, "A", indice);
+            PonerTexto(fila, "B", alta.Docente);
+            PonerTexto(fila, "C", alta.Cuil);
+            PonerTexto(fila, "D", alta.CargoDedicacion);
+            PonerFecha(fila, "E", alta.FechaNacimiento);
+            PonerTexto(fila, "F", alta.Mail);
+            PonerTexto(fila, "G", alta.Telefono);
+        });
+        return documento;
+    }
 
-        var fila = 6;
-        foreach (var designacion in filas)
+    private static XDocument ModificarBajas(
+        XDocument documento,
+        Periodo periodo,
+        IReadOnlyList<FilaBajaLote> filas)
+    {
+        PonerTexto(documento, "D1", $"CARGO /DEDICACIÓN {periodo.Nombre}");
+        EscribirFilas(documento, 2, "E", 1, filas.Count, (fila, indice) =>
         {
-            AbrirFila(contenido, fila);
-            FilaTexto(contenido, fila, "A", designacion.Periodo);
-            FilaFecha(contenido, fila, "B", designacion.ImpactoDesde);
-            FilaFecha(contenido, fila, "C", designacion.ImpactoHasta);
-            FilaTexto(contenido, fila, "D", designacion.Docente);
-            FilaTexto(contenido, fila, "E", designacion.Legajo);
-            FilaTexto(contenido, fila, "F", designacion.Carrera);
-            FilaTexto(contenido, fila, "G", designacion.Materia);
-            FilaTexto(contenido, fila, "H", designacion.Cargo);
-            FilaTexto(contenido, fila, "I", designacion.Dedicacion);
-            FilaNumero(contenido, fila, "J", designacion.Horas);
-            FilaNumero(contenido, fila, "K", designacion.HorasInvestigacion);
-            FilaNumero(contenido, fila, "L", designacion.HorasExternas);
-            FilaTexto(contenido, fila, "M", designacion.NumeroPedido);
-            CerrarFila(contenido);
-            fila++;
+            var baja = filas[indice - 1];
+            PonerNumero(fila, "A", indice);
+            PonerTexto(fila, "B", baja.Docente);
+            PonerTexto(fila, "C", baja.Cuil);
+            PonerTexto(fila, "D", baja.CargoAnterior);
+            PonerTexto(fila, "E", baja.Motivo);
+        });
+        return documento;
+    }
+
+    private static string Encabezado(string tipo, string? periodo) =>
+        periodo is null ? $"CARGO /DEDICACIÓN\n{tipo}" : $"CARGO /DEDICACIÓN\n{tipo} {periodo}";
+
+    private static void EscribirFilas(
+        XDocument documento,
+        int primeraFila,
+        string ultimaColumna,
+        int ultimaFilaEncabezado,
+        int cantidad,
+        Action<XElement, int> escribir)
+    {
+        var datos = documento.Descendants(Ns + "sheetData").Single();
+        var plantilla = datos.Elements(Ns + "row").FirstOrDefault(r => NumeroFila(r) >= primeraFila)
+            ?? throw new InvalidDataException("La plantilla no tiene fila de datos.");
+        foreach (var fila in datos.Elements(Ns + "row").Where(r => NumeroFila(r) >= primeraFila).ToArray()) fila.Remove();
+        for (var indice = 1; indice <= cantidad; indice++)
+        {
+            var fila = new XElement(plantilla);
+            fila.SetAttributeValue("r", indice + primeraFila - 1);
+            foreach (var celda in fila.Elements(Ns + "c"))
+            {
+                var columna = Columna(celda);
+                celda.SetAttributeValue("r", $"{columna}{indice + primeraFila - 1}");
+            }
+            datos.Add(fila);
+            escribir(fila, indice);
         }
-
-        return DocumentoHoja($"A1:M{Math.Max(fila - 1, 5)}", contenido);
+        documento.Descendants(Ns + "dimension").Single().SetAttributeValue(
+            "ref", $"A1:{ultimaColumna}{Math.Max(ultimaFilaEncabezado, cantidad + primeraFila - 1)}");
     }
 
-    private static string DocumentoHoja(string dimension, StringBuilder contenido) => $"""
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <worksheet xmlns="{NamespaceSpreadsheet}" xmlns:r="{NamespaceRelationships}">
-          <dimension ref="{dimension}"/>
-          <sheetViews><sheetView workbookViewId="0"/></sheetViews>
-          <sheetData>{contenido}</sheetData>
-        </worksheet>
-        """;
+    private static int NumeroFila(XElement fila) =>
+        int.Parse(fila.Attribute("r")?.Value ?? throw new InvalidDataException("Fila sin número."), CultureInfo.InvariantCulture);
 
-    private static void FilaEncabezados(StringBuilder contenido, int fila, IReadOnlyList<string> encabezados)
+    private static string Columna(XElement celda) =>
+        new(celda.Attribute("r")?.Value?.TakeWhile(char.IsLetter).ToArray() ?? []);
+
+    private static XElement Celda(XElement fila, string columna)
     {
-        AbrirFila(contenido, fila);
-        for (var i = 0; i < encabezados.Count; i++) FilaTexto(contenido, fila, Columna(i), encabezados[i]);
-        CerrarFila(contenido);
+        var celda = fila.Elements(Ns + "c").FirstOrDefault(c => Columna(c) == columna);
+        if (celda is not null) return celda;
+        celda = new XElement(Ns + "c", new XAttribute("r", $"{columna}{NumeroFila(fila)}"));
+        fila.Add(celda);
+        return celda;
     }
 
-    private static void FilaClaveValor(StringBuilder contenido, int fila, string clave, string valor)
+    private static void PonerTexto(XDocument documento, string referencia, string? valor) =>
+        PonerTexto(documento.Descendants(Ns + "c").Single(c => c.Attribute("r")?.Value == referencia), valor);
+
+    private static void PonerTexto(XElement fila, string columna, string? valor) =>
+        PonerTexto(Celda(fila, columna), valor);
+
+    private static void PonerTexto(XElement celda, string? valor)
     {
-        AbrirFila(contenido, fila);
-        FilaTexto(contenido, fila, "A", clave);
-        FilaTexto(contenido, fila, "B", valor);
-        CerrarFila(contenido);
+        LimpiarCelda(celda);
+        if (valor is null) return;
+        celda.SetAttributeValue("t", "inlineStr");
+        celda.Add(new XElement(
+            Ns + "is",
+            new XElement(Ns + "t", new XAttribute(XmlNs + "space", "preserve"), valor)));
     }
 
-    private static void FilaClaveValor(
-        StringBuilder contenido,
-        int fila,
-        string clave,
-        DateTimeOffset valor,
-        bool incluyeHora)
+    private static void PonerNumero(XElement fila, string columna, int? valor) =>
+        PonerNumero(Celda(fila, columna), valor);
+
+    private static void PonerNumero(XElement celda, int? valor)
     {
-        AbrirFila(contenido, fila);
-        FilaTexto(contenido, fila, "A", clave);
-        FilaFecha(contenido, fila, "B", valor, incluyeHora);
-        CerrarFila(contenido);
+        LimpiarCelda(celda);
+        if (valor is null) return;
+        celda.SetAttributeValue("t", "n");
+        celda.Add(new XElement(Ns + "v", valor.Value.ToString(CultureInfo.InvariantCulture)));
     }
 
-    private static void AbrirFila(StringBuilder contenido, int fila) => contenido.Append($"<row r=\"{fila}\">");
-    private static void CerrarFila(StringBuilder contenido) => contenido.Append("</row>");
+    private static void PonerFecha(XElement fila, string columna, DateOnly? valor) =>
+        PonerFecha(Celda(fila, columna), valor);
 
-    private static void FilaTexto(StringBuilder contenido, int fila, string columna, string? valor)
+    private static void PonerFecha(XElement celda, DateOnly? valor)
     {
-        if (valor is null)
+        LimpiarCelda(celda);
+        if (valor is null) return;
+        celda.SetAttributeValue("t", "n");
+        celda.Add(new XElement(
+            Ns + "v",
+            valor.Value.ToDateTime(TimeOnly.MinValue).ToOADate().ToString("0.##########", CultureInfo.InvariantCulture)));
+    }
+
+    private static void LimpiarCelda(XElement celda)
+    {
+        celda.Attribute("t")?.Remove();
+        celda.Elements().Where(e => e.Name == Ns + "f" || e.Name == Ns + "v" || e.Name == Ns + "is").Remove();
+    }
+
+    private static XDocument LimpiarPeriodosModelo(XDocument documento)
+    {
+        foreach (var texto in documento.Descendants(Ns + "t"))
         {
-            contenido.Append($"<c r=\"{columna}{fila}\"/>");
-            return;
+            texto.Value = texto.Value
+                .Replace("ENERO-ABRIL 2026", string.Empty, StringComparison.Ordinal)
+                .Replace("MAYO-AGOSTO 2026", string.Empty, StringComparison.Ordinal)
+                .Replace("MAYO AGOSTO 2026", string.Empty, StringComparison.Ordinal)
+                .Replace("MAYO-AGOSTO 2025", string.Empty, StringComparison.Ordinal);
         }
-        contenido.Append($"<c r=\"{columna}{fila}\" t=\"inlineStr\"><is><t xml:space=\"preserve\">{Escapar(valor)}</t></is></c>");
+        return documento;
     }
 
-    private static void FilaNumero(StringBuilder contenido, int fila, string columna, int? valor)
+    private static XDocument ModificarPropiedades(XDocument documento)
     {
-        if (valor is null)
-        {
-            contenido.Append($"<c r=\"{columna}{fila}\"/>");
-            return;
-        }
-        contenido.Append($"<c r=\"{columna}{fila}\" t=\"n\"><v>{valor.Value}</v></c>");
+        const string titulo = "PROPUESTA COMPLETA";
+        var tituloModelo = documento.Descendants().SingleOrDefault(e =>
+            e.Name.LocalName == "lpstr" && e.Value.StartsWith("PROPUESTA COMPLETA", StringComparison.Ordinal));
+        if (tituloModelo is not null) tituloModelo.Value = titulo;
+        return documento;
     }
 
-    private static void FilaFecha(
-        StringBuilder contenido,
-        int fila,
-        string columna,
-        DateTimeOffset? valor,
-        bool incluyeHora = false)
+    private static XDocument LeerXml(ZipArchiveEntry entrada)
     {
-        if (valor is null)
-        {
-            contenido.Append($"<c r=\"{columna}{fila}\"/>");
-            return;
-        }
-        var fecha = TimeZoneInfo.ConvertTime(valor.Value, ZonaArgentina).DateTime;
-        FilaFechaNumerica(contenido, fila, columna, fecha, incluyeHora);
+        using var stream = entrada.Open();
+        return XDocument.Load(stream, LoadOptions.PreserveWhitespace);
     }
 
-    private static void FilaFecha(StringBuilder contenido, int fila, string columna, DateOnly valor) =>
-        FilaFechaNumerica(contenido, fila, columna, valor.ToDateTime(TimeOnly.MinValue), false);
-
-    private static void FilaFechaNumerica(
-        StringBuilder contenido,
-        int fila,
-        string columna,
-        DateTime valor,
-        bool incluyeHora)
+    private static void EscribirXml(Stream stream, XDocument documento)
     {
-        var estilo = incluyeHora ? 2 : 1;
-        var numero = valor.ToOADate().ToString("0.##########", CultureInfo.InvariantCulture);
-        contenido.Append($"<c r=\"{columna}{fila}\" s=\"{estilo}\" t=\"n\"><v>{numero}</v></c>");
+        var configuracion = new XmlWriterSettings { Encoding = new UTF8Encoding(false), Indent = false };
+        using var escritor = XmlWriter.Create(stream, configuracion);
+        documento.Save(escritor);
     }
-
-    private static string Columna(int indice)
-    {
-        var resultado = string.Empty;
-        do
-        {
-            resultado = (char)('A' + indice % 26) + resultado;
-            indice = indice / 26 - 1;
-        } while (indice >= 0);
-        return resultado;
-    }
-
-    private static string Escapar(string texto) => SecurityElement.Escape(texto) ?? string.Empty;
-
-    private static void Agregar(ZipArchive zip, string nombre, string contenido)
-    {
-        var entrada = zip.CreateEntry(nombre, CompressionLevel.Fastest);
-        using var escritor = new StreamWriter(entrada.Open(), new UTF8Encoding(false));
-        escritor.Write(contenido);
-    }
-
-    private static string ContentTypes() => $"""
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-          <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-          <Default Extension="xml" ContentType="application/xml"/>
-          <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-          <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-          <Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-          <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-        </Types>
-        """;
-
-    private static string RelacionesRaiz() => """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-          <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-        </Relationships>
-        """;
-
-    private static string Libro() => $"""
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <workbook xmlns="{NamespaceSpreadsheet}" xmlns:r="{NamespaceRelationships}">
-          <bookViews><workbookView activeTab="0"/></bookViews>
-          <sheets>
-            <sheet name="Pedidos finalizados" sheetId="1" r:id="rId1"/>
-            <sheet name="Designaciones resultantes" sheetId="2" r:id="rId2"/>
-          </sheets>
-        </workbook>
-        """;
-
-    private static string RelacionesLibro() => """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-          <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-          <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
-          <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-        </Relationships>
-        """;
-
-    private static string Estilos() => """
-        <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-        <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-          <numFmts count="2">
-            <numFmt numFmtId="164" formatCode="dd/mm/yyyy"/>
-            <numFmt numFmtId="165" formatCode="dd/mm/yyyy hh:mm"/>
-          </numFmts>
-          <fonts count="1"><font><sz val="11"/><name val="Arial"/></font></fonts>
-          <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
-          <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-          <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-          <cellXfs count="3">
-            <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-            <xf numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>
-            <xf numFmtId="165" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>
-          </cellXfs>
-        </styleSheet>
-        """;
 }
