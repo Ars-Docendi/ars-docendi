@@ -31,7 +31,7 @@ Un renglón nuevo se agrega a esta tabla **y** a Linear bajo ARS-102. Si diverge
 ## Tablero — corrida del 2026-09-08
 
 Ejecutada de corrido sobre `feature/asistente-conversacional`, un commit por
-renglón. **19 de 30 cerrados.** Las precondiciones de esta tabla ya no matchean
+renglón. **22 de 30 resueltos** (21 hechos + A3 cancelado por decisión). Las precondiciones de esta tabla ya no matchean
 para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
 
 | Bloque             | Cerrados           | Abiertos   |
@@ -55,7 +55,14 @@ para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
 | `CapaConversacional.cs`                   | 551      | 398      |
 | `SemaphoreSlim` en `Infrastructure/`      | 5        | 1        |
 
-### Por qué los once que quedan quedaron
+### Las cuatro decisiones del 2026-09-08
+
+- **A3 — cancelado: se deja pasar.** Motivo: es texto que ese actor ya lee en la pantalla del trámite, y revocar el GRANT apagaba la capacidad «¿por qué se rechazó?». Lo que sí se hizo: corregir el argumento escrito, que afirmaba que las ocho columnas sensibles sólo las lee el rol PII cuando vale para cinco.
+- **B3 — ratificado.** El invariante #14 dejó de ser enmienda propuesta. Tras el merge vive como **regla 11 de `AGENTS.md`**, no en `CLAUDE.md`.
+- **D2 — Ruta A.** 93 tipos públicos → 61, determinado por el compilador, con guard para que no vuelva a crecer.
+- **G2 — descartado.** Modo de falla intermitente, no verificable con una corrida verde. G1 ya bajó la suite un 57%.
+
+### Por qué los cuatro que quedan quedan
 
 Ninguno se salteó por falta de tiempo. Cada uno tiene una razón que no es esa:
 

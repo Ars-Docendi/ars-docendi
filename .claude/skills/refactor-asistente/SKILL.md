@@ -121,8 +121,14 @@ Todos los comandos **desde la raíz del repo**, nunca desde `backend/`:
 
 ```bash
 dotnet build backend/ArsDocendi.slnx -c Release
-dotnet test  backend/ArsDocendi.slnx -c Release
+dotnet test --solution backend/ArsDocendi.slnx -c Release
 ```
+
+**Desde el merge de `sad-ko` (2026-09-07) el `global.json` vive en la RAÍZ**, no en
+`backend/`, y pinea el SDK `10.0.201` con `rollForward: latestFeature`. Con un
+10.0.x anterior no compila nada desde ningún directorio. Ese `global.json` también
+declara `"test": {"runner": "Microsoft.Testing.Platform"}`, y por eso `dotnet test`
+ahora exige `--solution`.
 
 `backend/global.json` pinea SDK `10.0.201` y esta máquina tiene `10.0.111`. Como `dotnet`
 resuelve `global.json` desde el **cwd** hacia arriba y no hay `global.json` en la raíz, desde
