@@ -50,6 +50,11 @@ public sealed class ExportacionLoteTests(PostgresFixture postgres)
             .Select(e => e.Name.LocalName)
             .ToArray();
         Assert.Equal(["dimension", "sheetViews", "sheetData"], elementosHoja);
+        var filas = LeerXml(zip, "xl/worksheets/sheet1.xml")
+            .Descendants()
+            .Single(e => e.Name.LocalName == "sheetData")
+            .Elements();
+        Assert.All(filas, fila => Assert.Equal("row", fila.Name.LocalName));
         Assert.Contains("2026-9006", hojaPedidos);
         Assert.DoesNotContain("2026-9001", hojaPedidos);
         Assert.Contains("Continuidad", hojaDesignaciones);

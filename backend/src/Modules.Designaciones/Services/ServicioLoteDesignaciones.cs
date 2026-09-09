@@ -221,12 +221,9 @@ internal static class EscritorXlsxLote
             "Horas externas", "Solicitante", "Inicio", "Aprobación final",
         };
         var contenido = new StringBuilder();
-        FilaTexto(contenido, 1, "A", "Período configurado");
-        FilaTexto(contenido, 1, "B", periodo.Nombre);
-        FilaTexto(contenido, 2, "A", "Generado en");
-        FilaFecha(contenido, 2, "B", generadoEn, true);
-        FilaTexto(contenido, 3, "A", "Impacto");
-        FilaTexto(contenido, 3, "B", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
+        FilaClaveValor(contenido, 1, "Período configurado", periodo.Nombre);
+        FilaClaveValor(contenido, 2, "Generado en", generadoEn, true);
+        FilaClaveValor(contenido, 3, "Impacto", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
         FilaEncabezados(contenido, 5, encabezados);
 
         var fila = 6;
@@ -267,12 +264,9 @@ internal static class EscritorXlsxLote
             "Pedido de origen",
         };
         var contenido = new StringBuilder();
-        FilaTexto(contenido, 1, "A", "Período configurado");
-        FilaTexto(contenido, 1, "B", periodo.Nombre);
-        FilaTexto(contenido, 2, "A", "Generado en");
-        FilaFecha(contenido, 2, "B", generadoEn, true);
-        FilaTexto(contenido, 3, "A", "Impacto");
-        FilaTexto(contenido, 3, "B", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
+        FilaClaveValor(contenido, 1, "Período configurado", periodo.Nombre);
+        FilaClaveValor(contenido, 2, "Generado en", generadoEn, true);
+        FilaClaveValor(contenido, 3, "Impacto", $"{periodo.ImpactoDesde:dd/MM/yyyy} a {periodo.ImpactoHasta:dd/MM/yyyy}");
         FilaEncabezados(contenido, 5, encabezados);
 
         var fila = 6;
@@ -312,6 +306,27 @@ internal static class EscritorXlsxLote
     {
         AbrirFila(contenido, fila);
         for (var i = 0; i < encabezados.Count; i++) FilaTexto(contenido, fila, Columna(i), encabezados[i]);
+        CerrarFila(contenido);
+    }
+
+    private static void FilaClaveValor(StringBuilder contenido, int fila, string clave, string valor)
+    {
+        AbrirFila(contenido, fila);
+        FilaTexto(contenido, fila, "A", clave);
+        FilaTexto(contenido, fila, "B", valor);
+        CerrarFila(contenido);
+    }
+
+    private static void FilaClaveValor(
+        StringBuilder contenido,
+        int fila,
+        string clave,
+        DateTimeOffset valor,
+        bool incluyeHora)
+    {
+        AbrirFila(contenido, fila);
+        FilaTexto(contenido, fila, "A", clave);
+        FilaFecha(contenido, fila, "B", valor, incluyeHora);
         CerrarFila(contenido);
     }
 
