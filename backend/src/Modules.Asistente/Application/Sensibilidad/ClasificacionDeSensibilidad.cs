@@ -38,10 +38,26 @@ public enum ClasificacionDeSensibilidad
     /// de consulta agregada, para cubrir un caso que exige que el modelo
     /// activamente envuelva una columna personal en una expresión.
     ///
-    /// Lo que acota el riesgo: esas columnas solo son legibles con la conexión de
-    /// datos personales, que exige permiso <b>y</b> alcance global. Un actor sin
-    /// ella no puede construir la expresión aunque quiera — el motor rechaza la
-    /// consulta antes de ejecutarla. Queda registrado como TD-009.
+    /// <b>Lo que acota el riesgo vale para cinco columnas y no para las ocho.</b>
+    /// Las cinco <c>sensible-valor</c> —<c>documento</c>, <c>cuil</c>,
+    /// <c>fecha_nacimiento</c>, <c>telefono</c>, <c>upn</c>— sólo son legibles con
+    /// la conexión de datos personales, que exige permiso <b>y</b> alcance global:
+    /// un actor sin ella no puede construir la expresión aunque quiera, porque el
+    /// motor rechaza la consulta antes de ejecutarla.
+    ///
+    /// <b>Para las tres <c>sensible-texto</c> ese argumento es falso</b>, y estuvo
+    /// escrito acá como si valiera para todas. <c>designaciones.pedidos.justificacion</c>,
+    /// <c>designaciones.pedidos.tipo_baja_detalle</c> y
+    /// <c>designaciones.pedido_historial.comentario</c> están concedidas a
+    /// <b>los dos</b> roles: cualquier actor con acceso al trámite puede envolverlas
+    /// —<c>to_jsonb(h)</c>, <c>json_agg(h)</c>, <c>lower(comentario)</c>— y el texto
+    /// libre viaja al proveedor sin enmascarar.
+    ///
+    /// <b>Se decidió dejarlo así el 2026-09-08.</b> No es un olvido y no está
+    /// mitigado: es texto que el actor ya puede leer en la pantalla del trámite, y
+    /// cerrarlo revocando el GRANT apagaba una capacidad en alcance —«¿por qué se
+    /// rechazó?»— que el catálogo de preguntas ofrece. Queda registrado como
+    /// TD-009, que ahora dice esto mismo.
     /// </remarks>
     Desconocida,
 }
