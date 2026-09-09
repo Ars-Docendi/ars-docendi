@@ -45,6 +45,17 @@ public static class ModuleExtensions
         services.Configure<OpcionesAsistente>(
             configuration.GetSection(OpcionesAsistente.Seccion));
 
+        // SIN `ValidateOnStart`, y es una decisión. Con arranque validado, un
+        // `Asistente:TopeDeFilas` en cero tumbaría el Host entero —incluido
+        // `/api/tareas/ping`, que no tiene nada que ver con esto—, y eso invierte
+        // la postura que este mismo archivo tiene escrita doce líneas más abajo:
+        // el proveedor se registra como fábrica para que una configuración
+        // incompleta falle cuando alguien la pida y no impida arrancar.
+        //
+        // Así la validación corre la primera vez que se leen las opciones, o sea
+        // en el primer turno del asistente, y falla ahí nombrando la perilla.
+        services.AddSingleton<IValidateOptions<OpcionesAsistente>, ValidadorDeOpcionesAsistente>();
+
         // TryAdd: si el Host ya registró un TimeProvider, gana el suyo. Los tests
         // del hilo inyectan uno falso para poder adelantar el reloj sin esperar.
         //
