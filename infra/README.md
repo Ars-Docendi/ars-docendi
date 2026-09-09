@@ -147,10 +147,21 @@ principal —y la misma contraseña— para producción y para cada ambiente ef�
 PR, que corre código arbitrario de un pull request sobre la misma red de datos.
 
 **Qué hace el provisioning y qué no**: acá solo nacen los roles, con `LOGIN`,
-`GRANT CONNECT` y `search_path` vacío. Los `GRANT USAGE` / `GRANT SELECT` por
+`GRANT CONNECT`, `search_path` vacío y `statement_timeout`. Los `GRANT USAGE` / `GRANT SELECT` por
 columna van en una migración del módulo, porque `spin-up.sh` corre el provisioning
 en el paso 1 sobre una base **vacía**: un `GRANT ... ON ALL TABLES` escrito acá
 otorgaría exactamente nada y no fallaría.
+
+El `statement_timeout = '8s'` va como atributo del **rol en esta base**, y no en
+el DDL del módulo, por una razón mecánica: `PrivilegiosAsistente` corre con la
+cadena del dueño, y el dueño no puede hacer `ALTER ROLE` sobre otro rol —los dos de
+lectura son `NOSUPERUSER NOCREATEROLE`—. Cierra un hueco real: el ejecutor del
+carril ya fijaba el timeout transaction-local en cada consulta generada, pero era
+la única de las cuatro conexiones de lectura del módulo que lo hacía; el proveedor
+de esquema, el índice de entidades y el catálogo de capacidades corrían con el
+default de Npgsql, 30 s. Como vive en `pg_db_role_setting` —clave `(base, rol)`—
+una base nueva **no lo hereda**, y por eso `verificar-roles-asistente.sh` lo cuenta
+igual que al `search_path`. El rol de la app no se toca: sigue sin límite.
 
 El provisioning también hace `REVOKE ALL ON DATABASE ... FROM PUBLIC`. Sin eso, el
 `GRANT CONNECT` sería decorativo —PUBLIC trae `CONNECT` sobre toda base nueva, así

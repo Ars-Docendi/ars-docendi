@@ -94,6 +94,22 @@ comprobar "search_path fijado en ${base}" "2" \
                       AND EXISTS (SELECT 1 FROM unnest(s.setconfig) c
                                   WHERE c LIKE 'search_path=%');")"
 
+# 5b. statement_timeout fijado para los dos roles en esta base.
+#
+# Vive en `pg_db_role_setting` igual que el search_path, y por el mismo motivo se
+# cuenta acá: es un ajuste POR BASE Y POR ROL, así que una base nueva no lo hereda
+# —y el modo de falla es silencioso, porque sin la cota todo sigue funcionando,
+# sólo que una consulta pesada puede ocupar un backend indefinidamente—.
+comprobar "statement_timeout fijado en ${base}" "2" \
+  "$(psql_admin -c "SELECT count(*)
+                    FROM pg_db_role_setting s
+                    JOIN pg_roles r ON r.oid = s.setrole
+                    JOIN pg_database d ON d.oid = s.setdatabase
+                    WHERE d.datname = '${base}'
+                      AND r.rolname IN (${roles_sql})
+                      AND EXISTS (SELECT 1 FROM unnest(s.setconfig) c
+                                  WHERE c LIKE 'statement_timeout=%');")"
+
 # 6. Ningún privilegio de mutación sobre ninguna tabla, ni ahora ni por default
 #    privileges, ni CREATE sobre ningún schema. Se lee de los catálogos de ESTA
 #    base (pg_class y pg_namespace son por base, no de cluster).

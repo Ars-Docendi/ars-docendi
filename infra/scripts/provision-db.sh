@@ -82,4 +82,24 @@ psql_admin -c "GRANT CONNECT ON DATABASE \"${base}\" TO \"${rol_ro}\", \"${rol_r
 psql_admin -c "ALTER ROLE \"${rol_ro}\"     IN DATABASE \"${base}\" SET search_path = '';"
 psql_admin -c "ALTER ROLE \"${rol_ro_pii}\" IN DATABASE \"${base}\" SET search_path = '';"
 
+# Cota de tiempo DEL LADO DEL SERVIDOR para los dos roles de lectura.
+#
+# El ejecutor del carril ya fija `statement_timeout` transaction-local en cada
+# consulta generada, pero es la única de las cuatro conexiones de lectura del
+# módulo que lo hace: el proveedor de esquema, el índice de entidades y el
+# catálogo de capacidades corren con el default de Npgsql —30 s, el doble del
+# `TimeoutDeComandoSegundos` que el propio módulo eligió—. Acá la cota deja de
+# depender de que cada consumidor se acuerde de ponerla.
+#
+# Va como atributo del ROL y no en el DDL del módulo: `PrivilegiosAsistente`
+# corre con la cadena del dueño, y el dueño no puede `ALTER ROLE` de otro rol
+# —los dos de lectura son NOSUPERUSER NOCREATEROLE, ver `_comun.sh`—.
+#
+# 8 s, el mismo valor que `TimeoutDeSentenciaMs`: un turno que tarda más que eso
+# ya perdió, y una consulta generada con un producto cartesiano ocuparía un
+# backend mucho después de que el cliente se haya ido. Un ambiente que necesite
+# otro valor lo cambia acá, no en veinte lugares.
+psql_admin -c "ALTER ROLE \"${rol_ro}\"     IN DATABASE \"${base}\" SET statement_timeout = '8s';"
+psql_admin -c "ALTER ROLE \"${rol_ro_pii}\" IN DATABASE \"${base}\" SET statement_timeout = '8s';"
+
 log_info msg="aprovisionamiento OK" ambiente="$ambiente" base="$base"
