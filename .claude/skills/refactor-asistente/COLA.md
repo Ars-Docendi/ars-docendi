@@ -31,7 +31,7 @@ Un renglón nuevo se agrega a esta tabla **y** a Linear bajo ARS-102. Si diverge
 ## Tablero — corrida del 2026-09-08
 
 Ejecutada de corrido sobre `feature/asistente-conversacional`, un commit por
-renglón. **22 de 30 resueltos** (21 hechos + A3 cancelado por decisión). Las precondiciones de esta tabla ya no matchean
+renglón. **29 de 30 resueltos.** Las precondiciones de esta tabla ya no matchean
 para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
 
 | Bloque             | Cerrados           | Abiertos   |
@@ -62,27 +62,12 @@ para esos; la fuente de verdad sigue siendo la precondición, no este cuadro.
 - **D2 — Ruta A.** 93 tipos públicos → 61, determinado por el compilador, con guard para que no vuelva a crecer.
 - **G2 — descartado.** Modo de falla intermitente, no verificable con una corrida verde. G1 ya bajó la suite un 57%.
 
-### Por qué los cuatro que quedan quedan
+### Lo único que queda: B2
 
-Ninguno se salteó por falta de tiempo. Cada uno tiene una razón que no es esa:
-
-- **A3** — el renglón manda sacar `comentario` del GRANT, pero **dos ejemplos
-  canónicos de `Recursos/ejemplos-sql.json` lo seleccionan** (`:38` el historial
-  del trámite, `:63` «¿Qué pedidos fueron rechazados y con qué fundamento?»), y el
-  manifiesto declara ese caso de uso EN ALCANCE. Ejecutarlo como está escrito borra
-  una capacidad. Hay tres salidas y elegir es del equipo: (1) quitar el GRANT y la
-  capacidad; (2) dejarlo y cerrar el fail-open por el otro lado —denegar en el
-  validador las funciones que borran la procedencia de columna: `to_jsonb`,
-  `json_agg`, `row_to_json`—, que no pierde capacidad pero es rediseño y no este
-  renglón; (3) quitar sólo `justificacion` y `tipo_baja_detalle`.
-- **A5** y **D3** — ruta `opsx`: piden change OpenSpec. A5 además toca
-  `provision-db.sh`, que aprovisiona ambientes reales.
-- **B2** — bloqueado hasta que la rama esté mergeada (Step 0).
-- **B3** y **D2** — decisión del equipo. No las decide un agente.
-- **E2** y **E3** — E2 depende de A5; E3 depende de E2.
-- **G2** — sacar el `[Collection]` compartido introduce fallos INTERMITENTES, y una
-  sola corrida verde no descarta un fallo intermitente. Es el único renglón de la
-  cola cuyo modo de falla no se puede verificar sin supervisión.
+**B2 (archivar los 19 changes) está bloqueado hasta que la rama se mergee a
+`develop`.** `/opsx:archive` mergea las delta specs a `openspec/specs/`, y hacerlo
+antes deja las specs vigentes declarando código que `develop` no tiene. No es una
+decisión pendiente: es una dependencia de calendario.
 
 ### Lo que la corrida encontró y la cola no sabía
 
