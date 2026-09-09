@@ -9,6 +9,21 @@ El sistema SHALL mostrar una tabla con todos los docentes que la API autorice pa
 - **WHEN** un usuario con el permiso de consulta de docentes navega a `/docentes`
 - **THEN** se muestra la tabla con los docentes devueltos por la API
 
+#### Scenario: Visualización de roles por materia
+
+- **WHEN** un docente tiene `Docente` en una materia y `Jefe de Cátedra` en otra
+- **THEN** la tabla muestra un badge por cada rol y permite consultar el ámbito de cada membresía
+
+#### Scenario: Rol repetido en varias materias
+
+- **WHEN** un docente tiene `Jefe de Cátedra` en tres materias
+- **THEN** la tabla muestra un solo badge de rol con el resumen de sus materias, no tres badges idénticos
+
+#### Scenario: Estado de cuenta
+
+- **WHEN** un docente no tiene usuario vinculado
+- **THEN** la tabla muestra "Sin cuenta"
+
 #### Scenario: Usuario con permiso personalizado
 
 - **GIVEN** un rol personalizado tiene el permiso de consulta de docentes

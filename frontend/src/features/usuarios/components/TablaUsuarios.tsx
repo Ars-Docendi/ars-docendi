@@ -25,7 +25,6 @@ export function TablaUsuarios({
               <Table.HeaderCell>Legajo</Table.HeaderCell>
               <Table.HeaderCell>UPN / Email</Table.HeaderCell>
               <Table.HeaderCell>Roles</Table.HeaderCell>
-              <Table.HeaderCell>Ámbitos</Table.HeaderCell>
               <Table.HeaderCell>Perfil docente</Table.HeaderCell>
               <Table.HeaderCell>Estado</Table.HeaderCell>
               <Table.HeaderCell>Acciones</Table.HeaderCell>
@@ -51,7 +50,6 @@ export function TablaUsuarios({
                     ))}
                   </div>
                 </Table.Cell>
-                <Table.Cell>{resumenAmbitos(usuario.membresias)}</Table.Cell>
                 <Table.Cell>
                   {usuario.perfilDocente.esDocente ? (
                     <a href={`/docentes?personaId=${encodeURIComponent(usuario.persona_id)}`}>
@@ -87,20 +85,5 @@ export function TablaUsuarios({
         </Table.Root>
       </Table>
     </div>
-  );
-}
-
-function resumenAmbitos(membresias: UsuarioMock["membresias"]): string {
-  const materias = membresias.filter((membresia) => membresia.ambito === "materia").length;
-  const carreras = membresias.filter((membresia) => membresia.ambito === "carrera").length;
-  const globales = membresias.filter((membresia) => membresia.ambito === "global").length;
-  return (
-    [
-      materias && `${materias} materia${materias === 1 ? "" : "s"}`,
-      carreras && `${carreras} carrera${carreras === 1 ? "" : "s"}`,
-      globales && `${globales} global${globales === 1 ? "" : "es"}`,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "Sin ámbito"
   );
 }

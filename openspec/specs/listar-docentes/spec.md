@@ -8,17 +8,28 @@ Permite consultar docentes, sus asignaciones, roles y estado dentro del ámbito 
 
 ### Requirement: Tabla de docentes con datos completos
 
-El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila MUST incluir: Apellido y Nombre (formato "Apellido, Nombre"), Documento (DNI), Legajo, Rol (Docente / Jefe de Cátedra), Asignaciones (una por fila: código de materia + cargo abreviado) y Estado (badge visual).
+El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila MUST incluir: Apellido y Nombre, Documento, Legajo, roles docentes resumidos sin duplicados, asignaciones académicas, estado de cuenta y Estado activo/inactivo.
 
 #### Scenario: Carga inicial de la tabla
 
 - **WHEN** el usuario con rol Secretaría o Administración navega a `/docentes`
 - **THEN** se muestra la tabla con los docentes devueltos por la API
 
+#### Scenario: Usuario con permiso personalizado
+
+- **GIVEN** un rol personalizado tiene el permiso de consulta de docentes
+- **WHEN** un usuario con ese rol navega a `/docentes`
+- **THEN** la pantalla carga sin exigir un nombre de rol institucional y respeta el ámbito devuelto por la API
+
+#### Scenario: Visualización de roles por materia
+
+- **WHEN** un docente tiene `Docente` en una materia y `Jefe de Cátedra` en otra
+- **THEN** la tabla muestra un badge por cada rol y permite consultar el ámbito de cada membresía
+
 #### Scenario: Visualización de roles — múltiples
 
 - **WHEN** un docente tiene `roles = ["Docente", "Jefe de Cátedra"]`
-- **THEN** la columna Rol muestra un badge por cada rol
+- **THEN** la columna Rol muestra un badge único por cada rol y el detalle conserva sus materias
 
 #### Scenario: Visualización de roles — único
 
@@ -33,7 +44,17 @@ El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila
 #### Scenario: Múltiples asignaciones
 
 - **WHEN** un docente tiene más de una asignación
-- **THEN** cada asignación se muestra como un badge separado con código + cargo abreviado
+- **THEN** cada asignación se muestra como un badge separado con código y cargo abreviado
+
+#### Scenario: Rol repetido en varias materias
+
+- **WHEN** un docente tiene `Jefe de Cátedra` en tres materias
+- **THEN** la tabla muestra un solo badge de rol con el resumen de sus materias, no tres badges idénticos
+
+#### Scenario: Estado de cuenta
+
+- **WHEN** un docente no tiene usuario vinculado
+- **THEN** la tabla muestra "Sin cuenta"
 
 #### Scenario: Estado visual activo/inactivo
 
@@ -47,31 +68,36 @@ El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila
 
 ### Requirement: Filtros fijos por Apellido, Nombre y Documento
 
-El sistema SHALL proveer tres inputs de texto siempre visibles para filtrar la tabla en tiempo real. La búsqueda MUST ser insensible a mayúsculas y tildes (normalización NFD).
+El sistema SHALL proveer tres inputs de texto siempre visibles para filtrar la tabla en tiempo real. La búsqueda MUST ser insensible a mayúsculas y tildes.
 
 #### Scenario: Filtro por apellido sin tilde
 
 - **WHEN** el usuario escribe "lopez" en el filtro de Apellido
-- **THEN** la tabla muestra solo docentes cuyo apellido normalizado contiene "lopez"
+- **THEN** la tabla muestra sólo docentes cuyo apellido normalizado contiene "lopez"
 
 #### Scenario: Combinación de filtros fijos
 
 - **WHEN** el usuario aplica filtros de Apellido y Documento simultáneamente
-- **THEN** la tabla muestra solo docentes que cumplen ambas condiciones (AND lógico)
+- **THEN** la tabla muestra sólo docentes que cumplen ambas condiciones
 
 ### Requirement: Filtros opcionales añadibles incluido Rol
 
-El sistema SHALL permitir añadir filtros opcionales desde un selector "Añadir filtro…". Los disponibles son: Código de materia (texto), Materia (selector catálogo), Cargo (texto), Rol (selector: Docente / Jefe de Cátedra) y Estado.
+El sistema SHALL permitir añadir filtros opcionales desde un selector "Añadir filtro…". Los disponibles SHALL incluir Código de materia, Materia, Cargo, Rol, Estado y Cuenta.
 
 #### Scenario: Filtro por Rol — Jefe de Cátedra
 
 - **WHEN** el usuario agrega el filtro Rol y selecciona "Jefe de Cátedra"
-- **THEN** la tabla muestra solo docentes cuyo array `roles` incluye `"Jefe de Cátedra"` (incluso si también tienen `"Docente"`)
+- **THEN** la tabla muestra sólo docentes cuyo resumen de membresías incluye "Jefe de Cátedra", aunque también tengan "Docente"
 
 #### Scenario: Filtro por Cargo busca en asignaciones
 
 - **WHEN** el usuario agrega el filtro Cargo y escribe "JTP"
-- **THEN** la tabla muestra solo docentes que tienen al menos una asignación con cargo "Jefe de Trabajos Prácticos" (búsqueda substring insensible a tildes)
+- **THEN** la tabla muestra sólo docentes que tienen al menos una asignación con cargo "Jefe de Trabajos Prácticos", con búsqueda insensible a tildes
+
+#### Scenario: Filtro por Cuenta
+
+- **WHEN** el usuario selecciona "Sin cuenta"
+- **THEN** la tabla muestra sólo docentes sin usuario vinculado
 
 #### Scenario: Quitar filtro opcional
 
@@ -80,12 +106,22 @@ El sistema SHALL permitir añadir filtros opcionales desde un selector "Añadir 
 
 ### Requirement: Acceso restringido por rol
 
-El sistema SHALL permitir el acceso a `/docentes` a usuarios con rol `Secretaría` (Secretaría Académica), `Administración` (Administrativo) o `Jefe de Cátedra`. Coordinador, Decanato y Docente no pueden acceder.
+El sistema SHALL permitir el acceso a `/docentes` a usuarios con el permiso efectivo de consulta de docentes. La API MUST conservar sus restricciones de ámbito; en particular, la vista acotada de Jefe de Cátedra seguirá resolviéndose por sus membresías y designaciones, no por el guard del frontend. Un usuario sin el permiso SHALL ser redirigido.
+
+#### Scenario: Acceso denegado sin permiso
+
+- **WHEN** un usuario sin el permiso efectivo de consulta de docentes intenta navegar a `/docentes`
+- **THEN** es redirigido automáticamente a `/`
 
 #### Scenario: Acceso denegado a roles sin permiso
 
-- **WHEN** un usuario con rol Coordinador, Decanato o Docente intenta navegar a `/docentes`
+- **WHEN** un usuario sin el permiso efectivo de consulta de docentes intenta navegar a `/docentes`
 - **THEN** es redirigido automáticamente a `/`
+
+#### Scenario: Rol personalizado con permiso y ámbito
+
+- **WHEN** un usuario con rol personalizado tiene el permiso y un ámbito válido
+- **THEN** puede abrir la pantalla y sólo recibe los datos autorizados por el backend
 
 ### Requirement: Vista "Mis Docentes" para Jefe de Cátedra
 

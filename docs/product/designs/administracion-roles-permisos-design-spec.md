@@ -13,6 +13,13 @@ ruta histórica `/membresia-roles` redirige a `/roles` y no renderiza una segund
 - La vista muestra un estado de carga, error reintentable y un placeholder cuando no hay un rol
   seleccionado. Los grupos y acciones sin permiso no se renderizan.
 
+## Tipografía
+
+La pantalla reutiliza la familia tipográfica institucional y la misma escala de tamaños base,
+secundarios y de controles que las pantallas de Usuarios y Docentes. La jerarquía del título del
+rol, las descripciones, los metadatos y las acciones conserva esa escala sin tamaños propios de la
+pantalla.
+
 ## Reglas de edición
 
 - `roles.ver` permite consultar la lista y los permisos.

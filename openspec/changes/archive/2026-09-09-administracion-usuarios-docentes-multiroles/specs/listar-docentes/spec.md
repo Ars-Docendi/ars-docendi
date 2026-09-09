@@ -9,6 +9,12 @@ El sistema SHALL mostrar una tabla con todos los docentes registrados. Cada fila
 - **WHEN** el usuario con rol Secretaría o Administración navega a `/docentes`
 - **THEN** se muestra la tabla con los docentes devueltos por la API
 
+#### Scenario: Usuario con permiso personalizado
+
+- **GIVEN** un rol personalizado tiene el permiso de consulta de docentes
+- **WHEN** un usuario con ese rol navega a `/docentes`
+- **THEN** la pantalla carga sin exigir un nombre de rol institucional y respeta el ámbito devuelto por la API
+
 #### Scenario: Visualización de roles por materia
 
 - **WHEN** un docente tiene `Docente` en una materia y `Jefe de Cátedra` en otra

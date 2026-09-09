@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
+import { Button, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
 import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
 import type { CatalogosUsuarios } from "../api/usuariosApi";
 import { nombreCompleto, type UsuarioFormulario, type UsuarioMock } from "../models";
@@ -170,7 +170,8 @@ export function ModalEditarUsuario({
             required
             error={enviado && !campos.fecha_nacimiento ? "Campo obligatorio" : undefined}
           >
-            <DatePicker
+            <Input
+              type="date"
               value={campos.fecha_nacimiento}
               onChange={(e) => set("fecha_nacimiento", e.target.value)}
             />
