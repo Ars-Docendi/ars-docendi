@@ -1,7 +1,7 @@
 // ============================================================
 // Filtros de "Mis pedidos" — lógica pura. Dos campos de texto siempre
 // visibles (Docente, N°) + Tipo/Estado como filtros opcionales
-// ("+ Añadir filtro"), mismo patrón que `FiltrosUsuarios.tsx`.
+// ("+ Añadir filtro"), el patrón de filtros de lista de la administración.
 // ============================================================
 import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
 

@@ -1,0 +1,106 @@
+.adoc-filtro-encabezado {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.adoc-filtro-encabezado-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adoc-filtro-encabezado-trigger:hover,
+.adoc-filtro-encabezado-trigger:focus-visible {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.adoc-filtro-encabezado-indicador {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.adoc-filtro-encabezado-menu {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  width: min(300px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised, #fff);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.adoc-filtro-encabezado-titulo {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.adoc-filtro-encabezado-campo {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.adoc-filtro-encabezado-opciones {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.adoc-filtro-encabezado-opcion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.adoc-filtro-encabezado-opcion input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+.adoc-filtro-encabezado-limpiar {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-link);
+  cursor: pointer;
+}
+
+.adoc-filtro-encabezado-limpiar:hover,
+.adoc-filtro-encabezado-limpiar:focus-visible {
+  text-decoration: underline;
+}

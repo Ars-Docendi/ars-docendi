@@ -5,25 +5,18 @@ import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaDocentes } from "../components/TablaDocentes";
-import { FiltrosDocentes, type FiltrosState } from "../components/FiltrosDocentes";
 import { ModalNuevoDocente } from "../components/ModalNuevoDocente";
 import { ModalConfirmarEstado } from "../components/ModalConfirmarEstado";
 import { ModalEditarDocente } from "../components/ModalEditarDocente";
 import { useDocentes } from "../hooks/useDocentes";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
-import { normalizarTexto, type DocenteMock } from "../models";
+import {
+  aplicarFiltrosYOrdenDocentes,
+  FILTROS_DOCENTES_VACIOS,
+  type OrdenDocentes,
+} from "../filtrosDocentes";
+import type { DocenteMock } from "../models";
 
-const FILTROS_VACIOS: FiltrosState = {
-  apellido: "",
-  nombre: "",
-  documento: "",
-  codigoMateria: "",
-  materia: "",
-  cargo: "",
-  rol: "",
-  cuenta: "",
-  estado: "",
-};
 const SIN_DOCENTES: DocenteMock[] = [];
 
 export function IndexPage() {
@@ -32,7 +25,6 @@ export function IndexPage() {
   const materias = remoto.catalogos.data?.materias ?? [];
   const cargos = remoto.catalogos.data?.cargos.map((c) => c.nombre) ?? [];
   const rolesDisponibles = remoto.catalogos.data?.roles ?? [];
-  const nombresRoles = rolesDisponibles.map((rol) => rol.nombre);
   const personas =
     remoto.catalogos.data?.personasElegibles.map((p) => ({
       id: p.id,
@@ -46,7 +38,8 @@ export function IndexPage() {
       upn: p.upn ?? "",
       version: p.version ?? undefined,
     })) ?? [];
-  const [filtros, setFiltros] = useState<FiltrosState>(FILTROS_VACIOS);
+  const [filtros, setFiltros] = useState(FILTROS_DOCENTES_VACIOS);
+  const [orden, setOrden] = useState<OrdenDocentes | null>(null);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [docenteADesactivar, setDocenteADesactivar] = useState<DocenteMock | null>(null);
   const [docenteAActivar, setDocenteAActivar] = useState<DocenteMock | null>(null);
@@ -65,32 +58,10 @@ export function IndexPage() {
   const { user: usuario } = useCurrentUser();
   const esJdC = usuario?.role === "Jefe de Cátedra";
 
-  const docentesFiltrados = useMemo(() => {
-    const apellido = normalizarTexto(filtros.apellido);
-    const nombre = normalizarTexto(filtros.nombre);
-    const doc = normalizarTexto(filtros.documento);
-    const cargo = normalizarTexto(filtros.cargo);
-    const codigoBuscado = filtros.codigoMateria.trim();
-    const materiaBuscada = filtros.materia;
-
-    return docentes.filter((d) => {
-      if (apellido && !normalizarTexto(d.apellido).includes(apellido)) return false;
-      if (nombre && !normalizarTexto(d.nombre).includes(nombre)) return false;
-      if (doc && !normalizarTexto(d.documento).includes(doc)) return false;
-      if (cargo && !d.asignaciones.some((a) => normalizarTexto(a.cargo).includes(cargo)))
-        return false;
-      if (codigoBuscado && !d.asignaciones.some((a) => a.materia.codigo.includes(codigoBuscado)))
-        return false;
-      if (materiaBuscada && !d.asignaciones.some((a) => a.materia.codigo === materiaBuscada))
-        return false;
-      if (filtros.rol && !d.roles.some((r) => r === filtros.rol)) return false;
-      if (filtros.cuenta === "con_cuenta" && !d.tieneCuenta) return false;
-      if (filtros.cuenta === "sin_cuenta" && d.tieneCuenta) return false;
-      if (filtros.estado === "activo" && !d.is_active) return false;
-      if (filtros.estado === "inactivo" && d.is_active) return false;
-      return true;
-    });
-  }, [docentes, filtros]);
+  const docentesFiltrados = useMemo(
+    () => aplicarFiltrosYOrdenDocentes(docentes, filtros, orden),
+    [docentes, filtros, orden],
+  );
 
   function handleCrear(datos: Omit<DocenteMock, "id" | "is_active">) {
     remoto.crear.mutate(datos, { onSuccess: () => setModalNuevo(false) });
@@ -158,15 +129,13 @@ export function IndexPage() {
         }
       />
 
-      <FiltrosDocentes
-        filtros={filtros}
-        onChange={setFiltros}
-        materias={materias}
-        roles={nombresRoles}
-      />
-
       <TablaDocentes
         docentes={docentesFiltrados}
+        docentesParaOpciones={docentes}
+        filtros={filtros}
+        orden={orden}
+        onFiltrosChange={setFiltros}
+        onOrdenChange={setOrden}
         onDesactivar={setDocenteADesactivar}
         onActivar={setDocenteAActivar}
         onEditar={setDocenteAEditar}

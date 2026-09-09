@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { UsuarioMock } from "../models";
@@ -43,5 +44,26 @@ describe("TablaUsuarios", () => {
     );
 
     expect(screen.queryByRole("columnheader", { name: "Ámbitos" })).not.toBeInTheDocument();
+  });
+
+  it("mantiene Acciones sin filtro ni orden y no ordena al abrir un filtro", async () => {
+    const user = userEvent.setup();
+    const onOrdenChange = vi.fn();
+    render(
+      <TablaUsuarios
+        usuarios={[USUARIO]}
+        onOrdenChange={onOrdenChange}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditarUsuario={vi.fn()}
+      />,
+    );
+
+    const acciones = screen.getByRole("columnheader", { name: "Acciones" });
+    expect(within(acciones).queryByRole("button")).not.toBeInTheDocument();
+    expect(acciones).not.toHaveAttribute("aria-sort");
+
+    await user.click(screen.getByRole("button", { name: "Filtrar Apellido y Nombre" }));
+    expect(onOrdenChange).not.toHaveBeenCalled();
   });
 });

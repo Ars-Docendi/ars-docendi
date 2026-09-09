@@ -97,74 +97,81 @@ Cada fila SHALL tener botones ghost: "Editar" (siempre) y "Desactivar" o "Activa
 - **WHEN** el usuario está inactivo
 - **THEN** aparecen "Editar" (ghost) y "Activar" (ghost)
 
-### Requirement: Barra de filtros en dos filas
+### Requirement: Filtros por encabezado en la tabla de usuarios
 
-La página SHALL mostrar una barra con fila 1 fija y fila 2 condicional. Los filtros opcionales disponibles SHALL incluir Legajo, Mail/UPN, Rol, Perfil docente y Estado. Todos los filtros de texto SHALL ser insensibles a tildes.
+La página SHALL ofrecer un control de filtro accesible en cada encabezado filtrable de la tabla de Usuarios. Los encabezados filtrables SHALL ser Apellido y Nombre, Documento, Legajo, UPN/Email, Roles, Perfil docente y Estado. La columna Acciones MUST NOT ofrecer filtro.
 
-#### Scenario: Filtrar sólo docentes
+El menú de una columna textual SHALL permitir buscar por coincidencia parcial sin distinguir mayúsculas ni tildes. El menú de una columna categórica SHALL permitir seleccionar uno o más valores presentes en los datos cargados, incluyendo la opción de valores sin dato cuando corresponda. Los filtros de distintas columnas SHALL combinarse con lógica AND.
 
-- **WHEN** el operador selecciona "Docentes" en el filtro de Perfil docente
-- **THEN** la tabla muestra sólo usuarios con perfil docente
+#### Scenario: Abrir el filtro de una columna
 
-#### Scenario: Filtros fijos siempre visibles
+- **WHEN** el operador activa el control de filtro del encabezado "Roles"
+- **THEN** se muestra un menú asociado a ese encabezado con los roles disponibles y una acción para limpiar el filtro
 
-- **WHEN** el operador abre la página
-- **THEN** los campos "Filtrar por apellido", "Filtrar por nombre" y "Filtrar por documento" están siempre presentes como entradas separadas
+#### Scenario: Buscar una columna textual
 
-#### Scenario: Añadir filtro opcional
+- **WHEN** el operador escribe "lopez" en el filtro de Apellido y Nombre
+- **THEN** la tabla muestra sólo usuarios cuyo apellido o nombre normalizado contiene "lopez"
 
-- **WHEN** el operador selecciona una opción en "Añadir filtro…"
-- **THEN** el control correspondiente aparece en la fila 2
+#### Scenario: Seleccionar valores de una columna categórica
 
-#### Scenario: Filtrar por rol
+- **WHEN** el operador selecciona "Con perfil docente" en el filtro de Perfil docente
+- **THEN** la tabla muestra sólo usuarios con `perfilDocente.esDocente = true`
 
-- **WHEN** el operador selecciona un rol
-- **THEN** la tabla muestra usuarios cuyo resumen de roles contiene ese rol, aunque tenga varios ámbitos
+#### Scenario: Combinar filtros de encabezados
 
-#### Scenario: Quitar filtro opcional
+- **WHEN** el operador filtra Estado por "Activo" y Roles por "Docente"
+- **THEN** la tabla muestra sólo usuarios que cumplen ambos criterios
 
-- **WHEN** el operador hace clic en × de un filtro activo
-- **THEN** ese control desaparece y su valor se resetea
+#### Scenario: Limpiar un filtro de encabezado
 
-#### Scenario: Filtrar por apellido (fijo)
+- **WHEN** el operador activa "Limpiar filtro" en una columna filtrada
+- **THEN** el criterio de esa columna se elimina y los resultados se recalculan conservando los filtros de las demás columnas
 
-- **WHEN** el operador escribe texto en el campo "Filtrar por apellido"
-- **THEN** la tabla muestra sólo filas cuyo apellido contenga ese texto, sin distinguir tildes ni mayúsculas
+#### Scenario: Cerrar un menú sin perder filtros
 
-#### Scenario: Filtrar por nombre (fijo)
+- **WHEN** el operador cierra el menú de una columna que ya tiene un filtro aplicado
+- **THEN** el filtro continúa visible mediante un indicador del encabezado y sigue afectando la tabla
 
-- **WHEN** el operador escribe texto en el campo "Filtrar por nombre"
-- **THEN** la tabla muestra sólo filas cuyo nombre contenga ese texto, sin distinguir tildes ni mayúsculas
+### Requirement: Ordenamiento por encabezado en la tabla de usuarios
 
-#### Scenario: Filtrar por documento (fijo)
+La tabla SHALL permitir ordenar desde los encabezados Apellido y Nombre, Documento, Legajo, UPN/Email y Estado. El orden SHALL aplicarse únicamente sobre las filas que cumplen los filtros activos. La columna Acciones MUST NOT ser ordenable.
 
-- **WHEN** el operador escribe texto en el campo de Documento
-- **THEN** la tabla muestra sólo filas cuyo documento contenga ese texto
+Cada encabezado ordenable SHALL alternar entre orden ascendente, descendente y sin orden manual. Al quitar el orden manual, la tabla SHALL recuperar su orden predeterminado por Apellido y Nombre.
 
-#### Scenario: Filtrar por legajo (opcional)
+#### Scenario: Ordenar usuarios por apellido
 
-- **WHEN** el filtro de Legajo está activo y el operador escribe texto
-- **THEN** la tabla muestra sólo filas cuyo legajo contenga ese texto
+- **WHEN** el operador activa el orden ascendente del encabezado Apellido y Nombre
+- **THEN** las filas visibles se presentan por apellido y nombre en orden alfabético, sin distinguir tildes
 
-#### Scenario: Filtrar por mail/UPN (opcional)
+#### Scenario: Ordenar legajos numéricos
 
-- **WHEN** el filtro de Mail/UPN está activo y el operador escribe texto
-- **THEN** la tabla muestra sólo filas cuya UPN contenga ese texto
+- **WHEN** el operador activa el orden ascendente del encabezado Legajo
+- **THEN** los legajos se ordenan por valor numérico cuando corresponda, y no por comparación lexicográfica
 
-#### Scenario: Filtrar por rol (opcional)
+#### Scenario: Quitar el orden manual
 
-- **WHEN** el operador selecciona un rol en el filtro de Rol
-- **THEN** la tabla muestra sólo filas cuyo resumen de roles contenga ese rol, aunque tenga varios ámbitos
+- **WHEN** el operador activa por tercera vez el encabezado que está ordenado en sentido descendente
+- **THEN** el indicador de orden desaparece y la tabla vuelve al orden predeterminado
 
-#### Scenario: Filtrar por estado (opcional)
+#### Scenario: Ordenar después de filtrar
 
-- **WHEN** el operador selecciona "Activo" o "Inactivo"
-- **THEN** la tabla muestra sólo filas con el estado correspondiente
+- **WHEN** existen filtros activos y el operador ordena una columna
+- **THEN** sólo se reordenan las filas resultantes, sin recuperar filas excluidas por los filtros
 
-#### Scenario: Ancho de selectores
+### Requirement: Accesibilidad de los controles de encabezado
 
-- **WHEN** se muestra un selector de filtro de Rol, Estado o "Añadir filtro…"
-- **THEN** el ancho del selector se determina por la opción más larga
+Los controles de filtro y ordenamiento SHALL poder operarse con teclado y SHALL comunicar su estado al lector de pantalla. Abrir o cerrar un menú de encabezado MUST NOT activar acciones de una fila.
+
+#### Scenario: Estado de orden accesible
+
+- **WHEN** una columna queda ordenada en sentido ascendente o descendente
+- **THEN** el encabezado comunica su dirección de orden al lector de pantalla
+
+#### Scenario: Operación por teclado
+
+- **WHEN** el operador enfoca el control de filtro y presiona Enter o Espacio
+- **THEN** se abre el menú de esa columna sin requerir el uso del mouse
 
 ### Requirement: Sidebar muestra entrada "Usuarios" para Secretaría y Administración
 
