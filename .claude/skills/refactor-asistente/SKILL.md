@@ -138,8 +138,14 @@ resuelve `global.json` desde el directorio del proyecto): es un ticket propio, n
 parchear adentro de un PR de esta cola.
 
 - Con **C2** mergeado, el ciclo corto es
-  `dotnet test backend/ArsDocendi.slnx --filter 'carril!=base'` (≈628 casos, sin Docker).
-  **El PR igual se cierra con la suite completa.**
+  `dotnet test --solution backend/ArsDocendi.slnx -- --filter-not-trait "carril=base"`
+  (824 casos en 3 s, sin Docker). **El PR igual se cierra con la suite completa.**
+
+  La sintaxis cambió con el runner: `--filter 'carril!=base'` era de VSTest y con
+  Microsoft.Testing.Platform devuelve **cero tests en verde**, que es la forma peor
+  de equivocarse. Lo que va después de `--` son argumentos del runner, no de
+  `dotnet test`.
+
 - Frontend: `pnpm --filter frontend lint`, `pnpm --filter frontend build`,
   `pnpm --filter frontend test:run`. **Nunca `test`**: ese script es `vitest` en watch y
   cuelga la sesión.
