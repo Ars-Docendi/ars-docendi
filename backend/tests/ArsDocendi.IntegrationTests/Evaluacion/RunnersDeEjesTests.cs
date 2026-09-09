@@ -327,6 +327,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
             basica,
             pii,
             ClasificadorDeSensibilidad(),
+            Apertura,
             configuracion ?? new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
             // No simulado: el preflight rechaza a los proveedores simulados, y lo que
             // estos tests miden es el criterio de puntuación de cada eje. El preflight
@@ -349,8 +350,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
 
         return new RunnerDeDialogo(
             banco.Capa,
-            new EjecutorDeConsulta(
-                basica, pii, ClasificadorDeSensibilidad(),
+            new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(),
                 Microsoft.Extensions.Options.Options.Create(new OpcionesAsistente())),
             new ActoresDelSeed(),
             banco.Proveedor);

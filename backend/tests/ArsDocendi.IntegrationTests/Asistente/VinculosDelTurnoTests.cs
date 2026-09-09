@@ -183,7 +183,8 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
         var (basica, pii) = CadenasDeLectura();
 
         return BancoDelAsistente.Armar(
-            basica, pii, ClasificadorDeSensibilidad(), vinculos: resolutor, guion: guion);
+            basica, pii, ClasificadorDeSensibilidad(),
+            Apertura, vinculos: resolutor, guion: guion);
     }
 
     /// <summary>Resuelve lo que se le dijo, y anota qué le preguntaron.</summary>

@@ -352,12 +352,10 @@ public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
 
     private EnrutadorDeDominio Enrutador()
     {
-        var basica = CadenasDeLectura().Basica;
-
         return new EnrutadorDeDominio(
             new ResolutorDeIntenciones(
                 CatalogoDeIntenciones.Cargar(),
-                new CatalogoDelDominioReal(new IndiceDeEntidades(basica), basica)),
+                new CatalogoDelDominioReal(new IndiceDeEntidades(Apertura), Apertura)),
             NullLogger<EnrutadorDeDominio>.Instance);
     }
 

@@ -542,9 +542,8 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var (basica, pii) = CadenasDeLectura();
 
         return new CatalogoDeCapacidades(
-            basica,
-            pii,
-            new ConsultorDeAlcance(basica),
+            Apertura,
+            new ConsultorDeAlcance(Apertura),
             new SelectorDeEjemplos(),
             new CacheDeCapacidades(),
             NullLogger<CatalogoDeCapacidades>.Instance);
@@ -558,6 +557,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             basica,
             pii,
             ClasificadorDeSensibilidad(),
+            Apertura,
             configuracion ?? new OpcionesAsistente { CupoDeLlamadasPorActor = 0 });
     }
 

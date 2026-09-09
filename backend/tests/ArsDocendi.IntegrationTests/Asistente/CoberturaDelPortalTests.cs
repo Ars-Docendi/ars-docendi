@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using Modules.Asistente;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
 using Modules.Asistente.Application;
@@ -250,7 +252,7 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     {
         // El caso mayoritario: la pregunta no tocó portal. La consulta extra se paga
         // sólo en los turnos que la necesitan — y ni siquiera se abre la conexión.
-        Assert.Empty(await new ConsultorDeCobertura(new CadenaSoloLectura("no-se-usa"))
+        Assert.Empty(await new ConsultorDeCobertura(AperturaQueNoSeUsa())
             .ObtenerAsync([], Docente, TestContext.Current.CancellationToken));
     }
 
@@ -261,7 +263,7 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
         // así que la única defensa es que salga del catálogo cerrado. Este test es
         // esa defensa hecha comprobable.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new ConsultorDeCobertura(new CadenaSoloLectura("no-se-usa")).ObtenerAsync(
+            new ConsultorDeCobertura(AperturaQueNoSeUsa()).ObtenerAsync(
                 ["contactos; DROP TABLE portal.perfiles --"],
                 Docente,
                 TestContext.Current.CancellationToken));
@@ -269,14 +271,47 @@ public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private IConsultorDeCobertura Consultor() =>
-        new ConsultorDeCobertura(new CadenaSoloLectura(
-            new NpgsqlConnectionStringBuilder(Cadena)
-            {
-                Username = _lector,
-                Password = "lector-de-prueba",
-                Pooling = false,
-            }.ConnectionString));
+    private AperturaDeLectura? _aperturaDelLector;
+
+    /// <summary>
+    /// La apertura sobre el rol acotado que crea esta clase.
+    /// </summary>
+    /// <remarks>
+    /// No usa <c>Apertura</c> de la clase base: esos son los dos roles del
+    /// asistente, y lo que este test necesita es un rol propio con RLS de portal
+    /// aplicada. Los dos lados de la apertura apuntan al mismo, porque acá la
+    /// distinción entre roles no juega.
+    /// </remarks>
+    private IConsultorDeCobertura Consultor()
+    {
+        var cadena = new NpgsqlConnectionStringBuilder(Cadena)
+        {
+            Username = _lector,
+            Password = "lector-de-prueba",
+            Pooling = false,
+        }.ConnectionString;
+
+        _aperturaDelLector ??= new AperturaDeLectura(
+            new CadenaSoloLectura(cadena),
+            new CadenaSoloLecturaPii(cadena),
+            Options.Create(new OpcionesAsistente()));
+
+        return new ConsultorDeCobertura(_aperturaDelLector);
+    }
+
+    /// <summary>
+    /// Una apertura que apunta a un host inexistente, para los casos que cortan
+    /// ANTES de abrir la conexión.
+    /// </summary>
+    /// <remarks>
+    /// Que estos dos tests pasen con un host que no existe es justamente lo que
+    /// prueban: sin tablas de portal —o con un nombre fuera del catálogo— el
+    /// consultor ni siquiera llega a conectarse.
+    /// </remarks>
+    private static AperturaDeLectura AperturaQueNoSeUsa() =>
+        new(new CadenaSoloLectura("Host=no-se-usa"),
+            new CadenaSoloLecturaPii("Host=no-se-usa"),
+            Options.Create(new OpcionesAsistente()));
 
     private async Task PrepararAsync()
     {

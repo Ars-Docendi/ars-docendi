@@ -151,6 +151,12 @@ public static class ModuleExtensions
             return ConstruirProveedor(sp, valores, valores.ModeloDeRedaccion);
         });
 
+        // La ÚNICA puerta a las bases del sistema para leer. Singleton porque lleva
+        // adentro dos `NpgsqlDataSource` —uno por rol— y ahí vive el pool: uno por
+        // request tiraría el pool en cada turno. El contenedor la dispone, que es
+        // lo que libera las dos fuentes.
+        services.AddSingleton<AperturaDeLectura>();
+
         // Contador y decorador son SCOPED: el techo es por turno, y un turno no
         // puede heredar el conteo del anterior.
         services.AddScoped(sp => new ContadorDeLlamadasDelTurno(

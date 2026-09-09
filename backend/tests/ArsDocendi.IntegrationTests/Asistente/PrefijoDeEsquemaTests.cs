@@ -388,7 +388,7 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     private ProveedorDeEsquema ProveedorNuevo()
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
-        return new ProveedorDeEsquema(basica, conDatosPersonales);
+        return new ProveedorDeEsquema(Apertura);
     }
 
     private Task<Modules.Asistente.Application.EsquemaParaPrompt> PrefijoAsync(bool conDatosPersonales) =>

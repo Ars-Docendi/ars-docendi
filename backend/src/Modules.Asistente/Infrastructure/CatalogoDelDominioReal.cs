@@ -19,7 +19,7 @@ namespace Modules.Asistente.Infrastructure;
 /// lo que entra acá es un dato personal sensible.
 /// </remarks>
 internal sealed class CatalogoDelDominioReal(
-    IIndiceDeEntidades indice, CadenaSoloLectura cadena) : ICatalogoDelDominio
+    IIndiceDeEntidades indice, AperturaDeLectura apertura) : ICatalogoDelDominio
 {
     /// <summary>Las restricciones de las que sale el vocabulario del trámite.</summary>
     /// <remarks>
@@ -55,8 +55,7 @@ internal sealed class CatalogoDelDominioReal(
                 .Select(valor => new ValorDeSlot(
                     ClaseDe(valor.Clase), valor.Valor, termino, valor.Discriminador))));
 
-        await using var conexion = new NpgsqlConnection(cadena.Valor);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(ct);
 
         var vocabularios = await LectorDeVocabulario.VocabulariosAsync(
             conexion,

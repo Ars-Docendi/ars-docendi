@@ -21,7 +21,7 @@ namespace Modules.Asistente.Infrastructure;
 /// pide que el <c>ping</c> responda con la base detenida.
 /// </remarks>
 internal sealed class CatalogoDeSensibilidad(
-    CadenaSoloLectura cadena,
+    AperturaDeLectura apertura,
     ManifiestoDeSensibilidad manifiesto) : IClasificadorDeSensibilidad
 {
     /// <summary>
@@ -86,8 +86,7 @@ internal sealed class CatalogoDeSensibilidad(
         // Clave del catálogo real -> par de identificadores del motor.
         var enLaBase = new Dictionary<string, (uint Oid, short Atributo)>(StringComparer.Ordinal);
 
-        await using var conexion = new NpgsqlConnection(cadena.Valor);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(ct);
 
         await using (var comando = new NpgsqlCommand(Sql, conexion))
         {

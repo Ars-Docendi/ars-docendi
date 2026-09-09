@@ -22,8 +22,7 @@ namespace Modules.Asistente.Infrastructure;
 /// fallara entera, las tres de acá siguen en pie.
 /// </remarks>
 internal sealed class EjecutorDeConsulta(
-    CadenaSoloLectura cadenaBasica,
-    CadenaSoloLecturaPii cadenaConDatosPersonales,
+    AperturaDeLectura apertura,
     IClasificadorDeSensibilidad clasificador,
     IOptions<OpcionesAsistente> opciones) : IEjecutorDeConsulta
 {
@@ -33,17 +32,12 @@ internal sealed class EjecutorDeConsulta(
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
 
         var valores = opciones.Value;
-        var cadena = new NpgsqlConnectionStringBuilder(
-            conDatosPersonales ? cadenaConDatosPersonales.Valor : cadenaBasica.Valor)
-        {
-            CommandTimeout = valores.TimeoutDeComandoSegundos,
-        }.ConnectionString;
 
         // Conexión y transacción NUEVAS por ejecución, también en el reintento.
         // Reusar la transacción dejaría que una segunda ejecución heredara el
-        // ajuste de la primera.
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(ct);
+        // ajuste de la primera. El techo de comando ya viene puesto por la
+        // apertura, que es donde se decide para las cuatro lecturas del módulo.
+        await using var conexion = await apertura.AbrirAsync(conDatosPersonales, ct);
 
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);

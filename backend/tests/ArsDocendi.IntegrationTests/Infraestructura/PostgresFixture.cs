@@ -1,6 +1,8 @@
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
@@ -301,6 +303,9 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
 
     public async ValueTask DisposeAsync()
     {
+        _apertura?.Dispose();
+        _apertura = null;
+
         if (_base is not null)
         {
             await postgres.EliminarBaseAsync(_base);
@@ -408,6 +413,37 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
                 new CadenaSoloLecturaPii(CadenaDeRol(actual, actual.RolSoloLecturaPii)));
     }
 
+    private AperturaDeLectura? _apertura;
+
+    /// <summary>
+    /// La apertura de lectura del módulo, sobre las dos cadenas de la base de
+    /// prueba.
+    /// </summary>
+    /// <remarks>
+    /// Una por clase de test y no una por uso: cada <c>AperturaDeLectura</c> lleva
+    /// dos <c>NpgsqlDataSource</c>, y construir una por consumidor dejaría fuentes
+    /// sin disponer. Se libera en <c>DisposeAsync</c>.
+    /// </remarks>
+    /// <remarks>
+    /// <c>private protected</c> y no <c>protected</c>: esta clase es pública y
+    /// <c>AperturaDeLectura</c> es <c>internal</c> del módulo. Es la misma razón
+    /// por la que <c>ClasificadorDeSensibilidad()</c> devuelve la interfaz.
+    /// </remarks>
+    private protected AperturaDeLectura Apertura
+    {
+        get
+        {
+            if (_apertura is null)
+            {
+                var (basica, conDatosPersonales) = CadenasDeLectura();
+                _apertura = new AperturaDeLectura(
+                    basica, conDatosPersonales, Options.Create(new OpcionesAsistente()));
+            }
+
+            return _apertura;
+        }
+    }
+
     /// <summary>
     /// El clasificador de sensibilidad resuelto contra la base de prueba.
     /// </summary>
@@ -422,7 +458,7 @@ public abstract class ClasePostgresAislada(PostgresFixture postgres, string pref
     /// contador de lecturas, lo construye por su cuenta.
     /// </remarks>
     protected IClasificadorDeSensibilidad ClasificadorDeSensibilidad() =>
-        new CatalogoDeSensibilidad(CadenasDeLectura().Basica, ManifiestoDeSensibilidad.Cargar());
+        new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
 
     private static string CadenaDeRol(BaseDePrueba baseDePrueba, string rol) =>
         new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena)

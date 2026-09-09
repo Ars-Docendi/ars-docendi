@@ -116,7 +116,7 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private IPerfilDelActor Consultor() => new ConsultorDeAlcance(CadenasDeLectura().Basica);
+    private IPerfilDelActor Consultor() => new ConsultorDeAlcance(Apertura);
 
     /// <summary>
     /// Le saca a todos los roles el permiso de dominio, dejando el ámbito intacto.

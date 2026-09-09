@@ -20,7 +20,7 @@ namespace Modules.Asistente.Infrastructure;
 /// Se lee con la conexión básica: nombre de materia, carrera, nombre y apellido son
 /// columnas públicas para los dos roles.
 /// </remarks>
-internal sealed class IndiceDeEntidades(CadenaSoloLectura cadena) : IIndiceDeEntidades
+internal sealed class IndiceDeEntidades(AperturaDeLectura apertura) : IIndiceDeEntidades
 {
     /// <summary>
     /// Materias con su carrera, y personas con su nombre completo.
@@ -57,8 +57,7 @@ internal sealed class IndiceDeEntidades(CadenaSoloLectura cadena) : IIndiceDeEnt
     {
         var valores = new List<ValorDelDominio>();
 
-        await using var conexion = new NpgsqlConnection(cadena.Valor);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(ct);
 
         await using var comando = new NpgsqlCommand(Sql, conexion);
         await using var lector = await comando.ExecuteReaderAsync(ct);

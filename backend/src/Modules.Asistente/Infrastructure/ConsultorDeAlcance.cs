@@ -14,7 +14,7 @@ namespace Modules.Asistente.Infrastructure;
 /// columnas se van a leer después, y hacerla con el rol de menor privilegio es
 /// gratis.
 /// </remarks>
-internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelActor
+internal sealed class ConsultorDeAlcance(AperturaDeLectura apertura) : IPerfilDelActor
 {
     /// <summary>
     /// Permiso que habilita la conexión con datos personales.
@@ -87,8 +87,7 @@ internal sealed class ConsultorDeAlcance(CadenaSoloLectura cadena) : IPerfilDelA
 
     private async Task<PerfilDelActor> LeerPerfilAsync(Guid actor, CancellationToken ct)
     {
-        await using var conexion = new NpgsqlConnection(cadena.Valor);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(ct);
 
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);

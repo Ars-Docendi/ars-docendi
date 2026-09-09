@@ -409,7 +409,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         var opciones = Options.Create(new OpcionesAsistente());
         var contador = new ContadorDeLlamadasDelTurno(64);
         var conTecho = new ProveedorConTechoDeLlamadas(proveedor, contador);
-        var ejecutor = new EjecutorDeConsulta(basica, conDatosPersonales, ClasificadorDeSensibilidad(), opciones);
+        var ejecutor = new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(), opciones);
 
         // Una fábrica y no una instancia: el techo de llamadas es POR TURNO, y un
         // carril compartido para todo el dataset lo convertiría en un techo de la
@@ -417,17 +417,17 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
         // resolverían degradado—. El modo de falla no da error: da un número.
         CarrilSql Carril() => new(
             new GeneradorDeSql(
-                new ProveedorDeEsquema(basica, conDatosPersonales),
+                new ProveedorDeEsquema(Apertura),
                 new SelectorDeEjemplos(),
                 conTecho,
                 new FechaDeReferenciaFija(new DateOnly(2026, 3, 2)),
                 Options.Create(new OpcionesAsistente()),
                 NullLogger<GeneradorDeSql>.Instance),
             ejecutor,
-            new ConsultorDeAlcance(basica),
+            new ConsultorDeAlcance(Apertura),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
-            new ConsultorDeCobertura(basica),
+            new ConsultorDeCobertura(Apertura),
             contador,
             NullLogger<CarrilSql>.Instance);
 

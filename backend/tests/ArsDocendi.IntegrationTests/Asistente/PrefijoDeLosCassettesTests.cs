@@ -79,7 +79,7 @@ public sealed class PrefijoDeLosCassettesTests(PostgresFixture postgres)
         await AplicarFixtureAsync();
 
         var (basica, conDatosPersonales) = CadenasDeLectura();
-        var proveedor = new ProveedorDeEsquema(basica, conDatosPersonales);
+        var proveedor = new ProveedorDeEsquema(Apertura);
         var ct = TestContext.Current.CancellationToken;
 
         var deEsquema = new[]

@@ -215,7 +215,8 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
         var (basica, pii) = CadenasDeLectura();
 
         return BancoDelAsistente.Armar(
-            basica, pii, ClasificadorDeSensibilidad(), configuracion, guion: guion);
+            basica, pii, ClasificadorDeSensibilidad(),
+            Apertura, configuracion, guion: guion);
     }
 
     private async Task ConcederVerConsultaAsync()

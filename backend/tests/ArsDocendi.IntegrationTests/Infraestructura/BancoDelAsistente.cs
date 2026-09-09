@@ -52,6 +52,7 @@ internal sealed class BancoDelAsistente
         CadenaSoloLectura basica,
         CadenaSoloLecturaPii conDatosPersonales,
         IClasificadorDeSensibilidad clasificador,
+        AperturaDeLectura apertura,
         OpcionesAsistente? configuracion = null,
         IAlmacenDeHilos? hilos = null,
         TimeProvider? reloj = null,
@@ -86,14 +87,13 @@ internal sealed class BancoDelAsistente
 
         // El índice se comparte entre turnos, igual que en producción: es un caché,
         // y uno por turno no cachearía nada.
-        var indice = new IndiceDeEntidades(basica);
+        var indice = new IndiceDeEntidades(apertura);
 
         // El catálogo de capacidades también se comparte: cachea por rol, y uno por
         // turno no cachearía nada.
         var catalogo = new CatalogoDeCapacidades(
-            basica,
-            conDatosPersonales,
-            new ConsultorDeAlcance(basica),
+            apertura,
+            new ConsultorDeAlcance(apertura),
             new SelectorDeEjemplos(),
             new CacheDeCapacidades(),
             NullLogger<CatalogoDeCapacidades>.Instance);
@@ -110,7 +110,7 @@ internal sealed class BancoDelAsistente
         var enrutador = new EnrutadorDeDominio(
             new ResolutorDeIntenciones(
                 CatalogoDeIntenciones.Cargar(),
-                dominio ?? new CatalogoDelDominioReal(indice, basica)),
+                dominio ?? new CatalogoDelDominioReal(indice, apertura)),
             NullLogger<EnrutadorDeDominio>.Instance);
 
         return new BancoDelAsistente
@@ -140,7 +140,8 @@ internal sealed class BancoDelAsistente
                 var carril = ArmarCarrilSql(
                     basica,
                     conDatosPersonales,
-                    new EjecutorDeConsulta(basica, conDatosPersonales, clasificador, opciones),
+            apertura,
+                    new EjecutorDeConsulta(apertura,clasificador, opciones),
                     conTecho,
                     contador,
                     opciones,
@@ -199,6 +200,7 @@ internal sealed class BancoDelAsistente
     internal static CarrilSql ArmarCarrilSql(
         CadenaSoloLectura basica,
         CadenaSoloLecturaPii conDatosPersonales,
+        AperturaDeLectura apertura,
         IEjecutorDeConsulta ejecutor,
         IProveedorDeModelo conTecho,
         ContadorDeLlamadasDelTurno contador,
@@ -206,17 +208,17 @@ internal sealed class BancoDelAsistente
         ILogger<CarrilSql> log) =>
         new(
             new GeneradorDeSql(
-                new ProveedorDeEsquema(basica, conDatosPersonales),
+                new ProveedorDeEsquema(apertura),
                 new SelectorDeEjemplos(),
                 conTecho,
                 new FechaDeReferenciaFija(FechaDeReferencia),
                 opcionesDelGenerador,
                 NullLogger<GeneradorDeSql>.Instance),
             ejecutor,
-            new ConsultorDeAlcance(basica),
+            new ConsultorDeAlcance(apertura),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
-            new ConsultorDeCobertura(basica),
+            new ConsultorDeCobertura(apertura),
             contador,
             log);
 }

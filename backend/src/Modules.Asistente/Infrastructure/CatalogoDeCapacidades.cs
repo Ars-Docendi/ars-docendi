@@ -26,8 +26,7 @@ namespace Modules.Asistente.Infrastructure;
 /// —con y sin datos personales—. Lo que es del actor, el ámbito, no toca la caché.
 /// </remarks>
 internal sealed class CatalogoDeCapacidades(
-    CadenaSoloLectura cadenaBasica,
-    CadenaSoloLecturaPii cadenaConDatosPersonales,
+    AperturaDeLectura apertura,
     IPerfilDelActor perfiles,
     ISelectorDeEjemplos ejemplos,
     CacheDeCapacidades cache,
@@ -64,12 +63,7 @@ internal sealed class CatalogoDeCapacidades(
 
     private async Task<Resuelto> LeerAsync(Guid actor, bool conDatosPersonales, CancellationToken ct)
     {
-        var cadena = conDatosPersonales
-            ? cadenaConDatosPersonales.Valor
-            : cadenaBasica.Valor;
-
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(conDatosPersonales, ct);
 
         var columnas = await LectorDeCatalogo.LeerColumnasAsync(conexion, ct);
 

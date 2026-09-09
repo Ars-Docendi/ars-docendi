@@ -316,9 +316,9 @@ public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private IndiceDeEntidades Indice() => new(CadenasDeLectura().Basica);
+    private IndiceDeEntidades Indice() => new(Apertura);
 
-    private CatalogoDelDominioReal Catalogo() => new(Indice(), CadenasDeLectura().Basica);
+    private CatalogoDelDominioReal Catalogo() => new(Indice(), Apertura);
 
     private ResolutorDeIntenciones Resolutor() =>
         new(CatalogoDeIntenciones.Cargar(), Catalogo());

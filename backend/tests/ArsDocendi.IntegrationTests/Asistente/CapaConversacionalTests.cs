@@ -591,7 +591,8 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         var (basica, pii) = CadenasDeLectura();
 
         return BancoDelAsistente.Armar(
-            basica, pii, ClasificadorDeSensibilidad(), hilos: hilos, guion: guion);
+            basica, pii, ClasificadorDeSensibilidad(),
+            Apertura, hilos: hilos, guion: guion);
     }
 
     private IAlmacenDeHilos NuevosHilos() =>
@@ -613,6 +614,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
             basica,
             pii,
             ClasificadorDeSensibilidad(),
+            Apertura,
             hilos: NuevosHilos(),
             dominio: new DominioSinValores(),
             guion: guion);

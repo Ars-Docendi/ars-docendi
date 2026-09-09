@@ -23,9 +23,7 @@ namespace Modules.Asistente.Infrastructure;
 /// evaluación, así que una corrida contra un esquema viejo queda registrada como
 /// tal en lugar de pasar desapercibida.
 /// </remarks>
-internal sealed class ProveedorDeEsquema(
-    CadenaSoloLectura cadenaBasica,
-    CadenaSoloLecturaPii cadenaConDatosPersonales) : IProveedorDeEsquema
+internal sealed class ProveedorDeEsquema(AperturaDeLectura apertura) : IProveedorDeEsquema
 {
     private readonly ValorPerezosoPorRol<EsquemaParaPrompt> _porRol = new();
 
@@ -38,10 +36,7 @@ internal sealed class ProveedorDeEsquema(
 
     private async Task<EsquemaParaPrompt> ConstruirAsync(bool conDatosPersonales, CancellationToken ct)
     {
-        var cadena = conDatosPersonales ? cadenaConDatosPersonales.Valor : cadenaBasica.Valor;
-
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(conDatosPersonales, ct);
 
         var columnas = await LectorDeCatalogo.LeerColumnasAsync(conexion, ct);
         var referencias = await LectorDeCatalogo.LeerReferenciasAsync(conexion, ct);

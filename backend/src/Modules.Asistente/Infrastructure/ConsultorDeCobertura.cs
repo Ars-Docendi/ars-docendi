@@ -18,7 +18,7 @@ namespace Modules.Asistente.Infrastructure;
 /// producir claves de su propio diccionario— y nunca del texto de la consulta ni de
 /// nada que venga del modelo. Un identificador no se puede parametrizar.
 /// </remarks>
-internal sealed class ConsultorDeCobertura(CadenaSoloLectura cadena) : IConsultorDeCobertura
+internal sealed class ConsultorDeCobertura(AperturaDeLectura apertura) : IConsultorDeCobertura
 {
     public async Task<IReadOnlyList<CoberturaDeUnDato>> ObtenerAsync(
         IReadOnlyList<string> tablas, Guid actor, CancellationToken ct)
@@ -40,8 +40,7 @@ internal sealed class ConsultorDeCobertura(CadenaSoloLectura cadena) : IConsulto
             }
         }
 
-        await using var conexion = new NpgsqlConnection(cadena.Valor);
-        await conexion.OpenAsync(ct);
+        await using var conexion = await apertura.AbrirAsync(ct);
 
         await using var transaccion = await conexion.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, ct);

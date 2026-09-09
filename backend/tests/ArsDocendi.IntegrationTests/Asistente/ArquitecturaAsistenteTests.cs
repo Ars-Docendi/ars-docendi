@@ -397,6 +397,56 @@ public sealed partial class ArquitecturaAsistenteTests
             nombre => nombre.Equals("Ping", StringComparison.Ordinal));
     }
 
+    // ------------------------------------------- una sola puerta a las bases
+
+    /// <summary>
+    /// Los únicos archivos que pueden construir una conexión a mano, y por qué.
+    /// </summary>
+    /// <remarks>
+    /// Los tres escriben el schema PROPIO del asistente con la conexión del
+    /// dueño: no son lectura y no pasan por <c>AperturaDeLectura</c>. La lista es
+    /// cerrada y encoge, no crece — cada entrada nueva necesita un motivo escrito
+    /// acá adentro.
+    /// </remarks>
+    private static readonly string[] PuedenConstruirConexion =
+    [
+        "AperturaDeLectura.cs",
+        "MigradorAsistente.cs",
+        "RegistroDelTurno.cs",
+        "PurgaDeRegistros.cs",
+    ];
+
+    [Fact]
+    public void Toda_lectura_del_sistema_pasa_por_la_apertura()
+    {
+        var archivos = CodigoDelModulo();
+
+        // Con doce constructores de conexión repartidos, «con qué techo de comando
+        // lee el asistente» no tenía respuesta: dependía de cuál corriera. Sólo el
+        // ejecutor ponía el suyo; los demás heredaban el default de Npgsql, 30 s —
+        // el doble del que el módulo eligió. Que haya UNA puerta es lo que hace que
+        // esa pregunta tenga una respuesta y no cuatro.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, ConexionConstruidaAMano())
+            .Where(ruta => !PuedenConstruirConexion.Contains(Path.GetFileName(ruta)))
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "Hay código del módulo que construye su propia conexión. Para leer del sistema "
+            + "se usa `AperturaDeLectura`, que decide el rol y el techo de comando en un solo "
+            + "lugar. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_conexion_construida_a_mano()
+    {
+        var sintetico = new Archivo(
+            "Infrastructure/LectorNuevo.cs",
+            "await using var conexion = new NpgsqlConnection(cadena.Valor);");
+
+        Assert.Single(Detectar([sintetico], ConexionConstruidaAMano()));
+    }
+
     // ------------------------------------------------ la superficie pública
 
     /// <summary>
@@ -669,6 +719,9 @@ public sealed partial class ArquitecturaAsistenteTests
 
     [GeneratedRegex(@"\bBeginTransactionAsync\s*\(")]
     private static partial Regex AperturaDeTransaccion();
+
+    [GeneratedRegex(@"\bnew\s+NpgsqlConnection\s*\(")]
+    private static partial Regex ConexionConstruidaAMano();
 
     [GeneratedRegex(@"\bPreambuloDelActor\b")]
     private static partial Regex UsoDelPreambulo();

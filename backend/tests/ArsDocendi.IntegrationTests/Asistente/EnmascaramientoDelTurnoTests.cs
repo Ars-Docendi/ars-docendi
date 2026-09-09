@@ -95,8 +95,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        var catalogo = new CatalogoDeSensibilidad(
-            CadenasDeLectura().Basica, ManifiestoDeSensibilidad.Cargar());
+        var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
         var ct = TestContext.Current.CancellationToken;
 
         await catalogo.PrepararAsync(ct);
@@ -110,8 +109,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        var catalogo = new CatalogoDeSensibilidad(
-            CadenasDeLectura().Basica, ManifiestoDeSensibilidad.Cargar());
+        var catalogo = new CatalogoDeSensibilidad(Apertura, ManifiestoDeSensibilidad.Cargar());
         await catalogo.PrepararAsync(TestContext.Current.CancellationToken);
 
         // Se comprueba a través de una consulta real: pedir las cuatro columnas y
@@ -137,7 +135,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         await SembrarAsync();
 
         var catalogo = new CatalogoDeSensibilidad(
-            CadenasDeLectura().Basica,
+            Apertura,
             ManifiestoDeSensibilidad.Interpretar(
                 """
                 {"tablas":[{"schema":"identity","tabla":"personas","columnas":[
@@ -243,7 +241,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
 
-        var perfil = await new ConsultorDeAlcance(CadenasDeLectura().Basica)
+        var perfil = await new ConsultorDeAlcance(Apertura)
             .ObtenerAsync(Secretaria, TestContext.Current.CancellationToken);
 
         Assert.True(perfil.EsGlobal);
@@ -258,7 +256,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         // el asistente heredaría la puerta sin el acotamiento.
         await SembrarAsync();
 
-        var perfil = await new ConsultorDeAlcance(CadenasDeLectura().Basica)
+        var perfil = await new ConsultorDeAlcance(Apertura)
             .ObtenerAsync(Coordinador, TestContext.Current.CancellationToken);
 
         Assert.False(perfil.EsGlobal);
@@ -329,8 +327,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         string sql, Guid actor, bool conDatosPersonales)
     {
         var (basica, pii) = CadenasDeLectura();
-        var ejecutor = new EjecutorDeConsulta(
-            basica, pii, ClasificadorDeSensibilidad(),
+        var ejecutor = new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(),
             Options.Create(new OpcionesAsistente()));
 
         return await ejecutor.EjecutarAsync(
@@ -359,7 +356,8 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         return BancoDelAsistente.ArmarCarrilSql(
             basica,
             pii,
-            new EjecutorDeConsulta(basica, pii, ClasificadorDeSensibilidad(), opciones),
+            Apertura,
+            new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(), opciones),
             conTecho,
             contador,
             opciones,

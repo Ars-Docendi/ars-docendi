@@ -168,7 +168,7 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private IndiceDeEntidades Indice() => new(CadenasDeLectura().Basica);
+    private IndiceDeEntidades Indice() => new(Apertura);
 
     /// <summary>
     /// Agrega una materia con nombre repetido en otra carrera y una persona que

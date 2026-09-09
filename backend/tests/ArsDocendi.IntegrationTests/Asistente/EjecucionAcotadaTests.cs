@@ -405,14 +405,11 @@ public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
 
-        return new EjecutorDeConsulta(
-            basica,
-            conDatosPersonales,
-            ClasificadorDeSensibilidad(),
+        return new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(),
             Options.Create(new OpcionesAsistente { TopeDeFilas = tope }));
     }
 
-    private ConsultorDeAlcance Perfiles() => new(CadenasDeLectura().Basica);
+    private ConsultorDeAlcance Perfiles() => new(Apertura);
 
     private Task<ResultadoDeConsulta> EjecutarAsync(
         string sql, Guid actor, int tope = 200, string? escrituraAdicional = null)

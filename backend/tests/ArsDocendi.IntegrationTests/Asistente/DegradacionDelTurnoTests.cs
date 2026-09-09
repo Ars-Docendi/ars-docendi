@@ -503,6 +503,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             basica,
             pii,
             ClasificadorDeSensibilidad(),
+            Apertura,
             configuracion,
             reloj: reloj ?? new RelojFijo(Ancla),
             proveedor: proveedor,
