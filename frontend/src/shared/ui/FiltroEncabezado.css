@@ -29,6 +29,11 @@
   outline: none;
 }
 
+.adoc-filtro-encabezado-trigger svg {
+  width: 15px;
+  height: 15px;
+}
+
 .adoc-filtro-encabezado-indicador {
   position: absolute;
   top: 2px;

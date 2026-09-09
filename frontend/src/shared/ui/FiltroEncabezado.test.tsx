@@ -53,4 +53,26 @@ describe("FiltroEncabezado", () => {
     expect(ordenar).toHaveBeenCalledOnce();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("ubica el menú inmediatamente debajo del control", async () => {
+    const user = userEvent.setup();
+    render(<Prueba />);
+    const disparador = screen.getByRole("button", { name: "Filtrar Estado" });
+
+    vi.spyOn(disparador, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      bottom: 124,
+      left: 40,
+      right: 64,
+      width: 24,
+      height: 24,
+      x: 40,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    await user.click(disparador);
+
+    expect(screen.getByRole("dialog")).toHaveStyle({ top: "126px", left: "40px" });
+  });
 });

@@ -160,7 +160,7 @@ En las tablas con acciones por fila del módulo Designaciones, las acciones se a
 
 ## Patrón transversal — filtros y ordenamiento por encabezado
 
-Las tablas de **Usuarios** y **Docentes** ofrecen un control compacto de filtro en cada encabezado aplicable. El menú se abre desde un botón accesible, se posiciona fuera del contenedor con scroll horizontal, se cierra con Escape o clic fuera y conserva un indicador cuando el filtro sigue activo. Los campos textuales buscan por coincidencia parcial sin distinguir mayúsculas ni tildes; las opciones múltiples combinan sus valores con OR y las columnas distintas con AND.
+Las tablas de **Usuarios** y **Docentes** ofrecen un control compacto de filtro en cada encabezado aplicable, representado por un SVG de embudo reconocible. El menú se abre desde un botón accesible y aparece inmediatamente debajo del control, fuera del contenedor con scroll horizontal; sólo se ubica arriba cuando no hay espacio suficiente. Se cierra con Escape o clic fuera y conserva un indicador cuando el filtro sigue activo. Los campos textuales buscan por coincidencia parcial sin distinguir mayúsculas ni tildes; las opciones múltiples combinan sus valores con OR y las columnas distintas con AND.
 
 - **Usuarios**: Apellido y Nombre, Documento, Legajo y UPN/Email admiten búsqueda; Roles, Perfil docente y Estado admiten selección múltiple. Ordenan Apellido y Nombre, Documento, Legajo, UPN/Email y Estado.
 - **Docentes**: Apellido y Nombre, Documento y Legajo admiten búsqueda; Rol, Ámbitos, Asignaciones, Cuenta y Estado admiten filtro. Ordenan Apellido y Nombre, Documento, Legajo, Cuenta y Estado. Rol, Ámbitos y Asignaciones no ordenan porque muestran colecciones o resúmenes.

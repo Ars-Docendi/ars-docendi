@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { IconoFilter } from "./iconos";
 import "./FiltroEncabezado.css";
 
 interface PosicionMenu {
@@ -28,18 +29,21 @@ export function FiltroEncabezado({ etiqueta, activo, onLimpiar, children }: Filt
     const rect = botonRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    const escala = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const margen = 8;
-    const alto = Math.min(420, window.innerHeight - margen * 2);
-    const ancho = Math.min(300, window.innerWidth - margen * 2);
-    const left = Math.max(margen, Math.min(rect.left, window.innerWidth - ancho - margen));
-    const debajo = rect.bottom + 4;
-    const arriba = rect.top - alto - 4;
+    const altoVentana = window.innerHeight / escala;
+    const anchoVentana = window.innerWidth / escala;
+    const alto = Math.min(420, altoVentana - margen * 2);
+    const ancho = Math.min(300, anchoVentana - margen * 2);
+    const left = Math.max(margen, Math.min(rect.left / escala, anchoVentana - ancho - margen));
+    const debajo = rect.bottom / escala + 2;
+    const arriba = rect.top / escala - alto - 2;
     const top =
-      debajo + alto <= window.innerHeight - margen
+      debajo + alto <= altoVentana - margen
         ? debajo
         : arriba >= margen
           ? arriba
-          : Math.max(margen, window.innerHeight - alto - margen);
+          : Math.max(margen, altoVentana - alto - margen);
 
     setPosicion({ top, left });
   }
@@ -97,7 +101,7 @@ export function FiltroEncabezado({ etiqueta, activo, onLimpiar, children }: Filt
           setAbierto((valor) => !valor);
         }}
       >
-        <span aria-hidden="true">▽</span>
+        <IconoFilter />
         {activo && <span className="adoc-filtro-encabezado-indicador" aria-label="Filtro activo" />}
       </button>
       {abierto &&

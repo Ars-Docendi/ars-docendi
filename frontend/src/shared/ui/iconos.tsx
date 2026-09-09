@@ -21,6 +21,12 @@ function Svg({ children }: { children: ReactNode }) {
   );
 }
 
+export const IconoFilter = () => (
+  <Svg>
+    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+  </Svg>
+);
+
 export const IconoEllipsisVertical = () => (
   <Svg>
     <circle cx="12" cy="12" r="1" />
