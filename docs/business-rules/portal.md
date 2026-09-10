@@ -20,6 +20,12 @@
 - **Provenance:** `from_regulation`
 - **Fuente normativa:** Ley 25.326, art. 4 inc. 3 — los datos no pueden usarse para finalidades distintas o incompatibles con aquellas que motivaron su obtención. _(Cita pendiente de verificación.)_
 - **Ejemplos:** Secretaría declara «buscar docentes con perfil adecuado ante una vacante o una acreditación CONEAU» → el permiso tiene sustento. Nadie declara nada y alguien concede el permiso «por las dudas» → no lo tiene.
+- **Finalidad declarada (2026-09-09):** _«Consulta general del plantel docente: que las autoridades del Departamento —Secretaría, Decanato, Administración— y el Coordinador de Carrera conozcan la formación, la experiencia laboral, las certificaciones y las habilidades declaradas del plantel a su alcance, sin exigir un trámite específico de por medio.»_
+
+  **Quién la declaró:** Franco Garcete, autor del Trabajo Final Integrador. **No es Secretaría Académica**, que es a quien el statement de esta regla le atribuye la declaración. Queda escrito así a propósito: si el sistema se audita, la diferencia entre «lo declaró el titular del banco de datos» y «lo declaró el desarrollador» es exactamente lo que un auditor va a mirar, y descubrirlo en ese momento es peor que tenerlo anotado desde ahora. **Ratificarla con Secretaría sigue pendiente.**
+
+  **Consecuencia asumida:** es la finalidad más amplia de las que se evaluaron, y por eso **no acota el `GRANT`**: se concede la trayectoria completa —formación, experiencia, certificaciones y habilidades— sin vínculo con un trámite. Una finalidad más estrecha, como «armar el proyecto docente», habría permitido recortar columnas. Se eligió la amplia con conocimiento de eso.
+
 - **Roles afectados:** todos los que pueden usar el asistente.
 - **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/015_identity_permiso_portal_trayectoria.sql`). Conceder es una decisión de Secretaría, no un despliegue.
 - **Mapping a test:** `PermisoYPersonaPortalTests.El_permiso_existe_y_no_lo_tiene_ningun_rol`.
@@ -27,11 +33,13 @@
 ### BR-`portal`-002 Quién puede otorgar el permiso de trayectoria ajena
 
 - **Statement:** `portal.ver_trayectoria_ajena` sólo se concede por decisión registrada de Secretaría Académica, nombrando el rol y la finalidad. No se concede a un usuario individual ni «para probar».
-- **Rationale:** **Es la regla de control más importante del paquete**, porque la frontera real es administrativa y no técnica. La RLS impone el permiso, pero el permiso se concede desde `/membresia-roles` en treinta segundos y sin migración. Sin esta regla, la política efectiva es «cualquiera con `roles.gestionar_membresia`».
+- **Rationale:** **Es la regla de control más importante del paquete**, porque la frontera real es administrativa y no técnica. La RLS impone el permiso, pero el permiso se concede desde `/roles` en treinta segundos y sin migración. Sin esta regla, la política efectiva es «cualquiera con `roles.gestionar_membresia`».
 - **Provenance:** `from_regulation`
 - **Fuente normativa:** Ley 25.326, art. 4 inc. 1 (pertinencia y no excesividad respecto de la finalidad). _(Cita pendiente de verificación.)_
 - **Ejemplos:** Secretaría concede el permiso al rol `secretaria` con la finalidad de BR-001 registrada → correcto. Un administrador se lo concede a `jefe_catedra` sin registro → viola esta regla aunque el sistema lo permita.
 - **Roles afectados:** quien administra la matriz de roles.
+- **Quién puede otorgarlo (2026-09-09):** el rol `secretaria`, y sólo ese. Es lo que ya impone el código y no hizo falta cambiarlo: la pantalla exige `roles.administrar` o `roles.gestionar_membresia` (`frontend/src/features/roles/pages/IndexPage.tsx:35-37`), y `database/identity/008_identity_rol_permisos.sql` le da esos dos permisos únicamente a `secretaria` — ni Decanato, ni Coordinador, ni Administrativo.
+- **Nota sobre la pantalla:** la regla decía `/membresia-roles`, que **dejó de existir**: esa feature se borró y hoy `router.tsx` la redirige a `/roles`.
 - **Consecuencia asumida:** el sistema **no puede impedir** una concesión indebida; sólo puede dejarla registrada. Esta regla existe para que el registro sea la política y no una formalidad.
 
 ### BR-`portal`-007 El permiso se ejerce dentro del ámbito del rol

@@ -5,6 +5,30 @@
 > —aunque sea un mail— es lo que da sustento normativo al acceso y lo que se cita en
 > `BR-portal-001`.
 
+## ESTADO: respondido el 2026-09-09, y por quién
+
+Las tres preguntas de este documento fueron respondidas por **Franco Garcete, autor
+del Trabajo Final Integrador**, y **no por Secretaría Académica**. Eso no es un
+detalle de forma: la Ley 25.326 le pide la declaración de finalidad a quien recogió
+los datos, que es la universidad. **Llevar esto a Secretaría y obtener la respuesta
+escrita sigue pendiente**, y este documento sigue siendo el que hay que llevar.
+
+| Pregunta                                                                                         | Respuesta                                                                     |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| 1. ¿Pueden Secretaría, Decanato, Administrativo y el Coordinador consultar la trayectoria ajena? | **Sí**                                                                        |
+| 2. ¿Para qué tarea concreta?                                                                     | **Consulta general del plantel docente**, sin trámite específico de por medio |
+| 3. ¿Quién concede el permiso y con qué criterio?                                                 | **Secretaría, desde `/roles`** — es lo que el código ya impone                |
+
+Sobre la 1, un matiz que el sistema ya resuelve y conviene decir en la reunión: el
+permiso **no** da acceso a todo el padrón por igual. `BR-portal-007` lo acota al
+ámbito del rol — el Coordinador alcanza su carrera, el jefe de cátedra a quienes
+tienen designación vigente en sus materias, y sólo los roles departamentales ven
+el padrón entero.
+
+Sobre la 2: es la finalidad **más amplia** de las que se evaluaron, así que no
+recorta el `GRANT`. Queda registrada como tal en `BR-portal-001`, con su
+consecuencia escrita al lado.
+
 ## Qué se construyó, y por qué está apagado
 
 El asistente ya puede leer el Portal Docente: formación, experiencia laboral,
