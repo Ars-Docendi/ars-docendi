@@ -65,7 +65,7 @@ flowchart TD
 
   EvaluacionNucleo -->|"excepción al invariante #1 (ARS-63)"| Asistente
 
-  Designaciones -.->|"vía PortalContracts (TBD)"| PortalContracts
+  Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
   Aulas -.->|"vía PortalContracts (TBD)"| PortalContracts
   Asistente -.->|"carril determinista de API (TBD)"| DesignacionesContracts
 ```
@@ -89,13 +89,24 @@ La disciplina, corolario del invariante #4 enmendado:
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
 
+La creación de una persona sin cuenta para un Alta mantiene esa frontera: el
+módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que
+`ServicioPersonas` y `IRepositorioDocentes` permanecen en Shared. No aparece una
+referencia de proyecto nueva ni una dependencia hacia implementaciones de otro
+módulo; el DAG y el edge `Modules.Designaciones → ArsDocendi.Shared` no cambian.
+
+La exportación de lote de Designaciones conserva esta frontera: usa
+`IConsultasIdentity` para completar personas y materias, y `IPortalQueries` para
+leer sólo el correo de las altas. No accede a `PortalDbContext` ni a entidades
+internas de Portal.
+
 `/pr-review` y `/architecture-drift-check` deben tratar cualquier escritura a identity desde un `Modules.*` como violación. `ArquitecturaIdentityTests` verifica automáticamente la frontera Controller → Service → Repository, la escritura administrativa exclusiva y que ningún proyecto **de módulo** consuma internals de otro módulo; su glob es `Modules.*.csproj`, así que las aristas de los proyectos que no son módulos las cubre el manifiesto.
 
 ## Orquestación administrativa de docentes
 
 `ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa la arista Host → Contracts ya registrada y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
 
-**Aristas cross-module proyectadas** (a confirmar en la spec respectiva, sin fila en el manifiesto hasta que el `.csproj` las referencie): `Modules.Designaciones` → `Modules.Portal.Contracts`, para validar que el docente designado existe en el portal; `Modules.Aulas` → `Modules.Portal.Contracts`, para conocer al docente solicitante de la reserva; y `Modules.Asistente` → `Modules.Designaciones.Contracts`, que llega con el carril determinista de API (ARS-46).
+**Aristas cross-module proyectadas** (a confirmar en la spec respectiva, sin fila en el manifiesto hasta que el `.csproj` las referencie): `Modules.Aulas` → `Modules.Portal.Contracts`, para conocer al docente solicitante de la reserva; y `Modules.Asistente` → `Modules.Designaciones.Contracts`, que llega con el carril determinista de API (ARS-46).
 
 ## Agregar una arista nueva
 

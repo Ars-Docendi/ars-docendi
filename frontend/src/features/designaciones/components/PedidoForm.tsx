@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, Field, InlineAlert, Radio, Select, Textarea } from "@ars-docendi/ui";
 import type { UploadedFile } from "@ars-docendi/ui";
 import type {
@@ -6,19 +6,20 @@ import type {
   DocenteExistente,
   EstadoPedido,
   Novedad,
+  NovedadAdmitida,
   PedidoDesignacion,
-  PersonaCatalogoPedido,
+  MateriaPedido,
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { horasVigentesEnCatedra } from "../api/catalogos";
+import { asignacionVigenteEnMateria } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
 import { SeccionAdjuntosPedido } from "./SeccionAdjuntosPedido";
 import "./pedidoForm.css";
 
-const NOVEDADES: Novedad[] = ["Sin novedad", "Alta", "Baja", "Cambio de cargo o dedicación"];
+const NOVEDADES: NovedadAdmitida[] = ["Alta", "Baja", "Cambio de cargo o dedicación"];
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
@@ -30,12 +31,8 @@ const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
 interface PedidoFormProps {
   pedidoInicial?: PedidoDesignacion;
   pedidosExistentes: PedidoDesignacion[];
-  /**
-   * Cátedra sobre la que se carga el pedido. Es su materia, y viene del ámbito del
-   * actor — no se elige en el form: un Jefe de Cátedra sólo tramita sobre la cátedra
-   * que tiene a cargo.
-   */
-  catedra: string;
+  /** Nombre presentacional de respaldo; la selección autoritativa es `materiaId`. */
+  catedra?: string;
   esEdicion?: boolean;
   /** Etiqueta del período abierto para el subtítulo ("2026 · 1C"). */
   periodoLabel?: string;
@@ -44,7 +41,7 @@ interface PedidoFormProps {
   onGuardar: (datos: DatosEditablesPedido, opciones?: { enviar?: boolean }) => void;
   onCancelar: () => void;
   docentes: DocenteExistente[];
-  personas: PersonaCatalogoPedido[];
+  materias?: MateriaPedido[];
   cargos: string[];
   dedicaciones: string[];
   tiposBaja: string[];
@@ -57,7 +54,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     horas: pedido?.horas ?? 0,
     cargoActual: pedido?.cargoActual ?? null,
     dedicacionActual: pedido?.dedicacionActual ?? null,
-    novedad: pedido?.novedad ?? "Sin novedad",
+    novedad: pedido?.novedad ?? "",
     cargoSolicitado: pedido?.cargoSolicitado,
     dedicacionSolicitada: pedido?.dedicacionSolicitada,
     justificacion: pedido?.justificacion,
@@ -76,14 +73,14 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
 export function PedidoForm({
   pedidoInicial,
   pedidosExistentes,
-  catedra,
+  catedra = "",
   esEdicion = false,
   periodoLabel = "2026 · 1C",
   guardando = false,
   onGuardar,
   onCancelar,
   docentes,
-  personas,
+  materias = [],
   cargos,
   dedicaciones,
   tiposBaja,
@@ -112,15 +109,26 @@ export function PedidoForm({
     !opcionesDocente.some((docente) => docente.dni === dniInicial)
   ) {
     opcionesDocente.unshift({
+      personaId: pedidoInicial.personaId ?? "persona-legada",
       dni: dniInicial,
       nombre: pedidoInicial.docente.nombre,
       legajo: pedidoInicial.docente.legajo ?? "",
       antiguedad: pedidoInicial.docente.antiguedad,
       cargoActual: pedidoInicial.cargoActual,
       dedicacionActual: pedidoInicial.dedicacionActual,
-      materiasActuales: [{ materia: pedidoInicial.catedra, horas: pedidoInicial.horas }],
-      horasInvestigacionActuales: pedidoInicial.horasInvestigacion,
-      horasExternasActuales: pedidoInicial.horasExternas,
+      materiasActuales: [
+        {
+          materiaId: pedidoInicial.materiaId ?? "materia-legada",
+          materia: pedidoInicial.catedra,
+          horas: pedidoInicial.horasActuales ?? pedidoInicial.horas,
+          cargoActual: pedidoInicial.cargoActual,
+          dedicacionActual: pedidoInicial.dedicacionActual,
+          horasInvestigacion: pedidoInicial.horasInvestigacionActuales ?? null,
+          horasExternas: pedidoInicial.horasExternasActuales ?? null,
+        },
+      ],
+      horasInvestigacionActuales: pedidoInicial.horasInvestigacionActuales ?? null,
+      horasExternasActuales: pedidoInicial.horasExternasActuales ?? null,
     });
   }
 
@@ -129,6 +137,54 @@ export function PedidoForm({
   const docenteSeleccionado = opcionesDocente.find(
     (item) => item.dni === datos.docente.dni.replace(/\D/g, ""),
   );
+  const materiasBase = useMemo(
+    () =>
+      materias.length > 0
+        ? materias
+        : catedra
+          ? [{ id: pedidoInicial?.materiaId ?? "materia-legada", nombre: catedra }]
+          : [],
+    [catedra, materias, pedidoInicial?.materiaId],
+  );
+  const esAlta = datos.novedad === "Alta";
+  const materiasDisponibles = useMemo(() => {
+    if (esAlta) return materiasBase;
+    const materiasDelActor = new Set(materiasBase.map((materia) => materia.id));
+    const ids = new Set<string>();
+    return (docenteSeleccionado?.materiasActuales ?? []).flatMap((asignacion) => {
+      if (!materiasDelActor.has(asignacion.materiaId)) return [];
+      if (ids.has(asignacion.materiaId)) return [];
+      ids.add(asignacion.materiaId);
+      return [{ id: asignacion.materiaId, nombre: asignacion.materia }];
+    });
+  }, [docenteSeleccionado, esAlta, materiasBase]);
+  const materiaIdSeleccionada = materiasDisponibles.some(
+    (materia) => materia.id === datos.materiaId,
+  )
+    ? datos.materiaId
+    : materiasDisponibles.length === 1
+      ? materiasDisponibles[0].id
+      : undefined;
+  const asignacionSeleccionada = asignacionVigenteEnMateria(
+    docenteSeleccionado,
+    materiaIdSeleccionada,
+  );
+  const materiaSeleccionada = materiasDisponibles.find(
+    (materia) => materia.id === materiaIdSeleccionada,
+  );
+  const errorMateriaSinOpciones =
+    !esAlta && docenteSeleccionado && materiasDisponibles.length === 0
+      ? "El docente seleccionado no tiene una designación vigente en una materia a cargo del actor."
+      : undefined;
+  const usaSnapshot =
+    pedidoInicial?.snapshot != null && materiaIdSeleccionada === pedidoInicial.materiaId;
+  const horasActuales = usaSnapshot ? pedidoInicial?.horasActuales : asignacionSeleccionada?.horas;
+  const horasInvestigacionActuales = usaSnapshot
+    ? pedidoInicial?.horasInvestigacionActuales
+    : asignacionSeleccionada?.horasInvestigacion;
+  const horasExternasActuales = usaSnapshot
+    ? pedidoInicial?.horasExternasActuales
+    : asignacionSeleccionada?.horasExternas;
 
   function seleccionarDocente(dni: string) {
     const docente = opcionesDocente.find((item) => item.dni === dni.replace(/\D/g, ""));
@@ -142,9 +198,15 @@ export function PedidoForm({
         horasInvestigacion: 0,
         horasExternas: 0,
         personaId: undefined,
+        materiaId: undefined,
       }));
       return;
     }
+    const materiasDelActor = new Set(materiasBase.map((materia) => materia.id));
+    const materiasCompatibles = docente.materiasActuales.filter((asignacion) =>
+      materiasDelActor.has(asignacion.materiaId),
+    );
+    const asignacion = materiasCompatibles.length === 1 ? materiasCompatibles[0] : undefined;
     setDatos((prev) => ({
       ...prev,
       docente: {
@@ -153,27 +215,41 @@ export function PedidoForm({
         antiguedad: docente.antiguedad,
         legajo: docente.legajo,
       },
-      cargoActual: docente.cargoActual,
-      dedicacionActual: docente.dedicacionActual,
-      // Sólo las horas de la cátedra del pedido: un pedido cubre exactamente una
-      // materia, así que el resto de las designaciones del docente no participan.
-      horas: horasVigentesEnCatedra(docente, catedra) ?? 0,
-      horasInvestigacion: docente.horasInvestigacionActuales,
-      horasExternas: docente.horasExternasActuales,
-      personaId: personas.find((persona) => persona.dni === docente.dni)?.id,
+      cargoActual: asignacion?.cargoActual ?? docente.cargoActual,
+      dedicacionActual: asignacion?.dedicacionActual ?? docente.dedicacionActual,
+      horas: asignacion?.horas ?? 0,
+      horasInvestigacion: asignacion?.horasInvestigacion ?? 0,
+      horasExternas: asignacion?.horasExternas ?? 0,
+      personaId: docente.personaId,
+      materiaId: asignacion?.materiaId,
+      catedra: asignacion?.materia ?? "",
     }));
   }
 
-  function seleccionarPersonaAlta(personaId: string) {
-    const persona = personas.find((item) => item.id === personaId);
+  function cambiarPersona(campo: "dni" | "nombrePersona" | "apellido", valor: string) {
     setDatos((prev) => ({
       ...prev,
-      personaId: persona?.id,
-      docente: persona
-        ? { dni: persona.dni, nombre: persona.nombre, legajo: persona.legajo, antiguedad: 0 }
-        : { dni: "", nombre: "", antiguedad: 0 },
-      cargoActual: null,
-      dedicacionActual: null,
+      personaId: undefined,
+      docente: {
+        ...prev.docente,
+        [campo]: valor,
+        ...(campo === "nombrePersona" ? { nombre: valor } : {}),
+      },
+    }));
+  }
+
+  function seleccionarMateria(materiaId: string) {
+    const materia = materiasDisponibles.find((item) => item.id === materiaId);
+    const asignacion = asignacionVigenteEnMateria(docenteSeleccionado, materiaId);
+    setDatos((prev) => ({
+      ...prev,
+      materiaId: materia?.id,
+      catedra: materia?.nombre ?? "",
+      cargoActual: asignacion?.cargoActual ?? (esAlta ? null : prev.cargoActual),
+      dedicacionActual: asignacion?.dedicacionActual ?? (esAlta ? null : prev.dedicacionActual),
+      horas: asignacion?.horas ?? (esAlta ? prev.horas : 0),
+      horasInvestigacion: asignacion?.horasInvestigacion ?? (esAlta ? prev.horasInvestigacion : 0),
+      horasExternas: asignacion?.horasExternas ?? (esAlta ? prev.horasExternas : 0),
     }));
   }
 
@@ -202,18 +278,23 @@ export function PedidoForm({
   }
 
   function handleGuardar(opciones?: { enviar?: boolean }) {
-    const resultado = validarPedido(datos, {
+    const datosParaGuardar = {
+      ...datos,
+      materiaId: materiaIdSeleccionada,
+      catedra: materiaSeleccionada?.nombre ?? "",
+    };
+    const resultado = validarPedido(datosParaGuardar, {
       pedidosExistentes,
       pedidoActualId: pedidoInicial?.id,
     });
+    if (errorMateriaSinOpciones) resultado.materia = errorMateriaSinOpciones;
     setErrores(resultado);
     if (Object.keys(resultado).length === 0) {
-      onGuardar(datos, opciones);
+      onGuardar(datosParaGuardar, opciones);
     }
   }
 
   const { novedad } = datos;
-  const esAlta = novedad === "Alta";
   const esBaja = novedad === "Baja";
   const esCambio = novedad === "Cambio de cargo o dedicación";
   const esSinNovedad = novedad === "Sin novedad";
@@ -233,7 +314,9 @@ export function PedidoForm({
       }}
     >
       <header className="adoc-pf-head">
-        <p className="adoc-pf-eyebrow">DESIGNACIONES · {novedad.toUpperCase()}</p>
+        <p className="adoc-pf-eyebrow">
+          DESIGNACIONES · {novedad ? novedad.toUpperCase() : "NOVEDAD"}
+        </p>
         <h1 className="adoc-pf-title">{titulo}</h1>
         <p className="adoc-pf-subtitle">{subtitulo}</p>
       </header>
@@ -263,36 +346,51 @@ export function PedidoForm({
               />
             ))}
           </div>
+          {!novedad && <p className="adoc-pf-note">Seleccioná una novedad para continuar.</p>}
+          {errores.novedad && (
+            <p className="adoc-pf-materias-error" role="alert">
+              {errores.novedad}
+            </p>
+          )}
+          {esSinNovedad && (
+            <p className="adoc-pf-note">
+              Este pedido legado conserva «Sin novedad». Elegí una novedad admitida para editarlo.
+            </p>
+          )}
         </section>
 
-        <SeccionDocentePedido
-          novedad={novedad}
-          docente={datos.docente}
-          errorDocente={errores.docente}
-          opcionesDocente={opcionesDocente}
-          personasAlta={personas}
-          cargoActual={datos.cargoActual}
-          cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
-          dedicacionActual={datos.dedicacionActual}
-          dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
-          materia={catedra}
-          horasActuales={horasVigentesEnCatedra(docenteSeleccionado, catedra)}
-          horasSolicitadas={esCambio ? datos.horas : undefined}
-          horasInvestigacionActuales={docenteSeleccionado?.horasInvestigacionActuales}
-          horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
-          horasExternasActuales={docenteSeleccionado?.horasExternasActuales}
-          horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
-          onSeleccionarDocente={seleccionarDocente}
-          onSeleccionarPersonaAlta={seleccionarPersonaAlta}
-        />
+        {novedad && (
+          <SeccionDocentePedido
+            novedad={novedad}
+            docente={datos.docente}
+            errorDocente={errores.docente}
+            opcionesDocente={opcionesDocente}
+            materias={materiasDisponibles}
+            materiaId={materiaIdSeleccionada}
+            errorMateria={errores.materia ?? errorMateriaSinOpciones}
+            cargoActual={datos.cargoActual}
+            cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}
+            dedicacionActual={datos.dedicacionActual}
+            dedicacionSolicitada={esCambio ? datos.dedicacionSolicitada : undefined}
+            materia={materiaSeleccionada?.nombre ?? catedra}
+            horasActuales={horasActuales}
+            horasSolicitadas={esCambio ? datos.horas : undefined}
+            horasInvestigacionActuales={horasInvestigacionActuales}
+            horasInvestigacionSolicitadas={esCambio ? datos.horasInvestigacion : undefined}
+            horasExternasActuales={horasExternasActuales}
+            horasExternasSolicitadas={esCambio ? datos.horasExternas : undefined}
+            onSeleccionarDocente={seleccionarDocente}
+            onCambiarPersona={cambiarPersona}
+            onSeleccionarMateria={seleccionarMateria}
+          />
+        )}
 
         {muestraSolicitud && (
           <SeccionDesignacionSolicitada
-            materia={catedra}
+            materia={materiaSeleccionada?.nombre ?? catedra}
             horas={datos.horas}
             cargoSolicitado={datos.cargoSolicitado}
             dedicacionSolicitada={datos.dedicacionSolicitada}
-            dedicacionActual={datos.dedicacionActual}
             horasInvestigacion={datos.horasInvestigacion}
             horasExternas={datos.horasExternas}
             errores={errores}
@@ -306,7 +404,7 @@ export function PedidoForm({
           />
         )}
 
-        {!esSinNovedad && (
+        {novedad && !esSinNovedad && (
           <section className="adoc-pf-sec">
             <h2 className="adoc-pf-sec-h">Justificación</h2>
             {esBaja && (
@@ -358,7 +456,7 @@ export function PedidoForm({
           </section>
         )}
 
-        {!esSinNovedad && (
+        {novedad && !esSinNovedad && (
           <SeccionAdjuntosPedido
             novedad={novedad}
             errorAdjuntos={errores.adjuntos}
@@ -391,7 +489,7 @@ export function PedidoForm({
 
 /** Subtítulo del encabezado, según novedad / si es edición. */
 function construirSubtitulo(
-  novedad: Novedad,
+  novedad: Novedad | "",
   esEdicion: boolean,
   pedidoInicial: PedidoDesignacion | undefined,
   numero: string,
@@ -410,6 +508,8 @@ function construirSubtitulo(
       return `Registrá la baja de un docente · período ${periodoLabel}`;
     case "Cambio de cargo o dedicación":
       return `Cargá un cambio de cargo o dedicación · período ${periodoLabel}`;
+    case "":
+      return `Seleccioná una novedad · período ${periodoLabel}`;
     default:
       return `Reconfirmá la designación de un docente · período ${periodoLabel}`;
   }

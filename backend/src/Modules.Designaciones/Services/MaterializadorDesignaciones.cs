@@ -71,8 +71,10 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
             PersonaId = pedido.PersonaId,
             MateriaId = pedido.MateriaId,
             CargoId = pedido.CargoSolicitadoId.Value,
-            Dedicacion = pedido.DedicacionSolicitada,
+            DedicacionId = pedido.DedicacionSolicitadaId,
             Horas = pedido.Horas.Value,
+            HorasInvestigacion = pedido.HorasInvestigacion,
+            HorasExternas = pedido.HorasExternas,
             VigenteDesde = desde,
             OrigenPedidoId = pedido.Id,
         });

@@ -132,7 +132,7 @@ interface ConfigAccion {
 function construirConfig(accion: AccionRevision, pedido: PedidoDesignacion): ConfigAccion {
   const etapaActual = ETAPA_ACTUAL_LABEL[pedido.estado] ?? "tu etapa";
   const novedadFrase = NOVEDAD_FRASE[pedido.novedad];
-  const sujeto = `${novedadFrase} de Prof. ${pedido.docente.nombre} (${pedido.catedra})`;
+  const sujeto = `el pedido ${pedido.numero ?? "sin número"} (${novedadFrase} de Prof. ${pedido.docente.nombre} · ${pedido.catedra})`;
 
   switch (accion) {
     case "aceptar": {

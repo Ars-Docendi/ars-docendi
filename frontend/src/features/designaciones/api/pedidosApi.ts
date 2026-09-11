@@ -28,6 +28,7 @@ interface PedidoDto {
   prioritario: boolean;
   cargoSolicitado: { id: string; codigo: string; nombre: string } | null;
   dedicacionSolicitada: string | null;
+  dedicacionSolicitadaId: string | null;
   horas: number | null;
   horasInvestigacion: number | null;
   horasExternas: number | null;
@@ -107,23 +108,30 @@ async function accion(id: string, nombre: string, comentario?: string): Promise<
 }
 
 function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
-  const personaId =
-    datos.personaId ??
-    catalogos.personas.find((p) => p.documento === datos.docente.dni.replace(/\D/g, ""))?.id;
-  const materiaId =
-    datos.materiaId ?? catalogos.materias.find((m) => m.nombre === datos.catedra)?.id;
   const cargoSolicitadoId =
     datos.cargoSolicitadoId ??
     catalogos.cargos.find(
       (c) => c.nombre === datos.cargoSolicitado || c.abreviatura === datos.cargoSolicitado,
     )?.id;
+  const personaNueva =
+    !datos.personaId && datos.novedad === "Alta"
+      ? {
+          documento: datos.docente.dni.replace(/\D/g, ""),
+          nombre: (datos.docente.nombrePersona ?? datos.docente.nombre).trim(),
+          apellido: datos.docente.apellido?.trim() ?? "",
+        }
+      : undefined;
   return {
     periodoId: datos.periodoId ?? catalogos.periodoActivo?.id,
-    personaId,
-    materiaId,
+    ...(datos.personaId ? { personaId: datos.personaId } : {}),
+    ...(personaNueva ? { persona: personaNueva } : {}),
+    materiaId: datos.materiaId,
     novedad: datos.novedad,
     cargoSolicitadoId,
-    dedicacionSolicitada: datos.dedicacionSolicitada ?? null,
+    dedicacionSolicitadaId:
+      datos.dedicacionSolicitadaId ??
+      catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ??
+      null,
     horas: datos.horas,
     horasInvestigacion: datos.horasInvestigacion,
     horasExternas: datos.horasExternas,
@@ -148,23 +156,28 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     docente: {
       dni: dto.persona.documento,
       nombre: `${dto.persona.apellido}, ${dto.persona.nombre}`,
+      nombrePersona: dto.persona.nombre,
+      apellido: dto.persona.apellido,
       legajo: dto.persona.legajo ?? undefined,
       antiguedad: 0,
     },
-    horas: dto.snapshot ? (dto.snapshot.horas ?? 0) : (dto.horas ?? 0),
+    horas: dto.horas ?? 0,
     cargoActual: (dto.snapshot?.cargo as Cargo) ?? null,
     dedicacionActual: dto.snapshot?.dedicacion ?? null,
     novedad: dto.novedad,
     cargoSolicitado: dto.cargoSolicitado?.nombre,
     cargoSolicitadoId: dto.cargoSolicitado?.id,
     dedicacionSolicitada: dto.dedicacionSolicitada ?? undefined,
+    dedicacionSolicitadaId: dto.dedicacionSolicitadaId ?? undefined,
     justificacion: dto.justificacion ?? undefined,
     tipoBaja: dto.tipoBaja as PedidoDesignacion["tipoBaja"],
     tipoBajaDetalle: dto.tipoBajaDetalle ?? undefined,
-    horasExternas: dto.snapshot ? (dto.snapshot.horasExternas ?? 0) : (dto.horasExternas ?? 0),
-    horasInvestigacion: dto.snapshot
-      ? (dto.snapshot.horasInvestigacion ?? 0)
-      : (dto.horasInvestigacion ?? 0),
+    horasExternas: dto.horasExternas ?? 0,
+    horasInvestigacion: dto.horasInvestigacion ?? 0,
+    snapshot: dto.snapshot,
+    horasActuales: dto.snapshot?.horas,
+    horasInvestigacionActuales: dto.snapshot?.horasInvestigacion,
+    horasExternasActuales: dto.snapshot?.horasExternas,
     adjuntos: dto.adjuntos,
     estado: dto.estado,
     prioritario: dto.prioritario,

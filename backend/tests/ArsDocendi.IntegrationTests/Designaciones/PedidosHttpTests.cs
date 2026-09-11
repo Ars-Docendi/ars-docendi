@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
+using System.Xml.Linq;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
@@ -11,7 +13,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PedidosHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "pedidos_http")
 {
@@ -161,6 +162,119 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
             (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!.Estado);
     }
 
+    [Fact]
+    public async Task Http_rechaza_crear_Sin_novedad_y_conserva_la_lectura_del_legado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using (var conexion = await AbrirConexionAsync())
+        await using (var comando = new NpgsqlCommand("UPDATE designaciones.pedidos SET novedad = 'Sin novedad' WHERE id = 'd5000000-0000-4000-8000-000000000002'", conexion))
+        {
+            await comando.ExecuteNonQueryAsync(ct);
+        }
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
+
+        using var respuesta = await cliente.PostAsJsonAsync(
+            "/api/designaciones/pedidos",
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000003"), novedad: Novedades.SinNovedad),
+            ct);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, respuesta.StatusCode);
+        var legado = await cliente.GetFromJsonAsync<PedidoDto>(
+            "/api/designaciones/pedidos/d5000000-0000-4000-8000-000000000002", ct);
+        Assert.Equal(Novedades.SinNovedad, legado!.Novedad);
+        Assert.Equal("2026-9002", legado.Numero);
+    }
+
+    [Fact]
+    public async Task Http_acepta_las_seis_dedicaciones_en_un_Cambio()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
+        var casos = new[]
+        {
+            (Guid.Parse("d0000000-0000-4000-8000-000000000002"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000001"),
+                Guid.Parse("70000000-0000-4000-8000-000000000101")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000003"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000002"),
+                Guid.Parse("70000000-0000-4000-8000-000000000102")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000015"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000006"),
+                Guid.Parse("70000000-0000-4000-8000-000000000103")),
+        };
+
+        foreach (var (persona, dedicacionId, materiaId) in casos)
+        {
+            using var respuesta = await cliente.PostAsJsonAsync(
+                "/api/designaciones/pedidos",
+                Datos(persona, materiaId: materiaId, novedad: Novedades.CambioDeCargoODedicacion,
+                    dedicacionSolicitadaId: dedicacionId),
+                ct);
+
+            Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
+            var pedido = (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
+            Assert.Equal(dedicacionId, pedido.DedicacionSolicitadaId);
+        }
+    }
+
+    [Fact]
+    public async Task Recorrido_integrado_corrige_horas_reenvia_aprueba_y_exporta_sin_duplicar_continuidad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = CrearHost();
+        using var jefe = host.CreateClient();
+        using var coordinador = host.CreateClient();
+        using var secretaria = host.CreateClient();
+        using var decanato = host.CreateClient();
+        Autenticar(jefe, Jefe, RolesCircuito.JefeCatedra);
+        Autenticar(coordinador, Coordinador, RolesCircuito.CoordinadorCarrera);
+        Autenticar(secretaria, Guid.Parse("a0000000-0000-4000-8000-000000000004"), RolesCircuito.Secretaria);
+        Autenticar(decanato, Guid.Parse("a0000000-0000-4000-8000-000000000005"), RolesCircuito.Decanato);
+
+        var creado = await PostPedido(jefe, Guid.Parse("d0000000-0000-4000-8000-000000000004"), ct);
+        var enviado = await Accionar(jefe, creado.Id, "enviar", null, ct);
+        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
+
+        var devuelto = await Accionar(
+            coordinador, creado.Id, "devolver", new AccionPedidoDto("Corregir las tres cargas"), ct);
+        Assert.Equal(EstadosPedido.Devuelto, devuelto.Estado);
+
+        var corregido = await jefe.PutAsJsonAsync(
+            $"/api/designaciones/pedidos/{creado.Id}",
+            Datos(creado.Persona.Id, devuelto.Version, 12, horasInvestigacion: 3, horasExternas: 2), ct);
+        Assert.Equal(HttpStatusCode.OK, corregido.StatusCode);
+        var pedidoCorregido = (await corregido.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
+        Assert.Equal(3, pedidoCorregido.HorasInvestigacion);
+        Assert.Equal(2, pedidoCorregido.HorasExternas);
+
+        var reenviado = await Accionar(jefe, creado.Id, "reenviar", null, ct);
+        Assert.Equal(EstadosPedido.EnRevisionCoordinador, reenviado.Estado);
+        await Accionar(coordinador, creado.Id, "aceptar", new AccionPedidoDto(), ct);
+        await Accionar(secretaria, creado.Id, "aceptar", new AccionPedidoDto(), ct);
+        var finalizado = await Accionar(decanato, creado.Id, "aceptar", new AccionPedidoDto(), ct);
+        Assert.Equal(EstadosPedido.EnLote, finalizado.Estado);
+
+        using var respuesta = await decanato.GetAsync($"/api/designaciones/periodos/{Periodo}/lote.xlsx", ct);
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        using var zip = new ZipArchive(
+            new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
+        var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml").ToString();
+        var altas = LeerXml(zip, "xl/worksheets/sheet2.xml").ToString();
+        var bajas = LeerXml(zip, "xl/worksheets/sheet3.xml").ToString();
+        Assert.Contains("Fernández, Lucía", propuesta, StringComparison.Ordinal);
+        Assert.Contains("Fernández, Lucía", altas, StringComparison.Ordinal);
+        Assert.Contains("Solicitud de alta", propuesta, StringComparison.Ordinal);
+        Assert.DoesNotContain("Fernández, Lucía", bajas, StringComparison.Ordinal);
+        Assert.DoesNotContain(finalizado.Id.ToString(), propuesta, StringComparison.Ordinal);
+    }
+
     private static async Task<PedidoDto> PostPedido(HttpClient cliente, Guid persona, CancellationToken ct)
     {
         using var respuesta = await cliente.PostAsJsonAsync(
@@ -170,21 +284,53 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
     }
 
-    private static object Datos(Guid persona, uint? version = null, int horas = 10) => new
+    private static async Task<PedidoDto> Accionar(
+        HttpClient cliente,
+        Guid pedidoId,
+        string accion,
+        object? datos,
+        CancellationToken ct)
+    {
+        using var solicitud = new HttpRequestMessage(
+            HttpMethod.Post, $"/api/designaciones/pedidos/{pedidoId}/{accion}")
+        {
+            Content = datos is null ? null : JsonContent.Create(datos),
+        };
+        solicitud.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+        Assert.True(respuesta.IsSuccessStatusCode, await respuesta.Content.ReadAsStringAsync(ct));
+        return (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
+    }
+
+    private static object Datos(
+        Guid persona,
+        uint? version = null,
+        int horas = 10,
+        int horasInvestigacion = 0,
+        int horasExternas = 0,
+        string novedad = Novedades.Alta,
+        Guid? dedicacionSolicitadaId = null,
+        Guid? materiaId = null) => new
     {
         periodoId = Periodo,
         personaId = persona,
-        materiaId = Materia,
-        novedad = Novedades.SinNovedad,
-        cargoSolicitadoId = (Guid?)null,
-        dedicacionSolicitada = (string?)null,
+        materiaId = materiaId ?? Materia,
+        novedad,
+        cargoSolicitadoId = Guid.Parse("c3000000-0000-4000-8000-000000000001"),
+        dedicacionSolicitadaId = dedicacionSolicitadaId
+            ?? Guid.Parse("d6000000-0000-4000-8000-000000000001"),
         horas,
-        horasInvestigacion = 0,
-        horasExternas = 0,
-        justificacion = (string?)null,
+        horasInvestigacion,
+        horasExternas,
+        justificacion = "Solicitud de alta",
         tipoBaja = (string?)null,
         tipoBajaDetalle = (string?)null,
-        adjuntos = Array.Empty<object>(),
+        adjuntos = new[]
+        {
+            new { tipo = TiposAdjunto.Cv, nombre = "cv.pdf" },
+            new { tipo = TiposAdjunto.DniFrente, nombre = "dni-frente.pdf" },
+            new { tipo = TiposAdjunto.DniDorso, nombre = "dni-dorso.pdf" },
+        },
         version,
     };
 
@@ -211,6 +357,12 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
+    }
+
+    private static XDocument LeerXml(ZipArchive zip, string nombre)
+    {
+        using var stream = zip.GetEntry(nombre)!.Open();
+        return XDocument.Load(stream);
     }
 
     private static string BuscarRaizRepositorio()

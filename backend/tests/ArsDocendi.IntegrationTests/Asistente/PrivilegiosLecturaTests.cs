@@ -14,7 +14,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// columnas no concedidas devolviera algo en vez de fallar—. Acá se prueba el
 /// comportamiento del motor, que es el que sostiene la garantía.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_privilegios")
 {

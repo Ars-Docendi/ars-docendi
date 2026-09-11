@@ -63,7 +63,7 @@ export function DetallePedidoPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Revisión", href: RUTA_REVISION },
           { label: "Detalle del pedido" },
         ]}
@@ -176,7 +176,7 @@ function DetalleCargado({
   return (
     <>
       <PageHeader
-        pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
+        pretitle={`Designaciones · Pedido ${pedido.numero ?? "sin número"}`}
         title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.catedra}`}
         meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
         actions={
@@ -221,7 +221,7 @@ function DetalleCargado({
             <section className="adoc-det-hist" aria-label="Historial del pedido">
               <header className="adoc-hist-head">
                 <h2 className="adoc-hist-title">Historial del pedido</h2>
-                <span className="adoc-hist-note">Auditoría · usuario · fecha (RNF-7)</span>
+                <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
               </header>
               <AuditLog entries={historialAAuditEntries(pedido.historial)} />
             </section>

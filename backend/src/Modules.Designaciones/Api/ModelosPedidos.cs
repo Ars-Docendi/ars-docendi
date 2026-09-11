@@ -20,6 +20,7 @@ public sealed record MateriaPedidoDto(
 
 public sealed record AdjuntoPedidoDto(Guid Id, string Tipo, string Nombre, string? Uri);
 public sealed record GuardarAdjuntoPedidoDto(string Tipo, string Nombre, string? Uri = null);
+public sealed record GuardarPersonaPedidoDto(string Documento, string Nombre, string Apellido);
 
 public sealed record HistorialPedidoDto(
     Guid Id,
@@ -55,15 +56,16 @@ public sealed record PedidoDto(
     uint Version,
     IReadOnlyList<AdjuntoPedidoDto> Adjuntos,
     IReadOnlyList<HistorialPedidoDto> Historial,
-    IReadOnlyList<string> AccionesPermitidas);
+    IReadOnlyList<string> AccionesPermitidas,
+    Guid? DedicacionSolicitadaId = null);
 
 public sealed record GuardarPedidoDto(
     Guid PeriodoId,
-    Guid PersonaId,
+    Guid? PersonaId,
     Guid MateriaId,
     string Novedad,
     Guid? CargoSolicitadoId,
-    string? DedicacionSolicitada,
+    Guid? DedicacionSolicitadaId,
     int? Horas,
     int? HorasInvestigacion,
     int? HorasExternas,
@@ -71,6 +73,7 @@ public sealed record GuardarPedidoDto(
     string? TipoBaja,
     string? TipoBajaDetalle,
     IReadOnlyList<GuardarAdjuntoPedidoDto> Adjuntos,
-    uint? Version = null);
+    uint? Version = null,
+    GuardarPersonaPedidoDto? Persona = null);
 
 public sealed record AccionPedidoDto(string? Comentario = null);

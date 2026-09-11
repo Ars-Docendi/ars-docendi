@@ -18,7 +18,6 @@ namespace ArsDocendi.IntegrationTests.Evaluacion;
 /// corrida entera se descarta. La calidad de las respuestas es otra cosa y necesita
 /// un proveedor real.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "eval_ejes")
 {

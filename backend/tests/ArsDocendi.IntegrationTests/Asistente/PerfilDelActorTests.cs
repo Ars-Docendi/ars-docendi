@@ -26,7 +26,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// CONFIRMACIÓN CON EL CLIENTE»—, así que alcanza con que alguien le saque
 /// <c>designaciones.ver</c> a Secretaría para que el asistente empiece a mentirle.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PerfilDelActorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_perfil")
 {

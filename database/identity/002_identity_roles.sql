@@ -35,9 +35,8 @@ INSERT INTO identity.roles (id, code, name, scope, es_sistema) VALUES
     ('a1000000-0000-4000-8000-000000000006', 'administrativo',      'Administrativo',            'global',  TRUE),
     ('a1000000-0000-4000-8000-000000000007', 'sys_admin',           'Administrador de Sistemas', 'global',  TRUE);
 
--- Protege el catálogo de sistema. `name` y `description` SÍ son editables (la
--- pantalla /roles ofrece "Editar rol"); `code` y `scope` no, porque son los que
--- la máquina de estados y enforce_role_scope interpretan.
+-- Protege el catálogo de sistema. `code`, `name`, `description` y `scope` son
+-- inmutables, porque la máquina de estados y los ámbitos los interpretan.
 --
 -- También impide promover un rol común a rol de sistema: sin ese chequeo, un
 -- operador con permiso de editar roles podría fabricarse un rol que participe
@@ -60,6 +59,15 @@ BEGIN
         END IF;
         IF NEW.scope IS DISTINCT FROM OLD.scope THEN
             RAISE EXCEPTION 'el scope del rol de sistema % es inmutable', OLD.code;
+        END IF;
+        IF NEW.name IS DISTINCT FROM OLD.name THEN
+            RAISE EXCEPTION 'el nombre del rol de sistema % es inmutable', OLD.code;
+        END IF;
+        IF NEW.description IS DISTINCT FROM OLD.description THEN
+            RAISE EXCEPTION 'la descripción del rol de sistema % es inmutable', OLD.code;
+        END IF;
+        IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+            RAISE EXCEPTION 'el estado del rol de sistema % es inmutable', OLD.code;
         END IF;
         IF NOT NEW.es_sistema THEN
             RAISE EXCEPTION 'no se puede quitar la marca es_sistema del rol %', OLD.code;

@@ -23,7 +23,6 @@ namespace ArsDocendi.IntegrationTests.Designaciones;
 /// función que usa el endpoint. Estos tests fijan que el resultado sea el que esa
 /// función manda, para que una copia de la regla acá se note.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class UbicarPedidosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "ubicar_pedidos")
 {

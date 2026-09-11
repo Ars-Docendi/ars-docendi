@@ -21,7 +21,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// valiera, el enmascarador estaría clasificando todo como desconocido y tapando
 /// nada.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_mascara")
 {

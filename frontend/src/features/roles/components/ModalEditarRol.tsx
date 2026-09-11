@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Button, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import { ETIQUETAS_SCOPE, SCOPES_ROL, type DatosRolEditables, type RolMock } from "../models";
+import {
+  ETIQUETAS_SCOPE,
+  normalizarTexto,
+  SCOPES_ROL,
+  type DatosRolEditables,
+  type RolMock,
+} from "../models";
 
 interface ModalEditarRolProps {
   rol: RolMock | null;
@@ -40,9 +46,8 @@ export function ModalEditarRol({
 
   function handleConfirmar() {
     setEnviado(true);
-    if (!campos.nombre.trim() || !campos.descripcion.trim()) return;
-    if (nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase()))
-      return;
+    if (!rol || rol.es_sistema || !campos.nombre.trim()) return;
+    if (nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre))) return;
     onGuardar({
       nombre: campos.nombre.trim(),
       descripcion: campos.descripcion.trim(),
@@ -53,7 +58,7 @@ export function ModalEditarRol({
   const nombreDuplicado =
     enviado &&
     !!campos.nombre.trim() &&
-    nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase());
+    nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre));
 
   return (
     <Modal
@@ -77,7 +82,7 @@ export function ModalEditarRol({
           >
             Cancelar
           </Button>
-          <Button variant="primary" onClick={handleConfirmar}>
+          <Button variant="primary" disabled={rol?.es_sistema} onClick={handleConfirmar}>
             Guardar
           </Button>
         </div>
@@ -91,6 +96,7 @@ export function ModalEditarRol({
         >
           <Input
             value={campos.nombre}
+            disabled={rol?.es_sistema}
             onChange={(e) => setCampos((p) => ({ ...p, nombre: e.target.value }))}
           />
         </Field>
@@ -98,13 +104,10 @@ export function ModalEditarRol({
           <InlineAlert severity="danger" title="Ya existe un rol con ese nombre." />
         )}
 
-        <Field
-          label="Descripción"
-          required
-          error={enviado && !campos.descripcion.trim() ? "Campo obligatorio" : undefined}
-        >
+        <Field label="Descripción">
           <Input
             value={campos.descripcion}
+            disabled={rol?.es_sistema}
             onChange={(e) => setCampos((p) => ({ ...p, descripcion: e.target.value }))}
           />
         </Field>
@@ -132,8 +135,8 @@ export function ModalEditarRol({
 
         {rol?.es_sistema && (
           <InlineAlert severity="info" title="Rol de sistema">
-            El código y el ámbito de este rol son inmutables. Su nombre y descripción sí pueden
-            editarse.
+            El código, nombre, descripción y ámbito de este rol son inmutables. Los permisos se
+            gestionan en el panel derecho.
           </InlineAlert>
         )}
       </div>

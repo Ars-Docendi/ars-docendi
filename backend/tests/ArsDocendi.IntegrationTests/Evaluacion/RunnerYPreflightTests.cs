@@ -20,7 +20,6 @@ namespace ArsDocendi.IntegrationTests.Evaluacion;
 /// pasan espuriamente y el reporte muestra un número bajo que parece una regresión
 /// del modelo. Los tests de acá son los que impiden que eso llegue a disco.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RunnerYPreflightTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_eval")
 {

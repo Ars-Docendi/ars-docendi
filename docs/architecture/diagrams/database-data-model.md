@@ -75,6 +75,14 @@ erDiagram
         boolean activo
     }
 
+    DESIGNACIONES_DEDICACIONES {
+        uuid id PK
+        smallint codigo UK
+        text nombre
+        smallint orden UK
+        boolean activo
+    }
+
     DESIGNACIONES_PERIODOS {
         uuid id PK
         text nombre
@@ -92,9 +100,13 @@ erDiagram
         uuid persona_id FK
         uuid materia_id FK
         uuid cargo_solicitado_id FK
+        uuid dedicacion_solicitada_id FK
         text novedad
         text estado
         boolean prioritario
+        int horas
+        int horas_investigacion
+        int horas_externas
         jsonb snapshot
     }
 
@@ -121,9 +133,12 @@ erDiagram
         uuid persona_id FK
         uuid materia_id FK
         uuid cargo_id FK
+        uuid dedicacion_id FK
         uuid origen_pedido_id FK
         text dedicacion
         int horas
+        int horas_investigacion
+        int horas_externas
         date vigente_desde
         date vigente_hasta
     }
@@ -163,6 +178,7 @@ erDiagram
     IDENTITY_PERSONAS ||--o{ DESIGNACIONES_PEDIDOS : docente
     IDENTITY_MATERIAS ||--o{ DESIGNACIONES_PEDIDOS : catedra
     DESIGNACIONES_CARGOS o|--o{ DESIGNACIONES_PEDIDOS : solicita
+    DESIGNACIONES_DEDICACIONES o|--o{ DESIGNACIONES_PEDIDOS : solicita
     DESIGNACIONES_PEDIDOS ||--o{ DESIGNACIONES_ADJUNTOS : adjunta
     DESIGNACIONES_PEDIDOS ||--o{ DESIGNACIONES_HISTORIAL : registra
     IDENTITY_ROLES ||--o{ DESIGNACIONES_HISTORIAL : rol_actor
@@ -171,6 +187,7 @@ erDiagram
     IDENTITY_PERSONAS ||--o{ DESIGNACIONES_VIGENTES : posee
     IDENTITY_MATERIAS ||--o{ DESIGNACIONES_VIGENTES : corresponde
     DESIGNACIONES_CARGOS ||--o{ DESIGNACIONES_VIGENTES : cargo
+    DESIGNACIONES_DEDICACIONES o|--o{ DESIGNACIONES_VIGENTES : dedicacion
     DESIGNACIONES_PEDIDOS o|--o{ DESIGNACIONES_VIGENTES : origina
 
     IDENTITY_USERS ||--o{ DESIGNACIONES_IDEMPOTENCIA : ejecuta

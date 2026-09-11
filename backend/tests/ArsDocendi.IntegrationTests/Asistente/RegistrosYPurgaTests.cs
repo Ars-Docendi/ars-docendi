@@ -19,7 +19,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// lectura del asistente no pueda leerlas. Nada de eso se puede afirmar mirando
 /// código.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_registros")
 {

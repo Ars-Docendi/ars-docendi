@@ -45,6 +45,9 @@ export async function editarRol(rol: RolMock, datos: DatosRolEditables): Promise
   });
   return mapear(data);
 }
+export async function eliminarRol(rol: RolMock): Promise<void> {
+  await apiClient.delete(`/api/administracion/roles/${rol.id}`, { data: { version: rol.version } });
+}
 export async function listarPermisos(): Promise<PermisoRol[]> {
   return (await apiClient.get<PermisoRol[]>("/api/administracion/permisos")).data;
 }

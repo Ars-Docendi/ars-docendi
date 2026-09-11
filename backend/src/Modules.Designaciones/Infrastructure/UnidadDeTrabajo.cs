@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Modules.Designaciones.Infrastructure;
@@ -19,7 +20,9 @@ namespace Modules.Designaciones.Infrastructure;
 internal sealed class UnidadDeTrabajo(DesignacionesDbContext db)
 {
     public async Task EjecutarEnTransaccionAsync(
-        Func<CancellationToken, Task> trabajo, CancellationToken ct)
+        Func<CancellationToken, Task> trabajo,
+        CancellationToken ct,
+        IsolationLevel nivel = IsolationLevel.ReadCommitted)
     {
         if (db.Database.CurrentTransaction is not null)
         {
@@ -32,7 +35,7 @@ internal sealed class UnidadDeTrabajo(DesignacionesDbContext db)
 
         await estrategia.ExecuteAsync(async token =>
         {
-            await using var transaccion = await db.Database.BeginTransactionAsync(token);
+            await using var transaccion = await db.Database.BeginTransactionAsync(nivel, token);
             await trabajo(token);
             await transaccion.CommitAsync(token);
         }, ct);

@@ -4,10 +4,11 @@
 // Devuelve un mapa campo → mensaje; vacío ⇒ el pedido es válido.
 // ============================================================
 import type { Adjunto, DatosEditablesPedido, PedidoDesignacion, TipoAdjunto } from "./types";
-import { indiceDedicacion } from "./api/catalogos";
 
 export type CampoPedido =
+  | "novedad"
   | "docente"
+  | "materia"
   | "horas"
   | "cargoSolicitado"
   | "dedicacionSolicitada"
@@ -43,11 +44,21 @@ export function validarPedido(
 ): ErroresValidacion {
   const errores: ErroresValidacion = {};
 
+  if (!datos.novedad || datos.novedad === "Sin novedad") {
+    errores.novedad = "Seleccioná una novedad admitida.";
+  }
+
   // Campos comunes obligatorios.
   if (!datos.docente.dni.trim()) {
     errores.docente = "El DNI del docente es obligatorio.";
-  } else if (!datos.docente.nombre.trim()) {
+  } else if (
+    !(datos.novedad === "Alta"
+      ? (datos.docente.nombrePersona ?? datos.docente.nombre).trim()
+      : datos.docente.nombre.trim())
+  ) {
     errores.docente = "El nombre del docente es obligatorio.";
+  } else if (datos.novedad === "Alta" && !datos.docente.apellido?.trim()) {
+    errores.docente = "El apellido del docente es obligatorio.";
   } else if (
     // BR-018: Baja/Cambio operan sobre un docente ya existente en el sistema,
     // que por eso ya tiene legajo asignado — a diferencia de Alta (docente nuevo).
@@ -55,6 +66,10 @@ export function validarPedido(
     !datos.docente.legajo?.trim()
   ) {
     errores.docente = "El legajo del docente es obligatorio para una baja o un cambio.";
+  }
+
+  if (datos.novedad && datos.novedad !== "Sin novedad" && !datos.materiaId) {
+    errores.materia = "Seleccioná una materia para el pedido.";
   }
   // Carga horaria de la cátedra. Las horas son un campo libre: no se valida que
   // cierren contra la dedicación solicitada (D2), sólo que sean positivas cuando el
@@ -93,13 +108,6 @@ export function validarPedido(
     }
     if (!datos.dedicacionSolicitada) {
       errores.dedicacionSolicitada = "Seleccioná la dedicación solicitada.";
-    } else if (
-      datos.novedad === "Cambio de cargo o dedicación" &&
-      datos.dedicacionActual &&
-      indiceDedicacion(datos.dedicacionSolicitada) >= indiceDedicacion(datos.dedicacionActual)
-    ) {
-      // La dedicación solo puede mejorar en un Cambio (Categoría 0 = mayor jerarquía).
-      errores.dedicacionSolicitada = "La dedicación solicitada debe ser mejor que la actual.";
     }
   }
 

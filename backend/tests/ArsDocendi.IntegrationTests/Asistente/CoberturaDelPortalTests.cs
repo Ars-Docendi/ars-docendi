@@ -189,7 +189,6 @@ public sealed class CoberturaDelPortalTests
 /// esta consulta en un <c>try</c>: sin él, un turno que tocara portal moriría con
 /// «permission denied for schema portal» en vez de responder sin el denominador.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ConsultorDeCoberturaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_cobertura")
 {

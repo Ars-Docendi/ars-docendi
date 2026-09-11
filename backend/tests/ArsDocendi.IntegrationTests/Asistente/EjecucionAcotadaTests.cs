@@ -22,7 +22,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// seed dejó de tener pedidos fuera de Informática: contra el coordinador el conteo
 /// acotado y el global coinciden, y entonces el test no distinguiría nada.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EjecucionAcotadaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ejecucion")
 {

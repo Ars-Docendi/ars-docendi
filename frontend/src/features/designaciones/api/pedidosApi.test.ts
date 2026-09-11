@@ -78,7 +78,7 @@ const catalogos = {
       orden: 3,
     },
   ],
-  dedicaciones: ["Categoría 2"],
+  dedicaciones: [{ id: "dedicacion-2", codigo: 2, nombre: "Categoría 2", orden: 2 }],
   tiposBaja: ["Renuncia"],
   novedades: ["Alta"],
 };
@@ -97,19 +97,51 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
-  it("usa el snapshot histórico completo cuando existe", async () => {
+  it("mantiene separadas las horas solicitadas y las históricas de un Alta", async () => {
     vi.mocked(apiClient.get).mockResolvedValue({
       data: [
         {
           ...dto,
-          horas: 40,
-          horasInvestigacion: 8,
-          horasExternas: 6,
+          horas: 12,
+          horasInvestigacion: 3,
+          horasExternas: 2,
+          snapshot: {
+            cargo: null,
+            dedicacion: null,
+            materia: "Materia nueva",
+            horas: null,
+            horasInvestigacion: null,
+            horasExternas: null,
+          },
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0]).toMatchObject({
+      catedra: "Materia nueva",
+      horas: 12,
+      horasInvestigacion: 3,
+      horasExternas: 2,
+      horasActuales: null,
+      horasInvestigacionActuales: null,
+      horasExternasActuales: null,
+    });
+  });
+
+  it("mantiene separadas las horas solicitadas y el snapshot de un Cambio devuelto", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          estado: "devuelto",
+          horas: 12,
+          horasInvestigacion: 4,
+          horasExternas: 3,
           snapshot: {
             cargo: "JTP",
             dedicacion: "Categoría 3",
             materia: "Materia histórica",
-            horas: 10,
+            horas: 8,
             horasInvestigacion: 2,
             horasExternas: 1,
           },
@@ -121,18 +153,28 @@ describe("pedidosApi HTTP", () => {
       catedra: "Materia histórica",
       cargoActual: "JTP",
       dedicacionActual: "Categoría 3",
-      horas: 10,
-      horasInvestigacion: 2,
-      horasExternas: 1,
+      horas: 12,
+      horasInvestigacion: 4,
+      horasExternas: 3,
+      horasActuales: 8,
+      horasInvestigacionActuales: 2,
+      horasExternasActuales: 1,
     });
   });
 
-  it("crea con IDs canónicos resueltos desde catálogos HTTP", async () => {
+  it("crea un Alta con los datos de la persona y la materia canónica", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearPedido(
       {
-        docente: { dni: "123", nombre: "Ana", antiguedad: 0 },
+        docente: {
+          dni: "123",
+          nombre: "Ana",
+          nombrePersona: "Ana",
+          apellido: "Pérez",
+          antiguedad: 0,
+        },
         catedra: "Software",
+        materiaId: "materia-1",
         horas: 10,
         cargoActual: null,
         dedicacionActual: null,
@@ -149,11 +191,13 @@ describe("pedidosApi HTTP", () => {
       "/api/designaciones/pedidos",
       expect.objectContaining({
         periodoId: "periodo-1",
-        personaId: "persona-1",
         materiaId: "materia-1",
+        persona: { documento: "123", nombre: "Ana", apellido: "Pérez" },
         cargoSolicitadoId: "cargo-1",
+        dedicacionSolicitadaId: "dedicacion-2",
       }),
     );
+    expect(vi.mocked(apiClient.post).mock.calls[0][1]).not.toHaveProperty("personaId");
   });
 
   it("envía una clave UUID en cada transición", async () => {

@@ -1,6 +1,8 @@
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 using Modules.Designaciones.Infrastructure;
@@ -8,13 +10,9 @@ using Modules.Portal.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
-namespace ArsDocendi.IntegrationTests.Infraestructura;
+[assembly: Xunit.AssemblyFixture(typeof(ArsDocendi.IntegrationTests.Infraestructura.PostgresFixture))]
 
-[CollectionDefinition(Nombre)]
-public sealed class ColeccionPostgres : ICollectionFixture<PostgresFixture>
-{
-    public const string Nombre = "PostgreSQL 18";
-}
+namespace ArsDocendi.IntegrationTests.Infraestructura;
 
 /// <summary>
 /// Base de prueba aislada, con los roles del asistente ya creados sobre ella.
@@ -53,7 +51,7 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// Se les dan los mismos atributos que en producción —en particular
     /// <c>NOBYPASSRLS</c>— para que lo que se prueba acá sea lo que se despliega.
     /// </remarks>
-    public async Task<BaseDePrueba> CrearBaseMigradaAsync(string prefijo)
+    public async Task<BaseDePrueba> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
         var identificador = Guid.NewGuid();
         var nombre = $"{prefijo}_{identificador:N}";
@@ -90,7 +88,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         // día que el orden empieza a importar.
         await using (var designaciones = CrearDesignaciones(cadena))
         {
-            await designaciones.Database.MigrateAsync();
+            await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
         }
 
         await using (var portal = CrearPortal(cadena))
@@ -121,7 +119,6 @@ public sealed class PostgresFixture : IAsyncLifetime
         var nombre = new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena).Database
             ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
 
-        NpgsqlConnection.ClearAllPools();
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
         await EjecutarAsync(conexion, $"DROP DATABASE IF EXISTS \"{nombre}\" WITH (FORCE)");
@@ -186,6 +183,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 
 public abstract class ClasePostgresAislada(PostgresFixture postgres, string prefijo) : IAsyncLifetime
 {
+    protected PostgresFixture Postgres => postgres;
+
     private BaseDePrueba? _base;
 
     protected string Cadena => _base?.Cadena ?? string.Empty;

@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Button, Checkbox, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import { type RolSistema, type UsuarioMock } from "../models";
+import { Button, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
+import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
+import type { CatalogosUsuarios } from "../api/usuariosApi";
+import type { UsuarioFormulario } from "../models";
 
 interface ModalNuevoUsuarioProps {
   open: boolean;
   upnsExistentes: string[];
-  onCrear: (datos: Omit<UsuarioMock, "id" | "is_active">) => void;
+  onCrear: (datos: UsuarioFormulario) => void;
   onCerrar: () => void;
   error?: string;
-  rolesDisponibles: string[];
+  catalogos: CatalogosUsuarios;
 }
 
 const VACIO = {
@@ -20,8 +22,34 @@ const VACIO = {
   fecha_nacimiento: "",
   telefono: "",
   upn: "",
-  roles: [] as RolSistema[],
+  membresias: [] as MembresiaFila[],
 };
+
+function validarMembresias(
+  filas: MembresiaFila[],
+  catalogos: CatalogosUsuarios,
+): string | undefined {
+  if (filas.length === 0) return "Seleccioná al menos una membresía";
+  if (
+    new Set(filas.map((fila) => `${fila.rolId}:${fila.materiaId}:${fila.carreraId}`)).size !==
+    filas.length
+  ) {
+    return "No se puede repetir la misma membresía";
+  }
+  if (
+    filas.some((fila) => {
+      const rol = catalogos.roles.find((opcion) => opcion.id === fila.rolId);
+      return (
+        !rol ||
+        (rol.ambito === "materia" && (!fila.materiaId || !fila.carreraId)) ||
+        (rol.ambito === "carrera" && !fila.carreraId) ||
+        (rol.ambito === "global" && (fila.materiaId || fila.carreraId))
+      );
+    })
+  )
+    return "Completá las filas de membresía con un ámbito compatible";
+  return undefined;
+}
 
 export function ModalNuevoUsuario({
   open,
@@ -29,7 +57,7 @@ export function ModalNuevoUsuario({
   onCrear,
   onCerrar,
   error,
-  rolesDisponibles,
+  catalogos,
 }: ModalNuevoUsuarioProps) {
   const [campos, setCampos] = useState(VACIO);
   const [enviado, setEnviado] = useState(false);
@@ -44,13 +72,6 @@ export function ModalNuevoUsuario({
     onCerrar();
   }
 
-  function toggleRol(rol: RolSistema, checked: boolean) {
-    setCampos((p) => ({
-      ...p,
-      roles: checked ? [...p.roles, rol] : p.roles.filter((r) => r !== rol),
-    }));
-  }
-
   function handleConfirmar() {
     setEnviado(true);
     const obligatorios =
@@ -59,16 +80,25 @@ export function ModalNuevoUsuario({
       !campos.documento ||
       !campos.legajo ||
       !campos.fecha_nacimiento ||
-      !campos.upn ||
-      campos.roles.length === 0;
-    if (obligatorios) return;
+      !campos.upn;
+    const errorMembresias = validarMembresias(campos.membresias, catalogos);
+    if (obligatorios || errorMembresias) return;
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
-    onCrear({ ...campos, upn: campos.upn.toLowerCase() });
+    onCrear({
+      ...campos,
+      upn: campos.upn.toLowerCase(),
+      membresias: campos.membresias.map((fila) => ({
+        rolId: fila.rolId,
+        materiaId: fila.materiaId || null,
+        carreraId: fila.carreraId || null,
+      })),
+    });
     setCampos(VACIO);
     setEnviado(false);
   }
 
   const upnDuplicada = enviado && !!campos.upn && upnsExistentes.includes(campos.upn.toLowerCase());
+  const errorMembresias = enviado ? validarMembresias(campos.membresias, catalogos) : undefined;
 
   const grilla: React.CSSProperties = {
     display: "grid",
@@ -209,23 +239,14 @@ export function ModalNuevoUsuario({
           />
         </Field>
 
-        {/* Roles */}
-        <Field
-          label="Roles"
-          required
-          error={enviado && campos.roles.length === 0 ? "Seleccioná al menos un rol" : undefined}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-            {rolesDisponibles.map((r) => (
-              <Checkbox
-                key={r}
-                label={r}
-                checked={campos.roles.includes(r)}
-                onChange={(e) => toggleRol(r, e.target.checked)}
-              />
-            ))}
-          </div>
-        </Field>
+        <MembresiasSelector
+          filas={campos.membresias}
+          onChange={(membresias) => set("membresias", membresias)}
+          roles={catalogos.roles}
+          materias={catalogos.materias}
+          carreras={catalogos.carreras}
+          error={errorMembresias}
+        />
       </div>
     </Modal>
   );

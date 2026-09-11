@@ -16,7 +16,6 @@ namespace ArsDocendi.IntegrationTests.Portal;
 /// El día que portal entre al manifiesto, los de allá empiezan a cubrirlo también y
 /// esta clase pasa a ser la que verifica lo que aquéllos no miran: el contenido.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ComentariosPortalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_comentarios")
 {

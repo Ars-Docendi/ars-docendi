@@ -26,11 +26,19 @@ export interface PeriodoDesignacion {
 export type Rol = Role;
 
 export type Novedad = "Sin novedad" | "Alta" | "Baja" | "Cambio de cargo o dedicación";
+export type NovedadAdmitida = Exclude<Novedad, "Sin novedad">;
 export type Cargo = string;
 export type Dedicacion = string;
 
 /** Tipo de baja del docente (enum cerrado; "Otro" exige detalle en texto libre). */
 export type TipoBaja = "Renuncia" | "Jubilación" | "Otro";
+
+export interface MateriaPedido {
+  id: string;
+  codigo?: string;
+  nombre: string;
+  carreraId?: string;
+}
 
 export type DepartamentoAgenteExterno =
   | "Departamento de Arquitectura"
@@ -47,8 +55,13 @@ export type DepartamentoAgenteExterno =
  * un pedido cubre exactamente una materia y lleva sus horas como campo propio.
  */
 export interface AsignacionMateria {
+  materiaId: string;
   materia: string;
   horas: number;
+  cargoActual?: Cargo | null;
+  dedicacionActual?: Dedicacion | null;
+  horasInvestigacion?: number | null;
+  horasExternas?: number | null;
 }
 
 export type EstadoPedido =
@@ -94,16 +107,11 @@ export interface EventoHistorial {
 export interface DocentePedido {
   dni: string;
   nombre: string;
+  /** Nombre y apellido separados para el alta de una persona nueva. */
+  nombrePersona?: string;
+  apellido?: string;
   antiguedad: number;
   /** Legajo institucional. Puede faltar en una Alta: el docente todavía no existe en el sistema. */
-  legajo?: string;
-}
-
-/** Persona canónica disponible para un Alta, aun cuando todavía no tenga designación. */
-export interface PersonaCatalogoPedido {
-  id: string;
-  dni: string;
-  nombre: string;
   legajo?: string;
 }
 
@@ -114,6 +122,7 @@ export interface PersonaCatalogoPedido {
  * En el real provendría del módulo Portal / API Guaraní.
  */
 export interface DocenteExistente {
+  personaId: string;
   dni: string;
   nombre: string;
   /** Legajo institucional — un docente ya existente en el sistema siempre lo tiene. */
@@ -124,8 +133,17 @@ export interface DocenteExistente {
   /** Materias a las que pertenece el docente, con su carga horaria. Mínimo 1 elemento. */
   materiasActuales: AsignacionMateria[];
   /** Horas de investigación/externas vigentes del docente (base de comparación en Cambio). */
-  horasInvestigacionActuales: number;
-  horasExternasActuales: number;
+  horasInvestigacionActuales: number | null;
+  horasExternasActuales: number | null;
+}
+
+export interface SnapshotPedido {
+  cargo: Cargo | null;
+  dedicacion: Dedicacion | null;
+  horas: number | null;
+  materia: string | null;
+  horasInvestigacion: number | null;
+  horasExternas: number | null;
 }
 
 export interface PedidoDesignacion {
@@ -142,7 +160,7 @@ export interface PedidoDesignacion {
   catedra: string;
   carrera: string; // para el ámbito del Coordinador
   docente: DocentePedido;
-  /** Carga horaria del docente en la cátedra del pedido. */
+  /** Carga horaria solicitada en la cátedra del pedido. */
   horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
@@ -154,6 +172,11 @@ export interface PedidoDesignacion {
   tipoBajaDetalle?: string;
   horasExternas: number; // horas del docente en otro departamento (D2: libre, sin cierre)
   horasInvestigacion: number; // integración cross-module con Portal pendiente
+  /** Valores vigentes fotografiados al enviar, separados de la solicitud. */
+  snapshot?: SnapshotPedido | null;
+  horasActuales?: number | null;
+  horasInvestigacionActuales?: number | null;
+  horasExternasActuales?: number | null;
   esAgenteExterno?: boolean;
   departamentoAgenteExterno?: DepartamentoAgenteExterno;
   adjuntos: Adjunto[];
@@ -168,12 +191,13 @@ export interface PedidoDesignacion {
   personaId?: string;
   materiaId?: string;
   cargoSolicitadoId?: string;
+  dedicacionSolicitadaId?: string;
 }
 
 /**
  * Subconjunto editable de un pedido (lo que el form de alta/edición produce).
- * NO incluye `catedra`: la materia del pedido viene del ámbito del actor, no del
- * form — un Jefe de Cátedra sólo carga pedidos sobre la cátedra que tiene a cargo.
+ * La `catedra` del payload es el nombre presentacional de la materia seleccionada;
+ * la autoridad real es `materiaId`.
  */
 export interface DatosEditablesPedido {
   docente: DocentePedido;
@@ -187,7 +211,7 @@ export interface DatosEditablesPedido {
   horas: number;
   cargoActual: Cargo | null;
   dedicacionActual: Dedicacion | null;
-  novedad: Novedad;
+  novedad: Novedad | "";
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
   justificacion?: string;
@@ -201,6 +225,7 @@ export interface DatosEditablesPedido {
   personaId?: string;
   materiaId?: string;
   cargoSolicitadoId?: string;
+  dedicacionSolicitadaId?: string;
   periodoId?: string;
   version?: number;
 }

@@ -4,81 +4,84 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 import { Sidebar } from "./Sidebar";
-import type { Role } from "../../shared/auth/useCurrentUser";
-
-// El Sidebar solo depende del router (NavLink/useLocation) y del rol activo.
 function renderSidebar(
-  role: Role,
+  permissions: string[],
   { collapsed = false, route = "/designaciones" }: { collapsed?: boolean; route?: string } = {},
 ) {
   render(
     <MemoryRouter initialEntries={[route]}>
-      <Sidebar collapsed={collapsed} role={role} />
+      <Sidebar collapsed={collapsed} permissions={permissions} />
     </MemoryRouter>,
   );
 }
 
-describe("Sidebar — grupo colapsable Designaciones", () => {
-  it("Secretaría: muestra el padre Designaciones con sus hijos Revisión y Períodos abiertos", () => {
-    renderSidebar("Secretaría");
+describe("Sidebar — sector Designaciones", () => {
+  it.each([
+    [["designaciones.gestionar"], ["Mis pedidos"]],
+    [["designaciones.revisar"], ["Revisión"]],
+    [
+      ["designaciones.revisar", "periodos.administrar"],
+      ["Revisión", "Períodos"],
+    ],
+    [[], []],
+  ] as const)("filtra pantallas por permisos", (permissions, pantallas) => {
+    renderSidebar([...permissions]);
 
-    expect(screen.getByRole("link", { name: "Designaciones" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Períodos" })).toBeInTheDocument();
-
-    // Arranca abierto: el chevron está expandido.
-    expect(screen.getByRole("button", { name: "Colapsar Designaciones" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-  });
-
-  it("el chevron colapsa y vuelve a expandir los hijos", async () => {
-    const user = userEvent.setup();
-    renderSidebar("Secretaría");
-
-    await user.click(screen.getByRole("button", { name: "Colapsar Designaciones" }));
-
-    expect(screen.queryByRole("link", { name: "Revisión" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Períodos" })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Expandir Designaciones" }));
-
-    expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Períodos" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Designaciones" })).not.toBeInTheDocument();
+    expect(screen.queryAllByText("DESIGNACIONES")).toHaveLength(pantallas.length ? 1 : 0);
+    for (const pantalla of pantallas) {
+      expect(screen.getByRole("link", { name: pantalla })).toBeInTheDocument();
+    }
   });
 
   it("marca el hijo activo según la ruta y mantiene el grupo abierto", () => {
-    renderSidebar("Secretaría", { route: "/designaciones/periodos" });
+    renderSidebar(["designaciones.revisar", "periodos.administrar"], {
+      route: "/designaciones/periodos",
+    });
 
     const periodos = screen.getByRole("link", { name: "Períodos" });
     expect(periodos).toHaveAttribute("aria-current", "page");
 
-    // El padre NO queda marcado cuando un hijo está activo (NavLink end).
-    expect(screen.getByRole("link", { name: "Designaciones" })).not.toHaveAttribute("aria-current");
-  });
-
-  it("Jefe de Cátedra: el único hijo es Mis pedidos (no Revisión)", () => {
-    renderSidebar("Jefe de Cátedra");
-
-    expect(screen.getByRole("link", { name: "Designaciones" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mis pedidos" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Revisión" })).not.toBeInTheDocument();
-  });
-
-  it("modo colapsado: sin chevron, los hijos quedan como enlaces planos alcanzables", () => {
-    renderSidebar("Secretaría", { collapsed: true });
-
-    expect(screen.queryByRole("button", { name: /Designaciones/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Designaciones" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Períodos" })).toBeInTheDocument();
-  });
-
-  it("Docente: no tiene grupo Designaciones", () => {
-    renderSidebar("Docente", { route: "/aulas" });
-
     expect(screen.queryByRole("link", { name: "Designaciones" })).not.toBeInTheDocument();
+  });
+
+  it("modo colapsado: conserva nombres accesibles y foco al recorrer enlaces con teclado", async () => {
+    const user = userEvent.setup();
+    renderSidebar(["designaciones.revisar", "periodos.administrar"], { collapsed: true });
+
+    expect(screen.queryByText("DESIGNACIONES")).not.toBeInTheDocument();
+    const enlaces = screen.getAllByRole("link");
+    expect(screen.getByRole("link", { name: "Revisión" })).toHaveAttribute("title", "Revisión");
+    expect(screen.getByRole("link", { name: "Períodos" })).toHaveAttribute("title", "Períodos");
+
+    for (const enlace of enlaces) {
+      await user.tab();
+      expect(document.activeElement).toBe(enlace);
+    }
+  });
+
+  it("Docente: no tiene sector Designaciones", () => {
+    renderSidebar(["aulas.ver"], { route: "/aulas" });
+
+    expect(screen.queryByText("DESIGNACIONES")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Reserva de aulas" })).toBeInTheDocument();
+  });
+
+  it("acepta un rol personalizado sin depender del nombre", () => {
+    renderSidebar([
+      "portal.ver",
+      "aulas.ver",
+      "tareas.ver",
+      "usuarios.ver",
+      "docentes.ver",
+      "roles.ver",
+      "designaciones.gestionar",
+      "designaciones.revisar",
+      "periodos.administrar",
+    ]);
+
+    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Revisión" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Docentes" })).toBeInTheDocument();
   });
 });

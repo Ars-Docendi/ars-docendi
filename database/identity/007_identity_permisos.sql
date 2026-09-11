@@ -34,6 +34,8 @@ INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
     ('b2000000-0000-4000-8000-000000000017', 'tareas.gestionar',                     'Gestionar tareas',                     'Crear, editar, asignar y cerrar tareas internas del departamento.'),
     ('b2000000-0000-4000-8000-000000000018', 'portal.ver',                           'Ver portal personal',                  'Acceder al portal propio con datos personales y horas disponibles.'),
     ('b2000000-0000-4000-8000-000000000019', 'portal.editar',                        'Editar portal personal',               'Actualizar datos personales, horas disponibles y áreas de experticia.'),
-    ('b2000000-0000-4000-8000-000000000020', 'reportes.ver',                         'Ver reportes globales',                'Acceder a reportes consolidados de designaciones, aulas y actividad docente.');
+    ('b2000000-0000-4000-8000-000000000020', 'reportes.ver',                         'Ver reportes globales',                'Acceder a reportes consolidados de designaciones, aulas y actividad docente.'),
+    ('b2000000-0000-4000-8000-000000000021', 'designaciones.revisar',                'Revisar designaciones',                'Consultar y revisar pedidos según la etapa y el ámbito del actor.'),
+    ('b2000000-0000-4000-8000-000000000022', 'docentes.ver',                         'Ver docentes',                         'Consultar docentes según el ámbito autorizado del actor.');
 
 SELECT audit.attach('identity.permisos');

@@ -17,7 +17,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// catálogo derivado de ahí le ofrecería a cualquiera preguntas sobre columnas que
 /// su rol no puede leer.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class CapacidadesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_capacidades")
 {

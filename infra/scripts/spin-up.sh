@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Levanta (o actualiza) un ambiente completo: base + contenedores + migraciones + seed.
-# Idempotente: re-ejecutar sobre un ambiente existente lo actualiza sin duplicar.
+# Levanta un ambiente completo: reset descartable + base + migraciones + seed + servicios.
+# staging y pr-N se reconstruyen desde cero; prod conserva su base y nunca recibe seed.
 #
 # Uso:
 #   spin-up.sh <ambiente>          # ambiente: prod | staging | pr-<N>
@@ -55,12 +55,12 @@ export URL_BASE_DATOS="Host=$(valor_npgsql "$PGHOST");Port=$(valor_npgsql "${PGP
 
 log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="$base"
 
-# 1. Base aislada del ambiente + roles que deben existir antes que las tablas.
-"$scripts_dir/provision-db.sh" "$ambiente"
-
-# 1b. Test de humo: los roles del asistente existen y nacieron sin privilegios
-#     de escritura, ANTES de que corra ninguna migración.
-"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
+# Serializa reconstrucciones del mismo ambiente en el host. La CI también tiene
+# concurrency por ambiente, pero este lock cubre reintentos/manuales simultáneos.
+# ponytail: lock local por ambiente; si se distribuye el host, moverlo a un lock manager.
+lock_file="${TMPDIR:-/tmp}/arsdocendi-spin-up-${ambiente//-/_}.lock"
+exec 9>"$lock_file"
+flock 9
 
 # Proveedor del modelo: real SOLO si además vino la clave.
 #
@@ -75,7 +75,7 @@ if [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
   proveedor_asistente=simulado
 fi
 
-# 2. Materializar el Compose project con un .env efímero (fuera del repo).
+# Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"' EXIT
 cat >"$env_file" <<EOF
@@ -94,9 +94,23 @@ ASISTENTE_PROVEEDOR=${proveedor_asistente}
 ASISTENTE_CLAVE=${ASISTENTE_CLAVE:-}
 EOF
 
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
+# 1. Los ambientes descartables parten de cero. Se detienen antes de dropear la
+# base para no dejar contenedores publicados apuntando a una base reconstruida.
+if [[ "$ambiente" != "prod" ]]; then
+  docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
+    down -v --remove-orphans
+  "$scripts_dir/drop-db.sh" "$ambiente"
+fi
 
-# 3. Migraciones EF (la app debe soportar el comando; ver runbook).
+# 2. Base aislada del ambiente + roles que deben existir antes que las tablas.
+"$scripts_dir/provision-db.sh" "$ambiente"
+
+# 2b. Test de humo: los roles del asistente existen y nacieron sin privilegios
+#     de escritura, ANTES de que corra ninguna migración.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
+
+# 3. Migraciones EF antes de publicar el backend. Una falla detiene seed/up por
+# set -euo pipefail.
 log_info msg="corriendo migraciones" ambiente="$ambiente"
 docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
   run --rm backend ${COMANDO_MIGRACIONES:-dotnet ArsDocendi.Host.dll --migrate}
@@ -111,5 +125,8 @@ if [[ "$ambiente" != "prod" ]]; then
 else
   log_info msg="ambiente prod: no se siembra seed sintético" ambiente="prod"
 fi
+
+# 5. Publicar servicios únicamente después de completar migración y seed.
+docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
 
 log_info msg="spin-up OK" ambiente="$ambiente" host="$host_publico"

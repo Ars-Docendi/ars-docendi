@@ -1,66 +1,61 @@
 import { useState, useMemo } from "react";
 import { Breadcrumbs, Button } from "@ars-docendi/ui";
+import { useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaUsuarios } from "../components/TablaUsuarios";
-import { FiltrosUsuarios, type FiltrosState } from "../components/FiltrosUsuarios";
 import { ModalNuevoUsuario } from "../components/ModalNuevoUsuario";
 import { ModalConfirmarDesactivacion } from "../components/ModalConfirmarDesactivacion";
 import { ModalConfirmarActivacion } from "../components/ModalConfirmarActivacion";
 import { ModalEditarUsuario } from "../components/ModalEditarRol";
 import { useUsuarios } from "../hooks/useUsuarios";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
-import { normalizarTexto, type UsuarioMock, type RolSistema } from "../models";
+import {
+  aplicarFiltrosYOrdenUsuarios,
+  FILTROS_USUARIOS_VACIOS,
+  type OrdenUsuarios,
+} from "../filtrosUsuarios";
+import type { UsuarioFormulario, UsuarioMock } from "../models";
+import type { CatalogosUsuarios } from "../api/usuariosApi";
 
-const FILTROS_VACIOS: FiltrosState = {
-  apellido: "",
-  nombre: "",
-  documento: "",
-  legajo: "",
-  mail: "",
-  rol: "",
-  estado: "",
-};
 const SIN_USUARIOS: UsuarioMock[] = [];
+const CATALOGOS_VACIOS: CatalogosUsuarios = { roles: [], carreras: [], materias: [] };
 
 export function IndexPage() {
   const remoto = useUsuarios();
   const usuarios = remoto.usuarios.data ?? SIN_USUARIOS;
-  const rolesDisponibles = remoto.catalogos.data?.roles.map((rol) => rol.nombre) ?? [];
-  const [filtros, setFiltros] = useState<FiltrosState>(FILTROS_VACIOS);
+  const catalogos = remoto.catalogos.data ?? CATALOGOS_VACIOS;
+  const [filtros, setFiltros] = useState(FILTROS_USUARIOS_VACIOS);
+  const [orden, setOrden] = useState<OrdenUsuarios | null>(null);
   const [modalNuevo, setModalNuevo] = useState(false);
   const [usuarioADesactivar, setUsuarioADesactivar] = useState<UsuarioMock | null>(null);
   const [usuarioAActivar, setUsuarioAActivar] = useState<UsuarioMock | null>(null);
   const [usuarioAEditar, setUsuarioAEditar] = useState<UsuarioMock | null>(null);
+  const [parametros, setParametros] = useSearchParams();
+  const usuarioDesdeUrl = usuarios.find(
+    (candidato) => candidato.persona_id === parametros.get("personaId"),
+  );
+  const usuarioEnEdicion = usuarioAEditar ?? usuarioDesdeUrl ?? null;
 
-  const usuariosFiltrados = useMemo(() => {
-    const apellido = normalizarTexto(filtros.apellido);
-    const nombre = normalizarTexto(filtros.nombre);
-    const doc = normalizarTexto(filtros.documento);
-    const leg = normalizarTexto(filtros.legajo);
-    const mail = filtros.mail.toLowerCase();
-    return usuarios.filter((u) => {
-      if (apellido && !normalizarTexto(u.apellido).includes(apellido)) return false;
-      if (nombre && !normalizarTexto(u.nombre).includes(nombre)) return false;
-      if (doc && !normalizarTexto(u.documento).includes(doc)) return false;
-      if (leg && !normalizarTexto(u.legajo).includes(leg)) return false;
-      if (mail && !u.upn.toLowerCase().includes(mail)) return false;
-      if (filtros.rol && !u.roles.includes(filtros.rol as RolSistema)) return false;
-      if (filtros.estado === "activo" && !u.is_active) return false;
-      if (filtros.estado === "inactivo" && u.is_active) return false;
-      return true;
-    });
-  }, [usuarios, filtros]);
+  function cerrarEdicion() {
+    setUsuarioAEditar(null);
+    if (parametros.has("personaId")) setParametros({}, { replace: true });
+  }
 
-  function handleCrear(datos: Omit<UsuarioMock, "id" | "is_active">) {
+  const usuariosFiltrados = useMemo(
+    () => aplicarFiltrosYOrdenUsuarios(usuarios, filtros, orden),
+    [usuarios, filtros, orden],
+  );
+
+  function handleCrear(datos: UsuarioFormulario) {
     remoto.crear.mutate(datos, { onSuccess: () => setModalNuevo(false) });
   }
 
-  function handleEditar(datos: Omit<UsuarioMock, "id" | "is_active">) {
-    if (!usuarioAEditar) return;
+  function handleEditar(datos: UsuarioFormulario) {
+    if (!usuarioEnEdicion) return;
     remoto.editar.mutate(
-      { id: usuarioAEditar.id, datos: { ...datos, version: usuarioAEditar.version } },
-      { onSuccess: () => setUsuarioAEditar(null) },
+      { id: usuarioEnEdicion.id, datos: { ...datos, version: usuarioEnEdicion.version } },
+      { onSuccess: cerrarEdicion },
     );
   }
 
@@ -85,7 +80,7 @@ export function IndexPage() {
       <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Usuarios" }]} />
       <PageHeader
         title="Administración de Usuarios"
-        meta={`${usuarios.length} usuarios · ${usuarios.filter((u) => u.is_active).length} activos`}
+        meta={`${usuariosFiltrados.length} usuarios · ${usuariosFiltrados.filter((u) => u.is_active).length} activos`}
         actions={
           <Button variant="primary" onClick={() => setModalNuevo(true)}>
             Nuevo usuario
@@ -115,10 +110,13 @@ export function IndexPage() {
         <p role="status">Guardando usuario…</p>
       )}
 
-      <FiltrosUsuarios filtros={filtros} onChange={setFiltros} roles={rolesDisponibles} />
-
       <TablaUsuarios
         usuarios={usuariosFiltrados}
+        usuariosParaOpciones={usuarios}
+        filtros={filtros}
+        orden={orden}
+        onFiltrosChange={setFiltros}
+        onOrdenChange={setOrden}
         onDesactivar={setUsuarioADesactivar}
         onActivar={setUsuarioAActivar}
         onEditarUsuario={setUsuarioAEditar}
@@ -134,7 +132,7 @@ export function IndexPage() {
             ? mensajeProblema(remoto.crear.error, "No se pudo crear el usuario.")
             : undefined
         }
-        rolesDisponibles={rolesDisponibles}
+        catalogos={catalogos}
       />
 
       <ModalConfirmarDesactivacion
@@ -150,16 +148,16 @@ export function IndexPage() {
       />
 
       <ModalEditarUsuario
-        usuario={usuarioAEditar}
-        upnsExistentes={usuarios.filter((u) => u.id !== usuarioAEditar?.id).map((u) => u.upn)}
+        usuario={usuarioEnEdicion}
+        upnsExistentes={usuarios.filter((u) => u.id !== usuarioEnEdicion?.id).map((u) => u.upn)}
         onGuardar={handleEditar}
-        onCerrar={() => setUsuarioAEditar(null)}
+        onCerrar={cerrarEdicion}
         error={
           remoto.editar.error
             ? mensajeProblema(remoto.editar.error, "No se pudo editar el usuario.")
             : undefined
         }
-        rolesDisponibles={rolesDisponibles}
+        catalogos={catalogos}
       />
     </>
   );

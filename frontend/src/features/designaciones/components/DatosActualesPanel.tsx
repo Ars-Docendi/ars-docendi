@@ -13,14 +13,14 @@ interface DatosActualesPanelProps {
   /** La cátedra del pedido. Es su materia: un pedido cubre exactamente una. */
   materia: string;
   /** Horas vigentes del docente en esa cátedra. `undefined` en un Alta: todavía no tiene designación. */
-  horasActuales?: number;
+  horasActuales?: number | null;
   /** Cambio: horas tal como quedan editadas en el form. Su presencia dispara la sub-sección "Materia". */
   horasSolicitadas?: number;
   /** Sin novedad: muestra la materia en la franja superior. */
   mostrarMateria?: boolean;
-  horasInvestigacionActuales?: number;
+  horasInvestigacionActuales?: number | null;
   horasInvestigacionSolicitadas?: number;
-  horasExternasActuales?: number;
+  horasExternasActuales?: number | null;
   horasExternasSolicitadas?: number;
 }
 

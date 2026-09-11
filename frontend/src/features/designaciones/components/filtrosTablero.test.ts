@@ -3,6 +3,7 @@ import {
   ABREVIATURA_CARRERA,
   CARRERAS,
   FILTROS_INICIALES,
+  FILTROS_COLUMNAS_INICIALES,
   aplicarFiltros,
   type FiltrosTablero,
 } from "./filtrosTablero";
@@ -112,6 +113,51 @@ describe("aplicarFiltros — período de designación", () => {
   });
 });
 
+describe("aplicarFiltros — Estado", () => {
+  it("filtra devueltos sin depender del área propietaria y combina los demás filtros", () => {
+    const aCatedra = pedido({
+      estado: "devuelto",
+      propietarioActual: "Jefe de Cátedra",
+      docente: { dni: "a", nombre: "Ana Devuelta", antiguedad: 3 },
+    });
+    const aSecretaria = pedido({
+      estado: "devuelto",
+      propietarioActual: "Secretaría",
+      docente: { dni: "b", nombre: "Beto Devuelto", antiguedad: 3 },
+    });
+    const enRevision = pedido({ estado: "en_revision_coordinador" });
+
+    expect(
+      aplicarFiltros([aCatedra, aSecretaria, enRevision], {
+        ...FILTROS_INICIALES,
+        estado: "devuelto",
+        nombre: "ana",
+      }),
+    ).toEqual([aCatedra]);
+  });
+
+  it("al volver a Todos conserva el resto de los filtros", () => {
+    const buscado = pedido({
+      estado: "cancelado",
+      docente: { dni: "a", nombre: "Ana", antiguedad: 3 },
+    });
+    const tambiénBuscado = pedido({
+      estado: "en_lote",
+      docente: { dni: "b", nombre: "Ana", antiguedad: 3 },
+    });
+    const otro = pedido({
+      estado: "rechazado",
+      docente: { dni: "c", nombre: "Beto", antiguedad: 3 },
+    });
+    const filtros = { ...FILTROS_INICIALES, estado: "cancelado" as const, nombre: "ana" };
+
+    expect(aplicarFiltros([buscado, tambiénBuscado, otro], filtros)).toEqual([buscado]);
+    expect(
+      aplicarFiltros([buscado, tambiénBuscado, otro], { ...filtros, estado: "todos" }),
+    ).toEqual([buscado, tambiénBuscado]);
+  });
+});
+
 describe("aplicarFiltros — días sin movimiento", () => {
   function movidoHaceDias(dias: number, nombre: string): PedidoDesignacion {
     const fecha = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString();
@@ -148,5 +194,52 @@ describe("aplicarFiltros — días sin movimiento", () => {
 
   it("'todos' no acota", () => {
     expect(nombres("todos")).toEqual(["Recién", "Hace10", "Hace40"]);
+  });
+});
+
+describe("aplicarFiltros — filtros de encabezado", () => {
+  it("combina Docente, Tipo, Estado y Área con AND", () => {
+    const coincidencia = pedido({
+      docente: { dni: "a", nombre: "Ana García", antiguedad: 3 },
+      novedad: "Alta",
+      estado: "en_revision_coordinador",
+    });
+    const distinto = pedido({
+      docente: { dni: "b", nombre: "Ana García", antiguedad: 3 },
+      novedad: "Baja",
+      estado: "en_revision_coordinador",
+    });
+
+    const resultado = aplicarFiltros([coincidencia, distinto], FILTROS_INICIALES, {
+      ...FILTROS_COLUMNAS_INICIALES,
+      docente: "garcia",
+      tipo: ["Alta"],
+      estado: ["en_revision_coordinador"],
+      area: ["Coordinación"],
+    });
+
+    expect(resultado).toEqual([coincidencia]);
+  });
+
+  it("busca las fechas del encabezado por valor visible o ISO", () => {
+    const pedidoConFecha = pedido({
+      historial: [
+        {
+          id: "envio",
+          accion: "enviar",
+          porRol: "Jefe de Cátedra",
+          porNombre: "J. Cátedra",
+          etapa: "en_revision_coordinador",
+          fecha: "2026-03-10T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(
+      aplicarFiltros([pedidoConFecha], FILTROS_INICIALES, {
+        ...FILTROS_COLUMNAS_INICIALES,
+        inicio: "2026-03-10",
+      }),
+    ).toEqual([pedidoConFecha]);
   });
 });

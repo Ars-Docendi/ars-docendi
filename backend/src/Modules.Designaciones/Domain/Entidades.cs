@@ -12,6 +12,17 @@ public sealed class Cargo
     public DateTimeOffset CreadoEn { get; set; }
 }
 
+/// <summary>Catálogo de categorías seleccionables, de elección libre.</summary>
+public sealed class Dedicacion
+{
+    public Guid Id { get; set; }
+    public short Codigo { get; set; }
+    public required string Nombre { get; set; }
+    public short Orden { get; set; }
+    public bool Activo { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
+}
+
 /// <summary>
 /// Período de designación. <see cref="CargaHasta"/> es un límite blando: pasada esa
 /// fecha se sigue permitiendo cargar, porque el cierre real es manual vía
@@ -73,6 +84,8 @@ public sealed class Pedido
 
     public Guid? CargoSolicitadoId { get; set; }
     public string? DedicacionSolicitada { get; set; }
+    public Guid? DedicacionSolicitadaId { get; set; }
+    public Dedicacion? DedicacionSolicitadaCatalogo { get; set; }
     public int? Horas { get; set; }
 
     /// <summary>Del docente, no de la materia (así lo define la spec vigente).</summary>
@@ -152,7 +165,11 @@ public sealed class Designacion
     public Guid MateriaId { get; set; }
     public Guid CargoId { get; set; }
     public string? Dedicacion { get; set; }
+    public Guid? DedicacionId { get; set; }
+    public Dedicacion? DedicacionCatalogo { get; set; }
     public int Horas { get; set; }
+    public int? HorasInvestigacion { get; set; }
+    public int? HorasExternas { get; set; }
     public DateOnly VigenteDesde { get; set; }
     /// <summary>Null = vigente. Cerrar una designación es fijar esta fecha, no borrar la fila.</summary>
     public DateOnly? VigenteHasta { get; set; }

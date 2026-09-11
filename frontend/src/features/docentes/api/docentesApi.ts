@@ -1,5 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
-import type { DocenteMock, RolDocente } from "../models";
+import type { DocenteMock, RolCatalogoDocente, RolDocente } from "../models";
 
 interface DocenteDto {
   personaId: string;
@@ -11,9 +11,19 @@ interface DocenteDto {
   fechaNacimiento: string | null;
   telefono: string | null;
   upn: string | null;
+  tieneCuenta: boolean;
   activo: boolean;
   version: number | null;
-  roles: string[];
+  roles: { id: string; codigo: string; nombre: string }[];
+  membresias: {
+    id: string;
+    rolId: string;
+    codigo: string;
+    nombre: string;
+    ambito: string;
+    materiaId: string | null;
+    carreraId: string | null;
+  }[];
   asignaciones: {
     id: string;
     materiaId: string;
@@ -23,12 +33,14 @@ interface DocenteDto {
     cargoNombre: string;
     cargoAbreviatura: string;
     dedicacion: string | null;
+    dedicacionId: string | null;
     horas: number;
   }[];
 }
 export interface CatalogosDocentes {
-  roles: { id: string; codigo: string; nombre: string }[];
-  materias: { id: string; codigo: string; nombre: string }[];
+  dedicaciones: { id: string; nombre: string; activo: boolean }[];
+  roles: RolCatalogoDocente[];
+  materias: { id: string; codigo: string; nombre: string; carreraId?: string | null }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string }[];
   personasElegibles: {
     id: string;
@@ -93,15 +105,15 @@ function payload(datos: Omit<DocenteMock, "id" | "is_active">, catalogos: Catalo
     fechaNacimiento: datos.fecha_nacimiento || null,
     telefono: datos.telefono || null,
     upn: datos.upn,
-    roles: datos.roles.map((nombre) => {
-      const rol = catalogos.roles.find((item) => item.nombre === nombre);
-      if (!rol) throw new Error(`El rol ${nombre} no está disponible.`);
-      return rol.codigo;
-    }),
+    membresias: datos.membresias.map((membresia) => ({
+      rolId: membresia.rolId,
+      materiaId: membresia.materiaId || null,
+      carreraId: membresia.carreraId || null,
+    })),
     designaciones: datos.asignaciones.map((a) => ({
       materiaId: catalogos.materias.find((m) => m.codigo === a.materia.codigo)?.id,
       cargoId: catalogos.cargos.find((c) => c.nombre === a.cargo)?.id,
-      dedicacion: a.dedicacion ?? null,
+      dedicacionId: a.dedicacionId ?? null,
       horas: a.horas,
     })),
     version: datos.version,
@@ -119,11 +131,13 @@ function mapear(dto: DocenteDto): DocenteMock {
     fecha_nacimiento: dto.fechaNacimiento ?? "",
     telefono: dto.telefono ?? "",
     upn: dto.upn ?? "",
+    tieneCuenta: dto.tieneCuenta,
     is_active: dto.activo,
     version: dto.version ?? undefined,
     roles: dto.roles.map((r) =>
-      r === "jefe_catedra" ? "Jefe de Cátedra" : "Docente",
+      r.codigo === "jefe_catedra" ? "Jefe de Cátedra" : r.nombre,
     ) as RolDocente[],
+    membresias: dto.membresias,
     asignaciones: dto.asignaciones.map((a) => ({
       id: a.id,
       materia: { id: a.materiaId, codigo: a.materiaCodigo, nombre: a.materiaNombre },
@@ -131,6 +145,7 @@ function mapear(dto: DocenteDto): DocenteMock {
       cargoId: a.cargoId,
       cargoAbreviatura: a.cargoAbreviatura,
       dedicacion: a.dedicacion,
+      dedicacionId: a.dedicacionId,
       horas: a.horas,
     })),
   };

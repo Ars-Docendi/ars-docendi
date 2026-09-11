@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Identity.Administracion;
 using Modules.Designaciones.Contracts.Administracion;
 
 namespace ArsDocendi.Host.Administracion;
@@ -11,7 +12,10 @@ public sealed record AsignacionDocenteDto(
     string CargoNombre,
     string CargoAbreviatura,
     string? Dedicacion,
-    int Horas);
+    int Horas,
+    Guid? DedicacionId = null,
+    int? HorasInvestigacion = null,
+    int? HorasExternas = null);
 
 public sealed record DocenteAdministracionDto(
     Guid PersonaId,
@@ -27,7 +31,8 @@ public sealed record DocenteAdministracionDto(
     bool TieneCuenta,
     bool Activo,
     uint? Version,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<RolResumenDto> Roles,
+    IReadOnlyList<AsignacionRolDto> Membresias,
     IReadOnlyList<AsignacionDocenteDto> Asignaciones);
 
 public sealed record GuardarDocenteDto(
@@ -40,7 +45,7 @@ public sealed record GuardarDocenteDto(
     DateOnly? FechaNacimiento,
     string? Telefono,
     string Upn,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<GuardarAsignacionRolDto> Membresias,
     IReadOnlyList<GuardarDesignacionVigenteDto> Designaciones,
     uint? Version = null);
 
@@ -57,7 +62,8 @@ public sealed record PersonaElegibleDto(
     uint? Version);
 
 public sealed record CatalogosDocentesDto(
-    IReadOnlyList<ArsDocendi.Shared.Identity.Administracion.OpcionCatalogoDto> Roles,
+    IReadOnlyList<RolCatalogoDto> Roles,
     IReadOnlyList<ArsDocendi.Shared.Identity.Administracion.OpcionCatalogoDto> Materias,
     IReadOnlyList<CargoAdministracionDto> Cargos,
-    IReadOnlyList<PersonaElegibleDto> PersonasElegibles);
+    IReadOnlyList<PersonaElegibleDto> PersonasElegibles,
+    IReadOnlyList<DedicacionAdministracionDto> Dedicaciones);

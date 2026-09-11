@@ -331,61 +331,124 @@ activos (vista, Nombre, Tipo, Legajo, Prioridad).
 
 ### Requirement: Filtro de pedidos por nombre o legajo del docente
 
-El sistema SHALL ofrecer, en la superficie de revisión (`/designaciones/revision`), el mismo
-componente de filtro genérico y reutilizable que usa "Mis pedidos" (`shared/ui/FiltrosLista.tsx`):
-**Nombre** del docente y **Tipo** de novedad como campos siempre visibles al inicio de la barra
-("Nombre" primero, "Tipo" al costado) — Tipo deja de ser un filtro opcional (rompe a propósito la
-paridad de patrón con Mis Pedidos que se buscó al principio de este mismo requirement: pedido
-explícito y posterior del cliente, específico de esta pantalla) —, más **Legajo** y **Prioridad**
-como filtros opcionales vía "+ Añadir filtro" (con botón "×" para quitarlos). La comparación de
-Nombre y Legajo MUST ser "contiene", sin distinguir mayúsculas ni acentos (mismo criterio que
-Usuarios y Mis Pedidos). El filtro de **Vista** ("Mis pendientes"/"Vista completa") MUST permanecer
-separado, fuera de este bloque — no es un filtro por dato del pedido, es un selector de alcance.
-Todos los filtros activos se combinan entre sí mediante AND. Un pedido de Alta cuyo docente todavía
-no tiene legajo asignado NUNCA MUST aparecer al filtrar por legajo (no hay dato contra el cual
-matchear), pero SHALL seguir apareciendo cuando el filtro de legajo está vacío o no agregado.
+El sistema SHALL ofrecer en la superficie de revisión (`/designaciones/revision`) filtros de columna para Docente, Legajo y Tipo, asociados a sus encabezados visibles. El filtro de Prioridad SHALL permanecer como filtro general opcional porque la tabla no tiene una columna independiente de Prioridad. La comparación de Docente y Legajo MUST ser por contenido, sin distinguir mayúsculas ni acentos. El filtro de Tipo SHALL permitir seleccionar una novedad; los filtros de columnas distintas SHALL combinarse mediante AND. Los criterios generales del tablero que no representan columnas visibles SHALL conservarse fuera de los encabezados: Período, Carrera, Prioridad y Sin movimiento.
 
 #### Scenario: Filtrar por Nombre acota las filas visibles
 
 - **GIVEN** la Tabla de revisión con pedidos de varios docentes en el ámbito
-- **WHEN** el revisor tipea parte del nombre de un docente en el filtro Nombre (siempre visible)
-- **THEN** solo quedan visibles los pedidos cuyo docente contiene ese texto en el nombre (sin
-  distinguir mayúsculas ni acentos)
+- **WHEN** el revisor escribe parte del nombre en el filtro del encabezado "Docente"
+- **THEN** sólo quedan visibles los pedidos cuyo docente coincide sin distinguir mayúsculas ni acentos
 
 #### Scenario: Filtrar por Tipo (siempre visible, junto a Nombre) acota las filas visibles
 
 - **GIVEN** la Tabla de revisión con pedidos de varios tipos de novedad en el ámbito
-- **WHEN** el revisor elige un tipo puntual (p. ej. "Alta") en el select Tipo, visible desde el
-  principio junto a Nombre — sin pasar por "+ Añadir filtro"
-- **THEN** solo quedan visibles los pedidos de ese tipo de novedad
+- **WHEN** el revisor selecciona "Alta" en el menú del encabezado "Tipo"
+- **THEN** sólo quedan visibles los pedidos de tipo Alta en todas las pestañas aplicables
 
 #### Scenario: Agregar el filtro opcional Legajo acota las filas visibles
 
 - **GIVEN** el filtro colapsado (sin Legajo agregado) y pedidos de docentes con legajo asignado
-- **WHEN** el revisor elige "Legajo" en el selector "+ Añadir filtro" y tipea parte de un legajo
-- **THEN** solo quedan visibles los pedidos cuyo docente tiene ese legajo (contiene)
-- **AND** puede quitarlo con el botón "×", volviendo a ver todos los pedidos sujetos al resto de los
-  filtros activos
+- **WHEN** el revisor escribe un legajo en el filtro del encabezado "Legajo"
+- **THEN** sólo quedan visibles los pedidos cuyo docente tiene un legajo coincidente, y los pedidos sin legajo no aparecen
 
 #### Scenario: Un pedido de Alta sin legajo no aparece al filtrar por legajo
 
 - **GIVEN** un pedido de Alta cuyo docente todavía no tiene legajo asignado, y el filtro Legajo
   agregado con texto
-- **WHEN** se aplica el filtro
-- **THEN** ese pedido no aparece en ninguna sección
-- **AND WHEN** el filtro de Legajo se quita o queda vacío
-- **THEN** ese pedido vuelve a aparecer normalmente (sujeto a los demás filtros)
+- **WHEN** el revisor escribe un valor en el filtro de Legajo
+- **THEN** ese pedido no aparece en ninguna pestaña
+- **AND WHEN** el filtro de Legajo se limpia o queda vacío
+- **THEN** el pedido vuelve a aparecer sujeto a los demás filtros
 
 #### Scenario: Prioridad es opcional, igual que Legajo (Tipo no — es fijo)
 
-- **GIVEN** el filtro colapsado (sin Prioridad agregada)
-- **WHEN** el revisor elige "Prioridad" en el selector "+ Añadir filtro"
-- **THEN** aparece el campo correspondiente, y aplicarlo acota la lista a los pedidos que coinciden
-- **AND** puede quitarlo con el botón "×"
-- **AND** el selector "+ Añadir filtro" nunca ofrece "Tipo" — ya está siempre visible, junto a Nombre
+- **GIVEN** el filtro general de Prioridad no está aplicado
+- **WHEN** el revisor agrega Prioridad y selecciona "Sólo prioritarios"
+- **THEN** el resultado se acota sin que aparezca Prioridad como una columna ficticia
+- **AND** el filtro de Tipo continúa disponible en el encabezado Tipo
 
 #### Scenario: Los filtros activos se combinan entre sí
 
-- **GIVEN** un filtro de Tipo activo (p. ej. "Alta") y texto en el filtro Nombre
+- **GIVEN** hay un filtro de Tipo activo y texto en Docente
 - **WHEN** ambos están aplicados a la vez
-- **THEN** solo quedan visibles los pedidos que cumplen AMBAS condiciones
+- **THEN** sólo quedan visibles los pedidos que cumplen ambas condiciones
+
+#### Scenario: Conservar los filtros generales sin columna visible
+
+- **GIVEN** el revisor tiene filtros activos de Período, Carrera, Prioridad o Sin movimiento
+- **WHEN** agrega un filtro desde un encabezado de la tabla
+- **THEN** los criterios generales se conservan y se combinan con el nuevo filtro mediante AND
+
+#### Scenario: Los filtros acotan los contadores de pestañas
+
+- **GIVEN** existen pedidos distribuidos en varias pestañas
+- **WHEN** el revisor aplica un filtro de encabezado
+- **THEN** las filas visibles y los contadores de todas las pestañas se calculan sobre las coincidencias restantes
+
+#### Scenario: Limpiar un filtro de encabezado
+
+- **GIVEN** el filtro del encabezado "Estado" está activo junto con otros criterios
+- **WHEN** el revisor activa "Limpiar filtro" en Estado
+- **THEN** se elimina sólo el criterio de Estado y los demás filtros continúan aplicados
+
+#### Scenario: Operación accesible sin activar el orden
+
+- **WHEN** el revisor abre con teclado el filtro de un encabezado ordenable
+- **THEN** se muestra el menú del filtro sin disparar el ordenamiento de esa columna
+
+### Requirement: Filtro por Estado en revisión
+
+El tablero SHALL ofrecer el filtro Estado en el menú del encabezado Estado, con Todos y los estados presentes en revisión: en revisión Coordinador, Secretaría y Decanato, Devuelto, En lote, Rechazado y Cancelado. El filtro MUST combinarse con los demás filtros antes de calcular filas y contadores de pestañas. El estado SHALL ser independiente del área propietaria y de la prioridad. No SHALL existir un segundo filtro general duplicado para Estado.
+
+#### Scenario: Filtrar devueltos
+
+- **GIVEN** pedidos devueltos a distintas áreas y pedidos en revisión
+- **WHEN** se elige Devuelto
+- **THEN** MUST mostrarse sólo los devueltos dentro de los restantes filtros y cada pestaña MUST contar sus coincidencias
+
+#### Scenario: Restablecer y consultar sin coincidencias
+
+- **GIVEN** Estado está filtrado y existen otros criterios activos
+- **WHEN** el revisor selecciona un Estado sin coincidencias
+- **THEN** se muestra el estado vacío sin romper las pestañas
+- **AND WHEN** el revisor limpia el filtro Estado
+- **THEN** vuelven a mostrarse los estados restantes sujetos a los demás filtros conservados
+
+### Requirement: Filtros por encabezado en la tabla de revisión
+
+La tabla de revisión SHALL ofrecer filtros por encabezado para Docente, Legajo, Tipo, Inicio, Últ. actualización y Estado. Cuando la pestaña activa sea "Todos", el encabezado Área SHALL ofrecer también un filtro categórico; en las demás pestañas Área no SHALL mostrarse ni filtrarse porque es constante. Acciones MUST NOT ofrecer filtro. Los filtros textuales SHALL admitir coincidencia parcial sin distinguir mayúsculas ni acentos; las fechas SHALL compararse usando su valor temporal y las opciones múltiples SHALL combinarse con OR dentro de una columna.
+
+#### Scenario: Filtrar una fecha desde su columna
+
+- **GIVEN** existen pedidos con diferentes fechas de inicio o actualización
+- **WHEN** el revisor busca una fecha en el menú de "Inicio" o "Últ. actualización"
+- **THEN** la tabla muestra sólo los pedidos cuyo valor visible coincide y la comparación no depende del formato textual para ordenar
+
+#### Scenario: Filtrar Área sólo en Todos
+
+- **WHEN** el revisor selecciona "Todos"
+- **THEN** el encabezado Área ofrece sus opciones disponibles y el filtro acota los pedidos
+- **AND WHEN** el revisor cambia a una pestaña de etapa
+- **THEN** el encabezado Área no ofrece filtro porque esa columna no está visible
+
+#### Scenario: Cerrar un menú conserva el criterio
+
+- **GIVEN** un filtro de encabezado está aplicado
+- **WHEN** el revisor cierra el menú con Escape o clic fuera
+- **THEN** el criterio sigue afectando las filas y el encabezado conserva su indicador de filtro activo
+
+### Requirement: Hover de pestañas con subrayado persistente
+
+Las pestañas del tablero SHALL usar un verde más claro que el primario durante hover. La pestaña activa MUST conservar su subrayado inferior, y el foco por teclado MUST permanecer visible.
+
+#### Scenario: Hover sobre pestaña activa
+
+- **GIVEN** Finalizados como pestaña activa
+- **WHEN** el puntero entra y sale de la pestaña
+- **THEN** el subrayado MUST permanecer visible y el hover MUST usar verde claro
+
+#### Scenario: Navegación por teclado
+
+- **GIVEN** el tablero abierto
+- **WHEN** se recorre la barra de pestañas mediante teclado
+- **THEN** MUST distinguirse el foco y la selección sin depender del hover

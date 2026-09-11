@@ -78,23 +78,63 @@ Sin historial, nada garantiza que esa convergencia se haya escrito: un `CREATE T
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | `personas`     | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018) | **Sí** — documento, CUIL, teléfono, fecha nac. |
 | `users`        | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                        | Parcial — UPN, display name                    |
-| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger                                                                                                  | No                                             |
-| `permisos`     | Catálogo **cerrado** de 20. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
-| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización                                                                                                                      | No                                             |
-| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete                                                                                             | No                                             |
+| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica              | No                                             |
+| `permisos`     | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
+| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                    | No                                             |
+| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                 | No                                             |
 | `carreras`     | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                           | No                                             |
 | `materias`     | Catálogo. Es también la unidad de "cátedra"                                                                                                                                                | No                                             |
 
+`identity.roles.is_active` es el estado operativo del rol. Las consultas de catálogo, creación,
+edición, roles base, asignaciones nuevas y resolución de permisos sólo consideran roles activos.
+`DELETE /api/administracion/roles/{id}` no elimina filas: exige la `version` vigente, marca
+`is_active = false`, conserva `rol_permisos` y `user_roles`, y nunca permite desactivar roles de
+sistema. El código generado de un rol personalizado no cambia al renombrarlo; la combinación del
+nombre entre roles activos debe ser única. Los permisos de los roles de sistema sí son mutables
+porque integran la autorización persistida de las pantallas.
+
+Un Alta puede insertar una fila en `identity.personas` sin fila asociada en
+`identity.users` ni legajo. La operación pública `IAdministracionIdentity` de
+`ArsDocendi.Shared.Identity.Administracion` delega esa escritura en
+`ServicioPersonas`; la unicidad de `documento` y el trigger de auditoría siguen
+siendo autoridad. `VinculadorPrimerLogin` reutiliza esa persona por documento y
+recién entonces vincula la cuenta.
+
 ### Designaciones (`schema: designaciones`)
 
-| Tabla              | Descripción                                                                                                                   | PII |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | --- |
-| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                | No  |
-| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                              | No  |
-| `pedidos`          | **El trámite.** Cubre exactamente una materia; `snapshot` congela los datos vigentes al enviar                                | No  |
-| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                          | No  |
-| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                     | No  |
-| `designaciones`    | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia. `origen_pedido_id` NULL = carga administrativa directa | No  |
+La migración `20260907000000_CatalogoDedicaciones` incorpora el catálogo auditado
+`dedicaciones`: UUID, código único 1–6, nombre, orden único, activo y `created_at`.
+`pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id` lo referencian
+mediante FK nullable. La migración vincula únicamente los textos exactos Categoría
+1 a 6; conserva Categoría 0 y los snapshots históricos sin recategorizarlos.
+La migración `20260907000100_SeleccionDedicaciones` impide insertar texto libre
+o cambiar los textos legados. Nuevas designaciones y solicitudes Alta/Cambio
+requieren una referencia activa; una actualización sin cambio de dedicación
+conserva el valor histórico, incluso si su categoría fue desactivada.
+
+`pedidos` conserva por separado las horas solicitadas de materia,
+investigación y externas, además del `snapshot` congelado al enviar. En
+`designaciones`, `horas` es la carga de materia y `horas_investigacion` /
+`horas_externas` son cargas complementarias nullable: `NULL` significa que el
+valor vigente es desconocido. Las designaciones resultantes de un pedido
+aprobado recuperan esas dos cargas cuando el origen está identificado;
+continuidades y cargas administrativas pueden conservarlas en `NULL`.
+
+Cada pedido conserva una sola `materia_id`. Para Alta, las opciones salen de las
+materias activas del ámbito `jefe_catedra`; para Baja y Cambio, el frontend muestra
+la intersección entre ese ámbito y las designaciones vigentes del docente. El
+backend vuelve a validar el UUID y, para Baja/Cambio, exige la designación vigente
+de la misma pareja `(persona_id, materia_id)` antes de crear, editar o enviar.
+
+| Tabla              | Descripción                                                                                                                     | PII |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `cargos`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional                                                  | No  |
+| `periodos`         | Ventana de carga + rango de impacto. A lo sumo uno activo (índice único parcial)                                                | No  |
+| `dedicaciones`     | Catálogo activo de Categorías 1–6; conserva referencias históricas si una categoría se desactiva                                | No  |
+| `pedidos`          | **El trámite.** Cubre exactamente una materia; dedicación y las tres horas solicitadas; `snapshot` congela al enviar            | No  |
+| `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
+| `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
+| `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
 
 ### Portal (`schema: portal`)
 
@@ -422,7 +462,7 @@ Es idempotente (`Database.Migrate()`), así que re-ejecutarlo sobre una base ya 
 
 El dataset de ejemplo no productivo vive en [`infra/scripts/seed-data/sintetico.sql`](../../infra/scripts/seed-data/sintetico.sql). Es una fuente transversal explícita, no una migración EF ni un inicializador de módulo. `infra/scripts/seed.sh <ambiente>` lo aplica sólo después de migrar la base.
 
-- `public.seed_metadata` registra `dataset_version` (`2026.08.1`), origen y última ejecución.
+- `public.seed_metadata` registra `dataset_version` (`2026.09.1`), origen y última ejecución.
 - `public.seed_identities` marca exactamente qué cuentas pueden usarse con la autenticación de desarrollo.
 - UUIDs reservados relacionan personas, cuentas, roles y ámbitos con carreras, materias, cargos, períodos, pedidos, historial y designaciones vigentes.
 - Una transacción y un advisory lock vuelven atómica la ejecución y serializan reintentos concurrentes.

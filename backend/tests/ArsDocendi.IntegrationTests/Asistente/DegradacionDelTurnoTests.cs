@@ -18,7 +18,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// —cuántas llamadas salieron, cuántas se cobraron, qué estado quedó— es
 /// determinista.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_degradacion")
 {

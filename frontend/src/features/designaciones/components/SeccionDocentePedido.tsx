@@ -1,11 +1,11 @@
-import { Field, Select } from "@ars-docendi/ui";
+import { Field, Input, Select } from "@ars-docendi/ui";
 import type {
   Cargo,
   Dedicacion,
   DocenteExistente,
   DocentePedido,
+  MateriaPedido,
   Novedad,
-  PersonaCatalogoPedido,
 } from "../types";
 import { formatearDni } from "../api/catalogos";
 import { DatosActualesPanel } from "./DatosActualesPanel";
@@ -15,55 +15,47 @@ interface SeccionDocentePedidoProps {
   novedad: Novedad;
   docente: DocentePedido;
   errorDocente?: string;
-  /** Catálogo de docentes seleccionables (novedades sobre docente existente). */
   opcionesDocente: DocenteExistente[];
-  personasAlta: PersonaCatalogoPedido[];
+  materias: MateriaPedido[];
+  materiaId?: string;
+  errorMateria?: string;
   cargoActual: Cargo | null;
-  /** Cambio: cargo solicitado, para mostrar la transición en el panel. */
   cargoSolicitado?: Cargo;
   dedicacionActual: Dedicacion | null;
-  /** Cambio: dedicación solicitada, para mostrar la transición en el panel. */
   dedicacionSolicitada?: Dedicacion;
-  /** La cátedra del pedido: un pedido cubre exactamente una materia. */
   materia: string;
-  /** Horas vigentes del docente en esa cátedra. */
-  horasActuales?: number;
-  /** Cambio: horas tal como quedan editadas en el form. */
+  horasActuales?: number | null;
   horasSolicitadas?: number;
-  horasInvestigacionActuales?: number;
+  horasInvestigacionActuales?: number | null;
   horasInvestigacionSolicitadas?: number;
-  horasExternasActuales?: number;
+  horasExternasActuales?: number | null;
   horasExternasSolicitadas?: number;
-  /** Selección de un docente existente por DNI. */
   onSeleccionarDocente: (dni: string) => void;
-  onSeleccionarPersonaAlta: (personaId: string) => void;
+  onCambiarPersona: (campo: "dni" | "nombrePersona" | "apellido", valor: string) => void;
+  onSeleccionarMateria: (materiaId: string) => void;
 }
 
-/** Nota contextual bajo el encabezado de la sección, según la novedad. */
 function notaDocente(novedad: Novedad): string {
   switch (novedad) {
     case "Alta":
-      return "Seleccioná una persona registrada sin designación vigente y adjuntá la documentación obligatoria.";
+      return "Ingresá los datos de la persona nueva y adjuntá la documentación obligatoria.";
     case "Baja":
       return "Seleccioná el docente que se da de baja. Sus datos actuales son de solo lectura.";
     case "Cambio de cargo o dedicación":
-      return "Editás una designación existente. Los datos actuales del docente provienen del sistema (solo lectura); modificá solo lo que solicitás cambiar.";
+      return "Editás una designación existente. Los datos actuales provienen del sistema; modificá sólo lo que solicitás cambiar.";
     default:
       return "Seleccioná el docente. Sus datos actuales provienen del sistema (solo lectura).";
   }
 }
 
-/**
- * Sección "Datos del docente". En Alta ofrece personas canónicas sin designación;
- * en el resto es un selector de docente existente + panel de datos
- * actuales en solo lectura (en Cambio, resumen de cambios — ver D-8).
- */
 export function SeccionDocentePedido({
   novedad,
   docente,
   errorDocente,
   opcionesDocente,
-  personasAlta,
+  materias,
+  materiaId,
+  errorMateria,
   cargoActual,
   cargoSolicitado,
   dedicacionActual,
@@ -76,11 +68,13 @@ export function SeccionDocentePedido({
   horasExternasActuales,
   horasExternasSolicitadas,
   onSeleccionarDocente,
-  onSeleccionarPersonaAlta,
+  onCambiarPersona,
+  onSeleccionarMateria,
 }: SeccionDocentePedidoProps) {
   const esAlta = novedad === "Alta";
   const esBaja = novedad === "Baja";
-  const muestraDatosActuales = Boolean(docente.dni && cargoActual && dedicacionActual);
+  const muestraMateria = esAlta ? true : Boolean(docente.dni);
+  const muestraDatosActuales = Boolean(docente.dni && materiaId && cargoActual && dedicacionActual);
 
   return (
     <section className="adoc-pf-sec">
@@ -88,52 +82,76 @@ export function SeccionDocentePedido({
       <p className="adoc-pf-note">{notaDocente(novedad)}</p>
 
       {esAlta ? (
-        <Field label="Persona" error={errorDocente}>
-          <Select
-            value={personasAlta.find((persona) => persona.dni === docente.dni)?.id ?? ""}
-            onChange={(e) => onSeleccionarPersonaAlta(e.target.value)}
-          >
-            <option value="">Seleccioná una persona…</option>
-            {personasAlta.map((persona) => (
-              <option key={persona.id} value={persona.id}>
-                {persona.nombre} · DNI {formatearDni(persona.dni)}
+        <div className="adoc-pf-row">
+          <Field label="DNI" error={errorDocente}>
+            <Input value={docente.dni} onChange={(e) => onCambiarPersona("dni", e.target.value)} />
+          </Field>
+          <Field label="Nombre">
+            <Input
+              value={docente.nombrePersona ?? ""}
+              onChange={(e) => onCambiarPersona("nombrePersona", e.target.value)}
+            />
+          </Field>
+          <Field label="Apellido">
+            <Input
+              value={docente.apellido ?? ""}
+              onChange={(e) => onCambiarPersona("apellido", e.target.value)}
+            />
+          </Field>
+        </div>
+      ) : (
+        <Field label="Docente" error={errorDocente}>
+          <Select value={docente.dni} onChange={(e) => onSeleccionarDocente(e.target.value)}>
+            <option value="">Seleccioná un docente…</option>
+            {opcionesDocente.map((item) => (
+              <option key={item.personaId} value={item.dni}>
+                {item.nombre} · DNI {formatearDni(item.dni)}
               </option>
             ))}
           </Select>
         </Field>
-      ) : (
-        <>
-          <Field label="Docente" error={errorDocente}>
-            <Select value={docente.dni} onChange={(e) => onSeleccionarDocente(e.target.value)}>
-              <option value="">Seleccioná un docente…</option>
-              {opcionesDocente.map((item) => (
-                <option key={item.dni} value={item.dni}>
-                  {item.nombre} · DNI {formatearDni(item.dni)}
+      )}
+
+      {muestraMateria && (
+        <Field label="Materia" error={errorMateria}>
+          {materias.length === 1 ? (
+            <output className="adoc-pf-readonly">{materias[0].nombre}</output>
+          ) : (
+            <Select value={materiaId ?? ""} onChange={(e) => onSeleccionarMateria(e.target.value)}>
+              <option value="">Seleccioná una materia…</option>
+              {materias.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.nombre}
                 </option>
               ))}
             </Select>
-          </Field>
-          {muestraDatosActuales && cargoActual && dedicacionActual && (
-            <DatosActualesPanel
-              antiguedad={docente.antiguedad}
-              cargoActual={cargoActual}
-              cargoSolicitado={cargoSolicitado}
-              dedicacionActual={dedicacionActual}
-              dedicacionSolicitada={dedicacionSolicitada}
-              materia={materia}
-              horasActuales={horasActuales}
-              horasSolicitadas={horasSolicitadas}
-              mostrarMateria={novedad === "Sin novedad"}
-              horasInvestigacionActuales={horasInvestigacionActuales}
-              horasInvestigacionSolicitadas={horasInvestigacionSolicitadas}
-              horasExternasActuales={horasExternasActuales}
-              horasExternasSolicitadas={horasExternasSolicitadas}
-            />
           )}
-          {muestraDatosActuales && esBaja && (
-            <SeccionMateriaHoras materia={materia} horas={horasActuales ?? 0} />
-          )}
-        </>
+        </Field>
+      )}
+
+      {!esAlta && muestraDatosActuales && (
+        <DatosActualesPanel
+          antiguedad={docente.antiguedad}
+          cargoActual={cargoActual ?? ""}
+          cargoSolicitado={cargoSolicitado}
+          dedicacionActual={dedicacionActual ?? ""}
+          dedicacionSolicitada={dedicacionSolicitada}
+          materia={materia}
+          horasActuales={horasActuales}
+          horasSolicitadas={horasSolicitadas}
+          mostrarMateria={novedad === "Sin novedad"}
+          horasInvestigacionActuales={horasInvestigacionActuales}
+          horasInvestigacionSolicitadas={horasInvestigacionSolicitadas}
+          horasExternasActuales={horasExternasActuales}
+          horasExternasSolicitadas={horasExternasSolicitadas}
+        />
+      )}
+      {!esAlta && muestraDatosActuales && esBaja && (
+        <SeccionMateriaHoras
+          materia={materia}
+          etiquetaMateria="Materia seleccionada"
+          horas={horasActuales ?? 0}
+        />
       )}
     </section>
   );

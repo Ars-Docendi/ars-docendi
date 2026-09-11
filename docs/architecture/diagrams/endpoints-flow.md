@@ -5,12 +5,12 @@ flowchart LR
     subgraph Frontend["Frontend API adapters"]
         UsersUI["/usuarios"]
         TeachersUI["/docentes"]
-        RolesUI["/roles<br/>/membresia-roles"]
+        RolesUI["/roles<br/>(ruta histórica redirige)"]
         RequestsUI["/designaciones/*"]
         EmptyUI["/aulas<br/>/portal<br/>/tareas"]
     end
 
-    Auth["RequireAuth / role guards<br/>Axios apiClient"]
+    Auth["RequireAuth / permission guards<br/>Axios apiClient"]
     Policies["ASP.NET authorization policies"]
 
     subgraph Controllers["HTTP surface"]
@@ -19,6 +19,7 @@ flowchart LR
         RolesAPI["/api/administracion/roles*<br/>/permisos"]
         RequestsAPI["/api/designaciones/pedidos*"]
         PeriodsAPI["/api/designaciones/periodos*"]
+        BatchAPI["/api/designaciones/periodos/{id}/lote.xlsx"]
         DesignationCatalogs["/api/designaciones/catalogos"]
         Pings["/{aulas|portal|tareas|designaciones}/ping"]
         DevAPI["/api/desarrollo/identidades<br/>development only"]
@@ -29,6 +30,7 @@ flowchart LR
         TeacherService["ServicioDocentes"]
         RequestService["ServicioPedidosApi<br/>ServicioPedidos<br/>state machine"]
         PeriodService["ServicioPeriodos"]
+        BatchService["ServicioLoteDesignaciones"]
         CatalogService["ServicioCatalogosDesignaciones"]
         DesignationContract["IAdministracionDesignaciones<br/>public module contract"]
     end
@@ -48,6 +50,7 @@ flowchart LR
     RequestsUI --> Auth
     Auth --> RequestsAPI
     Auth --> PeriodsAPI
+    Auth --> BatchAPI
     Auth --> DesignationCatalogs
 
     UsersAPI --> Policies --> UserServices
@@ -55,6 +58,7 @@ flowchart LR
     TeachersAPI --> Policies --> TeacherService
     RequestsAPI --> Policies --> RequestService
     PeriodsAPI --> Policies --> PeriodService
+    BatchAPI --> Policies --> BatchService
     DesignationCatalogs --> Policies --> CatalogService
 
     UserServices --> IdentityRepos --> IdentityDB

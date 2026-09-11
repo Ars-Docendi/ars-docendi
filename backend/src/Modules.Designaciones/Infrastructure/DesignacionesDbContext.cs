@@ -19,6 +19,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
 {
     public const string Schema = "designaciones";
 
+    public DbSet<Dedicacion> Dedicaciones => Set<Dedicacion>();
     public DbSet<Cargo> Cargos => Set<Cargo>();
     public DbSet<Periodo> Periodos => Set<Periodo>();
     public DbSet<Pedido> Pedidos => Set<Pedido>();
@@ -39,6 +40,19 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Codigo).HasColumnName("codigo");
             e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Abreviatura).HasColumnName("abreviatura");
+            e.Property(x => x.Orden).HasColumnName("orden");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.HasIndex(x => x.Codigo).IsUnique();
+        });
+
+        modelBuilder.Entity<Dedicacion>(e =>
+        {
+            e.ToTable("dedicaciones", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Codigo).HasColumnName("codigo");
+            e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Orden).HasColumnName("orden");
             e.Property(x => x.Activo).HasColumnName("activo");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
@@ -74,6 +88,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Prioritario).HasColumnName("prioritario");
             e.Property(x => x.CargoSolicitadoId).HasColumnName("cargo_solicitado_id");
             e.Property(x => x.DedicacionSolicitada).HasColumnName("dedicacion_solicitada");
+            e.Property(x => x.DedicacionSolicitadaId).HasColumnName("dedicacion_solicitada_id");
+            e.HasOne(x => x.DedicacionSolicitadaCatalogo).WithMany().HasForeignKey(x => x.DedicacionSolicitadaId);
             e.Property(x => x.Horas).HasColumnName("horas");
             e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
             e.Property(x => x.HorasExternas).HasColumnName("horas_externas");
@@ -138,7 +154,11 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.MateriaId).HasColumnName("materia_id");
             e.Property(x => x.CargoId).HasColumnName("cargo_id");
             e.Property(x => x.Dedicacion).HasColumnName("dedicacion");
+            e.Property(x => x.DedicacionId).HasColumnName("dedicacion_id");
+            e.HasOne(x => x.DedicacionCatalogo).WithMany().HasForeignKey(x => x.DedicacionId);
             e.Property(x => x.Horas).HasColumnName("horas");
+            e.Property(x => x.HorasInvestigacion).HasColumnName("horas_investigacion");
+            e.Property(x => x.HorasExternas).HasColumnName("horas_externas");
             e.Property(x => x.VigenteDesde).HasColumnName("vigente_desde");
             e.Property(x => x.VigenteHasta).HasColumnName("vigente_hasta");
             e.Property(x => x.OrigenPedidoId).HasColumnName("origen_pedido_id");

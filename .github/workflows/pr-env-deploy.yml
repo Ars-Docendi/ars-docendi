@@ -18,9 +18,13 @@ on:
     # ambiente efímero. No reemplaza los gates, los complementa.
     paths:
       - "backend/**"
+      - "!backend/**/*.md"
       - "frontend/**"
+      - "!frontend/**/*.md"
       - "infra/**"
+      - "!infra/**/*.md"
       - "database/**"
+      - "!database/**/*.md"
       - "global.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -76,7 +80,7 @@ jobs:
       ASISTENTE_CLAVE: ${{ secrets.ASISTENTE__CLAVEDELPROVEEDOR }}
     steps:
       # Checkout del código del PR (el SHA del head) — recién acá, post-gate.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 

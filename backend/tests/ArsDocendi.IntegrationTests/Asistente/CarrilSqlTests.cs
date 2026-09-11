@@ -20,7 +20,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// El gate de la épica es el primer test: una pregunta de cobertura de cátedra
 /// responde correctamente y acotada al alcance del actor.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class CarrilSqlTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_carril")
 {

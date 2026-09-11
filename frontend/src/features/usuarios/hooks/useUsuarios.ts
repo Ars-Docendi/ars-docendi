@@ -27,14 +27,14 @@ export function useUsuarios() {
     crear: useMutation({
       mutationFn: (datos: Parameters<typeof crearUsuario>[0]) => {
         if (!catalogos.data) throw new Error("Los catálogos todavía no están disponibles.");
-        return crearUsuario(datos, catalogos.data);
+        return crearUsuario(datos);
       },
       onSuccess: invalidar,
     }),
     editar: useMutation({
       mutationFn: ({ id, datos }: { id: string; datos: Parameters<typeof editarUsuario>[1] }) => {
         if (!catalogos.data) throw new Error("Los catálogos todavía no están disponibles.");
-        return editarUsuario(id, datos, catalogos.data);
+        return editarUsuario(id, datos);
       },
       onSuccess: invalidar,
     }),

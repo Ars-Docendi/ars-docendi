@@ -18,6 +18,11 @@
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
+    <ProjectReference Include="..\Modules.Portal.Contracts\Modules.Portal.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\planilla_designaciones.xlsx" />
   </ItemGroup>
 
   <!--

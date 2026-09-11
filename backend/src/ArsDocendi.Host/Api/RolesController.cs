@@ -37,6 +37,14 @@ public sealed class RolesController(ServicioRoles servicio) : ControllerBase
         EditarRolDto datos,
         CancellationToken ct) => servicio.EditarAsync(id, datos, ct);
 
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Permisos.RolesAdministrar)]
+    public async Task<IActionResult> Eliminar(Guid id, EliminarRolDto datos, CancellationToken ct)
+    {
+        await servicio.EliminarAsync(id, datos, ct);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/permisos")]
     [Authorize(Policy = Permisos.RolesVer)]
     public async Task<IReadOnlyList<PermisoAdministracionDto>> ObtenerPermisos(

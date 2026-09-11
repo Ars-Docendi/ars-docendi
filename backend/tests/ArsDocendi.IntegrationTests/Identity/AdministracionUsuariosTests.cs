@@ -1,18 +1,27 @@
+using ArsDocendi.Host.Administracion;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.EntityFrameworkCore;
+using Modules.Designaciones.Contracts.Administracion;
+using Modules.Designaciones.Repositories;
+using Modules.Designaciones.Services;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Identity;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "admin_usuarios")
 {
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
+    private static readonly Guid RolDocente = Guid.Parse("a1000000-0000-4000-8000-000000000001");
     private static readonly Guid RolJefe = Guid.Parse("a1000000-0000-4000-8000-000000000002");
+    private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid MateriaB = Guid.Parse("70000000-0000-4000-8000-000000000102");
+    private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid CargoTitular = Guid.Parse("c3000000-0000-4000-8000-000000000001");
+    private static readonly Guid DedicacionSimple = Guid.Parse("d6000000-0000-4000-8000-000000000001");
 
     [Fact]
     public async Task Listado_incluye_persona_roles_y_ambitos_sin_tracking()
@@ -53,7 +62,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         var servicio = CrearServicio(db);
         var datos = DatosValidos("scope@unlam.edu.ar", "50222333") with
         {
-            Roles = [new GuardarAsignacionRolDto(RolJefe)],
+            Membresias = [new GuardarAsignacionRolDto(RolJefe)],
         };
 
         var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CrearAsync(datos, ct));
@@ -74,7 +83,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         {
             Nombre = "Nombre cambiado",
             Version = creado.Version,
-            Roles = [new GuardarAsignacionRolDto(RolJefe)],
+            Membresias = [new GuardarAsignacionRolDto(RolJefe)],
         };
 
         await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.EditarAsync(creado.Id, invalido, ct));
@@ -118,6 +127,164 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         Assert.Equal("identity-document-conflict", error.Codigo);
         Assert.False(await db.Usuarios.AnyAsync(u => u.Upn == "segunda@unlam.edu.ar", ct));
         Assert.Equal(1, await db.Personas.CountAsync(p => p.Documento == "50666777", ct));
+    }
+
+    [Fact]
+    public async Task Legajo_duplicado_devuelve_conflicto_estable()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        await servicio.CrearAsync(DatosValidos("legajo1@unlam.edu.ar", "50888999") with { Legajo = "LEG-1" }, ct);
+
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CrearAsync(
+            DatosValidos("legajo2@unlam.edu.ar", "50999000") with { Legajo = "LEG-1" }, ct));
+
+        Assert.Equal("identity-file-number-conflict", error.Codigo);
+        Assert.False(await db.Usuarios.AnyAsync(u => u.Upn == "legajo2@unlam.edu.ar", ct));
+    }
+
+    [Fact]
+    public async Task Membresia_repetida_no_escribe_usuario()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var datos = DatosValidos("duplicada@unlam.edu.ar", "50999111") with
+        {
+            Membresias =
+            [
+                new GuardarAsignacionRolDto(RolSecretaria),
+                new GuardarAsignacionRolDto(RolSecretaria),
+            ],
+        };
+
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() => servicio.CrearAsync(datos, ct));
+
+        Assert.Equal("identity-role-scope-conflict", error.Codigo);
+        Assert.False(await db.Usuarios.AnyAsync(u => u.Upn == datos.Upn, ct));
+    }
+
+    [Fact]
+    public async Task PUT_con_version_obsoleta_detecta_concurrencia_y_conserva_el_estado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Guid id;
+        uint version;
+        await using (var inicial = PostgresFixture.CrearIdentity(Cadena))
+        {
+            var creado = await CrearServicio(inicial).CrearAsync(
+                DatosValidos("put-concurrencia@unlam.edu.ar", "50999222"), ct);
+            id = creado.Id;
+            version = creado.Version;
+        }
+
+        await using (var primero = PostgresFixture.CrearIdentity(Cadena))
+        {
+            await CrearServicio(primero).EditarAsync(id, DatosValidos(
+                "put-concurrencia@unlam.edu.ar", "50999222") with
+            {
+                Nombre = "Primer cambio",
+                Version = version,
+            }, ct);
+        }
+
+        await using (var segundo = PostgresFixture.CrearIdentity(Cadena))
+        {
+            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => CrearServicio(segundo).EditarAsync(
+                id, DatosValidos("put-concurrencia@unlam.edu.ar", "50999222") with
+                {
+                    Nombre = "Cambio obsoleto",
+                    Version = version,
+                }, ct));
+        }
+
+        await using var verificacion = PostgresFixture.CrearIdentity(Cadena);
+        Assert.Equal("Primer cambio", (await CrearServicio(verificacion).ObtenerAsync(id, ct)).Nombre);
+    }
+
+    [Fact]
+    public async Task Edicion_reemplaza_la_membresia_del_usuario()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var creado = await servicio.CrearAsync(
+            DatosValidos("put-rol@unlam.edu.ar", "50999223"), ct);
+
+        var editado = await servicio.EditarAsync(creado.Id, DatosValidos(
+            "put-rol@unlam.edu.ar", "50999223") with
+        {
+            Version = creado.Version,
+            Membresias = [new GuardarAsignacionRolDto(RolDocente, Materia, Carrera)],
+        }, ct);
+
+        Assert.Single(editado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia);
+        Assert.DoesNotContain(editado.Membresias, m => m.Codigo == "secretaria");
+    }
+
+    [Fact]
+    public async Task Una_cuenta_puede_combinar_roles_docentes_por_materia()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = CrearServicio(db);
+        var creado = await servicio.CrearAsync(DatosValidos("mixta@unlam.edu.ar", "50999333") with
+        {
+            Membresias =
+            [
+                new GuardarAsignacionRolDto(RolDocente, Materia, Carrera),
+                new GuardarAsignacionRolDto(RolJefe, MateriaB, Carrera),
+            ],
+        }, ct);
+
+        Assert.Equal(["docente", "jefe_catedra"], creado.Roles.Select(r => r.Codigo).Order());
+        Assert.Equal(
+            [("docente", Materia), ("jefe_catedra", MateriaB)],
+            creado.Membresias.Select(m => (m.Codigo, m.MateriaId)).OrderBy(m => m.Codigo));
+    }
+
+    [Fact]
+    public async Task Gustavo_conserva_tres_membresias_y_un_rol_resumido()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+
+        var gustavo = Assert.Single(
+            await CrearServicio(db).ListarAsync(ct),
+            u => u.Upn == "gustavo.ruiz@unlam.edu.ar");
+
+        Assert.Single(gustavo.Roles, r => r.Codigo == "jefe_catedra");
+        Assert.Equal(3, gustavo.Membresias.Count);
+        Assert.Equal(3, gustavo.Membresias.Select(m => m.MateriaId).Distinct().Count());
+        Assert.True(gustavo.PerfilDocente.EsDocente);
+        Assert.Equal(3, gustavo.PerfilDocente.CantidadMaterias);
+    }
+
+    [Fact]
+    public async Task Perfil_docente_incluye_designacion_vigente_sin_membresia_docente()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        var creado = await CrearServicio(identity).CrearAsync(
+            DatosValidos("designacion@unlam.edu.ar", "50999444"), ct);
+        await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
+        var designaciones = new ServicioAdministracionDesignaciones(new RepositorioDesignaciones(modulo));
+        await designaciones.ReemplazarVigentesAsync(
+            creado.PersonaId,
+            [new GuardarDesignacionVigenteDto(Materia, CargoTitular, DedicacionSimple, 12)],
+            ct);
+
+        var usuario = Assert.Single(
+            await new ServicioUsuariosAdministracion(CrearServicio(identity), designaciones).ListarAsync(ct),
+            u => u.Id == creado.Id);
+
+        Assert.True(usuario.PerfilDocente.EsDocente);
+        Assert.Equal(1, usuario.PerfilDocente.CantidadMaterias);
     }
 
     [Fact]

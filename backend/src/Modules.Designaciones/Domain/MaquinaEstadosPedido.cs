@@ -59,6 +59,13 @@ public static class MaquinaEstadosPedido
                 $"El pedido está en un estado terminal (\"{pedido.Estado}\"): no admite ninguna acción.");
         }
 
+        if (pedido.Novedad == Novedades.SinNovedad
+            && accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
+        {
+            throw new ErrorDominioPedido(
+                "Los pedidos legados Sin novedad deben editarse con una novedad admitida antes de continuar.");
+        }
+
         return accion switch
         {
             AccionPedido.Enviar => Enviar(pedido, actor),

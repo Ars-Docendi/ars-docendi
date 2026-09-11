@@ -12,7 +12,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// trayectoria ajena, y la resolución de a qué persona corresponde el actor del
 /// turno.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PermisoYPersonaPortalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_portal_identity")
 {

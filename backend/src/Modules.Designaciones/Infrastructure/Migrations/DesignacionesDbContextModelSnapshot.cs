@@ -18,7 +18,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("designaciones")
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -68,8 +68,108 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Modules.Designaciones.Domain.ComandoIdempotente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<Guid>("Clave")
+                        .HasColumnType("uuid")
+                        .HasColumnName("clave");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("PedidoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pedido_id");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResponseBody")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("response_body");
+
+                    b.Property<string>("Ruta")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ruta");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId", "Ruta", "Clave")
+                        .IsUnique();
+
+                    b.ToTable("idempotencia_comandos", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Modules.Designaciones.Domain.Dedicacion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activo");
+
+                    b.Property<short>("Codigo")
+                        .HasColumnType("smallint")
+                        .HasColumnName("codigo");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<short>("Orden")
+                        .HasColumnType("smallint")
+                        .HasColumnName("orden");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("dedicaciones", "designaciones", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Modules.Designaciones.Domain.Designacion", b =>
                 {
+                    b.Property<int?>("HorasInvestigacion")
+                        .HasColumnType("integer")
+                        .HasColumnName("horas_investigacion");
+
+                    b.Property<int?>("HorasExternas")
+                        .HasColumnType("integer")
+                        .HasColumnName("horas_externas");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -86,6 +186,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<string>("Dedicacion")
                         .HasColumnType("text")
                         .HasColumnName("dedicacion");
+
+                    b.Property<Guid?>("DedicacionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dedicacion_id");
 
                     b.Property<int>("Horas")
                         .HasColumnType("integer")
@@ -115,6 +219,8 @@ namespace Modules.Designaciones.Infrastructure.Migrations
 
                     b.HasIndex("CargoId");
 
+                    b.HasIndex("DedicacionId");
+
                     b.ToTable("designaciones", "designaciones", t =>
                         {
                             t.ExcludeFromMigrations();
@@ -139,6 +245,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<string>("DedicacionSolicitada")
                         .HasColumnType("text")
                         .HasColumnName("dedicacion_solicitada");
+
+                    b.Property<Guid?>("DedicacionSolicitadaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dedicacion_solicitada_id");
 
                     b.Property<string>("Estado")
                         .IsRequired()
@@ -207,9 +317,17 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("tipo_baja_detalle");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CargoSolicitadoId");
+
+                    b.HasIndex("DedicacionSolicitadaId");
 
                     b.HasIndex("Numero")
                         .IsUnique();
@@ -344,6 +462,12 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("nombre");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.ToTable("periodos", "designaciones", t =>
@@ -360,7 +484,13 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Modules.Designaciones.Domain.Dedicacion", "DedicacionCatalogo")
+                        .WithMany()
+                        .HasForeignKey("DedicacionId");
+
                     b.Navigation("Cargo");
+
+                    b.Navigation("DedicacionCatalogo");
                 });
 
             modelBuilder.Entity("Modules.Designaciones.Domain.Pedido", b =>
@@ -369,6 +499,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CargoSolicitadoId");
 
+                    b.HasOne("Modules.Designaciones.Domain.Dedicacion", "DedicacionSolicitadaCatalogo")
+                        .WithMany()
+                        .HasForeignKey("DedicacionSolicitadaId");
+
                     b.HasOne("Modules.Designaciones.Domain.Periodo", "Periodo")
                         .WithMany()
                         .HasForeignKey("PeriodoId")
@@ -376,6 +510,8 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("CargoSolicitado");
+
+                    b.Navigation("DedicacionSolicitadaCatalogo");
 
                     b.Navigation("Periodo");
                 });

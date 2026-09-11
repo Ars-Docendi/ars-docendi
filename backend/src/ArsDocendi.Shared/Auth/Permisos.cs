@@ -15,6 +15,7 @@ public static class Permisos
     public const string DesignacionesAprobarSecretaria = "designaciones.aprobar_secretaria";
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
+    public const string DocentesVer = "docentes.ver";
 
     /// <summary>
     /// Admisión al asistente conversacional. Se administra desde la membresía de
@@ -45,6 +46,8 @@ public static class Permisos
         DesignacionesAprobarCoordinacion,
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
+        DesignacionesRevisar,
+        DocentesVer,
         AsistenteConsultar,
         AsistenteVerConsulta,
     ];

@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Breadcrumbs, Field, InlineAlert, Select } from "@ars-docendi/ui";
+import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
 import { PedidoForm } from "../components/PedidoForm";
 import { useMisPedidos, usePedido } from "../hooks/usePedidos";
 import {
@@ -10,7 +9,7 @@ import {
   useReenviarPedido,
 } from "../hooks/useAccionesPedido";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
-import { docentesDesdeCatalogo, personasDesdeCatalogo } from "../api/catalogos";
+import { docentesDesdeCatalogo } from "../api/catalogos";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
@@ -33,10 +32,6 @@ export function PedidoFormPage() {
   const editar = useEditarPedido();
   const enviar = useEnviarPedido();
   const reenviar = useReenviarPedido();
-  const [materiaSeleccionadaId, setMateriaSeleccionadaId] = useState("");
-  const materiaSeleccionada =
-    catalogos.data?.materias.find((materia) => materia.id === materiaSeleccionadaId) ??
-    catalogos.data?.materias[0];
   const rutaRetorno = esEdicion && id ? `/designaciones/pedidos/${id}` : RUTA_MIS_PEDIDOS;
 
   function volver() {
@@ -53,7 +48,6 @@ export function PedidoFormPage() {
             version: pedidoInicial?.version,
             periodoId: pedidoInicial?.periodoId,
             personaId: pedidoInicial?.personaId,
-            materiaId: pedidoInicial?.materiaId,
           },
         },
         {
@@ -68,18 +62,15 @@ export function PedidoFormPage() {
         },
       );
     } else {
-      crear.mutate(
-        { ...datos, materiaId: materiaSeleccionada?.id },
-        {
-          onSuccess: (creado) => {
-            if (!opciones?.enviar) {
-              volver();
-              return;
-            }
-            enviar.mutate(creado.id, { onSuccess: volver });
-          },
+      crear.mutate(datos, {
+        onSuccess: (creado) => {
+          if (!opciones?.enviar) {
+            volver();
+            return;
+          }
+          enviar.mutate(creado.id, { onSuccess: volver });
         },
-      );
+      });
     }
   }
 
@@ -96,7 +87,7 @@ export function PedidoFormPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
           { label: esEdicion ? crumbEdicion : "Nuevo pedido" },
         ]}
@@ -125,34 +116,18 @@ export function PedidoFormPage() {
       )}
 
       {!esEdicion && catalogos.data && (
-        <>
-          <Field label="Materia del pedido">
-            <Select
-              value={materiaSeleccionada?.id ?? ""}
-              onChange={(event) => setMateriaSeleccionadaId(event.target.value)}
-            >
-              {catalogos.data.materias.map((materia) => (
-                <option key={materia.id} value={materia.id}>
-                  {materia.nombre}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <PedidoForm
-            key={materiaSeleccionada?.id}
-            catedra={materiaSeleccionada?.nombre ?? ""}
-            pedidosExistentes={pedidos ?? []}
-            periodoLabel={periodoLabel}
-            guardando={guardando}
-            onGuardar={handleGuardar}
-            onCancelar={volver}
-            docentes={docentesDesdeCatalogo(catalogos.data)}
-            personas={personasDesdeCatalogo(catalogos.data)}
-            cargos={catalogos.data.cargos.map((c) => c.nombre)}
-            dedicaciones={catalogos.data.dedicaciones}
-            tiposBaja={catalogos.data.tiposBaja}
-          />
-        </>
+        <PedidoForm
+          materias={catalogos.data.materias}
+          pedidosExistentes={pedidos ?? []}
+          periodoLabel={periodoLabel}
+          guardando={guardando}
+          onGuardar={handleGuardar}
+          onCancelar={volver}
+          docentes={docentesDesdeCatalogo(catalogos.data)}
+          cargos={catalogos.data.cargos.map((c) => c.nombre)}
+          dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
+          tiposBaja={catalogos.data.tiposBaja}
+        />
       )}
 
       {esEdicion &&
@@ -162,6 +137,7 @@ export function PedidoFormPage() {
           <PedidoForm
             pedidoInicial={pedidoInicial}
             catedra={pedidoInicial.catedra}
+            materias={catalogos.data.materias}
             pedidosExistentes={pedidos ?? []}
             esEdicion
             periodoLabel={periodoLabel}
@@ -169,9 +145,8 @@ export function PedidoFormPage() {
             onGuardar={handleGuardar}
             onCancelar={volver}
             docentes={docentesDesdeCatalogo(catalogos.data)}
-            personas={personasDesdeCatalogo(catalogos.data)}
             cargos={catalogos.data.cargos.map((c) => c.nombre)}
-            dedicaciones={catalogos.data.dedicaciones}
+            dedicaciones={catalogos.data.dedicaciones.map((d) => d.nombre)}
             tiposBaja={catalogos.data.tiposBaja}
           />
         )}

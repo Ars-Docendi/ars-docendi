@@ -87,7 +87,13 @@ de prod.
 
 ### Dataset sintético y autenticación de desarrollo
 
-Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.08.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project, elimina la base con `drop-db.sh`, la aprovisiona, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+
+Una falla de `down`, reset, migración o seed detiene `spin-up.sh` por
+`set -euo pipefail` y evita `up -d`; la recuperación de un ambiente descartable
+es corregir la versión y repetir el comando. En `prod` no se ejecutan `down`,
+`drop-db.sh` ni `seed.sh`; el rollback se hace con el backup y el despliegue
+conjunto de la versión anterior.
 
 La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
 
@@ -110,6 +116,25 @@ GitHub Actions sobre runners self-hosted **efímeros**:
 | `deploy-staging`  | push a `develop`            | build+push + spin-up `staging`                 |
 | `pr-env-deploy`   | PR open/synchronize (gated) | build+push del PR + spin-up `pr-N`             |
 | `pr-env-teardown` | PR closed                   | teardown `pr-N` (contenedores + DROP DATABASE) |
+
+Los filtros de CI separan las áreas ejecutables: Backend se selecciona por
+`backend/**`, `database/**` o `global.json`, excluyendo Markdown dentro de
+`backend/` y `database/`; los archivos de pnpm sólo seleccionan Frontend.
+Staging y `pr-N` aplican las mismas exclusiones Markdown a sus rutas positivas
+de código, infraestructura y base de datos, por lo que un cambio únicamente
+documental no construye ni despliega.
+
+Cuando Backend se selecciona, el job conserva el flujo completo de restore,
+build y suite de tests. Reutiliza de forma best-effort `~/.nuget/packages` con
+una clave que incluye runner, SDK, proyectos `.csproj` y lockfiles; un miss o
+fallo del cache no impide el restore normal. No se usa cache remoto Docker en
+estos workflows.
+
+Los filtros no cambian el aislamiento: cada deploy sigue construyendo ambas
+imágenes, etiquetándolas por SHA y ejecutando `spin-up` para su ambiente. El
+reset de bases descartables, el teardown de `pr-N`, los gates de maintainer,
+los runners efímeros y los secretos permanecen vigentes; `prod`, `staging` y
+cada `pr-N` conservan su Compose project y su base independiente.
 
 **Seguridad del flujo pr-N** (D8):
 

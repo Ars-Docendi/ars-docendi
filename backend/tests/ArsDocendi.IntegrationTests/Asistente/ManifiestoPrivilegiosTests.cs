@@ -15,7 +15,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// Los roles reales llevan sufijo por ambiente (y en los tests, uno por base), así que
 /// hay que traducirlos a los nombres lógicos del manifiesto antes de comparar.
 /// </summary>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ManifiestoPrivilegiosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_manifiesto")
 {

@@ -1,7 +1,7 @@
-import { RequireRole } from "../../shared/auth/RequireRole";
+import { RequirePermission } from "../../shared/auth/RequirePermission";
 
 export const routes = {
-  element: <RequireRole allowedRoles={["Secretaría", "Administración", "Jefe de Cátedra"]} />,
+  element: <RequirePermission permission="docentes.ver" />,
   children: [
     {
       path: "/docentes",

@@ -28,7 +28,7 @@ infra/
 │   ├── seed.sh               # siembra datos sintéticos (aborta si datos de prod)
 │   ├── drop-db.sh            # DROP DATABASE + DROP ROLE (solo staging/pr-N)
 │   ├── verificar-roles-asistente.sh  # test de humo read-only de los roles del asistente
-│   ├── spin-up.sh <env>      # provisiona + levanta + migra + siembra
+│   ├── spin-up.sh <env>      # reconstruye descartables, provisiona, migra, siembra y levanta
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
 │   └── seed-data/sintetico.sql
 ├── reaper/
@@ -366,14 +366,57 @@ curl -I https://staging.<dominio>/api/<modulo>/ping   # 200 (ruteo /api al backe
 > (`scripts/seed-data/sintetico.sql`) en todo ambiente **no-prod**. Regla dura:
 > `seed.sh` aborta si se le pide copiar la base de prod a un ambiente no-prod.
 
+### Reconstrucción y recuperación
+
+`spin-up.sh` ejecuta el siguiente orden en `staging` y `pr-N`: toma el lock del
+ambiente, detiene el Compose project, ejecuta `drop-db.sh`, aprovisiona una base
+nueva, corre `docker compose ... run --rm backend ... --migrate`, aplica
+`seed.sh` y recién entonces publica con `docker compose ... up -d`. Una falla
+interrumpe el script por `set -euo pipefail`, por lo que no se publica una
+versión cuya migración o seed no terminó.
+
+```bash
+infra/scripts/spin-up.sh staging
+docker compose -p staging -f infra/compose/compose.base.yml ps
+```
+
+Para recuperar un ambiente descartable después de una falla se corrige la
+imagen o migración y se repite el mismo comando; la base se vuelve a crear
+desde cero. El rollback de `prod` requiere restaurar el backup y desplegar la
+versión conjunta anterior de backend y frontend. `spin-up.sh prod` no ejecuta
+`down`, `drop-db.sh` ni `seed.sh`: sólo aprovisiona de forma idempotente,
+migra y publica.
+
 ### Operar y reejecutar el dataset sintético
 
-El SQL declara la versión `2026.08.1` en `public.seed_metadata` y usa UUIDs reservados, una transacción y un advisory lock. Puede ejecutarse nuevamente para restaurar las filas de ejemplo sin duplicarlas ni borrar registros ajenos:
+El SQL declara la versión `2026.09.1` en `public.seed_metadata` y usa UUIDs reservados, una transacción y un advisory lock. Puede ejecutarse nuevamente para restaurar las filas de ejemplo sin duplicarlas ni borrar registros ajenos:
 
 ```bash
 infra/scripts/seed.sh staging
 # o, dentro del flujo normal: infra/scripts/spin-up.sh staging
 ```
+
+Para verificar dos despliegues consecutivos sin tocar producción, se puede
+usar `staging` y una base vecina `pr-123`:
+
+```bash
+infra/scripts/spin-up.sh staging
+infra/scripts/spin-up.sh pr-123
+docker run --rm --network arsdocendi-datos \
+  -e PGPASSWORD="$PGPASSWORD" postgres:18-alpine psql \
+  -h "$PGHOST" -U "$PGUSER" -d arsdocendi_staging \
+  -c "INSERT INTO identity.personas (id, documento, nombre, apellido) VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'TEST-RESET', 'Fila', 'Temporal')"
+infra/scripts/spin-up.sh staging
+docker run --rm --network arsdocendi-datos \
+  -e PGPASSWORD="$PGPASSWORD" postgres:18-alpine psql \
+  -h "$PGHOST" -U "$PGUSER" -d arsdocendi_staging \
+  -c "SELECT count(*) FROM identity.personas WHERE id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'"
+```
+
+Resultado esperado: la consulta devuelve `0`, la versión `2026.09.1` y la
+numeración sintética vuelven a su estado inicial, mientras la base `pr-123`
+mantiene sus propias fixtures. `spin-up.sh` rechaza `prod` en los caminos de
+reset y seed.
 
 `SEED_SQL=/ruta/version.sql` selecciona explícitamente otro archivo. Nunca se debe invocar con `prod`; el script lo rechaza antes de abrir `psql`. Para usar las identidades sembradas en un Host local no productivo hay que optar además por `DevelopmentAuthentication__Enabled=true` (equivale a `DevelopmentAuthentication:Enabled` en configuración). En Compose se configura mediante `DEVELOPMENT_AUTHENTICATION_ENABLED=true`. Los bundles optimizados de staging/preview requieren también `--build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true`; los workflows no productivos fijan ambos valores. Production conserva ambos opt-ins en `false`, ignora los headers de desarrollo y no publica `/api/desarrollo/identidades`.
 

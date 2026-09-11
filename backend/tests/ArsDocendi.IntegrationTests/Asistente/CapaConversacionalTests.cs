@@ -17,7 +17,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// se le manda. La calidad de la reescritura es lo que mide el eje conversacional
 /// de la evaluación, y necesita un proveedor real.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class CapaConversacionalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_conversacion")
 {

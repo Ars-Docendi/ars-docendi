@@ -18,14 +18,15 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 
 ## Entidades principales
 
-| Entidad           | Descripción                                                                    | Schema/Tabla                     |
-| ----------------- | ------------------------------------------------------------------------------ | -------------------------------- |
-| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional | `designaciones.cargos`           |
-| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez             | `designaciones.periodos`         |
-| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra | `designaciones.pedidos`          |
-| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                           | `designaciones.pedido_adjuntos`  |
-| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario    | `designaciones.pedido_historial` |
-| `Designacion`     | **El estado vigente** `(persona, materia, cargo, horas)` con vigencia          | `designaciones.designaciones`    |
+| Entidad           | Descripción                                                                                 | Schema/Tabla                     |
+| ----------------- | ------------------------------------------------------------------------------------------- | -------------------------------- |
+| `Cargo`           | Catálogo único de cargos docentes. `orden` registra la jerarquía institucional              | `designaciones.cargos`           |
+| `Dedicacion`      | Catálogo seleccionable de Categorías 1–6; valores históricos fuera de catálogo sólo se leen | `designaciones.dedicaciones`     |
+| `Periodo`         | Ventana de carga + rango de impacto. A lo sumo uno activo a la vez                          | `designaciones.periodos`         |
+| `Pedido`          | **El trámite.** Cubre exactamente una materia — la cátedra del Jefe de Cátedra              | `designaciones.pedidos`          |
+| `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                        | `designaciones.pedido_adjuntos`  |
+| `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario                 | `designaciones.pedido_historial` |
+| `Designacion`     | **El estado vigente** `(persona, materia, cargo, dedicación y tres horas)` con vigencia     | `designaciones.designaciones`    |
 
 ### Pedido vs Designación
 
@@ -48,7 +49,7 @@ Aprobar un pedido se traduce a escrituras sobre `designaciones` en una única tr
 Alta        → INSERT de una designación nueva
 Baja        → UPDATE de vigente_hasta sobre la vigente
 Cambio      → cierra la vigente y abre una nueva con lo solicitado
-Sin novedad → no toca nada
+Continuidad → se conserva la designación vigente y no crea pedido
 ```
 
 `origen_pedido_id` en NULL significa **carga administrativa directa**: la pantalla de administración de docentes escribe esta misma tabla. Son dos caminos de escritura hacia una sola tabla, y esa columna es lo único que permite distinguirlos.
@@ -58,6 +59,13 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 ### Un pedido, una materia
 
 `identity.roles` define `jefe_catedra` con `scope = 'materia'`: cátedra **es** materia. Por eso el pedido lleva una sola `materia_id`, y la carrera se deriva de `identity.materias.carrera_id` en vez de desnormalizarse. Con una lista de N materias, un pedido podía abarcar dos carreras y dejar a dos Coordinadores compitiendo por él, sin que BR-designaciones-009 tuviera cómo resolverlo.
+
+El formulario resuelve la materia en contexto: Alta usa las materias activas del
+Jefe de Cátedra; Baja/Cambio intersectan esas materias con las designaciones
+vigentes del docente seleccionado. Una única opción se fija automáticamente y
+varias se eligen por UUID. El backend no confía en esa anticipación: valida el
+ámbito y exige `(persona_id, materia_id)` vigente para Baja/Cambio. Snapshot,
+horas y datos actuales se toman de esa designación, nunca de la primera del docente.
 
 ## API pública (contract)
 
@@ -72,14 +80,20 @@ El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF
 
 Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde una respuesta. Consume el contract **desde el Host** y no desde `Modules.Asistente`: la arista entre módulos es ARS-46 y todavía no está aprobada, así que el asistente declara un puerto y el composition root lo compone.
 
+Para un Alta de pedido, Designaciones consume por DI la frontera pública
+`IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en
+Shared y sólo crea la persona canónica; Designaciones no accede al `IdentityDbContext`
+ni a repositorios de Identity.
+
 ## Endpoints HTTP
 
-| Recurso            | Path                                       | Autoridad                                           |
-| ------------------ | ------------------------------------------ | --------------------------------------------------- |
-| Períodos           | `/api/designaciones/periodos`              | permiso `periodos.administrar`                      |
-| Catálogos acotados | `/api/designaciones/catalogos`             | identidad y ámbitos persistidos                     |
-| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`        | permisos y visibilidad resueltos por backend        |
-| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}` | máquina de estados, permiso de etapa e idempotencia |
+| Recurso            | Path                                         | Autoridad                                                           |
+| ------------------ | -------------------------------------------- | ------------------------------------------------------------------- |
+| Períodos           | `/api/designaciones/periodos`                | permiso `periodos.administrar`                                      |
+| Catálogos acotados | `/api/designaciones/catalogos`               | identidad y ámbitos persistidos                                     |
+| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`          | permisos y visibilidad resueltos por backend                        |
+| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`   | máquina de estados, permiso de etapa e idempotencia                 |
+| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx` | Secretaría, Decanato o Administración departamental; período activo |
 
 El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 
@@ -91,8 +105,9 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 
 ## Dependencias
 
-- **Hacia `identity`** (vía `IConsultasIdentity`, sólo lectura): resolver la persona, validar el rol de Jefe de Cátedra sobre la materia del pedido, derivar la carrera. El módulo **no escribe** identity.
-- **Hacia adentro**: `Modules.Portal.Contracts` (consultar áreas de experticia — proyectado, no confirmado).
+- **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
+- **Exportación**: el lote lee el período, el período anterior por `ImpactoDesde`, pedidos y designaciones vigentes dentro de una lectura `RepeatableRead`; completa persona y materias mediante `IConsultasIdentity` y el correo de altas mediante `Modules.Portal.Contracts.Queries.IPortalQueries`. La proyección genera `PROPUESTA COMPLETA`, `ALTAS` y `BAJAS` —incluida la Alta aún no materializada— sin modificar el estado de negocio.
+- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`).
 - **Hacia afuera**: ninguna por ahora.
 - **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).
 

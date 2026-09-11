@@ -1,14 +1,15 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Shared.Identity.Administracion;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Identity;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "identity")
 {
@@ -24,6 +25,60 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
 
         Assert.Null(persona.Legajo);
         Assert.False(await db.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
+    }
+
+    [Fact]
+    public async Task Servicio_crea_persona_sin_cuenta_y_rechaza_documento_duplicado()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var servicio = new ServicioPersonas(new RepositorioDocentes(db));
+        var datos = new DatosPersonaSinCuenta("30111999", "Ada", "Lovelace");
+
+        var id = await servicio.CrearPersonaSinCuentaAsync(datos, ct);
+        var persona = await db.Personas.SingleAsync(p => p.Id == id, ct);
+
+        Assert.Equal(datos.Documento, persona.Documento);
+        Assert.Null(persona.Legajo);
+        Assert.False(await db.Usuarios.AnyAsync(u => u.PersonaId == id, ct));
+
+        var error = await Assert.ThrowsAsync<ExcepcionAplicacion>(() =>
+            servicio.CrearPersonaSinCuentaAsync(datos, ct));
+
+        Assert.Equal(TipoErrorAplicacion.Conflicto, error.Tipo);
+        Assert.Equal("identity-document-conflict", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Altas_concurrentes_del_mismo_documento_no_duplican_personas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var dbUno = PostgresFixture.CrearIdentity(Cadena);
+        await using var dbDos = PostgresFixture.CrearIdentity(Cadena);
+        var datos = new DatosPersonaSinCuenta("30111888", "Ada", "Lovelace");
+
+        var resultados = await Task.WhenAll(
+            IntentarAltaAsync(new ServicioPersonas(new RepositorioDocentes(dbUno)), datos, ct),
+            IntentarAltaAsync(new ServicioPersonas(new RepositorioDocentes(dbDos)), datos, ct));
+
+        Assert.Equal(1, resultados.Count(id => id is not null));
+        await using var verificacion = PostgresFixture.CrearIdentity(Cadena);
+        Assert.Equal(1, await verificacion.Personas.CountAsync(p => p.Documento == datos.Documento, ct));
+    }
+
+    private static async Task<Guid?> IntentarAltaAsync(
+        IAdministracionIdentity servicio,
+        DatosPersonaSinCuenta datos,
+        CancellationToken ct)
+    {
+        try
+        {
+            return await servicio.CrearPersonaSinCuentaAsync(datos, ct);
+        }
+        catch (ExcepcionAplicacion error) when (error.Codigo == "identity-document-conflict")
+        {
+            return null;
+        }
     }
 
     [Fact]
@@ -106,7 +161,7 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Rol_de_sistema_protege_codigo_y_scope_pero_admite_nombre()
+    public async Task Rol_de_sistema_protege_toda_su_identidad()
     {
         await using var conexion = await AbrirConexionAsync();
         var codigo = await Assert.ThrowsAsync<PostgresException>(() =>
@@ -114,14 +169,18 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         var scope = await Assert.ThrowsAsync<PostgresException>(() =>
             EjecutarAsync(conexion, "UPDATE identity.roles SET scope = 'materia' WHERE code = 'secretaria'"));
 
-        await EjecutarAsync(
+        var nombre = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(
             conexion,
-            "UPDATE identity.roles SET name = 'Secretaría Académica editada' WHERE code = 'secretaria'");
+            "UPDATE identity.roles SET name = 'Secretaría Académica editada' WHERE code = 'secretaria'"));
+        var descripcion = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(
+            conexion,
+            "UPDATE identity.roles SET description = 'No debe persistir' WHERE code = 'secretaria'"));
 
         Assert.Equal(PostgresErrorCodes.RaiseException, codigo.SqlState);
         Assert.Equal(PostgresErrorCodes.RaiseException, scope.SqlState);
-        Assert.Equal(
-            "Secretaría Académica editada",
+        Assert.Equal(PostgresErrorCodes.RaiseException, nombre.SqlState);
+        Assert.Equal(PostgresErrorCodes.RaiseException, descripcion.SqlState);
+        Assert.Equal("Secretaría Académica",
             await EscalarAsync<string>(conexion, "SELECT name FROM identity.roles WHERE code = 'secretaria'"));
     }
 

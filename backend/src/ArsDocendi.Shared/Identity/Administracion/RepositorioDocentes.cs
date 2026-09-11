@@ -8,11 +8,13 @@ public interface IRepositorioDocentes
 {
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
     Task<Persona?> ObtenerPersonaAsync(Guid id, bool tracking, CancellationToken ct);
-    Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(IReadOnlyCollection<string> codigos, CancellationToken ct);
+    Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+    Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct);
     Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
     Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct);
     Task<bool> ExisteDocumentoAsync(string documento, Guid? exceptoPersonaId, CancellationToken ct);
+    void AgregarPersona(Persona persona);
     void Agregar(Persona? personaNueva, Usuario usuario);
     void AgregarAsignacion(UsuarioRol asignacion);
     void EsperarVersion(Usuario usuario, uint version);
@@ -44,13 +46,20 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
     }
 
     public async Task<IReadOnlyList<Rol>> ObtenerRolesDocentesAsync(
-        IReadOnlyCollection<string> codigos,
+        IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
         await db.Roles
-            .Where(r => codigos.Contains(r.Codigo)
+            .Where(r => ids.Contains(r.Id)
                 && r.EsSistema
                 && r.Activo
                 && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct) =>
+        await db.Roles
+            .Where(r => r.EsSistema && r.Activo
+                && (r.Codigo == "docente" || r.Codigo == "jefe_catedra"))
+            .OrderBy(r => r.Nombre)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(
@@ -76,6 +85,8 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
         db.Personas.AsNoTracking().AnyAsync(p =>
             p.Documento == documento && p.Id != exceptoPersonaId, ct);
 
+    public void AgregarPersona(Persona persona) => db.Personas.Add(persona);
+
     public void Agregar(Persona? personaNueva, Usuario usuario)
     {
         if (personaNueva is not null) db.Personas.Add(personaNueva);
@@ -100,6 +111,10 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
                 "users_upn_key" => Conflicto("identity-upn-conflict", "Ya existe otro usuario con esa UPN."),
                 "personas_documento_key" => Conflicto("identity-document-conflict", "Ya existe otra persona con ese documento."),
                 "personas_legajo_key" => Conflicto("identity-file-number-conflict", "Ya existe otra persona con ese legajo."),
+                "user_roles_unique_assignment" => new ExcepcionAplicacion(
+                    TipoErrorAplicacion.ReglaDeNegocio,
+                    "identity-role-scope-conflict",
+                    "No se puede repetir la misma asignación de rol y ámbito."),
                 _ => null,
             };
             if (traducido is not null) throw traducido;

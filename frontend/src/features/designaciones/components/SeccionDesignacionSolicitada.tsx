@@ -1,7 +1,6 @@
 import { Field, Input, Select } from "@ars-docendi/ui";
 import type { Cargo, Dedicacion } from "../types";
 import type { ErroresValidacion } from "../pedidoValidacion";
-import { indiceDedicacion } from "../api/catalogos";
 import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
 interface SeccionDesignacionSolicitadaProps {
@@ -10,8 +9,6 @@ interface SeccionDesignacionSolicitadaProps {
   horas: number;
   cargoSolicitado?: Cargo;
   dedicacionSolicitada?: Dedicacion;
-  /** Cambio: dedicación vigente del docente. Filtra el Select a solo mejores (Categoría 0 = máxima). En Alta es `null` (no hay restricción). */
-  dedicacionActual: Dedicacion | null;
   horasInvestigacion: number;
   horasExternas: number;
   errores: ErroresValidacion;
@@ -27,15 +24,14 @@ interface SeccionDesignacionSolicitadaProps {
 /**
  * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
  * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
- * dedicación (en Cambio, solo opciones mejores que la actual — ver D-7), la
- * materia de la cátedra con su carga horaria, y horas de investigación/externas.
+ * dedicación de elección libre, la materia contextual ya elegida con su carga
+ * horaria, y horas de investigación/externas.
  */
 export function SeccionDesignacionSolicitada({
   materia,
   horas,
   cargoSolicitado,
   dedicacionSolicitada,
-  dedicacionActual,
   horasInvestigacion,
   horasExternas,
   errores,
@@ -47,10 +43,6 @@ export function SeccionDesignacionSolicitada({
   cargos,
   dedicaciones,
 }: SeccionDesignacionSolicitadaProps) {
-  const opcionesDedicacion = dedicacionActual
-    ? dedicaciones.filter((d) => indiceDedicacion(d) < indiceDedicacion(dedicacionActual))
-    : dedicaciones;
-
   return (
     <section className="adoc-pf-sec">
       <h2 className="adoc-pf-sec-h">Designación solicitada</h2>
@@ -74,7 +66,7 @@ export function SeccionDesignacionSolicitada({
             onChange={(e) => onDedicacion((e.target.value || undefined) as Dedicacion)}
           >
             <option value="">Seleccioná una dedicación…</option>
-            {opcionesDedicacion.map((dedicacion) => (
+            {dedicaciones.map((dedicacion) => (
               <option key={dedicacion} value={dedicacion}>
                 {dedicacion}
               </option>
@@ -85,6 +77,7 @@ export function SeccionDesignacionSolicitada({
 
       <SeccionMateriaHoras
         materia={materia}
+        etiquetaMateria="Materia seleccionada"
         horas={horas}
         horasEditables
         error={errores.horas}

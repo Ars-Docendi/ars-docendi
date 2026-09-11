@@ -31,7 +31,7 @@ export default function AppLayout() {
   return (
     <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
       <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} user={user} />
-      <Sidebar collapsed={collapsed} role={user.role} />
+      <Sidebar collapsed={collapsed} permissions={user.permissions} />
       <main className="adoc-main">
         <Outlet />
       </main>

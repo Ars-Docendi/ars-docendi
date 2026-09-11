@@ -3,8 +3,7 @@ import { developmentAuthEnabled } from "./developmentAuth";
 import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/session";
 import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
 
-export type Role =
-  "Jefe de Cátedra" | "Coordinador" | "Secretaría" | "Decanato" | "Administración" | "Docente";
+export type Role = string;
 
 export interface CurrentUser {
   name: string;
@@ -12,6 +11,7 @@ export interface CurrentUser {
   upn: string;
   role: Role;
   roleCode: string;
+  permissions: string[];
 }
 
 export interface CurrentUserState {
@@ -20,16 +20,6 @@ export interface CurrentUserState {
   error: Error | null;
   retry: () => void;
 }
-
-const NOMBRES_ROL: Record<string, Role | undefined> = {
-  jefe_catedra: "Jefe de Cátedra",
-  coordinador_carrera: "Coordinador",
-  secretaria: "Secretaría",
-  decanato: "Decanato",
-  administrativo: "Administración",
-  sys_admin: "Administración",
-  docente: "Docente",
-};
 
 function useCurrentUserDesarrollo(): CurrentUserState {
   const sesion = useSyncExternalStore(
@@ -40,15 +30,15 @@ function useCurrentUserDesarrollo(): CurrentUserState {
   const consulta = useIdentidadesDesarrollo();
   const identidad = consulta.data?.find((item) => item.usuarioId === sesion?.usuarioId);
   const rol = identidad?.roles.find((item) => item.codigo === sesion?.rolCodigo);
-  const nombreRol = rol ? NOMBRES_ROL[rol.codigo] : undefined;
   const user =
-    identidad && rol && nombreRol
+    identidad && rol
       ? {
           name: identidad.nombreParaMostrar,
           initials: iniciales(identidad.nombreParaMostrar),
           upn: identidad.upn,
-          role: nombreRol,
+          role: rol.nombre,
           roleCode: rol.codigo,
+          permissions: rol.permisos,
         }
       : null;
   const seleccionInvalida = Boolean(consulta.data && sesion && !user);

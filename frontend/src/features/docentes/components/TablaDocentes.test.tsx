@@ -14,6 +14,8 @@ const DOCENTE: DocenteMock = {
   telefono: "11-4000-0001",
   upn: "carla.lopez@unlam.edu.ar",
   roles: ["Docente"],
+  membresias: [],
+  tieneCuenta: true,
   asignaciones: [
     {
       materia: { id: "materia-1", codigo: "03500", nombre: "Ingeniería de Software" },
@@ -41,5 +43,6 @@ describe("TablaDocentes", () => {
     expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desactivar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activar" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Filtrar / })).not.toHaveLength(0);
   });
 });

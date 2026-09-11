@@ -14,7 +14,6 @@ namespace ArsDocendi.IntegrationTests.Portal;
 /// <c>contype = 'f'</c>. Sin ella habría que escribir el camino a mano en un
 /// comentario, que es poner una barrera de prosa donde puede haber una del motor.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EsquemaPortalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_esquema")
 {

@@ -22,7 +22,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// ejemplos viajan al prompt en producción, así que el esquema contra el que tienen
 /// que ser válidos es el real.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ejemplos")
 {
