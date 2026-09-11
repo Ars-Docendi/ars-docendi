@@ -23,7 +23,7 @@ La creación, consulta, edición, eliminación y transición de pedidos SHALL us
 
 ### Requirement: Catálogos canónicos
 
-Personas, materias, cargos, dedicaciones y períodos SHALL provenir de la API. Las mutaciones MUST enviar sus UUID canónicos. Para un Alta, el formulario SHALL ofrecer como materias únicamente las materias activas donde el actor tenga una membresía vigente de Jefe de Cátedra. Para una Baja o un Cambio de cargo o dedicación, el formulario SHALL ofrecer únicamente las materias activas que estén simultáneamente dentro del ámbito del actor y entre las designaciones vigentes del docente seleccionado. Las dedicaciones seleccionables SHALL ser Categoría 1 a 6, de elección libre incluso al mantener o reducir la dedicación actual; la API MUST validar todas las referencias canónicas.
+Personas, materias, cargos, dedicaciones y períodos SHALL provenir de la API. Las mutaciones MUST enviar sus UUID canónicos. Para un Alta, el formulario SHALL ofrecer como materias únicamente las materias activas donde el actor tenga una membresía vigente de Jefe de Cátedra. Para una Baja o un Cambio de cargo o dedicación, el formulario SHALL ofrecer únicamente las materias activas que estén simultáneamente dentro del ámbito del actor y entre las designaciones vigentes del docente seleccionado. En un catálogo solicitado por un actor acotado, `personas` SHALL incluir sólo personas con al menos una designación vigente en una materia visible para ese actor y `designacionesVigentes` SHALL incluir únicamente esas designaciones visibles. Las dedicaciones seleccionables SHALL ser Categoría 1 a 6, de elección libre incluso al mantener o reducir la dedicación actual; la API MUST validar todas las referencias canónicas.
 
 #### Scenario: Abrir formulario
 
@@ -53,6 +53,12 @@ Personas, materias, cargos, dedicaciones y períodos SHALL provenir de la API. L
 - **GIVEN** el Jefe tiene A y el docente seleccionado sólo tiene una designación vigente en B
 - **WHEN** se selecciona "Baja" o "Cambio de cargo o dedicación"
 - **THEN** el formulario no permite guardar y explica que el docente no tiene una designación en una materia a cargo del actor
+
+#### Scenario: El catálogo no expone personas fuera de ámbito
+
+- **GIVEN** un Jefe de Cátedra que puede ver A, una persona con designaciones vigentes en A y B y otra persona con una única designación vigente en B
+- **WHEN** consulta el catálogo de Designaciones
+- **THEN** la primera persona aparece con sólo su designación de A y la segunda no aparece
 
 #### Scenario: El cliente envía una materia fuera del catálogo contextual
 
