@@ -38,10 +38,10 @@ END;
 $$;
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000021', 'designaciones.revisar',
+    ('b2000000-0000-4000-8000-000000000026', 'designaciones.revisar',
      'Revisar designaciones',
      'Consultar y revisar pedidos según la etapa y el ámbito del actor.'),
-    ('b2000000-0000-4000-8000-000000000022', 'docentes.ver',
+    ('b2000000-0000-4000-8000-000000000027', 'docentes.ver',
      'Ver docentes',
      'Consultar docentes según el ámbito autorizado del actor.')
 ON CONFLICT (code) DO UPDATE SET

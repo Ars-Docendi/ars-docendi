@@ -18,7 +18,7 @@
 -- Idempotente: ON CONFLICT DO NOTHING.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000022', 'asistente.ver_consulta', 'Ver la consulta del asistente', 'Ver la consulta SQL que el asistente generó para responder. Es superficie de diagnóstico: el filtro de una consulta puede contener datos personales que la respuesta redactada no muestra.')
+    ('b2000000-0000-4000-8000-000000000025', 'asistente.ver_consulta', 'Ver la consulta del asistente', 'Ver la consulta SQL que el asistente generó para responder. Es superficie de diagnóstico: el filtro de una consulta puede contener datos personales que la respuesta redactada no muestra.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda de sys_admin, igual que en 011: `sys_admin` NO hereda permisos nuevos,

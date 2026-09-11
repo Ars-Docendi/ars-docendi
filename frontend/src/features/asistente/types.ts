@@ -12,10 +12,7 @@
  * tiene nada de malo.
  */
 export type EstadoDelTurno =
-  | "respondida"
-  | "no_contestable"
-  | "necesita_aclaracion"
-  | "servicio_degradado";
+  "respondida" | "no_contestable" | "necesita_aclaracion" | "servicio_degradado";
 
 export interface OpcionDeAclaracion {
   etiqueta: string;
