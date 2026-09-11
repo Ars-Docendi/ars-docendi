@@ -14,7 +14,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_dev")
 {

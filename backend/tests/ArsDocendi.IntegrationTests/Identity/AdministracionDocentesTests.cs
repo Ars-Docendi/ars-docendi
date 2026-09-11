@@ -13,7 +13,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Identity;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AdministracionDocentesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "admin_docentes")
 {

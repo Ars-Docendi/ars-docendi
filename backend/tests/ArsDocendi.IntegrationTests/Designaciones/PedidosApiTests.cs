@@ -15,7 +15,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PedidosApiTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "pedidos_api")
 {

@@ -117,6 +117,25 @@ GitHub Actions sobre runners self-hosted **efímeros**:
 | `pr-env-deploy`   | PR open/synchronize (gated) | build+push del PR + spin-up `pr-N`             |
 | `pr-env-teardown` | PR closed                   | teardown `pr-N` (contenedores + DROP DATABASE) |
 
+Los filtros de CI separan las áreas ejecutables: Backend se selecciona por
+`backend/**`, `database/**` o `global.json`, excluyendo Markdown dentro de
+`backend/` y `database/`; los archivos de pnpm sólo seleccionan Frontend.
+Staging y `pr-N` aplican las mismas exclusiones Markdown a sus rutas positivas
+de código, infraestructura y base de datos, por lo que un cambio únicamente
+documental no construye ni despliega.
+
+Cuando Backend se selecciona, el job conserva el flujo completo de restore,
+build y suite de tests. Reutiliza de forma best-effort `~/.nuget/packages` con
+una clave que incluye runner, SDK, proyectos `.csproj` y lockfiles; un miss o
+fallo del cache no impide el restore normal. No se usa cache remoto Docker en
+estos workflows.
+
+Los filtros no cambian el aislamiento: cada deploy sigue construyendo ambas
+imágenes, etiquetándolas por SHA y ejecutando `spin-up` para su ambiente. El
+reset de bases descartables, el teardown de `pr-N`, los gates de maintainer,
+los runners efímeros y los secretos permanecen vigentes; `prod`, `staging` y
+cada `pr-N` conservan su Compose project y su base independiente.
+
 **Seguridad del flujo pr-N** (D8):
 
 - Trigger `pull_request` (nunca `pull_request_target`).

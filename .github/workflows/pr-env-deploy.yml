@@ -18,9 +18,13 @@ on:
     # ambiente efímero. No reemplaza los gates, los complementa.
     paths:
       - "backend/**"
+      - "!backend/**/*.md"
       - "frontend/**"
+      - "!frontend/**/*.md"
       - "infra/**"
+      - "!infra/**/*.md"
       - "database/**"
+      - "!database/**/*.md"
       - "global.json"
       - "package.json"
       - "pnpm-lock.yaml"

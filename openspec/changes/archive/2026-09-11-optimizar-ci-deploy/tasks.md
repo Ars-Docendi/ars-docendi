@@ -1,0 +1,27 @@
+## 1. Línea base y precondiciones
+
+- [x] 1.1 Registrar la línea base de `dotnet test backend/ArsDocendi.slnx --no-build -c Release` con cantidad de tests y duración de la fase; verificar que el entorno de referencia descubre 148 tests y conserva el resultado aproximado de 3m29s. Resultado: 148 tests, 0 fallos, 0 omitidos, 3m29s654ms (runner: 3m29s365ms).
+- [x] 1.2 Revisar los usos de `ColeccionPostgres`, `PostgresFixture` y `ClasePostgresAislada`; verificar que las 15 clases PostgreSQL usan bases con nombres aislados y que no hay estado compartido que dependa del orden entre clases. Auditoría: 15 clases, prefijos únicos, `Guid.NewGuid()` para cada base y sólo constantes/lecturas estáticas; no se detectó estado mutable compartido.
+
+## 2. Paralelismo seguro de integración
+
+- [x] 2.1 Registrar `PostgresFixture` como fixture de assembly xUnit v3 y eliminar `ColeccionPostgres` junto con sus anotaciones, manteniendo la inyección del fixture y el aislamiento por clase; verificar compilación y que `dotnet test ... --list-tests` conserve el conjunto descubierto. Compilación Release correcta; el listado actual descubre 151 casos frente a 148 de la DLL previa, sin cambios en declaraciones de tests.
+- [x] 2.2 Eliminar la limpieza global `NpgsqlConnection.ClearAllPools()` del teardown de bases y conservar conexiones sin pooling más `DROP DATABASE ... WITH (FORCE)` para la base propia; verificar mediante revisión y tests que una clase no puede eliminar la base de otra. El teardown conserva `Pooling = false` en la cadena propia y `DROP DATABASE IF EXISTS ... WITH (FORCE)`; no queda limpieza global.
+- [x] 2.3 Ejecutar tres veces la suite completa en Release con PostgreSQL y comparar mediana, cantidad de tests y fallos contra la línea base; verificar ausencia de contaminación entre bases y una reducción mínima del 25% de la fase de tests. Tres ejecuciones: 151/151, 0 fallos y 0 omitidos; mediana 1m36s009ms, reducción 54,2% frente a 3m29s654ms. La discrepancia 151 vs 148 de la DLL base queda documentada en `evidencia.md`; el diff no elimina tests.
+
+## 3. Selección y cache del CI
+
+- [x] 3.1 Ajustar el filtro Backend de `.github/workflows/ci.yml` para incluir `database/**` y excluir Markdown de backend/database, y quitar los inputs exclusivos de pnpm; verificar con casos de código backend, migración, `global.json`, Markdown, frontend y pnpm qué jobs se seleccionan. El filtro queda con backend/database/global.json y exclusiones Markdown; pnpm queda sólo en Frontend.
+- [x] 3.2 Agregar cache best-effort de paquetes NuGet con clave que incluya runner, SDK, manifiestos de proyecto y lockfiles; fijar la acción a un SHA completo y verificar tanto cache hit como miss/fallback ejecutando `dotnet restore` correctamente. Cache `actions/cache` fijado a `5a3ec84eff668545956fd18022155c47e93e2684`, `continue-on-error: true`, restore normal como fallback y clave con runner/SDK/`.csproj`/lockfiles.
+- [x] 3.3 Revisar que el job Backend siga ejecutando restore, build y la suite completa cuando el filtro lo selecciona; verificar que ningún cambio de filtro reduzca el número de tests ejecutados. Los pasos Restore/Build/Test permanecen completos; la suite recompilada descubre 151 casos y las tres ejecuciones aprobaron 151.
+
+## 4. Triggers de deploy
+
+- [x] 4.1 Agregar las exclusiones Markdown a los paths positivos de `deploy-staging.yml` y `pr-env-deploy.yml`, conservando los eventos y los paths de código, infraestructura, base y dependencias; verificar que un cambio sólo documental no construya ni despliegue. Se agregaron las cuatro exclusiones de áreas de código/infraestructura en ambos workflows; eventos y pasos permanecen iguales.
+- [x] 4.2 Verificar que gates de maintainer, runners efímeros, secrets, tags, reset de bases, teardown y spin-up no cambien; revisar que todas las referencias `uses` nuevas o modificadas sigan siendo SHA completos y que branch protection no quede con checks pendientes. El diff conserva esos invariantes y todos los `uses` son SHA de 40 caracteres; no se cambiaron jobs/checks. Branch protection no pudo consultarse: `gh` no está autenticado.
+
+## 5. Documentación y cierre
+
+- [x] 5.1 Actualizar `docs/architecture/infrastructure.md` para describir los filtros documentales, la selección de cambios de backend, el cache NuGet y la conservación del reset/aislamiento de ambientes; verificar que no se introduzcan afirmaciones sobre cache remoto Docker fuera de alcance. La documentación describe filtros, cache best-effort, restore normal, reset/aislamiento y deja explícitamente fuera el cache remoto Docker.
+- [x] 5.2 Ejecutar `dotnet test backend/ArsDocendi.slnx`, `pnpm format:check`, `pnpm exec openspec validate --all --strict` y `git diff --check`; verificar que todos los checks proporcionales pasen y dejar documentado cualquier limitación del runner. Todos pasan: .NET 151/151, formato, OpenSpec estricto y diff limpio. La evidencia documenta la necesidad de acceso Docker y el build serial `-m:1` usado para evitar la limitación del SDK del runner.
+- [x] 5.3 Comparar la duración de restore, test y deploy contra la línea base y conservar la evidencia en el cambio; verificar que la mejora proviene del paralelismo/filtros/cache y que no se eliminaron tests ni se alteró el grafo de módulos. Restore local: 3.043s con paquetes calientes; tests: mediana 1m36s009ms frente a 3m29s654ms. Deploy real y hit/miss remoto de cache no son medibles en este runner y quedan explicitados en `evidencia.md`; build/push/spin-up no cambiaron y el grafo de módulos permanece intacto.

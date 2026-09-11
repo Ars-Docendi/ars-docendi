@@ -7,13 +7,9 @@ using Modules.Portal.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
-namespace ArsDocendi.IntegrationTests.Infraestructura;
+[assembly: Xunit.AssemblyFixture(typeof(ArsDocendi.IntegrationTests.Infraestructura.PostgresFixture))]
 
-[CollectionDefinition(Nombre)]
-public sealed class ColeccionPostgres : ICollectionFixture<PostgresFixture>
-{
-    public const string Nombre = "PostgreSQL 18";
-}
+namespace ArsDocendi.IntegrationTests.Infraestructura;
 
 public sealed class PostgresFixture : IAsyncLifetime
 {
@@ -66,7 +62,6 @@ public sealed class PostgresFixture : IAsyncLifetime
         var nombre = new NpgsqlConnectionStringBuilder(cadena).Database
             ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
 
-        NpgsqlConnection.ClearAllPools();
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
         await using var comando = new NpgsqlCommand(

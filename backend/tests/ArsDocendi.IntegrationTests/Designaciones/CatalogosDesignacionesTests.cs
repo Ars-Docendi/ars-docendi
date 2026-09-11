@@ -9,7 +9,6 @@ using Modules.Designaciones.Domain;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "catalogos_designaciones")
 {

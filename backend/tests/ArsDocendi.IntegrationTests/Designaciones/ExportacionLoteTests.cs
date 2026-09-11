@@ -9,7 +9,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ExportacionLoteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "exportacion_lote")
 {

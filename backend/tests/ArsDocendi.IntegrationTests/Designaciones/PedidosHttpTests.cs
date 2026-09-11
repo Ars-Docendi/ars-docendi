@@ -13,7 +13,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PedidosHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "pedidos_http")
 {
