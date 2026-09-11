@@ -5,11 +5,12 @@ import { TablaPeriodos } from "../components/TablaPeriodos";
 import { ModalPeriodo } from "../components/ModalPeriodo";
 import { ModalEliminarPeriodo } from "../components/ModalEliminarPeriodo";
 import { ModalDesactivarPeriodo } from "../components/ModalDesactivarPeriodo";
-import { PERIODOS_MOCK } from "../api/periodosMock";
+import { usePeriodos } from "../hooks/usePeriodos";
 import type { PeriodoDesignacion } from "../types";
 
 export function PeriodosPage() {
-  const [periodos, setPeriodos] = useState<PeriodoDesignacion[]>(PERIODOS_MOCK);
+  const remoto = usePeriodos();
+  const periodos = remoto.consulta.data ?? [];
 
   const [modalPeriodoAbierto, setModalPeriodoAbierto] = useState(false);
   const [periodoEditando, setPeriodoEditando] = useState<PeriodoDesignacion | undefined>();
@@ -43,25 +44,24 @@ export function PeriodosPage() {
 
   function handleGuardar(datos: Omit<PeriodoDesignacion, "id">) {
     if (periodoEditando) {
-      setPeriodos((prev) =>
-        prev.map((p) => (p.id === periodoEditando.id ? { ...datos, id: periodoEditando.id } : p)),
+      remoto.editar.mutate(
+        { id: periodoEditando.id, datos: { ...datos, version: periodoEditando.version } },
+        { onSuccess: () => setModalPeriodoAbierto(false) },
       );
     } else {
-      const nuevoPeriodo: PeriodoDesignacion = {
-        ...datos,
-        id: crypto.randomUUID(),
-      };
-      setPeriodos((prev) => [nuevoPeriodo, ...prev]);
+      remoto.crear.mutate(datos, { onSuccess: () => setModalPeriodoAbierto(false) });
     }
-    setModalPeriodoAbierto(false);
   }
 
   function handleConfirmarEliminar() {
     if (periodoEliminando) {
-      setPeriodos((prev) => prev.filter((p) => p.id !== periodoEliminando.id));
+      remoto.eliminar.mutate(periodoEliminando.id, {
+        onSuccess: () => {
+          setModalEliminarAbierto(false);
+          setPeriodoEliminando(undefined);
+        },
+      });
     }
-    setModalEliminarAbierto(false);
-    setPeriodoEliminando(undefined);
   }
 
   function handleNecesitaConfirmarDesactivacion(datos: Omit<PeriodoDesignacion, "id">) {
@@ -87,6 +87,22 @@ export function PeriodosPage() {
         separator="›"
         items={[{ label: "Inicio", href: "/" }, { label: "Períodos de designación" }]}
       />
+      {remoto.consulta.isLoading && <p role="status">Cargando períodos…</p>}
+      {remoto.consulta.isError && (
+        <p role="alert">
+          No se pudieron cargar los períodos.{" "}
+          <button onClick={() => remoto.consulta.refetch()}>Reintentar</button>
+        </p>
+      )}
+      {(remoto.crear.isError || remoto.editar.isError || remoto.eliminar.isError) && (
+        <p role="alert">No se pudo guardar el cambio del período.</p>
+      )}
+      {(remoto.crear.isPending || remoto.editar.isPending || remoto.eliminar.isPending) && (
+        <p role="status">Guardando período…</p>
+      )}
+      {!remoto.consulta.isLoading && !remoto.consulta.isError && periodos.length === 0 && (
+        <p>No hay períodos configurados.</p>
+      )}
       <PageHeader
         pretitle="Configuración"
         title="Períodos de designación"

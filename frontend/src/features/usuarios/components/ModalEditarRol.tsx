@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { Button, Checkbox, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import {
-  nombreCompleto,
-  ROLES_SISTEMA,
-  type RolSistema,
-  type UsuarioMock,
-} from "../mock/mockStore";
+import { Button, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
+import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
+import type { CatalogosUsuarios } from "../api/usuariosApi";
+import { nombreCompleto, type UsuarioFormulario, type UsuarioMock } from "../models";
 
 interface ModalEditarUsuarioProps {
   usuario: UsuarioMock | null;
   upnsExistentes: string[];
-  onGuardar: (datos: Omit<UsuarioMock, "id" | "is_active">) => void;
+  onGuardar: (datos: UsuarioFormulario) => void;
   onCerrar: () => void;
+  error?: string;
+  catalogos: CatalogosUsuarios;
 }
 
 export function ModalEditarUsuario({
@@ -19,6 +18,8 @@ export function ModalEditarUsuario({
   upnsExistentes,
   onGuardar,
   onCerrar,
+  error,
+  catalogos,
 }: ModalEditarUsuarioProps) {
   const [prevUsuario, setPrevUsuario] = useState(usuario);
   const [campos, setCampos] = useState(camposDesde(usuario));
@@ -37,13 +38,6 @@ export function ModalEditarUsuario({
     setCampos((p) => ({ ...p, [campo]: valor }));
   }
 
-  function toggleRol(rol: RolSistema, checked: boolean) {
-    setCampos((p) => ({
-      ...p,
-      roles: checked ? [...p.roles, rol] : p.roles.filter((r) => r !== rol),
-    }));
-  }
-
   function handleGuardar() {
     setEnviado(true);
     const obligatorios =
@@ -52,14 +46,23 @@ export function ModalEditarUsuario({
       !campos.documento ||
       !campos.legajo ||
       !campos.fecha_nacimiento ||
-      !campos.upn ||
-      campos.roles.length === 0;
-    if (obligatorios) return;
+      !campos.upn;
+    const errorMembresias = validarMembresias(campos.membresias, catalogos);
+    if (obligatorios || errorMembresias) return;
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
-    onGuardar({ ...campos, upn: campos.upn.toLowerCase() });
+    onGuardar({
+      ...campos,
+      upn: campos.upn.toLowerCase(),
+      membresias: campos.membresias.map((fila) => ({
+        rolId: fila.rolId,
+        materiaId: fila.materiaId || null,
+        carreraId: fila.carreraId || null,
+      })),
+    });
   }
 
   const upnDuplicada = enviado && !!campos.upn && upnsExistentes.includes(campos.upn.toLowerCase());
+  const errorMembresias = enviado ? validarMembresias(campos.membresias, catalogos) : undefined;
 
   const grilla: React.CSSProperties = {
     display: "grid",
@@ -96,6 +99,7 @@ export function ModalEditarUsuario({
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ marginBottom: "1rem" }}>
         <p style={{ margin: 0, color: "var(--color-text-secondary)", fontSize: "0.875rem" }}>
           {usuario ? nombreCompleto(usuario) : ""} &mdash; {usuario?.upn}
@@ -166,7 +170,8 @@ export function ModalEditarUsuario({
             required
             error={enviado && !campos.fecha_nacimiento ? "Campo obligatorio" : undefined}
           >
-            <DatePicker
+            <Input
+              type="date"
               value={campos.fecha_nacimiento}
               onChange={(e) => set("fecha_nacimiento", e.target.value)}
             />
@@ -203,22 +208,14 @@ export function ModalEditarUsuario({
           />
         </Field>
 
-        <Field
-          label="Roles"
-          required
-          error={enviado && campos.roles.length === 0 ? "Seleccioná al menos un rol" : undefined}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-            {ROLES_SISTEMA.map((r) => (
-              <Checkbox
-                key={r}
-                label={r}
-                checked={campos.roles.includes(r)}
-                onChange={(e) => toggleRol(r, e.target.checked)}
-              />
-            ))}
-          </div>
-        </Field>
+        <MembresiasSelector
+          filas={campos.membresias}
+          onChange={(membresias) => set("membresias", membresias)}
+          roles={catalogos.roles}
+          materias={catalogos.materias}
+          carreras={catalogos.carreras}
+          error={errorMembresias}
+        />
       </div>
     </Modal>
   );
@@ -234,6 +231,36 @@ function camposDesde(u: UsuarioMock | null) {
     fecha_nacimiento: u?.fecha_nacimiento ?? "",
     telefono: u?.telefono ?? "",
     upn: u?.upn ?? "",
-    roles: (u?.roles ?? []) as RolSistema[],
+    membresias: (u?.membresias ?? []).map((membresia) => ({
+      rolId: membresia.rolId,
+      materiaId: membresia.materiaId ?? "",
+      carreraId: membresia.carreraId ?? "",
+    })),
   };
+}
+
+function validarMembresias(
+  filas: MembresiaFila[],
+  catalogos: CatalogosUsuarios,
+): string | undefined {
+  if (filas.length === 0) return "Seleccioná al menos una membresía";
+  if (
+    new Set(filas.map((fila) => `${fila.rolId}:${fila.materiaId}:${fila.carreraId}`)).size !==
+    filas.length
+  ) {
+    return "No se puede repetir la misma membresía";
+  }
+  if (
+    filas.some((fila) => {
+      const rol = catalogos.roles.find((opcion) => opcion.id === fila.rolId);
+      return (
+        !rol ||
+        (rol.ambito === "materia" && (!fila.materiaId || !fila.carreraId)) ||
+        (rol.ambito === "carrera" && !fila.carreraId) ||
+        (rol.ambito === "global" && (fila.materiaId || fila.carreraId))
+      );
+    })
+  )
+    return "Completá las filas de membresía con un ámbito compatible";
+  return undefined;
 }

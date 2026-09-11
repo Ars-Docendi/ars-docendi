@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Input, Select, StatusBadge } from "@ars-docendi/ui";
 
 import type { Tag } from "../types";
-import { vocabularioDisponible } from "../mock/mockStore";
+import { vocabularioDisponible } from "../helpers";
 import { SeccionPerfil } from "./SeccionPerfil";
 import "./portal.css";
 

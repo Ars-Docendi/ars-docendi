@@ -15,4 +15,8 @@ CREATE TABLE identity.users (
     last_login_at   TIMESTAMPTZ  NULL
 );
 
-SELECT audit.attach('identity.users');
+-- NOTA: el audit.attach de esta tabla NO va acá. audit.change_log declara
+-- `changed_by REFERENCES identity.users(id)`, así que identity.users tiene que
+-- existir ANTES que el schema audit; pero audit.attach() sólo existe después.
+-- El enganche se difiere a 009_identity_audit_attach.sql, que corre una vez que
+-- ambos schemas están creados.

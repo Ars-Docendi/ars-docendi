@@ -11,4 +11,7 @@
     <Project Path="src/Modules.Tareas.Contracts/Modules.Tareas.Contracts.csproj" />
     <Project Path="src/Modules.Tareas/Modules.Tareas.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ArsDocendi.IntegrationTests/ArsDocendi.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

@@ -3,6 +3,7 @@ import {
   PESTANIAS,
   esTuTurno,
   areaActual,
+  areaEsFiltrable,
   areaQueCorrige,
   etiquetaEstado,
   inicioEnCircuito,
@@ -38,7 +39,7 @@ function pedido(
     catedra: "Cátedra X",
     carrera: CARRERA,
     docente: { dni: `${contador}`, nombre: `Docente ${contador}`, antiguedad: 3 },
-    asignaciones: [{ materia: "Materia X", horas: 6 }],
+    horas: 6,
     cargoActual: "Adjunto",
     dedicacionActual: "Categoría 3",
     novedad: "Cambio de cargo o dedicación",
@@ -232,13 +233,31 @@ describe("pestaniaInicial", () => {
   });
 });
 
+describe("areaEsFiltrable", () => {
+  it("sólo habilita el filtro de Área en Todos", () => {
+    expect(areaEsFiltrable("todos")).toBe(true);
+    expect(areaEsFiltrable("en-coordinacion")).toBe(false);
+    expect(areaEsFiltrable("finalizados")).toBe(false);
+  });
+});
+
 describe("esTuTurno", () => {
-  it("es el turno del Coordinador en su etapa y ámbito, no en etapas ajenas", () => {
-    expect(esTuTurno(pedido("en_revision_coordinador"), COORD)).toBe(true);
-    expect(esTuTurno(pedido("en_revision_secretaria"), COORD)).toBe(false);
-    expect(esTuTurno(pedido("en_revision_coordinador", { carrera: "Otra carrera" }), COORD)).toBe(
+  it("usa las acciones autorizadas por el backend, no el ámbito declarado en UI", () => {
+    expect(
+      esTuTurno(pedido("en_revision_coordinador", { accionesPermitidas: ["aceptar"] }), COORD),
+    ).toBe(true);
+    expect(esTuTurno(pedido("en_revision_secretaria", { accionesPermitidas: [] }), COORD)).toBe(
       false,
     );
+    expect(
+      esTuTurno(
+        pedido("en_revision_coordinador", {
+          carrera: "Otra carrera",
+          accionesPermitidas: ["devolver"],
+        }),
+        COORD,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -285,7 +304,7 @@ describe("inicioEnCircuito / ultimaActualizacion (fechas de la Tabla)", () => {
     const abierto = pedido("en_revision_coordinador", { historial: [CREACION, ENVIO] });
 
     // El tiempo que el pedido estuvo en borrador no es tiempo de revisión.
-    expect(inicioEnCircuito(abierto)).toBe("10/03/2026");
+    expect(inicioEnCircuito(abierto)).toBe("09/03/2026 21:00");
   });
 
   it("sin `enviar` en el historial no hay inicio de circuito", () => {
@@ -298,7 +317,7 @@ describe("inicioEnCircuito / ultimaActualizacion (fechas de la Tabla)", () => {
       historial: [CREACION, ENVIO, aceptaCoord],
     });
 
-    expect(ultimaActualizacion(enSecretaria)).toBe("31/03/2026");
+    expect(ultimaActualizacion(enSecretaria)).toBe("30/03/2026 21:00");
   });
 });
 

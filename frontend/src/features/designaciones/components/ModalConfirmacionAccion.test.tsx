@@ -7,11 +7,12 @@ import type { PedidoDesignacion } from "../types";
 
 const PEDIDO: PedidoDesignacion = {
   id: "p1",
+  numero: "2026-0123",
   periodoId: "1",
   catedra: "Programación I",
   carrera: "Ingeniería en Informática",
   docente: { dni: "30111222", nombre: "Lucía Fernández", antiguedad: 5 },
-  asignaciones: [{ materia: "Programación I", horas: 6 }],
+  horas: 6,
   cargoActual: "Adjunto",
   dedicacionActual: "Categoría 3",
   novedad: "Cambio de cargo o dedicación",
@@ -145,5 +146,11 @@ describe("ModalConfirmacionAccion", () => {
     expect(
       within(dialog).getByText("Vuelve al Jefe de Cátedra · estado Devuelto"),
     ).toBeInTheDocument();
+  });
+
+  it("identifica el pedido por su número de negocio", () => {
+    renderModal("aceptar");
+    expect(screen.getByText(/pedido 2026-0123/)).toBeInTheDocument();
+    expect(screen.queryByText("p1")).not.toBeInTheDocument();
   });
 });

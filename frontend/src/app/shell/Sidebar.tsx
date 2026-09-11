@@ -1,17 +1,16 @@
 import { Fragment, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
-import type { Role } from "../../shared/auth/useCurrentUser";
 import { chevronIcon, navIcons } from "./icons";
-import { NAV_BY_ROLE, type NavItem } from "./nav";
+import { filtrarNavegacion, type NavItem } from "./nav";
 
 interface SidebarProps {
   collapsed: boolean;
-  role: Role;
+  permissions: readonly string[];
 }
 
-export function Sidebar({ collapsed, role }: SidebarProps) {
-  const groups = NAV_BY_ROLE[role];
+export function Sidebar({ collapsed, permissions }: SidebarProps) {
+  const groups = filtrarNavegacion(permissions);
 
   return (
     <nav className="adoc-sidebar" aria-label="Navegación principal">
@@ -38,12 +37,12 @@ export function Sidebar({ collapsed, role }: SidebarProps) {
 
       <div className="adoc-sidebar-foot">
         {collapsed ? (
-          "1C"
+          "AD"
         ) : (
           <>
-            Cuatrimestre activo · <b style={{ color: "var(--color-text-primary)" }}>2026 · 1C</b>
+            Versión 1.0.0 · Ars Docendi
             <br />
-            Versión 0.1 · Borrador
+            <i>El arte de enseñar</i>
           </>
         )}
       </div>

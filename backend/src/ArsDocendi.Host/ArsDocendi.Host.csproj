@@ -7,20 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="14.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\Modules.Designaciones\Modules.Designaciones.csproj" />
+    <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Aulas\Modules.Aulas.csproj" />
     <ProjectReference Include="..\Modules.Portal\Modules.Portal.csproj" />
     <ProjectReference Include="..\Modules.Tareas\Modules.Tareas.csproj" />

@@ -5,12 +5,14 @@ import { motivoRechazo } from "./tableroRevisionModelo";
 
 /** Tono del chip de novedad (clases del design system). */
 const TONO_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "neutral",
   Alta: "success",
   Baja: "danger",
   "Cambio de cargo o dedicación": "warning",
 };
 
 const ETIQUETA_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "Sin novedad",
   Alta: "Alta",
   Baja: "Baja",
   "Cambio de cargo o dedicación": "Cambio",
@@ -60,6 +62,16 @@ function Transicion({
     );
   }
   return <>{hacia ?? desde ?? "—"}</>;
+}
+
+function HorasPedido({ actual, solicitadas }: { actual?: number | null; solicitadas: number }) {
+  if (actual === undefined || actual === solicitadas) return <>{solicitadas}h</>;
+  return (
+    <Transicion
+      desde={actual === null ? "—" : String(actual) + "h"}
+      hacia={String(solicitadas) + "h"}
+    />
+  );
 }
 
 /**
@@ -117,15 +129,23 @@ export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
           <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
         </Dato>
         <Dato etiqueta="Materias">
-          {pedido.asignaciones.map((a) => `${a.materia} (${a.horas}h)`).join(" · ") || "—"}
+          {pedido.catedra} (<HorasPedido actual={pedido.horasActuales} solicitadas={pedido.horas} />
+          )
         </Dato>
         <Dato etiqueta="Horas de investigación">
           <span className="adoc-dato-horas">
-            {pedido.horasInvestigacion} h semanales
+            <HorasPedido
+              actual={pedido.horasInvestigacionActuales}
+              solicitadas={pedido.horasInvestigacion}
+            />{" "}
+            semanales
             <span className="adoc-portal-tag">Portal</span>
           </span>
         </Dato>
-        <Dato etiqueta="Horas externas">{pedido.horasExternas} h semanales</Dato>
+        <Dato etiqueta="Horas externas">
+          <HorasPedido actual={pedido.horasExternasActuales} solicitadas={pedido.horasExternas} />{" "}
+          semanales
+        </Dato>
         <Dato etiqueta="Agente externo">
           {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
         </Dato>

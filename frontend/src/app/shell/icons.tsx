@@ -100,34 +100,27 @@ export const navIcons = {
   ),
   usuarios: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <circle cx="6.5" cy="6" r="2.5" />
-      <path d="M1 16c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4" />
-      <circle cx="13" cy="5.5" r="2" />
-      <path d="M13 10c1.5 0 4 .75 4 3" />
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="13" cy="7" r="2" />
+      <path d="M1.5 15.5c.4-2.7 2-4 4.5-4s4.1 1.3 4.5 4M10.5 13c2.8-1.6 5.3-.4 6 2.5" />
     </svg>
   ),
   docentes: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <circle cx="7" cy="5.5" r="2.5" />
-      <path d="M2 16c0-2.5 2.5-4 5-4s5 1.5 5 4" />
-      <rect x="11" y="8" width="6" height="5" rx="0.5" />
-      <path d="M13 10h2M13 12h1" />
+      <path d="M2 6.5L9 3l7 3.5-7 3.5-7-3.5Z" />
+      <path d="M5 8.5v3.2c2.3 1.7 5.7 1.7 8 0V8.5M16 7v4" />
     </svg>
   ),
   roles: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <rect x="2" y="3" width="14" height="4" rx="1" />
-      <rect x="2" y="10" width="14" height="4" rx="1" />
-      <path d="M5 5h1M5 12h1" />
+      <path d="M9 2.5l5.5 2v4.1c0 3.2-2.3 5.5-5.5 6.9-3.2-1.4-5.5-3.7-5.5-6.9V4.5l5.5-2Z" />
+      <path d="M6.5 8.5h5M9 6v5" />
     </svg>
   ),
   membresiaRoles: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-      <rect x="2" y="3" width="8" height="4" rx="1" />
-      <path d="M12 4h4M12 7h3" />
-      <rect x="2" y="10" width="8" height="4" rx="1" />
-      <path d="M12 11h4M12 14h3" />
-      <path d="M11 5.5l1 1 2-2" />
+      <path d="M9 2.5l5.5 2v4.1c0 3.2-2.3 5.5-5.5 6.9-3.2-1.4-5.5-3.7-5.5-6.9V4.5l5.5-2Z" />
+      <path d="m6 8.7 2 2 4-4" />
     </svg>
   ),
 } satisfies Record<string, ReactNode>;

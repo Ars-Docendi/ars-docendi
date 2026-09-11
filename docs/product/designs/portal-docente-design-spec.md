@@ -1,7 +1,7 @@
 ---
 status: draft # draft | review | approved
 owner: "Julian Castellana"
-feature: "openspec/changes/portal-docente-perfil/specs/perfil-docente-portal/spec.md"
+feature: "openspec/specs/perfil-docente-portal/spec.md"
 last_updated: 2026-09-02
 ---
 
@@ -9,7 +9,7 @@ last_updated: 2026-09-02
 
 ## Resumen
 
-Se diseña **"Mi Portal"** (`/portal`), la pantalla donde el docente mantiene su propia información profesional: contacto, CV, educación, certificaciones, experiencia, proyectos, habilidades e intereses. Es el CV del docente convertido en datos consultables, y hoy es además **la primera pantalla que ve al ingresar al sistema** (la raíz redirige ahí). El alcance de esta iteración es solo la cara del docente, sobre datos mockeados.
+Se diseña **"Mi Portal"** (`/portal`), la pantalla donde el docente mantiene su propia información profesional: contacto, CV, educación, certificaciones, experiencia, proyectos, habilidades e intereses. Es el CV del docente convertido en datos consultables, y hoy es además **la primera pantalla que ve al ingresar al sistema** (la raíz redirige ahí). Los datos se persisten mediante la API de Portal.
 
 > **Sin prototipo Pencil en esta iteración** (decisión del equipo, 2026-09-02). El diseño se especifica acá en texto. La adhesión a la guía de estilos se mantiene íntegra: componentes de `@ars-docendi/ui`, tokens del theme, principios de `design-principles.md`.
 
@@ -135,8 +135,8 @@ Mi Portal
 - **Copiar el formulario de pedido de designación**: tarjeta única con guardado al pie y validación bloqueante. Es el patrón correcto para un trámite y el incorrecto para un perfil.
 - **Agregar textos de ayuda** para explicar qué hace cada sección o por qué un campo no se edita. Si hace falta explicarlo, el control está mal elegido.
 - **Avisos de completitud** del tipo "te falta cargar tu CV": duplican lo que ya se ve en la página.
-- **Botones inertes** (invariante #7): toda acción debe operar sobre el store mock — agregar, editar y borrar reflejan estado.
-- **Simular que los adjuntos se suben a un servidor**: son metadata mock, igual que en pedidos de designación.
+- **Botones inertes**: toda acción debe llamar a la API — agregar, editar y borrar reflejan el estado persistido.
+- **Prometer almacenamiento de archivos inexistente**: hasta integrar un blob store se persiste únicamente la metadata del adjunto.
 - **Inventar componentes o estilos**: todo sale de `@ars-docendi/ui` y sus tokens, salvo el selector de tags, que se compone con piezas existentes.
 
 ## Mapeo a componentes
@@ -158,8 +158,8 @@ La librería no tiene `Tag`, `Chip`, `Combobox` ni `MultiSelect`. El selector de
 
 - [`docs/product/design-principles.md`](../design-principles.md)
 - [`docs/product/designs/proyecto-docente-design-spec.md`](proyecto-docente-design-spec.md) — patrón visual de referencia
-- Specs funcionales: [`openspec/changes/portal-docente-perfil/specs/`](../../../openspec/changes/portal-docente-perfil/specs/)
-- Diseño técnico: [`openspec/changes/portal-docente-perfil/design.md`](../../../openspec/changes/portal-docente-perfil/design.md)
+- Specs funcionales: [`openspec/specs/perfil-docente-portal/spec.md`](../../../openspec/specs/perfil-docente-portal/spec.md)
+- API persistente: [`openspec/specs/portal-docente-api/spec.md`](../../../openspec/specs/portal-docente-api/spec.md)
 
 ## Open questions de diseño
 

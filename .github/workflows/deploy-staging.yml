@@ -9,9 +9,14 @@ on:
     # (docs/**, openspec/**, *.md) no disparan deploy.
     paths:
       - "backend/**"
+      - "!backend/**/*.md"
       - "frontend/**"
+      - "!frontend/**/*.md"
       - "infra/**"
+      - "!infra/**/*.md"
       - "database/**"
+      - "!database/**/*.md"
+      - "global.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -40,16 +45,20 @@ jobs:
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
       APP_DB_USER: app_staging
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_STAGING }}
+      ASPNETCORE_ENVIRONMENT: Staging
+      DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: Login al registro de imágenes
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
 
       - name: Build & push imágenes
         run: |
-          docker build -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" frontend
-          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" backend
+          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
+          # Contexto en la raíz: el backend embebe el DDL de database/ como
+          # recurso del assembly, así que es un input de compilación.
+          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
           docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
           docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
 

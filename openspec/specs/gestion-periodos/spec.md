@@ -4,6 +4,40 @@ Gestión (ABM) de los períodos de designación docente: la Secretaría Académi
 
 ## Requirements
 
+### Requirement: Gestión persistente de períodos
+
+El listado, alta, edición, activación, desactivación y eliminación de períodos MUST operar mediante la API de Designaciones y requerir el permiso efectivo `periodos.administrar`. La unicidad del período activo y las restricciones por pedidos asociados MUST validarse en backend.
+
+#### Scenario: Gestión autorizada por permiso
+
+- **GIVEN** un actor con `periodos.administrar`
+- **WHEN** lista o modifica períodos
+- **THEN** la operación se ejecuta mediante la API y la pantalla refleja el estado persistido
+
+#### Scenario: Guardado exitoso
+
+- **GIVEN** datos válidos y un actor con `periodos.administrar`
+- **WHEN** la API confirma la creación o edición
+- **THEN** una consulta posterior devuelve el período con los valores persistidos
+
+#### Scenario: Actor sin permiso
+
+- **GIVEN** un actor autenticado sin `periodos.administrar`
+- **WHEN** intenta abrir o mutar la gestión de períodos
+- **THEN** el frontend oculta el enlace y el backend deniega la operación
+
+#### Scenario: Segundo período activo
+
+- **GIVEN** un período activo distinto al que se guarda
+- **WHEN** se intenta activar otro período
+- **THEN** la API MUST rechazar la operación sin desactivar el existente
+
+#### Scenario: Eliminación restringida
+
+- **GIVEN** un período referenciado por pedidos
+- **WHEN** se intenta eliminarlo
+- **THEN** la API MUST rechazar la operación con un conflicto identificable y conservar el período
+
 ### Requirement: Listar períodos de designación
 
 El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, ventana de carga (desde/hasta), ventana de impacto (desde/hasta) y estado activo/inactivo.
@@ -121,24 +155,6 @@ El sistema SHALL requerir confirmación explícita antes de eliminar un período
 - **WHEN** el backend rechace la eliminación (ej: período con pedidos asociados)
 - **THEN** el sistema SHALL mostrar un InlineAlert de severidad "danger" dentro del modal de confirmación con el motivo del rechazo, sin cerrar el modal
 
----
-
-### Requirement: Mock data para validación visual
-
-El sistema SHALL mostrar datos de prueba representativos que permitan validar todos los estados visuales posibles sin necesidad de backend.
-
-#### Scenario: Variedad de estados en mock
-
-- **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar al menos un período con `activo: true` y varios con `activo: false`, y exactamente uno con `activo: true`
-
-#### Scenario: Variedad de ventanas de carga e impacto
-
-- **WHEN** el usuario accede a `/designaciones/periodos` en modo mock
-- **THEN** la tabla SHALL mostrar períodos con distintas ventanas de carga e impacto para simular un historial realista
-
----
-
 ### Requirement: Activar y desactivar período de designación
 
 El sistema SHALL permitir definir si un período está activo mediante un campo `Toggle` ("Período activo") dentro del formulario de creación/edición, confirmado junto con el resto de los datos al hacer clic en "Guardar". El sistema SHALL impedir que exista más de un período activo simultáneamente.
@@ -177,3 +193,43 @@ El sistema SHALL permitir definir si un período está activo mediante un campo 
 
 - **WHEN** el usuario hace clic en "Guardar" en cualquier otro caso (creación con cualquier valor de `activo`, o edición sin pasar de `activo: true` a `activo: false`)
 - **THEN** el sistema SHALL guardar directamente sin pedir confirmación
+
+### Requirement: Filtros y ordenamiento por encabezado en períodos
+
+La tabla de períodos de designación SHALL ofrecer un control de filtro accesible en los encabezados Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta y Activo. La columna Acciones MUST NOT ofrecer filtro ni ordenamiento. Los filtros textuales SHALL buscar coincidencias parciales sin distinguir mayúsculas ni tildes; el filtro Activo SHALL permitir seleccionar Activo, Inactivo o ambos.
+
+La tabla SHALL permitir ordenar Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta y Activo desde sus encabezados. Las fechas SHALL ordenarse cronológicamente usando el valor almacenado, no el texto formateado; cada orden SHALL alternar entre ascendente, descendente y sin orden manual.
+
+#### Scenario: Filtrar por nombre desde el encabezado
+
+- **GIVEN** existen períodos con nombres diferentes
+- **WHEN** el operador escribe una parte del nombre en el filtro de Nombre
+- **THEN** la tabla muestra sólo los períodos coincidentes sin distinguir mayúsculas ni tildes
+
+#### Scenario: Filtrar por estado activo
+
+- **GIVEN** la tabla contiene períodos activos e inactivos
+- **WHEN** el operador selecciona "Activo" en el filtro del encabezado Activo
+- **THEN** sólo se muestran los períodos activos
+
+#### Scenario: Ordenar fechas cronológicamente
+
+- **GIVEN** los períodos tienen fechas de carga o impacto en años y meses diferentes
+- **WHEN** el operador ordena ascendentemente la columna "Impacto desde"
+- **THEN** los períodos se presentan por fecha cronológica y no por el texto "Mes Año"
+
+#### Scenario: Limpiar un filtro sin afectar otros
+
+- **GIVEN** hay filtros activos en Nombre y Activo
+- **WHEN** el operador activa "Limpiar filtro" en Nombre
+- **THEN** se elimina sólo el criterio de Nombre y Activo continúa aplicado
+
+#### Scenario: Acciones sin filtro ni orden
+
+- **WHEN** el operador observa el encabezado Acciones
+- **THEN** no se muestra control de filtro ni indicador de ordenamiento en esa columna
+
+#### Scenario: Operación accesible del encabezado
+
+- **WHEN** el operador enfoca el control de filtro y presiona Enter o Espacio
+- **THEN** se abre el menú asociado sin ejecutar una acción de fila y el orden activo se comunica al lector de pantalla

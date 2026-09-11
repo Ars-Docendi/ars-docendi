@@ -1,28 +1,19 @@
 import { useState } from "react";
-import { Button, DatePicker, Field, Input, InlineAlert, Modal, Select } from "@ars-docendi/ui";
+import { Button, Field, InlineAlert, Modal, Select } from "@ars-docendi/ui";
+import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
 import {
-  MATERIAS_CATALOGO,
-  PERSONAS_SISTEMA,
-  ROLES_DOCENTE,
   nombreCompleto,
   type AsignacionMateria,
   type CargoDocente,
   type DocenteMock,
   type PersonaSistema,
-  type RolDocente,
-} from "../mock/mockStore";
+  type MateriaMock,
+  type RolCatalogoDocente,
+} from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
+import { CamposPersonaDocente, type CamposPersonaDocenteDatos } from "./CamposPersonaDocente";
 
-type Modo = "nueva" | "existente";
-
-interface ModalNuevoDocenteProps {
-  open: boolean;
-  upnsExistentes: string[];
-  onCrear: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
-  onCerrar: () => void;
-}
-
-const VACIO_PERSONA = {
+const CAMPOS_PERSONA_VACIOS: CamposPersonaDocenteDatos = {
   nombre: "",
   apellido: "",
   documento: "",
@@ -33,11 +24,49 @@ const VACIO_PERSONA = {
   upn: "",
 };
 
+type Modo = "nueva" | "existente";
+
+interface ModalNuevoDocenteProps {
+  open: boolean;
+  upnsExistentes: string[];
+  onCrear: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
+  onCerrar: () => void;
+  materias: MateriaMock[];
+  cargos: string[];
+  dedicaciones: { id: string; nombre: string }[];
+  personas: PersonaSistema[];
+  error?: string;
+  rolesDisponibles: RolCatalogoDocente[];
+}
+
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
   const completas = rows.filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0);
   if (completas.length === 0) return "Agregá al menos una asignación";
-  if (rows.some((r) => !r.materia || !r.cargo || !r.horas || Number(r.horas) <= 0)) {
-    return "Completá o quitá las filas incompletas (materia, cargo y horas > 0)";
+  if (
+    rows.some(
+      (r) =>
+        !r.materia ||
+        !r.cargo ||
+        !r.horas ||
+        Number(r.horas) <= 0 ||
+        (!r.dedicacionId && !r.dedicacionLegada),
+    )
+  ) {
+    return "Completá o quitá las filas incompletas (materia, cargo, dedicación y horas > 0)";
+  }
+  return undefined;
+}
+
+function validarMembresias(filas: MembresiaFila[]): string | undefined {
+  if (filas.length === 0) return "Seleccioná al menos una membresía";
+  if (
+    new Set(filas.map((fila) => `${fila.rolId}:${fila.materiaId}:${fila.carreraId}`)).size !==
+    filas.length
+  ) {
+    return "No se puede repetir la misma membresía";
+  }
+  if (filas.some((fila) => !fila.rolId || !fila.materiaId || !fila.carreraId)) {
+    return "Completá las filas de membresía";
   }
   return undefined;
 }
@@ -47,22 +76,30 @@ export function ModalNuevoDocente({
   upnsExistentes,
   onCrear,
   onCerrar,
+  materias,
+  cargos,
+  dedicaciones,
+  personas,
+  error,
+  rolesDisponibles,
 }: ModalNuevoDocenteProps) {
   const [modo, setModo] = useState<Modo>("nueva");
   const [personaId, setPersonaId] = useState("");
-  const [campos, setCampos] = useState(VACIO_PERSONA);
-  const [rol, setRol] = useState<string>("");
+  const [campos, setCampos] = useState(CAMPOS_PERSONA_VACIOS);
+  const [membresias, setMembresias] = useState<MembresiaFila[]>([
+    { rolId: "", materiaId: "", carreraId: "" },
+  ]);
   const [asignacionRows, setAsignacionRows] = useState<AsignacionRow[]>([
-    { materia: "", cargo: "", horas: "" },
+    { materia: "", cargo: "", horas: "", dedicacionId: "" },
   ]);
   const [enviado, setEnviado] = useState(false);
 
   function handleCerrar() {
     setModo("nueva");
     setPersonaId("");
-    setCampos(VACIO_PERSONA);
-    setRol("");
-    setAsignacionRows([{ materia: "", cargo: "", horas: "" }]);
+    setCampos(CAMPOS_PERSONA_VACIOS);
+    setMembresias([{ rolId: "", materiaId: "", carreraId: "" }]);
+    setAsignacionRows([{ materia: "", cargo: "", horas: "", dedicacionId: "" }]);
     setEnviado(false);
     onCerrar();
   }
@@ -70,13 +107,13 @@ export function ModalNuevoDocente({
   function handleModo(nuevoModo: Modo) {
     setModo(nuevoModo);
     setPersonaId("");
-    setCampos(VACIO_PERSONA);
+    setCampos(CAMPOS_PERSONA_VACIOS);
     setEnviado(false);
   }
 
   function seleccionarPersona(id: string) {
     setPersonaId(id);
-    const persona = PERSONAS_SISTEMA.find((p) => p.id === id) ?? null;
+    const persona = personas.find((p) => p.id === id) ?? null;
     setCampos(
       persona
         ? {
@@ -89,11 +126,11 @@ export function ModalNuevoDocente({
             telefono: persona.telefono,
             upn: persona.upn,
           }
-        : VACIO_PERSONA,
+        : CAMPOS_PERSONA_VACIOS,
     );
   }
 
-  function set<K extends keyof typeof VACIO_PERSONA>(campo: K, valor: string) {
+  function set<K extends keyof CamposPersonaDocenteDatos>(campo: K, valor: string) {
     setCampos((p) => ({ ...p, [campo]: valor }));
   }
 
@@ -113,37 +150,45 @@ export function ModalNuevoDocente({
           );
 
     const errorAsignaciones = validarAsignaciones(asignacionRows);
-    if (!personaOk || !rol || errorAsignaciones) return;
+    const errorMembresias = validarMembresias(membresias);
+    if (!personaOk || errorMembresias || errorAsignaciones) return;
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
 
     const asignaciones: AsignacionMateria[] = asignacionRows
       .filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0)
       .map((r) => ({
-        materia: MATERIAS_CATALOGO.find((m) => m.codigo === r.materia)!,
+        materia: materias.find((m) => m.codigo === r.materia)!,
         cargo: r.cargo as CargoDocente,
         horas: Number(r.horas),
+        dedicacionId: r.dedicacionId || null,
       }));
 
     onCrear({
       ...campos,
       upn: campos.upn.toLowerCase(),
-      roles: [rol as RolDocente],
+      roles: [],
+      membresias: membresias.map((fila) => ({
+        id: "",
+        codigo: "",
+        nombre: "",
+        ambito: "materia",
+        rolId: fila.rolId,
+        materiaId: fila.materiaId,
+        carreraId: fila.carreraId,
+      })),
       asignaciones,
+      tieneCuenta: true,
+      persona_id: modo === "existente" ? personaId : undefined,
     });
     handleCerrar();
   }
 
   const personaSeleccionada: PersonaSistema | null =
-    modo === "existente" ? (PERSONAS_SISTEMA.find((p) => p.id === personaId) ?? null) : null;
+    modo === "existente" ? (personas.find((p) => p.id === personaId) ?? null) : null;
 
   const upnDuplicada = enviado && !!campos.upn && upnsExistentes.includes(campos.upn.toLowerCase());
   const errorAsignaciones = enviado ? validarAsignaciones(asignacionRows) : undefined;
-
-  const grilla: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "1.25rem",
-  };
+  const errorMembresias = enviado ? validarMembresias(membresias) : undefined;
 
   const estiloTab = (activo: boolean): React.CSSProperties => ({
     flex: 1,
@@ -186,6 +231,7 @@ export function ModalNuevoDocente({
         </div>
       }
     >
+      {error && <InlineAlert severity="danger" title={error} />}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         {/* Selector de modo */}
         <div style={{ display: "flex", gap: "0.5rem" }}>
@@ -207,103 +253,12 @@ export function ModalNuevoDocente({
 
         {/* Datos personales según modo */}
         {modo === "nueva" ? (
-          <>
-            <div style={grilla}>
-              <Field
-                label="Nombre"
-                required
-                error={enviado && !campos.nombre ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.nombre}
-                  onChange={(e) => set("nombre", e.target.value)}
-                  placeholder="Ej: María"
-                />
-              </Field>
-              <Field
-                label="Apellido"
-                required
-                error={enviado && !campos.apellido ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.apellido}
-                  onChange={(e) => set("apellido", e.target.value)}
-                  placeholder="Ej: González"
-                />
-              </Field>
-            </div>
-            <div style={grilla}>
-              <Field
-                label="Documento (DNI)"
-                required
-                error={enviado && !campos.documento ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.documento}
-                  onChange={(e) => set("documento", e.target.value)}
-                  placeholder="Ej: 30123456"
-                />
-              </Field>
-              <Field
-                label="Legajo"
-                required
-                error={enviado && !campos.legajo ? "Campo obligatorio" : undefined}
-              >
-                <Input
-                  value={campos.legajo}
-                  onChange={(e) => set("legajo", e.target.value)}
-                  placeholder="Ej: 0421"
-                />
-              </Field>
-            </div>
-            <div style={grilla}>
-              <Field label="CUIL">
-                <Input
-                  value={campos.cuil}
-                  onChange={(e) => set("cuil", e.target.value)}
-                  placeholder="Ej: 27-30123456-4"
-                />
-              </Field>
-              <Field
-                label="Fecha de nacimiento"
-                required
-                error={enviado && !campos.fecha_nacimiento ? "Campo obligatorio" : undefined}
-              >
-                <DatePicker
-                  value={campos.fecha_nacimiento}
-                  onChange={(e) => set("fecha_nacimiento", e.target.value)}
-                />
-              </Field>
-            </div>
-            <div style={grilla}>
-              <div style={{ gridColumn: "span 2" }}>
-                <Field
-                  label="UPN / Email institucional"
-                  required
-                  error={enviado && !campos.upn ? "Campo obligatorio" : undefined}
-                >
-                  <Input
-                    type="email"
-                    value={campos.upn}
-                    onChange={(e) => set("upn", e.target.value)}
-                    placeholder="nombre@unlam.edu.ar"
-                  />
-                </Field>
-                {upnDuplicada && (
-                  <div style={{ marginTop: "6px" }}>
-                    <InlineAlert severity="danger" title="Ya existe un docente con esa UPN." />
-                  </div>
-                )}
-              </div>
-            </div>
-            <Field label="Teléfono">
-              <Input
-                value={campos.telefono}
-                onChange={(e) => set("telefono", e.target.value)}
-                placeholder="Ej: 11-4523-8801"
-              />
-            </Field>
-          </>
+          <CamposPersonaDocente
+            campos={campos}
+            enviado={enviado}
+            upnDuplicada={upnDuplicada}
+            onChange={set}
+          />
         ) : (
           <>
             <Field
@@ -313,7 +268,7 @@ export function ModalNuevoDocente({
             >
               <Select value={personaId} onChange={(e) => seleccionarPersona(e.target.value)}>
                 <option value="">Elegí una persona del sistema…</option>
-                {PERSONAS_SISTEMA.map((p) => (
+                {personas.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.apellido}, {p.nombre} — DNI {p.documento}
                   </option>
@@ -329,7 +284,20 @@ export function ModalNuevoDocente({
                   fontSize: "0.875rem",
                   lineHeight: 1.6,
                 }}
+                aria-label="Datos personales de solo lectura"
               >
+                <div
+                  style={{
+                    marginBottom: "0.25rem",
+                    color: "var(--color-text-secondary)",
+                    fontSize: "0.75rem",
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Datos personales · solo lectura
+                </div>
                 <strong>{nombreCompleto(personaSeleccionada)}</strong>
                 <br />
                 DNI {personaSeleccionada.documento} · Legajo {personaSeleccionada.legajo}
@@ -346,22 +314,21 @@ export function ModalNuevoDocente({
           </>
         )}
 
-        {/* Rol y asignaciones — comunes a ambos modos */}
-        <Field label="Rol" required error={enviado && !rol ? "Campo obligatorio" : undefined}>
-          <Select value={rol} onChange={(e) => setRol(e.target.value)}>
-            <option value="">Seleccioná un rol…</option>
-            {ROLES_DOCENTE.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <MembresiasSelector
+          filas={membresias}
+          onChange={setMembresias}
+          roles={rolesDisponibles}
+          materias={materias}
+          error={errorMembresias}
+        />
 
         <AsignacionesSelector
           rows={asignacionRows}
           onChange={setAsignacionRows}
           error={errorAsignaciones}
+          materias={materias}
+          cargos={cargos}
+          dedicaciones={dedicaciones}
         />
       </div>
     </Modal>

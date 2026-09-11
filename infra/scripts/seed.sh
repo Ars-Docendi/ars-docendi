@@ -18,6 +18,10 @@ source "$(dirname "$0")/_comun.sh"
 ambiente="${1:-}"
 validar_ambiente "$ambiente"
 
+if [[ "$ambiente" == "prod" ]]; then
+  fatal "msg=\"PROHIBIDO ejecutar fixtures sintéticas sobre prod\" ambiente=\"prod\""
+fi
+
 base="$(nombre_base "$ambiente")"
 base_prod="$(nombre_base prod)"
 

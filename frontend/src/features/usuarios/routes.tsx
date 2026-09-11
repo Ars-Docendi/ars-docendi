@@ -1,7 +1,11 @@
-import { RequireRole } from "../../shared/auth/RequireRole";
-import { IndexPage } from "./pages/IndexPage";
+import { RequirePermission } from "../../shared/auth/RequirePermission";
 
 export const routes = {
-  element: <RequireRole allowedRoles={["Secretaría", "Administración"]} />,
-  children: [{ path: "/usuarios", element: <IndexPage /> }],
+  element: <RequirePermission permission="usuarios.ver" />,
+  children: [
+    {
+      path: "/usuarios",
+      lazy: () => import("./pages/IndexPage").then(({ IndexPage }) => ({ Component: IndexPage })),
+    },
+  ],
 };

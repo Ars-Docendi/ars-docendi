@@ -11,14 +11,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="14.1.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\Modules.Portal.Contracts\Modules.Portal.Contracts.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <SqlPortal Include="$(MSBuildThisFileDirectory)..\..\..\database\portal\*.sql" />
+    <EmbeddedResource Include="@(SqlPortal)" Link="Sql\portal\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlPortal)' == ''"
+           Text="No se encontró ningún .sql en database/portal/." />
+  </Target>
 
 </Project>
