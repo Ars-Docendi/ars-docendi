@@ -1,0 +1,134 @@
+namespace Modules.Asistente.Application;
+
+/// <summary>
+/// Ejecuta la consulta generada contra una conexión de solo lectura, acotada al
+/// actor del turno.
+/// </summary>
+public interface IEjecutorDeConsulta
+{
+    /// <summary>
+    /// Ejecuta la consulta en una transacción nueva de solo lectura, con el actor
+    /// fijado transaction-local.
+    /// </summary>
+    /// <param name="sql">La consulta generada, <b>ya validada</b>.</param>
+    /// <param name="actor">
+    /// Identificador de <c>identity.users</c> del usuario autenticado. Nunca el
+    /// identificador del proveedor de identidad externo: los dos son UUID, así que
+    /// confundirlos compila y ejecuta, y la diferencia aparece como un resultado
+    /// vacío sobre una base llena.
+    /// </param>
+    /// <param name="conDatosPersonales">Cuál de las dos conexiones de lectura usar.</param>
+    Task<ResultadoDeConsulta> EjecutarAsync(
+        string sql, Guid actor, bool conDatosPersonales, CancellationToken ct);
+}
+
+/// <summary>
+/// Lo que el carril necesita saber del actor antes de decidir nada.
+/// </summary>
+/// <param name="EsGlobal">Si ve todo el Departamento.</param>
+/// <param name="VeDatosPersonales">
+/// Si corresponde usar la conexión con acceso a las columnas personales.
+/// </param>
+/// <param name="CodigoDeRol">
+/// El código del <b>único</b> rol vigente del actor, o <c>null</c> si no tiene
+/// ninguno o tiene más de uno. Lo consume solamente
+/// <see cref="PresentacionPorRol"/>, para elegir un texto de bienvenida; ninguna
+/// decisión de alcance, de permisos ni de conexión lo mira, y las notas de esa
+/// clase explican por qué acá el rol sí se puede leer sin fallar abierto.
+/// </param>
+/// <param name="AlcanzaDesignaciones">
+/// Si el actor alcanza <b>todo el dominio del trámite</b>: ámbito global y permiso
+/// de designaciones, que es la conjunción que hace la policy.
+/// </param>
+/// <remarks>
+/// <b>NO ES «alcanza todo».</b> Lo era cuando había un solo dominio con policies, y
+/// ese nombre se volvió mentira al llegar portal: un actor global con
+/// <c>designaciones.ver</c> y sin el permiso de portal lo tenía en verdadero y
+/// recibía «no encontré ningún registro» sobre perfiles que existen y no alcanza.
+///
+/// Si «cero filas significa que no hay» se decide por turno, contra los dominios
+/// que la consulta tocó — ver <see cref="PoliticaDeAbstencion.AlcanzaTodo"/>. Este
+/// campo es uno de sus ingredientes, no la respuesta.
+/// </remarks>
+/// <param name="VeTrayectoriaAjena">
+/// Si puede consultar el perfil profesional de OTRA persona.
+/// </param>
+/// <param name="VeDesignaciones">
+/// Si tiene el permiso de dominio del trámite, <b>sin conjugar con el ámbito</b>.
+/// </param>
+/// <remarks>
+/// <c>VeDesignaciones</c> y <see cref="AlcanzaDesignaciones"/> parecen lo mismo y
+/// no lo son: el segundo es este permiso <b>Y</b> ámbito global, que es lo que la
+/// policy exige para ver TODAS las filas. Éste responde otra pregunta —«¿puede ver
+/// alguna?»— y es la que corresponde para anunciar un área: un jefe de cátedra con
+/// el permiso ve las designaciones de su cátedra, así que anunciárselas no promete
+/// nada que no pueda ejercer. Usar el conjugado dejaría a todos los roles acotados
+/// sin el anuncio de lo que sí consultan.
+/// </remarks>
+/// <remarks>
+/// <c>VeTrayectoriaAjena</c> lo consume únicamente la presentación, para no
+/// anunciarle una capacidad a quien no la tiene —que es fake UI por otro camino, y
+/// el invariante #7 lo prohíbe—. El alcance real no lo decide este booleano sino la
+/// policy de RLS, que vuelve a preguntar por el permiso en cada consulta.
+/// </remarks>
+public sealed record PerfilDelActor(
+    bool EsGlobal,
+    bool VeDatosPersonales,
+    bool VeLaConsulta = false,
+    string? CodigoDeRol = null,
+    bool AlcanzaDesignaciones = false,
+    bool VeTrayectoriaAjena = false,
+    bool VeDesignaciones = false);
+
+/// <summary>
+/// Resuelve el alcance y el acceso a datos personales del actor.
+/// </summary>
+/// <remarks>
+/// El alcance es lo que permite distinguir «no hay datos» de «no podés verlos».
+/// RLS convierte la falta de permiso en cero filas, que es exactamente la misma
+/// firma que un literal que no matcheó: mismo conteo, mismo tipo de resultado,
+/// ninguna señal. Sin esta consulta, el carril gastaría el único reintento en un
+/// caso donde ningún reintento puede ayudar, y la redacción diría «no hay» cuando
+/// la verdad es «no podés verlo».
+///
+/// El acceso a datos personales exige alcance global <b>además</b> del permiso, y
+/// no es redundancia: la política de la aplicación es la puerta, pero los
+/// endpoints de docentes acotan los datos por separado, en el controller. Un
+/// asistente que mirara solo la política heredaría la puerta y no el acotamiento,
+/// y como <c>identity.personas</c> no tiene RLS, un jefe de cátedra podría leer
+/// documento y teléfono de todo el padrón — algo que la interfaz le niega.
+/// </remarks>
+public interface IPerfilDelActor
+{
+    /// <summary>
+    /// Resuelve el perfil del actor del turno.
+    /// </summary>
+    /// <remarks>
+    /// Valida además el actor: la consulta invoca <c>identity.asistente_actor()</c>,
+    /// que no resuelve si el UUID no corresponde a un usuario activo. Un
+    /// identificador del directorio externo falla acá, de forma visible, en lugar
+    /// de producir un turno que responde «no encontré nada» sobre una base llena.
+    /// </remarks>
+    /// <exception cref="ActorNoResuelto">Si el identificador no es un usuario activo.</exception>
+    Task<PerfilDelActor> ObtenerAsync(Guid actor, CancellationToken ct);
+}
+
+/// <summary>
+/// El identificador que se quiso usar como actor no corresponde a ningún usuario
+/// activo del sistema.
+/// </summary>
+/// <remarks>
+/// El caso típico es haber tomado el identificador del proveedor de identidad
+/// externo en lugar del de <c>identity.users</c>. Los dos son UUID, así que la
+/// confusión compila y ejecuta; sin esta excepción se manifestaría como un turno
+/// que responde «no encontré nada» sobre una base llena, que es un error mucho
+/// peor que uno que rompe.
+/// </remarks>
+internal sealed class ActorNoResuelto(Guid actor, Exception? causa = null)
+    : Exception(
+        $"El identificador '{actor}' no corresponde a ningún usuario activo del sistema.",
+        causa)
+{
+    /// <summary>El identificador que no resolvió.</summary>
+    public Guid Actor { get; } = actor;
+}

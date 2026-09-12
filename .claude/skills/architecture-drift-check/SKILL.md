@@ -1,6 +1,6 @@
 ---
 name: architecture-drift-check
-description: Pass read-only que compara docs/architecture/dependency-graph.md + module-anatomy.md contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, edges no registrados.
+description: Pass read-only que compara backend/manifiesto-de-aristas.json + docs/architecture/module-anatomy.md contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, aristas no registradas.
 argument-hint: [<modulo opcional>]
 ---
 
@@ -22,13 +22,13 @@ argument-hint: [<modulo opcional>]
 
 ### 2. Ciclos en dependencias
 
-Inspeccionar todos los `.csproj` y extraer ProjectReferences:
+**Ya lo verifica un test.** `AciclicidadDelGrafoTests` construye el grafo desde los `ProjectReference` de todo `backend/src` —no sólo los `Modules.*`— y detecta ciclos con DFS, enumerando los proyectos que forman cada uno.
 
 ```bash
-grep -rE "ProjectReference" backend/src/Modules.*/*.csproj
+~/.dotnet/dotnet test backend/ArsDocendi.slnx --filter "FullyQualifiedName~AciclicidadDelGrafoTests"
 ```
 
-Construir grafo + detectar ciclos con DFS.
+En rojo, el mensaje ya nombra el ciclo: no hace falta reconstruirlo a mano. No rehacer el `grep`: un barrido artesanal sobre `backend/src/Modules.*/*.csproj` se saltea los proyectos que no son módulos, que es exactamente donde apareció la desviación que motivó el manifiesto.
 
 ### 3. Referencias cruzadas inválidas
 
@@ -46,13 +46,15 @@ grep -rE "using ArsDocendi.Modules.[A-Z][a-zA-Z]+\.Internal" backend/src/ --incl
 
 Cualquier match desde un módulo distinto → **violación**.
 
-### 5. Edges no registrados
+### 5. Aristas no registradas
 
-Listar todos los `ProjectReference` cross-module en el código.
+**Ya lo verifica un test.** El registro es `backend/manifiesto-de-aristas.json`, no una tabla markdown: `ManifiestoDeAristasTests` lo cruza contra los `ProjectReference` reales en tres direcciones —arista en el código sin fila, fila sin arista en el código, y proyecto de `backend/src` sin clasificar— y una excepción a un invariante sin `ticket` o sin motivo también sale en rojo.
 
-Cruzar contra el "Edge registry" de `docs/architecture/dependency-graph.md`.
+```bash
+~/.dotnet/dotnet test backend/ArsDocendi.slnx --filter "FullyQualifiedName~ManifiestoDeAristasTests"
+```
 
-Cada edge en código no listado en docs → **drift**.
+`docs/architecture/dependency-graph.md` ya **no** tiene tabla de aristas: si alguien la reintroduce, eso mismo es drift. El diagrama Mermaid del documento es un dibujo de orientación declarado no normativo (TD-018) — desincronizado es deuda anotada, no un blocker.
 
 ### 6. Endpoints sin documentar
 

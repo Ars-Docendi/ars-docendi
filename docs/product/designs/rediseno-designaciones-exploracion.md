@@ -219,7 +219,7 @@ Temas A+B mockeados en `screens.pen` sobre los frames existentes del form de ped
 SeccionDesignacionSolicitada.tsx` + `DatosActualesPanel.tsx`): ahí **Cargo y Dedicación
   solicitados se editan juntos también en Cambio** (la materia es lo único condicional a Alta), y la
   transición "Cat. 3 → Cat. 2" del panel de datos actuales se calcula reactivamente a partir de ese
-  Select. Se agregó el campo al mockup para que quede consistente con el código real. **Confirmado
+  Select. Se agregó el campo al mockup para que quede consistente con el código real. \*\*Confirmado
   por el cliente: la dedicación se puede elegir libremente entre las Categorías 1–6.
 - **Catálogo vigente de dedicación:** `frontend/src/features/designaciones/api/catalogos.ts` y la
   API persistida ofrecen Categorías 1–6. Categoría 0 no se ofrece como nueva selección; un valor

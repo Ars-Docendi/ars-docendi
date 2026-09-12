@@ -25,6 +25,13 @@ Leé antes de cambiar:
 8. Las reglas normativas usan `BR-<modulo>-NNN`, fuente y mapping a tests.
 9. Los cambios de UX actualizan su design spec cuando existe.
 10. Identificadores, comentarios y documentación propios se escriben en español; los símbolos de frameworks conservan sus nombres.
+11. Un módulo puede consultar schemas ajenos sin pasar por `Contracts` únicamente si la frontera la sostiene el motor de base de datos y es **falsable**: rol de PostgreSQL sin GRANT de mutación, GRANT enumerados columna por columna contra un manifiesto versionado, policies RLS que conjunten el permiso de dominio, y tests que fallen si cualquiera de esas condiciones se degrada. Hoy aplica a `Modules.Asistente` y sólo a él. Ratificado el 2026-09-08.
+
+Es la excepción a la regla 1, y existe porque el Asistente no puede cumplirla: pasar por `Contracts` significaría que el modelo generara llamadas a métodos en vez de SQL, que es otro sistema. Se enmienda explícitamente en vez de reinterpretar la regla 1, porque una regla reinterpretada deja de restringir a nadie.
+
+**La regla no es este párrafo: es este párrafo más lo que lo verifica** — `ManifiestoPrivilegiosTests`, `PrivilegiosLecturaTests`, `RlsAlcanceTests` y `ArquitecturaAsistenteTests`. Un GRANT que nadie re-verifica se degrada en silencio y el sistema sigue funcionando; sólo deja de estar contenido. Si alguno de esos tests deja de fallar ante una degradación, el invariante deja de valer aunque el texto siga acá.
+
+Nota sobre la regla 4: el Asistente **no** lee identidad por `IConsultasIdentity` sino por SQL directo con un rol de solo lectura, y es exactamente lo que esta regla autoriza.
 
 ## Flujo de trabajo
 

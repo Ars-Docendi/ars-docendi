@@ -20,7 +20,8 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
     public async Task Todos_los_endpoints_ejecutan_el_crud_completo()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
+        await BorrarContactoSembradoAsync(ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         await VerificarSuperficieHttpAsync(cliente, ct);
@@ -118,7 +119,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         var operaciones = swagger!["paths"]!.AsObject()
             .SelectMany(ruta => ruta.Value!.AsObject().Select(metodo => (ruta.Key, metodo.Key)))
             .ToArray();
-        Assert.Equal(66, operaciones.Length);
+        // El número cuenta TODA la superficie del Host, no sólo la de Portal: se mueve
+        // cada vez que cualquier módulo suma o saca un endpoint. Los tres del módulo
+        // Asistente —ping, capacidades y consultas— están adentro de esta cuenta.
+        Assert.Equal(69, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {
@@ -130,19 +134,6 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
             Assert.Equal(publica ? HttpStatusCode.OK : HttpStatusCode.Unauthorized,
                 respuesta.StatusCode);
         }
-    }
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(
-            sql + "\nDELETE FROM portal.contactos " +
-            "WHERE perfil_id = 'f0000000-0000-4000-8000-000000000002';",
-            conexion)
-        { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
     }
 
     private static async Task<T> PostAsync<T>(HttpClient cliente, string ruta, object datos, CancellationToken ct)
@@ -166,14 +157,21 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         Assert.Equal(esperado, respuesta.StatusCode);
     }
 
-    private static string BuscarRaizRepositorio()
+    /// <summary>
+    /// Deja al docente de la prueba sin contacto cargado.
+    /// </summary>
+    /// <remarks>
+    /// El test ejercita el alta del contacto por HTTP, y el seed sintético ya le
+    /// carga uno. Es un ajuste DE ESTE test sobre el estado sembrado, no una
+    /// variante del seed: por eso va en un paso propio y no dentro de
+    /// <c>SembrarAsync</c>.
+    /// </remarks>
+    private async Task BorrarContactoSembradoAsync(CancellationToken ct)
     {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "DELETE FROM portal.contactos WHERE perfil_id = 'f0000000-0000-4000-8000-000000000002'",
+            conexion);
+        await comando.ExecuteNonQueryAsync(ct);
     }
 }

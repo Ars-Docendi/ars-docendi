@@ -1,0 +1,42 @@
+{
+  "Eje": "capacidad",
+  "Sello": {
+    "Prefijo": "b95d56de8343e6219ac2c7eb90b0c3786b826315c9115e4ae382507364ae565f",
+    "Dataset": "fdfc2091b3c08127d1ec9bdf46142627eb50e6f9f1da33a8fe3e03a180dac024",
+    "Fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2"
+  },
+  "Items": {
+    "cap-001": "traduccion_correcta",
+    "cap-002": "traduccion_correcta",
+    "cap-003": "traduccion_correcta",
+    "cap-004": "abstencion_sobrelo_factible",
+    "cap-005": "traduccion_correcta",
+    "cap-006": "traduccion_correcta",
+    "cap-007": "traduccion_correcta",
+    "cap-008": "abstencion_sobrelo_factible",
+    "cap-009": "traduccion_correcta",
+    "cap-010": "traduccion_correcta",
+    "cap-011": "traduccion_correcta",
+    "cap-012": "traduccion_correcta",
+    "cap-013": "traduccion_correcta",
+    "cap-014": "traduccion_correcta",
+    "cap-015": "traduccion_correcta",
+    "cap-016": "traduccion_correcta",
+    "cap-017": "abstencion_correcta",
+    "cap-018": "abstencion_correcta",
+    "cap-019": "abstencion_correcta",
+    "cap-020": "abstencion_correcta",
+    "cap-021": "abstencion_correcta",
+    "cap-022": "traduccion_correcta",
+    "cap-023": "traduccion_correcta",
+    "cap-024": "traduccion_correcta",
+    "cap-025": "traduccion_correcta",
+    "cap-026": "traduccion_correcta",
+    "cap-027": "traduccion_correcta",
+    "cap-028": "traduccion_correcta",
+    "cap-029": "traduccion_correcta",
+    "cap-030": "abstencion_correcta",
+    "cap-031": "abstencion_correcta",
+    "cap-032": "abstencion_correcta"
+  }
+}

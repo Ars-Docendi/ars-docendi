@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-12",
+  "hash_del_prefijo": "b95d56de8343e6219ac2c7eb90b0c3786b826315c9115e4ae382507364ae565f",
+  "hash_del_fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CexfPECeZW7tefm9esLbY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": false, \\\"sql\\\": null, \\\"razonamiento\\\": \\\"No puedo determinar quién es el usuario ni a qué carrera pertenece su rol de coordinador, ya que la sesión no expone esa información en las tablas disponibles para armar el filtro; el sistema ya se encarga de filtrar el alcance automáticamente.\\\", \\\"categoria\\\": \\\"no_contestable\\\"}\"}],\"container\":null,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":608,\"cache_creation_input_tokens\":12056,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":12056,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":130,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

@@ -1,7 +1,12 @@
 import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
 
 export type FiltroEstado =
-  "borrador" | "revision" | "aprobado" | "rechazado" | "devuelto" | "cancelado";
+  | "borrador"
+  | "revision"
+  | "aprobado"
+  | "rechazado"
+  | "devuelto"
+  | "cancelado";
 
 export interface FiltrosMisPedidosState {
   docente: string;
@@ -24,7 +29,13 @@ export const FILTROS_INICIALES: FiltrosMisPedidosState = {
 };
 
 export type ColumnaOrdenMisPedidos =
-  "numero" | "docente" | "legajo" | "catedra" | "tipo" | "enviado" | "estado";
+  | "numero"
+  | "docente"
+  | "legajo"
+  | "catedra"
+  | "tipo"
+  | "enviado"
+  | "estado";
 
 export interface OrdenMisPedidos {
   columna: ColumnaOrdenMisPedidos;

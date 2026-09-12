@@ -69,11 +69,16 @@ horas y datos actuales se toman de esa designación, nunca de la primera del doc
 
 ## API pública (contract)
 
-| Interfaz                       | Métodos                                             | Consumido por                      |
-| ------------------------------ | --------------------------------------------------- | ---------------------------------- |
-| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host |
+| Interfaz                       | Métodos                                             | Consumido por                                   |
+| ------------------------------ | --------------------------------------------------- | ----------------------------------------------- |
+| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host              |
+| `IDesignacionesQueries`        | ubicar trámites por su número legible, acotados     | adaptador de vínculos del asistente, en el Host |
 
 El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
+
+`IDesignacionesQueries.UbicarPedidosAsync` existe para que **otro módulo no tenga que adivinar quién puede abrir un trámite**. Aplica el mismo criterio que `GET /api/designaciones/pedidos/{id}` —`MaquinaEstadosPedido.AlcanzaAmbito`, la misma función, no una copia— y devuelve **menos** de lo que se le pide: descarta por forma lo que no puede ser un número de trámite antes de consultar la base, y omite lo que existe pero queda fuera del ámbito del actor, sin distinguir un caso del otro.
+
+Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde una respuesta. Consume el contract **desde el Host** y no desde `Modules.Asistente`: la arista entre módulos es ARS-46 y todavía no está aprobada, así que el asistente declara un puerto y el composition root lo compone.
 
 Para un Alta de pedido, Designaciones consume por DI la frontera pública
 `IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en

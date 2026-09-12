@@ -79,3 +79,92 @@ existe_base() {
   res="$(psql_admin -c "SELECT 1 FROM pg_database WHERE datname = '${base}';")"
   [[ "$res" == "1" ]]
 }
+# ¿Existe el rol?  existe_rol <nombre_rol> -> 0 si existe
+# Los roles son objetos de CLUSTER: viven fuera de cualquier base y sobreviven
+# a un DROP DATABASE. Por eso el alta y la baja se manejan explícitamente.
+existe_rol() {
+  local rol="$1"
+  local res
+  res="$(psql_admin -c "SELECT 1 FROM pg_roles WHERE rolname = '${rol}';")"
+  [[ "$res" == "1" ]]
+}
+
+# psql como admin contra la base de UN ambiente (para DDL que debe ejecutarse
+# dentro de esa base, p. ej. DROP OWNED BY).  psql_base <base> [args-psql...]
+psql_base() {
+  local base="$1"; shift
+  psql_en_docker -e "PGDATABASE=${base}" "$IMAGEN_PSQL" \
+    psql -v ON_ERROR_STOP=1 -tA "$@"
+}
+
+# Escapa un valor para interpolarlo como literal SQL: duplica las comillas
+# simples y devuelve el literal ya entrecomillado.
+#
+# Por qué NO alcanza con "'${valor}'": una contraseña con una comilla simple
+# corta la sentencia y el resto se interpreta como SQL. Con standard_conforming_strings
+# (default desde PostgreSQL 9.1) duplicar la comilla es el único escape necesario.
+#
+# Gotcha: este literal NO puede ir dentro de un bloque $$ ... $$. En un string
+# dollar-quoted un '$$' en el valor cerraría la cita antes de tiempo. Por eso las
+# sentencias de rol de acá son CREATE/ALTER planos, no un DO.
+sql_literal() {
+  local valor="$1"
+  printf "'%s'" "${valor//\'/\'\'}"
+}
+
+# Sufijo determinístico del ambiente para nombres de objeto: '-' -> '_'.
+# pr-123 -> pr_123 ; staging -> staging ; prod -> prod
+sufijo_ambiente() {
+  local ambiente="$1"
+  [[ -n "$ambiente" ]] || fatal "msg=\"ambiente vacío\""
+  echo "$ambiente" | tr '-' '_'
+}
+
+# Nombre de un rol de solo lectura del asistente para un ambiente.
+#   rol_asistente <ambiente> <basico|pii>
+#   prod   -> asistente_ro_prod   / asistente_ro_pii_prod
+#   pr-123 -> asistente_ro_pr_123 / asistente_ro_pii_pr_123
+#
+# Un par de roles POR AMBIENTE y no uno global: los roles son objetos de cluster
+# y la instancia es una sola con una base por ambiente. Un rol único sería el
+# mismo principal —y la misma contraseña— para producción y para cada ambiente
+# efímero de PR, que corre código arbitrario de un pull request sobre la misma
+# red de datos. (change asistente-fundaciones, decisión D9.)
+rol_asistente() {
+  local ambiente="$1"
+  local variante="${2:-}"
+  local sufijo
+  sufijo="$(sufijo_ambiente "$ambiente")"
+  case "$variante" in
+    basico) echo "asistente_ro_${sufijo}" ;;
+    pii)    echo "asistente_ro_pii_${sufijo}" ;;
+    *)      fatal "msg=\"variante de rol inválida\" variante=\"${variante}\" esperado=\"basico|pii\"" ;;
+  esac
+}
+
+# Atributos con los que se crean AMBOS roles del asistente. Explícitos aunque
+# varios coincidan con el default: son la frontera del módulo y se leen acá.
+#   NOBYPASSRLS  el asistente queda sujeto a las policies de RLS — es el
+#                mecanismo de contención de alcance por actor, no una decoración.
+#   NOINHERIT    si mañana alguien le da membresía en otro rol, no hereda sus
+#                privilegios de forma implícita.
+ATRIBUTOS_ROL_ASISTENTE="NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT"
+
+# Alta o actualización idempotente de un rol con LOGIN.
+#   asegurar_rol_login <rol> <password> [atributos]
+# Nunca loguea la contraseña.
+asegurar_rol_login() {
+  local rol="$1"
+  local password="$2"
+  local atributos="${3:-}"
+  local literal
+  literal="$(sql_literal "$password")"
+
+  if existe_rol "$rol"; then
+    psql_admin -c "ALTER ROLE \"${rol}\" WITH LOGIN PASSWORD ${literal} ${atributos};"
+    log_info msg="rol actualizado" rol="$rol"
+  else
+    psql_admin -c "CREATE ROLE \"${rol}\" WITH LOGIN PASSWORD ${literal} ${atributos};"
+    log_info msg="rol creado" rol="$rol"
+  fi
+}
