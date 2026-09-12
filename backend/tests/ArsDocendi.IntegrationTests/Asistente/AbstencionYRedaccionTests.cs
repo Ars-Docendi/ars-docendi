@@ -16,72 +16,53 @@ public sealed class AbstencionYRedaccionTests
 {
     // ------------------------------------------------------ guard de vacío
 
-    [Fact]
-    public void Cero_filas_es_vacio()
+    /// <summary>Qué cuenta como resultado vacío y qué no.</summary>
+    public static TheoryData<IReadOnlyList<IReadOnlyList<object?>>, bool> CasosDeVacio => new()
     {
-        Assert.True(Resultado([]).EstaVacio);
-    }
-
-    [Fact]
-    public void Una_fila_de_nulos_es_vacio()
-    {
+        { [], true },
         // Una agregación sobre cero filas devuelve UNA fila con nulos, no cero
         // filas. Un guard que solo mirara el conteo la daría por resultado con
         // datos y la redacción hablaría de un máximo que no existe.
-        Assert.True(Resultado([[null, null]]).EstaVacio);
-    }
-
-    [Fact]
-    public void Una_fila_con_un_cero_no_es_vacio()
-    {
+        { [[null, null]], true },
         // count(*) sobre nada devuelve cero, y cero SÍ dice algo.
-        Assert.False(Resultado([[0L]]).EstaVacio);
-    }
-
-    [Fact]
-    public void Una_fila_con_algun_valor_no_nulo_no_es_vacio()
-    {
-        Assert.False(Resultado([[null, "Pérez", null]]).EstaVacio);
-    }
-
-    [Fact]
-    public void Varias_filas_de_nulos_no_son_vacio()
-    {
+        { [[0L]], false },
+        { [[null, "Pérez", null]], false },
         // Dos filas de nulos no vienen de una agregación vacía: vienen de un
         // conjunto con dos elementos cuyos valores son nulos, que es un dato.
-        Assert.False(Resultado([[null], [null]]).EstaVacio);
+        { [[null], [null]], false },
+    };
+
+    [Theory]
+    [MemberData(nameof(CasosDeVacio))]
+    public void El_guard_de_vacio_separa_la_agregacion_sin_filas_del_dato_nulo(
+        IReadOnlyList<IReadOnlyList<object?>> filas, bool esVacio)
+    {
+        Assert.Equal(esVacio, Resultado(filas).EstaVacio);
     }
 
     // -------------------------------------------------------- el reintento
 
-    [Fact]
-    public void Con_actor_acotado_un_vacio_no_gasta_el_reintento()
+    /// <summary>Qué resultado justifica gastar el único reintento.</summary>
+    public static TheoryData<IReadOnlyList<IReadOnlyList<object?>>, bool, bool> CasosDeReintento => new()
     {
         // RLS convierte «no tenés permiso» en cero filas, que es la MISMA firma
         // que «el literal no matcheó». Reintentar acá gasta el único reintento en
         // un caso donde ningún reintento puede ayudar.
-        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), alcanzaTodo: false));
-    }
-
-    [Fact]
-    public void Con_actor_global_un_vacio_si_gasta_el_reintento()
-    {
+        { [], false, false },
         // Para un actor global, cero filas sí significa cero filas: el
         // comportamiento no cambia respecto del caso base.
-        Assert.True(PoliticaDeAbstencion.ConvieneReintentar(Resultado([]), alcanzaTodo: true));
-    }
+        { [], true, true },
+        { [["algo"]], true, false },
+        { [["algo"]], false, false },
+        { [[null]], false, false },
+    };
 
-    [Fact]
-    public void Un_resultado_con_datos_nunca_gasta_el_reintento()
+    [Theory]
+    [MemberData(nameof(CasosDeReintento))]
+    public void El_reintento_solo_se_gasta_donde_puede_ayudar(
+        IReadOnlyList<IReadOnlyList<object?>> filas, bool alcanzaTodo, bool conviene)
     {
-        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([["algo"]]), true));
-        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([["algo"]]), false));
-    }
-
-    [Fact]
-    public void Con_actor_acotado_una_agregacion_vacia_tampoco_gasta_el_reintento()
-    {
-        Assert.False(PoliticaDeAbstencion.ConvieneReintentar(Resultado([[null]]), false));
+        Assert.Equal(conviene, PoliticaDeAbstencion.ConvieneReintentar(Resultado(filas), alcanzaTodo));
     }
 
     // ------------------------------------------------------- los textos
@@ -412,48 +393,24 @@ public sealed class AbstencionYRedaccionTests
     // hay UN dominio con policies. Cuando haya un segundo —portal es el candidato
     // inmediato— esto deja de ser un booleano».
 
-    [Fact]
-    public void Sin_el_permiso_de_portal_una_consulta_de_portal_no_alcanza_todo()
-    {
-        var perfil = new PerfilDelActor(
-            EsGlobal: true, VeDatosPersonales: true,
-            AlcanzaDesignaciones: true, VeTrayectoriaAjena: false);
-
-        Assert.False(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: true));
-    }
-
-    [Fact]
-    public void Con_el_permiso_de_portal_una_consulta_de_portal_si_alcanza_todo()
-    {
-        var perfil = new PerfilDelActor(
-            EsGlobal: true, VeDatosPersonales: true,
-            AlcanzaDesignaciones: true, VeTrayectoriaAjena: true);
-
-        Assert.True(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: true));
-    }
-
-    [Fact]
-    public void Una_consulta_que_no_toca_portal_conserva_su_evaluacion()
-    {
-        // La mitad que no se puede romper al arreglar la otra: el permiso de portal
-        // no puede pasar a hacer falta para preguntas que no son de portal.
-        var perfil = new PerfilDelActor(
-            EsGlobal: true, VeDatosPersonales: true,
-            AlcanzaDesignaciones: true, VeTrayectoriaAjena: false);
-
-        Assert.True(PoliticaDeAbstencion.AlcanzaTodo(perfil, laConsultaTocaPortal: false));
-    }
-
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void Un_actor_no_global_nunca_alcanza_todo(bool tocaPortal)
+    // Global con designaciones pero SIN el permiso de portal: es el defecto.
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, true, true)]
+    // La mitad que no se puede romper al arreglar la otra: el permiso de portal
+    // no puede pasar a hacer falta para preguntas que no son de portal.
+    [InlineData(true, false, false, true)]
+    // Un actor no global nunca alcanza todo, toque portal o no.
+    [InlineData(false, true, true, false)]
+    [InlineData(false, true, false, false)]
+    public void El_alcance_total_exige_el_permiso_del_dominio_que_la_consulta_toca(
+        bool esGlobal, bool veTrayectoriaAjena, bool tocaPortal, bool alcanzaTodo)
     {
         var perfil = new PerfilDelActor(
-            EsGlobal: false, VeDatosPersonales: false,
-            AlcanzaDesignaciones: false, VeTrayectoriaAjena: true);
+            esGlobal, VeDatosPersonales: esGlobal,
+            AlcanzaDesignaciones: esGlobal, VeTrayectoriaAjena: veTrayectoriaAjena);
 
-        Assert.False(PoliticaDeAbstencion.AlcanzaTodo(perfil, tocaPortal));
+        Assert.Equal(alcanzaTodo, PoliticaDeAbstencion.AlcanzaTodo(perfil, tocaPortal));
     }
 
     // ------------------------------------------------------------------ apoyo
