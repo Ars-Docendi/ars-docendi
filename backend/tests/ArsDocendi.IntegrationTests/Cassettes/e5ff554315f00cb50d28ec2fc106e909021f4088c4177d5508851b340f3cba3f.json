@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-07",
-  "hash_del_prefijo": "1d7311b3b6a7ed77d3292361e79e7c8a0cd72a3fdbb1d2f58f5346bd04a3894f",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011Ceo8ppukhNFpu5Snpgyed\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"Er4CCpABCBEYAipAuCpUHF/zS1KVo5IGYE1yE3sHeNhRtW3oIT9SrI2MmR/z7icC1+QhjgYpYmMkNoJGMLjgYggc85uFS14Nv/7cATIPY2xhdWRlLXNvbm5ldC01OABCCHRoaW5raW5nWiRhMDkxN2JiMy03MTZiLTRmNWYtYWQyZC03OWUwNjQ0ZWI1N2OoAb+L+NQGEgzCDXjhLEpO0iTzu/caDJC3Is2gI2irO2bkXiIwmOezfREe5e17eMygoHgSPKXad1Reqcw1PN7jZuNEV5z6EeNHAgNIzP78FoVvK5DUKltvUU1IlKTMyMVLxfdCR6vxYEYos3GA2xrDgcEDUsAYIn0hPocC4VumBh1TxGC7ocIbYS3z6M4loGS2ine3wAiSvrSism7sXC7wK8OcylyimckFwXjv/cCoGrr5GAE=\"},{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": false, \\\"sql\\\": null, \\\"razonamiento\\\": \\\"El nombre de la materia puede repetirse en distintas carreras, así que necesito saber a cuál carrera pertenece para identificarla sin ambigüedad.\\\", \\\"categoria\\\": \\\"ambigua\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":83,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":11599,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":124,\"output_tokens_details\":{\"thinking_tokens\":31},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

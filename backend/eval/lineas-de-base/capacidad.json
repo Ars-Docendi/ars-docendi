@@ -1,20 +1,20 @@
 {
   "Eje": "capacidad",
   "Sello": {
-    "Prefijo": "0e4dd3a64c2f9f6da9f7f68863b5b3bf37ca1a83752380609997e9ebcbc63fdc",
+    "Prefijo": "b95d56de8343e6219ac2c7eb90b0c3786b826315c9115e4ae382507364ae565f",
     "Dataset": "fdfc2091b3c08127d1ec9bdf46142627eb50e6f9f1da33a8fe3e03a180dac024",
-    "Fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79"
+    "Fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2"
   },
   "Items": {
     "cap-001": "traduccion_correcta",
     "cap-002": "traduccion_correcta",
     "cap-003": "traduccion_correcta",
-    "cap-004": "traduccion_correcta",
+    "cap-004": "abstencion_sobrelo_factible",
     "cap-005": "traduccion_correcta",
     "cap-006": "traduccion_correcta",
     "cap-007": "traduccion_correcta",
-    "cap-008": "traduccion_correcta",
-    "cap-009": "abstencion_sobrelo_factible",
+    "cap-008": "abstencion_sobrelo_factible",
+    "cap-009": "traduccion_correcta",
     "cap-010": "traduccion_correcta",
     "cap-011": "traduccion_correcta",
     "cap-012": "traduccion_correcta",

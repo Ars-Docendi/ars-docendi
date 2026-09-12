@@ -1,7 +1,7 @@
 {
   "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-06",
+  "fecha": "2026-09-12",
   "hash_del_prefijo": "9ed7d8ac3ffe98c2154d49e38fc66b43081e0bc09dacbff57e23a5bd8473c446",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRnTQ7dt3hccnhyFKv9\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Según los datos cargados, dos docentes registraron conocimientos en Kubernetes: Elena Gómez y Pablo Gómez. Tené en cuenta que solo 7 de los 24 docentes del padrón cargaron sus habilidades, así que puede haber otros que también lo sepan pero no lo hayan registrado.\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":510,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":113,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+  "hash_del_fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CexfUPzQCgdnYJUM7NKNd\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"Según los datos cargados por los propios docentes (solo 7 de 24 completaron esta información), Elena Gómez y Pablo Gómez indicaron que saben Kubernetes. No hay información sobre el resto, ya que la mayoría no completó ese dato.\"}],\"container\":null,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":510,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":91,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
 }

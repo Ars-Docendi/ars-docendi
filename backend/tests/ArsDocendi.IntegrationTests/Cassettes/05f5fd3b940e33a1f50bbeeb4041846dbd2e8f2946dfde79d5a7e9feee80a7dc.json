@@ -1,7 +1,0 @@
-{
-  "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-07",
-  "hash_del_prefijo": "1d7311b3b6a7ed77d3292361e79e7c8a0cd72a3fdbb1d2f58f5346bd04a3894f",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011Ceo8y2DsWnGRiQcNFb8iA\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"SELECT count(*) AS cantidad FROM designaciones.pedidos pe WHERE pe.novedad = 'Baja' AND pe.estado = 'rechazado'\\n\\n{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT count(*) AS cantidad FROM designaciones.pedidos pe WHERE pe.novedad = 'Baja' AND pe.estado = 'rechazado'\\\", \\\"razonamiento\\\": \\\"Cuento los pedidos de baja cuyo estado quedó en rechazado.\\\", \\\"categoria\\\": \\\"filtro_temporal\\\"}\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":871,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":11599,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":190,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
-}

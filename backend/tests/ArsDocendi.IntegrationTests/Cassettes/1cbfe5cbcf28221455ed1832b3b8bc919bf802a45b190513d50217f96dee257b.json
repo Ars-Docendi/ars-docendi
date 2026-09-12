@@ -1,7 +1,7 @@
 {
   "modelo": "claude-sonnet-5",
-  "fecha": "2026-09-06",
+  "fecha": "2026-09-12",
   "hash_del_prefijo": "95a4c2849393b9c2fbbcc45db0d6747c01b0e79fca45fec7e41e968d7b7b6c48",
-  "hash_del_fixture": "8292c9a5ed04286e78cd09ec901148dc6e3deae973abb737a88d18fbaee79f79",
-  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CemRvMnzM1rLsjt6zKTqS\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"¿Cuántas solicitudes de baja se presentaron?\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":707,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":23,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+  "hash_del_fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CexfcEcZoL6PP15qBfug5\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"¿Cuántas solicitudes de baja se presentaron?\"}],\"container\":null,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":707,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":23,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
 }
