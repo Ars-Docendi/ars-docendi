@@ -114,27 +114,20 @@ public sealed class CadenasDeConexionTests
     }
 
     [Fact]
-    public void Sin_rol_configurado_la_cadena_de_solo_lectura_falla_nombrando_la_clave()
+    public void Sin_los_roles_del_asistente_el_Host_arranca_y_falla_solo_quien_pide_la_cadena()
     {
         using var servicios = Componer(conRolesDelAsistente: false).BuildServiceProvider();
+
+        // La configuración del asistente no puede ser condición de arranque: un
+        // ambiente que todavía no la tiene debe seguir sirviendo el resto del
+        // sistema, y el error llega recién a quien pide la cadena que falta.
+        Assert.Equal("app_pr_123", servicios.GetRequiredService<CadenaDuena>().Usuario);
 
         var error = Assert.Throws<InvalidOperationException>(
             servicios.GetRequiredService<CadenaSoloLectura>);
 
-        Assert.Contains(nameof(OpcionesAsistente.RolSoloLectura), error.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void El_Host_arranca_aunque_falten_los_roles_del_asistente()
-    {
-        // Contrapartida del test anterior: la configuración del asistente no puede
-        // ser condición de arranque. Un ambiente que todavía no la tiene debe seguir
-        // sirviendo el resto del sistema; el error llega recién a quien pide la cadena.
-        using var servicios = Componer(conRolesDelAsistente: false).BuildServiceProvider();
-
-        var duena = servicios.GetRequiredService<CadenaDuena>();
-
-        Assert.Equal("app_pr_123", duena.Usuario);
+        Assert.Contains(
+            nameof(OpcionesAsistente.RolSoloLectura), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

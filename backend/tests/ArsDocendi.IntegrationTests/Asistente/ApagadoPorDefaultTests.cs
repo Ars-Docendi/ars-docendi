@@ -32,25 +32,17 @@ public sealed class ApagadoPorDefaultTests
     private const string CadenaInalcanzable =
         "Host=127.0.0.1;Port=1;Database=no_existe;Username=nadie;Password=nada;Timeout=1";
 
-    [Fact]
-    public void Sin_configuracion_el_pipeline_del_proveedor_es_el_de_antes_del_cambio()
+    [Theory]
+    // Sin la clave siquiera: el pipeline del día antes de este change.
+    [InlineData(null)]
+    // «   » es lo que deja una variable de ambiente exportada vacía por error.
+    [InlineData("   ")]
+    public void Sin_un_directorio_de_verdad_el_pipeline_es_el_de_antes_del_cambio(string? directorio)
     {
-        using var raiz = Componer(directorio: null).BuildServiceProvider();
+        using var raiz = Componer(directorio).BuildServiceProvider();
 
-        // El reintento solo, como el día antes de este change. Un handler de más
-        // acá sería trabajo, memoria y una superficie de fallo que ningún ambiente
-        // pidió.
-        Assert.Equal(
-            [typeof(ReintentoDeTransporte)],
-            OrdenDelGrabadorTests.HandlersDelCliente(raiz));
-    }
-
-    [Fact]
-    public void Un_directorio_en_blanco_tampoco_enciende_nada()
-    {
-        // «   » es lo que deja una variable de ambiente exportada vacía por error.
-        using var raiz = Componer(directorio: "   ").BuildServiceProvider();
-
+        // El reintento solo. Un handler de más acá sería trabajo, memoria y una
+        // superficie de fallo que ningún ambiente pidió.
         Assert.Equal(
             [typeof(ReintentoDeTransporte)],
             OrdenDelGrabadorTests.HandlersDelCliente(raiz));

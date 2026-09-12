@@ -90,7 +90,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task La_fila_que_la_base_vieja_ya_tenia_sobrevive_a_la_migracion()
+    public async Task La_fila_vieja_sobrevive_y_sobre_la_base_migrada_el_registro_vuelve_a_guardar()
     {
         // LA MITAD QUE IMPORTA. Un `ADD COLUMN ... NOT NULL` sin `DEFAULT` sobre una
         // tabla VACÍA pasa; sobre una con filas, PostgreSQL lo rechaza. Sin esta
@@ -103,20 +103,11 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
         Assert.Equal(1L, await EscalarAsync<long>(
             "SELECT count(*) FROM asistente.registro_operativo"));
-    }
 
-    [Fact]
-    public async Task Sobre_la_base_vieja_migrada_el_registro_vuelve_a_guardar()
-    {
-        // El modo de falla que este change cierra no era el ruidoso. Con la columna
-        // faltante el INSERT reventaba, el fallo se tragaba, el endpoint devolvía 200
-        // y el registro dejaba de guardar sin que nada avisara. La única forma de
-        // afirmar que eso se terminó es contar filas después de escribir una.
-        await RehacerLaBaseViejaAsync();
-        await SembrarFilaViejaAsync();
-
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
+        // Y el modo de falla que este change cierra, que no era el ruidoso: con la
+        // columna faltante el INSERT reventaba, el fallo se tragaba, el endpoint
+        // devolvía 200 y el registro dejaba de guardar sin que nada avisara. La única
+        // forma de afirmar que eso se terminó es contar filas después de escribir una.
         var registro = new RegistroDelTurno(
             new CadenaDuena(Cadena), NullLogger<RegistroDelTurno>.Instance);
         await registro.RegistrarAsync(Turno(), TestContext.Current.CancellationToken);

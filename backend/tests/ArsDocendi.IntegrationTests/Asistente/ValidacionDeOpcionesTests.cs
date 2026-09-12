@@ -20,6 +20,10 @@ public sealed class ValidacionDeOpcionesTests
         return new ValidadorDeOpcionesAsistente().Validate(name: null, valores);
     }
 
+    /// <summary>Valida con una sola perilla —nombrada por reflexión— puesta en un valor.</summary>
+    private static ValidateOptionsResult EnPerilla(string perilla, int valor) =>
+        Validar(o => typeof(OpcionesAsistente).GetProperty(perilla)!.SetValue(o, valor));
+
     [Fact]
     public void Los_defaults_del_modulo_son_validos()
     {
@@ -55,17 +59,7 @@ public sealed class ValidacionDeOpcionesTests
         // `CommandTimeout = 0` es lo mismo. Un cero en la configuración de un
         // ambiente apaga en silencio la cota que impide que una consulta generada
         // con un producto cartesiano ocupe un backend hasta terminar.
-        var resultado = Validar(o =>
-        {
-            if (perilla == nameof(OpcionesAsistente.TimeoutDeSentenciaMs))
-            {
-                o.TimeoutDeSentenciaMs = 0;
-            }
-            else
-            {
-                o.TimeoutDeComandoSegundos = 0;
-            }
-        });
+        var resultado = EnPerilla(perilla, 0);
 
         Assert.False(resultado.Succeeded);
         Assert.Contains(resultado.Failures!, f => f.Contains(perilla, StringComparison.Ordinal));
@@ -89,14 +83,9 @@ public sealed class ValidacionDeOpcionesTests
         });
 
         Assert.True(resultado.Succeeded, string.Join(" | ", resultado.Failures ?? []));
-    }
 
-    [Fact]
-    public void Pero_en_negativo_se_rechazan()
-    {
-        var resultado = Validar(o => o.CupoDeLlamadasPorActor = -1);
-
-        Assert.False(resultado.Succeeded);
+        // El cero las apaga; el negativo no significa nada y se sigue rechazando.
+        Assert.False(EnPerilla(nameof(OpcionesAsistente.CupoDeLlamadasPorActor), -1).Succeeded);
     }
 
     [Fact]
@@ -145,17 +134,10 @@ public sealed class ValidacionDeOpcionesTests
 
     // --------------------------------------------- ninguna perilla sin clasificar
 
-    /// <summary>
-    /// Si poner esa perilla en <c>-1</c> produce una falla que la nombra.
-    /// </summary>
-    private static bool LaValidacionNombra(string perilla)
-    {
-        var resultado = Validar(o =>
-            typeof(OpcionesAsistente).GetProperty(perilla)!.SetValue(o, -1));
-
-        return !resultado.Succeeded
-            && resultado.Failures!.Any(f => f.Contains(perilla, StringComparison.Ordinal));
-    }
+    /// <summary>Si poner esa perilla en <c>-1</c> produce una falla que la nombra.</summary>
+    private static bool LaValidacionNombra(string perilla) =>
+        EnPerilla(perilla, -1) is { Succeeded: false, Failures: { } fallas }
+        && fallas.Any(f => f.Contains(perilla, StringComparison.Ordinal));
 
     [Fact]
     public void Toda_perilla_numerica_esta_clasificada_en_algun_balde()
