@@ -37,11 +37,12 @@ export function Sidebar({ collapsed, permissions }: SidebarProps) {
 
       <div className="adoc-sidebar-foot">
         {collapsed ? (
-          "1C"
+          "AD"
         ) : (
           <>
+            Versión 1.0.0 · Ars Docendi
             <br />
-            Versión 0.0.1 · Ars Docendi
+            <i>El arte de enseñar</i>
           </>
         )}
       </div>

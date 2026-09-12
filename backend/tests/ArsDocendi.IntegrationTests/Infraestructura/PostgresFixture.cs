@@ -11,13 +11,10 @@ using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
-namespace ArsDocendi.IntegrationTests.Infraestructura;
 
-[CollectionDefinition(Nombre)]
-public sealed class ColeccionPostgres : ICollectionFixture<PostgresFixture>
-{
-    public const string Nombre = "PostgreSQL 18";
-}
+[assembly: Xunit.AssemblyFixture(typeof(ArsDocendi.IntegrationTests.Infraestructura.PostgresFixture))]
+
+namespace ArsDocendi.IntegrationTests.Infraestructura;
 
 /// <summary>
 /// Base de prueba aislada, con los roles del asistente ya creados sobre ella.
@@ -234,7 +231,6 @@ public sealed class PostgresFixture : IAsyncLifetime
         var nombre = new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena).Database
             ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
 
-        NpgsqlConnection.ClearAllPools();
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
         await EjecutarAsync(conexion, $"DROP DATABASE IF EXISTS \"{nombre}\" WITH (FORCE)");

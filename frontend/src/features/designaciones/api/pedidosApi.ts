@@ -108,24 +108,30 @@ async function accion(id: string, nombre: string, comentario?: string): Promise<
 }
 
 function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
-  const personaId =
-    datos.personaId ??
-    catalogos.personas.find((p) => p.documento === datos.docente.dni.replace(/\D/g, ""))?.id;
-  const materiaId =
-    datos.materiaId ?? catalogos.materias.find((m) => m.nombre === datos.catedra)?.id;
   const cargoSolicitadoId =
     datos.cargoSolicitadoId ??
     catalogos.cargos.find(
       (c) => c.nombre === datos.cargoSolicitado || c.abreviatura === datos.cargoSolicitado,
     )?.id;
+  const personaNueva =
+    !datos.personaId && datos.novedad === "Alta"
+      ? {
+          documento: datos.docente.dni.replace(/\D/g, ""),
+          nombre: (datos.docente.nombrePersona ?? datos.docente.nombre).trim(),
+          apellido: datos.docente.apellido?.trim() ?? "",
+        }
+      : undefined;
   return {
     periodoId: datos.periodoId ?? catalogos.periodoActivo?.id,
-    personaId,
-    materiaId,
+    ...(datos.personaId ? { personaId: datos.personaId } : {}),
+    ...(personaNueva ? { persona: personaNueva } : {}),
+    materiaId: datos.materiaId,
     novedad: datos.novedad,
     cargoSolicitadoId,
     dedicacionSolicitadaId:
-      catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ?? null,
+      datos.dedicacionSolicitadaId ??
+      catalogos.dedicaciones.find((d) => d.nombre === datos.dedicacionSolicitada)?.id ??
+      null,
     horas: datos.horas,
     horasInvestigacion: datos.horasInvestigacion,
     horasExternas: datos.horasExternas,
@@ -150,6 +156,8 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     docente: {
       dni: dto.persona.documento,
       nombre: `${dto.persona.apellido}, ${dto.persona.nombre}`,
+      nombrePersona: dto.persona.nombre,
+      apellido: dto.persona.apellido,
       legajo: dto.persona.legajo ?? undefined,
       antiguedad: 0,
     },

@@ -4,7 +4,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "designaciones")
 {
@@ -36,9 +35,9 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     [Fact]
     public async Task Migracion_desde_schema_anterior_preserva_categoria_cero_y_snapshot()
     {
-        var baseAnterior = await Postgres.CrearBaseMigradaAsync(
+        var baseDePrueba = await Postgres.CrearBaseMigradaAsync(
             "dedicaciones_anteriores", "20260819000000_IdempotenciaComandos");
-        var cadena = baseAnterior.Cadena;
+        var cadena = baseDePrueba.Cadena;
         try
         {
             await using var conexion = new NpgsqlConnection(cadena);
@@ -82,7 +81,7 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         }
         finally
         {
-            await Postgres.EliminarBaseAsync(baseAnterior);
+            await Postgres.EliminarBaseAsync(baseDePrueba);
         }
     }
 

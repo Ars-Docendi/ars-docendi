@@ -33,7 +33,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// escribirse a mano: copiadas, se desincronizarían del original sin que nada
 /// falle, que es el modo de fallar que este guard existe para cerrar.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PrefijoDeLosCassettesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_prefijo_cassette")
 {

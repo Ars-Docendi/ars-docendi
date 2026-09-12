@@ -46,9 +46,9 @@ public static class Permisos
         DesignacionesAprobarCoordinacion,
         DesignacionesAprobarSecretaria,
         DesignacionesAprobarDecanato,
-        AsistenteConsultar,
-        AsistenteVerConsulta,
         DesignacionesRevisar,
         DocentesVer,
+        AsistenteConsultar,
+        AsistenteVerConsulta,
     ];
 }

@@ -43,5 +43,6 @@ describe("TablaDocentes", () => {
     expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Desactivar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activar" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Filtrar / })).not.toHaveLength(0);
   });
 });

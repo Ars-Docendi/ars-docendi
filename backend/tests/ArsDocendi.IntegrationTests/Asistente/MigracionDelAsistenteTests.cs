@@ -23,7 +23,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// Los tres escenarios de acá son los tres estados en que una base real puede
 /// llegar al arranque: al día, vieja de una versión, y rota a mano.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_migracion")
 {

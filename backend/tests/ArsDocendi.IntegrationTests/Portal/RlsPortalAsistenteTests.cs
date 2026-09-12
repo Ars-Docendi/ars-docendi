@@ -14,7 +14,6 @@ namespace ArsDocendi.IntegrationTests.Portal;
 /// <c>NOSUPERUSER NOBYPASSRLS</c> a propósito: sin las dos cosas, todo pasaría en
 /// verde sin que ninguna policy se evaluara.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RlsPortalAsistenteTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_rls")
 {

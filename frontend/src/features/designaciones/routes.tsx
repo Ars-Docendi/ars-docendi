@@ -5,10 +5,6 @@ export const routes: RouteObject = {
   path: "designaciones",
   children: [
     {
-      index: true,
-      lazy: () => import("./pages/IndexPage").then(({ IndexPage }) => ({ Component: IndexPage })),
-    },
-    {
       // Gestión de períodos es exclusiva de Secretaría Académica.
       element: <RequirePermission permission="periodos.administrar" />,
       children: [

@@ -18,7 +18,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// que el catálogo sale de la base: si estuviera embebido, la fila nueva no
 /// cambiaría nada.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ResolucionDeSlotsTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_slots")
 {

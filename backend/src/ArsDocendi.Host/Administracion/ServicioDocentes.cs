@@ -32,11 +32,15 @@ public sealed class ServicioDocentes(
         var personas = await repositorio.ListarPersonasAsync(ct);
         var vigentes = await designaciones.ListarVigentesAsync(ct);
         var materias = (await repositorio.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
-        var porPersona = vigentes.GroupBy(d => d.PersonaId).ToDictionary(g => g.Key, g => g.ToArray());
+        var porPersona = vigentes
+            .Where(d => materiasVisibles is null || materiasVisibles.Contains(d.MateriaId))
+            .GroupBy(d => d.PersonaId)
+            .ToDictionary(g => g.Key, g => g.ToArray());
 
         var resultado = personas
             .Where(p => porPersona.ContainsKey(p.Id) || RolesDocentes(p.Usuario).Count > 0)
-            .Select(p => Mapear(p, porPersona.GetValueOrDefault(p.Id) ?? [], materias))
+            .Select(p => Mapear(
+                p, porPersona.GetValueOrDefault(p.Id) ?? [], materias, materiasVisibles))
             .Where(d => materiasVisibles is null
                 || d.Asignaciones.Any(a => materiasVisibles.Contains(a.MateriaId)))
             .Where(d => materiaId is null || d.Asignaciones.Any(a => a.MateriaId == materiaId))
@@ -66,9 +70,11 @@ public sealed class ServicioDocentes(
             .Where(d => d.PersonaId == personaId)
             .ToArray();
         if (vigentes.Length == 0 && RolesDocentes(persona.Usuario).Count == 0) throw NoEncontrado();
-        if (materiasVisibles is not null
-            && !vigentes.Any(d => materiasVisibles.Contains(d.MateriaId))) throw NoEncontrado();
-        return Mapear(persona, vigentes, materias);
+        var visibles = materiasVisibles is null
+            ? vigentes
+            : vigentes.Where(d => materiasVisibles.Contains(d.MateriaId)).ToArray();
+        if (materiasVisibles is not null && visibles.Length == 0) throw NoEncontrado();
+        return Mapear(persona, visibles, materias, materiasVisibles);
     }
 
     public async Task<CatalogosDocentesDto> ObtenerCatalogosAsync(CancellationToken ct)
@@ -319,9 +325,14 @@ public sealed class ServicioDocentes(
             .OrderBy(r => r.Nombre)
             .ToArray() ?? [];
 
-    private static IReadOnlyList<AsignacionRolDto> MembresiasDocentes(Usuario? usuario) =>
+    private static IReadOnlyList<AsignacionRolDto> MembresiasDocentes(
+        Usuario? usuario,
+        IReadOnlySet<Guid>? materiasVisibles) =>
         usuario?.Roles
-            .Where(r => r.Rol is not null && RolesPermitidos.Contains(r.Rol.Codigo))
+            .Where(r => r.Rol is not null
+                && RolesPermitidos.Contains(r.Rol.Codigo)
+                && (materiasVisibles is null
+                    || r.MateriaId is Guid materiaId && materiasVisibles.Contains(materiaId)))
             .Select(r => new AsignacionRolDto(
                 r.Id,
                 r.RolId,
@@ -335,7 +346,8 @@ public sealed class ServicioDocentes(
     private static DocenteAdministracionDto Mapear(
         Persona persona,
         IReadOnlyList<DesignacionVigenteDto> designaciones,
-        IReadOnlyDictionary<Guid, Materia> materias) => new(
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlySet<Guid>? materiasVisibles) => new(
             persona.Id,
             persona.Usuario?.Id,
             persona.Nombre,
@@ -350,7 +362,7 @@ public sealed class ServicioDocentes(
             persona.Usuario?.Activo ?? false,
             persona.Usuario?.Version,
             RolesDocentes(persona.Usuario),
-            MembresiasDocentes(persona.Usuario),
+            MembresiasDocentes(persona.Usuario, materiasVisibles),
             designaciones.Select(d => new AsignacionDocenteDto(
                 d.Id,
                 d.MateriaId,

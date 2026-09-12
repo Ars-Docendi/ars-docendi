@@ -75,7 +75,7 @@ if [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
   proveedor_asistente=simulado
 fi
 
-# 2. Materializar el Compose project con un .env efímero (fuera del repo).
+# Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"' EXIT
 cat >"$env_file" <<EOF
@@ -102,8 +102,12 @@ if [[ "$ambiente" != "prod" ]]; then
   "$scripts_dir/drop-db.sh" "$ambiente"
 fi
 
-# 2. Base aislada del ambiente.
+# 2. Base aislada del ambiente + roles que deben existir antes que las tablas.
 "$scripts_dir/provision-db.sh" "$ambiente"
+
+# 2b. Test de humo: los roles del asistente existen y nacieron sin privilegios
+#     de escritura, ANTES de que corra ninguna migración.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 
 # 3. Migraciones EF antes de publicar el backend. Una falla detiene seed/up por
 # set -euo pipefail.

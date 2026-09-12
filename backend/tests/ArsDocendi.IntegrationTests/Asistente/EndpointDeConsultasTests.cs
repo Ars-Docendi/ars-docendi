@@ -22,7 +22,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// exactamente lo que el borde agrega —autorización, cabeceras, códigos de estado y
 /// la traducción al contrato— y nada de eso se ejercita invocando la capa.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_endpoint")
 {

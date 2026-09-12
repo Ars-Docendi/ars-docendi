@@ -14,7 +14,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// el turno no salió como esperaba, y qué se le devuelve <b>de más</b> a quien tiene
 /// permiso para verlo.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_sugerencias")
 {

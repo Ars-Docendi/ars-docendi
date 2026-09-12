@@ -9,7 +9,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class BackendIntegridadTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "backend")
 {

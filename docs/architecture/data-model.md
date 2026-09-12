@@ -93,6 +93,13 @@ sistema. El código generado de un rol personalizado no cambia al renombrarlo; l
 nombre entre roles activos debe ser única. Los permisos de los roles de sistema sí son mutables
 porque integran la autorización persistida de las pantallas.
 
+Un Alta puede insertar una fila en `identity.personas` sin fila asociada en
+`identity.users` ni legajo. La operación pública `IAdministracionIdentity` de
+`ArsDocendi.Shared.Identity.Administracion` delega esa escritura en
+`ServicioPersonas`; la unicidad de `documento` y el trigger de auditoría siguen
+siendo autoridad. `VinculadorPrimerLogin` reutiliza esa persona por documento y
+recién entonces vincula la cuenta.
+
 ### Designaciones (`schema: designaciones`)
 
 La migración `20260907000000_CatalogoDedicaciones` incorpora el catálogo auditado
@@ -112,6 +119,12 @@ investigación y externas, además del `snapshot` congelado al enviar. En
 valor vigente es desconocido. Las designaciones resultantes de un pedido
 aprobado recuperan esas dos cargas cuando el origen está identificado;
 continuidades y cargas administrativas pueden conservarlas en `NULL`.
+
+Cada pedido conserva una sola `materia_id`. Para Alta, las opciones salen de las
+materias activas del ámbito `jefe_catedra`; para Baja y Cambio, el frontend muestra
+la intersección entre ese ámbito y las designaciones vigentes del docente. El
+backend vuelve a validar el UUID y, para Baja/Cambio, exige la designación vigente
+de la misma pareja `(persona_id, materia_id)` antes de crear, editar o enviar.
 
 | Tabla              | Descripción                                                                                                                     | PII |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |

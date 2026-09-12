@@ -30,14 +30,21 @@ public sealed class ServicioCatalogosDesignaciones(
             ? new HashSet<Guid>()
             : await repositorio.ListarPersonasConPedidoVivoAsync(activo.Id, ct);
         var materiasPorId = materias.ToDictionary(m => m.Id);
+        var idsMateriasVisibles = visibles.Select(m => m.Id).ToHashSet();
         var designaciones = (await repositorio.ListarDesignacionesVigentesAsync(ct))
             .GroupBy(d => d.PersonaId)
             .ToDictionary(g => g.Key, g => g.ToArray());
+        var designacionesVisibles = designaciones
+            .SelectMany(g => g.Value)
+            .Where(d => actor.EsDeptoWide || idsMateriasVisibles.Contains(d.MateriaId))
+            .GroupBy(d => d.PersonaId)
+            .ToDictionary(g => g.Key, g => g.ToArray());
         var personas = (await identity.ListarPersonasAsync(ct))
-            .Where(p => !ocupadas.Contains(p.Id))
+            .Where(p => !ocupadas.Contains(p.Id)
+                && (actor.EsDeptoWide || designacionesVisibles.ContainsKey(p.Id)))
             .Select(p => new PersonaDesignacionesDto(
                 p.Id, p.Nombre, p.Apellido, p.Documento, p.Legajo,
-                designaciones.GetValueOrDefault(p.Id, [])
+                designacionesVisibles.GetValueOrDefault(p.Id, [])
                     .Where(d => materiasPorId.ContainsKey(d.MateriaId) && d.Cargo is not null)
                     .Select(d => new DesignacionVigenteCatalogoDto(
                         d.MateriaId,

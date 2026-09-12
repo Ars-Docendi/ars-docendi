@@ -12,7 +12,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RevisionPedidosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "revision_pedidos")
 {

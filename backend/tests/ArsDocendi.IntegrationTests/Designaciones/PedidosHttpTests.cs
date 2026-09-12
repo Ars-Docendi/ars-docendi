@@ -13,7 +13,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PedidosHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "pedidos_http")
 {
@@ -200,18 +199,21 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         var casos = new[]
         {
             (Guid.Parse("d0000000-0000-4000-8000-000000000002"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000001")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000004"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000002")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000006"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000006")),
+                Guid.Parse("d6000000-0000-4000-8000-000000000001"),
+                Guid.Parse("70000000-0000-4000-8000-000000000101")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000003"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000002"),
+                Guid.Parse("70000000-0000-4000-8000-000000000102")),
+            (Guid.Parse("d0000000-0000-4000-8000-000000000015"),
+                Guid.Parse("d6000000-0000-4000-8000-000000000006"),
+                Guid.Parse("70000000-0000-4000-8000-000000000103")),
         };
 
-        foreach (var (persona, dedicacionId) in casos)
+        foreach (var (persona, dedicacionId, materiaId) in casos)
         {
             using var respuesta = await cliente.PostAsJsonAsync(
                 "/api/designaciones/pedidos",
-                Datos(persona, novedad: Novedades.CambioDeCargoODedicacion,
+                Datos(persona, materiaId: materiaId, novedad: Novedades.CambioDeCargoODedicacion,
                     dedicacionSolicitadaId: dedicacionId),
                 ct);
 
@@ -263,12 +265,14 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         using var zip = new ZipArchive(
             new MemoryStream(await respuesta.Content.ReadAsByteArrayAsync(ct)), ZipArchiveMode.Read);
-        var pedidos = LeerXml(zip, "xl/worksheets/sheet1.xml").ToString();
-        var designaciones = LeerXml(zip, "xl/worksheets/sheet2.xml").ToString();
-        Assert.Contains(finalizado.Numero, pedidos, StringComparison.Ordinal);
-        Assert.Contains(finalizado.Numero, designaciones, StringComparison.Ordinal);
-        Assert.Contains("Continuidad", designaciones, StringComparison.Ordinal);
-        Assert.DoesNotContain(finalizado.Id.ToString(), designaciones, StringComparison.Ordinal);
+        var propuesta = LeerXml(zip, "xl/worksheets/sheet1.xml").ToString();
+        var altas = LeerXml(zip, "xl/worksheets/sheet2.xml").ToString();
+        var bajas = LeerXml(zip, "xl/worksheets/sheet3.xml").ToString();
+        Assert.Contains("Fernández, Lucía", propuesta, StringComparison.Ordinal);
+        Assert.Contains("Fernández, Lucía", altas, StringComparison.Ordinal);
+        Assert.Contains("Solicitud de alta", propuesta, StringComparison.Ordinal);
+        Assert.DoesNotContain("Fernández, Lucía", bajas, StringComparison.Ordinal);
+        Assert.DoesNotContain(finalizado.Id.ToString(), propuesta, StringComparison.Ordinal);
     }
 
     private static async Task<PedidoDto> PostPedido(HttpClient cliente, Guid persona, CancellationToken ct)
@@ -305,11 +309,12 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         int horasInvestigacion = 0,
         int horasExternas = 0,
         string novedad = Novedades.Alta,
-        Guid? dedicacionSolicitadaId = null) => new
+        Guid? dedicacionSolicitadaId = null,
+        Guid? materiaId = null) => new
     {
         periodoId = Periodo,
         personaId = persona,
-        materiaId = Materia,
+        materiaId = materiaId ?? Materia,
         novedad,
         cargoSolicitadoId = Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         dedicacionSolicitadaId = dedicacionSolicitadaId

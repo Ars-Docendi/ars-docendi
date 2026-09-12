@@ -3,6 +3,7 @@ import {
   PESTANIAS,
   esTuTurno,
   areaActual,
+  areaEsFiltrable,
   areaQueCorrige,
   etiquetaEstado,
   inicioEnCircuito,
@@ -229,6 +230,14 @@ describe("pestaniaInicial", () => {
 
   it("Administración no tiene etapa propia: abre en Todos", () => {
     expect(pestaniaInicial({ rol: "Administración", nombre: "P. G." })).toBe("todos");
+  });
+});
+
+describe("areaEsFiltrable", () => {
+  it("sólo habilita el filtro de Área en Todos", () => {
+    expect(areaEsFiltrable("todos")).toBe(true);
+    expect(areaEsFiltrable("en-coordinacion")).toBe(false);
+    expect(areaEsFiltrable("finalizados")).toBe(false);
   });
 });
 

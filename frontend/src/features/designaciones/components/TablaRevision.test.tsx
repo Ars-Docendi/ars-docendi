@@ -554,7 +554,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
 
     await user.click(pestania(/Finalizados/));
     expect(screen.getByText("Sin pedidos que cumplan los filtros.")).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("table")).toBeInTheDocument();
   });
 
   it("los filtros acotan las filas y también los contadores de las pestañas", () => {
@@ -576,5 +576,54 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
 
     expect(filasVisibles()).toEqual(["Buscado Veinte"]);
     expect(pestania(/En Coordinación/).textContent).toContain("1");
+  });
+});
+
+describe("filtros por encabezado de Revisión", () => {
+  it("acota filas y contadores antes de cambiar de pestaña", async () => {
+    const user = userEvent.setup();
+    render(
+      <TablaRevision
+        pedidos={[
+          pedido("en_revision_coordinador", {
+            docente: { dni: "a", nombre: "Ana García", antiguedad: 3 },
+          }),
+          pedido("en_revision_coordinador", {
+            docente: { dni: "b", nombre: "Beto Pérez", antiguedad: 3 },
+          }),
+        ]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filtrar Docente" }));
+    await user.type(screen.getByRole("textbox", { name: "Buscar Docente" }), "garcia");
+
+    expect(filasVisibles()).toEqual(["Ana García"]);
+    expect(screen.getByRole("tab", { name: "Todos1" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Docente/ })).toHaveAttribute(
+      "aria-sort",
+      "none",
+    );
+  });
+
+  it("ofrece Área sólo en Todos y no ordena al abrir su menú", async () => {
+    const user = userEvent.setup();
+    render(
+      <TablaRevision
+        pedidos={[pedido("en_revision_coordinador", { carrera: "Ingeniería Industrial" })]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("columnheader", { name: "Área" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /Todos/ }));
+    await user.click(screen.getByRole("button", { name: "Filtrar Área" }));
+    expect(screen.getByRole("dialog", { name: "Filtro de Área" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Área" })).not.toHaveAttribute("aria-sort");
   });
 });

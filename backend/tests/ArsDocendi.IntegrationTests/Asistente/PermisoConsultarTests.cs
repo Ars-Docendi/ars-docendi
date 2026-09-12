@@ -20,7 +20,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// `identity.roles` no es un catálogo cerrado: una lista embebida falla ABIERTA
 /// con cualquier rol que no conozca.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PermisoConsultarTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso")
 {

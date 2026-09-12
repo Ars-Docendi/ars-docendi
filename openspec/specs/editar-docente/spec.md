@@ -10,7 +10,7 @@ Permite actualizar separadamente los datos personales y docentes de un docente r
 
 El modal de edición SHALL presentar dos pestañas usando el componente `Tabs` de la ui-lib:
 
-- **"Datos docentes"**: Roles (checkboxes) y Asignaciones (materia + cargo + horas). Es la pestaña que se abre por defecto.
+- **"Datos docentes"**: membresías de rol por materia y asignaciones académicas materia+cargo+horas. Es la pestaña que se abre por defecto.
 - **"Datos personales"**: Nombre, Apellido, Documento, Legajo, CUIL, Fecha de nacimiento, UPN, Teléfono. Todos los campos son editables.
 
 Un único botón "Guardar cambios" en el footer valida y persiste ambas pestañas. Si al intentar guardar desde la pestaña "Datos docentes" hay campos obligatorios incompletos en "Datos personales", se muestra un `InlineAlert` de advertencia indicando que hay errores en la otra pestaña.
@@ -27,27 +27,42 @@ Un único botón "Guardar cambios" en el footer valida y persiste ambas pestaña
 
 ### Requirement: Edición de datos del docente incluyendo Roles y Asignaciones
 
-Los Roles MUST mostrarse como checkboxes (permitiendo seleccionar ambos simultáneamente) y las Asignaciones SHALL pre-cargarse con los valores actuales y ser editables.
+Las membresías MUST mostrarse como filas editables de `rol + materia` y las asignaciones SHALL pre-cargarse con sus valores actuales. La edición MUST permitir roles diferentes para materias diferentes y SHALL reemplazar la lista completa de membresías y designaciones de forma atómica.
+
+#### Scenario: Apertura del modal pre-poblado
+
+- **WHEN** el usuario hace clic en "Editar" de un docente con tres membresías y dos asignaciones
+- **THEN** el modal muestra las tres filas de membresía y las dos filas de asignación pre-pobladas
 
 #### Scenario: Apertura del modal pre-poblado con Roles y Asignaciones
 
-- **WHEN** el usuario hace clic en "Editar" de un docente con `roles = ["Jefe de Cátedra"]` y 2 asignaciones
-- **THEN** el modal muestra el checkbox "Jefe de Cátedra" tildado y el `AsignacionesSelector` con 2 filas pre-pobladas
+- **WHEN** el usuario hace clic en "Editar" de un docente con una membresía "Jefe de Cátedra" y 2 asignaciones
+- **THEN** el modal muestra la membresía "Jefe de Cátedra" y el selector de asignaciones con 2 filas pre-pobladas
+
+#### Scenario: Roles distintos por materia
+
+- **WHEN** el usuario configura `Docente + Materia A` y `Jefe de Cátedra + Materia B` y guarda
+- **THEN** el docente queda con esas membresías exactas sin otorgar ninguno de los roles a la materia ajena
 
 #### Scenario: Asignación de múltiples roles
 
-- **WHEN** el usuario tilda ambos checkboxes ("Docente" y "Jefe de Cátedra") y guarda
-- **THEN** el docente queda con `roles = ["Docente", "Jefe de Cátedra"]` y la tabla muestra un badge por cada rol
+- **WHEN** el usuario configura "Docente" en Materia A y "Jefe de Cátedra" en Materia B y guarda
+- **THEN** el docente queda con ambas membresías y la tabla muestra un badge por cada rol
+
+#### Scenario: Ninguna membresía seleccionada bloquea el guardado
+
+- **WHEN** el usuario elimina todas las membresías y hace clic en "Guardar cambios"
+- **THEN** se muestra el error "Seleccioná al menos una membresía"
 
 #### Scenario: Ningún rol seleccionado bloquea el guardado
 
-- **WHEN** el usuario destilda todos los checkboxes y hace clic en "Guardar cambios"
-- **THEN** se muestra el error "Seleccioná al menos un rol"
+- **WHEN** el usuario elimina todas las membresías y hace clic en "Guardar cambios"
+- **THEN** se muestra el error "Seleccioná al menos una membresía"
 
-#### Scenario: Edición y guardado exitoso
+#### Scenario: Membresía repetida bloquea el guardado
 
-- **WHEN** el usuario modifica el Rol o una asignación y hace clic en "Guardar cambios"
-- **THEN** el modal se cierra y la tabla refleja los nuevos datos
+- **WHEN** el usuario agrega dos veces la misma combinación rol y materia
+- **THEN** se muestra un error de duplicación y no se envía una lista inválida
 
 #### Scenario: Validación al editar — sin asignaciones
 
@@ -58,6 +73,11 @@ Los Roles MUST mostrarse como checkboxes (permitiendo seleccionar ambos simultá
 
 - **WHEN** el usuario agrega una fila con materia pero sin cargo y hace clic en "Guardar cambios"
 - **THEN** se muestra error "Completá o quitá las filas incompletas"
+
+#### Scenario: Edición y guardado exitoso
+
+- **WHEN** el usuario modifica una membresía o una asignación y hace clic en "Guardar cambios"
+- **THEN** el modal se cierra y la tabla refleja los nuevos datos
 
 #### Scenario: UPN duplicada al editar
 
@@ -71,7 +91,7 @@ Los Roles MUST mostrarse como checkboxes (permitiendo seleccionar ambos simultá
 
 #### Scenario: Cambio de Rol visible en tabla
 
-- **WHEN** el usuario cambia el Rol de "Docente" a "Jefe de Cátedra" y guarda
+- **WHEN** el usuario cambia la membresía de "Docente" a "Jefe de Cátedra" en una materia y guarda
 - **THEN** la columna Rol de la tabla muestra "Jefe de Cátedra"
 
 #### Scenario: Cancelar edición

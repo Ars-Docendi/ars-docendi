@@ -6,38 +6,49 @@ Edición completa de un usuario existente desde la tabla de gestión de usuarios
 
 ### Requirement: Edición persistente de identidad y roles
 
-La edición completa del usuario MUST enviarse a la API y MUST guardar atómicamente los datos de persona, cuenta y asignaciones de rol con sus ámbitos. Si cualquier parte es inválida, ninguna modificación MUST quedar aplicada.
+La edición completa del usuario MUST enviarse a la API y MUST guardar atómicamente los datos de persona, cuenta y la lista completa de membresías de rol con sus ámbitos. La interfaz MUST conservar IDs de rol, materia y carrera, no etiquetas visibles. Si cualquier parte es inválida o la versión es obsoleta, ninguna modificación MUST quedar aplicada.
 
 #### Scenario: Edición completa exitosa
 
-- **GIVEN** datos válidos, roles con ámbitos compatibles y un operador autorizado
+- **GIVEN** datos válidos, membresías con ámbitos compatibles y un operador autorizado
 - **WHEN** el backend confirma la edición
-- **THEN** una nueva consulta devuelve conjuntamente todos los valores actualizados
+- **THEN** una nueva consulta devuelve conjuntamente todos los valores actualizados y cada rol conserva su materia o carrera
+
+#### Scenario: Usuario con roles por materia
+
+- **GIVEN** un usuario tiene `docente` en una materia y `jefe_catedra` en otra
+- **WHEN** el operador guarda datos personales sin cambiar membresías
+- **THEN** la edición conserva exactamente ambas asignaciones
 
 #### Scenario: Una asignación de rol es inválida
 
-- **GIVEN** cambios de persona válidos y una asignación de rol con ámbito inválido
+- **GIVEN** cambios de persona válidos y una membresía con ámbito inválido o repetida
 - **WHEN** se intenta guardar el formulario
-- **THEN** la API rechaza la operación completa y conserva tanto los datos de persona como los roles anteriores
+- **THEN** la API rechaza la operación completa y conserva tanto los datos de persona como las membresías anteriores
 
 ### Requirement: Edición completa del usuario desde la tabla
 
-Cada fila SHALL tener un botón ghost "Editar" que abre un modal pre-poblado con todos los campos del usuario. Al confirmar, todos los datos del usuario en la tabla SHALL actualizarse (incluyendo nombre, apellido, documento, legajo, CUIL, fecha de nacimiento, teléfono, UPN y roles).
+Cada fila SHALL tener un botón ghost "Editar" que abre un modal pre-poblado con todos los campos del usuario y sus membresías. Al confirmar, todos los datos del usuario en la tabla SHALL actualizarse, incluyendo nombre, apellido, documento, legajo, CUIL, fecha de nacimiento, teléfono, UPN y el resumen de roles.
 
 #### Scenario: Apertura del modal de edición
 
 - **WHEN** el operador hace clic en "Editar" en cualquier fila
-- **THEN** se abre el modal "Editar usuario" con todos los campos pre-cargados con los valores actuales del usuario
+- **THEN** se abre el modal "Editar usuario" con todos los campos y membresías actuales pre-cargados
 
 #### Scenario: Edición exitosa
 
 - **WHEN** el operador modifica uno o más campos y hace clic en "Guardar cambios"
-- **THEN** el modal se cierra y la tabla refleja los valores actualizados del usuario
+- **THEN** el modal se cierra y la tabla refleja los valores actualizados sin repetir roles por ámbito
 
 #### Scenario: Cancelar edición
 
 - **WHEN** el operador hace clic en "Cancelar" (rojo) o presiona Escape
 - **THEN** el modal se cierra sin aplicar ningún cambio
+
+#### Scenario: Conflicto de concurrencia
+
+- **WHEN** otro operador modifica el usuario antes de guardar
+- **THEN** el modal permanece abierto y muestra que los datos deben actualizarse antes de reintentar
 
 #### Scenario: UPN duplicada al editar
 
@@ -46,21 +57,21 @@ Cada fila SHALL tener un botón ghost "Editar" que abre un modal pre-poblado con
 
 #### Scenario: Intentar guardar con campos obligatorios vacíos
 
-- **WHEN** el operador borra un campo obligatorio (nombre, apellido, documento, legajo, fecha de nacimiento, UPN o todos los roles) y hace clic en "Guardar cambios"
+- **WHEN** el operador borra un campo obligatorio o elimina todas las membresías
 - **THEN** se muestran mensajes de error por campo y los cambios no se aplican
 
 ### Requirement: Campos del formulario de edición
 
-El modal SHALL mostrar los mismos campos que el alta de usuario en la misma grilla de 2 columnas:
+El modal SHALL mostrar los mismos campos que el alta en la misma grilla de 2 columnas y SHALL reemplazar los checkboxes globales de roles por una sección de membresías donde cada fila identifique rol y ámbito.
 
 - Fila 1: Nombre | Apellido
 - Fila 2: Documento | Legajo
 - Fila 3: CUIL | Fecha de nacimiento
 - Fila 4: UPN (ancho completo)
 - Fila 5: Teléfono (ancho completo)
-- Fila 6: Roles / checkboxes (ancho completo)
+- Fila 6: Membresías de rol (ancho completo)
 
-Obligatorios: Nombre, Apellido, Documento, Legajo, Fecha de nacimiento, UPN, al menos un Rol.
+Obligatorios: Nombre, Apellido, Documento, Legajo, Fecha de nacimiento, UPN y al menos una membresía.
 Opcionales: CUIL, Teléfono.
 
 #### Scenario: Identificación del usuario en el modal
@@ -68,14 +79,19 @@ Opcionales: CUIL, Teléfono.
 - **WHEN** el modal se abre
 - **THEN** se muestra en el encabezado el nombre completo y UPN actual del usuario para confirmación visual
 
+#### Scenario: Membresía por ámbito
+
+- **WHEN** el operador agrega una membresía
+- **THEN** puede seleccionar un rol activo y sólo los ámbitos compatibles con el rol
+
 ### Requirement: Sincronización de estado del formulario sin efecto
 
-El modal SHALL re-inicializar sus campos internos cada vez que la prop `usuario` cambia (p.ej. al abrir el modal para un usuario diferente o al cerrarlo). Esta sincronización SHALL implementarse comparando la prop con el valor anterior durante el render (`if (usuario !== prevUsuario)`), **no** mediante `useEffect`. El uso de `useEffect` para llamar a `setState` directamente en su cuerpo está prohibido en esta base de código (`react-hooks/set-state-in-effect`).
+El modal SHALL re-inicializar sus campos internos cada vez que la prop `usuario` cambia, incluyendo todas sus membresías. Esta sincronización SHALL implementarse comparando la prop con el valor anterior durante el render (`if (usuario !== prevUsuario)`), no mediante `useEffect`.
 
 #### Scenario: Reapertura del modal para otro usuario
 
 - **WHEN** el modal se cierra y se vuelve a abrir para un usuario distinto
-- **THEN** los campos internos se re-inicializan con los valores del nuevo usuario sin arrastrar el estado anterior
+- **THEN** los campos y membresías internas se re-inicializan con los valores del nuevo usuario sin arrastrar el estado anterior
 
 ### Requirement: Botones del modal con separación y colores semánticos
 
@@ -84,4 +100,24 @@ El footer del modal SHALL ubicar "Cancelar" (rojo) a la izquierda y "Guardar cam
 #### Scenario: Disposición de los botones
 
 - **WHEN** el modal está abierto
-- **THEN** el botón "Cancelar" (rojo) está a la izquierda y "Guardar cambios" (primary) está a la derecha (`justify-content: space-between`)
+- **THEN** el botón "Cancelar" (rojo) está a la izquierda y "Guardar cambios" (primary) está a la derecha
+
+### Requirement: Fecha de nacimiento sin icono SVG adicional
+
+El campo "Fecha de nacimiento" del modal "Editar usuario" SHALL usar el control nativo de fecha
+del navegador y MUST NOT renderizar un SVG de calendario separado dentro del campo. El valor, la
+edición y la validación del campo SHALL conservar el comportamiento existente.
+
+#### Scenario: Apertura del campo de fecha
+
+- **GIVEN** el operador abre "Editar usuario" para una cuenta con fecha de nacimiento
+- **WHEN** el modal se muestra
+- **THEN** el campo contiene la fecha actual y no existe un elemento SVG de calendario adicional
+  asociado al campo
+
+#### Scenario: Guardado de la fecha
+
+- **GIVEN** el operador modifica una fecha válida
+- **WHEN** confirma "Guardar cambios"
+- **THEN** el formulario envía la fecha modificada con el mismo formato y junto con el resto de
+  los datos del usuario

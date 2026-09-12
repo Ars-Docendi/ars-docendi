@@ -20,7 +20,6 @@ namespace ArsDocendi.IntegrationTests.Infraestructura;
 /// Hoy no puede pasar porque los roles se crean DESPUÉS del clon, sobre él. Este
 /// test es lo que hace que siga sin poder pasar.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PlantillaDeBaseTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "plantilla")
 {

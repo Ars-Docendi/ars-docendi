@@ -116,6 +116,12 @@
       "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
     },
     {
+      "origen": "Modules.Designaciones",
+      "destino": "Modules.Portal.Contracts",
+      "via": "project-reference",
+      "motivo": "La exportación de lote lee por IPortalQueries el correo de las altas; cruza por el contract y no toca PortalDbContext ni entidades internas de Portal."
+    },
+    {
       "origen": "Modules.Aulas",
       "destino": "ArsDocendi.Shared",
       "via": "project-reference",

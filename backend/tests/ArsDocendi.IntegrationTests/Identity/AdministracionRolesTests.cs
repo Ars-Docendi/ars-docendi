@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ArsDocendi.IntegrationTests.Identity;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AdministracionRolesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "admin_roles")
 {

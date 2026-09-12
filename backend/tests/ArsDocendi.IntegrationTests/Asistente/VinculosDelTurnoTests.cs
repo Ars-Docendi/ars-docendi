@@ -14,7 +14,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// se los somete a esa autoridad, y se ubica lo que haya vuelto. Un turno que
 /// ofreciera un vínculo sin haber preguntado sería un botón que responde 403.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_vinculos")
 {

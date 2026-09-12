@@ -11,7 +11,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Identity;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "admin_usuarios")
 {

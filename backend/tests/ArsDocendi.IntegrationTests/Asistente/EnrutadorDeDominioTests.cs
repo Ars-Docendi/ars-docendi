@@ -28,7 +28,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// Todo esto cuesta <b>cero llamadas al modelo</b>: el enrutador es determinista y no
 /// tiene por dónde llamar.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class EnrutadorDeDominioTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_enrutador")
 {

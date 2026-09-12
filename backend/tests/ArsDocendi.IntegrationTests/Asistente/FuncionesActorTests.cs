@@ -12,7 +12,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// <c>app.asistente_user_id</c> fijado como transaction-local, igual que en
 /// producción: el ajuste muere en el COMMIT y no sobrevive al pool de conexiones.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class FuncionesActorTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_funciones")
 {

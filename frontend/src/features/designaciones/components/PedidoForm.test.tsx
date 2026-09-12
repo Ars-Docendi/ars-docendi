@@ -5,9 +5,19 @@ import { PedidoForm } from "./PedidoForm";
 import type { DatosEditablesPedido } from "../types";
 
 const CATALOGOS = {
+  materias: [
+    { id: "materia-programacion", codigo: "P1", nombre: "Programación I", carreraId: "carrera-1" },
+    {
+      id: "materia-software",
+      codigo: "IS",
+      nombre: "Ingeniería de Software",
+      carreraId: "carrera-1",
+    },
+  ],
   personas: [{ id: "persona-alta", dni: "30111222", nombre: "Pérez, Ana" }],
   docentes: [
     {
+      personaId: "persona-docente",
       dni: "28341567",
       nombre: "Lucía Fernández",
       legajo: "1001",
@@ -15,8 +25,22 @@ const CATALOGOS = {
       cargoActual: "Adjunto",
       dedicacionActual: "Categoría 3",
       materiasActuales: [
-        { materia: "Programación I", horas: 6 },
-        { materia: "Ingeniería de Software", horas: 4 },
+        {
+          materiaId: "materia-programacion",
+          materia: "Programación I",
+          horas: 6,
+          cargoActual: "Adjunto",
+          dedicacionActual: "Categoría 3",
+        },
+        {
+          materiaId: "materia-software",
+          materia: "Ingeniería de Software",
+          horas: 4,
+          cargoActual: "Adjunto",
+          dedicacionActual: "Categoría 3",
+          horasInvestigacion: 2,
+          horasExternas: 0,
+        },
       ],
       horasInvestigacionActuales: 2,
       horasExternasActuales: 0,
@@ -49,10 +73,12 @@ function panelDatosActuales(): HTMLElement {
   return panel as HTMLElement;
 }
 
-/** Completa los campos no-adjunto de un Alta. La materia no se completa: es la
- * cátedra del actor y se muestra de solo lectura. */
+/** Completa los campos no-adjunto de un Alta. */
 async function completarAlta(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByLabelText("Persona"), "persona-alta");
+  await user.type(screen.getByLabelText("DNI"), "30111222");
+  await user.type(screen.getByLabelText("Nombre"), "Ana");
+  await user.type(screen.getByLabelText("Apellido"), "Pérez");
+  await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
   await user.clear(screen.getByLabelText("Horas"));
   await user.type(screen.getByLabelText("Horas"), "4");
   await user.selectOptions(screen.getByLabelText("Cargo solicitado"), "Ayudante");
@@ -81,7 +107,9 @@ describe("PedidoForm", () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
       expect(screen.getByText("Datos del docente · Nuevo")).toBeInTheDocument();
-      expect(screen.getByLabelText("Persona")).toBeInTheDocument();
+      expect(screen.getByLabelText("DNI")).toBeInTheDocument();
+      expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
+      expect(screen.getByLabelText("Apellido")).toBeInTheDocument();
       expect(screen.getByText("Designación solicitada")).toBeInTheDocument();
       expect(screen.getByText("Documentación obligatoria · Alta")).toBeInTheDocument();
       expect(screen.getByText("CV (PDF)")).toBeInTheDocument();
@@ -110,6 +138,7 @@ describe("PedidoForm", () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
       expect(screen.getByText("Cargo actual")).toBeInTheDocument();
       expect(screen.getByText("Adjunto")).toBeInTheDocument();
       expect(screen.getByText("Categoría 3")).toBeInTheDocument();
@@ -117,22 +146,70 @@ describe("PedidoForm", () => {
   });
 
   describe("materia y horas", () => {
-    // Un pedido cubre exactamente una materia: la cátedra del actor. Por eso la
-    // materia no se elige ni se agrega/quita — sólo la carga horaria es editable.
-    it("en Alta muestra la materia de la cátedra sin ofrecer elegirla ni agregar otras", async () => {
+    it("en Alta muestra las materias del actor y permite elegir una", async () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Alta"));
 
-      const seccionMateria = document.querySelector(".adoc-pf-materias") as HTMLElement;
-      expect(within(seccionMateria).getByText("Ingeniería de Software")).toBeInTheDocument();
-
-      // Sin Select de materia, sin agregar, sin quitar.
-      expect(within(seccionMateria).queryByRole("combobox")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Materia")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Materia del pedido")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Ingeniería de Software").length).toBeGreaterThan(0);
       expect(screen.queryByRole("button", { name: "Agregar materia" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Quitar materia/ })).not.toBeInTheDocument();
 
-      // Las horas sí son editables.
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
       expect(screen.getByLabelText("Horas")).toBeInTheDocument();
+    });
+
+    it("en Alta muestra una única materia sin selector adicional", async () => {
+      const user = userEvent.setup();
+      // El catálogo de una sola materia representa una única membresía del Jefe.
+      // Se vuelve a montar el caso con el mismo catálogo de docentes para conservar
+      // la cobertura del formulario real.
+      render(
+        <PedidoForm
+          catedra="Ingeniería de Software"
+          materias={[CATALOGOS.materias[1]]}
+          pedidosExistentes={[]}
+          onGuardar={vi.fn()}
+          onCancelar={vi.fn()}
+          docentes={CATALOGOS.docentes}
+          cargos={CATALOGOS.cargos}
+          dedicaciones={CATALOGOS.dedicaciones}
+          tiposBaja={CATALOGOS.tiposBaja}
+        />,
+      );
+      await user.click(screen.getByLabelText("Alta"));
+      expect(screen.getByLabelText("Materia")).toHaveTextContent("Ingeniería de Software");
+      expect(screen.getByLabelText("Materia").tagName).toBe("OUTPUT");
+    });
+
+    it("en Baja bloquea el guardado cuando la intersección no tiene materias", async () => {
+      const onGuardar = vi.fn();
+      const user = userEvent.setup();
+      // Reemplaza el catálogo visible por una persona sin designaciones compatibles.
+      // El caso queda expresado por la lista vacía de materias actuales.
+      // La variante se prueba en un formulario aislado para no alterar otros tests.
+      render(
+        <PedidoForm
+          catedra="Ingeniería de Software"
+          materias={CATALOGOS.materias}
+          pedidosExistentes={[]}
+          onGuardar={onGuardar}
+          onCancelar={vi.fn()}
+          docentes={[{ ...CATALOGOS.docentes[0], materiasActuales: [] }]}
+          cargos={CATALOGOS.cargos}
+          dedicaciones={CATALOGOS.dedicaciones}
+          tiposBaja={CATALOGOS.tiposBaja}
+        />,
+      );
+      await user.click(screen.getByLabelText("Baja"));
+      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.click(screen.getByRole("button", { name: "Guardar pedido" }));
+      expect(
+        screen.getByText(
+          "El docente seleccionado no tiene una designación vigente en una materia a cargo del actor.",
+        ),
+      ).toBeInTheDocument();
     });
 
     it("en Cambio precarga las horas vigentes del docente en esa cátedra", async () => {
@@ -141,6 +218,7 @@ describe("PedidoForm", () => {
       // Lucía Fernández tiene 4h en "Ingeniería de Software" (y 6h en otra materia,
       // que no participa de este pedido).
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       expect(screen.getByLabelText("Horas")).toHaveValue(4);
     });
@@ -165,6 +243,7 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       // Lucía Fernández tiene cargo actual "Adjunto".
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       const selectCargo = screen.getByLabelText("Cargo solicitado") as HTMLSelectElement;
       // "Ayudante" es inferior a "Adjunto": no hay restricción que lo impida.
@@ -177,6 +256,7 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       // Lucía Fernández tiene dedicación actual "Categoría 3".
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
       const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
@@ -217,6 +297,7 @@ describe("PedidoForm", () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       await user.selectOptions(screen.getByLabelText("Cargo solicitado"), "Titular");
       await user.selectOptions(screen.getByLabelText("Dedicación solicitada"), "Categoría 1");
@@ -233,6 +314,7 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       // Lucía Fernández: 2h investigación / 0h externas en el catálogo.
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       await user.clear(screen.getByLabelText("Horas de investigación"));
       await user.type(screen.getByLabelText("Horas de investigación"), "5");
@@ -251,6 +333,7 @@ describe("PedidoForm", () => {
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       // Lucía Fernández tiene 4h en "Ingeniería de Software", la cátedra del pedido.
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       await user.clear(screen.getByLabelText("Horas"));
       await user.type(screen.getByLabelText("Horas"), "8");
@@ -266,6 +349,7 @@ describe("PedidoForm", () => {
       const { user } = renderForm();
       await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       // Sin tocar las horas: valor plano, una sola vez.
       const panel = within(panelDatosActuales());
@@ -278,6 +362,7 @@ describe("PedidoForm", () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
 
       await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
 
@@ -289,6 +374,7 @@ describe("PedidoForm", () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Baja"));
       await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
+      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
       await user.selectOptions(screen.getByLabelText("Tipo de baja"), "Otro");
 
       expect(screen.getByLabelText("Detalle")).toBeInTheDocument();
@@ -343,6 +429,7 @@ describe("PedidoForm", () => {
             horasInvestigacionActuales: 2,
             horasExternas: 3,
             horasExternasActuales: 1,
+            materiaId: "materia-software",
             cargoActual: "Adjunto",
             dedicacionActual: "Categoría 3",
             cargoSolicitado: "Titular",

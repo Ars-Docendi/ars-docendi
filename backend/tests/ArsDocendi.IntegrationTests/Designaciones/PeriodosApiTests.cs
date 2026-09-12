@@ -8,7 +8,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PeriodosApiTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "periodos_api")
 {

@@ -3,7 +3,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Infraestructura;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class SeedSinteticoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "seed")
 {

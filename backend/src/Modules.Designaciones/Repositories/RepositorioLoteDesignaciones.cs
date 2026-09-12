@@ -6,10 +6,11 @@ namespace Modules.Designaciones.Repositories;
 
 internal sealed record ConsultaLoteDesignaciones(
     Periodo Periodo,
+    Periodo? PeriodoAnterior,
     IReadOnlyList<Pedido> PedidosDelPeriodo,
     IReadOnlyList<Designacion> DesignacionesVigentes);
 
-/// <summary>Lee las dos fuentes del lote dentro de una misma transacción.</summary>
+/// <summary>Lee las fuentes del lote dentro de una misma transacción.</summary>
 internal sealed class RepositorioLoteDesignaciones(DesignacionesDbContext db)
 {
     public async Task<ConsultaLoteDesignaciones?> LeerAsync(Guid periodoId, CancellationToken ct)
@@ -18,12 +19,16 @@ internal sealed class RepositorioLoteDesignaciones(DesignacionesDbContext db)
             .SingleOrDefaultAsync(p => p.Id == periodoId, ct);
         if (periodo is null) return null;
 
+        var periodoAnterior = await db.Periodos.AsNoTracking()
+            .Where(p => p.ImpactoDesde < periodo.ImpactoDesde)
+            .OrderByDescending(p => p.ImpactoDesde)
+            .ThenByDescending(p => p.Id)
+            .FirstOrDefaultAsync(ct);
+
         var pedidos = await db.Pedidos
             .AsNoTracking()
-            .Include(p => p.Periodo)
             .Include(p => p.CargoSolicitado)
             .Include(p => p.DedicacionSolicitadaCatalogo)
-            .Include(p => p.Historial)
             .Where(p => p.PeriodoId == periodoId)
             .OrderBy(p => p.Numero)
             .ToListAsync(ct);
@@ -37,6 +42,6 @@ internal sealed class RepositorioLoteDesignaciones(DesignacionesDbContext db)
             .ThenBy(d => d.MateriaId)
             .ToListAsync(ct);
 
-        return new ConsultaLoteDesignaciones(periodo, pedidos, designaciones);
+        return new ConsultaLoteDesignaciones(periodo, periodoAnterior, pedidos, designaciones);
     }
 }

@@ -3,15 +3,17 @@ using System.Net.Http.Json;
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Identity.Desarrollo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Modules.Designaciones.Domain;
+using Modules.Designaciones.Infrastructure;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_dev")
 {
@@ -19,6 +21,12 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
+    private static readonly Guid MateriaAjena = Guid.Parse("70000000-0000-4000-8000-000000000201");
+    private static readonly Guid CarreraVisible = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
+    private static readonly Guid RolDocente = Guid.Parse("a1000000-0000-4000-8000-000000000001");
+    private static readonly Guid CargoAdjunto = Guid.Parse("c3000000-0000-4000-8000-000000000003");
+    private static readonly Guid Dedicacion = Guid.Parse("d6000000-0000-4000-8000-000000000002");
     private static readonly Guid[] MateriasDelJefe =
     [
         Guid.Parse("70000000-0000-4000-8000-000000000101"),
@@ -54,6 +62,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         await SembrarAsync(ct);
+        var (personaMixta, personaAjena) = await AgregarDocentesConAmbitoMixtoAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
@@ -65,6 +74,10 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             "/api/administracion/docentes/catalogos", ct);
         using var detalleFueraDeAmbito = await cliente.GetAsync(
             "/api/administracion/docentes/d0000000-0000-4000-8000-000000000010", ct);
+        using var detalleMixto = await cliente.GetAsync(
+            $"/api/administracion/docentes/{personaMixta}", ct);
+        using var detalleAjeno = await cliente.GetAsync(
+            $"/api/administracion/docentes/{personaAjena}", ct);
         using var alta = await cliente.PostAsJsonAsync(
             "/api/administracion/docentes", new { }, ct);
 
@@ -72,10 +85,21 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.NotEmpty(docentes);
         Assert.All(docentes, docente =>
             Assert.Contains(docente.Asignaciones, asignacion => MateriasDelJefe.Contains(asignacion.MateriaId)));
+        var mixta = Assert.Single(docentes, docente => docente.PersonaId == personaMixta);
+        Assert.DoesNotContain(mixta.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
+        Assert.Contains(mixta.Membresias, membresia => membresia.MateriaId == MateriasDelJefe[0]);
+        Assert.DoesNotContain(mixta.Membresias, membresia => membresia.MateriaId == MateriaAjena);
+        Assert.DoesNotContain(docentes, docente => docente.PersonaId == personaAjena);
         Assert.NotNull(catalogos);
         Assert.Equal(MateriasDelJefe.Length, catalogos.Materias.Count);
         Assert.All(catalogos.Materias, materia => Assert.Contains(materia.Id, MateriasDelJefe));
         Assert.Empty(catalogos.PersonasElegibles);
+        Assert.Equal(HttpStatusCode.OK, detalleMixto.StatusCode);
+        var detalle = await detalleMixto.Content.ReadFromJsonAsync<DocenteAdministracionDto>(ct);
+        Assert.NotNull(detalle);
+        Assert.DoesNotContain(detalle.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
+        Assert.DoesNotContain(detalle.Membresias, membresia => membresia.MateriaId == MateriaAjena);
+        Assert.Equal(HttpStatusCode.NotFound, detalleAjeno.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, detalleFueraDeAmbito.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, alta.StatusCode);
     }
@@ -283,5 +307,89 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",
                 habilitada.ToString());
         });
+
+    private async Task<(Guid PersonaMixta, Guid PersonaAjena)> AgregarDocentesConAmbitoMixtoAsync(
+        CancellationToken ct)
+    {
+        var personaMixta = Guid.NewGuid();
+        var personaAjena = Guid.NewGuid();
+        var usuarioMixto = Guid.NewGuid();
+        var ahora = DateTimeOffset.UtcNow;
+        await using (var identity = PostgresFixture.CrearIdentity(Cadena))
+        {
+            identity.Personas.AddRange(
+                new Persona
+                {
+                    Id = personaMixta,
+                    Documento = $"M-{personaMixta:N}",
+                    Nombre = "Docente",
+                    Apellido = "Mixto",
+                    Legajo = $"M-{personaMixta:N}",
+                    CreadoEn = ahora,
+                },
+                new Persona
+                {
+                    Id = personaAjena,
+                    Documento = $"A-{personaAjena:N}",
+                    Nombre = "Docente",
+                    Apellido = "Ajeno",
+                    Legajo = $"A-{personaAjena:N}",
+                    CreadoEn = ahora,
+                });
+            identity.Usuarios.Add(new Usuario
+            {
+                Id = usuarioMixto,
+                AzureOid = Guid.NewGuid(),
+                Upn = $"mixto-{usuarioMixto:N}@example.test",
+                NombreParaMostrar = "Docente Mixto",
+                Activo = true,
+                PersonaId = personaMixta,
+                CreadoEn = ahora,
+            });
+            identity.UsuarioRoles.AddRange(
+                new UsuarioRol
+                {
+                    Id = Guid.NewGuid(),
+                    UsuarioId = usuarioMixto,
+                    RolId = RolDocente,
+                    MateriaId = MateriasDelJefe[0],
+                    CarreraId = CarreraVisible,
+                    OtorgadoEn = ahora,
+                    CreadoEn = ahora,
+                },
+                new UsuarioRol
+                {
+                    Id = Guid.NewGuid(),
+                    UsuarioId = usuarioMixto,
+                    RolId = RolDocente,
+                    MateriaId = MateriaAjena,
+                    CarreraId = CarreraAjena,
+                    OtorgadoEn = ahora,
+                    CreadoEn = ahora,
+                });
+            await identity.SaveChangesAsync(ct);
+        }
+
+        await using var designaciones = PostgresFixture.CrearDesignaciones(Cadena);
+        designaciones.Designaciones.AddRange(
+            CrearDesignacion(personaMixta, MateriasDelJefe[0]),
+            CrearDesignacion(personaMixta, MateriaAjena),
+            CrearDesignacion(personaAjena, MateriaAjena));
+        await designaciones.SaveChangesAsync(ct);
+        return (personaMixta, personaAjena);
+    }
+
+    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId) => new()
+    {
+        Id = Guid.NewGuid(),
+        PersonaId = personaId,
+        MateriaId = materiaId,
+        CargoId = CargoAdjunto,
+        DedicacionId = Dedicacion,
+        Horas = 10,
+        VigenteDesde = new DateOnly(2026, 8, 1),
+        CreadoEn = DateTimeOffset.UtcNow,
+    };
+
 
 }

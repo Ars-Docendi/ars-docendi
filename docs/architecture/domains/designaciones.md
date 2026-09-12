@@ -60,6 +60,13 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 
 `identity.roles` define `jefe_catedra` con `scope = 'materia'`: cátedra **es** materia. Por eso el pedido lleva una sola `materia_id`, y la carrera se deriva de `identity.materias.carrera_id` en vez de desnormalizarse. Con una lista de N materias, un pedido podía abarcar dos carreras y dejar a dos Coordinadores compitiendo por él, sin que BR-designaciones-009 tuviera cómo resolverlo.
 
+El formulario resuelve la materia en contexto: Alta usa las materias activas del
+Jefe de Cátedra; Baja/Cambio intersectan esas materias con las designaciones
+vigentes del docente seleccionado. Una única opción se fija automáticamente y
+varias se eligen por UUID. El backend no confía en esa anticipación: valida el
+ámbito y exige `(persona_id, materia_id)` vigente para Baja/Cambio. Snapshot,
+horas y datos actuales se toman de esa designación, nunca de la primera del docente.
+
 ## API pública (contract)
 
 | Interfaz                       | Métodos                                             | Consumido por                                   |
@@ -72,6 +79,11 @@ El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF
 `IDesignacionesQueries.UbicarPedidosAsync` existe para que **otro módulo no tenga que adivinar quién puede abrir un trámite**. Aplica el mismo criterio que `GET /api/designaciones/pedidos/{id}` —`MaquinaEstadosPedido.AlcanzaAmbito`, la misma función, no una copia— y devuelve **menos** de lo que se le pide: descarta por forma lo que no puede ser un número de trámite antes de consultar la base, y omite lo que existe pero queda fuera del ámbito del actor, sin distinguir un caso del otro.
 
 Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde una respuesta. Consume el contract **desde el Host** y no desde `Modules.Asistente`: la arista entre módulos es ARS-46 y todavía no está aprobada, así que el asistente declara un puerto y el composition root lo compone.
+
+Para un Alta de pedido, Designaciones consume por DI la frontera pública
+`IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en
+Shared y sólo crea la persona canónica; Designaciones no accede al `IdentityDbContext`
+ni a repositorios de Identity.
 
 ## Endpoints HTTP
 
@@ -93,9 +105,9 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 
 ## Dependencias
 
-- **Hacia `identity`** (vía `IConsultasIdentity`, sólo lectura): resolver la persona, validar el rol de Jefe de Cátedra sobre la materia del pedido, derivar la carrera. El módulo **no escribe** identity.
-- **Exportación**: el lote lee pedidos del período y designaciones vigentes dentro de una lectura `RepeatableRead`; completa nombres y autores a través de `IConsultasIdentity` y no agrega una dependencia entre módulos.
-- **Hacia adentro**: `Modules.Portal.Contracts` (consultar áreas de experticia — proyectado, no confirmado).
+- **Hacia `identity`**: lee mediante `IConsultasIdentity` para resolver ámbitos, personas y materias, y consume por DI `IAdministracionIdentity` para solicitar la creación de una persona sin cuenta en un Alta. La escritura concreta sigue siendo exclusiva de la administración de Shared; el módulo **no accede** a `IdentityDbContext` ni a repositorios.
+- **Exportación**: el lote lee el período, el período anterior por `ImpactoDesde`, pedidos y designaciones vigentes dentro de una lectura `RepeatableRead`; completa persona y materias mediante `IConsultasIdentity` y el correo de altas mediante `Modules.Portal.Contracts.Queries.IPortalQueries`. La proyección genera `PROPUESTA COMPLETA`, `ALTAS` y `BAJAS` —incluida la Alta aún no materializada— sin modificar el estado de negocio.
+- **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`).
 - **Hacia afuera**: ninguna por ahora.
 - **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).
 

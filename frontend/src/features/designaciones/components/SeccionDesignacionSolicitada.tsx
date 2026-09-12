@@ -24,8 +24,8 @@ interface SeccionDesignacionSolicitadaProps {
 /**
  * Sección "Designación solicitada" (Alta / Cambio): cargo (selección libre
  * entre todo el catálogo, sin restricción de jerarquía — ver D-6) +
- * dedicación de elección libre, la
- * materia de la cátedra con su carga horaria, y horas de investigación/externas.
+ * dedicación de elección libre, la materia contextual ya elegida con su carga
+ * horaria, y horas de investigación/externas.
  */
 export function SeccionDesignacionSolicitada({
   materia,
@@ -77,6 +77,7 @@ export function SeccionDesignacionSolicitada({
 
       <SeccionMateriaHoras
         materia={materia}
+        etiquetaMateria="Materia seleccionada"
         horas={horas}
         horasEditables
         error={errores.horas}

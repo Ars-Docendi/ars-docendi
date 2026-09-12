@@ -17,7 +17,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// inserción es también la prueba de que el índice sale de la base: si estuviera
 /// embebido en el código, filas nuevas no cambiarían nada.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class AmbiguedadTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_ambiguedad")
 {

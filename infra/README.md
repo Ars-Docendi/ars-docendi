@@ -28,9 +28,7 @@ infra/
 │   ├── seed.sh               # siembra datos sintéticos (aborta si datos de prod)
 │   ├── drop-db.sh            # DROP DATABASE + DROP ROLE (solo staging/pr-N)
 │   ├── verificar-roles-asistente.sh  # test de humo read-only de los roles del asistente
-│   ├── spin-up.sh <env>      # provisiona + levanta + migra + siembra
-│   ├── drop-db.sh            # DROP DATABASE (solo staging/pr-N, nunca prod)
-│   ├── spin-up.sh <env>      # reconstruye descartables, migra, siembra y levanta
+│   ├── spin-up.sh <env>      # reconstruye descartables, provisiona, migra, siembra y levanta
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
 │   └── seed-data/sintetico.sql
 ├── reaper/

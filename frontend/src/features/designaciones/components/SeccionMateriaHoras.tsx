@@ -1,8 +1,9 @@
 import { Field, Input } from "@ars-docendi/ui";
 
 interface SeccionMateriaHorasProps {
-  /** La cátedra del pedido. Siempre de solo lectura: viene del ámbito del actor. */
+  /** Materia ya elegida en el contexto del docente. Siempre de solo lectura aquí. */
   materia: string;
+  etiquetaMateria?: string;
   horas: number;
   /** Alta y Cambio permiten editar la carga horaria; Baja y Sin novedad no. */
   horasEditables?: boolean;
@@ -13,16 +14,16 @@ interface SeccionMateriaHorasProps {
 /**
  * Materia y carga horaria del pedido.
  *
- * Un pedido cubre EXACTAMENTE UNA materia —la cátedra sobre la que opera el Jefe
- * de Cátedra—, así que la materia no se elige: viene del ámbito del actor y se
- * muestra de solo lectura. Lo único editable es la carga horaria, y sólo cuando la
- * novedad pide una designación (Alta o Cambio).
+ * Un pedido cubre EXACTAMENTE UNA materia. La elección contextual vive en la
+ * sección del docente; acá sólo se muestra y se edita la carga horaria cuando
+ * corresponde (Alta o Cambio).
  *
  * Reemplaza al listado 1..N anterior, que permitía elegir materias de otras
  * carreras y dejaba a dos Coordinadores compitiendo por el mismo pedido.
  */
 export function SeccionMateriaHoras({
   materia,
+  etiquetaMateria = "Materia",
   horas,
   horasEditables = false,
   error,
@@ -32,7 +33,7 @@ export function SeccionMateriaHoras({
     <div className="adoc-pf-materias">
       <span className="adoc-pf-materias-h">Materia y horas</span>
       <div className="adoc-pf-materias-fila">
-        <Field label="Materia">
+        <Field label={etiquetaMateria}>
           <div className="adoc-pf-materias-ro">{materia || "—"}</div>
         </Field>
         <div className="adoc-pf-materias-horas">

@@ -18,7 +18,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// literal ata el test a la edición de turno del seed y lo pone rojo cada vez que
 /// alguien mueve una materia, sin que el alcance haya cambiado en nada.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class RlsAlcanceTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_rls")
 {

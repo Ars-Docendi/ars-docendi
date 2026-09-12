@@ -11,7 +11,6 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Portal;
 
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PortalHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_http")
 {

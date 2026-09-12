@@ -13,7 +13,6 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// llega al modelo. Un test que verificara el prefijo con comentarios de mentira
 /// diría que el renderizador funciona, no que el asistente entiende el esquema.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_prefijo")
 {

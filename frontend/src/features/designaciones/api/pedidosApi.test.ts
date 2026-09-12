@@ -162,12 +162,19 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
-  it("crea con IDs canónicos resueltos desde catálogos HTTP", async () => {
+  it("crea un Alta con los datos de la persona y la materia canónica", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearPedido(
       {
-        docente: { dni: "123", nombre: "Ana", antiguedad: 0 },
+        docente: {
+          dni: "123",
+          nombre: "Ana",
+          nombrePersona: "Ana",
+          apellido: "Pérez",
+          antiguedad: 0,
+        },
         catedra: "Software",
+        materiaId: "materia-1",
         horas: 10,
         cargoActual: null,
         dedicacionActual: null,
@@ -184,12 +191,13 @@ describe("pedidosApi HTTP", () => {
       "/api/designaciones/pedidos",
       expect.objectContaining({
         periodoId: "periodo-1",
-        personaId: "persona-1",
         materiaId: "materia-1",
+        persona: { documento: "123", nombre: "Ana", apellido: "Pérez" },
         cargoSolicitadoId: "cargo-1",
         dedicacionSolicitadaId: "dedicacion-2",
       }),
     );
+    expect(vi.mocked(apiClient.post).mock.calls[0][1]).not.toHaveProperty("personaId");
   });
 
   it("envía una clave UUID en cada transición", async () => {

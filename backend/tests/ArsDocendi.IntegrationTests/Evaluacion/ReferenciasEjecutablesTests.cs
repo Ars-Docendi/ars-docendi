@@ -22,7 +22,6 @@ namespace ArsDocendi.IntegrationTests.Evaluacion;
 /// el seed de demostración: una referencia puede ejecutar contra uno y no contra el
 /// otro, y el que importa es el que la métrica va a usar.
 /// </remarks>
-[Collection(ColeccionPostgres.Nombre)]
 public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "eval_referencias")
 {
