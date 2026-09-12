@@ -30,6 +30,10 @@ docs/**/_index.md
 # y la corrida financiada del evaluador deja decenas de golpe.
 backend/tests/ArsDocendi.IntegrationTests/Cassettes
 
+# Los reportes de los ejes los escribe el evaluador en cada corrida: formatearlos
+# a mano se deshace sola la vez siguiente.
+backend/eval/reportes
+
 # Generated TypeScript build info
 *.tsbuildinfo
 
