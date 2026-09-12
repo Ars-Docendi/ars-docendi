@@ -155,10 +155,17 @@ public sealed class GeneradorDeFixture
         "Tejada", "Urrutia", "Vega", "Zárate",
     ];
 
-    private static readonly string[] Dedicaciones =
-    [
-        "Categoría 1", "Categoría 3", "Categoría 5",
-    ];
+    /// <summary>
+    /// Los códigos del catálogo de dedicaciones que el fixture usa.
+    /// </summary>
+    /// <remarks>
+    /// Se guardan como CÓDIGO y no como nombre porque la columna textual quedó en
+    /// legado: <c>designaciones.validar_dedicacion_vigente</c> rechaza una fila que
+    /// no traiga <c>dedicacion_id</c>, y rechaza además que traiga texto nuevo. El
+    /// id se deriva del código igual que en la migración que sembró el catálogo,
+    /// así que no hace falta consultarlo.
+    /// </remarks>
+    private static readonly int[] CodigosDeDedicacion = [1, 3, 5];
 
     private static readonly string[] CodigosDeCargo =
     [
@@ -440,7 +447,7 @@ public sealed class GeneradorDeFixture
     {
         sql.Append(
             "\nINSERT INTO designaciones.designaciones "
-            + "(id, persona_id, materia_id, cargo_id, dedicacion, horas, vigente_desde, vigente_hasta) VALUES\n");
+            + "(id, persona_id, materia_id, cargo_id, dedicacion_id, horas, vigente_desde, vigente_hasta) VALUES\n");
 
         var azar = FuenteDe("designaciones");
         var materias = TotalDeMaterias();
@@ -460,7 +467,7 @@ public sealed class GeneradorDeFixture
 
             filas.Add(
                 $"    ('{IdDeDesignacion(indice)}', '{IdDePersona(indice)}', '{IdDeMateria(materia)}', "
-                + $"'{IdDeCargo(cargo)}', '{Dedicaciones[azar.Next(Dedicaciones.Length)]}', "
+                + $"'{IdDeCargo(cargo)}', '{IdDeDedicacionAlAzar(azar)}', "
                 + $"{4 + azar.Next(8)}, DATE '{Ancla.AddDays(-365):yyyy-MM-dd}', {vigenteHasta})");
         }
 
@@ -473,7 +480,7 @@ public sealed class GeneradorDeFixture
         sql.Append(
             "\nINSERT INTO designaciones.pedidos "
             + "(id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, "
-            + "cargo_solicitado_id, dedicacion_solicitada, horas) VALUES\n");
+            + "cargo_solicitado_id, dedicacion_solicitada_id, horas) VALUES\n");
 
         string[] novedades = ["Alta", "Baja", "Cambio de cargo o dedicación", "Sin novedad"];
         string[] estados =
@@ -499,7 +506,7 @@ public sealed class GeneradorDeFixture
                 + $"'{estados[indice % estados.Length]}', {(indice % 7 == 0 ? "TRUE" : "FALSE")}, "
                 + (esBaja ? "NULL, NULL, NULL)" :
                     $"'{IdDeCargo(indice % CodigosDeCargo.Length)}', "
-                    + $"'{Dedicaciones[azar.Next(Dedicaciones.Length)]}', {4 + azar.Next(8)})"));
+                    + $"'{IdDeDedicacionAlAzar(azar)}', {4 + azar.Next(8)})"));
         }
 
         sql.Append(string.Join(",\n", filas));
@@ -745,4 +752,11 @@ public sealed class GeneradorDeFixture
     /// </summary>
     private static string IdDeCargo(int indice) =>
         $"c3000000-0000-4000-8000-{indice + 1:D12}";
+
+    /// <summary>
+    /// Un id del catálogo de dedicaciones, derivado del código igual que en
+    /// <c>009_designaciones_dedicaciones.sql</c>.
+    /// </summary>
+    private static string IdDeDedicacionAlAzar(Random azar) =>
+        $"d6000000-0000-4000-8000-{CodigosDeDedicacion[azar.Next(CodigosDeDedicacion.Length)]:D12}";
 }
