@@ -48,107 +48,69 @@ public sealed class ClaveDeCassetteTests
 
     // ------------------------------------------------------- los cuatro campos
 
-    [Fact]
-    public void Cambiar_el_prefijo_cambia_la_clave()
+    /// <summary>Qué mutación del cuerpo mueve la clave y cuál no.</summary>
+    public static TheoryData<string, bool> MutacionesDelCuerpo => new()
     {
-        Assert.NotEqual(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(prefijo: Prefijo + " Y nada más.")).Clave);
-    }
-
-    [Fact]
-    public void Cambiar_el_mensaje_cambia_la_clave()
-    {
-        Assert.NotEqual(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(mensaje: "¿Cuántos pedidos hay?")).Clave);
-    }
-
-    [Fact]
-    public void Cambiar_el_esfuerzo_cambia_la_clave()
-    {
-        Assert.NotEqual(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(esfuerzo: "high")).Clave);
-    }
-
-    [Fact]
-    public void Omitir_el_esfuerzo_no_es_lo_mismo_que_pedir_uno()
-    {
+        { "prefijo", true },
+        { "mensaje", true },
+        { "esfuerzo", true },
         // Omitir `output_config` es lo que el adaptador hace con esfuerzo mínimo, y
         // no es «esfuerzo bajo»: hay modelos que rechazan el campo con 400. Dos
         // llamadas que difieren en eso le hablan distinto al modelo y no pueden
         // compartir cassette.
-        Assert.NotEqual(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(esfuerzo: null)).Clave);
-    }
-
-    [Fact]
-    public void Cambiar_el_modelo_cambia_la_clave()
-    {
-        Assert.NotEqual(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(modelo: "claude-opus-5")).Clave);
-    }
-
-    [Fact]
-    public void Cambiar_solo_el_techo_de_tokens_no_cambia_la_clave()
-    {
+        { "esfuerzo-omitido", true },
+        { "modelo", true },
         // ES EL PUNTO DE QUE LA CLAVE SEAN CUATRO CAMPOS Y NO EL CUERPO ENTERO.
         // `MaximoDeTokensDeGeneracion` es una perilla que la propia documentación
         // invita a mover cuando aparece el aviso de corte; hashear el cuerpo
         // completo invalidaría todos los cassettes de golpe, y recuperarlos costaría
         // otra corrida financiada.
-        Assert.Equal(
-            ClaveDeCassette.Calcular(Cuerpo()).Clave,
-            ClaveDeCassette.Calcular(Cuerpo(maximoDeTokens: 16000)).Clave);
+        { "techo-de-tokens", false },
+    };
+
+    [Theory]
+    [MemberData(nameof(MutacionesDelCuerpo))]
+    public void Solo_los_cuatro_campos_del_cable_mueven_la_clave(string mutacion, bool mueve)
+    {
+        var mutado = mutacion switch
+        {
+            "prefijo" => Cuerpo(prefijo: Prefijo + " Y nada más."),
+            "mensaje" => Cuerpo(mensaje: "¿Cuántos pedidos hay?"),
+            "esfuerzo" => Cuerpo(esfuerzo: "high"),
+            "esfuerzo-omitido" => Cuerpo(esfuerzo: null),
+            "modelo" => Cuerpo(modelo: "claude-opus-5"),
+            "techo-de-tokens" => Cuerpo(maximoDeTokens: 16000),
+            _ => throw new ArgumentOutOfRangeException(nameof(mutacion)),
+        };
+
+        var original = ClaveDeCassette.Calcular(Cuerpo()).Clave;
+        var otra = ClaveDeCassette.Calcular(mutado).Clave;
+
+        if (mueve)
+        {
+            Assert.NotEqual(original, otra);
+        }
+        else
+        {
+            Assert.Equal(original, otra);
+        }
     }
 
     // -------------------------------------------------- un campo que no está
 
-    [Fact]
-    public void Un_cuerpo_sin_modelo_falla_nombrando_el_campo()
+    [Theory]
+    [InlineData("""{"system":[{"type":"text","text":"x"}],"messages":[{"role":"user","content":"y"}]}""", "model")]
+    [InlineData("""{"model":"m","messages":[{"role":"user","content":"y"}]}""", "system")]
+    [InlineData("""{"model":"m","system":[{"type":"text","text":"x"}]}""", "messages")]
+    public void Un_cuerpo_al_que_le_falta_un_campo_falla_nombrandolo(string cuerpo, string campo)
     {
-        var sinModelo = """
-            {"system":[{"type":"text","text":"x"}],
-             "messages":[{"role":"user","content":"y"}],"max_tokens":10}
-            """;
-
         var falla = Assert.Throws<InvalidOperationException>(
-            () => ClaveDeCassette.Calcular(sinModelo));
+            () => ClaveDeCassette.Calcular(cuerpo));
 
         // Ruidoso y no una clave sobre cadena vacía: un campo que deja de estar
         // —porque el formato del cable cambió— haría que todas las solicitudes
         // colapsaran a la misma clave y se sirvieran unas a otras.
-        Assert.Contains("model", falla.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Un_cuerpo_sin_prefijo_falla_nombrando_el_campo()
-    {
-        var sinSistema = """
-            {"model":"claude-sonnet-5",
-             "messages":[{"role":"user","content":"y"}],"max_tokens":10}
-            """;
-
-        var falla = Assert.Throws<InvalidOperationException>(
-            () => ClaveDeCassette.Calcular(sinSistema));
-
-        Assert.Contains("system", falla.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Un_cuerpo_sin_mensajes_falla_nombrando_el_campo()
-    {
-        var sinMensajes = """
-            {"model":"claude-sonnet-5","system":[{"type":"text","text":"x"}],"max_tokens":10}
-            """;
-
-        var falla = Assert.Throws<InvalidOperationException>(
-            () => ClaveDeCassette.Calcular(sinMensajes));
-
-        Assert.Contains("messages", falla.Message, StringComparison.Ordinal);
+        Assert.Contains(campo, falla.Message, StringComparison.Ordinal);
     }
 
     [Fact]

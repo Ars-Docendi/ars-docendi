@@ -90,30 +90,31 @@ public sealed class CassettesEnDiscoTests : IDisposable
     }
 
     [Fact]
-    public void Una_clave_que_no_esta_se_lee_como_ausente_y_no_como_error()
+    public void Lo_que_no_esta_se_lee_como_ausente_y_no_como_error()
     {
         var almacen = new AlmacenDeCassettes(_directorio);
+        almacen.Escribir("clave-uno", Sello, CuerpoCrudo);
 
         // Distinguir «no está» de «está roto» es lo que permite que el handler
-        // decida entre grabar y fallar cerrado.
+        // decida entre grabar y fallar cerrado. Vale para una clave que falta en un
+        // directorio que existe y para el directorio entero sin crear.
         Assert.Null(almacen.Leer("clave-que-no-existe"));
-    }
-
-    [Fact]
-    public void Leer_un_directorio_que_no_existe_no_revienta()
-    {
-        Assert.Null(new AlmacenDeCassettes(_directorio).Leer("clave-uno"));
+        Assert.Null(new AlmacenDeCassettes(_directorio + "-inexistente").Leer("clave-uno"));
     }
 
     // ------------------------------------------------- un sello incompleto
 
-    [Fact]
-    public void Un_cassette_al_que_le_falta_un_campo_del_sello_no_se_sirve()
+    [Theory]
+    [InlineData(
+        """{"modelo":"m","fecha":"2026-09-04","hash_del_prefijo":"ab","cuerpo":"{}"}""",
+        "hash_del_fixture")]
+    [InlineData(
+        """{"modelo":"m","fecha":"2026-09-04","hash_del_prefijo":"ab","hash_del_fixture":"cd"}""",
+        "cuerpo")]
+    public void Un_cassette_al_que_le_falta_un_campo_no_se_sirve(string json, string campo)
     {
         Directory.CreateDirectory(_directorio);
-        File.WriteAllText(
-            Ruta("clave-uno"),
-            """{"modelo":"claude-sonnet-5","fecha":"2026-09-04","hash_del_prefijo":"ab","cuerpo":"{}"}""");
+        File.WriteAllText(Ruta("clave-uno"), json);
 
         var falla = Assert.Throws<InvalidOperationException>(
             () => new AlmacenDeCassettes(_directorio).Leer("clave-uno"));
@@ -121,23 +122,7 @@ public sealed class CassettesEnDiscoTests : IDisposable
         // Archivo Y campo: sin el archivo no se sabe cuál rehacer, y sin el campo no
         // se sabe qué le falta.
         Assert.Contains("clave-uno.json", falla.Message, StringComparison.Ordinal);
-        Assert.Contains("hash_del_fixture", falla.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Un_cassette_sin_cuerpo_tampoco_se_sirve()
-    {
-        Directory.CreateDirectory(_directorio);
-        File.WriteAllText(
-            Ruta("clave-uno"),
-            """
-            {"modelo":"m","fecha":"2026-09-04","hash_del_prefijo":"ab","hash_del_fixture":"cd"}
-            """);
-
-        var falla = Assert.Throws<InvalidOperationException>(
-            () => new AlmacenDeCassettes(_directorio).Leer("clave-uno"));
-
-        Assert.Contains("cuerpo", falla.Message, StringComparison.Ordinal);
+        Assert.Contains(campo, falla.Message, StringComparison.Ordinal);
     }
 
     // ------------------------------------------------- la escritura es atómica
