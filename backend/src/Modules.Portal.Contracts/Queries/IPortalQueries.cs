@@ -1,6 +1,8 @@
 namespace Modules.Portal.Contracts.Queries;
 
+using Dtos;
+
 public interface IPortalQueries
 {
-    // Placeholder: definir queries públicas que otros módulos puedan consumir.
+    Task<PerfilDocenteDto?> ObtenerPerfilAsync(Guid personaId, CancellationToken ct);
 }

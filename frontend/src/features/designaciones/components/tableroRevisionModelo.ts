@@ -20,19 +20,13 @@
 // gating por ámbito [BR-009] ya se aplicó a los `pedidos` que llegan acá.
 // ============================================================
 import type { ActorContexto, EstadoPedido, Novedad, PedidoDesignacion, Rol } from "../types";
-import { puedeRevisar } from "../api/maquinaEstados";
 import { formatearFecha } from "./detalleAdapters";
 
 type EtapaRevision = "en_revision_coordinador" | "en_revision_secretaria" | "en_revision_decanato";
 
 /** Id de cada pestaña de la Tabla. */
 export type IdPestania =
-  | "todos"
-  | "en-catedra"
-  | "en-coordinacion"
-  | "en-secretaria"
-  | "en-decanato"
-  | "finalizados";
+  "todos" | "en-catedra" | "en-coordinacion" | "en-secretaria" | "en-decanato" | "finalizados";
 
 interface AreaDelCircuito {
   id: IdPestania;
@@ -88,9 +82,17 @@ export function pestaniaInicial(actor: ActorContexto): IdPestania {
   return AREAS.find((area) => area.rol === actor.rol)?.id ?? "todos";
 }
 
+/** Área es columna y filtro sólo cuando la pestaña compara ámbitos distintos. */
+export function areaEsFiltrable(pestania: IdPestania): boolean {
+  return pestania === "todos";
+}
+
 /** ¿Es el turno del actor sobre este pedido? (revisor de la etapa en su ámbito, o Administración). */
 export function esTuTurno(pedido: PedidoDesignacion, actor: ActorContexto): boolean {
-  return puedeRevisar(pedido, actor);
+  void actor;
+  return (pedido.accionesPermitidas ?? []).some((accion) =>
+    ["aceptar", "rechazar", "devolver"].includes(accion),
+  );
 }
 
 /**
@@ -326,6 +328,9 @@ export function ordenarPedidos(
   return [...pedidos].sort((a, b) => {
     const va = valorDeOrden(a, orden.columna);
     const vb = valorDeOrden(b, orden.columna);
+    if (typeof va === "string" && typeof vb === "string" && (!va.trim() || !vb.trim())) {
+      return va.trim() ? -1 : vb.trim() ? 1 : 0;
+    }
     if (typeof va === "number" && typeof vb === "number") return (va - vb) * signo;
     // `numeric` para que los legajos "1005" y "999" ordenen como números.
     return String(va).localeCompare(String(vb), "es", { numeric: true }) * signo;

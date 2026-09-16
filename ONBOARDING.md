@@ -8,7 +8,7 @@ Cómo usar el workflow y las skills del proyecto. **Tres audiencias** — leé l
 | El primero en llenar el contenido inicial de `docs/` | [§2 Primer mantenedor de contexto](#2-primer-mantenedor-de-contexto) |
 | Ya conocés el sistema y querés refrescar comandos    | [§3 Cheat sheet](#3-cheat-sheet)                                     |
 
-> Este harness es **project-scoped**: todas las skills viven en `.claude/skills/` y se versionan. No requieren framework global. El detalle paso a paso de cada workflow vive en su `SKILL.md` (una sola fuente); en `docs/workflows/` solo queda `open-pr.md` (referencia canónica) + un índice.
+> Las instrucciones comunes viven en `AGENTS.md`. Los adaptadores y skills propios de cada herramienta viven en sus directorios (`.claude/`, `.agents/`) y no reemplazan esa fuente neutral.
 
 ---
 
@@ -30,7 +30,7 @@ El setup está en [README.md](README.md) (`./scripts/setup.sh` + arranque de dev
 
 ### 1.3 Qué leer (en orden)
 
-1. **[CLAUDE.md](CLAUDE.md)** — contexto, módulos, roles, **13 invariantes** no negociables, skills. **Única lectura realmente obligatoria.**
+1. **[AGENTS.md](AGENTS.md)** — contexto e invariantes comunes a cualquier herramienta. **Única lectura realmente obligatoria.**
 2. **[CONTRIBUTING.md](CONTRIBUTING.md)** — gitflow, pre-commit, code review, commits.
 3. **[docs/architecture/stack.md](docs/architecture/stack.md)** + **[module-anatomy.md](docs/architecture/module-anatomy.md)** + **[dependency-graph.md](docs/architecture/dependency-graph.md)**.
 4. **[docs/quality/golden-principles.md](docs/quality/golden-principles.md)** — anti-patterns; los flagga `/pr-review` y `/evaluate`.
@@ -40,7 +40,7 @@ Después, [`docs/architecture/domains/`](docs/architecture/domains/) para cada m
 
 ### 1.4 Cómo trabajan las skills
 
-Viven en `.claude/skills/<nombre>/SKILL.md`, se invocan con `/<nombre> [args]`. Tres tipos:
+En Claude Code viven en `.claude/skills/<nombre>/SKILL.md` y se invocan con `/<nombre> [args]`. Hay dos tipos principales:
 
 - **Interactivas** (las invocás vos): `/opsx:propose`, `/add-feature`, `/fix-bug`, `/pr-review`, etc.
 - **Path-scoped** (auto-activan): `dotnet-modules-guide` al editar `backend/src/Modules.*`, `react-features-guide` al editar `frontend/src/`.
@@ -49,7 +49,7 @@ No hace falta memorizarlas. Empezás con dos: `/opsx:propose` para algo nuevo, `
 
 ### 1.5 Reglas críticas para no romper nada
 
-Las **13 invariantes** del [CLAUDE.md](CLAUDE.md#invariantes-no-negociables) son no negociables. Las más fáciles de romper sin querer:
+Las reglas de [AGENTS.md](AGENTS.md#reglas-de-implementacion) son no negociables. Las más fáciles de romper sin querer:
 
 - **Cross-module: solo vía Contracts**. Desde `Modules.Designaciones` importás `Modules.Portal.Contracts`, nunca `Modules.Portal` interno ni `Internal/` ajeno.
 - **Nueva feature ⇒ change OpenSpec apply-ready ANTES de código** (hard gate en `/add-feature`).
@@ -65,21 +65,21 @@ Para vos si te toca **completar el contenido inicial** de `docs/`.
 
 ### 2.1 Estado actual de `docs/`
 
-| Carpeta                                                   | Estado                                                                          | Acción                                                                          |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `product/{brief,vision,design-principles}.md`             | ✅ Completos                                                                    | Revisar/precisar; métricas pueden necesitar baseline real                       |
-| `product/designs/`                                        | 📝 Placeholder (herramienta UX TBD)                                             | Completar cuando el equipo decida                                               |
-| `architecture/{stack,module-anatomy,dependency-graph}.md` | ✅ Completos                                                                    | `dependency-graph` se actualiza SIEMPRE que cambie un edge cross-module         |
-| `architecture/api-contracts.md`                           | ⚠️ Parcial (solo ping endpoints)                                                | Completar a medida que se definan endpoints (mismo PR — invariante #6)          |
-| `architecture/data-model.md`                              | ⚠️ Parcial                                                                      | Completar a medida que se definan entidades; marcar PII explícita               |
-| `architecture/infrastructure.md`                          | ⚠️ Skeleton (TBD)                                                               | Completar cuando UNLaM provisione VMs                                           |
-| `architecture/domains/<modulo>.md`                        | ⚠️ Esqueleto                                                                    | Llenar entidades/API/BR a medida que cada módulo evolucione                     |
-| `plans/backlog.md`                                        | 📝 Vacío                                                                        | Ideas pendientes de proponer; features activas en `openspec/changes/`           |
-| `quality/{golden-principles,grading-criteria}.md`         | ✅ Completos                                                                    | Sumar reglas cuando aparezcan anti-patterns                                     |
-| `quality/{scorecard,tech-debt}.md`                        | 📝 Se llenan con `/evaluate` y al detectar deuda                                | —                                                                               |
-| `workflows/`                                              | `open-pr.md` (referencia) + `README.md` (índice); el detalle vive en las skills | Estable                                                                         |
-| `business-rules/`                                         | 📝 Solo `_template.md`                                                          | **Crear un .md por módulo con cada BR-\*** — crítico para compliance (ver §2.2) |
-| `references/`                                             | 📝 Solo README                                                                  | Agregar `<lib>-llms.txt` cuando una lib se use intensivamente                   |
+| Carpeta                                                   | Estado                                                                          | Acción                                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `product/{brief,vision,design-principles}.md`             | ✅ Completos                                                                    | Revisar/precisar; métricas pueden necesitar baseline real               |
+| `product/designs/`                                        | ✅ Diseños y especificaciones de los flujos implementados                       | Actualizar junto con cambios de UX                                      |
+| `architecture/{stack,module-anatomy,dependency-graph}.md` | ✅ Completos                                                                    | `dependency-graph` se actualiza SIEMPRE que cambie un edge cross-module |
+| `architecture/api-contracts*.md`                          | ✅ Contratos HTTP vigentes                                                      | Actualizar en el mismo PR que la API                                    |
+| `architecture/data-model.md`                              | ✅ Modelo persistido y clasificación de PII                                     | Actualizar en el mismo PR que el schema                                 |
+| `architecture/infrastructure.md`                          | ✅ Arquitectura y runbook de ambientes                                          | Mantener junto con deploy                                               |
+| `architecture/domains/<modulo>.md`                        | ✅ Estado de cada dominio                                                       | Mantener junto con cada módulo                                          |
+| `plans/backlog.md`                                        | 📝 Vacío                                                                        | Ideas pendientes de proponer; features activas en `openspec/changes/`   |
+| `quality/{golden-principles,grading-criteria}.md`         | ✅ Completos                                                                    | Sumar reglas cuando aparezcan anti-patterns                             |
+| `quality/{scorecard,tech-debt}.md`                        | 📝 Se llenan con `/evaluate` y al detectar deuda                                | —                                                                       |
+| `workflows/`                                              | `open-pr.md` (referencia) + `README.md` (índice); el detalle vive en las skills | Estable                                                                 |
+| `business-rules/`                                         | ✅ Reglas de Designaciones e índice                                             | Agregar módulos cuando exista normativa confirmada                      |
+| `references/`                                             | 📝 Solo README                                                                  | Agregar `<lib>-llms.txt` cuando una lib se use intensivamente           |
 
 ### 2.2 Business rules — TAREA CRÍTICA INICIAL
 
@@ -129,7 +129,6 @@ dotnet test --filter "FullyQualifiedName~NombreTest"   # uno solo
 dotnet build backend/ArsDocendi.slnx                # build backend
 pnpm --filter frontend build|lint                   # build / lint frontend
 pnpm format[:check]                                 # formatea / verifica
-pnpm generate-indexes                               # índice de business-rules
 openspec list | openspec view <id>                  # changes OpenSpec
 docker compose up -d | ps | logs -f api | down      # postgres local
 ```
@@ -208,7 +207,7 @@ docker compose up -d | ps | logs -f api | down      # postgres local
 
 ## Si te perdés
 
-- **Navegación general** + **invariantes**: [CLAUDE.md](CLAUDE.md)
+- **Navegación general** + **reglas**: [AGENTS.md](AGENTS.md)
 - **¿Qué skill uso?**: [docs/workflows/README.md](docs/workflows/README.md)
 - **Calidad / anti-patterns**: [docs/quality/golden-principles.md](docs/quality/golden-principles.md)
 - **Abrir un PR canónico**: [docs/workflows/open-pr.md](docs/workflows/open-pr.md)

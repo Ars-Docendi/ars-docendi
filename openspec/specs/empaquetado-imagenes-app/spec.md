@@ -8,11 +8,11 @@ Define cómo se empaqueta la aplicación Ars Docendi en imágenes de contenedor 
 
 ### Requirement: Imagen de contenedor del backend
 
-El repo SHALL proveer un `backend/Dockerfile` que produzca una imagen ejecutable del `ArsDocendi.Host` construida con el SDK de .NET 10 y corrida sobre la imagen runtime de ASP.NET 10. La imagen MUST exponer el puerto `8080` (coincidiendo con `ASPNETCORE_URLS=http://+:8080` que inyecta `compose.base.yml`), correr como usuario no-root, y usar `backend/` como contexto de build (los workflows invocan `docker build … backend`). Un `backend/.dockerignore` MUST excluir `bin/`, `obj/` y demás artefactos locales para que el contexto sea determinístico.
+El repo SHALL proveer un `backend/Dockerfile` que produzca una imagen ejecutable del `ArsDocendi.Host` construida con el SDK de .NET 10 y corrida sobre la imagen runtime de ASP.NET 10. La imagen MUST exponer el puerto `8080` (coincidiendo con `ASPNETCORE_URLS=http://+:8080` que inyecta `compose.base.yml`), correr como usuario no-root, y usar la raíz del repo como contexto para incluir el DDL de `database/`. El `.dockerignore` raíz MUST excluir `bin/`, `obj/` y demás artefactos locales para que el contexto sea determinístico.
 
 #### Scenario: Build del backend desde el contexto del repo
 
-- **WHEN** se ejecuta `docker build -t arsdocendi-backend backend` sobre el repo limpio
+- **WHEN** se ejecuta `docker build -t arsdocendi-backend -f backend/Dockerfile .` sobre el repo limpio
 - **THEN** el build completa sin error
 - **AND** la imagen resultante arranca el web server escuchando en el puerto 8080
 
@@ -29,11 +29,11 @@ El repo SHALL proveer un `backend/Dockerfile` que produzca una imagen ejecutable
 
 ### Requirement: Imagen de contenedor del frontend
 
-El repo SHALL proveer un `frontend/Dockerfile` multi-stage que (1) ejecute `pnpm install` + `pnpm build` con Node, resolviendo la dependencia `@ars-docendi/ui` (referencia `github:`) durante la instalación, y (2) sirva el `dist/` resultante con nginx en el puerto `80` (coincidiendo con la label de Traefik en `compose.base.yml`). El contexto de build MUST ser `frontend/`, con un `frontend/.dockerignore` que excluya `node_modules/` y `dist/`.
+El repo SHALL proveer un `frontend/Dockerfile` multi-stage que (1) instale el workspace con el lockfile raíz en modo `--frozen-lockfile` y compile el paquete `frontend`, resolviendo `@ars-docendi/ui`, y (2) sirva el `dist/` resultante con nginx en el puerto `80`. El contexto de build MUST ser la raíz del repo para usar su único lockfile; el `.dockerignore` raíz excluye dependencias y artefactos locales.
 
 #### Scenario: Build del frontend desde el contexto del repo
 
-- **WHEN** se ejecuta `docker build -t arsdocendi-frontend frontend` sobre el repo limpio
+- **WHEN** se ejecuta `docker build -t arsdocendi-frontend -f frontend/Dockerfile .` sobre el repo limpio
 - **THEN** el build resuelve `@ars-docendi/ui` desde GitHub, compila el bundle de Vite, y completa sin error
 - **AND** la imagen resultante sirve los estáticos en el puerto 80
 

@@ -1,5 +1,5 @@
 import type { DatosExperiencia, Experiencia } from "../types";
-import { agregarExperiencia, editarExperiencia, eliminarPorId } from "../mock/mockStore";
+import { agregarExperiencia, editarExperiencia, eliminarPorId } from "../helpers";
 import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";

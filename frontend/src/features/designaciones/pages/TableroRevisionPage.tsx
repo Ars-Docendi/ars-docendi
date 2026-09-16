@@ -1,52 +1,45 @@
+import axios from "axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import {
   FiltrosLista,
   type CampoFiltroFijo,
   type CampoFiltroOpcional,
 } from "../../../shared/ui/FiltrosLista";
+import { exportarLote } from "../api/loteApi";
 import { TablaRevision } from "../components/TablaRevision";
 import { CARRERAS, FILTROS_INICIALES } from "../components/filtrosTablero";
-import { PERIODOS_MOCK } from "../api/periodosMock";
 import type { FiltrosTablero } from "../components/filtrosTablero";
 import { useActorContexto } from "../hooks/useActorContexto";
+import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
 
 /**
- * Siempre visibles: lo que se busca primero es un docente o un tipo de novedad.
- * **Período** también es fijo, y no opcional, porque arranca aplicado (en el período
- * abierto): un filtro que acota desde el vamos no puede estar escondido detrás de
- * "+ Añadir filtro" — el usuario vería una lista recortada sin saber por qué.
+ * Período es el único filtro general fijo. Docente, Tipo, Legajo y Estado viven
+ * en los encabezados de la tabla; así no aparecen dos controles para lo mismo.
  */
-const FILTROS_FIJOS: CampoFiltroFijo[] = [
-  { clave: "nombre", placeholder: "Filtrar por docente…", ariaLabel: "Filtrar por docente" },
-  {
-    tipo: "select",
-    clave: "tipo",
-    ariaLabel: "Filtrar por tipo",
-    opciones: [
-      { value: "todos", label: "Tipo: Todos" },
-      { value: "Alta", label: "Alta" },
-      { value: "Baja", label: "Baja" },
-      { value: "Cambio de cargo o dedicación", label: "Cambio" },
-    ],
-  },
-  {
-    tipo: "select",
-    clave: "periodo",
-    ariaLabel: "Filtrar por período",
-    opciones: [
-      ...PERIODOS_MOCK.map((periodo) => ({
-        value: periodo.id,
-        label: periodo.activo ? `${periodo.nombre} (abierto)` : periodo.nombre,
-      })),
-      { value: "todos", label: "Todos los períodos" },
-    ],
-  },
-];
+function filtrosFijos(
+  periodos: { id: string; nombre: string; activo: boolean }[],
+): CampoFiltroFijo[] {
+  return [
+    {
+      tipo: "select",
+      clave: "periodo",
+      ariaLabel: "Filtrar por período",
+      opciones: [
+        ...periodos.map((periodo) => ({
+          value: periodo.id,
+          label: periodo.activo ? `${periodo.nombre} (abierto)` : periodo.nombre,
+        })),
+        { value: "todos", label: "Todos los períodos" },
+      ],
+    },
+  ];
+}
 
 /**
  * Filtros opcionales, detrás de "+ Añadir filtro". El filtro **Carrera** solo se
@@ -55,7 +48,6 @@ const FILTROS_FIJOS: CampoFiltroFijo[] = [
  */
 function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
   return [
-    { tipo: "texto", clave: "legajo", etiqueta: "Legajo", placeholder: "Legajo…", ancho: "120px" },
     {
       tipo: "select",
       clave: "prioridad",
@@ -99,15 +91,45 @@ function filtrosOpcionales(veVariasCarreras: boolean): CampoFiltroOpcional[] {
 export function TableroRevisionPage() {
   const navegar = useNavigate();
   const actor = useActorContexto();
-  const { data: pedidos, isLoading, isError } = usePedidosPorAmbito(actor);
+  const { data: pedidos, isLoading, isError, refetch } = usePedidosPorAmbito();
+  const catalogos = useCatalogosDesignaciones();
   const [filtros, setFiltros] = useState<FiltrosTablero>(FILTROS_INICIALES);
+  const [exportando, setExportando] = useState(false);
+  const [errorExportacion, setErrorExportacion] = useState<string>();
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
     navegar(`/designaciones/pedidos/${pedido.id}`);
   }
 
+  async function handleExportar() {
+    const periodo = catalogos.data?.periodoActivo;
+    if (!periodo || exportando) return;
+    setExportando(true);
+    setErrorExportacion(undefined);
+    try {
+      const archivo = await exportarLote(periodo.id);
+      const url = URL.createObjectURL(archivo);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = "lote-designaciones.xlsx";
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        setErrorExportacion("El período cambió. Actualizamos los períodos; reintentá la descarga.");
+        await catalogos.refetch();
+      } else {
+        setErrorExportacion(mensajeProblema(error, "No se pudo descargar el lote. Reintentá."));
+      }
+    } finally {
+      setExportando(false);
+    }
+  }
+
   const cantidad = pedidos?.length ?? 0;
   const ambito = actor.carrera ?? "Departamento";
+  const puedeExportarLote =
+    actor.rol === "Secretaría" || actor.rol === "Decanato" || actor.rol === "Administración";
 
   return (
     <>
@@ -115,7 +137,7 @@ export function TableroRevisionPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Tablero de revisión" },
         ]}
       />
@@ -131,7 +153,8 @@ export function TableroRevisionPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se pudieron cargar los pedidos">
-          Hubo un problema al obtener los pedidos de revisión. Recargá la página para reintentar.
+          Hubo un problema al obtener los pedidos de revisión.{" "}
+          <button onClick={() => refetch()}>Reintentar</button>.
         </InlineAlert>
       )}
 
@@ -143,19 +166,23 @@ export function TableroRevisionPage() {
 
       {!isLoading && !isError && cantidad > 0 && (
         <FiltrosLista
-          fijos={FILTROS_FIJOS}
+          fijos={filtrosFijos(catalogos.data?.periodos ?? [])}
           opcionales={filtrosOpcionales(actor.carrera === undefined)}
           valores={filtros}
           onChange={setFiltros}
         />
       )}
 
-      {!isLoading && !isError && cantidad > 0 && pedidos && (
+      {!isLoading && !isError && (cantidad > 0 || puedeExportarLote) && pedidos && (
         <TablaRevision
           pedidos={pedidos}
           actor={actor}
           filtros={filtros}
           onSeleccionar={handleSeleccionar}
+          periodoActivo={catalogos.data?.periodoActivo}
+          onExportar={handleExportar}
+          exportando={exportando}
+          errorExportacion={errorExportacion}
         />
       )}
     </>

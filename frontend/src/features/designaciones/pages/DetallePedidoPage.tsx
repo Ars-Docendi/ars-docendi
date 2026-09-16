@@ -13,19 +13,7 @@ import {
 } from "../components/ModalConfirmacionAccion";
 import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
 import { DatosTramite } from "../components/DatosTramite";
-import {
-  derivarCadena,
-  historialAAuditEntries,
-  resumenMaterias,
-} from "../components/detalleAdapters";
-import {
-  actorAlcanzaAmbito,
-  puedeAceptar,
-  puedeEditarPedido,
-  puedeEliminarPedido,
-  puedeRevisar,
-} from "../api/maquinaEstados";
-import { PERIODOS_MOCK } from "../api/periodosMock";
+import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
 import {
@@ -44,6 +32,7 @@ const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
 const TITULO_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "Actualización de docente",
   Alta: "Alta de docente",
   Baja: "Baja de docente",
   "Cambio de cargo o dedicación": "Cambio de cargo o dedicación",
@@ -55,12 +44,12 @@ export function DetallePedidoPage() {
   const actor = useActorContexto();
   const { data: pedido, isLoading, isError } = usePedido(id);
 
-  const aceptar = useAceptarPedido(actor);
-  const rechazar = useRechazarPedido(actor);
-  const devolver = useDevolverPedido(actor);
-  const priorizar = usePriorizarPedido(actor);
-  const despriorizar = useDespriorizarPedido(actor);
-  const eliminar = useEliminarPedido(actor);
+  const aceptar = useAceptarPedido();
+  const rechazar = useRechazarPedido();
+  const devolver = useDevolverPedido();
+  const priorizar = usePriorizarPedido();
+  const despriorizar = useDespriorizarPedido();
+  const eliminar = useEliminarPedido();
   const enviando =
     aceptar.isPending ||
     rechazar.isPending ||
@@ -74,7 +63,7 @@ export function DetallePedidoPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones", href: "/designaciones" },
+          { label: "Designaciones" },
           { label: "Revisión", href: RUTA_REVISION },
           { label: "Detalle del pedido" },
         ]}
@@ -92,13 +81,7 @@ export function DetallePedidoPage() {
         </InlineAlert>
       )}
 
-      {pedido && !actorAlcanzaAmbito(pedido, actor) && (
-        <InlineAlert severity="info" title="Este pedido está fuera de tu ámbito">
-          No tenés visibilidad sobre este pedido. <a href={RUTA_REVISION}>Volver a Revisión</a>.
-        </InlineAlert>
-      )}
-
-      {pedido && actorAlcanzaAmbito(pedido, actor) && (
+      {pedido && (
         <DetalleCargado
           pedido={pedido}
           actor={actor}
@@ -146,12 +129,15 @@ function DetalleCargado({
   eliminando,
   errorEliminar,
 }: DetalleCargadoProps) {
-  const esRevisor = puedeRevisar(pedido, actor);
-  const permiteAceptar = puedeAceptar(pedido, actor);
-  const puedeEditar = puedeEditarPedido(pedido, actor);
-  const puedeEliminar = puedeEliminarPedido(pedido, actor);
+  const acciones = pedido.accionesPermitidas ?? [];
+  const esRevisor = acciones.some((accion) =>
+    ["aceptar", "rechazar", "devolver", "priorizar", "despriorizar"].includes(accion),
+  );
+  const permiteAceptar = acciones.includes("aceptar");
+  const puedeEditar = acciones.includes("editar");
+  const puedeEliminar = acciones.includes("eliminar");
   const etapas = derivarCadena(pedido, actor);
-  const periodoNombre = PERIODOS_MOCK.find((p) => p.id === pedido.periodoId)?.nombre;
+  const periodoNombre = pedido.periodoNombre;
   const navegar = useNavigate();
 
   // Acción a confirmar (abre el modal) + comentario compartido panel↔modal.
@@ -190,8 +176,8 @@ function DetalleCargado({
   return (
     <>
       <PageHeader
-        pretitle={`Designaciones · Pedido ${pedido.id.toUpperCase()}`}
-        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${resumenMaterias(pedido.asignaciones)}`}
+        pretitle={`Designaciones · Pedido ${pedido.numero ?? "sin número"}`}
+        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.catedra}`}
         meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
         actions={
           <div className="adoc-det-headactions">
@@ -235,7 +221,7 @@ function DetalleCargado({
             <section className="adoc-det-hist" aria-label="Historial del pedido">
               <header className="adoc-hist-head">
                 <h2 className="adoc-hist-title">Historial del pedido</h2>
-                <span className="adoc-hist-note">Auditoría · usuario · fecha (RNF-7)</span>
+                <span className="adoc-hist-note">Auditoría · Usuario · Fecha</span>
               </header>
               <AuditLog entries={historialAAuditEntries(pedido.historial)} />
             </section>

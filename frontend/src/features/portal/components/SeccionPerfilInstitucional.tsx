@@ -29,13 +29,13 @@ export function SeccionPerfilInstitucional({ institucional }: SeccionPerfilInsti
       <h2 className="portal-seccion-titulo portal-oculto">Perfil</h2>
       <div className="portal-identidad-head">
         <span className="portal-avatar" aria-hidden="true">
-          {usuario.initials}
+          {usuario.user?.initials ?? ""}
         </span>
         <span className="portal-identidad-nombre">
           <p className="portal-identidad-titulo">
             {institucional.apellido}, {institucional.nombre}
           </p>
-          <span className="portal-identidad-rol">{usuario.role}</span>
+          <span className="portal-identidad-rol">{usuario.user?.role ?? ""}</span>
         </span>
       </div>
       <div className="portal-filas">

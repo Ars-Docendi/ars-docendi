@@ -17,12 +17,44 @@
 // - prioridad: filtra por el flag de prioritario.
 // - carrera: filtra por carrera exacta (Select cerrado, no texto libre).
 // ============================================================
-import type { Novedad, PedidoDesignacion } from "../types";
-import { PERIODOS_MOCK } from "../api/periodosMock";
+import type { EstadoPedido, Novedad, PedidoDesignacion } from "../types";
+import { formatearFecha } from "./detalleAdapters";
 
 export type FiltroTipo = "todos" | Novedad;
+export type FiltroEstado = "todos" | Exclude<EstadoPedido, "borrador">;
 export type FiltroPrioridad = "todos" | "prioritarios" | "normales";
 export type FiltroSinMovimiento = "todos" | "7" | "15" | "30";
+
+export interface FiltrosColumnasTablero {
+  docente: string;
+  legajo: string;
+  tipo: Novedad[];
+  inicio: string;
+  ultima: string;
+  estado: Exclude<EstadoPedido, "borrador">[];
+  area: string[];
+}
+
+export const FILTROS_COLUMNAS_INICIALES: FiltrosColumnasTablero = {
+  docente: "",
+  legajo: "",
+  tipo: [],
+  inicio: "",
+  ultima: "",
+  estado: [],
+  area: [],
+};
+
+export const OPCIONES_ESTADO: { value: FiltroEstado; label: string }[] = [
+  { value: "todos", label: "Estado: Todos" },
+  { value: "en_revision_coordinador", label: "En revisión · Coordinador" },
+  { value: "en_revision_secretaria", label: "En revisión · Secretaría" },
+  { value: "en_revision_decanato", label: "En revisión · Decanato" },
+  { value: "devuelto", label: "Devuelto" },
+  { value: "en_lote", label: "En lote" },
+  { value: "rechazado", label: "Rechazado" },
+  { value: "cancelado", label: "Cancelado" },
+];
 
 /**
  * Catálogo cerrado de carreras (D-5/D-6 de `ajustes-pedido-y-revision`): 5 carreras
@@ -48,6 +80,7 @@ export const ABREVIATURA_CARRERA: Record<string, string> = {
 
 export interface FiltrosTablero {
   tipo: FiltroTipo;
+  estado: FiltroEstado;
   prioridad: FiltroPrioridad;
   carrera: string;
   nombre: string;
@@ -55,7 +88,7 @@ export interface FiltrosTablero {
   /** Id del período de designación; "todos" = sin acotar. */
   periodo: string;
   sinMovimiento: FiltroSinMovimiento;
-  /** Índice de string: permite reusar el componente genérico `FiltrosLista`. */
+  /** Índice de string para reutilizar el componente de filtros generales. */
   [clave: string]: string;
 }
 
@@ -64,11 +97,11 @@ export interface FiltrosTablero {
  * puede haber uno a la vez. Si no hubiera ninguno, "todos" — mejor mostrar de más que
  * esconder todo detrás de un filtro que el usuario no pidió.
  */
-export const PERIODO_POR_DEFECTO: string =
-  PERIODOS_MOCK.find((periodo) => periodo.activo)?.id ?? "todos";
+export const PERIODO_POR_DEFECTO = "todos";
 
 export const FILTROS_INICIALES: FiltrosTablero = {
   tipo: "todos",
+  estado: "todos",
   prioridad: "todos",
   carrera: "todos",
   nombre: "",
@@ -95,18 +128,75 @@ function diasSinMovimiento(pedido: PedidoDesignacion): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / MS_POR_DIA);
 }
 
+function fechaInicioIso(pedido: PedidoDesignacion): string | undefined {
+  return pedido.historial.find((evento) => evento.accion === "enviar")?.fecha;
+}
+
+function fechaUltimaIso(pedido: PedidoDesignacion): string | undefined {
+  return pedido.historial.at(-1)?.fecha;
+}
+
+function fechaVisible(iso: string | undefined): string {
+  return iso ? formatearFecha(iso) : "";
+}
+
+function areaDePedido(pedido: PedidoDesignacion): string | null {
+  if (pedido.estado === "devuelto") {
+    return (
+      {
+        "Jefe de Cátedra": "Cátedra",
+        Coordinador: "Coordinación",
+        Secretaría: "Secretaría",
+        Decanato: "Decanato",
+        Administración: "Administración",
+        Docente: "el docente",
+      }[pedido.propietarioActual ?? "Docente"] ?? null
+    );
+  }
+  return (
+    {
+      en_revision_coordinador: "Coordinación",
+      en_revision_secretaria: "Secretaría",
+      en_revision_decanato: "Decanato",
+    }[
+      pedido.estado as "en_revision_coordinador" | "en_revision_secretaria" | "en_revision_decanato"
+    ] ?? null
+  );
+}
+
+function coincideFecha(iso: string | undefined, filtro: string): boolean {
+  const buscado = normalizarTexto(filtro);
+  return Boolean(
+    buscado &&
+    [iso ?? "", fechaVisible(iso)].some((valor) => normalizarTexto(valor).includes(buscado)),
+  );
+}
+
+/** Opciones de los menús de encabezado derivadas de los pedidos autorizados. */
+export function opcionesColumnasTablero(pedidos: PedidoDesignacion[]) {
+  return {
+    tipos: [...new Set(pedidos.map((pedido) => pedido.novedad))],
+    estados: [
+      ...new Set(pedidos.map((pedido) => pedido.estado).filter((estado) => estado !== "borrador")),
+    ],
+    areas: [...new Set(pedidos.map(areaDePedido).filter((area): area is string => Boolean(area)))],
+  };
+}
+
 /**
- * Acota los pedidos por nombre/legajo del docente, novedad, prioridad, carrera,
- * período de designación y días sin movimiento.
+ * Acota los pedidos por nombre/legajo del docente, novedad, estado, prioridad,
+ * carrera, período de designación y días sin movimiento.
  */
 export function aplicarFiltros(
   pedidos: PedidoDesignacion[],
   filtros: FiltrosTablero,
+  columnas: FiltrosColumnasTablero = FILTROS_COLUMNAS_INICIALES,
 ): PedidoDesignacion[] {
   const nombre = normalizarTexto(filtros.nombre);
   const legajo = normalizarTexto(filtros.legajo);
   return pedidos.filter((pedido) => {
     if (filtros.tipo !== "todos" && pedido.novedad !== filtros.tipo) return false;
+    if (filtros.estado !== "todos" && pedido.estado !== filtros.estado) return false;
     if (filtros.prioridad === "prioritarios" && !pedido.prioritario) return false;
     if (filtros.prioridad === "normales" && pedido.prioritario) return false;
     if (filtros.carrera !== "todos" && pedido.carrera !== filtros.carrera) return false;
@@ -118,6 +208,26 @@ export function aplicarFiltros(
     if (filtros.sinMovimiento !== "todos") {
       if (diasSinMovimiento(pedido) < Number(filtros.sinMovimiento)) return false;
     }
+
+    if (
+      columnas.docente &&
+      !normalizarTexto(pedido.docente.nombre).includes(normalizarTexto(columnas.docente))
+    )
+      return false;
+    if (
+      columnas.legajo &&
+      !normalizarTexto(pedido.docente.legajo ?? "").includes(normalizarTexto(columnas.legajo))
+    )
+      return false;
+    if (columnas.tipo.length && !columnas.tipo.includes(pedido.novedad)) return false;
+    if (columnas.inicio && !coincideFecha(fechaInicioIso(pedido), columnas.inicio)) return false;
+    if (columnas.ultima && !coincideFecha(fechaUltimaIso(pedido), columnas.ultima)) return false;
+    if (
+      columnas.estado.length &&
+      (pedido.estado === "borrador" || !columnas.estado.includes(pedido.estado))
+    )
+      return false;
+    if (columnas.area.length && !columnas.area.includes(areaDePedido(pedido) ?? "")) return false;
 
     return true;
   });

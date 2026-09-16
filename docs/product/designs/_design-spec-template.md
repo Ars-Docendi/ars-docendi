@@ -56,7 +56,7 @@ Descripción del layout principal. Si hay sketches o mockups, linkear:
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Spec funcional: [`openspec/specs/<capability>/spec.md`](../../openspec/specs/)
+- Spec funcional: [`openspec/specs/<capability>/spec.md`](../../../openspec/specs/)
 
 ## Open questions de diseño
 

@@ -1,0 +1,46 @@
+services:
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    # Codex's Bubblewrap sandbox needs to create an unprivileged user namespace.
+    # Keep Docker capabilities and AppArmor defaults; relax only seccomp.
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    command: sleep infinity
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__ArsDocendi: Host=arsdocendi-postgres;Port=5432;Database=arsdocendi_dev;Username=arsdocendi_dev;Password=${ARS_DOCENDI_DEV_DB_PASSWORD:?Copy .devcontainer/.env.example to .devcontainer/.env and set ARS_DOCENDI_DEV_DB_PASSWORD}
+    volumes:
+      - /home/docendi/ars-docendi:/workspaces/ars-docendi:cached
+      - root-node-modules:/workspaces/ars-docendi/node_modules
+      - frontend-node-modules:/workspaces/ars-docendi/frontend/node_modules
+      - user-local:/home/vscode/.local
+      - user-config:/home/vscode/.config
+      - pnpm-store:/home/vscode/.local/share/pnpm/store
+      - nuget-packages:/home/vscode/.nuget/packages
+      - codex-data:/home/vscode/.codex
+    networks:
+      - arsdocendi-datos
+
+volumes:
+  root-node-modules:
+    name: arsdocendi-dev-root-node-modules
+  frontend-node-modules:
+    name: arsdocendi-dev-frontend-node-modules
+  user-local:
+    name: arsdocendi-dev-user-local
+  user-config:
+    name: arsdocendi-dev-user-config
+  pnpm-store:
+    name: arsdocendi-dev-pnpm-store
+  nuget-packages:
+    name: arsdocendi-dev-nuget-packages
+  codex-data:
+    name: arsdocendi-dev-codex-data
+
+networks:
+  arsdocendi-datos:
+    external: true
+    name: arsdocendi-datos

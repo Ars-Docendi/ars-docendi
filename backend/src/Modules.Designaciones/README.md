@@ -2,7 +2,7 @@
 
 Implementa **RF-01 — Gestión de Proyecto Docente**: workflow de designaciones y visualización de asignaciones (integración API Guaraní).
 
-Ver [docs/requisitos.md](../../../docs/requisitos.md).
+Ver [dominio Designaciones](../../../docs/architecture/domains/designaciones.md).
 
 ## Endpoints
 

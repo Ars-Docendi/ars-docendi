@@ -1,18 +1,25 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
-import type { RolMock } from "../mock/mockStore";
+import {
+  ETIQUETAS_SCOPE,
+  normalizarTexto,
+  SCOPES_ROL,
+  type DatosRolNuevo,
+  type RolMock,
+} from "../models";
 
 interface ModalNuevoRolProps {
   open: boolean;
   rolesExistentes: RolMock[];
   nombresExistentes: string[];
-  onCrear: (datos: Omit<RolMock, "id">, rolBaseId: string | null) => void;
+  onCrear: (datos: DatosRolNuevo, rolBaseId: string | null) => void;
   onCerrar: () => void;
 }
 
-const VACIO = {
+const VACIO: DatosRolNuevo = {
   nombre: "",
   descripcion: "",
+  scope: "global",
 };
 
 export function ModalNuevoRol({
@@ -37,11 +44,14 @@ export function ModalNuevoRol({
 
   function handleConfirmar() {
     setEnviado(true);
-    if (!campos.nombre.trim() || !campos.descripcion.trim()) return;
-    if (nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase()))
-      return;
+    if (!campos.nombre.trim()) return;
+    if (nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre))) return;
     onCrear(
-      { nombre: campos.nombre.trim(), descripcion: campos.descripcion.trim() },
+      {
+        nombre: campos.nombre.trim(),
+        descripcion: campos.descripcion.trim(),
+        scope: campos.scope,
+      },
       usarBase && rolBaseId ? rolBaseId : null,
     );
     setCampos(VACIO);
@@ -53,7 +63,7 @@ export function ModalNuevoRol({
   const nombreDuplicado =
     enviado &&
     !!campos.nombre.trim() &&
-    nombresExistentes.map((n) => n.toLowerCase()).includes(campos.nombre.trim().toLowerCase());
+    nombresExistentes.map(normalizarTexto).includes(normalizarTexto(campos.nombre));
 
   return (
     <Modal
@@ -99,17 +109,38 @@ export function ModalNuevoRol({
           <InlineAlert severity="danger" title="Ya existe un rol con ese nombre." />
         )}
 
-        <Field
-          label="Descripción"
-          required
-          error={enviado && !campos.descripcion.trim() ? "Campo obligatorio" : undefined}
-        >
+        <Field label="Descripción">
           <Input
             value={campos.descripcion}
             onChange={(e) => setCampos((p) => ({ ...p, descripcion: e.target.value }))}
             placeholder="Descripción del rol y sus responsabilidades"
           />
         </Field>
+
+        <Field label="Ámbito" required>
+          <select
+            value={campos.scope}
+            onChange={(e) =>
+              setCampos((prev) => ({
+                ...prev,
+                scope: e.target.value as DatosRolNuevo["scope"],
+              }))
+            }
+            className="adoc-select"
+            style={{ width: "100%" }}
+          >
+            {SCOPES_ROL.map((scope) => (
+              <option key={scope} value={scope}>
+                {ETIQUETAS_SCOPE[scope]}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <InlineAlert severity="info" title="Alcance del rol personalizado">
+          Este rol puede agrupar permisos, pero no habilita a aceptar, rechazar ni devolver pedidos
+          en el circuito de aprobación de designaciones.
+        </InlineAlert>
 
         <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "1rem" }}>
           <Checkbox

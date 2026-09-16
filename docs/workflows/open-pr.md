@@ -107,7 +107,7 @@ gh pr edit <NUMBER> --add-label "module:designaciones,type:feature"
 gh pr checks <NUMBER> --watch
 ```
 
-Si falla: ver [`ci-fix.md`](./ci-fix.md).
+Si falla, usar la skill `/ci-fix` documentada en [el índice de workflows](./README.md).
 
 ## Reglas
 
