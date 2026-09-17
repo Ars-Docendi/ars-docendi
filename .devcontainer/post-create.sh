@@ -23,6 +23,18 @@ corepack enable
 pnpm install --no-frozen-lockfile
 dotnet restore backend/ArsDocendi.slnx
 
+# CodeGraph is a developer-side MCP service, not an application dependency.
+# Keep the version explicit so rebuilding the container does not silently pull
+# a different parser/runtime. Override with CODEGRAPH_VERSION when upgrading.
+CODEGRAPH_VERSION="${CODEGRAPH_VERSION:-1.6.0}"
+if [[ ! -x "$HOME/.local/bin/codegraph" ]]; then
+  npm install --global --prefix "$HOME/.local" "@colbymchenry/codegraph@${CODEGRAPH_VERSION}"
+fi
+
+if [[ ! -d .codegraph ]]; then
+  CODEGRAPH_TELEMETRY=0 codegraph init
+fi
+
 if [[ ! -x "$HOME/.local/bin/codex" ]]; then
   curl -fsSL https://chatgpt.com/codex/install.sh | sh
 fi
