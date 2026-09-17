@@ -62,8 +62,13 @@ pnpm-debug.log*
 # ---------- Docker ----------
 pgdata/
 
+# ---------- Local devcontainer configuration ----------
+# Keep developer-specific container files out of version control.
+.devcontainer/
+
 # ---------- Extras ----------
 .DS_Store
+.pnpm-store/
 
 # ---------- Claude Code ----------
 # Versionamos las skills, agents, commands, hooks y settings compartidos del proyecto.
