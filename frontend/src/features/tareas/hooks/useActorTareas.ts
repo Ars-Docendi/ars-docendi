@@ -9,6 +9,9 @@ import type { ActorTarea } from "../types";
  * features no se importan entre sí).
  */
 export function useActorTareas(): ActorTarea {
-  const usuario = useCurrentUser();
-  return { nombre: usuario.name, rol: usuario.role };
+  const { user } = useCurrentUser();
+  if (!user) {
+    throw new Error("No hay una sesión válida para resolver el actor de Tareas.");
+  }
+  return { nombre: user.name, rol: user.role };
 }

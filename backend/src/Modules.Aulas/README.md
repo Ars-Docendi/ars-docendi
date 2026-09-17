@@ -2,7 +2,7 @@
 
 Implementa **RF-02 — Reserva de Aulas / Laboratorios**: pedidos y asignación para exámenes.
 
-Ver [docs/requisitos.md](../../../docs/requisitos.md).
+Ver [dominio Aulas](../../../docs/architecture/domains/aulas.md).
 
 ## Endpoints
 

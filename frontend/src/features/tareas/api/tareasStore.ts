@@ -5,7 +5,7 @@
 // componentes directamente — solo lo usa `tareasApi.ts` (el seam del
 // backend). Las copias (structuredClone) evitan que el caller mute el
 // estado guardado por referencia. Mismo patrón que
-// `designaciones/api/pedidosStore.ts`.
+// `designaciones/api`.
 // ============================================================
 import type { Tarea } from "../types";
 import { crearSeedTareas } from "./tareasSeed";

@@ -13,8 +13,8 @@
 #
 # Requisitos:
 #   - .NET 10 SDK
-#   - Node 20+
-#   - pnpm 9.x (o corepack habilitado)
+#   - Node 24.15+
+#   - pnpm 12.3.4 (o corepack habilitado)
 #   - Docker + docker compose
 
 set -euo pipefail

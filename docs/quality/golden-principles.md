@@ -13,6 +13,8 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 
 - `Modules.<X>.Contracts`: **solo DTOs, interfaces y tokens públicos** — sin lógica, sin I/O.
 - `ArsDocendi.Shared`: **funciones puras** — sin I/O, sin network, sin estado mutable compartido.
+  - **Única excepción**: la persistencia de los schemas `identity` y `audit` (`IdentityDbContext` + su migrador). Es infraestructura transversal de la que dependen los 4 módulos, no lógica de dominio. Ninguna otra I/O entra a Shared.
+  - Corolario: los módulos **leen** identity para autorizar. Escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración — el invariante #1 no lo cubre porque no es una relación cross-module.
 - Evitar "god utils": si Shared crece mucho, **partir por concern** (objetivo: ~20 exports públicos por archivo o split).
 
 ## Capas (.NET)

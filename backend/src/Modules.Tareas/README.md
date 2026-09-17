@@ -2,7 +2,7 @@
 
 Implementa **RF-04 — Seguimiento de Tareas**: tablero tipo Trello con semáforo de vencimiento.
 
-Ver [docs/requisitos.md](../../../docs/requisitos.md).
+Ver [dominio Tareas](../../../docs/architecture/domains/tareas.md).
 
 ## Endpoints
 

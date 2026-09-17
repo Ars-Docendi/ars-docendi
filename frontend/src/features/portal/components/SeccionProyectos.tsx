@@ -1,5 +1,5 @@
 import type { DatosProyecto, Proyecto } from "../types";
-import { agregarProyecto, editarProyecto, eliminarPorId } from "../mock/mockStore";
+import { agregarProyecto, editarProyecto, eliminarPorId } from "../helpers";
 import { ordenarPorPeriodo } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";

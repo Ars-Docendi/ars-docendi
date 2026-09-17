@@ -1,5 +1,9 @@
+using ArsDocendi.Host.Administracion;
+using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.Shared;
 using ArsDocendi.Shared.Persistencia;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
@@ -16,10 +20,33 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .WriteTo.Console());
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
+builder.Services.AddScoped<ServicioDocentes>();
+builder.Services.AddScoped<ServicioUsuariosAdministracion>();
+builder.Services.AddScoped<ResolutorAlcanceDocentes>();
+var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
+    && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
+if (autenticacionDesarrolloHabilitada)
+{
+    builder.Services
+        .AddAuthentication(AutenticacionDesarrolloHandler.Esquema)
+        .AddScheme<AuthenticationSchemeOptions, AutenticacionDesarrolloHandler>(
+            AutenticacionDesarrolloHandler.Esquema, _ => { });
+}
+builder.Services.AddAuthorization(opciones =>
+{
+    foreach (var permiso in ArsDocendi.Shared.Auth.Permisos.Todos)
+    {
+        opciones.AddPolicy(permiso, politica =>
+            politica.RequireClaim(ArsDocendi.Shared.Auth.Permisos.Claim, permiso));
+    }
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new() { Title = "Ars Docendi API", Version = "v1" });
+    o.CustomSchemaIds(tipo => tipo.FullName!.Replace('+', '.'));
 });
 
 builder.Services
@@ -50,6 +77,7 @@ if (args.Contains("--migrate"))
 }
 
 app.UseSerilogRequestLogging();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -57,7 +85,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+if (autenticacionDesarrolloHabilitada)
+{
+    app.UseAuthentication();
+}
 app.UseAuthorization();
 app.MapControllers();
+if (autenticacionDesarrolloHabilitada)
+{
+    app.MapIdentidadesDesarrollo();
+}
 
 app.Run();
+
+public partial class Program;

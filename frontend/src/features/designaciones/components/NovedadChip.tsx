@@ -4,6 +4,7 @@ import { etiquetaNovedad } from "./tableroRevisionModelo";
 
 /** Clase de color del chip según la novedad (mapea a los tonos del design system). */
 const CLASE_POR_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "sin-novedad",
   Alta: "alta",
   Baja: "baja",
   "Cambio de cargo o dedicación": "cambio",
@@ -54,6 +55,7 @@ const ICONO_USER_MINUS = (
 );
 
 const ICONO_POR_NOVEDAD: Record<Novedad, ReactElement> = {
+  "Sin novedad": ICONO_REFRESH,
   Alta: ICONO_USER_PLUS,
   Baja: ICONO_USER_MINUS,
   "Cambio de cargo o dedicación": ICONO_REFRESH,

@@ -18,6 +18,24 @@ max_dias="${REAPER_MAX_DIAS:-7}"
 ahora="$(date +%s)"
 scripts_dir="$(cd "$(dirname "$0")/../scripts" && pwd)"
 
+pr_abierto() {
+  local numero="$1" respuesta
+  if [[ -z "${GITHUB_REPOSITORY:-}" ]]; then
+    log_error msg="falta GITHUB_REPOSITORY; se preserva el ambiente" pr="$numero"
+    return 2
+  fi
+  local cabeceras=(-H "Accept: application/vnd.github+json")
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    cabeceras+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+  fi
+  if ! respuesta="$(curl --fail --silent --show-error "${cabeceras[@]}" \
+      "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${numero}")"; then
+    log_error msg="no se pudo consultar el PR; se preserva el ambiente" pr="$numero"
+    return 2
+  fi
+  grep -q '"state": "open"' <<< "$respuesta"
+}
+
 log_info msg="reaper iniciado" max_dias="$max_dias"
 
 # Compose projects con forma pr-<N> (incluye los detenidos: --all).
@@ -48,6 +66,16 @@ while IFS= read -r p; do
   edad_dias=$(( (ahora - creado_epoch) / 86400 ))
 
   if (( edad_dias > max_dias )); then
+    numero="${p#pr-}"
+    if pr_abierto "$numero"; then
+      log_info msg="PR aún abierto, se preserva" project="$p" edad_dias="$edad_dias"
+      continue
+    else
+      estado_pr=$?
+      if (( estado_pr == 2 )); then
+        continue
+      fi
+    fi
     log_warn msg="ambiente vencido, destruyendo" project="$p" edad_dias="$edad_dias" umbral="$max_dias"
     if "$scripts_dir/teardown.sh" "$p"; then
       log_info msg="ambiente reapeado" project="$p"

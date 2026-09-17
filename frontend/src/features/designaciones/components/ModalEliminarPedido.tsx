@@ -42,7 +42,7 @@ export function ModalEliminarPedido({
           </InlineAlert>
         )}
         <p style={{ margin: 0, color: "var(--color-text-primary)" }}>
-          ¿Estás seguro de que querés eliminar el pedido de{" "}
+          ¿Estás seguro de que querés eliminar el pedido {pedido?.numero ?? "sin número"} de{" "}
           <strong>"{pedido?.docente.nombre}"</strong>?
         </p>
         <p

@@ -11,5 +11,7 @@ internal sealed class CurrentUser(IHttpContextAccessor accessor) : ICurrentUser
     public string? Email => Principal?.FindFirstValue(ClaimTypes.Email);
     public IReadOnlyList<string> Roles =>
         Principal?.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray() ?? [];
+    public IReadOnlyList<string> Permissions =>
+        Principal?.FindAll(Permisos.Claim).Select(c => c.Value).Distinct().ToArray() ?? [];
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated ?? false;
 }

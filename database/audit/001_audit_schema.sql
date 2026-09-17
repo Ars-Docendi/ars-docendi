@@ -1,7 +1,7 @@
 -- audit schema: universal change tracking via a single AFTER trigger.
 -- Tables opt in by calling audit.attach('schema.table') at the end of their
 -- own SQL file (or from a wire-up file when there's a circular FK like
--- identity.users <-> audit.change_log — see 008_identity_audit_attach.sql).
+-- identity.users <-> audit.change_log — see 009_identity_audit_attach.sql).
 
 CREATE SCHEMA IF NOT EXISTS audit;
 

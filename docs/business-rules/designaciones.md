@@ -2,9 +2,9 @@
 
 ## Contexto
 
-- **Módulo / superficie:** `frontend/src/features/designaciones/` (prototipo SCRUM-7, mock; el backend `backend/src/Modules.Designaciones/` se implementa después).
+- **Módulo / superficie:** `backend/src/Modules.Designaciones/` como autoridad y `frontend/src/features/designaciones/` como cliente de su API.
 - **Owner / stakeholders:** Secretaría Académica del Departamento (define el circuito); Jefe de Cátedra (carga).
-- **Change/Spec OpenSpec relacionado:** `openspec/changes/proyecto-docente-pedidos/` (capability `pedidos-designacion`, SCRUM-7), `openspec/changes/flujo-aprobacion-designaciones/` (capability `aprobacion-pedidos-designacion`, SCRUM-8) y `openspec/changes/mis-pedidos-simplificado/` (BR-018, campo Legajo).
+- **Specs OpenSpec relacionadas:** `openspec/specs/pedidos-designacion/` y `openspec/specs/aprobacion-pedidos-designacion/`.
 - **Normativa de referencia:** Estatuto / régimen docente UNLaM (citas exactas **pendientes de confirmación con el cliente** para BR-001..004).
 
 > **Alcance de este documento.** Registra las reglas que implementan **SCRUM-7** (carga de pedidos por el Jefe de Cátedra: BR-001..004, BR-008, BR-018) y **SCRUM-8** (circuito de aprobación, change `flujo-aprobacion-designaciones`: BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
@@ -13,12 +13,24 @@
 
 ### BR-`designaciones`-001 Un pedido por docente por período
 
-- **Statement:** No puede existir más de un pedido de designación para el mismo docente dentro de un mismo período abierto.
+- **Statement:** No puede existir más de un pedido de designación para el mismo docente dentro de un mismo período abierto, **sin importar la cátedra**.
 - **Rationale:** Evita designaciones duplicadas o contradictorias para un docente en un ciclo; el proyecto docente del período debe tener una sola entrada por docente.
 - **Provenance:** `from_spec`
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
 - **Ejemplos:** Si ya hay un pedido para el DNI 30.111.222 en el período abierto, crear otro para ese DNI se rechaza. Al **editar** el propio pedido, no se considera duplicado.
 - **Roles afectados:** Jefe de Cátedra.
+- **Implementación:** doble capa, con la base de datos como autoridad.
+
+  ```sql
+  -- database/designaciones/003_designaciones_pedidos.sql
+  CREATE UNIQUE INDEX pedidos_uno_por_docente_periodo
+      ON designaciones.pedidos (periodo_id, persona_id)
+      WHERE estado NOT IN ('rechazado', 'cancelado');
+  ```
+
+  El índice es lo único que sobrevive a dos requests concurrentes. El backend valida antes para producir el mensaje del spec y traduce la violación del índice al mismo error. El conjunto de estados excluidos vive en C# en `EstadosPedido.NoOcupanCupo` y **debe** coincidir con el `WHERE` del índice: si se desalinean, backend y base discrepan sobre qué es un duplicado.
+
+- **Consecuencia asumida:** combinada con "un pedido cubre exactamente una materia", esta regla implica que un docente recibe **a lo sumo un trámite por período en total**. Si dicta en dos cátedras, el primer Jefe de Cátedra que cargue bloquea al segundo. El mensaje de bloqueo **no debe exponer** la cátedra, el contenido ni el autor del pedido bloqueante — pertenece a una cátedra ajena al actor.
 
 ### BR-`designaciones`-002 Alta exige CV + DNI frente + DNI dorso
 
@@ -55,6 +67,7 @@
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
 - **Ejemplos:** Un "Cambio" o una "Baja" sobre un docente sin legajo bloquea el guardado e indica que el legajo es obligatorio. Un "Alta" sin legajo no marca ese error.
 - **Roles afectados:** Jefe de Cátedra.
+- **Implementación:** `identity.personas.legajo` es **nullable** precisamente para admitir el caso del Alta — un docente que todavía no existe en el sistema y cuyo legajo asigna RRHH después. La obligatoriedad en Baja y Cambio la valida el backend, no la base: es una regla dependiente de la novedad del pedido, no del estado de la persona.
 
 ### BR-`designaciones`-008 Tras enviar, el Jefe de Cátedra no edita salvo devolución
 
@@ -130,21 +143,21 @@
 
 ## Mapping a tests
 
-| Rule ID              | Test file(s)                                                                                                                                                                                   | Tipo                          | Notas                                 |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------- |
-| BR-designaciones-001 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `unPedidoPorDocentePorPeriodo`                                                                                                | unit (business)               | Cita normativa pendiente con cliente. |
-| BR-designaciones-002 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `altaExigeCvYDniFrenteYDorso`                                                                                                 | unit (business)               | Cita normativa pendiente con cliente. |
-| BR-designaciones-003 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `bajaExigeJustificativo`                                                                                                      | unit (business)               | Cita normativa pendiente con cliente. |
-| BR-designaciones-004 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `cambioExigeJustificacion`                                                                                                    | unit (business)               | Cita normativa pendiente con cliente. |
-| BR-designaciones-018 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `bajaExigeLegajo`, `cambioExigeLegajo`                                                                                        | unit (business)               | Cita normativa pendiente con cliente. |
-| BR-designaciones-008 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `editarSoloBorradorODevueltoDelPropietario`, `no edita tras enviar a revisión`                                              | unit (business)               | Decisión de proceso.                  |
-| BR-designaciones-005 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `rechazoSinJustificativoFalla`, `devolucionSinComentarioFalla`; `components/ModalAccionRevision.test.tsx` (UI)              | unit + ui (business)          | Decisión de proceso.                  |
-| BR-designaciones-009 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `coordinadorFueraDeCarreraDenegado`; `api/pedidosApi.test.ts` → `listarPedidosPorAmbito acota a la carrera del Coordinador` | unit (business)               | Decisión de proceso.                  |
-| BR-designaciones-011 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `rechazoEsTerminal`                                                                                                         | unit (business)               | Decisión de proceso.                  |
-| BR-designaciones-013 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `rolEtapaIncorrectaDenegado`                                                                                                | unit (business)               | Decisión de proceso.                  |
-| BR-designaciones-014 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `devolucionRetrocedeUnNivel`, `reenvioRetomaEtapaDelRevisor`; `pages/flujoAprobacion.test.tsx` (devolución → reenvío)       | unit + integración (business) | Decisión de proceso.                  |
-| BR-designaciones-015 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `administracionNoPuedeAceptar`                                                                                              | unit (business)               | Decisión de proceso.                  |
-| BR-designaciones-017 | `frontend/src/features/designaciones/api/maquinaEstados.test.ts` → `prioritarioExigeJustificativo`, `prioridadNoCambiaEstado`                                                                  | unit (business)               | Decisión de proceso.                  |
+| Rule ID              | Test file(s)                                                                                                                                                                                                                                                        | Tipo                          | Notas                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------- |
+| BR-designaciones-001 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `unPedidoPorDocentePorPeriodo`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/DesignacionesPersistenciaTests.cs` → rechazo entre cátedras, carrera concurrente y reintento tras rechazo | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-002 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-003 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-004 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-018 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-008 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                     | unit + integración PostgreSQL | Decisión de proceso.                  |
+| BR-designaciones-005 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `frontend/src/features/designaciones/components/ModalConfirmacionAccion.test.tsx`                                                                                                | unit + ui                     | Decisión de proceso.                  |
+| BR-designaciones-009 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit + integración PostgreSQL | Decisión de proceso.                  |
+| BR-designaciones-011 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
+| BR-designaciones-013 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `backend/tests/ArsDocendi.IntegrationTests/Backend/BackendIntegridadTests.cs`                                                                                                    | unit + integración            | Decisión de proceso.                  |
+| BR-designaciones-014 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit + integración PostgreSQL | Decisión de proceso.                  |
+| BR-designaciones-015 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
+| BR-designaciones-017 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
 
 Todo BR-\* debe tener al menos un test verificando la regla.
 
@@ -155,11 +168,15 @@ Todo BR-\* debe tener al menos un test verificando la regla.
 ## Assumptions (a confirmar)
 
 - Las citas normativas de BR-001..004 y BR-018 provienen del estatuto / régimen docente UNLaM; el texto exacto (artículo/sección) se confirma con el cliente. La validación se implementa igual; el test queda en el lane `business` con cita pendiente.
-- BR-018 se acota a Baja y Cambio (lo que pidió el cliente explícitamente) — nota resuelta: la novedad "Sin novedad" (que también operaba sobre un docente ya existente) se eliminó del sistema en `ajustes-pedido-y-revision`, así que ya no queda ningún otro caso a confirmar acá.
+- BR-018 se acota a Baja y Cambio (lo que pidió el cliente explícitamente). "Sin novedad" permanece admitida, pero no materializa cambios y no exige legajo.
 
 ## Open Questions
 
 - Confirmar con el cliente la documentación exacta exigida por Alta/Baja (¿algún adjunto adicional?) y la fuente normativa de la regla "un pedido por docente por período".
+- **Catálogo de cargos.** `designaciones.cargos` es la fuente única y la API sirve hoy seis cargos. La nomenclatura definitiva viene del convenio colectivo y del estatuto UNLaM: **la define el cliente, no el equipo**. Corregirla es un `INSERT`/`UPDATE`, no una migración.
+- **Alcance de BR-001.** Se implementó la versión literal (por docente y período, sin importar la cátedra), que bloquea al segundo Jefe de Cátedra cuando un docente dicta en dos. Si el cliente confirma que debía ser **por cátedra**, es agregar `materia_id` al índice único.
+- **Reintento tras rechazo.** El índice excluye `rechazado` y `cancelado`, o sea que hoy se puede volver a presentar tras un rechazo dentro del mismo período. Si un rechazo debe cerrar el período para ese docente, se saca `'rechazado'` del `WHERE` (y de `EstadosPedido.NoOcupanCupo`).
+- **Matriz inicial de permisos.** `identity.rol_permisos` se siembra con una matriz derivada de las responsabilidades institucionales de cada rol, **no** del mock del frontend (que le asignaba "Aprobar designaciones — Decanato" al rol Docente). Es provisional y se ajusta desde `/roles` sin migración, pero conviene que Secretaría la valide.
 
 ## Aprobación
 

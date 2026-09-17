@@ -1,5 +1,5 @@
 import type { Certificacion, DatosCertificacion } from "../types";
-import { agregarCertificacion, editarCertificacion, eliminarPorId } from "../mock/mockStore";
+import { agregarCertificacion, editarCertificacion, eliminarPorId } from "../helpers";
 import { ordenarPorFecha } from "../formato";
 import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
