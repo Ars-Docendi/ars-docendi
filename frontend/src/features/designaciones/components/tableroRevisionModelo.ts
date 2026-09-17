@@ -26,12 +26,7 @@ type EtapaRevision = "en_revision_coordinador" | "en_revision_secretaria" | "en_
 
 /** Id de cada pestaña de la Tabla. */
 export type IdPestania =
-  | "todos"
-  | "en-catedra"
-  | "en-coordinacion"
-  | "en-secretaria"
-  | "en-decanato"
-  | "finalizados";
+  "todos" | "en-catedra" | "en-coordinacion" | "en-secretaria" | "en-decanato" | "finalizados";
 
 interface AreaDelCircuito {
   id: IdPestania;
