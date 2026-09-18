@@ -329,17 +329,20 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             (await almacenamiento.ObtenerAsync(documentoSegundo, TestContext.Current.CancellationToken))!.Estado);
     }
 
-    private static Task SubirContenidoAsync(
+    private static async Task SubirContenidoAsync(
         ServicioAlmacenamientoArchivos servicio,
         SesionCargaArchivoDto sesion,
-        byte[] contenido) =>
-        servicio.SubirAsync(
+        byte[] contenido)
+    {
+        using var stream = new MemoryStream(contenido);
+        await servicio.SubirAsync(
             sesion.ArchivoId,
             Propietario,
-            new MemoryStream(contenido),
+            stream,
             null,
             contenido.Length,
             TestContext.Current.CancellationToken);
+    }
 
     private async Task<Guid> SubirPdfAsync(
         ServicioAlmacenamientoArchivos servicio,
