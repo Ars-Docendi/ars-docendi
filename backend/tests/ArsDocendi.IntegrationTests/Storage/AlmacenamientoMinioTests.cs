@@ -375,10 +375,11 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         var asociado = await SubirPdfAsync(servicio, "asociado.pdf");
         const string claveHuerfana = "archivos/huerfano-de-prueba";
         var huérfano = Encoding.UTF8.GetBytes("objeto huérfano");
+        using var contenidoHuerfano = new MemoryStream(huérfano);
         await cliente!.PutObjectAsync(new PutObjectArgs()
             .WithBucket(Bucket)
             .WithObject(claveHuerfana)
-            .WithStreamData(new MemoryStream(huérfano))
+            .WithStreamData(contenidoHuerfano)
             .WithObjectSize(huérfano.Length)
             .WithContentType("application/octet-stream"), TestContext.Current.CancellationToken);
 

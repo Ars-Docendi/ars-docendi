@@ -494,8 +494,11 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
                 return Task.FromResult<DescargaArchivo?>(null);
             var bytes = Encoding.UTF8.GetBytes($"fixture:{archivo.NombreOriginal}");
             return Task.FromResult<DescargaArchivo?>(new DescargaArchivo(
-                new MemoryStream(bytes), archivo.NombreOriginal, archivo.MimeDetectado ?? archivo.MimeDeclarado, bytes.Length));
+                CrearContenidoTransferido(bytes), archivo.NombreOriginal,
+                archivo.MimeDetectado ?? archivo.MimeDeclarado, bytes.Length));
         }
+
+        private static Stream CrearContenidoTransferido(byte[] bytes) => new MemoryStream(bytes);
 
         public Task EliminarAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) => Task.CompletedTask;
 
