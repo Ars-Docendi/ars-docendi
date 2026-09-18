@@ -178,9 +178,11 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             TestContext.Current.CancellationToken);
         await SubirContenidoAsync(servicio, sesion, contenido);
 
-        var archivo = await servicio.ConfirmarCargaAsync(
-            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
-        Assert.Equal(EstadosArchivo.Rechazado, archivo.Estado);
+        var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicio.ConfirmarCargaAsync(
+            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken));
+        Assert.Equal("archivo-antivirus-rejected", error.Codigo);
+        var archivo = await servicio.ObtenerAsync(sesion.ArchivoId, TestContext.Current.CancellationToken);
+        Assert.Equal(EstadosArchivo.Rechazado, archivo!.Estado);
         Assert.Null(await servicio.AbrirDescargaAsync(sesion.ArchivoId, TestContext.Current.CancellationToken));
     }
 

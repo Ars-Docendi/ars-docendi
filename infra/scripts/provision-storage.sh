@@ -33,13 +33,36 @@ root_secret_key="$MINIO_ROOT_PASSWORD"
 
 # El proyecto de almacenamiento es común a todos los ambientes; solo se
 # actualiza la configuración del servicio si ya existe.
-docker compose -p "$project" --env-file <(printf 'MINIO_ROOT_USER=%s\nMINIO_ROOT_PASSWORD=%s\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD") -f "$compose_file" up -d
+storage_compose() {
+  docker compose -p "$project" \
+    --env-file <(printf 'MINIO_ROOT_USER=%s\nMINIO_ROOT_PASSWORD=%s\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD") \
+    -f "$compose_file" "$@"
+}
+storage_compose up -d
 
 for intento in {1..30}; do
   if minio_mc "$network" "$root_access_key" "$root_secret_key" ready local >/dev/null 2>&1; then
     break
   fi
   if [[ "$intento" == 30 ]]; then fatal 'msg="MinIO no quedó disponible"'; fi
+  sleep 2
+done
+
+# ClamAV puede tardar en cargar la base de firmas. No publicar el ambiente
+# mientras el backend rechazaría todas las confirmaciones por antivirus no
+# disponible.
+for intento in {1..120}; do
+  clamav_id="$(storage_compose ps -q clamav)"
+  if [[ -n "$clamav_id" ]]; then
+    estado_clamav="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' "$clamav_id")"
+    if [[ "$estado_clamav" == "healthy" ]]; then
+      break
+    fi
+    if [[ "$estado_clamav" == "unhealthy" ]]; then
+      fatal 'msg="ClamAV quedó unhealthy"'
+    fi
+  fi
+  if [[ "$intento" == 120 ]]; then fatal 'msg="ClamAV no quedó disponible"'; fi
   sleep 2
 done
 

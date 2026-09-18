@@ -128,6 +128,17 @@ public sealed class ServicioAlmacenamientoArchivos(
         entidad.MotivoRevision = escaneo.Motivo;
         entidad.Estado = escaneo.Disponible ? EstadosArchivo.Disponible : EstadosArchivo.Rechazado;
         await db.SaveChangesAsync(ct);
+        if (!escaneo.Disponible)
+        {
+            var codigo = escaneo.Motivo?.Contains("no está disponible", StringComparison.OrdinalIgnoreCase) == true
+                ? "archivo-antivirus-unavailable"
+                : "archivo-antivirus-rejected";
+            throw Error(
+                TipoErrorAplicacion.Validacion,
+                codigo,
+                escaneo.Motivo ?? "El análisis antivirus rechazó el archivo.");
+        }
+
         logger.LogInformation("Archivo {ArchivoId} confirmado con estado {Estado}", entidad.Id, entidad.Estado);
         return Mapear(entidad);
     }

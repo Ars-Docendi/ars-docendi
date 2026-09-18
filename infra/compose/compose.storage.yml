@@ -23,6 +23,12 @@ services:
     restart: unless-stopped
     networks:
       - red-datos
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
 volumes:
   minio-data:

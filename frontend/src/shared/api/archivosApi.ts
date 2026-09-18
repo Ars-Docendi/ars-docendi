@@ -39,6 +39,11 @@ export async function subirArchivo(
     `/api/archivos/cargas/${sesion.archivoId}/confirmar`,
     { archivoId: sesion.archivoId, sha256, tamanoBytes: archivo.size },
   );
+  if (data.estado !== "disponible") {
+    throw new Error(
+      `El archivo ${data.nombreOriginal} no quedó disponible: estado ${data.estado}.`,
+    );
+  }
   return data;
 }
 
