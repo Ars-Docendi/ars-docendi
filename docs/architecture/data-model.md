@@ -11,6 +11,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
 - `TareasDbContext` → schema `tareas`
+- `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
 
@@ -119,8 +120,26 @@ de la misma pareja `(persona_id, materia_id)` antes de crear, editar o enviar.
 `perfiles` vincula una persona canónica con `contactos`, `cvs`, `experiencias`,
 `educaciones`, `certificaciones`, `proyectos`, `proyecto_documentos`,
 `habilidades` y `docente_habilidades`. La identidad institucional se lee desde
-`identity`; Portal no la modifica. CV y documentos almacenan solo metadata/URI,
-nunca bytes. Todas las tablas tienen `created_at` y `audit.attach`.
+`identity`; Portal no la modifica. CV y documentos almacenan metadata y una
+referencia lógica `archivo_id` a `storage.archivos`; las URI históricas se
+conservan solo como metadata de transición y nunca se convierten en destinos
+descargables. Todas las tablas tienen `created_at` y `audit.attach`.
+
+### Storage (`schema: storage`)
+
+`storage.archivos` es dueño de la metadata de los bytes que viven en MinIO:
+
+| Columna                                                                         | Función                                                                 |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `proposito`                                                                     | `cv`, `dni_frente`, `dni_dorso`, `justificativo` o `documento_proyecto` |
+| `ambiente`, `bucket`, `clave_objeto`                                            | ubicación interna; la clave nunca usa PII                               |
+| `nombre_original`, `mime_declarado`, `mime_detectado`, `tamano_bytes`, `sha256` | metadata validada                                                       |
+| `estado`                                                                        | `pendiente`, `cuarentena`, `disponible`, `rechazado` o `eliminado`      |
+| `propietario_id`, timestamps y `motivo_revision`                                | autorización, trazabilidad y retención                                  |
+
+El cliente solo conoce `archivoId`. `designaciones.pedido_adjuntos`, `portal.cvs`
+y `portal.proyecto_documentos` mantienen referencias lógicas, sin FK cross-schema.
+Los bytes no viven en PostgreSQL.
 
 ### Por qué el historial no sale de `audit.change_log`
 

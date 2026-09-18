@@ -347,6 +347,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("ArchivoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("archivo_id");
+
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");

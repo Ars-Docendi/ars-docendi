@@ -52,6 +52,11 @@ en el repo se usa el placeholder `example.net`.
    │                      │  PostgreSQL   │  (NO expuesto al túnel)   │
    │                      │  1 base/amb.  │                          │
    │                      └───────────────┘                          │
+   │                              │                                   │
+   │                      ┌───────────────┐                          │
+   │                      │ MinIO + ClamAV│  red interna solamente    │
+   │                      │ bucket/ambiente│  sin Traefik/puertos      │
+   │                      └───────────────┘                          │
    └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,6 +79,7 @@ Detalle en [infra/traefik/README.md](../../infra/traefik/README.md).
 ## Fronteras de red (qué NO se expone)
 
 - **PostgreSQL**: solo alcanzable por la red interna `arsdocendi-datos`. Nunca publicado al túnel.
+- **MinIO y ClamAV**: solo alcanzables por `arsdocendi-datos`; MinIO no tiene labels de Traefik, puertos publicados ni consola pública. La aplicación usa credenciales por ambiente y un bucket aislado.
 - **Dashboard de Traefik / socket de Docker / puertos de admin**: solo loopback / red de administración (Tailscale), nunca por el wildcard público.
 - El túnel expone **un solo origin por ambiente** (el frontend); la API solo bajo `/api`.
 
@@ -87,7 +93,7 @@ de prod.
 
 ### Dataset sintético y autenticación de desarrollo
 
-`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project, elimina la base con `drop-db.sh`, la aprovisiona, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project, purga únicamente el bucket MinIO del ambiente, elimina la base con `drop-db.sh`, aprovisiona el storage privado, crea la base, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
 
 Una falla de `down`, reset, migración o seed detiene `spin-up.sh` por
 `set -euo pipefail` y evita `up -d`; la recuperación de un ambiente descartable
@@ -179,3 +185,5 @@ A definir SLA con UNLaM. Recomendación mínima para la base de **prod**:
 
 El procedimiento de provisioning manual (VM Proxmox, Postgres, Cloudflare Tunnel +
 Access, runner efímero, reaper, seed) está en [infra/README.md](../../infra/README.md).
+La operación de MinIO, backup, restore y recuperación está en
+[docs/operations/storage-runbook.md](../operations/storage-runbook.md).

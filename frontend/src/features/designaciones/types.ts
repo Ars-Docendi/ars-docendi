@@ -80,6 +80,9 @@ export interface Adjunto {
   id: string;
   nombre: string;
   tipo: TipoAdjunto;
+  archivoId?: string;
+  /** Archivo local pendiente de subir; nunca se envía como URI. */
+  archivo?: File;
 }
 
 export type AccionHistorial =

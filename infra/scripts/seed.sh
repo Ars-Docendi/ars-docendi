@@ -47,4 +47,6 @@ psql_en_docker -e "PGDATABASE=$base" \
   "$IMAGEN_PSQL" \
   psql -v ON_ERROR_STOP=1 -f /seed.sql
 
+"$(dirname "$0")/seed-storage.sh" "$ambiente"
+
 log_info msg="seed OK" ambiente="$ambiente" base="$base"

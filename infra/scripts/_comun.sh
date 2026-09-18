@@ -54,6 +54,33 @@ exigir_ambiente_destruible() {
 RED_DATOS="${RED_DATOS:-arsdocendi-datos}"
 IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
 
+minio_app_access_for() {
+  local ambiente="$1"
+  printf 'app_%s' "${ambiente//-/_}"
+}
+
+minio_app_secret_for() {
+  local ambiente="$1" root_password="$2"
+  printf 'arsdocendi/minio/%s:%s' "$ambiente" "$root_password" | sha256sum | cut -d' ' -f1
+}
+
+# Ejecuta mc con las credenciales separadas de la URL. Incrustarlas en
+# MC_HOST_<alias> rompe el parsing cuando una password contiene caracteres
+# reservados de URI (@, :, /, #, etc.) y termina en firmas S3 inválidas.
+minio_mc() {
+  local network="$1" access_key="$2" secret_key="$3"
+  shift 3
+  docker run --rm -i --network "$network" \
+    --entrypoint /bin/sh \
+    -e "MINIO_MC_ACCESS_KEY=$access_key" \
+    -e "MINIO_MC_SECRET_KEY=$secret_key" \
+    quay.io/minio/mc:latest \
+    -c 'set -eu
+      mc alias set local http://minio:9000 "$MINIO_MC_ACCESS_KEY" "$MINIO_MC_SECRET_KEY" >/dev/null
+      exec mc "$@"' \
+    arsdocendi-mc "$@"
+}
+
 # Corre psql en un contenedor efímero adjunto a la red de datos. El host del runner
 # NO trae cliente psql ni alcanza a 'arsdocendi-postgres' (5432 sin publicar), así
 # que toda invocación a psql pasa por acá. Reenvía credenciales libpq por -e.

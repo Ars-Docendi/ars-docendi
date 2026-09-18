@@ -30,9 +30,12 @@ export interface DatosContacto {
  * persistencia real del archivo es backend.
  */
 export interface ArchivoCv {
+  archivoId?: string;
   nombre: string;
   /** Fecha de carga en ISO (YYYY-MM-DD). */
   fechaCarga: string;
+  tamanoBytes: number;
+  estado: string;
 }
 
 /** Un período con fin opcional. `hasta: null` significa vigente ("actual"). */
@@ -71,7 +74,13 @@ export interface Certificacion {
 
 /** Documento adjunto a un proyecto. Metadata mock, sin storage real. */
 export interface DocumentoAdjunto {
+  archivoId?: string;
   nombre: string;
+  fechaCarga?: string;
+  tamanoBytes?: number;
+  estado?: string;
+  /** Solo vive durante la edición; nunca se serializa en el payload HTTP. */
+  archivo?: File;
 }
 
 /**
