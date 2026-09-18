@@ -39,7 +39,7 @@ public sealed class ServicioAlmacenamientoArchivos(
         db.Archivos.Add(entidad);
         await db.SaveChangesAsync(ct);
         var url = await objetos.CrearUrlSubidaAsync(entidad.Bucket, entidad.ClaveObjeto, config.ExpiracionCargaSegundos, ct);
-        logger.LogInformation("Sesión de carga {ArchivoId} iniciada para propósito {Proposito}", id, datos.Proposito);
+        logger.LogInformation("Sesión de carga {ArchivoId} iniciada", id);
         return new SesionCargaArchivoDto(id, url, expira);
     }
 

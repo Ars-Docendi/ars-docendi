@@ -24,13 +24,14 @@ public static class ModuleExtensions
         services.AddSingleton<IMinioClient>(sp =>
         {
             var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AlmacenamientoOptions>>().Value;
-            return new MinioClient()
-                .WithEndpoint(opciones.Endpoint)
-                .WithCredentials(
-                    string.IsNullOrWhiteSpace(opciones.AccessKey) ? "not-configured" : opciones.AccessKey,
-                    string.IsNullOrWhiteSpace(opciones.SecretKey) ? "not-configured" : opciones.SecretKey)
-                .WithSSL(opciones.UseSsl)
-                .Build();
+            var cliente = new MinioClient();
+            cliente.WithEndpoint(opciones.Endpoint);
+            cliente.WithCredentials(
+                string.IsNullOrWhiteSpace(opciones.AccessKey) ? "not-configured" : opciones.AccessKey,
+                string.IsNullOrWhiteSpace(opciones.SecretKey) ? "not-configured" : opciones.SecretKey);
+            cliente.WithSSL(opciones.UseSsl);
+            cliente.Build();
+            return cliente;
         });
         services.AddScoped<Infrastructure.IProveedorObjetos, Infrastructure.ProveedorMinio>();
         services.AddScoped<Infrastructure.IAntivirusArchivos, Infrastructure.ClamAvAntivirus>();

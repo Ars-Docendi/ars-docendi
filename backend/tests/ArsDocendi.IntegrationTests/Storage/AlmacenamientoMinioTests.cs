@@ -36,23 +36,25 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         .WithPassword(SecretKey)
         .Build();
     private string cadena = string.Empty;
-    private IMinioClient cliente = null!;
+    private IMinioClient? cliente;
 
     public async ValueTask InitializeAsync()
     {
         await minio.StartAsync();
         cadena = await postgres.CrearBaseMigradaAsync("storage_minio");
         var endpoint = new Uri(minio.GetConnectionString());
-        cliente = new MinioClient()
-            .WithEndpoint(endpoint.Host, endpoint.Port)
-            .WithCredentials(AccessKey, SecretKey)
-            .Build();
-        await cliente.MakeBucketAsync(new MakeBucketArgs().WithBucket(Bucket));
+        var nuevoCliente = new MinioClient();
+        nuevoCliente.WithEndpoint(endpoint.Host, endpoint.Port);
+        nuevoCliente.WithCredentials(AccessKey, SecretKey);
+        nuevoCliente.Build();
+        cliente = nuevoCliente;
+        await cliente!.MakeBucketAsync(new MakeBucketArgs().WithBucket(Bucket));
         await cliente.MakeBucketAsync(new MakeBucketArgs().WithBucket(StagingBucket));
     }
 
     public async ValueTask DisposeAsync()
     {
+        cliente?.Dispose();
         if (cadena.Length > 0) await postgres.EliminarBaseAsync(cadena);
         await minio.DisposeAsync();
     }
@@ -95,7 +97,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
 
         var confirmado = await servicio.ConfirmarCargaAsync(
@@ -136,7 +139,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
 
         var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId, "00", contenido.Length), Propietario, TestContext.Current.CancellationToken));
@@ -159,7 +163,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken));
@@ -179,7 +184,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
 
         var archivo = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
@@ -227,7 +233,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
 
         var archivo = await servicio.ConfirmarCargaAsync(
@@ -277,12 +284,13 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         await servicioStaging.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
 
-        var proveedor = new ProveedorMinio(cliente);
+        var proveedor = new ProveedorMinio(cliente!);
         var clave = $"archivos/{sesion.ArchivoId:N}";
         Assert.NotNull(await proveedor.ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
         Assert.Null(await proveedor.ObtenerAsync(Bucket, clave, TestContext.Current.CancellationToken));
@@ -347,7 +355,8 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             Propietario,
             TestContext.Current.CancellationToken);
         using var http = new HttpClient();
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, new ByteArrayContent(contenido), TestContext.Current.CancellationToken);
+        using var cuerpo = new ByteArrayContent(contenido);
+        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var archivo = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
@@ -366,7 +375,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         var asociado = await SubirPdfAsync(servicio, "asociado.pdf");
         const string claveHuerfana = "archivos/huerfano-de-prueba";
         var huérfano = Encoding.UTF8.GetBytes("objeto huérfano");
-        await cliente.PutObjectAsync(new PutObjectArgs()
+        await cliente!.PutObjectAsync(new PutObjectArgs()
             .WithBucket(Bucket)
             .WithObject(claveHuerfana)
             .WithStreamData(new MemoryStream(huérfano))
@@ -377,7 +386,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         Assert.Equal(2, eliminados);
         var archivo = await servicio.ObtenerAsync(sesion.ArchivoId, TestContext.Current.CancellationToken);
         Assert.Equal(EstadosArchivo.Eliminado, archivo!.Estado);
-        Assert.Null(await new ProveedorMinio(cliente).ObtenerAsync(
+        Assert.Null(await new ProveedorMinio(cliente!).ObtenerAsync(
             Bucket, claveHuerfana, TestContext.Current.CancellationToken));
         var descarga = await servicio.AbrirDescargaAsync(asociado, TestContext.Current.CancellationToken);
         Assert.NotNull(descarga);
@@ -403,7 +412,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         });
         return new ServicioAlmacenamientoArchivos(
             db,
-            new ProveedorMinio(cliente),
+            new ProveedorMinio(cliente!),
             antivirus ?? new AntivirusLimpio(),
             opciones,
             NullLogger<ServicioAlmacenamientoArchivos>.Instance);

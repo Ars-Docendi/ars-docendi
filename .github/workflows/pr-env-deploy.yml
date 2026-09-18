@@ -44,7 +44,7 @@ jobs:
   # sin secrets, sin checkout del código del PR.
   gate:
     if: contains(github.event.pull_request.labels.*.name, 'deploy-preview')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - run: echo "Gate de maintainer OK (label deploy-preview presente)."
 
