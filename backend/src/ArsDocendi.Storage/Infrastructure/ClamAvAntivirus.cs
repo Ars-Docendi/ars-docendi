@@ -31,10 +31,13 @@ internal sealed class ClamAvAntivirus(
             await red.WriteAsync(new byte[4], ct);
             var respuesta = new byte[4096];
             var cantidad = await red.ReadAsync(respuesta, ct);
-            var texto = Encoding.ASCII.GetString(respuesta, 0, cantidad).Trim();
-            return texto.EndsWith("OK", StringComparison.OrdinalIgnoreCase)
-                ? new ResultadoAntivirus(true, true, null)
-                : new ResultadoAntivirus(false, false, "El análisis antivirus rechazó el archivo.");
+            var texto = Encoding.ASCII.GetString(respuesta, 0, cantidad)
+                .TrimEnd('\0', ' ', '\t', '\r', '\n');
+            if (texto.EndsWith("OK", StringComparison.OrdinalIgnoreCase))
+                return new ResultadoAntivirus(true, true, null);
+
+            logger.LogWarning("ClamAV rechazó el stream con respuesta {Respuesta}", texto);
+            return new ResultadoAntivirus(false, false, "El análisis antivirus rechazó el archivo.");
         }
         catch (Exception ex) when (ex is SocketException or IOException or OperationCanceledException)
         {
