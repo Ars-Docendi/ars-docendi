@@ -38,9 +38,44 @@ public sealed class ServicioAlmacenamientoArchivos(
         };
         db.Archivos.Add(entidad);
         await db.SaveChangesAsync(ct);
-        var url = await objetos.CrearUrlSubidaAsync(entidad.Bucket, entidad.ClaveObjeto, config.ExpiracionCargaSegundos, ct);
         logger.LogInformation("Sesión de carga {ArchivoId} iniciada", id);
-        return new SesionCargaArchivoDto(id, url, expira);
+        return new SesionCargaArchivoDto(id, $"/api/archivos/cargas/{id:N}/objeto", expira);
+    }
+
+    public async Task SubirAsync(
+        Guid archivoId,
+        Guid propietarioId,
+        Stream contenido,
+        string? mimeDeclarado,
+        long? tamanoDeclarado,
+        CancellationToken ct)
+    {
+        var entidad = await db.Archivos.SingleOrDefaultAsync(x => x.Id == archivoId, ct)
+            ?? throw Error(TipoErrorAplicacion.NoEncontrado, "archivo-not-found", "No se encontró el archivo.");
+        if (entidad.PropietarioId != propietarioId)
+            throw Error(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "El archivo no pertenece al actor.");
+        if (entidad.Estado != EstadosArchivo.Pendiente || entidad.ExpiraEn <= DateTimeOffset.UtcNow)
+            throw Error(TipoErrorAplicacion.Conflicto, "archivo-upload-expired", "La sesión de carga expiró o ya no es utilizable.");
+
+        if (tamanoDeclarado is > 0 && tamanoDeclarado > entidad.TamanoBytes)
+            throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
+
+        using var memoria = new MemoryStream();
+        var buffer = new byte[81920];
+        int leidos;
+        while ((leidos = await contenido.ReadAsync(buffer, ct)) > 0)
+        {
+            if (memoria.Length + leidos > entidad.TamanoBytes)
+                throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
+            await memoria.WriteAsync(buffer.AsMemory(0, leidos), ct);
+        }
+
+        var tamano = memoria.Length;
+        if (tamano != entidad.TamanoBytes || (tamanoDeclarado is { } declarado && declarado != tamano))
+            throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
+
+        memoria.Position = 0;
+        await objetos.SubirAsync(entidad.Bucket, entidad.ClaveObjeto, memoria, entidad.MimeDeclarado, tamano, ct);
     }
 
     public async Task<ArchivoDto> ConfirmarCargaAsync(ConfirmarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct)

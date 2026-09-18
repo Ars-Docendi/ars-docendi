@@ -17,6 +17,19 @@ public sealed class ArchivosController(IAlmacenamientoArchivos almacenamiento, I
         return Ok(await almacenamiento.IniciarCargaAsync(datos, propietario, ct));
     }
 
+    [HttpPut("cargas/{id:guid}/objeto")]
+    public async Task<IActionResult> Subir(Guid id, CancellationToken ct)
+    {
+        await almacenamiento.SubirAsync(
+            id,
+            RequerirUsuario(),
+            Request.Body,
+            Request.ContentType,
+            Request.ContentLength,
+            ct);
+        return NoContent();
+    }
+
     [HttpPost("cargas/{id:guid}/confirmar")]
     public async Task<ActionResult<ArchivoDto>> Confirmar(Guid id, ConfirmarCargaArchivoDto datos, CancellationToken ct)
     {

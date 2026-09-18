@@ -127,7 +127,7 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         var operaciones = swagger!["paths"]!.AsObject()
             .SelectMany(ruta => ruta.Value!.AsObject().Select(metodo => (ruta.Key, metodo.Key)))
             .ToArray();
-        Assert.Equal(74, operaciones.Length);
+        Assert.Equal(75, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

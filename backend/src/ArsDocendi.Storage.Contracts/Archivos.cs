@@ -62,6 +62,14 @@ public interface IAlmacenamientoArchivos
         Guid propietarioId,
         CancellationToken ct);
 
+    Task SubirAsync(
+        Guid archivoId,
+        Guid propietarioId,
+        Stream contenido,
+        string? mimeDeclarado,
+        long? tamanoDeclarado,
+        CancellationToken ct);
+
     Task<ArchivoDto> ConfirmarCargaAsync(
         ConfirmarCargaArchivoDto datos,
         Guid propietarioId,

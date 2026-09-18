@@ -2,8 +2,8 @@ namespace ArsDocendi.Storage.Infrastructure;
 
 public interface IProveedorObjetos
 {
-    Task<string> CrearUrlSubidaAsync(string bucket, string clave, int expiracionSegundos, CancellationToken ct);
     Task<ObjetoRemoto?> ObtenerAsync(string bucket, string clave, CancellationToken ct);
+    Task SubirAsync(string bucket, string clave, Stream contenido, string mime, long tamanoBytes, CancellationToken ct);
     Task<IReadOnlyList<ObjetoListado>> ListarAsync(string bucket, string prefijo, CancellationToken ct);
     Task EliminarAsync(string bucket, string clave, CancellationToken ct);
 }

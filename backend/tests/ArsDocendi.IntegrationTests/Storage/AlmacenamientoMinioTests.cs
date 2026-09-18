@@ -91,15 +91,12 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         var servicio = CrearServicio(db);
         var contenido = Encoding.UTF8.GetBytes("%PDF-1.7\narchivo de prueba\n");
         var hash = Convert.ToHexString(SHA256.HashData(contenido)).ToLowerInvariant();
-
         var sesion = await servicio.IniciarCargaAsync(
             new IniciarCargaArchivoDto(PropositosArchivo.Cv, "cv.pdf", "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal($"/api/archivos/cargas/{sesion.ArchivoId:N}/objeto", sesion.UrlSubida);
+        await SubirContenidoAsync(servicio, sesion, contenido);
 
         var confirmado = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId, hash, contenido.Length),
@@ -138,9 +135,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(PropositosArchivo.DocumentoProyecto, "proyecto.pdf", "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
+        await SubirContenidoAsync(servicio, sesion, contenido);
 
         var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId, "00", contenido.Length), Propietario, TestContext.Current.CancellationToken));
@@ -162,9 +157,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(PropositosArchivo.Cv, "cv.pdf", "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
+        await SubirContenidoAsync(servicio, sesion, contenido);
 
         await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken));
@@ -183,9 +176,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(PropositosArchivo.DocumentoProyecto, "proyecto.pdf", "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
+        await SubirContenidoAsync(servicio, sesion, contenido);
 
         var archivo = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
@@ -232,10 +223,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(PropositosArchivo.DniFrente, "dni.png", "image/png", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        await SubirContenidoAsync(servicio, sesion, contenido);
 
         var archivo = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
@@ -283,10 +271,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(PropositosArchivo.DocumentoProyecto, "staging.pdf", "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        await SubirContenidoAsync(servicioStaging, sesion, contenido);
         await servicioStaging.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
 
@@ -344,6 +329,18 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             (await almacenamiento.ObtenerAsync(documentoSegundo, TestContext.Current.CancellationToken))!.Estado);
     }
 
+    private static Task SubirContenidoAsync(
+        ServicioAlmacenamientoArchivos servicio,
+        SesionCargaArchivoDto sesion,
+        byte[] contenido) =>
+        servicio.SubirAsync(
+            sesion.ArchivoId,
+            Propietario,
+            new MemoryStream(contenido),
+            null,
+            contenido.Length,
+            TestContext.Current.CancellationToken);
+
     private async Task<Guid> SubirPdfAsync(
         ServicioAlmacenamientoArchivos servicio,
         string nombre,
@@ -354,10 +351,7 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
             new IniciarCargaArchivoDto(proposito, nombre, "application/pdf", contenido.Length),
             Propietario,
             TestContext.Current.CancellationToken);
-        using var http = new HttpClient();
-        using var cuerpo = new ByteArrayContent(contenido);
-        using var respuesta = await http.PutAsync(sesion.UrlSubida, cuerpo, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        await SubirContenidoAsync(servicio, sesion, contenido);
         var archivo = await servicio.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
         return archivo.Id;

@@ -473,6 +473,9 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         public Task<ArchivoDto> ConfirmarCargaAsync(ConfirmarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct) =>
             throw new NotSupportedException();
 
+        public Task SubirAsync(Guid archivoId, Guid propietarioId, Stream contenido, string? mimeDeclarado, long? tamanoDeclarado, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<ArchivoDto?> ObtenerAsync(Guid archivoId, CancellationToken ct) =>
             Task.FromResult(archivos.GetValueOrDefault(archivoId));
 

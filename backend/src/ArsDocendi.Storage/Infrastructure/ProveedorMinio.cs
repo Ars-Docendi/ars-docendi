@@ -5,11 +5,13 @@ namespace ArsDocendi.Storage.Infrastructure;
 
 public sealed class ProveedorMinio(IMinioClient cliente) : IProveedorObjetos
 {
-    public Task<string> CrearUrlSubidaAsync(string bucket, string clave, int expiracionSegundos, CancellationToken ct) =>
-        cliente.PresignedPutObjectAsync(new PresignedPutObjectArgs()
+    public Task SubirAsync(string bucket, string clave, Stream contenido, string mime, long tamanoBytes, CancellationToken ct) =>
+        cliente.PutObjectAsync(new PutObjectArgs()
             .WithBucket(bucket)
             .WithObject(clave)
-            .WithExpiry(expiracionSegundos));
+            .WithStreamData(contenido)
+            .WithObjectSize(tamanoBytes)
+            .WithContentType(mime), ct);
 
     public async Task<ObjetoRemoto?> ObtenerAsync(string bucket, string clave, CancellationToken ct)
     {

@@ -99,7 +99,7 @@ clave ni estado enviado por el cliente. Las descargas pasan por el backend:
 ### Archivos (`/api/archivos/`)
 
 1. `POST /cargas` recibe propósito, nombre, MIME declarado y tamaño; devuelve
-   `archivoId`, URL PUT temporal y expiración.
+   `archivoId`, ruta PUT temporal del backend y expiración.
 2. El cliente sube el objeto y llama `POST /cargas/{archivoId}/confirmar` con
    hash/tamaño observados. El backend valida firma, MIME real, límites y
    antivirus antes de marcarlo `disponible`.
