@@ -11,10 +11,9 @@
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales ADMIN de Postgres (libpq)
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
 #   MINIO_ROOT_USER MINIO_ROOT_PASSWORD credenciales del servicio privado
-#   MINIO_APP_ACCESS_KEY_<AMBIENTE> MINIO_APP_SECRET_KEY_<AMBIENTE>
-#                                     credenciales de la app del ambiente
-#   También se acepta MINIO_APP_ACCESS_KEY / MINIO_APP_SECRET_KEY como fallback
-#   explícito para instalaciones existentes.
+#   En prod y staging, las credenciales de aplicación se derivan de la raíz.
+#   En pr-N se inyectan MINIO_APP_ACCESS_KEY_PR_<N> /
+#   MINIO_APP_SECRET_KEY_PR_<N>.
 # Variables opcionales:
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false

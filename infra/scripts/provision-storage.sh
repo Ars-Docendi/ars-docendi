@@ -28,26 +28,30 @@ compose_file="$(cd "$(dirname "$0")/../compose" && pwd)/compose.storage.yml"
 project="${MINIO_COMPOSE_PROJECT:-arsdocendi-storage}"
 bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
 network="${RED_DATOS:-arsdocendi-datos}"
-root_host="http://${MINIO_ROOT_USER}:${MINIO_ROOT_PASSWORD}@minio:9000"
+root_access_key="$MINIO_ROOT_USER"
+root_secret_key="$MINIO_ROOT_PASSWORD"
 
+# El proyecto de almacenamiento es común a todos los ambientes; solo se
+# actualiza la configuración del servicio si ya existe.
 docker compose -p "$project" --env-file <(printf 'MINIO_ROOT_USER=%s\nMINIO_ROOT_PASSWORD=%s\n' "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD") -f "$compose_file" up -d
 
 for intento in {1..30}; do
-  if docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest ready local >/dev/null 2>&1; then
+  if minio_mc "$network" "$root_access_key" "$root_secret_key" ready local >/dev/null 2>&1; then
     break
   fi
   if [[ "$intento" == 30 ]]; then fatal 'msg="MinIO no quedó disponible"'; fi
   sleep 2
 done
 
-docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest mb --ignore-existing "local/$bucket"
-if ! docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest admin user info local "$app_access_key" >/dev/null 2>&1; then
-  docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest admin user add local "$app_access_key" "$app_secret_key"
+minio_mc "$network" "$root_access_key" "$root_secret_key" mb --ignore-existing "local/$bucket"
+if minio_mc "$network" "$root_access_key" "$root_secret_key" admin user info local "$app_access_key" >/dev/null 2>&1; then
+  minio_mc "$network" "$root_access_key" "$root_secret_key" admin user remove local "$app_access_key"
 fi
+minio_mc "$network" "$root_access_key" "$root_secret_key" admin user add local "$app_access_key" "$app_secret_key"
 
 policy="$(printf '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetBucketLocation"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::%s/*"]}]}' "$bucket" "$bucket" "$bucket")"
-if ! printf '%s' "$policy" | docker run -i --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest admin policy create local "arsdocendi-$ambiente" /dev/stdin; then
-  docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest admin policy info local "arsdocendi-$ambiente" >/dev/null
+if ! printf '%s' "$policy" | minio_mc "$network" "$root_access_key" "$root_secret_key" admin policy create local "arsdocendi-$ambiente" /dev/stdin; then
+  minio_mc "$network" "$root_access_key" "$root_secret_key" admin policy info local "arsdocendi-$ambiente" >/dev/null
 fi
-docker run --rm --network "$network" -e "MC_HOST_local=$root_host" quay.io/minio/mc:latest admin policy attach local "arsdocendi-$ambiente" --user "$app_access_key"
+minio_mc "$network" "$root_access_key" "$root_secret_key" admin policy attach local "arsdocendi-$ambiente" --user "$app_access_key"
 log_info msg="storage provisionado" ambiente="$ambiente" bucket="$bucket"

@@ -16,16 +16,20 @@ access_variable="MINIO_APP_ACCESS_KEY_${variable_ambiente}"
 secret_variable="MINIO_APP_SECRET_KEY_${variable_ambiente}"
 app_access_key="${!access_variable:-${MINIO_APP_ACCESS_KEY:-}}"
 app_secret_key="${!secret_variable:-${MINIO_APP_SECRET_KEY:-}}"
-: "${app_access_key:?msg=\"falta credencial MinIO de aplicación\"}"
-: "${app_secret_key:?msg=\"falta secreto MinIO de aplicación\"}"
+if [[ -z "$app_access_key" || -z "$app_secret_key" ]]; then
+  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
+    app_access_key="$(minio_app_access_for "$ambiente")"
+    app_secret_key="$(minio_app_secret_for "$ambiente" "$MINIO_ROOT_PASSWORD")"
+  else
+    fatal "msg=\"faltan credenciales MinIO de aplicación\" variable=\"$access_variable/$secret_variable\""
+  fi
+fi
 
 network="${RED_DATOS:-arsdocendi-datos}"
 bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
 base="$(nombre_base "$ambiente")"
 mc() {
-  docker run --rm -i --network "$network" \
-    -e "MC_HOST_local=http://${app_access_key}:${app_secret_key}@minio:9000" \
-    quay.io/minio/mc:latest "$@"
+  minio_mc "$network" "$app_access_key" "$app_secret_key" "$@"
 }
 
 # IDs reservados al dataset sintético; no contienen PII ni se reutilizan en prod.

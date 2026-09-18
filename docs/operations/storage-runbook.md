@@ -25,8 +25,7 @@ operación. Los valores no deben aparecer en logs ni en el historial del shell:
 AMBIENTE
 MINIO_ROOT_USER
 MINIO_ROOT_PASSWORD
-MINIO_APP_ACCESS_KEY
-MINIO_APP_SECRET_KEY
+MINIO_APP_ACCESS_KEY / MINIO_APP_SECRET_KEY  # opcionales; prod/staging se derivan
 MINIO_BUCKET_PREFIX   # opcional; default: arsdocendi
 RED_DATOS             # opcional; default: arsdocendi-datos
 PGHOST PGPORT PGUSER PGPASSWORD
@@ -41,13 +40,23 @@ Ejecutar desde el host de infraestructura:
 network="${RED_DATOS:-arsdocendi-datos}"
 bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${AMBIENTE}"
 
-# No imprimir credenciales ni la salida completa de configuración.
-docker run --rm --network "$network" quay.io/minio/mc:latest \
-  mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-docker run --rm --network "$network" quay.io/minio/mc:latest \
-  mc ready local
-docker run --rm --network "$network" quay.io/minio/mc:latest \
-  mc ls "local/$bucket"
+# La imagen quay.io/minio/mc ya trae `mc` como entrypoint. Configurar el alias
+# con las credenciales separadas evita romper el parsing de passwords con
+# caracteres reservados de URI.
+mc_privado() {
+  docker run --rm -i --network "$network" \
+    --entrypoint /bin/sh \
+    -e "MINIO_MC_ACCESS_KEY=$MINIO_ROOT_USER" \
+    -e "MINIO_MC_SECRET_KEY=$MINIO_ROOT_PASSWORD" \
+    quay.io/minio/mc:latest \
+    -c 'set -eu
+      mc alias set local http://minio:9000 "$MINIO_MC_ACCESS_KEY" "$MINIO_MC_SECRET_KEY" >/dev/null
+      exec mc "$@"' \
+    arsdocendi-runbook "$@"
+}
+
+mc_privado ready local
+mc_privado ls "local/$bucket"
 ```
 
 Si falla `mc ready`, revisar el contenedor MinIO, el volumen
@@ -84,7 +93,7 @@ mkdir -p "$backup"
 # dentro de un contenedor temporal; no escribirlas en un script.
 docker run --rm --network "$network" \
   -v "$backup:/backup" quay.io/minio/mc:latest \
-  mc mirror --overwrite "local/$bucket" /backup
+  mirror --overwrite "local/$bucket" /backup
 ```
 
 En producción, el job de backup debe configurar el alias dentro del mismo
@@ -131,7 +140,7 @@ df -h /var/lib/docker
 docker system df
 
 docker run --rm --network "$network" quay.io/minio/mc:latest \
-  mc admin info local
+  admin info local
 ```
 
 Alertar antes de alcanzar 70% de uso del volumen; planificar expansión o
