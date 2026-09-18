@@ -136,7 +136,7 @@ Mi Portal
 - **Agregar textos de ayuda** para explicar qué hace cada sección o por qué un campo no se edita. Si hace falta explicarlo, el control está mal elegido.
 - **Avisos de completitud** del tipo "te falta cargar tu CV": duplican lo que ya se ve en la página.
 - **Botones inertes**: toda acción debe llamar a la API — agregar, editar y borrar reflejan el estado persistido.
-- **Prometer almacenamiento de archivos inexistente**: hasta integrar un blob store se persiste únicamente la metadata del adjunto.
+- **Prometer almacenamiento fuera del flujo real**: toda carga de CV o documento pasa por la sesión de archivos del backend; la UI nunca persiste ni expone URI, bucket o clave de MinIO.
 - **Inventar componentes o estilos**: todo sale de `@ars-docendi/ui` y sus tokens, salvo el selector de tags, que se compone con piezas existentes.
 
 ## Mapeo a componentes

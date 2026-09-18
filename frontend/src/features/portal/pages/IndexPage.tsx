@@ -23,7 +23,8 @@ import "../components/portal.css";
  * llenarse, así que la página crece con el perfil.
  */
 export function IndexPage() {
-  const { estado, perfil, guardado, error, actualizar, ocultarAviso } = usePerfilDocente();
+  const { estado, perfil, guardado, error, actualizar, cargarCv, borrarCv, ocultarAviso } =
+    usePerfilDocente();
 
   const encabezado = (
     <>
@@ -70,8 +71,8 @@ export function IndexPage() {
 
         <SeccionCv
           cv={perfil.cv}
-          onCargar={(cv) => actualizar((p) => ({ ...p, cv }))}
-          onEliminar={() => actualizar((p) => ({ ...p, cv: null }))}
+          onCargar={(archivo) => void cargarCv(archivo)}
+          onEliminar={() => void borrarCv()}
         />
 
         <SeccionExperiencia

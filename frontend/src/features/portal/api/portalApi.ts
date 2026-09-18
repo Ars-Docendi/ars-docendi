@@ -1,4 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
+import { subirArchivo } from "../../../shared/api/archivosApi";
 import type {
   DatosCertificacion,
   DatosContacto,
@@ -19,8 +20,17 @@ export async function guardarContacto(datos: DatosContacto) {
   return (await apiClient.put("/api/portal/perfil/contacto", datos)).data;
 }
 
-export async function guardarCv({ nombre }: { nombre: string }) {
-  return (await apiClient.put("/api/portal/perfil/cv", { nombre, uri: null })).data;
+export async function guardarCv(archivo: File | { nombre: string }) {
+  if (!("arrayBuffer" in archivo)) {
+    return (await apiClient.put("/api/portal/perfil/cv", { nombre: archivo.nombre, uri: null }))
+      .data;
+  }
+  const confirmado = await subirArchivo("cv", archivo);
+  return (
+    await apiClient.put("/api/portal/perfil/cv", {
+      archivoId: confirmado.id,
+    })
+  ).data;
 }
 
 export async function eliminarCv() {
@@ -62,20 +72,27 @@ export async function eliminarCertificacion(id: string) {
 }
 
 export async function crearProyecto(datos: DatosProyecto) {
-  return (await apiClient.post("/api/portal/perfil/proyectos", payloadProyecto(datos))).data;
+  return (await apiClient.post("/api/portal/perfil/proyectos", await payloadProyecto(datos))).data;
 }
 export async function editarProyecto(id: string, datos: DatosProyecto) {
-  return (await apiClient.put(`/api/portal/perfil/proyectos/${id}`, payloadProyecto(datos))).data;
+  return (await apiClient.put(`/api/portal/perfil/proyectos/${id}`, await payloadProyecto(datos)))
+    .data;
 }
 export async function eliminarProyecto(id: string) {
   await apiClient.delete(`/api/portal/perfil/proyectos/${id}`);
 }
 
-function payloadProyecto({ documento, ...datos }: DatosProyecto) {
+async function payloadProyecto({ documento, ...datos }: DatosProyecto) {
+  let documentoArchivoId = documento?.archivoId || null;
+  if (documento?.archivo) {
+    const confirmado = await subirArchivo("documento_proyecto", documento.archivo);
+    documentoArchivoId = confirmado.id;
+  }
   return {
     ...payloadPeriodo(datos),
-    documentoNombre: documento?.nombre ?? null,
-    documentoUri: null,
+    ...(documentoArchivoId
+      ? { documentoArchivoId }
+      : { documentoNombre: documento?.nombre ?? null, documentoUri: null }),
   };
 }
 

@@ -6,7 +6,7 @@ import { SeccionPerfil } from "./SeccionPerfil";
 
 interface SeccionCvProps {
   cv: ArchivoCv | null;
-  onCargar: (cv: ArchivoCv) => void;
+  onCargar: (archivo: File) => void;
   onEliminar: () => void;
 }
 
@@ -14,16 +14,12 @@ function esPdf(archivo: File): boolean {
   return archivo.type === "application/pdf" || archivo.name.toLowerCase().endsWith(".pdf");
 }
 
-function hoyIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * CV del docente: un único archivo, sin historial. Vacío se presenta como zona
  * de arrastre en vez de una fila con "+": la forma explica la acción sin texto.
  * Es la carga de mayor valor por menor esfuerzo, porque el PDF ya existe.
  *
- * TODO(backend): hoy solo se registra metadata; el archivo no se sube.
+ * La sesión, subida, hash y confirmación ocurren en la API de almacenamiento.
  */
 export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
   const [error, setError] = useState<string | undefined>();
@@ -36,7 +32,7 @@ export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
       return;
     }
     setError(undefined);
-    onCargar({ nombre: archivo.name, fechaCarga: hoyIso() });
+    onCargar(archivo);
   }
 
   return (
@@ -55,9 +51,9 @@ export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
             cv
               ? [
                   {
-                    id: "cv",
+                    id: cv.archivoId ?? "cv",
                     name: cv.nombre,
-                    size: `Actualizado el ${cv.fechaCarga}`,
+                    size: `${cv.tamanoBytes ? `${Math.round(cv.tamanoBytes / 1024)} KB · ` : ""}Actualizado el ${cv.fechaCarga}`,
                     status: "uploaded" as const,
                   },
                 ]

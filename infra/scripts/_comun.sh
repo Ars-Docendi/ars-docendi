@@ -54,6 +54,16 @@ exigir_ambiente_destruible() {
 RED_DATOS="${RED_DATOS:-arsdocendi-datos}"
 IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
 
+minio_app_access_for() {
+  local ambiente="$1"
+  printf 'app_%s' "${ambiente//-/_}"
+}
+
+minio_app_secret_for() {
+  local ambiente="$1" root_password="$2"
+  printf 'arsdocendi/minio/%s:%s' "$ambiente" "$root_password" | sha256sum | cut -d' ' -f1
+}
+
 # Corre psql en un contenedor efímero adjunto a la red de datos. El host del runner
 # NO trae cliente psql ni alcanza a 'arsdocendi-postgres' (5432 sin publicar), así
 # que toda invocación a psql pasa por acá. Reenvía credenciales libpq por -e.

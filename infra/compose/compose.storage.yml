@@ -1,0 +1,34 @@
+# Almacenamiento privado común a los ambientes
+# No publica puertos, no usa la red de Traefik y solo se une a arsdocendi-datos.
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    restart: unless-stopped
+    command: server /data --address ":9000" --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    networks:
+      - red-datos
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    networks:
+      - red-datos
+
+volumes:
+  minio-data:
+    name: arsdocendi-minio-data
+
+networks:
+  red-datos:
+    external: true
+    name: ${RED_DATOS:-arsdocendi-datos}

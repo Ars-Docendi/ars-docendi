@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+    <ProjectReference Include="..\ArsDocendi.Storage\ArsDocendi.Storage.csproj" />
     <ProjectReference Include="..\Modules.Designaciones\Modules.Designaciones.csproj" />
     <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Aulas\Modules.Aulas.csproj" />
