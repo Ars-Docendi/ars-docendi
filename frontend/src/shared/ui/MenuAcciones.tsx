@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 
 import "./MenuAcciones.css";
 import { IconoEllipsisVertical } from "./iconos";
+import { useDescartarAlClicAfuera } from "../hooks/useDescartarAlClicAfuera";
 
 export interface AccionMenu {
   etiqueta: string;
@@ -22,21 +23,7 @@ export function MenuAcciones({ acciones, etiquetaAria }: MenuAccionesProps) {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!abierto) return;
-    function onPointer(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAbierto(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [abierto]);
+  useDescartarAlClicAfuera(abierto, ref, () => setAbierto(false));
 
   function ejecutar(accion: AccionMenu) {
     setAbierto(false);

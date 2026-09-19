@@ -1,0 +1,224 @@
+using Microsoft.Extensions.Logging;
+using ArsDocendi.Shared.Persistencia;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Modules.Asistente;
+using Modules.Asistente.Application;
+using Modules.Asistente.Infrastructure;
+
+namespace ArsDocendi.IntegrationTests.Infraestructura;
+
+/// <summary>
+/// Arma la capa conversacional completa con un proveedor guionado.
+/// </summary>
+/// <remarks>
+/// Reproduce los alcances de la registración real, y esa es la única razón por la
+/// que existe en vez de tres líneas en cada test: el contador de llamadas es <b>por
+/// turno</b> y el breaker, la cuota y el almacén de hilos son <b>del proceso</b>.
+/// Un banco que compartiera el contador entre turnos haría que el segundo turno
+/// heredara el conteo del primero, y la cuota —que se cobra con ese número— cobraría
+/// de más acumulativamente.
+///
+/// Por eso <see cref="Capa"/> es una fábrica: cada llamada arma el turno de nuevo,
+/// como hace el contenedor con un request.
+/// </remarks>
+internal sealed class BancoDelAsistente
+{
+    public required Func<CapaConversacional> Fabrica { get; init; }
+
+    /// <summary>El proveedor guionado, con el registro de lo que se le pidió.</summary>
+    public required ProveedorGuionado Proveedor { get; init; }
+
+    /// <summary>El almacén de hilos, compartido entre turnos.</summary>
+    public required IAlmacenDeHilos Hilos { get; init; }
+
+    /// <summary>El breaker, compartido entre turnos.</summary>
+    public required BreakerDelProveedor Breaker { get; init; }
+
+    /// <summary>La cuota, compartida entre turnos.</summary>
+    public required ICuotaDelActor Cuota { get; init; }
+
+    /// <summary>La configuración con la que se armó.</summary>
+    public required OpcionesAsistente Opciones { get; init; }
+
+    /// <summary>El registro del turno, sea el de memoria o el real.</summary>
+    public required IRegistroDelTurno Registro { get; init; }
+
+    /// <summary>Un turno nuevo, con su propio contador de llamadas.</summary>
+    public CapaConversacional Capa() => Fabrica();
+
+    /// <summary>Arma el banco contra una base de prueba.</summary>
+    public static BancoDelAsistente Armar(
+        CadenaSoloLectura basica,
+        CadenaSoloLecturaPii conDatosPersonales,
+        IClasificadorDeSensibilidad clasificador,
+        AperturaDeLectura apertura,
+        OpcionesAsistente? configuracion = null,
+        IAlmacenDeHilos? hilos = null,
+        TimeProvider? reloj = null,
+        ProveedorGuionado? proveedor = null,
+        IRegistroDelTurno? registro = null,
+        Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
+        ICatalogoDelDominio? dominio = null,
+        IResolutorDeVinculos? vinculos = null,
+        params string[] guion)
+    {
+        var valores = configuracion ?? new OpcionesAsistente();
+        var opciones = Options.Create(valores);
+        var elReloj = reloj ?? TimeProvider.System;
+        var elProveedor = proveedor ?? new ProveedorGuionado(guion);
+
+        // Sin adaptador compuesto, igual que el módulo sin el Host: los turnos
+        // responden y no ofrecen vínculos. Un test que quiera vínculos pasa el suyo.
+        var losVinculos = vinculos ?? new SinVinculos();
+
+        // El envoltorio permite meter un medidor entre el guionado y el pipeline. El
+        // eje social lo necesita: afirma «cero tokens de entrada», y ese número sale
+        // del transporte, no del resultado del turno.
+        var visto = envolver is null ? (IProveedorDeModelo)elProveedor : envolver(elProveedor);
+
+        var breaker = new BreakerDelProveedor(
+            opciones, elReloj, NullLogger<BreakerDelProveedor>.Instance);
+
+        var cuota = new CuotaEnMemoria(opciones, elReloj);
+        var disponibilidad = new DisponibilidadDelModeloReal(cuota, breaker);
+        var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
+        var elRegistro = registro ?? new RegistroEnMemoria();
+
+        // El índice se comparte entre turnos, igual que en producción: es un caché,
+        // y uno por turno no cachearía nada.
+        var indice = new IndiceDeEntidades(apertura);
+
+        // El catálogo de capacidades también se comparte: cachea por rol, y uno por
+        // turno no cachearía nada.
+        var catalogo = new CatalogoDeCapacidades(
+            apertura,
+            new ConsultorDeAlcance(apertura),
+            new SelectorDeEjemplos(),
+            new CacheDeCapacidades(),
+            NullLogger<CatalogoDeCapacidades>.Instance);
+
+        // El enrutador de dominio se comparte por el mismo motivo que el índice: su
+        // catálogo del dominio es un caché, y uno por turno no cachearía nada. Está
+        // en MODO SOMBRA —decide y el turno sigue por SQL igual—, así que agregarlo
+        // acá no cambia ninguna respuesta esperada de los tests que ya existían.
+        //
+        // El catálogo del dominio se puede sustituir: es la única forma honesta de
+        // correr la MISMA pregunta con captura y sin ella, que es como se prueba que
+        // el modo sombra no cambia ninguna respuesta. Colisionar la entidad no sirve,
+        // porque eso dispara el detector de ambigüedad y cambia el turno entero.
+        var enrutador = new EnrutadorDeDominio(
+            new ResolutorDeIntenciones(
+                CatalogoDeIntenciones.Cargar(),
+                dominio ?? new CatalogoDelDominioReal(indice, apertura)),
+            NullLogger<EnrutadorDeDominio>.Instance);
+
+        return new BancoDelAsistente
+        {
+            Proveedor = elProveedor,
+            Hilos = losHilos,
+            Breaker = breaker,
+            Cuota = cuota,
+            Opciones = valores,
+            Registro = elRegistro,
+            Fabrica = () =>
+            {
+                var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
+
+                // Por turno, igual que el contador: es la decisión de ESTE turno la
+                // que tiene que llegar a su fila del registro.
+                var decisionSombra = new DecisionSombraDelTurno();
+
+                var conBreaker = new ProveedorConBreaker(
+                    visto,
+                    breaker,
+                    TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
+                    elReloj);
+
+                var conTecho = new ProveedorConTechoDeLlamadas(conBreaker, contador);
+
+                var carril = ArmarCarrilSql(
+                    basica,
+                    conDatosPersonales,
+            apertura,
+                    new EjecutorDeConsulta(apertura,clasificador, opciones),
+                    conTecho,
+                    contador,
+                    opciones,
+                    NullLogger<CarrilSql>.Instance);
+
+                return new CapaConversacional(
+                    losHilos,
+                    indice,
+                    new ReescritorDePreguntas(conTecho, Options.Create(new OpcionesAsistente())),
+                    carril,
+                    new SelectorDeEjemplos(),
+                    catalogo,
+                    enrutador,
+                    conTecho,
+                    elRegistro,
+                    disponibilidad,
+                    cuota,
+                    losVinculos,
+                    contador,
+                    decisionSombra,
+                    opciones,
+                    elReloj,
+                    NullLogger<CapaConversacional>.Instance);
+            },
+        };
+    }
+
+    /// <summary>
+    /// La fecha contra la que resuelven «el año pasado», «este cuatrimestre» y
+    /// demás.
+    /// </summary>
+    /// <remarks>
+    /// Fija y compartida. Estaba escrita tres veces con dos valores distintos, y
+    /// dos tests del mismo grafo que resuelven fechas relativas de forma diferente
+    /// son dos sistemas. La del evaluador NO es ésta y no se toca: apunta
+    /// deliberadamente a <c>GeneradorDeFixture.Ancla</c>.
+    /// </remarks>
+    internal static readonly DateOnly FechaDeReferencia = new(2026, 8, 25);
+
+    /// <summary>
+    /// Arma el grafo del carril SQL: generador, ejecutor, alcance, redactor,
+    /// ejemplos y cobertura.
+    /// </summary>
+    /// <remarks>
+    /// Recibe ya construidos el ejecutor, el proveedor con techo y el contador
+    /// porque son las tres piezas que cada test necesita poder mirar o sustituir:
+    /// el contador es <b>por turno</b>, el techo es lo que se afirma cuando se
+    /// cuenta el costo, y el ejecutor lleva el clasificador de sensibilidad.
+    /// Todo el resto del grafo es igual en los tres sitios que lo armaban a mano.
+    ///
+    /// <paramref name="opcionesDelGenerador"/> va aparte a propósito: el redactor
+    /// se construye siempre con las opciones por defecto, y el generador no
+    /// —el banco le pasa las configuradas—. Unificar los dos cambiaría lo que los
+    /// tests ejercitan.
+    /// </remarks>
+    internal static CarrilSql ArmarCarrilSql(
+        CadenaSoloLectura basica,
+        CadenaSoloLecturaPii conDatosPersonales,
+        AperturaDeLectura apertura,
+        IEjecutorDeConsulta ejecutor,
+        IProveedorDeModelo conTecho,
+        ContadorDeLlamadasDelTurno contador,
+        IOptions<OpcionesAsistente> opcionesDelGenerador,
+        ILogger<CarrilSql> log) =>
+        new(
+            new GeneradorDeSql(
+                new ProveedorDeEsquema(apertura),
+                new SelectorDeEjemplos(),
+                conTecho,
+                new FechaDeReferenciaFija(FechaDeReferencia),
+                opcionesDelGenerador,
+                NullLogger<GeneradorDeSql>.Instance),
+            ejecutor,
+            new ConsultorDeAlcance(apertura),
+            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
+            new SelectorDeEjemplos(),
+            new ConsultorDeCobertura(apertura),
+            contador,
+            log);
+}

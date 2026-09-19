@@ -1,0 +1,222 @@
+-- 002_asistente_registros.sql
+--
+-- Los dos registros del asistente: uno operativo y uno analítico. Existen para
+-- poder responder «cuánto se usa» y «qué se pregunta» sin poder responder «quién
+-- preguntó qué».
+--
+-- POR QUÉ SON DOS TABLAS Y NO UNA CON UN FLAG
+-- Un flag de anonimato no desvincula nada: las dos filas quedan en la misma tabla,
+-- con la misma clave y el mismo momento. Separarlas es lo único que hace que el
+-- cruce no exista.
+--
+-- POR QUÉ EL ANALÍTICO GUARDA `dia` Y NO UN TIMESTAMP
+-- Con alrededor de treinta usuarios, un timestamp preciso en las dos tablas
+-- permitiría reidentificar al autor de cada pregunta con un join por tiempo.
+-- Desvincular sin quitar la hora no desvincula nada, así que la precisión se
+-- pierde a propósito y no se puede recuperar.
+--
+-- POR QUÉ EL ANALÍTICO NO TIENE UNA CLAVE SECUENCIAL
+-- Una identidad autoincremental sería, ella misma, la clave del join: la fila n de
+-- un registro y la fila n del otro serían el mismo turno. Se usa un UUID aleatorio
+-- para que el orden de inserción no quede escrito en ninguna columna.
+--
+-- Riesgo residual, declarado: el orden FÍSICO de las filas (ctid) todavía
+-- correlaciona con el orden de los timestamps del registro operativo. Romperlo
+-- exigiría escribir en lotes barajados, que es desproporcionado para lo que
+-- protege; queda anotado como deuda.
+--
+-- NUNCA, EN NINGUNO DE LOS DOS: LAS FILAS DEVUELTAS
+-- Ni por defecto ni detrás de un flag. Son exactamente los datos que el
+-- enmascaramiento acaba de sacar del camino de salida. La consulta generada
+-- tampoco: un WHERE puede llevar un documento.
+--
+-- IDEMPOTENTE EN LOS DOS SENTIDOS QUE IMigradorModulo EXIGE, y hacen falta los dos.
+-- `IF NOT EXISTS` en todo hace que re-ejecutar no falle. Que CONVERJA es otra cosa:
+-- un `CREATE TABLE IF NOT EXISTS` contra una base que ya tiene la tabla es un no-op,
+-- así que una columna agregada al CREATE no aparece nunca. Por eso toda columna que
+-- se sume después de que la tabla exista va TAMBIÉN como
+-- `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, abajo, y el migrador verifica al
+-- arrancar que la base tenga las columnas que el módulo escribe.
+
+CREATE SCHEMA IF NOT EXISTS asistente;
+
+-- ---------------------------------------------------------------- operativo
+--
+-- Quién consultó, cuándo y cuánto costó. NO guarda el texto de la pregunta.
+CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
+    id                 bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    actor_id           uuid        NOT NULL,
+    ocurrido_en        timestamptz NOT NULL,
+    carril             text        NOT NULL,
+    estado             text        NOT NULL,
+    llamadas_al_modelo integer     NOT NULL,
+    tokens_de_entrada  integer     NOT NULL,
+    tokens_de_salida   integer     NOT NULL,
+    latencia_ms        integer     NOT NULL,
+    hubo_reintento     boolean     NOT NULL,
+    truncado           boolean     NOT NULL,
+    proveedor          text        NULL,
+    tokens_de_cache    integer     NULL,
+    intencion_sombra   text        NULL
+);
+
+-- LAS TRES ÚLTIMAS COLUMNAS SE AGREGARON DESPUÉS DE QUE LA TABLA EXISTIERA, y por
+-- eso van también acá. Contra una base que ya tenía la tabla, el CREATE de arriba es
+-- un no-op: la columna no aparece y el INSERT del registro falla en cada turno. Pasó
+-- de verdad, con `tokens_de_cache`, y pasó EN SILENCIO: el fallo del INSERT se traga
+-- a propósito para no tumbar el turno, así que el registro dejó de guardar un día
+-- entero sin que nada avisara. Que con `intencion_sombra` la migración abortara con
+-- 42703 fue suerte —lo delató su `COMMENT ON COLUMN`—, no diseño.
+--
+-- REGLA PARA LA PRÓXIMA COLUMNA: va en los DOS lugares. El guard de arquitectura
+-- permite exactamente esta forma —`ADD COLUMN IF NOT EXISTS` sobre una tabla del
+-- schema propio, una por sentencia— y sigue prohibiendo DROP, RENAME y
+-- ALTER COLUMN ... TYPE, que son las que reescriben lo ya creado y dejan el esquema
+-- dependiendo del orden. Si alguien igual se olvida, el migrador no deja arrancar.
+--
+-- LAS TRES SON ANULABLES, Y ESO NO ES UN DESCUIDO. Un `ADD COLUMN ... NOT NULL` sin
+-- `DEFAULT` sobre una tabla con filas lo rechaza PostgreSQL, y en producción la tabla
+-- tiene noventa días de filas. Poner un `DEFAULT` sería peor que el problema:
+-- `tokens_de_cache` con default 0 diría «la caché no pegó» de turnos donde nadie
+-- midió, y esa serie sigue devolviendo un número mientras miente. Nulo es el único
+-- valor que significa «esta fila es anterior a la columna»: los agregados lo saltean
+-- solos y `count(columna)` contra `count(*)` dice cuántas filas sí se midieron. La
+-- aplicación nunca escribe nulo acá —manda siempre un valor— y el chequeo de arranque
+-- garantiza que la columna exista, así que el nulo no puede aparecer en filas nuevas.
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS proveedor text;
+
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS tokens_de_cache integer;
+
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS intencion_sombra text;
+
+-- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
+-- Es la identidad que expone el puerto —IProveedorDeModelo.Nombre—, nunca la
+-- credencial. Sin esta columna, un cambio de proveedor o de modelo dejaría el costo
+-- de antes y el de después mezclados en la misma serie, sin forma de separarlos.
+--
+-- `tokens_de_cache` es un SUBCONJUNTO de tokens_de_entrada, no un sumando aparte.
+-- Sin él no se puede saber si la caché del prefijo está pegando: el total de
+-- entrada es idéntico con caché y sin ella, y la diferencia es un orden de magnitud
+-- en costo y en tiempo de proceso del prompt. Con el prefijo del esquema pesando
+-- unos 9.000 tokens por llamada, eso es lo que separa una factura razonable de una
+-- que no lo es — y hasta ahora era invisible.
+--
+-- Ella y `proveedor` llegaron a una tabla que ya existía, así que la vía es el
+-- `ADD COLUMN IF NOT EXISTS` de arriba y no reaprovisionar. Este archivo decía lo
+-- contrario —«una base que ya tenía la tabla no se migra, se vuelve a aprovisionar;
+-- los ambientes de este sistema son efímeros»—, y era falso donde importa: el
+-- sistema queda en la universidad, y ahí reaprovisionar significa tirar noventa
+-- días de registros.
+
+-- `intencion_sombra` guarda el nombre de la intención del catálogo que el enrutador
+-- de dominio eligió, mientras ese enrutador corre en modo sombra: decide y el turno
+-- sigue por SQL igual. Es lo que permite responder «qué proporción del tráfico
+-- captura un catálogo de cinco intenciones» sin minar logs que rotan.
+--
+-- NO ES OTRO VALOR DE `carril`, Y LA DISTINCIÓN SOSTIENE TODO LO DEMÁS. `carril`
+-- dice por dónde se resolvió el turno DE VERDAD; esta columna, por dónde SE HABRÍA
+-- resuelto. Un turno capturado se resuelve igual por SQL, y también puede terminar
+-- en aclaración o en fallo sin dejar de haber sido capturado. Meterla en `carril`
+-- cambiaría el significado de la serie «cuántos turnos resolvió SQL» sin que ninguna
+-- consulta se enterara, que es la peor forma de romper una métrica: sigue
+-- devolviendo un número.
+--
+-- ANULABLE Y SIN DEFAULT, y no por el motivo de las dos de arriba: en ellas nulo
+-- marca una fila anterior a la columna, acá nulo es el caso NORMAL y no un dato
+-- faltante. Un catálogo de cinco intenciones no captura la mayoría de las preguntas
+-- y no pretende hacerlo, así que un valor por omisión convertiría «no capturó» en
+-- una decisión que nadie tomó.
+--
+-- Y NO VA AL REGISTRO ANALÍTICO, a propósito. El motivo está escrito abajo, al
+-- lado de esa tabla, que es donde alguien la agregaría por consistencia.
+
+-- Sin clave foránea a identity.users a propósito: el registro tiene que poder
+-- purgarse y conservarse con independencia del padrón, y una baja de usuario no
+-- puede quedar bloqueada por una fila de telemetría.
+COMMENT ON TABLE asistente.registro_operativo IS
+    'Uso y costo del asistente por actor. No guarda el texto de la pregunta, la consulta generada ni las filas devueltas. Retención de 90 días con purga automática.';
+
+COMMENT ON COLUMN asistente.registro_operativo.intencion_sombra IS
+    'Intención del catálogo que el enrutador de dominio eligió en modo sombra, o nulo si ninguna capturó la pregunta. NO es lo mismo que `carril`: `carril` es la ruta REAL por la que se resolvió el turno y esta columna la que se habría tomado. Nulo es el caso normal.';
+
+CREATE INDEX IF NOT EXISTS ix_registro_operativo_ocurrido_en
+    ON asistente.registro_operativo (ocurrido_en);
+
+-- ---------------------------------------------------------------- analítico
+--
+-- Qué se pregunta. NO guarda actor ni hora.
+CREATE TABLE IF NOT EXISTS asistente.registro_analitico (
+    id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    pregunta  text NOT NULL,
+    categoria text NOT NULL,
+    estado    text NOT NULL,
+    dia       date NOT NULL
+);
+
+-- Esta tabla no lleva ningún ALTER porque no ganó ninguna columna desde que se
+-- creó: las cuatro nacieron con ella. La próxima que se sume va acá y arriba, igual
+-- que en el operativo.
+
+-- EL ANALÍTICO NO LLEVA `intencion_sombra`, Y ES UNA DECISIÓN.
+-- Es la columna que el operativo sí tiene, así que alguien va a querer completarla
+-- acá por simetría. No:
+--
+--   La reidentificación vive en las colas, no en el promedio. Los ~2,6 bits de una
+--   categórica de seis valores son un promedio, y por construcción los valores no
+--   son equiprobables: las capturas van a ser la minoría, así que cada intención
+--   concreta es un valor RARO. Una fila analítica con una intención rara en un `dia`
+--   dado, cruzada con las operativas de ese día, deja el conjunto anónimo en quien
+--   haya preguntado por eso. Con treinta usuarios eso no es un conjunto, es un
+--   nombre — y le da al canal residual de arriba el selector que hoy le falta.
+--
+--   Y no compra nada. La cobertura es la proporción de filas del operativo con la
+--   columna no nula, y cada registro escribe exactamente una fila por turno: el
+--   numerador y el denominador ya están en el operativo, solos.
+--
+-- Hay un test que falla si a esta tabla le aparece la columna.
+
+COMMENT ON TABLE asistente.registro_analitico IS
+    'Qué se le pregunta al asistente. No guarda actor ni hora exacta: con la escala de usuarios de este sistema, cruzarlo con el registro operativo permitiría reidentificar al autor. Retención de 90 días con purga automática.';
+
+CREATE INDEX IF NOT EXISTS ix_registro_analitico_dia
+    ON asistente.registro_analitico (dia);
+
+-- ----------------------------------------------------- NO se adjunta auditoría
+--
+-- DECLARADO EXPLÍCITO, Y ES LO CONTRARIO DE LO QUE HACE EL RESTO DEL REPOSITORIO.
+-- Todas las tablas de identity y designaciones terminan su archivo con
+-- SELECT audit.attach('schema.tabla'). Acá NO se llama, y el motivo tiene que
+-- quedar escrito o el próximo que agregue una tabla lo va a completar por
+-- consistencia:
+--
+--   audit.change_log guarda la fila ENTERA en JSON y no tiene política de
+--   retención. Enganchar el registro analítico haría que el texto de cada
+--   pregunta sobreviviera a la purga de 90 días en otra tabla, y enganchar el
+--   operativo replicaría el actor con timestamp preciso en un tercer lugar que
+--   sí se puede cruzar.
+--
+-- La ausencia de la llamada es una decisión, no un olvido. Hay un test que falla
+-- si a alguna de las dos tablas le aparece el disparador.
+
+-- ------------------------------------------- el asistente no lee sus registros
+--
+-- La decisión de privilegio vive acá, junto al CREATE SCHEMA, porque un REVOKE
+-- sobre un schema que todavía no existe falla. Está declarada además en
+-- manifiesto-privilegios.json como schema denegado.
+--
+-- El motivo es directo: el registro analítico tiene el texto de las preguntas de
+-- TODOS los usuarios. Un asistente que pudiera consultarlo respondería «qué le
+-- preguntó fulano al asistente» a cualquiera con el permiso de consulta.
+DO $$
+DECLARE
+  rol_basico text := current_setting('app.asistente_rol_basico', false);
+  rol_pii    text := current_setting('app.asistente_rol_pii', false);
+BEGIN
+  EXECUTE format('REVOKE ALL ON SCHEMA asistente FROM %I, %I', rol_basico, rol_pii);
+  EXECUTE format(
+    'REVOKE ALL ON ALL TABLES IN SCHEMA asistente FROM %I, %I', rol_basico, rol_pii);
+END
+$$;

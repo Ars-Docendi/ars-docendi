@@ -1,0 +1,578 @@
+{
+  "version": 1,
+  "descripcion": "Manifiesto deny-by-default de los privilegios de lectura del asistente. Enumera TODA tabla de los schemas expuestos y TODA columna de las tablas concedidas. Lo que no figura acá no se concede: no existe ningún GRANT ... ON ALL TABLES en ninguna migración. Un test compara este archivo contra los privilegios efectivos de la base y falla en tres direcciones: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar.",
+  "roles": {
+    "basico": {
+      "nombre_logico": "asistente_ro",
+      "descripcion": "Lectura del asistente sin datos personales. El nombre real lleva sufijo de ambiente."
+    },
+    "pii": {
+      "nombre_logico": "asistente_ro_pii",
+      "descripcion": "Lectura del asistente con datos personales. Se usa solo cuando el actor tiene el permiso de ver datos de docentes. El nombre real lleva sufijo de ambiente."
+    }
+  },
+  "schemas": [
+    {
+      "nombre": "identity",
+      "estado": "expuesto"
+    },
+    {
+      "nombre": "designaciones",
+      "estado": "expuesto"
+    },
+    {
+      "nombre": "audit",
+      "estado": "denegado",
+      "motivo": "change_log.old_row y change_log.new_row guardan la fila entera en JSON. Cualquier dato personal escrito en cualquier tabla auditada reaparece ahí, y un JSONB no admite GRANT por columna sobre su contenido. Se deniega el schema completo con REVOKE USAGE, no tabla por tabla, para que un intento de acceso falle con permission denied for schema audit."
+    },
+    {
+      "nombre": "asistente",
+      "estado": "denegado",
+      "motivo": "Los dos registros del propio asistente. registro_analitico guarda el texto de las preguntas de TODOS los usuarios: un asistente que pudiera leerlo respondería «qué le preguntó fulano» a cualquiera con el permiso de consulta. registro_operativo guarda actor y timestamp preciso, y poder leerlo desde el carril SQL reconstruiría por dentro el cruce que separar las dos tablas existe para impedir. Se deniega el schema completo con REVOKE ALL ON SCHEMA, declarado en 002_asistente_registros.sql junto al CREATE SCHEMA porque un REVOKE sobre un schema inexistente falla."
+    },
+    {
+      "nombre": "portal",
+      "estado": "expuesto",
+      "motivo": "Seis de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional. `contactos` queda denegada entera y `cvs`, `proyectos` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR tengo portal.ver_trayectoria_ajena», y ese permiso está concedido a nadie."
+    },
+    {
+      "nombre": "public",
+      "estado": "denegado",
+      "motivo": "No es un schema de dominio: tiene el historial de migraciones de EF y las dos tablas de metadatos del seed sintético (seed_metadata, seed_identities). Nada de eso responde una pregunta de nadie, y seed_identities enumera qué usuarios son sembrados, que es información sobre el sistema y no sobre el Departamento."
+    }
+  ],
+  "objetos_no_cubiertos": {
+    "descripcion": "El manifiesto cubre tablas. Secuencias y funciones no se conceden en absoluto: el asistente solo hace SELECT.",
+    "regla": "Ningún GRANT USAGE sobre secuencias ni GRANT EXECUTE sobre funciones, salvo las cuatro funciones SECURITY DEFINER de resolución del actor, que se conceden explícitamente en su propia migración."
+  },
+  "tablas": [
+    {
+      "schema": "identity",
+      "tabla": "carreras",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "code", "name", "is_active", "created_at"],
+        "asistente_ro_pii": ["id", "code", "name", "is_active", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "materias",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "code", "name", "carrera_id", "is_active", "created_at"],
+        "asistente_ro_pii": ["id", "code", "name", "carrera_id", "is_active", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "personas",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "legajo", "nombre", "apellido", "created_at"],
+        "asistente_ro_pii": [
+          "id",
+          "legajo",
+          "nombre",
+          "apellido",
+          "created_at",
+          "documento",
+          "cuil",
+          "fecha_nacimiento",
+          "telefono"
+        ]
+      },
+      "columnas_denegadas": [],
+      "nota": "Las cuatro columnas personales se conceden ÚNICAMENTE al rol con acceso a datos personales. Con el rol básico, un SELECT * sobre esta tabla falla con permission denied, que es el comportamiento buscado: la restricción la impone el motor, no el código."
+    },
+    {
+      "schema": "identity",
+      "tabla": "users",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "display_name",
+          "is_active",
+          "created_at",
+          "last_login_at",
+          "persona_id"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "display_name",
+          "is_active",
+          "created_at",
+          "last_login_at",
+          "persona_id",
+          "upn"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "azure_oid",
+          "motivo": "Identificador opaco del proveedor de identidad externo. No tiene ningún valor de consulta y exponerlo filtra la correspondencia entre una persona y su identidad en el directorio institucional."
+        }
+      ],
+      "nota": "upn es el correo institucional, o sea dato de contacto: se concede solo al rol con acceso a datos personales, igual que teléfono."
+    },
+    {
+      "schema": "identity",
+      "tabla": "roles",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "scope",
+          "es_sistema",
+          "is_active",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "code",
+          "name",
+          "description",
+          "scope",
+          "es_sistema",
+          "is_active",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "user_roles",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "user_id",
+          "role_id",
+          "materia_id",
+          "carrera_id",
+          "granted_at",
+          "created_at",
+          "deleted_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "user_id",
+          "role_id",
+          "materia_id",
+          "carrera_id",
+          "granted_at",
+          "created_at",
+          "deleted_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "granted_by",
+          "motivo": "Registra qué persona otorgó el rol. Es rastro de una acción administrativa sobre otra persona, no un dato de dominio, y ninguna pregunta del alcance lo necesita."
+        }
+      ],
+      "nota": "Esta tabla la lee la función que resuelve el alcance y el permiso del actor. deleted_at se concede porque la baja lógica tiene que ser visible: sin ella, una asignación revocada seguiría contando."
+    },
+    {
+      "schema": "identity",
+      "tabla": "permisos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "code", "nombre", "descripcion", "created_at"],
+        "asistente_ro_pii": ["id", "code", "nombre", "descripcion", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "rol_permisos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["rol_id", "permiso_id", "created_at"],
+        "asistente_ro_pii": ["rol_id", "permiso_id", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "cargos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "codigo", "nombre", "abreviatura", "orden", "activo", "created_at"],
+        "asistente_ro_pii": [
+          "id",
+          "codigo",
+          "nombre",
+          "abreviatura",
+          "orden",
+          "activo",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "dedicaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "codigo", "nombre", "orden", "activo", "created_at"],
+        "asistente_ro_pii": ["id", "codigo", "nombre", "orden", "activo", "created_at"]
+      },
+      "columnas_denegadas": [],
+      "nota": "Catálogo cerrado de seis categorías. Se concede porque desde la migración 009 la dedicación vive en la FK: sin esta tabla el asistente no puede nombrarla."
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "periodos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "nombre",
+          "carga_desde",
+          "carga_hasta",
+          "impacto_desde",
+          "impacto_hasta",
+          "activo",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "nombre",
+          "carga_desde",
+          "carga_hasta",
+          "impacto_desde",
+          "impacto_hasta",
+          "activo",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedidos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "numero",
+          "periodo_id",
+          "persona_id",
+          "materia_id",
+          "novedad",
+          "estado",
+          "prioritario",
+          "cargo_solicitado_id",
+          "dedicacion_solicitada",
+          "dedicacion_solicitada_id",
+          "horas",
+          "horas_investigacion",
+          "horas_externas",
+          "justificacion",
+          "tipo_baja",
+          "tipo_baja_detalle",
+          "etapa_retorno",
+          "propietario_actual",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "numero",
+          "periodo_id",
+          "persona_id",
+          "materia_id",
+          "novedad",
+          "estado",
+          "prioritario",
+          "cargo_solicitado_id",
+          "dedicacion_solicitada",
+          "dedicacion_solicitada_id",
+          "horas",
+          "horas_investigacion",
+          "horas_externas",
+          "justificacion",
+          "tipo_baja",
+          "tipo_baja_detalle",
+          "etapa_retorno",
+          "propietario_actual",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "snapshot",
+          "motivo": "JSONB de forma arbitraria, congelado al enviar el pedido. Hoy guarda cargo, dedicación, horas, materia y horas de investigación y externas; su forma puede cambiar sin que nadie revise este manifiesto, y un JSONB no admite GRANT por columna sobre su contenido. Es el mismo defecto estructural que response_body en idempotencia_comandos. Los mismos datos están disponibles en columnas propias."
+        }
+      ],
+      "nota": "justificacion y tipo_baja_detalle son texto libre que puede nombrar a cualquiera. Se conceden porque el trámite no se entiende sin ellas, y se clasifican como sensible-texto en el manifiesto de sensibilidad: no viajan al modelo."
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedido_adjuntos",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "pedido_id", "tipo", "nombre", "created_at"],
+        "asistente_ro_pii": ["id", "pedido_id", "tipo", "nombre", "created_at"]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "uri",
+          "motivo": "Ubicación del archivo adjunto. Es una referencia a un recurso, no un dato de consulta: exponerla convertiría al asistente en un directorio de archivos y habilitaría intentar el acceso por fuera del sistema. El asistente puede decir que existe un adjunto y de qué tipo es; entregarlo es trabajo de la interfaz."
+        }
+      ]
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "pedido_historial",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "pedido_id",
+          "accion",
+          "rol_id",
+          "actor_id",
+          "etapa",
+          "comentario",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "pedido_id",
+          "accion",
+          "rol_id",
+          "actor_id",
+          "etapa",
+          "comentario",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [],
+      "nota": "comentario guarda justificativos de rechazo y comentarios de devolución. Se concede porque es la respuesta a por qué se devolvió un pedido, que es un caso de uso en alcance, y se clasifica como sensible-texto: no viaja al modelo."
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "designaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "persona_id",
+          "materia_id",
+          "cargo_id",
+          "dedicacion",
+          "dedicacion_id",
+          "horas",
+          "horas_externas",
+          "horas_investigacion",
+          "vigente_desde",
+          "vigente_hasta",
+          "origen_pedido_id",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "persona_id",
+          "materia_id",
+          "cargo_id",
+          "dedicacion",
+          "dedicacion_id",
+          "horas",
+          "horas_externas",
+          "horas_investigacion",
+          "vigente_desde",
+          "vigente_hasta",
+          "origen_pedido_id",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [],
+      "nota": "Es la tabla del caso de uso central: cobertura de cátedra y composición del plantel. No existe ningún endpoint equivalente."
+    },
+    {
+      "schema": "designaciones",
+      "tabla": "idempotencia_comandos",
+      "estado": "denegada-explicita",
+      "motivo": "response_body es un JSONB que guarda el cuerpo HTTP completo de cada comando de transición, con los datos de la persona del pedido adentro. Es todo o nada: un JSONB no admite GRANT por columna sobre su contenido, y su forma es la del DTO que devolvió el endpoint ese día, así que agregar un campo a ese DTO ampliaría en silencio lo que el asistente puede leer. Un GRANT ... ON ALL TABLES IN SCHEMA designaciones la habría concedido sola, sin error y sin aviso. Además no tiene ningún valor de consulta: es caché de replay, no dato de dominio.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "__EFMigrationsHistory",
+      "estado": "denegada-explicita",
+      "motivo": "Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto en su primera corrida, que es exactamente el caso que la dirección 3 existe para atrapar.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "perfiles",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "persona_id", "created_at"],
+        "asistente_ro_pii": ["id", "persona_id", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "educaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "nivel",
+          "carrera",
+          "institucion",
+          "desde",
+          "hasta",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nivel",
+          "carrera",
+          "institucion",
+          "desde",
+          "hasta",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "certificaciones",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "emisor",
+          "fecha",
+          "vencimiento",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "nombre",
+          "emisor",
+          "fecha",
+          "vencimiento",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "experiencias",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": [
+          "id",
+          "perfil_id",
+          "puesto",
+          "organizacion",
+          "desde",
+          "hasta",
+          "created_at"
+        ],
+        "asistente_ro_pii": [
+          "id",
+          "perfil_id",
+          "puesto",
+          "organizacion",
+          "desde",
+          "hasta",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "descripcion",
+          "motivo": "Texto libre donde el docente escribe lo que quiera sobre sí mismo. Clasificarla como sensible NO alcanza: el enmascarador identifica la columna por (OID, attnum), y toda expresión —un upper(descripcion), por ejemplo— reporta OID 0, que se trata como pública. O no se concede, o viaja verbatim al proveedor del modelo."
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "habilidades",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "termino", "termino_norm", "created_at"],
+        "asistente_ro_pii": ["id", "termino", "termino_norm", "created_at"]
+      },
+      "columnas_denegadas": [
+        {
+          "columna": "usos",
+          "motivo": "Contador AGREGADO sobre todo el padrón. Una policy por fila no puede acotarlo —la fila es una sola y su número ya vio todo—, así que sería el único canal de esta tabla que la RLS no cierra: diría cuánta gente declaró un término aun sin poder ver a ninguna."
+        },
+        {
+          "columna": "sugerido",
+          "motivo": "Maquinaria de curaduría del vocabulario, no dominio. No responde ninguna pregunta del catálogo."
+        },
+        {
+          "columna": "canonica_id",
+          "motivo": "Ídem sugerido: apunta al término canónico cuando alguien deduplica el vocabulario. Es mantenimiento interno."
+        }
+      ]
+    },
+    {
+      "schema": "portal",
+      "tabla": "docente_habilidades",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["perfil_id", "habilidad_id", "tipo", "created_at"],
+        "asistente_ro_pii": ["perfil_id", "habilidad_id", "tipo", "created_at"]
+      },
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "contactos",
+      "estado": "denegada-explicita",
+      "motivo": "El teléfono y el mail INSTITUCIONALES ya se conceden por identity.personas.telefono e identity.users.upn al rol PII, así que esta tabla no habilita ninguna pregunta que aquéllos no cubran. Los que guarda son los PERSONALES, que el docente carga en una pantalla que —por decisión de diseño explícita— no declara quién va a verlos. Todo el riesgo del paquete y ningún valor nuevo. Denegada entera y no columna por columna, para que reabrirla exija editar esta entrada.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "cvs",
+      "estado": "denegada-explicita",
+      "motivo": "Ninguna pregunta del catálogo la necesita, y su columna uri es la ubicación del archivo: mismo criterio que designaciones.pedido_adjuntos.uri —el asistente puede decir que existe y de cuándo es, entregarlo es de la interfaz—. Se deniega entera en vez de conceder la metadata porque una tabla expuesta que nadie consulta es prefijo de prompt que se paga en cada llamada.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "proyectos",
+      "estado": "denegada-explicita",
+      "motivo": "Ninguna pregunta del catálogo la necesita. El alcance se derivó de las preguntas y no de lo que la base tiene disponible: exponerla costaría prefijo permanente sin comprar ninguna respuesta. Además descripcion es texto libre autodeclarado, con el mismo problema de enmascarado que experiencias.descripcion.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "proyecto_documentos",
+      "estado": "denegada-explicita",
+      "motivo": "Cuelga de proyectos, que no se concede, y su uri es la ubicación de un archivo. Mismo criterio que pedido_adjuntos.uri y que cvs.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    }
+  ]
+}

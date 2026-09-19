@@ -27,6 +27,13 @@
     <ProjectReference Include="..\..\src\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\..\src\ArsDocendi.Host\ArsDocendi.Host.csproj" />
     <ProjectReference Include="..\..\src\Modules.Designaciones\Modules.Designaciones.csproj" />
+    <ProjectReference Include="..\..\src\Modules.Asistente\Modules.Asistente.csproj" />
+    <!--
+      El NÚCLEO del evaluador, que es la parte que no cuesta dinero. El ejecutable
+      que sí instancia un proveedor real está fuera de la solución a propósito, y
+      hay un guard acá —ExclusionDelEvaluadorTests— que falla si vuelve a entrar.
+    -->
+    <ProjectReference Include="..\..\src\ArsDocendi.Evaluacion.Nucleo\ArsDocendi.Evaluacion.Nucleo.csproj" />
   </ItemGroup>
 
 </Project>

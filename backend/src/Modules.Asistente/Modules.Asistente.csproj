@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    El SDK de Anthropic entra como dependencia de UN adaptador, no del pipeline.
+    Nada fuera de Infrastructure/ProveedorAnthropic.cs lo nombra: el resto del
+    módulo habla con IProveedorDeModelo, que no menciona ningún proveedor. Un
+    adaptador para otro proveedor —o para un modelo propio— suma su paquete acá
+    al lado y ninguno de los dos desplaza al otro.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.42.1" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+  <!--
+    Referencia única a ArsDocendi.Shared. El módulo NO referencia todavía su
+    propio .Contracts (que nace vacío, ver Modules.Asistente.Contracts/README.md)
+    ni ningún otro módulo: los edges hacia Contracts ajenos llegan con el carril
+    determinista de API.
+
+    Npgsql va sin EF Core: el módulo no tiene entidades ni DbContext. Lo único
+    que necesita hoy es abrir una conexión para aplicar sus GRANT, y más adelante
+    para ejecutar la consulta generada con las conexiones de solo lectura.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+  </ItemGroup>
+
+  <!--
+    DDL del asistente, autorado en SQL versionado bajo database/ y embebido acá
+    como recurso. Lo ejecuta MigradorAsistente; ver la nota equivalente en
+    Modules.Designaciones.csproj.
+  -->
+  <!--
+    Catálogo de ejemplos pregunta-SQL. Embebido para que viaje con el assembly:
+    leerlo del disco haría que el módulo dependiera del layout del despliegue.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Recursos\ejemplos-sql.json" />
+    <EmbeddedResource Include="Recursos\intenciones.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SqlAsistente Include="$(MSBuildThisFileDirectory)..\..\..\database\asistente\*.sql" />
+    <EmbeddedResource Include="@(SqlAsistente)" Link="Sql\asistente\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!--
+    Manifiesto de sensibilidad. Vive en database/asistente/ y no acá, junto al de
+    privilegios: los dos clasifican las mismas columnas y se leen juntos, así que
+    separarlos hace que quien agregue una columna se olvide de uno. Se embebe por
+    el mismo mecanismo que el DDL para que el modulo no dependa del layout del
+    despliegue.
+  -->
+  <ItemGroup>
+    <ManifiestoAsistente Include="$(MSBuildThisFileDirectory)..\..\..\database\asistente\manifiesto-sensibilidad.json" />
+    <EmbeddedResource Include="@(ManifiestoAsistente)" Link="Sql\asistente\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Un glob vacío compila en silencio y el fallo aparece recién al migrar. -->
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlAsistente)' == ''"
+           Text="No se encontró ningún .sql en database/asistente/. El DDL se embebe como recurso de este assembly, así que sin esos archivos los privilegios del asistente no se aplican. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+    <Error Condition="'@(ManifiestoAsistente)' == ''"
+           Text="No se encontró database/asistente/manifiesto-sensibilidad.json. El manifiesto gobierna qué columnas se enmascaran antes de mandarlas al proveedor del modelo; sin él, el enmascarador no tiene con qué decidir. Falla en build a propósito: descubrirlo en runtime significaría haber mandado datos personales afuera." />
+  </Target>
+
+</Project>

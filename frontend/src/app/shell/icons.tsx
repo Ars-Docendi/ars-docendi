@@ -125,4 +125,83 @@ export const navIcons = {
   ),
 } satisfies Record<string, ReactNode>;
 
+/**
+ * Destello. Marca lo que resuelve un modelo, no una consulta determinista.
+ *
+ * Se repite en el lanzador y en el campo de entrada a propósito: es la misma
+ * promesa en los dos lugares —«acá le hablás al asistente»—, y usar dos símbolos
+ * distintos para lo mismo obliga a aprender dos.
+ */
+export const sparkIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 2.5l1.3 3.4L13.7 7l-3.4 1.1L9 11.5 7.7 8.1 4.3 7l3.4-1.1z" />
+    <path d="M13.8 11.6l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z" />
+  </svg>
+);
+
+/**
+ * Candado. Marca una columna que trae un dato personal.
+ *
+ * Va junto al nombre de la columna en la tabla de resultados del asistente. Dice
+ * QUÉ es sensible, no por dónde viajó: el enmascaramiento es mecánica interna.
+ */
+export const lockIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="4" y="8" width="10" height="7" rx="1" />
+    <path d="M6.5 8V6a2.5 2.5 0 015 0v2" />
+  </svg>
+);
+
+/**
+ * Avión de papel. Va delante de «Enviar» en el composer del asistente.
+ *
+ * Acompaña a la etiqueta, no la reemplaza: un ícono solo obliga a descubrir qué
+ * hace, y Enter es un atajo y no la única vía de envío.
+ */
+export const sendIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M15.5 2.5L2.5 8l5.5 2 2 5.5z" />
+    <path d="M15.5 2.5L8 10" />
+  </svg>
+);
+
+/**
+ * Más. Va delante de «Nueva conversación» en el asistente.
+ */
+export const plusIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 3.5v11M3.5 9h11" />
+  </svg>
+);
+
+/**
+ * Cuadrado de parar. Va delante de «Dejar de esperar» en el asistente: es el
+ * símbolo que el usuario ya conoce, y acá para sólo la espera de este lado.
+ */
+export const stopIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="4.5" y="4.5" width="9" height="9" rx="1.5" />
+  </svg>
+);
+
+/**
+ * Dos hojas superpuestas. Va delante de «Copiar respuesta» y «Copiar tabla» en
+ * el asistente.
+ */
+export const copyIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="6.5" y="6.5" width="9" height="9" rx="1" />
+    <path d="M4.5 11.5h-1a1 1 0 01-1-1v-7a1 1 0 011-1h7a1 1 0 011 1v1" />
+  </svg>
+);
+
+/**
+ * Flecha hacia abajo. Va delante de «Ir al final» en el hilo del asistente.
+ */
+export const arrowDownIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 3.5v11M4.5 10l4.5 4.5 4.5-4.5" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

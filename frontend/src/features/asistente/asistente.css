@@ -1,0 +1,871 @@
+/* ============================================================
+   Superficie del asistente conversacional.
+
+   TODO SALE DEL TEMA. Cada color, radio, tamaño de letra y espacio es un token de
+   @ars-docendi/ui/theme.css: el asistente es una parte de la aplicación y se tiene
+   que ver como el resto, en claro y en oscuro. Ningún valor propio y ningún
+   fallback: un `var(--token, fallback)` sobre un token que no existe se renderiza
+   siempre con el fallback y nadie lo nota, y así fue como esta hoja llegó a
+   pintarse en slate e indigo (#64748b, #6366f1) ajenos al acento institucional.
+   `asistente.tokens.test.ts` lo vigila.
+   ============================================================ */
+
+/* ─────────────────────────────────── el panel ──────────────────────────────── */
+
+/* Es UNO SOLO, montado dos veces: la ruta y el modal. El alto lo fija cada
+   montaje; el panel lo reparte: el hilo se estira y scrollea, lo demás no se
+   mueve. */
+.adoc-asistente {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* El marco del hilo: lo que le da a «Ir al final» contra qué flotar. Es también
+   el contenedor de posición de las tarjetas —el hilo no lo es a propósito—, así
+   que `tarjeta.offsetTop - hilo.offsetTop` mide desde el mismo origen. */
+.adoc-asistente-hilo-marco {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La región que scrollea. `min-height: 0` no es decorativo: sin él, un hijo flex
+   no se encoge por debajo de su contenido y el desbordamiento se lo come el
+   contenedor de abajo —que acá es el campo de entrada, y desaparece—. */
+.adoc-asistente-hilo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-right: var(--space-1);
+}
+
+/* «Ir al final»: abajo a la derecha del hilo, corrido de la barra de scroll, y
+   sólo mientras el usuario está arriba. Aparece con un fundido corto; el
+   movimiento se apaga más abajo, con el resto. */
+.adoc-asistente-ir-al-final {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-3);
+  z-index: var(--z-sticky);
+  animation: adoc-asistente-aparecer var(--motion-fast) var(--ease-enter);
+}
+
+/* Despegado del contenido sobre el que flota. */
+.adoc-asistente-ir-al-final > button {
+  box-shadow: var(--elev-3);
+}
+
+@keyframes adoc-asistente-aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ──────────────────────── «Nueva conversación» en el modal ──────────────────── */
+
+/* Vive en el CUERPO del Modal y se dibuja sobre su fila de encabezado. La librería
+   no expone un slot de acciones ahí —sólo `title`, `children` y `footer`—, y pasarlo
+   como parte del título lo mete adentro del `h4` que nombra al diálogo: el lector
+   de pantalla anunciaba «Asistente Nueva conversación». Los tests del nombre lo
+   atajaron, y por eso está acá y no allá. El arreglo de verdad es TD-020.
+
+   Antes ocupaba una fila entera del cuerpo, que en un modal ajustado de alto salía
+   del hilo. El `right` deja lugar para la «×» del Modal; el `top` alinea con el
+   relleno de su encabezado (18px). `.adoc-modal` ya es `position: relative`. */
+.adoc-asistente-acciones-modal {
+  position: absolute;
+  top: 14px;
+  right: 52px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* El «?» va pegado al título, a su derecha. Vive en el CUERPO y se dibuja sobre la
+   fila del encabezado, igual que «Nueva conversación» y por el mismo motivo: el
+   Modal no expone dónde poner nada ahí (TD-020).
+
+   EL DESPLAZAMIENTO ES FIJO Y ESO ES DEUDA, no elegancia. `left` mide el relleno
+   del encabezado del Modal más el ancho de la palabra «Asistente» a su tamaño: si
+   alguien renombra el título, el «?» queda descolocado. Se acepta porque el título
+   es una constante del componente y el desajuste se ve de inmediato; el arreglo
+   real es el `headerActions` de TD-020, que lo pondría en la fila de verdad. */
+.adoc-asistente-ayuda-modal {
+  position: absolute;
+  top: 14px;
+  left: 6.9rem;
+  z-index: 1;
+}
+
+/* En la ruta va junto al botón, dentro de las acciones del encabezado de página. */
+.adoc-asistente-acciones-pagina {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* En la ruta el «?» está contra el borde derecho: colgando hacia la derecha, el
+   panel se saldría de la ventana. */
+.adoc-asistente-acciones-pagina .adoc-asistente-ayuda-pop {
+  left: auto;
+  right: 0;
+}
+
+/* ────────────────────────────────── el inicio ──────────────────────────────── */
+
+/* La pantalla vacía: un título que invita a escribir, el alcance, los ejemplos
+   como chips y, más abajo y en chico, qué se puede consultar y qué no. Sin caja
+   ni borde: es lo que hay en el hilo antes del primer turno, no un aviso. Todo
+   sale del catálogo del backend. */
+.adoc-asistente-inicio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 72ch;
+  padding: var(--space-6) var(--space-2) var(--space-2);
+}
+
+.adoc-asistente-inicio-titulo {
+  margin: 0;
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-lh);
+  font-weight: var(--text-heading-weight);
+}
+
+/* ────────────────────────────────── la ayuda ───────────────────────────────── */
+
+/* `relative` porque el popover se ancla acá y no al hilo, que scrollea: anclado al
+   hilo, la ayuda se quedaría donde se abrió mientras la conversación se mueve. */
+.adoc-asistente-ayuda {
+  position: relative;
+  display: inline-flex;
+}
+
+.adoc-asistente-ayuda-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-ayuda-boton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-sunken);
+}
+
+.adoc-asistente-ayuda-boton .ico {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Ancho acotado para que el párrafo se lea: a lo ancho del modal serían líneas de
+   más de cien caracteres. El `max-height` con scroll propio es para la ventana
+   baja — sin él, el popover se sale del modal y no hay forma de leer el final. */
+.adoc-asistente-ayuda-pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  /* Por default cuelga hacia la DERECHA del disparador, que es donde hay lugar
+     cuando el «?» está pegado al título. En la ruta el botón vive en las acciones
+     del encabezado, contra el borde derecho, y ahí se invierte. */
+  left: 0;
+  z-index: var(--z-sticky);
+  width: min(28rem, calc(100vw - 4rem));
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-2);
+}
+
+.adoc-asistente-inicio-presentacion {
+  margin: 0;
+}
+
+.adoc-asistente-inicio-alcance {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Los límites, separados del resto por un filete. Era una grilla de dos columnas
+   con «Puedo consultar:» al lado, hasta que esa sección se fue: pintaba el
+   comentario de la tabla que se escribió para el modelo. */
+.adoc-asistente-inicio-detalle {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-inicio-rotulo {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-inicio-lista {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────── la conversación ───────────────────────────── */
+
+/* No scrollea ella: scrollea el hilo entero, para que el bloque de inicio y los
+   turnos se muevan juntos. */
+.adoc-asistente-conversacion {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.adoc-asistente-turno {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* «Vos» y «Asistente». La alineación de las burbujas hace el trabajo visual, así
+   que la etiqueta se oculta —sigue en el DOM para el lector de pantalla, que no
+   ve de qué lado está cada una—. */
+/* Etiqueta de quién habla, sólo para lectores de pantalla: la burbuja y la
+   alineación dicen lo mismo a quien ve, y un lector de pantalla no las tiene.
+   Está en el DOM aunque no se vea, así que entra en la SELECCIÓN — y copiar la
+   pregunta arrastraba «Vos» pegado a la primera palabra. Alguien pegó eso en el
+   input y la pregunta que llegó al modelo fue «Vosdame 3 materias…».
+   `user-select: none` la deja afuera del portapapeles sin sacarla del árbol de
+   accesibilidad, que es lo único que se quiere conservar. */
+.adoc-asistente-quien {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Lo que escribió el usuario: burbuja de acento, a la derecha, con ancho acotado. */
+.adoc-asistente-pregunta {
+  align-self: flex-end;
+  max-width: 82%;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+/* «Reintentar», debajo del mensaje de la alerta de error. */
+.adoc-asistente-reintento {
+  margin-top: var(--space-2);
+}
+
+/* Se dejó de esperar: una nota bajo la pregunta y no una alerta, porque no es un
+   error —lo pidió el usuario—. */
+.adoc-asistente-detenido {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* La respuesta: tarjeta clara, ancho completo. No se alinea a la izquierda con un
+   ancho corto porque su contenido no es solo texto —trae tablas y menús—, y una
+   burbuja angosta los rompería. */
+.adoc-asistente-respuesta {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-sunken);
+}
+
+/* El texto sí tiene ancho de lectura; la tabla, que va aparte, usa la tarjeta
+   entera. */
+.adoc-asistente-texto {
+  margin: 0;
+  max-width: 72ch;
+  white-space: pre-wrap;
+}
+
+.adoc-asistente-interpretada {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────── la tabla ──────────────────────────────── */
+
+/* La tabla scrollea DENTRO de su propio marco, en los dos ejes. El envoltorio de la
+   librería trae `overflow: hidden` y la tabla `width: 100%`: con más columnas de
+   las que entran, las de la derecha se recortaban sin aviso antes de que un
+   contenedor externo tuviera qué scrollear. Las dos clases le ganan en
+   especificidad a la regla de la librería sin `!important` ni fork; la clase
+   propia es la que `TablaDeResultado` le pasa al `Table`. */
+.adoc-asistente-tabla .adoc-asistente-tabla-wrap {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+/* `max-content` deja que la tabla sea tan ancha como sus columnas —es lo que le da
+   al marco algo que scrollear—; `min-width: 100%` la mantiene a ancho completo
+   cuando entra. */
+.adoc-asistente-tabla table.adoc-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* La cabecera se queda a la vista mientras las filas scrollean dentro del marco.
+   La librería ya le da fondo, así que las filas no se transparentan debajo. Con
+   bordes colapsados el borde inferior no viaja con la celda pegajosa —es un
+   límite conocido de los navegadores—, y por eso la línea se dibuja como sombra
+   interior. */
+.adoc-asistente-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+
+/* `numeric` de la librería sólo cambia la tipografía —mono, en el tono
+   secundario— y deja `text-align: start`: una columna de cantidades quedaba
+   pegada a la izquierda, con las unidades desalineadas de una fila a otra. Las
+   cifras van a la derecha y en cifras tabulares, para que las columnas de
+   dígitos queden una bajo la otra. La clase del marco adelante le gana a la
+   regla de la librería sin `!important`. */
+.adoc-asistente-tabla td.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La celda que lleva a una pantalla del sistema.
+
+   SE VE COMO ENLACE Y NO COMO BOTÓN: navega, no ejecuta nada, y el subrayado es lo
+   que lo distingue de las celdas de al lado sin agregarle peso a una tabla que ya
+   es densa. El `offset` lo separa de los descendentes para que el número siga
+   siendo legible de un vistazo. */
+.adoc-asistente-vinculo {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.adoc-asistente-vinculo:hover {
+  text-decoration-thickness: 2px;
+}
+
+.adoc-asistente-vinculo:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-sensible {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-inline-start: var(--space-1);
+}
+
+.adoc-asistente-candado {
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.adoc-asistente-leyenda-sensible {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-truncado {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────── opciones y sugerencias ────────────────────────── */
+
+/* Las opciones BLOQUEAN el turno y las sugerencias no: se ven distinto a propósito.
+   Las opciones van en un bloque con barra de acento y botones con marco, una
+   elección pendiente. Las sugerencias —y los ejemplos del inicio— son chips:
+   pastillas sin relleno que se leen como preguntas para probar. */
+.adoc-asistente-opciones ul,
+.adoc-asistente-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Debajo de su título; en el inicio el espacio lo pone el contenedor. */
+.adoc-asistente-opciones ul,
+.adoc-asistente-sugerencias .adoc-asistente-chips {
+  margin-top: var(--space-2);
+}
+
+.adoc-asistente-opciones {
+  border-left: 3px solid var(--color-accent);
+  padding-left: var(--space-3);
+}
+
+/* Pastilla con contorno sutil: el botón fantasma de la librería es transparente y
+   sin borde, y solo se vería como texto suelto. Una pregunta que no entra en la
+   línea se parte en dos renglones en vez de desbordar el hilo; por eso el alto es
+   libre. La clase del panel adelante le gana en especificidad al tamaño de la
+   librería, no con !important. */
+.adoc-asistente .adoc-asistente-chips li > button {
+  max-width: 100%;
+  height: auto;
+  min-height: 28px;
+  padding-block: var(--space-1);
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-pill);
+  white-space: normal;
+  text-align: start;
+}
+
+.adoc-asistente-opciones-titulo,
+.adoc-asistente-sugerencias-titulo {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+}
+
+.adoc-asistente-sugerencias-titulo {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────── el pie ────────────────────────────────── */
+
+/* Lo que se puede desplegar, al pie de la respuesta: cómo se interpretó la pregunta
+   y, con permiso, la consulta. Sólo existe cuando hay algo que desplegar, así que
+   nunca deja un hueco. */
+.adoc-asistente-pie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Las dos disclosures se ven igual: una nota que se abre a pedido, no un control
+   que reclame atención. El marcador nativo se conserva; es la señal de que hay
+   algo plegado. */
+.adoc-asistente-razonamiento summary,
+.adoc-asistente-sql summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-razonamiento summary:focus-visible,
+.adoc-asistente-sql summary:focus-visible {
+  outline: none;
+  border-radius: var(--radius-xs);
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-razonamiento p {
+  margin: var(--space-2) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Fondo elevado y no hundido: va DENTRO de la tarjeta hundida, y con el mismo
+   fondo no se distinguiría. */
+.adoc-asistente-sql pre {
+  margin: var(--space-2) 0 0;
+  overflow-x: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+}
+
+/* «Copiar respuesta» y «Copiar tabla», al pie y siempre a la vista: el hover no
+   existe con el teclado ni con el dedo. Botones fantasma: son acciones de
+   servicio, no la respuesta. */
+.adoc-asistente-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-inline-start: calc(-1 * var(--space-3));
+}
+
+/* ─────────────────────────────── la franja de estado ───────────────────────── */
+
+/* Una sola fila entre el hilo y el campo: el estado y «Dejar de esperar» a la
+   izquierda, lo que costó a la derecha. Casi nunca se ven a la vez —unos mientras
+   se espera, el otro cuando ya llegó—, y en dos filas el campo de entrada saltaba
+   cada vez que una aparecía. El alto mínimo es el de un botón chico de la
+   librería, para que tampoco salte cuando aparece el de dejar de esperar. Los tres
+   siguen FUERA de la región viva. */
+.adoc-asistente-franja {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 28px;
+}
+
+.adoc-asistente-proceso {
+  display: flex;
+  align-items: center;
+  min-height: 1.25rem;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Tres puntos que laten delante de «Consultando…». Son un pseudo-elemento y no
+   texto: el contenido del `role="status"` sigue siendo exactamente ese, que es lo
+   que el lector anuncia y lo que los tests fijan. El dibujo son un punto y dos
+   sombras, para animar los tres desde un solo elemento. */
+.adoc-asistente-proceso > span {
+  --adoc-asistente-punto-tenue: color-mix(in srgb, currentColor 30%, transparent);
+
+  display: inline-flex;
+  align-items: center;
+}
+
+.adoc-asistente-proceso > span::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-inline-end: calc(16px + var(--space-3));
+  border-radius: var(--radius-pill);
+  background-color: currentColor;
+  box-shadow:
+    8px 0 0 var(--adoc-asistente-punto-tenue),
+    16px 0 0 var(--adoc-asistente-punto-tenue);
+  animation: adoc-asistente-latido 1.2s infinite var(--ease-standard);
+}
+
+@keyframes adoc-asistente-latido {
+  0%,
+  100% {
+    background-color: currentColor;
+    box-shadow:
+      8px 0 0 var(--adoc-asistente-punto-tenue),
+      16px 0 0 var(--adoc-asistente-punto-tenue);
+  }
+
+  33% {
+    background-color: var(--adoc-asistente-punto-tenue);
+    box-shadow:
+      8px 0 0 currentColor,
+      16px 0 0 var(--adoc-asistente-punto-tenue);
+  }
+
+  66% {
+    background-color: var(--adoc-asistente-punto-tenue);
+    box-shadow:
+      8px 0 0 var(--adoc-asistente-punto-tenue),
+      16px 0 0 currentColor;
+  }
+}
+
+.adoc-asistente-metricas {
+  margin: 0 0 0 auto;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* ────────────────────────────────── la entrada ─────────────────────────────── */
+
+/* Una grilla de tres columnas —destello, campo, botón— y una segunda fila para el
+   contador, que sólo existe cerca del límite. Con el destello como celda propia
+   ya no hace falta posicionarlo en absoluto ni reservarle relleno: se centra en
+   la fila del campo, no en el formulario entero, así que cuando el contador
+   aparece abajo el destello no se descuelga. */
+.adoc-asistente-entrada {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-entrada:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-destello {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-accent);
+  pointer-events: none;
+}
+
+/* El campo pierde su marco, su sombra y su fondo: el marco ahora es el del
+   contenedor, y dos bordes concéntricos se leen como un error de maquetado. Va con
+   la clase del formulario adelante para ganarle en especificidad al de la
+   librería, no con !important. */
+.adoc-asistente-entrada textarea,
+.adoc-asistente-entrada textarea:focus,
+.adoc-asistente-entrada textarea:focus-visible {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  resize: none;
+  padding: var(--space-2) 0;
+
+  /* La librería le pone un alto mínimo pensado para un campo de formulario. Acá es
+     una línea de chat: arranca en una línea y crece hasta seis, que es donde una
+     pregunta larga sigue entrando sin que el campo se coma la conversación. El
+     tope son seis líneas más el relleno vertical, en `em` para seguir al tamaño
+     de letra del campo. `field-sizing` hace crecer; donde el navegador no lo
+     entiende, `useAltoAutomatico` fija el alto a mano con el mismo tope. */
+  min-height: 0;
+  height: auto;
+  field-sizing: content;
+  max-height: calc(6 * 1.45em + 2 * var(--space-2));
+  line-height: 1.45;
+}
+
+/* «1 850 / 2 000». Debajo del campo y alineado con el botón, en el tono de una
+   nota: informa, no alarma. Cifras tabulares para que no baile a cada tecla. */
+.adoc-asistente-contador {
+  grid-column: 2 / -1;
+  justify-self: end;
+  padding-bottom: var(--space-1);
+  font-size: var(--text-caption-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EL LANZADOR Y EL MODAL
+
+   La conversación es la tarea mientras dura, así que ocupa el centro. Los colores
+   salen del acento del sistema y no de valores propios: el asistente es una parte
+   de la aplicación, no un widget pegado encima.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Mide lo mismo que los botones de ícono de la barra en la que vive. */
+.adoc-asistente-lanzador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-body-sm-size);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adoc-asistente-lanzador:hover {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.adoc-asistente-lanzador:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-lanzador .ico {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Ancho de lectura y no el de un diálogo de confirmación: la tarjeta de respuesta
+   trae tablas, y en los 520 px de la librería casi siempre scrolleaban. */
+.adoc-asistente-modal {
+  max-width: min(880px, calc(100vw - 48px));
+}
+
+/* El `.body` del Modal impone un tamaño y un color secundario pensados para un
+   texto de confirmación. Acá adentro va el mismo panel que en la ruta y se tiene
+   que ver igual: hereda del modal —que ya usa el color primario— y el relleno lo
+   pone el panel. */
+.adoc-asistente-modal .body {
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* EL ALTO LO FIJA EL MODAL Y EL PANEL LO HEREDA. Una sola fuente de verdad, y no
+   es prolijidad: antes el panel llevaba `min(72vh/zoom, 680px)`, calculado EN
+   PARALELO al espacio que el cuerpo del modal realmente tiene —alto del escenario,
+   menos su relleno, menos el encabezado—. Los dos números quedaban a pocos píxeles
+   uno del otro, así que cualquier variación —un encabezado que envuelve, otro zoom
+   del navegador— volcaba el panel por encima del cuerpo.
+
+   Y el cuerpo del Modal de la librería trae `overflow: auto`. Al desbordar por unos
+   píxeles se convertía en el contenedor que atrapa la rueda: con el puntero sobre
+   el campo de entrada, scrollear movía el panel entero y el input se iba de la
+   pantalla. Está reportado y reproducido; la captura muestra el hilo cortado arriba
+   y un vacío debajo del input.
+
+   `overflow: hidden` en el cuerpo es lo que cierra el defecto de raíz: deja de
+   haber un contenedor scrolleable entre el hilo y el diálogo. El único que scrollea
+   es `.adoc-asistente-hilo`, que es lo que uno espera de un chat. */
+/* Va en el MISMO elemento que `.adoc-modal`: `className` del Modal se aplica sobre
+   el diálogo, no sobre un contenedor. Escrito como descendiente no seleccionaba
+   nada y el panel crecía con la conversación. */
+.adoc-asistente-modal {
+  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), 900px);
+}
+
+.adoc-asistente-modal .body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.adoc-asistente-modal .adoc-asistente {
+  height: 100%;
+  padding: var(--space-4) var(--space-5);
+}
+
+/* ─────────────────────────────────── la ruta ───────────────────────────────── */
+
+/* Columna de lectura que llena su contenedor y no lo desborda. Sin esto scrollea
+   `.adoc-main` entero y el campo de entrada se va con la rueda: el defecto que el
+   modal no tiene.
+
+   `height: 100%` y NO una resta de medidas del shell. `.adoc-app` es un grid de
+   alto definido —`calc(100vh / var(--ui-zoom))` con filas `56px 1fr`—, así que
+   `.adoc-main` tiene alto propio y el 100% resuelve contra su caja de contenido,
+   relleno ya descontado. Restar 56, 24 y 48 a mano daba el mismo número hoy y se
+   desajustaba en silencio el día que el shell cambiara cualquiera de los tres:
+   el síntoma sería justamente el input moviéndose, que es difícil de atribuir.
+
+   `min-height: 0` es lo que deja que el hilo absorba la falta de espacio en una
+   ventana baja. Sin él, el mínimo de contenido del hilo infla la columna, la
+   columna desborda `.adoc-main`, y volvemos al input que se va con la rueda. */
+.adoc-asistente-pagina {
+  display: flex;
+  flex-direction: column;
+  max-width: 880px;
+  margin-inline: auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.adoc-asistente-pagina .adoc-asistente {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ───────────────────────────────── pantallas chicas ────────────────────────── */
+
+/* En un teléfono la conversación es la pantalla entera: sin margen, sin borde ni
+   radio, y el panel ocupa todo el alto. `:has` sólo toca el relleno del escenario,
+   y sólo cuando el modal que contiene es éste. */
+@media (max-width: 640px) {
+  .adoc-modal-stage:has(.adoc-asistente-modal) {
+    padding: 0;
+  }
+
+  .adoc-asistente-modal {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  /* El cuerpo se estira para que el panel tenga contra qué medir su 100 %. */
+  .adoc-asistente-modal .body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .adoc-asistente-modal .adoc-asistente {
+    height: 100%;
+    padding: var(--space-3);
+  }
+
+  .adoc-asistente-pregunta {
+    max-width: 92%;
+  }
+
+  /* Los chips y las opciones a ancho completo: en una pantalla angosta, una fila
+     de pastillas que se parte en tres renglones es más difícil de tocar que una
+     lista. El botón de la librería fija alto y una sola línea; acá se le permite
+     crecer. */
+  .adoc-asistente .adoc-asistente-opciones li,
+  .adoc-asistente .adoc-asistente-chips li {
+    flex: 1 1 100%;
+  }
+
+  .adoc-asistente .adoc-asistente-opciones li > button,
+  .adoc-asistente .adoc-asistente-chips li > button {
+    width: 100%;
+    height: auto;
+    min-height: 28px;
+    padding-block: var(--space-1);
+    white-space: normal;
+    text-align: start;
+  }
+}
+
+/* ───────────────────────────────── menos movimiento ────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .adoc-asistente-proceso > span::before {
+    animation: none;
+    box-shadow:
+      8px 0 0 currentColor,
+      16px 0 0 currentColor;
+  }
+
+  .adoc-asistente-ir-al-final {
+    animation: none;
+  }
+}

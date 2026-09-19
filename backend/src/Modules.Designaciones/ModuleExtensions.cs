@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Designaciones.Contracts.Administracion;
+using Modules.Designaciones.Contracts.Queries;
 using Modules.Designaciones.Infrastructure;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
@@ -15,7 +16,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor)
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
@@ -35,6 +36,7 @@ public static class ModuleExtensions
         services.AddScoped<ServicioPeriodos>();
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
+        services.AddScoped<IDesignacionesQueries, ServicioConsultasDesignaciones>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

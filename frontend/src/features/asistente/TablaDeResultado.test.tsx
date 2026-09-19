@@ -1,0 +1,172 @@
+/// <reference types="node" />
+import { describe, it, expect } from "vitest";
+
+import { hojaDeLaFeature } from "./test/hojas";
+import { screen } from "@testing-library/react";
+
+import { TablaDeResultado } from "./components/TablaDeResultado";
+import { montar } from "./test/soporte";
+import type { ColumnaDelResultado } from "./types";
+
+// La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer. Va por
+// `fs` y no por `?raw`: con `css: false` en la config, vitest resuelve cualquier
+// import de un `.css` —también con `?raw`— a una cadena vacía. Los tipos de node
+// se referencian acá y no en el tsconfig de la app, que no los carga.
+const hoja = hojaDeLaFeature();
+
+// ============================================================
+// La tabla de resultados: su marco y la marca de columna sensible.
+//
+// jsdom no calcula layout, así que el scroll dentro del marco no se puede afirmar
+// acá; lo que sí se fija es el contrato mínimo del que depende: la clase propia
+// llega al envoltorio de la librería. Si un bump de @ars-docendi/ui deja de
+// aplicar `className`, este test cae antes de que alguien note que la tabla
+// volvió a recortarse.
+// ============================================================
+
+const COLUMNAS: ColumnaDelResultado[] = [
+  { nombre: "apellido", sensible: false },
+  { nombre: "documento", sensible: true },
+  { nombre: "horas", sensible: false },
+];
+
+const FILAS: unknown[][] = [["Gómez", "28341567", 42]];
+
+describe("El marco de la tabla", () => {
+  it("el envoltorio de la librería lleva la clase propia que sobreescribe el recorte", () => {
+    const { container } = montar(
+      <TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />,
+    );
+
+    expect(container.querySelector(".adoc-table-wrap.adoc-asistente-tabla-wrap")).not.toBeNull();
+  });
+
+  it("las celdas con números usan la variante numérica de la librería", () => {
+    montar(<TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />);
+
+    expect(screen.getByText("42").closest("td")).toHaveClass("num");
+    expect(screen.getByText("Gómez").closest("td")).not.toHaveClass("num");
+  });
+
+  it("las celdas numéricas se alinean a la derecha en la hoja del asistente", () => {
+    // `numeric` de la librería sólo cambia la tipografía y deja `text-align: start`:
+    // una columna de cantidades quedaba pegada a la izquierda. La alineación es
+    // de la hoja, así que se fija como texto: la regla sobre `td.num` dentro del
+    // marco propio, sin `!important`.
+    const sinComentarios = hoja.replace(/\/\*[\s\S]*?\*\//g, "");
+    const regla = sinComentarios.match(/\.adoc-asistente-tabla\s+td\.num\s*\{([^}]*)\}/);
+
+    expect(regla).not.toBeNull();
+    expect(regla?.[1]).toMatch(/text-align:\s*end;/);
+    expect(regla?.[1]).not.toMatch(/!important/);
+  });
+});
+
+describe("La columna sensible", () => {
+  it("se marca y se anuncia; la que no lo es, no", () => {
+    montar(<TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />);
+
+    // El candado es para quien ve; «(dato personal)» para quien escucha. Las dos
+    // cosas en la misma cabecera, para que el lector de pantalla lo diga al pasar
+    // por la columna y no haya que buscar una leyenda aparte.
+    expect(
+      screen.getByRole("columnheader", { name: /documento.*dato personal/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /apellido/i })).not.toHaveAccessibleName(
+      /dato personal/i,
+    );
+
+    expect(screen.getByText(/Las columnas con candado contienen datos personales/)).toBeVisible();
+  });
+
+  it("sin columnas sensibles no hay leyenda", () => {
+    montar(
+      <TablaDeResultado
+        columnas={COLUMNAS.map((columna) => ({ ...columna, sensible: false }))}
+        filas={FILAS}
+        truncado={false}
+      />,
+    );
+
+    expect(screen.queryByText(/columnas con candado/)).toBeNull();
+    expect(screen.queryByText(/dato personal/)).toBeNull();
+  });
+});
+
+// ============================================================
+// Los vínculos: qué celda lleva a una pantalla del sistema.
+//
+// QUÉ CELDAS SON ENLACE NO LO DECIDE LA TABLA. Lo decide el backend contra el
+// módulo dueño del recurso, y por eso acá se prueba lo que la tabla hace con esa
+// decisión: la pinta, la ubica en la celda correcta, y NO la inventa para las de
+// al lado.
+// ============================================================
+
+const TRAMITES: ColumnaDelResultado[] = [
+  { nombre: "numero", sensible: false },
+  { nombre: "estado", sensible: false },
+];
+
+const DOS_TRAMITES: unknown[][] = [
+  ["2026-9005", "devuelto"],
+  ["2026-9006", "en_lote"],
+];
+
+describe("El vínculo de una celda", () => {
+  it("la celda con vínculo es un enlace al detalle y dice a dónde va", () => {
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "pedido-designacion", id: "abc-123" }]}
+      />,
+    );
+
+    // El nombre accesible no es el número solo: «enlace, 2026-9005» no dice a
+    // dónde lleva, y es lo único que oye quien no ve la tabla alrededor.
+    const enlace = screen.getByRole("link", { name: "Ver el trámite 2026-9005" });
+    expect(enlace).toHaveAttribute("href", "/designaciones/pedidos/abc-123");
+  });
+
+  it("las celdas sin vínculo quedan como texto", () => {
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "pedido-designacion", id: "abc-123" }]}
+      />,
+    );
+
+    // ES LA MITAD QUE MUERDE. Sin ella, una tabla que enlazara TODAS las celdas
+    // pasaría el test de arriba: el vínculo llegó para una sola fila y una sola
+    // columna, y el resto del resultado tiene que quedar tal cual.
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByText("2026-9006")).toBeVisible();
+    expect(screen.getByText("devuelto")).toBeVisible();
+  });
+
+  it("un tipo que este cliente no conoce deja la celda como texto", () => {
+    // COMPATIBILIDAD HACIA ADELANTE, y en la dirección que importa: el día que el
+    // backend ofrezca vínculos a perfiles de portal, un cliente viejo no muestra un
+    // enlace roto — muestra el dato, como antes.
+    montar(
+      <TablaDeResultado
+        columnas={TRAMITES}
+        filas={DOS_TRAMITES}
+        truncado={false}
+        vinculos={[{ fila: 0, columna: 0, tipo: "perfil-de-portal", id: "abc-123" }]}
+      />,
+    );
+
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("2026-9005")).toBeVisible();
+  });
+
+  it("sin vínculos la tabla no cambia en nada", () => {
+    montar(<TablaDeResultado columnas={TRAMITES} filas={DOS_TRAMITES} truncado={false} />);
+
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+});
