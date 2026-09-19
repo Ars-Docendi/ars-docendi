@@ -1,0 +1,48 @@
+/* ============================================================
+   Pill de estado de una tarea (`EstadoTareaBadge.tsx`) — mismo patrón
+   visual que `estado-acciones.css` de Designaciones (icono + etiqueta),
+   con un tono "info" adicional para "En curso".
+   ============================================================ */
+
+.adoc-tarea-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+.adoc-tarea-pill svg {
+  width: 12px;
+  height: 12px;
+}
+.adoc-tarea-pill.neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+  border-color: var(--color-border-default);
+}
+.adoc-tarea-pill.info {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-fg);
+  border-color: var(--info-500);
+}
+.adoc-tarea-pill.alerta {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  border-color: var(--warning-500);
+}
+.adoc-tarea-pill.exito {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+  border-color: var(--success-500);
+}
+.adoc-tarea-pill.peligro {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+  border-color: var(--danger-500);
+}

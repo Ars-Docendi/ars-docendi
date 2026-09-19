@@ -1,0 +1,90 @@
+/* ============================================================
+   Listado de tareas (`IndexPage.tsx`) y detalle (`DetalleTareaPage.tsx`).
+   ============================================================ */
+
+.adoc-tareas-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adoc-tareas-filtros-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.adoc-tareas-filtros-fila > .adoc-filtros {
+  flex: 1 1 480px;
+}
+
+.adoc-tareas-config-filtros {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* --- Detalle de tarea --- */
+.adoc-det-tarea {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.adoc-det-tarea-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.adoc-det-tarea-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.adoc-det-tarea-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.adoc-det-tarea-panel {
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+}
+.adoc-det-tarea-panel h2,
+.adoc-det-tarea-panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-det-tarea-panel p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+.adoc-det-tarea-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.adoc-det-tarea-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.adoc-det-tarea-dato dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.adoc-det-tarea-dato dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}

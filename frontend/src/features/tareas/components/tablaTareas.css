@@ -1,0 +1,119 @@
+/* ============================================================
+   Listado de tareas (`TablaTareas.tsx`) — mismo patrón de tabla-grid
+   clickeable que `designaciones/pages/misPedidos.css`.
+   ============================================================ */
+
+.adoc-tt-table {
+  /* Todas las columnas son minmax(mínimo, fr): el espacio sobrante se
+     reparte proporcionalmente entre todas en vez de dejarlo fijo en
+     algunas y ceder el resto a una sola columna flexible — evita que
+     el total de anchos mínimos + gaps supere el ancho disponible y
+     una columna quede en 0. */
+  --tt-cols: minmax(36px, 0.25fr) minmax(220px, 3.5fr) minmax(90px, 1fr) minmax(90px, 1fr)
+    minmax(80px, 0.8fr) minmax(100px, 1fr) minmax(70px, 0.7fr) minmax(70px, 0.7fr)
+    minmax(130px, 1.3fr);
+  overflow-x: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+}
+.adoc-tt-head,
+.adoc-tt-row {
+  display: grid;
+  grid-template-columns: var(--tt-cols);
+  align-items: center;
+  gap: 8px;
+  min-width: 900px;
+}
+.adoc-tt-head {
+  padding: 10px 12px;
+  background: var(--color-bg-canvas);
+  border-bottom: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+}
+.adoc-tt-head span {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.48px;
+  color: var(--color-text-tertiary);
+}
+/* Header clickeable para ordenar por esa columna (alterna asc/desc). */
+.adoc-tt-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.adoc-tt-th:hover,
+.adoc-tt-th--activa {
+  color: var(--color-text-primary);
+}
+.adoc-tt-th-flecha {
+  font-size: 11px;
+}
+.adoc-tt-row {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+.adoc-tt-row:last-child {
+  border-bottom: 0;
+}
+.adoc-tt-row:hover {
+  background: var(--color-bg-canvas);
+}
+.adoc-tt-row:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+/* Semáforo de vencimiento: colorea el fondo de toda la fila, no solo la
+   Fecha Fin — verde (a tiempo) es el caso normal y no se resalta. */
+.adoc-tt-row--por-vencer {
+  background: var(--color-status-warning-bg);
+}
+.adoc-tt-row--por-vencer:hover {
+  background: var(--warning-100);
+}
+.adoc-tt-row--vencida {
+  background: var(--color-status-danger-bg);
+}
+.adoc-tt-row--vencida:hover {
+  background: var(--danger-100);
+}
+.adoc-tt-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.adoc-tt-titulo {
+  overflow: hidden;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-tt-persona {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-tt-fecha,
+.adoc-tt-prioridad,
+.adoc-tt-avance {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.adoc-tt-estado {
+  overflow: hidden;
+}

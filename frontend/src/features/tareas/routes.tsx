@@ -7,5 +7,12 @@ export const routes: RouteObject = {
       index: true,
       lazy: () => import("./pages/IndexPage").then(({ IndexPage }) => ({ Component: IndexPage })),
     },
+    {
+      path: ":id",
+      lazy: () =>
+        import("./pages/DetalleTareaPage").then(({ DetalleTareaPage }) => ({
+          Component: DetalleTareaPage,
+        })),
+    },
   ],
 };
