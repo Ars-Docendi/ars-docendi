@@ -30,17 +30,20 @@ aprueba el deployment.
 
 ### Secrets de repositorio u organización
 
-Las credenciales administrativas pertenecen al servicio SeaweedFS aislado por
-ambiente. Crear estos secrets a nivel de repositorio u organización y
-restringirlos a este repositorio:
+Las credenciales administrativas pertenecen al plano de infraestructura SeaweedFS.
+El mismo root secret puede operar los dos scopes porque prod y no-prod tienen
+proyectos y volúmenes distintos; las aplicaciones nunca reciben esta identidad.
+Crear estos secrets a nivel de repositorio u organización y restringirlos a este
+repositorio:
 
 | Nombre                      | Uso                                   |
 | --------------------------- | ------------------------------------- |
 | `SEAWEEDFS_ROOT_ACCESS_KEY` | identidad administrativa de SeaweedFS |
 | `SEAWEEDFS_ROOT_SECRET_KEY` | secreto de esa identidad              |
 
-El workflow de teardown usa los mismos nombres para eliminar el Compose
-project y el volumen del `pr-N`. No necesita permisos sobre otros ambientes.
+El workflow de teardown usa los mismos nombres para eliminar sólo el bucket y la
+identidad lógica del `pr-N`. No baja el proyecto/volumen SeaweedFS compartido ni
+necesita permisos sobre otros buckets.
 
 ## Migración desde los secretos MinIO
 
@@ -55,7 +58,8 @@ deploy SeaweedFS:
 
 Los workflows no consumen los nombres `MINIO_*`. El valor puede reutilizarse
 como credencial inicial si cumple la política de SeaweedFS; la rotación debe
-hacerse coordinadamente con el redeploy del backend y del storage.
+hacerse coordinadamente con un nuevo provisionamiento de los ambientes que
+usen esas credenciales.
 
 ## Environments `staging` y `prod`
 
@@ -76,6 +80,11 @@ Las siguientes variables/secrets ya existían en esos workflows y no cambian:
 `REGISTRO`, `DOMINIO`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y el password
 de la base de aplicación correspondiente.
 
+Las credenciales de aplicación son independientes por ambiente. `prod` registra
+su identidad en `seaweedfs-prod`; `staging` y cada `pr-N` registran dinámicamente
+la suya en el SeaweedFS compartido `seaweedfs-nonprod`. ClamAV no requiere un
+secret por ambiente: todos consumen el servicio interno `clamav-shared`.
+
 ## Credencial aislada por PR
 
 `pr-env-deploy.yml` genera una credencial de aplicación efímera para cada PR y
@@ -87,8 +96,8 @@ SEAWEEDFS_APP_SECRET_KEY_PR_<N>
 ```
 
 No agregar una credencial de aplicación compartida al Environment
-`pr-preview`: cada `pr-N` tiene su propio Compose project, alias de red, bucket,
-volumen y política S3.
+`pr-preview`: cada `pr-N` tiene su propio bucket e identidad S3, aunque use el
+servicio y volumen no-prod compartidos.
 
 ## Etiqueta y flujo
 
@@ -97,8 +106,9 @@ volumen y política S3.
 3. El workflow recibe el evento `labeled` y pasa el primer gate.
 4. Un reviewer aprueba el deployment en `pr-preview`.
 5. El runner efímero construye y publica las imágenes en el registry.
-6. `spin-up.sh pr-<N>` crea la base, el servicio SeaweedFS, el bucket, las
-   fixtures y publica `https://pr-<N>.<DOMINIO>`.
+6. `spin-up.sh pr-<N>` registra la identidad del PR en el SeaweedFS no-prod
+   compartido, crea el bucket, la base y las fixtures, y publica
+   `https://pr-<N>.<DOMINIO>`.
 
 Los PRs que solo modifican documentación no disparan este workflow debido al
 filtro de paths.

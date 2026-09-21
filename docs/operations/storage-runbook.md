@@ -8,8 +8,15 @@ lados; respaldar solamente PostgreSQL deja referencias sin bytes.
 ## Límites operativos
 
 - SeaweedFS y ClamAV sólo se exponen en la red interna `arsdocendi-datos`.
-- Cada ambiente usa un Compose project, volumen, alias de red, bucket y
-  credencial de aplicación propios: `prod`, `staging` o `pr-N`.
+- Producción usa el proyecto `arsdocendi-storage-prod`, alias
+  `seaweedfs-prod` y volumen `arsdocendi-seaweedfs-data-prod`.
+- `staging` y todos los `pr-N` comparten el proyecto
+  `arsdocendi-storage-nonprod`, alias `seaweedfs-nonprod` y volumen
+  `arsdocendi-seaweedfs-data-shared_nonprod`.
+- Todos los ambientes usan el proyecto `arsdocendi-antivirus-shared`, alias
+  `clamav-shared` y una única instancia ClamAV.
+- Cada ambiente mantiene su bucket y su credencial de aplicación; `purge` y
+  `teardown` sólo pueden eliminar el bucket/identidad del ambiente descartable.
 - Las credenciales se inyectan en runtime. No escribirlas en este documento,
   archivos `.env` versionados, comandos persistidos en tickets ni imágenes.
 - `staging` y `pr-N` son descartables y contienen datos sintéticos; no se
@@ -32,6 +39,7 @@ SEAWEEDFS_ROOT_ACCESS_KEY                  # admin S3 para infra/backup/restore
 SEAWEEDFS_ROOT_SECRET_KEY                  # admin S3 para infra/backup/restore
 SEAWEEDFS_APP_ACCESS_KEY / SECRET_KEY      # credencial del backend, no del backup
 SEAWEEDFS_BUCKET_PREFIX                    # opcional; default: arsdocendi
+STORAGE_SCOPE                              # prod o shared_nonprod, calculado por scripts
 PGHOST PGPORT PGUSER PGPASSWORD            # admin PostgreSQL
 PGDATABASE                                 # opcional; default: arsdocendi_<ambiente>
 APP_DB_USER APP_DB_PASSWORD                # restore descartable
@@ -70,13 +78,16 @@ seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KE
 seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
   s3api list-objects-v2 --bucket "$bucket" --max-items 5
 
-docker compose -p "arsdocendi-storage-${AMBIENTE//-/_}" ps
+docker compose -p "$(storage_project_for "$AMBIENTE")" ps
+docker compose -p "$(antivirus_project)" ps
 ```
 
-Si falla `head-bucket`, revisar el contenedor SeaweedFS, el volumen
-`arsdocendi-seaweedfs-data-${AMBIENTE//-/_}` y la red interna. Si falla sólo
-el bucket, no crearlo manualmente en producción sin registrar el incidente:
-revisar primero el provisionamiento del ambiente.
+Si falla `head-bucket`, revisar el contenedor SeaweedFS, el proyecto
+`$(storage_project_for "$AMBIENTE")`, el volumen correspondiente a
+`$(storage_scope_suffix_for "$AMBIENTE")`, el proyecto
+`$(antivirus_project)` y la red interna. Si falla sólo el bucket, no crearlo
+manualmente en producción sin registrar el incidente: revisar primero el
+provisionamiento del ambiente.
 
 ## Backup verificable
 
@@ -155,8 +166,9 @@ Revisar semanalmente:
 ```bash
 df -h /var/lib/docker
 docker system df
-docker volume inspect "arsdocendi-seaweedfs-data-${AMBIENTE//-/_}"
-docker compose -p "arsdocendi-storage-${AMBIENTE//-/_}" ps
+docker volume inspect "arsdocendi-seaweedfs-data-$(storage_scope_suffix_for "$AMBIENTE")"
+docker compose -p "$(storage_project_for "$AMBIENTE")" ps
+docker compose -p "$(antivirus_project)" ps
 ```
 
 Alertar antes de alcanzar 70% de uso del volumen; planificar expansión o

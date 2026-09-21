@@ -19,21 +19,22 @@ compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 log_warn msg="teardown iniciado" ambiente="$ambiente"
 
-# 1. Contenedores + volúmenes del ambiente (idempotente: down no falla si no hay nada).
-#    --env-file no es necesario para `down`, pero compose pide las vars del archivo;
-#    se pasan placeholders inertes para que `down` resuelva sin errores.
+# 1. Contenedores + volúmenes de la aplicación del ambiente.
+#    El storage híbrido se conserva; purge-storage.sh elimina sólo el bucket y
+#    la identidad del ambiente descartable.
 docker compose -p "$ambiente" \
   -f "$compose_file" \
   --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\n' "$ambiente") \
   down -v --remove-orphans || log_warn msg="compose down no encontró el project (ok, idempotente)" ambiente="$ambiente"
 
-# El almacenamiento SeaweedFS es propio de cada ambiente y se destruye con purge-storage.sh.
+# 2. Bucket e identidad del ambiente en SeaweedFS. Los proyectos/volúmenes
+#    compartidos no se destruyen.
 "$scripts_dir/purge-storage.sh" "$ambiente"
 
-# 2. Base del ambiente (drop-db es idempotente y valida que no sea prod).
+# 3. Base del ambiente (drop-db es idempotente y valida que no sea prod).
 "$scripts_dir/drop-db.sh" "$ambiente"
 
-# 3. Rol exclusivo del ambiente. El nombre se deriva del ambiente igual que en CI,
+# 4. Rol exclusivo del ambiente. El nombre se deriva del ambiente igual que en CI,
 #    por lo que teardown no acepta un rol arbitrario como objetivo destructivo.
 rol="app_${ambiente//-/_}"
 psql_admin --set=app_db_user="$rol" <<'SQL'

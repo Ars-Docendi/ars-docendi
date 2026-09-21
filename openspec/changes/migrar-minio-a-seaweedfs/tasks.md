@@ -13,17 +13,17 @@
 
 ## 3. Compose y operación del almacenamiento
 
-- [x] 3.1 Reemplazar `compose.storage.yml` por servicios SeaweedFS/ClamAV persistentes, internos y sin publicación en Traefik; verificar `docker compose config`, volumen nuevo, red `arsdocendi-datos` y ausencia de puertos públicos.
+- [x] 3.1 Reemplazar `compose.storage.yml` por SeaweedFS dedicado para prod, SeaweedFS compartido para staging/pr-N y un `compose.antivirus.yml` con ClamAV compartido; verificar proyectos, volúmenes, aliases de red, healthchecks y ausencia de puertos públicos.
 - [x] 3.2 Reemplazar `mc` y `mc admin` por AWS CLI contra S3/SeaweedFS; verificar provisionamiento idempotente, operaciones S3 y rechazo de operaciones destructivas sobre `prod`.
 - [x] 3.3 Renombrar variables y secretos específicos de MinIO a nombres SeaweedFS/neutrales y actualizar `.env.example`, workflows y documentación; verificar que no queden referencias operativas obsoletas fuera del change histórico.
-- [x] 3.4 Actualizar `spin-up.sh`, `teardown.sh` y el reprovisionamiento de ambientes para crear buckets y fixtures desde cero; verificar reset y cleanup completo de un preview descartable.
+- [x] 3.4 Actualizar `spin-up.sh`, `teardown.sh` y el reprovisionamiento para registrar identidades dinámicas por ambiente; verificar que purge/teardown eliminen sólo bucket e identidad del preview y preserven los servicios compartidos.
 - [x] 3.5 Actualizar backup y restore para el endpoint S3 de SeaweedFS; verificar una restauración operativa completa de objetos y metadata en un entorno descartable con comparación de SHA-256, tamaño, content type y metadata S3.
 
 ## 4. Tests de integración
 
 - [x] 4.1 Reemplazar `Testcontainers.Minio` por un contenedor SeaweedFS genérico con healthcheck, persistencia temporal y configuración de credenciales; verificar arranque y destrucción del fixture.
 - [x] 4.2 Adaptar los tests de almacenamiento a SeaweedFS y conservar cobertura de carga, confirmación, hash, MIME, antivirus, autorización, asociación, descarga, reemplazo y limpieza; verificar 11/11 tests.
-- [x] 4.3 Verificar aislamiento negativo entre buckets y credenciales, y reinicio limpio sin objetos previos; confirmar que no se descargue metadata sin objeto ni se acceda a otro ambiente.
+- [x] 4.3 Verificar aislamiento negativo entre buckets y credenciales en el SeaweedFS compartido no-prod, y reinicio dedicado de prod; confirmar que purge/teardown de un ambiente no accedan ni eliminen otro ambiente.
 - [x] 4.4 Ejecutar la suite backend completa y las pruebas frontend relacionadas con adjuntos; verificar 169/169 tests backend y 246/246 tests frontend, además de lint y build frontend.
 
 ## 5. Documentación y validación final

@@ -57,14 +57,43 @@ IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
 SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882}"
 AWS_CLI_IMAGE="${AWS_CLI_IMAGE:-amazon/aws-cli@sha256:406f8b70a2b145be023df0d26088b796e36c4b8664b3bb00e037bfc2eb54561d}"
 
+storage_scope_for() {
+  local ambiente="$1"
+  if [[ "$ambiente" == "prod" ]]; then
+    printf 'prod'
+  else
+    printf 'shared-nonprod'
+  fi
+}
+
+storage_scope_suffix_for() {
+  printf '%s' "$(storage_scope_for "$1")" | tr '-' '_'
+}
+
+storage_project_for() {
+  local ambiente="$1"
+  if [[ "$ambiente" == "prod" ]]; then
+    printf 'arsdocendi-storage-prod'
+  else
+    printf 'arsdocendi-storage-nonprod'
+  fi
+}
+
+antivirus_project() {
+  printf 'arsdocendi-antivirus-shared'
+}
+
 seaweedfs_host_for() {
   local ambiente="$1"
-  printf 'seaweedfs-%s' "$ambiente"
+  if [[ "$ambiente" == "prod" ]]; then
+    printf 'seaweedfs-prod'
+  else
+    printf 'seaweedfs-nonprod'
+  fi
 }
 
 clamav_host_for() {
-  local ambiente="$1"
-  printf 'clamav-%s' "$ambiente"
+  printf 'clamav-shared'
 }
 
 seaweedfs_app_access_for() {
@@ -72,9 +101,32 @@ seaweedfs_app_access_for() {
   printf 'app_%s' "${ambiente//-/_}"
 }
 
+seaweedfs_app_user_for() {
+  seaweedfs_app_access_for "$1"
+}
+
 seaweedfs_app_secret_for() {
   local ambiente="$1" root_secret="$2"
   printf 'arsdocendi/seaweedfs/%s:%s' "$ambiente" "$root_secret" | sha256sum | cut -d' ' -f1
+}
+
+# Ejecuta comandos administrativos de SeaweedFS dentro del contenedor activo.
+# La salida puede contener credenciales; los consumidores deben redirigirla.
+seaweedfs_shell() {
+  local container_id="$1" command="$2"
+  printf '%s\n' "$command" | docker exec -i "$container_id" weed shell
+}
+
+seaweedfs_configure_app() {
+  local container_id="$1" access_key="$2" secret_key="$3" bucket="$4"
+  seaweedfs_shell "$container_id" \
+    "s3.configure -access_key=$access_key -secret_key=$secret_key -user=$access_key -buckets=$bucket -actions=Read,Write,List,Tagging -apply"
+}
+
+seaweedfs_remove_app() {
+  local container_id="$1" access_key="$2"
+  seaweedfs_shell "$container_id" \
+    "s3.configure -access_key=$access_key -user=$access_key -delete -apply"
 }
 
 # Ejecuta AWS CLI contra el endpoint S3 privado sin exponerlo al host.

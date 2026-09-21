@@ -12,8 +12,8 @@ La migración no requiere conservar los objetos actuales: los ambientes podrán 
 - Mantener el flujo actual de carga y descarga mediado por el backend; no introducir en este change una migración adicional a URLs presignadas reales.
 - Reemplazar el Compose, volumen, healthcheck, provisionamiento de buckets, credenciales, políticas, seed, teardown y backup específicos de MinIO.
 - Usar configuración y nombres de secretos neutrales al proveedor, inyectados en runtime y separados por ambiente.
-- Conservar un bucket lógico por ambiente y el aislamiento de producción, staging y previews.
-- Arrancar los ambientes con un volumen SeaweedFS nuevo; no implementar copia, dual-write ni reconciliación de objetos MinIO existentes.
+- Mantener un bucket lógico y una credencial por ambiente, con SeaweedFS dedicado para prod, SeaweedFS compartido para staging/pr-N y ClamAV compartido para todos.
+- Arrancar prod y el pool no-productivo con volúmenes SeaweedFS nuevos; no implementar copia, dual-write ni reconciliación de objetos MinIO existentes.
 - Actualizar los tests de integración para ejecutar contra SeaweedFS efímero y conservar la cobertura actual de almacenamiento.
 - Actualizar runbooks, documentación de arquitectura y workflows de CI/CD.
 - **BREAKING para operación:** los nombres de secretos, la imagen del servicio y el volumen de almacenamiento cambiarán; ningún cambio rompe los contratos HTTP de Designaciones o Portal.

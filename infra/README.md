@@ -14,7 +14,9 @@ Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Reemplaza el modelo vie
 infra/
 ├── compose/
 │   ├── compose.base.yml      # definición de servicios (frontend+backend), parametrizada
-│   └── .env.example          # variables de UN ambiente
+│   ├── compose.storage.yml   # SeaweedFS prod o pool compartido no-prod
+│   ├── compose.antivirus.yml # ClamAV compartido por todos los ambientes
+│   └── .env.example          # variables de un ambiente
 ├── traefik/
 │   ├── traefik.yml           # config estática (entrypoints, docker provider, sin ACME)
 │   ├── dynamic/headers-seguridad.yml
