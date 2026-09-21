@@ -1,28 +1,62 @@
-# Almacenamiento privado común a los ambientes
-# No publica puertos, no usa la red de Traefik y solo se une a arsdocendi-datos.
+# Almacenamiento privado aislado por ambiente.
+# Cada proyecto crea su propio SeaweedFS y ClamAV sobre la red de datos externa.
+# No se publican puertos ni se conecta a la red de Traefik.
 services:
-  minio:
-    image: quay.io/minio/minio:latest
+  seaweedfs:
+    image: ${SEAWEEDFS_IMAGE}
     restart: unless-stopped
-    command: server /data --address ":9000" --console-address ":9001"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        escape_json() { printf '%s' "$$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+        root_access="$$(escape_json "$${SEAWEEDFS_ROOT_ACCESS_KEY}")"
+        root_secret="$$(escape_json "$${SEAWEEDFS_ROOT_SECRET_KEY}")"
+        app_access="$$(escape_json "$${SEAWEEDFS_APP_ACCESS_KEY}")"
+        app_secret="$$(escape_json "$${SEAWEEDFS_APP_SECRET_KEY}")"
+        bucket="$$(escape_json "$${SEAWEEDFS_BUCKET}")"
+        cat >/tmp/s3.json <<EOF
+        {
+          "identities": [
+            {
+              "name": "admin",
+              "credentials": [{ "accessKey": "$${root_access}", "secretKey": "$${root_secret}" }],
+              "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+            },
+            {
+              "name": "app",
+              "credentials": [{ "accessKey": "$${app_access}", "secretKey": "$${app_secret}" }],
+              "actions": ["Read:$${bucket}/*", "List:$${bucket}/*", "Write:$${bucket}/*"]
+            }
+          ]
+        }
+        EOF
+        exec weed mini -dir=/data -s3 -s3.config=/tmp/s3.json -master.telemetry=false
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${SEAWEEDFS_ROOT_ACCESS_KEY}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${SEAWEEDFS_ROOT_SECRET_KEY}
+      SEAWEEDFS_APP_ACCESS_KEY: ${SEAWEEDFS_APP_ACCESS_KEY}
+      SEAWEEDFS_APP_SECRET_KEY: ${SEAWEEDFS_APP_SECRET_KEY}
+      SEAWEEDFS_BUCKET: ${SEAWEEDFS_BUCKET}
     volumes:
-      - minio-data:/data
+      - seaweedfs-data:/data
     networks:
-      - red-datos
+      red-datos:
+        aliases:
+          - ${SEAWEEDFS_HOSTNAME}
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status"]
       interval: 10s
       timeout: 5s
-      retries: 12
+      retries: 30
+      start_period: 10s
 
   clamav:
     image: clamav/clamav:1.4
     restart: unless-stopped
     networks:
-      - red-datos
+      red-datos:
+        aliases:
+          - ${CLAMAV_HOSTNAME}
     healthcheck:
       test: ["CMD", "clamdscan", "--ping", "1"]
       interval: 10s
@@ -31,8 +65,8 @@ services:
       start_period: 30s
 
 volumes:
-  minio-data:
-    name: arsdocendi-minio-data
+  seaweedfs-data:
+    name: arsdocendi-seaweedfs-data-${STORAGE_SUFFIX}
 
 networks:
   red-datos:

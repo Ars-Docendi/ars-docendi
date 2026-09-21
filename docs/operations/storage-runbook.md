@@ -1,20 +1,24 @@
 # Runbook de almacenamiento de archivos
 
 Este runbook describe la operación del almacenamiento privado de archivos de
-Ars Docendi. Los bytes viven en MinIO y la metadata, estados y asociaciones viven
-en PostgreSQL. Una restauración válida debe recuperar ambos lados.
+Ars Docendi. Los bytes viven en SeaweedFS mediante su API S3 y la metadata,
+estados y asociaciones viven en PostgreSQL. Un backup válido recupera ambos
+lados; respaldar solamente PostgreSQL deja referencias sin bytes.
 
 ## Límites operativos
 
-- MinIO y ClamAV solo se exponen en la red interna `arsdocendi-datos`.
-- Cada ambiente usa un bucket propio: `arsdocendi-prod`, `arsdocendi-staging` o
-  `arsdocendi-pr-N`.
+- SeaweedFS y ClamAV sólo se exponen en la red interna `arsdocendi-datos`.
+- Cada ambiente usa un Compose project, volumen, alias de red, bucket y
+  credencial de aplicación propios: `prod`, `staging` o `pr-N`.
 - Las credenciales se inyectan en runtime. No escribirlas en este documento,
   archivos `.env` versionados, comandos persistidos en tickets ni imágenes.
 - `staging` y `pr-N` son descartables y contienen datos sintéticos; no se
-  respaldan como ambientes de recuperación.
-- Nunca ejecutar `purge-storage.sh`, `teardown.sh` ni `mc rb --force` contra
-  producción.
+  respaldan como ambientes de recuperación institucional.
+- Nunca ejecutar `purge-storage.sh`, `teardown.sh` ni `restore-storage.sh`
+  contra producción. El último script rechaza `prod` por diseño.
+- La credencial administrativa de SeaweedFS sólo se usa para provisionamiento,
+  backup y restore descartable. El backend recibe exclusivamente la credencial
+  de aplicación del ambiente.
 
 ## Variables requeridas
 
@@ -23,113 +27,126 @@ operación. Los valores no deben aparecer en logs ni en el historial del shell:
 
 ```text
 AMBIENTE
-MINIO_ROOT_USER
-MINIO_ROOT_PASSWORD
-MINIO_APP_ACCESS_KEY / MINIO_APP_SECRET_KEY  # opcionales; prod/staging se derivan
-MINIO_BUCKET_PREFIX   # opcional; default: arsdocendi
-RED_DATOS             # opcional; default: arsdocendi-datos
-PGHOST PGPORT PGUSER PGPASSWORD
-PGDATABASE
+RED_DATOS                                  # opcional; default: arsdocendi-datos
+SEAWEEDFS_ROOT_ACCESS_KEY                  # admin S3 para infra/backup/restore
+SEAWEEDFS_ROOT_SECRET_KEY                  # admin S3 para infra/backup/restore
+SEAWEEDFS_APP_ACCESS_KEY / SECRET_KEY      # credencial del backend, no del backup
+SEAWEEDFS_BUCKET_PREFIX                    # opcional; default: arsdocendi
+PGHOST PGPORT PGUSER PGPASSWORD            # admin PostgreSQL
+PGDATABASE                                 # opcional; default: arsdocendi_<ambiente>
+APP_DB_USER APP_DB_PASSWORD                # restore descartable
 ```
+
+### Migración de secretos GitHub
+
+Los workflows versionados ya consumen los nombres nuevos. En cada GitHub
+Environment (`prod`, `staging` y `pr-preview` cuando corresponda), reemplazar:
+
+| Secreto actual        | Secreto requerido           | Uso                          |
+| --------------------- | --------------------------- | ---------------------------- |
+| `MINIO_ROOT_USER`     | `SEAWEEDFS_ROOT_ACCESS_KEY` | access key administrativa S3 |
+| `MINIO_ROOT_PASSWORD` | `SEAWEEDFS_ROOT_SECRET_KEY` | secret key administrativa S3 |
+
+El valor actual puede reutilizarse como valor inicial de la identidad S3 si
+cumple la política institucional de longitud y rotación. No se deben conservar
+los nombres `MINIO_*` en los workflows después del corte. Las credenciales del
+backend (`ALMACENAMIENTO_ACCESS_KEY` y `ALMACENAMIENTO_SECRET_KEY`) son distintas
+y no deben apuntar a la identidad administrativa.
+
+La rotación recomendada es: crear los dos secretos nuevos, ejecutar un deploy
+controlado, verificar provisionamiento y backup, y recién entonces eliminar los
+dos secretos antiguos. No publicar valores en logs ni en comentarios de PR.
 
 ## Verificación de salud
 
-Ejecutar desde el host de infraestructura:
-
 ```bash
+source infra/scripts/_comun.sh
 network="${RED_DATOS:-arsdocendi-datos}"
-bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${AMBIENTE}"
+bucket="${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${AMBIENTE}"
+storage_host="$(seaweedfs_host_for "$AMBIENTE")"
 
-# La imagen quay.io/minio/mc ya trae `mc` como entrypoint. Configurar el alias
-# con las credenciales separadas evita romper el parsing de passwords con
-# caracteres reservados de URI.
-mc_privado() {
-  docker run --rm -i --network "$network" \
-    --entrypoint /bin/sh \
-    -e "MINIO_MC_ACCESS_KEY=$MINIO_ROOT_USER" \
-    -e "MINIO_MC_SECRET_KEY=$MINIO_ROOT_PASSWORD" \
-    quay.io/minio/mc:latest \
-    -c 'set -eu
-      mc alias set local http://minio:9000 "$MINIO_MC_ACCESS_KEY" "$MINIO_MC_SECRET_KEY" >/dev/null
-      exec mc "$@"' \
-    arsdocendi-runbook "$@"
-}
+seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
+  s3api head-bucket --bucket "$bucket"
+seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
+  s3api list-objects-v2 --bucket "$bucket" --max-items 5
 
-mc_privado ready local
-mc_privado ls "local/$bucket"
+docker compose -p "arsdocendi-storage-${AMBIENTE//-/_}" ps
 ```
 
-Si falla `mc ready`, revisar el contenedor MinIO, el volumen
-`arsdocendi-minio-data` y la red interna. Si falla solo el bucket, no crearlo
-manualmente en producción sin registrar el incidente: revisar primero el
-provisionamiento del ambiente.
+Si falla `head-bucket`, revisar el contenedor SeaweedFS, el volumen
+`arsdocendi-seaweedfs-data-${AMBIENTE//-/_}` y la red interna. Si falla sólo
+el bucket, no crearlo manualmente en producción sin registrar el incidente:
+revisar primero el provisionamiento del ambiente.
 
-## Backup de producción
+## Backup verificable
 
-### Metadata PostgreSQL
+El procedimiento versionado es `infra/scripts/backup-storage.sh`. Genera un
+directorio autocontenido con:
 
-Respaldar la base completa del ambiente, incluyendo schemas `storage`, `portal`,
-`designaciones`, `identity` y `audit`:
+- `postgres.dump`: dump custom de la base del ambiente;
+- `objects/`: bytes descargados desde SeaweedFS;
+- `manifest.json`: bucket, base, claves de objeto, tamaño, ETag, content type,
+  metadata S3 y SHA-256 por objeto;
+- `checksums.sha256`: SHA-256 de todos los artefactos.
+
+Ejemplo para producción, desde el nodo de infraestructura:
 
 ```bash
-pg_dump --format=custom --no-owner --file="/secure/backups/${PGDATABASE}-$(date -u +%Y%m%dT%H%M%SZ).dump" "$PGDATABASE"
+export AMBIENTE=prod
+export PGDATABASE=arsdocendi_prod
+infra/scripts/backup-storage.sh prod \
+  "/secure/backups/arsdocendi/prod/$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
-El archivo debe cifrarse antes de salir del nodo y conservarse según la política
-aprobada por UNLaM: 7 respaldos diarios, 4 semanales y 6 mensuales. El backup
-no se considera completo si solo incluye PostgreSQL.
+El destino debe estar cifrado antes de salir del nodo y conservarse según la
+política aprobada por UNLaM: 7 respaldos diarios, 4 semanales y 6 mensuales. El
+backup no se considera completo si sólo incluye PostgreSQL o sólo objetos.
 
-### Objetos MinIO
-
-Usar un destino de backup cifrado y fuera del volumen operativo. `mc mirror`
-debe ejecutarse con una identidad de backup con permisos de lectura, no con la
-credencial de la aplicación:
-
-```bash
-backup="/secure/backups/minio/${AMBIENTE}/$(date -u +%Y%m%dT%H%M%SZ)"
-mkdir -p "$backup"
-
-# El job institucional inyecta las credenciales y configura el alias `local`
-# dentro de un contenedor temporal; no escribirlas en un script.
-docker run --rm --network "$network" \
-  -v "$backup:/backup" quay.io/minio/mc:latest \
-  mirror --overwrite "local/$bucket" /backup
-```
-
-En producción, el job de backup debe configurar el alias dentro del mismo
-contenedor, inyectar secretos desde el gestor institucional y cifrar el destino.
-El comando anterior muestra la operación de copia, no una autorización para
-pegar secretos en la terminal compartida.
-
-Registrar: ambiente, bucket, instante UTC, cantidad de objetos, tamaño total,
-hash del artefacto de backup y ubicación cifrada. No registrar claves de objeto
-si pueden contener información sensible.
+El job debe registrar únicamente ambiente, instante UTC, cantidad de objetos,
+tamaño total, SHA-256 del dump/manifiesto y ubicación cifrada. No registrar
+claves de objetos si pueden contener información sensible.
 
 ## Restore y prueba de recuperación
 
-La restauración se realiza primero en un ambiente descartable:
+`infra/scripts/restore-storage.sh` sólo permite `staging` y `pr-N`. Destruye y
+recrea la base destino descartable, exige un bucket vacío, verifica primero
+`checksums.sha256`, restaura PostgreSQL y después repone cada objeto mediante
+S3. Para cada objeto comprueba SHA-256 y tamaño; también repone content type y
+metadata S3 presentes en el manifiesto.
 
-1. Crear una base vacía y un bucket vacío para el ambiente de prueba.
-2. Restaurar PostgreSQL con `pg_restore`.
-3. Restaurar los objetos del backup mediante `mc mirror --overwrite`.
-4. Ejecutar las migraciones pendientes; no ejecutar seed productivo.
-5. Verificar que cada fila `storage.archivos` en estado `disponible` tenga su
-   objeto en el bucket correcto.
-6. Descargar una muestra de PDF e imagen mediante la API autenticada.
-7. Comparar SHA-256 calculado contra `storage.archivos.sha256`.
-8. Verificar que una fila legacy sin `archivo_id` no genere una descarga falsa.
-9. Registrar duración, objetos restaurados, filas restauradas y discrepancias.
-
-Ejemplo de restauración de metadata:
+Ejemplo de drill mensual en un ambiente descartable:
 
 ```bash
-pg_restore --exit-on-error --no-owner --dbname="$PGDATABASE" \
-  /secure/backups/arsdocendi-prod-<timestamp>.dump
+export RED_DATOS=arsdocendi-datos
+export PGHOST=arsdocendi-postgres
+export PGPORT=5432
+export PGUSER=postgres
+export PGPASSWORD='[inyectar desde el gestor seguro]'
+export APP_DB_USER=app_pr_123
+export APP_DB_PASSWORD='[inyectar desde el gestor seguro]'
+export SEAWEEDFS_ROOT_ACCESS_KEY='[inyectar desde el gestor seguro]'
+export SEAWEEDFS_ROOT_SECRET_KEY='[inyectar desde el gestor seguro]'
+
+infra/scripts/provision-db.sh pr-123
+infra/scripts/provision-storage.sh pr-123
+infra/scripts/restore-storage.sh pr-123 \
+  /secure/backups/arsdocendi/prod/<timestamp>
 ```
 
+Después del restore:
+
+1. ejecutar migraciones compatibles si el despliegue lo requiere;
+2. consultar una fila de `storage.archivos` en estado `disponible`;
+3. descargar una muestra de PDF e imagen mediante la API autenticada;
+4. comparar el SHA-256 descargado con `storage.archivos.sha256`;
+5. confirmar que `Content-Type` y metadata S3 coincidan con el manifiesto;
+6. verificar que una fila legacy sin `archivo_id` no genere una descarga falsa;
+7. registrar duración, objetos restaurados, filas restauradas y discrepancias;
+8. destruir el ambiente descartable con `teardown.sh` cuando termine el drill.
+
 No restaurar directamente sobre producción como primera prueba. Una
-restauración sobre producción requiere una ventana aprobada, backup previo y
-plan explícito de rollback.
+restauración productiva requiere ventana aprobada, backup previo y plan de
+rollback explícito.
 
 ## Capacidad y retención
 
@@ -138,9 +155,8 @@ Revisar semanalmente:
 ```bash
 df -h /var/lib/docker
 docker system df
-
-docker run --rm --network "$network" quay.io/minio/mc:latest \
-  admin info local
+docker volume inspect "arsdocendi-seaweedfs-data-${AMBIENTE//-/_}"
+docker compose -p "arsdocendi-storage-${AMBIENTE//-/_}" ps
 ```
 
 Alertar antes de alcanzar 70% de uso del volumen; planificar expansión o
@@ -150,21 +166,22 @@ de retención y `LimpiarAsync`, preservando todo archivo asociado.
 
 ## Recuperación ante incidente
 
-- **MinIO no disponible:** mantener cargas nuevas fuera de servicio o en error
-  recuperable; no marcar archivos como `disponible` manualmente.
+- **SeaweedFS no disponible:** mantener cargas nuevas fuera de servicio o en
+  error recuperable; no marcar archivos como `disponible` manualmente.
 - **ClamAV no disponible:** en producción `RechazarSiAntivirusNoDisponible`
   debe estar habilitado. Los archivos quedan rechazados, no publicados.
 - **Objeto ausente con metadata disponible:** conservar la fila para auditoría,
   registrar la discrepancia y restaurar desde backup; no inventar bytes.
 - **Metadata ausente con objeto presente:** no publicar el objeto; aislarlo,
-  identificar el ambiente y resolverlo con el procedimiento de reconciliación.
-- **Pérdida de volumen:** restaurar PostgreSQL y MinIO como una unidad lógica y
-  repetir la prueba de hash antes de abrir el ambiente.
+  identificar el ambiente y resolverlo con reconciliación.
+- **Pérdida de volumen:** restaurar PostgreSQL y SeaweedFS como una unidad
+  lógica y repetir la prueba de hash antes de abrir el ambiente.
+- **Aislamiento fallido:** detener el backend afectado, rotar su credencial y
+  verificar que una credencial de ambiente no pueda leer el bucket de otro.
 
 ## Evidencia requerida
 
 Cada backup o restore debe dejar un registro operativo con fecha UTC, ambiente,
-operador o job, artefactos usados, conteos, resultado de la muestra de descarga
-y cualquier discrepancia. Este runbook documenta el procedimiento; la prueba
-manual de recuperación sigue siendo un gate operativo pendiente hasta que se
-realice en infraestructura descartable.
+operador o job, artefactos usados, conteos, SHA-256, resultado de la muestra de
+descarga y cualquier discrepancia. La prueba ejecutada en un entorno descartable
+debe conservar su manifiesto y resumen sin conservar secretos.

@@ -127,7 +127,7 @@ descargables. Todas las tablas tienen `created_at` y `audit.attach`.
 
 ### Storage (`schema: storage`)
 
-`storage.archivos` es dueño de la metadata de los bytes que viven en MinIO:
+`storage.archivos` es dueño de la metadata de los bytes que viven en SeaweedFS mediante S3:
 
 | Columna                                                                         | Función                                                                 |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |

@@ -30,32 +30,47 @@ aprueba el deployment.
 
 ### Secrets de repositorio u organización
 
-Las credenciales root pertenecen al servicio MinIO común, no a una base
-individual. Crear estos secrets a nivel de repositorio u organización y
+Las credenciales administrativas pertenecen al servicio SeaweedFS aislado por
+ambiente. Crear estos secrets a nivel de repositorio u organización y
 restringirlos a este repositorio:
 
-| Nombre                | Uso                             |
-| --------------------- | ------------------------------- |
-| `MINIO_ROOT_USER`     | usuario root del MinIO privado  |
-| `MINIO_ROOT_PASSWORD` | password root del MinIO privado |
+| Nombre                      | Uso                                   |
+| --------------------------- | ------------------------------------- |
+| `SEAWEEDFS_ROOT_ACCESS_KEY` | identidad administrativa de SeaweedFS |
+| `SEAWEEDFS_ROOT_SECRET_KEY` | secreto de esa identidad              |
 
-El workflow de teardown usa estos mismos secrets porque corre fuera del
-Environment `pr-preview` y necesita purgar únicamente el bucket `pr-N`.
+El workflow de teardown usa los mismos nombres para eliminar el Compose
+project y el volumen del `pr-N`. No necesita permisos sobre otros ambientes.
 
-### Environments `staging` y `prod`
+## Migración desde los secretos MinIO
 
-No necesitan secrets de aplicación MinIO adicionales. Los scripts derivan de
-forma estable, usando las credenciales root y el nombre del ambiente:
+Si el repositorio todavía tiene estos secretos, renombrarlos en cada scope
+relevante —`prod`, `staging`, `pr-preview` o repository/org— antes del primer
+deploy SeaweedFS:
+
+| Nombre anterior       | Nombre nuevo                |
+| --------------------- | --------------------------- |
+| `MINIO_ROOT_USER`     | `SEAWEEDFS_ROOT_ACCESS_KEY` |
+| `MINIO_ROOT_PASSWORD` | `SEAWEEDFS_ROOT_SECRET_KEY` |
+
+Los workflows no consumen los nombres `MINIO_*`. El valor puede reutilizarse
+como credencial inicial si cumple la política de SeaweedFS; la rotación debe
+hacerse coordinadamente con el redeploy del backend y del storage.
+
+## Environments `staging` y `prod`
+
+No necesitan secrets de aplicación SeaweedFS adicionales. Los scripts derivan
+de forma estable, usando la credencial administrativa y el nombre del ambiente:
 
 | Ambiente  | Access key derivada |
 | --------- | ------------------- |
 | `staging` | `app_staging`       |
 | `prod`    | `app_prod`          |
 
-El secret generado se deriva de `MINIO_ROOT_PASSWORD` y del ambiente, por lo
-que las reejecuciones conservan la misma credencial. Una rotación de
-`MINIO_ROOT_PASSWORD` requiere una rotación coordinada de la credencial de
-aplicación en MinIO.
+El secret derivado se calcula con SHA-256 a partir de la credencial raíz y del
+ambiente, por lo que las reejecuciones conservan la misma identidad. Una
+rotación de `SEAWEEDFS_ROOT_SECRET_KEY` requiere redeploy coordinado del
+ambiente para regenerar la configuración S3.
 
 Las siguientes variables/secrets ya existían en esos workflows y no cambian:
 `REGISTRO`, `DOMINIO`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y el password
@@ -67,13 +82,13 @@ de la base de aplicación correspondiente.
 la publica en `GITHUB_ENV` con los nombres que espera el provisionamiento:
 
 ```text
-MINIO_APP_ACCESS_KEY_PR_<N>
-MINIO_APP_SECRET_KEY_PR_<N>
+SEAWEEDFS_APP_ACCESS_KEY_PR_<N>
+SEAWEEDFS_APP_SECRET_KEY_PR_<N>
 ```
 
 No agregar una credencial de aplicación compartida al Environment
-`pr-preview`: una misma identidad para varios PRs permitiría que la política
-del último preview sobrescriba el aislamiento de los anteriores.
+`pr-preview`: cada `pr-N` tiene su propio Compose project, alias de red, bucket,
+volumen y política S3.
 
 ## Etiqueta y flujo
 
@@ -82,8 +97,8 @@ del último preview sobrescriba el aislamiento de los anteriores.
 3. El workflow recibe el evento `labeled` y pasa el primer gate.
 4. Un reviewer aprueba el deployment en `pr-preview`.
 5. El runner efímero construye y publica las imágenes en el registry.
-6. `spin-up.sh pr-<N>` crea la base, el bucket, las políticas, las fixtures y
-   publica `https://pr-<N>.<DOMINIO>`.
+6. `spin-up.sh pr-<N>` crea la base, el servicio SeaweedFS, el bucket, las
+   fixtures y publica `https://pr-<N>.<DOMINIO>`.
 
 Los PRs que solo modifican documentación no disparan este workflow debido al
 filtro de paths.
@@ -97,7 +112,8 @@ El workflow presupone que ya existen:
 - Docker/Compose y las redes externas `traefik` y `arsdocendi-datos`;
 - PostgreSQL accesible como `PGHOST` dentro de `arsdocendi-datos`;
 - Traefik y Cloudflare Tunnel con wildcard DNS para `<pr-N>.<DOMINIO>`;
-- reaper de ambientes huérfanos.
+- reaper de ambientes huérfanos;
+- acceso a los registros públicos de las imágenes fijadas de SeaweedFS y AWS CLI.
 
 El workflow usa `GITHUB_TOKEN` con `packages: write` para GHCR; no hace falta
 crear un PAT para publicar imágenes en el registry de GitHub.

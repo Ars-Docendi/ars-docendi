@@ -1,9 +1,12 @@
 using ArsDocendi.Shared.Auditing;
 using ArsDocendi.Shared.Persistencia;
+using Amazon.Runtime;
+using Amazon.S3;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Minio;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace ArsDocendi.Storage;
 
@@ -21,19 +24,37 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
         services.AddScoped<IMigradorModulo, Infrastructure.MigradorAlmacenamiento>();
 
-        services.AddSingleton<IMinioClient>(sp =>
+        services.AddSingleton<IAmazonS3>(sp =>
         {
-            var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<AlmacenamientoOptions>>().Value;
-            var cliente = new MinioClient();
-            cliente.WithEndpoint(opciones.Endpoint);
-            cliente.WithCredentials(
-                string.IsNullOrWhiteSpace(opciones.AccessKey) ? "not-configured" : opciones.AccessKey,
-                string.IsNullOrWhiteSpace(opciones.SecretKey) ? "not-configured" : opciones.SecretKey);
-            cliente.WithSSL(opciones.UseSsl);
-            cliente.Build();
-            return cliente;
+            var opciones = sp.GetRequiredService<IOptions<AlmacenamientoOptions>>().Value;
+            var ambiente = sp.GetRequiredService<IHostEnvironment>();
+            var accessKey = opciones.AccessKey;
+            var secretKey = opciones.SecretKey;
+            if (string.IsNullOrWhiteSpace(accessKey) || string.IsNullOrWhiteSpace(secretKey))
+            {
+                if (!ambiente.IsDevelopment())
+                    throw new InvalidOperationException("Faltan las credenciales S3 del almacenamiento.");
+                accessKey = "development-not-configured";
+                secretKey = "development-not-configured";
+            }
+
+            var endpoint = opciones.Endpoint.TrimEnd('/');
+            if (!endpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                && !endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                endpoint = $"{(opciones.UseSsl ? "https" : "http")}://{endpoint}";
+            }
+
+            var config = new AmazonS3Config
+            {
+                ServiceURL = endpoint,
+                ForcePathStyle = true,
+                UseHttp = !opciones.UseSsl,
+                AuthenticationRegion = "us-east-1",
+            };
+            return new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey), config);
         });
-        services.AddScoped<Infrastructure.IProveedorObjetos, Infrastructure.ProveedorMinio>();
+        services.AddScoped<Infrastructure.IProveedorObjetos, Infrastructure.ProveedorSeaweedFs>();
         services.AddScoped<Infrastructure.IAntivirusArchivos, Infrastructure.ClamAvAntivirus>();
         services.AddScoped<Contracts.IAlmacenamientoArchivos, Infrastructure.ServicioAlmacenamientoArchivos>();
         services.AddControllers().AddApplicationPart(typeof(ModuleExtensions).Assembly);

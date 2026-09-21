@@ -63,8 +63,8 @@ jobs:
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
-      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
-      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${{ secrets.SEAWEEDFS_ROOT_ACCESS_KEY }}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
       APP_DB_USER: app_pr_${{ github.event.pull_request.number }}
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PREVIEW }}
       ASPNETCORE_ENVIRONMENT: Staging
@@ -87,15 +87,15 @@ jobs:
           docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
           docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
 
-      - name: Generar credencial MinIO aislada para el PR
+      - name: Generar credencial SeaweedFS aislada para el PR
         shell: bash
         run: |
           sufijo="PR_${{ github.event.pull_request.number }}"
           access_key="app_pr_${{ github.event.pull_request.number }}"
           secret_key="$(openssl rand -hex 32)"
           echo "::add-mask::$secret_key"
-          printf 'MINIO_APP_ACCESS_KEY_%s=%s\n' "$sufijo" "$access_key" >> "$GITHUB_ENV"
-          printf 'MINIO_APP_SECRET_KEY_%s=%s\n' "$sufijo" "$secret_key" >> "$GITHUB_ENV"
+          printf 'SEAWEEDFS_APP_ACCESS_KEY_%s=%s\n' "$sufijo" "$access_key" >> "$GITHUB_ENV"
+          printf 'SEAWEEDFS_APP_SECRET_KEY_%s=%s\n' "$sufijo" "$secret_key" >> "$GITHUB_ENV"
 
       - name: Spin-up pr-N (DB sembrada, no productiva)
         run: infra/scripts/spin-up.sh "${AMBIENTE}"

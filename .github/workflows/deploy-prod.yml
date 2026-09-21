@@ -45,8 +45,8 @@ jobs:
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
-      MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
-      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${{ secrets.SEAWEEDFS_ROOT_ACCESS_KEY }}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
       APP_DB_USER: app_prod
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PROD }}
       ASPNETCORE_ENVIRONMENT: Production

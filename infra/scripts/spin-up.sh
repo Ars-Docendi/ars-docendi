@@ -10,10 +10,10 @@
 #   REGISTRO TAG_FRONTEND TAG_BACKEND referencia de imágenes
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales ADMIN de Postgres (libpq)
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
-#   MINIO_ROOT_USER MINIO_ROOT_PASSWORD credenciales del servicio privado
+#   SEAWEEDFS_ROOT_ACCESS_KEY SEAWEEDFS_ROOT_SECRET_KEY credenciales administrativas del servicio privado
 #   En prod y staging, las credenciales de aplicación se derivan de la raíz.
-#   En pr-N se inyectan MINIO_APP_ACCESS_KEY_PR_<N> /
-#   MINIO_APP_SECRET_KEY_PR_<N>.
+#   En pr-N se inyectan SEAWEEDFS_APP_ACCESS_KEY_PR_<N> /
+#   SEAWEEDFS_APP_SECRET_KEY_PR_<N>.
 # Variables opcionales:
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
@@ -32,24 +32,26 @@ validar_ambiente "$ambiente"
 : "${TAG_BACKEND:?msg=\"falta TAG_BACKEND\"}"
 : "${APP_DB_USER:?msg=\"falta APP_DB_USER\"}"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
-: "${MINIO_ROOT_USER:?msg=\"falta MINIO_ROOT_USER\"}"
-: "${MINIO_ROOT_PASSWORD:?msg=\"falta MINIO_ROOT_PASSWORD\"}"
+: "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
+: "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY\"}"
 variable_ambiente="${ambiente^^}"
 variable_ambiente="${variable_ambiente//-/_}"
-access_variable="MINIO_APP_ACCESS_KEY_${variable_ambiente}"
-secret_variable="MINIO_APP_SECRET_KEY_${variable_ambiente}"
-minio_app_access_key="${!access_variable:-${MINIO_APP_ACCESS_KEY:-}}"
-minio_app_secret_key="${!secret_variable:-${MINIO_APP_SECRET_KEY:-}}"
-if [[ -z "$minio_app_access_key" || -z "$minio_app_secret_key" ]]; then
+access_variable="SEAWEEDFS_APP_ACCESS_KEY_${variable_ambiente}"
+secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
+seaweedfs_app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
+seaweedfs_app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
+if [[ -z "$seaweedfs_app_access_key" || -z "$seaweedfs_app_secret_key" ]]; then
   if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
-    minio_app_access_key="$(minio_app_access_for "$ambiente")"
-    minio_app_secret_key="$(minio_app_secret_for "$ambiente" "$MINIO_ROOT_PASSWORD")"
+    seaweedfs_app_access_key="$(seaweedfs_app_access_for "$ambiente")"
+    seaweedfs_app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
   else
-    fatal "msg=\"faltan credenciales MinIO de aplicación\" variable=\"$access_variable/$secret_variable\""
+    fatal "msg=\"faltan credenciales SeaweedFS de aplicación\" variable=\"$access_variable/$secret_variable\""
   fi
 fi
-export MINIO_APP_ACCESS_KEY="$minio_app_access_key"
-export MINIO_APP_SECRET_KEY="$minio_app_secret_key"
+export SEAWEEDFS_APP_ACCESS_KEY="$seaweedfs_app_access_key"
+export SEAWEEDFS_APP_SECRET_KEY="$seaweedfs_app_secret_key"
+seaweedfs_host="$(seaweedfs_host_for "$ambiente")"
+clamav_host="$(clamav_host_for "$ambiente")"
 
 scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
@@ -86,11 +88,12 @@ TAG_FRONTEND=${TAG_FRONTEND}
 TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
 DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
-ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-minio:9000}
-ALMACENAMIENTO_BUCKET=${MINIO_BUCKET_PREFIX:-arsdocendi}-${ambiente}
-ALMACENAMIENTO_ACCESS_KEY=${minio_app_access_key}
-ALMACENAMIENTO_SECRET_KEY=${minio_app_secret_key}
+ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-${seaweedfs_host}:8333}
+ALMACENAMIENTO_BUCKET=${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}
+ALMACENAMIENTO_ACCESS_KEY=${seaweedfs_app_access_key}
+ALMACENAMIENTO_SECRET_KEY=${seaweedfs_app_secret_key}
 ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE=${ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE:-true}
+ALMACENAMIENTO_CLAMAV_HOST=${ALMACENAMIENTO_CLAMAV_HOST:-$clamav_host}
 EOF
 
 # 1. Los ambientes descartables parten de cero. Se detienen antes de dropear la

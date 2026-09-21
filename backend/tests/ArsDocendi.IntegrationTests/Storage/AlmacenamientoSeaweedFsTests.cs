@@ -1,6 +1,9 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using Amazon.Runtime;
+using Amazon.S3;
+using Amazon.S3.Model;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
@@ -8,56 +11,97 @@ using ArsDocendi.Storage;
 using ArsDocendi.Storage.Api;
 using ArsDocendi.Storage.Contracts;
 using ArsDocendi.Storage.Infrastructure;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Minio;
-using Minio.DataModel.Args;
 using Modules.Portal.Application;
 using Modules.Portal.Contracts.Dtos;
 using Modules.Portal.Repositories;
 using Npgsql;
-using Testcontainers.Minio;
 
 namespace ArsDocendi.IntegrationTests.Storage;
 
-public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncLifetime
+public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAsyncLifetime
 {
+    private const string SeaweedFsImage = "chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882";
+    private const string AdminAccessKey = "test-admin-access";
+    private const string AdminSecretKey = "test-admin-secret-1234567890";
     private const string AccessKey = "test-access-key";
-    private const string SecretKey = "test-secret-key-123456";
+    private const string SecretKey = "test-secret-key-1234567890";
+    private const string StagingAccessKey = "test-staging-key";
+    private const string StagingSecretKey = "test-staging-secret-1234567890";
     private const string Bucket = "arsdocendi-test";
     private const string StagingBucket = "arsdocendi-staging-test";
+    private const string S3Config = """
+        {
+          "identities": [
+            {
+              "name": "admin",
+              "credentials": [{ "accessKey": "test-admin-access", "secretKey": "test-admin-secret-1234567890" }],
+              "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+            },
+            {
+              "name": "test",
+              "credentials": [{ "accessKey": "test-access-key", "secretKey": "test-secret-key-1234567890" }],
+              "actions": ["Read:arsdocendi-test/*", "List:arsdocendi-test/*", "Write:arsdocendi-test/*"]
+            },
+            {
+              "name": "staging",
+              "credentials": [{ "accessKey": "test-staging-key", "secretKey": "test-staging-secret-1234567890" }],
+              "actions": ["Read:arsdocendi-staging-test/*", "List:arsdocendi-staging-test/*", "Write:arsdocendi-staging-test/*"]
+            }
+          ]
+        }
+        """;
     private static readonly Guid Propietario = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid OtroPropietario = Guid.Parse("a0000000-0000-4000-8000-000000000002");
 
-    private readonly MinioContainer minio = new MinioBuilder("quay.io/minio/minio:latest")
-        .WithUsername(AccessKey)
-        .WithPassword(SecretKey)
+    private readonly IContainer seaweedFs = new ContainerBuilder(SeaweedFsImage)
+        .WithResourceMapping(Encoding.UTF8.GetBytes(S3Config), "/data/s3.json")
+        .WithCommand("mini", "-dir=/data", "-s3", "-s3.config=/data/s3.json", "-master.telemetry=false")
+        .WithPortBinding(8333, true)
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("S3 Endpoint"))
         .Build();
     private string cadena = string.Empty;
-    private IMinioClient? cliente;
+    private string endpoint = string.Empty;
+    private IAmazonS3? cliente;
+    private IAmazonS3? clienteStaging;
 
     public async ValueTask InitializeAsync()
     {
-        await minio.StartAsync();
-        cadena = await postgres.CrearBaseMigradaAsync("storage_minio");
-        var endpoint = new Uri(minio.GetConnectionString());
-        var nuevoCliente = new MinioClient();
-        nuevoCliente.WithEndpoint(endpoint.Host, endpoint.Port);
-        nuevoCliente.WithCredentials(AccessKey, SecretKey);
-        nuevoCliente.Build();
-        cliente = nuevoCliente;
-        await cliente!.MakeBucketAsync(new MakeBucketArgs().WithBucket(Bucket));
-        await cliente.MakeBucketAsync(new MakeBucketArgs().WithBucket(StagingBucket));
+        await seaweedFs.StartAsync();
+        cadena = await postgres.CrearBaseMigradaAsync("storage_seaweedfs");
+        endpoint = $"http://{seaweedFs.Hostname}:{seaweedFs.GetMappedPublicPort(8333)}";
+        using (var administrador = CrearCliente(AdminAccessKey, AdminSecretKey))
+        {
+            await administrador.PutBucketAsync(new PutBucketRequest { BucketName = Bucket });
+            await administrador.PutBucketAsync(new PutBucketRequest { BucketName = StagingBucket });
+        }
+        cliente = CrearCliente(AccessKey, SecretKey);
+        clienteStaging = CrearCliente(StagingAccessKey, StagingSecretKey);
     }
 
     public async ValueTask DisposeAsync()
     {
         cliente?.Dispose();
+        clienteStaging?.Dispose();
         if (cadena.Length > 0) await postgres.EliminarBaseAsync(cadena);
-        await minio.DisposeAsync();
+        await seaweedFs.DisposeAsync();
     }
+
+    private IAmazonS3 CrearCliente(string accessKey, string secretKey) =>
+        new AmazonS3Client(
+            new BasicAWSCredentials(accessKey, secretKey),
+            new AmazonS3Config
+            {
+                ServiceURL = endpoint,
+                ForcePathStyle = true,
+                UseHttp = true,
+                AuthenticationRegion = "us-east-1",
+            });
 
     [Fact]
     public async Task Schema_conserva_referencias_de_archivo_y_metadata_legacy()
@@ -277,10 +321,12 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         await servicioStaging.ConfirmarCargaAsync(
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
 
-        var proveedor = new ProveedorMinio(cliente!);
+        var proveedorStaging = new ProveedorSeaweedFs(clienteStaging!);
         var clave = $"archivos/{sesion.ArchivoId:N}";
-        Assert.NotNull(await proveedor.ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
-        Assert.Null(await proveedor.ObtenerAsync(Bucket, clave, TestContext.Current.CancellationToken));
+        Assert.NotNull(await proveedorStaging.ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<AmazonS3Exception>(() =>
+            new ProveedorSeaweedFs(cliente!).ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
+        Assert.Null(await new ProveedorSeaweedFs(cliente!).ObtenerAsync(Bucket, clave, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -375,18 +421,22 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
         const string claveHuerfana = "archivos/huerfano-de-prueba";
         var huérfano = Encoding.UTF8.GetBytes("objeto huérfano");
         using var contenidoHuerfano = new MemoryStream(huérfano);
-        await cliente!.PutObjectAsync(new PutObjectArgs()
-            .WithBucket(Bucket)
-            .WithObject(claveHuerfana)
-            .WithStreamData(contenidoHuerfano)
-            .WithObjectSize(huérfano.Length)
-            .WithContentType("application/octet-stream"), TestContext.Current.CancellationToken);
+        await cliente!.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = Bucket,
+            Key = claveHuerfana,
+            InputStream = contenidoHuerfano,
+            ContentType = "application/octet-stream",
+            AutoCloseStream = false,
+            AutoResetStreamPosition = false,
+            Headers = { ContentLength = huérfano.Length },
+        }, TestContext.Current.CancellationToken);
 
         var eliminados = await servicio.LimpiarAsync(DateTimeOffset.UtcNow.AddHours(1), TestContext.Current.CancellationToken);
         Assert.Equal(2, eliminados);
         var archivo = await servicio.ObtenerAsync(sesion.ArchivoId, TestContext.Current.CancellationToken);
         Assert.Equal(EstadosArchivo.Eliminado, archivo!.Estado);
-        Assert.Null(await new ProveedorMinio(cliente!).ObtenerAsync(
+        Assert.Null(await new ProveedorSeaweedFs(cliente!).ObtenerAsync(
             Bucket, claveHuerfana, TestContext.Current.CancellationToken));
         var descarga = await servicio.AbrirDescargaAsync(asociado, TestContext.Current.CancellationToken);
         Assert.NotNull(descarga);
@@ -401,18 +451,21 @@ public sealed class AlmacenamientoMinioTests(PostgresFixture postgres) : IAsyncL
     {
         var opciones = Options.Create(new AlmacenamientoOptions
         {
-            Endpoint = new Uri(minio.GetConnectionString()).Authority,
-            AccessKey = AccessKey,
-            SecretKey = SecretKey,
+            Endpoint = endpoint,
+            AccessKey = ambiente == "staging" ? StagingAccessKey : AccessKey,
+            SecretKey = ambiente == "staging" ? StagingSecretKey : SecretKey,
             Bucket = bucket ?? Bucket,
             Ambiente = ambiente ?? "test",
             ExpiracionCargaSegundos = 60,
             TamanoMaximoPdf = 1024 * 1024,
             TamanoMaximoImagen = 1024 * 1024,
         });
+        var proveedor = ambiente == "staging"
+            ? new ProveedorSeaweedFs(clienteStaging!)
+            : new ProveedorSeaweedFs(cliente!);
         return new ServicioAlmacenamientoArchivos(
             db,
-            new ProveedorMinio(cliente!),
+            proveedor,
             antivirus ?? new AntivirusLimpio(),
             opciones,
             NullLogger<ServicioAlmacenamientoArchivos>.Instance);

@@ -54,31 +54,41 @@ exigir_ambiente_destruible() {
 RED_DATOS="${RED_DATOS:-arsdocendi-datos}"
 IMAGEN_PSQL="${IMAGEN_PSQL:-postgres:18-alpine}"
 
-minio_app_access_for() {
+SEAWEEDFS_IMAGE="${SEAWEEDFS_IMAGE:-chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882}"
+AWS_CLI_IMAGE="${AWS_CLI_IMAGE:-amazon/aws-cli@sha256:406f8b70a2b145be023df0d26088b796e36c4b8664b3bb00e037bfc2eb54561d}"
+
+seaweedfs_host_for() {
+  local ambiente="$1"
+  printf 'seaweedfs-%s' "$ambiente"
+}
+
+clamav_host_for() {
+  local ambiente="$1"
+  printf 'clamav-%s' "$ambiente"
+}
+
+seaweedfs_app_access_for() {
   local ambiente="$1"
   printf 'app_%s' "${ambiente//-/_}"
 }
 
-minio_app_secret_for() {
-  local ambiente="$1" root_password="$2"
-  printf 'arsdocendi/minio/%s:%s' "$ambiente" "$root_password" | sha256sum | cut -d' ' -f1
+seaweedfs_app_secret_for() {
+  local ambiente="$1" root_secret="$2"
+  printf 'arsdocendi/seaweedfs/%s:%s' "$ambiente" "$root_secret" | sha256sum | cut -d' ' -f1
 }
 
-# Ejecuta mc con las credenciales separadas de la URL. Incrustarlas en
-# MC_HOST_<alias> rompe el parsing cuando una password contiene caracteres
-# reservados de URI (@, :, /, #, etc.) y termina en firmas S3 inválidas.
-minio_mc() {
-  local network="$1" access_key="$2" secret_key="$3"
-  shift 3
+# Ejecuta AWS CLI contra el endpoint S3 privado sin exponerlo al host.
+# Las credenciales viajan como variables de entorno y nunca forman parte de la URL.
+seaweedfs_aws() {
+  local network="$1" access_key="$2" secret_key="$3" endpoint_host="$4"
+  shift 4
   docker run --rm -i --network "$network" \
-    --entrypoint /bin/sh \
-    -e "MINIO_MC_ACCESS_KEY=$access_key" \
-    -e "MINIO_MC_SECRET_KEY=$secret_key" \
-    quay.io/minio/mc:latest \
-    -c 'set -eu
-      mc alias set local http://minio:9000 "$MINIO_MC_ACCESS_KEY" "$MINIO_MC_SECRET_KEY" >/dev/null
-      exec mc "$@"' \
-    arsdocendi-mc "$@"
+    -e "AWS_ACCESS_KEY_ID=$access_key" \
+    -e "AWS_SECRET_ACCESS_KEY=$secret_key" \
+    -e AWS_DEFAULT_REGION=us-east-1 \
+    -e AWS_S3_ADDRESSING_STYLE=path \
+    "$AWS_CLI_IMAGE" \
+    --endpoint-url "http://$endpoint_host:8333" "$@"
 }
 
 # Corre psql en un contenedor efímero adjunto a la red de datos. El host del runner

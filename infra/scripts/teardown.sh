@@ -7,7 +7,7 @@
 #
 # Variables:
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales admin de Postgres (libpq)
-#   MINIO_ROOT_USER MINIO_ROOT_PASSWORD credenciales del servicio privado
+#   SEAWEEDFS_ROOT_ACCESS_KEY SEAWEEDFS_ROOT_SECRET_KEY credenciales administrativas del servicio privado
 
 source "$(dirname "$0")/_comun.sh"
 
@@ -18,8 +18,6 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 log_warn msg="teardown iniciado" ambiente="$ambiente"
-: "${MINIO_ROOT_USER:?msg=\"falta MINIO_ROOT_USER\"}"
-: "${MINIO_ROOT_PASSWORD:?msg=\"falta MINIO_ROOT_PASSWORD\"}"
 
 # 1. Contenedores + volúmenes del ambiente (idempotente: down no falla si no hay nada).
 #    --env-file no es necesario para `down`, pero compose pide las vars del archivo;
@@ -29,7 +27,7 @@ docker compose -p "$ambiente" \
   --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\n' "$ambiente") \
   down -v --remove-orphans || log_warn msg="compose down no encontró el project (ok, idempotente)" ambiente="$ambiente"
 
-# El volumen MinIO es común y no se destruye con el compose de la app.
+# El almacenamiento SeaweedFS es propio de cada ambiente y se destruye con purge-storage.sh.
 "$scripts_dir/purge-storage.sh" "$ambiente"
 
 # 2. Base del ambiente (drop-db es idempotente y valida que no sea prod).

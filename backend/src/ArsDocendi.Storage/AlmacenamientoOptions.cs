@@ -3,7 +3,7 @@ namespace ArsDocendi.Storage;
 public sealed class AlmacenamientoOptions
 {
     public const string Seccion = "Almacenamiento";
-    public string Endpoint { get; set; } = "localhost:9000";
+    public string Endpoint { get; set; } = "localhost:8333";
     public bool UseSsl { get; set; }
     public string AccessKey { get; set; } = string.Empty;
     public string SecretKey { get; set; } = string.Empty;

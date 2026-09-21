@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Carga fixtures binarias mínimas en MinIO y las vincula con metadata sintética.
+# Carga fixtures binarias mínimas en SeaweedFS y las vincula con metadata sintética.
 # Solo se ejecuta en ambientes no productivos después de seed.sql.
 set -euo pipefail
 source "$(dirname "$0")/_comun.sh"
@@ -8,28 +8,28 @@ ambiente="${1:-}"
 validar_ambiente "$ambiente"
 [[ "$ambiente" != "prod" ]] || fatal 'msg="fixtures de storage prohibidas en prod"'
 
-: "${MINIO_ROOT_USER:?msg=\"falta MINIO_ROOT_USER\"}"
-: "${MINIO_ROOT_PASSWORD:?msg=\"falta MINIO_ROOT_PASSWORD\"}"
 variable_ambiente="${ambiente^^}"
 variable_ambiente="${variable_ambiente//-/_}"
-access_variable="MINIO_APP_ACCESS_KEY_${variable_ambiente}"
-secret_variable="MINIO_APP_SECRET_KEY_${variable_ambiente}"
-app_access_key="${!access_variable:-${MINIO_APP_ACCESS_KEY:-}}"
-app_secret_key="${!secret_variable:-${MINIO_APP_SECRET_KEY:-}}"
+access_variable="SEAWEEDFS_APP_ACCESS_KEY_${variable_ambiente}"
+secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
+app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
+app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
 if [[ -z "$app_access_key" || -z "$app_secret_key" ]]; then
-  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
-    app_access_key="$(minio_app_access_for "$ambiente")"
-    app_secret_key="$(minio_app_secret_for "$ambiente" "$MINIO_ROOT_PASSWORD")"
+  : "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY para derivar credenciales\"}"
+  if [[ "$ambiente" == "staging" ]]; then
+    app_access_key="$(seaweedfs_app_access_for "$ambiente")"
+    app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
   else
-    fatal "msg=\"faltan credenciales MinIO de aplicación\" variable=\"$access_variable/$secret_variable\""
+    fatal "msg=\"faltan credenciales SeaweedFS de aplicación\" variable=\"$access_variable/$secret_variable\""
   fi
 fi
 
 network="${RED_DATOS:-arsdocendi-datos}"
-bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
+storage_host="$(seaweedfs_host_for "$ambiente")"
+bucket="${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
 base="$(nombre_base "$ambiente")"
-mc() {
-  minio_mc "$network" "$app_access_key" "$app_secret_key" "$@"
+aws() {
+  seaweedfs_aws "$network" "$app_access_key" "$app_secret_key" "$storage_host" "$@"
 }
 
 # IDs reservados al dataset sintético; no contienen PII ni se reutilizan en prod.
@@ -42,12 +42,12 @@ doc_bytes='%PDF-1.7\nfixture proyecto sintetica\n'
 dni_bytes=$'\xFF\xD8\xFF\xE0fixture dni sintetica'
 
 subir() {
-  local id="$1" contenido="$2"
-  printf '%s' "$contenido" | mc pipe "local/$bucket/archivos/seed/$id"
+  local id="$1" contenido="$2" mime="$3"
+  printf '%s' "$contenido" | aws s3 cp - "s3://$bucket/archivos/seed/$id" --content-type "$mime" >/dev/null
 }
-subir "$cv_id" "$cv_bytes"
-subir "$doc_id" "$doc_bytes"
-printf '%s' "$dni_bytes" | mc pipe "local/$bucket/archivos/seed/$dni_id"
+subir "$cv_id" "$cv_bytes" "application/pdf"
+subir "$doc_id" "$doc_bytes" "application/pdf"
+printf '%s' "$dni_bytes" | aws s3 cp - "s3://$bucket/archivos/seed/$dni_id" --content-type "image/jpeg" >/dev/null
 
 cv_hash="$(printf '%s' "$cv_bytes" | sha256sum | cut -d' ' -f1)"
 doc_hash="$(printf '%s' "$doc_bytes" | sha256sum | cut -d' ' -f1)"

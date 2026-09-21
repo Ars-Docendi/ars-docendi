@@ -1,12 +1,32 @@
 #!/usr/bin/env bash
-# Elimina solo los objetos de un ambiente descartable. Nunca acepta prod.
+# Elimina el almacenamiento completo de un ambiente descartable. Nunca acepta prod.
 set -euo pipefail
 source "$(dirname "$0")/_comun.sh"
+
 ambiente="${1:-}"
 exigir_ambiente_destruible "$ambiente"
-: "${MINIO_ROOT_USER:?msg=\"falta MINIO_ROOT_USER\"}"
-: "${MINIO_ROOT_PASSWORD:?msg=\"falta MINIO_ROOT_PASSWORD\"}"
-network="${RED_DATOS:-arsdocendi-datos}"
-bucket="${MINIO_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
-minio_mc "$network" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" rb --force "local/$bucket" || true
-log_info msg="objetos del ambiente eliminados" ambiente="$ambiente" bucket="$bucket"
+compose_file="$(cd "$(dirname "$0")/../compose" && pwd)/compose.storage.yml"
+project="arsdocendi-storage-${ambiente//-/_}"
+
+storage_env_file="$(mktemp)"
+trap 'rm -f "$storage_env_file"' EXIT
+printf '%s\n' \
+  "SEAWEEDFS_IMAGE=$SEAWEEDFS_IMAGE" \
+  "SEAWEEDFS_ROOT_ACCESS_KEY=placeholder" \
+  "SEAWEEDFS_ROOT_SECRET_KEY=placeholder" \
+  "SEAWEEDFS_APP_ACCESS_KEY=placeholder" \
+  "SEAWEEDFS_APP_SECRET_KEY=placeholder" \
+  "SEAWEEDFS_BUCKET=placeholder" \
+  "SEAWEEDFS_HOSTNAME=$(seaweedfs_host_for "$ambiente")" \
+  "CLAMAV_HOSTNAME=$(clamav_host_for "$ambiente")" \
+  "STORAGE_SUFFIX=${ambiente//-/_}" \
+  "RED_DATOS=${RED_DATOS:-arsdocendi-datos}" >"$storage_env_file"
+
+storage_compose() {
+  docker compose -p "$project" \
+    --env-file "$storage_env_file" \
+    -f "$compose_file" "$@"
+}
+
+storage_compose down -v --remove-orphans || log_warn msg="storage compose down no encontró el project (ok, idempotente)" ambiente="$ambiente"
+log_info msg="storage del ambiente eliminado" ambiente="$ambiente" project="$project"
