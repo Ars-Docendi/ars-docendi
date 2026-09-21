@@ -2,7 +2,7 @@
 
 ### Requirement: Documentación del proyecto por archivo o por enlace
 
-El sistema SHALL permitir registrar para cada proyecto un documento PDF privado, un enlace DOI, ambos o ninguno. El documento SHALL cargarse mediante una sesión emitida por el backend, persistirse en MinIO mediante un `archivoId` y quedar asociado solo después de superar la validación de contenido, tamaño, hash y antivirus. La API persiste la metadata necesaria y una referencia interna al objeto; el almacenamiento binario queda fuera de PostgreSQL. El sistema MUST NOT exigir documentación para guardar un proyecto y MUST NOT aceptar una URI arbitraria ni exponer el bucket.
+El sistema SHALL permitir registrar para cada proyecto un documento PDF privado, un enlace DOI, ambos o ninguno. El documento SHALL cargarse mediante una sesión emitida por el backend, persistirse en SeaweedFS mediante un `archivoId` y quedar asociado solo después de superar la validación de contenido, tamaño, hash y antivirus. La API persiste la metadata necesaria y una referencia interna al objeto; el almacenamiento binario queda fuera de PostgreSQL. El sistema MUST NOT exigir documentación para guardar un proyecto y MUST NOT aceptar una URI arbitraria ni exponer el bucket.
 
 #### Scenario: Proyecto con PDF
 

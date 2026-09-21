@@ -1,23 +1,25 @@
+# almacenamiento-adjuntos Specification
+
 ## Purpose
 
 Provee almacenamiento privado, verificable y aislado por ambiente para PDFs e imágenes que forman parte de novedades de designaciones y perfiles docentes, sin convertir PostgreSQL en un repositorio de binarios ni exponer documentación sensible mediante URLs públicas.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Almacenamiento privado aislado por ambiente
 
-El sistema SHALL almacenar los bytes de los adjuntos en MinIO self-hosted mediante buckets privados separados por ambiente. Cada ambiente SHALL usar credenciales y una política que impidan leer, escribir o borrar objetos de otro ambiente. MinIO MUST ser accesible únicamente desde la red interna de la aplicación y MUST NOT publicarse por Traefik, Cloudflare Tunnel ni ningún hostname de usuario.
+El sistema SHALL almacenar los bytes de los adjuntos en SeaweedFS self-hosted mediante buckets privados separados por ambiente. Cada ambiente SHALL usar credenciales y una política que impidan leer, escribir o borrar objetos de otro ambiente. SeaweedFS MUST ser accesible únicamente desde la red interna de la aplicación y MUST NOT publicarse por Traefik, Cloudflare Tunnel ni ningún hostname de usuario.
 
 #### Scenario: Ambiente de producción aislado
 
-- **GIVEN** existen buckets de producción y staging en la misma instancia MinIO
+- **GIVEN** existen buckets de producción y staging en la misma instancia SeaweedFS
 - **WHEN** el backend de staging intenta leer, escribir o eliminar un objeto de producción
 - **THEN** la operación es rechazada por la política del bucket y no revela si el objeto existe
 
-#### Scenario: MinIO no está expuesto públicamente
+#### Scenario: SeaweedFS no está expuesto públicamente
 
-- **WHEN** un cliente solicita el endpoint de MinIO a través del hostname público de cualquier ambiente
-- **THEN** no existe una ruta pública hacia la consola ni hacia la API de MinIO
+- **WHEN** un cliente solicita el endpoint de SeaweedFS a través del hostname público de cualquier ambiente
+- **THEN** no existe una ruta pública hacia la consola ni hacia la API de SeaweedFS
 - **AND** las únicas rutas públicas de archivos son las descargas autorizadas por Ars Docendi
 
 #### Scenario: Teardown de un preview
@@ -143,13 +145,13 @@ El sistema SHALL auditar la creación, confirmación, rechazo, asociación, desc
 
 #### Scenario: Registro sin objeto histórico
 
-- **GIVEN** un registro legacy que solo contiene nombre y URI histórica sin objeto MinIO
+- **GIVEN** un registro legacy que solo contiene nombre y URI histórica sin objeto SeaweedFS
 - **WHEN** se consulta
 - **THEN** se conserva como metadata histórica y no se inventa ni descarga un archivo inexistente
 
 ### Requirement: Operación, backup y recuperación
 
-La infraestructura SHALL provisionar MinIO con volumen persistente, credenciales inyectadas en runtime y procedimientos versionados para crear buckets, políticas y backups. Los ambientes descartables SHALL poder reconstruir sus objetos junto con la base y el seed sintético. Producción MUST tener un backup verificable de los objetos y una prueba documentada de restauración antes de considerarse operativa.
+La infraestructura SHALL provisionar SeaweedFS con volumen persistente, credenciales inyectadas en runtime y procedimientos versionados para crear buckets, políticas y backups. Los ambientes descartables SHALL poder reconstruir sus objetos junto con la base y el seed sintético. Producción MUST tener un backup verificable de los objetos y una prueba documentada de restauración antes de considerarse operativa.
 
 #### Scenario: Provisionamiento repetible
 
@@ -164,6 +166,6 @@ La infraestructura SHALL provisionar MinIO con volumen persistente, credenciales
 
 #### Scenario: Fallo de almacenamiento
 
-- **GIVEN** MinIO no está disponible durante una mutación
+- **GIVEN** SeaweedFS no está disponible durante una mutación
 - **WHEN** el backend intenta confirmar o asociar un archivo
 - **THEN** la operación falla de forma explícita, no confirma la mutación ni deja el pedido en un estado que aparente tener documentación disponible

@@ -2,7 +2,7 @@
 
 ### Requirement: CV y documentación de proyectos como metadata
 
-La API SHALL persistir la metadata y el `archivoId` del CV único del docente y de los documentos PDF asociados a proyectos. Los bytes SHALL almacenarse en MinIO privado, fuera de PostgreSQL, y MUST quedar disponibles únicamente después de validar contenido, tamaño, hash y antivirus. SHALL permitir reemplazar y eliminar el CV, y SHALL permitir DOI, PDF, ambos o ninguno en un proyecto. La API MUST NOT aceptar URI arbitrarias, publicar objetos directamente ni devolver claves internas del almacenamiento.
+La API SHALL persistir la metadata y el `archivoId` del CV único del docente y de los documentos PDF asociados a proyectos. Los bytes SHALL almacenarse en SeaweedFS privado, fuera de PostgreSQL, y MUST quedar disponibles únicamente después de validar contenido, tamaño, hash y antivirus. SHALL permitir reemplazar y eliminar el CV, y SHALL permitir DOI, PDF, ambos o ninguno en un proyecto. La API MUST NOT aceptar URI arbitrarias, publicar objetos directamente ni devolver claves internas del almacenamiento.
 
 #### Scenario: Cargar o reemplazar CV
 
@@ -30,4 +30,4 @@ La API SHALL persistir la metadata y el `archivoId` del CV único del docente y 
 
 - **GIVEN** un PDF de proyecto validado
 - **WHEN** el docente lo asocia al proyecto
-- **THEN** el proyecto conserva el `archivoId` y permite una descarga autorizada sin exponer una URL permanente de MinIO
+- **THEN** el proyecto conserva el `archivoId` y permite una descarga autorizada sin exponer una URL permanente de SeaweedFS
