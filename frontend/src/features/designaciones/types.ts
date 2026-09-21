@@ -81,6 +81,7 @@ export interface Adjunto {
   nombre: string;
   tipo: TipoAdjunto;
   archivoId?: string;
+  estadoArchivo?: string;
   /** Archivo local pendiente de subir; nunca se envía como URI. */
   archivo?: File;
 }

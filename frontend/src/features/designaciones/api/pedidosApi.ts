@@ -75,6 +75,13 @@ export async function listarPedidosPorAmbito(): Promise<PedidoDesignacion[]> {
 export async function obtenerPedido(id: string): Promise<PedidoDesignacion> {
   return mapear((await apiClient.get<PedidoDto>(`/api/designaciones/pedidos/${id}`)).data);
 }
+export async function descargarAdjuntoPedido(pedidoId: string, archivoId: string): Promise<Blob> {
+  return (
+    await apiClient.get<Blob>(`/api/designaciones/pedidos/${pedidoId}/adjuntos/${archivoId}`, {
+      responseType: "blob",
+    })
+  ).data;
+}
 export async function crearPedido(datos: DatosEditablesPedido, catalogos: CatalogosDesignaciones) {
   return mapear(
     (await apiClient.post<PedidoDto>("/api/designaciones/pedidos", await payload(datos, catalogos)))
@@ -203,6 +210,7 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
       tipo: adjunto.tipo,
       nombre: adjunto.nombre,
       archivoId: adjunto.archivoId ?? undefined,
+      estadoArchivo: adjunto.estadoArchivo,
     })),
     estado: dto.estado,
     prioritario: dto.prioritario,

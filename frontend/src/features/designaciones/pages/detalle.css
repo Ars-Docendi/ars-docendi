@@ -351,6 +351,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-adjunto-abrir {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+  color: var(--color-accent);
+  padding: 4px 9px;
+  font: inherit;
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+.adoc-adjunto-abrir:hover:not(:disabled) {
+  background: var(--color-bg-sunken);
+}
+.adoc-adjunto-abrir:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.adoc-adjunto-legacy {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+.adoc-adjuntos-error {
+  margin: var(--space-0);
+  color: var(--color-text-danger);
+  font-size: var(--text-caption-size);
 }
 
 /* --- Historial (columna izquierda) --- */

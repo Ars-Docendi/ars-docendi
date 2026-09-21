@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-09-21
+goal: Permitir abrir los adjuntos disponibles del detalle de un pedido de
+  designación en una pestaña nueva mediante el endpoint autorizado de
+  Designaciones, manteniendo los adjuntos legacy como metadata no descargable.
