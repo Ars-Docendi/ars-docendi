@@ -46,9 +46,8 @@ public sealed class ClamAvAntivirusTests
             }),
             NullLogger<ClamAvAntivirus>.Instance);
 
-        var resultado = await antivirus.AnalizarAsync(
-            new MemoryStream(Encoding.UTF8.GetBytes("contenido de prueba")),
-            ct);
+        using var contenido = new MemoryStream(Encoding.UTF8.GetBytes("contenido de prueba"));
+        var resultado = await antivirus.AnalizarAsync(contenido, ct);
         await servidor;
 
         Assert.True(resultado.Limpio);

@@ -36,7 +36,7 @@ internal sealed class ClamAvAntivirus(
             if (texto.EndsWith("OK", StringComparison.OrdinalIgnoreCase))
                 return new ResultadoAntivirus(true, true, null);
 
-            logger.LogWarning("ClamAV rechazó el stream con respuesta {Respuesta}", texto);
+            logger.LogWarning("ClamAV rechazó el stream");
             return new ResultadoAntivirus(false, false, "El análisis antivirus rechazó el archivo.");
         }
         catch (Exception ex) when (ex is SocketException or IOException or OperationCanceledException)
