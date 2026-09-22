@@ -1,137 +1,287 @@
-import type { Tarea } from "../types";
+import { useState } from "react";
+import { Button, Input, Table } from "@ars-docendi/ui";
+import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
+import type { EstadoTarea, Prioridad, Tarea } from "../types";
 import { EstadoTareaBadge } from "./EstadoTareaBadge";
 import { estadoSemaforo, muestraSemaforo } from "./semaforoTarea";
-import type { ClaveOrdenTarea, OrdenTareasState } from "./ordenTareas";
+import { formatearFecha } from "./detalleAdapters";
+import {
+  aplicarFiltrosColumnas,
+  FILTROS_COLUMNAS_INICIALES,
+  opcionesColumnasTareas,
+  type FiltrosColumnasTareas,
+} from "./filtrosTareas";
+import {
+  ordenarTareas,
+  siguienteOrden,
+  type ColumnaOrdenableTarea,
+  type OrdenTareas,
+} from "./ordenTareas";
 import "./tablaTareas.css";
 
 interface TablaTareasProps {
   tareas: Tarea[];
-  orden: OrdenTareasState;
-  onOrdenar: (clave: ClaveOrdenTarea) => void;
   onSeleccionar: (tarea: Tarea) => void;
 }
 
-const ETIQUETA_PRIORIDAD: Record<Tarea["prioridad"], string> = {
+const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
   alta: "Alta",
   media: "Media",
   baja: "Baja",
 };
 
-const COLUMNAS: { clave: ClaveOrdenTarea; etiqueta: string }[] = [
-  { clave: "numero", etiqueta: "N°" },
-  { clave: "titulo", etiqueta: "TÍTULO" },
-  { clave: "autor", etiqueta: "AUTOR" },
-  { clave: "responsable", etiqueta: "RESPONSABLE" },
-  { clave: "fechaInicio", etiqueta: "INICIO" },
-  { clave: "fechaFin", etiqueta: "FIN" },
-  { clave: "prioridad", etiqueta: "PRIORIDAD" },
-  { clave: "avance", etiqueta: "% AVANCE" },
-  { clave: "estado", etiqueta: "ESTADO" },
+const ETIQUETA_ESTADO: Record<EstadoTarea, string> = {
+  pendiente: "Pendiente",
+  en_curso: "En curso",
+  pausa: "Pausa",
+  resuelta: "Resuelta",
+  cancelada: "Cancelada",
+};
+
+/** Columnas ordenables y su rótulo, en el orden en que se muestran. */
+const COLUMNAS: { id: ColumnaOrdenableTarea; etiqueta: string }[] = [
+  { id: "numero", etiqueta: "N°" },
+  { id: "titulo", etiqueta: "Título" },
+  { id: "autor", etiqueta: "Autor" },
+  { id: "responsable", etiqueta: "Responsable" },
+  { id: "fechaInicio", etiqueta: "Inicio" },
+  { id: "fechaFin", etiqueta: "Fin" },
+  { id: "prioridad", etiqueta: "Prioridad" },
+  { id: "avance", etiqueta: "% Avance" },
+  { id: "estado", etiqueta: "Estado" },
 ];
 
-/** Formatea un ISO (yyyy-mm-dd) a dd/mm/aaaa, sin depender del locale. */
-function formatearFecha(iso: string): string {
-  const fecha = new Date(iso);
-  const dia = String(fecha.getUTCDate()).padStart(2, "0");
-  const mes = String(fecha.getUTCMonth() + 1).padStart(2, "0");
-  return `${dia}/${mes}/${fecha.getUTCFullYear()}`;
+/**
+ * Listado único de tareas — mismo modelo que
+ * `designaciones/components/TablaRevision.tsx`: el `Table` del design
+ * system, un filtro por columna en su propio header (`FiltroEncabezado`,
+ * texto libre o checkboxes según la columna) y orden por header con ciclo
+ * asc → desc → default (Fecha Inicio ascendente). El semáforo de
+ * vencimiento colorea el fondo de toda la fila (amarillo/rojo; verde no se
+ * resalta), y el estado de Pausa se distingue con su propio tono de badge.
+ */
+export function TablaTareas({ tareas, onSeleccionar }: TablaTareasProps) {
+  const [orden, setOrden] = useState<OrdenTareas | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosColumnasTareas>(FILTROS_COLUMNAS_INICIALES);
+
+  const opciones = opcionesColumnasTareas(tareas);
+  const filtradas = aplicarFiltrosColumnas(tareas, filtros);
+  const visibles = ordenarTareas(filtradas, orden);
+
+  return (
+    <div className="adoc-tabla-scroll">
+      <Table>
+        <Table.Root>
+          <Table.Head>
+            <Table.Row>
+              {COLUMNAS.map((col) => (
+                <EncabezadoTarea
+                  key={col.id}
+                  id={col.id}
+                  etiqueta={col.etiqueta}
+                  orden={orden}
+                  onOrden={(columna) => setOrden((actual) => siguienteOrden(actual, columna))}
+                  filtros={filtros}
+                  opciones={opciones}
+                  onFiltrosChange={(cambios) =>
+                    setFiltros((actuales) => ({ ...actuales, ...cambios }))
+                  }
+                />
+              ))}
+              <Table.HeaderCell>Acciones</Table.HeaderCell>
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
+            {visibles.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={COLUMNAS.length + 1} className="empty">
+                  Sin tareas que cumplan los filtros.
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              visibles.map((tarea) => (
+                <FilaTarea key={tarea.id} tarea={tarea} onVer={onSeleccionar} />
+              ))
+            )}
+          </Table.Body>
+        </Table.Root>
+      </Table>
+    </div>
+  );
 }
 
-/**
- * Listado único de tareas: Nro, Título, Autor, Responsable, Fecha Inicio,
- * Fecha Fin (con semáforo de vencimiento en el fondo de la fila), Prioridad,
- * % Avance y Estado. Cada columna del header es clickeable para ordenar por
- * ella (alterna asc/desc); por defecto el listado llega ordenado por Fecha
- * Inicio ascendente (ver `ordenTareas.ts`, aplicado en `IndexPage`). Cada
- * fila navega al detalle al hacer click — mismo patrón que
- * `designaciones/components/TablaMisPedidos.tsx`.
- */
-export function TablaTareas({ tareas, orden, onOrdenar, onSeleccionar }: TablaTareasProps) {
-  return (
-    <div className="adoc-tt-table" role="table" aria-label="Listado de tareas">
-      <div className="adoc-tt-head" role="row">
-        {COLUMNAS.map((col) => {
-          const activa = orden.clave === col.clave;
-          return (
-            <span
-              key={col.clave}
-              role="columnheader"
-              aria-sort={activa ? (orden.direccion === "asc" ? "ascending" : "descending") : "none"}
-            >
-              <button
-                type="button"
-                className={`adoc-tt-th${activa ? " adoc-tt-th--activa" : ""}`}
-                onClick={() => onOrdenar(col.clave)}
-                aria-label={`Ordenar por ${col.etiqueta.toLowerCase()}`}
-              >
-                {col.etiqueta}
-                <span className="adoc-tt-th-flecha" aria-hidden="true">
-                  {activa ? (orden.direccion === "asc" ? "↑" : "↓") : ""}
-                </span>
-              </button>
-            </span>
-          );
-        })}
-      </div>
-      {tareas.map((tarea) => {
-        // Solo amarillo/rojo resaltan la fila (verde es el caso normal, sin
-        // urgencia — no necesita destacarse). Resuelta/Cancelada no muestran
-        // semáforo en absoluto (`muestraSemaforo`).
-        const semaforo = muestraSemaforo(tarea.estado)
-          ? estadoSemaforo(tarea.fechaInicio, tarea.fechaFin)
-          : null;
-        const claseSemaforo =
-          semaforo === "red"
-            ? " adoc-tt-row--vencida"
-            : semaforo === "yellow"
-              ? " adoc-tt-row--por-vencer"
-              : "";
+function FilaTarea({ tarea, onVer }: { tarea: Tarea; onVer: (tarea: Tarea) => void }) {
+  // Solo amarillo/rojo resaltan la fila (verde es el caso normal, sin
+  // urgencia — no necesita destacarse). Resuelta/Cancelada no muestran
+  // semáforo en absoluto (`muestraSemaforo`).
+  const semaforo = muestraSemaforo(tarea.estado)
+    ? estadoSemaforo(tarea.fechaInicio, tarea.fechaFin)
+    : null;
+  const claseSemaforo =
+    semaforo === "red"
+      ? "adoc-tt-row--vencida"
+      : semaforo === "yellow"
+        ? "adoc-tt-row--por-vencer"
+        : undefined;
 
-        return (
-          <div
-            className={`adoc-tt-row${claseSemaforo}`}
-            role="row"
-            key={tarea.id}
-            tabIndex={0}
-            aria-label={`Ver la tarea "${tarea.titulo}"`}
-            onClick={() => onSeleccionar(tarea)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSeleccionar(tarea);
+  return (
+    <Table.Row
+      className={`adoc-tt-row--clicable${claseSemaforo ? ` ${claseSemaforo}` : ""}`}
+      onClick={() => onVer(tarea)}
+    >
+      <Table.Cell numeric className="adoc-mono">
+        {tarea.numero}
+      </Table.Cell>
+      <Table.Cell>{tarea.titulo}</Table.Cell>
+      <Table.Cell>{tarea.creadoPor.nombre}</Table.Cell>
+      <Table.Cell>{tarea.responsable.nombre}</Table.Cell>
+      <Table.Cell>{formatearFecha(tarea.fechaInicio)}</Table.Cell>
+      <Table.Cell>{formatearFecha(tarea.fechaFin)}</Table.Cell>
+      <Table.Cell>{ETIQUETA_PRIORIDAD[tarea.prioridad]}</Table.Cell>
+      <Table.Cell numeric>{tarea.porcentajeAvance}%</Table.Cell>
+      <Table.Cell>
+        <EstadoTareaBadge estado={tarea.estado} />
+      </Table.Cell>
+      <Table.Cell className="adoc-table-actions">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(evento) => {
+            evento.stopPropagation();
+            onVer(tarea);
+          }}
+          aria-label={`Ver la tarea "${tarea.titulo}"`}
+        >
+          Ver
+        </Button>
+      </Table.Cell>
+    </Table.Row>
+  );
+}
+
+function EncabezadoTarea({
+  id,
+  etiqueta,
+  orden,
+  onOrden,
+  filtros,
+  opciones,
+  onFiltrosChange,
+}: {
+  id: ColumnaOrdenableTarea;
+  etiqueta: string;
+  orden: OrdenTareas | null;
+  onOrden: (columna: ColumnaOrdenableTarea) => void;
+  filtros: FiltrosColumnasTareas;
+  opciones: ReturnType<typeof opcionesColumnasTareas>;
+  onFiltrosChange: (cambios: Partial<FiltrosColumnasTareas>) => void;
+}) {
+  const valor = filtros[id];
+  const esTexto = id === "numero" || id === "titulo" || id === "fechaInicio" || id === "fechaFin";
+  const esNumero = id === "avance";
+  const texto = typeof valor === "string" ? valor : "";
+  const opcionesCampo =
+    id === "autor"
+      ? opciones.autores
+      : id === "responsable"
+        ? opciones.responsables
+        : id === "prioridad"
+          ? (["alta", "media", "baja"] satisfies Prioridad[])
+          : id === "estado"
+            ? (["pendiente", "en_curso", "pausa", "resuelta", "cancelada"] satisfies EstadoTarea[])
+            : [];
+  const etiquetas =
+    id === "prioridad" ? ETIQUETA_PRIORIDAD : id === "estado" ? ETIQUETA_ESTADO : undefined;
+
+  return (
+    <Table.HeaderCell
+      aria-label={etiqueta}
+      sort={orden?.columna === id ? orden.direccion : null}
+      onSortChange={() => onOrden(id)}
+    >
+      <span>
+        {etiqueta}
+        <FiltroEncabezado
+          etiqueta={etiqueta}
+          activo={
+            esTexto || esNumero ? Boolean(texto.trim()) : Array.isArray(valor) && valor.length > 0
+          }
+          onLimpiar={() =>
+            onFiltrosChange({
+              [id]: esTexto || esNumero ? "" : [],
+            } as Partial<FiltrosColumnasTareas>)
+          }
+        >
+          {esTexto ? (
+            <Input
+              className="adoc-filtro-encabezado-campo"
+              placeholder={`Buscar ${etiqueta.toLowerCase()}…`}
+              aria-label={`Buscar ${etiqueta}`}
+              value={texto}
+              onChange={(evento) =>
+                onFiltrosChange({ [id]: evento.target.value } as Partial<FiltrosColumnasTareas>)
               }
-            }}
-          >
-            <span className="adoc-tt-num" role="cell">
-              {tarea.numero}
-            </span>
-            <span className="adoc-tt-titulo" role="cell">
-              {tarea.titulo}
-            </span>
-            <span className="adoc-tt-persona" role="cell">
-              {tarea.creadoPor.nombre}
-            </span>
-            <span className="adoc-tt-persona" role="cell">
-              {tarea.responsable.nombre}
-            </span>
-            <span className="adoc-tt-fecha" role="cell">
-              {formatearFecha(tarea.fechaInicio)}
-            </span>
-            <span className="adoc-tt-fecha" role="cell">
-              {formatearFecha(tarea.fechaFin)}
-            </span>
-            <span className="adoc-tt-prioridad" role="cell">
-              {ETIQUETA_PRIORIDAD[tarea.prioridad]}
-            </span>
-            <span className="adoc-tt-avance" role="cell">
-              {tarea.porcentajeAvance}%
-            </span>
-            <span className="adoc-tt-estado" role="cell">
-              <EstadoTareaBadge estado={tarea.estado} />
-            </span>
-          </div>
-        );
-      })}
+            />
+          ) : esNumero ? (
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              className="adoc-filtro-encabezado-campo"
+              placeholder="% exacto…"
+              aria-label={`Buscar ${etiqueta}`}
+              value={texto}
+              onChange={(evento) =>
+                onFiltrosChange({ [id]: evento.target.value } as Partial<FiltrosColumnasTareas>)
+              }
+            />
+          ) : (
+            <Opciones
+              opciones={opcionesCampo}
+              valores={Array.isArray(valor) ? valor : []}
+              onToggle={(opcion) =>
+                onFiltrosChange({
+                  [id]: alternar(Array.isArray(valor) ? valor : [], opcion),
+                } as Partial<FiltrosColumnasTareas>)
+              }
+              etiquetas={etiquetas}
+            />
+          )}
+        </FiltroEncabezado>
+      </span>
+    </Table.HeaderCell>
+  );
+}
+
+function alternar(valores: string[], valor: string): string[] {
+  return valores.includes(valor)
+    ? valores.filter((actual) => actual !== valor)
+    : [...valores, valor];
+}
+
+function Opciones({
+  opciones,
+  valores,
+  onToggle,
+  etiquetas,
+}: {
+  opciones: string[];
+  valores: string[];
+  onToggle: (valor: string) => void;
+  etiquetas?: Record<string, string>;
+}) {
+  return (
+    <div className="adoc-filtro-encabezado-opciones">
+      {opciones.map((opcion) => (
+        <label className="adoc-filtro-encabezado-opcion" key={opcion}>
+          <input
+            type="checkbox"
+            checked={valores.includes(opcion)}
+            onChange={() => onToggle(opcion)}
+          />
+          {etiquetas?.[opcion] ?? opcion}
+        </label>
+      ))}
     </div>
   );
 }

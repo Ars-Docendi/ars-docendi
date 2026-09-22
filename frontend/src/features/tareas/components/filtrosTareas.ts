@@ -1,36 +1,36 @@
 // ============================================================
-// Filtros del listado de tareas — lógica pura. Nro de Tarea,
-// Responsable y Título siempre visibles; Autor, Estado, Prioridad,
-// % Avance, Fecha Inicio y Fecha Fin se agregan bajo demanda
-// ("+ Añadir filtro"). Mismo patrón que `filtrosMisPedidos.ts`.
+// Filtros de la tabla de tareas — lógica pura. Mismo modelo que
+// `designaciones/components/filtrosTablero.ts`: cada columna tiene su
+// propio filtro en el header (`FiltroEncabezado`), no una fila de filtros
+// generales aparte. Texto libre para columnas de texto/fecha; checkboxes
+// (derivados de los valores presentes en las tareas, como
+// `opcionesColumnasTablero`) para columnas de valores cerrados.
 // ============================================================
-import type { Prioridad, Tarea } from "../types";
+import type { EstadoTarea, Prioridad, Tarea } from "../types";
+import { formatearFecha } from "./detalleAdapters";
 
-export interface FiltrosTareasState {
+export interface FiltrosColumnasTareas {
   numero: string;
-  responsable: string;
   titulo: string;
-  autor: string;
-  /** Estados seleccionados, separados por coma (multi-select). Vacío = todos. */
-  estado: string;
-  prioridad: Prioridad | "todos";
-  avance: string;
+  autor: string[];
+  responsable: string[];
   fechaInicio: string;
   fechaFin: string;
-  /** Índice de string: permite reusar el componente genérico `FiltrosLista`. */
-  [clave: string]: string;
+  prioridad: Prioridad[];
+  avance: string;
+  estado: EstadoTarea[];
 }
 
-export const FILTROS_INICIALES: FiltrosTareasState = {
+export const FILTROS_COLUMNAS_INICIALES: FiltrosColumnasTareas = {
   numero: "",
-  responsable: "",
   titulo: "",
-  autor: "",
-  estado: "",
-  prioridad: "todos",
-  avance: "",
+  autor: [],
+  responsable: [],
   fechaInicio: "",
   fechaFin: "",
+  prioridad: [],
+  avance: "",
+  estado: [],
 };
 
 /** Minúsculas y sin diacríticos, para comparar sin distinguir mayúsculas/acentos. */
@@ -42,25 +42,37 @@ function normalizarTexto(texto: string): string {
     .replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
 }
 
-/** Acota las tareas por los filtros activos. */
-export function aplicarFiltrosTareas(tareas: Tarea[], filtros: FiltrosTareasState): Tarea[] {
-  const numero = normalizarTexto(filtros.numero);
-  const titulo = normalizarTexto(filtros.titulo);
-  const autor = normalizarTexto(filtros.autor);
+function coincideTexto(valor: string, filtro: string): boolean {
+  const buscado = normalizarTexto(filtro);
+  return !buscado || normalizarTexto(valor).includes(buscado);
+}
 
+/** Opciones de los menús de encabezado derivadas de las tareas visibles (como en Revisión). */
+export function opcionesColumnasTareas(tareas: Tarea[]) {
+  return {
+    autores: [...new Set(tareas.map((t) => t.creadoPor.nombre))].sort((a, b) =>
+      a.localeCompare(b, "es"),
+    ),
+    responsables: [...new Set(tareas.map((t) => t.responsable.nombre))].sort((a, b) =>
+      a.localeCompare(b, "es"),
+    ),
+  };
+}
+
+/** Acota las tareas por los filtros de columna activos. */
+export function aplicarFiltrosColumnas(tareas: Tarea[], filtros: FiltrosColumnasTareas): Tarea[] {
   return tareas.filter((tarea) => {
-    if (numero && !normalizarTexto(String(tarea.numero)).includes(numero)) return false;
-    if (titulo && !normalizarTexto(tarea.titulo).includes(titulo)) return false;
-    if (filtros.responsable && tarea.responsable.nombre !== filtros.responsable) return false;
-    if (autor && !normalizarTexto(tarea.creadoPor.nombre).includes(autor)) return false;
-    if (filtros.estado) {
-      const estadosSeleccionados = filtros.estado.split(",");
-      if (!estadosSeleccionados.includes(tarea.estado)) return false;
+    if (!coincideTexto(String(tarea.numero), filtros.numero)) return false;
+    if (!coincideTexto(tarea.titulo, filtros.titulo)) return false;
+    if (filtros.autor.length && !filtros.autor.includes(tarea.creadoPor.nombre)) return false;
+    if (filtros.responsable.length && !filtros.responsable.includes(tarea.responsable.nombre)) {
+      return false;
     }
-    if (filtros.prioridad !== "todos" && tarea.prioridad !== filtros.prioridad) return false;
-    if (filtros.avance !== "" && tarea.porcentajeAvance !== Number(filtros.avance)) return false;
-    if (filtros.fechaInicio && tarea.fechaInicio > filtros.fechaInicio) return false;
-    if (filtros.fechaFin && tarea.fechaFin > filtros.fechaFin) return false;
+    if (!coincideTexto(formatearFecha(tarea.fechaInicio), filtros.fechaInicio)) return false;
+    if (!coincideTexto(formatearFecha(tarea.fechaFin), filtros.fechaFin)) return false;
+    if (filtros.prioridad.length && !filtros.prioridad.includes(tarea.prioridad)) return false;
+    if (filtros.avance !== "" && Number(filtros.avance) !== tarea.porcentajeAvance) return false;
+    if (filtros.estado.length && !filtros.estado.includes(tarea.estado)) return false;
     return true;
   });
 }

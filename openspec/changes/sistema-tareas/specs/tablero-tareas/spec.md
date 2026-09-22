@@ -2,7 +2,7 @@
 
 ### Requirement: Orden del listado, por columna
 
-El listado SHALL mostrarse ordenado por Fecha de Inicio ascendente (la más próxima primero) por defecto. Cada columna del header MUST ser clickeable para ordenar el listado por esa columna; un click sobre la columna ya activa MUST alternar entre ascendente y descendente, y un click sobre una columna distinta MUST pasar a ordenar por esa columna en orden ascendente. La columna y dirección de orden activas MUST indicarse visualmente en el header.
+El listado SHALL mostrarse ordenado por Fecha de Inicio ascendente (la más próxima primero) cuando el usuario no eligió ninguna columna manualmente. Cada columna del header MUST ser clickeable para ordenar el listado por esa columna, con un ciclo de 3 estados: primer click → ascendente; un segundo click sobre la misma columna → descendente; un tercer click sobre la misma columna → vuelve al orden por defecto (Fecha de Inicio ascendente), sin que ninguna columna quede marcada como activa. Un click sobre una columna distinta a la activa MUST reiniciar el ciclo en ascendente para la nueva columna. La columna y dirección de orden activas MUST indicarse visualmente en el header — mismo mecanismo (`Table.HeaderCell` del design system) que usa la Tabla de revisión de pedidos de Designaciones.
 
 #### Scenario: Orden por defecto
 
@@ -11,7 +11,7 @@ El listado SHALL mostrarse ordenado por Fecha de Inicio ascendente (la más pró
 
 #### Scenario: Click en una columna ordena por ella
 
-- **GIVEN** el listado ordenado por Fecha de Inicio
+- **GIVEN** el listado en su orden por defecto
 - **WHEN** un usuario hace click en el header "Título"
 - **THEN** el listado se reordena alfabéticamente por Título, ascendente, y el header lo indica visualmente
 
@@ -21,9 +21,15 @@ El listado SHALL mostrarse ordenado por Fecha de Inicio ascendente (la más pró
 - **WHEN** el usuario hace click en el header "Título" otra vez
 - **THEN** el listado se reordena por Título descendente
 
+#### Scenario: Un tercer click sobre la misma columna vuelve al orden por defecto
+
+- **GIVEN** el listado ordenado por Título descendente (tras dos clicks)
+- **WHEN** el usuario hace click en el header "Título" una vez más
+- **THEN** el listado vuelve a mostrarse ordenado por Fecha de Inicio ascendente, y ningún header queda marcado como activo
+
 ### Requirement: Listado único de tareas
 
-El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), la misma para todos los roles, con una tabla que MUST mostrar las columnas Nro de Tarea, Título, Autor, Responsable, Fecha Inicio, Fecha Fin, Prioridad, % Avance y Estado. La tabla MUST representar explícitamente los estados Loading, Empty, Error y Success.
+El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), la misma para todos los roles, con una tabla que MUST mostrar las columnas Nro de Tarea, Título, Autor, Responsable, Fecha Inicio, Fecha Fin, Prioridad, % Avance, Estado y Acciones (un botón "Ver" por fila que navega al detalle). La tabla MUST representar explícitamente los estados Loading, Empty, Error y Success.
 
 #### Scenario: El listado muestra Autor y Responsable
 
@@ -53,6 +59,11 @@ El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), l
 
 - **WHEN** ocurre un error al obtener las tareas
 - **THEN** se muestra un mensaje de error con opción de reintentar
+
+#### Scenario: El botón Ver navega al detalle
+
+- **WHEN** un usuario hace click en el botón "Ver" de una fila
+- **THEN** navega a `/tareas/:id` de esa tarea
 
 ### Requirement: Semáforo de vencimiento en el listado
 
@@ -98,78 +109,54 @@ En el listado, una tarea en estado Pausa SHALL destacarse visualmente en la colu
 - **WHEN** su creador abre el listado de tareas
 - **THEN** la fila muestra el indicador distintivo de Pausa en la columna Estado
 
-### Requirement: Filtros del listado cubren todas las columnas
+### Requirement: Filtros por columna, en el propio header
 
-El listado SHALL ofrecer un filtro por cada columna de la tabla: Nro de Tarea, Título, Autor, Responsable, Fecha de Inicio, Fecha de Fin, Prioridad, % Avance y Estado, reutilizando el componente `FiltrosLista` ya usado en Designaciones. Nro de Tarea, Responsable y Título MUST estar siempre visibles por defecto; Autor, Fecha de Inicio, Fecha de Fin, Prioridad, % Avance y Estado MUST estar ocultos por defecto y agregarse mediante "+ Añadir filtro", de forma que no todos los filtros estén presentes al inicio. Los filtros MUST aplicarse sobre las tareas visibles sin recargar la página.
+El listado SHALL ofrecer un filtro por cada columna de la tabla (Nro de Tarea, Título, Autor, Responsable, Fecha de Inicio, Fecha de Fin, Prioridad, % Avance, Estado), presentado como un ícono en el header de esa columna que abre un desplegable con el control de filtro — mismo componente (`FiltroEncabezado`) y mismo patrón que la Tabla de revisión de pedidos de Designaciones. No hay una fila de filtros generales separada de la tabla: todos los filtros viven en el header de su columna, cerrados por defecto. Los filtros MUST aplicarse sobre las tareas visibles sin recargar la página.
 
-Los filtros de Fecha de Inicio y Fecha de Fin SHALL filtrar por "hasta esta fecha" (inclusive): al ingresar una fecha, el listado muestra solo las tareas cuya Fecha de Inicio (o Fecha de Fin, según el filtro) sea anterior o igual a la fecha elegida. El filtro de % Avance SHALL filtrar por coincidencia exacta: al ingresar un valor, el listado muestra solo las tareas cuyo `porcentajeAvance` sea igual a ese valor.
+Nro de Tarea, Título, Fecha de Inicio y Fecha de Fin SHALL filtrar por texto libre: el usuario tipea, y el filtro compara contra el valor de la columna sin distinguir mayúsculas/acentos (para las fechas, contra el texto ya formateado dd/mm/aaaa). Autor, Responsable, Prioridad y Estado SHALL filtrar mediante checkboxes que permiten seleccionar varios valores a la vez; las opciones de Autor y Responsable se derivan de los valores presentes en las tareas visibles (no de un catálogo estático), igual que Designaciones deriva las opciones de sus columnas cerradas. % Avance SHALL filtrar por coincidencia exacta mediante un campo numérico.
 
-El filtro de Responsable SHALL presentarse como un campo de búsqueda: el usuario tipea texto, ve una lista de candidatos que coinciden, y selecciona uno para aplicar el filtro — no un `<select>` desplegable tradicional ni un campo de texto libre.
+Un header con un filtro activo MUST indicarlo visualmente (mismo indicador que usa `FiltroEncabezado`), y su menú MUST ofrecer una acción para limpiar ese filtro puntual.
 
-El filtro de Estado SHALL permitir seleccionar **varios estados a la vez** (Pendiente, En curso, Pausa, Resuelta, Cancelada) mediante checkboxes en un desplegable — no un `<select>` de una sola opción. Sin ningún estado seleccionado, el filtro no acota el listado (equivale a "todos").
+#### Scenario: Filtrar por Título (texto libre)
+
+- **WHEN** un usuario abre el filtro del header "Título" y escribe "aulas"
+- **THEN** el listado muestra únicamente las tareas cuyo título contiene "aulas"
 
 #### Scenario: Filtrar por un solo estado
 
-- **WHEN** un usuario agrega el filtro Estado y marca únicamente "Pausa"
+- **WHEN** un usuario abre el filtro del header "Estado" y marca únicamente "Pausa"
 - **THEN** el listado muestra únicamente las tareas en estado Pausa
 
 #### Scenario: Filtrar por varios estados a la vez
 
-- **WHEN** un usuario agrega el filtro Estado y marca "Pendiente" y "En curso"
+- **WHEN** un usuario marca "Pendiente" y "En curso" en el filtro de Estado
 - **THEN** el listado muestra las tareas en estado Pendiente o En curso, y oculta el resto
 
-#### Scenario: Sin estados marcados no filtra
+#### Scenario: Sin checkboxes marcados no filtra
 
-- **GIVEN** el filtro Estado agregado pero sin ningún checkbox marcado
+- **GIVEN** el filtro de una columna de checkboxes (Autor, Responsable, Prioridad o Estado) sin ningún valor marcado
 - **WHEN** se renderiza el listado
-- **THEN** se muestran tareas de todos los estados, sin acotar
+- **THEN** se muestran tareas de todos los valores de esa columna, sin acotar
+
+#### Scenario: Las opciones de Responsable salen de las tareas visibles
+
+- **GIVEN** un listado donde solo "G. Ruiz" y "M. Díaz" aparecen como Responsable de alguna tarea
+- **WHEN** un usuario abre el filtro del header "Responsable"
+- **THEN** el desplegable ofrece únicamente esas dos opciones, no el catálogo completo de personas candidatas
 
 #### Scenario: Filtro sin resultados
 
 - **WHEN** un usuario aplica un filtro que ninguna tarea cumple
 - **THEN** el listado muestra un estado "Sin resultados" en vez de filas vacías
 
-#### Scenario: Filtrar por Fecha de Inicio "hasta"
+#### Scenario: Filtrar por Fecha de Inicio como texto
 
-- **GIVEN** tareas con Fecha de Inicio 2026-03-01, 2026-03-10 y 2026-03-20
-- **WHEN** un usuario agrega el filtro Fecha de Inicio y elige 2026-03-10
-- **THEN** el listado muestra las tareas con Fecha de Inicio 2026-03-01 y 2026-03-10, y oculta la del 2026-03-20
+- **GIVEN** tareas con Fecha de Inicio 05/03/2026 y 10/04/2026
+- **WHEN** un usuario escribe "03/2026" en el filtro del header "Inicio"
+- **THEN** el listado muestra únicamente la tarea con Fecha de Inicio 05/03/2026
 
 #### Scenario: Filtrar por % Avance exacto
 
 - **GIVEN** tareas con 20%, 50% y 90% de avance
-- **WHEN** un usuario agrega el filtro % Avance e ingresa 50
+- **WHEN** un usuario ingresa 50 en el filtro del header "% Avance"
 - **THEN** el listado muestra únicamente la tarea con 50% de avance
-
-#### Scenario: Buscar y seleccionar un Responsable en el filtro
-
-- **GIVEN** tareas con distintos Responsables, entre ellos "G. Ruiz"
-- **WHEN** un usuario escribe "Ruiz" en el filtro Responsable y selecciona "G. Ruiz" de la lista de resultados
-- **THEN** el listado muestra únicamente las tareas cuyo Responsable es "G. Ruiz"
-
-#### Scenario: Filtros por defecto: Nro de Tarea, Responsable y Título
-
-- **WHEN** un usuario abre el listado de tareas por primera vez
-- **THEN** ve visibles los campos Nro de Tarea, Responsable y Título; Autor, Fecha de Inicio, Fecha de Fin, Prioridad, % Avance y Estado no están visibles hasta agregarlos con "+ Añadir filtro"
-
-### Requirement: Guardado de configuraciones de filtros
-
-El sistema SHALL permitir guardar la combinación actual de filtros (los siempre visibles y los opcionales agregados, con todos sus valores) con un nombre elegido por el usuario, asociada a ese usuario, y volver a aplicarla en una visita posterior mediante un selector de configuraciones guardadas.
-
-#### Scenario: Guardar una configuración de filtros
-
-- **GIVEN** un usuario que puso Responsable="G. Ruiz" y agregó el filtro Estado="Pausa"
-- **WHEN** guarda esa configuración con el nombre "Mis pausas"
-- **THEN** la configuración queda disponible para ese usuario en el selector de configuraciones guardadas
-
-#### Scenario: Aplicar una configuración guardada
-
-- **GIVEN** un usuario con la configuración guardada "Mis pausas" (Responsable="G. Ruiz", Estado="Pausa")
-- **WHEN** la selecciona desde el selector de configuraciones guardadas
-- **THEN** el listado completa Responsable="G. Ruiz" y agrega y completa el filtro Estado="Pausa" tal como se guardaron
-
-#### Scenario: Las configuraciones guardadas son por usuario
-
-- **GIVEN** dos usuarios distintos, cada uno con sus propias configuraciones guardadas
-- **WHEN** cada uno abre el selector de configuraciones guardadas
-- **THEN** cada uno ve únicamente las configuraciones que guardó él mismo

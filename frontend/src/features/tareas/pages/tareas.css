@@ -1,32 +1,9 @@
 /* ============================================================
-   Listado de tareas (`IndexPage.tsx`) y detalle (`DetalleTareaPage.tsx`).
+   Detalle de tarea (`DetalleTareaPage.tsx`). El listado (`IndexPage.tsx`)
+   no tiene CSS propio: `TablaTareas` se apoya en el `Table` del design
+   system — ver `components/tablaTareas.css` para lo poco que le falta
+   (el semáforo de vencimiento).
    ============================================================ */
-
-.adoc-tareas-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.adoc-tareas-filtros-fila {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.adoc-tareas-filtros-fila > .adoc-filtros {
-  flex: 1 1 480px;
-}
-
-.adoc-tareas-config-filtros {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-/* --- Detalle de tarea --- */
 .adoc-det-tarea {
   display: flex;
   flex-direction: column;

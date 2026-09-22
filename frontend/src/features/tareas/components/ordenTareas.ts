@@ -1,11 +1,14 @@
 // ============================================================
-// Orden del listado de tareas — lógica pura. Por defecto ordena por
-// Fecha Inicio ascendente; clickear una columna del header ordena por
-// esa columna (alternando asc/desc en clicks sucesivos sobre la misma).
+// Orden de la tabla de tareas — lógica pura. Mismo modelo que
+// `designaciones/components/tableroRevisionModelo.ts`: `Table.HeaderCell`
+// de la librería ya trae el `th` clickeable, el `aria-sort` y la flechita —
+// acá solo vive el criterio. `null` = sin orden manual, y ahí manda el
+// orden por defecto (Fecha Inicio ascendente); por eso el ciclo del header
+// vuelve a `null` en el tercer click en vez de quedarse en asc/desc.
 // ============================================================
 import type { Tarea } from "../types";
 
-export type ClaveOrdenTarea =
+export type ColumnaOrdenableTarea =
   | "numero"
   | "titulo"
   | "autor"
@@ -16,14 +19,10 @@ export type ClaveOrdenTarea =
   | "avance"
   | "estado";
 
-export type DireccionOrden = "asc" | "desc";
-
-export interface OrdenTareasState {
-  clave: ClaveOrdenTarea;
-  direccion: DireccionOrden;
+export interface OrdenTareas {
+  columna: ColumnaOrdenableTarea;
+  direccion: "asc" | "desc";
 }
-
-export const ORDEN_INICIAL: OrdenTareasState = { clave: "fechaInicio", direccion: "asc" };
 
 const RANGO_PRIORIDAD: Record<Tarea["prioridad"], number> = { baja: 1, media: 2, alta: 3 };
 const RANGO_ESTADO: Record<Tarea["estado"], number> = {
@@ -34,8 +33,8 @@ const RANGO_ESTADO: Record<Tarea["estado"], number> = {
   cancelada: 5,
 };
 
-function valorComparable(tarea: Tarea, clave: ClaveOrdenTarea): string | number {
-  switch (clave) {
+function valorDeOrden(tarea: Tarea, columna: ColumnaOrdenableTarea): string | number {
+  switch (columna) {
     case "numero":
       return tarea.numero;
     case "titulo":
@@ -57,22 +56,27 @@ function valorComparable(tarea: Tarea, clave: ClaveOrdenTarea): string | number 
   }
 }
 
-/** Devuelve una copia ordenada — no muta el array recibido. */
-export function ordenarTareas(tareas: Tarea[], orden: OrdenTareasState): Tarea[] {
-  const factor = orden.direccion === "asc" ? 1 : -1;
+/** Orden por defecto cuando el usuario no eligió ninguna columna: Fecha Inicio ascendente. */
+const ORDEN_POR_DEFECTO: OrdenTareas = { columna: "fechaInicio", direccion: "asc" };
+
+/** Aplica el orden elegido; `null` aplica el orden por defecto (Fecha Inicio ascendente). */
+export function ordenarTareas(tareas: Tarea[], orden: OrdenTareas | null): Tarea[] {
+  const efectivo = orden ?? ORDEN_POR_DEFECTO;
+  const signo = efectivo.direccion === "asc" ? 1 : -1;
   return [...tareas].sort((a, b) => {
-    const va = valorComparable(a, orden.clave);
-    const vb = valorComparable(b, orden.clave);
-    if (va < vb) return -1 * factor;
-    if (va > vb) return 1 * factor;
-    return 0;
+    const va = valorDeOrden(a, efectivo.columna);
+    const vb = valorDeOrden(b, efectivo.columna);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * signo;
+    return String(va).localeCompare(String(vb), "es", { numeric: true }) * signo;
   });
 }
 
-/** Click en una columna: si ya era la activa, alterna asc/desc; si no, arranca en asc. */
-export function siguienteOrden(actual: OrdenTareasState, clave: ClaveOrdenTarea): OrdenTareasState {
-  if (actual.clave === clave) {
-    return { clave, direccion: actual.direccion === "asc" ? "desc" : "asc" };
-  }
-  return { clave, direccion: "asc" };
+/** Siguiente estado del ciclo del header: asc → desc → sin orden manual (vuelve al default). */
+export function siguienteOrden(
+  actual: OrdenTareas | null,
+  columna: ColumnaOrdenableTarea,
+): OrdenTareas | null {
+  if (actual?.columna !== columna) return { columna, direccion: "asc" };
+  if (actual.direccion === "asc") return { columna, direccion: "desc" };
+  return null;
 }

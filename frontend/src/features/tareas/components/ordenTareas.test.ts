@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ORDEN_INICIAL, ordenarTareas, siguienteOrden } from "./ordenTareas";
+import { ordenarTareas, siguienteOrden } from "./ordenTareas";
 import type { Tarea } from "../types";
 
 function tarea(overrides: Partial<Tarea> = {}): Tarea {
@@ -22,13 +22,13 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
 }
 
 describe("ordenarTareas", () => {
-  it("por defecto (fechaInicio asc) ordena de más temprana a más tardía", () => {
+  it("con orden null (sin elegir columna) ordena por Fecha Inicio ascendente", () => {
     const tareas = [
       tarea({ id: "b", fechaInicio: "2026-03-01" }),
       tarea({ id: "a", fechaInicio: "2026-01-01" }),
       tarea({ id: "c", fechaInicio: "2026-02-01" }),
     ];
-    const resultado = ordenarTareas(tareas, ORDEN_INICIAL);
+    const resultado = ordenarTareas(tareas, null);
     expect(resultado.map((t) => t.id)).toEqual(["a", "c", "b"]);
   });
 
@@ -38,7 +38,7 @@ describe("ordenarTareas", () => {
       tarea({ id: "a", fechaInicio: "2026-01-01" }),
     ];
     const original = [...tareas];
-    ordenarTareas(tareas, ORDEN_INICIAL);
+    ordenarTareas(tareas, null);
     expect(tareas).toEqual(original);
   });
 
@@ -48,7 +48,7 @@ describe("ordenarTareas", () => {
       tarea({ id: "b", numero: 3 }),
       tarea({ id: "c", numero: 2 }),
     ];
-    const resultado = ordenarTareas(tareas, { clave: "numero", direccion: "desc" });
+    const resultado = ordenarTareas(tareas, { columna: "numero", direccion: "desc" });
     expect(resultado.map((t) => t.id)).toEqual(["b", "c", "a"]);
   });
 
@@ -58,27 +58,32 @@ describe("ordenarTareas", () => {
       tarea({ id: "baja", prioridad: "baja" }),
       tarea({ id: "alta", prioridad: "alta" }),
     ];
-    const resultado = ordenarTareas(tareas, { clave: "prioridad", direccion: "asc" });
+    const resultado = ordenarTareas(tareas, { columna: "prioridad", direccion: "asc" });
     expect(resultado.map((t) => t.id)).toEqual(["baja", "media", "alta"]);
   });
 
   it("ordena por título alfabéticamente sin distinguir mayúsculas", () => {
     const tareas = [tarea({ id: "z", titulo: "Zebra" }), tarea({ id: "a", titulo: "ana" })];
-    const resultado = ordenarTareas(tareas, { clave: "titulo", direccion: "asc" });
+    const resultado = ordenarTareas(tareas, { columna: "titulo", direccion: "asc" });
     expect(resultado.map((t) => t.id)).toEqual(["a", "z"]);
   });
 });
 
 describe("siguienteOrden", () => {
   it("clickear una columna nueva arranca en ascendente", () => {
-    expect(siguienteOrden(ORDEN_INICIAL, "titulo")).toEqual({ clave: "titulo", direccion: "asc" });
+    expect(siguienteOrden(null, "titulo")).toEqual({ columna: "titulo", direccion: "asc" });
   });
 
-  it("clickear la misma columna alterna la dirección", () => {
-    const primero = siguienteOrden(ORDEN_INICIAL, "titulo");
+  it("clickear la misma columna alterna asc → desc → null (vuelve al default)", () => {
+    const primero = siguienteOrden(null, "titulo");
     const segundo = siguienteOrden(primero, "titulo");
-    expect(segundo).toEqual({ clave: "titulo", direccion: "desc" });
+    expect(segundo).toEqual({ columna: "titulo", direccion: "desc" });
     const tercero = siguienteOrden(segundo, "titulo");
-    expect(tercero).toEqual({ clave: "titulo", direccion: "asc" });
+    expect(tercero).toBeNull();
+  });
+
+  it("clickear otra columna mientras hay una activa reinicia en ascendente", () => {
+    const activa = siguienteOrden(null, "titulo");
+    expect(siguienteOrden(activa, "estado")).toEqual({ columna: "estado", direccion: "asc" });
   });
 });
