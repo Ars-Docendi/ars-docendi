@@ -1,16 +1,29 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   agregarComentario,
+  agregarRelacion,
   cambiarEstadoTarea,
   crearTarea,
   editarAvance,
   editarTarea,
+  quitarRelacion,
 } from "../api/tareasApi";
 import type { ActorTarea, DatosEditablesTarea, EstadoTarea } from "../types";
+
+interface ParamsCrear {
+  datos: DatosEditablesTarea;
+  /** Presente al crear una tarea hija: id de la tarea padre. */
+  tareaPadreId?: string;
+}
 
 interface ParamsEditar {
   id: string;
   datos: DatosEditablesTarea;
+}
+
+interface ParamsRelacion {
+  id: string;
+  otraId: string;
 }
 
 interface ParamsCambiarEstado {
@@ -30,11 +43,11 @@ interface ParamsComentario {
   texto: string;
 }
 
-/** Crea una tarea en Pendiente. Invalida el listado al terminar. */
+/** Crea una tarea en Pendiente (o una hija, si se pasa `tareaPadreId`). Invalida el listado al terminar. */
 export function useCrearTarea(actor: ActorTarea) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (datos: DatosEditablesTarea) => crearTarea(datos, actor),
+    mutationFn: ({ datos, tareaPadreId }: ParamsCrear) => crearTarea(datos, actor, tareaPadreId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
@@ -73,6 +86,24 @@ export function useAgregarComentario(actor: ActorTarea) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, texto }: ParamsComentario) => agregarComentario(id, actor, texto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
+  });
+}
+
+/** Relaciona dos tareas entre sí (vínculo simple, bidireccional). */
+export function useAgregarRelacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, otraId }: ParamsRelacion) => agregarRelacion(id, otraId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
+  });
+}
+
+/** Quita la relación entre dos tareas (ambos lados). */
+export function useQuitarRelacion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, otraId }: ParamsRelacion) => quitarRelacion(id, otraId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }

@@ -17,9 +17,11 @@ Este change sigue el mismo patrón para Tareas: no hay necesidad de diseño de A
 
 **Non-Goals:**
 
-- Persistencia real / API HTTP de `Modules.Tareas` (el store vive en `localStorage`, por navegador, no compartido entre usuarios — igual que Docentes/Roles/Usuarios hoy).
+- Persistencia real / API HTTP de `Modules.Tareas` (el store vive en `localStorage`, por navegador, no compartido entre usuarios — igual que Docentes/Roles/Usuarios hoy). Incluye a Proyectos: mismo mock store, mismo trade-off.
 - Sistema de permisos configurable (eso es `roles-membresia`, change de otro equipo — este change solo lee `Role` vía `useCurrentUser`, no lo modifica).
 - Asignación múltiple, adjuntos, notificaciones, parametrización del umbral del semáforo.
+- Cálculo automático del Estado o el `porcentajeAvance` de una tarea padre en base a sus tareas hijas — se editan a mano, igual que cualquier tarea (decisión explícita, ver Decisions).
+- Límite mecánico a la profundidad de la jerarquía padre/hijas (se permite anidar más de un nivel; un límite práctico de UI, si hace falta, es un ajuste de estilos posterior, no de alcance).
 
 ## Decisions
 
@@ -55,6 +57,7 @@ export interface Tarea {
   fechaInicio: string; // ISO (solo fecha)
   fechaFin: string; // ISO (solo fecha) — vencimiento
   prioridad: Prioridad;
+  tipo: TipoTarea;
   estado: EstadoTarea;
   porcentajeAvance: number; // 0-100, lo completa el Responsable
   solucion?: string; // detalle de resolución; obligatorio al pasar a "resuelta"
@@ -62,6 +65,25 @@ export interface Tarea {
   creadoPor: { nombre: string; rol: Rol };
   comentarios: ComentarioTarea[];
   historial: EventoHistorialTarea[];
+  proyectoId?: string; // opcional en tareas de primer nivel; heredado obligatorio si tareaPadreId existe
+  tareaPadreId?: string; // presente solo si es una tarea hija
+  tareasRelacionadasIds: string[]; // vínculo simple bidireccional, sin jerarquía
+}
+
+export type TipoTarea =
+  "extension" | "administrativa" | "posgrado" | "investigacion" | "academica" | "decanato";
+
+export type EstadoProyecto = "abierto" | "finalizado" | "cancelado";
+
+export interface Proyecto {
+  id: string;
+  numero: number;
+  nombre: string;
+  descripcion: string;
+  fechaInicio: string; // ISO
+  fechaFin: string; // ISO
+  estado: EstadoProyecto;
+  responsable: { nombre: string; rol: Rol }; // rol restringido a Secretaría o Decanato
 }
 ```
 
@@ -75,7 +97,7 @@ export interface Tarea {
 
 **Permisos** (funciones puras, mismo archivo):
 
-- `puedeCrearTarea(actor)`: `true` si `actor.rol` ∈ {Secretaría, Decanato, Administración} — controla la visibilidad del botón "Nueva Tarea".
+- `puedeCrearTarea(actor)`: `true` si `actor.rol` ∈ {Secretaría Académica, Decanato, Administrativo} — controla la visibilidad del botón "Nueva Tarea".
 - `puedeEditarCampos(tarea, actor)`: `true` si `actor.nombre === tarea.creadoPor.nombre` — cubre Título, Descripción, fechas, Prioridad y Responsable.
 - `puedeCambiarEstado(tarea, actor, estadoDestino)`: si `estadoDestino === "cancelada"` → solo la autoridad creadora; si no → `true` para el Responsable (`actor.nombre === tarea.responsable.nombre`) o la autoridad creadora.
 - `puedeEditarAvance(tarea, actor)`: `true` si `actor.nombre === tarea.responsable.nombre` o es la autoridad creadora — cubre `porcentajeAvance` y `solucion`, que **no** son parte de `puedeEditarCampos` (el Responsable los completa aunque no pueda editar el resto de la tarea).
@@ -110,9 +132,49 @@ Se aplica solo si el estado es no terminal (`pendiente`/`en_curso`/`pausa`); una
 - `/tareas/:id` → `pages/DetalleTareaPage.tsx`: layout de dos columnas como `DetallePedidoPage` (columna principal: descripción + comentarios + `AuditLog` de `historial`; rail lateral: datos de la tarea + acciones de cambio de estado).
 - Creación: modal (`ModalNuevaTarea`), no página aparte — mismo patrón que otros módulos que usan modal para altas simples (ver `ModalNuevoDocente`, `ModalNuevoRol`).
 
-**Store mock** (`features/tareas/api/tareasStore.ts` + `tareasSeed.ts` + `tareasApi.ts`): mismo patrón exacto que `pedidosStore.ts` — singleton en memoria hidratado de `localStorage` (clave `adoc.mock.tareas.v1`), `structuredClone` en lecturas/escrituras, seam de API async simulado consumido solo por hooks de React Query (`useTareas.ts`).
+**Store mock** (`features/tareas/api/tareasStore.ts` + `tareasSeed.ts` + `tareasApi.ts`): mismo patrón exacto que `pedidosStore.ts` — singleton en memoria hidratado de `localStorage` (clave `adoc.mock.tareas.v2` — subida desde `v1` al agregar `tipo`/`proyectoId`/`tareaPadreId`/`tareasRelacionadasIds` a `Tarea`, para forzar el resembrado de navegadores con el shape viejo), `structuredClone` en lecturas/escrituras, seam de API async simulado consumido solo por hooks de React Query (`useTareas.ts`).
 
-**Selector de Responsable, reutilizado en el alta/edición de tarea** (`features/tareas/components/SelectorResponsable.tsx`, envoltorio sobre `shared/ui/ComboboxBuscable.tsx`): se usa en el campo Responsable del formulario "Nueva Tarea"/edición — ahí sí conviene buscar por texto entre **todos** los candidatos posibles, no solo los que ya aparecen en alguna tarea (a diferencia del filtro de la tabla, que deriva sus opciones de los datos visibles — ver más arriba). Las opciones salen de `features/tareas/api/personasSeed.ts`: un catálogo mock de candidatos (nombre + rol) acotado a Tareas — no se importa desde `features/usuarios` ni `features/docentes` (aislamiento de features); el día que exista un directorio real de usuarios (`Modules.Portal` u otro), este catálogo se reemplaza por esa fuente sin tocar el combobox. `shared/ui/FiltrosLista.tsx`/`ComboboxBuscable.tsx`/`MultiSelectFiltro.tsx` (los tipos `"fecha"`/`"numero"`/`"buscable"`/`"multiSelect"` agregados en una iteración anterior de este change) quedan como capacidades genéricas disponibles en `shared/ui`, pero **Tareas ya no los usa** para su propia tabla — los reemplazó adoptar el modelo de `Table` + `FiltroEncabezado` de Revisión.
+**Selector de Responsable, reutilizado en el alta/edición de tarea** (`features/tareas/components/SelectorResponsable.tsx`, envoltorio sobre `shared/ui/ComboboxBuscable.tsx`): se usa en el campo Responsable del formulario "Nueva Tarea"/edición — ahí sí conviene buscar por texto entre los candidatos posibles (a diferencia del filtro de la tabla, que deriva sus opciones de los datos visibles — ver más arriba), pero **no todos**: las opciones se filtran por la jerarquía de asignación (ver más abajo), no el catálogo completo. Las opciones salen de `features/tareas/api/personasSeed.ts`: un catálogo mock de candidatos (nombre + rol) acotado a Tareas — no se importa desde `features/usuarios` ni `features/docentes` (aislamiento de features); el día que exista un directorio real de usuarios (`Modules.Portal` u otro), este catálogo se reemplaza por esa fuente sin tocar el combobox. `shared/ui/FiltrosLista.tsx`/`ComboboxBuscable.tsx`/`MultiSelectFiltro.tsx` (los tipos `"fecha"`/`"numero"`/`"buscable"`/`"multiSelect"` agregados en una iteración anterior de este change) quedan como capacidades genéricas disponibles en `shared/ui`, pero **Tareas ya no los usa** para su propia tabla — los reemplazó adoptar el modelo de `Table` + `FiltroEncabezado` de Revisión.
+
+**Jerarquía de asignación de Responsable** (`features/tareas/api/maquinaEstadosTarea.ts`): un rank map explícito, de mayor a menor autoridad. Los strings usan los nombres de rol **exactos** que devuelve `GET /api/desarrollo/identidades` (sembrados por `Modules.Identity`) — no abreviaturas propias de Tareas: un bug real, descubierto en la validación manual de este mismo change, fue usar formas cortas ("Secretaría", "Administración", "Coordinador") que no matcheaban contra `actor.rol` (derivado de `useCurrentUser` → `rol.nombre` del backend), dejando a Secretaría Académica y Administrativo sin poder usar sus propios permisos en la app real —
+
+```ts
+const ORDEN_JERARQUIA: readonly Rol[] = [
+  "Decanato",
+  "Secretaría Académica",
+  "Administrativo",
+  "Coordinador de Carrera",
+  "Jefe de Cátedra",
+  "Docente",
+];
+
+/** Menor índice = mayor autoridad. Ausente en el mapa = sin autoridad (nunca asigna). */
+function nivelJerarquia(rol: Rol): number {
+  return ORDEN_JERARQUIA.indexOf(rol);
+}
+
+/** El actor solo puede asignar Responsables de su mismo nivel o inferior (nunca superior). */
+export function puedeAsignarComoResponsable(
+  actor: ActorTarea,
+  candidato: PersonaCandidata,
+): boolean {
+  return nivelJerarquia(candidato.rol) >= nivelJerarquia(actor.rol);
+}
+```
+
+`SelectorResponsable.tsx` filtra `personasSeed.ts` con `puedeAsignarComoResponsable(actor, candidato)` antes de pasarlo como `opciones` al combobox — el candidato inválido directamente no aparece en la búsqueda, en vez de dejar elegirlo y rechazar al confirmar. Se aplica en el alta, en la edición (reasignar Responsable es parte de `puedeEditarCampos`, exclusivo de la autoridad creadora) y al crear una tarea hija. Como `ROLES_QUE_CREAN` (Decanato/Secretaría Académica/Administrativo) son justo los tres primeros niveles del rank map, la asignación entre pares del mismo nivel solo es alcanzable entre esos tres roles — Coordinador de Carrera/Jefe de Cátedra/Docente nunca son `actor` de esta función, solo `candidato`.
+
+**Proyectos** (`features/tareas/api/proyectosStore.ts` + `proyectosSeed.ts` + `proyectosApi.ts`): mismo patrón exacto que `tareasStore.ts` — mock store en memoria hidratado de `localStorage` (clave `adoc.mock.tareas.proyectos.v1`), consumido solo por hooks de React Query (`useProyectos.ts`, `useAccionesProyecto.ts`). Es un store separado del de Tareas, no un campo embebido — las tareas solo guardan `proyectoId` como referencia.
+
+**Permisos de Proyecto** (mismo archivo o uno nuevo `maquinaEstadosProyecto.ts`, funciones puras): `puedeCrearProyecto(actor)` y `puedeCambiarEstadoProyecto(actor)` son `true` si `actor.rol` ∈ {Secretaría Académica, Decanato} — más restrictivo que `puedeCrearTarea` (que también incluye Administrativo). El permiso de cambiar Estado es por **rol**, no por ownership: cualquier usuario de esos dos roles puede cambiar el estado de cualquier Proyecto, no solo el que figura como su Responsable — a diferencia de Cancelar una Tarea, que sí es exclusivo de la autoridad creadora puntual. El selector de Responsable del formulario "Nuevo Proyecto" reutiliza `puedeAsignarComoResponsable(actor, candidato)` (el mismo rank map de Tareas) filtrando además a {Secretaría Académica, Decanato}: Decanato puede asignarse el Proyecto a sí mismo o a Secretaría Académica; Secretaría Académica solo puede asignárselo a sí misma.
+
+**Relación simple entre tareas**: `tareasRelacionadasIds: string[]` en cada tarea, mantenido bidireccional por la capa de API mock (`agregarRelacion(idA, idB)` escribe el id en ambos lados, `quitarRelacion` lo saca de ambos) — no es un cálculo derivado, es estado persistido en las dos tareas para que la consulta de lectura sea trivial. No participa de la máquina de estados: agregarla o quitarla no genera un evento de historial (es metadata de navegación, no un cambio de la tarea en sí).
+
+**Jerarquía padre/hijas**: `tareaPadreId?: string` en la tarea hija es la única referencia — no hay una lista de `hijasIds` en el padre, se calcula filtrando `tareas.filter(t => t.tareaPadreId === padre.id)` (evita mantener dos fuentes de verdad sincronizadas). Es **agrupamiento organizacional, no un mecanismo de cálculo**: el Estado y el `porcentajeAvance` de cada tarea (padre o hija) se editan a mano con las mismas reglas de `maquinaEstadosTarea.ts` ya definidas, sin ningún rollup automático — la tarea padre no sabe, a nivel de cálculo, cuánto llevan sus hijas. Crear una hija reutiliza `puedeCrearTarea(actor)` (mismos roles que crean cualquier tarea) y `ModalNuevaTarea.tsx` con `tareaPadreId` pre-cargado; el campo Proyecto no se muestra en ese caso porque se hereda del padre (`tarea.proyectoId = padre.proyectoId`, asignado por el store al crear, no editable después). La jerarquía admite más de un nivel (una hija puede tener sus propias hijas) sin límite mecánico en el modelo.
+
+**Pantalla inicial por Proyecto**: `IndexPage.tsx` deja de renderizar un único `TablaTareas` y pasa a agrupar las tareas por `proyectoId` (`agruparTareasPorProyecto(tareas, proyectosAbiertos)`, función pura en `components/agrupacionProyectos.ts`) en una lista de cuadros: el cuadro "Generales" siempre primero (tareas con `proyectoId` vacío), y luego un cuadro por cada Proyecto **en estado Abierto** que tenga al menos una tarea, ordenados por `proyecto.fechaFin` descendente — los Proyectos Finalizados o Cancelados no generan cuadro, sin importar si todavía tienen tareas no terminales. Cada cuadro es un componente `CuadroProyecto.tsx` con un título (el nombre del Proyecto, o "Generales") y una `TablaTareas` **sin cambios respecto al formato ya existente** (Nro, Título, Autor, Responsable, Fecha Inicio, Fecha Fin, Prioridad, % Avance, Estado, Acciones — el Tipo no se agrega como columna, solo vive en el formulario de alta y el Detalle) acotada a ese subconjunto. El título de cada cuadro de Proyecto es un link a `/tareas/proyectos/:id`; el título "Generales" no lo es. Botón "Nuevo Proyecto" en el `PageHeader`, condicionado a `puedeCrearProyecto(actor)`, junto al ya existente "Nueva Tarea".
+
+**Acceso manual a Proyectos Finalizados/Cancelados**: como la pantalla inicial solo cubre los Proyectos Abiertos, se agrega una pantalla `ListadoProyectosPage.tsx` (`/tareas/proyectos`) con **todos** los Proyectos sin importar su Estado — una tabla simple (Nombre, Responsable, Fecha Fin, Estado), sin el modelo de filtros por columna de `TablaTareas` (no son tareas, y el volumen esperado de Proyectos es mucho menor). Un link "Ver todos los proyectos" en la pantalla inicial navega ahí; desde cada fila se navega al Detalle del Proyecto correspondiente.
 
 ## Risks / Trade-offs
 

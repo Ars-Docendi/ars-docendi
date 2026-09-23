@@ -15,12 +15,14 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     fechaInicio: "2026-01-01",
     fechaFin: "2026-01-10",
     prioridad: "media",
+    tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
     responsable: { nombre: "G. Ruiz", rol: "Jefe de Cátedra" },
-    creadoPor: { nombre: "L. Fernández", rol: "Secretaría" },
+    creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" },
     comentarios: [],
     historial: [],
+    tareasRelacionadasIds: [],
     ...overrides,
   };
 }
@@ -29,8 +31,8 @@ describe("opcionesColumnasTareas", () => {
   it("deriva autores y responsables únicos y ordenados de las tareas visibles", () => {
     const tareas = [
       tarea({ id: "a", creadoPor: { nombre: "R. Sosa", rol: "Decanato" } }),
-      tarea({ id: "b", creadoPor: { nombre: "L. Fernández", rol: "Secretaría" } }),
-      tarea({ id: "c", creadoPor: { nombre: "L. Fernández", rol: "Secretaría" } }),
+      tarea({ id: "b", creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" } }),
+      tarea({ id: "c", creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" } }),
     ];
     const opciones = opcionesColumnasTareas(tareas);
     expect(opciones.autores).toEqual(["L. Fernández", "R. Sosa"]);
@@ -57,9 +59,9 @@ describe("aplicarFiltrosColumnas", () => {
 
   it("filtra por Autor con selección múltiple (checkbox)", () => {
     const tareas = [
-      tarea({ id: "a", creadoPor: { nombre: "L. Fernández", rol: "Secretaría" } }),
+      tarea({ id: "a", creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" } }),
       tarea({ id: "b", creadoPor: { nombre: "R. Sosa", rol: "Decanato" } }),
-      tarea({ id: "c", creadoPor: { nombre: "P. Gómez", rol: "Administración" } }),
+      tarea({ id: "c", creadoPor: { nombre: "P. Gómez", rol: "Administrativo" } }),
     ];
     const resultado = aplicarFiltrosColumnas(tareas, {
       ...FILTROS_COLUMNAS_INICIALES,

@@ -27,15 +27,15 @@ El listado SHALL mostrarse ordenado por Fecha de Inicio ascendente (la más pró
 - **WHEN** el usuario hace click en el header "Título" una vez más
 - **THEN** el listado vuelve a mostrarse ordenado por Fecha de Inicio ascendente, y ningún header queda marcado como activo
 
-### Requirement: Listado único de tareas
+### Requirement: Pantalla inicial organizada en cuadros por Proyecto
 
-El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), la misma para todos los roles, con una tabla que MUST mostrar las columnas Nro de Tarea, Título, Autor, Responsable, Fecha Inicio, Fecha Fin, Prioridad, % Avance, Estado y Acciones (un botón "Ver" por fila que navega al detalle). La tabla MUST representar explícitamente los estados Loading, Empty, Error y Success.
+El sistema SHALL ofrecer una única pantalla inicial de tareas (`/tareas`), la misma para todos los roles, organizada en varios "cuadros": un cuadro fijo "Generales" (tareas sin Proyecto asociado) y un cuadro por cada Proyecto en estado **Abierto** que tenga al menos una tarea — los Proyectos Finalizados o Cancelados no generan cuadro en la pantalla inicial (ver Requirement "Acceso manual a Proyectos Finalizados o Cancelados" de la capability `proyectos`). Cada cuadro MUST tener una tabla propia con las tareas de ese subconjunto, manteniendo el formato de columnas actual — Nro de Tarea, Título, Autor, Responsable, Fecha Inicio, Fecha Fin, Prioridad, % Avance, Estado y Acciones — y el mismo modelo de filtros por columna, orden por header y semáforo de vencimiento, acotado a las tareas de ese cuadro. Cada tabla MUST representar explícitamente los estados Loading, Empty, Error y Success.
 
 #### Scenario: El listado muestra Autor y Responsable
 
-- **GIVEN** una tarea creada por Secretaría con Responsable "G. Ruiz"
+- **GIVEN** una tarea creada por Secretaría Académica con Responsable "G. Ruiz"
 - **WHEN** se renderiza su fila en el listado
-- **THEN** las columnas Autor y Responsable muestran "Secretaría" (o el nombre de quien la creó) y "G. Ruiz" respectivamente
+- **THEN** las columnas Autor y Responsable muestran el nombre de quien la creó y "G. Ruiz" respectivamente
 
 #### Scenario: El listado muestra el porcentaje de avance
 
@@ -47,13 +47,19 @@ El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), l
 
 - **GIVEN** un usuario con rol Docente y otro con rol Secretaría
 - **WHEN** cada uno abre `/tareas`
-- **THEN** ambos ven la misma estructura de listado, con las mismas columnas
+- **THEN** ambos ven la misma estructura de cuadros, con las mismas columnas
 
-#### Scenario: Listado vacío
+#### Scenario: Cuadro vacío
 
-- **GIVEN** un usuario sin tareas visibles
-- **WHEN** abre el listado de tareas
-- **THEN** ve un estado vacío sin filas, sin romper la navegación
+- **GIVEN** un Proyecto sin tareas visibles para el usuario actual
+- **WHEN** se renderiza su cuadro
+- **THEN** la tabla de ese cuadro muestra un estado vacío sin filas, sin romper la navegación
+
+#### Scenario: Un Proyecto Finalizado no genera cuadro en la pantalla inicial
+
+- **GIVEN** un Proyecto en estado Finalizado con una tarea todavía Pendiente
+- **WHEN** se renderiza la pantalla inicial de Tareas
+- **THEN** no aparece ningún cuadro para ese Proyecto
 
 #### Scenario: Error al cargar el listado
 
@@ -64,6 +70,36 @@ El sistema SHALL ofrecer una única pantalla de listado de tareas (`/tareas`), l
 
 - **WHEN** un usuario hace click en el botón "Ver" de una fila
 - **THEN** navega a `/tareas/:id` de esa tarea
+
+### Requirement: Orden de los cuadros de Proyecto
+
+Los cuadros de la pantalla inicial SHALL ordenarse de la siguiente forma: primero el cuadro fijo "Generales", y luego el resto de los cuadros (uno por cada Proyecto Abierto con tareas) ordenados por Fecha de Fin del Proyecto, de la más reciente a la más antigua.
+
+#### Scenario: "Generales" siempre aparece primero
+
+- **GIVEN** tres Proyectos con tareas y algunas tareas sin Proyecto asociado
+- **WHEN** se renderiza la pantalla inicial
+- **THEN** el cuadro "Generales" aparece antes que cualquier cuadro de Proyecto
+
+#### Scenario: Los proyectos se ordenan por Fecha de Fin más reciente
+
+- **GIVEN** el Proyecto A con Fecha de Fin 10/12/2026 y el Proyecto B con Fecha de Fin 05/06/2026
+- **WHEN** se renderiza la pantalla inicial
+- **THEN** el cuadro del Proyecto A aparece antes que el del Proyecto B
+
+### Requirement: Acceso al detalle del Proyecto desde su cuadro
+
+El título de cada cuadro de Proyecto (no el del cuadro fijo "Generales", que no representa un Proyecto real) SHALL ser clickeable y navegar a la pantalla de Detalle de ese Proyecto.
+
+#### Scenario: Click en el título de un cuadro de Proyecto
+
+- **WHEN** un usuario hace click en el título del cuadro "Nuevo sistema de Ingeniería para Testing"
+- **THEN** navega a la pantalla de Detalle de ese Proyecto
+
+#### Scenario: El cuadro "Generales" no es clickeable
+
+- **WHEN** un usuario ve el cuadro "Generales" en la pantalla inicial
+- **THEN** su título no ofrece ninguna navegación, a diferencia de los cuadros de Proyecto
 
 ### Requirement: Semáforo de vencimiento en el listado
 

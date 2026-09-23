@@ -11,12 +11,14 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     fechaInicio: "2026-01-01",
     fechaFin: "2026-01-10",
     prioridad: "media",
+    tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
     responsable: { nombre: "G. Ruiz", rol: "Jefe de Cátedra" },
-    creadoPor: { nombre: "L. Fernández", rol: "Secretaría" },
+    creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" },
     comentarios: [],
     historial: [],
+    tareasRelacionadasIds: [],
     ...overrides,
   };
 }

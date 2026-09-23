@@ -6,19 +6,32 @@ import { EstadoTareaBadge } from "../components/EstadoTareaBadge";
 import { AccionesEstadoTarea } from "../components/AccionesEstadoTarea";
 import { ComentariosTarea } from "../components/ComentariosTarea";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
+import { TareasRelacionadas } from "../components/TareasRelacionadas";
+import { TareasHijas } from "../components/TareasHijas";
 import { IconoArrowLeft, IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
 import { estadoSemaforo, muestraSemaforo } from "../components/semaforoTarea";
-import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
+import { puedeCambiarEstado, puedeCrearTarea, puedeEditarCampos } from "../api/maquinaEstadosTarea";
 import { useActorTareas } from "../hooks/useActorTareas";
-import { useTarea } from "../hooks/useTareas";
+import { useListadoTareas, useTarea } from "../hooks/useTareas";
+import { useListadoProyectos } from "../hooks/useProyectos";
 import {
   useAgregarComentario,
+  useAgregarRelacion,
   useCambiarEstadoTarea,
+  useCrearTarea,
   useEditarAvance,
   useEditarTarea,
+  useQuitarRelacion,
 } from "../hooks/useAccionesTarea";
-import type { ActorTarea, DatosEditablesTarea, EstadoTarea, Tarea } from "../types";
+import type {
+  ActorTarea,
+  DatosEditablesTarea,
+  EstadoTarea,
+  Proyecto,
+  Tarea,
+  TipoTarea,
+} from "../types";
 import "./tareas.css";
 
 const RUTA_TAREAS = "/tareas";
@@ -29,16 +42,30 @@ const ETIQUETA_PRIORIDAD: Record<Tarea["prioridad"], string> = {
   baja: "Baja",
 };
 
+const ETIQUETA_TIPO: Record<TipoTarea, string> = {
+  extension: "Extensión",
+  administrativa: "Administrativa",
+  posgrado: "Posgrado",
+  investigacion: "Investigación",
+  academica: "Académicas",
+  decanato: "Decanato",
+};
+
 export function DetalleTareaPage() {
   const { id } = useParams();
   const navegar = useNavigate();
   const actor = useActorTareas();
   const { data: tarea, isLoading, isError } = useTarea(id);
+  const { data: todas = [] } = useListadoTareas();
+  const { data: proyectos = [] } = useListadoProyectos();
 
   const cambiarEstado = useCambiarEstadoTarea(actor);
   const editarAvance = useEditarAvance(actor);
   const editarTarea = useEditarTarea(actor);
   const agregarComentario = useAgregarComentario(actor);
+  const crearTarea = useCrearTarea(actor);
+  const agregarRelacion = useAgregarRelacion();
+  const quitarRelacion = useQuitarRelacion();
   const enviando = cambiarEstado.isPending || editarAvance.isPending;
 
   return (
@@ -68,6 +95,8 @@ export function DetalleTareaPage() {
         <DetalleCargado
           tarea={tarea}
           actor={actor}
+          todas={todas}
+          proyectos={proyectos}
           enviando={enviando}
           errorEstado={cambiarEstado.isError ? cambiarEstado.error.message : undefined}
           onVolver={() => navegar(-1)}
@@ -87,6 +116,14 @@ export function DetalleTareaPage() {
           errorEditar={editarTarea.isError ? editarTarea.error.message : undefined}
           onAgregarComentario={(texto) => agregarComentario.mutate({ id: tarea.id, texto })}
           comentando={agregarComentario.isPending}
+          onCrearHija={(datos, onSuccess) =>
+            crearTarea.mutate({ datos, tareaPadreId: tarea.id }, { onSuccess })
+          }
+          creandoHija={crearTarea.isPending}
+          errorCrearHija={crearTarea.isError ? crearTarea.error.message : undefined}
+          onAgregarRelacion={(otraId) => agregarRelacion.mutate({ id: tarea.id, otraId })}
+          onQuitarRelacion={(otraId) => quitarRelacion.mutate({ id: tarea.id, otraId })}
+          enviandoRelacion={agregarRelacion.isPending || quitarRelacion.isPending}
         />
       )}
     </>
@@ -96,6 +133,8 @@ export function DetalleTareaPage() {
 interface DetalleCargadoProps {
   tarea: Tarea;
   actor: ActorTarea;
+  todas: Tarea[];
+  proyectos: Proyecto[];
   enviando: boolean;
   errorEstado?: string;
   onVolver: () => void;
@@ -110,11 +149,19 @@ interface DetalleCargadoProps {
   errorEditar?: string;
   onAgregarComentario: (texto: string) => void;
   comentando: boolean;
+  onCrearHija: (datos: DatosEditablesTarea, onSuccess: () => void) => void;
+  creandoHija: boolean;
+  errorCrearHija?: string;
+  onAgregarRelacion: (otraId: string) => void;
+  onQuitarRelacion: (otraId: string) => void;
+  enviandoRelacion: boolean;
 }
 
 function DetalleCargado({
   tarea,
   actor,
+  todas,
+  proyectos,
   enviando,
   errorEstado,
   onVolver,
@@ -126,12 +173,24 @@ function DetalleCargado({
   errorEditar,
   onAgregarComentario,
   comentando,
+  onCrearHija,
+  creandoHija,
+  errorCrearHija,
+  onAgregarRelacion,
+  onQuitarRelacion,
+  enviandoRelacion,
 }: DetalleCargadoProps) {
+  const navegar = useNavigate();
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
+  const [modalHijaAbierto, setModalHijaAbierto] = useState(false);
 
   const puedeEditar = puedeEditarCampos(tarea, actor);
   const puedeCancelar = puedeCambiarEstado(tarea, actor, "cancelada");
+  const puedeCrearHija = puedeCrearTarea(actor);
+
+  const proyecto = tarea.proyectoId ? proyectos.find((p) => p.id === tarea.proyectoId) : undefined;
+  const padre = tarea.tareaPadreId ? todas.find((t) => t.id === tarea.tareaPadreId) : undefined;
 
   return (
     <>
@@ -182,6 +241,21 @@ function DetalleCargado({
               </section>
             )}
 
+            <TareasHijas
+              tarea={tarea}
+              todas={todas}
+              puedeCrear={puedeCrearHija}
+              onCrearHija={() => setModalHijaAbierto(true)}
+            />
+
+            <TareasRelacionadas
+              tarea={tarea}
+              todas={todas}
+              onAgregar={onAgregarRelacion}
+              onQuitar={onQuitarRelacion}
+              enviando={enviandoRelacion}
+            />
+
             <ComentariosTarea
               comentarios={tarea.comentarios}
               onAgregar={onAgregarComentario}
@@ -207,6 +281,10 @@ function DetalleCargado({
             <section className="adoc-det-tarea-panel" aria-label="Datos de la tarea">
               <h3>Datos</h3>
               <dl className="adoc-det-tarea-datos">
+                <div className="adoc-det-tarea-dato">
+                  <dt>Tipo</dt>
+                  <dd>{ETIQUETA_TIPO[tarea.tipo]}</dd>
+                </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Fecha de inicio</dt>
                   <dd>{formatearFecha(tarea.fechaInicio)}</dd>
@@ -240,6 +318,24 @@ function DetalleCargado({
                     {tarea.creadoPor.nombre} · {tarea.creadoPor.rol}
                   </dd>
                 </div>
+                <div className="adoc-det-tarea-dato">
+                  <dt>Proyecto</dt>
+                  <dd>{proyecto?.nombre ?? "Sin proyecto"}</dd>
+                </div>
+                {padre && (
+                  <div className="adoc-det-tarea-dato">
+                    <dt>Tarea padre</dt>
+                    <dd>
+                      <button
+                        type="button"
+                        className="adoc-tareas-vinculo-link"
+                        onClick={() => navegar(`/tareas/${padre.id}`)}
+                      >
+                        N° {padre.numero} — {padre.titulo}
+                      </button>
+                    </dd>
+                  </div>
+                )}
               </dl>
             </section>
           </aside>
@@ -248,11 +344,24 @@ function DetalleCargado({
 
       <ModalNuevaTarea
         open={modalEditarAbierto}
+        actor={actor}
         tarea={tarea}
+        proyectos={proyectos}
         onCerrar={() => setModalEditarAbierto(false)}
         onGuardar={(datos) => onEditar(datos, () => setModalEditarAbierto(false))}
         guardando={editando}
         error={errorEditar}
+      />
+
+      <ModalNuevaTarea
+        open={modalHijaAbierto}
+        actor={actor}
+        tareaPadre={tarea}
+        proyectos={proyectos}
+        onCerrar={() => setModalHijaAbierto(false)}
+        onGuardar={(datos) => onCrearHija(datos, () => setModalHijaAbierto(false))}
+        guardando={creandoHija}
+        error={errorCrearHija}
       />
 
       <Modal

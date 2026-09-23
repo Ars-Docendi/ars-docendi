@@ -4,16 +4,16 @@
 
 - **Módulo / superficie:** `frontend/src/features/tareas/` (frontend-first; sin `Modules.Tareas` backend todavía, más allá del `GET /api/tareas/ping`).
 - **Owner / stakeholders:** Secretaría Académica, Decanato, Administrativos (autoridades que crean y gestionan tareas).
-- **Change/Spec OpenSpec relacionado:** `openspec/changes/sistema-tareas/` → `openspec/specs/{tareas,tablero-tareas,flujo-estado-tareas}/`.
+- **Change/Spec OpenSpec relacionado:** `openspec/changes/sistema-tareas/` → `openspec/changes/sistema-tareas/specs/{tareas,tablero-tareas,flujo-estado-tareas,proyectos}/`.
 - **Normativa de referencia:** ninguna. El módulo Tareas es coordinación administrativa interna del departamento, no un trámite regulado por el estatuto o el régimen académico.
 
 ## Reglas
 
-Sin `BR-tareas-NNN` en esta sección. Ninguna regla de este change proviene de normativa institucional citable — son decisiones de producto (permisos de estado, semáforo, campos obligatorios), documentadas como requisitos en `openspec/specs/flujo-estado-tareas/spec.md` y `openspec/specs/tablero-tareas/spec.md`, no como `BR-*`. Si en el futuro una regla de Tareas naciera de una normativa (ej. un plazo mínimo de resolución fijado por reglamento interno), se agrega acá con su cita exacta en ese momento.
+Sin `BR-tareas-NNN` en esta sección. Ninguna regla de este change proviene de normativa institucional citable — son decisiones de producto (permisos de estado, semáforo, campos obligatorios, la restricción de Proyectos a Decanato/Secretaría Académica, la jerarquía de asignación de Responsable), documentadas como requisitos en `openspec/changes/sistema-tareas/specs/{flujo-estado-tareas,tablero-tareas,tareas,proyectos}/spec.md`, no como `BR-*`. Si en el futuro una regla de Tareas naciera de una normativa (ej. un plazo mínimo de resolución fijado por reglamento interno), se agrega acá con su cita exacta en ese momento.
 
 ## Mapping a tests
 
-_(no aplica — sin `BR-*` en este módulo. La cobertura de los requisitos de producto vive en `frontend/src/features/tareas/api/maquinaEstadosTarea.test.ts` y `frontend/src/features/tareas/components/semaforoTarea.test.ts`.)_
+_(no aplica — sin `BR-*` en este módulo. La cobertura de los requisitos de producto vive en `frontend/src/features/tareas/api/maquinaEstadosTarea.test.ts`, `frontend/src/features/tareas/api/maquinaEstadosProyecto.test.ts` y `frontend/src/features/tareas/components/semaforoTarea.test.ts`.)_
 
 ## Assumptions (a confirmar)
 

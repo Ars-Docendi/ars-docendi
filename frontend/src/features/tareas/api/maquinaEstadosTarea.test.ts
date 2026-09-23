@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   aplicarAccionTarea,
   ErrorDominioTarea,
+  puedeAsignarComoResponsable,
   puedeCambiarEstado,
   puedeCrearTarea,
   puedeEditarAvance,
@@ -9,9 +10,12 @@ import {
 } from "./maquinaEstadosTarea";
 import type { ActorTarea, DatosEditablesTarea, EstadoTarea, Tarea } from "../types";
 
-const SECRETARIA: ActorTarea = { nombre: "L. Fernández", rol: "Secretaría" };
+const SECRETARIA: ActorTarea = { nombre: "L. Fernández", rol: "Secretaría Académica" };
+const DECANATO: ActorTarea = { nombre: "R. Sosa", rol: "Decanato" };
+const ADMINISTRACION: ActorTarea = { nombre: "P. Gómez", rol: "Administrativo" };
 const RESPONSABLE: ActorTarea = { nombre: "G. Ruiz", rol: "Jefe de Cátedra" };
-const OTRO: ActorTarea = { nombre: "M. Díaz", rol: "Coordinador" };
+const OTRO: ActorTarea = { nombre: "M. Díaz", rol: "Coordinador de Carrera" };
+const DOCENTE: ActorTarea = { nombre: "C. López", rol: "Docente" };
 
 function tarea(overrides: Partial<Tarea> = {}): Tarea {
   return {
@@ -22,26 +26,28 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     fechaInicio: "2026-01-01",
     fechaFin: "2026-01-10",
     prioridad: "media",
+    tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
     responsable: RESPONSABLE,
     creadoPor: SECRETARIA,
     comentarios: [],
     historial: [],
+    tareasRelacionadasIds: [],
     ...overrides,
   };
 }
 
 describe("puedeCrearTarea", () => {
-  it("permite a Secretaría, Decanato y Administración", () => {
-    expect(puedeCrearTarea({ nombre: "x", rol: "Secretaría" })).toBe(true);
+  it("permite a Secretaría Académica, Decanato y Administrativo", () => {
+    expect(puedeCrearTarea({ nombre: "x", rol: "Secretaría Académica" })).toBe(true);
     expect(puedeCrearTarea({ nombre: "x", rol: "Decanato" })).toBe(true);
-    expect(puedeCrearTarea({ nombre: "x", rol: "Administración" })).toBe(true);
+    expect(puedeCrearTarea({ nombre: "x", rol: "Administrativo" })).toBe(true);
   });
 
-  it("rechaza Jefe de Cátedra, Coordinador y Docente", () => {
+  it("rechaza Jefe de Cátedra, Coordinador de Carrera y Docente", () => {
     expect(puedeCrearTarea({ nombre: "x", rol: "Jefe de Cátedra" })).toBe(false);
-    expect(puedeCrearTarea({ nombre: "x", rol: "Coordinador" })).toBe(false);
+    expect(puedeCrearTarea({ nombre: "x", rol: "Coordinador de Carrera" })).toBe(false);
     expect(puedeCrearTarea({ nombre: "x", rol: "Docente" })).toBe(false);
   });
 });
@@ -173,6 +179,7 @@ describe("editar campos", () => {
     fechaInicio: "2026-02-01",
     fechaFin: "2026-02-15",
     prioridad: "alta",
+    tipo: "posgrado",
     responsable: RESPONSABLE,
   };
 
@@ -186,6 +193,55 @@ describe("editar campos", () => {
     expect(() => aplicarAccionTarea(tarea(), { tipo: "editar", datos }, RESPONSABLE)).toThrow(
       ErrorDominioTarea,
     );
+  });
+
+  it("no permite reasignar a un Responsable de mayor jerarquía", () => {
+    const datosConDecanato: DatosEditablesTarea = { ...datos, responsable: DECANATO };
+    expect(() =>
+      aplicarAccionTarea(tarea(), { tipo: "editar", datos: datosConDecanato }, SECRETARIA),
+    ).toThrow(ErrorDominioTarea);
+  });
+
+  it("una tarea hija conserva el Proyecto del padre aunque `datos.proyectoId` diga otra cosa", () => {
+    const hija = tarea({ tareaPadreId: "padre-1", proyectoId: "p-1" });
+    const datosConOtroProyecto: DatosEditablesTarea = { ...datos, proyectoId: "p-2" };
+    const resultado = aplicarAccionTarea(
+      hija,
+      { tipo: "editar", datos: datosConOtroProyecto },
+      SECRETARIA,
+    );
+    expect(resultado.proyectoId).toBe("p-1");
+  });
+});
+
+describe("puedeAsignarComoResponsable", () => {
+  it("Decanato puede asignar a cualquier nivel, incluido Docente", () => {
+    expect(puedeAsignarComoResponsable(DECANATO, SECRETARIA)).toBe(true);
+    expect(puedeAsignarComoResponsable(DECANATO, ADMINISTRACION)).toBe(true);
+    expect(puedeAsignarComoResponsable(DECANATO, DOCENTE)).toBe(true);
+  });
+
+  it("Secretaría Académica no puede asignar a Decanato", () => {
+    expect(puedeAsignarComoResponsable(SECRETARIA, DECANATO)).toBe(false);
+  });
+
+  it("Administrativo no puede asignar a Decanato ni Secretaría Académica", () => {
+    expect(puedeAsignarComoResponsable(ADMINISTRACION, DECANATO)).toBe(false);
+    expect(puedeAsignarComoResponsable(ADMINISTRACION, SECRETARIA)).toBe(false);
+  });
+
+  it("Administrativo sí puede asignar a Docente, varios niveles por debajo", () => {
+    expect(puedeAsignarComoResponsable(ADMINISTRACION, DOCENTE)).toBe(true);
+  });
+
+  it("permite asignar entre pares del mismo nivel (Decanato, Secretaría Académica, Administrativo)", () => {
+    expect(puedeAsignarComoResponsable(DECANATO, { nombre: "otro", rol: "Decanato" })).toBe(true);
+    expect(
+      puedeAsignarComoResponsable(SECRETARIA, { nombre: "otro", rol: "Secretaría Académica" }),
+    ).toBe(true);
+    expect(
+      puedeAsignarComoResponsable(ADMINISTRACION, { nombre: "otro", rol: "Administrativo" }),
+    ).toBe(true);
   });
 });
 

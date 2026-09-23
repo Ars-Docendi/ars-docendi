@@ -5,6 +5,9 @@ export type Rol = Role;
 
 export type EstadoTarea = "pendiente" | "en_curso" | "pausa" | "resuelta" | "cancelada";
 export type Prioridad = "alta" | "media" | "baja";
+export type TipoTarea =
+  "extension" | "administrativa" | "posgrado" | "investigacion" | "academica" | "decanato";
+export type EstadoProyecto = "abierto" | "finalizado" | "cancelado";
 
 /** Persona involucrada en una tarea (Responsable o Autor). */
 export interface ActorTarea {
@@ -40,6 +43,7 @@ export interface Tarea {
   fechaInicio: string; // ISO (solo fecha, yyyy-mm-dd)
   fechaFin: string; // ISO (solo fecha, yyyy-mm-dd) — vencimiento
   prioridad: Prioridad;
+  tipo: TipoTarea;
   estado: EstadoTarea;
   porcentajeAvance: number; // 0-100, lo completa el Responsable
   solucion?: string; // detalle de resolución; obligatorio al pasar a "resuelta"
@@ -47,6 +51,9 @@ export interface Tarea {
   creadoPor: ActorTarea;
   comentarios: ComentarioTarea[];
   historial: EventoHistorialTarea[];
+  proyectoId?: string; // opcional en tareas de primer nivel; heredado obligatorio si tareaPadreId existe
+  tareaPadreId?: string; // presente solo si es una tarea hija
+  tareasRelacionadasIds: string[]; // vínculo simple bidireccional, sin jerarquía
 }
 
 /** Subconjunto editable de una tarea (lo que el form de alta/edición produce). */
@@ -56,11 +63,33 @@ export interface DatosEditablesTarea {
   fechaInicio: string;
   fechaFin: string;
   prioridad: Prioridad;
+  tipo: TipoTarea;
   responsable: ActorTarea;
+  proyectoId?: string;
 }
 
 /** Candidato a Responsable/Autor, para el combobox buscable. Ver `api/personasSeed.ts`. */
 export interface PersonaCandidata {
   nombre: string;
   rol: Rol;
+}
+
+export interface Proyecto {
+  id: string;
+  numero: number; // correlativo legible, asignado por el store al crear
+  nombre: string;
+  descripcion: string;
+  fechaInicio: string; // ISO (solo fecha)
+  fechaFin: string; // ISO (solo fecha)
+  estado: EstadoProyecto;
+  responsable: ActorTarea; // restringido a rol Secretaría o Decanato
+}
+
+/** Subconjunto editable de un proyecto (lo que el form de alta produce). */
+export interface DatosEditablesProyecto {
+  nombre: string;
+  descripcion: string;
+  fechaInicio: string;
+  fechaFin: string;
+  responsable: ActorTarea;
 }

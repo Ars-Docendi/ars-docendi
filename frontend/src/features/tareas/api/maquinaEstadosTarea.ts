@@ -10,6 +10,7 @@ import type {
   DatosEditablesTarea,
   EstadoTarea,
   EventoHistorialTarea,
+  PersonaCandidata,
   Rol,
   Tarea,
 } from "../types";
@@ -27,11 +28,39 @@ export type AccionTarea =
   | { tipo: "editarAvance"; porcentajeAvance: number }
   | { tipo: "editar"; datos: DatosEditablesTarea };
 
-const ROLES_QUE_CREAN: readonly Rol[] = ["Secretaría", "Decanato", "Administración"];
+const ROLES_QUE_CREAN: readonly Rol[] = ["Secretaría Académica", "Decanato", "Administrativo"];
 
 /** ¿El actor puede crear tareas? Controla la visibilidad del botón "Nueva Tarea". */
 export function puedeCrearTarea(actor: ActorTarea): boolean {
   return ROLES_QUE_CREAN.includes(actor.rol);
+}
+
+// Jerarquía de autoridad, de mayor a menor. Quien asigna un Responsable solo
+// puede elegir a alguien de su mismo nivel o de un nivel inferior (índice
+// igual o mayor) — nunca superior. Los tres primeros niveles son justo
+// `ROLES_QUE_CREAN`: como solo esos roles crean tareas, la asignación entre
+// pares del mismo nivel solo es alcanzable entre ellos.
+const ORDEN_JERARQUIA: readonly Rol[] = [
+  "Decanato",
+  "Secretaría Académica",
+  "Administrativo",
+  "Coordinador de Carrera",
+  "Jefe de Cátedra",
+  "Docente",
+];
+
+/** Menor índice = mayor autoridad. Un rol ausente del mapa nunca puede asignar. */
+function nivelJerarquia(rol: Rol): number {
+  const nivel = ORDEN_JERARQUIA.indexOf(rol);
+  return nivel === -1 ? ORDEN_JERARQUIA.length : nivel;
+}
+
+/** ¿El actor puede asignarle esta tarea al candidato como Responsable? */
+export function puedeAsignarComoResponsable(
+  actor: ActorTarea,
+  candidato: PersonaCandidata,
+): boolean {
+  return nivelJerarquia(candidato.rol) >= nivelJerarquia(actor.rol);
 }
 
 function esLaAutoridadCreadora(tarea: Tarea, actor: ActorTarea): boolean {
@@ -172,7 +201,14 @@ function editar(tarea: Tarea, actor: ActorTarea, datos: DatosEditablesTarea): Ta
   if (!puedeEditarCampos(tarea, actor)) {
     throw new ErrorDominioTarea("Solo la autoridad creadora puede editar los campos de la tarea.");
   }
-  const siguiente: Tarea = { ...tarea, ...datos };
+  if (!puedeAsignarComoResponsable(actor, datos.responsable)) {
+    throw new ErrorDominioTarea("No podés asignar un Responsable de mayor jerarquía que la tuya.");
+  }
+  // Una tarea hija hereda el Proyecto de su padre de forma obligatoria: se
+  // ignora lo que venga en `datos.proyectoId` para no permitir desasociarla
+  // por esta vía, aunque la UI ya oculte el campo en ese caso.
+  const proyectoId = tarea.tareaPadreId ? tarea.proyectoId : datos.proyectoId;
+  const siguiente: Tarea = { ...tarea, ...datos, proyectoId };
   return conEvento(siguiente, nuevoEvento("editar", actor, siguiente.estado));
 }
 

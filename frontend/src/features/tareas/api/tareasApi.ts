@@ -13,7 +13,12 @@ import type {
   EstadoTarea,
   Tarea,
 } from "../types";
-import { aplicarAccionTarea, ErrorDominioTarea, puedeCrearTarea } from "./maquinaEstadosTarea";
+import {
+  aplicarAccionTarea,
+  ErrorDominioTarea,
+  puedeAsignarComoResponsable,
+  puedeCrearTarea,
+} from "./maquinaEstadosTarea";
 import * as store from "./tareasStore";
 
 /** Latencia simulada para que la UI ejercite los estados de carga. */
@@ -46,15 +51,31 @@ export async function obtenerTarea(id: string): Promise<Tarea> {
 }
 
 // TODO(backend): POST /api/tareas (Modules.Tareas), restringido a
-//   Secretaría/Decanato/Administración. Mock actual: valida el rol con
-//   `puedeCrearTarea` y crea la tarea en Pendiente con avance 0. Mantener la firma.
-export async function crearTarea(datos: DatosEditablesTarea, actor: ActorTarea): Promise<Tarea> {
+//   Secretaría Académica/Decanato/Administrativo. Mock actual: valida el rol con
+//   `puedeCrearTarea`, la jerarquía de asignación del Responsable con
+//   `puedeAsignarComoResponsable`, y crea la tarea en Pendiente con avance 0.
+//   `tareaPadreId` presente ⇒ es una tarea hija: el Proyecto se hereda del
+//   padre, ignorando `datos.proyectoId`. Mantener la firma.
+export async function crearTarea(
+  datos: DatosEditablesTarea,
+  actor: ActorTarea,
+  tareaPadreId?: string,
+): Promise<Tarea> {
   await demora();
   if (!puedeCrearTarea(actor)) {
     throw new ErrorDominioTarea(
-      "Solo Secretaría Académica, Decanato o Administración pueden crear tareas.",
+      "Solo Secretaría Académica, Decanato o Administrativo pueden crear tareas.",
     );
   }
+  if (!puedeAsignarComoResponsable(actor, datos.responsable)) {
+    throw new ErrorDominioTarea("No podés asignar un Responsable de mayor jerarquía que la tuya.");
+  }
+
+  let proyectoId = datos.proyectoId;
+  if (tareaPadreId) {
+    proyectoId = requerirTarea(tareaPadreId).proyectoId;
+  }
+
   const nueva: Tarea = {
     id: crypto.randomUUID(),
     numero: siguienteNumero(),
@@ -63,6 +84,7 @@ export async function crearTarea(datos: DatosEditablesTarea, actor: ActorTarea):
     fechaInicio: datos.fechaInicio,
     fechaFin: datos.fechaFin,
     prioridad: datos.prioridad,
+    tipo: datos.tipo,
     estado: "pendiente",
     porcentajeAvance: 0,
     responsable: datos.responsable,
@@ -78,6 +100,9 @@ export async function crearTarea(datos: DatosEditablesTarea, actor: ActorTarea):
         fecha: new Date().toISOString(),
       },
     ],
+    proyectoId,
+    tareaPadreId,
+    tareasRelacionadasIds: [],
   };
   return store.guardar(nueva);
 }
@@ -149,4 +174,37 @@ export async function agregarComentario(
   };
   const siguiente: Tarea = { ...actual, comentarios: [...actual.comentarios, nuevo] };
   return store.guardar(siguiente);
+}
+
+// TODO(backend): POST /api/tareas/:id/relaciones (Modules.Tareas). Mock
+//   actual: vínculo simple, sin jerarquía ni efecto en estado/avance —
+//   se persiste en ambas tareas para que la consulta de lectura sea trivial.
+export async function agregarRelacion(idA: string, idB: string): Promise<void> {
+  await demora();
+  if (idA === idB) {
+    throw new ErrorDominioTarea("Una tarea no puede relacionarse consigo misma.");
+  }
+  const a = requerirTarea(idA);
+  const b = requerirTarea(idB);
+  if (!a.tareasRelacionadasIds.includes(idB)) {
+    store.guardar({ ...a, tareasRelacionadasIds: [...a.tareasRelacionadasIds, idB] });
+  }
+  if (!b.tareasRelacionadasIds.includes(idA)) {
+    store.guardar({ ...b, tareasRelacionadasIds: [...b.tareasRelacionadasIds, idA] });
+  }
+}
+
+// TODO(backend): DELETE /api/tareas/:id/relaciones/:otraId (Modules.Tareas).
+export async function quitarRelacion(idA: string, idB: string): Promise<void> {
+  await demora();
+  const a = requerirTarea(idA);
+  const b = requerirTarea(idB);
+  store.guardar({
+    ...a,
+    tareasRelacionadasIds: a.tareasRelacionadasIds.filter((id) => id !== idB),
+  });
+  store.guardar({
+    ...b,
+    tareasRelacionadasIds: b.tareasRelacionadasIds.filter((id) => id !== idA),
+  });
 }

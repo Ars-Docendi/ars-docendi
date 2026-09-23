@@ -1,6 +1,6 @@
 // ============================================================
 // Store mock de tareas. Singleton en memoria hidratado desde
-// localStorage (clave "adoc.mock.tareas.v1") y persistido en cada
+// localStorage (clave "adoc.mock.tareas.v2") y persistido en cada
 // escritura. Lectura/escritura SÍNCRONA: NO lo consumen los
 // componentes directamente — solo lo usa `tareasApi.ts` (el seam del
 // backend). Las copias (structuredClone) evitan que el caller mute el
@@ -10,7 +10,10 @@
 import type { Tarea } from "../types";
 import { crearSeedTareas } from "./tareasSeed";
 
-const CLAVE = "adoc.mock.tareas.v1";
+// v2: agrega `tipo`, `proyectoId`, `tareaPadreId`, `tareasRelacionadasIds`
+// a `Tarea`. Subir la versión fuerza a resembrar en vez de leer datos con
+// el shape viejo (que rompían el render al no tener estos campos).
+const CLAVE = "adoc.mock.tareas.v2";
 
 let tareas: Tarea[] | null = null;
 
