@@ -4,9 +4,9 @@ import type { Novedad, TipoAdjunto } from "../types";
 
 /** Adjuntos obligatorios de un Alta (replica los 3 dropzones del frame). */
 const ADJUNTOS_ALTA: { tipo: TipoAdjunto; titulo: string; hint: string }[] = [
-  { tipo: "cv", titulo: "CV (PDF)", hint: "Subir · PDF hasta 10MB" },
-  { tipo: "dni_frente", titulo: "DNI · Frente", hint: "Imagen o PDF" },
-  { tipo: "dni_dorso", titulo: "DNI · Dorso", hint: "Imagen o PDF" },
+  { tipo: "cv", titulo: "CV (PDF)", hint: "PDF · hasta 10 MiB" },
+  { tipo: "dni_frente", titulo: "DNI · Frente", hint: "JPEG o PNG · hasta 5 MiB" },
+  { tipo: "dni_dorso", titulo: "DNI · Dorso", hint: "JPEG o PNG · hasta 5 MiB" },
 ];
 
 interface SeccionAdjuntosPedidoProps {
@@ -66,7 +66,7 @@ export function SeccionAdjuntosPedido({
         <div className="adoc-pf-dz-single">
           <FileUpload
             title="Documento justificativo de la baja"
-            hint="Obligatorio · PDF o imagen hasta 10MB"
+            hint="Obligatorio · PDF hasta 10 MiB"
             files={adjuntoComoUploaded("justificativo")}
             onFilesAdded={(archivos) => onAgregar("justificativo", archivos)}
             onRemove={() => onQuitar("justificativo")}
@@ -83,7 +83,7 @@ export function SeccionAdjuntosPedido({
       <div className="adoc-pf-dz-single">
         <FileUpload
           title="Documento de respaldo"
-          hint="Opcional · PDF o imagen hasta 10MB"
+          hint="Opcional · PDF hasta 10 MiB"
           files={adjuntoComoUploaded("justificativo")}
           onFilesAdded={(archivos) => onAgregar("justificativo", archivos)}
           onRemove={() => onQuitar("justificativo")}

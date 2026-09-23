@@ -24,6 +24,8 @@ jobs:
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${{ secrets.SEAWEEDFS_ROOT_ACCESS_KEY }}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
     steps:
       # Checkout de la rama BASE (código confiable), NO el del PR.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803

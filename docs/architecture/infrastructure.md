@@ -17,9 +17,7 @@ efímeros) sobre Docker Compose + Traefik + Cloudflare Tunnel.
 | staging  | push a `develop`   | `staging.<dominio>` | `arsdocendi_staging` | sintéticos/anonimizados |
 | pr-N     | PR abierto (gated) | `pr-<N>.<dominio>`  | `arsdocendi_pr_<N>`  | sintéticos/anonimizados |
 
-Cada ambiente es un **Compose project independiente** (`docker compose -p <id>`),
-aislado de los demás. El dominio real se parametriza por variable (`${DOMINIO}`);
-en el repo se usa el placeholder `example.net`.
+Cada ambiente de aplicación es un **Compose project independiente** (`docker compose -p <id>`), aislado de los demás. El storage usa una topología híbrida: SeaweedFS dedicado para prod, SeaweedFS compartido para staging/pr-N y un ClamAV compartido. El dominio real se parametriza por variable (`${DOMINIO}`); en el repo se usa el placeholder `example.net`.
 
 ## Topología
 
@@ -52,6 +50,19 @@ en el repo se usa el placeholder `example.net`.
    │                      │  PostgreSQL   │  (NO expuesto al túnel)   │
    │                      │  1 base/amb.  │                          │
    │                      └───────────────┘                          │
+   │                              │                                   │
+   │              ┌───────────────┴────────────────┐                  │
+   │              ▼                                ▼                  │
+   │      ┌──────────────────┐            ┌──────────────────┐        │
+   │      │ SeaweedFS prod   │            │ SeaweedFS nonprod│        │
+   │      │ dedicado         │            │ staging + pr-N   │        │
+   │      └────────┬─────────┘            └────────┬─────────┘        │
+   │               └──────────────┬────────────────┘                  │
+   │                              ▼                                   │
+   │                      ┌───────────────┐                          │
+   │                      │ ClamAV shared │  red interna solamente    │
+   │                      │ clamav-shared │  sin Traefik/puertos      │
+   │                      └───────────────┘                          │
    └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,6 +85,7 @@ Detalle en [infra/traefik/README.md](../../infra/traefik/README.md).
 ## Fronteras de red (qué NO se expone)
 
 - **PostgreSQL**: solo alcanzable por la red interna `arsdocendi-datos`. Nunca publicado al túnel.
+- **SeaweedFS y ClamAV**: sólo alcanzables por `arsdocendi-datos`; SeaweedFS no tiene labels de Traefik, puertos publicados ni consola pública. Prod usa `seaweedfs-prod`; staging/pr-N usan `seaweedfs-nonprod`; todos consumen `clamav-shared`. La aplicación usa credenciales por ambiente y un bucket aislado.
 - **Dashboard de Traefik / socket de Docker / puertos de admin**: solo loopback / red de administración (Tailscale), nunca por el wildcard público.
 - El túnel expone **un solo origin por ambiente** (el frontend); la API solo bajo `/api`.
 
@@ -87,7 +99,7 @@ de prod.
 
 ### Dataset sintético y autenticación de desarrollo
 
-`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project, elimina la base con `drop-db.sh`, la aprovisiona, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+`spin-up.sh` reconstruye `staging` y cada `pr-N` desde cero: detiene el Compose project de la aplicación, purga únicamente el bucket y la identidad SeaweedFS del ambiente, elimina la base con `drop-db.sh`, aprovisiona o reutiliza la instancia SeaweedFS no-prod compartida y ClamAV compartido, crea la base, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock por ambiente serializa reintentos o ejecuciones manuales concurrentes. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
 
 Una falla de `down`, reset, migración o seed detiene `spin-up.sh` por
 `set -euo pipefail` y evita `up -d`; la recuperación de un ambiente descartable
@@ -134,7 +146,9 @@ Los filtros no cambian el aislamiento: cada deploy sigue construyendo ambas
 imágenes, etiquetándolas por SHA y ejecutando `spin-up` para su ambiente. El
 reset de bases descartables, el teardown de `pr-N`, los gates de maintainer,
 los runners efímeros y los secretos permanecen vigentes; `prod`, `staging` y
-cada `pr-N` conservan su Compose project y su base independiente.
+cada `pr-N` conservan su Compose project y su base independiente. El storage
+aplica la topología híbrida: proyecto/volumen dedicado para prod, proyecto y
+volumen compartidos para no-prod, y ClamAV compartido.
 
 **Seguridad del flujo pr-N** (D8):
 
@@ -179,3 +193,5 @@ A definir SLA con UNLaM. Recomendación mínima para la base de **prod**:
 
 El procedimiento de provisioning manual (VM Proxmox, Postgres, Cloudflare Tunnel +
 Access, runner efímero, reaper, seed) está en [infra/README.md](../../infra/README.md).
+La operación de SeaweedFS, backup, restore y recuperación está en
+[docs/operations/storage-runbook.md](../operations/storage-runbook.md).

@@ -61,6 +61,7 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Catálogos        | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
 | Pedidos          | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
 | Sesión dev       | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
+| Archivos         | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                    | autenticado; archivo propio para mutaciones                         |
 
 Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados. En pedidos, el Alta envía `persona { documento, nombre, apellido }` sin `personaId`; Baja y Cambio envían `personaId` y siempre `materiaId` explícito.
 
@@ -89,6 +90,24 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | PUT/DELETE      | `/perfil/contacto`, `/perfil/cv`                                                           | autenticado | Contacto y metadata de CV       |
 | POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
 | PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
+
+Los cambios de CV y documentos reciben `archivoId`; no aceptan URI, bucket,
+clave ni estado enviado por el cliente. Las descargas pasan por el backend:
+`GET /api/portal/perfil/cv/descarga` y
+`GET /api/portal/perfil/proyectos/{id}/documento`.
+
+### Archivos (`/api/archivos/`)
+
+1. `POST /cargas` recibe propósito, nombre, MIME declarado y tamaño; devuelve
+   `archivoId`, ruta PUT temporal del backend y expiración.
+2. El cliente sube el objeto y llama `POST /cargas/{archivoId}/confirmar` con
+   hash/tamaño observados. El backend valida firma, MIME real, límites y
+   antivirus antes de marcarlo `disponible`.
+3. `GET /{archivoId}` devuelve solo metadata. `GET /{archivoId}/descarga` no
+   revela bucket ni clave y solo devuelve bytes disponibles.
+
+Una carga pendiente, rechazada, expirada o de otro propósito produce Problem
+Details estable y nunca puede asociarse a Portal o Designaciones.
 
 ### Tareas (`/api/tareas/`)
 

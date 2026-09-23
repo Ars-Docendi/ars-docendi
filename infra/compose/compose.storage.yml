@@ -1,0 +1,49 @@
+# SeaweedFS S3 privado.
+# La instancia es exclusiva de prod o compartida por staging/pr-N según STORAGE_SCOPE.
+# No se publican puertos ni se conecta a la red de Traefik.
+services:
+  seaweedfs:
+    image: ${SEAWEEDFS_IMAGE}
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        escape_json() { printf '%s' "$$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+        root_access="$$(escape_json "$${SEAWEEDFS_ROOT_ACCESS_KEY}")"
+        root_secret="$$(escape_json "$${SEAWEEDFS_ROOT_SECRET_KEY}")"
+        cat >/tmp/s3.json <<EOF
+        {
+          "identities": [
+            {
+              "name": "admin",
+              "credentials": [{ "accessKey": "$${root_access}", "secretKey": "$${root_secret}" }],
+              "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+            }
+          ]
+        }
+        EOF
+        exec weed mini -dir=/data -s3 -s3.config=/tmp/s3.json -master.telemetry=false
+    environment:
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${SEAWEEDFS_ROOT_ACCESS_KEY}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${SEAWEEDFS_ROOT_SECRET_KEY}
+    volumes:
+      - seaweedfs-data:/data
+    networks:
+      red-datos:
+        aliases:
+          - ${SEAWEEDFS_HOSTNAME}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+volumes:
+  seaweedfs-data:
+    name: arsdocendi-seaweedfs-data-${STORAGE_SCOPE}
+
+networks:
+  red-datos:
+    external: true
+    name: ${RED_DATOS:-arsdocendi-datos}

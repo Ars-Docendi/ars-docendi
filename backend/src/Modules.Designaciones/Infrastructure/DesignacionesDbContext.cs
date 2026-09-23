@@ -128,6 +128,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.Tipo).HasColumnName("tipo");
             e.Property(x => x.Nombre).HasColumnName("nombre");
             e.Property(x => x.Uri).HasColumnName("uri");
+            e.Property(x => x.ArchivoId).HasColumnName("archivo_id");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 

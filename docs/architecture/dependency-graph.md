@@ -15,12 +15,14 @@ flowchart TD
     Shared["ArsDocendi.Shared<br/>+ schemas identity y audit"]
   end
   subgraph contracts [Contracts públicos]
+    StorageContracts["ArsDocendi.Storage.Contracts"]
     DesignacionesContracts["Modules.Designaciones.Contracts"]
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
   end
   subgraph modules [Modules internos]
+    Storage["ArsDocendi.Storage"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
@@ -28,6 +30,7 @@ flowchart TD
   end
 
   Host --> Designaciones
+  Host --> Storage
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
@@ -37,13 +40,17 @@ flowchart TD
   Host --> TareasContracts
 
   Designaciones --> Shared
+  Storage --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
 
   Designaciones --> DesignacionesContracts
+  Storage --> StorageContracts
+  Designaciones --> StorageContracts
   Aulas --> AulasContracts
   Portal --> PortalContracts
+  Portal --> StorageContracts
   Tareas --> TareasContracts
 
   Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
@@ -57,6 +64,10 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 | From                    | To                                      | Vía               | Notas                                                                                              |
 | ----------------------- | --------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `ArsDocendi.Host`       | `Modules.Designaciones`                 | project reference | Hosting + composition root                                                                         |
+| `ArsDocendi.Host`       | `ArsDocendi.Storage`                    | project reference | Composition root y endpoints de archivos                                                           |
+| `ArsDocendi.Storage`    | `ArsDocendi.Storage.Contracts`          | project reference | Implementación del proveedor privado                                                               |
+| `Modules.Designaciones` | `ArsDocendi.Storage.Contracts`          | project reference | Validación de asociaciones por `archivoId`                                                         |
+| `Modules.Portal`        | `ArsDocendi.Storage.Contracts`          | project reference | CV y documentos de proyectos                                                                       |
 | `ArsDocendi.Host`       | `Modules.Aulas`                         | project reference | Hosting                                                                                            |
 | `ArsDocendi.Host`       | `Modules.Portal`                        | project reference | Hosting                                                                                            |
 | `ArsDocendi.Host`       | `Modules.Tareas`                        | project reference | Hosting                                                                                            |

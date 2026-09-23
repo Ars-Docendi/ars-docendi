@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
+using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Http;
 using Modules.Designaciones.Api;
 using Modules.Designaciones.Domain;
@@ -15,6 +16,7 @@ public interface IServicioPedidosApi
 {
     Task<IReadOnlyList<PedidoDto>> ListarAsync(Guid? periodoId, CancellationToken ct);
     Task<PedidoDto> ObtenerAsync(Guid id, CancellationToken ct);
+    Task<DescargaArchivo?> DescargarAdjuntoAsync(Guid id, Guid archivoId, CancellationToken ct);
     Task<PedidoDto> CrearAsync(GuardarPedidoDto datos, CancellationToken ct);
     Task<PedidoDto> EditarAsync(Guid id, GuardarPedidoDto datos, CancellationToken ct);
     Task EliminarAsync(Guid id, CancellationToken ct);
@@ -34,7 +36,8 @@ internal sealed class ServicioPedidosApi(
     ResolutorActor resolutorActor,
     IConsultasIdentity identity,
     RepositorioIdempotencia repositorioIdempotencia,
-    UnidadDeTrabajo unidadDeTrabajo) : IServicioPedidosApi
+    UnidadDeTrabajo unidadDeTrabajo,
+    IAlmacenamientoArchivos? almacenamiento = null) : IServicioPedidosApi
 {
     private static readonly JsonSerializerOptions OpcionesJson = new(JsonSerializerDefaults.Web);
 
@@ -56,6 +59,13 @@ internal sealed class ServicioPedidosApi(
     {
         var pedido = await ObtenerAutorizadoAsync(id, ct);
         return (await MapearAsync([pedido], ct))[0];
+    }
+
+    public async Task<DescargaArchivo?> DescargarAdjuntoAsync(Guid id, Guid archivoId, CancellationToken ct)
+    {
+        var pedido = await ObtenerAutorizadoAsync(id, ct);
+        if (pedido.Adjuntos.All(x => x.ArchivoId != archivoId) || almacenamiento is null) return null;
+        return await almacenamiento.AbrirDescargaAsync(archivoId, ct);
     }
 
     public async Task<PedidoDto> CrearAsync(GuardarPedidoDto datos, CancellationToken ct)
@@ -199,7 +209,8 @@ internal sealed class ServicioPedidosApi(
                 pedido.Snapshot,
                 pedido.Version,
                 pedido.Adjuntos.Select(a => new AdjuntoPedidoDto(
-                    a.Id, a.Tipo, a.Nombre, a.Uri)).ToArray(),
+                    a.Id, a.Tipo, a.Nombre, a.ArchivoId,
+                    a.ArchivoId is null ? "legacy" : "disponible")).ToArray(),
                 pedido.Historial.OrderBy(h => h.CreadoEn).ThenBy(h => h.Id).Select(h => new HistorialPedidoDto(
                     h.Id,
                     h.Accion,

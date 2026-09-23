@@ -37,6 +37,14 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         var cv = await PutAsync<CvDto>(cliente, "/api/portal/perfil/cv",
             new GuardarCvDto("cv.pdf", "synthetic://cv"), ct);
         Assert.Equal("cv.pdf", cv.Nombre);
+        await EsperarAsync(cliente.GetAsync("/api/portal/perfil/cv/descarga", ct), HttpStatusCode.NotFound);
+        using (var referenciaInvalida = await cliente.PutAsJsonAsync(
+            "/api/portal/perfil/cv", new { archivoId = Guid.NewGuid() }, ct))
+        {
+            Assert.Equal(HttpStatusCode.NotFound, referenciaInvalida.StatusCode);
+            var problema = JsonNode.Parse(await referenciaInvalida.Content.ReadAsStringAsync(ct));
+            Assert.Equal("archivo-not-found", problema?["code"]?.GetValue<string>());
+        }
 
         await EsperarAsync(cliente.PutAsJsonAsync("/api/portal/perfil/habilidades",
             new GuardarTagsDto(["C#", " c# "]), ct), HttpStatusCode.NoContent);
@@ -73,6 +81,7 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
             new GuardarProyectoDto("Proyecto II", "Investigadora", "Actualizado", new(2024, 1, 1), null,
                 null, "proyecto-v2.pdf", "synthetic://proyecto-v2"), ct);
         Assert.Equal("proyecto-v2.pdf", proyecto.Documento?.Nombre);
+        await EsperarAsync(cliente.GetAsync($"/api/portal/perfil/proyectos/{proyecto.Id}/documento", ct), HttpStatusCode.NotFound);
 
         using (var otroDocente = host.CreateClient())
         {
@@ -118,7 +127,7 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         var operaciones = swagger!["paths"]!.AsObject()
             .SelectMany(ruta => ruta.Value!.AsObject().Select(metodo => (ruta.Key, metodo.Key)))
             .ToArray();
-        Assert.Equal(66, operaciones.Length);
+        Assert.Equal(75, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

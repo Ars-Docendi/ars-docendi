@@ -63,7 +63,7 @@ Se diseña la experiencia del **Jefe de Cátedra** para cargar y gestionar los p
 - **Materia contextual, una por pedido**: la UI nunca traduce nombres para identificar una materia. La materia única se fija automáticamente, varias requieren selección y cero bloquea el guardado; el backend vuelve a validar ámbito y vigencia.
 - **Validación inline bloqueante al guardar o enviar**: los datos inválidos no se mandan; el error aparece en el campo (`Field error`) o como `InlineAlert` (adjuntos). Las reglas mapean a BR-001..004 y BR-018, y el backend vuelve a validarlas como autoridad.
 - **Acciones gated por estado** (invariante #7): Editar solo en borrador/devuelto-propietario; Enviar y Cancelar solo en borrador; **Eliminar solo en borrador** (`mis-pedidos-simplificado`) — a propósito más angosto que Editar: un `devuelto` ya tiene una revisión asociada en su historial, eliminarlo la borraría sin dejar rastro. Nada de botones muertos.
-- **Adjuntos**: `FileUpload` registra solo el nombre del archivo; integrar almacenamiento del binario queda fuera del alcance actual.
+- **Adjuntos**: `FileUpload` inicia una sesión en `/api/archivos/cargas`, sube el PDF a la URL temporal y confirma el `archivoId`; el formulario solo persiste metadata validada y nunca una URI de almacenamiento.
 - **Eliminar con confirmación, sin justificativo** (`mis-pedidos-simplificado`): `ModalEliminarPedido` reutiliza el patrón de `ModalEliminarPeriodo` (título, texto con el nombre del docente, aviso "no se puede deshacer", Cancelar/Eliminar) — no el de `ModalConfirmacionAccion` (pensado para acciones de revisión con justificativo y aviso de a quién se notifica, que no aplica: eliminar un borrador propio no notifica a nadie).
 - **Legajo es opcional en el pedido, obligatorio en el catálogo de docentes existentes** (`mis-pedidos-simplificado`): un docente de **Alta** puede no tener legajo todavía (lo asigna el sistema/RRHH después de cargado) — la tabla muestra "—" en ese caso; un docente ya existente (Baja/Cambio) siempre lo tiene, viene del catálogo (`DOCENTES_EXISTENTES`). No se agregó un input de Legajo al form: el cliente pidió filtrarlo y verlo en la tabla, no capturarlo ahí.
 - **Legajo obligatorio para guardar una Baja o un Cambio [BR-designaciones-018]** (`mis-pedidos-simplificado`): ambas novedades operan sobre un docente **ya existente** en el sistema, que por eso ya tiene legajo asignado — sin legajo, la validación bloquea el guardado con el mismo error de campo que falta DNI/nombre (`errores.docente`). Alta queda exceptuada (docente nuevo, todavía sin legajo).
@@ -73,7 +73,7 @@ Se diseña la experiencia del **Jefe de Cátedra** para cargar y gestionar los p
 - Mostrar el botón "Enviar"/"Editar" en pedidos que no lo admiten por su estado (rompe invariante #7 y confunde el flujo).
 - Dejar que el form envíe datos inválidos a la API (la validación cliente adelanta la respuesta, y el backend vuelve a validarla).
 - Filtrar lógica de dominio (transiciones, guards) dentro de los componentes: las acciones permitidas vienen de la API y la validación anticipada vive en `pedidoValidacion.ts`; el backend conserva la autoridad.
-- Simular que el binario se subió a un servidor: dejar claro que hoy se guarda sólo metadata.
+- Simular que el binario se subió a un servidor: el frontend usa la sesión de archivos y el backend confirma el objeto antes de asociarlo; una carga pendiente o rechazada no se presenta como adjunto disponible.
 
 ## Circuito de aprobación (SCRUM-8)
 
