@@ -133,10 +133,11 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
     private static string[] ObtenerClaves(JsonDocument? anterior, JsonDocument? nueva) =>
         (Claves(anterior).Concat(Claves(nueva))).Distinct(StringComparer.Ordinal).ToArray();
 
-    private static IEnumerable<string> Claves(JsonDocument? documento) =>
-        documento?.RootElement.ValueKind == JsonValueKind.Object
-            ? documento.RootElement.EnumerateObject().Select(p => p.Name)
-            : [];
+    private static IEnumerable<string> Claves(JsonDocument? documento)
+    {
+        if (documento is null || documento.RootElement.ValueKind != JsonValueKind.Object) return [];
+        return documento.RootElement.EnumerateObject().Select(p => p.Name);
+    }
 
     private static JsonDocument? Parsear(string? json) =>
         string.IsNullOrWhiteSpace(json) ? null : JsonDocument.Parse(json);

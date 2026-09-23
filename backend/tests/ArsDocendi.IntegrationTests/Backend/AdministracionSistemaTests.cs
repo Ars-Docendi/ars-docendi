@@ -23,7 +23,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
-        using var host = CrearHost();
+        using var host = new FabricaAdministracion(Cadena);
         using var administrador = Cliente(host, AdministradorSistema, "sys_admin");
         using var docente = Cliente(host, Docente, "docente");
 
@@ -100,7 +100,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
             await comando.ExecuteNonQueryAsync(ct);
         }
 
-        using var host = CrearHost();
+        using var host = new FabricaAdministracion(Cadena);
         using var administrador = Cliente(host, AdministradorSistema, "sys_admin");
         var url = $"/api/administracion/auditoria?schema=identity&tabla=personas&rowPk={personaId}&accion=INSERT&pagina=1&tamanoPagina=1";
         var cambiosAntesDeLeer = await ContarCambiosAuditoriaAsync(ct);
@@ -166,7 +166,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
     {
         var ct = TestContext.Current.CancellationToken;
         await EjecutarSeedAsync(ct);
-        using var host = CrearHost();
+        using var host = new FabricaAdministracion(Cadena);
         using var administrador = Cliente(host, AdministradorSistema, "sys_admin");
 
         using var rango = await administrador.GetAsync(
@@ -178,13 +178,15 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.BadRequest, pagina.StatusCode);
     }
 
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private sealed class FabricaAdministracion(string cadena) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
+            builder.UseSetting("ConnectionStrings:ArsDocendi", cadena);
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", bool.TrueString);
-        });
+        }
+    }
 
     private static HttpClient Cliente(WebApplicationFactory<Program> host, Guid usuarioId, string rol)
     {
@@ -197,7 +199,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
     private async Task EjecutarSeedAsync(CancellationToken ct)
     {
         var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
+            Path.Join(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
@@ -238,7 +240,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
+            if (File.Exists(Path.Join(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
         throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");

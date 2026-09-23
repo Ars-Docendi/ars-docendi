@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Diagnostics;
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -28,10 +29,31 @@ public sealed class RepositorioEstadoSistema(IdentityDbContext db) : IRepositori
         {
             throw;
         }
-        catch (Exception)
+        catch (DbException)
         {
             return new ResultadoComprobacionBaseDatos(false, cronometro.Elapsed.TotalMilliseconds);
         }
+        catch (TimeoutException)
+        {
+            return new ResultadoComprobacionBaseDatos(false, cronometro.Elapsed.TotalMilliseconds);
+        }
+        catch (InvalidOperationException ex) when (ContieneFalloDeBaseDatos(ex))
+        {
+            return new ResultadoComprobacionBaseDatos(false, cronometro.Elapsed.TotalMilliseconds);
+        }
+        catch (OperationCanceledException)
+        {
+            return new ResultadoComprobacionBaseDatos(false, cronometro.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    private static bool ContieneFalloDeBaseDatos(Exception excepcion)
+    {
+        for (Exception? actual = excepcion; actual is not null; actual = actual.InnerException)
+        {
+            if (actual is DbException or TimeoutException) return true;
+        }
+        return false;
     }
 }
 

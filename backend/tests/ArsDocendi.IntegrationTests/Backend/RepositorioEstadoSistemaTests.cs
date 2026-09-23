@@ -8,6 +8,16 @@ namespace ArsDocendi.IntegrationTests.Backend;
 public sealed class RepositorioEstadoSistemaTests
 {
     [Fact]
+    public async Task Un_error_de_configuracion_no_se_convierte_en_estado_no_disponible()
+    {
+        await using var db = new IdentityDbContext(new DbContextOptions<IdentityDbContext>());
+        var repositorio = new RepositorioEstadoSistema(db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            repositorio.ComprobarPostgreSqlAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task Una_conexion_no_disponible_se_informa_sin_exponer_el_error_interno()
     {
         var opciones = new DbContextOptionsBuilder<IdentityDbContext>()
