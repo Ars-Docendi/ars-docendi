@@ -20,4 +20,21 @@
     <ProjectReference Include="..\Modules.Aulas.Contracts\Modules.Aulas.Contracts.csproj" />
   </ItemGroup>
 
+  <!--
+    DDL del schema `aulas`, autorado en SQL versionado bajo database/ y
+    embebido acá como recurso. Las migraciones EF lo ejecutan con
+    migrationBuilder.Sql(...); ver openspec/changes/reserva-aulas/design.md.
+  -->
+  <ItemGroup>
+    <SqlAulas Include="$(MSBuildThisFileDirectory)..\..\..\database\aulas\*.sql" />
+    <EmbeddedResource Include="@(SqlAulas)" Link="Sql\aulas\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Ver la nota equivalente en ArsDocendi.Shared.csproj: un glob vacío compilaba
+       en silencio y el fallo aparecía recién al migrar. -->
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlAulas)' == ''"
+           Text="No se encontró ningún .sql en database/aulas/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+  </Target>
+
 </Project>

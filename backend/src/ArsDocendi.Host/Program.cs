@@ -42,6 +42,15 @@ builder.Services.AddAuthorization(opciones =>
             politica.RequireClaim(ArsDocendi.Shared.Auth.Permisos.Claim, permiso));
     }
 });
+// Solo desarrollo local: Vite (5173) y el backend (5000) corren en orígenes
+// distintos. En los ambientes desplegados Traefik publica ambos bajo el mismo
+// host, así que no hace falta CORS ahí — igual que la autenticación de desarrollo.
+if (!builder.Environment.IsProduction())
+{
+    builder.Services.AddCors(opciones =>
+        opciones.AddPolicy("FrontendDesarrollo", politica =>
+            politica.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
+}
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -83,6 +92,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+if (!app.Environment.IsProduction())
+{
+    app.UseCors("FrontendDesarrollo");
 }
 
 if (autenticacionDesarrolloHabilitada)

@@ -57,7 +57,7 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 | `personas`     | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018) | **Sí** — documento, CUIL, teléfono, fecha nac. |
 | `users`        | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                        | Parcial — UPN, display name                    |
 | `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica              | No                                             |
-| `permisos`     | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
+| `permisos`     | Catálogo **cerrado** de 23. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
 | `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                    | No                                             |
 | `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                 | No                                             |
 | `carreras`     | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                           | No                                             |
@@ -113,6 +113,17 @@ de la misma pareja `(persona_id, materia_id)` antes de crear, editar o enviar.
 | `pedido_adjuntos`  | Documentación respaldatoria. Qué es obligatorio lo decide la novedad                                                            | No  |
 | `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
 | `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
+
+### Aulas (`schema: aulas`)
+
+Primera tabla real del schema, sin catálogo propio: `materia_id` referencia `identity.materias`
+(acotada por el backend a las materias del docente solicitante), `comision` y `aula_asignada` son texto
+libre porque no existe catálogo de comisiones ni de aulas/laboratorios (ver
+`docs/architecture/domains/aulas.md`).
+
+| Tabla                 | Descripción                                                                                                                                                                                           | PII |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `solicitudes_reserva` | Solicitud de reserva de aula/laboratorio para una mesa de examen. Circuito de dos pasos sin retorno desde `pendiente`: → `aprobada`, → `rechazada` (con `motivo_rechazo` obligatorio) o → `cancelada` | No  |
 
 ### Portal (`schema: portal`)
 
@@ -216,6 +227,8 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
 | `designaciones.designaciones`    | `identity.materias` | Ídem que pedidos                                                                                                 |
+| `aulas.solicitudes_reserva`      | `identity.personas` | Una solicitud sin docente resoluble es un registro roto — mismo criterio que `designaciones.pedidos`             |
+| `aulas.solicitudes_reserva`      | `identity.materias` | La materia se acota a las asignadas al docente — mismo criterio que `designaciones.pedidos.materia_id`           |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.

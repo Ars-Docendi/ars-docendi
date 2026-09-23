@@ -159,10 +159,20 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.NotNull(permisos);
         Assert.Contains(permisos, permiso => permiso.Codigo == "docentes.ver");
         Assert.Contains(permisos, permiso => permiso.Codigo == "designaciones.revisar");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.ver");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.solicitar");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.gestionar");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "aulas.aprobar");
         Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
             permiso => permiso.Codigo == "docentes.ver");
         Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
             permiso => permiso.Codigo == "designaciones.revisar");
+        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "docente").Permisos,
+            permiso => permiso.Codigo == "aulas.ver");
+        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "docente").Permisos,
+            permiso => permiso.Codigo == "aulas.solicitar");
+        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "jefe_catedra").Permisos,
+            permiso => permiso.Codigo == "aulas.solicitar");
     }
 
     [Fact]

@@ -1,0 +1,31 @@
+.adoc-aulas-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.adoc-aulas-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.adoc-aulas-section-header h2 {
+  margin: 0;
+  font-size: var(--text-heading-sm-size, 1.125rem);
+  color: var(--color-text-primary);
+}
+.adoc-aulas-table {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+}
+.adoc-aulas-table table {
+  min-width: 960px;
+}
+.adoc-aulas-row--accionable {
+  cursor: pointer;
+}
+.adoc-aulas-row--accionable:hover {
+  background: var(--color-bg-canvas);
+}
