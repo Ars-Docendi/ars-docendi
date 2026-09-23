@@ -11,6 +11,8 @@ Complementa [api-contracts.md](./api-contracts.md). Todas las rutas administrati
 | Roles                 | `roles.ver`                                | `roles.administrar`         |
 | Membresía de permisos | `roles.ver`                                | `roles.gestionar_membresia` |
 | Revisión de pedidos   | `designaciones.revisar`                    | —                           |
+| Estado del sistema    | `sistema.estado.ver`                       | —                           |
+| Auditoría             | `auditoria.ver`                            | —                           |
 | Catálogos             | permiso de lectura del recurso consumidor  | —                           |
 
 Docentes usa `docentes.ver` para lectura global. La vista de Jefe de Cátedra es una excepción de lectura acotada: la API deriva el ámbito desde sus asignaciones vigentes en `identity.user_roles`, nunca desde parámetros del cliente, y no habilita la API de usuarios ni escrituras. `usuarios.ver` conserva acceso de lectura global por compatibilidad con la administración de identidad.
@@ -39,6 +41,11 @@ CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
 EditarRolDto           = { nombre, descripcion?, ambito, version }
 EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
+EstadoBaseDatosDto     = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs }
+CambioAuditoriaDto     = { campo, valorAnterior?, valorNuevo?, oculto }
+EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiadoPor?, requestId?,
+                           columnasCambiadas[], cambios: CambioAuditoriaDto[] }
+PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
                            carreras[], materias[{ id, codigo, nombre, carreraId? }], personasElegibles[] }
@@ -99,6 +106,17 @@ Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaI
 | GET    | `/api/administracion/roles/{id}/permisos` | `roles.ver`                 | `PermisoDto[]`                             |
 | PUT    | `/api/administracion/roles/{id}/permisos` | `roles.gestionar_membresia` | `{ permisoIds, version }` → `PermisoDto[]` |
 | GET    | `/api/administracion/permisos`            | `roles.ver`                 | catálogo cerrado `PermisoDto[]`            |
+
+## Estado del sistema y auditoría
+
+| Método | Ruta                                 | Permiso              | Entrada / salida               |
+| ------ | ------------------------------------ | -------------------- | ------------------------------ |
+| GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoBaseDatosDto`           |
+| GET    | `/api/administracion/auditoria`      | `auditoria.ver`      | filtros → `PaginaAuditoriaDto` |
+
+El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos. La respuesta sólo contiene `estado`, `comprobadoEn` y `duracionMs`; una falla retorna `no_disponible` sin revelar excepción, host ni configuración. El dashboard combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones y Portal; cada sonda se muestra independientemente.
+
+La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`, `DELETE`), `schema`, `tabla`, `cambiadoPor`, `rowPk`, `pagina` (predeterminada 1) y `tamanoPagina` (predeterminado 50, máximo 100). Ordena por fecha descendente y luego ID descendente; cada consulta tiene timeout de 5 segundos. Fechas invertidas, acción inválida o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET y no expone `client_ip`, ni snapshots `old_row`/`new_row` crudos. `cambios[]` sólo incluye valores de los campos `code`, `codigo`, `scope`, `estado`, `status`, `action`, `novedad`, `tipo_baja`, `activo`, `is_active`, `es_sistema`, `orden`, `horas`, `horas_investigacion`, `horas_externas`, `vigente_desde`, `vigente_hasta`, `created_at` y `deleted_at`; PII, secretos y campos no clasificados se entregan con `oculto: true` y valores nulos.
 
 ## Desarrollo
 

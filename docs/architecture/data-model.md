@@ -199,6 +199,10 @@ Los datos personales del sistema (documento, CUIL, teléfono, fecha de nacimient
 - **Backup encriptado**: dumps de Postgres deben estar encriptados antes de salir de la VM.
 - **Borrado**: tener procedimiento para honrar bajas de docentes (GDPR-like aunque no aplique directamente, es buena práctica institucional).
 
+### Exposición de snapshots de auditoría
+
+La API administrativa sólo consulta `audit.change_log` y pagina los resultados (50 por defecto, máximo 100, timeout de consulta de 5 segundos). Nunca envía `old_row` ni `new_row` crudos. Sólo los valores de campos explícitamente aprobados se serializan; los campos personales/secretos y cualquier campo no clasificado se devuelven ocultos con valores nulos. `client_ip` existe en el DDL de auditoría, pero no forma parte del DTO ni se expone. La UI presenta este detalle como consulta de solo lectura bajo `auditoria.ver`.
+
 ## Relaciones cross-schema
 
 PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo necesita referenciar un dato de otro módulo, usar:

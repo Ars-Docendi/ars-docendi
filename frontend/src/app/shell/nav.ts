@@ -49,6 +49,23 @@ export const NAVEGACION: NavGroup[] = [
     ],
   },
   {
+    label: "Sistema",
+    items: [
+      {
+        to: "/sistema",
+        icon: "settings",
+        label: "Dashboard del sistema",
+        permiso: "sistema.estado.ver",
+      },
+      {
+        to: "/auditoria",
+        icon: "reportes",
+        label: "Registros de auditoría",
+        permiso: "auditoria.ver",
+      },
+    ],
+  },
+  {
     label: "Configuración",
     items: [
       { to: "/usuarios", icon: "usuarios", label: "Usuarios", permiso: "usuarios.ver" },

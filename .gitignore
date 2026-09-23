@@ -63,6 +63,10 @@ pnpm-debug.log*
 # ---------- Docker ----------
 pgdata/
 
+# ---------- Local devcontainer configuration ----------
+# Keep developer-specific container files out of version control.
+.devcontainer/
+
 # ---------- Extras ----------
 .DS_Store
 .pnpm-store/
@@ -84,3 +88,6 @@ pgdata/
 
 # ---------- Husky (artefactos internos, no los hooks versionados) ----------
 .husky/_/
+
+# ---------- CodeGraph ----------
+.codegraph/

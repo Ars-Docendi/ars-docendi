@@ -89,6 +89,12 @@ La disciplina, corolario del invariante #4 enmendado:
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
 
+## Administración de estado y auditoría
+
+Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. El repositorio de auditoría consulta `IdentityDbContext` con `AsNoTracking`, filtros parametrizados, orden por fecha/ID y timeout de 5 segundos; ningún módulo de negocio consulta `audit.change_log` directamente. La comprobación de PostgreSQL ejecuta sólo `SELECT 1` con timeout de 3 segundos. No se agrega una referencia de proyecto nueva ni se modifica la frontera entre módulos.
+
+La API de auditoría expone metadatos y valores aprobados, nunca snapshots JSON completos ni `client_ip`. El permiso `auditoria.ver` limita la lectura administrativa; `sistema.estado.ver` protege la sonda PostgreSQL.
+
 La creación de una persona sin cuenta para un Alta mantiene esa frontera: el
 módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que
 `ServicioPersonas` y `IRepositorioDocentes` permanecen en Shared. No aparece una
