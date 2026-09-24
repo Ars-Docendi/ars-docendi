@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { Button } from "@ars-docendi/ui";
+
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { consultarEstadoSistema } from "../api/sistemaApi";
 import type { ComprobacionComponente } from "../api/sistemaApi";
@@ -45,14 +47,15 @@ export function DashboardPage() {
         title="Dashboard del sistema"
         meta="Estado actual de los servicios y la base de datos"
         actions={
-          <button
-            className="sistema-accion"
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => void consulta.refetch()}
             disabled={consulta.isFetching}
+            loading={consulta.isFetching}
           >
             {consulta.isFetching ? "Actualizando…" : "Actualizar"}
-          </button>
+          </Button>
         }
       />
 
@@ -60,15 +63,20 @@ export function DashboardPage() {
       {consulta.isError && (
         <p role="alert">
           No se pudo cargar el estado del sistema.{" "}
-          <button onClick={() => void consulta.refetch()}>Reintentar</button>
+          <Button variant="secondary" onClick={() => void consulta.refetch()}>
+            Reintentar
+          </Button>
         </p>
       )}
       {consulta.data && (
-        <>
-          <p className="sistema-nota">
-            Las sondas de módulos verifican su respuesta HTTP; el estado de PostgreSQL se comprueba
-            por separado.
-          </p>
+        <section className="sistema-panel" aria-labelledby="sistema-componentes-titulo">
+          <header className="sistema-panel-encabezado">
+            <h2 id="sistema-componentes-titulo">Estado por componente</h2>
+            <p className="sistema-nota">
+              Las sondas de módulos verifican su respuesta HTTP; PostgreSQL se comprueba por
+              separado. Cada resultado se informa de forma independiente.
+            </p>
+          </header>
           <div className="sistema-tabla-contenedor">
             <table className="sistema-tabla" aria-label="Estado de módulos y base de datos">
               <thead>
@@ -97,7 +105,7 @@ export function DashboardPage() {
               </tbody>
             </table>
           </div>
-        </>
+        </section>
       )}
     </main>
   );

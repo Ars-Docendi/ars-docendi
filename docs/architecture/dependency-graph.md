@@ -91,7 +91,7 @@ La disciplina, corolario del invariante #4 enmendado:
 
 ## Administración de estado y auditoría
 
-Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. El repositorio de auditoría consulta `IdentityDbContext` con `AsNoTracking`, filtros parametrizados, orden por fecha/ID y timeout de 5 segundos; ningún módulo de negocio consulta `audit.change_log` directamente. La comprobación de PostgreSQL ejecuta sólo `SELECT 1` con timeout de 3 segundos. No se agrega una referencia de proyecto nueva ni se modifica la frontera entre módulos.
+Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. El repositorio de auditoría consulta `IdentityDbContext` con `AsNoTracking`, joins izquierdos opcionales de `changed_by` a `identity.users` y `persona_id` a `identity.personas`, filtros parametrizados aplicados antes de conteo/paginación, orden por fecha/ID y timeout de 5 segundos; ningún módulo de negocio consulta `audit.change_log` directamente. La comprobación de PostgreSQL ejecuta sólo `SELECT 1` con timeout de 3 segundos. No se agrega una referencia de proyecto nueva ni se modifica la frontera entre módulos.
 
 La API de auditoría expone metadatos y valores aprobados, nunca snapshots JSON completos ni `client_ip`. El permiso `auditoria.ver` limita la lectura administrativa; `sistema.estado.ver` protege la sonda PostgreSQL.
 

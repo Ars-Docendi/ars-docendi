@@ -42,9 +42,10 @@ EditarRolDto           = { nombre, descripcion?, ambito, version }
 EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
 EstadoBaseDatosDto     = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs }
-CambioAuditoriaDto     = { campo, valorAnterior?, valorNuevo?, oculto }
+CambioAuditoriaDto     = { campo, etiquetaCampo, valorAnterior?, valorNuevo?, oculto }
 EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiadoPor?, requestId?,
-                           columnasCambiadas[], cambios: CambioAuditoriaDto[] }
+                           columnasCambiadas[], cambios: CambioAuditoriaDto[], actor, accionEtiqueta,
+                           modulo, objeto, resumen }
 PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
@@ -116,7 +117,7 @@ Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaI
 
 El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos. La respuesta sólo contiene `estado`, `comprobadoEn` y `duracionMs`; una falla retorna `no_disponible` sin revelar excepción, host ni configuración. El dashboard combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones y Portal; cada sonda se muestra independientemente.
 
-La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`, `DELETE`), `schema`, `tabla`, `cambiadoPor`, `rowPk`, `pagina` (predeterminada 1) y `tamanoPagina` (predeterminado 50, máximo 100). Ordena por fecha descendente y luego ID descendente; cada consulta tiene timeout de 5 segundos. Fechas invertidas, acción inválida o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET y no expone `client_ip`, ni snapshots `old_row`/`new_row` crudos. `cambios[]` sólo incluye valores de los campos `code`, `codigo`, `scope`, `estado`, `status`, `action`, `novedad`, `tipo_baja`, `activo`, `is_active`, `es_sistema`, `orden`, `horas`, `horas_investigacion`, `horas_externas`, `vigente_desde`, `vigente_hasta`, `created_at` y `deleted_at`; PII, secretos y campos no clasificados se entregan con `oculto: true` y valores nulos.
+La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`, `DELETE`), `schema`, `tabla`, `cambiadoPor` (UUID, conservado para compatibilidad), `actor` (fragmento del nombre visible, sin distinguir mayúsculas), `rowPk`, `pagina` (predeterminada 1) y `tamanoPagina` (predeterminado 50, máximo 100). La búsqueda por actor usa el nombre visible presentado en la tabla y se aplica junto con los filtros antes del conteo y la paginación; el orden permanece estable por fecha descendente e ID descendente. El actor se resuelve mediante joins izquierdos opcionales a `identity.users` y `identity.personas`: se prioriza `Apellido, Nombre`, luego `display_name` y, si no hay cuenta, `Actor no identificado`. Los módulos conocidos `identity`, `designaciones` y `portal` se muestran como **Identidad**, **Designaciones** y **Portal**; otros schemas usan una etiqueta legible de fallback. Cada consulta tiene timeout de 5 segundos. Fechas invertidas, acción inválida, actor de más de 100 caracteres o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET. La acción se presenta como Alta, Actualización o Eliminación física; un `UPDATE` no se convierte en baja por inferencia. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila y `requestId` quedan en el detalle. No se exponen UPN/correo, `client_ip` ni snapshots crudos. Los valores del detalle sólo se incluyen para campos aprobados; PII, secretos y campos no clasificados se devuelven con `oculto: true` y valores nulos.
 
 ## Desarrollo
 

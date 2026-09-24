@@ -20,6 +20,75 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
         "upn", "display_name", "azure_oid", "email", "mail", "correo", "client_ip",
         "password", "token", "access_token", "refresh_token", "secret", "uri",
     };
+    private static readonly Dictionary<string, string> EtiquetasModulos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["identity"] = "Identidad",
+        ["designaciones"] = "Designaciones",
+        ["portal"] = "Portal",
+    };
+    private static readonly Dictionary<string, string> EtiquetasObjetos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["identity.personas"] = "Persona",
+        ["identity.users"] = "Cuenta de usuario",
+        ["identity.roles"] = "Rol",
+        ["identity.permisos"] = "Permiso",
+        ["identity.user_roles"] = "Asignación de rol",
+        ["identity.rol_permisos"] = "Permiso de rol",
+        ["designaciones.pedidos"] = "Solicitud",
+        ["designaciones.designaciones"] = "Designación",
+        ["designaciones.periodos"] = "Período",
+        ["designaciones.cargos"] = "Cargo",
+        ["designaciones.dedicaciones"] = "Dedicación",
+        ["designaciones.pedido_historial"] = "Historial de solicitud",
+        ["portal.perfiles"] = "Perfil",
+        ["portal.contactos"] = "Contacto",
+        ["portal.cvs"] = "Currículum",
+        ["portal.experiencias"] = "Experiencia",
+        ["portal.educaciones"] = "Educación",
+        ["portal.certificaciones"] = "Certificación",
+        ["portal.proyectos"] = "Proyecto",
+        ["portal.proyecto_documentos"] = "Documento de proyecto",
+        ["portal.habilidades"] = "Habilidad",
+        ["portal.docente_habilidades"] = "Habilidad docente",
+    };
+    private static readonly Dictionary<string, string> EtiquetasCampos = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["code"] = "Código",
+        ["codigo"] = "Código",
+        ["scope"] = "Ámbito",
+        ["estado"] = "Estado",
+        ["status"] = "Estado",
+        ["action"] = "Acción",
+        ["novedad"] = "Novedad",
+        ["tipo_baja"] = "Tipo de baja",
+        ["activo"] = "Activo",
+        ["is_active"] = "Activo",
+        ["es_sistema"] = "Rol de sistema",
+        ["orden"] = "Orden",
+        ["horas"] = "Horas",
+        ["horas_investigacion"] = "Horas de investigación",
+        ["horas_externas"] = "Horas externas",
+        ["vigente_desde"] = "Vigente desde",
+        ["vigente_hasta"] = "Vigente hasta",
+        ["created_at"] = "Fecha de creación",
+        ["deleted_at"] = "Fecha de baja",
+        ["documento"] = "Documento",
+        ["cuil"] = "CUIL",
+        ["legajo"] = "Legajo",
+        ["nombre"] = "Nombre",
+        ["apellido"] = "Apellido",
+        ["fecha_nacimiento"] = "Fecha de nacimiento",
+        ["telefono"] = "Teléfono",
+        ["description"] = "Descripción",
+        ["descripcion"] = "Descripción",
+        ["name"] = "Nombre",
+        ["email"] = "Correo electrónico",
+        ["upn"] = "Identificador de cuenta",
+        ["persona_id"] = "Persona vinculada",
+        ["user_id"] = "Usuario",
+        ["role_id"] = "Rol",
+        ["request_id"] = "Solicitud",
+    };
 
     public async Task<PaginaAuditoriaDto> ListarAsync(ConsultaAuditoriaDto filtros, CancellationToken ct)
     {
@@ -30,6 +99,7 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             Schema = filtros.Schema?.Trim().ToLowerInvariant(),
             Tabla = filtros.Tabla?.Trim().ToLowerInvariant(),
             RowPk = filtros.RowPk?.Trim(),
+            Actor = filtros.Actor?.Trim(),
             TamanoPagina = filtros.TamanoPagina == 0 ? TamanoPaginaPredeterminado : filtros.TamanoPagina,
         };
         var pagina = await repositorio.ListarAsync(normalizados, ct);
@@ -61,6 +131,8 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             errores["tabla"] = ["No puede superar 63 caracteres."];
         if (filtros.RowPk?.Trim().Length > 200)
             errores["rowPk"] = ["No puede superar 200 caracteres."];
+        if (filtros.Actor?.Trim().Length > 100)
+            errores["actor"] = ["No puede superar 100 caracteres."];
         if (errores.Count > 0)
         {
             throw new ExcepcionAplicacion(
@@ -71,8 +143,9 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
         }
     }
 
-    private static EventoAuditoriaDto Mapear(ArsDocendi.Shared.Identity.RegistroCambio registro)
+    private static EventoAuditoriaDto Mapear(RegistroAuditoria evento)
     {
+        var registro = evento.Registro;
         using var anterior = Parsear(registro.FilaAnterior);
         using var nueva = Parsear(registro.FilaNueva);
         var columnas = registro.ColumnasCambiadas?.Distinct(StringComparer.Ordinal).ToArray()
@@ -81,6 +154,23 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             .Order(StringComparer.Ordinal)
             .Select(campo => MapearCambio(campo, anterior, nueva))
             .ToArray();
+        var accionEtiqueta = registro.Accion switch
+        {
+            "INSERT" => "Alta",
+            "UPDATE" => "Actualización",
+            "DELETE" => "Eliminación física",
+            _ => registro.Accion,
+        };
+        var modulo = EtiquetasModulos.TryGetValue(registro.NombreSchema, out var etiquetaModulo)
+            ? etiquetaModulo
+            : Humanizar(registro.NombreSchema);
+        var objeto = EtiquetasObjetos.TryGetValue($"{registro.NombreSchema}.{registro.NombreTabla}", out var etiquetaObjeto)
+            ? etiquetaObjeto
+            : Humanizar(registro.NombreTabla);
+        var resumen = cambios.Length == 0
+            ? $"{accionEtiqueta} de {objeto.ToLowerInvariant()}"
+            : $"{accionEtiqueta} de {objeto.ToLowerInvariant()} · {string.Join(", ", cambios.Select(cambio => cambio.EtiquetaCampo))}";
+
         return new EventoAuditoriaDto(
             registro.Id,
             registro.NombreSchema,
@@ -91,7 +181,24 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             registro.CambiadoPor,
             registro.RequestId,
             columnas.Order(StringComparer.Ordinal).ToArray(),
-            cambios);
+            cambios,
+            ResolverActor(evento),
+            accionEtiqueta,
+            modulo,
+            objeto,
+            resumen);
+    }
+
+    private static string ResolverActor(RegistroAuditoria evento)
+    {
+        if (!string.IsNullOrWhiteSpace(evento.ApellidoPersona)
+            && !string.IsNullOrWhiteSpace(evento.NombrePersona))
+            return $"{evento.ApellidoPersona.Trim()}, {evento.NombrePersona.Trim()}";
+        if (!string.IsNullOrWhiteSpace(evento.ApellidoPersona)) return evento.ApellidoPersona.Trim();
+        if (!string.IsNullOrWhiteSpace(evento.NombrePersona)) return evento.NombrePersona.Trim();
+        return string.IsNullOrWhiteSpace(evento.NombreCuenta)
+            ? "Actor no identificado"
+            : evento.NombreCuenta.Trim();
     }
 
     private static CambioAuditoriaDto MapearCambio(
@@ -99,12 +206,25 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
         JsonDocument? anterior,
         JsonDocument? nueva)
     {
+        var etiquetaCampo = EtiquetasCampos.TryGetValue(campo, out var etiqueta)
+            ? etiqueta
+            : Humanizar(campo);
         if (CamposPersonalesOSecretos.Contains(campo) || !CamposConValorSeguro.Contains(campo))
-            return new CambioAuditoriaDto(campo, null, null, true);
+            return new CambioAuditoriaDto(campo, null, null, true, etiquetaCampo);
         if (!IntentarObtenerValor(anterior, campo, out var valorAnterior)
             || !IntentarObtenerValor(nueva, campo, out var valorNuevo))
-            return new CambioAuditoriaDto(campo, null, null, true);
-        return new CambioAuditoriaDto(campo, valorAnterior, valorNuevo, false);
+            return new CambioAuditoriaDto(campo, null, null, true, etiquetaCampo);
+        return new CambioAuditoriaDto(campo, valorAnterior, valorNuevo, false, etiquetaCampo);
+    }
+
+    private static string Humanizar(string valor)
+    {
+        var palabras = valor
+            .Split(['_', '-'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToArray();
+        if (palabras.Length == 0) return valor;
+        palabras[0] = char.ToUpperInvariant(palabras[0][0]) + palabras[0][1..];
+        return string.Join(' ', palabras);
     }
 
     private static bool IntentarObtenerValor(JsonDocument? documento, string campo, out string? resultado)

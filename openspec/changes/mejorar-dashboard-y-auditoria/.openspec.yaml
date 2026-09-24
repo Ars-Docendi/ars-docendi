@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-09-24
+goal: Mejorar la presentación del dashboard del sistema y hacer la auditoría
+  legible a simple vista mediante actor y módulo identificables y un resumen
+  seguro de cada cambio.

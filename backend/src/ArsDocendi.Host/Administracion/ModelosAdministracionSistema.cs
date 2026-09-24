@@ -14,7 +14,8 @@ public sealed record ConsultaAuditoriaDto(
     Guid? CambiadoPor = null,
     string? RowPk = null,
     int Pagina = 1,
-    int TamanoPagina = 50);
+    int TamanoPagina = 50,
+    string? Actor = null);
 
 public sealed record PaginaAuditoriaDto(
     IReadOnlyList<EventoAuditoriaDto> Elementos,
@@ -32,10 +33,16 @@ public sealed record EventoAuditoriaDto(
     Guid? CambiadoPor,
     string? RequestId,
     IReadOnlyList<string> ColumnasCambiadas,
-    IReadOnlyList<CambioAuditoriaDto> Cambios);
+    IReadOnlyList<CambioAuditoriaDto> Cambios,
+    string Actor,
+    string AccionEtiqueta,
+    string Modulo,
+    string Objeto,
+    string Resumen);
 
 public sealed record CambioAuditoriaDto(
     string Campo,
     string? ValorAnterior,
     string? ValorNuevo,
-    bool Oculto);
+    bool Oculto,
+    string EtiquetaCampo);

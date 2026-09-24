@@ -112,7 +112,40 @@ describe("Dashboard del sistema", () => {
     const user = userEvent.setup();
     renderPagina();
     await screen.findByRole("row", { name: /PostgreSQL/ });
-    await user.click(screen.getByRole("button", { name: "Actualizar" }));
+    const actualizar = screen.getByRole("button", { name: "Actualizar" });
+    expect(actualizar).toHaveClass("adoc-btn", "v-secondary");
+    await user.click(actualizar);
     await waitFor(() => expect(consultarEstadoSistema).toHaveBeenCalledTimes(2));
+  });
+
+  it("anuncia y deshabilita la actualización mientras las sondas están pendientes", async () => {
+    const user = userEvent.setup();
+    let completar!: (resultado: EstadoSistema) => void;
+    vi.mocked(consultarEstadoSistema)
+      .mockResolvedValueOnce(estado)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolver) => {
+            completar = resolver;
+          }),
+      );
+    renderPagina();
+    await screen.findByRole("row", { name: /PostgreSQL/ });
+
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
+    const actualizando = await screen.findByRole("button", { name: "Actualizando…" });
+
+    expect(actualizando).toBeDisabled();
+    completar(estado);
+  });
+
+  it("permite enfocar Actualizar con teclado", async () => {
+    const user = userEvent.setup();
+    renderPagina();
+    await screen.findByRole("row", { name: /PostgreSQL/ });
+
+    await user.tab();
+
+    expect(screen.getByRole("button", { name: "Actualizar" })).toHaveFocus();
   });
 });

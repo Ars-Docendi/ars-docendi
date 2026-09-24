@@ -48,6 +48,7 @@ describe("listarAuditoria", () => {
       schema: "identity",
       tabla: "personas",
       accion: "UPDATE",
+      actor: "Vidal",
       rowPk: "abc-123",
     };
 

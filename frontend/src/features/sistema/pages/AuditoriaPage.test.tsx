@@ -21,12 +21,29 @@ const pagina: PaginaAuditoria = {
       rowPk: "persona-123",
       accion: "INSERT",
       cambiadoEn: "2026-09-23T17:00:00Z",
-      cambiadoPor: null,
-      requestId: null,
+      cambiadoPor: "11111111-1111-4111-8111-111111111111",
+      requestId: "request-101",
       columnasCambiadas: ["documento", "estado"],
+      actor: "Vidal, Ernesto",
+      accionEtiqueta: "Alta",
+      modulo: "Identidad",
+      objeto: "Persona",
+      resumen: "Alta de persona · Documento, Estado",
       cambios: [
-        { campo: "documento", valorAnterior: null, valorNuevo: "PERSONA-999-SECRET", oculto: true },
-        { campo: "estado", valorAnterior: null, valorNuevo: "activo", oculto: false },
+        {
+          campo: "documento",
+          etiquetaCampo: "Documento",
+          valorAnterior: null,
+          valorNuevo: "PERSONA-999-SECRET",
+          oculto: true,
+        },
+        {
+          campo: "estado",
+          etiquetaCampo: "Estado",
+          valorAnterior: null,
+          valorNuevo: "activo",
+          oculto: false,
+        },
       ],
     },
   ],
@@ -46,16 +63,21 @@ beforeEach(() => {
 });
 
 describe("Registros de auditoría", () => {
-  it("muestra metadatos y oculta valores marcados por la política", async () => {
+  it("presenta el resumen legible y conserva el detalle redactado", async () => {
     const user = userEvent.setup();
     renderPagina();
 
-    const registro = await screen.findByRole("row", { name: /persona-123/ });
-    expect(within(registro).getByText("INSERT")).toBeInTheDocument();
-    expect(within(registro).getByText(/documento, estado/)).toBeInTheDocument();
+    const registro = await screen.findByRole("row", { name: /Vidal, Ernesto/ });
+    expect(within(registro).getByText("Alta")).toBeInTheDocument();
+    expect(within(registro).getByText("Identidad")).toBeInTheDocument();
+    expect(within(registro).getByText("Alta de persona · Documento, Estado")).toBeInTheDocument();
+    expect(within(registro).queryByText("persona-123")).not.toBeInTheDocument();
+    expect(screen.queryByText("11111111-1111-4111-8111-111111111111")).not.toBeInTheDocument();
     await user.click(within(registro).getByRole("button", { name: "Ver detalle" }));
 
     expect(await screen.findByText("activo")).toBeInTheDocument();
+    expect(screen.getByText("request-101")).toBeInTheDocument();
+    expect(screen.getByText("persona-123")).toBeInTheDocument();
     expect(screen.getAllByText("Enmascarado por política").length).toBeGreaterThan(0);
     expect(screen.queryByText("PERSONA-999-SECRET")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Siguiente" })).toBeEnabled();
@@ -83,10 +105,11 @@ describe("Registros de auditoría", () => {
   it("aplica filtros y pagina los resultados", async () => {
     const user = userEvent.setup();
     renderPagina();
-    await screen.findByRole("row", { name: /persona-123/ });
+    await screen.findByRole("row", { name: /Vidal, Ernesto/ });
 
     await user.type(screen.getByRole("textbox", { name: "Tabla" }), "personas");
     await user.selectOptions(screen.getByRole("combobox", { name: "Acción" }), "UPDATE");
+    await user.type(screen.getByRole("textbox", { name: "Actor" }), "Vidal");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     await waitFor(() =>
       expect(listarAuditoria).toHaveBeenLastCalledWith(
@@ -95,6 +118,7 @@ describe("Registros de auditoría", () => {
           tamanoPagina: 50,
           tabla: "personas",
           accion: "UPDATE",
+          actor: "Vidal",
         }),
       ),
     );
@@ -102,8 +126,20 @@ describe("Registros de auditoría", () => {
     await user.click(screen.getByRole("button", { name: "Siguiente" }));
     await waitFor(() =>
       expect(listarAuditoria).toHaveBeenLastCalledWith(
-        expect.objectContaining({ pagina: 2, tabla: "personas", accion: "UPDATE" }),
+        expect.objectContaining({ pagina: 2, tabla: "personas", accion: "UPDATE", actor: "Vidal" }),
       ),
     );
+  });
+
+  it("prioriza los cinco encabezados de lectura rápida", async () => {
+    renderPagina();
+
+    const tabla = await screen.findByRole("table", { name: "Registros de auditoría" });
+
+    expect(
+      within(tabla)
+        .getAllByRole("columnheader")
+        .map((encabezado) => encabezado.textContent),
+    ).toEqual(["Fecha", "Usuario", "Acción", "Módulo", "Cambio"]);
   });
 });

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@ars-docendi/ui";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { listarAuditoria } from "../api/sistemaApi";
@@ -12,7 +13,7 @@ interface FormularioFiltros {
   accion: string;
   schema: string;
   tabla: string;
-  cambiadoPor: string;
+  actor: string;
   rowPk: string;
 }
 
@@ -22,13 +23,23 @@ const formularioVacio: FormularioFiltros = {
   accion: "",
   schema: "",
   tabla: "",
-  cambiadoPor: "",
+  actor: "",
   rowPk: "",
 };
 const tamanoPagina = 50;
+const schemasPorEtiqueta: Record<string, string> = {
+  identidad: "identity",
+  designaciones: "designaciones",
+  portal: "portal",
+};
 
 function aIso(fecha: string): string | undefined {
   return fecha ? new Date(fecha).toISOString() : undefined;
+}
+
+function normalizarSchemaFiltro(valor: string): string {
+  const texto = valor.trim();
+  return schemasPorEtiqueta[texto.toLocaleLowerCase("es-AR")] ?? texto.toLowerCase();
 }
 
 function mostrarValor(cambio: CambioAuditoria, lado: "anterior" | "nuevo"): string {
@@ -61,9 +72,9 @@ export function AuditoriaPage() {
     if (desde) nuevos.desde = desde;
     if (hasta) nuevos.hasta = hasta;
     if (formulario.accion) nuevos.accion = formulario.accion;
-    if (formulario.schema.trim()) nuevos.schema = formulario.schema.trim();
+    if (formulario.schema.trim()) nuevos.schema = normalizarSchemaFiltro(formulario.schema);
     if (formulario.tabla.trim()) nuevos.tabla = formulario.tabla.trim();
-    if (formulario.cambiadoPor.trim()) nuevos.cambiadoPor = formulario.cambiadoPor.trim();
+    if (formulario.actor.trim()) nuevos.actor = formulario.actor.trim();
     if (formulario.rowPk.trim()) nuevos.rowPk = formulario.rowPk.trim();
     setDetallesAbiertos(new Set());
     setFiltros(nuevos);
@@ -95,14 +106,15 @@ export function AuditoriaPage() {
         title="Registros de auditoría"
         meta={pagina ? `${pagina.total} registros` : "Consulta de solo lectura"}
         actions={
-          <button
-            className="sistema-accion"
+          <Button
+            variant="secondary"
             type="button"
             onClick={() => void consulta.refetch()}
             disabled={consulta.isFetching}
+            loading={consulta.isFetching}
           >
-            Actualizar
-          </button>
+            {consulta.isFetching ? "Actualizando…" : "Actualizar"}
+          </Button>
         }
       />
 
@@ -133,15 +145,16 @@ export function AuditoriaPage() {
             onChange={(e) => setFormulario({ ...formulario, accion: e.target.value })}
           >
             <option value="">Todas</option>
-            <option value="INSERT">INSERT</option>
-            <option value="UPDATE">UPDATE</option>
-            <option value="DELETE">DELETE</option>
+            <option value="INSERT">Alta</option>
+            <option value="UPDATE">Actualización</option>
+            <option value="DELETE">Eliminación física</option>
           </select>
         </label>
         <label>
-          Schema
+          Módulo o schema
           <input
-            aria-label="Schema"
+            aria-label="Módulo o schema"
+            placeholder="Identidad o schema exacto"
             value={formulario.schema}
             onChange={(e) => setFormulario({ ...formulario, schema: e.target.value })}
           />
@@ -155,11 +168,12 @@ export function AuditoriaPage() {
           />
         </label>
         <label>
-          Actor (UUID)
+          Actor
           <input
-            aria-label="Actor (UUID)"
-            value={formulario.cambiadoPor}
-            onChange={(e) => setFormulario({ ...formulario, cambiadoPor: e.target.value })}
+            aria-label="Actor"
+            placeholder="Buscar por nombre"
+            value={formulario.actor}
+            onChange={(e) => setFormulario({ ...formulario, actor: e.target.value })}
           />
         </label>
         <label>
@@ -171,16 +185,12 @@ export function AuditoriaPage() {
           />
         </label>
         <div className="auditoria-filtros-acciones">
-          <button className="sistema-accion" type="submit">
+          <Button variant="primary" type="submit">
             Buscar
-          </button>
-          <button
-            className="sistema-accion sistema-accion--secundaria"
-            type="button"
-            onClick={limpiar}
-          >
+          </Button>
+          <Button variant="secondary" type="button" onClick={limpiar}>
             Limpiar
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -188,9 +198,9 @@ export function AuditoriaPage() {
       {consulta.isError && (
         <p role="alert">
           No se pudieron cargar los registros.{" "}
-          <button type="button" onClick={() => void consulta.refetch()}>
+          <Button variant="secondary" onClick={() => void consulta.refetch()}>
             Reintentar
-          </button>
+          </Button>
         </p>
       )}
       {pagina && (
@@ -200,12 +210,10 @@ export function AuditoriaPage() {
               <thead>
                 <tr>
                   <th scope="col">Fecha</th>
+                  <th scope="col">Usuario</th>
                   <th scope="col">Acción</th>
-                  <th scope="col">Objeto</th>
-                  <th scope="col">Clave de fila</th>
-                  <th scope="col">Actor</th>
-                  <th scope="col">Campos modificados</th>
-                  <th scope="col">Detalle</th>
+                  <th scope="col">Módulo</th>
+                  <th scope="col">Cambio</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,51 +226,71 @@ export function AuditoriaPage() {
                           {fechaLocal(registro.cambiadoEn)}
                         </time>
                       </td>
-                      <td>{registro.accion}</td>
+                      <td>{registro.actor}</td>
                       <td>
-                        {registro.schema}.{registro.tabla}
+                        <span className="auditoria-accion">{registro.accionEtiqueta}</span>
                       </td>
-                      <td>{registro.rowPk}</td>
-                      <td>{registro.cambiadoPor ?? "Sin actor identificado"}</td>
+                      <td>{registro.modulo}</td>
                       <td>
-                        {registro.columnasCambiadas.length
-                          ? registro.columnasCambiadas.join(", ")
-                          : "—"}
-                      </td>
-                      <td>
-                        {registro.cambios.length > 0 ? (
-                          <button
-                            className="sistema-enlace"
+                        <strong>{registro.resumen}</strong>
+                        <div className="auditoria-contexto">
+                          <span>{registro.objeto}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{registro.tabla}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             type="button"
                             aria-expanded={abierto}
                             onClick={() => alternarDetalle(registro.id)}
                           >
                             {abierto ? "Ocultar detalle" : "Ver detalle"}
-                          </button>
-                        ) : (
-                          "—"
-                        )}
+                          </Button>
+                        </div>
                         {abierto && (
-                          <div className="auditoria-detalle">
-                            <table aria-label={`Cambios del registro ${registro.id}`}>
-                              <thead>
-                                <tr>
-                                  <th>Campo</th>
-                                  <th>Anterior</th>
-                                  <th>Nuevo</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {registro.cambios.map((cambio) => (
-                                  <tr key={cambio.campo}>
-                                    <th scope="row">{cambio.campo}</th>
-                                    <td>{mostrarValor(cambio, "anterior")}</td>
-                                    <td>{mostrarValor(cambio, "nuevo")}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                          <section
+                            className="auditoria-detalle"
+                            aria-label={`Detalle del evento ${registro.id}`}
+                          >
+                            <dl className="auditoria-metadatos">
+                              <div>
+                                <dt>Tabla</dt>
+                                <dd>
+                                  {registro.schema}.{registro.tabla}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Clave de fila</dt>
+                                <dd>{registro.rowPk}</dd>
+                              </div>
+                              <div>
+                                <dt>Solicitud</dt>
+                                <dd>{registro.requestId ?? "—"}</dd>
+                              </div>
+                            </dl>
+                            {registro.cambios.length > 0 && (
+                              <div className="auditoria-detalle-tabla">
+                                <table aria-label={`Cambios del registro ${registro.id}`}>
+                                  <thead>
+                                    <tr>
+                                      <th scope="col">Campo</th>
+                                      <th scope="col">Anterior</th>
+                                      <th scope="col">Nuevo</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {registro.cambios.map((cambio) => (
+                                      <tr key={cambio.campo}>
+                                        <th scope="row">{cambio.etiquetaCampo}</th>
+                                        <td>{mostrarValor(cambio, "anterior")}</td>
+                                        <td>{mostrarValor(cambio, "nuevo")}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </section>
                         )}
                       </td>
                     </tr>
@@ -273,25 +301,25 @@ export function AuditoriaPage() {
           </div>
           {pagina.elementos.length === 0 && <p>No hay registros para los filtros seleccionados.</p>}
           <nav className="auditoria-paginacion" aria-label="Paginación de auditoría">
-            <button
-              className="sistema-accion sistema-accion--secundaria"
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => cambiarPagina(filtros.pagina - 1)}
               disabled={filtros.pagina <= 1}
             >
               Anterior
-            </button>
+            </Button>
             <span>
               Página {filtros.pagina} de {totalPaginas}
             </span>
-            <button
-              className="sistema-accion sistema-accion--secundaria"
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => cambiarPagina(filtros.pagina + 1)}
               disabled={filtros.pagina >= totalPaginas}
             >
               Siguiente
-            </button>
+            </Button>
           </nav>
         </>
       )}

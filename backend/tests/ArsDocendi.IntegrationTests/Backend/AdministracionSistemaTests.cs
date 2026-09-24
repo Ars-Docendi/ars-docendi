@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
@@ -178,6 +179,69 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.BadRequest, pagina.StatusCode);
     }
 
+    [Fact]
+    public async Task Auditoria_busca_actor_legible_sin_duplicar_paginacion_y_aplica_fallbacks()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        using var host = new FabricaAdministracion(Cadena);
+        using var administrador = Cliente(host, AdministradorSistema, "sys_admin");
+        var cuentaSinPersona = Guid.NewGuid();
+        var rowPkPrimero = $"auditoria-{Guid.NewGuid():N}-uno";
+        var rowPkSegundo = $"auditoria-{Guid.NewGuid():N}-dos";
+        var rowPkFallback = $"auditoria-{Guid.NewGuid():N}-fallback";
+        var rowPkDesconocido = $"auditoria-{Guid.NewGuid():N}-desconocido";
+
+        await InsertarCuentaSinPersonaAsync(cuentaSinPersona, ct);
+        await InsertarEventoAuditoriaAsync("identity", "roles", rowPkPrimero, "UPDATE", AdministradorSistema, ct);
+        await InsertarEventoAuditoriaAsync("identity", "roles", rowPkSegundo, "UPDATE", AdministradorSistema, ct);
+        await InsertarEventoAuditoriaAsync("portal", "perfiles", rowPkFallback, "INSERT", cuentaSinPersona, ct);
+        await InsertarEventoAuditoriaAsync("schema_futuro", "tabla_nueva", rowPkDesconocido, "DELETE", null, ct);
+
+        using var primeraPaginaRespuesta = await administrador.GetAsync(
+            "/api/administracion/auditoria?actor=Vidal&pagina=1&tamanoPagina=1", ct);
+        var primeraPaginaCuerpo = await primeraPaginaRespuesta.Content.ReadAsStringAsync(ct);
+        Assert.True(
+            primeraPaginaRespuesta.StatusCode == HttpStatusCode.OK,
+            $"La consulta de auditoría falló: {primeraPaginaCuerpo}");
+        var primeraPagina = JsonSerializer.Deserialize<JsonElement>(primeraPaginaCuerpo);
+        var primerEvento = Assert.Single(primeraPagina.GetProperty("elementos").EnumerateArray());
+        Assert.Equal(2, primeraPagina.GetProperty("total").GetInt64());
+        Assert.Equal("Vidal, Ernesto", primerEvento.GetProperty("actor").GetString());
+        Assert.Equal("Actualización", primerEvento.GetProperty("accionEtiqueta").GetString());
+        Assert.Equal("Identidad", primerEvento.GetProperty("modulo").GetString());
+        Assert.Equal("Actualización de rol · Ámbito", primerEvento.GetProperty("resumen").GetString());
+        Assert.NotNull(primerEvento.GetProperty("requestId").GetString());
+        var cuerpoPrimeraPagina = primeraPagina.GetRawText();
+        Assert.DoesNotContain("sistemas@unlam.edu.ar", cuerpoPrimeraPagina, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("@unlam.edu.ar", cuerpoPrimeraPagina, StringComparison.OrdinalIgnoreCase);
+
+        using var segundaPaginaRespuesta = await administrador.GetAsync(
+            "/api/administracion/auditoria?actor=Vidal&pagina=2&tamanoPagina=1", ct);
+        var segundaPagina = await segundaPaginaRespuesta.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var segundoEvento = Assert.Single(segundaPagina.GetProperty("elementos").EnumerateArray());
+        Assert.Equal(2, segundaPagina.GetProperty("total").GetInt64());
+        Assert.NotEqual(
+            primerEvento.GetProperty("id").GetInt64(),
+            segundoEvento.GetProperty("id").GetInt64());
+
+        using var fallbackRespuesta = await administrador.GetAsync(
+            $"/api/administracion/auditoria?actor=Cuenta%20de%20respaldo&rowPk={rowPkFallback}", ct);
+        var fallback = await fallbackRespuesta.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var eventoFallback = Assert.Single(fallback.GetProperty("elementos").EnumerateArray());
+        Assert.Equal("Cuenta de respaldo", eventoFallback.GetProperty("actor").GetString());
+        Assert.Equal("Portal", eventoFallback.GetProperty("modulo").GetString());
+
+        using var desconocidoRespuesta = await administrador.GetAsync(
+            $"/api/administracion/auditoria?actor=no%20identificado&rowPk={rowPkDesconocido}", ct);
+        var desconocido = await desconocidoRespuesta.Content.ReadFromJsonAsync<JsonElement>(ct);
+        var eventoDesconocido = Assert.Single(desconocido.GetProperty("elementos").EnumerateArray());
+        Assert.Equal("Actor no identificado", eventoDesconocido.GetProperty("actor").GetString());
+        Assert.Equal("Eliminación física", eventoDesconocido.GetProperty("accionEtiqueta").GetString());
+        Assert.Equal("Schema futuro", eventoDesconocido.GetProperty("modulo").GetString());
+        Assert.Equal("Eliminación física de tabla nueva · Ámbito", eventoDesconocido.GetProperty("resumen").GetString());
+    }
+
     private sealed class FabricaAdministracion(string cadena) : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -233,6 +297,46 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand("SELECT count(*) FROM audit.change_log", conexion);
         return (long)(await comando.ExecuteScalarAsync(ct))!;
+    }
+
+    private async Task InsertarCuentaSinPersonaAsync(Guid id, CancellationToken ct)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            INSERT INTO identity.users (id, azure_oid, upn, display_name, persona_id)
+            VALUES (@id, @azureOid, @upn, 'Cuenta de respaldo', NULL);
+            """, conexion);
+        comando.Parameters.AddWithValue("id", id);
+        comando.Parameters.AddWithValue("azureOid", Guid.NewGuid());
+        comando.Parameters.AddWithValue("upn", $"{id:N}@prueba.invalid");
+        await comando.ExecuteNonQueryAsync(ct);
+    }
+
+    private async Task InsertarEventoAuditoriaAsync(
+        string schema,
+        string tabla,
+        string rowPk,
+        string accion,
+        Guid? actor,
+        CancellationToken ct)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand("""
+            INSERT INTO audit.change_log
+                (schema_name, table_name, row_pk, action, changed_columns, changed_by, request_id, changed_at)
+            VALUES (@schema, @tabla, @rowPk, @accion, @columnas, @actor, @requestId, clock_timestamp());
+            """, conexion);
+        comando.Parameters.AddWithValue("schema", schema);
+        comando.Parameters.AddWithValue("tabla", tabla);
+        comando.Parameters.AddWithValue("rowPk", rowPk);
+        comando.Parameters.AddWithValue("accion", accion);
+        comando.Parameters.AddWithValue("columnas", new[] { "scope" });
+        comando.Parameters.Add(new NpgsqlParameter("actor", NpgsqlDbType.Uuid)
+        {
+            Value = actor.HasValue ? actor.Value : DBNull.Value,
+        });
+        comando.Parameters.AddWithValue("requestId", $"request-{Guid.NewGuid():N}");
+        await comando.ExecuteNonQueryAsync(ct);
     }
 
     private static string BuscarRaizRepositorio()

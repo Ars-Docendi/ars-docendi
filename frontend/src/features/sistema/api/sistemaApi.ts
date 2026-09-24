@@ -101,11 +101,13 @@ export interface FiltrosAuditoria {
   schema?: string;
   tabla?: string;
   cambiadoPor?: string;
+  actor?: string;
   rowPk?: string;
 }
 
 export interface CambioAuditoria {
   campo: string;
+  etiquetaCampo: string;
   valorAnterior: string | null;
   valorNuevo: string | null;
   oculto: boolean;
@@ -122,6 +124,11 @@ export interface EventoAuditoria {
   requestId: string | null;
   columnasCambiadas: string[];
   cambios: CambioAuditoria[];
+  actor: string;
+  accionEtiqueta: string;
+  modulo: string;
+  objeto: string;
+  resumen: string;
 }
 
 export interface PaginaAuditoria {
