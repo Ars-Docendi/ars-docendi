@@ -49,6 +49,6 @@
 
 ## 6. Docs y cierre
 
-- [ ] 6.1 Actualizar los design-specs afectados en `docs/product/designs/` (portal, designaciones/proyecto docente, administración de usuarios/docentes y roles) con la convención de encabezados y los cambios de cada pantalla
+- [x] 6.1 Actualizar los design-specs afectados en `docs/product/designs/` (portal, designaciones/proyecto docente, administración de usuarios/docentes y roles) con la convención de encabezados y los cambios de cada pantalla
 - [x] 6.2 Correr lint, typecheck y tests del frontend en verde
 - [x] 6.3 `openspec validate ajustes-ui-varios --strict`
