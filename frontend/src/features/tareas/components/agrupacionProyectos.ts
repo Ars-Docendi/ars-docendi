@@ -26,7 +26,7 @@ export function agruparTareasPorProyecto(
   };
 
   const cuadrosDeProyecto = proyectos
-    .filter((p) => p.estado === "abierto")
+    .filter((p) => p.admiteTareas)
     .map((proyecto) => ({
       proyecto,
       tareas: tareas.filter((t) => t.proyectoId === proyecto.id),

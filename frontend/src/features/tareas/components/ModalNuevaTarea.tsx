@@ -10,8 +10,14 @@ import {
   Textarea,
 } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
-import { useCandidatosResponsable } from "../hooks/useTareas";
-import type { DatosEditablesTarea, Prioridad, Proyecto, Tarea, TipoTarea } from "../types";
+import type {
+  DatosEditablesTarea,
+  PersonaTarea,
+  Prioridad,
+  Proyecto,
+  Tarea,
+  TipoTarea,
+} from "../types";
 
 interface ModalNuevaTareaProps {
   open: boolean;
@@ -43,7 +49,7 @@ const VACIO = {
   fechaFin: "",
   prioridad: "" as Prioridad | "",
   tipo: "" as TipoTarea | "",
-  responsable: "",
+  responsable: null as PersonaTarea | null,
   proyectoId: "",
 };
 
@@ -56,7 +62,7 @@ function datosIniciales(tarea: Tarea | undefined): typeof VACIO {
     fechaFin: tarea.fechaFin,
     prioridad: tarea.prioridad,
     tipo: tarea.tipo,
-    responsable: tarea.responsable.id,
+    responsable: tarea.responsable,
     proyectoId: tarea.proyectoId ?? "",
   };
 }
@@ -99,14 +105,9 @@ export function ModalNuevaTarea({
     ? (proyectos.find((p) => p.id === tareaPadre.proyectoId)?.nombre ?? null)
     : null;
 
-  // El servidor devuelve solo a quienes el actor puede asignar (mismo nivel jerárquico o
-  // inferior). Al editar se conserva al Responsable actual aunque ya no figure en la lista,
-  // para que el campo lo siga mostrando.
-  const { data: candidatosServidor = [] } = useCandidatosResponsable(false, open);
-  const candidatosResponsable =
-    tarea && !candidatosServidor.some((c) => c.id === tarea.responsable.id)
-      ? [tarea.responsable, ...candidatosServidor]
-      : candidatosServidor;
+  // Solo los proyectos que admiten tareas (según el catálogo de estados) se pueden elegir; al
+  // editar se conserva el proyecto actual aunque ya no admita tareas nuevas.
+  const proyectosElegibles = proyectos.filter((p) => p.admiteTareas || p.id === campos.proyectoId);
 
   function handleCerrar() {
     setCampos(VACIO);
@@ -127,7 +128,7 @@ export function ModalNuevaTarea({
       fechaFin,
       prioridad,
       tipo,
-      responsableId: responsable,
+      responsableId: responsable.id,
       proyectoId: esHija ? undefined : campos.proyectoId || undefined,
     });
   }
@@ -243,38 +244,35 @@ export function ModalNuevaTarea({
           </Field>
         </div>
 
-        <div style={grilla}>
-          <Field
-            label="Responsable"
-            required
-            error={enviado && !campos.responsable ? "Campo obligatorio" : undefined}
-          >
-            <SelectorResponsable
-              valor={campos.responsable}
-              onChange={(id) => set("responsable", id)}
-              personas={candidatosResponsable}
-              ariaLabel="Responsable de la tarea"
-              invalid={enviado && !campos.responsable}
-            />
-          </Field>
+        <Field
+          label="Responsable"
+          required
+          error={enviado && !campos.responsable ? "Campo obligatorio" : undefined}
+        >
+          <SelectorResponsable
+            valor={campos.responsable}
+            onChange={(persona) => set("responsable", persona)}
+            ariaLabel="Responsable de la tarea"
+            invalid={enviado && !campos.responsable}
+          />
+        </Field>
 
-          {esHija ? (
-            <Field label="Proyecto">
-              <Input value={nombreProyectoHeredado ?? "Sin proyecto"} disabled readOnly />
-            </Field>
-          ) : (
-            <Field label="Proyecto">
-              <Select value={campos.proyectoId} onChange={(e) => set("proyectoId", e.target.value)}>
-                <option value="">Sin proyecto</option>
-                {proyectos.map((proyecto) => (
-                  <option key={proyecto.id} value={proyecto.id}>
-                    {proyecto.nombre}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
-        </div>
+        {esHija ? (
+          <Field label="Proyecto">
+            <Input value={nombreProyectoHeredado ?? "Sin proyecto"} disabled readOnly />
+          </Field>
+        ) : (
+          <Field label="Proyecto">
+            <Select value={campos.proyectoId} onChange={(e) => set("proyectoId", e.target.value)}>
+              <option value="">Sin proyecto</option>
+              {proyectosElegibles.map((proyecto) => (
+                <option key={proyecto.id} value={proyecto.id}>
+                  {proyecto.nombre}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
       </div>
     </Modal>
   );

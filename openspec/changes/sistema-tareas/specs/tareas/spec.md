@@ -205,3 +205,18 @@ El sistema SHALL registrar en el historial de la tarea cada creación, cambio de
 
 - **WHEN** el Responsable cambia el estado de la tarea de Pendiente a En curso
 - **THEN** el historial muestra un nuevo evento con esa transición, el nombre y rol del Responsable, y la fecha
+
+### Requirement: Buscador emergente de Responsable
+
+El campo Responsable de los formularios de tarea y de proyecto SHALL abrir un buscador emergente que permita buscar por nombre, apellido, usuario, legajo o documento y elegir de la lista de resultados (nombre, rol, usuario, legajo y documento), en vez de un desplegable con todos los usuarios. Los candidatos MUST ser los que el servidor devuelve según la jerarquía de asignación. En el formulario de tarea, Responsable y Proyecto MUST ocupar renglones separados, y el selector de Proyecto MUST ofrecer solo los proyectos cuyo estado admite tareas nuevas (al editar, se conserva además el proyecto actual).
+
+#### Scenario: Elegir Responsable por legajo
+
+- **WHEN** el usuario abre el buscador, escribe un legajo y elige el resultado
+- **THEN** el campo Responsable muestra a esa persona y su rol
+
+#### Scenario: Proyectos elegibles
+
+- **GIVEN** un proyecto Abierto y otro Finalizado
+- **WHEN** el usuario abre el selector de Proyecto al crear una tarea
+- **THEN** solo aparece el Abierto

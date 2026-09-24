@@ -1,45 +1,58 @@
-import { ComboboxBuscable } from "../../../shared/ui/ComboboxBuscable";
-import type { PersonaCandidata } from "../types";
+import { useState } from "react";
+import { Button, Input } from "@ars-docendi/ui";
+import { PopupBuscarResponsable } from "./PopupBuscarResponsable";
+import type { PersonaCandidata, PersonaTarea } from "../types";
+import "./selectorResponsable.css";
 
 interface SelectorResponsableProps {
-  /** Nombre de la persona seleccionada, o "" si no hay selección. */
-  valor: string;
-  onChange: (nombre: string) => void;
-  /**
-   * Candidatos ofrecidos — quien llama ya filtró `personasSeed.ts` por la
-   * jerarquía de asignación (`puedeAsignarComoResponsable`/
-   * `puedeAsignarComoResponsableProyecto`), no el catálogo completo.
-   */
-  personas: PersonaCandidata[];
+  /** Persona elegida, o `null` si todavía no hay selección. */
+  valor: PersonaTarea | null;
+  onChange: (persona: PersonaTarea) => void;
+  /** Acota los candidatos a quienes pueden ser Responsable de un Proyecto. */
+  paraProyecto?: boolean;
   ariaLabel?: string;
   invalid?: boolean;
 }
 
 /**
- * Combobox buscable para elegir un Responsable: se tipea texto y se
- * selecciona de la lista de candidatos ofrecida. Mismo componente en el
- * campo Responsable del formulario "Nueva Tarea" y "Nuevo Proyecto" — es
- * la misma pregunta ("elegí una persona buscando por texto") en los dos
- * lugares, cada uno con su propio recorte de candidatos válidos.
+ * Campo de Responsable: muestra a la persona elegida y abre un buscador emergente
+ * (`PopupBuscarResponsable`) para elegir o cambiarla. Mismo componente en "Nueva Tarea" y
+ * "Nuevo Proyecto"; los candidatos válidos los define el servidor según la jerarquía.
  */
 export function SelectorResponsable({
   valor,
   onChange,
-  personas,
+  paraProyecto = false,
   ariaLabel = "Responsable",
   invalid,
 }: SelectorResponsableProps) {
+  const [buscando, setBuscando] = useState(false);
+
+  function elegir(persona: PersonaCandidata) {
+    onChange({ id: persona.id, nombre: persona.nombre, rol: persona.rol });
+  }
+
   return (
-    <ComboboxBuscable
-      valorSeleccionado={valor}
-      opciones={personas.map((p) => ({
-        value: p.id,
-        label: `${p.nombre} — ${p.rol}`,
-      }))}
-      placeholder="Buscar persona…"
-      ariaLabel={ariaLabel}
-      onSeleccionar={onChange}
-      invalid={invalid}
-    />
+    <>
+      <div className="adoc-selector-responsable">
+        <Input
+          readOnly
+          value={valor ? `${valor.nombre} — ${valor.rol}` : ""}
+          placeholder="Ningún responsable seleccionado"
+          aria-label={ariaLabel}
+          invalid={invalid}
+          onClick={() => setBuscando(true)}
+        />
+        <Button variant="secondary" onClick={() => setBuscando(true)}>
+          {valor ? "Cambiar" : "Buscar"}
+        </Button>
+      </div>
+      <PopupBuscarResponsable
+        open={buscando}
+        paraProyecto={paraProyecto}
+        onSeleccionar={elegir}
+        onCerrar={() => setBuscando(false)}
+      />
+    </>
   );
 }

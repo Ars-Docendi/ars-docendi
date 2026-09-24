@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
+import { Breadcrumbs, Button, InlineAlert, Select } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { CuadroProyecto } from "../components/CuadroProyecto";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { ModalNuevoProyecto } from "../components/ModalNuevoProyecto";
+import { TablaTareas } from "../components/TablaTareas";
 import { agruparTareasPorProyecto } from "../components/agrupacionProyectos";
+import {
+  ALCANCE_INICIAL,
+  ETIQUETA_ALCANCE,
+  aplicarAlcance,
+  type AlcanceTareas,
+} from "../components/alcanceTareas";
+import { ETIQUETA_PRESET, PRESET_INICIAL, type PresetEstado } from "../components/presetEstado";
 import { IconoPlus } from "../components/lucide";
-import { usePermisosTareas } from "../hooks/useActorTareas";
+import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearTarea } from "../hooks/useAccionesTarea";
@@ -18,16 +26,20 @@ import "./tareas.css";
 export function IndexPage() {
   const navegar = useNavigate();
   const { puedeCrearTarea, puedeGestionarProyectos } = usePermisosTareas();
+  const actor = useActorTareas();
   const { data: tareas, isLoading, isError } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
   const crearTarea = useCrearTarea();
   const crearProyecto = useCrearProyecto();
 
+  const [preset, setPreset] = useState<PresetEstado>(PRESET_INICIAL);
+  const [alcance, setAlcance] = useState<AlcanceTareas>(ALCANCE_INICIAL);
   const [modalNuevaTareaAbierto, setModalNuevaTareaAbierto] = useState(false);
   const [modalNuevoProyectoAbierto, setModalNuevoProyectoAbierto] = useState(false);
 
   const total = tareas?.length ?? 0;
-  const cuadros = agruparTareasPorProyecto(tareas ?? [], proyectos);
+  const visibles = aplicarAlcance(tareas ?? [], alcance, actor.id);
+  const cuadros = agruparTareasPorProyecto(visibles, proyectos);
 
   return (
     <>
@@ -40,14 +52,19 @@ export function IndexPage() {
             "Cargando…"
           ) : (
             <>
-              {total} tarea{total !== 1 ? "s" : ""} ·{" "}
-              <button
-                type="button"
-                className="adoc-tareas-vinculo-link"
-                onClick={() => navegar("/tareas/proyectos")}
-              >
-                Ver todos los proyectos
-              </button>
+              {total} tarea{total !== 1 ? "s" : ""}
+              {puedeCrearTarea && (
+                <>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="adoc-tareas-vinculo-link"
+                    onClick={() => navegar("/tareas/proyectos")}
+                  >
+                    Ver todos los proyectos
+                  </button>
+                </>
+              )}
             </>
           )
         }
@@ -71,6 +88,33 @@ export function IndexPage() {
         }
       />
 
+      {!isLoading && !isError && total > 0 && (
+        <div className="adoc-preset-estado" role="group" aria-label="Filtros del listado">
+          <label>
+            Estado:{" "}
+            <Select value={preset} onChange={(e) => setPreset(e.target.value as PresetEstado)}>
+              {(Object.keys(ETIQUETA_PRESET) as PresetEstado[]).map((opcion) => (
+                <option key={opcion} value={opcion}>
+                  {ETIQUETA_PRESET[opcion]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          {puedeCrearTarea && (
+            <label>
+              Tareas:{" "}
+              <Select value={alcance} onChange={(e) => setAlcance(e.target.value as AlcanceTareas)}>
+                {(Object.keys(ETIQUETA_ALCANCE) as AlcanceTareas[]).map((opcion) => (
+                  <option key={opcion} value={opcion}>
+                    {ETIQUETA_ALCANCE[opcion]}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
+        </div>
+      )}
+
       {isLoading && <p style={{ color: "var(--color-text-secondary)" }}>Cargando las tareas…</p>}
 
       {isError && (
@@ -87,15 +131,26 @@ export function IndexPage() {
         </InlineAlert>
       )}
 
+      {!isLoading && !isError && total > 0 && !puedeCrearTarea && (
+        <TablaTareas
+          tareas={visibles}
+          onSeleccionar={(tarea: Tarea) => navegar(`/tareas/${tarea.id}`)}
+          preset={preset}
+          proyectos={proyectos}
+        />
+      )}
+
       {!isLoading &&
         !isError &&
         total > 0 &&
+        puedeCrearTarea &&
         cuadros.map((cuadro) => (
           <CuadroProyecto
             key={cuadro.proyecto?.id ?? "generales"}
             proyecto={cuadro.proyecto}
             tareas={cuadro.tareas}
             onSeleccionarTarea={(tarea: Tarea) => navegar(`/tareas/${tarea.id}`)}
+            preset={preset}
           />
         ))}
 

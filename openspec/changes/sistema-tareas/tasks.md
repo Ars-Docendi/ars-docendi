@@ -161,3 +161,23 @@ Spec: `specs/tareas-api/spec.md`. Diseño: sección "Backend" de `design.md`.
 - [x] 12.6 Tests de integración (permisos por rol, jerarquía, estados, hijas, relaciones, proyectos, numeración) y ajuste del conteo de operaciones de la superficie HTTP.
 - [x] 12.7 Frontend: seams sobre `apiClient`, permisos desde `user.permissions`, selector de Responsable desde `/candidatos`; retirar stores/seeds mock y sus tests.
 - [x] 12.8 Documentación: `docs/architecture/domains/tareas.md`, `data-model.md`, `api-contracts.md`, README del módulo.
+
+## 13. Visibilidad, filtro preseleccionado, buscador de Responsable y catálogos
+
+Specs: `tareas-api`, `tablero-tareas` y `tareas` (requirements nuevos de esta sección).
+
+- [x] 13.1 Catálogos: `database/tareas/002_tareas_catalogos.sql` + migración `CatalogosTareas`; entidades y repositorio; el servicio valida contra el catálogo y toma estados iniciales / "admite tareas" de sus banderas; `GET /api/tareas/proyectos/estados`.
+- [x] 13.2 Visibilidad: quien no tiene `tareas.gestionar` solo ve (y opera) las tareas que tiene asignadas; el resto responde 404.
+- [x] 13.3 Candidatos: búsqueda `q` por nombre, apellido, usuario, legajo o documento, con tope de 50 y datos de búsqueda en la respuesta.
+- [x] 13.4 Filtro preseleccionado Pendientes/Terminadas/Todas (abre en Pendientes) que carga el filtro de la columna Estado.
+- [x] 13.5 `PopupBuscarResponsable` + `SelectorResponsable` rediseñado; Responsable y Proyecto en renglones separados; proyectos elegibles solo los que admiten tareas.
+- [x] 13.6 Front: `admiteTareas`/`estadoNombre` en Proyecto, botones de estado desde el catálogo, badge con el nombre del catálogo.
+- [x] 13.7 Tests: integración (visibilidad, búsqueda de candidatos, catálogo y proyectos cerrados) y unitarios del preset.
+
+## 14. Vista por permiso y alcance del listado
+
+Specs: `tablero-tareas` (requirements "Alcance del listado: Todas o Propias" y "Vista de quien no crea tareas").
+
+- [x] 14.1 Quien no crea tareas ve una sola tabla de sus tareas asignadas con la columna Proyecto, sin cuadros ni listado de proyectos.
+- [x] 14.2 El proyecto del detalle de la tarea es un vínculo al detalle del proyecto.
+- [x] 14.3 Estado (Pendientes/Terminadas/Todas) y Tareas (Todas/Propias) como selectores combinables; Propias = creadas + asignadas (`alcanceTareas.ts` + test).

@@ -53,12 +53,6 @@ public static class MaquinaEstadosTarea
     public static void CambiarEstado(
         Tarea tarea, ActorTareas actor, string destino, string? comentario, string? solucion)
     {
-        if (!EstadosTarea.Todos.Contains(destino))
-        {
-            throw new ExcepcionAplicacion(
-                TipoErrorAplicacion.Validacion, "validation", $"El estado \"{destino}\" no existe.");
-        }
-
         if (destino == EstadosTarea.Cancelada)
         {
             if (!EsAutoridadCreadora(tarea, actor) || EstadosTarea.EsTerminal(tarea.Estado))

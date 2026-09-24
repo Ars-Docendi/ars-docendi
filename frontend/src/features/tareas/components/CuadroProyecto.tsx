@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { TablaTareas } from "./TablaTareas";
+import type { PresetEstado } from "./presetEstado";
 import type { Proyecto, Tarea } from "../types";
 import "./cuadroProyecto.css";
 
@@ -8,6 +9,7 @@ interface CuadroProyectoProps {
   proyecto: Proyecto | null;
   tareas: Tarea[];
   onSeleccionarTarea: (tarea: Tarea) => void;
+  preset?: PresetEstado;
 }
 
 /**
@@ -16,7 +18,12 @@ interface CuadroProyectoProps {
  * `TablaTareas` que antes, sin cambios en sus columnas. El título de un
  * cuadro de Proyecto navega a su Detalle; el de "Generales" no.
  */
-export function CuadroProyecto({ proyecto, tareas, onSeleccionarTarea }: CuadroProyectoProps) {
+export function CuadroProyecto({
+  proyecto,
+  tareas,
+  onSeleccionarTarea,
+  preset,
+}: CuadroProyectoProps) {
   const navegar = useNavigate();
 
   return (
@@ -32,7 +39,7 @@ export function CuadroProyecto({ proyecto, tareas, onSeleccionarTarea }: CuadroP
       ) : (
         <h2 className="adoc-cuadro-proyecto-titulo">Generales</h2>
       )}
-      <TablaTareas tareas={tareas} onSeleccionar={onSeleccionarTarea} />
+      <TablaTareas tareas={tareas} onSeleccionar={onSeleccionarTarea} preset={preset} />
     </section>
   );
 }

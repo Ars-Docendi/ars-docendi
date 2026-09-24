@@ -7,7 +7,8 @@ export type EstadoTarea = "pendiente" | "en_curso" | "pausa" | "resuelta" | "can
 export type Prioridad = "alta" | "media" | "baja";
 export type TipoTarea =
   "extension" | "administrativa" | "posgrado" | "investigacion" | "academica" | "decanato";
-export type EstadoProyecto = "abierto" | "finalizado" | "cancelado";
+/** Código del estado de un proyecto: la lista y su comportamiento salen del catálogo del servidor. */
+export type EstadoProyecto = string;
 
 /** Persona involucrada en una tarea (Responsable o Autor). */
 export interface ActorTarea {
@@ -74,7 +75,20 @@ export interface DatosEditablesTarea {
 }
 
 /** Candidato a Responsable devuelto por `GET /api/tareas/candidatos` (ya filtrado por la jerarquía). */
-export type PersonaCandidata = PersonaTarea;
+export interface PersonaCandidata extends PersonaTarea {
+  usuario: string;
+  legajo?: string | null;
+  documento?: string | null;
+}
+
+/** Estado de proyecto del catálogo; `verbo` es la acción que lleva a él ("Finalizar", "Cancelar"). */
+export interface EstadoProyectoCatalogo {
+  codigo: string;
+  nombre: string;
+  verbo: string;
+  esInicial: boolean;
+  admiteTareas: boolean;
+}
 
 export interface Proyecto {
   id: string;
@@ -84,6 +98,8 @@ export interface Proyecto {
   fechaInicio: string; // ISO (solo fecha)
   fechaFin: string; // ISO (solo fecha)
   estado: EstadoProyecto;
+  estadoNombre: string;
+  admiteTareas: boolean; // del catálogo: recibe tareas nuevas y genera cuadro en la pantalla inicial
   responsable: PersonaTarea; // Decanato o Secretaría Académica
 }
 

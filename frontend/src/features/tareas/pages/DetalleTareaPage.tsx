@@ -320,7 +320,19 @@ function DetalleCargado({
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Proyecto</dt>
-                  <dd>{proyecto?.nombre ?? "Sin proyecto"}</dd>
+                  <dd>
+                    {proyecto ? (
+                      <button
+                        type="button"
+                        className="adoc-tareas-vinculo-link"
+                        onClick={() => navegar(`/tareas/proyectos/${proyecto.id}`)}
+                      >
+                        {proyecto.nombre}
+                      </button>
+                    ) : (
+                      "Sin proyecto"
+                    )}
+                  </dd>
                 </div>
                 {padre && (
                   <div className="adoc-det-tarea-dato">

@@ -1,5 +1,5 @@
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
-import type { ActorTarea } from "../types";
+import type { PersonaTarea } from "../types";
 
 /**
  * Deriva el actor actual (nombre + rol) directamente de `useCurrentUser`.
@@ -8,12 +8,12 @@ import type { ActorTarea } from "../types";
  * que no reusa `useActorContexto` de `features/designaciones` (las
  * features no se importan entre sí).
  */
-export function useActorTareas(): ActorTarea {
+export function useActorTareas(): PersonaTarea {
   const { user } = useCurrentUser();
   if (!user) {
     throw new Error("No hay una sesión válida para resolver el actor de Tareas.");
   }
-  return { nombre: user.name, rol: user.role };
+  return { id: user.id, nombre: user.name, rol: user.role };
 }
 
 /**

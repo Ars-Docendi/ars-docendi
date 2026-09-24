@@ -8,7 +8,7 @@ public sealed class Proyecto
     public string Descripcion { get; set; } = string.Empty;
     public DateOnly FechaInicio { get; set; }
     public DateOnly FechaFin { get; set; }
-    public string Estado { get; set; } = EstadosProyecto.Abierto;
+    public required string Estado { get; set; }
     public Guid ResponsableId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }
@@ -23,7 +23,7 @@ public sealed class Tarea
     public DateOnly FechaFin { get; set; }
     public required string Prioridad { get; set; }
     public required string Tipo { get; set; }
-    public string Estado { get; set; } = EstadosTarea.Pendiente;
+    public required string Estado { get; set; }
     public short PorcentajeAvance { get; set; }
     public string? Solucion { get; set; }
     public Guid ResponsableId { get; set; }

@@ -22,10 +22,14 @@ export function useTarea(id: string | undefined) {
  * Usuarios que el actor puede asignar como Responsable de una tarea (o de un proyecto). El
  * servidor ya aplica la jerarquía; solo se consulta con el formulario abierto.
  */
-export function useCandidatosResponsable(paraProyecto: boolean, habilitado: boolean) {
+export function useCandidatosResponsable(
+  paraProyecto: boolean,
+  habilitado: boolean,
+  busqueda = "",
+) {
   return useQuery({
-    queryKey: ["tareas-candidatos", paraProyecto],
-    queryFn: () => listarCandidatos(paraProyecto),
+    queryKey: ["tareas-candidatos", paraProyecto, busqueda],
+    queryFn: () => listarCandidatos(paraProyecto, busqueda),
     enabled: habilitado,
   });
 }

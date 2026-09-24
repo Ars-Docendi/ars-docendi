@@ -80,10 +80,44 @@ El módulo SHALL persistir en un schema PostgreSQL propio `tareas` (tareas, proy
 
 ### Requirement: Candidatos a Responsable
 
-El servidor SHALL exponer `GET /api/tareas/candidatos` (permiso `tareas.gestionar`) con los usuarios activos que el actor puede asignar como Responsable según la jerarquía (y, con `?para=proyecto`, además acotados a Decanato y Secretaría Académica), cada uno con identificador, nombre y rol.
+El servidor SHALL exponer `GET /api/tareas/candidatos` (permiso `tareas.gestionar`) con los usuarios activos que el actor puede asignar como Responsable según la jerarquía (y, con `?para=proyecto`, además acotados a Decanato y Secretaría Académica), cada uno con identificador, nombre, rol, usuario, legajo y documento. El parámetro `q` MUST acotar la lista por nombre, apellido, usuario, legajo o documento: todas las palabras deben aparecer, sin distinguir mayúsculas ni acentos. La respuesta MUST tener un tope de resultados (50) y ordenarse por nombre.
 
 #### Scenario: Secretaría Académica no ve a Decanato como candidato
 
 - **GIVEN** un usuario con rol de sesión Secretaría Académica
 - **WHEN** solicita `GET /api/tareas/candidatos`
 - **THEN** la respuesta no incluye usuarios cuyo rol de mayor jerarquía sea Decanato
+
+#### Scenario: Búsqueda por legajo, documento o apellido
+
+- **WHEN** un usuario con `tareas.gestionar` solicita `GET /api/tareas/candidatos?q=0058`, `?q=35678901` o `?q=gómez`
+- **THEN** cada búsqueda devuelve al usuario cuyo legajo, documento o apellido coincide
+
+### Requirement: Visibilidad de las tareas según el permiso
+
+Un usuario sin `tareas.gestionar` SHALL ver únicamente las tareas que tiene asignadas como Responsable: el listado MUST devolver solo esas, y cualquier operación sobre una tarea ajena (detalle, estado, avance, comentarios, relaciones) MUST responder 404, como si no existiera. Quien tiene `tareas.gestionar` ve todas las tareas.
+
+#### Scenario: Un Docente solo ve sus tareas
+
+- **GIVEN** un Docente con una tarea asignada y otra tarea asignada a un Jefe de Cátedra
+- **WHEN** solicita `GET /api/tareas`
+- **THEN** recibe solo la tarea que tiene asignada
+
+#### Scenario: Una tarea ajena responde como inexistente
+
+- **WHEN** ese Docente solicita `GET /api/tareas/{id}` de la tarea del Jefe de Cátedra
+- **THEN** recibe 404
+
+### Requirement: Catálogos de estados, prioridades y tipos en la base
+
+Los estados de tarea, los estados de proyecto, las prioridades y los tipos de tarea MUST definirse en tablas de catálogo del schema `tareas`, referenciadas por clave foránea desde las tablas de negocio: el DDL MUST NOT repetir la lista de valores en CHECKs ni en DEFAULTs. Los estados MUST declarar su comportamiento con banderas del catálogo — cuál es el estado inicial (`es_inicial`) y, para los proyectos, si admiten tareas nuevas (`admite_tareas`) —, y el servidor MUST leerlas del catálogo en vez de nombrar estados concretos para esas decisiones. `GET /api/tareas/proyectos/estados` (permiso `tareas.ver`) MUST exponer el catálogo de estados de proyecto (código, nombre, verbo de la acción, inicial, admite tareas).
+
+#### Scenario: Estado inicial tomado del catálogo
+
+- **WHEN** se crea un proyecto o una tarea
+- **THEN** nace en el estado que el catálogo marca como inicial
+
+#### Scenario: Valor fuera del catálogo rechazado
+
+- **WHEN** se intenta guardar un proyecto o una tarea con un estado, prioridad o tipo que no está en el catálogo
+- **THEN** la base rechaza la escritura por la clave foránea, y la API responde 400 antes de llegar a ella

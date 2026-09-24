@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Button, DatePicker, Field, InlineAlert, Input, Modal, Textarea } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
-import { useCandidatosResponsable } from "../hooks/useTareas";
-import type { DatosEditablesProyecto } from "../types";
+import type { DatosEditablesProyecto, PersonaTarea } from "../types";
 
 interface ModalNuevoProyectoProps {
   open: boolean;
@@ -17,7 +16,7 @@ const VACIO = {
   descripcion: "",
   fechaInicio: "",
   fechaFin: "",
-  responsable: "",
+  responsable: null as PersonaTarea | null,
 };
 
 /**
@@ -34,9 +33,6 @@ export function ModalNuevoProyecto({
 }: ModalNuevoProyectoProps) {
   const [campos, setCampos] = useState(VACIO);
   const [enviado, setEnviado] = useState(false);
-
-  // El servidor devuelve solo a Decanato/Secretaría Académica que el actor puede asignar.
-  const { data: candidatosResponsable = [] } = useCandidatosResponsable(true, open);
 
   function set<K extends keyof typeof VACIO>(campo: K, valor: (typeof VACIO)[K]) {
     setCampos((p) => ({ ...p, [campo]: valor }));
@@ -59,7 +55,7 @@ export function ModalNuevoProyecto({
       descripcion: campos.descripcion,
       fechaInicio,
       fechaFin,
-      responsableId: responsable,
+      responsableId: responsable.id,
     });
   }
 
@@ -149,8 +145,8 @@ export function ModalNuevoProyecto({
         >
           <SelectorResponsable
             valor={campos.responsable}
-            onChange={(id) => set("responsable", id)}
-            personas={candidatosResponsable}
+            onChange={(persona) => set("responsable", persona)}
+            paraProyecto
             ariaLabel="Responsable del proyecto"
             invalid={enviado && !campos.responsable}
           />

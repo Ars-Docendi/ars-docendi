@@ -32,6 +32,8 @@ function proyecto(overrides: Partial<Proyecto> = {}): Proyecto {
     fechaInicio: "2026-01-01",
     fechaFin: "2026-06-01",
     estado: "abierto",
+    estadoNombre: "Abierto",
+    admiteTareas: true,
     responsable: { id: "u-R. Sosa", nombre: "R. Sosa", rol: "Decanato" },
     ...overrides,
   };
@@ -59,16 +61,20 @@ describe("agruparTareasPorProyecto", () => {
     expect(resultado).toHaveLength(1); // solo "Generales"
   });
 
-  it("un Proyecto Finalizado no genera cuadro aunque tenga tareas", () => {
+  it("un Proyecto cuyo estado no admite tareas (Finalizado) no genera cuadro aunque tenga tareas", () => {
     const tareas = [tarea({ id: "a", proyectoId: "p1" })];
-    const proyectos = [proyecto({ id: "p1", estado: "finalizado" })];
+    const proyectos = [
+      proyecto({ id: "p1", estado: "finalizado", estadoNombre: "Finalizado", admiteTareas: false }),
+    ];
     const resultado = agruparTareasPorProyecto(tareas, proyectos);
     expect(resultado).toHaveLength(1);
   });
 
   it("un Proyecto Cancelado no genera cuadro aunque tenga tareas", () => {
     const tareas = [tarea({ id: "a", proyectoId: "p1" })];
-    const proyectos = [proyecto({ id: "p1", estado: "cancelado" })];
+    const proyectos = [
+      proyecto({ id: "p1", estado: "cancelado", estadoNombre: "Cancelado", admiteTareas: false }),
+    ];
     const resultado = agruparTareasPorProyecto(tareas, proyectos);
     expect(resultado).toHaveLength(1);
   });

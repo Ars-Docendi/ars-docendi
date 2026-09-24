@@ -20,6 +20,9 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
     private static readonly Guid Administrador = Guid.Parse("a0000000-0000-4000-8000-000000000007");
     private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
     private static readonly Guid ProyectoTesting = Guid.Parse("f2000000-0000-4000-8000-000000000001");
+    private static readonly Guid ProyectoFinalizado = Guid.Parse("f2000000-0000-4000-8000-000000000003");
+    private static readonly Guid ProyectoCancelado = Guid.Parse("f2000000-0000-4000-8000-000000000004");
+    private static readonly Guid TareaDelDocente = Guid.Parse("f3000000-0000-4000-8000-000000000003");
     private static readonly Guid TareaSemilla = Guid.Parse("f3000000-0000-4000-8000-000000000001");
 
     [Fact]
@@ -111,8 +114,9 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         Assert.Single(creada.Historial);
         var ruta = $"/api/tareas/{creada.Id}";
 
-        await Esperar(ajeno.PostAsJsonAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.Forbidden);
-        await Esperar(ajeno.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 10 }, ct), HttpStatusCode.Forbidden);
+        // Quien no gestiona y no es el Responsable ni siquiera ve la tarea: responde como si no existiera.
+        await Esperar(ajeno.PostAsJsonAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.NotFound);
+        await Esperar(ajeno.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 10 }, ct), HttpStatusCode.NotFound);
 
         Assert.Equal("en_curso", (await Cambiar(responsable, ruta, new { estado = "en_curso" }, ct)).Estado);
 
@@ -141,9 +145,9 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         var editada = await ReadAsync<TareaDto>(await secretaria.PutAsJsonAsync(ruta, EdicionDe(JefeCatedra, "Título nuevo"), ct), ct);
         Assert.Equal("Título nuevo", editada.Titulo);
 
-        var comentada = await ReadAsync<TareaDto>(await ajeno.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "Hola" }, ct), ct);
+        var comentada = await ReadAsync<TareaDto>(await responsable.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "Hola" }, ct), ct);
         Assert.Contains(comentada.Comentarios, c => c.Texto == "Hola");
-        await Esperar(ajeno.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "  " }, ct), HttpStatusCode.BadRequest);
+        await Esperar(responsable.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "  " }, ct), HttpStatusCode.BadRequest);
 
         var detalle = await secretaria.GetFromJsonAsync<TareaDto>(ruta, ct);
         Assert.Contains(detalle!.Historial, e => e.Accion == "editar_avance" && e.Detalle == "60%");
@@ -249,6 +253,85 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
             nombre = "Proyecto del administrador", descripcion = "d",
             fechaInicio = "2026-01-01", fechaFin = "2026-12-31", responsableId = Decanato,
         }, ct), HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Quien_no_gestiona_solo_ve_las_tareas_que_tiene_asignadas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        using var host = CrearHost();
+        using var docente = Cliente(host, Docente, "docente");
+        using var decanato = Cliente(host, Decanato, "decanato");
+
+        var propias = await docente.GetFromJsonAsync<TareaDto[]>("/api/tareas", ct);
+        Assert.NotEmpty(propias!);
+        Assert.All(propias!, t => Assert.Equal(Docente, t.Responsable.Id));
+        var todas = await decanato.GetFromJsonAsync<TareaDto[]>("/api/tareas", ct);
+        Assert.True(todas!.Length > propias!.Length);
+
+        await Esperar(docente.GetAsync($"/api/tareas/{TareaDelDocente}", ct), HttpStatusCode.OK);
+        // Una tarea ajena responde como si no existiera, para cualquier operación.
+        await Esperar(docente.GetAsync($"/api/tareas/{TareaSemilla}", ct), HttpStatusCode.NotFound);
+        await Esperar(docente.PostAsJsonAsync($"/api/tareas/{TareaSemilla}/comentarios", new { texto = "hola" }, ct), HttpStatusCode.NotFound);
+        await Esperar(docente.PostAsJsonAsync($"/api/tareas/{TareaDelDocente}/relaciones", new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Los_candidatos_se_buscan_por_nombre_apellido_usuario_legajo_o_documento()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        using var host = CrearHost();
+        using var decanato = Cliente(host, Decanato, "decanato");
+
+        foreach (var busqueda in new[] { "gómez", "PAULA gomez", "0058", "35678901", "administracion@" })
+        {
+            var resultado = await decanato.GetFromJsonAsync<CandidatoResponsableDto[]>(
+                $"/api/tareas/candidatos?q={Uri.EscapeDataString(busqueda)}", ct);
+            var candidato = Assert.Single(resultado!);
+            Assert.Equal(Administrativo, candidato.Id);
+            Assert.Equal("0058", candidato.Legajo);
+            Assert.Equal("35678901", candidato.Documento);
+        }
+
+        Assert.Empty((await decanato.GetFromJsonAsync<CandidatoResponsableDto[]>("/api/tareas/candidatos?q=zzzz", ct))!);
+        Assert.True((await decanato.GetFromJsonAsync<CandidatoResponsableDto[]>("/api/tareas/candidatos", ct))!.Length > 1);
+    }
+
+    [Fact]
+    public async Task Los_estados_salen_del_catalogo_y_los_proyectos_cerrados_no_admiten_tareas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await SembrarAsync(ct);
+        using var host = CrearHost();
+        using var decanato = Cliente(host, Decanato, "decanato");
+
+        var estados = await decanato.GetFromJsonAsync<EstadoProyectoDto[]>("/api/tareas/proyectos/estados", ct);
+        Assert.Equal(["abierto", "finalizado", "cancelado"], estados!.Select(e => e.Codigo));
+        var inicial = Assert.Single(estados!, e => e.EsInicial);
+        Assert.True(inicial.AdmiteTareas);
+        Assert.All(estados!.Where(e => !e.EsInicial), e => Assert.False(e.AdmiteTareas));
+
+        var proyectos = await decanato.GetFromJsonAsync<ProyectoTareasDto[]>("/api/tareas/proyectos", ct);
+        Assert.True(proyectos!.Single(p => p.Id == ProyectoTesting).AdmiteTareas);
+        Assert.False(proyectos!.Single(p => p.Id == ProyectoFinalizado).AdmiteTareas);
+        Assert.Equal("Finalizado", proyectos!.Single(p => p.Id == ProyectoFinalizado).EstadoNombre);
+
+        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoFinalizado }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoCancelado }, ct), HttpStatusCode.UnprocessableEntity);
+        await Crear(decanato, NuevaTarea(Secretaria) with { ProyectoId = ProyectoTesting }, ct);
+
+        // Al cerrar un proyecto deja de admitir tareas nuevas; un estado inexistente se rechaza.
+        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "inexistente" }, ct), HttpStatusCode.BadRequest);
+        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.OK);
+        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoTesting }, ct), HttpStatusCode.UnprocessableEntity);
+
+        var nuevo = await ReadAsync<ProyectoTareasDto>(await decanato.PostAsJsonAsync("/api/tareas/proyectos", new
+        {
+            nombre = "Otro", descripcion = "d", fechaInicio = "2026-01-01", fechaFin = "2026-12-31", responsableId = Secretaria,
+        }, ct), ct);
+        Assert.Equal(inicial.Codigo, nuevo.Estado);
     }
 
     // Helpers -----------------------------------------------------------

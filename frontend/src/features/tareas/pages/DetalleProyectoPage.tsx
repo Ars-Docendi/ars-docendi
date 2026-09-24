@@ -3,11 +3,11 @@ import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaTareas } from "../components/TablaTareas";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
-import { IconoArrowLeft, IconoBan, IconoCircleCheck } from "../components/lucide";
+import { IconoArrowLeft } from "../components/lucide";
 import { formatearFecha } from "../components/detalleAdapters";
 import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
-import { useProyecto } from "../hooks/useProyectos";
+import { useEstadosProyecto, useProyecto } from "../hooks/useProyectos";
 import { useCambiarEstadoProyecto } from "../hooks/useAccionesProyecto";
 import type { Tarea } from "../types";
 import "./tareas.css";
@@ -21,6 +21,7 @@ export function DetalleProyectoPage() {
   const navegar = useNavigate();
   const { data: proyecto, isLoading, isError } = useProyecto(id);
   const { data: tareas = [] } = useListadoTareas();
+  const { data: estados = [] } = useEstadosProyecto();
   const cambiarEstado = useCambiarEstadoProyecto();
 
   const { puedeGestionarProyectos: puedeCambiar } = usePermisosTareas();
@@ -67,31 +68,22 @@ export function DetalleProyectoPage() {
                 >
                   Volver
                 </Button>
-                {puedeCambiar && proyecto.estado === "abierto" && (
-                  <>
-                    <Button
-                      variant="secondary"
-                      leadingIcon={<IconoCircleCheck />}
-                      loading={cambiarEstado.isPending}
-                      onClick={() =>
-                        cambiarEstado.mutate({ id: proyecto.id, estadoDestino: "finalizado" })
-                      }
-                    >
-                      Finalizar
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      leadingIcon={<IconoBan />}
-                      loading={cambiarEstado.isPending}
-                      onClick={() =>
-                        cambiarEstado.mutate({ id: proyecto.id, estadoDestino: "cancelado" })
-                      }
-                    >
-                      Cancelar
-                    </Button>
-                  </>
-                )}
-                <EstadoProyectoBadge estado={proyecto.estado} />
+                {puedeCambiar &&
+                  estados
+                    .filter((estado) => estado.codigo !== proyecto.estado)
+                    .map((estado) => (
+                      <Button
+                        key={estado.codigo}
+                        variant={estado.admiteTareas ? "secondary" : "destructive"}
+                        loading={cambiarEstado.isPending}
+                        onClick={() =>
+                          cambiarEstado.mutate({ id: proyecto.id, estadoDestino: estado.codigo })
+                        }
+                      >
+                        {estado.verbo}
+                      </Button>
+                    ))}
+                <EstadoProyectoBadge estado={proyecto.estado} nombre={proyecto.estadoNombre} />
               </div>
             }
           />

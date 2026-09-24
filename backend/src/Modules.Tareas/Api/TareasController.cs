@@ -29,9 +29,9 @@ public sealed class TareasController : ControllerBase
 
     [Authorize(Policy = Permisos.TareasGestionar)]
     [HttpGet("candidatos")]
-    public Task<IReadOnlyList<PersonaTareaDto>> Candidatos(
-        ServicioTareas servicio, CancellationToken ct, [FromQuery] string? para = null) =>
-        servicio.ListarCandidatosAsync(para == "proyecto", ct);
+    public Task<IReadOnlyList<CandidatoResponsableDto>> Candidatos(
+        ServicioTareas servicio, CancellationToken ct, [FromQuery] string? para = null, [FromQuery] string? q = null) =>
+        servicio.ListarCandidatosAsync(para == "proyecto", q, ct);
 
     [Authorize(Policy = Permisos.TareasGestionar)]
     [HttpPost]

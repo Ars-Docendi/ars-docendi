@@ -6,10 +6,21 @@ namespace Modules.Tareas.Repositories;
 
 public sealed class RepositorioTareas(TareasDbContext db)
 {
+    // Catálogos ---------------------------------------------------------
+
+    public async Task<CatalogosTareas> ObtenerCatalogosAsync(CancellationToken ct) =>
+        new(
+            await db.EstadosProyecto.AsNoTracking().OrderBy(e => e.Orden).ToListAsync(ct),
+            await db.EstadosTarea.AsNoTracking().OrderBy(e => e.Orden).ToListAsync(ct),
+            await db.Prioridades.AsNoTracking().OrderBy(e => e.Orden).ToListAsync(ct),
+            await db.Tipos.AsNoTracking().OrderBy(e => e.Orden).ToListAsync(ct));
+
     // Tareas ------------------------------------------------------------
 
-    public Task<List<Tarea>> ListarAsync(CancellationToken ct) =>
+    /// <param name="soloResponsableId">Si se indica, solo las tareas asignadas a ese usuario.</param>
+    public Task<List<Tarea>> ListarAsync(Guid? soloResponsableId, CancellationToken ct) =>
         db.Tareas.AsNoTracking()
+            .Where(t => soloResponsableId == null || t.ResponsableId == soloResponsableId)
             .OrderBy(t => t.FechaInicio).ThenBy(t => t.Numero)
             .ToListAsync(ct);
 
@@ -21,8 +32,9 @@ public sealed class RepositorioTareas(TareasDbContext db)
             .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == id, ct);
 
-    public Task<bool> ExisteAsync(Guid id, CancellationToken ct) =>
-        db.Tareas.AnyAsync(t => t.Id == id, ct);
+    /// <param name="soloResponsableId">Si se indica, exige además que la tarea esté asignada a ese usuario.</param>
+    public Task<bool> ExisteAsync(Guid id, Guid? soloResponsableId, CancellationToken ct) =>
+        db.Tareas.AnyAsync(t => t.Id == id && (soloResponsableId == null || t.ResponsableId == soloResponsableId), ct);
 
     public void Agregar(Tarea tarea) => db.Tareas.Add(tarea);
 

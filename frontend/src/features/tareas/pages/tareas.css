@@ -66,6 +66,21 @@
   color: var(--color-text-primary);
 }
 
+.adoc-preset-estado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-preset-estado label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .adoc-tareas-hijas-cabecera {
   display: flex;
   align-items: center;

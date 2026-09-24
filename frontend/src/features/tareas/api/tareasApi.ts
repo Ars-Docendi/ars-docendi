@@ -28,11 +28,14 @@ export function obtenerTarea(id: string): Promise<Tarea> {
   return pedir(apiClient.get<Tarea>(`/api/tareas/${id}`), "No se pudo cargar la tarea.");
 }
 
-/** Usuarios que el actor puede asignar como Responsable (el servidor aplica la jerarquía). */
-export function listarCandidatos(paraProyecto = false): Promise<PersonaCandidata[]> {
+/**
+ * Usuarios que el actor puede asignar como Responsable (el servidor aplica la jerarquía),
+ * buscados por nombre, apellido, usuario, legajo o documento.
+ */
+export function listarCandidatos(paraProyecto = false, busqueda = ""): Promise<PersonaCandidata[]> {
   return pedir(
     apiClient.get<PersonaCandidata[]>("/api/tareas/candidatos", {
-      params: paraProyecto ? { para: "proyecto" } : undefined,
+      params: { para: paraProyecto ? "proyecto" : undefined, q: busqueda || undefined },
     }),
     "No se pudieron cargar los candidatos a Responsable.",
   );

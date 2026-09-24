@@ -18,6 +18,10 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
     public DbSet<RelacionTarea> Relaciones => Set<RelacionTarea>();
     public DbSet<ComentarioTarea> Comentarios => Set<ComentarioTarea>();
     public DbSet<EventoTarea> Historial => Set<EventoTarea>();
+    public DbSet<EstadoProyectoCatalogo> EstadosProyecto => Set<EstadoProyectoCatalogo>();
+    public DbSet<EstadoTareaCatalogo> EstadosTarea => Set<EstadoTareaCatalogo>();
+    public DbSet<PrioridadCatalogo> Prioridades => Set<PrioridadCatalogo>();
+    public DbSet<TipoTareaCatalogo> Tipos => Set<TipoTareaCatalogo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,6 +103,30 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 
+        ConfigurarCatalogo<EstadoProyectoCatalogo>(modelBuilder, "estados_proyecto", e =>
+        {
+            e.Property(x => x.Verbo).HasColumnName("verbo");
+            e.Property(x => x.EsInicial).HasColumnName("es_inicial");
+            e.Property(x => x.AdmiteTareas).HasColumnName("admite_tareas");
+        });
+        ConfigurarCatalogo<EstadoTareaCatalogo>(modelBuilder, "estados_tarea",
+            e => e.Property(x => x.EsInicial).HasColumnName("es_inicial"));
+        ConfigurarCatalogo<PrioridadCatalogo>(modelBuilder, "prioridades", _ => { });
+        ConfigurarCatalogo<TipoTareaCatalogo>(modelBuilder, "tipos_tarea", _ => { });
+
         base.OnModelCreating(modelBuilder);
+    }
+
+    private static void ConfigurarCatalogo<T>(
+        ModelBuilder modelBuilder, string tabla, Action<Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<T>> extra)
+        where T : ItemCatalogo
+    {
+        var entidad = modelBuilder.Entity<T>();
+        entidad.ToTable(tabla, Schema, t => t.ExcludeFromMigrations());
+        entidad.HasKey(x => x.Codigo);
+        entidad.Property(x => x.Codigo).HasColumnName("codigo").ValueGeneratedNever();
+        entidad.Property(x => x.Nombre).HasColumnName("nombre");
+        entidad.Property(x => x.Orden).HasColumnName("orden");
+        extra(entidad);
     }
 }

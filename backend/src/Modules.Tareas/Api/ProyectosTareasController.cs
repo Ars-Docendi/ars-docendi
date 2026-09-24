@@ -16,6 +16,11 @@ public sealed class ProyectosTareasController : ControllerBase
         servicio.ListarAsync(ct);
 
     [Authorize(Policy = Permisos.TareasVer)]
+    [HttpGet("estados")]
+    public Task<IReadOnlyList<EstadoProyectoDto>> Estados(ServicioProyectos servicio, CancellationToken ct) =>
+        servicio.ListarEstadosAsync(ct);
+
+    [Authorize(Policy = Permisos.TareasVer)]
     [HttpGet("{id:guid}")]
     public Task<ProyectoTareasDto> Obtener(Guid id, ServicioProyectos servicio, CancellationToken ct) =>
         servicio.ObtenerAsync(id, ct);

@@ -32,6 +32,7 @@ public sealed record TareaDto(
     Guid? TareaPadreId,
     IReadOnlyList<Guid> TareasRelacionadasIds);
 
+/// <summary><c>AdmiteTareas</c> sale del catálogo de estados: un proyecto que la admite recibe tareas nuevas y genera cuadro en la pantalla inicial.</summary>
 public sealed record ProyectoTareasDto(
     Guid Id,
     int Numero,
@@ -40,7 +41,16 @@ public sealed record ProyectoTareasDto(
     DateOnly FechaInicio,
     DateOnly FechaFin,
     string Estado,
+    string EstadoNombre,
+    bool AdmiteTareas,
     PersonaTareaDto Responsable);
+
+/// <summary>Estado de proyecto del catálogo; <c>Verbo</c> es la acción que lleva a él ("Finalizar", "Cancelar").</summary>
+public sealed record EstadoProyectoDto(string Codigo, string Nombre, string Verbo, bool EsInicial, bool AdmiteTareas);
+
+/// <summary>Candidato a Responsable con los datos por los que se lo busca (usuario, legajo, documento).</summary>
+public sealed record CandidatoResponsableDto(
+    Guid Id, string Nombre, string Rol, string Usuario, string? Legajo, string? Documento);
 
 public sealed record CrearTareaRequest(
     string Titulo,

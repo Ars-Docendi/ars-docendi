@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Input, Table } from "@ars-docendi/ui";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
-import type { EstadoTarea, Prioridad, Tarea } from "../types";
+import type { EstadoTarea, Prioridad, Proyecto, Tarea } from "../types";
 import { EstadoTareaBadge } from "./EstadoTareaBadge";
 import { estadoSemaforo, muestraSemaforo } from "./semaforoTarea";
 import { formatearFecha } from "./detalleAdapters";
@@ -17,11 +17,19 @@ import {
   type ColumnaOrdenableTarea,
   type OrdenTareas,
 } from "./ordenTareas";
+import { estadosDePreset, type PresetEstado } from "./presetEstado";
 import "./tablaTareas.css";
 
 interface TablaTareasProps {
   tareas: Tarea[];
   onSeleccionar: (tarea: Tarea) => void;
+  /** Filtro preseleccionado: al cambiarlo se carga el filtro de la columna Estado (que sigue editable). */
+  preset?: PresetEstado;
+  /**
+   * Si se pasa, se agrega la columna Proyecto (para quien ve sus tareas en una sola tabla, sin
+   * cuadros por proyecto): muestra el nombre del proyecto de cada tarea.
+   */
+  proyectos?: Proyecto[];
 }
 
 const ETIQUETA_PRIORIDAD: Record<Prioridad, string> = {
@@ -60,9 +68,20 @@ const COLUMNAS: { id: ColumnaOrdenableTarea; etiqueta: string }[] = [
  * vencimiento colorea el fondo de toda la fila (amarillo/rojo; verde no se
  * resalta), y el estado de Pausa se distingue con su propio tono de badge.
  */
-export function TablaTareas({ tareas, onSeleccionar }: TablaTareasProps) {
+export function TablaTareas({ tareas, onSeleccionar, preset, proyectos }: TablaTareasProps) {
   const [orden, setOrden] = useState<OrdenTareas | null>(null);
-  const [filtros, setFiltros] = useState<FiltrosColumnasTareas>(FILTROS_COLUMNAS_INICIALES);
+  const [filtros, setFiltros] = useState<FiltrosColumnasTareas>(() => ({
+    ...FILTROS_COLUMNAS_INICIALES,
+    estado: preset ? estadosDePreset(preset) : [],
+  }));
+
+  // Al cambiar el preset se recarga el filtro Estado: patrón "ajustar estado durante el render"
+  // de React, no un efecto.
+  const [presetPrevio, setPresetPrevio] = useState(preset);
+  if (preset !== presetPrevio) {
+    setPresetPrevio(preset);
+    if (preset) setFiltros((actuales) => ({ ...actuales, estado: estadosDePreset(preset) }));
+  }
 
   const opciones = opcionesColumnasTareas(tareas);
   const filtradas = aplicarFiltrosColumnas(tareas, filtros);
@@ -88,19 +107,25 @@ export function TablaTareas({ tareas, onSeleccionar }: TablaTareasProps) {
                   }
                 />
               ))}
+              {proyectos && <Table.HeaderCell>Proyecto</Table.HeaderCell>}
               <Table.HeaderCell>Acciones</Table.HeaderCell>
             </Table.Row>
           </Table.Head>
           <Table.Body>
             {visibles.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={COLUMNAS.length + 1} className="empty">
+                <Table.Cell colSpan={COLUMNAS.length + (proyectos ? 2 : 1)} className="empty">
                   Sin tareas que cumplan los filtros.
                 </Table.Cell>
               </Table.Row>
             ) : (
               visibles.map((tarea) => (
-                <FilaTarea key={tarea.id} tarea={tarea} onVer={onSeleccionar} />
+                <FilaTarea
+                  key={tarea.id}
+                  tarea={tarea}
+                  onVer={onSeleccionar}
+                  proyectos={proyectos}
+                />
               ))
             )}
           </Table.Body>
@@ -110,7 +135,15 @@ export function TablaTareas({ tareas, onSeleccionar }: TablaTareasProps) {
   );
 }
 
-function FilaTarea({ tarea, onVer }: { tarea: Tarea; onVer: (tarea: Tarea) => void }) {
+function FilaTarea({
+  tarea,
+  onVer,
+  proyectos,
+}: {
+  tarea: Tarea;
+  onVer: (tarea: Tarea) => void;
+  proyectos?: Proyecto[];
+}) {
   // Solo amarillo/rojo resaltan la fila (verde es el caso normal, sin
   // urgencia — no necesita destacarse). Resuelta/Cancelada no muestran
   // semáforo en absoluto (`muestraSemaforo`).
@@ -142,6 +175,9 @@ function FilaTarea({ tarea, onVer }: { tarea: Tarea; onVer: (tarea: Tarea) => vo
       <Table.Cell>
         <EstadoTareaBadge estado={tarea.estado} />
       </Table.Cell>
+      {proyectos && (
+        <Table.Cell>{proyectos.find((p) => p.id === tarea.proyectoId)?.nombre ?? "—"}</Table.Cell>
+      )}
       <Table.Cell className="adoc-table-actions">
         <Button
           variant="ghost"

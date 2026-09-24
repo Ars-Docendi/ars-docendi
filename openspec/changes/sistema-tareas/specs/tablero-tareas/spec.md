@@ -196,3 +196,42 @@ Un header con un filtro activo MUST indicarlo visualmente (mismo indicador que u
 - **GIVEN** tareas con 20%, 50% y 90% de avance
 - **WHEN** un usuario ingresa 50 en el filtro del header "% Avance"
 - **THEN** el listado muestra únicamente la tarea con 50% de avance
+
+### Requirement: Filtro preseleccionado por estado
+
+La pantalla inicial SHALL ofrecer un filtro preseleccionado "Mostrar: Pendientes / Terminadas / Todas", que MUST abrir en Pendientes. Elegirlo MUST cargar el filtro de la columna Estado de cada tabla con los estados que corresponden — Pendientes: Pendiente, En curso y Pausa; Terminadas: Resuelta y Cancelada; Todas: sin acotar — y ese filtro de columna MUST seguir pudiendo editarse a mano. Sirve para no abrir la pantalla cargada de tareas que ya no requieren atención.
+
+#### Scenario: El listado abre en Pendientes
+
+- **WHEN** un usuario abre `/tareas`
+- **THEN** el filtro preseleccionado está en Pendientes y las tablas muestran solo tareas Pendientes, En curso o en Pausa
+
+#### Scenario: Elegir Terminadas
+
+- **WHEN** el usuario elige "Terminadas"
+- **THEN** el filtro de la columna Estado queda con Resuelta y Cancelada, y las tablas muestran solo esas tareas
+
+### Requirement: Alcance del listado: Todas o Propias
+
+Quien puede crear tareas SHALL disponer, junto al filtro de estado, de un selector "Tareas: Todas / Propias" que MUST abrir en Todas. Propias son las tareas que el usuario creó más las que tiene asignadas como Responsable. El selector y el filtro de estado MUST combinarse (por ejemplo, Pendientes + Propias) y afectar a todos los cuadros.
+
+#### Scenario: Pendientes y propias
+
+- **GIVEN** un Decano con tareas creadas por él, tareas asignadas a él y tareas de otras autoridades
+- **WHEN** elige Estado "Pendientes" y Tareas "Propias"
+- **THEN** los cuadros muestran solo las tareas pendientes que creó o tiene asignadas
+
+### Requirement: Vista de quien no crea tareas
+
+Un usuario sin el permiso de crear tareas SHALL ver la pantalla inicial como una única tabla con las tareas que tiene asignadas, sin cuadros por proyecto ni acceso al listado de proyectos, y con una columna adicional "Proyecto" que muestra el nombre del proyecto de cada tarea. En el detalle de la tarea, el proyecto MUST ser un vínculo al detalle de ese proyecto. Solo quien puede crear tareas ve los cuadros separados por proyecto y el selector Todas/Propias.
+
+#### Scenario: Docente con tareas asignadas
+
+- **GIVEN** un Docente con dos tareas asignadas, una de un proyecto
+- **WHEN** abre `/tareas`
+- **THEN** ve una sola tabla con sus dos tareas y la columna Proyecto, sin cuadros ni "Ver todos los proyectos"
+
+#### Scenario: Ir al proyecto desde la tarea
+
+- **WHEN** ese Docente abre el detalle de la tarea del proyecto y hace clic en el nombre del proyecto
+- **THEN** navega al detalle del proyecto

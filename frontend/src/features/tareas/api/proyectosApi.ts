@@ -4,13 +4,26 @@
 // rol del Responsable y la jerarquía.
 // ============================================================
 import { apiClient } from "../../../shared/api/client";
-import type { DatosEditablesProyecto, EstadoProyecto, Proyecto } from "../types";
+import type {
+  DatosEditablesProyecto,
+  EstadoProyecto,
+  EstadoProyectoCatalogo,
+  Proyecto,
+} from "../types";
 import { pedir } from "./tareasApi";
 
 export function listarProyectos(): Promise<Proyecto[]> {
   return pedir(
     apiClient.get<Proyecto[]>("/api/tareas/proyectos"),
     "No se pudieron cargar los proyectos.",
+  );
+}
+
+/** Catálogo de estados de proyecto (de la base): qué estados existen y cuál admite tareas. */
+export function listarEstadosProyecto(): Promise<EstadoProyectoCatalogo[]> {
+  return pedir(
+    apiClient.get<EstadoProyectoCatalogo[]>("/api/tareas/proyectos/estados"),
+    "No se pudieron cargar los estados de proyecto.",
   );
 }
 

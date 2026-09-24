@@ -79,7 +79,10 @@ export function ListadoProyectosPage() {
                       <Table.Cell>{proyecto.responsable.nombre}</Table.Cell>
                       <Table.Cell>{formatearFecha(proyecto.fechaFin)}</Table.Cell>
                       <Table.Cell>
-                        <EstadoProyectoBadge estado={proyecto.estado} />
+                        <EstadoProyectoBadge
+                          estado={proyecto.estado}
+                          nombre={proyecto.estadoNombre}
+                        />
                       </Table.Cell>
                     </Table.Row>
                   ))

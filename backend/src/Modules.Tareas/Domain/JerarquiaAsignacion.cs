@@ -1,13 +1,17 @@
 namespace Modules.Tareas.Domain;
 
 /// <summary>
-/// Actor que ejecuta una operación: usuario, roles de sistema de la sesión y el
-/// nombre del rol de mayor jerarquía (para registrar en historial y comentarios).
+/// Actor que ejecuta una operación: usuario, roles de sistema de la sesión, el nombre del
+/// rol de mayor jerarquía (para registrar en historial y comentarios) y si ve todas las
+/// tareas (`tareas.gestionar`) o solo las que tiene asignadas.
 /// </summary>
-public sealed record ActorTareas(Guid UsuarioId, IReadOnlySet<string> Roles, string RolNombre)
+public sealed record ActorTareas(Guid UsuarioId, IReadOnlySet<string> Roles, string RolNombre, bool VeTodas)
 {
     /// <summary>Nivel de mayor autoridad entre sus roles (0 = Administrador de Sistemas); <c>null</c> si ninguno está en la escala.</summary>
     public int? Nivel => JerarquiaAsignacion.MejorNivel(Roles);
+
+    /// <summary>Id por el que se restringen las consultas cuando el actor no ve todas las tareas.</summary>
+    public Guid? SoloResponsableId => VeTodas ? null : UsuarioId;
 }
 
 /// <summary>
