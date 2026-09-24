@@ -1,0 +1,42 @@
+/* La caja reserva el ancho mínimo de la columna. */
+.adoc-texto-recortado-caja {
+  display: block;
+}
+/* El texto no empuja el ancho de la columna (width: 0) pero ocupa todo el que
+   tenga (min-width: 100%); lo que no entra se recorta con "…". */
+.adoc-texto-recortado {
+  display: block;
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Mide el texto completo para el ancho preferido de la columna, sin ocupar alto. */
+.adoc-texto-recortado-caja::after {
+  content: attr(data-texto);
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  /* Con salto de línea: el mínimo de la columna no crece (lo fija la caja) y el
+     preferido es el texto completo en una línea. */
+  white-space: normal;
+}
+
+/* Tooltip con el texto completo: mismo tamaño que el texto de la tabla. */
+.adoc-tooltip {
+  position: fixed;
+  z-index: var(--z-toast);
+  max-width: 360px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-text-primary);
+  color: var(--color-bg-raised);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-sm-size);
+  line-height: 1.4;
+  box-shadow: var(--elev-3);
+  pointer-events: none;
+}

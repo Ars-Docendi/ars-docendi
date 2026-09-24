@@ -24,11 +24,8 @@
   color: var(--color-text-secondary);
 }
 .adoc-mp-doc {
-  overflow: hidden;
   font-size: var(--text-body-sm-size);
   color: var(--color-text-primary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .adoc-mp-leg {
   font-family: var(--font-mono);
@@ -37,11 +34,8 @@
 }
 .adoc-mp-cat,
 .adoc-mp-nov {
-  overflow: hidden;
   font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .adoc-mp-acc {
   display: flex;

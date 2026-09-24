@@ -138,4 +138,19 @@ describe("TablaMisPedidos", () => {
     expect(onEditar).toHaveBeenCalledOnce();
     expect(onVer).not.toHaveBeenCalled();
   });
+
+  it("recorta Docente, Cátedra y Tipo cuando no entran", () => {
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={vi.fn()}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    for (const texto of ["Ana García", "Cálculo I", "Alta"]) {
+      expect(screen.getByText(texto)).toHaveClass("adoc-texto-recortado");
+    }
+  });
 });

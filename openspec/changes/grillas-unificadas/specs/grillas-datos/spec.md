@@ -79,6 +79,35 @@ Hacer click en una fila SHALL ejecutar su acción principal: abrir el detalle cu
 - **WHEN** hace click en una fila de Docentes
 - **THEN** no se abre nada y la fila no muestra cursor de mano
 
+### Requirement: Textos largos recortados con el texto completo al pasar el mouse
+
+Las columnas de texto variable (por ejemplo Docente, Cátedra y Tipo) SHALL reservar un ancho mínimo y MUST aprovechar el espacio disponible de la tabla antes que recortar. Solo si el texto no entra en el ancho de su columna, SHALL mostrarse recortado con "…", y el texto completo MUST verse al pasar el mouse sobre la celda, en menos de medio segundo y con el tamaño de letra de la tabla. Si el texto entra, MUST mostrarse completo sin recorte ni tooltip. Los filtros por encabezado SHALL buscar sobre el texto completo, y el texto completo MUST estar disponible para lectores de pantalla.
+
+#### Scenario: Nombre largo
+
+- **GIVEN** un pedido de "Montenegro-Echeverría, Agustina" en Mis pedidos
+- **WHEN** se muestra la fila
+- **THEN** la celda Docente muestra el nombre recortado con "…"
+- **AND** al pasar el mouse se ve "Montenegro-Echeverría, Agustina"
+
+#### Scenario: Nombre corto
+
+- **GIVEN** un pedido de "Paz, Inés"
+- **WHEN** se muestra la fila
+- **THEN** la celda Docente muestra "Paz, Inés" completo, sin "…"
+
+#### Scenario: Pantalla ancha
+
+- **GIVEN** una pantalla donde la tabla tiene espacio de sobra
+- **WHEN** se muestra un pedido de "Montenegro-Echeverría, Agustina"
+- **THEN** la celda Docente muestra el nombre completo, sin "…"
+
+#### Scenario: El filtro busca el texto completo
+
+- **GIVEN** un nombre recortado en la tabla
+- **WHEN** el operador filtra Docente por "Echeverría"
+- **THEN** la fila aparece en los resultados
+
 ### Requirement: Acciones de fila con texto
 
 Las acciones de las filas SHALL mostrarse como botones con texto ("Editar", "Desactivar", "Eliminar"). MUST NOT haber acciones representadas solo con un ícono. "Eliminar" SHALL mostrarse en color de peligro.

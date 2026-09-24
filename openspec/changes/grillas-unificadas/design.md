@@ -70,6 +70,18 @@ En las grillas con detalle se **quita el botón "Ver"**: repetía lo mismo que l
 
 - **Por qué no es riesgoso abrir Editar**: el modal no cambia nada hasta Guardar, y se cierra con Cancelar o Escape.
 
+### D7. Textos largos recortados con tooltip
+
+Para que las grillas entren en pantallas comunes sin sacar columnas, las columnas de texto variable reservan un **ancho mínimo** (`anchoMinimo`) y el texto **usa todo el ancho que tenga la columna**; solo si no le alcanza se recorta con "…" y se ve completo al pasar el mouse. Componente `shared/ui/TextoRecortado`, igual en todas las grillas. Ajustado grilla por grilla con July.
+
+- Primero se probó un ancho **máximo** sobre el texto: recortaba aunque la columna tuviera espacio (July lo vio con la página alejada). Se cambió a mínimo + ocupar el ancho disponible.
+- Para que el espacio sobrante vaya a estas columnas y no a las demás, la caja lleva un medidor invisible (`::after` con `attr(data-texto)`, con salto de línea): la tabla toma el texto completo como ancho **preferido** sin subir el **mínimo**. No agrega texto al DOM.
+- El tooltip se posiciona compensando el `zoom` de la raíz (`index.css`), igual que `FiltroEncabezado`.
+
+- Tooltip **propio** (portal a `body`, `role="tooltip"`): aparece a los ~100 ms, con el tamaño de letra de la tabla (14 px) y los colores de la guía. Se probó primero el nativo (`title`) y July lo descartó: tardaba ~1 s en aparecer y la letra era chica.
+- Solo se muestra cuando el texto realmente no entra (sin tooltips redundantes) y se cierra al salir con el mouse o al scrollear.
+- **Alternativas descartadas**: sacar columnas (Legajo debajo del nombre) y salto de línea (filas más altas). July prefirió conservar columnas y el alto de fila.
+
 ### D5. Acciones de fila siempre con texto
 
 Las X de eliminar de Mis pedidos y Períodos pasan a ser `Button variant="ghost" size="sm"` con el texto "Eliminar" en rojo (`color-text-danger`), con el mismo formato que Ver/Editar/Desactivar. Esto cumple el anti-pattern "iconos sin label" de `design-principles.md`, importante para este público.

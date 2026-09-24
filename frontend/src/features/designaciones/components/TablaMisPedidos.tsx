@@ -4,6 +4,7 @@ import type { PedidoDesignacion } from "../types";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
 import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import {
   etiquetaEstadoFiltro,
   etiquetaNovedadCorta,
@@ -18,7 +19,12 @@ import {
 import { EstadoPedidoPill } from "./EstadoPedidoPill";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 260px)";
+const ALTO_TABLA = "calc(100vh - 310px)";
+
+/** Ancho mínimo de las columnas de texto variable: usan el espacio que haya y recortan con "…" solo si no alcanza. */
+const ANCHO_DOCENTE = 160;
+const ANCHO_CATEDRA = 140;
+const ANCHO_TIPO = 110;
 
 interface TablaMisPedidosProps {
   pedidos: PedidoDesignacion[];
@@ -224,10 +230,16 @@ export function TablaMisPedidos({
                 aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
               >
                 <Table.Cell className="adoc-mp-num">{pedido.numero ?? "—"}</Table.Cell>
-                <Table.Cell className="adoc-mp-doc">{pedido.docente.nombre}</Table.Cell>
+                <Table.Cell className="adoc-mp-doc">
+                  <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
+                </Table.Cell>
                 <Table.Cell className="adoc-mp-leg">{pedido.docente.legajo ?? "—"}</Table.Cell>
-                <Table.Cell className="adoc-mp-cat">{pedido.catedra}</Table.Cell>
-                <Table.Cell className="adoc-mp-nov">{etiquetaNovedadCorta(pedido)}</Table.Cell>
+                <Table.Cell className="adoc-mp-cat">
+                  <TextoRecortado texto={pedido.catedra} anchoMinimo={ANCHO_CATEDRA} />
+                </Table.Cell>
+                <Table.Cell className="adoc-mp-nov">
+                  <TextoRecortado texto={etiquetaNovedadCorta(pedido)} anchoMinimo={ANCHO_TIPO} />
+                </Table.Cell>
                 <Table.Cell className="adoc-mp-env">{fechaEnviado(pedido)}</Table.Cell>
                 <Table.Cell className="adoc-mp-est">
                   <EstadoPedidoPill estado={pedido.estado} />

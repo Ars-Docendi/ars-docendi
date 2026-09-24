@@ -24,6 +24,13 @@
 - [x] 3.7 Tests por grilla: sin paginador (Mis pedidos), click en la fila abre la acción principal, "Eliminar" con texto, y un botón de la fila no dispara el click de la fila
 - [x] 3.8 Verificar en el navegador con los datos de volumen: encabezado fijo, acciones visibles en pantalla angosta, ninguna columna cortada
 
+## 5. Anchos de columna y textos recortados
+
+- [x] 5.1 Red: tests de `shared/ui/TextoRecortado` (muestra el texto; con texto que no entra muestra el tooltip con el texto completo en ~100 ms y lo cierra al salir; con texto que entra no lo muestra)
+- [x] 5.2 Green: `TextoRecortado` con ancho máximo y "…" (design D7)
+- [x] 5.3 Mis pedidos: Docente, Cátedra y Tipo con `TextoRecortado`; verificar en 1280 px
+- [ ] 5.4 Revisión, Períodos, Usuarios y Docentes: revisar columnas grilla por grilla con July y aplicar anchos
+
 ## 4. Dependencia y cierre
 
 - [ ] 4.1 Bumpear `@ars-docendi/ui` a `github:Ars-Docendi/ui-lib#release/v1.0.4` y `pnpm install`; quitar la copia local
