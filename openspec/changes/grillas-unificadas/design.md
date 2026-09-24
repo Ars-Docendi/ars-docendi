@@ -82,6 +82,10 @@ Para que las grillas entren en pantallas comunes sin sacar columnas, las columna
 - Solo se muestra cuando el texto realmente no entra (sin tooltips redundantes) y se cierra al salir con el mouse o al scrollear.
 - **Alternativas descartadas**: sacar columnas (Legajo debajo del nombre) y salto de línea (filas más altas). July prefirió conservar columnas y el alto de fila.
 
+### D8. Prioridad en Revisión: chip ámbar junto al nombre
+
+"Prioritario" era un segundo chip en Estado, que ensanchaba la columna (256 px) y competía con el estado. Se probaron, con July: franja roja + texto bajo el nombre (parecía un error y rompía el alto de fila) y separadores de grupo "Prioritarios / Resto". Quedó un chip ámbar (color de atención de la guía) en la misma línea del nombre, alineado a la derecha de la celda. El nombre reduce su ancho mínimo en esas filas, así la columna no crece; Estado queda en 144 px y la tabla entra en 1470 px sin scroll. En el detalle del pedido el chip sigue junto al estado.
+
 ### D5. Acciones de fila siempre con texto
 
 Las X de eliminar de Mis pedidos y Períodos pasan a ser `Button variant="ghost" size="sm"` con el texto "Eliminar" en rojo (`color-text-danger`), con el mismo formato que Ver/Editar/Desactivar. Esto cumple el anti-pattern "iconos sin label" de `design-principles.md`, importante para este público.

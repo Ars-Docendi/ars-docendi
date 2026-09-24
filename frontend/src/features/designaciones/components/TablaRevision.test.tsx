@@ -415,28 +415,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getByText("Devuelto")).toBeInTheDocument();
   });
 
-  it("la prioridad es un badge más de la celda Estado, sin fondo de fila", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "10", nombre: "Urgente Diez", antiguedad: 3 },
-            prioritario: true,
-          }),
-          pedido("en_revision_coordinador", {
-            docente: { dni: "11", nombre: "Normal Once", antiguedad: 3 },
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getAllByText("Prioritario")).toHaveLength(1);
-  });
-
-  it("prioritario y devuelto a la vez muestra los dos badges: ninguno tapa al otro", () => {
+  it("prioritario y devuelto a la vez muestra los dos: ninguno tapa al otro", () => {
     render(
       <TablaRevision
         pedidos={[
@@ -641,5 +620,49 @@ describe("filtros por encabezado de Revisión", () => {
     screen.getByText(p.docente.nombre).closest("tr")!.focus();
     await user.keyboard("{Enter}");
     expect(onSeleccionar).toHaveBeenCalledTimes(2);
+  });
+
+  it("la celda Docente muestra solo el nombre, recortable, e Inicio va en una línea", () => {
+    const p = pedido("en_revision_coordinador", {
+      docente: { dni: "9", nombre: "Montenegro-Echeverría, Leandro", antiguedad: 3 },
+    });
+    render(
+      <TablaRevision pedidos={[p]} actor={COORD} filtros={SIN_FILTROS} onSeleccionar={vi.fn()} />,
+    );
+
+    const fila = screen.getByRole("row", {
+      name: "Ver el pedido de Montenegro-Echeverría, Leandro",
+    });
+    expect(fila.querySelector(".adoc-pedido-avatar")).toBeNull();
+    expect(within(fila).getByText("Montenegro-Echeverría, Leandro")).toHaveClass(
+      "adoc-texto-recortado",
+    );
+    expect(fila.querySelectorAll("td")[3]).toHaveClass("adoc-sin-salto");
+  });
+
+  it("marca la prioridad con un chip junto al nombre, no en Estado", () => {
+    render(
+      <TablaRevision
+        pedidos={[
+          pedido("en_revision_coordinador", {
+            docente: { dni: "10", nombre: "Urgente Diez", antiguedad: 3 },
+            prioritario: true,
+          }),
+          pedido("en_revision_coordinador", {
+            docente: { dni: "11", nombre: "Normal Once", antiguedad: 3 },
+          }),
+        ]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    const urgente = screen.getByRole("row", { name: "Ver el pedido de Urgente Diez" });
+    const normal = screen.getByRole("row", { name: "Ver el pedido de Normal Once" });
+    const [docente, , , , , estado] = urgente.querySelectorAll("td");
+    expect(within(docente).getByText("Prioritario")).toHaveClass("adoc-chip-prioritario");
+    expect(within(estado).queryByText("Prioritario")).not.toBeInTheDocument();
+    expect(within(normal).queryByText("Prioritario")).not.toBeInTheDocument();
   });
 });

@@ -7,7 +7,6 @@ import {
   areaEsFiltrable,
   areaActual,
   etiquetaEstado,
-  inicialesDocente,
   inicioEnCircuito,
   ordenarPedidos,
   pedidosDePestania,
@@ -29,6 +28,7 @@ import { NovedadChip } from "./NovedadChip";
 import { EstadoPedidoBadge } from "./EstadoPedidoBadge";
 import "./revision.css";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 
 interface TablaRevisionProps {
   pedidos: PedidoDesignacion[];
@@ -45,6 +45,10 @@ interface TablaRevisionProps {
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
 const ALTO_TABLA = "calc(100vh - 380px)";
+
+/** Ancho mínimo de Docente: usa el espacio que haya y recorta con "…" solo si no alcanza. */
+const ANCHO_DOCENTE = 180;
+const ANCHO_CHIP_PRIORITARIO = 88;
 
 /** Columnas ordenables y su rótulo. "Área" queda fuera a propósito. */
 const COLUMNAS: { id: ColumnaOrdenable; etiqueta: string }[] = [
@@ -95,6 +99,7 @@ export function TablaRevision({
   // El área solo aporta en "Todos": en una pestaña de área es constante en todas las
   // filas y ya la dice la pestaña. En Finalizados no hay área que mostrar.
   const mostrarArea = areaEsFiltrable(pestania);
+  const columnasVisibles = COLUMNAS.length + (mostrarArea ? 1 : 0);
   const puedeExportar =
     actor.rol === "Secretaría" || actor.rol === "Decanato" || actor.rol === "Administración";
   const mostrarExportar = pestania === "finalizados" && puedeExportar && Boolean(onExportar);
@@ -190,7 +195,7 @@ export function TablaRevision({
           <Table.Body>
             {visibles.length === 0 ? (
               <Table.Row>
-                <Table.Cell colSpan={COLUMNAS.length + (mostrarArea ? 1 : 0)} className="empty">
+                <Table.Cell colSpan={columnasVisibles} className="empty">
                   Sin pedidos que cumplan los filtros.
                 </Table.Cell>
               </Table.Row>
@@ -227,24 +232,26 @@ function FilaPedido({
     >
       <Table.Cell>
         <span className="adoc-tabla-docente">
-          <span className="adoc-pedido-avatar" aria-hidden="true">
-            {inicialesDocente(pedido.docente.nombre)}
+          <span className="adoc-tabla-nombre">
+            <TextoRecortado
+              texto={pedido.docente.nombre}
+              // Con el chip, el nombre cede su lugar: la columna no se ensancha.
+              anchoMinimo={
+                pedido.prioritario ? ANCHO_DOCENTE - ANCHO_CHIP_PRIORITARIO : ANCHO_DOCENTE
+              }
+            />
           </span>
-          <span className="adoc-tabla-nombre">{pedido.docente.nombre}</span>
+          {pedido.prioritario && <span className="adoc-chip-prioritario">Prioritario</span>}
         </span>
       </Table.Cell>
       <Table.Cell className="adoc-mono">{pedido.docente.legajo ?? "—"}</Table.Cell>
       <Table.Cell>
         <NovedadChip novedad={pedido.novedad} />
       </Table.Cell>
-      <Table.Cell>{inicioEnCircuito(pedido) ?? "—"}</Table.Cell>
-      <Table.Cell>{ultimaActualizacion(pedido) ?? "—"}</Table.Cell>
+      <Table.Cell className="adoc-sin-salto">{inicioEnCircuito(pedido) ?? "—"}</Table.Cell>
+      <Table.Cell className="adoc-sin-salto">{ultimaActualizacion(pedido) ?? "—"}</Table.Cell>
       <Table.Cell>
-        <EstadoPedidoBadge
-          estado={pedido.estado}
-          prioritario={pedido.prioritario}
-          etiqueta={etiquetaEstado(pedido)}
-        />
+        <EstadoPedidoBadge estado={pedido.estado} etiqueta={etiquetaEstado(pedido)} />
       </Table.Cell>
       {mostrarArea && <Table.Cell>{areaActual(pedido) ?? "—"}</Table.Cell>}
     </Table.Row>
