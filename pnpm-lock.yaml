@@ -128,8 +128,8 @@ importers:
   frontend:
     dependencies:
       '@ars-docendi/ui':
-        specifier: github:Ars-Docendi/ui-lib#release/v1.0.2
-        version: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: github:Ars-Docendi/ui-lib#release/v1.0.3
+        version: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/968be1cdb4f83acc34e65a6766d3287c7c1492ed(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-query':
         specifier: ^5.102.8
         version: 5.102.8(react@19.2.8)
@@ -203,9 +203,9 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a':
-    resolution: {gitHosted: true, integrity: sha512-DafRyh8PzKe/qVPDoH/CGq2+IwhzBVH6V15NZKs9+nVrRRHkXhSgFuPB5oEm4+nGqAA8RGflLhfCjmeBwv1HwA==, tarball: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a}
-    version: 1.0.1
+  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/968be1cdb4f83acc34e65a6766d3287c7c1492ed':
+    resolution: {gitHosted: true, integrity: sha512-XM0KNIYNdEsDLy7/ZMEbakUKPIGTXn/UrJWnxmpbQm5Sg7BTXo39l4UVExRA09Ekfx4umKmxfSm6cTtsB8g2Zw==, tarball: https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/968be1cdb4f83acc34e65a6766d3287c7c1492ed}
+    version: 1.0.3
     peerDependencies:
       react: ^19.0.0
       react-dom: ^19.0.0
@@ -1938,7 +1938,7 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/3bd2e96ee668b40262b7c27f7e52dc6b230c649a(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@ars-docendi/ui@https://codeload.github.com/Ars-Docendi/ui-lib/tar.gz/968be1cdb4f83acc34e65a6766d3287c7c1492ed(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)

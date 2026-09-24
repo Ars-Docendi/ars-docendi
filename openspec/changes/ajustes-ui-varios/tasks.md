@@ -6,7 +6,7 @@
 - [x] 1.4 Red: test que falla eligiendo el mes antes que el año (el mes debe conservarse y emitir `"YYYY-MM"` cuando llega el año). La ui-lib no tiene test runner, así que el test vive en el frontend (`CampoPeriodo.test.tsx`) y ejercita `MonthYearPicker` de punta a punta
 - [x] 1.5 Green: crear `src/components/MonthYearPicker/` (componente + `index.ts` + `.stories.tsx`) con el diseño de `SelectorFecha` del Portal y el mes pendiente en estado interno (design D3). Exportarlo en `src/index.ts`
 - [x] 1.6 Alinear `version` del `package.json` a `1.0.3`
-- [ ] 1.7 Abrir PR a `main`, mergear, crear el tag `v1.0.3` y confirmar que el workflow publicó `release/v1.0.3`
+- [x] 1.7 Abrir PR a `main`, mergear, crear el tag `v1.0.3` y confirmar que el workflow publicó `release/v1.0.3`
 
 ## 2. Barra superior
 
@@ -34,7 +34,7 @@
 
 ## 5. Dependencia ui-lib y período del Portal (requiere el grupo 1)
 
-- [ ] 5.1 Bumpear `@ars-docendi/ui` a `github:Ars-Docendi/ui-lib#release/v1.0.3` en `frontend/package.json` y correr `pnpm install`
+- [x] 5.1 Bumpear `@ars-docendi/ui` a `github:Ars-Docendi/ui-lib#release/v1.0.3` en `frontend/package.json` y correr `pnpm install`
 - [x] 5.2 Red: test en el Portal que elige el mes antes que el año en Experiencia y espera `"2014-03"` (hoy falla)
 - [x] 5.3 Green: reemplazar `SelectorFecha` de `CampoPeriodo.tsx` por `MonthYearPicker` y quitar el CSS `.portal-fecha` que pasa a la librería
 - [x] 5.4 Validación "Completá el año" cuando hay mes sin año, con test
