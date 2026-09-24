@@ -1,0 +1,120 @@
+/* ============================================================
+   Detalle de tarea (`DetalleTareaPage.tsx`). El listado (`IndexPage.tsx`)
+   no tiene CSS propio: `TablaTareas` se apoya en el `Table` del design
+   system — ver `components/tablaTareas.css` para lo poco que le falta
+   (el semáforo de vencimiento).
+   ============================================================ */
+.adoc-det-tarea {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.adoc-det-tarea-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.adoc-det-tarea-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.adoc-det-tarea-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.adoc-det-tarea-panel {
+  padding: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: #fff;
+}
+.adoc-det-tarea-panel h2,
+.adoc-det-tarea-panel h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.adoc-det-tarea-panel p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+}
+.adoc-det-tarea-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.adoc-det-tarea-dato {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.adoc-det-tarea-dato dt {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.adoc-det-tarea-dato dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.adoc-tareas-hijas-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.adoc-tareas-hijas-cabecera h2 {
+  margin: 0;
+}
+
+.adoc-tareas-vinculo-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.adoc-tareas-vinculo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border-default);
+}
+.adoc-tareas-vinculo-item:last-child {
+  border-bottom: none;
+}
+.adoc-tareas-vinculo-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.adoc-tareas-vinculo-meta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+.adoc-tareas-vinculo-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-600);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.adoc-tareas-vinculo-link:hover {
+  text-decoration: underline;
+}
