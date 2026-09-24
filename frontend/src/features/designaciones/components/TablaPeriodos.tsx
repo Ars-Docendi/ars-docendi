@@ -14,8 +14,12 @@ import {
   type FiltrosPeriodos,
   type OrdenPeriodos,
 } from "./filtrosPeriodos";
-import { IconoX } from "./lucide";
+import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 import "./tablaPeriodos.css";
+
+/** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
+const ALTO_TABLA = "calc(100vh - 260px)";
 
 interface TablaPeriodosProps {
   periodos: PeriodoDesignacion[];
@@ -47,7 +51,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
 
   return (
     <Table className="adoc-periodos-table">
-      <Table.Root>
+      <Table.Root maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Encabezado
@@ -155,7 +159,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
             </Table.Row>
           ) : (
             visibles.map((periodo) => (
-              <Table.Row key={periodo.id}>
+              <Table.Row key={periodo.id} {...propsFilaClickeable(() => onEditar(periodo))}>
                 <Table.Cell>{periodo.nombre}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaDesde)}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaHasta)}</Table.Cell>
@@ -167,14 +171,10 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
                     <Button variant="ghost" size="sm" onClick={() => onEditar(periodo)}>
                       Editar
                     </Button>
-                    <button
-                      type="button"
-                      className="adoc-periodos-eliminar"
+                    <BotonEliminarFila
                       aria-label={`Eliminar período ${periodo.nombre}`}
                       onClick={() => onEliminar(periodo)}
-                    >
-                      <IconoX />
-                    </button>
+                    />
                   </div>
                 </Table.Cell>
               </Table.Row>

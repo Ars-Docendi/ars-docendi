@@ -74,4 +74,20 @@ describe("TablaPeriodos", () => {
     await user.click(screen.getByRole("button", { name: "Eliminar período Primer cuatrimestre" }));
     expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
   });
+
+  it("el click en la fila abre Editar y Eliminar es un botón de texto", async () => {
+    const user = userEvent.setup();
+    const onEditar = vi.fn();
+    const onEliminar = vi.fn();
+    render(<TablaPeriodos periodos={PERIODOS} onEditar={onEditar} onEliminar={onEliminar} />);
+
+    await user.click(screen.getByText("Primer cuatrimestre"));
+    expect(onEditar).toHaveBeenCalledWith(PERIODOS[1]);
+
+    const eliminar = screen.getByRole("button", { name: "Eliminar período Primer cuatrimestre" });
+    expect(eliminar).toHaveTextContent("Eliminar");
+    await user.click(eliminar);
+    expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
+    expect(onEditar).toHaveBeenCalledOnce();
+  });
 });

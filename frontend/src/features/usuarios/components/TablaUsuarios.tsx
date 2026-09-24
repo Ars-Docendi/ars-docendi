@@ -12,6 +12,10 @@ import {
   type OrdenUsuarios,
 } from "../filtrosUsuarios";
 import { nombreCompleto, type UsuarioMock } from "../models";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+
+/** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
+const ALTO_TABLA = "calc(100vh - 260px)";
 
 interface TablaUsuariosProps {
   usuarios: UsuarioMock[];
@@ -66,197 +70,199 @@ export function TablaUsuarios({
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <Table>
-        <Table.Root>
-          <Table.Head>
-            <Table.Row>
-              <Table.HeaderCell
-                sort={orden?.columna === "nombre" ? orden.direccion : null}
-                onSortChange={() => cambiarOrden("nombre")}
-              >
-                <Encabezado etiqueta="Apellido y Nombre">
-                  <FiltroEncabezado
-                    etiqueta="Apellido y Nombre"
-                    activo={Boolean(filtros.apellidoNombre.trim())}
-                    onLimpiar={() => limpiar("apellidoNombre")}
-                  >
-                    <Input
-                      className="adoc-filtro-encabezado-campo"
-                      placeholder="Buscar apellido o nombre…"
-                      aria-label="Buscar Apellido y Nombre"
-                      value={filtros.apellidoNombre}
-                      onChange={(evento) => cambiarFiltro("apellidoNombre", evento.target.value)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell
-                sort={orden?.columna === "documento" ? orden.direccion : null}
-                onSortChange={() => cambiarOrden("documento")}
-              >
-                <Encabezado etiqueta="Documento">
-                  <FiltroEncabezado
-                    etiqueta="Documento"
-                    activo={Boolean(filtros.documento.trim())}
-                    onLimpiar={() => limpiar("documento")}
-                  >
-                    <Input
-                      className="adoc-filtro-encabezado-campo"
-                      placeholder="Buscar documento…"
-                      aria-label="Buscar Documento"
-                      value={filtros.documento}
-                      onChange={(evento) => cambiarFiltro("documento", evento.target.value)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell
-                sort={orden?.columna === "legajo" ? orden.direccion : null}
-                onSortChange={() => cambiarOrden("legajo")}
-              >
-                <Encabezado etiqueta="Legajo">
-                  <FiltroEncabezado
-                    etiqueta="Legajo"
-                    activo={Boolean(filtros.legajo.trim())}
-                    onLimpiar={() => limpiar("legajo")}
-                  >
-                    <Input
-                      className="adoc-filtro-encabezado-campo"
-                      placeholder="Buscar legajo…"
-                      aria-label="Buscar Legajo"
-                      value={filtros.legajo}
-                      onChange={(evento) => cambiarFiltro("legajo", evento.target.value)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell
-                sort={orden?.columna === "upn" ? orden.direccion : null}
-                onSortChange={() => cambiarOrden("upn")}
-              >
-                <Encabezado etiqueta="UPN / Email">
-                  <FiltroEncabezado
-                    etiqueta="UPN / Email"
-                    activo={Boolean(filtros.upn.trim())}
-                    onLimpiar={() => limpiar("upn")}
-                  >
-                    <Input
-                      className="adoc-filtro-encabezado-campo"
-                      placeholder="Buscar UPN o email…"
-                      aria-label="Buscar UPN / Email"
-                      value={filtros.upn}
-                      onChange={(evento) => cambiarFiltro("upn", evento.target.value)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell>
-                <Encabezado etiqueta="Roles">
-                  <FiltroEncabezado
-                    etiqueta="Roles"
-                    activo={filtros.roles.length > 0}
-                    onLimpiar={() => limpiar("roles")}
-                  >
-                    <Opciones
-                      opciones={roles}
-                      valores={filtros.roles}
-                      onToggle={(valor) => alternarOpcion("roles", valor)}
-                      etiquetaSinDato="Sin rol"
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell>
-                <Encabezado etiqueta="Perfil docente">
-                  <FiltroEncabezado
-                    etiqueta="Perfil docente"
-                    activo={filtros.perfilDocente.length > 0}
-                    onLimpiar={() => limpiar("perfilDocente")}
-                  >
-                    <Opciones
-                      opciones={["si", "no"]}
-                      etiquetas={{ si: "Con perfil docente", no: "Sin perfil docente" }}
-                      valores={filtros.perfilDocente}
-                      onToggle={(valor) => alternarOpcion("perfilDocente", valor)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell>
-                <Encabezado etiqueta="Estado">
-                  <FiltroEncabezado
-                    etiqueta="Estado"
-                    activo={filtros.estado.length > 0}
-                    onLimpiar={() => limpiar("estado")}
-                  >
-                    <Opciones
-                      opciones={["activo", "inactivo"]}
-                      etiquetas={{ activo: "Activo", inactivo: "Inactivo" }}
-                      valores={filtros.estado}
-                      onToggle={(valor) => alternarOpcion("estado", valor)}
-                    />
-                  </FiltroEncabezado>
-                </Encabezado>
-              </Table.HeaderCell>
-              <Table.HeaderCell>Acciones</Table.HeaderCell>
-            </Table.Row>
-          </Table.Head>
-          <Table.Body>
-            {usuarios.map((usuario) => (
-              <Table.Row key={usuario.id} data-inactivo={!usuario.is_active || undefined}>
-                <Table.Cell>{nombreCompleto(usuario)}</Table.Cell>
-                <Table.Cell className="adoc-mono">{usuario.documento}</Table.Cell>
-                <Table.Cell className="adoc-mono">{usuario.legajo}</Table.Cell>
-                <Table.Cell>{usuario.upn}</Table.Cell>
-                <Table.Cell>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                    {usuario.roles.map((rol) => (
-                      <span
-                        key={rol}
-                        className="adoc-badge s-pendiente"
-                        style={{ fontSize: "11px", height: "20px", padding: "0 8px" }}
-                      >
-                        {rol}
-                      </span>
-                    ))}
-                  </div>
-                </Table.Cell>
-                <Table.Cell>
-                  {usuario.perfilDocente.esDocente ? (
-                    <a href={`/docentes?personaId=${encodeURIComponent(usuario.persona_id)}`}>
-                      Ver docente · {usuario.perfilDocente.cantidadMaterias} materias
-                    </a>
-                  ) : (
-                    "No"
-                  )}
-                </Table.Cell>
-                <Table.Cell>
-                  <StatusBadge
-                    kind={usuario.is_active ? "aprobado" : "rechazado"}
-                    label={usuario.is_active ? "Activo" : "Inactivo"}
+    <Table>
+      <Table.Root maxHeight={ALTO_TABLA}>
+        <Table.Head>
+          <Table.Row>
+            <Table.HeaderCell
+              sort={orden?.columna === "nombre" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("nombre")}
+            >
+              <Encabezado etiqueta="Apellido y Nombre">
+                <FiltroEncabezado
+                  etiqueta="Apellido y Nombre"
+                  activo={Boolean(filtros.apellidoNombre.trim())}
+                  onLimpiar={() => limpiar("apellidoNombre")}
+                >
+                  <Input
+                    className="adoc-filtro-encabezado-campo"
+                    placeholder="Buscar apellido o nombre…"
+                    aria-label="Buscar Apellido y Nombre"
+                    value={filtros.apellidoNombre}
+                    onChange={(evento) => cambiarFiltro("apellidoNombre", evento.target.value)}
                   />
-                </Table.Cell>
-                <Table.Cell className="adoc-table-actions">
-                  <Button variant="ghost" size="sm" onClick={() => onEditarUsuario(usuario)}>
-                    Editar
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sort={orden?.columna === "documento" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("documento")}
+            >
+              <Encabezado etiqueta="Documento">
+                <FiltroEncabezado
+                  etiqueta="Documento"
+                  activo={Boolean(filtros.documento.trim())}
+                  onLimpiar={() => limpiar("documento")}
+                >
+                  <Input
+                    className="adoc-filtro-encabezado-campo"
+                    placeholder="Buscar documento…"
+                    aria-label="Buscar Documento"
+                    value={filtros.documento}
+                    onChange={(evento) => cambiarFiltro("documento", evento.target.value)}
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sort={orden?.columna === "legajo" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("legajo")}
+            >
+              <Encabezado etiqueta="Legajo">
+                <FiltroEncabezado
+                  etiqueta="Legajo"
+                  activo={Boolean(filtros.legajo.trim())}
+                  onLimpiar={() => limpiar("legajo")}
+                >
+                  <Input
+                    className="adoc-filtro-encabezado-campo"
+                    placeholder="Buscar legajo…"
+                    aria-label="Buscar Legajo"
+                    value={filtros.legajo}
+                    onChange={(evento) => cambiarFiltro("legajo", evento.target.value)}
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sort={orden?.columna === "upn" ? orden.direccion : null}
+              onSortChange={() => cambiarOrden("upn")}
+            >
+              <Encabezado etiqueta="UPN / Email">
+                <FiltroEncabezado
+                  etiqueta="UPN / Email"
+                  activo={Boolean(filtros.upn.trim())}
+                  onLimpiar={() => limpiar("upn")}
+                >
+                  <Input
+                    className="adoc-filtro-encabezado-campo"
+                    placeholder="Buscar UPN o email…"
+                    aria-label="Buscar UPN / Email"
+                    value={filtros.upn}
+                    onChange={(evento) => cambiarFiltro("upn", evento.target.value)}
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell>
+              <Encabezado etiqueta="Roles">
+                <FiltroEncabezado
+                  etiqueta="Roles"
+                  activo={filtros.roles.length > 0}
+                  onLimpiar={() => limpiar("roles")}
+                >
+                  <Opciones
+                    opciones={roles}
+                    valores={filtros.roles}
+                    onToggle={(valor) => alternarOpcion("roles", valor)}
+                    etiquetaSinDato="Sin rol"
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell>
+              <Encabezado etiqueta="Perfil docente">
+                <FiltroEncabezado
+                  etiqueta="Perfil docente"
+                  activo={filtros.perfilDocente.length > 0}
+                  onLimpiar={() => limpiar("perfilDocente")}
+                >
+                  <Opciones
+                    opciones={["si", "no"]}
+                    etiquetas={{ si: "Con perfil docente", no: "Sin perfil docente" }}
+                    valores={filtros.perfilDocente}
+                    onToggle={(valor) => alternarOpcion("perfilDocente", valor)}
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell>
+              <Encabezado etiqueta="Estado">
+                <FiltroEncabezado
+                  etiqueta="Estado"
+                  activo={filtros.estado.length > 0}
+                  onLimpiar={() => limpiar("estado")}
+                >
+                  <Opciones
+                    opciones={["activo", "inactivo"]}
+                    etiquetas={{ activo: "Activo", inactivo: "Inactivo" }}
+                    valores={filtros.estado}
+                    onToggle={(valor) => alternarOpcion("estado", valor)}
+                  />
+                </FiltroEncabezado>
+              </Encabezado>
+            </Table.HeaderCell>
+            <Table.HeaderCell>Acciones</Table.HeaderCell>
+          </Table.Row>
+        </Table.Head>
+        <Table.Body>
+          {usuarios.map((usuario) => (
+            <Table.Row
+              key={usuario.id}
+              data-inactivo={!usuario.is_active || undefined}
+              {...propsFilaClickeable(() => onEditarUsuario(usuario))}
+            >
+              <Table.Cell>{nombreCompleto(usuario)}</Table.Cell>
+              <Table.Cell className="adoc-mono">{usuario.documento}</Table.Cell>
+              <Table.Cell className="adoc-mono">{usuario.legajo}</Table.Cell>
+              <Table.Cell>{usuario.upn}</Table.Cell>
+              <Table.Cell>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                  {usuario.roles.map((rol) => (
+                    <span
+                      key={rol}
+                      className="adoc-badge s-pendiente"
+                      style={{ fontSize: "11px", height: "20px", padding: "0 8px" }}
+                    >
+                      {rol}
+                    </span>
+                  ))}
+                </div>
+              </Table.Cell>
+              <Table.Cell>
+                {usuario.perfilDocente.esDocente ? (
+                  <a href={`/docentes?personaId=${encodeURIComponent(usuario.persona_id)}`}>
+                    Ver docente · {usuario.perfilDocente.cantidadMaterias} materias
+                  </a>
+                ) : (
+                  "No"
+                )}
+              </Table.Cell>
+              <Table.Cell>
+                <StatusBadge
+                  kind={usuario.is_active ? "aprobado" : "rechazado"}
+                  label={usuario.is_active ? "Activo" : "Inactivo"}
+                />
+              </Table.Cell>
+              <Table.Cell className="adoc-table-actions">
+                <Button variant="ghost" size="sm" onClick={() => onEditarUsuario(usuario)}>
+                  Editar
+                </Button>
+                {usuario.is_active ? (
+                  <Button variant="ghost" size="sm" onClick={() => onDesactivar(usuario)}>
+                    Desactivar
                   </Button>
-                  {usuario.is_active ? (
-                    <Button variant="ghost" size="sm" onClick={() => onDesactivar(usuario)}>
-                      Desactivar
-                    </Button>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => onActivar(usuario)}>
-                      Activar
-                    </Button>
-                  )}
-                </Table.Cell>
-              </Table.Row>
-            ))}
-          </Table.Body>
-        </Table.Root>
-      </Table>
-    </div>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={() => onActivar(usuario)}>
+                    Activar
+                  </Button>
+                )}
+              </Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table.Root>
+    </Table>
   );
 }
 

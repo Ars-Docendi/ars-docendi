@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { DocenteMock } from "../models";
 import { TablaDocentes } from "./TablaDocentes";
@@ -44,5 +45,44 @@ describe("TablaDocentes", () => {
     expect(screen.queryByRole("button", { name: "Desactivar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activar" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: /^Filtrar / })).not.toHaveLength(0);
+  });
+
+  it("el click en la fila abre Editar; Desactivar no lo dispara", async () => {
+    const user = userEvent.setup();
+    const onEditar = vi.fn();
+    const onDesactivar = vi.fn();
+    render(
+      <TablaDocentes
+        docentes={[DOCENTE]}
+        onDesactivar={onDesactivar}
+        onActivar={vi.fn()}
+        onEditar={onEditar}
+      />,
+    );
+
+    await user.click(screen.getByText("28341567"));
+    expect(onEditar).toHaveBeenCalledWith(DOCENTE);
+
+    await user.click(screen.getByRole("button", { name: "Desactivar" }));
+    expect(onDesactivar).toHaveBeenCalledOnce();
+    expect(onEditar).toHaveBeenCalledOnce();
+  });
+
+  it("en solo lectura la fila no es clickeable", async () => {
+    const user = userEvent.setup();
+    const onEditar = vi.fn();
+    render(
+      <TablaDocentes
+        docentes={[DOCENTE]}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditar={onEditar}
+        soloLectura
+      />,
+    );
+
+    await user.click(screen.getByText("28341567"));
+    expect(onEditar).not.toHaveBeenCalled();
+    expect(screen.getByText("28341567").closest("tr")).not.toHaveClass("adoc-fila-clickeable");
   });
 });

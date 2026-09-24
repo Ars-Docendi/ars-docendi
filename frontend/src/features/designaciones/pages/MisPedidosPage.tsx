@@ -4,7 +4,7 @@ import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
 import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
-import { IconoArrowLeft, IconoArrowRight, IconoPlus } from "../components/lucide";
+import { IconoPlus } from "../components/lucide";
 import {
   aplicarFiltrosYOrdenMisPedidos,
   FILTROS_INICIALES,
@@ -18,8 +18,6 @@ import type { PedidoDesignacion } from "../types";
 import "./misPedidos.css";
 import { estadoOrigen } from "./origenDetalle";
 
-const PAGE_SIZE = 9;
-
 export function MisPedidosPage() {
   const navegar = useNavigate();
   const { data: pedidos, isLoading, isError, refetch } = useMisPedidos();
@@ -28,7 +26,6 @@ export function MisPedidosPage() {
 
   const [filtros, setFiltros] = useState<FiltrosMisPedidosState>(FILTROS_INICIALES);
   const [orden, setOrden] = useState<OrdenMisPedidos | null>(null);
-  const [pagina, setPagina] = useState(1);
   const [pedidoAEliminar, setPedidoAEliminar] = useState<PedidoDesignacion | undefined>();
 
   function handleConfirmarEliminar() {
@@ -41,26 +38,12 @@ export function MisPedidosPage() {
   const periodo = catalogos.data?.periodoActivo;
   const total = pedidos?.length ?? 0;
 
-  function actualizarFiltros(nuevos: FiltrosMisPedidosState) {
-    setFiltros(nuevos);
-    setPagina(1);
-  }
-
-  function actualizarOrden(nuevo: OrdenMisPedidos | null) {
-    setOrden(nuevo);
-    setPagina(1);
-  }
-
   const filtrados = useMemo(
     () => aplicarFiltrosYOrdenMisPedidos(pedidos ?? [], filtros, orden),
     [pedidos, filtros, orden],
   );
 
   const totalFiltrado = filtrados.length;
-  const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / PAGE_SIZE));
-  const paginaActual = Math.min(pagina, totalPaginas);
-  const desde = (paginaActual - 1) * PAGE_SIZE;
-  const visibles = filtrados.slice(desde, desde + PAGE_SIZE);
 
   return (
     <>
@@ -110,60 +93,18 @@ export function MisPedidosPage() {
               </InlineAlert>
             )}
             <TablaMisPedidos
-              pedidos={visibles}
+              pedidos={filtrados}
               pedidosParaOpciones={pedidos}
               filtros={filtros}
               orden={orden}
-              onFiltrosChange={actualizarFiltros}
-              onOrdenChange={actualizarOrden}
+              onFiltrosChange={setFiltros}
+              onOrdenChange={setOrden}
               onVerDetalle={(p) =>
                 navegar(`/designaciones/pedidos/${p.id}`, { state: estadoOrigen("mis-pedidos") })
               }
               onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
               onEliminar={(p) => setPedidoAEliminar(p)}
             />
-            {totalFiltrado > 0 && (
-              <>
-                <div className="adoc-mp-pager">
-                  <button
-                    type="button"
-                    className="adoc-mp-pager-btn"
-                    disabled={paginaActual <= 1}
-                    onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                  >
-                    <IconoArrowLeft /> Anterior
-                  </button>
-
-                  <div className="adoc-mp-pages">
-                    {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        className={`adoc-mp-page${n === paginaActual ? " activa" : ""}`}
-                        aria-current={n === paginaActual ? "page" : undefined}
-                        onClick={() => setPagina(n)}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="adoc-mp-pager-right">
-                    <button
-                      type="button"
-                      className="adoc-mp-pager-btn"
-                      disabled={paginaActual >= totalPaginas}
-                      onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-                    >
-                      Siguiente <IconoArrowRight />
-                    </button>
-                    <span className="adoc-mp-pager-meta">
-                      Registros {desde + 1}–{desde + visibles.length} de {totalFiltrado}
-                    </span>
-                  </div>
-                </div>
-              </>
-            )}
           </>
         </div>
       )}

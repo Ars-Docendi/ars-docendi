@@ -66,4 +66,25 @@ describe("TablaUsuarios", () => {
     await user.click(screen.getByRole("button", { name: "Filtrar Apellido y Nombre" }));
     expect(onOrdenChange).not.toHaveBeenCalled();
   });
+
+  it("el click en la fila abre Editar; el link a docente no lo dispara", async () => {
+    const user = userEvent.setup();
+    const onEditarUsuario = vi.fn();
+    render(
+      <TablaUsuarios
+        usuarios={[USUARIO]}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditarUsuario={onEditarUsuario}
+      />,
+    );
+
+    await user.click(screen.getByText("carla.lopez@unlam.edu.ar"));
+    expect(onEditarUsuario).toHaveBeenCalledWith(USUARIO);
+
+    const link = screen.getByRole("link", { name: /Ver docente/ });
+    link.addEventListener("click", (evento) => evento.preventDefault());
+    await user.click(link);
+    expect(onEditarUsuario).toHaveBeenCalledOnce();
+  });
 });

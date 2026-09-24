@@ -12,12 +12,6 @@
   gap: var(--space-4);
 }
 
-/* La tabla tiene 7 columnas: en pantallas angostas scrollea ella sola, sin
-   arrastrar la página entera en horizontal (mismo patrón que TablaUsuarios). */
-.adoc-tabla-scroll {
-  overflow-x: auto;
-}
-
 .adoc-revision-vacio {
   margin: 0;
   padding: var(--space-4);

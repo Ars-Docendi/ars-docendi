@@ -28,6 +28,7 @@ import {
 import { NovedadChip } from "./NovedadChip";
 import { EstadoPedidoBadge } from "./EstadoPedidoBadge";
 import "./revision.css";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
 
 interface TablaRevisionProps {
   pedidos: PedidoDesignacion[];
@@ -42,7 +43,10 @@ interface TablaRevisionProps {
   errorExportacion?: string;
 }
 
-/** Columnas ordenables y su rótulo. "Área" y "Acciones" quedan fuera a propósito. */
+/** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
+const ALTO_TABLA = "calc(100vh - 380px)";
+
+/** Columnas ordenables y su rótulo. "Área" queda fuera a propósito. */
 const COLUMNAS: { id: ColumnaOrdenable; etiqueta: string }[] = [
   { id: "docente", etiqueta: "Docente" },
   { id: "legajo", etiqueta: "Legajo" },
@@ -134,78 +138,75 @@ export function TablaRevision({
         </p>
       )}
 
-      <div className="adoc-tabla-scroll">
-        <Table>
-          <Table.Root>
-            <Table.Head>
-              <Table.Row>
-                {COLUMNAS.map(({ id, etiqueta }) => (
-                  <EncabezadoRevision
-                    key={id}
-                    id={id}
-                    etiqueta={etiqueta}
-                    orden={orden}
-                    onOrden={(columna) => setOrden((previo) => siguienteOrden(previo, columna))}
-                    filtros={filtrosColumnasActuales}
-                    opciones={opciones}
-                    onFiltrosChange={(cambios) => {
-                      const nuevos = { ...filtrosColumnasActuales, ...cambios };
-                      if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
-                      onFiltrosColumnasChange?.(nuevos);
-                    }}
-                  />
-                ))}
-                {mostrarArea && (
-                  <Table.HeaderCell>
-                    <span>
-                      Área
-                      <FiltroEncabezado
-                        etiqueta="Área"
-                        activo={filtrosColumnasActuales.area.length > 0}
-                        onLimpiar={() => {
-                          const nuevos = { ...filtrosColumnasActuales, area: [] };
+      <Table>
+        <Table.Root maxHeight={ALTO_TABLA}>
+          <Table.Head>
+            <Table.Row>
+              {COLUMNAS.map(({ id, etiqueta }) => (
+                <EncabezadoRevision
+                  key={id}
+                  id={id}
+                  etiqueta={etiqueta}
+                  orden={orden}
+                  onOrden={(columna) => setOrden((previo) => siguienteOrden(previo, columna))}
+                  filtros={filtrosColumnasActuales}
+                  opciones={opciones}
+                  onFiltrosChange={(cambios) => {
+                    const nuevos = { ...filtrosColumnasActuales, ...cambios };
+                    if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
+                    onFiltrosColumnasChange?.(nuevos);
+                  }}
+                />
+              ))}
+              {mostrarArea && (
+                <Table.HeaderCell>
+                  <span>
+                    Área
+                    <FiltroEncabezado
+                      etiqueta="Área"
+                      activo={filtrosColumnasActuales.area.length > 0}
+                      onLimpiar={() => {
+                        const nuevos = { ...filtrosColumnasActuales, area: [] };
+                        if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
+                        onFiltrosColumnasChange?.(nuevos);
+                      }}
+                    >
+                      <Opciones
+                        opciones={opciones.areas}
+                        valores={filtrosColumnasActuales.area}
+                        onToggle={(valor) => {
+                          const valores = alternar(filtrosColumnasActuales.area, valor);
+                          const nuevos = { ...filtrosColumnasActuales, area: valores };
                           if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
                           onFiltrosColumnasChange?.(nuevos);
                         }}
-                      >
-                        <Opciones
-                          opciones={opciones.areas}
-                          valores={filtrosColumnasActuales.area}
-                          onToggle={(valor) => {
-                            const valores = alternar(filtrosColumnasActuales.area, valor);
-                            const nuevos = { ...filtrosColumnasActuales, area: valores };
-                            if (!filtrosColumnas) setFiltrosColumnasLocales(nuevos);
-                            onFiltrosColumnasChange?.(nuevos);
-                          }}
-                        />
-                      </FiltroEncabezado>
-                    </span>
-                  </Table.HeaderCell>
-                )}
-                <Table.HeaderCell>Acciones</Table.HeaderCell>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              {visibles.length === 0 ? (
-                <Table.Row>
-                  <Table.Cell colSpan={COLUMNAS.length + (mostrarArea ? 2 : 1)} className="empty">
-                    Sin pedidos que cumplan los filtros.
-                  </Table.Cell>
-                </Table.Row>
-              ) : (
-                visibles.map((pedido) => (
-                  <FilaPedido
-                    key={pedido.id}
-                    pedido={pedido}
-                    mostrarArea={mostrarArea}
-                    onVer={onSeleccionar}
-                  />
-                ))
+                      />
+                    </FiltroEncabezado>
+                  </span>
+                </Table.HeaderCell>
               )}
-            </Table.Body>
-          </Table.Root>
-        </Table>
-      </div>
+            </Table.Row>
+          </Table.Head>
+          <Table.Body>
+            {visibles.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={COLUMNAS.length + (mostrarArea ? 1 : 0)} className="empty">
+                  Sin pedidos que cumplan los filtros.
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              visibles.map((pedido) => (
+                <FilaPedido
+                  key={pedido.id}
+                  pedido={pedido}
+                  mostrarArea={mostrarArea}
+                  onVer={onSeleccionar}
+                />
+              ))
+            )}
+          </Table.Body>
+        </Table.Root>
+      </Table>
     </div>
   );
 }
@@ -220,7 +221,10 @@ function FilaPedido({
   onVer: (pedido: PedidoDesignacion) => void;
 }) {
   return (
-    <Table.Row>
+    <Table.Row
+      {...propsFilaClickeable(() => onVer(pedido))}
+      aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
+    >
       <Table.Cell>
         <span className="adoc-tabla-docente">
           <span className="adoc-pedido-avatar" aria-hidden="true">
@@ -243,16 +247,6 @@ function FilaPedido({
         />
       </Table.Cell>
       {mostrarArea && <Table.Cell>{areaActual(pedido) ?? "—"}</Table.Cell>}
-      <Table.Cell className="adoc-table-actions">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onVer(pedido)}
-          aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
-        >
-          Ver
-        </Button>
-      </Table.Cell>
     </Table.Row>
   );
 }

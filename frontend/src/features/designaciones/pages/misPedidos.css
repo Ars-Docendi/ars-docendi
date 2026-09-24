@@ -12,53 +12,16 @@
 
 /* --- Tabla --- */
 .adoc-mp-table {
-  overflow-x: auto;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-xs);
   background: var(--color-bg-raised);
 }
-.adoc-mp-table table {
-  min-width: 1120px;
-}
-.adoc-mp-row--clickeable {
-  cursor: pointer;
-}
-.adoc-mp-row--clickeable:hover {
-  background: var(--color-bg-canvas);
-}
-.adoc-mp-row--clickeable:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: -2px;
-}
 .adoc-mp-num,
 .adoc-mp-env {
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
-}
-.adoc-mp-table th:nth-child(1) {
-  width: 120px;
-}
-.adoc-mp-table th:nth-child(2) {
-  min-width: 190px;
-}
-.adoc-mp-table th:nth-child(3) {
-  width: 100px;
-}
-.adoc-mp-table th:nth-child(4) {
-  min-width: 180px;
-}
-.adoc-mp-table th:nth-child(5) {
-  min-width: 170px;
-}
-.adoc-mp-table th:nth-child(6) {
-  width: 110px;
-}
-.adoc-mp-table th:nth-child(7) {
-  min-width: 210px;
-}
-.adoc-mp-table th:nth-child(8) {
-  width: 190px;
 }
 .adoc-mp-doc {
   overflow: hidden;
@@ -83,7 +46,6 @@
 .adoc-mp-acc {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: var(--space-1);
 }
 /* Ver/Editar/Eliminar son fijos (siempre ocupan el mismo lugar en la fila) — cuando la
@@ -92,97 +54,6 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
-.adoc-mp-eliminar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-status-danger-fg, var(--danger-500));
-  cursor: pointer;
-}
-.adoc-mp-eliminar:hover {
-  background: var(--color-status-danger-bg);
-}
-.adoc-mp-eliminar:disabled:hover {
-  background: transparent;
-}
-.adoc-mp-eliminar svg {
-  width: 16px;
-  height: 16px;
-}
 
 /* Pill de estado vive en components/estado-acciones.css (compartida con la
    tabla de Períodos). */
-
-/* --- Paginación --- */
-.adoc-mp-pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 2px 0;
-}
-.adoc-mp-pager-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-xs);
-  background: var(--color-bg-raised);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  font-size: var(--text-caption-size);
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-.adoc-mp-pager-btn:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-.adoc-mp-pager-btn svg {
-  width: 14px;
-  height: 14px;
-}
-.adoc-mp-pages {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-.adoc-mp-page {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-family: var(--font-sans);
-  font-size: var(--text-caption-size);
-  cursor: pointer;
-}
-.adoc-mp-page:hover {
-  background: var(--color-bg-sunken);
-}
-.adoc-mp-page.activa {
-  background: var(--accent-100);
-  color: var(--color-text-link);
-  font-weight: var(--weight-semibold);
-}
-.adoc-mp-pager-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-.adoc-mp-pager-meta {
-  font-size: var(--text-micro-size);
-  color: var(--color-text-tertiary);
-}

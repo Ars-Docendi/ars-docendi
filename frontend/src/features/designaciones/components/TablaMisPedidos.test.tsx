@@ -47,6 +47,7 @@ describe("TablaMisPedidos", () => {
     await user.click(fila);
     expect(onVer).toHaveBeenCalledOnce();
 
+    expect(within(fila).queryByRole("button", { name: "Ver" })).not.toBeInTheDocument();
     await user.click(within(fila).getByRole("button", { name: "Editar" }));
     expect(onEditar).toHaveBeenCalledOnce();
     await user.click(within(fila).getByRole("button", { name: "Eliminar pedido de Ana García" }));
@@ -95,5 +96,46 @@ describe("TablaMisPedidos", () => {
     await user.keyboard("{Enter}");
     await user.keyboard(" ");
     expect(onVer).toHaveBeenCalledTimes(2);
+  });
+
+  it("elimina con un botón de texto sin abrir el detalle", async () => {
+    const user = userEvent.setup();
+    const onVer = vi.fn();
+    const onEliminar = vi.fn();
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={onVer}
+        onEditar={vi.fn()}
+        onEliminar={onEliminar}
+      />,
+    );
+
+    const eliminar = screen.getByRole("button", { name: "Eliminar pedido de Ana García" });
+    expect(eliminar).toHaveTextContent("Eliminar");
+
+    await user.click(eliminar);
+    expect(onEliminar).toHaveBeenCalledOnce();
+    expect(onVer).not.toHaveBeenCalled();
+  });
+
+  it("Enter sobre un botón de la fila ejecuta el botón, no la navegación de la fila", async () => {
+    const user = userEvent.setup();
+    const onVer = vi.fn();
+    const onEditar = vi.fn();
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={onVer}
+        onEditar={onEditar}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    screen.getByRole("button", { name: "Editar" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(onEditar).toHaveBeenCalledOnce();
+    expect(onVer).not.toHaveBeenCalled();
   });
 });

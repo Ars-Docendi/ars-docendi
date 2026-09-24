@@ -104,15 +104,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
 
     // Antes eran 4 mini-tablas, cada una con su head repetido.
     expect(screen.getAllByRole("table")).toHaveLength(1);
-    for (const columna of [
-      "Docente",
-      "Legajo",
-      "Tipo",
-      "Inicio",
-      "Últ. actualización",
-      "Estado",
-      "Acciones",
-    ]) {
+    for (const columna of ["Docente", "Legajo", "Tipo", "Inicio", "Últ. actualización", "Estado"]) {
       expect(screen.getByRole("columnheader", { name: columna })).toBeInTheDocument();
     }
   });
@@ -521,7 +513,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getAllByText("09/03/2026 21:00")).toHaveLength(2);
   });
 
-  it("el botón Ver de la fila navega al detalle del pedido", async () => {
+  it("la fila navega al detalle del pedido", async () => {
     const user = userEvent.setup();
     const alSeleccionar = vi.fn();
     const fila = pedido("en_revision_coordinador", {
@@ -537,7 +529,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Ver el pedido de Clickeable Tres" }));
+    await user.click(screen.getByRole("row", { name: "Ver el pedido de Clickeable Tres" }));
     expect(alSeleccionar).toHaveBeenCalledWith(fila);
   });
 
@@ -625,5 +617,29 @@ describe("filtros por encabezado de Revisión", () => {
     await user.click(screen.getByRole("button", { name: "Filtrar Área" }));
     expect(screen.getByRole("dialog", { name: "Filtro de Área" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Área" })).not.toHaveAttribute("aria-sort");
+  });
+
+  it("la fila abre el detalle con click o Enter, sin botón Ver ni columna Acciones", async () => {
+    const user = userEvent.setup();
+    const onSeleccionar = vi.fn();
+    const p = pedido("en_revision_coordinador");
+    render(
+      <TablaRevision
+        pedidos={[p]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={onSeleccionar}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Ver/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Acciones" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText(p.docente.nombre));
+    expect(onSeleccionar).toHaveBeenCalledWith(p);
+
+    screen.getByText(p.docente.nombre).closest("tr")!.focus();
+    await user.keyboard("{Enter}");
+    expect(onSeleccionar).toHaveBeenCalledTimes(2);
   });
 });
