@@ -90,4 +90,10 @@ describe("TablaPeriodos", () => {
     expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
     expect(onEditar).toHaveBeenCalledOnce();
   });
+
+  it("muestra el nombre del período en una línea, recortable", () => {
+    render(<TablaPeriodos periodos={PERIODOS} onEditar={vi.fn()} onEliminar={vi.fn()} />);
+
+    expect(screen.getByText("Segundo cuatrimestre")).toHaveClass("adoc-texto-recortado");
+  });
 });

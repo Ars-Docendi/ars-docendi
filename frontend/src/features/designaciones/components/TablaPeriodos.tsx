@@ -16,10 +16,14 @@ import {
 } from "./filtrosPeriodos";
 import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 import "./tablaPeriodos.css";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 260px)";
+const ALTO_TABLA = "calc(100vh - 324px)";
+
+/** Ancho mínimo del nombre: usa el espacio que haya y recorta con "…" si no alcanza. */
+const ANCHO_NOMBRE = 120;
 
 interface TablaPeriodosProps {
   periodos: PeriodoDesignacion[];
@@ -160,7 +164,9 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
           ) : (
             visibles.map((periodo) => (
               <Table.Row key={periodo.id} {...propsFilaClickeable(() => onEditar(periodo))}>
-                <Table.Cell>{periodo.nombre}</Table.Cell>
+                <Table.Cell>
+                  <TextoRecortado texto={periodo.nombre} anchoMinimo={ANCHO_NOMBRE} />
+                </Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaDesde)}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaHasta)}</Table.Cell>
                 <Table.Cell>{formatearMesAnio(periodo.impactoDesde)}</Table.Cell>
