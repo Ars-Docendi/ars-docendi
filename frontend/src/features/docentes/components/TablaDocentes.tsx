@@ -291,7 +291,7 @@ export function TablaDocentes({
               </Table.Cell>
               {!soloLectura && (
                 <Table.Cell
-                  className="adoc-table-actions"
+                  className="adoc-table-actions adoc-acciones-fila"
                   style={{ whiteSpace: "nowrap", width: "1%" }}
                 >
                   <Button variant="ghost" size="sm" onClick={() => onEditar(docente)}>

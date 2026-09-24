@@ -16,7 +16,6 @@
   border-radius: var(--radius-xs);
   background: var(--color-bg-raised);
 }
-.adoc-mp-num,
 .adoc-mp-env {
   white-space: nowrap;
   font-family: var(--font-mono);

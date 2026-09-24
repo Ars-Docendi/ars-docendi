@@ -104,11 +104,11 @@ El encabezado del detalle del pedido (`/designaciones/pedidos/:id`) SHALL tener 
 - **AND** el meta MUST ser "Segundo cuatrimestre 2026"
 - **AND** el encabezado MUST NOT mostrar el número de pedido ni el nombre de la cátedra
 
-#### Scenario: El número se conserva fuera del detalle
+#### Scenario: El número se conserva fuera del encabezado del detalle
 
-- **GIVEN** un pedido con número asignado
-- **WHEN** el Jefe de Cátedra consulta "Mis pedidos"
-- **THEN** la columna N° SHALL seguir mostrando el número del pedido
+- **GIVEN** un pedido en borrador con número asignado
+- **WHEN** el Jefe de Cátedra abre la confirmación para eliminarlo
+- **THEN** el modal SHALL identificar el pedido por su número
 
 ### Requirement: Breadcrumb del detalle según el origen
 

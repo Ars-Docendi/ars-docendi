@@ -153,4 +153,18 @@ describe("TablaMisPedidos", () => {
       expect(screen.getByText(texto)).toHaveClass("adoc-texto-recortado");
     }
   });
+
+  it("no muestra la columna N°", () => {
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={vi.fn()}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("columnheader", { name: /^N°/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("N°-2026-0001")).not.toBeInTheDocument();
+  });
 });

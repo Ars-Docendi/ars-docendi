@@ -11,7 +11,7 @@
 /* ====================== APP SHELL =========================== */
 .adoc-app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 200px 1fr;
   grid-template-rows: 56px 1fr;
   grid-template-areas:
     "topbar topbar"

@@ -167,7 +167,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
                 <Table.Cell>{formatearMesAnio(periodo.impactoHasta)}</Table.Cell>
                 <Table.Cell>{periodo.activo ? "Activo" : "Inactivo"}</Table.Cell>
                 <Table.Cell>
-                  <div className="adoc-periodos-acc">
+                  <div className="adoc-periodos-acc adoc-acciones-fila">
                     <Button variant="ghost" size="sm" onClick={() => onEditar(periodo)}>
                       Editar
                     </Button>

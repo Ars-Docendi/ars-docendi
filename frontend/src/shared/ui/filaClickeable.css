@@ -11,3 +11,9 @@ tr.adoc-fila-clickeable:focus-visible {
 .adoc-btn.adoc-accion-eliminar {
   color: var(--color-text-danger);
 }
+
+/* Acciones de fila: botones más juntos que el ghost chico por defecto (12px por lado),
+   para que la columna ocupe menos sin perder el área de click. */
+.adoc-acciones-fila .adoc-btn.sz-sm {
+  padding: 0 var(--space-2);
+}

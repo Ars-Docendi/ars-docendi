@@ -244,7 +244,7 @@ export function TablaUsuarios({
                   label={usuario.is_active ? "Activo" : "Inactivo"}
                 />
               </Table.Cell>
-              <Table.Cell className="adoc-table-actions">
+              <Table.Cell className="adoc-table-actions adoc-acciones-fila">
                 <Button variant="ghost" size="sm" onClick={() => onEditarUsuario(usuario)}>
                   Editar
                 </Button>

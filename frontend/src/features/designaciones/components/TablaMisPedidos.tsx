@@ -46,7 +46,6 @@ export function TablaMisPedidos({
   pedidosParaOpciones = pedidos,
   filtros = {
     docente: "",
-    numero: "",
     legajo: "",
     catedra: "",
     enviado: "",
@@ -93,23 +92,6 @@ export function TablaMisPedidos({
       <Table.Root aria-label="Mis pedidos de designación" maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
-            <Encabezado
-              etiqueta="N°"
-              columna="numero"
-              orden={orden}
-              onOrden={cambiarOrden}
-              filtro={
-                <Input
-                  className="adoc-filtro-encabezado-campo"
-                  placeholder="Buscar número…"
-                  aria-label="Buscar N°"
-                  value={filtros.numero}
-                  onChange={(evento) => cambiarFiltro("numero", evento.target.value)}
-                />
-              }
-              activo={Boolean(filtros.numero.trim())}
-              onLimpiar={() => limpiar("numero")}
-            />
             <Encabezado
               etiqueta="Docente"
               columna="docente"
@@ -218,7 +200,7 @@ export function TablaMisPedidos({
         <Table.Body>
           {pedidos.length === 0 ? (
             <Table.Row>
-              <Table.Cell colSpan={8} className="empty">
+              <Table.Cell colSpan={7} className="empty">
                 Sin resultados para los filtros aplicados.
               </Table.Cell>
             </Table.Row>
@@ -229,7 +211,6 @@ export function TablaMisPedidos({
                 key={pedido.id}
                 aria-label={`Ver el pedido de ${pedido.docente.nombre}`}
               >
-                <Table.Cell className="adoc-mp-num">{pedido.numero ?? "—"}</Table.Cell>
                 <Table.Cell className="adoc-mp-doc">
                   <TextoRecortado texto={pedido.docente.nombre} anchoMinimo={ANCHO_DOCENTE} />
                 </Table.Cell>
@@ -245,7 +226,7 @@ export function TablaMisPedidos({
                   <EstadoPedidoPill estado={pedido.estado} />
                 </Table.Cell>
                 <Table.Cell>
-                  <div className="adoc-mp-acc">
+                  <div className="adoc-mp-acc adoc-acciones-fila">
                     {pedido.accionesPermitidas?.includes("editar") && (
                       <Button variant="ghost" size="sm" onClick={() => onEditar(pedido)}>
                         Editar
