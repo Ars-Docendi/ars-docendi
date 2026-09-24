@@ -5,7 +5,7 @@ import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemCertificacion } from "./ItemsPerfil";
 import { ModalCertificacion } from "./ModalCertificacion";
-import { ModalConfirmarEliminar } from "./ModalConfirmarEliminar";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 
 interface SeccionCertificacionesProps {
   items: Certificacion[];
@@ -46,7 +46,7 @@ export function SeccionCertificaciones({ items, onCambio }: SeccionCertificacion
         open={s.aEliminar !== null}
         onOpenChange={(abierto) => !abierto && s.cancelarBorrado()}
         titulo="Eliminar certificación"
-        nombre={s.aEliminar?.nombre ?? ""}
+        objeto={<strong>"{s.aEliminar?.nombre}"</strong>}
         onConfirmar={() => {
           if (s.aEliminar) onCambio(eliminarPorId(items, s.aEliminar.id));
           s.cancelarBorrado();

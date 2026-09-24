@@ -4,7 +4,7 @@ import { Button, RoleBadge } from "@ars-docendi/ui";
 
 import { clearToken } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
-import { bellIcon, /*collapseIcon,*/ helpIcon, searchIcon } from "./icons";
+// import { collapseIcon } from "./icons";
 
 interface TopBarProps {
   collapsed: boolean;
@@ -58,37 +58,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
         */}
       </div>
 
-      <div className="adoc-topbar-search">
-        <span className="ico">{searchIcon}</span>
-        {/* No global-search backend yet — disabled so it doesn't pretend to work. */}
-        <input
-          type="search"
-          placeholder="Búsqueda global · próximamente"
-          disabled
-          aria-label="Búsqueda global (próximamente)"
-        />
-      </div>
-
       <div className="adoc-topbar-right">
-        <button
-          type="button"
-          className="adoc-icon-btn"
-          aria-label="Notificaciones"
-          title="Próximamente"
-          disabled
-        >
-          <span className="ico">{bellIcon}</span>
-        </button>
-        <button
-          type="button"
-          className="adoc-icon-btn"
-          aria-label="Ayuda"
-          title="Próximamente"
-          disabled
-        >
-          <span className="ico">{helpIcon}</span>
-        </button>
-
         <div className="adoc-user-menu" ref={menuRef}>
           <RoleBadge
             name={user.name}

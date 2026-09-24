@@ -3,6 +3,7 @@ import { Button, Field, Input, Modal, Textarea } from "@ars-docendi/ui";
 
 import type { DatosExperiencia, Experiencia } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
+import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
 
 const VACIA: DatosExperiencia = {
@@ -26,12 +27,15 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
   );
   const [actual, setActual] = useState(() => experiencia?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
 
   function guardar() {
     const nuevos: Record<string, string> = {};
     if (!datos.puesto.trim()) nuevos.puesto = "Ingresá el puesto.";
     if (!datos.organizacion.trim()) nuevos.organizacion = "Ingresá la organización.";
-    if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.desde) nuevos.desde = MENSAJE_FALTA_ANIO;
+    else if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.hasta && !actual) nuevos.hasta = MENSAJE_FALTA_ANIO;
     if (!datos.descripcion.trim()) nuevos.descripcion = "Contá de qué se trató.";
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
@@ -80,8 +84,12 @@ export function ModalExperiencia({ experiencia, onCerrar, onGuardar }: ModalExpe
           enCurso={actual}
           etiquetaEnCurso="Sigo en este puesto"
           errorDesde={errores.desde}
+          errorHasta={errores.hasta}
           onDesde={(desde) => setDatos({ ...datos, desde })}
           onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onMesSinAnio={(campo, falta) =>
+            setMesSinAnio((previo) => ({ ...previo, [campo]: falta }))
+          }
           onEnCurso={setActual}
         />
         <Field label="De qué se trató" required error={errores.descripcion}>

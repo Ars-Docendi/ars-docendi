@@ -59,4 +59,19 @@ describe("TablaPeriodos", () => {
     await user.click(encabezado);
     expect(encabezado).toHaveAttribute("aria-sort", "none");
   });
+
+  it("muestra Editar y Eliminar como botones directos, sin menú kebab", async () => {
+    const user = userEvent.setup();
+    const onEditar = vi.fn();
+    const onEliminar = vi.fn();
+    render(<TablaPeriodos periodos={PERIODOS} onEditar={onEditar} onEliminar={onEliminar} />);
+
+    expect(screen.queryByRole("button", { name: /Acciones del período/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getAllByRole("button", { name: "Editar" })[0]);
+    expect(onEditar).toHaveBeenCalledWith(PERIODOS[0]);
+
+    await user.click(screen.getByRole("button", { name: "Eliminar período Primer cuatrimestre" }));
+    expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
+  });
 });

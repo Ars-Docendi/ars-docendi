@@ -1,0 +1,26 @@
+/* Acciones de fila de Períodos: botones directos, mismo patrón que Mis pedidos. */
+.adoc-periodos-acc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.adoc-periodos-eliminar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-status-danger-fg, var(--danger-500));
+  cursor: pointer;
+}
+.adoc-periodos-eliminar:hover {
+  background: var(--color-status-danger-bg);
+}
+.adoc-periodos-eliminar svg {
+  width: 16px;
+  height: 16px;
+}

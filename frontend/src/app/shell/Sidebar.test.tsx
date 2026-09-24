@@ -28,7 +28,7 @@ describe("Sidebar — sector Designaciones", () => {
     renderSidebar([...permissions]);
 
     expect(screen.queryByRole("link", { name: "Designaciones" })).not.toBeInTheDocument();
-    expect(screen.queryAllByText("DESIGNACIONES")).toHaveLength(pantallas.length ? 1 : 0);
+    expect(screen.queryAllByText("Designaciones")).toHaveLength(pantallas.length ? 1 : 0);
     for (const pantalla of pantallas) {
       expect(screen.getByRole("link", { name: pantalla })).toBeInTheDocument();
     }
@@ -49,7 +49,7 @@ describe("Sidebar — sector Designaciones", () => {
     const user = userEvent.setup();
     renderSidebar(["designaciones.revisar", "periodos.administrar"], { collapsed: true });
 
-    expect(screen.queryByText("DESIGNACIONES")).not.toBeInTheDocument();
+    expect(screen.queryByText("Designaciones")).not.toBeInTheDocument();
     const enlaces = screen.getAllByRole("link");
     expect(screen.getByRole("link", { name: "Revisión" })).toHaveAttribute("title", "Revisión");
     expect(screen.getByRole("link", { name: "Períodos" })).toHaveAttribute("title", "Períodos");
@@ -63,7 +63,7 @@ describe("Sidebar — sector Designaciones", () => {
   it("Docente: no tiene sector Designaciones", () => {
     renderSidebar(["aulas.ver"], { route: "/aulas" });
 
-    expect(screen.queryByText("DESIGNACIONES")).not.toBeInTheDocument();
+    expect(screen.queryByText("Designaciones")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Reserva de aulas" })).toBeInTheDocument();
   });
 

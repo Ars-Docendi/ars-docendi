@@ -8,6 +8,7 @@ import {
   type NivelEducacion,
 } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
+import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
 
 const VACIA: DatosEducacion = {
@@ -28,12 +29,15 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
   const [datos, setDatos] = useState<DatosEducacion>(() => (educacion ? { ...educacion } : VACIA));
   const [cursando, setCursando] = useState(() => educacion?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
 
   function guardar() {
     const nuevos: Record<string, string> = {};
     if (!datos.carrera.trim()) nuevos.carrera = "Ingresá la carrera o el título.";
     if (!datos.institucion.trim()) nuevos.institucion = "Ingresá la institución.";
-    if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.desde) nuevos.desde = MENSAJE_FALTA_ANIO;
+    else if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.hasta && !cursando) nuevos.hasta = MENSAJE_FALTA_ANIO;
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
 
@@ -93,8 +97,12 @@ export function ModalEducacion({ educacion, onCerrar, onGuardar }: ModalEducacio
           enCurso={cursando}
           etiquetaEnCurso="Estoy cursando"
           errorDesde={errores.desde}
+          errorHasta={errores.hasta}
           onDesde={(desde) => setDatos({ ...datos, desde })}
           onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onMesSinAnio={(campo, falta) =>
+            setMesSinAnio((previo) => ({ ...previo, [campo]: falta }))
+          }
           onEnCurso={setCursando}
         />
       </div>

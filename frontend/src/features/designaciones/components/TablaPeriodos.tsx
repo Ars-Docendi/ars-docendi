@@ -1,4 +1,4 @@
-import { Input, Table } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
@@ -14,7 +14,8 @@ import {
   type FiltrosPeriodos,
   type OrdenPeriodos,
 } from "./filtrosPeriodos";
-import { MenuAccionesPeriodo } from "./MenuAccionesPeriodo";
+import { IconoX } from "./lucide";
+import "./tablaPeriodos.css";
 
 interface TablaPeriodosProps {
   periodos: PeriodoDesignacion[];
@@ -162,11 +163,19 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
                 <Table.Cell>{formatearMesAnio(periodo.impactoHasta)}</Table.Cell>
                 <Table.Cell>{periodo.activo ? "Activo" : "Inactivo"}</Table.Cell>
                 <Table.Cell>
-                  <MenuAccionesPeriodo
-                    periodo={periodo}
-                    onEditar={onEditar}
-                    onEliminar={onEliminar}
-                  />
+                  <div className="adoc-periodos-acc">
+                    <Button variant="ghost" size="sm" onClick={() => onEditar(periodo)}>
+                      Editar
+                    </Button>
+                    <button
+                      type="button"
+                      className="adoc-periodos-eliminar"
+                      aria-label={`Eliminar período ${periodo.nombre}`}
+                      onClick={() => onEliminar(periodo)}
+                    >
+                      <IconoX />
+                    </button>
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))

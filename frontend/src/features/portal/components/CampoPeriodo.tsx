@@ -1,6 +1,6 @@
-import { Checkbox, Input, Select } from "@ars-docendi/ui";
+import { Checkbox, MonthYearPicker } from "@ars-docendi/ui";
 
-import { MESES, anioDe, componerFecha, mesDe } from "../formato";
+import type { MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
 
 interface SelectorFechaProps {
@@ -9,7 +9,7 @@ interface SelectorFechaProps {
   requerido?: boolean;
   error?: string;
   deshabilitado?: boolean;
-  onChange: (fecha: string) => void;
+  onChange: (fecha: string, faltaAnio: boolean) => void;
 }
 
 /** Mes (opcional) + año. El mes solo hace falta para desempatar dentro del año. */
@@ -21,9 +21,6 @@ function SelectorFecha({
   deshabilitado,
   onChange,
 }: SelectorFechaProps) {
-  const anio = anioDe(valor);
-  const mes = mesDe(valor);
-
   return (
     // No se usa `Field`: clona su hijo para inyectar el id, y acá hay dos
     // controles. Cada uno lleva su propia etiqueta accesible.
@@ -32,32 +29,13 @@ function SelectorFecha({
         {etiqueta}
         {requerido && <span aria-hidden="true"> *</span>}
       </span>
-      <div className="portal-fecha">
-        <Select
-          value={mes}
-          aria-label={`Mes de ${etiqueta.toLowerCase()}`}
-          disabled={deshabilitado}
-          invalid={Boolean(error)}
-          onChange={(e) => onChange(componerFecha(anio, e.target.value))}
-        >
-          <option value="">Mes</option>
-          {MESES.map((m) => (
-            <option value={m.valor} key={m.valor}>
-              {m.nombre}
-            </option>
-          ))}
-        </Select>
-        <Input
-          value={anio}
-          inputMode="numeric"
-          maxLength={4}
-          placeholder="Año"
-          aria-label={`Año de ${etiqueta.toLowerCase()}`}
-          disabled={deshabilitado}
-          aria-invalid={Boolean(error) || undefined}
-          onChange={(e) => onChange(componerFecha(e.target.value.replace(/\D/g, ""), mes))}
-        />
-      </div>
+      <MonthYearPicker
+        value={valor}
+        aria-label={etiqueta}
+        disabled={deshabilitado}
+        invalid={Boolean(error)}
+        onChange={(fecha, { missingYear }) => onChange(fecha, missingYear)}
+      />
       {error && <span className="portal-campo-error">{error}</span>}
     </div>
   );
@@ -70,9 +48,12 @@ interface CampoPeriodoProps {
   /** Texto de la opción de "sigue vigente", propio de cada sección. */
   etiquetaEnCurso: string;
   errorDesde?: string;
+  errorHasta?: string;
   onDesde: (fecha: string) => void;
   onHasta: (fecha: string) => void;
   onEnCurso: (enCurso: boolean) => void;
+  /** Avisa cuando un campo queda con mes elegido y sin año, para bloquear el guardado. */
+  onMesSinAnio?: (campo: keyof MesSinAnio, faltaAnio: boolean) => void;
 }
 
 /** Período desde–hasta con mes opcional y la opción de marcarlo en curso. */
@@ -82,9 +63,11 @@ export function CampoPeriodo({
   enCurso,
   etiquetaEnCurso,
   errorDesde,
+  errorHasta,
   onDesde,
   onHasta,
   onEnCurso,
+  onMesSinAnio,
 }: CampoPeriodoProps) {
   return (
     <>
@@ -94,13 +77,20 @@ export function CampoPeriodo({
           valor={desde}
           requerido
           error={errorDesde}
-          onChange={onDesde}
+          onChange={(fecha, faltaAnio) => {
+            onDesde(fecha);
+            onMesSinAnio?.("desde", faltaAnio);
+          }}
         />
         <SelectorFecha
           etiqueta="Hasta"
           valor={enCurso ? "" : (hasta ?? "")}
           deshabilitado={enCurso}
-          onChange={onHasta}
+          error={enCurso ? undefined : errorHasta}
+          onChange={(fecha, faltaAnio) => {
+            onHasta(fecha);
+            onMesSinAnio?.("hasta", faltaAnio);
+          }}
         />
       </div>
       <Checkbox

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaMisPedidos } from "../components/TablaMisPedidos";
-import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 import { IconoArrowLeft, IconoArrowRight, IconoPlus } from "../components/lucide";
 import {
   aplicarFiltrosYOrdenMisPedidos,
@@ -16,6 +16,7 @@ import { useMisPedidos } from "../hooks/usePedidos";
 import { useEliminarPedido } from "../hooks/useAccionesPedido";
 import type { PedidoDesignacion } from "../types";
 import "./misPedidos.css";
+import { estadoOrigen } from "./origenDetalle";
 
 const PAGE_SIZE = 9;
 
@@ -65,15 +66,10 @@ export function MisPedidosPage() {
     <>
       <Breadcrumbs
         separator="›"
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: "Designaciones" },
-          { label: "Mis pedidos" },
-        ]}
+        items={[{ label: "Inicio", href: "/" }, { label: "Mis pedidos" }]}
       />
       <PageHeader
-        pretitle="Designaciones"
-        title="Mis pedidos de designación"
+        title="Mis pedidos"
         meta={
           isLoading
             ? "Cargando…"
@@ -120,7 +116,9 @@ export function MisPedidosPage() {
               orden={orden}
               onFiltrosChange={actualizarFiltros}
               onOrdenChange={actualizarOrden}
-              onVerDetalle={(p) => navegar(`/designaciones/pedidos/${p.id}`)}
+              onVerDetalle={(p) =>
+                navegar(`/designaciones/pedidos/${p.id}`, { state: estadoOrigen("mis-pedidos") })
+              }
               onEditar={(p) => navegar(`/designaciones/pedidos/${p.id}/editar`)}
               onEliminar={(p) => setPedidoAEliminar(p)}
             />
@@ -170,12 +168,18 @@ export function MisPedidosPage() {
         </div>
       )}
 
-      <ModalEliminarPedido
+      <ModalConfirmarEliminar
         open={pedidoAEliminar !== undefined}
         onOpenChange={(open) => {
           if (!open) setPedidoAEliminar(undefined);
         }}
-        pedido={pedidoAEliminar}
+        titulo="Eliminar pedido"
+        objeto={
+          <>
+            el pedido {pedidoAEliminar?.numero ?? "sin número"} de{" "}
+            <strong>"{pedidoAEliminar?.docente.nombre}"</strong>
+          </>
+        }
         error={eliminar.isError ? eliminar.error.message : undefined}
         eliminando={eliminar.isPending}
         onConfirmar={handleConfirmarEliminar}

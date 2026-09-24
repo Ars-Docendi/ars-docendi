@@ -5,7 +5,7 @@ import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemProyecto } from "./ItemsPerfil";
 import { ModalProyecto } from "./ModalProyecto";
-import { ModalConfirmarEliminar } from "./ModalConfirmarEliminar";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 
 interface SeccionProyectosProps {
   items: Proyecto[];
@@ -41,7 +41,7 @@ export function SeccionProyectos({ items, onCambio }: SeccionProyectosProps) {
         open={s.aEliminar !== null}
         onOpenChange={(abierto) => !abierto && s.cancelarBorrado()}
         titulo="Eliminar proyecto"
-        nombre={s.aEliminar?.nombre ?? ""}
+        objeto={<strong>"{s.aEliminar?.nombre}"</strong>}
         onConfirmar={() => {
           if (s.aEliminar) onCambio(eliminarPorId(items, s.aEliminar.id));
           s.cancelarBorrado();
