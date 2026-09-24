@@ -15,6 +15,11 @@ export interface ActorTarea {
   rol: Rol;
 }
 
+/** Persona tal como la devuelve la API: id de usuario, nombre para mostrar y su rol de mayor jerarquía. */
+export interface PersonaTarea extends ActorTarea {
+  id: string;
+}
+
 export interface ComentarioTarea {
   id: string;
   autor: string;
@@ -31,13 +36,13 @@ export interface EventoHistorialTarea {
   porRol: Rol;
   porNombre: string;
   estado: EstadoTarea; // estado de la tarea al momento del evento
-  detalle?: string;
+  detalle?: string | null;
   fecha: string; // ISO
 }
 
 export interface Tarea {
   id: string;
-  numero: number; // correlativo legible, asignado por el store al crear
+  numero: number; // correlativo legible, asignado por la base al crear
   titulo: string;
   descripcion: string;
   fechaInicio: string; // ISO (solo fecha, yyyy-mm-dd)
@@ -46,13 +51,13 @@ export interface Tarea {
   tipo: TipoTarea;
   estado: EstadoTarea;
   porcentajeAvance: number; // 0-100, lo completa el Responsable
-  solucion?: string; // detalle de resolución; obligatorio al pasar a "resuelta"
-  responsable: ActorTarea;
-  creadoPor: ActorTarea;
-  comentarios: ComentarioTarea[];
-  historial: EventoHistorialTarea[];
-  proyectoId?: string; // opcional en tareas de primer nivel; heredado obligatorio si tareaPadreId existe
-  tareaPadreId?: string; // presente solo si es una tarea hija
+  solucion?: string | null; // detalle de resolución; obligatorio al pasar a "resuelta"
+  responsable: PersonaTarea;
+  creadoPor: PersonaTarea;
+  comentarios: ComentarioTarea[]; // vacío en el listado; el detalle los trae
+  historial: EventoHistorialTarea[]; // vacío en el listado; el detalle los trae
+  proyectoId?: string | null; // opcional en tareas de primer nivel; heredado obligatorio si tareaPadreId existe
+  tareaPadreId?: string | null; // presente solo si es una tarea hija
   tareasRelacionadasIds: string[]; // vínculo simple bidireccional, sin jerarquía
 }
 
@@ -64,25 +69,22 @@ export interface DatosEditablesTarea {
   fechaFin: string;
   prioridad: Prioridad;
   tipo: TipoTarea;
-  responsable: ActorTarea;
+  responsableId: string;
   proyectoId?: string;
 }
 
-/** Candidato a Responsable/Autor, para el combobox buscable. Ver `api/personasSeed.ts`. */
-export interface PersonaCandidata {
-  nombre: string;
-  rol: Rol;
-}
+/** Candidato a Responsable devuelto por `GET /api/tareas/candidatos` (ya filtrado por la jerarquía). */
+export type PersonaCandidata = PersonaTarea;
 
 export interface Proyecto {
   id: string;
-  numero: number; // correlativo legible, asignado por el store al crear
+  numero: number; // correlativo legible, asignado por la base al crear
   nombre: string;
   descripcion: string;
   fechaInicio: string; // ISO (solo fecha)
   fechaFin: string; // ISO (solo fecha)
   estado: EstadoProyecto;
-  responsable: ActorTarea; // restringido a rol Secretaría o Decanato
+  responsable: PersonaTarea; // Decanato o Secretaría Académica
 }
 
 /** Subconjunto editable de un proyecto (lo que el form de alta produce). */
@@ -91,5 +93,5 @@ export interface DatosEditablesProyecto {
   descripcion: string;
   fechaInicio: string;
   fechaFin: string;
-  responsable: ActorTarea;
+  responsableId: string;
 }

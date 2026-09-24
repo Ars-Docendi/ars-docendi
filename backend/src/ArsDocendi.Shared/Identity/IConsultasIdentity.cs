@@ -46,6 +46,14 @@ public interface IConsultasIdentity
     /// </summary>
     Task<IReadOnlyList<string>> ObtenerCodigosDeRolesDeSistemaAsync(Guid usuarioId, CancellationToken ct);
 
+    /// <summary>
+    /// Roles de SISTEMA vigentes (código y nombre) de cada usuario indicado. Los usuarios
+    /// inactivos o sin roles de sistema no aparecen en el diccionario. Sirve para mostrar
+    /// el rol de una persona en respuestas sin consultar usuario por usuario.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
+        IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct);
+
     /// <summary>Códigos de permiso efectivos del usuario, unión de todos sus roles vigentes.</summary>
     Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct);
 
@@ -75,3 +83,6 @@ public interface IConsultasIdentity
     /// <summary>Cuentas canónicas para resolver actores en respuestas de auditoría.</summary>
     Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct);
 }
+
+/// <summary>Rol de sistema de un usuario: código estable y nombre para mostrar.</summary>
+public sealed record RolDeSistema(string Codigo, string Nombre);

@@ -5,8 +5,7 @@ import { TablaTareas } from "../components/TablaTareas";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
 import { IconoArrowLeft, IconoBan, IconoCircleCheck } from "../components/lucide";
 import { formatearFecha } from "../components/detalleAdapters";
-import { puedeCambiarEstadoProyecto } from "../api/maquinaEstadosProyecto";
-import { useActorTareas } from "../hooks/useActorTareas";
+import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useProyecto } from "../hooks/useProyectos";
 import { useCambiarEstadoProyecto } from "../hooks/useAccionesProyecto";
@@ -20,12 +19,11 @@ const RUTA_PROYECTOS = "/tareas/proyectos";
 export function DetalleProyectoPage() {
   const { id } = useParams();
   const navegar = useNavigate();
-  const actor = useActorTareas();
   const { data: proyecto, isLoading, isError } = useProyecto(id);
   const { data: tareas = [] } = useListadoTareas();
-  const cambiarEstado = useCambiarEstadoProyecto(actor);
+  const cambiarEstado = useCambiarEstadoProyecto();
 
-  const puedeCambiar = puedeCambiarEstadoProyecto(actor);
+  const { puedeGestionarProyectos: puedeCambiar } = usePermisosTareas();
   const tareasDelProyecto = proyecto
     ? tareas.filter((t: Tarea) => t.proyectoId === proyecto.id)
     : [];

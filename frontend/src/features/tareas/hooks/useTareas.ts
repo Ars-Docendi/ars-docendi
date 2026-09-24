@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { listarTareas, obtenerTarea } from "../api/tareasApi";
+import { listarCandidatos, listarTareas, obtenerTarea } from "../api/tareasApi";
 
 /** Lista todas las tareas — el listado es el mismo para todos los roles. */
 export function useListadoTareas() {
@@ -15,5 +15,17 @@ export function useTarea(id: string | undefined) {
     queryKey: ["tareas", id],
     queryFn: () => obtenerTarea(id ?? ""),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * Usuarios que el actor puede asignar como Responsable de una tarea (o de un proyecto). El
+ * servidor ya aplica la jerarquía; solo se consulta con el formulario abierto.
+ */
+export function useCandidatosResponsable(paraProyecto: boolean, habilitado: boolean) {
+  return useQuery({
+    queryKey: ["tareas-candidatos", paraProyecto],
+    queryFn: () => listarCandidatos(paraProyecto),
+    enabled: habilitado,
   });
 }

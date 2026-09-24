@@ -15,3 +15,20 @@ export function useActorTareas(): ActorTarea {
   }
   return { nombre: user.name, rol: user.role };
 }
+
+/**
+ * Qué puede hacer el usuario en Tareas, según los permisos de su rol vigente (no su nombre de
+ * rol): `tareas.gestionar` crea tareas, `proyectos.gestionar` crea y gestiona proyectos.
+ * Ver el listado (`tareas.ver`) lo controla el menú lateral. El servidor vuelve a validar todo.
+ */
+export function usePermisosTareas(): {
+  puedeCrearTarea: boolean;
+  puedeGestionarProyectos: boolean;
+} {
+  const { user } = useCurrentUser();
+  const permisos = user?.permissions ?? [];
+  return {
+    puedeCrearTarea: permisos.includes("tareas.gestionar"),
+    puedeGestionarProyectos: permisos.includes("proyectos.gestionar"),
+  };
+}

@@ -16,6 +16,9 @@ public static class Permisos
     public const string DesignacionesAprobarDecanato = "designaciones.aprobar_decanato";
     public const string DesignacionesRevisar = "designaciones.revisar";
     public const string DocentesVer = "docentes.ver";
+    public const string TareasVer = "tareas.ver";
+    public const string TareasGestionar = "tareas.gestionar";
+    public const string ProyectosGestionar = "proyectos.gestionar";
 
     public static readonly string[] Todos =
     [
@@ -32,5 +35,8 @@ public static class Permisos
         DesignacionesAprobarDecanato,
         DesignacionesRevisar,
         DocentesVer,
+        TareasVer,
+        TareasGestionar,
+        ProyectosGestionar,
     ];
 }

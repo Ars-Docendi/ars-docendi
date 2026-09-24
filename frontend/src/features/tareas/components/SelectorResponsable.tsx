@@ -33,7 +33,7 @@ export function SelectorResponsable({
     <ComboboxBuscable
       valorSeleccionado={valor}
       opciones={personas.map((p) => ({
-        value: p.nombre,
+        value: p.id,
         label: `${p.nombre} — ${p.rol}`,
       }))}
       placeholder="Buscar persona…"

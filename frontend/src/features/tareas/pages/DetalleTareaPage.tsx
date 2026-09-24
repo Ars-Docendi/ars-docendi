@@ -11,8 +11,8 @@ import { TareasHijas } from "../components/TareasHijas";
 import { IconoArrowLeft, IconoBan, IconoSquarePen } from "../components/lucide";
 import { formatearFecha, historialAAuditEntries } from "../components/detalleAdapters";
 import { estadoSemaforo, muestraSemaforo } from "../components/semaforoTarea";
-import { puedeCambiarEstado, puedeCrearTarea, puedeEditarCampos } from "../api/maquinaEstadosTarea";
-import { useActorTareas } from "../hooks/useActorTareas";
+import { puedeCambiarEstado, puedeEditarCampos } from "../api/maquinaEstadosTarea";
+import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas, useTarea } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
 import {
@@ -59,11 +59,11 @@ export function DetalleTareaPage() {
   const { data: todas = [] } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
 
-  const cambiarEstado = useCambiarEstadoTarea(actor);
-  const editarAvance = useEditarAvance(actor);
-  const editarTarea = useEditarTarea(actor);
-  const agregarComentario = useAgregarComentario(actor);
-  const crearTarea = useCrearTarea(actor);
+  const cambiarEstado = useCambiarEstadoTarea();
+  const editarAvance = useEditarAvance();
+  const editarTarea = useEditarTarea();
+  const agregarComentario = useAgregarComentario();
+  const crearTarea = useCrearTarea();
   const agregarRelacion = useAgregarRelacion();
   const quitarRelacion = useQuitarRelacion();
   const enviando = cambiarEstado.isPending || editarAvance.isPending;
@@ -187,7 +187,7 @@ function DetalleCargado({
 
   const puedeEditar = puedeEditarCampos(tarea, actor);
   const puedeCancelar = puedeCambiarEstado(tarea, actor, "cancelada");
-  const puedeCrearHija = puedeCrearTarea(actor);
+  const { puedeCrearTarea: puedeCrearHija } = usePermisosTareas();
 
   const proyecto = tarea.proyectoId ? proyectos.find((p) => p.id === tarea.proyectoId) : undefined;
   const padre = tarea.tareaPadreId ? todas.find((t) => t.id === tarea.tareaPadreId) : undefined;
@@ -344,7 +344,6 @@ function DetalleCargado({
 
       <ModalNuevaTarea
         open={modalEditarAbierto}
-        actor={actor}
         tarea={tarea}
         proyectos={proyectos}
         onCerrar={() => setModalEditarAbierto(false)}
@@ -355,7 +354,6 @@ function DetalleCargado({
 
       <ModalNuevaTarea
         open={modalHijaAbierto}
-        actor={actor}
         tareaPadre={tarea}
         proyectos={proyectos}
         onCerrar={() => setModalHijaAbierto(false)}

@@ -17,7 +17,7 @@ Este change sigue el mismo patrón para Tareas: no hay necesidad de diseño de A
 
 **Non-Goals:**
 
-- Persistencia real / API HTTP de `Modules.Tareas` (el store vive en `localStorage`, por navegador, no compartido entre usuarios — igual que Docentes/Roles/Usuarios hoy). Incluye a Proyectos: mismo mock store, mismo trade-off.
+- Persistencia real / API HTTP de `Modules.Tareas` en la etapa de frontend (el store vive en `localStorage`, por navegador, no compartido entre usuarios); la etapa de backend (sección "Backend" abajo) lo reemplaza.
 - Sistema de permisos configurable (eso es `roles-membresia`, change de otro equipo — este change solo lee `Role` vía `useCurrentUser`, no lo modifica).
 - Asignación múltiple, adjuntos, notificaciones, parametrización del umbral del semáforo.
 - Cálculo automático del Estado o el `porcentajeAvance` de una tarea padre en base a sus tareas hijas — se editan a mano, igual que cualquier tarea (decisión explícita, ver Decisions).
@@ -187,3 +187,21 @@ export function puedeAsignarComoResponsable(
 - ¿El comentario al marcar `pausa` es obligatorio (bloquea la transición si está vacío) u opcional? Asumido: obligatorio, para que la autoridad siempre vea el motivo de la consulta. A confirmar en la definición de flujo detallada.
 - ¿Reabrir una tarea `resuelta` o revertir una `cancelada` queda dentro de alcance de este change, o se pospone? Asumido en este diseño: sí, como acción disponible solo para la autoridad creadora. A confirmar.
 - ¿`porcentajeAvance` debe sincronizarse automáticamente con el Estado (ej. `resuelta` ⇒ 100%)? Asumido: no, son campos independientes que el Responsable completa por separado. A confirmar.
+
+## Backend (`Modules.Tareas`)
+
+Se implementa siguiendo la anatomía de `Modules.Portal` (Api → Application → Repositories → Domain → Infrastructure, DDL en `database/tareas/`, migración EF que ejecuta el SQL embebido, entidades mapeadas con `ExcludeFromMigrations`).
+
+**Permisos** — el acceso es por permiso del rol vigente, nunca por nombre de rol. La migración de Identity `012_identity_permisos_tareas.sql` agrega `proyectos.gestionar` y reparte: `tareas.ver` a todos los roles de sistema; `tareas.gestionar` a Decanato, Secretaría Académica y Administrativo (Decanato no lo tenía); `proyectos.gestionar` a Decanato y Secretaría Académica. Los endpoints usan las políticas `tareas.ver` / `tareas.gestionar` / `proyectos.gestionar` ya registradas desde `Permisos.Todos`. Cambiar estado/avance no exige `tareas.gestionar` (el Responsable puede ser un Docente): lo decide la identidad (Responsable o autoridad creadora) dentro del servicio.
+
+**Personas** — Responsable, Autor y autores de comentario se guardan como `usuario_id` (UUID de `identity.users`), sin FK entre schemas. Nombre y rol de las respuestas se resuelven leyendo Identity (`IConsultasIdentity`, solo lectura): se agrega `ObtenerRolesDeSistemaAsync(usuarioIds)` (código + nombre de los roles de sistema vigentes). El "rol" que muestra la API es el de mayor jerarquía del usuario.
+
+**Jerarquía** — `Domain/JerarquiaAsignacion.cs`: orden por código de rol `decanato > secretaria > administrativo > coordinador_carrera > jefe_catedra > docente`. El rango del actor sale de sus roles de sistema en la sesión (mismo criterio que `ResolutorActor` de Designaciones: `ICurrentUser.Roles` ∩ roles persistidos); un rol fuera de la escala (`sys_admin`) no puede asignar. Un Responsable con varios roles se evalúa por su rol de mayor rango.
+
+**Dominio** — `Domain/MaquinaEstadosTarea.cs` es un port a C# de `maquinaEstadosTarea.ts`: funciones sin I/O que validan los guards, mutan la tarea cargada y lanzan `ExcepcionAplicacion` (`Prohibido` → 403, `ReglaDeNegocio` → 422, `Validacion` → 400), que el manejador de excepciones del Host ya traduce a Problem Details. La tarea hija toma el `proyecto_id` del padre en el servicio; no hay rollup hacia el padre.
+
+**Datos** — `database/tareas/001_tareas.sql`: `proyectos`, `tareas` (auto-FK `tarea_padre_id`, CHECKs de estado/tipo/prioridad/avance/fechas), `tarea_relaciones` (una fila por par, `tarea_id < relacionada_id`), `tarea_comentarios`, `tarea_historial`; `numero` desde secuencia; `audit.attach` sobre las tablas de negocio.
+
+**API** — `GET/POST /api/tareas`, `GET/PUT /api/tareas/{id}`, `POST /{id}/estado`, `PATCH /{id}/avance`, `POST /{id}/comentarios`, `POST|DELETE /{id}/relaciones[/{otraId}]`, `GET /api/tareas/candidatos`, `GET/POST /api/tareas/proyectos`, `GET /api/tareas/proyectos/{id}`, `POST /api/tareas/proyectos/{id}/estado`.
+
+**Frontend** — los seams `tareasApi.ts` / `proyectosApi.ts` pasan de los stores mock a `apiClient` manteniendo firmas; `puedeCrearTarea` / `puedeCrearProyecto` se derivan de `user.permissions` (`tareas.gestionar` / `proyectos.gestionar`); el selector de Responsable consume `/candidatos` en vez de `personasSeed.ts`. Se eliminan stores y seeds mock.

@@ -10,20 +10,11 @@ import {
   Textarea,
 } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
-import { PERSONAS_CANDIDATAS } from "../api/personasSeed";
-import { puedeAsignarComoResponsable } from "../api/maquinaEstadosTarea";
-import type {
-  ActorTarea,
-  DatosEditablesTarea,
-  Prioridad,
-  Proyecto,
-  Tarea,
-  TipoTarea,
-} from "../types";
+import { useCandidatosResponsable } from "../hooks/useTareas";
+import type { DatosEditablesTarea, Prioridad, Proyecto, Tarea, TipoTarea } from "../types";
 
 interface ModalNuevaTareaProps {
   open: boolean;
-  actor: ActorTarea;
   /** Presente en modo edición: precarga el formulario con sus datos. */
   tarea?: Tarea;
   /** Presente al crear una tarea hija: el Proyecto se hereda de acá, no se ofrece elegirlo. */
@@ -65,7 +56,7 @@ function datosIniciales(tarea: Tarea | undefined): typeof VACIO {
     fechaFin: tarea.fechaFin,
     prioridad: tarea.prioridad,
     tipo: tarea.tipo,
-    responsable: tarea.responsable.nombre,
+    responsable: tarea.responsable.id,
     proyectoId: tarea.proyectoId ?? "",
   };
 }
@@ -79,7 +70,6 @@ function datosIniciales(tarea: Tarea | undefined): typeof VACIO {
  */
 export function ModalNuevaTarea({
   open,
-  actor,
   tarea,
   tareaPadre,
   proyectos,
@@ -109,11 +99,14 @@ export function ModalNuevaTarea({
     ? (proyectos.find((p) => p.id === tareaPadre.proyectoId)?.nombre ?? null)
     : null;
 
-  // Solo se puede asignar a alguien del mismo nivel jerárquico o inferior
-  // al del actor (nunca superior) — ver `maquinaEstadosTarea.ts`.
-  const candidatosResponsable = PERSONAS_CANDIDATAS.filter((p) =>
-    puedeAsignarComoResponsable(actor, p),
-  );
+  // El servidor devuelve solo a quienes el actor puede asignar (mismo nivel jerárquico o
+  // inferior). Al editar se conserva al Responsable actual aunque ya no figure en la lista,
+  // para que el campo lo siga mostrando.
+  const { data: candidatosServidor = [] } = useCandidatosResponsable(false, open);
+  const candidatosResponsable =
+    tarea && !candidatosServidor.some((c) => c.id === tarea.responsable.id)
+      ? [tarea.responsable, ...candidatosServidor]
+      : candidatosServidor;
 
   function handleCerrar() {
     setCampos(VACIO);
@@ -127,9 +120,6 @@ export function ModalNuevaTarea({
     if (!titulo || !fechaInicio || !fechaFin || !prioridad || !tipo || !responsable) return;
     if (fechaFin < fechaInicio) return;
 
-    const persona = candidatosResponsable.find((p) => p.nombre === responsable);
-    if (!persona) return;
-
     onGuardar({
       titulo,
       descripcion: campos.descripcion,
@@ -137,7 +127,7 @@ export function ModalNuevaTarea({
       fechaFin,
       prioridad,
       tipo,
-      responsable: persona,
+      responsableId: responsable,
       proyectoId: esHija ? undefined : campos.proyectoId || undefined,
     });
   }
@@ -261,7 +251,7 @@ export function ModalNuevaTarea({
           >
             <SelectorResponsable
               valor={campos.responsable}
-              onChange={(nombre) => set("responsable", nombre)}
+              onChange={(id) => set("responsable", id)}
               personas={candidatosResponsable}
               ariaLabel="Responsable de la tarea"
               invalid={enviado && !campos.responsable}

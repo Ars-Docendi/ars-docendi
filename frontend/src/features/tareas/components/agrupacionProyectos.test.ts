@@ -14,8 +14,8 @@ function tarea(overrides: Partial<Tarea> = {}): Tarea {
     tipo: "administrativa",
     estado: "pendiente",
     porcentajeAvance: 0,
-    responsable: { nombre: "G. Ruiz", rol: "Jefe de Cátedra" },
-    creadoPor: { nombre: "L. Fernández", rol: "Secretaría Académica" },
+    responsable: { id: "u-G. Ruiz", nombre: "G. Ruiz", rol: "Jefe de Cátedra" },
+    creadoPor: { id: "u-L. Fernández", nombre: "L. Fernández", rol: "Secretaría Académica" },
     comentarios: [],
     historial: [],
     tareasRelacionadasIds: [],
@@ -32,7 +32,7 @@ function proyecto(overrides: Partial<Proyecto> = {}): Proyecto {
     fechaInicio: "2026-01-01",
     fechaFin: "2026-06-01",
     estado: "abierto",
-    responsable: { nombre: "R. Sosa", rol: "Decanato" },
+    responsable: { id: "u-R. Sosa", nombre: "R. Sosa", rol: "Decanato" },
     ...overrides,
   };
 }

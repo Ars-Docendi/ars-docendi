@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cambiarEstadoProyecto, crearProyecto } from "../api/proyectosApi";
-import type { ActorTarea, DatosEditablesProyecto, EstadoProyecto } from "../types";
+import type { DatosEditablesProyecto, EstadoProyecto } from "../types";
 
 interface ParamsCambiarEstado {
   id: string;
@@ -8,20 +8,20 @@ interface ParamsCambiarEstado {
 }
 
 /** Crea un proyecto en Abierto. Invalida el listado al terminar. */
-export function useCrearProyecto(actor: ActorTarea) {
+export function useCrearProyecto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (datos: DatosEditablesProyecto) => crearProyecto(datos, actor),
+    mutationFn: (datos: DatosEditablesProyecto) => crearProyecto(datos),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proyectos"] }),
   });
 }
 
-/** Cambia el estado de un proyecto (Finalizado/Cancelado), restringido por rol. */
-export function useCambiarEstadoProyecto(actor: ActorTarea) {
+/** Cambia el estado de un proyecto (Finalizado/Cancelado), restringido por permiso. */
+export function useCambiarEstadoProyecto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, estadoDestino }: ParamsCambiarEstado) =>
-      cambiarEstadoProyecto(id, estadoDestino, actor),
+      cambiarEstadoProyecto(id, estadoDestino),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proyectos"] }),
   });
 }

@@ -8,7 +8,7 @@ import {
   editarTarea,
   quitarRelacion,
 } from "../api/tareasApi";
-import type { ActorTarea, DatosEditablesTarea, EstadoTarea } from "../types";
+import type { DatosEditablesTarea, EstadoTarea } from "../types";
 
 interface ParamsCrear {
   datos: DatosEditablesTarea;
@@ -44,48 +44,48 @@ interface ParamsComentario {
 }
 
 /** Crea una tarea en Pendiente (o una hija, si se pasa `tareaPadreId`). Invalida el listado al terminar. */
-export function useCrearTarea(actor: ActorTarea) {
+export function useCrearTarea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ datos, tareaPadreId }: ParamsCrear) => crearTarea(datos, actor, tareaPadreId),
+    mutationFn: ({ datos, tareaPadreId }: ParamsCrear) => crearTarea(datos, tareaPadreId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
 
 /** Edita los campos de una tarea (exclusivo de la autoridad creadora). */
-export function useEditarTarea(actor: ActorTarea) {
+export function useEditarTarea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, datos }: ParamsEditar) => editarTarea(id, datos, actor),
+    mutationFn: ({ id, datos }: ParamsEditar) => editarTarea(id, datos),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
 
 /** Cambia el estado de una tarea (Pausa exige comentario, Resuelta exige solución). */
-export function useCambiarEstadoTarea(actor: ActorTarea) {
+export function useCambiarEstadoTarea() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, estadoDestino, comentario, solucion }: ParamsCambiarEstado) =>
-      cambiarEstadoTarea(id, estadoDestino, actor, { comentario, solucion }),
+      cambiarEstadoTarea(id, estadoDestino, { comentario, solucion }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
 
 /** Actualiza el % de avance (Responsable o autoridad creadora). */
-export function useEditarAvance(actor: ActorTarea) {
+export function useEditarAvance() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, porcentajeAvance }: ParamsEditarAvance) =>
-      editarAvance(id, porcentajeAvance, actor),
+      editarAvance(id, porcentajeAvance),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
 
 /** Agrega un comentario interno al hilo de la tarea. */
-export function useAgregarComentario(actor: ActorTarea) {
+export function useAgregarComentario() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, texto }: ParamsComentario) => agregarComentario(id, actor, texto),
+    mutationFn: ({ id, texto }: ParamsComentario) => agregarComentario(id, texto),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }

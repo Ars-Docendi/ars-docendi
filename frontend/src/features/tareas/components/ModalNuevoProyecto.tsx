@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { Button, DatePicker, Field, InlineAlert, Input, Modal, Textarea } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
-import { PERSONAS_CANDIDATAS } from "../api/personasSeed";
-import { puedeAsignarComoResponsableProyecto } from "../api/maquinaEstadosProyecto";
-import type { ActorTarea, DatosEditablesProyecto } from "../types";
+import { useCandidatosResponsable } from "../hooks/useTareas";
+import type { DatosEditablesProyecto } from "../types";
 
 interface ModalNuevoProyectoProps {
   open: boolean;
-  actor: ActorTarea;
   onGuardar: (datos: DatosEditablesProyecto) => void;
   onCerrar: () => void;
   guardando?: boolean;
@@ -29,7 +27,6 @@ const VACIO = {
  */
 export function ModalNuevoProyecto({
   open,
-  actor,
   onGuardar,
   onCerrar,
   guardando = false,
@@ -38,9 +35,8 @@ export function ModalNuevoProyecto({
   const [campos, setCampos] = useState(VACIO);
   const [enviado, setEnviado] = useState(false);
 
-  const candidatosResponsable = PERSONAS_CANDIDATAS.filter((p) =>
-    puedeAsignarComoResponsableProyecto(actor, p),
-  );
+  // El servidor devuelve solo a Decanato/Secretaría Académica que el actor puede asignar.
+  const { data: candidatosResponsable = [] } = useCandidatosResponsable(true, open);
 
   function set<K extends keyof typeof VACIO>(campo: K, valor: (typeof VACIO)[K]) {
     setCampos((p) => ({ ...p, [campo]: valor }));
@@ -58,15 +54,12 @@ export function ModalNuevoProyecto({
     if (!nombre || !fechaInicio || !fechaFin || !responsable) return;
     if (fechaFin < fechaInicio) return;
 
-    const persona = candidatosResponsable.find((p) => p.nombre === responsable);
-    if (!persona) return;
-
     onGuardar({
       nombre,
       descripcion: campos.descripcion,
       fechaInicio,
       fechaFin,
-      responsable: persona,
+      responsableId: responsable,
     });
   }
 
@@ -156,7 +149,7 @@ export function ModalNuevoProyecto({
         >
           <SelectorResponsable
             valor={campos.responsable}
-            onChange={(nombre) => set("responsable", nombre)}
+            onChange={(id) => set("responsable", id)}
             personas={candidatosResponsable}
             ariaLabel="Responsable del proyecto"
             invalid={enviado && !campos.responsable}

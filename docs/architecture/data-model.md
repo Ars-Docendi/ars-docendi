@@ -10,7 +10,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `DesignacionesDbContext` → schema `designaciones`
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
-- `TareasDbContext` → schema `tareas`
+- `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial`; DDL en `database/tareas/`; las personas se guardan como `usuario_id` sin FK a `identity`)
 
 ### Dueño de `identity` y `audit`
 

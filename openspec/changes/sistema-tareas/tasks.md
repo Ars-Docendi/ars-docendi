@@ -148,3 +148,16 @@ Descubierto en la validación manual de la sección 11.7/11.8: `personasSeed.ts`
 
 - [x] 11.10.1 Renombrar el cuadro fijo "Sin proyecto" a "Generales" en `CuadroProyecto.tsx`, `agrupacionProyectos.ts` (comentarios/nombres internos) y las specs/`design.md`/`proposal.md` de `sistema-tareas` — mismo comportamiento (siempre primero, incluso vacío), solo cambia la etiqueta. No afecta al "Sin proyecto" que muestran `ModalNuevaTarea.tsx`/`DetalleTareaPage.tsx` para una tarea individual sin Proyecto asociado, que es un dato distinto.
 - [x] 11.10.2 Mostrar Fecha de Fin y % de avance en `TareasRelacionadas.tsx` y `TareasHijas.tsx` (esta última ya mostraba % de avance; se agregó la Fecha de Fin en ambas).
+
+## 12. Backend real (`Modules.Tareas`) y migración del frontend
+
+Spec: `specs/tareas-api/spec.md`. Diseño: sección "Backend" de `design.md`.
+
+- [x] 12.1 Permisos: `database/identity/012_identity_permisos_tareas.sql` + migración de Identity; constantes en `Permisos.cs`; `IConsultasIdentity.ObtenerRolesDeSistemaAsync`.
+- [x] 12.2 Schema `tareas`: `database/tareas/001_tareas.sql` (embebido en `Modules.Tareas.csproj`) + migración EF + `TareasDbContext` con las entidades.
+- [x] 12.3 Dominio: entidades, `JerarquiaAsignacion`, `MaquinaEstadosTarea` (+ `ErrorDominioTarea` mapeado a 422 en el Host).
+- [x] 12.4 Repositorios, servicios (`ServicioTareas`, `ServicioProyectos`, resolutor de actor/directorio) y controllers con las políticas de permiso.
+- [x] 12.5 Seed sintético de tareas/proyectos en `infra/scripts/seed-data/sintetico.sql`.
+- [x] 12.6 Tests de integración (permisos por rol, jerarquía, estados, hijas, relaciones, proyectos, numeración) y ajuste del conteo de operaciones de la superficie HTTP.
+- [x] 12.7 Frontend: seams sobre `apiClient`, permisos desde `user.permissions`, selector de Responsable desde `/candidatos`; retirar stores/seeds mock y sus tests.
+- [x] 12.8 Documentación: `docs/architecture/domains/tareas.md`, `data-model.md`, `api-contracts.md`, README del módulo.

@@ -7,9 +7,7 @@ import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
 import { ModalNuevoProyecto } from "../components/ModalNuevoProyecto";
 import { agruparTareasPorProyecto } from "../components/agrupacionProyectos";
 import { IconoPlus } from "../components/lucide";
-import { puedeCrearTarea } from "../api/maquinaEstadosTarea";
-import { puedeCrearProyecto } from "../api/maquinaEstadosProyecto";
-import { useActorTareas } from "../hooks/useActorTareas";
+import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearTarea } from "../hooks/useAccionesTarea";
@@ -19,11 +17,11 @@ import "./tareas.css";
 
 export function IndexPage() {
   const navegar = useNavigate();
-  const actor = useActorTareas();
+  const { puedeCrearTarea, puedeGestionarProyectos } = usePermisosTareas();
   const { data: tareas, isLoading, isError } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
-  const crearTarea = useCrearTarea(actor);
-  const crearProyecto = useCrearProyecto(actor);
+  const crearTarea = useCrearTarea();
+  const crearProyecto = useCrearProyecto();
 
   const [modalNuevaTareaAbierto, setModalNuevaTareaAbierto] = useState(false);
   const [modalNuevoProyectoAbierto, setModalNuevoProyectoAbierto] = useState(false);
@@ -55,12 +53,12 @@ export function IndexPage() {
         }
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {puedeCrearProyecto(actor) && (
+            {puedeGestionarProyectos && (
               <Button variant="secondary" onClick={() => setModalNuevoProyectoAbierto(true)}>
                 Nuevo Proyecto
               </Button>
             )}
-            {puedeCrearTarea(actor) && (
+            {puedeCrearTarea && (
               <Button
                 variant="primary"
                 leadingIcon={<IconoPlus />}
@@ -83,7 +81,7 @@ export function IndexPage() {
 
       {!isLoading && !isError && total === 0 && (
         <InlineAlert severity="info" title="Todavía no hay tareas cargadas">
-          {puedeCrearTarea(actor)
+          {puedeCrearTarea
             ? 'Empezá creando la primera tarea con "Nueva Tarea".'
             : "Cuando una autoridad cree una tarea, la vas a ver acá."}
         </InlineAlert>
@@ -103,7 +101,6 @@ export function IndexPage() {
 
       <ModalNuevaTarea
         open={modalNuevaTareaAbierto}
-        actor={actor}
         proyectos={proyectos}
         onCerrar={() => setModalNuevaTareaAbierto(false)}
         onGuardar={(datos) => {
@@ -115,7 +112,6 @@ export function IndexPage() {
 
       <ModalNuevoProyecto
         open={modalNuevoProyectoAbierto}
-        actor={actor}
         onCerrar={() => setModalNuevoProyectoAbierto(false)}
         onGuardar={(datos) => {
           crearProyecto.mutate(datos, { onSuccess: () => setModalNuevoProyectoAbierto(false) });

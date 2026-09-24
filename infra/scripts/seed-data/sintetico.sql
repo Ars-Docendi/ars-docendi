@@ -347,4 +347,101 @@ INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES
     ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000002', 'interes')
 ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
 
+-- Tareas y proyectos de ejemplo. Fechas relativas a "hoy" para que el semáforo de
+-- vencimiento se vea representativo cuando se siembra. Las personas son los usuarios
+-- sintéticos de arriba (guardadas por id, sin FK entre schemas).
+INSERT INTO tareas.proyectos
+    (id, nombre, descripcion, fecha_inicio, fecha_fin, estado, responsable_id) VALUES
+    ('f2000000-0000-4000-8000-000000000001', 'Nuevo sistema de Ingeniería para Testing',
+     'Modernización del entorno de pruebas de la carrera de Ingeniería.',
+     CURRENT_DATE - 20, CURRENT_DATE + 40, 'abierto', 'a0000000-0000-4000-8000-000000000005'),
+    ('f2000000-0000-4000-8000-000000000002', 'Digitalización del archivo histórico',
+     'Escaneo y catalogación de expedientes de alumnos anteriores a 2010.',
+     CURRENT_DATE - 5, CURRENT_DATE + 90, 'abierto', 'a0000000-0000-4000-8000-000000000004'),
+    ('f2000000-0000-4000-8000-000000000003', 'Migración a la nueva red edilicia',
+     'Cableado y wifi del edificio anexo.',
+     CURRENT_DATE - 120, CURRENT_DATE - 10, 'finalizado', 'a0000000-0000-4000-8000-000000000005'),
+    ('f2000000-0000-4000-8000-000000000004', 'Plataforma propia de videoconferencia',
+     'Se evaluó reemplazar la herramienta externa actual.',
+     CURRENT_DATE - 60, CURRENT_DATE - 30, 'cancelado', 'a0000000-0000-4000-8000-000000000004')
+ON CONFLICT (id) DO UPDATE SET
+    nombre = EXCLUDED.nombre, descripcion = EXCLUDED.descripcion,
+    fecha_inicio = EXCLUDED.fecha_inicio, fecha_fin = EXCLUDED.fecha_fin,
+    estado = EXCLUDED.estado, responsable_id = EXCLUDED.responsable_id;
+
+INSERT INTO tareas.tareas
+    (id, titulo, descripcion, fecha_inicio, fecha_fin, prioridad, tipo, estado,
+     porcentaje_avance, solucion, responsable_id, creado_por_id, proyecto_id, tarea_padre_id) VALUES
+    ('f3000000-0000-4000-8000-000000000001', 'Actualizar el padrón de aulas disponibles',
+     'Relevar qué aulas quedaron libres tras el cierre de inscripciones.',
+     CURRENT_DATE - 1, CURRENT_DATE + 19, 'media', 'administrativa', 'pendiente', 0, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000004', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000002', 'Cargar novedades de docentes en el sistema',
+     'Ingresar las altas/bajas informadas por las cátedras esta semana.',
+     CURRENT_DATE - 6, CURRENT_DATE + 4, 'alta', 'administrativa', 'en_curso', 45, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000004', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000003', 'Confirmar disponibilidad del laboratorio de Redes',
+     'Coordinar con mantenimiento el estado de las PCs antes del examen.',
+     CURRENT_DATE - 9, CURRENT_DATE + 1, 'alta', 'academica', 'en_curso', 70, NULL,
+     'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000004', 'Revisar el cupo de la comisión de Algoritmos',
+     'Confirmar si hace falta abrir una comisión extra para el próximo cuatrimestre.',
+     CURRENT_DATE - 3, CURRENT_DATE + 7, 'media', 'academica', 'pausa', 20, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000005', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000005', 'Actualizar el cartel de horarios de la secretaría',
+     'Reflejar el nuevo horario de atención al público.',
+     CURRENT_DATE - 12, CURRENT_DATE - 2, 'baja', 'administrativa', 'resuelta', 100,
+     'Se imprimió y colocó el nuevo cartel el lunes.',
+     'a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000004',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000006', 'Coordinar mesa examinadora extraordinaria',
+     'Se evaluó una mesa extra para rezagados de la cursada anterior.',
+     CURRENT_DATE - 8, CURRENT_DATE - 1, 'media', 'academica', 'cancelada', 10, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000007', 'Migrar el sistema de inscripciones al nuevo campus',
+     'Coordinar la migración completa antes del inicio del próximo cuatrimestre.',
+     CURRENT_DATE - 5, CURRENT_DATE + 25, 'alta', 'investigacion', 'en_curso', 15, NULL,
+     'a0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000008', 'Migrar el módulo de calificaciones',
+     'Portar las notas históricas sin perder el detalle por comisión.',
+     CURRENT_DATE - 4, CURRENT_DATE + 16, 'alta', 'investigacion', 'en_curso', 30, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000007'),
+    ('f3000000-0000-4000-8000-000000000009', 'Validar las notas migradas contra el sistema anterior',
+     'Muestreo comisión por comisión para confirmar que no se perdió información.',
+     CURRENT_DATE - 1, CURRENT_DATE + 9, 'media', 'investigacion', 'pendiente', 0, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000008')
+ON CONFLICT (id) DO UPDATE SET
+    titulo = EXCLUDED.titulo, descripcion = EXCLUDED.descripcion,
+    fecha_inicio = EXCLUDED.fecha_inicio, fecha_fin = EXCLUDED.fecha_fin,
+    prioridad = EXCLUDED.prioridad, tipo = EXCLUDED.tipo, estado = EXCLUDED.estado,
+    porcentaje_avance = EXCLUDED.porcentaje_avance, solucion = EXCLUDED.solucion,
+    responsable_id = EXCLUDED.responsable_id, creado_por_id = EXCLUDED.creado_por_id,
+    proyecto_id = EXCLUDED.proyecto_id, tarea_padre_id = EXCLUDED.tarea_padre_id;
+
+INSERT INTO tareas.tarea_relaciones (tarea_id, relacionada_id) VALUES
+    ('f3000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000002')
+ON CONFLICT (tarea_id, relacionada_id) DO NOTHING;
+
+INSERT INTO tareas.tarea_comentarios (id, tarea_id, autor_id, autor_rol, texto) VALUES
+    ('f4000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000004',
+     'a0000000-0000-4000-8000-000000000002', 'Jefe de Cátedra',
+     'Necesito confirmar el cupo real con Bedelía antes de seguir.')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO tareas.tarea_historial (id, tarea_id, accion, actor_id, actor_rol, estado, detalle) VALUES
+    ('f5000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000001', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000002', 'f3000000-0000-4000-8000-000000000002', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000003', 'f3000000-0000-4000-8000-000000000003', 'crear', 'a0000000-0000-4000-8000-000000000006', 'Administrativo', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000004', 'f3000000-0000-4000-8000-000000000004', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000005', 'f3000000-0000-4000-8000-000000000005', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000006', 'f3000000-0000-4000-8000-000000000006', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000007', 'f3000000-0000-4000-8000-000000000007', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000008', 'f3000000-0000-4000-8000-000000000008', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', 'pendiente', NULL),
+    ('f5000000-0000-4000-8000-000000000009', 'f3000000-0000-4000-8000-000000000009', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', 'pendiente', NULL)
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;
