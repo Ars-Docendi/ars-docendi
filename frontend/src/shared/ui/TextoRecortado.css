@@ -20,9 +20,10 @@
   height: 0;
   overflow: hidden;
   visibility: hidden;
-  /* Con salto de línea: el mínimo de la columna no crece (lo fija la caja) y el
-     preferido es el texto completo en una línea. */
+  /* Puede cortar en cualquier carácter (también mails y palabras largas): así el
+     mínimo de la columna lo fija la caja y el preferido es el texto en una línea. */
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Tooltip con el texto completo: mismo tamaño que el texto de la tabla. */

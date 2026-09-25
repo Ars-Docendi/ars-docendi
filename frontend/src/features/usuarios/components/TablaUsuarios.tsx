@@ -13,9 +13,14 @@ import {
 } from "../filtrosUsuarios";
 import { nombreCompleto, type UsuarioMock } from "../models";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 260px)";
+const ALTO_TABLA = "calc(100vh - 324px)";
+
+/** Anchos mínimos: el texto usa el espacio que haya y recorta con "…" si no alcanza. */
+const ANCHO_NOMBRE = 160;
+const ANCHO_EMAIL = 180;
 
 interface TablaUsuariosProps {
   usuarios: UsuarioMock[];
@@ -78,16 +83,16 @@ export function TablaUsuarios({
               sort={orden?.columna === "nombre" ? orden.direccion : null}
               onSortChange={() => cambiarOrden("nombre")}
             >
-              <Encabezado etiqueta="Apellido y Nombre">
+              <Encabezado etiqueta="Nombre">
                 <FiltroEncabezado
-                  etiqueta="Apellido y Nombre"
+                  etiqueta="Nombre"
                   activo={Boolean(filtros.apellidoNombre.trim())}
                   onLimpiar={() => limpiar("apellidoNombre")}
                 >
                   <Input
                     className="adoc-filtro-encabezado-campo"
                     placeholder="Buscar apellido o nombre…"
-                    aria-label="Buscar Apellido y Nombre"
+                    aria-label="Buscar Nombre"
                     value={filtros.apellidoNombre}
                     onChange={(evento) => cambiarFiltro("apellidoNombre", evento.target.value)}
                   />
@@ -138,16 +143,16 @@ export function TablaUsuarios({
               sort={orden?.columna === "upn" ? orden.direccion : null}
               onSortChange={() => cambiarOrden("upn")}
             >
-              <Encabezado etiqueta="UPN / Email">
+              <Encabezado etiqueta="Email">
                 <FiltroEncabezado
-                  etiqueta="UPN / Email"
+                  etiqueta="Email"
                   activo={Boolean(filtros.upn.trim())}
                   onLimpiar={() => limpiar("upn")}
                 >
                   <Input
                     className="adoc-filtro-encabezado-campo"
-                    placeholder="Buscar UPN o email…"
-                    aria-label="Buscar UPN / Email"
+                    placeholder="Buscar email…"
+                    aria-label="Buscar Email"
                     value={filtros.upn}
                     onChange={(evento) => cambiarFiltro("upn", evento.target.value)}
                   />
@@ -212,10 +217,14 @@ export function TablaUsuarios({
               data-inactivo={!usuario.is_active || undefined}
               {...propsFilaClickeable(() => onEditarUsuario(usuario))}
             >
-              <Table.Cell>{nombreCompleto(usuario)}</Table.Cell>
+              <Table.Cell>
+                <TextoRecortado texto={nombreCompleto(usuario)} anchoMinimo={ANCHO_NOMBRE} />
+              </Table.Cell>
               <Table.Cell className="adoc-mono">{usuario.documento}</Table.Cell>
               <Table.Cell className="adoc-mono">{usuario.legajo}</Table.Cell>
-              <Table.Cell>{usuario.upn}</Table.Cell>
+              <Table.Cell>
+                <TextoRecortado texto={usuario.upn} anchoMinimo={ANCHO_EMAIL} />
+              </Table.Cell>
               <Table.Cell>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                   {usuario.roles.map((rol) => (
@@ -232,7 +241,7 @@ export function TablaUsuarios({
               <Table.Cell>
                 {usuario.perfilDocente.esDocente ? (
                   <a href={`/docentes?personaId=${encodeURIComponent(usuario.persona_id)}`}>
-                    Ver docente · {usuario.perfilDocente.cantidadMaterias} materias
+                    Ver docente
                   </a>
                 ) : (
                   "No"
