@@ -85,4 +85,18 @@ describe("TablaDocentes", () => {
     expect(onEditar).not.toHaveBeenCalled();
     expect(screen.getByText("28341567").closest("tr")).not.toHaveClass("adoc-fila-clickeable");
   });
+
+  it("titula Nombre y recorta el nombre si no entra", () => {
+    render(
+      <TablaDocentes
+        docentes={[DOCENTE]}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditar={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Nombre" })).toBeInTheDocument();
+    expect(screen.getByText("López, Carla")).toHaveClass("adoc-texto-recortado");
+  });
 });

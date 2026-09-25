@@ -14,9 +14,13 @@ import {
 } from "../filtrosDocentes";
 import { nombreCompleto, type DocenteMock } from "../models";
 import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 260px)";
+const ALTO_TABLA = "calc(100vh - 324px)";
+
+/** Ancho mínimo del nombre: usa el espacio que haya y recorta con "…" si no alcanza. */
+const ANCHO_NOMBRE = 160;
 
 interface TablaDocentesProps {
   docentes: DocenteMock[];
@@ -82,16 +86,16 @@ export function TablaDocentes({
               sort={orden?.columna === "nombre" ? orden.direccion : null}
               onSortChange={() => cambiarOrden("nombre")}
             >
-              <Encabezado etiqueta="Apellido y Nombre">
+              <Encabezado etiqueta="Nombre">
                 <FiltroEncabezado
-                  etiqueta="Apellido y Nombre"
+                  etiqueta="Nombre"
                   activo={Boolean(filtros.apellidoNombre.trim())}
                   onLimpiar={() => limpiar("apellidoNombre")}
                 >
                   <Input
                     className="adoc-filtro-encabezado-campo"
                     placeholder="Buscar apellido o nombre…"
-                    aria-label="Buscar Apellido y Nombre"
+                    aria-label="Buscar Nombre"
                     value={filtros.apellidoNombre}
                     onChange={(evento) => cambiarFiltro("apellidoNombre", evento.target.value)}
                   />
@@ -237,7 +241,9 @@ export function TablaDocentes({
               data-inactivo={!docente.is_active || undefined}
               {...propsFilaClickeable(soloLectura ? undefined : () => onEditar(docente))}
             >
-              <Table.Cell>{nombreCompleto(docente)}</Table.Cell>
+              <Table.Cell>
+                <TextoRecortado texto={nombreCompleto(docente)} anchoMinimo={ANCHO_NOMBRE} />
+              </Table.Cell>
               <Table.Cell className="adoc-mono">{docente.documento}</Table.Cell>
               <Table.Cell className="adoc-mono">{docente.legajo}</Table.Cell>
               <Table.Cell>
