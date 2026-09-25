@@ -44,7 +44,7 @@ interface TablaRevisionProps {
 }
 
 /** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
-const ALTO_TABLA = "calc(100vh - 380px)";
+const ALTO_TABLA = "calc(100vh - 452px)";
 
 /** Ancho mínimo de Docente: usa el espacio que haya y recorta con "…" solo si no alcanza. */
 const ANCHO_DOCENTE = 180;
