@@ -72,10 +72,10 @@ export function ordenarTareas(tareas: Tarea[], orden: OrdenTareas | null): Tarea
 }
 
 /** Siguiente estado del ciclo del header: asc → desc → sin orden manual (vuelve al default). */
-export function siguienteOrden(
-  actual: OrdenTareas | null,
-  columna: ColumnaOrdenableTarea,
-): OrdenTareas | null {
+export function siguienteOrden<C extends string>(
+  actual: { columna: C; direccion: "asc" | "desc" } | null,
+  columna: C,
+): { columna: C; direccion: "asc" | "desc" } | null {
   if (actual?.columna !== columna) return { columna, direccion: "asc" };
   if (actual.direccion === "asc") return { columna, direccion: "desc" };
   return null;

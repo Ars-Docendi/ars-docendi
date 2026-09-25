@@ -194,3 +194,4 @@ Specs: `proyectos` (requirements "Pestaña Proyectos", "Edición de un Proyecto"
 - [x] 15.6 Detalle de Proyecto: botón "Nueva Tarea" (solo si el proyecto admite tareas) con el Proyecto preasignado (`proyectoFijo` en `ModalNuevaTarea`).
 - [x] 15.7 Un proyecto Cancelado no pasa a Finalizado (regla en `ServicioProyectos`, botón oculto en el detalle, test de integración).
 - [x] 15.8 Catálogos con clave numérica: `003_tareas_catalogos_id.sql` + migración `CatalogosTareasId`; entidades, servicio y seed usan `estado_id`/`prioridad_id`/`tipo_id`.
+- [x] 15.9 Listado de Proyectos con `TablaProyectos`: filtros por columna, orden por estado y luego fecha de inicio (`filtrosProyectos.ts`, `ordenProyectos.ts` + test).

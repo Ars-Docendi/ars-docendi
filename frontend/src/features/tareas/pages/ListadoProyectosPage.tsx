@@ -1,29 +1,27 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, Button, InlineAlert, Table } from "@ars-docendi/ui";
+import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
-import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
 import { ModalProyecto } from "../components/ModalProyecto";
+import { TablaProyectos } from "../components/TablaProyectos";
 import { IconoPlus } from "../components/lucide";
-import { formatearFecha } from "../components/detalleAdapters";
 import { usePermisosTareas } from "../hooks/useActorTareas";
-import { useListadoProyectos } from "../hooks/useProyectos";
+import { useEstadosProyecto, useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearProyecto } from "../hooks/useAccionesProyecto";
-import type { Proyecto } from "../types";
-import "../components/tablaTareas.css";
 
 const RUTA_TAREAS = "/tareas";
 
 /**
  * Pestaña Proyectos: listado con TODOS los proyectos, sin importar su Estado — es
  * también la vía de acceso a los Finalizados/Cancelados, que no tienen cuadro en la
- * pantalla inicial (esa solo cubre los Abiertos). Tabla simple, sin el modelo de
- * filtros/orden de `TablaTareas` — no son tareas, y el volumen esperado de proyectos
- * es mucho menor. Quien gestiona proyectos ve además el botón "Nuevo Proyecto".
+ * pantalla inicial (esa solo cubre los Abiertos). Usa `TablaProyectos`: filtros por columna
+ * y orden por estado y luego fecha de inicio. Quien gestiona proyectos ve además el botón
+ * "Nuevo Proyecto".
  */
 export function ListadoProyectosPage() {
   const navegar = useNavigate();
   const { data: proyectos, isLoading, isError } = useListadoProyectos();
+  const { data: estados = [] } = useEstadosProyecto();
   const { puedeGestionarProyectos } = usePermisosTareas();
   const crearProyecto = useCrearProyecto();
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -69,47 +67,11 @@ export function ListadoProyectosPage() {
       )}
 
       {!isLoading && !isError && proyectos && (
-        <div className="adoc-tabla-scroll">
-          <Table>
-            <Table.Root>
-              <Table.Head>
-                <Table.Row>
-                  <Table.HeaderCell>Nombre</Table.HeaderCell>
-                  <Table.HeaderCell>Responsable</Table.HeaderCell>
-                  <Table.HeaderCell>Fecha de fin</Table.HeaderCell>
-                  <Table.HeaderCell>Estado</Table.HeaderCell>
-                </Table.Row>
-              </Table.Head>
-              <Table.Body>
-                {proyectos.length === 0 ? (
-                  <Table.Row>
-                    <Table.Cell colSpan={4} className="empty">
-                      Todavía no hay proyectos cargados.
-                    </Table.Cell>
-                  </Table.Row>
-                ) : (
-                  proyectos.map((proyecto: Proyecto) => (
-                    <Table.Row
-                      key={proyecto.id}
-                      className="adoc-tt-row--clicable"
-                      onClick={() => navegar(`/tareas/proyectos/${proyecto.id}`)}
-                    >
-                      <Table.Cell>{proyecto.nombre}</Table.Cell>
-                      <Table.Cell>{proyecto.responsable.nombre}</Table.Cell>
-                      <Table.Cell>{formatearFecha(proyecto.fechaFin)}</Table.Cell>
-                      <Table.Cell>
-                        <EstadoProyectoBadge
-                          estado={proyecto.estado}
-                          nombre={proyecto.estadoNombre}
-                        />
-                      </Table.Cell>
-                    </Table.Row>
-                  ))
-                )}
-              </Table.Body>
-            </Table.Root>
-          </Table>
-        </div>
+        <TablaProyectos
+          proyectos={proyectos}
+          estados={estados}
+          onSeleccionar={(proyecto) => navegar(`/tareas/proyectos/${proyecto.id}`)}
+        />
       )}
 
       <ModalProyecto

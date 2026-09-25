@@ -6,6 +6,7 @@ import { EstadoTareaBadge } from "./EstadoTareaBadge";
 import { estadoSemaforo, muestraSemaforo } from "./semaforoTarea";
 import { formatearFecha } from "./detalleAdapters";
 import {
+  alternarOpcion,
   aplicarFiltrosColumnas,
   FILTROS_COLUMNAS_INICIALES,
   opcionesColumnasTareas,
@@ -17,6 +18,7 @@ import {
   type ColumnaOrdenableTarea,
   type OrdenTareas,
 } from "./ordenTareas";
+import { OpcionesFiltro } from "./OpcionesFiltro";
 import { estadosDePreset, type PresetEstado } from "./presetEstado";
 import "./tablaTareas.css";
 
@@ -272,12 +274,12 @@ function EncabezadoTarea({
               }
             />
           ) : (
-            <Opciones
+            <OpcionesFiltro
               opciones={opcionesCampo}
               valores={Array.isArray(valor) ? valor : []}
               onToggle={(opcion) =>
                 onFiltrosChange({
-                  [id]: alternar(Array.isArray(valor) ? valor : [], opcion),
+                  [id]: alternarOpcion(Array.isArray(valor) ? valor : [], opcion),
                 } as Partial<FiltrosColumnasTareas>)
               }
               etiquetas={etiquetas}
@@ -286,38 +288,5 @@ function EncabezadoTarea({
         </FiltroEncabezado>
       </span>
     </Table.HeaderCell>
-  );
-}
-
-function alternar(valores: string[], valor: string): string[] {
-  return valores.includes(valor)
-    ? valores.filter((actual) => actual !== valor)
-    : [...valores, valor];
-}
-
-function Opciones({
-  opciones,
-  valores,
-  onToggle,
-  etiquetas,
-}: {
-  opciones: string[];
-  valores: string[];
-  onToggle: (valor: string) => void;
-  etiquetas?: Record<string, string>;
-}) {
-  return (
-    <div className="adoc-filtro-encabezado-opciones">
-      {opciones.map((opcion) => (
-        <label className="adoc-filtro-encabezado-opcion" key={opcion}>
-          <input
-            type="checkbox"
-            checked={valores.includes(opcion)}
-            onChange={() => onToggle(opcion)}
-          />
-          {etiquetas?.[opcion] ?? opcion}
-        </label>
-      ))}
-    </div>
   );
 }

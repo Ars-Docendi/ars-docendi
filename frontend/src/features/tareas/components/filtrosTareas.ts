@@ -42,7 +42,14 @@ function normalizarTexto(texto: string): string {
     .replace(new RegExp("[\\u0300-\\u036f]", "g"), "");
 }
 
-function coincideTexto(valor: string, filtro: string): boolean {
+/** Agrega el valor a la selección si no está, o lo quita si ya está. */
+export function alternarOpcion(valores: string[], valor: string): string[] {
+  return valores.includes(valor)
+    ? valores.filter((actual) => actual !== valor)
+    : [...valores, valor];
+}
+
+export function coincideTexto(valor: string, filtro: string): boolean {
   const buscado = normalizarTexto(filtro);
   return !buscado || normalizarTexto(valor).includes(buscado);
 }

@@ -170,3 +170,18 @@ El Detalle de un Proyecto cuyo estado admite tareas SHALL ofrecer el botón "Nue
 
 - **WHEN** un usuario abre el Detalle de un Proyecto Finalizado
 - **THEN** no ve el botón "Nueva Tarea"
+
+### Requirement: Filtros y orden del listado de Proyectos
+
+La tabla de la pestaña Proyectos SHALL ofrecer el mismo tipo de filtros por columna que la tabla de Tareas (texto libre en N°, Nombre, Inicio y Fin; selección múltiple en Responsable y Estado) y el mismo ciclo de orden por encabezado (ascendente, descendente, sin orden manual). Sin orden manual, los proyectos MUST ordenarse primero por estado, según el orden del catálogo de estados, y luego por fecha de inicio ascendente. Las opciones del filtro Estado MUST salir del catálogo.
+
+#### Scenario: Orden por defecto
+
+- **GIVEN** proyectos Abiertos, Finalizados y Cancelados con distintas fechas de inicio
+- **WHEN** un usuario abre la pestaña Proyectos
+- **THEN** ve primero los Abiertos, luego los Finalizados y luego los Cancelados, y dentro de cada grupo por fecha de inicio ascendente
+
+#### Scenario: Filtrar por estado
+
+- **WHEN** el usuario marca "Cancelado" en el filtro de la columna Estado
+- **THEN** la tabla muestra solo los proyectos Cancelados
