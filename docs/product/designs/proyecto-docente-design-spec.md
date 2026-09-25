@@ -181,7 +181,7 @@ Las cinco grillas (Mis pedidos, Revisión, Períodos, Usuarios y Docentes) compa
 - **Scroll dentro de la tabla**: la tabla ocupa el alto disponible (`Table.Root maxHeight`), scrollea en vertical y en horizontal por dentro, y la página no scrollea. Ninguna columna queda cortada.
 - **Encabezado fijo** mientras se scrollea, con sus filtros a mano.
 - **Textos largos recortados**: las columnas de texto variable (Docente, Cátedra, Tipo, Nombre, Email) reservan un ancho mínimo, usan el espacio que haya y, si no alcanza, se recortan con "…" y muestran el texto completo en un tooltip al pasar el mouse (`shared/ui/TextoRecortado`). Fechas y acciones van en una línea.
-- **Ajustes por grilla** (medidos en 1470 px, la pantalla de referencia): Mis pedidos sin columna N°; Revisión sin avatar y con la prioridad como chip ámbar "Prioritario" junto al nombre (Estado muestra solo el estado); Períodos con el nombre recortable; Usuarios con encabezados "Nombre" y "Email" y "Ver docente" sin cantidad de materias; Docentes con encabezado "Nombre". Menú lateral de 200 px.
+- **Ajustes por grilla** (medidos en 1470 px, la pantalla de referencia): Mis pedidos sin columna N°; Revisión sin avatar y con la prioridad como chip ámbar "Prioritario" junto al nombre (Estado muestra solo el estado); Períodos con el nombre recortable; Usuarios con encabezados "Nombre" y "Email" y "Ver docente" sin cantidad de materias; Docentes con encabezado "Nombre". Menú lateral de 200 px. Los estados en revisión se nombran por el área donde está el pedido ("En Coordinación", "En Secretaría", "En Decanato"), como las pestañas de Revisión.
 
 ## Patrón transversal — filtros y ordenamiento por encabezado
 

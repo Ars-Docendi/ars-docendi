@@ -325,9 +325,9 @@ function EncabezadoRevision({
 }
 
 const ETIQUETAS_ESTADO_REVISION: Record<string, string> = {
-  en_revision_coordinador: "En revisión · Coordinador",
-  en_revision_secretaria: "En revisión · Secretaría",
-  en_revision_decanato: "En revisión · Decanato",
+  en_revision_coordinador: "En Coordinación",
+  en_revision_secretaria: "En Secretaría",
+  en_revision_decanato: "En Decanato",
   devuelto: "Devuelto",
   en_lote: "En lote",
   rechazado: "Rechazado",

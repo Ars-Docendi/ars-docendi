@@ -22,17 +22,17 @@ interface ConfigEstado {
 const CONFIG: Record<EstadoPedido, ConfigEstado> = {
   borrador: { etiqueta: "Borrador", tono: "neutro", icono: <IconoFilePen /> },
   en_revision_coordinador: {
-    etiqueta: "En revisión · Coordinador",
+    etiqueta: "En Coordinación",
     tono: "neutro",
     icono: <IconoClock />,
   },
   en_revision_secretaria: {
-    etiqueta: "En revisión · Secretaría",
+    etiqueta: "En Secretaría",
     tono: "neutro",
     icono: <IconoClock />,
   },
   en_revision_decanato: {
-    etiqueta: "En revisión · Decanato",
+    etiqueta: "En Decanato",
     tono: "neutro",
     icono: <IconoClock />,
   },

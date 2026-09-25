@@ -12,6 +12,7 @@ Probando las grillas con volumen real (July), aparecieron cuatro problemas que a
 - **Scroll dentro de la tabla**: la tabla ocupa el alto disponible, scrollea en vertical y en horizontal dentro de su contenedor, con el **encabezado fijo**. Ninguna columna queda cortada.
 - **Click en la fila = acción principal**: abre el detalle si la grilla lo tiene (y se quita el botón "Ver", que repetía lo mismo); si no, abre Editar. La fila también se abre con el teclado. Solo si el usuario tiene permiso para esa acción. Los botones y links de la fila no disparan el click, y seleccionar texto tampoco.
 - **"Eliminar" con texto**: la X roja de Mis pedidos y Períodos pasa a ser un botón de texto "Eliminar".
+- **Estados más cortos**: "En revisión · Secretaría" pasa a "En Secretaría" (y lo mismo con Coordinación y Decanato) en Mis pedidos, el detalle, el filtro de Revisión y los avisos. Estar en un área ya implica estar en revisión; los nombres coinciden con las pestañas de Revisión.
 - **ui-lib v1.0.4**: el scroll y el encabezado fijo se implementan en `Table` de `@ars-docendi/ui`. Dev bumpea la dependencia.
 
 No hay cambios de API ni de datos.

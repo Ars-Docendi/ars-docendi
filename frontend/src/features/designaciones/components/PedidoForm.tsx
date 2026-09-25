@@ -24,9 +24,9 @@ const NOVEDADES: NovedadAdmitida[] = ["Alta", "Baja", "Cambio de cargo o dedicac
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
-  en_revision_coordinador: "En revisión Coordinador",
-  en_revision_secretaria: "En revisión Secretaría",
-  en_revision_decanato: "En revisión Decanato",
+  en_revision_coordinador: "de Coordinación",
+  en_revision_secretaria: "de Secretaría",
+  en_revision_decanato: "de Decanato",
 };
 
 interface PedidoFormProps {
