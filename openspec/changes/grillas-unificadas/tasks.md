@@ -6,7 +6,7 @@
 - [x] 1.4 ~~Columna fija `sticky="end"`~~: implementada, probada y descartada por July; quitada de la ui-lib (design D3)
 - [x] 1.5 Story de `Table` con muchas filas y columnas y encabezado fijo
 - [x] 1.6 Versión `1.0.4`, typecheck y build en verde
-- [ ] 1.7 PR a `main`, merge, tag `v1.0.4` y verificar que se publicó `release/v1.0.4`
+- [x] 1.7 PR a `main`, merge, tag `v1.0.4` y verificar que se publicó `release/v1.0.4`
 
 ## 2. Click en la fila (dev)
 
@@ -33,7 +33,7 @@
 
 ## 4. Dependencia y cierre
 
-- [ ] 4.1 Bumpear `@ars-docendi/ui` a `github:Ars-Docendi/ui-lib#release/v1.0.4` y `pnpm install`; quitar la copia local
+- [x] 4.1 Bumpear `@ars-docendi/ui` a `github:Ars-Docendi/ui-lib#release/v1.0.4` y `pnpm install`; quitar la copia local
 - [x] 4.2 Actualizar `docs/product/designs/proyecto-docente-design-spec.md` (patrón de acciones por fila, tablas sin paginación, click en la fila)
-- [ ] 4.3 Lint, typecheck, build y tests del frontend en verde
-- [ ] 4.4 `openspec validate grillas-unificadas --strict`
+- [x] 4.3 Lint, typecheck, build y tests del frontend en verde
+- [x] 4.4 `openspec validate grillas-unificadas --strict`

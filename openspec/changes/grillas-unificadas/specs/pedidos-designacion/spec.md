@@ -14,7 +14,9 @@
 - **WHEN** la consulta carga, falla, queda vacía o responde con datos
 - **THEN** la pantalla representa explícitamente Loading, Error, Empty o Success
 
-### Requirement: Filtros y ordenamiento por encabezado en Mis pedidos
+## ADDED Requirements
+
+### Requirement: Filtros y ordenamiento por encabezado en Mis pedidos sin paginación
 
 La tabla de `/designaciones/mis-pedidos` SHALL ofrecer un control de filtro accesible en cada encabezado de datos: Docente, Legajo, Cátedra, Tipo, Enviado y Estado. La columna Acciones MUST NOT ofrecer filtro ni ordenamiento. Los criterios de texto SHALL buscar coincidencias parciales sin distinguir mayúsculas ni tildes; los criterios categóricos SHALL permitir seleccionar uno o más valores. Los filtros de columnas distintas SHALL combinarse con lógica AND y las opciones múltiples de una misma columna SHALL combinarse con lógica OR.
 
@@ -54,3 +56,10 @@ La tabla SHALL permitir ordenar Docente, Legajo, Cátedra, Tipo, Enviado y Estad
 
 - **WHEN** el operador enfoca el control de filtro de un encabezado y presiona Enter o Espacio
 - **THEN** se abre el menú sin activar la navegación de la fila, y el encabezado comunica el orden mediante su estado accesible cuando corresponde
+
+## REMOVED Requirements
+
+### Requirement: Filtros y ordenamiento por encabezado en Mis pedidos
+
+**Reason**: Mis pedidos deja de paginar (change `grillas-unificadas`): el escenario "Aplicar filtros antes de paginar" ya no aplica y la columna N° sale de la lista.
+**Migration**: Ver "Filtros y ordenamiento por encabezado en Mis pedidos sin paginación", que conserva los filtros y el orden por encabezado sobre la lista completa.
