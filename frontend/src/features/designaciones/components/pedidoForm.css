@@ -12,34 +12,6 @@
   gap: var(--space-5);
 }
 
-/* --- Encabezado de página (eyebrow + título + subtítulo) --- */
-.adoc-pf-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.adoc-pf-eyebrow {
-  margin: var(--space-0);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro-size);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-}
-.adoc-pf-title {
-  margin: var(--space-0);
-  font-size: 24px;
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.24px;
-  line-height: 1.2;
-  color: var(--color-text-primary);
-}
-.adoc-pf-subtitle {
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
 /* --- Tarjeta del formulario --- */
 .adoc-pf-card {
   display: flex;

@@ -17,6 +17,7 @@ import { useActorContexto } from "../hooks/useActorContexto";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { usePedidosPorAmbito } from "../hooks/usePedidos";
 import type { PedidoDesignacion } from "../types";
+import { estadoOrigen } from "./origenDetalle";
 
 /**
  * Período es el único filtro general fijo. Docente, Tipo, Legajo y Estado viven
@@ -98,7 +99,7 @@ export function TableroRevisionPage() {
   const [errorExportacion, setErrorExportacion] = useState<string>();
 
   function handleSeleccionar(pedido: PedidoDesignacion) {
-    navegar(`/designaciones/pedidos/${pedido.id}`);
+    navegar(`/designaciones/pedidos/${pedido.id}`, { state: estadoOrigen("revision") });
   }
 
   async function handleExportar() {
@@ -133,19 +134,8 @@ export function TableroRevisionPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
-        items={[
-          { label: "Inicio", href: "/" },
-          { label: "Designaciones" },
-          { label: "Tablero de revisión" },
-        ]}
-      />
-      <PageHeader
-        pretitle="Designaciones"
-        title="Tablero de revisión de pedidos"
-        meta={`Pedidos en tu ámbito · ${actor.rol} · ${ambito}`}
-      />
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Revisión" }]} />
+      <PageHeader title="Revisión" meta={`Pedidos en tu ámbito · ${ambito}`} />
 
       {isLoading && (
         <p style={{ color: "var(--color-text-secondary)" }}>Cargando los pedidos de tu ámbito…</p>

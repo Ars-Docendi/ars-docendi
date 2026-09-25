@@ -7,27 +7,6 @@
 import type { ReactNode } from "react";
 
 /* Topbar + chrome */
-export const searchIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="8" cy="8" r="5" />
-    <path d="M11.5 11.5l3 3" />
-  </svg>
-);
-
-export const bellIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M4 8a5 5 0 0110 0v3l2 2H2l2-2V8z" />
-    <path d="M7 15a2 2 0 004 0" />
-  </svg>
-);
-
-export const helpIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <circle cx="9" cy="9" r="7" />
-    <path d="M7 7a2 2 0 014 0c0 1-2 1.5-2 3M9 13v.5" />
-  </svg>
-);
-
 export const collapseIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
     <path d="M11 4L6 9l5 5" />

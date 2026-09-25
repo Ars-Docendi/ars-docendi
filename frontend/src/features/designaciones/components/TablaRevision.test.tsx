@@ -104,15 +104,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
 
     // Antes eran 4 mini-tablas, cada una con su head repetido.
     expect(screen.getAllByRole("table")).toHaveLength(1);
-    for (const columna of [
-      "Docente",
-      "Legajo",
-      "Tipo",
-      "Inicio",
-      "Últ. actualización",
-      "Estado",
-      "Acciones",
-    ]) {
+    for (const columna of ["Docente", "Legajo", "Tipo", "Inicio", "Últ. actualización", "Estado"]) {
       expect(screen.getByRole("columnheader", { name: columna })).toBeInTheDocument();
     }
   });
@@ -423,28 +415,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getByText("Devuelto")).toBeInTheDocument();
   });
 
-  it("la prioridad es un badge más de la celda Estado, sin fondo de fila", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "10", nombre: "Urgente Diez", antiguedad: 3 },
-            prioritario: true,
-          }),
-          pedido("en_revision_coordinador", {
-            docente: { dni: "11", nombre: "Normal Once", antiguedad: 3 },
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getAllByText("Prioritario")).toHaveLength(1);
-  });
-
-  it("prioritario y devuelto a la vez muestra los dos badges: ninguno tapa al otro", () => {
+  it("prioritario y devuelto a la vez muestra los dos: ninguno tapa al otro", () => {
     render(
       <TablaRevision
         pedidos={[
@@ -521,7 +492,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(screen.getAllByText("09/03/2026 21:00")).toHaveLength(2);
   });
 
-  it("el botón Ver de la fila navega al detalle del pedido", async () => {
+  it("la fila navega al detalle del pedido", async () => {
     const user = userEvent.setup();
     const alSeleccionar = vi.fn();
     const fila = pedido("en_revision_coordinador", {
@@ -537,7 +508,7 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Ver el pedido de Clickeable Tres" }));
+    await user.click(screen.getByRole("row", { name: "Ver el pedido de Clickeable Tres" }));
     expect(alSeleccionar).toHaveBeenCalledWith(fila);
   });
 
@@ -625,5 +596,73 @@ describe("filtros por encabezado de Revisión", () => {
     await user.click(screen.getByRole("button", { name: "Filtrar Área" }));
     expect(screen.getByRole("dialog", { name: "Filtro de Área" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Área" })).not.toHaveAttribute("aria-sort");
+  });
+
+  it("la fila abre el detalle con click o Enter, sin botón Ver ni columna Acciones", async () => {
+    const user = userEvent.setup();
+    const onSeleccionar = vi.fn();
+    const p = pedido("en_revision_coordinador");
+    render(
+      <TablaRevision
+        pedidos={[p]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={onSeleccionar}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Ver/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Acciones" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText(p.docente.nombre));
+    expect(onSeleccionar).toHaveBeenCalledWith(p);
+
+    screen.getByText(p.docente.nombre).closest("tr")!.focus();
+    await user.keyboard("{Enter}");
+    expect(onSeleccionar).toHaveBeenCalledTimes(2);
+  });
+
+  it("la celda Docente muestra solo el nombre, recortable, e Inicio va en una línea", () => {
+    const p = pedido("en_revision_coordinador", {
+      docente: { dni: "9", nombre: "Montenegro-Echeverría, Leandro", antiguedad: 3 },
+    });
+    render(
+      <TablaRevision pedidos={[p]} actor={COORD} filtros={SIN_FILTROS} onSeleccionar={vi.fn()} />,
+    );
+
+    const fila = screen.getByRole("row", {
+      name: "Ver el pedido de Montenegro-Echeverría, Leandro",
+    });
+    expect(fila.querySelector(".adoc-pedido-avatar")).toBeNull();
+    expect(within(fila).getByText("Montenegro-Echeverría, Leandro")).toHaveClass(
+      "adoc-texto-recortado",
+    );
+    expect(fila.querySelectorAll("td")[3]).toHaveClass("adoc-sin-salto");
+  });
+
+  it("marca la prioridad con un chip junto al nombre, no en Estado", () => {
+    render(
+      <TablaRevision
+        pedidos={[
+          pedido("en_revision_coordinador", {
+            docente: { dni: "10", nombre: "Urgente Diez", antiguedad: 3 },
+            prioritario: true,
+          }),
+          pedido("en_revision_coordinador", {
+            docente: { dni: "11", nombre: "Normal Once", antiguedad: 3 },
+          }),
+        ]}
+        actor={COORD}
+        filtros={SIN_FILTROS}
+        onSeleccionar={vi.fn()}
+      />,
+    );
+
+    const urgente = screen.getByRole("row", { name: "Ver el pedido de Urgente Diez" });
+    const normal = screen.getByRole("row", { name: "Ver el pedido de Normal Once" });
+    const [docente, , , , , estado] = urgente.querySelectorAll("td");
+    expect(within(docente).getByText("Prioritario")).toHaveClass("adoc-chip-prioritario");
+    expect(within(estado).queryByText("Prioritario")).not.toBeInTheDocument();
+    expect(within(normal).queryByText("Prioritario")).not.toBeInTheDocument();
   });
 });

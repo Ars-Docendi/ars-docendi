@@ -27,8 +27,8 @@ export function IndexPage() {
 
   const encabezado = (
     <>
-      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi Portal" }]} />
-      <PageHeader title="Mi Portal" />
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Mi portal" }]} />
+      <PageHeader title="Mi portal" />
     </>
   );
 

@@ -3,7 +3,8 @@ import { Breadcrumbs, Button } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaPeriodos } from "../components/TablaPeriodos";
 import { ModalPeriodo } from "../components/ModalPeriodo";
-import { ModalEliminarPeriodo } from "../components/ModalEliminarPeriodo";
+import { mensajeProblema } from "../../../shared/api/problemDetails";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 import { ModalDesactivarPeriodo } from "../components/ModalDesactivarPeriodo";
 import { usePeriodos } from "../hooks/usePeriodos";
 import type { PeriodoDesignacion } from "../types";
@@ -83,10 +84,7 @@ export function PeriodosPage() {
 
   return (
     <>
-      <Breadcrumbs
-        separator="›"
-        items={[{ label: "Inicio", href: "/" }, { label: "Períodos de designación" }]}
-      />
+      <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Períodos" }]} />
       {remoto.consulta.isLoading && <p role="status">Cargando períodos…</p>}
       {remoto.consulta.isError && (
         <p role="alert">
@@ -104,8 +102,7 @@ export function PeriodosPage() {
         <p>No hay períodos configurados.</p>
       )}
       <PageHeader
-        pretitle="Configuración"
-        title="Períodos de designación"
+        title="Períodos"
         meta={`${periodos.length} período${periodos.length !== 1 ? "s" : ""}`}
         actions={
           <Button variant="primary" onClick={handleNuevoPeriodo}>
@@ -126,10 +123,21 @@ export function PeriodosPage() {
         onNecesitaConfirmarDesactivacion={handleNecesitaConfirmarDesactivacion}
       />
 
-      <ModalEliminarPeriodo
+      <ModalConfirmarEliminar
         open={modalEliminarAbierto}
         onOpenChange={setModalEliminarAbierto}
-        periodo={periodoEliminando}
+        titulo="Eliminar período"
+        objeto={
+          <>
+            el período <strong>"{periodoEliminando?.nombre}"</strong>
+          </>
+        }
+        error={
+          remoto.eliminar.isError
+            ? mensajeProblema(remoto.eliminar.error, "No se pudo eliminar el período.")
+            : undefined
+        }
+        eliminando={remoto.eliminar.isPending}
         onConfirmar={handleConfirmarEliminar}
       />
 

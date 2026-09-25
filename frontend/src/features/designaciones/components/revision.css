@@ -12,12 +12,6 @@
   gap: var(--space-4);
 }
 
-/* La tabla tiene 7 columnas: en pantallas angostas scrollea ella sola, sin
-   arrastrar la página entera en horizontal (mismo patrón que TablaUsuarios). */
-.adoc-tabla-scroll {
-  overflow-x: auto;
-}
-
 .adoc-revision-vacio {
   margin: 0;
   padding: var(--space-4);
@@ -100,32 +94,35 @@
   color: var(--color-status-neutral-fg);
 }
 
-/* --- Celda Docente: avatar de iniciales + nombre --- */
-.adoc-tabla-docente {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-.adoc-pedido-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  flex: 0 0 auto;
-  border-radius: var(--radius-pill);
-  background: var(--accent-200);
-  color: var(--accent-700);
-  font-size: var(--text-micro-size);
-  font-weight: var(--weight-semibold);
-}
+/* --- Celda Docente: nombre (recortable) y fechas en una línea --- */
 .adoc-tabla-nombre {
-  overflow: hidden;
   font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
+}
+.adoc-sin-salto {
   white-space: nowrap;
-  text-overflow: ellipsis;
+}
+
+/* --- Prioridad: chip ámbar en la misma línea del nombre (atención, no error) --- */
+.adoc-tabla-docente {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adoc-tabla-docente .adoc-tabla-nombre {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-chip-prioritario {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border: 1px solid var(--warning-500);
+  border-radius: var(--radius-pill);
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
 }
 
 /* --- Celda Estado: el badge del estado y, si aplica, el de prioridad --- */

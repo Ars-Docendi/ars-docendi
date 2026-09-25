@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button, AuditLog, Breadcrumbs, InlineAlert } from "@ars-docendi/ui";
+import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoPedidoBadge } from "../components/EstadoPedidoBadge";
 import { IconoArrowLeft, IconoSquarePen, IconoX } from "../components/lucide";
@@ -11,7 +12,7 @@ import {
   ModalConfirmacionAccion,
   type AccionRevision,
 } from "../components/ModalConfirmacionAccion";
-import { ModalEliminarPedido } from "../components/ModalEliminarPedido";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 import { DatosTramite } from "../components/DatosTramite";
 import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
 import { useActorContexto } from "../hooks/useActorContexto";
@@ -25,9 +26,9 @@ import {
   useRechazarPedido,
 } from "../hooks/useAccionesPedido";
 import type { ActorContexto, Novedad, PedidoDesignacion } from "../types";
+import { resolverOrigen } from "./origenDetalle";
 import "./detalle.css";
 
-const RUTA_REVISION = "/designaciones/revision";
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
 
 /** Título legible de la novedad para el header del detalle. */
@@ -42,6 +43,8 @@ export function DetallePedidoPage() {
   const { id } = useParams();
   const navegar = useNavigate();
   const actor = useActorContexto();
+  const { user } = useCurrentUser();
+  const origen = resolverOrigen(useLocation().state, user?.permissions ?? []);
   const { data: pedido, isLoading, isError } = usePedido(id);
 
   const aceptar = useAceptarPedido();
@@ -63,8 +66,7 @@ export function DetallePedidoPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones" },
-          { label: "Revisión", href: RUTA_REVISION },
+          { label: origen.etiqueta, href: origen.ruta },
           { label: "Detalle del pedido" },
         ]}
       />
@@ -77,7 +79,8 @@ export function DetallePedidoPage() {
 
       {isError && (
         <InlineAlert severity="danger" title="No se encontró el pedido">
-          No pudimos cargar el pedido solicitado. <a href={RUTA_REVISION}>Volver a Revisión</a>.
+          No pudimos cargar el pedido solicitado.{" "}
+          <a href={origen.ruta}>Volver a {origen.etiqueta}</a>.
         </InlineAlert>
       )}
 
@@ -176,9 +179,8 @@ function DetalleCargado({
   return (
     <>
       <PageHeader
-        pretitle={`Designaciones · Pedido ${pedido.numero ?? "sin número"}`}
-        title={`${TITULO_NOVEDAD[pedido.novedad]} — ${pedido.catedra}`}
-        meta={`Cátedra ${pedido.catedra} · ${pedido.carrera}${periodoNombre ? ` · ${periodoNombre}` : ""}`}
+        title={TITULO_NOVEDAD[pedido.novedad]}
+        meta={periodoNombre}
         actions={
           <div className="adoc-det-headactions">
             <Button
@@ -253,10 +255,16 @@ function DetalleCargado({
         onCerrar={() => setAccionPendiente(null)}
       />
 
-      <ModalEliminarPedido
+      <ModalConfirmarEliminar
         open={mostrarEliminar}
         onOpenChange={setMostrarEliminar}
-        pedido={pedido}
+        titulo="Eliminar pedido"
+        objeto={
+          <>
+            el pedido {pedido?.numero ?? "sin número"} de{" "}
+            <strong>"{pedido?.docente.nombre}"</strong>
+          </>
+        }
         error={errorEliminar}
         eliminando={eliminando}
         onConfirmar={onEliminar}

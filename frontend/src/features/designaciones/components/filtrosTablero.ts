@@ -47,9 +47,9 @@ export const FILTROS_COLUMNAS_INICIALES: FiltrosColumnasTablero = {
 
 export const OPCIONES_ESTADO: { value: FiltroEstado; label: string }[] = [
   { value: "todos", label: "Estado: Todos" },
-  { value: "en_revision_coordinador", label: "En revisión · Coordinador" },
-  { value: "en_revision_secretaria", label: "En revisión · Secretaría" },
-  { value: "en_revision_decanato", label: "En revisión · Decanato" },
+  { value: "en_revision_coordinador", label: "En Coordinación" },
+  { value: "en_revision_secretaria", label: "En Secretaría" },
+  { value: "en_revision_decanato", label: "En Decanato" },
   { value: "devuelto", label: "Devuelto" },
   { value: "en_lote", label: "En lote" },
   { value: "rechazado", label: "Rechazado" },

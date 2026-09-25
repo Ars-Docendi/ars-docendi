@@ -1,0 +1,22 @@
+/* Fila cuya acción principal se ejecuta con un click en cualquier parte o con Enter. */
+tr.adoc-fila-clickeable {
+  cursor: pointer;
+}
+tr.adoc-fila-clickeable:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+/* Acción destructiva de fila: texto en color de peligro. */
+.adoc-btn.adoc-accion-eliminar {
+  color: var(--color-text-danger);
+}
+
+/* Acciones de fila: botones más juntos que el ghost chico por defecto (12px por lado),
+   para que la columna ocupe menos sin perder el área de click. */
+.adoc-acciones-fila {
+  white-space: nowrap; /* los botones en una línea: la fila no crece */
+}
+.adoc-acciones-fila .adoc-btn.sz-sm {
+  padding: 0 var(--space-2);
+}
