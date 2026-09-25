@@ -18,7 +18,8 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         var tareas = await repositorio.ListarAsync(actor.SoloResponsableId, ct);
         var personas = await directorio.CargarAsync(ct);
         var relaciones = Vecinos(await repositorio.ListarRelacionesAsync(ct));
-        return tareas.Select(t => Mapear(t, personas, relaciones.GetValueOrDefault(t.Id) ?? [], detalle: false)).ToList();
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+        return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], detalle: false)).ToList();
     }
 
     public async Task<TareaDto> ObtenerAsync(Guid id, CancellationToken ct)
@@ -47,7 +48,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
     {
         var actor = await directorio.ResolverActorAsync(ct);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
+        var (prioridad, tipo) = ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
         await RequerirResponsableAsignableAsync(actor, datos.ResponsableId, ct);
 
         // Una hija hereda el Proyecto de su padre: lo que llegue en `ProyectoId` se ignora.
@@ -71,9 +72,9 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
             Descripcion = datos.Descripcion?.Trim() ?? string.Empty,
             FechaInicio = datos.FechaInicio,
             FechaFin = datos.FechaFin,
-            Prioridad = datos.Prioridad,
-            Tipo = datos.Tipo,
-            Estado = catalogos.EstadoInicialTarea,
+            PrioridadId = prioridad.Id,
+            TipoId = tipo.Id,
+            EstadoId = catalogos.EstadoInicialTarea.Id,
             ResponsableId = datos.ResponsableId,
             CreadoPorId = actor.UsuarioId,
             ProyectoId = proyectoId,
@@ -93,7 +94,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         var tarea = await RequerirAsync(id, actor, ct);
         MaquinaEstadosTarea.RequerirPuedeEditarCampos(tarea, actor);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
+        var (prioridadEditada, tipoEditado) = ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
 
         // La jerarquía se exige al reasignar; conservar al mismo Responsable no la reevalúa,
         // para no bloquear la edición de una tarea si su rol cambió después.
@@ -118,8 +119,8 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         tarea.Descripcion = datos.Descripcion?.Trim() ?? string.Empty;
         tarea.FechaInicio = datos.FechaInicio;
         tarea.FechaFin = datos.FechaFin;
-        tarea.Prioridad = datos.Prioridad;
-        tarea.Tipo = datos.Tipo;
+        tarea.PrioridadId = prioridadEditada.Id;
+        tarea.TipoId = tipoEditado.Id;
         tarea.ResponsableId = datos.ResponsableId;
         MaquinaEstadosTarea.Registrar(tarea, actor, AccionesHistorial.Editar, null, DateTimeOffset.UtcNow);
 
@@ -132,12 +133,12 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        if (!catalogos.EstadosTarea.Any(e => e.Codigo == datos.Estado))
-        {
-            throw Validacion("estado", $"El estado \"{datos.Estado}\" no existe.");
-        }
+        var destino = catalogos.EstadoTarea(datos.Estado)
+            ?? throw Validacion("estado", $"El estado \"{datos.Estado}\" no existe.");
+        var actual = catalogos.EstadoTarea(tarea.EstadoId)
+            ?? throw Validacion("estado", "El estado actual de la tarea no está en el catálogo.");
 
-        MaquinaEstadosTarea.CambiarEstado(tarea, actor, datos.Estado, datos.Comentario, datos.Solucion);
+        MaquinaEstadosTarea.CambiarEstado(tarea, actor, actual, destino, datos.Comentario, datos.Solucion);
         await repositorio.GuardarAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
@@ -228,7 +229,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         var proyecto = await repositorio.ObtenerProyectoAsync(id, ct)
             ?? throw Validacion("proyectoId", "El proyecto indicado no existe.");
-        if (catalogos.EstadoProyecto(proyecto.Estado)?.AdmiteTareas != true)
+        if (catalogos.EstadoProyecto(proyecto.EstadoId)?.AdmiteTareas != true)
         {
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.ReglaDeNegocio,
@@ -254,29 +255,35 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         }
     }
 
-    private static void ValidarDatos(
+    private static (PrioridadCatalogo Prioridad, TipoTareaCatalogo Tipo) ValidarDatos(
         string titulo, string prioridad, string tipo, DateOnly inicio, DateOnly fin, CatalogosTareas catalogos)
     {
         if (string.IsNullOrWhiteSpace(titulo)) throw Validacion("titulo", "El título es obligatorio.");
-        if (!catalogos.Prioridades.Any(p => p.Codigo == prioridad)) throw Validacion("prioridad", "La prioridad no es válida.");
-        if (!catalogos.Tipos.Any(t => t.Codigo == tipo)) throw Validacion("tipo", "El tipo no es válido.");
+        var prioridadElegida = catalogos.Prioridad(prioridad) ?? throw Validacion("prioridad", "La prioridad no es válida.");
+        var tipoElegido = catalogos.Tipo(tipo) ?? throw Validacion("tipo", "El tipo no es válido.");
         MaquinaEstadosTarea.ValidarFechas(inicio, fin);
+        return (prioridadElegida, tipoElegido);
     }
 
     private async Task<TareaDto> MapearDetalleAsync(Tarea tarea, CancellationToken ct)
     {
         var personas = await directorio.CargarAsync(ct);
         var vecinos = Vecinos(await repositorio.ListarRelacionesDeAsync(tarea.Id, ct));
-        return Mapear(tarea, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], detalle: true);
+        var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
+        return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], detalle: true);
     }
 
     private static TareaDto Mapear(
         Tarea t,
+        CatalogosTareas catalogos,
         IReadOnlyDictionary<Guid, PersonaResuelta> personas,
         IReadOnlyList<Guid> relacionadas,
         bool detalle) =>
         new(
-            t.Id, t.Numero, t.Titulo, t.Descripcion, t.FechaInicio, t.FechaFin, t.Prioridad, t.Tipo, t.Estado,
+            t.Id, t.Numero, t.Titulo, t.Descripcion, t.FechaInicio, t.FechaFin,
+            catalogos.Prioridad(t.PrioridadId)?.Codigo ?? string.Empty,
+            catalogos.Tipo(t.TipoId)?.Codigo ?? string.Empty,
+            catalogos.EstadoTarea(t.EstadoId)?.Codigo ?? string.Empty,
             t.PorcentajeAvance, t.Solucion,
             Persona(personas, t.ResponsableId),
             Persona(personas, t.CreadoPorId),
@@ -287,7 +294,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
                 : [],
             detalle
                 ? t.Historial.OrderBy(e => e.CreadoEn)
-                    .Select(e => new EventoTareaDto(e.Id, e.Accion, e.ActorRol, Persona(personas, e.ActorId).Nombre, e.Estado, e.Detalle, e.CreadoEn))
+                    .Select(e => new EventoTareaDto(e.Id, e.Accion, e.ActorRol, Persona(personas, e.ActorId).Nombre, catalogos.EstadoTarea(e.EstadoId)?.Codigo ?? string.Empty, e.Detalle, e.CreadoEn))
                     .ToList()
                 : [],
             t.ProyectoId, t.TareaPadreId, relacionadas);

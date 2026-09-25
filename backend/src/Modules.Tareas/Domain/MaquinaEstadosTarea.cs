@@ -51,20 +51,22 @@ public static class MaquinaEstadosTarea
     /// Pausa exige un comentario (queda en el hilo) y Resuelta exige la Solución.
     /// </summary>
     public static void CambiarEstado(
-        Tarea tarea, ActorTareas actor, string destino, string? comentario, string? solucion)
+        Tarea tarea, ActorTareas actor, EstadoTareaCatalogo actual, EstadoTareaCatalogo destinoEstado,
+        string? comentario, string? solucion)
     {
+        var destino = destinoEstado.Codigo;
         if (destino == EstadosTarea.Cancelada)
         {
-            if (!EsAutoridadCreadora(tarea, actor) || EstadosTarea.EsTerminal(tarea.Estado))
+            if (!EsAutoridadCreadora(tarea, actor) || EstadosTarea.EsTerminal(actual.Codigo))
             {
                 throw Prohibido("Solo la autoridad creadora puede cancelar la tarea, y solo si no está cerrada.");
             }
         }
-        else if (EstadosTarea.EsTerminal(tarea.Estado))
+        else if (EstadosTarea.EsTerminal(actual.Codigo))
         {
             if (!EsAutoridadCreadora(tarea, actor))
             {
-                throw Prohibido($"El estado \"{tarea.Estado}\" es terminal: solo la autoridad creadora puede reabrir la tarea.");
+                throw Prohibido($"El estado \"{actual.Codigo}\" es terminal: solo la autoridad creadora puede reabrir la tarea.");
             }
         }
         else if (!EsResponsable(tarea, actor) && !EsAutoridadCreadora(tarea, actor))
@@ -72,7 +74,7 @@ public static class MaquinaEstadosTarea
             throw Prohibido("Solo el Responsable o la autoridad creadora pueden cambiar el estado de la tarea.");
         }
 
-        if (destino == tarea.Estado)
+        if (destinoEstado.Id == actual.Id)
         {
             throw Regla($"La tarea ya está en estado \"{destino}\".");
         }
@@ -92,7 +94,7 @@ public static class MaquinaEstadosTarea
             detalle = tarea.Solucion;
         }
 
-        tarea.Estado = destino;
+        tarea.EstadoId = destinoEstado.Id;
         Registrar(tarea, actor, AccionesHistorial.CambiarEstado, detalle, ahora);
     }
 
@@ -137,7 +139,7 @@ public static class MaquinaEstadosTarea
             Accion = accion,
             ActorId = actor.UsuarioId,
             ActorRol = actor.RolNombre,
-            Estado = tarea.Estado,
+            EstadoId = tarea.EstadoId,
             Detalle = detalle,
             CreadoEn = ahora,
         });

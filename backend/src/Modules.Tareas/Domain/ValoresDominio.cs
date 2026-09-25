@@ -6,6 +6,16 @@ namespace Modules.Tareas.Domain;
 /// La lista de estados válidos y cuál es el inicial NO viven acá: salen del catálogo
 /// <c>tareas.estados_tarea</c>.
 /// </summary>
+/// <summary>
+/// Estados de proyecto que tienen semántica propia en las reglas de transición. El resto
+/// (lista, inicial, admite tareas) sale del catálogo <c>tareas.estados_proyecto</c>.
+/// </summary>
+public static class EstadosProyecto
+{
+    public const string Finalizado = "finalizado";
+    public const string Cancelado = "cancelado";
+}
+
 public static class EstadosTarea
 {
     public const string Pausa = "pausa";

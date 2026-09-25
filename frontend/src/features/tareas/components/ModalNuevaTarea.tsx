@@ -25,6 +25,8 @@ interface ModalNuevaTareaProps {
   tarea?: Tarea;
   /** Presente al crear una tarea hija: el Proyecto se hereda de acá, no se ofrece elegirlo. */
   tareaPadre?: Tarea;
+  /** Presente al crear una tarea desde el detalle de un Proyecto: queda asignada a él y no se puede cambiar. */
+  proyectoFijo?: Proyecto;
   /** Catálogo para el selector de Proyecto (se omite si la tarea es una hija). */
   proyectos: Proyecto[];
   onGuardar: (datos: DatosEditablesTarea) => void;
@@ -53,8 +55,8 @@ const VACIO = {
   proyectoId: "",
 };
 
-function datosIniciales(tarea: Tarea | undefined): typeof VACIO {
-  if (!tarea) return VACIO;
+function datosIniciales(tarea: Tarea | undefined, proyectoFijo?: Proyecto): typeof VACIO {
+  if (!tarea) return proyectoFijo ? { ...VACIO, proyectoId: proyectoFijo.id } : VACIO;
   return {
     titulo: tarea.titulo,
     descripcion: tarea.descripcion,
@@ -78,13 +80,14 @@ export function ModalNuevaTarea({
   open,
   tarea,
   tareaPadre,
+  proyectoFijo,
   proyectos,
   onGuardar,
   onCerrar,
   guardando = false,
   error,
 }: ModalNuevaTareaProps) {
-  const [campos, setCampos] = useState(() => datosIniciales(tarea));
+  const [campos, setCampos] = useState(() => datosIniciales(tarea, proyectoFijo));
   const [enviado, setEnviado] = useState(false);
 
   // Repone el formulario cuando el modal se vuelve a abrir (alta o edición
@@ -93,7 +96,7 @@ export function ModalNuevaTarea({
   const [abiertoPrevio, setAbiertoPrevio] = useState(open);
   if (open !== abiertoPrevio) {
     setAbiertoPrevio(open);
-    if (open) setCampos(datosIniciales(tarea));
+    if (open) setCampos(datosIniciales(tarea, proyectoFijo));
   }
 
   function set<K extends keyof typeof VACIO>(campo: K, valor: (typeof VACIO)[K]) {
@@ -257,9 +260,13 @@ export function ModalNuevaTarea({
           />
         </Field>
 
-        {esHija ? (
+        {esHija || proyectoFijo ? (
           <Field label="Proyecto">
-            <Input value={nombreProyectoHeredado ?? "Sin proyecto"} disabled readOnly />
+            <Input
+              value={proyectoFijo?.nombre ?? nombreProyectoHeredado ?? "Sin proyecto"}
+              disabled
+              readOnly
+            />
           </Field>
         ) : (
           <Field label="Proyecto">

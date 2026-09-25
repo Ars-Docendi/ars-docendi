@@ -38,7 +38,7 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
             e.Property(x => x.Descripcion).HasColumnName("descripcion");
             e.Property(x => x.FechaInicio).HasColumnName("fecha_inicio");
             e.Property(x => x.FechaFin).HasColumnName("fecha_fin");
-            e.Property(x => x.Estado).HasColumnName("estado");
+            e.Property(x => x.EstadoId).HasColumnName("estado_id");
             e.Property(x => x.ResponsableId).HasColumnName("responsable_id");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
@@ -54,9 +54,9 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
             e.Property(x => x.Descripcion).HasColumnName("descripcion");
             e.Property(x => x.FechaInicio).HasColumnName("fecha_inicio");
             e.Property(x => x.FechaFin).HasColumnName("fecha_fin");
-            e.Property(x => x.Prioridad).HasColumnName("prioridad");
-            e.Property(x => x.Tipo).HasColumnName("tipo");
-            e.Property(x => x.Estado).HasColumnName("estado");
+            e.Property(x => x.PrioridadId).HasColumnName("prioridad_id");
+            e.Property(x => x.TipoId).HasColumnName("tipo_id");
+            e.Property(x => x.EstadoId).HasColumnName("estado_id");
             e.Property(x => x.PorcentajeAvance).HasColumnName("porcentaje_avance");
             e.Property(x => x.Solucion).HasColumnName("solucion");
             e.Property(x => x.ResponsableId).HasColumnName("responsable_id");
@@ -98,7 +98,7 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
             e.Property(x => x.Accion).HasColumnName("accion");
             e.Property(x => x.ActorId).HasColumnName("actor_id");
             e.Property(x => x.ActorRol).HasColumnName("actor_rol");
-            e.Property(x => x.Estado).HasColumnName("estado");
+            e.Property(x => x.EstadoId).HasColumnName("estado_id");
             e.Property(x => x.Detalle).HasColumnName("detalle");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
@@ -123,8 +123,9 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
     {
         var entidad = modelBuilder.Entity<T>();
         entidad.ToTable(tabla, Schema, t => t.ExcludeFromMigrations());
-        entidad.HasKey(x => x.Codigo);
-        entidad.Property(x => x.Codigo).HasColumnName("codigo").ValueGeneratedNever();
+        entidad.HasKey(x => x.Id);
+        entidad.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
+        entidad.Property(x => x.Codigo).HasColumnName("codigo");
         entidad.Property(x => x.Nombre).HasColumnName("nombre");
         entidad.Property(x => x.Orden).HasColumnName("orden");
         extra(entidad);

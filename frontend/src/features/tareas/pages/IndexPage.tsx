@@ -4,7 +4,6 @@ import { Breadcrumbs, Button, InlineAlert, Select } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { CuadroProyecto } from "../components/CuadroProyecto";
 import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
-import { ModalNuevoProyecto } from "../components/ModalNuevoProyecto";
 import { TablaTareas } from "../components/TablaTareas";
 import { agruparTareasPorProyecto } from "../components/agrupacionProyectos";
 import {
@@ -19,23 +18,20 @@ import { useActorTareas, usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
 import { useCrearTarea } from "../hooks/useAccionesTarea";
-import { useCrearProyecto } from "../hooks/useAccionesProyecto";
 import type { Tarea } from "../types";
 import "./tareas.css";
 
 export function IndexPage() {
   const navegar = useNavigate();
-  const { puedeCrearTarea, puedeGestionarProyectos } = usePermisosTareas();
+  const { puedeCrearTarea } = usePermisosTareas();
   const actor = useActorTareas();
   const { data: tareas, isLoading, isError } = useListadoTareas();
   const { data: proyectos = [] } = useListadoProyectos();
   const crearTarea = useCrearTarea();
-  const crearProyecto = useCrearProyecto();
 
   const [preset, setPreset] = useState<PresetEstado>(PRESET_INICIAL);
   const [alcance, setAlcance] = useState<AlcanceTareas>(ALCANCE_INICIAL);
   const [modalNuevaTareaAbierto, setModalNuevaTareaAbierto] = useState(false);
-  const [modalNuevoProyectoAbierto, setModalNuevoProyectoAbierto] = useState(false);
 
   const total = tareas?.length ?? 0;
   const visibles = aplicarAlcance(tareas ?? [], alcance, actor.id);
@@ -53,28 +49,11 @@ export function IndexPage() {
           ) : (
             <>
               {total} tarea{total !== 1 ? "s" : ""}
-              {puedeCrearTarea && (
-                <>
-                  {" · "}
-                  <button
-                    type="button"
-                    className="adoc-tareas-vinculo-link"
-                    onClick={() => navegar("/tareas/proyectos")}
-                  >
-                    Ver todos los proyectos
-                  </button>
-                </>
-              )}
             </>
           )
         }
         actions={
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {puedeGestionarProyectos && (
-              <Button variant="secondary" onClick={() => setModalNuevoProyectoAbierto(true)}>
-                Nuevo Proyecto
-              </Button>
-            )}
             {puedeCrearTarea && (
               <Button
                 variant="primary"
@@ -163,16 +142,6 @@ export function IndexPage() {
         }}
         guardando={crearTarea.isPending}
         error={crearTarea.isError ? crearTarea.error.message : undefined}
-      />
-
-      <ModalNuevoProyecto
-        open={modalNuevoProyectoAbierto}
-        onCerrar={() => setModalNuevoProyectoAbierto(false)}
-        onGuardar={(datos) => {
-          crearProyecto.mutate(datos, { onSuccess: () => setModalNuevoProyectoAbierto(false) });
-        }}
-        guardando={crearProyecto.isPending}
-        error={crearProyecto.isError ? crearProyecto.error.message : undefined}
       />
     </>
   );

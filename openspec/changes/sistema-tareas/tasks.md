@@ -181,3 +181,16 @@ Specs: `tablero-tareas` (requirements "Alcance del listado: Todas o Propias" y "
 - [x] 14.1 Quien no crea tareas ve una sola tabla de sus tareas asignadas con la columna Proyecto, sin cuadros ni listado de proyectos.
 - [x] 14.2 El proyecto del detalle de la tarea es un vínculo al detalle del proyecto.
 - [x] 14.3 Estado (Pendientes/Terminadas/Todas) y Tareas (Todas/Propias) como selectores combinables; Propias = creadas + asignadas (`alcanceTareas.ts` + test).
+
+## 15. Pestaña Proyectos
+
+Specs: `proyectos` (requirements "Pestaña Proyectos", "Edición de un Proyecto" y "Disposición de los datos en el Detalle de Proyecto").
+
+- [x] 15.1 Backend: `PUT /api/tareas/proyectos/{id}` con `proyectos.gestionar`, validaciones compartidas con el alta y Responsable revalidado solo si cambia; test de integración.
+- [x] 15.2 Menú lateral: pestaña "Proyectos"; el botón "Nuevo Proyecto" y el enlace del listado salen de la pantalla inicial.
+- [x] 15.3 `ModalProyecto` (alta/edición) y botón "Editar" en el Detalle de Proyecto.
+- [x] 15.4 Detalle de Proyecto: "Datos" arriba de la Descripción, con Inicio y Fin lado a lado y luego el Responsable.
+- [x] 15.5 Buscador de Responsable: selector de tipo de usuario + texto (nombre, apellido, legajo o DNI); la tabla muestra solo nombre y apellido, tipo de usuario, legajo y DNI.
+- [x] 15.6 Detalle de Proyecto: botón "Nueva Tarea" (solo si el proyecto admite tareas) con el Proyecto preasignado (`proyectoFijo` en `ModalNuevaTarea`).
+- [x] 15.7 Un proyecto Cancelado no pasa a Finalizado (regla en `ServicioProyectos`, botón oculto en el detalle, test de integración).
+- [x] 15.8 Catálogos con clave numérica: `003_tareas_catalogos_id.sql` + migración `CatalogosTareasId`; entidades, servicio y seed usan `estado_id`/`prioridad_id`/`tipo_id`.

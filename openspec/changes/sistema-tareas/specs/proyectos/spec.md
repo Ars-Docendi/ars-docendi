@@ -2,17 +2,17 @@
 
 ### Requirement: Creación de Proyecto restringida por rol
 
-El sistema SHALL restringir la creación de Proyectos a los roles Secretaría Académica y Decanato. El botón "Nuevo Proyecto" MUST estar oculto para cualquier otro rol, incluido Administrativos (que sí puede crear Tareas, pero no Proyectos), y el sistema MUST rechazar la creación aunque se invoque la acción sin pasar por el botón.
+El sistema SHALL restringir la creación de Proyectos a los roles Secretaría Académica y Decanato. El botón "Nuevo Proyecto", ubicado en la pestaña Proyectos, MUST estar oculto para cualquier otro rol, incluido Administrativos (que sí puede crear Tareas, pero no Proyectos), y el sistema MUST rechazar la creación aunque se invoque la acción sin pasar por el botón.
 
 #### Scenario: Botón "Nuevo Proyecto" visible para Decanato
 
-- **WHEN** un usuario con rol Decanato abre la pantalla inicial de Tareas
+- **WHEN** un usuario con rol Decanato abre la pestaña Proyectos
 - **THEN** ve el botón "Nuevo Proyecto"
 
 #### Scenario: Botón "Nuevo Proyecto" oculto para Administrativos
 
-- **WHEN** un usuario con rol Administrativos abre la pantalla inicial de Tareas
-- **THEN** ve el botón "Nueva Tarea" pero no ve el botón "Nuevo Proyecto"
+- **WHEN** un usuario con rol Administrativos abre la pestaña Proyectos
+- **THEN** ve el listado de proyectos pero no ve el botón "Nuevo Proyecto"
 
 #### Scenario: Creación bloqueada para un rol sin permiso
 
@@ -81,6 +81,16 @@ El sistema SHALL restringir el cambio de estado de un Proyecto (a Finalizado o a
 - **WHEN** un usuario con rol Administrativos intenta cambiar su estado
 - **THEN** el sistema rechaza la acción y el Proyecto conserva su estado anterior
 
+### Requirement: Un Proyecto Cancelado no pasa a Finalizado
+
+El sistema MUST rechazar (422) el cambio de estado de un Proyecto Cancelado a Finalizado, y el Detalle de Proyecto MUST NOT ofrecer esa acción. Para finalizarlo debe reabrirse antes.
+
+#### Scenario: Finalizar un Proyecto Cancelado
+
+- **GIVEN** un Proyecto Cancelado
+- **WHEN** un Decano intenta pasarlo a Finalizado
+- **THEN** el servidor responde 422, el Proyecto sigue Cancelado y el botón "Finalizar" no se muestra
+
 ### Requirement: Pantalla de Detalle de Proyecto
 
 El sistema SHALL ofrecer una pantalla de Detalle por Proyecto (`/tareas/proyectos/:id`), accesible desde el título de su cuadro en la pantalla inicial, que MUST mostrar: nombre, descripción, estado, Fecha de Inicio, Fecha de Fin, Responsable, y la tabla de tareas asociadas a ese Proyecto (mismo modelo de filtros, orden y colores que el resto de las tablas de tareas).
@@ -97,7 +107,7 @@ El sistema SHALL ofrecer una pantalla de Detalle por Proyecto (`/tareas/proyecto
 
 ### Requirement: Acceso manual a Proyectos Finalizados o Cancelados
 
-Como la pantalla inicial de Tareas solo genera un cuadro por cada Proyecto en estado Abierto, el sistema SHALL ofrecer una pantalla de listado con **todos** los Proyectos (`/tareas/proyectos`), sin importar su Estado, accesible desde un enlace en la pantalla inicial. Desde ese listado SHALL poder navegarse al Detalle de cualquier Proyecto, incluidos los Finalizados y Cancelados.
+Como la pantalla inicial de Tareas solo genera un cuadro por cada Proyecto en estado Abierto, el sistema SHALL ofrecer una pantalla de listado con **todos** los Proyectos (`/tareas/proyectos`), sin importar su Estado, accesible desde la pestaña "Proyectos" del menú lateral. Desde ese listado SHALL poder navegarse al Detalle de cualquier Proyecto, incluidos los Finalizados y Cancelados.
 
 #### Scenario: Acceder a un Proyecto Finalizado desde el listado completo
 
@@ -110,3 +120,53 @@ Como la pantalla inicial de Tareas solo genera un cuadro por cada Proyecto en es
 - **GIVEN** Proyectos Abiertos, Finalizados y Cancelados
 - **WHEN** un usuario abre `/tareas/proyectos`
 - **THEN** ve los tres, cada uno con su Estado indicado
+
+### Requirement: Pestaña Proyectos
+
+El menú lateral SHALL ofrecer, junto a "Tareas", una pestaña "Proyectos" (`/tareas/proyectos`) visible para quien tiene el permiso `tareas.gestionar`. Su pantalla MUST ser un listado básico de todos los proyectos (Nombre, Responsable, Fecha de fin, Estado) con, a lo sumo, el botón "Nuevo Proyecto" para quien tiene `proyectos.gestionar`; la pantalla inicial de Tareas ya no ofrece ni el botón ni un enlace al listado.
+
+#### Scenario: Pestaña visible para quien crea tareas
+
+- **GIVEN** un usuario con `tareas.gestionar`
+- **WHEN** abre la aplicación
+- **THEN** el menú lateral muestra "Proyectos" y al elegirla ve el listado de proyectos
+
+### Requirement: Edición de un Proyecto
+
+El Detalle de Proyecto SHALL ofrecer un botón "Editar" a quien tiene `proyectos.gestionar`, que MUST abrir el mismo formulario del alta precargado con Nombre, Descripción, Fecha de Inicio, Fecha de Fin y Responsable, con las mismas validaciones. El Estado no se edita ahí (se cambia con sus propios botones). El servidor MUST exponer `PUT /api/tareas/proyectos/{id}` (permiso `proyectos.gestionar`), y solo cuando cambia el Responsable MUST exigir que sea Decanato o Secretaría Académica y respete la jerarquía; conservar al mismo Responsable no lo reevalúa.
+
+#### Scenario: Editar los datos de un Proyecto
+
+- **GIVEN** un Decano en el Detalle de un Proyecto
+- **WHEN** elige "Editar", cambia el nombre y la Fecha de fin y guarda
+- **THEN** el Detalle y el listado muestran los datos nuevos y el Estado no cambia
+
+#### Scenario: Edición bloqueada sin permiso
+
+- **GIVEN** un usuario sin `proyectos.gestionar`
+- **WHEN** invoca `PUT /api/tareas/proyectos/{id}`
+- **THEN** recibe 403 y el Proyecto no cambia
+
+### Requirement: Disposición de los datos en el Detalle de Proyecto
+
+En el Detalle de Proyecto el panel "Datos" MUST ubicarse arriba de la Descripción, con la Fecha de inicio y la Fecha de fin una al lado de la otra y, debajo, el Responsable.
+
+#### Scenario: Orden de los paneles
+
+- **WHEN** un usuario abre el Detalle de un Proyecto
+- **THEN** ve primero "Datos" (fechas de inicio y fin en la misma fila, luego el Responsable) y después la Descripción
+
+### Requirement: Crear una tarea dentro de un Proyecto
+
+El Detalle de un Proyecto cuyo estado admite tareas SHALL ofrecer el botón "Nueva Tarea" a quien puede crear tareas. El formulario MUST abrir con el Proyecto ya asignado y no editable, y la tarea creada MUST aparecer en la tabla de tareas de ese Proyecto. El botón MUST estar oculto en Proyectos que ya no admiten tareas.
+
+#### Scenario: Nueva tarea desde el Proyecto
+
+- **GIVEN** un Decano en el Detalle de un Proyecto Abierto
+- **WHEN** elige "Nueva Tarea", completa el formulario y guarda
+- **THEN** la tarea queda asociada a ese Proyecto y aparece en su tabla de tareas
+
+#### Scenario: Proyecto cerrado
+
+- **WHEN** un usuario abre el Detalle de un Proyecto Finalizado
+- **THEN** no ve el botón "Nueva Tarea"

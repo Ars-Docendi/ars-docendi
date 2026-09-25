@@ -110,7 +110,7 @@ Un usuario sin `tareas.gestionar` SHALL ver únicamente las tareas que tiene asi
 
 ### Requirement: Catálogos de estados, prioridades y tipos en la base
 
-Los estados de tarea, los estados de proyecto, las prioridades y los tipos de tarea MUST definirse en tablas de catálogo del schema `tareas`, referenciadas por clave foránea desde las tablas de negocio: el DDL MUST NOT repetir la lista de valores en CHECKs ni en DEFAULTs. Los estados MUST declarar su comportamiento con banderas del catálogo — cuál es el estado inicial (`es_inicial`) y, para los proyectos, si admiten tareas nuevas (`admite_tareas`) —, y el servidor MUST leerlas del catálogo en vez de nombrar estados concretos para esas decisiones. `GET /api/tareas/proyectos/estados` (permiso `tareas.ver`) MUST exponer el catálogo de estados de proyecto (código, nombre, verbo de la acción, inicial, admite tareas).
+Los estados de tarea, los estados de proyecto, las prioridades y los tipos de tarea MUST definirse en tablas de catálogo del schema `tareas`, referenciadas por clave foránea numérica (`id` SMALLINT, columnas `estado_id`, `prioridad_id` y `tipo_id`) desde las tablas de negocio, sin guardar el código como texto en ellas: el DDL MUST NOT repetir la lista de valores en CHECKs ni en DEFAULTs. Los estados MUST declarar su comportamiento con banderas del catálogo — cuál es el estado inicial (`es_inicial`) y, para los proyectos, si admiten tareas nuevas (`admite_tareas`) —, y el servidor MUST leerlas del catálogo en vez de nombrar estados concretos para esas decisiones. `GET /api/tareas/proyectos/estados` (permiso `tareas.ver`) MUST exponer el catálogo de estados de proyecto (código, nombre, verbo de la acción, inicial, admite tareas).
 
 #### Scenario: Estado inicial tomado del catálogo
 

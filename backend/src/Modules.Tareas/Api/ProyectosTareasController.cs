@@ -5,7 +5,7 @@ using Modules.Tareas.Application;
 
 namespace Modules.Tareas.Api;
 
-/// <summary>Proyectos de Tareas. Consultar requiere `tareas.ver`; crear y cambiar estado, `proyectos.gestionar`.</summary>
+/// <summary>Proyectos de Tareas. Consultar requiere `tareas.ver`; crear, editar y cambiar estado, `proyectos.gestionar`.</summary>
 [ApiController]
 [Route("api/tareas/proyectos")]
 public sealed class ProyectosTareasController : ControllerBase
@@ -33,6 +33,12 @@ public sealed class ProyectosTareasController : ControllerBase
         var proyecto = await servicio.CrearAsync(datos, ct);
         return Created($"/api/tareas/proyectos/{proyecto.Id}", proyecto);
     }
+
+    [Authorize(Policy = Permisos.ProyectosGestionar)]
+    [HttpPut("{id:guid}")]
+    public Task<ProyectoTareasDto> Editar(
+        Guid id, EditarProyectoRequest datos, ServicioProyectos servicio, CancellationToken ct) =>
+        servicio.EditarAsync(id, datos, ct);
 
     [Authorize(Policy = Permisos.ProyectosGestionar)]
     [HttpPost("{id:guid}/estado")]

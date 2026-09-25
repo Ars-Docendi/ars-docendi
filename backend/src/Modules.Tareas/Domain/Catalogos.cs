@@ -2,6 +2,9 @@ namespace Modules.Tareas.Domain;
 
 public abstract class ItemCatalogo
 {
+    /// <summary>Clave numérica: es lo que referencian las tablas de negocio.</summary>
+    public short Id { get; set; }
+    /// <summary>Identificador estable para la API y el código; no se guarda en las tablas de negocio.</summary>
     public required string Codigo { get; set; }
     public required string Nombre { get; set; }
     public short Orden { get; set; }
@@ -32,10 +35,24 @@ public sealed record CatalogosTareas(
     IReadOnlyList<PrioridadCatalogo> Prioridades,
     IReadOnlyList<TipoTareaCatalogo> Tipos)
 {
-    public string EstadoInicialTarea => EstadosTarea.Single(e => e.EsInicial).Codigo;
+    public EstadoTareaCatalogo EstadoInicialTarea => EstadosTarea.Single(e => e.EsInicial);
 
-    public string EstadoInicialProyecto => EstadosProyecto.Single(e => e.EsInicial).Codigo;
+    public EstadoProyectoCatalogo EstadoInicialProyecto => EstadosProyecto.Single(e => e.EsInicial);
 
     public EstadoProyectoCatalogo? EstadoProyecto(string codigo) =>
         EstadosProyecto.FirstOrDefault(e => e.Codigo == codigo);
+
+    public EstadoProyectoCatalogo? EstadoProyecto(short id) => EstadosProyecto.FirstOrDefault(e => e.Id == id);
+
+    public EstadoTareaCatalogo? EstadoTarea(string codigo) => EstadosTarea.FirstOrDefault(e => e.Codigo == codigo);
+
+    public EstadoTareaCatalogo? EstadoTarea(short id) => EstadosTarea.FirstOrDefault(e => e.Id == id);
+
+    public PrioridadCatalogo? Prioridad(string codigo) => Prioridades.FirstOrDefault(p => p.Codigo == codigo);
+
+    public PrioridadCatalogo? Prioridad(short id) => Prioridades.FirstOrDefault(p => p.Id == id);
+
+    public TipoTareaCatalogo? Tipo(string codigo) => Tipos.FirstOrDefault(t => t.Codigo == codigo);
+
+    public TipoTareaCatalogo? Tipo(short id) => Tipos.FirstOrDefault(t => t.Id == id);
 }

@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, Button, InlineAlert } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { TablaTareas } from "../components/TablaTareas";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
-import { IconoArrowLeft } from "../components/lucide";
+import { ModalNuevaTarea } from "../components/ModalNuevaTarea";
+import { ModalProyecto } from "../components/ModalProyecto";
+import { IconoArrowLeft, IconoPlus } from "../components/lucide";
 import { formatearFecha } from "../components/detalleAdapters";
 import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoTareas } from "../hooks/useTareas";
 import { useEstadosProyecto, useProyecto } from "../hooks/useProyectos";
-import { useCambiarEstadoProyecto } from "../hooks/useAccionesProyecto";
+import { useCrearTarea } from "../hooks/useAccionesTarea";
+import { useCambiarEstadoProyecto, useEditarProyecto } from "../hooks/useAccionesProyecto";
 import type { Tarea } from "../types";
 import "./tareas.css";
 import "../components/cuadroProyecto.css";
@@ -23,8 +27,12 @@ export function DetalleProyectoPage() {
   const { data: tareas = [] } = useListadoTareas();
   const { data: estados = [] } = useEstadosProyecto();
   const cambiarEstado = useCambiarEstadoProyecto();
+  const editarProyecto = useEditarProyecto();
+  const crearTarea = useCrearTarea();
+  const [modalTareaAbierto, setModalTareaAbierto] = useState(false);
+  const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
 
-  const { puedeGestionarProyectos: puedeCambiar } = usePermisosTareas();
+  const { puedeGestionarProyectos: puedeCambiar, puedeCrearTarea } = usePermisosTareas();
   const tareasDelProyecto = proyecto
     ? tareas.filter((t: Tarea) => t.proyectoId === proyecto.id)
     : [];
@@ -68,9 +76,27 @@ export function DetalleProyectoPage() {
                 >
                   Volver
                 </Button>
+                {puedeCrearTarea && proyecto.admiteTareas && (
+                  <Button
+                    variant="primary"
+                    leadingIcon={<IconoPlus />}
+                    onClick={() => setModalTareaAbierto(true)}
+                  >
+                    Nueva Tarea
+                  </Button>
+                )}
+                {puedeCambiar && (
+                  <Button variant="secondary" onClick={() => setModalEditarAbierto(true)}>
+                    Editar
+                  </Button>
+                )}
                 {puedeCambiar &&
                   estados
                     .filter((estado) => estado.codigo !== proyecto.estado)
+                    .filter(
+                      (estado) =>
+                        !(proyecto.estado === "cancelado" && estado.codigo === "finalizado"),
+                    )
                     .map((estado) => (
                       <Button
                         key={estado.codigo}
@@ -95,21 +121,18 @@ export function DetalleProyectoPage() {
           )}
 
           <div className="adoc-det-tarea">
-            <section className="adoc-det-tarea-panel" aria-label="Descripción del proyecto">
-              <h2>Descripción</h2>
-              <p>{proyecto.descripcion || "Sin descripción."}</p>
-            </section>
-
             <section className="adoc-det-tarea-panel" aria-label="Datos del proyecto">
               <h3>Datos</h3>
               <dl className="adoc-det-tarea-datos">
-                <div className="adoc-det-tarea-dato">
-                  <dt>Fecha de inicio</dt>
-                  <dd>{formatearFecha(proyecto.fechaInicio)}</dd>
-                </div>
-                <div className="adoc-det-tarea-dato">
-                  <dt>Fecha de fin</dt>
-                  <dd>{formatearFecha(proyecto.fechaFin)}</dd>
+                <div className="adoc-det-tarea-datos-fila">
+                  <div className="adoc-det-tarea-dato">
+                    <dt>Fecha de inicio</dt>
+                    <dd>{formatearFecha(proyecto.fechaInicio)}</dd>
+                  </div>
+                  <div className="adoc-det-tarea-dato">
+                    <dt>Fecha de fin</dt>
+                    <dd>{formatearFecha(proyecto.fechaFin)}</dd>
+                  </div>
                 </div>
                 <div className="adoc-det-tarea-dato">
                   <dt>Responsable</dt>
@@ -118,6 +141,11 @@ export function DetalleProyectoPage() {
                   </dd>
                 </div>
               </dl>
+            </section>
+
+            <section className="adoc-det-tarea-panel" aria-label="Descripción del proyecto">
+              <h2>Descripción</h2>
+              <p>{proyecto.descripcion || "Sin descripción."}</p>
             </section>
 
             <section aria-label="Tareas del proyecto">
@@ -135,6 +163,36 @@ export function DetalleProyectoPage() {
             </section>
           </div>
         </>
+      )}
+
+      {proyecto && (
+        <ModalNuevaTarea
+          open={modalTareaAbierto}
+          proyectoFijo={proyecto}
+          proyectos={[proyecto]}
+          onCerrar={() => setModalTareaAbierto(false)}
+          onGuardar={(datos) =>
+            crearTarea.mutate({ datos }, { onSuccess: () => setModalTareaAbierto(false) })
+          }
+          guardando={crearTarea.isPending}
+          error={crearTarea.isError ? crearTarea.error.message : undefined}
+        />
+      )}
+
+      {proyecto && (
+        <ModalProyecto
+          open={modalEditarAbierto}
+          proyecto={proyecto}
+          onCerrar={() => setModalEditarAbierto(false)}
+          onGuardar={(datos) =>
+            editarProyecto.mutate(
+              { id: proyecto.id, datos },
+              { onSuccess: () => setModalEditarAbierto(false) },
+            )
+          }
+          guardando={editarProyecto.isPending}
+          error={editarProyecto.isError ? editarProyecto.error.message : undefined}
+        />
       )}
     </>
   );

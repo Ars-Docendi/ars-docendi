@@ -66,6 +66,12 @@
   color: var(--color-text-primary);
 }
 
+.adoc-det-tarea-datos-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
 .adoc-preset-estado {
   display: flex;
   align-items: center;

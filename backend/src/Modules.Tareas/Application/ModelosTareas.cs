@@ -88,4 +88,11 @@ public sealed record CrearProyectoRequest(
     DateOnly FechaFin,
     Guid ResponsableId);
 
+public sealed record EditarProyectoRequest(
+    string Nombre,
+    string? Descripcion,
+    DateOnly FechaInicio,
+    DateOnly FechaFin,
+    Guid ResponsableId);
+
 public sealed record CambiarEstadoProyectoRequest(string Estado);

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Button, DatePicker, Field, InlineAlert, Input, Modal, Textarea } from "@ars-docendi/ui";
 import { SelectorResponsable } from "./SelectorResponsable";
-import type { DatosEditablesProyecto, PersonaTarea } from "../types";
+import type { DatosEditablesProyecto, PersonaTarea, Proyecto } from "../types";
 
-interface ModalNuevoProyectoProps {
+interface ModalProyectoProps {
   open: boolean;
+  /** Presente en modo edición: precarga el formulario con sus datos. */
+  proyecto?: Proyecto;
   onGuardar: (datos: DatosEditablesProyecto) => void;
   onCerrar: () => void;
   guardando?: boolean;
@@ -19,20 +21,41 @@ const VACIO = {
   responsable: null as PersonaTarea | null,
 };
 
+function datosIniciales(proyecto: Proyecto | undefined): typeof VACIO {
+  if (!proyecto) return VACIO;
+  return {
+    nombre: proyecto.nombre,
+    descripcion: proyecto.descripcion,
+    fechaInicio: proyecto.fechaInicio,
+    fechaFin: proyecto.fechaFin,
+    responsable: proyecto.responsable,
+  };
+}
+
 /**
- * Formulario de alta de Proyecto: Nombre, Descripción, Fecha Inicio/Fin y
- * Responsable — restringido a Secretaría Académica o Decanato, respetando
- * además la jerarquía de asignación (ver `maquinaEstadosProyecto.ts`).
+ * Formulario de alta/edición de Proyecto: Nombre, Descripción, Fecha Inicio/Fin y
+ * Responsable — restringido a Secretaría Académica o Decanato, respetando además la
+ * jerarquía de asignación (la valida el servidor). Con `proyecto` arranca precargado
+ * en modo edición; sin él, es "Nuevo Proyecto". El Estado no se edita acá.
  */
-export function ModalNuevoProyecto({
+export function ModalProyecto({
   open,
+  proyecto,
   onGuardar,
   onCerrar,
   guardando = false,
   error,
-}: ModalNuevoProyectoProps) {
-  const [campos, setCampos] = useState(VACIO);
+}: ModalProyectoProps) {
+  const [campos, setCampos] = useState(() => datosIniciales(proyecto));
   const [enviado, setEnviado] = useState(false);
+
+  // Repone el formulario cuando el modal se vuelve a abrir (alta o edición): patrón
+  // "ajustar estado durante el render", no un efecto.
+  const [abiertoPrevio, setAbiertoPrevio] = useState(open);
+  if (open !== abiertoPrevio) {
+    setAbiertoPrevio(open);
+    if (open) setCampos(datosIniciales(proyecto));
+  }
 
   function set<K extends keyof typeof VACIO>(campo: K, valor: (typeof VACIO)[K]) {
     setCampos((p) => ({ ...p, [campo]: valor }));
@@ -72,14 +95,14 @@ export function ModalNuevoProyecto({
       onOpenChange={(next) => {
         if (!next) handleCerrar();
       }}
-      title="Nuevo Proyecto"
+      title={proyecto ? "Editar Proyecto" : "Nuevo Proyecto"}
       footer={
         <>
           <Button variant="secondary" onClick={handleCerrar}>
             Cancelar
           </Button>
           <Button variant="primary" onClick={handleConfirmar} loading={guardando}>
-            Crear proyecto
+            {proyecto ? "Guardar cambios" : "Crear proyecto"}
           </Button>
         </>
       }

@@ -182,6 +182,27 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         Assert.Equal("Secretaría Académica", proyecto.Responsable.Rol);
         Assert.True(proyecto.Numero > proyectos.Max(p => p.Numero));
 
+        // Editar un proyecto: mismos permisos y misma regla de Responsable que al crearlo.
+        var edicion = new
+        {
+            nombre = "Proyecto renombrado", descripcion = "nueva",
+            fechaInicio = "2026-02-01", fechaFin = "2026-11-30", responsableId = Secretaria,
+        };
+        await Esperar(administrativo.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), HttpStatusCode.Forbidden);
+        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{Guid.NewGuid()}", edicion, ct), HttpStatusCode.NotFound);
+        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { nombre = " " }, ct), HttpStatusCode.BadRequest);
+        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { responsableId = Administrativo }, ct), HttpStatusCode.UnprocessableEntity);
+        var editado = await ReadAsync<ProyectoTareasDto>(
+            await decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), ct);
+        Assert.Equal("Proyecto renombrado", editado.Nombre);
+        Assert.Equal(new DateOnly(2026, 11, 30), editado.FechaFin);
+        Assert.Equal("abierto", editado.Estado);
+
+        // Un proyecto cancelado no puede pasar a finalizado (sí reabrirse).
+        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "cancelado" }, ct), HttpStatusCode.OK);
+        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "abierto" }, ct), HttpStatusCode.OK);
+
         await Esperar(administrativo.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.Forbidden);
         var finalizado = await ReadAsync<ProyectoTareasDto>(
             await secretaria.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), ct);

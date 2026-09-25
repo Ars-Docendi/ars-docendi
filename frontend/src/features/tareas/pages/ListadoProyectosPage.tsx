@@ -1,24 +1,32 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs, InlineAlert, Table } from "@ars-docendi/ui";
+import { Breadcrumbs, Button, InlineAlert, Table } from "@ars-docendi/ui";
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { EstadoProyectoBadge } from "../components/EstadoProyectoBadge";
+import { ModalProyecto } from "../components/ModalProyecto";
+import { IconoPlus } from "../components/lucide";
 import { formatearFecha } from "../components/detalleAdapters";
+import { usePermisosTareas } from "../hooks/useActorTareas";
 import { useListadoProyectos } from "../hooks/useProyectos";
+import { useCrearProyecto } from "../hooks/useAccionesProyecto";
 import type { Proyecto } from "../types";
 import "../components/tablaTareas.css";
 
 const RUTA_TAREAS = "/tareas";
 
 /**
- * Listado con TODOS los proyectos, sin importar su Estado — es la vía de
- * acceso manual a los Finalizados/Cancelados, que no tienen cuadro en la
- * pantalla inicial (esa solo cubre los Abiertos). Tabla simple, sin el
- * modelo de filtros/orden de `TablaTareas` — no son tareas, y el volumen
- * esperado de proyectos es mucho menor.
+ * Pestaña Proyectos: listado con TODOS los proyectos, sin importar su Estado — es
+ * también la vía de acceso a los Finalizados/Cancelados, que no tienen cuadro en la
+ * pantalla inicial (esa solo cubre los Abiertos). Tabla simple, sin el modelo de
+ * filtros/orden de `TablaTareas` — no son tareas, y el volumen esperado de proyectos
+ * es mucho menor. Quien gestiona proyectos ve además el botón "Nuevo Proyecto".
  */
 export function ListadoProyectosPage() {
   const navegar = useNavigate();
   const { data: proyectos, isLoading, isError } = useListadoProyectos();
+  const { puedeGestionarProyectos } = usePermisosTareas();
+  const crearProyecto = useCrearProyecto();
+  const [modalAbierto, setModalAbierto] = useState(false);
 
   return (
     <>
@@ -35,6 +43,17 @@ export function ListadoProyectosPage() {
         pretitle="Tareas"
         title="Proyectos"
         meta={isLoading ? "Cargando…" : `${proyectos?.length ?? 0} proyecto(s)`}
+        actions={
+          puedeGestionarProyectos ? (
+            <Button
+              variant="primary"
+              leadingIcon={<IconoPlus />}
+              onClick={() => setModalAbierto(true)}
+            >
+              Nuevo Proyecto
+            </Button>
+          ) : undefined
+        }
       />
 
       {isLoading && (
@@ -92,6 +111,16 @@ export function ListadoProyectosPage() {
           </Table>
         </div>
       )}
+
+      <ModalProyecto
+        open={modalAbierto}
+        onCerrar={() => setModalAbierto(false)}
+        onGuardar={(datos) => {
+          crearProyecto.mutate(datos, { onSuccess: () => setModalAbierto(false) });
+        }}
+        guardando={crearProyecto.isPending}
+        error={crearProyecto.isError ? crearProyecto.error.message : undefined}
+      />
     </>
   );
 }

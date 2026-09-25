@@ -8,7 +8,7 @@ public sealed class Proyecto
     public string Descripcion { get; set; } = string.Empty;
     public DateOnly FechaInicio { get; set; }
     public DateOnly FechaFin { get; set; }
-    public required string Estado { get; set; }
+    public short EstadoId { get; set; }
     public Guid ResponsableId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }
@@ -21,9 +21,9 @@ public sealed class Tarea
     public string Descripcion { get; set; } = string.Empty;
     public DateOnly FechaInicio { get; set; }
     public DateOnly FechaFin { get; set; }
-    public required string Prioridad { get; set; }
-    public required string Tipo { get; set; }
-    public required string Estado { get; set; }
+    public short PrioridadId { get; set; }
+    public short TipoId { get; set; }
+    public short EstadoId { get; set; }
     public short PorcentajeAvance { get; set; }
     public string? Solucion { get; set; }
     public Guid ResponsableId { get; set; }
@@ -61,7 +61,7 @@ public sealed class EventoTarea
     public required string Accion { get; set; }
     public Guid ActorId { get; set; }
     public required string ActorRol { get; set; }
-    public required string Estado { get; set; }
+    public short EstadoId { get; set; }
     public string? Detalle { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }

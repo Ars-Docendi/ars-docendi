@@ -208,7 +208,7 @@ El sistema SHALL registrar en el historial de la tarea cada creación, cambio de
 
 ### Requirement: Buscador emergente de Responsable
 
-El campo Responsable de los formularios de tarea y de proyecto SHALL abrir un buscador emergente que permita buscar por nombre, apellido, usuario, legajo o documento y elegir de la lista de resultados (nombre, rol, usuario, legajo y documento), en vez de un desplegable con todos los usuarios. Los candidatos MUST ser los que el servidor devuelve según la jerarquía de asignación. En el formulario de tarea, Responsable y Proyecto MUST ocupar renglones separados, y el selector de Proyecto MUST ofrecer solo los proyectos cuyo estado admite tareas nuevas (al editar, se conserva además el proyecto actual).
+El campo Responsable de los formularios de tarea y de proyecto SHALL abrir un buscador emergente con un selector de tipo de usuario y un campo de texto (nombre, apellido, legajo o DNI), y elegir de la lista de resultados, que MUST mostrar solo nombre y apellido, tipo de usuario, legajo y DNI, en vez de un desplegable con todos los usuarios. Los candidatos MUST ser los que el servidor devuelve según la jerarquía de asignación. En el formulario de tarea, Responsable y Proyecto MUST ocupar renglones separados, y el selector de Proyecto MUST ofrecer solo los proyectos cuyo estado admite tareas nuevas (al editar, se conserva además el proyecto actual).
 
 #### Scenario: Elegir Responsable por legajo
 
