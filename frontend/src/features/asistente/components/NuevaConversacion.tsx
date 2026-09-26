@@ -11,25 +11,28 @@ interface NuevaConversacionProps {
  * «Nueva conversación»: vacía el hilo y la próxima pregunta arranca de cero. El
  * backend acepta un hilo nulo como conversación nueva, así que es real.
  *
- * Es el mismo botón en los dos montajes —en la ruta va en el encabezado de la
- * página, en el modal en el del panel— para que no haya dos versiones.
+ * Vive en el rail (`RailDeConversaciones`), el mismo componente expandido y
+ * colapsado, para que no haya dos versiones.
  *
  * SIN CONFIRMACIÓN: no hay nada persistido que perder, y una pregunta más para
  * empezar de nuevo es la fatiga de modales que los principios piden evitar. Sin
  * turnos no hay nada que vaciar; en vuelo, lo que corresponde es dejar de esperar.
  *
- * LA ETIQUETA VA EN UN `<span>` PROPIO: en el modal, a ancho de teléfono, este
- * botón comparte fila con «Historial», el título y el «?» —ya ajustada, es una
- * fila angosta— y `asistente.css` la esconde ahí (visualmente, no del árbol de
- * accesibilidad) para que el ícono solo siga alcanzando. En la ruta, donde este
- * mismo botón vive en el encabezado de la página, la regla no aplica y la
- * etiqueta se ve siempre.
+ * `variant="secondary"` Y SIN `size`, a propósito: es el tamaño BASE de la
+ * librería (36 px / 14px / 500, borde fuerte, fondo blanco) — exactamente lo
+ * que pide design spec § v3 para el botón de ancho completo del rail
+ * expandido. `asistente.css` lo reduce a un ícono cuadrado cuando el rail
+ * está colapsado, y neutraliza el aspecto «gris» de `:disabled` de la
+ * librería para que siga leyéndose como el mismo botón sin turnos.
+ *
+ * LA ETIQUETA VA EN UN `<span>` PROPIO: colapsado, `asistente.css` la
+ * esconde visualmente (no del árbol de accesibilidad) para que el ícono
+ * solo siga alcanzando; expandido, se ve siempre.
  */
 export function NuevaConversacion({ asistente }: NuevaConversacionProps) {
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      variant="secondary"
       leadingIcon={plusIcon}
       disabled={asistente.turnos.length === 0 || asistente.enVuelo}
       onClick={asistente.reiniciar}

@@ -146,59 +146,65 @@ export function PanelAsistente({
         <div className="adoc-asistente-columna">
           <EncabezadoDeConversacion titulo={tituloDelEncabezado} onCerrar={onCerrar} />
 
-          {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando,
-              el campo de entrada se va hacia abajo con cada respuesta y hay que
-              perseguirlo; acá se queda quieto y lo que se mueve es la conversación,
-              que es lo que uno espera de un chat. */}
-          <div className="adoc-asistente-hilo-marco">
-            <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
-              {sinTurnos && capacidades && (
-                <EstadoInicial
-                  capacidades={capacidades}
-                  onElegir={enviar}
-                  deshabilitado={enVuelo}
-                />
-              )}
+          {/* EL ENCABEZADO LLEGA AL BORDE DEL MODAL SIN RELLENO PROPIO; ESTO NO. El
+              relleno alrededor del hilo, la franja y la entrada vive acá y no en
+              `.adoc-asistente-columna` justamente para que el encabezado —arriba,
+              afuera de este `div`— pueda ser edge-to-edge mientras el resto no. */}
+          <div className="adoc-asistente-columna-cuerpo">
+            {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando,
+                el campo de entrada se va hacia abajo con cada respuesta y hay que
+                perseguirlo; acá se queda quieto y lo que se mueve es la conversación,
+                que es lo que uno espera de un chat. */}
+            <div className="adoc-asistente-hilo-marco">
+              <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
+                {sinTurnos && capacidades && (
+                  <EstadoInicial
+                    capacidades={capacidades}
+                    onElegir={enviar}
+                    deshabilitado={enVuelo}
+                  />
+                )}
 
-              <Conversacion
-                turnos={turnos}
-                onElegir={enviar}
-                onReintentar={(id) => void reintentar(id)}
-                onReejecutar={(id) => void asistente.reejecutar(id)}
-                enVuelo={enVuelo}
-                anuncio={historial.anuncio}
+                <Conversacion
+                  turnos={turnos}
+                  onElegir={enviar}
+                  onReintentar={(id) => void reintentar(id)}
+                  onReejecutar={(id) => void asistente.reejecutar(id)}
+                  enVuelo={enVuelo}
+                  anuncio={historial.anuncio}
+                />
+              </div>
+
+              {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
+                  el foco que tenía se iría a ninguna parte: pasa al campo, que es lo que
+                  hay en el final al que se acaba de ir. */}
+              <IrAlFinal
+                visible={!anclado}
+                onClick={() => {
+                  irAlFinal();
+                  entrada.current?.focus();
+                }}
               />
             </div>
 
-            {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
-                el foco que tenía se iría a ninguna parte: pasa al campo, que es lo que
-                hay en el final al que se acaba de ir. */}
-            <IrAlFinal
-              visible={!anclado}
-              onClick={() => {
-                irAlFinal();
-                entrada.current?.focus();
-              }}
+            {/* Una sola fila, FUERA de la región viva a propósito. */}
+            <FranjaDeEstado
+              enVuelo={enVuelo}
+              turnos={turnos}
+              onDetener={detener}
+              cupo={capacidades?.cupo}
+              umbralMs={umbralDelIndicadorMs}
+            />
+
+            <EntradaDePregunta
+              ref={entrada}
+              valor={borrador}
+              onCambiar={setBorrador}
+              onEnviar={() => void enviar(borrador)}
+              enVuelo={enVuelo}
+              deshabilitado={bloqueado}
             />
           </div>
-
-          {/* Una sola fila, FUERA de la región viva a propósito. */}
-          <FranjaDeEstado
-            enVuelo={enVuelo}
-            turnos={turnos}
-            onDetener={detener}
-            cupo={capacidades?.cupo}
-            umbralMs={umbralDelIndicadorMs}
-          />
-
-          <EntradaDePregunta
-            ref={entrada}
-            valor={borrador}
-            onCambiar={setBorrador}
-            onEnviar={() => void enviar(borrador)}
-            enVuelo={enVuelo}
-            deshabilitado={bloqueado}
-          />
         </div>
       </div>
     </section>

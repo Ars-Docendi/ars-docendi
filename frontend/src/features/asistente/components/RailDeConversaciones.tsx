@@ -87,40 +87,45 @@ export function RailDeConversaciones({
     >
       <div className="adoc-asistente-rail-encabezado">
         {colapsado ? (
-          <button
-            ref={toggleRef}
-            type="button"
-            className="adoc-asistente-rail-toggle"
-            aria-label="Expandir conversaciones"
-            aria-expanded={false}
-            onClick={onAlternar}
-          >
-            <span className="ico">{railExpandirIcon}</span>
-          </button>
+          <>
+            <button
+              ref={toggleRef}
+              type="button"
+              className="adoc-asistente-rail-toggle"
+              aria-label="Expandir conversaciones"
+              aria-expanded={false}
+              onClick={onAlternar}
+            >
+              <span className="ico">{railExpandirIcon}</span>
+            </button>
+
+            <NuevaConversacion asistente={asistente} />
+
+            <button
+              type="button"
+              className="adoc-asistente-rail-historial-icono"
+              aria-label="Historial"
+              onClick={onAlternar}
+            >
+              <span className="ico">{historyIcon}</span>
+            </button>
+          </>
         ) : (
-          <button
-            ref={toggleRef}
-            type="button"
-            className="adoc-asistente-rail-toggle"
-            aria-label="Colapsar conversaciones"
-            aria-expanded={true}
-            onClick={onAlternar}
-          >
-            <span className="ico">{railColapsarIcon}</span>
-          </button>
-        )}
+          <>
+            {/* Ancho completo, con el toggle a su derecha — design spec § v3. */}
+            <NuevaConversacion asistente={asistente} />
 
-        <NuevaConversacion asistente={asistente} />
-
-        {colapsado && (
-          <button
-            type="button"
-            className="adoc-asistente-rail-historial-icono"
-            aria-label="Historial"
-            onClick={onAlternar}
-          >
-            <span className="ico">{historyIcon}</span>
-          </button>
+            <button
+              ref={toggleRef}
+              type="button"
+              className="adoc-asistente-rail-toggle"
+              aria-label="Colapsar conversaciones"
+              aria-expanded={true}
+              onClick={onAlternar}
+            >
+              <span className="ico">{railColapsarIcon}</span>
+            </button>
+          </>
         )}
       </div>
 

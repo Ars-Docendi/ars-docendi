@@ -70,7 +70,7 @@ describe("Las clases de la hoja del asistente", () => {
     // o se le esconde el «⋮» hasta el hover, sin `!important` ni fork— pero
     // tiene que ser una decisión visible: una sobreescritura que aparece sola
     // es una feature pisando estilos ajenos.
-    const declaradas = ["adoc-acciones-trigger", "adoc-modal-stage", "adoc-table"];
+    const declaradas = ["adoc-acciones-trigger", "adoc-btn", "adoc-modal-stage", "adoc-table"];
 
     const ajenas = [
       ...new Set(

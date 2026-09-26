@@ -19,9 +19,18 @@
 .adoc-asistente {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
   min-height: 0;
   box-sizing: border-box;
+}
+
+/* El único relleno que le falta al aviso de mantenimiento: el rail y la
+   grilla llegan al borde del modal sin relleno propio del contenedor —cada
+   uno pone el suyo—, así que este aviso, que no es parte de la grilla,
+   necesita el suyo (horizontal; el vertical ya lo da el `gap` de arriba)
+   para no pegarse a los bordes. */
+.adoc-asistente-mantenimiento {
+  margin-inline: var(--space-5);
 }
 
 /* El marco del hilo: lo que le da a «Ir al final» contra qué flotar. Es también
@@ -107,6 +116,7 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-3);
+  background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border-subtle);
   transition: width var(--motion-base) var(--ease-standard);
   overflow: hidden;
@@ -121,11 +131,52 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado {
   flex-direction: column;
+}
+
+/* «Nueva conversación»: botón con borde a todo el ancho del rail, y el
+   toggle a su derecha —el mismo `.adoc-btn` que `NuevaConversacion` ya
+   renderiza (variante `secondary`), sin pisarle el tamaño base de la
+   librería (36 px / 14px / 500), que es exactamente el de la maqueta. */
+.adoc-asistente-rail-encabezado .adoc-btn {
+  flex: 1;
+}
+
+/* Colapsado, el mismo botón se reduce a un ícono cuadrado más —misma
+   familia visual que el toggle y «Historial» de al lado—, no la variante
+   con borde de arriba: a 60 px de ancho un botón con borde y relleno
+   propios ya no entra. */
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado .adoc-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado .adoc-btn:hover {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+/* SIN TURNOS, «Nueva conversación» SIGUE LEYÉNDOSE COMO EL MISMO BOTÓN
+   (asistente-superficie-frontend): queda deshabilitado de verdad —no hay
+   nada que vaciar en la bienvenida, y `asistente.turnos.test.tsx` fija ese
+   comportamiento— pero el aspecto «gris» que trae `.v-secondary:disabled`
+   de la librería (pensado para un botón de formulario) leía como roto acá,
+   donde la maqueta lo muestra siempre con su borde. Se neutraliza sólo el
+   aspecto, nunca `pointer-events` ni el atributo `disabled` en sí. */
+.adoc-asistente-rail:not(.colapsado) .adoc-asistente-rail-encabezado .adoc-btn:disabled {
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
 }
 
 /* Los tres controles ícono-solo del rail colapsado (expandir, «Nueva
@@ -214,12 +265,13 @@
    de metadato de la aplicación (mismo tratamiento que un rótulo de estado). */
 .adoc-asistente-rail-grupo-etiqueta {
   margin: 0;
+  padding: 14px 10px 6px;
   font-family: var(--font-mono);
-  font-size: var(--text-caption-size);
+  font-size: 11px;
   font-weight: var(--weight-semibold);
   color: var(--color-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
 }
 
 .adoc-asistente-rail-grupo-lista {
@@ -235,7 +287,17 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  border-radius: var(--radius-xs);
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-body-sm-size);
+}
+
+/* 26 px y no los 28 por default de `MenuAcciones` (compartido con
+   `designaciones`, que sí quiere el suyo): la maqueta del rail lo pide un
+   poco más chico, y las filas ya son angostas. */
+.adoc-asistente-rail-item .adoc-acciones-trigger {
+  width: 26px;
+  height: 26px;
 }
 
 .adoc-asistente-rail-item:hover,
@@ -322,23 +384,41 @@
   flex-direction: column;
 }
 
+/* TODO LO DE LA COLUMNA MENOS EL ENCABEZADO: el hilo, la franja de estado y
+   la entrada. El encabezado y el rail llegan al borde del modal SIN relleno
+   propio —el rail tiene el suyo, y el encabezado ninguno—, así que el
+   relleno que antes vivía en `.adoc-asistente` (adentro del modal) se mudó
+   acá, al único tramo de la columna que todavía lo necesita. */
+.adoc-asistente-columna-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
 /* Los 56 px del encabezado: el título de la conversación activa (o
- * «Asistente» en la bienvenida), la ayuda y, en el modal, cerrar
- * (`EncabezadoDeConversacion`). Reemplaza la fila de encabezado del `Modal`
- * de la librería, que sigue montada pero visualmente oculta más abajo —la
- * librería no tiene un slot de acciones ahí (TD-020). */
+ * «Asistente» en la bienvenida) seguido de la ayuda, y —en el modal— cerrar
+ * contra el borde derecho (`EncabezadoDeConversacion`). Reemplaza la fila de
+ * encabezado del `Modal` de la librería, que sigue montada pero sin ocupar
+ * lugar más abajo —la librería no tiene un slot de acciones ahí (TD-020). */
 .adoc-asistente-encabezado {
   flex: none;
   height: 56px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
-  padding-inline: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-6);
   border-bottom: 1px solid var(--color-border-subtle);
 }
 
+/* Ancho acotado y no `flex: 1`: un título largo se recorta con «…» antes de
+   empujar la ayuda y el cierre lejos de donde la maqueta los pone —pegados
+   al título, no contra el borde derecho—. */
 .adoc-asistente-encabezado-titulo {
+  flex: 0 1 auto;
+  max-width: 60%;
   margin: 0;
   min-width: 0;
   overflow: hidden;
@@ -348,18 +428,12 @@
   font-weight: var(--weight-semibold);
 }
 
-.adoc-asistente-encabezado-acciones {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* Calca el botón «×» que el `Modal`/`Drawer` de la librería ya pintaba —mismo
-   tipo de letra, mismo tamaño, mismo tono— para que cerrar siga leyéndose
-   igual, ahora que esta fila reemplaza a la de la librería. */
+/* Empuja SÓLO el cierre al borde derecho; la ayuda se queda pegada al
+   título, como en la maqueta. Sin `onCerrar` —la ruta, mientras exista— no
+   hay nada después de la ayuda que este margen tenga que empujar. */
 .adoc-asistente-encabezado-cerrar {
   flex: none;
+  margin-left: auto;
   border: 0;
   background: transparent;
   padding: 0 var(--space-1);
@@ -1153,11 +1227,21 @@
   height: 1rem;
 }
 
-/* 1100 × 728 px como máximo (asistente-superficie-frontend): el rail se suma al
-   ancho de lectura que ya tenía el panel —los 520 px de la librería casi siempre
-   scrolleaban con una tabla adentro—, así que el modal crece con él. */
+/* 1100 × 728 px RENDERIZADOS como máximo (asistente-superficie-frontend): el
+   rail se suma al ancho de lectura que ya tenía el panel —los 520 px de la
+   librería casi siempre scrolleaban con una tabla adentro—, así que el modal
+   crece con él.
+
+   DIVIDIDO POR `--ui-zoom`, LOS DOS TÉRMINOS: `index.css` aplica
+   `zoom: var(--ui-zoom)` (1.125) a toda la aplicación, portal del `Modal`
+   incluido —es hijo de `<html>`—, así que un `max-width: 1100px` sin dividir
+   renderiza a 1100 × 1.125 ≈ 1237 px de verdad. Se divide acá y no en cada
+   medida de adentro (rail, encabezado, filas) porque ESTE es el número que
+   se compara 1:1 contra el mock (`asistente-v3.dc.html`, sin zoom propio);
+   las medidas internas siguen expresadas en px lógicos, igual que el resto
+   de la aplicación (el header de 56px de la barra superior, por ejemplo). */
 .adoc-asistente-modal {
-  max-width: min(1100px, calc(100vw - 48px));
+  max-width: min(calc(1100px / var(--ui-zoom, 1)), calc(100vw / var(--ui-zoom, 1) - 48px));
 }
 
 /* El `.body` del Modal impone un tamaño y un color secundario pensados para un
@@ -1170,26 +1254,28 @@
   font-size: inherit;
 }
 
-/* EL `h4` QUE NOMBRA AL DIÁLOGO SIGUE MONTADO, VISUALMENTE OCULTO
+/* EL ENCABEZADO DE LA LIBRERÍA SIGUE MONTADO, SIN OCUPAR NINGÚN LUGAR
    (design.md D1 de asistente-rediseno-v3, TD-020): `PanelAsistente` pinta su
    propio encabezado de 56 px (`EncabezadoDeConversacion`) dentro del cuerpo, y
-   este título de la librería sólo sigue existiendo para que el diálogo se
-   nombre «Asistente» vía `aria-labelledby`. Mismo recorte que
-   `.adoc-asistente-quien`, y no `display: none`: un lector de pantalla sigue
-   necesitando que el nodo referenciado exista y tenga texto.
+   el `h4` de la librería sólo sigue existiendo para que el diálogo se nombre
+   «Asistente» vía `aria-labelledby` — un lector de pantalla necesita que el
+   nodo referenciado exista y tenga texto, no que se vea.
+
+   NO ALCANZA CON ESCONDER SÓLO EL `h4`: el `header` que lo envuelve trae su
+   propio relleno y borde inferior de la librería (`.adoc-modal header`), y
+   eso es la franja vacía que quedaba arriba del rail. Achicar el `header`
+   entero a alto cero es lo que la saca del todo, sin tocar el `h4` — que
+   sigue siendo un nodo de texto normal, legible por su nombre accesible
+   aunque su contenedor no tenga alto.
 
    `hideCloseButton` en el `Modal` ya evita pintar su «×» —no hace falta
-   ocultarla acá—, así que el `header` de la librería queda con un único hijo,
-   este `h4` invisible. */
-.adoc-asistente-modal header h4 {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+   ocultarla acá—, así que el `header` de la librería queda con un único
+   hijo, este `h4`. */
+.adoc-asistente-modal header {
+  height: 0;
   padding: 0;
-  margin: -1px;
+  border: 0;
   overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* EL ALTO LO FIJA EL MODAL Y EL PANEL LO HEREDA. Una sola fuente de verdad, y no
@@ -1211,8 +1297,13 @@
 /* Va en el MISMO elemento que `.adoc-modal`: `className` del Modal se aplica sobre
    el diálogo, no sobre un contenedor. Escrito como descendiente no seleccionaba
    nada y el panel crecía con la conversación. */
+/* `728px` TAMBIÉN dividido por `--ui-zoom`, mismo motivo que el `max-width`
+   de arriba: los dos términos de un `min()` tienen que vivir en las mismas
+   unidades, y acá las lógicas —el término de `100vh` ya lo estaba, así que
+   antes de esta división el cupo fijo (728px sin dividir) nunca hubiera
+   ganado la comparación contra el término de `vh` en una pantalla baja. */
 .adoc-asistente-modal {
-  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), 728px);
+  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), calc(728px / var(--ui-zoom, 1)));
 }
 
 .adoc-asistente-modal .body {
@@ -1223,7 +1314,6 @@
 
 .adoc-asistente-modal .adoc-asistente {
   height: 100%;
-  padding: var(--space-4) var(--space-5);
 }
 
 /* ─────────────────────────────────── la ruta ───────────────────────────────── */
