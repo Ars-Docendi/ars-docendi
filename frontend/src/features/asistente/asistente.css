@@ -858,6 +858,66 @@
   color: var(--color-text-secondary);
 }
 
+/* ───────────────────────── orden de la tabla (ARS-145) ─────────────────────── */
+
+/* El botón ocupa toda la celda: es más fácil de acertar con el mouse y con el
+   dedo, y la celda ya tiene el fondo/borde pegajoso de la cabecera —el botón
+   sólo aporta el layout interno. */
+.adoc-asistente-th-orden {
+  padding: 0;
+}
+
+.adoc-asistente-orden-boton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.adoc-asistente-orden-boton:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.adoc-asistente-orden-icono {
+  display: inline-flex;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* Tenue hasta el hover o el foco del propio encabezado — el mismo ahorro de
+   ruido visual que ya usa el «⋮» del rail (`.adoc-asistente-rail-item
+   .adoc-acciones-trigger`). */
+.adoc-asistente-orden-icono--inactivo {
+  color: var(--color-text-disabled);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.adoc-asistente-th-orden:hover .adoc-asistente-orden-icono--inactivo,
+.adoc-asistente-orden-boton:focus-visible .adoc-asistente-orden-icono--inactivo {
+  opacity: 1;
+}
+
+.adoc-asistente-orden-icono--activo {
+  color: var(--color-accent);
+}
+
+.adoc-asistente-orden-anuncio {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
 /* ────────────────────────── exportar a CSV, y el voto ──────────────────────── */
 
 .adoc-asistente-exportar {
@@ -865,6 +925,12 @@
   flex-direction: column;
   gap: var(--space-1);
   margin-top: var(--space-2);
+}
+
+.adoc-asistente-exportar-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
 .adoc-asistente-exportar-confirmacion,
@@ -1525,6 +1591,79 @@
      non-goal de este cambio): angosto, 268 px de rail no dejarían casi nada
      para la conversación, y automatizar el colapso según el ancho es trabajo
      de la épica móvil, no de este grupo. */
+}
+
+/* ─────────────────────────── tabla ampliada (ARS-145) ───────────────────────── */
+
+/* Cubre TODO el modal —rail incluido—, nunca sólo el turno: `.adoc-asistente-grilla`
+   (más arriba, `position: relative`) es el mismo `<div>` que reparte el rail y la
+   columna de la conversación, y `TablaDeResultado` la porta ahí adentro
+   (`contenedorDelModal`) exactamente para que este `inset: 0` coincida con esa caja
+   y no con el turno, mucho más chico, del que salió. */
+.adoc-asistente-ampliada {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-ampliada-encabezado {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--space-16);
+  padding-inline: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-ampliada-titulo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-ampliada-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  font-weight: var(--text-micro-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-ampliada-pregunta {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adoc-asistente-ampliada-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+}
+
+/* La misma tabla que la vista en línea, sin el límite de 50vh —acá el marco
+   ES el modal entero, no un turno dentro del hilo— y con celdas más grandes
+   (15px, contra los 14px de línea), tal como pide el mock. */
+.adoc-asistente-ampliada .adoc-asistente-tabla-wrap {
+  max-height: none;
+}
+
+.adoc-asistente-ampliada table.adoc-table {
+  font-size: 15px;
 }
 
 /* ───────────────────────────────── menos movimiento ────────────────────────── */

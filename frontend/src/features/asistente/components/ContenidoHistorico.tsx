@@ -68,6 +68,7 @@ export function ContenidoHistorico({ turno, onReejecutar }: ContenidoHistoricoPr
                   columnas={historico.reejecucion.columnas}
                   filas={historico.reejecucion.filas}
                   truncado={historico.reejecucion.truncado}
+                  pregunta={turno.pregunta}
                 />
               </>
             ) : (

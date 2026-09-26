@@ -103,6 +103,7 @@ export function Mensaje({
             truncado={respuesta.truncado}
             vinculos={respuesta.vinculos}
             hilo={respuesta.hilo}
+            pregunta={turno.pregunta}
           />
 
           <Opciones opciones={respuesta.opciones} onElegir={onElegir} deshabilitado={enVuelo} />

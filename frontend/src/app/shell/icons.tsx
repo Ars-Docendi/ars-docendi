@@ -326,4 +326,62 @@ export const trashIcon = (
   </svg>
 );
 
+/**
+ * Flecha hacia arriba. Va en el encabezado de una columna de la tabla del
+ * asistente ordenada ascendente (asistente-tabla-de-resultado).
+ */
+export const ordenAscendenteIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 13.5V4.5M5.5 8l3.5-3.5L12.5 8" />
+  </svg>
+);
+
+/**
+ * Flecha hacia abajo. El par del anterior, para la columna ordenada
+ * descendente.
+ */
+export const ordenDescendenteIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 4.5v9M5.5 10l3.5 3.5L12.5 10" />
+  </svg>
+);
+
+/**
+ * Flecha doble, «⇅». Va en el encabezado de una columna que todavía no está
+ * ordenada, tenue hasta el hover o el foco (el mismo ahorro de ruido visual
+ * que el «⋮» del rail).
+ */
+export const ordenNeutroIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M6.5 2.5v4M4 5l2.5-2.5L9 5" />
+    <path d="M11.5 15.5v-4M14 13l-2.5 2.5L9 13" />
+  </svg>
+);
+
+/**
+ * Cuatro esquinas hacia afuera. Va en «Ampliar tabla», en la tabla de
+ * resultados del asistente.
+ */
+export const ampliarTablaIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M11 3h4v4" />
+    <path d="M15 3l-4.5 4.5" />
+    <path d="M7 15H3v-4" />
+    <path d="M3 15l4.5-4.5" />
+  </svg>
+);
+
+/**
+ * Las mismas cuatro esquinas, hacia adentro. Va en «Contraer», el par del
+ * ícono anterior en la tabla ampliada.
+ */
+export const contraerTablaIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M15 7h-4V3" />
+    <path d="M11 7l4-4" />
+    <path d="M3 11h4v4" />
+    <path d="M7 11l-4 4" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

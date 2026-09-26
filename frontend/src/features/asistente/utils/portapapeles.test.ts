@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { ordenarFilas } from "./ordenarFilas";
 import { nombreDelArchivoCsv, tablaComoCsv, tablaComoTsv } from "./portapapeles";
 import type { ColumnaDelResultado } from "../types";
 
@@ -91,6 +92,57 @@ describe("tablaComoCsv", () => {
     const filas = csv.slice(BOM.length).split("\r\n");
 
     expect(filas).toEqual(["id", "1", "2"]);
+  });
+});
+
+// ============================================================
+// El orden mostrado, no el original: `tablaComoCsv`/`tablaComoTsv` no
+// ordenan nada — reciben las filas YA en el orden a exportar
+// (`ordenarFilas`, ver TablaDeResultado y TablaAmpliada), y lo que se prueba
+// acá es exactamente ese contrato de "recibe el orden ya resuelto"
+// (asistente-tabla-de-resultado, asistente-exportacion-csv).
+// ============================================================
+
+describe("el orden mostrado se exporta, no el original", () => {
+  const filasOriginales = [
+    ["Pérez", 3],
+    ["Gómez", 1],
+    ["Alonso", 2],
+  ];
+
+  function ordenadas(direccion: "ascendente" | "descendente") {
+    const orden = ordenarFilas(filasOriginales, {
+      columna: 1,
+      direccion,
+    });
+    return orden.map((indice) => filasOriginales[indice]);
+  }
+
+  it("tablaComoCsv exporta ascendente cuando ése es el orden mostrado", () => {
+    const csv = tablaComoCsv(columnas("docente", "horas"), ordenadas("ascendente"), false);
+
+    expect(csv).toContain("Gómez,1\r\nAlonso,2\r\nPérez,3");
+  });
+
+  it("tablaComoCsv exporta descendente cuando ése es el orden mostrado", () => {
+    const csv = tablaComoCsv(columnas("docente", "horas"), ordenadas("descendente"), false);
+
+    expect(csv).toContain("Pérez,3\r\nAlonso,2\r\nGómez,1");
+  });
+
+  it("tablaComoTsv exporta en el mismo orden mostrado", () => {
+    const tsv = tablaComoTsv(columnas("docente", "horas"), ordenadas("descendente"));
+
+    expect(tsv).toBe("docente\thoras\nPérez\t3\nAlonso\t2\nGómez\t1");
+  });
+
+  it("sin ordenar, se exporta el orden original — ni tablaComoCsv ni tablaComoTsv lo tocan", () => {
+    const orden = ordenarFilas(filasOriginales, null);
+    const enOrdenOriginal = orden.map((indice) => filasOriginales[indice]);
+
+    expect(tablaComoTsv(columnas("docente", "horas"), enOrdenOriginal)).toBe(
+      "docente\thoras\nPérez\t3\nGómez\t1\nAlonso\t2",
+    );
   });
 });
 

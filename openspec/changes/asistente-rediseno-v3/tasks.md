@@ -28,10 +28,10 @@
 
 ## 4. Result table: sort and expand (ARS-145)
 
-- [ ] 4.1 `utils/ordenarFilas.ts`: stable sort over original row indexes, type inference per column (number / ISO date / Spanish collator), empty cells last, keys from `formatearCelda`. Verify: unit tests for numeric vs lexical, dates, empties in both directions, masked strings, stability.
-- [ ] 4.2 `TablaDeResultado`: sortable header buttons with «⇅»/«↑»/«↓», `aria-sort` on the sorted `th` only, links keyed by original index, sort announcement through the live region; sort state per turn lifted to the owner. Verify: `TablaDeResultado.test.tsx` — keyboard sort, `aria-sort`, link follows its row after sorting.
-- [ ] 4.3 `components/TablaAmpliada.tsx`: overlay over the modal body, «Tabla ampliada» + question, «Copiar tabla» (TSV in displayed order), «Exportar a CSV», «Contraer»; Escape captured so the modal stays open; focus back to the opener; truncation note and sensitive legend kept. Verify: Vitest for each scenario in `asistente-tabla-de-resultado`.
-- [ ] 4.4 CSV and TSV use the displayed order (`tablaComoCsv`/`tablaComoTsv` receive the ordered rows). Verify: `portapapeles.test.ts` new cases for sorted export.
+- [x] 4.1 `utils/ordenarFilas.ts`: stable sort over original row indexes, type inference per column (number / ISO date / Spanish collator), empty cells last, keys from `formatearCelda`. Verify: unit tests for numeric vs lexical, dates, empties in both directions, masked strings, stability.
+- [x] 4.2 `TablaDeResultado`: sortable header buttons with «⇅»/«↑»/«↓», `aria-sort` on the sorted `th` only, links keyed by original index, sort announcement through the live region; sort state per turn lifted to the owner. Verify: `TablaDeResultado.test.tsx` — keyboard sort, `aria-sort`, link follows its row after sorting.
+- [x] 4.3 `components/TablaAmpliada.tsx`: overlay over the modal body, «Tabla ampliada» + question, «Copiar tabla» (TSV in displayed order), «Exportar a CSV», «Contraer»; Escape captured so the modal stays open; focus back to the opener; truncation note and sensitive legend kept. Verify: Vitest for each scenario in `asistente-tabla-de-resultado`.
+- [x] 4.4 CSV and TSV use the displayed order (`tablaComoCsv`/`tablaComoTsv` receive the ordered rows). Verify: `portapapeles.test.ts` new cases for sorted export.
 
 ## 5. Action bar and thumbs-down reasons (ARS-146)
 
