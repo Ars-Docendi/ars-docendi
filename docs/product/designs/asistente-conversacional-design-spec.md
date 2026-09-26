@@ -1,8 +1,8 @@
 ---
 status: review
 owner: "Equipo Ars Docendi"
-feature: "openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md"
-last_updated: 2026-09-25
+feature: "openspec/changes/asistente-rediseno-v3/"
+last_updated: 2026-09-26
 ---
 
 # Design spec: Asistente conversacional — superficie de conversación
@@ -16,6 +16,12 @@ conoce (Claude, ChatGPT) **sin prometer nada que el backend no haga**: sin strea
 simuladas, sin regenerar, sin feedback, sin adjuntos. Cada control visible tiene una acción real
 hoy. La definición funcional vive en `asistente-conversacional-definicion.md` (§3.1 RF-05, RF-10,
 RF-11, RF-14, RF-15; §3.2 RNF-17, RNF-18; §4.6, §4.7).
+
+> **Rediseño v3 (2026-09-26, `asistente-rediseno-v3`, épica ARS-140).** La superficie vigente
+> es la de § «Rediseño v3 — modal con historial integrado», al final de este documento: un
+> solo montaje (el modal), historial en un rail fijo, sin sugerencias salvo en la bienvenida.
+> Las secciones anteriores quedan como registro de las decisiones que siguen valiendo; donde
+> se contradicen con § v3, gana § v3.
 
 ## Roles que ven esta surface
 
@@ -33,7 +39,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 
 1. Desde cualquier pantalla, el usuario pulsa **«Preguntar»** en la barra superior (pastilla con
    destello). Se abre un modal centrado titulado «Asistente» con el foco en el campo de pregunta.
-   Alternativa: navega a `/asistente` y ve la misma vista a página completa.
+   (Desde v3 no hay página `/asistente`: un vínculo viejo redirige a la home con el modal abierto.)
 2. Ve el **estado inicial**: título «¿Qué querés saber del sistema?», una presentación escrita para
    su rol —por qué cosas suele venir a preguntar—, debajo y en secundario el alcance de sus datos
    con cuántas áreas conoce el asistente, chips con preguntas de ejemplo verificadas y qué no puede
@@ -45,7 +51,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
    estado, fuera de la conversación, junto al botón **«Dejar de esperar»**. No hay etapas.
 5. Llega la respuesta en tarjeta a lo ancho: si hubo reinterpretación, primero «Entendí: …»; luego
    el texto; la tabla de resultados si la hay (con aviso «Hay más resultados…» si se truncó); las
-   opciones de aclaración o las sugerencias; y al pie, colapsados, «Cómo lo interpreté»
+   opciones de aclaración (desde v3, sin sugerencias); y al pie, colapsados, «Cómo lo interpreté»
    (razonamiento) y «Ver la consulta» (sólo con `asistente.ver_consulta`), más «Copiar respuesta»
    / «Copiar tabla».
 6. El foco vuelve al campo. El hilo queda en el inicio de la respuesta. Si el usuario había subido
@@ -75,8 +81,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 - **Modal**: `max-width` 880 px, alto del panel `min(72vh, 680px)` —el `vh` dividido por el
   zoom de la interfaz, como hace el escenario del modal—, título «Asistente» en el encabezado
   del `Modal`. En ≤ 640 px ocupa la pantalla completa, sin radio ni margen.
-- **Página `/asistente`**: `PageHeader` («Asistente» + meta) con «Nueva conversación» en
-  `actions`; el panel centrado a 880 px y con alto fijo para que el hilo scrollee solo.
+- **Página `/asistente`**: eliminada en v3 (ARS-151); ver § Rediseño v3.
 - **Tarjeta de respuesta**: fondo `--color-bg-sunken`, radio `--radius-sm`, texto a `72ch`; la
   tabla ocupa todo el ancho de la tarjeta, con cabecera pegajosa y `max-height: 50vh`.
 - **Celda con vínculo**: la celda que identifica algo abrible se pinta como enlace
@@ -85,7 +90,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
   modos. Nombre accesible «Ver el trámite 2026-9005», no el número solo.
 - **Burbuja del usuario**: `--color-accent` / `--color-text-on-accent`, alineada a la derecha.
 - **Opciones de aclaración**: bloque con barra de acento a la izquierda, botones `secondary`.
-- **Sugerencias**: chips pastilla `ghost`, bajo el texto «Probá con alguna de estas:».
+- **Sugerencias**: eliminadas en v3 salvo los ejemplos de la bienvenida (ARS-149).
 - **Sin mockup** por ahora (herramienta de diseño TBD, ver `README.md` de esta carpeta). Si se
   hace uno, va en `exports/asistente-conversacional/`.
 
@@ -98,7 +103,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 | Inicial (vacío)     | Título + presentación según el rol + alcance con el conteo de áreas + chips de ejemplos + límites; campo con foco                                                                            | Sin turnos                                                                     |
 | En vuelo            | Pregunta ya en el hilo; «Enviar» deshabilitado; Enter no envía pero se puede escribir; chips deshabilitados; a los 400 ms «Consultando…» + «Dejar de esperar»                                | Entre el envío y la respuesta                                                  |
 | Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                          | `estado = respondida`                                                          |
-| No contestable      | Texto del backend + sugerencias como chips                                                                                                                                                   | `estado = no_contestable`                                                      |
+| No contestable      | Texto del backend, sin chips (v3)                                                                                                                                                            | `estado = no_contestable`                                                      |
 | Necesita aclaración | `InlineAlert info` «Necesito que precises algo» + opciones que continúan el turno                                                                                                            | `estado = necesita_aclaracion`                                                 |
 | Servicio degradado  | `InlineAlert warning` «El asistente no está disponible ahora» + texto del backend (cupo propio, tope organizacional, turno concurrente, proveedor caído o mantenimiento); nunca rojo         | `estado = servicio_degradado`                                                  |
 | Error de transporte | `InlineAlert danger` «No se pudo consultar» + mensaje en español + **«Reintentar»** (misma clave de idempotencia). Si fue 404, el hilo se reinicia solo                                      | Red, 5xx, 404 — siempre con el request ya terminado                            |
@@ -193,8 +198,10 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
 - **El conteo de áreas no se pierde con la presentación.** Es la única señal honesta de amplitud que
   tiene la pantalla: sin él, «Preguntá por los pedidos de tu carrera» se leería como el techo de lo
   que el asistente sabe. Queda debajo, en secundario, junto al alcance.
-- **Sólo acciones reales por mensaje: copiar.** Copiar usa el portapapeles del navegador; si no
-  está disponible, el botón no se renderiza. No hay regenerar, feedback, editar ni adjuntar.
+- **Sólo acciones reales por mensaje.** Copiar usa el portapapeles del navegador; si no
+  está disponible, el botón no se renderiza. En v3 la barra suma ampliar tabla, exportar y el
+  voto, y la última pregunta suma «Editar y reenviar» — todas con backend o con datos ya en el
+  cliente. No hay regenerar ni adjuntar.
 - **Reintentar reusa la clave de idempotencia del intento, y sólo aparece en un turno que terminó
   en error.** Es el uso documentado de la clave y no factura dos veces al modelo cuando el backend
   ya terminó. Un 404 reinicia el hilo antes de reintentar. Se verificó en el backend
@@ -206,9 +213,8 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   vive mientras viva la barra superior. Un clic afuera ya no destruye el hilo. Sigue muriendo al
   recargar (el backend no persiste; D3 del change anterior). Sin `localStorage`: guardar en el
   navegador filas con datos personales sin política de retención contradice §3.4 de la definición.
-- **Página y modal son hilos independientes.** Dos montajes, dos estados, como hoy. Unificarlos
-  es levantar el estado a un contexto del `AppLayout` y una decisión de producto que no se toma
-  hasta tener feedback de uso real.
+- **~~Página y modal son hilos independientes.~~** Superada en v3: queda un solo montaje, el
+  modal, y el lanzador es el único dueño de la conversación.
 - **El cliente nunca queda colgado.** Cada turno lleva `AbortSignal` y un timeout de 160 s (apenas
   sobre los 150 s del presupuesto del backend, para que el que corte sea el servidor con su mensaje
   de degradado). **«Dejar de esperar»** aborta el request y libera el campo; no promete cancelar el
@@ -243,7 +249,8 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   a la que se acaba de llegar no tendría sentido. El hilo sobrevive porque vive en el lanzador,
   que sigue montado en la barra mientras la aplicación navega por debajo; al reabrir, la
   conversación está donde estaba.
-- **Móvil a pantalla completa** desde 640 px hacia abajo; Enter hace salto en puntero grueso.
+- **Móvil**: fuera del alcance de v3 (sólo escritorio). Sin página propia, en un teléfono el
+  asistente queda inalcanzable hasta la épica de mobile (TD-024, ligado a TD-016).
 - **Copy en voseo rioplatense**, coherente con el backend y la definición, aunque los principios
   generales pidan evitar el «vos» informal en mensajes del sistema: la superficie entera del
   asistente ya habla así y mezclar registros sería peor.
@@ -260,19 +267,25 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
 - «Reintentar» sobre un turno en vuelo o que se dejó de esperar: el backend ejecutaría el turno dos
   veces con la misma clave.
 - Persistir la conversación en `localStorage`/`sessionStorage`.
-- Botones de regenerar, editar mensaje, adjuntar, voz: no hay backend. (Pulgar arriba/abajo e
-  historial de conversaciones sí lo tienen desde `asistente-feedback-export-seguimiento` y
-  `asistente-historial-conversaciones` respectivamente — ver más abajo.)
+- Botones de regenerar, adjuntar, voz: no hay backend. (Pulgar arriba/abajo, historial y
+  «Editar y reenviar» la última pregunta sí lo tienen desde `asistente-feedback-export-seguimiento`,
+  `asistente-historial-conversaciones` y `asistente-rediseno-v3` — ver más abajo.) Versiones de una
+  pregunta («N / M»): descartadas por decisión de producto.
 - Mostrar `estado`, `metricas.categoria`, `cubre[].nombre`, `cubre[].descripcion` —el comentario
   escrito para el modelo—, códigos HTTP, nombres de excepciones.
 - Contar filas faltantes («ves 3 de 124»).
 - Región viva sobre el contenedor entero; métricas dentro del log.
-- Ocultar acciones sólo detrás de hover.
+- Ocultar acciones sólo detrás de hover: en v3 la barra de acciones se revela también con el foco
+  del teclado y sus controles siempre están en el orden de tabulación.
 - Spinner en el botón de envío (parpadea en respuestas deterministas).
 - Burbuja angosta para la respuesta (rompe tablas).
 - Colores o radios inventados fuera de `@ars-docendi/ui/theme.css`.
 
 ## Historial de conversaciones (asistente-historial-conversaciones)
+
+> En v3 el cajón superpuesto y el botón «Historial» del encabezado se reemplazan por el rail
+> de § Rediseño v3; siguen valiendo el agrupado por fecha, la búsqueda, reanudar, «Volver a
+> consultar», los anuncios en la región viva y la pantalla de soporte.
 
 Sección agregada por `asistente-historial-conversaciones`: ninguna sección anterior de este spec
 cubría chrome de historial, así que va acá en vez de forzarla en el flujo principal, que sigue
@@ -410,10 +423,147 @@ viva sin mover el foco. El banner de mantenimiento y el indicador de cupo son le
 de pantalla sin depender de `hover` ni de `title` — nunca la única forma de enterarse de una causa
 de bloqueo.
 
+## Rediseño v3 — modal con historial integrado (asistente-rediseno-v3)
+
+Sección agregada por `asistente-rediseno-v3` (épica ARS-140, decisiones del 2026-09-26).
+Referencia visual: Claude Design «Asistente v3 · menos ruido» (`Asistente v3.dc.html`,
+adjunto en ARS-140). Alcance: **sólo escritorio**; el diseño angosto/móvil queda fuera (TD-016,
+TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del mock» abajo).
+
+### Layout
+
+```
+┌ Modal 1100 × 728 (máx.) ───────────────────────────────────────────────────────────┐
+│ Rail 268 px (60 px colapsado)  │ Encabezado 56 px: «Título de la conversación» (?) × │
+│ [＋ Nueva conversación] [⇤]     ├─────────────────────────────────────────────────────┤
+│ [🔍 Buscar…]                    │ Hilo (scrollea solo, columna de 720 px)              │
+│ HOY                             │   • Bienvenida (sin turnos)                          │
+│ ▌Conversación activa        ⋮   │   • Turno: pregunta (derecha) + herramientas         │
+│  Otra conversación          ⋮   │            respuesta, tabla, barra de acciones       │
+│ ANTERIORES …                    │                                                      │
+│ ─────────────                   ├─────────────────────────────────────────────────────┤
+│ ▸ ARCHIVADAS             2      │ ✦ [Preguntá algo · @ materia · # docente ] [Enviar] │
+│ [Borrar todas]                  │ Franja: cupo restante / bloqueo …… métricas          │
+│ ┌ Conversación eliminada  Deshacer ┐                                                  │
+└───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Grilla de dos columnas** `268px minmax(0,1fr)` ↔ `60px minmax(0,1fr)`, transición de
+  `grid-template-columns` con `--motion-base` y `--ease-standard` (200 ms,
+  `cubic-bezier(0.2,0,0,1)`, exactamente los del mock); sin transición con movimiento reducido.
+  El modal mide `min(1100px, 100vw − 48px)` × `min(728px, alto útil − 48px)`, con el mismo
+  cálculo de zoom que hoy.
+- **Rail expandido**: «＋ Nueva conversación» (botón con borde `--color-border-strong`) y el
+  botón de colapsar; debajo, el buscador (se mantiene aunque el mock no lo dibuje: las archivadas
+  tienen que seguir encontrándose); la lista agrupada por fecha relativa (Hoy / Ayer / Últimos 7
+  días / Anteriores; el mock muestra sólo dos grupos por sus datos de ejemplo); la sección
+  «Archivadas N» al pie, colapsada por defecto y oculta sin archivadas; «Borrar todas»; y el
+  aviso de deshacer. **Rail colapsado**: sólo «Expandir conversaciones», «Nueva conversación» e
+  «Historial» (que expande). El estado se recuerda por usuario en el navegador (única
+  preferencia guardada; nunca turnos).
+- **Fila**: una línea de 36 px, título recortado con «…» y completo en `title`; «⋮» a la derecha
+  (tenue hasta el hover o el foco). La activa: fondo `--color-accent-subtle`, texto
+  `--color-accent-pressed`, peso 500, `aria-current`. Doble clic o «Renombrar» → campo inline con
+  borde de foco en acento; Enter o salir del campo guarda, Escape cancela, vacío conserva el título.
+- **Menú «⋮»** (`MenuAcciones` compartido): «Renombrar» / «Archivar» / «Eliminar» en filas
+  activas; «Desarchivar» / «Eliminar» en archivadas. «Eliminar» en `--color-text-danger`.
+- **Encabezado** 56 px: título de la conversación activa (o «Asistente» en la bienvenida),
+  «?» (`AyudaDelAsistente`: presentación, alcance, cantidad de áreas y límites) y «×». El
+  nombre accesible del diálogo sigue siendo «Asistente».
+- **Hilo**: columna centrada de 720 px, 44 px entre turnos. Pregunta a la derecha en burbuja
+  neutra (`--color-bg-canvas`, texto primario, radio `--radius-sm`, ≤ 80 %); debajo, sus
+  herramientas: «Copiar pregunta» siempre y «Editar y reenviar» sólo en la última.
+- **Respuesta**: texto a 16 px/1,6 y `68ch`; «Entendí: …» si hubo reinterpretación; tabla con
+  borde `--color-border-default`, `max-height` 260 px con scroll propio y cabecera pegajosa sobre
+  `--color-bg-canvas`; aviso de truncado; «Ver la consulta» (con permiso) y «Cómo lo interpreté»
+  (sólo modo debug); **barra de acciones** de íconos de 28 px: «Copiar respuesta», «Ampliar
+  tabla», «Exportar a CSV» | «Sirvió», «No sirvió».
+- **Composer**: marco con borde `--color-border-default` que pasa a acento con foco; destello en
+  `--color-accent`; placeholder «Preguntá algo · @ materia · # docente»; fila de chips de
+  menciones; el lugar del botón muestra «Enviar» (acento; deshabilitado vacío o en vuelo) o
+  «Dejar de esperar» (pasado el umbral). Debajo, la franja con el cupo y las métricas.
+
+### Componentes y estados
+
+| Elemento                  | Comportamiento                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bienvenida                | Destello en cuadro `--color-accent-subtle`, «¿Qué querés saber del sistema?» y los ejemplos del catálogo como tarjetas en grilla de 2 columnas con flecha; son las **únicas** sugerencias clicables del asistente.                                                                                                                                                                                                                                                                                                            |
+| Consultando…              | Tres puntos que laten (`--color-accent`, apagados con movimiento reducido) + «Consultando…» en el lugar de la respuesta, pasados 400 ms. Visual, `aria-hidden`; el anuncio sigue siendo el `role="status"` de siempre, fuera del log. Sin etapas.                                                                                                                                                                                                                                                                             |
+| Dejaste de esperar        | «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.» en texto secundario, sin alerta ni «Reintentar».                                                                                                                                                                                                                                                                                                                                                                                               |
+| Error                     | Caja con borde `--color-border-danger`, fondo `--color-status-danger-bg`, texto `--color-status-danger-fg`: «No se pudo consultar» + mensaje + «Reintentar».                                                                                                                                                                                                                                                                                                                                                                  |
+| Degradado / aclaración    | `InlineAlert` warning / info como hoy; rechazos sin chips (y los rechazos por motivo de ARS-139, cuando lleguen, tampoco).                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Mantenimiento / cupo      | Banner warning arriba del hilo; cupo restante y texto de bloqueo en la franja bajo el composer, fuera de la región viva.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Barra de acciones         | Visible en el último turno y en los votados; en los demás aparece con hover **o foco dentro del turno**; siempre en el orden de Tab. Íconos con tooltip y nombre accesible. «Copiado»: tilde en acento 2 s.                                                                                                                                                                                                                                                                                                                   |
+| Orden de la tabla         | Encabezado como botón: «⇅» tenue al hover/foco, «↑»/«↓» en acento en la columna activa; `aria-sort` sólo en ésa. Número, fecha ISO o texto en español; vacíos al final; siempre sobre el valor mostrado.                                                                                                                                                                                                                                                                                                                      |
+| Tabla ampliada            | Capa sobre todo el modal: eyebrow «Tabla ampliada» (mono, mayúsculas, `--color-text-tertiary`) + la pregunta como título; «Copiar tabla», «Exportar a CSV», «Contraer». Esc contrae sin cerrar el modal; el foco vuelve a «Ampliar tabla».                                                                                                                                                                                                                                                                                    |
+| 👎 «¿Qué falló? Opcional» | Panel `--color-bg-surface` con pastillas de elección única (`aria-pressed`): «Datos incorrectos», «No entendió la pregunta», «Faltan datos», «Otro»; «Omitir» / «Enviar». Después: «Gracias. Tu comentario ayuda a mejorar el asistente.»                                                                                                                                                                                                                                                                                     |
+| Editar y reenviar         | Sólo la última pregunta: textarea inline con borde de acento, «Cancelar» / «Enviar»; la respuesta queda al 40 % de opacidad mientras se edita; Escape cancela y devuelve el foco. Reenviar **reemplaza** pregunta y respuesta; sin «N / M».                                                                                                                                                                                                                                                                                   |
+| Menciones                 | «@» materias, «#» docentes. Menos de 2 letras: aviso «Escribí al menos 2 letras para buscar materias.». Popover con borde fuerte: grupo, ícono, nombre, carrera, código (materias) o cargo (docentes), «Hay más coincidencias. Seguí escribiendo para acotar.», vacío «Sin materias que coincidan en las carreras a las que tenés acceso.», pie con candado «Solo aparecen materias y docentes de las carreras a las que tu perfil tiene acceso.» y «Enter elige · Esc cierra». Lo elegido queda como chip y viaja con su id. |
+| Aviso de deshacer         | Fondo `--color-bg-inverse`, texto `--color-text-on-inverse`, al pie del rail: «Conversación archivada» / «Conversación restaurada» / «Conversación eliminada» / «Conversaciones eliminadas» + «Deshacer», **10 s**. Uno a la vez; sigue visible con el rail colapsado (se superpone al hilo).                                                                                                                                                                                                                                 |
+| Borrar todas              | Pide confirmación inline: «¿Borrar TODAS tus conversaciones, incluidas las archivadas? Vas a poder deshacerlo durante 10 segundos.» y después muestra el aviso.                                                                                                                                                                                                                                                                                                                                                               |
+
+### Tokens (del mock a `@ars-docendi/ui/theme.css`)
+
+Los `oklch` del mock son exactamente la paleta de la librería, así que el mapeo es 1:1. En el
+CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fuera de comentarios).
+
+| Mock                                                 | Uso en el mock                                       | Token                                                                                                    |
+| ---------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `oklch(25% 0.005 75)`                                | texto, borde del modal                               | `--color-text-primary`, `--color-border-ink`                                                             |
+| `oklch(38% 0.006 75)`                                | texto secundario, borde de botones                   | `--color-text-secondary`, `--color-border-strong`                                                        |
+| `oklch(52% 0.007 75)`                                | placeholder, grupos, íconos                          | `--color-text-tertiary`                                                                                  |
+| `oklch(68% 0.007 75)`                                | «⋮» y «⇅» en reposo                                  | `--color-text-disabled`                                                                                  |
+| `oklch(83% 0.007 75)`                                | borde de tabla, pastillas, composer                  | `--color-border-default`                                                                                 |
+| `oklch(91% 0.007 75)`                                | divisores del rail, encabezado y filas               | `--color-border-subtle`                                                                                  |
+| `oklch(95% 0.006 75)`                                | hover, burbuja del usuario, cabecera de tabla        | `--color-bg-canvas`                                                                                      |
+| `oklch(98% 0.004 75)`                                | fondo del rail, panel 👎, cabecera de tabla ampliada | `--color-bg-surface`                                                                                     |
+| `#fff`                                               | modal, tarjetas, campos                              | `--color-bg-raised`                                                                                      |
+| `oklch(14% 0.005 75)` / `98%`                        | aviso de deshacer (fondo / texto)                    | `--color-bg-inverse` / `--color-text-on-inverse`                                                         |
+| `oklch(57% 0.115 165)`                               | «Enviar», foco, orden activo, destello               | `--color-accent`, `--color-border-focus`                                                                 |
+| `oklch(48% 0.1 165)`                                 | hover de acento, enlaces                             | `--color-accent-hover`, `--color-text-link`                                                              |
+| `oklch(38% 0.08 165)`                                | texto de la fila activa, 👍 activo                   | `--color-accent-pressed`                                                                                 |
+| `oklch(94% 0.03 165)`                                | fila activa, pastilla elegida, opción activa         | `--color-accent-subtle`                                                                                  |
+| `oklch(86% 0.06 165)`                                | hover del «⋮» en la fila activa                      | `color-mix(in srgb, var(--color-accent) 18%, transparent)` (patrón ya usado en la feature)               |
+| `oklch(74% 0.09 165)`                                | «Deshacer» sobre fondo oscuro                        | `--color-text-on-inverse` en semibold (ver desvíos)                                                      |
+| `oklch(55% 0.18 25)` / `94% 0.04 25` / `40% 0.14 25` | error y «Eliminar»                                   | `--color-border-danger` / `--color-status-danger-bg` / `--color-status-danger-fg`, `--color-text-danger` |
+| 4 px / 2 px / 9999 px                                | radios                                               | `--radius-sm` / `--radius-xs` / `--radius-pill`                                                          |
+| 200 ms `cubic-bezier(0.2,0,0,1)`; 120–150 ms         | rail; opacidades y chevron                           | `--motion-base` + `--ease-standard`; `--motion-fast`                                                     |
+| Inter / JetBrains Mono                               | texto / eyebrows, códigos, números de tabla          | `--font-sans` / `--font-mono`                                                                            |
+
+### Interacciones y foco
+
+- Colapsar/expandir: Enter o Espacio; el foco queda en el conmutador visible del nuevo estado
+  (`aria-expanded`).
+- Archivar/eliminar desde «⋮»: la fila desaparece, el anuncio sale por la región viva existente
+  («… Podés deshacerlo durante 10 segundos.») y el foco pasa a «Deshacer»; al deshacer, a la fila
+  restaurada; si vence con el foco adentro, a la lista. Archivar o eliminar la conversación
+  activa vuelve a la bienvenida; «Deshacer» la reanuda.
+- Esc cierra, en este orden y sin cerrar el modal: el popover de menciones, el menú «⋮», la
+  edición inline, la tabla ampliada. Con nada de eso abierto, Esc cierra el modal como hoy.
+- Vínculos de trámite en celdas: se mantienen (también en la tabla ampliada) y siguen cerrando
+  el modal al navegar.
+- `/asistente` → home (`/portal`) con el modal abierto; sin acceso, sólo la home.
+
+### Desvíos del mock (decididos en `asistente-rediseno-v3`, pendientes de confirmación del PO)
+
+- Sin navegación de versiones «N / M» ni la nota de versiones al editar (descartado por producto).
+- El aviso dura **10 s** (el mock usa 5 s).
+- El panel 👎 **no tiene** el campo «Contanos qué esperabas ver…» y las pastillas son de elección
+  única: el conjunto de motivos es cerrado y un texto libre junto a una fila anónima es el canal
+  de re-identificación que TD-012 cierra. El botón dice «Enviar», no «Enviar comentario».
+- Las materias del popover van una fila por materia y carrera (no una fila con varias carreras
+  como etiquetas): cada fila corresponde a un id exacto.
+- Se mantienen aunque el mock no los dibuja: buscador del rail, «Borrar todas», franja con cupo y
+  métricas, banner de mantenimiento, «Ver la consulta», «Cómo lo interpreté» (debug) y los cuatro
+  grupos de fecha.
+- «Deshacer» usa `--color-text-on-inverse` en semibold en lugar del acento claro del mock: el
+  acento no alcanza 4,5:1 sobre `--color-bg-inverse` en ninguno de los dos temas.
+
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
 - Spec funcional: [`openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md`](../../../openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md)
+- Rediseño v3: [`openspec/changes/asistente-rediseno-v3/`](../../../openspec/changes/asistente-rediseno-v3/) y épica ARS-140
 - [Definición del asistente](./asistente-conversacional-definicion.md) §3.1, §3.2, §4.6, §4.7
 - Change previo: `openspec/changes/asistente-frontend/` (D1-D8)
 - Ticket ARS-79 (razonamiento / RF-11)
