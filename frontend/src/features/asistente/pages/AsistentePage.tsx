@@ -1,9 +1,11 @@
 import { PageHeader } from "../../../shared/ui/PageHeader";
+import { AbrirHistorial } from "../components/AbrirHistorial";
 import { AyudaDelAsistente } from "../components/AyudaDelAsistente";
 import { NuevaConversacion } from "../components/NuevaConversacion";
 import { PanelAsistente } from "../components/PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
+import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
 import "../asistente.css";
 
 /**
@@ -20,6 +22,7 @@ import "../asistente.css";
 export function AsistentePage() {
   const { tieneAcceso } = useAccesoAlAsistente();
   const asistente = useAsistente();
+  const historial = useHistorialAsistente(asistente);
 
   return (
     <div className="adoc-asistente-pagina">
@@ -32,12 +35,13 @@ export function AsistentePage() {
           tieneAcceso === true ? (
             <div className="adoc-asistente-acciones-pagina">
               <AyudaDelAsistente />
+              <AbrirHistorial historial={historial} />
               <NuevaConversacion asistente={asistente} />
             </div>
           ) : undefined
         }
       />
-      <PanelAsistente asistente={asistente} />
+      <PanelAsistente asistente={asistente} historial={historial} />
     </div>
   );
 }

@@ -65,6 +65,17 @@ public sealed class ValidacionDeOpcionesTests
         Assert.Contains(resultado.Failures!, f => f.Contains(perilla, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(nameof(OpcionesAsistente.RetencionDeHistorialDias))]
+    [InlineData(nameof(OpcionesAsistente.RetencionDeAuditoriaDeSoporteDias))]
+    public void Las_dos_retenciones_del_historial_no_positivas_se_rechazan(string perilla)
+    {
+        var resultado = EnPerilla(perilla, 0);
+
+        Assert.False(resultado.Succeeded);
+        Assert.Contains(resultado.Failures!, f => f.Contains(perilla, StringComparison.Ordinal));
+    }
+
     // ------------------------------------------------- el cero como apagado
 
     [Fact]

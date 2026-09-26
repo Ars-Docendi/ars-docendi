@@ -118,4 +118,68 @@ export interface TurnoDeLaConversacion {
   error?: string;
   /** El usuario dejó de esperarlo: el request se soltó de este lado. No es un error. */
   detenido?: boolean;
+  /**
+   * Presente sólo en un turno restaurado de una conversación reanudada
+   * (asistente-historial-conversaciones). El texto redactado nunca se
+   * persiste (design.md D2/D4), así que este turno no tiene `respuesta`: en
+   * su lugar se muestra su desenlace y, si terminó `respondida`, la acción
+   * «volver a consultar».
+   */
+  historico?: TurnoHistoricoEnCurso;
+}
+
+// ============================================================
+// El historial de conversaciones propias, y su lectura de soporte.
+// Ver docs/architecture/api-contracts.md §Asistente — Historial.
+// ============================================================
+
+/** Una conversación propia, en la lista. */
+export interface ConversacionResumen {
+  id: string;
+  titulo: string;
+  creadoEn: string;
+  ultimaActividad: string;
+}
+
+/** Un turno de una conversación propia, tal como lo devuelve el historial. */
+export interface TurnoDeHistorial {
+  id: string;
+  pregunta: string;
+  /** Sólo con `asistente.ver_consulta` (propio) o siempre (lectura de soporte). */
+  sql?: string | null;
+  estado: EstadoDelTurno;
+  ocurrioEn: string;
+}
+
+/** Una conversación propia, con sus turnos. */
+export interface ConversacionDetalle extends ConversacionResumen {
+  turnos: TurnoDeHistorial[];
+}
+
+/** Lo que devuelve reanudar una conversación propia. */
+export interface ReanudarRespuesta {
+  /** El id efímero NUEVO: el mismo campo `hilo` de `POST /consultas`. */
+  hilo: string;
+  turnos: TurnoDeHistorial[];
+}
+
+/** Lo que devuelve «volver a consultar» un turno propio ya respondido. */
+export interface ReejecucionResultado {
+  exitosa: boolean;
+  /** Presente sólo cuando `exitosa` es falso: nunca un error crudo (design.md D4). */
+  mensaje?: string | null;
+  columnas: ColumnaDelResultado[];
+  filas: unknown[][];
+  truncado: boolean;
+}
+
+/** El estado, del lado del cliente, de un turno histórico restaurado. */
+export interface TurnoHistoricoEnCurso {
+  estado: EstadoDelTurno;
+  sql: string | null;
+  ocurrioEn: string;
+  /** «Volver a consultar» en vuelo para este turno. */
+  reejecutando?: boolean;
+  /** El último resultado de «volver a consultar», si se pidió. */
+  reejecucion?: ReejecucionResultado;
 }

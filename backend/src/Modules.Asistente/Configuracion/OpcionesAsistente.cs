@@ -292,6 +292,31 @@ public sealed class OpcionesAsistente
     /// </remarks>
     public int RetencionDeRegistrosDias { get; set; } = 90;
 
+    /// <summary>
+    /// Cuánto se conserva el historial propio de conversaciones (preguntas, SQL
+    /// resuelta, estado y momentos), en días, contado desde la última actividad
+    /// de la conversación y no desde su creación.
+    /// </summary>
+    /// <remarks>
+    /// Deliberadamente MÁS largo que <see cref="RetencionDeRegistrosDias"/> (90,
+    /// para los registros anónimos): el historial propio tiene que seguir
+    /// sirviendo para retomar una conversación de un cuatrimestre anterior, y
+    /// 180 días balancea eso contra el principio de proporcionalidad de la Ley
+    /// 25.326 — ver design.md D7 de asistente-historial-conversaciones.
+    /// </remarks>
+    public int RetencionDeHistorialDias { get; set; } = 180;
+
+    /// <summary>
+    /// Cuánto se conserva la auditoría de accesos de soporte al historial ajeno,
+    /// en días.
+    /// </summary>
+    /// <remarks>
+    /// Es una perilla PROPIA y distinta de <see cref="RetencionDeHistorialDias"/>
+    /// a propósito: la auditoría tiene que sobrevivir a la conversación que
+    /// describe, incluso si el propio usuario la borra — ver design.md D10.
+    /// </remarks>
+    public int RetencionDeAuditoriaDeSoporteDias { get; set; } = 365;
+
     /// <summary>Cada cuánto corre la purga, en horas.</summary>
     public int PeriodoDePurgaHoras { get; set; } = 24;
 

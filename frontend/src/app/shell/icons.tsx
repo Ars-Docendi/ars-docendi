@@ -123,6 +123,13 @@ export const navIcons = {
       <path d="m6 8.7 2 2 4-4" />
     </svg>
   ),
+  historial: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <circle cx="9" cy="9.5" r="6" />
+      <path d="M9 6v3.5l2.5 1.5" />
+      <path d="M3.5 4.5v2.5H6" />
+    </svg>
+  ),
 } satisfies Record<string, ReactNode>;
 
 /**
@@ -232,6 +239,19 @@ export const downloadIcon = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
     <path d="M9 3v8M5.5 8L9 11.5 12.5 8" />
     <path d="M3.5 13.5h11" />
+  </svg>
+);
+
+/**
+ * Reloj con flecha atrás. Va en «Historial» —conversaciones propias del
+ * asistente— y en el ítem de navegación de la lectura de soporte del
+ * historial ajeno.
+ */
+export const historyIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <circle cx="9" cy="9.5" r="6" />
+    <path d="M9 6v3.5l2.5 1.5" />
+    <path d="M3.5 4.5v2.5H6" />
   </svg>
 );
 

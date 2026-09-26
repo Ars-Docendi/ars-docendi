@@ -82,6 +82,92 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
         Assert.Equal(PrivilegioInsuficiente, error.SqlState);
     }
 
+    // Regression guard for TD-012: the feedback table lives inside `asistente`,
+    // already denied wholesale, and stays that way with no per-table GRANT of
+    // its own. If it ever became readable by either role, the assistant could
+    // reconstruct thumbs-up/down votes tied to an analytic row it is otherwise
+    // never allowed to read — reopening exactly the channel TD-012 closes.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_feedback_table_is_unreachable_by_either_read_only_role(bool conDatosPersonales)
+    {
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(
+                conDatosPersonales, "SELECT * FROM asistente.retroalimentacion_turno"));
+
+        Assert.Equal(PrivilegioInsuficiente, error.SqlState);
+    }
+
+    // Regression guard for asistente-historial-conversaciones: own history is
+    // actor-linked ON PURPOSE (unlike registro_analitico/registro_operativo),
+    // which is exactly why it must stay out of the assistant's own reach — the
+    // assistant cannot answer "what did fulano ask" through its own SQL carril,
+    // the same way it cannot read the existing anonymous registers.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task El_historial_de_conversaciones_es_inalcanzable_por_ninguno_de_los_dos_roles(
+        bool conDatosPersonales)
+    {
+        var errorHilo = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(
+                conDatosPersonales, "SELECT * FROM asistente.hilo_historico"));
+        Assert.Equal(PrivilegioInsuficiente, errorHilo.SqlState);
+
+        var errorTurno = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(
+                conDatosPersonales, "SELECT * FROM asistente.turno_historico"));
+        Assert.Equal(PrivilegioInsuficiente, errorTurno.SqlState);
+    }
+
+    // Regression guard for asistente-acceso-de-soporte-al-historial: the audit
+    // trail of support reads has to stay unreachable too, or the assistant's
+    // own SQL carril would become a second, unaudited path to "who read whose
+    // history".
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task La_auditoria_de_acceso_de_soporte_es_inalcanzable_por_ninguno_de_los_dos_roles(
+        bool conDatosPersonales)
+    {
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(
+                conDatosPersonales, "SELECT * FROM asistente.auditoria_acceso_historial"));
+
+        Assert.Equal(PrivilegioInsuficiente, error.SqlState);
+    }
+
+    // Regression guard for asistente-administracion-de-uso (design.md D13,
+    // AGENTS.md rule 11 unaffected): the seven new administration-of-use
+    // tables live inside `asistente`, already denied wholesale, and stay
+    // that way with no per-table GRANT — including the audit trail (task
+    // 8.4), which would otherwise become a second, unaudited path to reading
+    // who edited what budget.
+    [Theory]
+    [InlineData(false, "presupuesto_rol")]
+    [InlineData(true, "presupuesto_rol")]
+    [InlineData(false, "presupuesto_usuario")]
+    [InlineData(true, "presupuesto_usuario")]
+    [InlineData(false, "tope_organizacional")]
+    [InlineData(true, "tope_organizacional")]
+    [InlineData(false, "consumo_organizacional_mensual")]
+    [InlineData(true, "consumo_organizacional_mensual")]
+    [InlineData(false, "tabla_de_precios")]
+    [InlineData(true, "tabla_de_precios")]
+    [InlineData(false, "modo_mantenimiento")]
+    [InlineData(true, "modo_mantenimiento")]
+    [InlineData(false, "auditoria_administracion")]
+    [InlineData(true, "auditoria_administracion")]
+    public async Task La_administracion_de_uso_es_inalcanzable_por_ninguno_de_los_dos_roles(
+        bool conDatosPersonales, string tabla)
+    {
+        var error = await Assert.ThrowsAsync<PostgresException>(() =>
+            ConsultarComoAsistenteAsync(conDatosPersonales, $"SELECT * FROM asistente.{tabla}"));
+
+        Assert.Equal(PrivilegioInsuficiente, error.SqlState);
+    }
+
     [Theory]
     [InlineData(false, "azure_oid", "identity.users")]
     [InlineData(true, "azure_oid", "identity.users")]

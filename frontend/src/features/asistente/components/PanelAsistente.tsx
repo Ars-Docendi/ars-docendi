@@ -6,10 +6,12 @@ import { EntradaDePregunta } from "./EntradaDePregunta";
 import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
 import { IrAlFinal } from "./IrAlFinal";
+import { ListaDeConversaciones } from "./ListaDeConversaciones";
 import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
 import type { Asistente } from "../hooks/useAsistente";
+import type { HistorialAsistente } from "../hooks/useHistorialAsistente";
 
 interface PanelAsistenteProps {
   /**
@@ -17,6 +19,14 @@ interface PanelAsistenteProps {
    * página para la ruta— y no el panel, para que sobreviva a cerrar el modal.
    */
   asistente: Asistente;
+  /**
+   * El historial de conversaciones propias. LO CREA EL MISMO DUEÑO que crea
+   * `asistente`, y por el mismo motivo: «Historial» vive en el encabezado de
+   * cada montaje —junto a «Nueva conversación»—, y no adentro de este panel,
+   * así que el botón y el panel que abre necesitan el MISMO hook para seguir
+   * siendo una sola cosa alcanzable desde los dos lugares (tasks.md 10.3).
+   */
+  historial: HistorialAsistente;
   /** Para el test del umbral, que no puede esperar el tiempo real. */
   umbralDelIndicadorMs?: number;
 }
@@ -34,7 +44,11 @@ interface PanelAsistenteProps {
  * afuera, también sin querer, cierran—. Lo que sí es suyo es lo que se está
  * escribiendo y el foco.
  */
-export function PanelAsistente({ asistente, umbralDelIndicadorMs }: PanelAsistenteProps) {
+export function PanelAsistente({
+  asistente,
+  historial,
+  umbralDelIndicadorMs,
+}: PanelAsistenteProps) {
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar, reintentar, detener } = asistente;
   const [borrador, setBorrador] = useState("");
@@ -79,6 +93,12 @@ export function PanelAsistente({ asistente, umbralDelIndicadorMs }: PanelAsisten
 
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
+      {/* El botón que abre esto vive en el ENCABEZADO de cada montaje —junto a
+          «Nueva conversación»—, no acá: por eso este panel es un cajón que se
+          superpone al hilo (`position: absolute` sobre `.adoc-asistente`, que
+          por eso es `position: relative`) en vez de empujarlo hacia abajo. */}
+      {historial.abierto && <ListaDeConversaciones historial={historial} />}
+
       {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando, el
           campo de entrada se va hacia abajo con cada respuesta y hay que perseguirlo;
           acá se queda quieto y lo que se mueve es la conversación, que es lo que uno
@@ -93,7 +113,9 @@ export function PanelAsistente({ asistente, umbralDelIndicadorMs }: PanelAsisten
             turnos={turnos}
             onElegir={enviar}
             onReintentar={(id) => void reintentar(id)}
+            onReejecutar={(id) => void asistente.reejecutar(id)}
             enVuelo={enVuelo}
+            anuncio={historial.anuncio}
           />
         </div>
 

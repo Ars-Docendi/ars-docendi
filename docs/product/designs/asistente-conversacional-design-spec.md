@@ -257,8 +257,9 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
 - «Reintentar» sobre un turno en vuelo o que se dejó de esperar: el backend ejecutaría el turno dos
   veces con la misma clave.
 - Persistir la conversación en `localStorage`/`sessionStorage`.
-- Botones de regenerar, pulgar arriba/abajo, editar mensaje, adjuntar, voz, historial de
-  conversaciones: no hay backend.
+- Botones de regenerar, editar mensaje, adjuntar, voz: no hay backend. (Pulgar arriba/abajo e
+  historial de conversaciones sí lo tienen desde `asistente-feedback-export-seguimiento` y
+  `asistente-historial-conversaciones` respectivamente — ver más abajo.)
 - Mostrar `estado`, `metricas.categoria`, `cubre[].nombre`, `cubre[].descripcion` —el comentario
   escrito para el modelo—, códigos HTTP, nombres de excepciones.
 - Contar filas faltantes («ves 3 de 124»).
@@ -267,6 +268,82 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
 - Spinner en el botón de envío (parpadea en respuestas deterministas).
 - Burbuja angosta para la respuesta (rompe tablas).
 - Colores o radios inventados fuera de `@ars-docendi/ui/theme.css`.
+
+## Historial de conversaciones (asistente-historial-conversaciones)
+
+Sección agregada por `asistente-historial-conversaciones`: ninguna sección anterior de este spec
+cubría chrome de historial, así que va acá en vez de forzarla en el flujo principal, que sigue
+siendo el de una conversación viva.
+
+**Reutiliza el panel, no lo duplica.** «Historial» es un botón `ghost` con ícono en el ENCABEZADO
+de cada montaje —junto a «Nueva conversación», en el título del modal y en las acciones de la
+página de la ruta—, así que aparece en los dos lugares sin dos implementaciones (rediseño: vivía
+antes dentro de `PanelAsistente`, en su propia fila). Al pulsarlo, un cajón se abre SUPERPUESTO al
+hilo, no un segundo modal ni una caja que empuja la conversación hacia abajo: a ancho de
+escritorio ocupa un ancho fijo (340px) desde la izquierda, con un fondo que cierra al clic sobre lo
+que queda visible del hilo al lado; a ancho angosto ocupa todo el panel. El patrón —cajón lateral,
+agrupado por fecha, título de una línea, acciones detrás de un «⋮»— es el que comparten ChatGPT,
+Claude.ai, Gemini y Microsoft Copilot para esta misma lista.
+
+- **Lista**: agrupada por fecha relativa de última actividad (Hoy / Ayer / Últimos 7 días /
+  Anteriores; un grupo sin conversaciones no aparece), con encabezado de grupo pegajoso. Cada fila
+  es una línea con el título recortado con «…» (el título completo queda en el atributo `title`,
+  visible al pasar el mouse) — abrirla reanuda la conversación — y, si es la que está reanudada en
+  el hilo actual, queda marcada (`aria-current`, acento de la aplicación). Las acciones de la fila
+  —«Renombrar» (campo inline, Guardar/Cancelar) y «Borrar» (pide confirmación inline antes de
+  llamar al endpoint — nunca borra al primer clic)— viven detrás de un menú «⋮» que aparece con el
+  mouse, el teclado o ya abierto, y no siempre visible: en una lista de varias conversaciones son
+  ruido hasta que se necesitan. «Borrar todas» se mudó al PIE del cajón, no a la cabecera: no es lo
+  primero que se busca al abrir el propio historial, y competía con el buscador por la misma fila.
+  Pide la misma confirmación inline y queda deshabilitado sin conversaciones.
+- **Buscar**: campo `search` en la cabecera del cajón, con debounce (300 ms) contra
+  `GET /historial?q=`; sin coincidencias, «Ninguna conversación coincide con esa búsqueda.»; sin
+  conversaciones, «Todavía no tenés conversaciones guardadas.»
+- **Cerrar**: una «×» en la cabecera del cajón (mismo lenguaje visual que la del `Modal`/`Drawer`
+  de la librería), el fondo (a ancho de escritorio) y Escape. Los tres devuelven el foco al botón
+  «Historial» del encabezado.
+- **Reanudar**: abrir una conversación pide `POST /historial/{id}/reanudar`, cierra el panel de
+  historial y pinta sus turnos pasados en el MISMO hilo que ya se usa para la conversación en
+  vivo — no hay una vista separada de «modo lectura». Cada turno restaurado muestra la pregunta,
+  su desenlace («Esta pregunta fue respondida.», «…no se pudo responder.», «…necesitaba una
+  aclaración.», «El servicio estaba degradado…») y, con `asistente.ver_consulta`, la consulta
+  guardada — nunca el texto redactado, porque nunca se persiste (ver capability
+  `asistente-historial-conversaciones`, decisión D2/D4 del design de ese change). El foco pasa al
+  campo de la pregunta, listo para un seguimiento: es el mismo efecto que ya mueve el foco al
+  campo tras cualquier turno, sin código nuevo para esto.
+- **«Volver a consultar»**: sólo en un turno restaurado que terminó respondido. Re-ejecuta la SQL
+  guardada bajo el alcance ACTUAL del actor (nunca llama al modelo, nunca escribe historial nuevo)
+  y pinta la tabla de siempre (`TablaDeResultado`) con «Consulta actualizada.» arriba. Si la
+  consulta ya no corre (privilegios que se achicaron, esquema que cambió), un `InlineAlert info`
+  con un texto no técnico reemplaza la tabla — nunca un error crudo, nunca una caída visible.
+
+**Anuncios: la MISMA región viva, ninguna nueva.** Renombrar, borrar (uno o todos), reanudar y
+«Volver a consultar» no tienen turno propio del que colgar su confirmación, así que
+`Conversacion.tsx` acepta un `anuncio` opcional que se pinta como un último ítem de su propia
+`<ul role="log" aria-live="polite">` — la región que ya existe, nunca una segunda. Borrar y
+renombrar además devuelven el foco al contenedor del cajón (con `tabIndex={-1}`) en vez de
+perderlo en `<body>`, porque la fila o el formulario que tenía el foco se desmonta con la acción.
+
+**Pantalla de soporte, en su propia ruta.** `/asistente/soporte-historial` (permiso
+`asistente.leer_historial_ajeno`, sembrado a NINGÚN rol) reutiliza `RequirePermission` —mismo
+mecanismo que ya protege `/designaciones/periodos`—, así que sin el permiso no hay ítem de
+navegación y la ruta ni resuelve. La pantalla: un buscador de personas (reusa el endpoint real de
+administración de usuarios, no un buscador nuevo) para elegir a quién, un campo de razón
+obligatorio, y recién con los dos la lista de sus conversaciones y, al abrir una, su detalle. El
+detalle muestra pregunta, consulta (siempre, sin el gate de `asistente.ver_consulta` — el permiso
+de soporte ya es el de diagnóstico), desenlace y momento — **nunca** una fila de resultado ni un
+botón de «Volver a consultar»: esa acción no existe para el historial ajeno, ni por soporte ni por
+nadie. Al sujeto nunca se le muestra que alguien miró su historial: no hay pantalla ni endpoint
+para eso, por decisión final del cliente.
+
+**Accesibilidad.** Todo el cajón es alcanzable por Tab en orden lógico (cerrar → buscar → abrir →
+«⋮» de cada fila → borrar todas, al pie) y cada acción activa con Enter o Espacio igual que con un
+clic — incluidas «Renombrar» y «Borrar» detrás del menú, que sigue el mismo patrón de menú `⋮` ya
+establecido en el proyecto (`role="menu"`/`role="menuitem"`, `aria-expanded` en el disparador). Las
+dos confirmaciones de borrado son controles de teclado comunes, no un modal aparte. Escape cierra
+el cajón y devuelve el foco al botón «Historial» del encabezado. El botón «Volver a consultar» es
+un botón como cualquier otro: alcanzable, operable, y su resultado se anuncia por la región viva ya
+descripta.
 
 ## Referencias
 

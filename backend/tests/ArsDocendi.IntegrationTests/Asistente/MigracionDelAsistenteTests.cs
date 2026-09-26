@@ -100,6 +100,62 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             """));
     }
 
+
+    // --------------------------------------- own history tables (task 1.1/2.1)
+
+    [Fact]
+    public async Task El_historial_se_crea_con_la_cascada_de_turno_a_hilo()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["actor_id", "creado_en", "id", "titulo", "ultima_actividad"],
+            await ColumnasDeAsync("hilo_historico"));
+
+        Assert.Equal(
+            ["estado", "hilo_id", "id", "ocurrido_en", "pregunta", "sql_resuelto"],
+            await ColumnasDeAsync("turno_historico"));
+
+        // ON DELETE CASCADE from turno_historico to hilo_historico.
+        Assert.Equal(1L, await EscalarAsync<long>(
+            """
+            SELECT count(*)
+              FROM information_schema.referential_constraints rc
+              JOIN information_schema.table_constraints tc
+                ON tc.constraint_name = rc.constraint_name
+               AND tc.table_schema = rc.constraint_schema
+              JOIN information_schema.constraint_column_usage ccu
+                ON ccu.constraint_name = rc.unique_constraint_name
+               AND ccu.table_schema = rc.unique_constraint_schema
+             WHERE tc.table_schema = 'asistente'
+               AND tc.table_name = 'turno_historico'
+               AND ccu.table_name = 'hilo_historico'
+               AND rc.delete_rule = 'CASCADE'
+            """));
+    }
+
+    [Fact]
+    public async Task La_auditoria_de_soporte_no_lleva_clave_foranea_al_historial()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            ["hilo_historico_id", "id", "lector_id", "ocurrido_en", "razon", "sujeto_id"],
+            await ColumnasDeAsync("auditoria_acceso_historial"));
+
+        // Deliberately no foreign key at all from this table (design.md D10):
+        // the audit row has to survive the subject deleting the conversation
+        // it describes.
+        Assert.Equal(0L, await EscalarAsync<long>(
+            """
+            SELECT count(*)
+              FROM information_schema.table_constraints
+             WHERE table_schema = 'asistente'
+               AND table_name = 'auditoria_acceso_historial'
+               AND constraint_type = 'FOREIGN KEY'
+            """));
+    }
+
     // ------------------------------------------------------------ la base vieja
 
     [Fact]

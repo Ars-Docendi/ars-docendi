@@ -54,6 +54,13 @@ internal sealed class MigradorAsistente(
         // since its primary key is a foreign key into that table.
         await RetroalimentacionAsistente.AplicarAsync(conexion, ct);
 
+        // Same reason as the feedback table: no role GUCs needed, both live
+        // inside the already wholesale-denied `asistente` schema. Historial
+        // before auditoria only for readability — there is no foreign key
+        // between them (design.md D10 of asistente-historial-conversaciones).
+        await HistorialAsistente.AplicarAsync(conexion, ct);
+        await AuditoriaDeSoporteAsistente.AplicarAsync(conexion, ct);
+
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 
         log.LogInformation(

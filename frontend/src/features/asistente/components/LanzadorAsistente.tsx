@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Modal } from "@ars-docendi/ui";
 
+import { AbrirHistorial } from "./AbrirHistorial";
 import { AyudaDelAsistente } from "./AyudaDelAsistente";
 import { NuevaConversacion } from "./NuevaConversacion";
 import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
+import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
 import { sparkIcon } from "../../../app/shell/icons";
 import "../asistente.css";
 
@@ -50,6 +52,7 @@ export function LanzadorAsistente() {
   const { tieneAcceso } = useAccesoAlAsistente();
   const [abierto, setAbierto] = useState(false);
   const asistente = useAsistente();
+  const historial = useHistorialAsistente(asistente);
   const lanzador = useRef<HTMLButtonElement>(null);
   const { pathname } = useLocation();
   const [rutaVista, setRutaVista] = useState(pathname);
@@ -110,8 +113,11 @@ export function LanzadorAsistente() {
           diálogo: el lector de pantalla pasaba a anunciar «Asistente Nueva
           conversación». Los tests del nombre lo atajaron.
 
-          Así que el botón entra por el cuerpo y se posiciona sobre esa fila. La
-          alternativa honesta es un `headerActions` en la librería — TD-020. */}
+          Así que el botón entra por el cuerpo y se posiciona sobre esa fila.
+          «Historial» se sumó al mismo mecanismo y a la misma fila —es el
+          mismo botón absoluto de siempre, con uno más adentro—: la
+          alternativa honesta sigue siendo un `headerActions` en la librería
+          — TD-020. */}
       <Modal
         open={abierto}
         onOpenChange={setAbierto}
@@ -124,9 +130,10 @@ export function LanzadorAsistente() {
           <AyudaDelAsistente />
         </div>
         <div className="adoc-asistente-acciones-modal">
+          <AbrirHistorial historial={historial} />
           <NuevaConversacion asistente={asistente} />
         </div>
-        <PanelAsistente asistente={asistente} />
+        <PanelAsistente asistente={asistente} historial={historial} />
       </Modal>
     </>
   );

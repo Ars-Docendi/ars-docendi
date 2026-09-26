@@ -33,6 +33,20 @@ public static class Permisos
     /// </remarks>
     public const string AsistenteVerConsulta = "asistente.ver_consulta";
 
+    /// <summary>
+    /// Leer el historial de conversaciones de OTRO usuario con el asistente,
+    /// para soporte.
+    /// </summary>
+    /// <remarks>
+    /// No es lo mismo que <see cref="AsistenteConsultar"/> (admite al asistente)
+    /// ni que <see cref="AsistenteVerConsulta"/> (muestra la SQL de la propia
+    /// consulta): éste habilita leer preguntas, SQL, resultado y momentos del
+    /// historial de OTRO usuario, con razón obligatoria y auditoría permanente.
+    /// Se siembra <b>sin concedérselo a ningún rol, ni siquiera <c>sys_admin</c></b>
+    /// y se otorga desde la administración de membresías, sin desplegar.
+    /// </remarks>
+    public const string AsistenteLeerHistorialAjeno = "asistente.leer_historial_ajeno";
+
     public static readonly string[] Todos =
     [
         UsuariosVer,
@@ -50,5 +64,6 @@ public static class Permisos
         DocentesVer,
         AsistenteConsultar,
         AsistenteVerConsulta,
+        AsistenteLeerHistorialAjeno,
     ];
 }

@@ -272,6 +272,12 @@ public static class ModuleExtensions
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
 
+        // Scoped, same reason as IRegistroDelTurno: opens the owner connection
+        // per call, no state to survive the request.
+        services.AddScoped<IRegistroDeHistorial, RegistroDeHistorial>();
+        services.AddScoped<IConsultasDeHistorial, ConsultasDeHistorial>();
+        services.AddScoped<IConsultasDeAuditoriaDeSoporte, ConsultasDeAuditoriaDeSoporte>();
+
         // ------------------------------------------------ superficie de usuario
 
         // La caché es SINGLETON —lo que cuesta leer del catálogo de PostgreSQL tiene

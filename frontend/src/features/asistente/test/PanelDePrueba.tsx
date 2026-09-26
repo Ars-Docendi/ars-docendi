@@ -1,11 +1,13 @@
 import type { ComponentProps } from "react";
 
+import { AbrirHistorial } from "../components/AbrirHistorial";
 import { AyudaDelAsistente } from "../components/AyudaDelAsistente";
 import { NuevaConversacion } from "../components/NuevaConversacion";
 import { PanelAsistente } from "../components/PanelAsistente";
 import { useAsistente } from "../hooks/useAsistente";
+import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
 
-type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente"> & {
+type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente" | "historial"> & {
   /**
    * Monta también «Nueva conversación», como hacen los dos montajes reales.
    *
@@ -26,15 +28,17 @@ type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente"> & {
  */
 export function PanelDePrueba({ conNuevaConversacion = false, ...props }: Props) {
   const asistente = useAsistente();
+  const historial = useHistorialAsistente(asistente);
 
   return (
     <>
-      {/* La ayuda va SIEMPRE: en los dos montajes reales vive en el encabezado
-          —el título del modal, el de la página— y no en el panel, así que un banco
-          sin ella probaría una composición que no existe. */}
+      {/* La ayuda y «Historial» van SIEMPRE: en los dos montajes reales viven en
+          el encabezado —el título del modal, el de la página— y no en el panel,
+          así que un banco sin ellos probaría una composición que no existe. */}
       <AyudaDelAsistente />
+      <AbrirHistorial historial={historial} />
       {conNuevaConversacion && <NuevaConversacion asistente={asistente} />}
-      <PanelAsistente asistente={asistente} {...props} />
+      <PanelAsistente asistente={asistente} historial={historial} {...props} />
     </>
   );
 }

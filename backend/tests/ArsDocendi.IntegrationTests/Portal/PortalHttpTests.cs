@@ -123,7 +123,12 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // cada vez que cualquier módulo suma o saca un endpoint. Los cuatro del módulo
         // Asistente —ping, capacidades, consultas y retroalimentacion— están adentro
         // de esta cuenta.
-        Assert.Equal(70, operaciones.Length);
+        //
+        // Subió de 70 a 79 con asistente-historial-conversaciones: siete en
+        // HistorialController (listar, obtener, renombrar, eliminar uno,
+        // eliminar todo, reanudar, reejecutar) y dos en SoporteHistorialController
+        // (listar y leer el historial ajeno).
+        Assert.Equal(79, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

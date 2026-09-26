@@ -32,7 +32,8 @@ internal sealed class PurgaDeRegistros(
     /// <returns>Cuántas filas se borraron entre los dos registros.</returns>
     public async Task<int> PurgarAsync(CancellationToken ct)
     {
-        var corte = reloj.GetUtcNow() - TimeSpan.FromDays(opciones.Value.RetencionDeRegistrosDias);
+        var valores = opciones.Value;
+        var corte = reloj.GetUtcNow() - TimeSpan.FromDays(valores.RetencionDeRegistrosDias);
 
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
@@ -54,15 +55,47 @@ internal sealed class PurgaDeRegistros(
             DateOnly.FromDateTime(corte.UtcDateTime),
             ct);
 
-        var total = operativas + analiticas;
+        // EL HISTORIAL SE CORTA POR ultima_actividad, NO POR creado_en. Una
+        // conversación retomada y con actividad nueve meses después no puede
+        // perder sus turnos más viejos mientras la conversación misma sigue
+        // vigente — retención es una propiedad de la CONVERSACIÓN (design.md
+        // D7 de asistente-historial-conversaciones). El borrado cascadea a
+        // turno_historico por la FK ON DELETE CASCADE: no hay un segundo
+        // DELETE que pueda desincronizarse del primero.
+        var corteDeHistorial = reloj.GetUtcNow() - TimeSpan.FromDays(valores.RetencionDeHistorialDias);
+        var conversaciones = await BorrarAsync(
+            conexion,
+            "DELETE FROM asistente.hilo_historico WHERE ultima_actividad < @corte",
+            "corte",
+            corteDeHistorial,
+            ct);
+
+        // LA AUDITORÍA DE SOPORTE TIENE SU PROPIA VENTANA, independiente de la
+        // del historial que describe: un registro de auditoría tiene que
+        // sobrevivir aunque el propio usuario haya borrado la conversación que
+        // el registro describe (design.md D10) — no hay ninguna relación entre
+        // las dos ventanas.
+        var corteDeAuditoria =
+            reloj.GetUtcNow() - TimeSpan.FromDays(valores.RetencionDeAuditoriaDeSoporteDias);
+        var auditorias = await BorrarAsync(
+            conexion,
+            "DELETE FROM asistente.auditoria_acceso_historial WHERE ocurrido_en < @corte",
+            "corte",
+            corteDeAuditoria,
+            ct);
+
+        var total = operativas + analiticas + conversaciones + auditorias;
 
         if (total > 0)
         {
             log.LogInformation(
-                "Purga del asistente: {Operativas} filas operativas y {Analiticas} analíticas anteriores a {Corte:yyyy-MM-dd}.",
+                "Purga del asistente: {Operativas} filas operativas, {Analiticas} analíticas, "
+                + "{Conversaciones} conversaciones y {Auditorias} auditorías de soporte anteriores "
+                + "a sus respectivos cortes.",
                 operativas,
                 analiticas,
-                corte);
+                conversaciones,
+                auditorias);
         }
 
         return total;

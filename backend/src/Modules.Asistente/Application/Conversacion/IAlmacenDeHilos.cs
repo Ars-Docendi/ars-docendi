@@ -16,4 +16,29 @@ public interface IAlmacenDeHilos
     /// es un error que se quiere ver.
     /// </exception>
     HiloConversacional Resolver(Guid? hilo, Guid actor);
+
+    /// <summary>
+    /// Crea un hilo efímero NUEVO, con un id propio y la vigencia normal de
+    /// 120 minutos, sembrado con los turnos de una conversación persistida —
+    /// para reanudarla (asistente-historial-conversaciones §7, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// No revive el id efímero viejo: en general no se puede —puede estar
+    /// vencido hace mucho, o siempre lo va a estar para algo que valga la
+    /// pena «reanudar»—, y además exigiría que el resto de este puerto
+    /// soportara un id impuesto desde afuera en lugar de uno que él mismo
+    /// mintió.
+    /// </remarks>
+    /// <param name="actor">El actor al que le pertenece la conversación.</param>
+    /// <param name="hiloHistorico">
+    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>).
+    /// El hilo devuelto queda con <see cref="HiloConversacional.HiloHistorico"/>
+    /// ya fijado en este valor, así que los turnos siguientes extienden la
+    /// MISMA conversación en vez de abrir una nueva.
+    /// </param>
+    /// <param name="turnos">
+    /// Los turnos persistidos, del más viejo al más reciente, tal como
+    /// <see cref="HiloConversacional.Agregar"/> ya los recibe.
+    /// </param>
+    HiloConversacional Sembrar(Guid actor, Guid hiloHistorico, IReadOnlyList<TurnoDelHilo> turnos);
 }

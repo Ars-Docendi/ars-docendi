@@ -14,8 +14,13 @@
 
 /* Es UNO SOLO, montado dos veces: la ruta y el modal. El alto lo fija cada
    montaje; el panel lo reparte: el hilo se estira y scrollea, lo demás no se
-   mueve. */
+   mueve.
+
+   `position: relative` es lo que ancla el cajón del historial
+   (`.adoc-asistente-historial-cajon`, más abajo): es `position: absolute`
+   sobre ESTE elemento, para superponerse al hilo en vez de empujarlo. */
 .adoc-asistente {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -94,6 +99,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+
+/* Reservado para la regla de ancho angosto de abajo: en pantalla normal la
+   etiqueta se ve como cualquier texto de botón. */
+.adoc-asistente-etiqueta-boton {
+  display: inline;
 }
 
 /* El «?» va pegado al título, a su derecha. Vive en el CUERPO y se dibuja sobre la
@@ -257,6 +268,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* El anuncio del historial (renombrar/borrar/reanudar) no tiene turno propio:
+   este `<li>` chico es lo que le da un lugar en la MISMA región viva, sin
+   agregar una segunda. Visible y no `sr-only`: es la misma confirmación que
+   ya se ve en otros pies de turno, sólo que sin un turno al que colgarse. */
+.adoc-asistente-anuncio {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
 }
 
 /* «Vos» y «Asistente». La alineación de las burbujas hace el trabajo visual, así
@@ -904,6 +925,36 @@
     white-space: normal;
     text-align: start;
   }
+
+  /* El cajón del historial ocupa TODO el ancho: no queda hilo visible al lado
+     para justificar un fondo que cerrar al clic, así que el fondo desaparece
+     y el cajón deja de ser «fijo a 340px» para ser «todo lo que hay». */
+  .adoc-asistente-historial {
+    width: 100%;
+  }
+
+  .adoc-asistente-historial-fondo {
+    display: none;
+  }
+
+  /* «Historial» Y «Nueva conversación», SIN ETIQUETA, en la fila del
+     encabezado del modal. La fila ya tiene el título, el «?» y la «×»
+     compitiendo por el mismo ancho de teléfono; con las dos etiquetas de
+     texto se solapaban entre sí y con el título. El nombre accesible del
+     botón no cambia —sigue siendo el texto completo, sólo se oculta
+     VISUALMENTE con el mismo recorte que ya usa `.adoc-asistente-quien`—,
+     así que esto no es lo mismo que sacarle la etiqueta al botón: sigue
+     anunciándose igual con lector de pantalla. */
+  .adoc-asistente-acciones-modal .adoc-asistente-etiqueta-boton {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* ───────────────────────────────── menos movimiento ────────────────────────── */
@@ -917,6 +968,10 @@
   }
 
   .adoc-asistente-ir-al-final {
+    animation: none;
+  }
+
+  .adoc-asistente-historial {
     animation: none;
   }
 }

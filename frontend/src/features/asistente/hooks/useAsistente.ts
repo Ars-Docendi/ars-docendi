@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { consultar } from "../api/asistenteApi";
+import { reejecutarTurno } from "../api/historialApi";
 import { esCancelacion, esHiloPerdido, mensajeDeError } from "../errores";
-import type { TurnoDeLaConversacion } from "../types";
+import type { TurnoDeHistorial, TurnoDeLaConversacion } from "../types";
 import { crearMedidorDeEspera, esperarHasta } from "../utils/esperaPareja";
 
 export interface Asistente {
@@ -15,6 +16,19 @@ export interface Asistente {
   reiniciar: () => void;
   /** Deja de esperar el turno en vuelo: suelta el request. El backend lo sigue igual. */
   detener: () => void;
+  /**
+   * Reanuda una conversación propia (asistente-historial-conversaciones,
+   * design.md D3): reemplaza la conversación en curso por los turnos
+   * restaurados y fija el hilo efímero nuevo, para que el próximo
+   * `preguntar` siga esa misma conversación persistida.
+   */
+  sembrarDesdeHistorial: (hiloEfimero: string, turnos: TurnoDeHistorial[]) => void;
+  /**
+   * «Volver a consultar» (design.md D4): re-ejecuta la SQL guardada de un
+   * turno histórico ya respondido, bajo el alcance actual del actor. Nunca
+   * escribe una fila nueva de historial ni llama al modelo.
+   */
+  reejecutar: (id: string) => Promise<void>;
 }
 
 /** El turno en vuelo: su id y su request, para soltarlo desde afuera de su promesa. */
@@ -183,5 +197,88 @@ export function useAsistente(): Asistente {
     setTurnos([]);
   }, []);
 
-  return { turnos, enVuelo, preguntar, reintentar, reiniciar, detener };
+  // REANUDAR REEMPLAZA LA CONVERSACIÓN EN CURSO. El backend ya mintió un hilo
+  // efímero nuevo (design.md D3): lo que corresponde de este lado es lo mismo
+  // que «Nueva conversación» hace con lo que había —soltar lo que estuviera en
+  // vuelo— pero pintando los turnos restaurados en vez de vaciar la lista.
+  const sembrarDesdeHistorial = useCallback(
+    (hiloEfimero: string, turnosHistoricos: TurnoDeHistorial[]) => {
+      enCurso.current?.aborto.abort();
+      enCurso.current = null;
+      hilo.current = hiloEfimero;
+      setEnVuelo(false);
+      setTurnos(
+        turnosHistoricos.map((t) => ({
+          id: t.id,
+          pregunta: t.pregunta,
+          historico: { estado: t.estado, sql: t.sql ?? null, ocurrioEn: t.ocurrioEn },
+        })),
+      );
+    },
+    [],
+  );
+
+  // «VOLVER A CONSULTAR». Sólo aplica a un turno histórico —el backend ya lo
+  // exige (`Respondida` con `sql_resuelto`), y del lado del cliente el botón
+  // que la dispara sólo existe sobre uno—, así que un turno que no lo sea, o
+  // que ya no esté en la lista, no hace nada: no hay ningún caso al que
+  // llegue sin ese estado.
+  const reejecutar = useCallback(async (id: string) => {
+    setTurnos((previos) =>
+      previos.map((t) =>
+        t.id === id && t.historico
+          ? { ...t, historico: { ...t.historico, reejecutando: true } }
+          : t,
+      ),
+    );
+
+    try {
+      const resultado = await reejecutarTurno(id);
+      if (!montado.current) return;
+      setTurnos((previos) =>
+        previos.map((t) =>
+          t.id === id && t.historico
+            ? { ...t, historico: { ...t.historico, reejecutando: false, reejecucion: resultado } }
+            : t,
+        ),
+      );
+    } catch {
+      // Un fallo de TRANSPORTE, no el rechazo prolijo que ya modela `exitosa:
+      // false` —ése llega en un 200 y no entra a este catch—. Mismo criterio
+      // que el resto del hook: nunca nada crudo llega al usuario.
+      if (!montado.current) return;
+      setTurnos((previos) =>
+        previos.map((t) =>
+          t.id === id && t.historico
+            ? {
+                ...t,
+                historico: {
+                  ...t.historico,
+                  reejecutando: false,
+                  reejecucion: {
+                    exitosa: false,
+                    mensaje:
+                      "No pude volver a ejecutar esa consulta. Probá de nuevo en un momento.",
+                    columnas: [],
+                    filas: [],
+                    truncado: false,
+                  },
+                },
+              }
+            : t,
+        ),
+      );
+    }
+  }, []);
+
+  return {
+    turnos,
+    enVuelo,
+    preguntar,
+    reintentar,
+    reiniciar,
+    detener,
+    sembrarDesdeHistorial,
+    reejecutar,
+  };
 }

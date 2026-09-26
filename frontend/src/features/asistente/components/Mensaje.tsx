@@ -1,6 +1,7 @@
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import { AccionesDelMensaje } from "./AccionesDelMensaje";
+import { ContenidoHistorico } from "./ContenidoHistorico";
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
 import { Sugerencias } from "./Sugerencias";
@@ -13,11 +14,19 @@ interface MensajeProps {
   turno: TurnoDeLaConversacion;
   onElegir: (pregunta: string) => void;
   onReintentar: (id: string) => void;
+  /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
+  onReejecutar?: (id: string) => void;
   enVuelo: boolean;
 }
 
 /** Un turno completo: lo que preguntó el usuario y lo que contestó el asistente. */
-export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps) {
+export function Mensaje({
+  turno,
+  onElegir,
+  onReintentar,
+  onReejecutar,
+  enVuelo,
+}: MensajeProps) {
   const { respuesta } = turno;
 
   return (
@@ -58,6 +67,8 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
           Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.
         </p>
       )}
+
+      {turno.historico && <ContenidoHistorico turno={turno} onReejecutar={onReejecutar} />}
 
       {respuesta && (
         <div className="adoc-asistente-respuesta">

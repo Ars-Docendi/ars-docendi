@@ -50,6 +50,22 @@ public sealed class HiloConversacional(Guid id, Guid actor)
     public DateTimeOffset UltimaActividad { get; private set; }
 
     /// <summary>
+    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>)
+    /// que este hilo efímero alimenta, o <c>null</c> si todavía no escribió
+    /// ningún turno al historial.
+    /// </summary>
+    /// <remarks>
+    /// Deliberadamente independiente de <see cref="Id"/> (design.md D1 de
+    /// asistente-historial-conversaciones): éste vive 120 minutos y se pierde
+    /// en cada redespliegue; la conversación persistida tiene que sobrevivir
+    /// 180 días y ser resumible mucho después de que este hilo haya vencido.
+    /// El escritor del historial lo fija la primera vez que este hilo escribe
+    /// una fila; los turnos siguientes del mismo hilo lo reusan en vez de
+    /// abrir una conversación nueva.
+    /// </remarks>
+    public Guid? HiloHistorico { get; set; }
+
+    /// <summary>
     /// Índice del primer turno del segmento vigente.
     /// </summary>
     /// <remarks>

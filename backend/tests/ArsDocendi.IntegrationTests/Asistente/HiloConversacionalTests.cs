@@ -19,6 +19,76 @@ public sealed class HiloConversacionalTests
     private static readonly Guid Luis = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly DateTimeOffset Inicio = new(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
 
+    // ---------------------------------------------------------- HiloHistorico
+
+    [Fact]
+    public void HiloHistorico_arranca_nulo()
+    {
+        var (almacen, _) = Almacen();
+
+        var abierto = almacen.Resolver(null, Ana);
+
+        Assert.Null(abierto.HiloHistorico);
+    }
+
+    [Fact]
+    public void HiloHistorico_se_puede_fijar_y_conservarse()
+    {
+        var (almacen, _) = Almacen();
+        var abierto = almacen.Resolver(null, Ana);
+        var idDeHistorial = Guid.NewGuid();
+
+        abierto.HiloHistorico = idDeHistorial;
+
+        var recuperado = almacen.Resolver(abierto.Id, Ana);
+        Assert.Equal(idDeHistorial, recuperado.HiloHistorico);
+    }
+
+    // --------------------------------------------------------------- Sembrar
+
+    [Fact]
+    public void Sembrar_crea_un_hilo_nuevo_con_los_turnos_ya_cargados()
+    {
+        var (almacen, _) = Almacen();
+        var idDeHistorial = Guid.NewGuid();
+        var turnos = new[]
+        {
+            new TurnoDelHilo("primera pregunta", Inicio, "SELECT 1"),
+            new TurnoDelHilo("segunda pregunta", Inicio.AddMinutes(2), "SELECT 2"),
+        };
+
+        var sembrado = almacen.Sembrar(Ana, idDeHistorial, turnos);
+
+        Assert.Equal(Ana, sembrado.Actor);
+        Assert.Equal(idDeHistorial, sembrado.HiloHistorico);
+        Assert.Equal(turnos, sembrado.Turnos);
+        Assert.Equal(2, sembrado.HistorialVigente(10).Count);
+    }
+
+    [Fact]
+    public void El_hilo_sembrado_se_puede_resolver_despues_por_su_id_efimero()
+    {
+        var (almacen, _) = Almacen();
+        var sembrado = almacen.Sembrar(
+            Ana, Guid.NewGuid(), [new TurnoDelHilo("¿y Pérez?", Inicio, null)]);
+
+        var recuperado = almacen.Resolver(sembrado.Id, Ana);
+
+        Assert.Equal(sembrado.Id, recuperado.Id);
+        Assert.Equal(sembrado.HiloHistorico, recuperado.HiloHistorico);
+    }
+
+    [Fact]
+    public void Sembrar_da_un_id_efimero_nuevo_e_independiente_del_de_historial()
+    {
+        var (almacen, _) = Almacen();
+        var idDeHistorial = Guid.NewGuid();
+
+        var sembrado = almacen.Sembrar(Ana, idDeHistorial, []);
+
+        Assert.NotEqual(idDeHistorial, sembrado.Id);
+    }
+
     // ------------------------------------------------------------- propiedad
 
     [Fact]

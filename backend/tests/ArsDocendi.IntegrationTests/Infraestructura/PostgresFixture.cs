@@ -223,6 +223,9 @@ public sealed class PostgresFixture : IAsyncLifetime
                 conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
 
             await RetroalimentacionAsistente.AplicarAsync(conexion, CancellationToken.None);
+
+            await HistorialAsistente.AplicarAsync(conexion, CancellationToken.None);
+            await AuditoriaDeSoporteAsistente.AplicarAsync(conexion, CancellationToken.None);
         }
 
         return new BaseDePrueba(cadena, rolSoloLectura, rolSoloLecturaPii, PasswordDeRol);

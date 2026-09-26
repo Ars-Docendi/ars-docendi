@@ -157,11 +157,21 @@ o se declara la excepción.
 
 ## Endpoints HTTP
 
-| Método | Path                         | Permiso               | Qué                                          |
-| ------ | ---------------------------- | --------------------- | -------------------------------------------- |
-| GET    | `/api/asistente/ping`        | (anónimo)             | Smoke test, sin base ni proveedor            |
-| POST   | `/api/asistente/consultas`   | `asistente.consultar` | Un turno. Exige `Idempotency-Key`            |
-| GET    | `/api/asistente/capacidades` | `asistente.consultar` | Qué puede hacer el asistente para este actor |
+| Método | Path                                                   | Permiso                          | Qué                                                                   |
+| ------ | ------------------------------------------------------ | -------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/api/asistente/ping`                                  | (anónimo)                        | Smoke test, sin base ni proveedor                                     |
+| POST   | `/api/asistente/consultas`                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
+| GET    | `/api/asistente/capacidades`                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
+| POST   | `/api/asistente/retroalimentacion`                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token |
+| GET    | `/api/asistente/historial`                             | `asistente.consultar`            | Lista y busca las conversaciones propias                              |
+| GET    | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | El detalle de una conversación propia                                 |
+| PATCH  | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | Renombra una conversación propia                                      |
+| DELETE | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | Borra una conversación propia                                         |
+| DELETE | `/api/asistente/historial`                             | `asistente.consultar`            | Borra TODAS las conversaciones propias                                |
+| POST   | `/api/asistente/historial/{id}/reanudar`               | `asistente.consultar`            | Reanuda una conversación propia                                       |
+| POST   | `/api/asistente/historial/turnos/{id}/reejecutar`      | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
+| POST   | `/api/asistente/soporte/historial/{actorId}/listar`    | `asistente.leer_historial_ajeno` | Lista el historial de otro actor, con razón obligatoria               |
+| POST   | `/api/asistente/soporte/historial/{actorId}/{id}/leer` | `asistente.leer_historial_ajeno` | Lee una conversación de otro actor, con razón obligatoria             |
 
 El ping vive en su **propio controller, sin constructor**. Estuvo junto al turno hasta
 que ése ganó dependencias, y ahí se rompió: construir el controller pasó a exigir las
@@ -814,6 +824,147 @@ tabla», y únicamente cuando el portapapeles del navegador existe. Regenerar,
 calificar, editar y adjuntar no tienen backend, y un botón que no hace nada es el
 fake UI del invariante #7.
 
+## Historial de conversaciones y acceso de soporte
+
+**El hilo en memoria (`HiloConversacional`) siempre fue "guarda preguntas y nunca
+filas" — este feature persiste exactamente eso, sin ampliar el invariante.**
+Cada turno de cada conversación se escribe a `asistente.hilo_historico`/
+`asistente.turno_historico`: la pregunta interpretada, la SQL que respondió
+(cuando hubo una), el estado del turno y los dos momentos. Nunca las filas
+que devolvió una consulta, nunca el texto redactado de la respuesta.
+
+**No hay opt-out por conversación, y es una decisión de producto, no un
+descuido.** El sistema tiene que poder responder "el usuario X preguntó Y" —
+a través del historial propio del usuario, y a través del acceso de soporte
+auditado — y un modo que se pudiera saltear contradiría eso directamente. La
+única exclusión es `Fallo`: un turno que revienta con una excepción no
+prevista nunca produjo un cuerpo HTTP (el mapeo del contrato revienta si se
+le pide un nombre público para ese estado), así que no hay nada coherente
+que mostrar en una conversación retomada para él.
+
+**El punto de escritura es el mismo que ya escribía los dos registros
+anónimos**: `CapaConversacional.RegistrarAsync`, el único lugar que ve las
+tres salidas del turno (éxito, timeout, excepción) con el actor, el mensaje y
+un reloj ya en la mano. `IRegistroDeHistorial` nunca hace fallar el turno —
+mismo criterio que `IRegistroDelTurno` — porque el turno ya se resolvió y el
+usuario ya tiene su respuesta.
+
+**`hilo_historico.id` es independiente del id efímero del hilo en memoria.**
+El hilo en memoria vive 120 minutos y se pierde en cada redespliegue por
+diseño; la conversación persistida tiene que sobrevivir 180 días. El puente
+entre los dos es `HiloConversacional.HiloHistorico` (`Guid?`, nulo hasta el
+primer turno que se persiste), fijado por el escritor y leído por
+`Reanudar`.
+
+### Auto-título, búsqueda, y las cuatro operaciones propias
+
+El título de una conversación se deriva de su primera pregunta la primera
+vez que se persiste (truncado a 80 caracteres en un límite de palabra, con
+elipsis) y nunca se vuelve a tocar solo — renombrarla es explícito y
+permanente. La búsqueda usa `to_tsvector('spanish', pregunta)` con un índice
+GIN, no un `ILIKE`: con acentuación y flexión española, `ILIKE` ni usa índice
+ni entiende que "designación" y "designaciones" son la misma raíz.
+
+Borrar una conversación, o todas, es un `DELETE` permanente — sin papelera,
+sin recuperación — acotado siempre al `actor_id` del que llama: un id que
+existe pero es de otro actor se trata **igual** que un id que no existe, en
+las cuatro operaciones (ver, renombrar, borrar, reanudar), para no filtrar
+cuál de los dos casos fue.
+
+### Reanudar: siembra, no revive
+
+`POST /historial/{id}/reanudar` no intenta reactivar el viejo id efímero —en
+general no se puede, porque puede llevar meses vencido. En cambio,
+`IAlmacenDeHilos.Sembrar(actor, hiloHistorico, turnos)` crea un hilo en
+memoria **nuevo**, con la vigencia normal de 120 minutos, ya cargado con los
+turnos persistidos vía el mismo `Agregar` que usa cualquier turno en vivo, y
+con `HiloHistorico` ya fijado en la conversación persistida. Los turnos
+siguientes en ese hilo nuevo extienden la misma conversación en lugar de
+abrir una. El seguimiento con anáfora ("¿y el de Pérez?") funciona contra el
+contexto reanudado exactamente igual que si la conversación nunca se hubiera
+cortado — es la misma mecánica de `HistorialVigente` de siempre.
+
+### «Volver a consultar»: tabla, nunca un segundo redactado
+
+Un turno propio `respondida` ofrece re-ejecutar su SQL guardada, bajo el
+alcance **actual** del actor — no el que tenía cuando preguntó. Es
+deliberadamente tabla-solamente y no un segundo llamado al modelo: la SQL es
+el artefacto durable (es lo único que este feature persiste de la
+"respuesta"), el texto redactado no lo es. Reusa `IEjecutorDeConsulta` tal
+cual —mismas tres capas de RLS, mismo tope de filas, mismo timeout de
+sentencia— así que no hay una segunda ruta de enmascarado que mantener
+sincronizada con la primera. Un rechazo del motor (privilegio que se achicó,
+esquema que cambió) resuelve como una respuesta amigable y no técnica, nunca
+un error crudo — el mismo criterio que ya usa el carril en vivo para
+`ConsultaSinPrivilegio`/`ConsultaRechazadaPorElMotor`.
+
+No escribe una fila nueva de `turno_historico` (no es una pregunta nueva) ni
+de `registro_operativo`/`registro_analitico` (no hubo modelo): contarla ahí
+inflaría las métricas de uso con una acción que no las gastó.
+
+### Acceso de soporte: permiso propio, razón obligatoria, auditoría que no se puede apagar
+
+`asistente.leer_historial_ajeno` sigue el mismo patrón que
+`asistente.ver_consulta` — sembrado, y a **ningún** rol, ni siquiera
+`sys_admin` — pero resuelve una pregunta distinta: no "¿puedo ver la SQL de
+MI pregunta?" sino "¿puedo leer las conversaciones de OTRA persona?". Tener
+`asistente.consultar` no alcanza; los dos permisos se comprueban por
+separado y ninguno implica al otro.
+
+Los dos endpoints de soporte son `POST`, nunca `GET`, para que la razón
+obligatoria viaje en el cuerpo y jamás en una URL —donde terminaría en un
+log de acceso, un proxy, o el historial del navegador—. Cada llamada escribe
+una fila en `asistente.auditoria_acceso_historial` **antes** de devolver
+cualquier dato; si esa escritura falla, no sale ningún dato — al revés de la
+disciplina de `IRegistroDelTurno`/`IRegistroDeHistorial`, y a propósito: acá
+la garantía es "se audita antes de leer", y tragarse el fallo de esa
+escritura la convertiría en "se audita salvo que falle", que es justo el
+acceso sin auditar que este capability existe para impedir.
+
+`auditoria_acceso_historial.hilo_historico_id` **no lleva clave foránea**: la
+fila tiene que sobrevivir a que el propio dueño borre esa conversación (que
+puede, en cualquier momento, con las cuatro operaciones propias de arriba).
+Sin FK, esa fila sigue siendo perfectamente legible después del borrado —
+quién leyó, a quién, cuándo, por qué — que es exactamente lo que un rastro de
+auditoría tiene que garantizar.
+
+La lectura de soporte muestra la SQL **siempre**, sin exigir además
+`asistente.ver_consulta`: es un solo gate deliberado, porque quien ya está
+confiado con leer el historial entero de otra persona no gana nada de
+protección real por un segundo permiso sobre la SQL sola — sólo friction
+para el camino de soporte legítimo. Nunca ofrece filas de resultado ni una
+acción de re-ejecución: es texto y momentos, nada más, y ningún endpoint del
+módulo — ni el propio, ni el de soporte — expone al sujeto si, cuándo o
+quién leyó su historial. Es la decisión final del cliente (no una pendiente):
+el mismo trade-off que ChatGPT Enterprise Compliance API, Claude Enterprise
+audit logs y Microsoft Purview eDiscovery ya asumen — el log de acceso queda
+del lado de quien administra, nunca visible para el sujeto.
+
+### Retención y purga
+
+180 días para el historial propio (`Asistente__RetencionDeHistorialDias`),
+contados desde `ultima_actividad` de la conversación y no desde su creación
+— más largo que los 90 días de los registros anónimos, porque retomar una
+conversación de hace meses tiene que seguir funcionando. 365 días para la
+auditoría de soporte (`Asistente__RetencionDeAuditoriaDeSoporteDias`), en
+una ventana **independiente** de la del historial que describe —
+justamente porque tiene que sobrevivirlo. `PurgaDeRegistros` suma estos dos
+barridos a los dos que ya tenía; mismo mecanismo, mismo `TimeProvider`, mismo
+criterio de loguear y seguir si una vuelta falla.
+
+### TD-012, con una dependencia nueva y documentada
+
+Nada de este feature toca el mecanismo de desvinculación de
+`registro_analitico`: sigue sin actor, sin timestamp preciso, sin FK hacia el
+operativo, y el historial nunca lo referencia. Lo que cambia es que ahora
+existe, en el mismo schema, una tabla que responde a propósito la pregunta
+que el analítico se niega a responder — pero atribuida a su dueño, y a un
+lector de soporte permisionado y auditado. La garantía de anonimidad de
+TD-012 sigue valiendo frente al asistente mismo (que no puede leer ninguna
+de las dos tablas) y frente a cualquiera sin acceso al historial; deja de
+valer, por diseño, frente a quien tiene el historial — el dueño, o soporte
+con permiso, razón y auditoría.
+
 ## Reglas de negocio (BR-\*)
 
 Ninguna propia. El asistente no decide nada del dominio: expone lo que otros
@@ -850,6 +1001,8 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite
 - `openspec/changes/asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra
 - `openspec/changes/asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
+- `openspec/changes/asistente-feedback-export-seguimiento/` — el token de retroalimentación, la exportación CSV y las sugerencias de seguimiento
+- `openspec/changes/asistente-historial-conversaciones/` — el historial propio, reanudar, «volver a consultar» y el acceso de soporte auditado
 
 ## Evaluación
 

@@ -52,6 +52,33 @@ internal sealed class AlmacenDeHilosEnMemoria(
         }
     }
 
+    public HiloConversacional Sembrar(Guid actor, Guid hiloHistorico, IReadOnlyList<TurnoDelHilo> turnos)
+    {
+        ArgumentNullException.ThrowIfNull(turnos);
+
+        var ahora = reloj.GetUtcNow();
+        var nuevo = new HiloConversacional(Guid.NewGuid(), actor) { HiloHistorico = hiloHistorico };
+
+        foreach (var turno in turnos)
+        {
+            nuevo.Agregar(turno.Pregunta, turno.Cuando, turno.SqlEjecutado);
+        }
+
+        // Se toca DESPUÉS de cargar los turnos: `Agregar` deja `UltimaActividad`
+        // en el momento del ÚLTIMO turno persistido, que puede ser de hace
+        // semanas. Sin este `Tocar`, un hilo recién sembrado podría nacer ya
+        // vencido si esa conversación estuvo inactiva más que la vigencia.
+        nuevo.Tocar(ahora);
+
+        lock (_candado)
+        {
+            Purgar(ahora, TimeSpan.FromMinutes(opciones.Value.VigenciaDelHiloMinutos));
+            _hilos[nuevo.Id] = nuevo;
+        }
+
+        return nuevo;
+    }
+
     /// <summary>Cuántos hilos hay vivos. Existe para los tests de expiración.</summary>
     internal int Vivos
     {

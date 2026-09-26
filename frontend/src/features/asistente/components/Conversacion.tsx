@@ -5,7 +5,16 @@ interface ConversacionProps {
   turnos: TurnoDeLaConversacion[];
   onElegir: (pregunta: string) => void;
   onReintentar: (id: string) => void;
+  /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
+  onReejecutar?: (id: string) => void;
   enVuelo: boolean;
+  /**
+   * Anunciado por ESTA MISMA región viva: renombrar, borrar y reanudar una
+   * conversación no tienen un turno propio al que colgar su confirmación, y
+   * la accesibilidad de la feature pide una sola región viva, no una segunda
+   * (asistente-accesibilidad). `null`/`undefined` no agrega nada al DOM.
+   */
+  anuncio?: string | null;
 }
 
 /**
@@ -20,7 +29,14 @@ interface ConversacionProps {
  * son hermanos, fuera. `role="log"` es lo que le dice al lector que es un registro
  * de conversación donde lo nuevo se agrega al final.
  */
-export function Conversacion({ turnos, onElegir, onReintentar, enVuelo }: ConversacionProps) {
+export function Conversacion({
+  turnos,
+  onElegir,
+  onReintentar,
+  onReejecutar,
+  enVuelo,
+  anuncio,
+}: ConversacionProps) {
   return (
     <ul
       className="adoc-asistente-conversacion"
@@ -34,9 +50,15 @@ export function Conversacion({ turnos, onElegir, onReintentar, enVuelo }: Conver
           turno={turno}
           onElegir={onElegir}
           onReintentar={onReintentar}
+          onReejecutar={onReejecutar}
           enVuelo={enVuelo}
         />
       ))}
+
+      {/* El historial (renombrar, borrar, reanudar) no tiene turno propio:
+          esto es lo que le da un lugar en ESTA región viva sin abrir una
+          segunda. Vacío no agrega ningún nodo. */}
+      {anuncio && <li className="adoc-asistente-anuncio">{anuncio}</li>}
     </ul>
   );
 }

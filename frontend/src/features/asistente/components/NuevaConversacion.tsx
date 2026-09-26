@@ -17,6 +17,13 @@ interface NuevaConversacionProps {
  * SIN CONFIRMACIÓN: no hay nada persistido que perder, y una pregunta más para
  * empezar de nuevo es la fatiga de modales que los principios piden evitar. Sin
  * turnos no hay nada que vaciar; en vuelo, lo que corresponde es dejar de esperar.
+ *
+ * LA ETIQUETA VA EN UN `<span>` PROPIO: en el modal, a ancho de teléfono, este
+ * botón comparte fila con «Historial», el título y el «?» —ya ajustada, es una
+ * fila angosta— y `asistente.css` la esconde ahí (visualmente, no del árbol de
+ * accesibilidad) para que el ícono solo siga alcanzando. En la ruta, donde este
+ * mismo botón vive en el encabezado de la página, la regla no aplica y la
+ * etiqueta se ve siempre.
  */
 export function NuevaConversacion({ asistente }: NuevaConversacionProps) {
   return (
@@ -27,7 +34,7 @@ export function NuevaConversacion({ asistente }: NuevaConversacionProps) {
       disabled={asistente.turnos.length === 0 || asistente.enVuelo}
       onClick={asistente.reiniciar}
     >
-      Nueva conversación
+      <span className="adoc-asistente-etiqueta-boton">Nueva conversación</span>
     </Button>
   );
 }

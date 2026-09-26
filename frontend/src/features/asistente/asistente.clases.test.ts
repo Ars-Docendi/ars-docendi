@@ -64,11 +64,13 @@ describe("Las clases de la hoja del asistente", () => {
 
   it("sólo sobreescribe clases de la librería que están declaradas", () => {
     // LA OTRA MITAD. El guard de arriba mira las clases con el prefijo de la
-    // feature; una clase `adoc-` SIN ese prefijo es de `@ars-docendi/ui` y la hoja
-    // la está sobreescribiendo. Eso es legítimo —así se ajusta la tabla sin
-    // `!important` ni fork— pero tiene que ser una decisión visible: una
-    // sobreescritura que aparece sola es una feature pisando estilos ajenos.
-    const declaradas = ["adoc-modal-stage", "adoc-table"];
+    // feature; una clase `adoc-` SIN ese prefijo es de `@ars-docendi/ui` —o de
+    // un componente compartido del propio repo, como `MenuAcciones`— y la
+    // hoja la está sobreescribiendo. Eso es legítimo —así se ajusta la tabla,
+    // o se le esconde el «⋮» hasta el hover, sin `!important` ni fork— pero
+    // tiene que ser una decisión visible: una sobreescritura que aparece sola
+    // es una feature pisando estilos ajenos.
+    const declaradas = ["adoc-acciones-trigger", "adoc-modal-stage", "adoc-table"];
 
     const ajenas = [
       ...new Set(
