@@ -307,6 +307,19 @@ public sealed class OpcionesAsistente
     public int VigenciaDeIdempotenciaMinutos { get; set; } = 5;
 
     /// <summary>
+    /// How long a feedback token stays valid after it is minted, in minutes.
+    /// </summary>
+    /// <remarks>
+    /// Same 120 minutes as <see cref="VigenciaDelHiloMinutos"/>, and deliberately
+    /// its own named option rather than a reuse of that one: the two happen to
+    /// agree today because a feedback token stops being useful at roughly the
+    /// point the thread it was born into would also have expired, but they are
+    /// answering different questions and tying them together would make that
+    /// coincidence load-bearing.
+    /// </remarks>
+    public int VigenciaDeRetroalimentacionMinutos { get; set; } = 120;
+
+    /// <summary>
     /// Cuántas veces se reofrece un menú de aclaración antes de abandonarlo.
     /// </summary>
     /// <remarks>

@@ -649,6 +649,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     private static TurnoParaRegistrar Turno(
         Guid? actor = null, DateTimeOffset? cuando = null, string pregunta = "¿cuántos docentes hay?") =>
         new(actor ?? Alguien,
+            Guid.NewGuid(),
             cuando ?? Ancla,
             CarrilDelTurno.Sql,
             EstadoDelTurno.Respondida,

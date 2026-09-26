@@ -1,5 +1,9 @@
 import { apiClient } from "../../../shared/api/client";
-import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
+import type {
+  CapacidadesDelAsistente,
+  RazonDeRetroalimentacion,
+  RespuestaDelAsistente,
+} from "../types";
 
 export interface ConsultaDelAsistente {
   mensaje: string;
@@ -66,4 +70,21 @@ export async function consultar(
 export async function obtenerCapacidades(): Promise<CapacidadesDelAsistente> {
   const { data } = await apiClient.get<CapacidadesDelAsistente>("/api/asistente/capacidades");
   return data;
+}
+
+export interface PedidoDeRetroalimentacion {
+  token: string;
+  voto: boolean;
+  razon?: RazonDeRetroalimentacion | null;
+}
+
+/**
+ * Rates an already-answered turn: thumbs up/down, with an optional reason on a
+ * thumbs-down.
+ *
+ * `token` is the turn's own `claveDeRetroalimentacion` — it authorizes rating
+ * THAT turn, and carries no identity of its own.
+ */
+export async function enviarRetroalimentacion(pedido: PedidoDeRetroalimentacion): Promise<void> {
+  await apiClient.post("/api/asistente/retroalimentacion", pedido);
 }

@@ -109,6 +109,16 @@ public enum EstadoDelTurno
 /// Las celdas del resultado que identifican algo que el actor puede abrir, con qué
 /// clase de cosa es y con qué identificador. Vacío o nulo cuando no hay ninguna.
 /// </param>
+/// <param name="ClaveDeRetroalimentacion">
+/// The feedback token: the exact id of this turn's analytic row
+/// (asistente.registro_analitico.id), handed to the client once so it can later
+/// submit feedback for this specific turn. Populated only when
+/// <see cref="Estado"/> is <see cref="EstadoDelTurno.Respondida"/>, and null for
+/// every other state — see asistente-retroalimentacion's spec for why: rating a
+/// turn that never produced an answer has nothing to rate. It is never derived
+/// from, and never travels next to, any actor identifier: see design.md D1/D2 of
+/// the asistente-feedback-export-seguimiento change and TD-012.
+/// </param>
 /// <remarks>
 /// <b>Los resuelve una autoridad ajena al carril</b>, y por eso llegan acá y no se
 /// calculan adentro: quién puede abrir un trámite lo decide el módulo dueño, no la
@@ -130,4 +140,5 @@ public sealed record ResultadoDelTurno(
     IReadOnlyList<string>? Sugerencias = null,
     string? Sql = null,
     string? SqlEjecutado = null,
-    IReadOnlyList<VinculoDelResultado>? Vinculos = null);
+    IReadOnlyList<VinculoDelResultado>? Vinculos = null,
+    Guid? ClaveDeRetroalimentacion = null);

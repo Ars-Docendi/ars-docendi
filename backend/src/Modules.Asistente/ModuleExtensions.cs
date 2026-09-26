@@ -232,6 +232,13 @@ public static class ModuleExtensions
         services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
+
+        // Follow-up suggestions after a successful turn: category match plus the
+        // same actor-scoped executability check /capacidades already applies to
+        // its own examples. Scoped like the rest of the carril: it opens an
+        // actor-scoped connection per turn.
+        services.AddScoped<ISugerenciasDeSeguimiento, SugerenciasDeSeguimiento>();
+
         services.AddScoped<CarrilSql>();
 
         // ---------------------------------------------- capa conversacional
@@ -278,6 +285,16 @@ public static class ModuleExtensions
         // Singleton también: la caché de idempotencia tiene que sobrevivir al
         // request, que es literalmente para lo que existe.
         services.AddSingleton<IIdempotencia, IdempotenciaEnMemoria>();
+
+        // Same lifetime and the same reason: the feedback token store has to
+        // survive the request that minted the token so a LATER request can still
+        // find it.
+        services.AddSingleton<IValidezDeRetroalimentacion, ValidezDeRetroalimentacionEnMemoria>();
+
+        // Scoped: it opens the owner connection per call, same as
+        // IRegistroDelTurno.
+        services.AddScoped<IRegistroDeRetroalimentacion, RegistroDeRetroalimentacion>();
+        services.AddScoped<ServicioDeRetroalimentacion>();
 
         // El puerto de vínculos arranca SIN resolver nada. Quién puede abrir un
         // trámite lo sabe el módulo de designaciones, y este módulo no lo

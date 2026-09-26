@@ -129,9 +129,16 @@ public sealed class CapaConversacional(
     {
         var ahora = reloj.GetUtcNow();
 
+        // On a Respondida turn, ClaveDeRetroalimentacion already IS this row's
+        // analytic id — the exact one already handed to the client. Anything else
+        // never surfaces a token, so any application-generated id works: nothing
+        // outside this write will ever need it.
+        var analiticoId = turno.ClaveDeRetroalimentacion ?? Guid.NewGuid();
+
         return registro.RegistrarAsync(
             new TurnoParaRegistrar(
                 actor,
+                analiticoId,
                 ahora,
                 CarrilDe(turno),
                 turno.Estado,

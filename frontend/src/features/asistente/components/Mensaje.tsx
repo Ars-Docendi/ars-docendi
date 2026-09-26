@@ -5,6 +5,7 @@ import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
 import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
+import { VotoDeRetroalimentacion } from "./VotoDeRetroalimentacion";
 import { hayPortapapeles } from "../utils/portapapeles";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 
@@ -81,6 +82,7 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
             filas={respuesta.filas}
             truncado={respuesta.truncado}
             vinculos={respuesta.vinculos}
+            hilo={respuesta.hilo}
           />
 
           <Opciones opciones={respuesta.opciones} onElegir={onElegir} deshabilitado={enVuelo} />
@@ -118,6 +120,8 @@ export function Mensaje({ turno, onElegir, onReintentar, enVuelo }: MensajeProps
               />
             </div>
           )}
+
+          <VotoDeRetroalimentacion claveDeRetroalimentacion={respuesta.claveDeRetroalimentacion} />
         </div>
       )}
     </li>

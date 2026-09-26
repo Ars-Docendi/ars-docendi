@@ -72,6 +72,34 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal(antes, despuesDeDos);
     }
 
+    // ---------------------------------------------- the feedback table (task 1.1)
+
+    [Fact]
+    public async Task The_feedback_table_is_created_with_its_foreign_key_to_the_analytic_row()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        var columnas = await ColumnasDeAsync("retroalimentacion_turno");
+        Assert.Equal(["actualizado_en", "analitico_id", "razon", "voto"], columnas);
+
+        // The foreign key: analitico_id references registro_analitico(id), and the
+        // migration's own idempotent re-run (covered above) already proves it
+        // converges on a second application.
+        Assert.Equal(1L, await EscalarAsync<long>(
+            """
+            SELECT count(*)
+              FROM information_schema.table_constraints tc
+              JOIN information_schema.constraint_column_usage ccu
+                ON ccu.constraint_name = tc.constraint_name
+               AND ccu.table_schema = tc.table_schema
+             WHERE tc.table_schema = 'asistente'
+               AND tc.table_name = 'retroalimentacion_turno'
+               AND tc.constraint_type = 'FOREIGN KEY'
+               AND ccu.table_name = 'registro_analitico'
+               AND ccu.column_name = 'id'
+            """));
+    }
+
     // ------------------------------------------------------------ la base vieja
 
     [Fact]
@@ -168,6 +196,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
     private static TurnoParaRegistrar Turno() =>
         new(Alguien,
+            Guid.NewGuid(),
             Ancla,
             CarrilDelTurno.Sql,
             EstadoDelTurno.Respondida,

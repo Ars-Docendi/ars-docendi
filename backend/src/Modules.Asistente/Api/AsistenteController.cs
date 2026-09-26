@@ -12,6 +12,7 @@ public sealed class AsistenteController(
     CapaConversacional capa,
     ICatalogoDeCapacidades capacidades,
     IIdempotencia idempotencia,
+    ServicioDeRetroalimentacion retroalimentacion,
     ICurrentUser usuario) : ControllerBase
 {
     /// <summary>Cabecera con la clave de idempotencia del turno.</summary>
@@ -99,6 +100,56 @@ public sealed class AsistenteController(
         }
 
         return Ok(CapacidadesDto.De(await capacidades.ObtenerAsync(actor, ct)));
+    }
+
+    /// <summary>
+    /// Rates an already-answered turn: thumbs up/down, with an optional reason on
+    /// a thumbs-down.
+    /// </summary>
+    /// <remarks>
+    /// Authorization here is possession of <paramref name="pedido"/>'s token, not
+    /// actor identity (design.md D2): the policy below only gates "is this an
+    /// assistant user at all", the token is what says "which turn". An unknown or
+    /// expired token 404s — the same outcome for both, so a caller can't tell
+    /// which — rather than returning a body that would confirm a token existed.
+    /// </remarks>
+    [Authorize(Policy = Permisos.AsistenteConsultar)]
+    [HttpPost("retroalimentacion")]
+    public async Task<IActionResult> Retroalimentacion(
+        PedidoDeRetroalimentacion pedido, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pedido);
+
+        if (!ActorDeLaSesion(out _))
+        {
+            return Unauthorized();
+        }
+
+        if (pedido.Razon is not null && !RazonesDeRetroalimentacion.Todas.Contains(pedido.Razon))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Razón desconocida",
+                Detail = "La razón tiene que ser una de las cuatro que ofrece la interfaz.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+
+        var resultado = await retroalimentacion.RegistrarAsync(
+            pedido.Token, pedido.Voto, pedido.Razon, ct);
+
+        return resultado switch
+        {
+            ResultadoDeRetroalimentacion.Aceptada => NoContent(),
+            // 404 y no 403 ni 401 a propósito, igual que el hilo ajeno: cualquier
+            // otro código confirmaría que ese token existió alguna vez.
+            _ => NotFound(new ProblemDetails
+            {
+                Title = "El token no existe",
+                Detail = "Es desconocido o venció. Volvé a preguntar para obtener uno nuevo.",
+                Status = StatusCodes.Status404NotFound,
+            }),
+        };
     }
 
     /// <summary>

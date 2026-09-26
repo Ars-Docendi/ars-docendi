@@ -26,6 +26,22 @@ public sealed record ConsultaDelAsistente(
 /// <summary>Una opción del menú de aclaración.</summary>
 public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);
 
+/// <summary>What the client sends to rate an already-answered turn.</summary>
+/// <param name="Token">
+/// The feedback token minted for that turn (<c>ClaveDeRetroalimentacion</c> in
+/// the turn's response). Authorizes rating THAT turn; it does not identify the
+/// caller.
+/// </param>
+/// <param name="Voto">Thumbs up (<c>true</c>) or thumbs down (<c>false</c>).</param>
+/// <param name="Razon">
+/// One of <see cref="RazonesDeRetroalimentacion.Todas"/>, or null. Validated in
+/// the controller against that closed list rather than via an attribute, so the
+/// list is declared exactly once. Ignored server-side when <see cref="Voto"/>
+/// is <c>true</c>, even if present here — the client is never trusted to have
+/// omitted it.
+/// </param>
+public sealed record PedidoDeRetroalimentacion(Guid Token, bool Voto, string? Razon);
+
 /// <summary>
 /// Un vínculo a la pantalla que muestra lo que una celda identifica.
 /// </summary>
@@ -88,6 +104,13 @@ public sealed record RespuestaDelAsistente
     public string? Sql { get; init; }
 
     /// <summary>
+    /// The feedback token: present only when <c>estado</c> is <c>respondida</c>.
+    /// Submit it once to <c>POST /api/asistente/retroalimentacion</c> to rate this
+    /// turn. Never derived from, and never carries, any actor identifier.
+    /// </summary>
+    public Guid? ClaveDeRetroalimentacion { get; init; }
+
+    /// <summary>
     /// Las celdas que identifican algo que el actor <b>puede abrir</b>. Vacío si no
     /// hay ninguna.
     /// </summary>
@@ -123,6 +146,7 @@ public sealed record RespuestaDelAsistente
             Vinculos = [.. (turno.Vinculos ?? []).Select(
                 v => new VinculoDto(v.Fila, v.Columna, v.Tipo, v.Id))],
             Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
+            ClaveDeRetroalimentacion = turno.ClaveDeRetroalimentacion,
         };
     }
 

@@ -45,7 +45,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
                 "tokens_de_entrada", "tokens_de_salida", "latencia_ms", "hubo_reintento",
                 "truncado", "proveedor", "tokens_de_cache", "intencion_sombra",
             ],
-            ["registro_analitico"] = ["pregunta", "categoria", "estado", "dia"],
+            ["registro_analitico"] = ["id", "pregunta", "categoria", "estado", "dia"],
         };
 
     private static readonly string InsertarEnOperativo = Insertar("registro_operativo");
@@ -99,6 +99,13 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
     {
         await using var comando = new NpgsqlCommand(InsertarEnAnalitico, conexion);
 
+        // Supplied by the caller and not left to the column's own DEFAULT
+        // gen_random_uuid(): on a Respondida turn this is the exact id already
+        // handed to the client as ResultadoDelTurno.ClaveDeRetroalimentacion, so the
+        // feedback token and the row it rates have to be the same value from the
+        // moment either one exists. Generating it here instead would make that
+        // impossible without a second round trip.
+        comando.Parameters.AddWithValue("id", turno.AnaliticoId);
         comando.Parameters.AddWithValue("pregunta", turno.Pregunta);
         comando.Parameters.AddWithValue("categoria", turno.Categoria);
         comando.Parameters.AddWithValue("estado", turno.Estado.ToString());

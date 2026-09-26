@@ -187,6 +187,11 @@ puede responder, y produciría preguntas que no se sabe si funcionan; las del ca
 tienen su consulta al lado y pasan el validador. Una sugerencia que no funciona convierte
 un rechazo honesto en dos, y el segundo con la pregunta que el propio sistema propuso.
 
+**`sugerencias` dejó de ser exclusivo del rechazo.** Un turno `respondida` también puede
+traerlas — ver [Retroalimentación del turno](#retroalimentación-del-turno) más abajo — y
+la distinción con `opciones` sigue exactamente igual: ninguna de las dos bloquea nada en
+ese camino, porque el turno ya terminó.
+
 ### La consulta generada, detrás de un permiso
 
 `asistente.ver_consulta` se siembra y **no se le concede a ningún rol**. No es prudencia
@@ -230,6 +235,60 @@ preguntar. Meterlo en los conteos los haría mentir en las dos direcciones.
 párrafo escrito a mano que enumeraba cinco áreas sin que nada comprobara que el rol de
 quien preguntaba pudiera leerlas. Ahora la responde el catálogo real, y sigue costando
 cero tokens.
+
+### Retroalimentación del turno
+
+Un turno `respondida` trae `claveDeRetroalimentacion`: la propia id del turno en
+`asistente.registro_analitico`, generada en la aplicación (no por el `DEFAULT` de la
+columna) y devuelta una sola vez, en la misma respuesta. Es el único identificador que
+cumple «ligado al analítico, nunca al actor» por construcción — cualquier otro exigiría
+inventar una clave nueva que, para servir, tendría que apuntar a algo, y lo único
+correcto a lo que puede apuntar es exactamente esa fila.
+
+**Autorización por posesión del token, no por identidad.** El analítico no tiene columna
+de actor a propósito (TD-012): comparar actores para decidir «solo el autor puede
+calificar» reabriría el mismo cruce. En cambio: el token es un UUID aleatorio,
+inadivinable, devuelto por HTTPS una sola vez; una ventana de validez de 120 minutos —la
+misma que `IAlmacenDeHilos`, en memoria y sin persistencia, igual que `IIdempotencia`—
+lo vence; y `POST /api/asistente/retroalimentacion` sigue exigiendo
+`asistente.consultar`: el token dice **qué turno**, la policy dice **que sea alguien del
+asistente**. Un token vencido y uno inventado devuelven el mismo `404` — para que nadie
+pueda distinguir «venció» de «nunca existió» sondeando el endpoint.
+
+**Riesgo residual, aceptado explícitamente**: quien tenga el token —por ejemplo, si se
+filtró por un canal ajeno a este diseño, como una pantalla compartida— puede calificar
+ese turno. Lo que protege (un voto y una razón sobre una fila ya anónima) no justifica un
+esquema más pesado; es el mismo criterio con que el módulo ya acepta el residual de
+`ctid` en TD-012.
+
+**Es un upsert, una fila por turno, sin historial.** `INSERT ... ON CONFLICT
+(analitico_id) DO UPDATE`: cambiar de voto reemplaza el anterior, nunca lo acumula.
+Guardar un historial de razones sería un lugar más donde una queja rara termina
+reidentificando a quien la escribió, el mismo argumento que ya vale para
+`intencion_sombra`.
+
+**El logging no puede volver a abrir el cruce, un piso más arriba.** El evento del turno
+nombra al actor y nunca el token; el evento del endpoint de retroalimentación nombra al
+token y nunca al actor. Sin esa separación, dos líneas de log en el mismo archivo
+reconstruirían el join que separar las dos tablas existe para impedir — sin necesitar
+ningún acceso a la base.
+
+**Sólo `respondida` califica.** `necesita_aclaracion` no terminó todavía; `no_contestable`
+es una abstención correcta y no un fallo que calificar; `servicio_degradado` no es una
+respuesta del asistente. Ninguno de los tres trae `claveDeRetroalimentacion`, y el
+endpoint responde `404` para cualquier token que se le adivine para esos turnos, porque
+nunca se emitió ninguno.
+
+**Sugerencias tras una respuesta exitosa, en el mismo camino.** Después de `Respondida`,
+el carril intenta llenar `sugerencias` con hasta 3 preguntas del catálogo verificado de la
+misma categoría que la respuesta, excluyendo la que textualmente ya se ejecutó, y
+filtradas por la **misma verificación `EXPLAIN`** que usa `/capacidades` — nunca una que
+el actor no pueda ejecutar. Sin coincidencias, el campo queda vacío: no hay relleno
+genérico para este camino, a diferencia del rechazo, que sí cae a las primeras del
+catálogo cuando el parecido léxico no alcanza. La señal de relación es **sólo categoría**
+—el catálogo no declara qué tablas toca cada ejemplo— y es deliberadamente más pobre que
+un extractor de tablas tocadas; extender el catálogo con un campo `tablas` explícito es
+el camino más barato si la señal actual resulta insuficiente en uso real.
 
 ## El carril SQL
 

@@ -217,6 +217,35 @@ decidió nada.
 `sql` solo viaja con `asistente.ver_consulta`, y el chequeo está donde se arma la
 respuesta —no en el controller—, para que cualquier camino nuevo lo herede.
 
+`claveDeRetroalimentacion` viaja solo cuando `estado = respondida`: es la propia id
+del turno en `registro_analitico`, generada por la aplicación y no por el `DEFAULT`
+de la columna, para que sea el mismo valor que el escritor del registro usa después.
+Ver «La retroalimentación».
+
+`sugerencias` ya no es exclusivo del rechazo: un turno respondido también puede
+traerlas, elegidas por categoría contra el mismo catálogo y filtradas por la misma
+verificación `EXPLAIN` que usa `/capacidades`. Vacío cuando nada del catálogo
+califica —nunca un relleno genérico—, a diferencia del rechazo.
+
+### La retroalimentación
+
+Thumbs + una razón opcional (de cuatro: datos incorrectos, no entendió la pregunta,
+lento, otro), ligada solo a `claveDeRetroalimentacion` — nunca al actor.
+
+**Autorización por posesión del token, no por identidad.** El analítico no tiene
+columna de actor a propósito (TD-012), así que «solo el autor califica» no se puede
+verificar comparando actores. El token es un UUID aleatorio devuelto una sola vez;
+una vigencia de 120 minutos en memoria —`Asistente__VigenciaDeRetroalimentacionMinutos`,
+mismo criterio que `IIdempotencia`— lo vence; y el endpoint sigue exigiendo
+`asistente.consultar`. Un token vencido y uno inventado responden el mismo `404`.
+
+Es un upsert: `INSERT ... ON CONFLICT (analitico_id) DO UPDATE`, una fila por turno,
+sin historial de votos previos.
+
+**El logging no reabre el cruce un piso más arriba.** El evento del turno nombra al
+actor y nunca el token de retroalimentación; el evento de este endpoint nombra el
+token y nunca al actor.
+
 ### La idempotencia
 
 En memoria, acotada por **(actor, clave)** y con expiración corta. La clave sola

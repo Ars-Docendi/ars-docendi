@@ -70,6 +70,12 @@ export interface RespuestaDelAsistente {
   /** Solo llega con el permiso `asistente.ver_consulta`. */
   sql?: string | null;
   metricas: MetricasDelTurno;
+  /**
+   * Present only when `estado` is `"respondida"`. Submit it once to
+   * `POST /api/asistente/retroalimentacion` to rate this turn. Never identifies
+   * who asked — see asistente-retroalimentacion's spec.
+   */
+  claveDeRetroalimentacion?: string | null;
 }
 
 export interface AreaCubierta {
@@ -93,6 +99,14 @@ export interface CapacidadesDelAsistente {
    */
   presentacion: string;
 }
+
+/**
+ * The fixed, closed set of reasons a thumbs-down vote may carry. Matches
+ * `RazonesDeRetroalimentacion` on the backend exactly — see
+ * `POST /api/asistente/retroalimentacion` in docs/architecture/api-contracts.md.
+ */
+export type RazonDeRetroalimentacion =
+  "datos_incorrectos" | "no_entendio_la_pregunta" | "lento" | "otro";
 
 /** Un turno ya renderizable, del lado del cliente. */
 export interface TurnoDeLaConversacion {

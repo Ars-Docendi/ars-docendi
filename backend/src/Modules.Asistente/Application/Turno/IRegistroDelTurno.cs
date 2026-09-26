@@ -40,6 +40,14 @@ public enum CarrilDelTurno
 /// persistir por accidente.
 /// </remarks>
 /// <param name="Actor">Quién consultó. Va solo al registro operativo.</param>
+/// <param name="AnaliticoId">
+/// The id the application generated for this turn's analytic row (Guid.NewGuid(),
+/// not the database default). Every turn gets one, even when it never becomes a
+/// feedback token: on a Respondida turn it is the same value as
+/// <see cref="ResultadoDelTurno.ClaveDeRetroalimentacion"/>; on any other state it
+/// exists only so the analytic row has a caller-supplied id, and nothing outside
+/// this record ever needs it.
+/// </param>
 /// <param name="Cuando">
 /// Cuándo. Al operativo va completo; al analítico, redondeado al día.
 /// </param>
@@ -69,6 +77,7 @@ public enum CarrilDelTurno
 /// </remarks>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
+    Guid AnaliticoId,
     DateTimeOffset Cuando,
     CarrilDelTurno Carril,
     EstadoDelTurno Estado,

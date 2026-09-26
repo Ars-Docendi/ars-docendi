@@ -95,5 +95,10 @@ internal static class FabricasDelResultado
             GeneracionDeSql.CategoriaNoContestable,
             LlamadasAlModelo: 0,
             conversacion.Id,
-            Sugerencias: sugerencias);
+            Sugerencias: sugerencias,
+            // Respondida, same as any other case of this state: this turn gets a
+            // feedback token too, even though it never touched the model or the
+            // database — a greeting or a "what can you do?" answer is still an
+            // answer to rate.
+            ClaveDeRetroalimentacion: Guid.NewGuid());
 }

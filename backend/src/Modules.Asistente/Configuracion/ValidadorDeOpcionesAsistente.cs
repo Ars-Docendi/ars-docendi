@@ -68,6 +68,7 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.RetencionDeRegistrosDias), o => o.RetencionDeRegistrosDias),
         (nameof(OpcionesAsistente.PeriodoDePurgaHoras), o => o.PeriodoDePurgaHoras),
         (nameof(OpcionesAsistente.VigenciaDeIdempotenciaMinutos), o => o.VigenciaDeIdempotenciaMinutos),
+        (nameof(OpcionesAsistente.VigenciaDeRetroalimentacionMinutos), o => o.VigenciaDeRetroalimentacionMinutos),
         (nameof(OpcionesAsistente.MaximoDeIntentosDeAclaracion), o => o.MaximoDeIntentosDeAclaracion),
         (nameof(OpcionesAsistente.MaximoDeTokensDeGeneracion), o => o.MaximoDeTokensDeGeneracion),
         (nameof(OpcionesAsistente.MaximoDeTokensDeRedaccion), o => o.MaximoDeTokensDeRedaccion),

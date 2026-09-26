@@ -49,6 +49,11 @@ internal sealed class MigradorAsistente(
         await RegistrosAsistente.AplicarAsync(
             conexion, valores.RolSoloLectura, valores.RolSoloLecturaPii, ct);
 
+        // The feedback table needs no role GUCs (it lives inside a schema already
+        // denied wholesale), but it does need registro_analitico to already exist,
+        // since its primary key is a foreign key into that table.
+        await RetroalimentacionAsistente.AplicarAsync(conexion, ct);
+
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 
         log.LogInformation(

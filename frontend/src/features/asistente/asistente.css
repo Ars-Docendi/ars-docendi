@@ -418,6 +418,52 @@
   color: var(--color-text-secondary);
 }
 
+/* ────────────────────────── exportar a CSV, y el voto ──────────────────────── */
+
+.adoc-asistente-exportar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.adoc-asistente-exportar-confirmacion,
+.adoc-asistente-voto-confirmacion {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-voto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.adoc-asistente-voto-botones {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-voto-razones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-left: 3px solid var(--color-border-default);
+  padding-left: var(--space-3);
+}
+
+.adoc-asistente-voto-razones-titulo {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-voto-razones ul.adoc-asistente-chips {
+  margin-top: 0;
+}
+
 /* ─────────────────────────── opciones y sugerencias ────────────────────────── */
 
 /* Las opciones BLOQUEAN el turno y las sugerencias no: se ven distinto a propósito.

@@ -1,9 +1,13 @@
-import { Table } from "@ars-docendi/ui";
+import { useState } from "react";
+import { Button, Table } from "@ars-docendi/ui";
 import { Link } from "react-router-dom";
 
 import { MarcaSensible } from "./MarcaSensible";
+import { downloadIcon } from "../../../app/shell/icons";
 import { formatearCelda } from "../utils/celdas";
+import { descargarArchivo } from "../utils/descargas";
 import { destinoDe } from "../utils/destinos";
+import { nombreDelArchivoCsv, tablaComoCsv } from "../utils/portapapeles";
 import type { ColumnaDelResultado, VinculoDelResultado } from "../types";
 
 interface TablaDeResultadoProps {
@@ -11,6 +15,8 @@ interface TablaDeResultadoProps {
   filas: unknown[][];
   truncado: boolean;
   vinculos?: VinculoDelResultado[];
+  /** The turn's thread id, only to name the exported file. */
+  hilo?: string;
 }
 
 /**
@@ -41,11 +47,62 @@ export function TablaDeResultado({
   filas,
   truncado,
   vinculos = [],
+  hilo = "",
 }: TablaDeResultadoProps) {
   if (columnas.length === 0 || filas.length === 0) return null;
 
   const haySensibles = columnas.some((columna) => columna.sensible);
   const porCelda = new Map(vinculos.map((v) => [`${v.fila}:${v.columna}`, v]));
+
+  return (
+    <TablaConExportacion
+      columnas={columnas}
+      filas={filas}
+      truncado={truncado}
+      hilo={hilo}
+      haySensibles={haySensibles}
+      porCelda={porCelda}
+    />
+  );
+}
+
+interface TablaConExportacionProps {
+  columnas: ColumnaDelResultado[];
+  filas: unknown[][];
+  truncado: boolean;
+  hilo: string;
+  haySensibles: boolean;
+  porCelda: Map<string, VinculoDelResultado>;
+}
+
+/**
+ * The rendering the early return above guards, plus the export action.
+ *
+ * Split out only so the component can call a hook (the confirmation text
+ * needs state) after the early return above stays a plain, no-hook guard —
+ * React does not allow a hook after a conditional return in the same
+ * component.
+ */
+function TablaConExportacion({
+  columnas,
+  filas,
+  truncado,
+  hilo,
+  haySensibles,
+  porCelda,
+}: TablaConExportacionProps) {
+  const [confirmacion, setConfirmacion] = useState<string | null>(null);
+
+  function exportar() {
+    // Reads only the already-rendered `columnas`/`filas` — the same arrays
+    // painted above, already masked by the time they got here. Nothing else
+    // is read, so there is nothing to un-mask even by accident.
+    const csv = tablaComoCsv(columnas, filas, truncado);
+    const nombre = nombreDelArchivoCsv(hilo, new Date(), truncado);
+
+    descargarArchivo(nombre, csv, "text/csv;charset=utf-8");
+    setConfirmacion("El archivo está listo para descargar.");
+  }
 
   return (
     <div className="adoc-asistente-tabla">
@@ -96,6 +153,17 @@ export function TablaDeResultado({
           Hay más resultados de los que se muestran. Acotá la pregunta para verlos.
         </p>
       )}
+
+      <div className="adoc-asistente-exportar">
+        <Button variant="ghost" size="sm" leadingIcon={downloadIcon} onClick={exportar}>
+          Exportar a CSV
+        </Button>
+
+        {/* Anunciado por la región viva ancestral (Conversacion.tsx, role="log"
+            aria-live="polite"): no hay una región propia acá, y el foco no se
+            mueve — sigue en el botón que se activó. */}
+        {confirmacion && <p className="adoc-asistente-exportar-confirmacion">{confirmacion}</p>}
+      </div>
     </div>
   );
 }

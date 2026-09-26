@@ -44,6 +44,13 @@ internal sealed class BancoDelAsistente
     /// <summary>El registro del turno, sea el de memoria o el real.</summary>
     public required IRegistroDelTurno Registro { get; init; }
 
+    /// <summary>
+    /// The feedback token store, shared across turns — the same instance the
+    /// registered turn used to mint its token, so a test can build a feedback
+    /// endpoint call against a token that is actually live.
+    /// </summary>
+    public required IValidezDeRetroalimentacion ValidezDeRetroalimentacion { get; init; }
+
     /// <summary>Un turno nuevo, con su propio contador de llamadas.</summary>
     public CapaConversacional Capa() => Fabrica();
 
@@ -61,6 +68,7 @@ internal sealed class BancoDelAsistente
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         ICatalogoDelDominio? dominio = null,
         IResolutorDeVinculos? vinculos = null,
+        ILogger<CapaConversacional>? logCapa = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
@@ -84,6 +92,7 @@ internal sealed class BancoDelAsistente
         var disponibilidad = new DisponibilidadDelModeloReal(cuota, breaker);
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
         var elRegistro = registro ?? new RegistroEnMemoria();
+        var validezDeRetroalimentacion = new ValidezDeRetroalimentacionEnMemoria(opciones);
 
         // El índice se comparte entre turnos, igual que en producción: es un caché,
         // y uno por turno no cachearía nada.
@@ -121,6 +130,7 @@ internal sealed class BancoDelAsistente
             Cuota = cuota,
             Opciones = valores,
             Registro = elRegistro,
+            ValidezDeRetroalimentacion = validezDeRetroalimentacion,
             Fabrica = () =>
             {
                 var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
@@ -145,7 +155,8 @@ internal sealed class BancoDelAsistente
                     conTecho,
                     contador,
                     opciones,
-                    NullLogger<CarrilSql>.Instance);
+                    NullLogger<CarrilSql>.Instance,
+                    new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()));
 
                 return new CapaConversacional(
                     losHilos,
@@ -164,7 +175,7 @@ internal sealed class BancoDelAsistente
                     decisionSombra,
                     opciones,
                     elReloj,
-                    NullLogger<CapaConversacional>.Instance);
+                    logCapa ?? NullLogger<CapaConversacional>.Instance);
             },
         };
     }
@@ -205,7 +216,8 @@ internal sealed class BancoDelAsistente
         IProveedorDeModelo conTecho,
         ContadorDeLlamadasDelTurno contador,
         IOptions<OpcionesAsistente> opcionesDelGenerador,
-        ILogger<CarrilSql> log) =>
+        ILogger<CarrilSql> log,
+        ISugerenciasDeSeguimiento? sugerenciasDeSeguimiento = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -219,6 +231,7 @@ internal sealed class BancoDelAsistente
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
             new ConsultorDeCobertura(apertura),
+            sugerenciasDeSeguimiento ?? new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()),
             contador,
             log);
 }

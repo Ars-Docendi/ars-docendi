@@ -48,4 +48,50 @@ internal static class Sugerencias
 
         return [.. elegidos.Take(Cuantas).Select(ejemplo => ejemplo.Pregunta)];
     }
+
+    /// <summary>
+    /// Picks up to <see cref="Cuantas"/> follow-up candidates for an answered
+    /// (Respondida) turn: same category as the answer, excluding the catalog
+    /// entry whose SQL is the one that just ran.
+    /// </summary>
+    /// <remarks>
+    /// This is a separate function next to <see cref="Para"/> and not a
+    /// replacement for it: the rejection path still matches by lexical
+    /// similarity to the failed question, because there is no "answer" there to
+    /// relate to. This one exists only for a turn that produced one.
+    ///
+    /// Purely in-process and privilege-blind, on purpose: it has no database
+    /// connection and cannot know which of its candidates the current actor can
+    /// actually execute. That check belongs to whoever calls this (see
+    /// <c>ISugerenciasDeSeguimiento</c> in Infrastructure), which runs it only on
+    /// the small candidate set this function already narrowed down — never on
+    /// the full catalog.
+    ///
+    /// Deliberately NOT capped at <see cref="Cuantas"/> here: capping before the
+    /// executability check could throw away a candidate that would have passed
+    /// in favor of one that later fails, leaving fewer than three suggestions
+    /// even when a fourth or fifth category match would have qualified. The cap
+    /// applies after filtering by what the actor can run, not before.
+    /// </remarks>
+    /// <param name="categoria">The answered turn's category (GeneracionDeSql.Categoria).</param>
+    /// <param name="sqlEjecutado">
+    /// The SQL that produced the answer, so the just-answered question is never
+    /// suggested back. Comparison is textual (ordinal), matching how the rest of
+    /// this module already compares generated SQL against the catalog.
+    /// </param>
+    /// <param name="catalogo">The full verified example catalog.</param>
+    public static IReadOnlyList<EjemploSql> ParaCategoria(
+        string categoria, string? sqlEjecutado, IReadOnlyList<EjemploSql> catalogo)
+    {
+        ArgumentNullException.ThrowIfNull(categoria);
+        ArgumentNullException.ThrowIfNull(catalogo);
+
+        return
+        [
+            .. catalogo
+                .Where(ejemplo => string.Equals(ejemplo.Categoria, categoria, StringComparison.Ordinal))
+                .Where(ejemplo => sqlEjecutado is null
+                    || !string.Equals(ejemplo.Sql, sqlEjecutado, StringComparison.Ordinal)),
+        ];
+    }
 }

@@ -23,6 +23,7 @@ public sealed class CarrilSql(
     RedactorDeRespuesta redactor,
     ISelectorDeEjemplos ejemplos,
     IConsultorDeCobertura cobertura,
+    ISugerenciasDeSeguimiento sugeridorDeSeguimiento,
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
@@ -185,11 +186,36 @@ public sealed class CarrilSql(
         }
 
         return resultado.EstaVacio
-            ? Vacio(generacion, aMostrar, perfil, alcanzaTodo,
-                await CoberturaAsync(generacion, actor, ct))
+            ? await VacioAsync(generacion, aMostrar, perfil, alcanzaTodo,
+                await CoberturaAsync(generacion, actor, ct), actor, ct)
             : await RedactadoAsync(
                 mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
-                await CoberturaAsync(generacion, actor, ct), ct);
+                await CoberturaAsync(generacion, actor, ct), actor, ct);
+    }
+
+    /// <summary>
+    /// Follow-up suggestions for an answered turn, or empty on any failure.
+    /// </summary>
+    /// <remarks>
+    /// Same degrade-gracefully shape as <see cref="CoberturaAsync"/>: a follow-up
+    /// suggestion is a nice-to-have on a turn that already succeeded, never a
+    /// reason to fail one that did.
+    /// </remarks>
+    private async Task<IReadOnlyList<string>> SugerenciasDeSeguimientoAsync(
+        GeneracionDeSql generacion, Guid actor, PerfilDelActor perfil, CancellationToken ct)
+    {
+        try
+        {
+            return await sugeridorDeSeguimiento.ObtenerAsync(
+                actor, generacion.Categoria, generacion.Sql, perfil.VeDatosPersonales, ct);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion,
+                "No se pudieron calcular las sugerencias de seguimiento; se responde sin ellas.");
+            return [];
+        }
     }
 
     /// <summary>
@@ -270,6 +296,7 @@ public sealed class CarrilSql(
         PerfilDelActor perfil,
         bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
+        Guid actor,
         CancellationToken ct)
     {
         // LA FRONTERA DE SALIDA. Lo que va al modelo es el resultado enmascarado;
@@ -295,7 +322,12 @@ public sealed class CarrilSql(
             // La ÚNICA rama que la anota, y por eso la anota acá y no arriba: es la
             // única en la que hubo filas. `generacion` ya es la del reintento cuando
             // hubo reintento, así que ésta es la consulta que de verdad respondió.
-            SqlEjecutado: generacion.Sql);
+            SqlEjecutado: generacion.Sql,
+            // Respondida: this turn's analytic row gets an application-generated id,
+            // and this is that same id, handed to the client once so it can later
+            // submit feedback for exactly this row.
+            ClaveDeRetroalimentacion: Guid.NewGuid(),
+            Sugerencias: await SugerenciasDeSeguimientoAsync(generacion, actor, perfil, ct));
     }
 
     /// <summary>
@@ -307,12 +339,14 @@ public sealed class CarrilSql(
     /// distinción entre «no hay» y «no podés verlo» sea mecánica en lugar de
     /// depender de que el modelo respete una instrucción del prompt.
     /// </remarks>
-    private ResultadoDelTurno Vacio(
+    private async Task<ResultadoDelTurno> VacioAsync(
         GeneracionDeSql generacion,
         string? aMostrar,
         PerfilDelActor perfil,
         bool alcanzaTodo,
-        IReadOnlyList<CoberturaDeUnDato> cobertura) =>
+        IReadOnlyList<CoberturaDeUnDato> cobertura,
+        Guid actor,
+        CancellationToken ct) =>
         new(EstadoDelTurno.Respondida,
             PoliticaDeAbstencion.TextoDeResultadoVacio(
                 alcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
@@ -327,7 +361,11 @@ public sealed class CarrilSql(
             [],
             generacion.Categoria,
             contador.Llamadas,
-            Sql: LaConsulta(generacion, perfil));
+            Sql: LaConsulta(generacion, perfil),
+            // Respondida too (zero rows is still an answer), so it gets a token the
+            // same way RedactadoAsync's branch does.
+            ClaveDeRetroalimentacion: Guid.NewGuid(),
+            Sugerencias: await SugerenciasDeSeguimientoAsync(generacion, actor, perfil, ct));
 
     private ResultadoDelTurno NoContestable(
         GeneracionDeSql generacion,

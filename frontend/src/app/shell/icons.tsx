@@ -204,4 +204,35 @@ export const arrowDownIcon = (
   </svg>
 );
 
+/**
+ * Pulgar hacia arriba. Va en el botón «Me sirvió» de la calificación de un
+ * turno del asistente.
+ */
+export const thumbUpIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M6 8v7H3.5V8H6zm0 0l2.5-5a1.5 1.5 0 0 1 2.9.6L11 6.5h2.5A1.5 1.5 0 0 1 15 8.2l-.9 5.3a1.5 1.5 0 0 1-1.5 1.5H6" />
+  </svg>
+);
+
+/**
+ * Pulgar hacia abajo. Va en el botón «No me sirvió» de la calificación de un
+ * turno del asistente.
+ */
+export const thumbDownIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M6 10V3h-2.5v7H6zm0 0l2.5 5a1.5 1.5 0 0 0 2.9-.6L11 11.5h2.5A1.5 1.5 0 0 0 15 9.8l-.9-5.3a1.5 1.5 0 0 0-1.5-1.5H6" />
+  </svg>
+);
+
+/**
+ * Flecha hacia una bandeja. Va delante de la acción de exportar el resultado a
+ * CSV en el asistente.
+ */
+export const downloadIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M9 3v8M5.5 8L9 11.5 12.5 8" />
+    <path d="M3.5 13.5h11" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

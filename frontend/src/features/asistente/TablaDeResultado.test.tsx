@@ -1,11 +1,13 @@
 /// <reference types="node" />
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import { hojaDeLaFeature } from "./test/hojas";
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { TablaDeResultado } from "./components/TablaDeResultado";
 import { montar } from "./test/soporte";
+import * as descargas from "./utils/descargas";
 import type { ColumnaDelResultado } from "./types";
 
 // La hoja como texto: jsdom no aplica CSS, pero la regla se puede leer. Va por
@@ -168,5 +170,82 @@ describe("El vínculo de una celda", () => {
     montar(<TablaDeResultado columnas={TRAMITES} filas={DOS_TRAMITES} truncado={false} />);
 
     expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+// ============================================================
+// CSV export action (asistente-exportacion-csv, asistente-superficie-frontend,
+// asistente-accesibilidad).
+// ============================================================
+
+describe("The export action", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("renders when there is at least one row", () => {
+    montar(<TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />);
+
+    expect(screen.getByRole("button", { name: "Exportar a CSV" })).toBeInTheDocument();
+  });
+
+  it("does not render for an empty result", () => {
+    montar(<TablaDeResultado columnas={COLUMNAS} filas={[]} truncado={false} />);
+
+    expect(screen.queryByRole("button", { name: "Exportar a CSV" })).toBeNull();
+  });
+
+  it("triggers a download built from tablaComoCsv", async () => {
+    const disparo = vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
+    const user = userEvent.setup();
+    montar(
+      <TablaDeResultado
+        columnas={COLUMNAS}
+        filas={FILAS}
+        truncado={false}
+        hilo="abcdef12-0000-4000-8000-000000000001"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Exportar a CSV" }));
+
+    expect(disparo).toHaveBeenCalledTimes(1);
+    const [nombre, contenido, tipo] = disparo.mock.calls[0];
+    expect(nombre).toMatch(/^asistente-resultado-abcdef12-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(contenido).toContain("apellido,documento,horas");
+    expect(contenido).toContain("Gómez");
+    expect(tipo).toBe("text/csv;charset=utf-8");
+  });
+
+  it("is keyboard-operable and announces completion without moving focus", async () => {
+    vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
+    const user = userEvent.setup();
+    montar(
+      <ul role="log" aria-live="polite" aria-label="Conversación con el asistente">
+        <li>
+          <TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} />
+        </li>
+      </ul>,
+    );
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Exportar a CSV" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("El archivo está listo para descargar.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exportar a CSV" })).toHaveFocus();
+  });
+
+  it("exports exactly the masked values already rendered, never an un-masked one", async () => {
+    const disparo = vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
+    const user = userEvent.setup();
+    const enmascarado: unknown[][] = [["Gómez", "«documento 1»", 42]];
+    montar(<TablaDeResultado columnas={COLUMNAS} filas={enmascarado} truncado={false} />);
+
+    await user.click(screen.getByRole("button", { name: "Exportar a CSV" }));
+
+    const contenido = disparo.mock.calls[0][1];
+    const filaExportada = contenido.split("\r\n")[1];
+    expect(filaExportada).toBe("Gómez,«documento 1»,42");
   });
 });
