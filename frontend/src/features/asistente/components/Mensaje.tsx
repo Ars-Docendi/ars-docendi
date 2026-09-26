@@ -7,7 +7,9 @@ import { HerramientasDePregunta } from "./HerramientasDePregunta";
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
 import { TablaDeResultado } from "./TablaDeResultado";
+import { UMBRAL_DE_APARICION_MS } from "./IndicadorDeProceso";
 import { sendIcon } from "../../../app/shell/icons";
+import { useVisibleTrasUmbral } from "../hooks/useVisibleTrasUmbral";
 import { modoDebugAsistente } from "../utils/modoDebug";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 
@@ -44,6 +46,13 @@ interface MensajeProps {
    * `import.meta.env`; en producción usa el valor real por defecto.
    */
   debug?: boolean;
+  /**
+   * El mismo umbral que `IndicadorDeProceso` (asistente-rediseno-v3, D14):
+   * los puntos inline no aparecen antes de él, para que una respuesta
+   * determinista no los haga parpadear. Inyectable para que el test no
+   * dependa del reloj real.
+   */
+  umbralMs?: number;
 }
 
 /** Un turno completo: lo que preguntó el usuario y lo que contestó el asistente. */
@@ -57,8 +66,10 @@ export function Mensaje({
   bloqueado = false,
   esUltimo = false,
   debug = modoDebugAsistente,
+  umbralMs = UMBRAL_DE_APARICION_MS,
 }: MensajeProps) {
   const { respuesta } = turno;
+  const mostrarPendiente = useVisibleTrasUmbral(enVuelo, umbralMs);
 
   // La vista ampliada de la tabla es controlada desde ACÁ, no desde
   // `TablaDeResultado` (design.md D6 de asistente-rediseno-v3, ARS-146 §5): el
@@ -130,6 +141,21 @@ export function Mensaje({
   // «Editar y reenviar» sólo en la última pregunta, nunca en vuelo ni
   // bloqueada — el mismo criterio que el composer.
   const puedeEditar = esUltimo && Boolean(onEditarYReenviar) && !enVuelo && !bloqueado;
+
+  // EL LUGAR DONDE VA A APARECER LA RESPUESTA, mientras no hay nada más que
+  // mostrar (ni respuesta, ni error, ni «se dejó de esperar», ni contenido
+  // histórico): sólo el último turno puede estar en vuelo (design.md D14 de
+  // asistente-rediseno-v3). Es puramente visual y `aria-hidden`: el anuncio
+  // sigue siendo el `role="status"` de `IndicadorDeProceso`, fuera de esta
+  // región viva — dos anuncios del mismo «Consultando…» serían el doble aviso
+  // que la spec de accesibilidad prohíbe.
+  const pendiente =
+    esUltimo &&
+    mostrarPendiente &&
+    !respuesta &&
+    !turno.error &&
+    !turno.detenido &&
+    !turno.historico;
 
   return (
     <li
@@ -207,6 +233,17 @@ export function Mensaje({
         <p className="adoc-asistente-detenido">
           Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.
         </p>
+      )}
+
+      {pendiente && (
+        <div className="adoc-asistente-pendiente" aria-hidden="true">
+          <span className="adoc-asistente-puntos">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>Consultando…</span>
+        </div>
       )}
 
       {turno.historico && (

@@ -67,9 +67,9 @@
 
 ## 9. Integrate existing states in v3 (ARS-150)
 
-- [ ] 9.1 Pending turn: inline dots + «Consultando…» (`aria-hidden`, reduced-motion safe) while the threshold-gated `role="status"` stays outside the log. Verify: `asistente.turnos.test.tsx` — inline indicator after 400 ms, single announcement, no stages.
-- [ ] 9.2 Composer: «Enviar» disabled when empty or before the threshold in flight, «Dejar de esperar» in its slot after the threshold; stopped note text unchanged; status strip under the composer with quota indicator, blocked text and metrics line, outside the live region. Verify: `EntradaDePregunta.test.tsx`, `FranjaDeEstado.test.tsx`, `EstadoDeCupoYMantenimiento.test.tsx` updated.
-- [ ] 9.3 Error box «No se pudo consultar» + «Reintentar», degraded/clarification alerts, maintenance banner at the top of the conversation column, neutral user bubble, «Entendí:», «Ver la consulta», debug-only «Cómo lo interpreté». Verify: existing tests for these states still pass after the restyle; `Mensaje.test.tsx` debug-mode cases unchanged.
+- [x] 9.1 Pending turn: inline dots + «Consultando…» (`aria-hidden`, reduced-motion safe) while the threshold-gated `role="status"` stays outside the log. Verify: `asistente.turnos.test.tsx` — inline indicator after 400 ms, single announcement, no stages.
+- [x] 9.2 Composer: «Enviar» disabled when empty or before the threshold in flight, «Dejar de esperar» in its slot after the threshold; stopped note text unchanged; status strip under the composer with quota indicator, blocked text and metrics line, outside the live region. Verify: `EntradaDePregunta.test.tsx`, `FranjaDeEstado.test.tsx`, `EstadoDeCupoYMantenimiento.test.tsx` updated.
+- [x] 9.3 Error box «No se pudo consultar» + «Reintentar», degraded/clarification alerts, maintenance banner at the top of the conversation column, neutral user bubble, «Entendí:», «Ver la consulta», debug-only «Cómo lo interpreté». Verify: existing tests for these states still pass after the restyle; `Mensaje.test.tsx` debug-mode cases unchanged.
 
 ## 10. Remove the `/asistente` page (ARS-151)
 

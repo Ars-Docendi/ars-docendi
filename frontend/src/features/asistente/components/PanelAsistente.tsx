@@ -126,15 +126,6 @@ export function PanelAsistente({
 
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
-      {/* Global y SIN bypass (asistente-modo-mantenimiento): se ve igual para
-          todo el mundo, admin incluido, aunque el campo de abajo sólo se
-          deshabilite para quien el backend efectivamente bloquea. */}
-      {capacidades?.mantenimiento.activo && (
-        <InlineAlert severity="warning" className="adoc-asistente-mantenimiento">
-          {mensajeDeMantenimiento(capacidades.mantenimiento.razon)}
-        </InlineAlert>
-      )}
-
       <div className="adoc-asistente-grilla">
         <RailDeConversaciones
           asistente={asistente}
@@ -147,34 +138,52 @@ export function PanelAsistente({
           <EncabezadoDeConversacion titulo={tituloDelEncabezado} onCerrar={onCerrar} />
 
           {/* EL ENCABEZADO LLEGA AL BORDE DEL MODAL SIN RELLENO PROPIO; ESTO NO. El
-              relleno alrededor del hilo, la franja y la entrada vive acá y no en
-              `.adoc-asistente-columna` justamente para que el encabezado —arriba,
-              afuera de este `div`— pueda ser edge-to-edge mientras el resto no. */}
+              relleno alrededor del banner, el hilo, la franja y la entrada vive
+              acá y no en `.adoc-asistente-columna` justamente para que el
+              encabezado —arriba, afuera de este `div`— pueda ser edge-to-edge
+              mientras el resto no. */}
           <div className="adoc-asistente-columna-cuerpo">
+            {/* Arriba del hilo (asistente-conversacion): global y SIN bypass
+                (asistente-modo-mantenimiento), se ve igual para todo el mundo,
+                admin incluido, aunque el campo de abajo sólo se deshabilite
+                para quien el backend efectivamente bloquea. */}
+            {capacidades?.mantenimiento.activo && (
+              <InlineAlert severity="warning" className="adoc-asistente-mantenimiento">
+                {mensajeDeMantenimiento(capacidades.mantenimiento.razon)}
+              </InlineAlert>
+            )}
+
             {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando,
                 el campo de entrada se va hacia abajo con cada respuesta y hay que
                 perseguirlo; acá se queda quieto y lo que se mueve es la conversación,
                 que es lo que uno espera de un chat. */}
             <div className="adoc-asistente-hilo-marco">
               <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
-                {sinTurnos && capacidades && (
-                  <EstadoInicial
-                    capacidades={capacidades}
-                    onElegir={enviar}
-                    deshabilitado={enVuelo}
-                  />
-                )}
+                {/* Columna centrada de 720 px (mock v3): el ancho de scroll es
+                    el de todo el cuerpo —así el thumb queda contra el borde del
+                    modal, no pegado al texto—, y este envoltorio es el que
+                    angosta y centra el contenido adentro de él. */}
+                <div className="adoc-asistente-hilo-contenido">
+                  {sinTurnos && capacidades && (
+                    <EstadoInicial
+                      capacidades={capacidades}
+                      onElegir={enviar}
+                      deshabilitado={enVuelo}
+                    />
+                  )}
 
-                <Conversacion
-                  turnos={turnos}
-                  onElegir={enviar}
-                  onReintentar={(id) => void reintentar(id)}
-                  onReejecutar={(id) => void asistente.reejecutar(id)}
-                  onEditarYReenviar={(texto) => void reenviarUltima(texto)}
-                  enVuelo={enVuelo}
-                  bloqueado={bloqueado}
-                  anuncio={historial.anuncio}
-                />
+                  <Conversacion
+                    turnos={turnos}
+                    onElegir={enviar}
+                    onReintentar={(id) => void reintentar(id)}
+                    onReejecutar={(id) => void asistente.reejecutar(id)}
+                    onEditarYReenviar={(texto) => void reenviarUltima(texto)}
+                    enVuelo={enVuelo}
+                    bloqueado={bloqueado}
+                    anuncio={historial.anuncio}
+                    umbralDelIndicadorMs={umbralDelIndicadorMs}
+                  />
+                </div>
               </div>
 
               {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
@@ -189,23 +198,31 @@ export function PanelAsistente({
               />
             </div>
 
-            {/* Una sola fila, FUERA de la región viva a propósito. */}
-            <FranjaDeEstado
-              enVuelo={enVuelo}
-              turnos={turnos}
-              onDetener={detener}
-              cupo={capacidades?.cupo}
-              umbralMs={umbralDelIndicadorMs}
-            />
+            {/* El composer y, debajo, la franja con el cupo y las métricas
+                (mock v3, design.md D14): las dos centradas en su propia
+                columna angosta de 684 px, más chica que la del hilo. */}
+            <div className="adoc-asistente-compositor">
+              <div className="adoc-asistente-compositor-marco">
+                <EntradaDePregunta
+                  ref={entrada}
+                  valor={borrador}
+                  onCambiar={setBorrador}
+                  onEnviar={() => void enviar(borrador)}
+                  onDetener={detener}
+                  enVuelo={enVuelo}
+                  deshabilitado={bloqueado}
+                  umbralMs={umbralDelIndicadorMs}
+                />
 
-            <EntradaDePregunta
-              ref={entrada}
-              valor={borrador}
-              onCambiar={setBorrador}
-              onEnviar={() => void enviar(borrador)}
-              enVuelo={enVuelo}
-              deshabilitado={bloqueado}
-            />
+                {/* FUERA de la región viva a propósito. */}
+                <FranjaDeEstado
+                  enVuelo={enVuelo}
+                  turnos={turnos}
+                  cupo={capacidades?.cupo}
+                  umbralMs={umbralDelIndicadorMs}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>

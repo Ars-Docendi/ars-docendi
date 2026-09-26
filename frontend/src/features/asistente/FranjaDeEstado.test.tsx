@@ -10,7 +10,9 @@ import type { TurnoDeLaConversacion } from "./types";
 //
 // Que los dos queden FUERA de la región viva lo fija `asistente.test.tsx`
 // montando el panel entero. Acá se fija lo que la franja promete por sí misma:
-// que junta a los dos sin cambiarles el contrato.
+// que junta a los dos sin cambiarles el contrato. «Dejar de esperar» ya no
+// vive acá (asistente-rediseno-v3, D14): se mudó al composer, y lo prueba
+// `EntradaDePregunta.test.tsx`.
 // ============================================================
 
 const TURNOS: TurnoDeLaConversacion[] = [
@@ -19,12 +21,13 @@ const TURNOS: TurnoDeLaConversacion[] = [
 
 describe("La franja de estado", () => {
   it("junta el indicador y las métricas en una fila, cada uno con su contrato intacto", async () => {
-    render(<FranjaDeEstado enVuelo turnos={TURNOS} onDetener={() => {}} umbralMs={0} />);
+    render(<FranjaDeEstado enVuelo turnos={TURNOS} umbralMs={0} />);
 
     const estado = await screen.findByRole("status");
-    // El texto del estado es exactamente ése: los puntos que laten son CSS y no
-    // entran en lo que el lector anuncia.
+    // El texto del estado es exactamente ése. Es sólo accesible —`sr-only`—:
+    // los puntos que laten y el texto visibles se mudaron al turno en vuelo.
     await waitFor(() => expect(estado.textContent).toBe("Consultando…"));
+    expect(estado).toHaveClass("adoc-sr");
 
     const metricas = screen.getByText(/consultas al modelo/);
     expect(metricas).toHaveAttribute("aria-hidden", "true");

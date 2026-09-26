@@ -13,29 +13,29 @@
 /* ─────────────────────────────────── el panel ──────────────────────────────── */
 
 /* Es UNO SOLO, montado dos veces: la ruta y el modal. El alto lo fija cada
-   montaje; el panel lo reparte entre el aviso de mantenimiento (si hay) y
-   `.adoc-asistente-grilla` —el rail y la columna de la conversación,
-   definidos más abajo—, que es lo que se estira y contiene el scroll. */
+   montaje; el panel lo reparte con `.adoc-asistente-grilla` —el rail y la
+   columna de la conversación, definidos más abajo—, que es lo que se estira
+   y contiene el scroll. */
 .adoc-asistente {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
   min-height: 0;
   box-sizing: border-box;
 }
 
-/* El único relleno que le falta al aviso de mantenimiento: el rail y la
-   grilla llegan al borde del modal sin relleno propio del contenedor —cada
-   uno pone el suyo—, así que este aviso, que no es parte de la grilla,
-   necesita el suyo (horizontal; el vertical ya lo da el `gap` de arriba)
-   para no pegarse a los bordes. */
+/* Arriba del hilo (asistente-conversacion, mock v3): adentro de la columna de
+   la conversación y no del panel entero —nunca se superpone al rail—. El
+   relleno horizontal es el mismo que el resto de `.adoc-asistente-columna-
+   cuerpo`; el superior lo separa del encabezado. */
 .adoc-asistente-mantenimiento {
-  margin-inline: var(--space-5);
+  margin: var(--space-4) var(--space-5) 0;
 }
 
 /* El marco del hilo: lo que le da a «Ir al final» contra qué flotar. Es también
    el contenedor de posición de las tarjetas —el hilo no lo es a propósito—, así
-   que `tarjeta.offsetTop - hilo.offsetTop` mide desde el mismo origen. */
+   que `tarjeta.offsetTop - hilo.offsetTop` mide desde el mismo origen aunque el
+   contenido esté centrado adentro de `.adoc-asistente-hilo-contenido`: ninguno
+   de los envoltorios nuevos es un ancestro posicionado. */
 .adoc-asistente-hilo-marco {
   position: relative;
   flex: 1;
@@ -44,17 +44,27 @@
   flex-direction: column;
 }
 
-/* La región que scrollea. `min-height: 0` no es decorativo: sin él, un hijo flex
-   no se encoge por debajo de su contenido y el desbordamiento se lo come el
-   contenedor de abajo —que acá es el campo de entrada, y desaparece—. */
+/* La región que scrollea, a lo ancho de toda la columna —así el thumb del
+   scroll queda contra el borde del modal—. `min-height: 0` no es decorativo:
+   sin él, un hijo flex no se encoge por debajo de su contenido y el
+   desbordamiento se lo come el contenedor de abajo —que acá es el campo de
+   entrada, y desaparece—. */
 .adoc-asistente-hilo {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* Lo que de verdad se centra (mock v3): columna de lectura de 720 px, con su
+   propio relleno —el scroll de arriba no tiene ninguno— para que el texto no
+   se pegue al borde ni al scrollbar. */
+.adoc-asistente-hilo-contenido {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 28px 28px 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding-right: var(--space-1);
+  gap: 44px;
 }
 
 /* «Ir al final»: abajo a la derecha del hilo, corrido de la barra de scroll, y
@@ -493,18 +503,16 @@
   flex-direction: column;
 }
 
-/* TODO LO DE LA COLUMNA MENOS EL ENCABEZADO: el hilo, la franja de estado y
-   la entrada. El encabezado y el rail llegan al borde del modal SIN relleno
-   propio —el rail tiene el suyo, y el encabezado ninguno—, así que el
-   relleno que antes vivía en `.adoc-asistente` (adentro del modal) se mudó
-   acá, al único tramo de la columna que todavía lo necesita. */
+/* TODO LO DE LA COLUMNA MENOS EL ENCABEZADO: el banner de mantenimiento, el
+   hilo y el compositor. SIN relleno propio (mock v3): el banner, el hilo y
+   el compositor tienen cada uno el suyo, con anchos de columna distintos
+   —720 px de lectura, 684 px de composer—, así que un relleno acá los
+   angostaría a todos por igual. */
 .adoc-asistente-columna-cuerpo {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
 }
 
 /* Los 56 px del encabezado: el título de la conversación activa (o
@@ -748,14 +756,16 @@
 /* ─────────────────────────────── la conversación ───────────────────────────── */
 
 /* No scrollea ella: scrollea el hilo entero, para que el bloque de inicio y los
-   turnos se muevan juntos. */
+   turnos se muevan juntos. 44 px entre turnos (mock v3, más aire que el resto
+   de la feature: acá cada elemento es una pregunta y una respuesta completa,
+   no una fila). */
 .adoc-asistente-conversacion {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 44px;
 }
 
 .adoc-asistente-turno {
@@ -875,25 +885,73 @@
   color: var(--color-text-secondary);
 }
 
-/* La respuesta: tarjeta clara, ancho completo. No se alinea a la izquierda con un
-   ancho corto porque su contenido no es solo texto —trae tablas y menús—, y una
-   burbuja angosta los rompería. */
+/* El lugar de la respuesta mientras se espera (asistente-rediseno-v3, D14):
+   los puntos que laten y «Consultando…», en el mismo tono que el resto del
+   chrome discreto. `aria-hidden` en el componente: es sólo visual, el anuncio
+   sigue siendo el `role="status"` de `IndicadorDeProceso`, fuera del hilo. */
+.adoc-asistente-pendiente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Tres puntos, no un pseudo-elemento: acá no hay ningún texto que un lector
+   pudiera confundir con el dibujo, así que no hace falta el truco de sombras
+   de un solo elemento. Laten con la opacidad, escalonados por `nth-child`. */
+.adoc-asistente-puntos {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--color-accent);
+}
+
+.adoc-asistente-puntos > span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: currentColor;
+  animation: adoc-asistente-latido 1.2s infinite var(--ease-standard);
+}
+
+.adoc-asistente-puntos > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.adoc-asistente-puntos > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes adoc-asistente-latido {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+/* La respuesta: texto plano, ancho completo. No es una tarjeta —sin borde ni
+   fondo propio (asistente-rediseno-v3, mock v3: reemplaza la tarjeta gris de
+   v2)—; la tabla y los demás bloques, que no son sólo texto, usan el ancho
+   entero del turno. */
 .adoc-asistente-respuesta {
   align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-sunken);
 }
 
-/* El texto sí tiene ancho de lectura; la tabla, que va aparte, usa la tarjeta
-   entera. */
+/* El texto sí tiene ancho de lectura; la tabla, que va aparte, usa el turno
+   entero. */
 .adoc-asistente-texto {
   margin: 0;
-  max-width: 72ch;
+  max-width: 68ch;
   white-space: pre-wrap;
+  font-size: var(--text-body-size);
+  line-height: 1.6;
 }
 
 .adoc-asistente-interpretada {
@@ -1469,77 +1527,40 @@
   color: var(--color-text-secondary);
 }
 
+/* ─────────────────────────────────── el compositor ──────────────────────────── */
+
+/* Su propia fila, bajo el hilo: relleno vertical corto arriba —el hilo ya
+   termina con el suyo— y más largo abajo, contra el borde del modal (mock
+   v3). */
+.adoc-asistente-compositor {
+  flex: none;
+  padding: 8px 28px 20px;
+}
+
+/* Columna más angosta que la del hilo (684 px contra 720 px): el composer y
+   la franja no necesitan el ancho de lectura, y centrados los dos quedan
+   alineados con el texto de arriba. */
+.adoc-asistente-compositor-marco {
+  max-width: 684px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* ─────────────────────────────── la franja de estado ───────────────────────── */
 
-/* Una sola fila entre el hilo y el campo: el estado y «Dejar de esperar» a la
-   izquierda, lo que costó a la derecha. Casi nunca se ven a la vez —unos mientras
-   se espera, el otro cuando ya llegó—, y en dos filas el campo de entrada saltaba
-   cada vez que una aparecía. El alto mínimo es el de un botón chico de la
-   librería, para que tampoco salte cuando aparece el de dejar de esperar. Los tres
-   siguen FUERA de la región viva. */
+/* Una sola fila bajo el campo de entrada: el cupo restante a la izquierda, lo
+   que costó el último turno a la derecha. `IndicadorDeProceso` también vive
+   acá pero ya no se ve (es `sr-only`, más abajo): los puntos y el
+   «Consultando…» visibles se mudaron al turno en vuelo (asistente-rediseno-
+   v3, D14). Los tres siguen FUERA de la región viva del hilo. */
 .adoc-asistente-franja {
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 28px;
-}
-
-.adoc-asistente-proceso {
-  display: flex;
-  align-items: center;
-  min-height: 1.25rem;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
-/* Tres puntos que laten delante de «Consultando…». Son un pseudo-elemento y no
-   texto: el contenido del `role="status"` sigue siendo exactamente ese, que es lo
-   que el lector anuncia y lo que los tests fijan. El dibujo son un punto y dos
-   sombras, para animar los tres desde un solo elemento. */
-.adoc-asistente-proceso > span {
-  --adoc-asistente-punto-tenue: color-mix(in srgb, currentColor 30%, transparent);
-
-  display: inline-flex;
-  align-items: center;
-}
-
-.adoc-asistente-proceso > span::before {
-  content: "";
-  flex: none;
-  width: 5px;
-  height: 5px;
-  margin-inline-end: calc(16px + var(--space-3));
-  border-radius: var(--radius-pill);
-  background-color: currentColor;
-  box-shadow:
-    8px 0 0 var(--adoc-asistente-punto-tenue),
-    16px 0 0 var(--adoc-asistente-punto-tenue);
-  animation: adoc-asistente-latido 1.2s infinite var(--ease-standard);
-}
-
-@keyframes adoc-asistente-latido {
-  0%,
-  100% {
-    background-color: currentColor;
-    box-shadow:
-      8px 0 0 var(--adoc-asistente-punto-tenue),
-      16px 0 0 var(--adoc-asistente-punto-tenue);
-  }
-
-  33% {
-    background-color: var(--adoc-asistente-punto-tenue);
-    box-shadow:
-      8px 0 0 currentColor,
-      16px 0 0 var(--adoc-asistente-punto-tenue);
-  }
-
-  66% {
-    background-color: var(--adoc-asistente-punto-tenue);
-    box-shadow:
-      8px 0 0 var(--adoc-asistente-punto-tenue),
-      16px 0 0 currentColor;
-  }
 }
 
 .adoc-asistente-metricas {
@@ -1575,21 +1596,28 @@
    contador, que sólo existe cerca del límite. Con el destello como celda propia
    ya no hace falta posicionarlo en absoluto ni reservarle relleno: se centra en
    la fila del campo, no en el formulario entero, así que cuando el contador
-   aparece abajo el destello no se descuelga. */
+   aparece abajo el destello no se descuelga.
+
+   EL BORDE ES NEUTRO EN REPOSO Y ACENTO RECIÉN CON EL FOCO (mock v3): antes
+   era acento siempre —2 px— y el foco sumaba encima el anillo genérico de
+   `--focus-ring` (4 px), que se leía como DOS aros verdes concéntricos con
+   relleno extra alrededor. Acá hay un solo anillo, hacia adentro y del mismo
+   color que el borde con foco, así que no crece el tamaño de la caja. */
 .adoc-asistente-entrada {
   flex: none;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  column-gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  border: 2px solid var(--color-accent);
+  column-gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-sm);
   background: var(--color-bg-raised);
 }
 
 .adoc-asistente-entrada:focus-within {
-  box-shadow: var(--focus-ring);
+  border-color: var(--color-border-focus);
+  box-shadow: inset 0 0 0 1px var(--color-border-focus);
 }
 
 .adoc-asistente-destello {
@@ -1931,11 +1959,9 @@
 /* ───────────────────────────────── menos movimiento ────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .adoc-asistente-proceso > span::before {
+  .adoc-asistente-puntos > span {
     animation: none;
-    box-shadow:
-      8px 0 0 currentColor,
-      16px 0 0 currentColor;
+    opacity: 1;
   }
 
   .adoc-asistente-ir-al-final {

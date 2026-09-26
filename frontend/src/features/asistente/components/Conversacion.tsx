@@ -23,6 +23,8 @@ interface ConversacionProps {
    * (asistente-accesibilidad). `null`/`undefined` no agrega nada al DOM.
    */
   anuncio?: string | null;
+  /** Al indicador inline del turno en vuelo. Para el test del umbral. */
+  umbralDelIndicadorMs?: number;
 }
 
 /**
@@ -46,6 +48,7 @@ export function Conversacion({
   enVuelo,
   bloqueado = false,
   anuncio,
+  umbralDelIndicadorMs,
 }: ConversacionProps) {
   return (
     <ul
@@ -73,6 +76,7 @@ export function Conversacion({
             enVuelo={enVuelo}
             bloqueado={bloqueado}
             esUltimo={esUltimo}
+            umbralMs={umbralDelIndicadorMs}
           />
         );
       })}

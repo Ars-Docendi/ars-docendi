@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, CanceledError } from "axios";
 
@@ -254,5 +254,51 @@ describe("Dejar de esperar", () => {
     await screen.findByLabelText("Tu pregunta");
 
     expect(screen.queryByRole("button", { name: "Dejar de esperar" })).toBeNull();
+  });
+});
+
+// ------------------------------------------------- el indicador inline del turno
+
+describe("El indicador inline del turno en vuelo (tasks.md 9.1)", () => {
+  it("aparece recién pasado el umbral, en el lugar de la respuesta y oculto al lector", async () => {
+    const user = userEvent.setup();
+    let resolver: (valor: RespuestaDelAsistente) => void = () => {};
+    vi.spyOn(api, "consultar").mockImplementationOnce(
+      () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
+    );
+    montar(<PanelDePrueba umbralDelIndicadorMs={0} />);
+
+    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
+
+    const log = screen.getByRole("log");
+
+    // Visible en el hilo, en el lugar de la respuesta…
+    const puntos = await within(log).findByText("Consultando…");
+    // …pero oculto al árbol de accesibilidad: el único anuncio sigue siendo
+    // el `role="status"` de fuera del hilo, no éste.
+    expect(puntos.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    // El anuncio de verdad: un solo `role="status"`, con el mismo texto y sin
+    // ninguna etapa intermedia («interpretando…», «redactando…», etc.).
+    const estado = screen.getByRole("status");
+    await waitFor(() => expect(estado.textContent).toBe("Consultando…"));
+    expect(estado.closest('[role="log"]')).toBeNull();
+    expect(within(log).queryByText(/interpretando|redactando/i)).toBeNull();
+
+    resolver(respuesta());
+    await screen.findByText("Hay 4 docentes designados.");
+    expect(within(log).queryByText("Consultando…")).toBeNull();
+    await waitFor(() => expect(estado.textContent).toBe(""));
+  });
+
+  it("una respuesta rápida no llega a mostrarlo", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
+    montar(<PanelDePrueba umbralDelIndicadorMs={10_000} />);
+
+    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
+    await screen.findByText("Hay 4 docentes designados.");
+
+    expect(screen.queryByText("Consultando…")).toBeNull();
   });
 });

@@ -14,10 +14,27 @@ import { EntradaDePregunta } from "./components/EntradaDePregunta";
 // ============================================================
 
 /** El composer es controlado; alguien tiene que sostener el valor. */
-function Arnes({ onEnviar, enVuelo = false }: { onEnviar: () => void; enVuelo?: boolean }) {
+function Arnes({
+  onEnviar,
+  onDetener = () => {},
+  enVuelo = false,
+  umbralMs,
+}: {
+  onEnviar: () => void;
+  onDetener?: () => void;
+  enVuelo?: boolean;
+  umbralMs?: number;
+}) {
   const [valor, setValor] = useState("");
   return (
-    <EntradaDePregunta valor={valor} onCambiar={setValor} onEnviar={onEnviar} enVuelo={enVuelo} />
+    <EntradaDePregunta
+      valor={valor}
+      onCambiar={setValor}
+      onEnviar={onEnviar}
+      onDetener={onDetener}
+      enVuelo={enVuelo}
+      umbralMs={umbralMs}
+    />
   );
 }
 
@@ -119,5 +136,36 @@ describe("Enter y el botón de envío", () => {
     // Sin spinner: parpadea en las respuestas deterministas, que es justo lo que
     // el umbral del indicador evita. El estado en vuelo lo dice el indicador.
     expect(enVuelo).not.toHaveAttribute("aria-busy");
+  });
+});
+
+describe("«Dejar de esperar» en el lugar de «Enviar» (asistente-rediseno-v3, D14)", () => {
+  it("antes del umbral muestra «Enviar» deshabilitado, y recién después «Dejar de esperar»", async () => {
+    render(<Arnes onEnviar={vi.fn()} enVuelo umbralMs={0} />);
+
+    // Con el umbral en 0 el `setTimeout` que lo enciende igual corre en una
+    // vuelta del reloj real: `findBy` espera esa vuelta sin necesitar temporizadores falsos.
+    const detener = await screen.findByRole("button", { name: "Dejar de esperar" });
+    expect(detener).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Enviar" })).toBeNull();
+  });
+
+  it("sin turno en vuelo no aparece", () => {
+    render(<Arnes onEnviar={vi.fn()} umbralMs={0} />);
+
+    expect(screen.queryByRole("button", { name: "Dejar de esperar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar" })).toBeInTheDocument();
+  });
+
+  it("al pulsarlo llama a onDetener y no a onEnviar", async () => {
+    const user = userEvent.setup();
+    const onEnviar = vi.fn();
+    const onDetener = vi.fn();
+    render(<Arnes onEnviar={onEnviar} onDetener={onDetener} enVuelo umbralMs={0} />);
+
+    await user.click(await screen.findByRole("button", { name: "Dejar de esperar" }));
+
+    expect(onDetener).toHaveBeenCalledOnce();
+    expect(onEnviar).not.toHaveBeenCalled();
   });
 });

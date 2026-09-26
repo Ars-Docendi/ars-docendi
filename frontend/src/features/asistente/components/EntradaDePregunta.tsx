@@ -1,15 +1,23 @@
 import { useCallback, useId, useRef, type KeyboardEvent, type Ref } from "react";
 import { Button, Textarea } from "@ars-docendi/ui";
 
-import { sendIcon, sparkIcon } from "../../../app/shell/icons";
+import { UMBRAL_DE_APARICION_MS } from "./IndicadorDeProceso";
+import { sendIcon, sparkIcon, stopIcon } from "../../../app/shell/icons";
 
 import { useAltoAutomatico } from "../hooks/useAltoAutomatico";
+import { useVisibleTrasUmbral } from "../hooks/useVisibleTrasUmbral";
 
 interface EntradaDePreguntaProps {
   valor: string;
   onCambiar: (valor: string) => void;
   /** Se llama sin argumentos: el texto ya lo tiene quien sostiene `valor`. */
   onEnviar: () => void;
+  /**
+   * Deja de esperar el turno en vuelo (asistente-rediseno-v3, D14): reemplaza
+   * a «Enviar» en el mismo lugar del botón, pasado el umbral del indicador.
+   * Ausente mientras no hay ningún turno en vuelo.
+   */
+  onDetener: () => void;
   enVuelo: boolean;
   /**
    * Cupo agotado, tope organizacional o mantenimiento (asistente-cupo-visible /
@@ -23,6 +31,12 @@ interface EntradaDePreguntaProps {
   maxCaracteres?: number;
   /** Desde cuántos caracteres se muestra el contador. */
   umbralDelContador?: number;
+  /**
+   * El mismo umbral que `IndicadorDeProceso`: «Dejar de esperar» no
+   * aparece antes de él, para que no parpadee en cada respuesta
+   * determinista. Inyectable para que el test no dependa del reloj real.
+   */
+  umbralMs?: number;
   /** Al textarea, para que el dueño le devuelva el foco. */
   ref?: Ref<HTMLTextAreaElement>;
 }
@@ -53,16 +67,22 @@ export function EntradaDePregunta({
   valor,
   onCambiar,
   onEnviar,
+  onDetener,
   enVuelo,
   deshabilitado = false,
   maxCaracteres = 2000,
   umbralDelContador = 1800,
+  umbralMs = UMBRAL_DE_APARICION_MS,
   ref,
 }: EntradaDePreguntaProps) {
   const campo = useRef<HTMLTextAreaElement>(null);
   const idDelContador = useId();
   const mostrarContador = valor.length >= umbralDelContador;
   const noEnviaAhora = enVuelo || deshabilitado;
+  // Aparece con el indicador y no antes: un botón que se ve un instante en
+  // cada respuesta determinista es el mismo parpadeo que el umbral le evita
+  // al texto (asistente-rediseno-v3, D14).
+  const mostrarDetener = useVisibleTrasUmbral(enVuelo, umbralMs);
 
   useAltoAutomatico(campo, valor);
 
@@ -115,13 +135,24 @@ export function EntradaDePregunta({
         disabled={deshabilitado}
       />
 
-      <Button
-        type="submit"
-        leadingIcon={sendIcon}
-        disabled={noEnviaAhora || valor.trim().length === 0}
-      >
-        Enviar
-      </Button>
+      {mostrarDetener ? (
+        // «Dejar de esperar» y no «Detener» ni «Cancelar»: suelta el request de
+        // este lado y libera el campo, y eso es todo lo que hace. El backend
+        // sigue el turno hasta el final y lo cobra; ni el nombre ni ningún
+        // tooltip insinúan otra cosa. `type="button"`: no tiene que pasar por
+        // el submit del form, que llamaría a `onEnviar`.
+        <Button type="button" variant="secondary" leadingIcon={stopIcon} onClick={onDetener}>
+          Dejar de esperar
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          leadingIcon={sendIcon}
+          disabled={noEnviaAhora || valor.trim().length === 0}
+        >
+          Enviar
+        </Button>
+      )}
 
       {mostrarContador && (
         <span id={idDelContador} className="adoc-asistente-contador">

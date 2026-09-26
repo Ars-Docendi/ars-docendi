@@ -32,6 +32,13 @@ interface IndicadorDeProcesoProps {
  *
  * Vive FUERA de la región viva de los mensajes: es un estado, no un mensaje de la
  * conversación, y por eso lleva `role="status"` propio.
+ *
+ * ES PURAMENTE ACCESIBLE (`sr-only`, asistente-rediseno-v3, D14): los puntos
+ * que laten y el «Consultando…» visibles se mudaron al lugar de la respuesta,
+ * adentro del turno en vuelo, marcados `aria-hidden`. Este `role="status"`
+ * sigue existiendo con el mismo texto y el mismo umbral —es el único anuncio
+ * de los dos—, sólo que ya no hace falta verlo: mostrarlo dos veces sería el
+ * doble aviso que la spec de accesibilidad de la feature prohíbe.
  */
 export function IndicadorDeProceso({
   activo,
@@ -40,7 +47,7 @@ export function IndicadorDeProceso({
   const visible = useVisibleTrasUmbral(activo, umbralMs);
 
   return (
-    <div role="status" aria-live="polite" className="adoc-asistente-proceso">
+    <div role="status" aria-live="polite" className="adoc-asistente-proceso adoc-sr">
       {visible ? <span>Consultando…</span> : null}
     </div>
   );
