@@ -104,12 +104,17 @@
    del encabezado del Modal más el ancho de la palabra «Asistente» a su tamaño: si
    alguien renombra el título, el «?» queda descolocado. Se acepta porque el título
    es una constante del componente y el desajuste se ve de inmediato; el arreglo
-   real es el `headerActions` de TD-020, que lo pondría en la fila de verdad. */
+   real es el `headerActions` de TD-020, que lo pondría en la fila de verdad.
+
+   The z-index has to beat every layer the conversation paints, not just tie with
+   them: this wrapper creates the stacking context the help popover lives in, so
+   at `1` the table's sticky header (also `1`, later in the DOM) painted over the
+   open popover. */
 .adoc-asistente-ayuda-modal {
   position: absolute;
   top: 14px;
   left: 6.9rem;
-  z-index: 1;
+  z-index: var(--z-dropdown);
 }
 
 /* En la ruta va junto al botón, dentro de las acciones del encabezado de página. */
