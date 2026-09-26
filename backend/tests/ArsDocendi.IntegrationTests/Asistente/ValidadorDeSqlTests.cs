@@ -487,4 +487,46 @@ public sealed class ValidadorDeSqlTests
 
         Assert.True(veredicto.EsValida, veredicto.Motivo);
     }
+
+    // ---------------------------------------------- literales con escapes (E'...')
+
+    [Fact]
+    public void Un_marcador_dentro_de_un_literal_con_escapes_no_cuenta()
+    {
+        // "it\'s $ref1": la comilla escapada con barra invertida NO cierra el
+        // literal. Un escáner que sólo entendiera la comilla doblada cerraría
+        // acá mismo y volvería a leer "s $ref1" como código, exponiendo el
+        // marcador como si el modelo lo hubiera escrito de verdad.
+        var veredicto = ValidadorDeSql.Validar(
+            """SELECT E'it\'s $ref1' FROM identity.materias m""",
+            new HashSet<string>(),
+            new HashSet<string>());
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
+    [Fact]
+    public void Una_barra_invertida_escapada_cierra_el_literal_en_su_comilla()
+    {
+        // "a\\": una barra invertida literal (el par \\ la representa), seguida
+        // de la comilla de cierre real. El escáner tiene que saltear el par
+        // completo y cerrar justo en esa comilla, sin desalinearse.
+        var veredicto = ValidadorDeSql.Validar(
+            """SELECT E'a\\' FROM identity.materias m""");
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
+    [Fact]
+    public void Una_palabra_prohibida_escondida_tras_una_comilla_escapada_es_texto_inerte()
+    {
+        // Lo que Postgres ve: UN SOLO literal —"a' drop table b -- z"—, nunca
+        // código. Antes del fix, el escáner cerraba en el `\'` y volvía a leer
+        // "drop table" como palabra clave prohibida, rechazando una consulta
+        // que el motor aceptaría sin problema.
+        var veredicto = ValidadorDeSql.Validar(
+            """SELECT m.name FROM identity.materias m WHERE m.name = E'a\' drop table b -- z'""");
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
 }

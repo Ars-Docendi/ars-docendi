@@ -22,6 +22,7 @@ public sealed class CarrilSql(
     IPerfilDelActor perfiles,
     RedactorDeRespuesta redactor,
     IConsultorDeCobertura cobertura,
+    IBuscadorDeMenciones buscadorDeMenciones,
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
@@ -152,10 +153,26 @@ public sealed class CarrilSql(
         // ningún motivo.
         var menciones = MarcadoresDeReferencias.Asignar(mencionesNuevas ?? [], consultasAnteriores);
 
-        var declarados = new HashSet<string>(referenciasHeredadas?.Keys ?? [], StringComparer.Ordinal);
+        // LAS HEREDADAS SE REVALIDAN CONTRA EL ALCANCE ACTUAL, ACÁ Y ANTES DE
+        // DECLARAR NADA (design.md D11 de asistente-rediseno-v3). Vienen de
+        // turnos anteriores del mismo hilo EN VIVO —no de la revalidación que ya
+        // hace el controller para las menciones nuevas de este turno, ni de la
+        // que hace `HistorialController.Reejecutar` al reusar un turno
+        // persistido—: nada volvió a preguntarle a `IBuscadorDeMenciones` por
+        // ellas desde que se ligaron, y `identity.materias` no tiene RLS propia
+        // —sólo el filtro explícito de `asistente_materias_visibles()`—, así que
+        // un actor cuyo alcance se achicó a mitad de conversación seguiría
+        // pudiendo bindear una materia que ya no alcanza. Una que ya no resuelve
+        // se descarta EN SILENCIO —no queda declarada ni ligable—: si la consulta
+        // generada la usa igual, el validador la rechaza como marcador no
+        // declarado, la misma abstención que cualquier marcador inventado, así
+        // que el turno nunca llega a ejecutar contra la entidad que el actor ya
+        // no ve.
+        var heredadasVigentes = await FiltrarHeredadasVigentesAsync(actor, referenciasHeredadas, ct);
+
+        var declarados = new HashSet<string>(heredadasVigentes.Keys, StringComparer.Ordinal);
         var todasLasReferencias = new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(
-            referenciasHeredadas ?? new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(),
-            StringComparer.Ordinal);
+            heredadasVigentes, StringComparer.Ordinal);
 
         foreach (var (marcador, tipo, entidad) in menciones)
         {
@@ -251,6 +268,46 @@ public sealed class CarrilSql(
         return await RedactadoAsync(
             mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
             await CoberturaAsync(generacion, actor, ct), ct, referenciasEjecutadas);
+    }
+
+    /// <summary>
+    /// Revalida cada referencia heredada del segmento contra el alcance ACTUAL
+    /// del actor, y descarta la que ya no resuelve.
+    /// </summary>
+    /// <remarks>
+    /// Las menciones NUEVAS de este turno ya llegan revalidadas —el controller
+    /// las resolvió antes del candado (design.md D11)—; ésta es la comprobación
+    /// que faltaba para las que el hilo trae de turnos anteriores, y sin ella un
+    /// actor cuyo alcance se achicó a mitad de conversación seguiría pudiendo
+    /// ejecutar contra una entidad que ya no ve —<c>identity.materias</c> no
+    /// tiene RLS propia, así que nada más lo hubiera frenado—.
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>> FiltrarHeredadasVigentesAsync(
+        Guid actor,
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas,
+        CancellationToken ct)
+    {
+        if (referenciasHeredadas is null || referenciasHeredadas.Count == 0)
+        {
+            return new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>();
+        }
+
+        var vigentes = new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(StringComparer.Ordinal);
+
+        foreach (var (marcador, referencia) in referenciasHeredadas)
+        {
+            var resuelta = await buscadorDeMenciones.ResolverAsync(actor, referencia.Tipo, referencia.Id, ct);
+            if (resuelta is not null)
+            {
+                vigentes[marcador] = referencia;
+            }
+
+            // Si ya no resuelve, se descarta sin dejar rastro: no entra a
+            // `declarados` ni a los bindings. Ver el comentario del sitio de
+            // llamada para qué pasa si la consulta generada la usa igual.
+        }
+
+        return vigentes;
     }
 
     /// <summary>

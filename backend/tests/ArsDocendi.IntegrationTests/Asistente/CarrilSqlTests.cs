@@ -619,6 +619,61 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         }
     }
 
+    [Fact]
+    public async Task Una_mencion_heredada_que_perdio_su_alcance_no_se_bindea_en_el_seguimiento()
+    {
+        // EL HALLAZGO: `identity.materias` no tiene RLS propia — sólo el filtro
+        // explícito de `asistente_materias_visibles()` que compone la búsqueda—,
+        // así que un marcador heredado de un turno anterior del MISMO hilo en
+        // vivo, ligado sin volver a preguntarle a `IBuscadorDeMenciones`,
+        // seguiría devolviendo la materia aunque el alcance del actor se haya
+        // achicado entre los dos turnos. El turno 1 la referencia dentro de su
+        // alcance vigente; ANTES del turno 2 se revoca el rol de carrera del
+        // coordinador; el turno 2 reusa `$ref1` editando la consulta.
+        await SembrarAsync();
+
+        var materia = new ResultadoDeMencion(
+            MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");
+
+        var sqlPrimerTurno =
+            "SELECT p.apellido FROM designaciones.designaciones d "
+            + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1";
+
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(sqlPrimerTurno),
+            ProveedorGuionado.Generacion(
+                sqlPrimerTurno.Replace("p.apellido", "p.apellido, p.nombre", StringComparison.Ordinal)));
+
+        var carril = CarrilCon(proveedor);
+        var ct = TestContext.Current.CancellationToken;
+
+        var primero = await carril.ResponderAsync(
+            Coordinador, "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?", null, ct,
+            mencionesNuevas: [(TipoDeMencion.Materia, materia)]);
+
+        Assert.Equal(EstadoDelTurno.Respondida, primero.Estado);
+        Assert.NotNull(primero.ReferenciasEjecutadas);
+
+        // SE ACHICA EL ALCANCE, ENTRE LOS DOS TURNOS DEL MISMO HILO: se revoca
+        // el único rol de carrera del coordinador. `identity.asistente_materias_visibles()`
+        // le deja de devolver la materia referenciada.
+        await EjecutarAsync(
+            "UPDATE identity.user_roles SET deleted_at = now() WHERE user_id = @actor AND carrera_id IS NOT NULL",
+            ("actor", Coordinador));
+
+        var segundo = await carril.ResponderAsync(
+            Coordinador, "¿y con el nombre completo?", null, ct,
+            consultasAnteriores: [primero.SqlEjecutado!],
+            referenciasHeredadas: primero.ReferenciasEjecutadas);
+
+        // NUNCA "Respondida" con filas de una materia que el actor ya no
+        // alcanza: el marcador heredado se cae de lo declarado, y el validador
+        // rechaza la consulta que lo reusa igual que a cualquier marcador
+        // inventado — la misma abstención, nunca datos fuera de alcance.
+        Assert.NotEqual(EstadoDelTurno.Respondida, segundo.Estado);
+        Assert.Empty(segundo.Filas);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ProveedorGuionado Guion(string? sql = null) =>

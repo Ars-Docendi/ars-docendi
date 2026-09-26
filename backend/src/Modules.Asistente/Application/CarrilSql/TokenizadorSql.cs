@@ -87,8 +87,12 @@ internal static class TokenizadorSql
 
                 case 'e' or 'E' when Siguiente(sql, posicion) == '\'':
                     // Literal con escapes: E'...'. La E es parte del literal, no
-                    // una palabra suelta.
-                    posicion = SaltarLiteralDeTexto(sql, posicion + 1);
+                    // una palabra suelta. A diferencia de un literal simple, acá
+                    // la barra invertida escapa el carácter que sigue —incluida
+                    // una comilla—, así que necesita su propio escáner: usar
+                    // `SaltarLiteralDeTexto` cerraría el literal en el primer
+                    // `\'` y volvería a leer el resto como código.
+                    posicion = SaltarLiteralConEscapes(sql, posicion + 1);
                     break;
 
                 case 'u' or 'U'
@@ -203,6 +207,49 @@ internal static class TokenizadorSql
         }
 
         throw new SqlSinCerrar("un literal de texto");
+    }
+
+    /// <summary>
+    /// Salta un literal <c>E'...'</c> (o <c>e'...'</c>). Una barra invertida
+    /// escapa el carácter que sigue, sea cual sea —<c>\'</c> es una comilla
+    /// literal, <c>\\</c> es una barra literal— y ese carácter nunca cierra el
+    /// literal ni vuelve a leerse como código. Dos comillas simples seguidas
+    /// siguen siendo también una comilla escapada: PostgreSQL admite las dos
+    /// formas adentro de un literal con escapes.
+    /// </summary>
+    private static int SaltarLiteralConEscapes(string sql, int posicion)
+    {
+        posicion++;
+
+        while (posicion < sql.Length)
+        {
+            if (sql[posicion] == '\\')
+            {
+                // Se saltan LOS DOS caracteres juntos: la barra y lo que
+                // escapa, exista o no como secuencia reconocida. Es lo que
+                // impide que un `\'` cierre el literal y que el contenido que
+                // sigue —un marcador, una palabra prohibida— se vuelva a leer
+                // como código.
+                posicion += 2;
+                continue;
+            }
+
+            if (sql[posicion] != '\'')
+            {
+                posicion++;
+                continue;
+            }
+
+            if (Siguiente(sql, posicion) == '\'')
+            {
+                posicion += 2;
+                continue;
+            }
+
+            return posicion + 1;
+        }
+
+        throw new SqlSinCerrar("un literal de texto con escapes");
     }
 
     /// <summary>

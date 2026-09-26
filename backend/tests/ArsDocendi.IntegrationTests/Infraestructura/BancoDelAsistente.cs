@@ -279,6 +279,7 @@ internal sealed class BancoDelAsistente
             new ConsultorDeAlcance(apertura),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new ConsultorDeCobertura(apertura),
+            new BuscadorDeMenciones(apertura),
             contador,
             log);
 }
