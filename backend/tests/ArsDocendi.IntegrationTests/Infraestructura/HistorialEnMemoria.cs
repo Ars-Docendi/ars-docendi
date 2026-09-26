@@ -27,4 +27,27 @@ public sealed class HistorialEnMemoria : IRegistroDeHistorial
         _turnos.Add(turno);
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Espejo de <c>RegistroDeHistorial.ReemplazarUltimoTurnoAsync</c>: sin
+    /// hilo histórico todavía, se comporta como <see cref="RegistrarTurnoAsync"/>;
+    /// con uno, sustituye la última fila en vez de agregar una nueva —lo mismo
+    /// que hace el DELETE + INSERT real, en una sola transacción de mentira.
+    /// </summary>
+    public Task ReemplazarUltimoTurnoAsync(
+        HiloConversacional conversacion, TurnoParaHistorial turno, CancellationToken ct)
+    {
+        if (conversacion.HiloHistorico is null)
+        {
+            return RegistrarTurnoAsync(conversacion, turno, ct);
+        }
+
+        if (_turnos.Count > 0)
+        {
+            _turnos.RemoveAt(_turnos.Count - 1);
+        }
+
+        _turnos.Add(turno);
+        return Task.CompletedTask;
+    }
 }

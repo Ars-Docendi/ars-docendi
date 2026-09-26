@@ -72,8 +72,87 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
         }
     }
 
+    public async Task ReemplazarUltimoTurnoAsync(
+        HiloConversacional conversacion, TurnoParaHistorial turno, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(conversacion);
+        ArgumentNullException.ThrowIfNull(turno);
+
+        if (conversacion.HiloHistorico is not { } hiloHistoricoId)
+        {
+            // La fila vieja nunca llegó a persistirse (la escritura del turno
+            // reemplazado falló y se tragó su excepción, como cualquier otra):
+            // no hay nada que borrar, así que esto es un turno nuevo cualquiera.
+            await RegistrarTurnoAsync(conversacion, turno, ct);
+            return;
+        }
+
+        try
+        {
+            await using var conexion = new NpgsqlConnection(cadena.Valor);
+            await conexion.OpenAsync(ct);
+
+            // UNA SOLA TRANSACCIÓN (design.md D9, punto 3): si el INSERT de
+            // abajo fallara después del DELETE, un commit parcial dejaría la
+            // conversación sin su último turno. Con la transacción, un fallo en
+            // cualquiera de las tres operaciones deja la fila vieja intacta.
+            await using var transaccion = await conexion.BeginTransactionAsync(ct);
+
+            await EliminarUltimoTurnoAsync(conexion, transaccion, hiloHistoricoId, ct);
+
+            var tocada = await TocarConversacionAsync(
+                conexion, hiloHistoricoId, turno.OcurrioEn, ct, transaccion);
+
+            if (!tocada)
+            {
+                // La conversación quedó pendiente de borrado justo entre la
+                // resolución del turno y esta escritura: mismo camino que
+                // RegistrarTurnoAsync (design.md D4), pero DENTRO de esta
+                // transacción, para no dejar el DELETE de arriba sin un INSERT
+                // que lo acompañe.
+                hiloHistoricoId = await MintarConversacionAsync(conexion, turno, ct, transaccion);
+            }
+
+            await InsertarTurnoAsync(conexion, hiloHistoricoId, turno, ct, transaccion);
+
+            await transaccion.CommitAsync(ct);
+
+            conversacion.HiloHistorico = hiloHistoricoId;
+        }
+        catch (Exception excepcion) when (excepcion is NpgsqlException or InvalidOperationException)
+        {
+            // Se traga el fallo, igual que RegistrarTurnoAsync: el turno ya se
+            // resolvió y el usuario ya tiene su respuesta nueva. Lo que se
+            // pierde es el reemplazo en el historial, no el servicio entero —
+            // y gracias a la transacción, la fila VIEJA sigue ahí.
+            log.LogError(
+                excepcion,
+                "No se pudo reemplazar el turno del historial de conversaciones del asistente.");
+        }
+    }
+
+    /// <summary>Borra la fila más reciente de <c>turno_historico</c> de este hilo.</summary>
+    private static async Task EliminarUltimoTurnoAsync(
+        NpgsqlConnection conexion, NpgsqlTransaction transaccion, Guid hiloHistoricoId, CancellationToken ct)
+    {
+        await using var comando = new NpgsqlCommand(
+            """
+            DELETE FROM asistente.turno_historico
+             WHERE id = (
+                 SELECT id FROM asistente.turno_historico
+                  WHERE hilo_id = @hilo
+                  ORDER BY ocurrido_en DESC
+                  LIMIT 1
+             )
+            """, conexion, transaccion);
+
+        comando.Parameters.AddWithValue("hilo", hiloHistoricoId);
+
+        await comando.ExecuteNonQueryAsync(ct);
+    }
+
     private static async Task<Guid> MintarConversacionAsync(
-        NpgsqlConnection conexion, TurnoParaHistorial turno, CancellationToken ct)
+        NpgsqlConnection conexion, TurnoParaHistorial turno, CancellationToken ct, NpgsqlTransaction? transaccion = null)
     {
         var id = Guid.NewGuid();
         var titulo = TituloDeConversacion.Derivar(turno.Pregunta);
@@ -82,7 +161,7 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
             """
             INSERT INTO asistente.hilo_historico (id, actor_id, titulo, creado_en, ultima_actividad)
             VALUES (@id, @actor, @titulo, @ahora, @ahora)
-            """, conexion);
+            """, conexion, transaccion);
 
         comando.Parameters.AddWithValue("id", id);
         comando.Parameters.AddWithValue("actor", turno.Actor);
@@ -99,17 +178,21 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
     /// actividad desarchiva) — pero SÓLO si la conversación no está pendiente
     /// de borrado. Devuelve si efectivamente la tocó: en falso, el llamador
     /// mintea una conversación nueva en vez de escribir en una pendiente
-    /// (design.md D4).
+    /// (design.md D4). Nunca toca el título (design.md D9).
     /// </summary>
     private static async Task<bool> TocarConversacionAsync(
-        NpgsqlConnection conexion, Guid hiloHistoricoId, DateTimeOffset ahora, CancellationToken ct)
+        NpgsqlConnection conexion,
+        Guid hiloHistoricoId,
+        DateTimeOffset ahora,
+        CancellationToken ct,
+        NpgsqlTransaction? transaccion = null)
     {
         await using var comando = new NpgsqlCommand(
             """
             UPDATE asistente.hilo_historico
                SET ultima_actividad = @ahora, archivada_en = NULL
              WHERE id = @id AND borrado_pendiente_desde IS NULL
-            """, conexion);
+            """, conexion, transaccion);
 
         comando.Parameters.AddWithValue("ahora", ahora);
         comando.Parameters.AddWithValue("id", hiloHistoricoId);
@@ -118,13 +201,17 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
     }
 
     private static async Task InsertarTurnoAsync(
-        NpgsqlConnection conexion, Guid hiloHistoricoId, TurnoParaHistorial turno, CancellationToken ct)
+        NpgsqlConnection conexion,
+        Guid hiloHistoricoId,
+        TurnoParaHistorial turno,
+        CancellationToken ct,
+        NpgsqlTransaction? transaccion = null)
     {
         await using var comando = new NpgsqlCommand(
             """
             INSERT INTO asistente.turno_historico (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en)
             VALUES (@id, @hilo, @pregunta, @sql, @estado, @ahora)
-            """, conexion);
+            """, conexion, transaccion);
 
         comando.Parameters.AddWithValue("id", Guid.NewGuid());
         comando.Parameters.AddWithValue("hilo", hiloHistoricoId);

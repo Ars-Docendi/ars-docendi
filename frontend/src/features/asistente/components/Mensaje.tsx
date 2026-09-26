@@ -1,12 +1,14 @@
-import { useRef, useState } from "react";
-import { Button, InlineAlert } from "@ars-docendi/ui";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Button, InlineAlert, Textarea } from "@ars-docendi/ui";
 
 import { BarraDeAcciones } from "./BarraDeAcciones";
 import { ContenidoHistorico } from "./ContenidoHistorico";
+import { HerramientasDePregunta } from "./HerramientasDePregunta";
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
 import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
+import { sendIcon } from "../../../app/shell/icons";
 import { modoDebugAsistente } from "../utils/modoDebug";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 
@@ -16,7 +18,19 @@ interface MensajeProps {
   onReintentar: (id: string) => void;
   /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
   onReejecutar?: (id: string) => void;
+  /**
+   * Edita y reenvía la pregunta de este turno (asistente-edicion-de-la-
+   * ultima-pregunta). Ausente cuando este turno no es el último — `Mensaje`
+   * no ofrece «Editar y reenviar» sin esta prop, sea cual sea `esUltimo`.
+   */
+  onEditarYReenviar?: (texto: string) => void;
   enVuelo: boolean;
+  /**
+   * Cupo agotado, tope organizacional o mantenimiento: mientras está
+   * bloqueado tampoco se ofrece «Editar y reenviar», igual que el composer
+   * no acepta preguntas nuevas.
+   */
+  bloqueado?: boolean;
   /**
    * El último turno del hilo: su barra de acciones queda siempre visible,
    * nunca sólo detrás del hover (design.md D6 de asistente-rediseno-v3). Los
@@ -39,7 +53,9 @@ export function Mensaje({
   onElegir,
   onReintentar,
   onReejecutar,
+  onEditarYReenviar,
   enVuelo,
+  bloqueado = false,
   esUltimo = false,
   debug = modoDebugAsistente,
 }: MensajeProps) {
@@ -58,10 +74,63 @@ export function Mensaje({
   // el botón propio que `TablaDeResultado` deja de dibujar en modo controlado.
   const ampliarBotonRef = useRef<HTMLButtonElement>(null);
 
+  // EDICIÓN DE LA PREGUNTA (asistente-edicion-de-la-ultima-pregunta,
+  // design.md D9 de asistente-rediseno-v3). Vive ACÁ y no en un componente
+  // aparte: la respuesta de más abajo se atenúa mientras se edita, y las dos
+  // cosas necesitan el mismo booleano.
+  const [editando, setEditando] = useState(false);
+  const [textoDeEdicion, setTextoDeEdicion] = useState(turno.pregunta);
+  const editarBotonRef = useRef<HTMLButtonElement>(null);
+  // El botón al que hay que devolverle el foco recién existe en el DOM
+  // DESPUÉS de que este componente se vuelva a renderizar sin el campo de
+  // edición: llamar `.focus()` en el mismo evento que pone `editando` en
+  // falso todavía lo encuentra desmontado. Este flag hace que el efecto de
+  // abajo lo enfoque una vez que React ya lo montó.
+  const volviendoDeCancelar = useRef(false);
+
+  useEffect(() => {
+    if (!editando && volviendoDeCancelar.current) {
+      volviendoDeCancelar.current = false;
+      editarBotonRef.current?.focus();
+    }
+  }, [editando]);
+
   function alCambiarAmpliado(valor: boolean) {
     setAmpliado(valor);
     if (!valor) ampliarBotonRef.current?.focus();
   }
+
+  function empezarEdicion() {
+    setTextoDeEdicion(turno.pregunta);
+    setEditando(true);
+  }
+
+  function cancelarEdicion() {
+    volviendoDeCancelar.current = true;
+    setEditando(false);
+  }
+
+  function confirmarEdicion() {
+    const limpio = textoDeEdicion.trim();
+    if (limpio.length === 0) return;
+
+    setEditando(false);
+    onEditarYReenviar?.(limpio);
+  }
+
+  function alTeclearEnLaEdicion(evento: KeyboardEvent<HTMLTextAreaElement>) {
+    if (evento.key === "Enter" && !evento.shiftKey) {
+      evento.preventDefault();
+      confirmarEdicion();
+    } else if (evento.key === "Escape") {
+      evento.preventDefault();
+      cancelarEdicion();
+    }
+  }
+
+  // «Editar y reenviar» sólo en la última pregunta, nunca en vuelo ni
+  // bloqueada — el mismo criterio que el composer.
+  const puedeEditar = esUltimo && Boolean(onEditarYReenviar) && !enVuelo && !bloqueado;
 
   return (
     <li
@@ -69,13 +138,48 @@ export function Mensaje({
         esUltimo ? "adoc-asistente-turno adoc-asistente-turno--ultimo" : "adoc-asistente-turno"
       }
     >
-      <p className="adoc-asistente-pregunta">
-        {/* Los dos puntos y el espacio NO son cosmética: sin separador, un lector
-            de pantalla anuncia «Vosdame 3 materias…» de corrido. La clase la saca
-            además de la selección, para que copiar la pregunta no arrastre la
-            etiqueta al portapapeles — pasó, y el texto pegado volvió al modelo. */}
-        <span className="adoc-asistente-quien">Vos:</span> {turno.pregunta}
-      </p>
+      {editando ? (
+        <div className="adoc-asistente-pregunta-edicion">
+          <Textarea
+            className="adoc-asistente-pregunta-campo"
+            value={textoDeEdicion}
+            onChange={(evento) => setTextoDeEdicion(evento.target.value)}
+            onKeyDown={alTeclearEnLaEdicion}
+            aria-label="Editar tu pregunta"
+            autoFocus
+          />
+          <div className="adoc-asistente-pregunta-edicion-acciones">
+            <Button variant="ghost" size="sm" onClick={cancelarEdicion}>
+              Cancelar
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              leadingIcon={sendIcon}
+              disabled={textoDeEdicion.trim().length === 0}
+              onClick={confirmarEdicion}
+            >
+              Enviar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="adoc-asistente-pregunta-fila">
+          <p className="adoc-asistente-pregunta">
+            {/* Los dos puntos y el espacio NO son cosmética: sin separador, un lector
+                de pantalla anuncia «Vosdame 3 materias…» de corrido. La clase la saca
+                además de la selección, para que copiar la pregunta no arrastre la
+                etiqueta al portapapeles — pasó, y el texto pegado volvió al modelo. */}
+            <span className="adoc-asistente-quien">Vos:</span> {turno.pregunta}
+          </p>
+
+          <HerramientasDePregunta
+            pregunta={turno.pregunta}
+            onEditar={puedeEditar ? empezarEdicion : undefined}
+            editarBotonRef={editarBotonRef}
+          />
+        </div>
+      )}
 
       {turno.error && (
         <InlineAlert severity="danger" title="No se pudo consultar">
@@ -106,10 +210,23 @@ export function Mensaje({
         </p>
       )}
 
-      {turno.historico && <ContenidoHistorico turno={turno} onReejecutar={onReejecutar} />}
+      {turno.historico && (
+        // Se envuelve en vez de pasarle la clase a `ContenidoHistorico`: ese
+        // componente ya fija su propia clase de raíz, y la opacidad cascadea
+        // igual sobre sus hijos.
+        <div className={editando ? "adoc-asistente-respuesta--editando" : undefined}>
+          <ContenidoHistorico turno={turno} onReejecutar={onReejecutar} />
+        </div>
+      )}
 
       {respuesta && (
-        <div className="adoc-asistente-respuesta">
+        <div
+          className={
+            editando
+              ? "adoc-asistente-respuesta adoc-asistente-respuesta--editando"
+              : "adoc-asistente-respuesta"
+          }
+        >
           <span className="adoc-asistente-quien">Asistente:</span>
 
           {respuesta.preguntaInterpretada && (

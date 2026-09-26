@@ -180,8 +180,14 @@ public sealed class HistorialController(
 
         var perfil = await perfiles.ObtenerAsync(actor, ct);
 
+        // `TurnoHistoricoId: t.Id`, y no `ClaveDelCliente`: un turno sembrado no
+        // tiene Idempotency-Key de esta sesión, así que un reemplazo sobre él se
+        // nombra por su id de `turno_historico` (design.md D9 de
+        // asistente-rediseno-v3, «Editar y reenviar»).
         var sembrado = hilos.Sembrar(
-            actor, hiloId, [.. turnos.Select(t => new TurnoDelHilo(t.Pregunta, t.OcurrioEn, t.SqlResuelto))]);
+            actor,
+            hiloId,
+            [.. turnos.Select(t => new TurnoDelHilo(t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id))]);
 
         return Ok(new ReanudarDto(
             sembrado.Id, [.. turnos.Select(t => TurnoDeHistorialDto.De(t, perfil.VeLaConsulta))]));

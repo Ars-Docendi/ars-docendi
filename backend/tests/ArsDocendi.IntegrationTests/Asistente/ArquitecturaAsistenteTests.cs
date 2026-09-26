@@ -382,6 +382,12 @@ public sealed partial class ArquitecturaAsistenteTests
         // previous version, open the new one) — no RLS-scoped read of
         // anything keyed to identity.asistente_actor(), so no actor to fix.
         "PresupuestosAdministrablesReal.cs",
+        // Same reason as RegistrosAsistente.cs: the owner connection
+        // (CadenaDuena) replacing turno_historico's last row for «Editar y
+        // reenviar» (asistente-edicion-de-la-ultima-pregunta, design.md D9),
+        // in one transaction so a failed insert leaves the old row. No RLS
+        // and no actor to fix — it never reads through the asistente schema.
+        "RegistroDeHistorial.cs",
     ];
 
     [Fact]

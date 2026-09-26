@@ -129,7 +129,11 @@ El ping vive en un controller **propio y sin constructor**, y eso no es prolijid
 
 #### `POST /api/asistente/consultas`
 
-Pedido: `{ mensaje, hilo? }`. **No lleva actor**: sale de la identidad de la sesión, porque un identificador tomado del cuerpo sería un selector de alcance controlado por el cliente.
+Pedido: `{ mensaje, hilo?, reemplaza? }`. **No lleva actor**: sale de la identidad de la sesión, porque un identificador tomado del cuerpo sería un selector de alcance controlado por el cliente.
+
+`reemplaza` (asistente-edicion-de-la-ultima-pregunta, design.md D9 de asistente-rediseno-v3, ARS-147): el identificador del turno que este turno reemplaza — la propia `Idempotency-Key` de este pedido, con la que se mandó el turno vivo que se está editando, o el `id` de `GET /historial/{hiloId}` de un turno restaurado por `POST /historial/{hiloId}/reanudar`. Ausente en un turno nuevo cualquiera, que es el caso de siempre.
+
+Se honra **solo** si nombra el último turno vigente del hilo del actor. Si no —un turno que no es el último, o un hilo que ya venció—, el pedido responde `409 Conflict` y **no cambia nada**: ni el hilo, ni el historial, ni el cupo. Sobre éxito, el nuevo turno se resuelve con el mismo contexto conversacional que tenía el reemplazado — segmento vigente y aclaración pendiente incluidos —, pisa el turno viejo en el hilo efímero, revoca su `claveDeRetroalimentacion` (que pasa a rechazarse igual que un token desconocido) y reemplaza, en una sola transacción, su fila en `asistente.turno_historico`: el historial conserva solo la versión final, sin ningún rastro de la pregunta reemplazada ni contador de versiones. El título de la conversación **no cambia** por un reemplazo. Un reemplazo es, para el cupo, la idempotencia y la exclusión de turno concurrente, un turno como cualquier otro: se cobra una sola vez, y un rechazo por candado o un reintento con la misma `Idempotency-Key` y el mismo `reemplaza` no aplican una segunda vez.
 
 Respuesta:
 
@@ -163,6 +167,8 @@ Respuesta:
 Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas las filtra el motor con las policies de RLS del asistente; la pantalla la autoriza el módulo dueño del recurso, con su propia regla. **No son la misma regla y divergen hoy**: el ámbito departamental es una lista fija de códigos de rol en el módulo y `identity.roles.scope` en las funciones del asistente; los roles del módulo salen del token y están acotados al rol seleccionado en la sesión, y los del asistente son las asignaciones vigentes leídas en vivo; el permiso es un claim de un lado y la matriz en vivo del otro. Por eso el vínculo se le pregunta al módulo dueño —`IDesignacionesQueries.UbicarPedidosAsync` para el trámite— y no se deduce de que la fila haya llegado: deducirlo produce un botón que responde 403 al apretarlo, que es lo que el invariante #7 prohíbe.
 
 **`Idempotency-Key` obligatoria.** Cada turno cuesta dos o tres llamadas al modelo, así que un doble submit se factura completo dos veces. Se resuelve **en memoria con expiración corta y acotada por actor** — no se reusa ni se copia `designaciones.idempotencia_comandos`, que guarda el cuerpo completo de la respuesta HTTP, que es exactamente lo que este módulo decidió no persistir.
+
+**`409 Conflict`**: únicamente cuando `reemplaza` no nombra el último turno vigente del hilo del actor (target de reemplazo inválido o hilo vencido). No cambia nada — ni el hilo, ni el historial, ni el cupo —, así que un reintento con un objetivo válido es seguro.
 
 #### `GET /api/asistente/capacidades`
 

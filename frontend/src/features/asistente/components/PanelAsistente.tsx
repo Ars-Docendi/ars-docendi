@@ -62,7 +62,7 @@ export function PanelAsistente({
   umbralDelIndicadorMs,
 }: PanelAsistenteProps) {
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
-  const { turnos, enVuelo, preguntar, reintentar, detener } = asistente;
+  const { turnos, enVuelo, preguntar, reintentar, reenviarUltima, detener } = asistente;
   const [borrador, setBorrador] = useState("");
   // El bypass del admin ya lo aplicó el backend en `cupo.bloqueado` (a diferencia de
   // `mantenimiento`, que es global y sin bypass): un actor con
@@ -170,7 +170,9 @@ export function PanelAsistente({
                   onElegir={enviar}
                   onReintentar={(id) => void reintentar(id)}
                   onReejecutar={(id) => void asistente.reejecutar(id)}
+                  onEditarYReenviar={(texto) => void reenviarUltima(texto)}
                   enVuelo={enVuelo}
+                  bloqueado={bloqueado}
                   anuncio={historial.anuncio}
                 />
               </div>

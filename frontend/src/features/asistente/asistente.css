@@ -716,15 +716,70 @@
   user-select: none;
 }
 
-/* Lo que escribió el usuario: burbuja de acento, a la derecha, con ancho acotado. */
+/* La fila de la pregunta: la burbuja y, debajo, sus herramientas —«Copiar
+   pregunta» y, en la última, «Editar y reenviar»—, las dos alineadas al
+   mismo borde derecho que la burbuja (asistente-edicion-de-la-ultima-
+   pregunta, mock v3). */
+.adoc-asistente-pregunta-fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+/* Lo que escribió el usuario: burbuja NEUTRA y sutil, a la derecha, con
+   ancho acotado (asistente-rediseno-v3, mock v3 — reemplaza la burbuja de
+   acento sólido de v2, que hoy es dueña esta feature). */
 .adoc-asistente-pregunta {
   align-self: flex-end;
-  max-width: 82%;
+  max-width: 80%;
   margin: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: var(--weight-medium);
+}
+
+/* Las herramientas de la pregunta: mismo mecanismo de revelado que
+   `.adoc-asistente-barra` —opacidad, nunca `display`/`visibility`, para que
+   Tab las alcance igual con el turno "apagado". */
+.adoc-asistente-pregunta-herramientas {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.adoc-asistente-turno:hover .adoc-asistente-pregunta-herramientas,
+.adoc-asistente-turno:focus-within .adoc-asistente-pregunta-herramientas {
+  opacity: 1;
+}
+
+/* El modo edición: textarea de ancho completo con borde de acento, y la
+   fila Cancelar/Enviar debajo (asistente-edicion-de-la-ultima-pregunta). */
+.adoc-asistente-pregunta-edicion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-pregunta-campo {
+  width: 100%;
+  border-color: var(--color-border-focus);
+}
+
+.adoc-asistente-pregunta-edicion-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* La respuesta se atenúa, nunca se oculta, mientras se edita la pregunta que
+ la produjo — sigue legible, sólo de fondo. */
+.adoc-asistente-respuesta--editando {
+  opacity: 0.4;
 }
 
 /* «Reintentar», debajo del mensaje de la alerta de error. */

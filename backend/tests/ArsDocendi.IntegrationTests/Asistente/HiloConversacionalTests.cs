@@ -358,6 +358,165 @@ public sealed class HiloConversacionalTests
         Assert.Equal(["SELECT 3", "SELECT 4", "SELECT 5"], hilo.ConsultasVigentes(tope: 3));
     }
 
+    // --------------------------------------------- reemplazo (design.md D9)
+
+    [Fact]
+    public void UltimoRegistrado_es_null_sin_ningun_turno_registrado()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        Assert.Null(hilo.UltimoRegistrado);
+    }
+
+    [Fact]
+    public void MarcarUltimoRegistrado_guarda_la_identidad_completa()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        var token = Guid.NewGuid();
+        var aclaracion = new Aclaracion("Álgebra", "¿Quién da Álgebra?", [new("A", "a"), new("B", "b")]);
+
+        hilo.MarcarUltimoRegistrado("clave-1", null, token, inicioDeSegmentoAntes: 2, aclaracion);
+
+        var identidad = hilo.UltimoRegistrado!;
+        Assert.Equal("clave-1", identidad.ClaveDelCliente);
+        Assert.Null(identidad.TurnoHistoricoId);
+        Assert.Equal(token, identidad.ClaveDeRetroalimentacion);
+        Assert.Equal(2, identidad.InicioDeSegmentoAntes);
+        Assert.Same(aclaracion, identidad.AclaracionPendienteAntes);
+    }
+
+    [Fact]
+    public void Sembrar_marca_como_ultimo_registrado_al_ultimo_turno_sembrado()
+    {
+        // Task 6.1/coordinator fix: el último turno sembrado tiene que poder
+        // reemplazarse de entrada, sea cual sea su estado original — Reanudar
+        // no distingue por carril.
+        var (almacen, _) = Almacen();
+        var idDelPrimero = Guid.NewGuid();
+        var idDelUltimo = Guid.NewGuid();
+
+        var sembrado = almacen.Sembrar(
+            Ana,
+            Guid.NewGuid(),
+            [
+                new TurnoDelHilo("t1", Inicio, "SELECT 1", TurnoHistoricoId: idDelPrimero),
+                new TurnoDelHilo("t2 (hola)", Inicio.AddMinutes(1), null, TurnoHistoricoId: idDelUltimo),
+            ]);
+
+        Assert.Equal(idDelUltimo, sembrado.UltimoRegistrado?.TurnoHistoricoId);
+        Assert.Null(sembrado.UltimoRegistrado?.ClaveDelCliente);
+    }
+
+    [Fact]
+    public void Sembrar_sin_turnos_no_deja_nada_para_reemplazar()
+    {
+        var (almacen, _) = Almacen();
+
+        var sembrado = almacen.Sembrar(Ana, Guid.NewGuid(), []);
+
+        Assert.Null(sembrado.UltimoRegistrado);
+    }
+
+    [Fact]
+    public void QuitarUltimoParaReemplazo_deshace_el_pivote_que_causo_el_ultimo_turno()
+    {
+        // La vista sin el último turno tiene que ver el mismo contexto que vio
+        // la pregunta reemplazada — design.md D9, punto 2. Si esa pregunta
+        // pivoteó, el pivote tiene que deshacerse con ella.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, "SELECT 1");
+
+        hilo.SoltarElTema();
+        hilo.Agregar("t2 (pivote)", Inicio, "SELECT 2", claveDelCliente: "clave-2", inicioDeSegmentoAntes: 0);
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 0, null);
+
+        Assert.Equal(1, hilo.InicioDeSegmento);
+
+        var sacado = hilo.QuitarUltimoParaReemplazo();
+
+        Assert.NotNull(sacado.DelContexto);
+        Assert.Equal("t2 (pivote)", sacado.DelContexto!.Pregunta);
+        Assert.Equal(1, sacado.InicioDeSegmentoAlSacar);
+        Assert.Equal(0, hilo.InicioDeSegmento);
+        Assert.Equal("t1", Assert.Single(hilo.Turnos).Pregunta);
+    }
+
+    [Fact]
+    public void QuitarUltimoParaReemplazo_restaura_la_aclaracion_pendiente_de_antes()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        var aclaracion = new Aclaracion("Álgebra", "¿Quién da Álgebra?", [new("A", "a"), new("B", "b")]);
+        hilo.Pendiente(aclaracion);
+
+        hilo.CerrarAclaracion();
+        hilo.Agregar(
+            "quién da álgebra", Inicio, "SELECT 1", claveDelCliente: "clave-1",
+            aclaracionPendienteAntes: aclaracion, huboAclaracionAntes: true);
+        hilo.MarcarUltimoRegistrado("clave-1", null, null, inicioDeSegmentoAntes: 0, aclaracion);
+
+        Assert.Null(hilo.AclaracionPendiente);
+
+        hilo.QuitarUltimoParaReemplazo();
+
+        Assert.Same(aclaracion, hilo.AclaracionPendiente);
+    }
+
+    [Fact]
+    public void QuitarUltimoParaReemplazo_no_saca_nada_del_contexto_si_el_ultimo_registrado_nunca_entro()
+    {
+        // EL BUG REAL: un saludo, una meta-pregunta, un menú de aclaración o
+        // una degradación pre-SQL nunca llegan a `Agregar` — nunca están en
+        // `Turnos` — pero SIGUEN siendo «la última pregunta» que se puede
+        // reemplazar. Acá el contexto SQL tiene un turno MÁS VIEJO (t1); el
+        // último REGISTRADO es un saludo posterior que nunca lo tocó.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, "SELECT 1", claveDelCliente: "clave-1");
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 0, null);
+
+        var sacado = hilo.QuitarUltimoParaReemplazo();
+
+        Assert.Null(sacado.DelContexto);
+        // El turno SQL más viejo sigue intacto en el contexto: no se tocó.
+        Assert.Equal("t1", Assert.Single(hilo.Turnos).Pregunta);
+        Assert.Equal(0, hilo.InicioDeSegmento);
+        Assert.Null(hilo.AclaracionPendiente);
+    }
+
+    [Fact]
+    public void ReponerTrasFallo_deja_el_hilo_exactamente_como_estaba()
+    {
+        // design.md D9, punto 4: un fallo en el reemplazo no cambia nada.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, "SELECT 1");
+        hilo.SoltarElTema();
+        hilo.Agregar("t2", Inicio, "SELECT 2", claveDelCliente: "clave-2", inicioDeSegmentoAntes: 0);
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 0, null);
+
+        var sacado = hilo.QuitarUltimoParaReemplazo();
+        hilo.ReponerTrasFallo(sacado);
+
+        Assert.Equal(2, hilo.Turnos.Count);
+        Assert.Equal("t2", hilo.Turnos[^1].Pregunta);
+        Assert.Equal(1, hilo.InicioDeSegmento);
+        Assert.Equal("clave-2", hilo.UltimoRegistrado?.ClaveDelCliente);
+    }
+
+    [Fact]
+    public void ReponerTrasFallo_sin_turno_de_contexto_no_agrega_nada()
+    {
+        // El caso del bug: si el último registrado nunca había entrado al
+        // contexto, reponerlo tampoco tiene que agregar nada ahí.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, "SELECT 1", claveDelCliente: "clave-1");
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 0, null);
+
+        var sacado = hilo.QuitarUltimoParaReemplazo();
+        hilo.ReponerTrasFallo(sacado);
+
+        Assert.Single(hilo.Turnos);
+        Assert.Equal("clave-2", hilo.UltimoRegistrado?.ClaveDelCliente);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static (AlmacenDeHilosEnMemoria Almacen, RelojFijo Reloj) Almacen(

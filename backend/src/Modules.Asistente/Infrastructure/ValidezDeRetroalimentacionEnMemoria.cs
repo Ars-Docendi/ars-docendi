@@ -47,4 +47,9 @@ internal sealed class ValidezDeRetroalimentacionEnMemoria(IOptions<OpcionesAsist
 
         return true;
     }
+
+    public void Revocar(Guid token)
+    {
+        _mintedAt.TryRemove(token, out _);
+    }
 }

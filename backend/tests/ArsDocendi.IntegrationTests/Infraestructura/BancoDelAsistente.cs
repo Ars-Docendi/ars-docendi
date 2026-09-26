@@ -84,6 +84,7 @@ internal sealed class BancoDelAsistente
         ProveedorGuionado? proveedor = null,
         IRegistroDelTurno? registro = null,
         IRegistroDeHistorial? historial = null,
+        IValidezDeRetroalimentacion? validezDeRetroalimentacionCompartida = null,
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         ICatalogoDelDominio? dominio = null,
         IResolutorDeVinculos? vinculos = null,
@@ -121,7 +122,13 @@ internal sealed class BancoDelAsistente
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
         var elRegistro = registro ?? new RegistroEnMemoria();
         var elHistorial = historial ?? new HistorialEnMemoria();
-        var validezDeRetroalimentacion = new ValidezDeRetroalimentacionEnMemoria(opciones);
+        // Reemplazo (design.md D9 de asistente-rediseno-v3): un test que
+        // verifica la revocación del token viejo necesita que las dos
+        // llamadas — la que lo mintea y la que lo reemplaza — consulten el
+        // MISMO almacén, igual que ya pasa en producción (un singleton del
+        // proceso).
+        var validezDeRetroalimentacion =
+            validezDeRetroalimentacionCompartida ?? new ValidezDeRetroalimentacionEnMemoria(opciones);
 
         // El índice se comparte entre turnos, igual que en producción: es un caché,
         // y uno por turno no cachearía nada.

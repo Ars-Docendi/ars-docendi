@@ -23,4 +23,12 @@ public interface IValidezDeRetroalimentacion
 
     /// <summary>Whether the token is still within its validity window.</summary>
     bool EsVigente(Guid token, DateTimeOffset ahora);
+
+    /// <summary>
+    /// Stops accepting this token, right now — same outcome as an unknown or
+    /// expired one (asistente-edicion-de-la-ultima-pregunta: replacing a turn
+    /// revokes its feedback token). A no-op if the token was never minted or
+    /// already expired.
+    /// </summary>
+    void Revocar(Guid token);
 }

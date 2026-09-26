@@ -8,6 +8,15 @@ import type {
 export interface ConsultaDelAsistente {
   mensaje: string;
   hilo?: string | null;
+  /**
+   * El identificador del turno que este turno reemplaza —su propio `id`
+   * anterior, la misma `Idempotency-Key` con la que se mandó, o el
+   * `turno_historico.id` de un turno restaurado por «Reanudar»—, para
+   * «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta,
+   * design.md D9 de asistente-rediseno-v3). Ausente en un turno nuevo
+   * cualquiera.
+   */
+  reemplaza?: string;
 }
 
 /**

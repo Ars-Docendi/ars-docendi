@@ -61,7 +61,30 @@ internal sealed class AlmacenDeHilosEnMemoria(
 
         foreach (var turno in turnos)
         {
-            nuevo.Agregar(turno.Pregunta, turno.Cuando, turno.SqlEjecutado);
+            // `turnoHistoricoId` y no `claveDelCliente`: un turno sembrado por
+            // «Reanudar» no tiene una Idempotency-Key de esta sesión, así que
+            // un reemplazo sobre él se nombra por su id de turno_historico
+            // (design.md D9 de asistente-rediseno-v3).
+            nuevo.Agregar(
+                turno.Pregunta, turno.Cuando, turno.SqlEjecutado, turnoHistoricoId: turno.TurnoHistoricoId);
+        }
+
+        if (turnos.Count > 0)
+        {
+            // EL ÚLTIMO TURNO SEMBRADO TIENE QUE PODER REEMPLAZARSE DE
+            // ENTRADA, SEA CUAL SEA SU ESTADO ORIGINAL (design.md D9): a
+            // diferencia de un turno vivo, Reanudar no distingue por carril
+            // —cada fila de `turno_historico` ya se cargó arriba, incluida
+            // ésta—, así que alcanza con nombrar la última. Sin token de
+            // retroalimentación: el que tuvo en vivo ya no está vigente en
+            // este proceso, y revocar uno inexistente no hace nada.
+            var ultimo = turnos[^1];
+            nuevo.MarcarUltimoRegistrado(
+                claveDelCliente: null,
+                ultimo.TurnoHistoricoId,
+                claveDeRetroalimentacion: null,
+                inicioDeSegmentoAntes: 0,
+                aclaracionPendienteAntes: null);
         }
 
         // Se toca DESPUÉS de cargar los turnos: `Agregar` deja `UltimaActividad`

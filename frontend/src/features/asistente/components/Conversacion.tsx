@@ -7,7 +7,15 @@ interface ConversacionProps {
   onReintentar: (id: string) => void;
   /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
   onReejecutar?: (id: string) => void;
+  /**
+   * Edita y reenvía la última pregunta (asistente-edicion-de-la-ultima-
+   * pregunta). Sólo `Mensaje` del último turno la recibe: es la única
+   * pregunta que se puede reemplazar.
+   */
+  onEditarYReenviar?: (texto: string) => void;
   enVuelo: boolean;
+  /** Cupo agotado, tope organizacional o mantenimiento: oculta «Editar y reenviar». */
+  bloqueado?: boolean;
   /**
    * Anunciado por ESTA MISMA región viva: renombrar, borrar y reanudar una
    * conversación no tienen un turno propio al que colgar su confirmación, y
@@ -34,7 +42,9 @@ export function Conversacion({
   onElegir,
   onReintentar,
   onReejecutar,
+  onEditarYReenviar,
   enVuelo,
+  bloqueado = false,
   anuncio,
 }: ConversacionProps) {
   return (
@@ -44,17 +54,28 @@ export function Conversacion({
       aria-live="polite"
       aria-label="Conversación con el asistente"
     >
-      {turnos.map((turno, indice) => (
-        <Mensaje
-          key={turno.id}
-          turno={turno}
-          onElegir={onElegir}
-          onReintentar={onReintentar}
-          onReejecutar={onReejecutar}
-          enVuelo={enVuelo}
-          esUltimo={indice === turnos.length - 1}
-        />
-      ))}
+      {turnos.map((turno, indice) => {
+        const esUltimo = indice === turnos.length - 1;
+
+        return (
+          <Mensaje
+            // `turno.id` cambia cuando un reemplazo reenvía la pregunta con
+            // una clave nueva (asistente-edicion-de-la-ultima-pregunta): con
+            // una `key` distinta, React vuelve a montar este turno entero, y
+            // el voto, el orden de la tabla y la vista ampliada del turno
+            // reemplazado se resetean solos, sin código propio que los limpie.
+            key={turno.id}
+            turno={turno}
+            onElegir={onElegir}
+            onReintentar={onReintentar}
+            onReejecutar={onReejecutar}
+            onEditarYReenviar={esUltimo ? onEditarYReenviar : undefined}
+            enVuelo={enVuelo}
+            bloqueado={bloqueado}
+            esUltimo={esUltimo}
+          />
+        );
+      })}
 
       {/* El historial (renombrar, borrar, reanudar) no tiene turno propio:
           esto es lo que le da un lugar en ESTA región viva sin abrir una

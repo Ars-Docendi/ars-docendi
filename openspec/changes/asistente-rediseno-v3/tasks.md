@@ -42,12 +42,12 @@
 
 ## 6. Edit and resend the last question (ARS-147)
 
-- [ ] 6.1 `HiloConversacional`/`TurnoDelHilo`: `ClaveDelCliente`, `TurnoHistoricoId`, snapshot of segment start and pending clarification before each turn; `Sembrar` fills `TurnoHistoricoId`. Verify: `HiloConversacionalTests` — view without the last turn restores its context.
-- [ ] 6.2 `ConsultaDelAsistente.Reemplaza`; `CapaConversacional` replacement flow (design D9): `409` for non-last/expired targets, resolve on the view, swap only on a registrable outcome, lock rejection changes nothing, `IValidezDeRetroalimentacion.Revocar` on the old token. Verify: failing-first tests in `CapaConversacionalTests`/`EndpointDeConsultasTests` for every scenario of `asistente-edicion-de-la-ultima-pregunta`, including quota charged once and retry with the same key applying at most one replacement.
-- [ ] 6.3 `RegistroDeHistorial`: replace the target `turno_historico` row in one transaction, touching `ultima_actividad`, never the title. Verify: `RegistroDeHistorialTests` — history lists only the final version; a failed insert leaves the old row.
-- [ ] 6.4 Feedback: old token rejected like an unknown one, new one accepted, old vote kept. Verify: `RetroalimentacionTests` cases.
-- [ ] 6.5 Frontend: question tools («Copiar pregunta», «Editar y reenviar» on the last question only, hidden in flight or when blocked), inline textarea with Cancelar/Enviar, Escape → focus to «Editar y reenviar», answer dimmed while editing; `useAsistente.reenviarUltima` sends a new key with `reemplaza`, resets vote/sort/expanded view, reuses key and target on «Reintentar». Verify: new `EdicionDeLaUltimaPregunta.test.tsx` covering every frontend scenario and asserting no version counter.
-- [ ] 6.6 `api-contracts.md`: `reemplaza`, `409`. Verify: doc diff in the same commit.
+- [x] 6.1 `HiloConversacional`/`TurnoDelHilo`: `ClaveDelCliente`, `TurnoHistoricoId`, snapshot of segment start and pending clarification before each turn; `Sembrar` fills `TurnoHistoricoId`. Verify: `HiloConversacionalTests` — view without the last turn restores its context.
+- [x] 6.2 `ConsultaDelAsistente.Reemplaza`; `CapaConversacional` replacement flow (design D9): `409` for non-last/expired targets, resolve on the view, swap only on a registrable outcome, lock rejection changes nothing, `IValidezDeRetroalimentacion.Revocar` on the old token. Verify: failing-first tests in `CapaConversacionalTests`/`EndpointDeConsultasTests` for every scenario of `asistente-edicion-de-la-ultima-pregunta`, including quota charged once and retry with the same key applying at most one replacement.
+- [x] 6.3 `RegistroDeHistorial`: replace the target `turno_historico` row in one transaction, touching `ultima_actividad`, never the title. Verify: `RegistroDeHistorialTests` — history lists only the final version; a failed insert leaves the old row.
+- [x] 6.4 Feedback: old token rejected like an unknown one, new one accepted, old vote kept. Verify: `RetroalimentacionTests` cases.
+- [x] 6.5 Frontend: question tools («Copiar pregunta», «Editar y reenviar» on the last question only, hidden in flight or when blocked), inline textarea with Cancelar/Enviar, Escape → focus to «Editar y reenviar», answer dimmed while editing; `useAsistente.reenviarUltima` sends a new key with `reemplaza`, resets vote/sort/expanded view, reuses key and target on «Reintentar». Verify: new `EdicionDeLaUltimaPregunta.test.tsx` covering every frontend scenario and asserting no version counter.
+- [x] 6.6 `api-contracts.md`: `reemplaza`, `409`. Verify: doc diff in the same commit.
 
 ## 7. Mentions @materia / #docente (ARS-148)
 

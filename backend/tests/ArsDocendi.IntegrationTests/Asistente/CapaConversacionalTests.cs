@@ -580,6 +580,287 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
         Assert.Equal(CarrilDelTurno.Aclaracion, ((RegistroEnMemoria)banco.Registro).Turnos.Single().Carril);
     }
+    // --------------------------------------- reemplazo (design.md D9, ARS-147)
+
+    [Fact]
+    public async Task Reemplazar_el_ultimo_turno_lo_saca_del_hilo_y_agrega_el_nuevo()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct, claveDelCliente: "clave-1");
+
+        var segundo = Banco(banco.Hilos, ProveedorGuionado.Generacion(ContarDocentes), "Hay 2 adjuntos.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿Cuántos adjuntos hay?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+
+        var hilo = banco.Hilos.Resolver(primero.Hilo, Secretaria);
+        var unico = Assert.Single(hilo.Turnos);
+        Assert.Contains("adjuntos", unico.Pregunta, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("clave-2", unico.ClaveDelCliente);
+    }
+
+    [Fact]
+    public async Task Reemplazar_un_turno_que_no_es_el_ultimo_es_rechazado_y_no_cambia_nada()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct, claveDelCliente: "clave-1");
+
+        var segundo = Banco(banco.Hilos, ProveedorGuionado.Generacion(ContarDocentes), "Hay 6.");
+        var respondido = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿y en Álgebra?", ct, claveDelCliente: "clave-2");
+
+        var tercero = Banco(banco.Hilos);
+        await Assert.ThrowsAsync<ReemplazoInvalido>(
+            () => tercero.Capa().ResponderAsync(
+                Secretaria, respondido.Hilo, "¿y ahora?", ct,
+                claveDelCliente: "clave-3", reemplaza: "clave-1"));
+
+        var hilo = banco.Hilos.Resolver(primero.Hilo, Secretaria);
+        Assert.Equal(2, hilo.Turnos.Count);
+        Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+    }
+
+    [Fact]
+    public async Task Reemplazar_un_hilo_vencido_es_rechazado()
+    {
+        await SembrarAsync();
+        var banco = Banco();
+
+        await Assert.ThrowsAsync<ReemplazoInvalido>(
+            () => banco.Capa().ResponderAsync(
+                Secretaria, Guid.NewGuid(), "¿y ahora?", TestContext.Current.CancellationToken,
+                claveDelCliente: "clave-1", reemplaza: "clave-vieja"));
+    }
+
+    [Fact]
+    public async Task Un_reemplazo_rechazado_por_el_candado_no_cambia_nada()
+    {
+        // design.md D9, punto 4: el rechazo del candado no cambia nada — ni el
+        // hilo, ni el historial.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct, claveDelCliente: "clave-1");
+
+        var candado = await banco.CandadoDelTurno.IntentarAsync(Secretaria, ct);
+        Assert.NotNull(candado);
+
+        var rechazado = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿y en Álgebra?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.ServicioDegradado, rechazado.Estado);
+
+        var hilo = banco.Hilos.Resolver(primero.Hilo, Secretaria);
+        Assert.Single(hilo.Turnos);
+        Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+
+        await candado!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task El_reemplazo_revoca_el_token_viejo_y_mintea_uno_nuevo()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct, claveDelCliente: "clave-1");
+        var tokenViejo = primero.ClaveDeRetroalimentacion!.Value;
+
+        Assert.True(banco.ValidezDeRetroalimentacion.EsVigente(tokenViejo, DateTimeOffset.UtcNow));
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 2 adjuntos.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿Cuántos adjuntos hay?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.False(banco.ValidezDeRetroalimentacion.EsVigente(tokenViejo, DateTimeOffset.UtcNow));
+        Assert.True(banco.ValidezDeRetroalimentacion.EsVigente(
+            reemplazo.ClaveDeRetroalimentacion!.Value, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public async Task El_historial_conserva_solo_la_version_final()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados?", ct, claveDelCliente: "clave-1");
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 2 adjuntos.");
+        await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿Cuántos adjuntos hay?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        var fila = Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+        Assert.Contains("adjuntos", fila.Pregunta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_seguimiento_tras_el_reemplazo_usa_el_contexto_reemplazado()
+    {
+        // design.md D9: «un seguimiento tras un reemplazo usa el contexto
+        // reemplazado» — la pregunta con anáfora que sigue al reemplazo tiene
+        // que ver, en la reescritura, la pregunta y la consulta NUEVAS, nunca
+        // las reemplazadas.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Cuántos docentes están designados en Bases de Datos?", ct,
+            claveDelCliente: "clave-1");
+
+        var segundo = Banco(banco.Hilos, ProveedorGuionado.Generacion(ContarDocentes), "Hay 2 adjuntos.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿Cuántos adjuntos hay en Álgebra?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        var seguimiento = Banco(banco.Hilos, ProveedorGuionado.Generacion(ContarDocentes), "Hay 6.");
+        await seguimiento.Capa().ResponderAsync(
+            Secretaria, reemplazo.Hilo, "¿y en Sistemas?", ct, claveDelCliente: "clave-3");
+
+        var reescritura = seguimiento.Proveedor.Recibidas[0].Mensaje;
+        Assert.Contains("Álgebra", reescritura, StringComparison.Ordinal);
+        Assert.DoesNotContain("Bases de Datos", reescritura, StringComparison.Ordinal);
+    }
+
+    // ----------------------- reemplazo sobre un último turno de otro carril
+    // (bug real: sólo el carril SQL agrega al contexto vía `Agregar`, pero
+    // «Editar y reenviar» tiene que poder nombrar CUALQUIER último turno
+    // registrado, sea cual sea su carril — design.md D9, fix del coordinador).
+
+    [Fact]
+    public async Task Reemplazar_la_pregunta_que_sigue_a_un_saludo_funciona()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco();
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "hola", ct, claveDelCliente: "clave-1");
+        Assert.Equal(EstadoDelTurno.Respondida, primero.Estado);
+        Assert.Equal(0, banco.Proveedor.Llamadas);
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿cuántas materias hay?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+        var fila = Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+        Assert.Contains("materias", fila.Pregunta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Reemplazar_la_pregunta_que_sigue_a_una_meta_pregunta_funciona()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco();
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿qué podés hacer?", ct, claveDelCliente: "clave-1");
+        Assert.Equal(EstadoDelTurno.Respondida, primero.Estado);
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿cuántos docentes están designados?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+        Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+    }
+
+    [Fact]
+    public async Task Reemplazar_la_pregunta_que_dejo_un_menu_de_aclaracion_abierto_funciona()
+    {
+        await SembrarAsync();
+        await AgregarColisionesAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco();
+
+        var menu = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿Quiénes dan Bases de Datos?", ct, claveDelCliente: "clave-1");
+        Assert.Equal(EstadoDelTurno.NecesitaAclaracion, menu.Estado);
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, menu.Hilo, "¿cuántos docentes están designados?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+        // El menú quedó reemplazado: no hay una aclaración pendiente colgada.
+        Assert.Null(banco.Hilos.Resolver(menu.Hilo, Secretaria).AclaracionPendiente);
+        Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+    }
+
+    [Fact]
+    public async Task Reemplazar_la_pregunta_que_termino_degradada_antes_del_carril_sql_funciona()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var (basica, pii) = CadenasDeLectura();
+        var opciones = new OpcionesAsistente { FallosParaAbrirElBreaker = 1 };
+        var banco = BancoDelAsistente.Armar(basica, pii, ClasificadorDeSensibilidad(), Apertura, opciones);
+        banco.Breaker.Fallo();
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿cuántos docentes hay?", ct, claveDelCliente: "clave-1");
+        Assert.Equal(EstadoDelTurno.ServicioDegradado, primero.Estado);
+
+        var segundo = Banco(banco.Hilos, banco.Historial, banco.ValidezDeRetroalimentacion,
+            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var reemplazo = await segundo.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿cuántos docentes están designados?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+        Assert.Single(((HistorialEnMemoria)banco.Historial).Turnos);
+    }
+
+    [Fact]
+    public async Task Reemplazar_el_ultimo_turno_de_una_conversacion_reanudada_cuyo_ultimo_turno_fue_social()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var hilos = NuevosHilos();
+        var idDelTurnoSocial = Guid.NewGuid();
+
+        var sembrado = hilos.Sembrar(
+            Secretaria,
+            Guid.NewGuid(),
+            [new TurnoDelHilo("hola", DateTimeOffset.UtcNow, null, TurnoHistoricoId: idDelTurnoSocial)]);
+
+        var banco = Banco(hilos, ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
+        var reemplazo = await banco.Capa().ResponderAsync(
+            Secretaria, sembrado.Id, "¿cuántos docentes están designados?", ct,
+            claveDelCliente: "clave-nueva", reemplaza: idDelTurnoSocial.ToString());
+
+        Assert.Equal(EstadoDelTurno.Respondida, reemplazo.Estado);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private BancoDelAsistente Banco(params string[] guion) =>
@@ -592,6 +873,31 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         return BancoDelAsistente.Armar(
             basica, pii, ClasificadorDeSensibilidad(),
             Apertura, hilos: hilos, guion: guion);
+    }
+
+    /// <summary>
+    /// Un banco que continúa un hilo EXISTENTE y comparte además su historial
+    /// y su almacén de tokens de retroalimentación — los tres, en vez de sólo
+    /// el hilo, para poder verificar un reemplazo de punta a punta: «sólo
+    /// queda la versión final» y «el token viejo se revoca» necesitan que la
+    /// segunda llamada escriba sobre el MISMO historial y consulte el MISMO
+    /// almacén de tokens que la primera.
+    /// </summary>
+    private BancoDelAsistente Banco(
+        IAlmacenDeHilos hilos,
+        IRegistroDeHistorial historial,
+        IValidezDeRetroalimentacion validezDeRetroalimentacion,
+        params string[] guion)
+    {
+        var (basica, pii) = CadenasDeLectura();
+
+        return BancoDelAsistente.Armar(
+            basica, pii, ClasificadorDeSensibilidad(),
+            Apertura,
+            hilos: hilos,
+            historial: historial,
+            validezDeRetroalimentacionCompartida: validezDeRetroalimentacion,
+            guion: guion);
     }
 
     private IAlmacenDeHilos NuevosHilos() =>

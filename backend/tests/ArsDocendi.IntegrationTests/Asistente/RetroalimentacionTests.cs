@@ -354,6 +354,89 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
             Guid.NewGuid(),
             ClaveDeRetroalimentacion: token);
 
+    // --------------------------------------- reemplazo (design.md D9, ARS-147)
+
+    [Fact]
+    public async Task El_token_del_turno_reemplazado_se_rechaza_como_desconocido()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var primero = await PreguntarAsync(cliente, "¿cuántos docentes hay?", "clave-1");
+        var tokenViejo = primero.ClaveDeRetroalimentacion!.Value;
+
+        await PreguntarAsync(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primero.Hilo, reemplaza: "clave-1");
+
+        using var respuesta = await VotarAsync(cliente, tokenViejo, voto: true);
+
+        // Mismo rechazo que un token desconocido o vencido — la superficie no
+        // puede distinguir entre los tres casos.
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task El_token_del_turno_nuevo_se_acepta()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var primero = await PreguntarAsync(cliente, "¿cuántos docentes hay?", "clave-1");
+
+        var segundo = await PreguntarAsync(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primero.Hilo, reemplaza: "clave-1");
+        var tokenNuevo = segundo.ClaveDeRetroalimentacion!.Value;
+
+        using var respuesta = await VotarAsync(cliente, tokenNuevo, voto: true);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(tokenNuevo));
+    }
+
+    [Fact]
+    public async Task El_voto_del_turno_reemplazado_se_conserva()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var primero = await PreguntarAsync(cliente, "¿cuántos docentes hay?", "clave-1");
+        var tokenViejo = primero.ClaveDeRetroalimentacion!.Value;
+
+        await VotarAsync(cliente, tokenViejo, voto: true);
+        Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(tokenViejo));
+
+        await PreguntarAsync(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primero.Hilo, reemplaza: "clave-1");
+
+        // El voto viejo sigue existiendo —anónimo, sujeto a la misma retención
+        // de siempre— aunque su turno ya no sea el último (design.md D9).
+        Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(tokenViejo));
+    }
+
+    private async Task<RespuestaDelAsistente> PreguntarAsync(
+        HttpClient cliente, string mensaje, string clave, Guid? hilo = null, string? reemplaza = null)
+    {
+        using var pedido = new HttpRequestMessage(HttpMethod.Post, "/api/asistente/consultas")
+        {
+            Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, hilo, reemplaza)),
+        };
+        pedido.Headers.TryAddWithoutValidation(AsistenteController.CabeceraDeIdempotencia, clave);
+
+        using var respuesta = await cliente.SendAsync(pedido, TestContext.Current.CancellationToken);
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
+
+        return (await respuesta.Content.ReadFromJsonAsync<RespuestaDelAsistente>(
+            TestContext.Current.CancellationToken))!;
+    }
+
     private async Task<Guid> PreguntarYObtenerTokenAsync(HttpClient cliente)
     {
         using var pedido = new HttpRequestMessage(HttpMethod.Post, "/api/asistente/consultas")

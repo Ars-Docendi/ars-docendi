@@ -12,6 +12,15 @@ export interface Asistente {
   preguntar: (mensaje: string) => Promise<void>;
   /** Reenvía un turno que terminó en error, con su misma clave y su mismo texto. */
   reintentar: (id: string) => Promise<void>;
+  /**
+   * Edita y reenvía la última pregunta de la conversación
+   * (asistente-edicion-de-la-ultima-pregunta): manda un turno nuevo, con una
+   * clave nueva, que le pide al backend reemplazar el actual último turno.
+   * El turno que resulta toma un `id` nuevo —nunca el que tenía—, así que su
+   * `key` en la lista cambia y el voto, el orden y la vista ampliada de la
+   * tabla se resetean solos al volver a montarse.
+   */
+  reenviarUltima: (texto: string) => Promise<void>;
   /** Vacía la conversación y descarta el hilo: la próxima pregunta arranca de cero. */
   reiniciar: () => void;
   /** Deja de esperar el turno en vuelo: suelta el request. El backend lo sigue igual. */
@@ -74,9 +83,12 @@ export function useAsistente(): Asistente {
     };
   }, []);
 
-  // Un envío, sea el primero o un reintento. Quien llama ya puso el turno en la
-  // lista; acá se lo manda y se lo completa con lo que vuelva.
-  const enviar = useCallback(async (id: string, texto: string) => {
+  // Un envío, sea el primero, un reintento o un reemplazo. Quien llama ya
+  // puso el turno en la lista; acá se lo manda y se lo completa con lo que
+  // vuelva. `reemplaza` es el identificador del turno que este envío
+  // reemplaza —ausente en un turno nuevo cualquiera y en un reintento de
+  // ÉSE—, para «Editar y reenviar».
+  const enviar = useCallback(async (id: string, texto: string, reemplaza?: string) => {
     const aborto = new AbortController();
     enCurso.current = { id, aborto };
     setEnVuelo(true);
@@ -84,7 +96,7 @@ export function useAsistente(): Asistente {
     const arranco = performance.now();
 
     try {
-      const respuesta = await consultar({ mensaje: texto, hilo: hilo.current }, id, {
+      const respuesta = await consultar({ mensaje: texto, hilo: hilo.current, reemplaza }, id, {
         signal: aborto.signal,
       });
       // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que
@@ -165,12 +177,43 @@ export function useAsistente(): Asistente {
       // entero otra vez. Uno que se dejó de esperar sigue corriendo allá.
       if (!turno?.error) return;
 
-      // Misma clave —el id— y mismo texto: si el backend ya había terminado cuando
-      // se cortó, devuelve lo que guardó en lugar de cobrarle otra vez al modelo.
+      // Misma clave —el id—, mismo texto y mismo objetivo de reemplazo si
+      // había uno: si el backend ya había terminado cuando se cortó,
+      // devuelve lo que guardó en lugar de cobrarle otra vez al modelo, y
+      // aplica el reemplazo a lo sumo una vez (asistente-edicion-de-la-
+      // ultima-pregunta).
       setTurnos((previos) =>
-        previos.map((t) => (t.id === id ? { id: t.id, pregunta: t.pregunta } : t)),
+        previos.map((t) =>
+          t.id === id ? { id: t.id, pregunta: t.pregunta, reemplaza: t.reemplaza } : t,
+        ),
       );
-      await enviar(id, turno.pregunta);
+      await enviar(id, turno.pregunta, turno.reemplaza);
+    },
+    [turnos, enviar],
+  );
+
+  // «EDITAR Y REENVIAR». Sólo tiene sentido sobre la ÚLTIMA pregunta —el
+  // backend lo exige igual (design.md D9: 409 si no lo es)—, así que se
+  // toma sin pedirle el id a quien llama: es siempre `turnos[^1]`.
+  const reenviarUltima = useCallback(
+    async (texto: string) => {
+      if (enCurso.current) return;
+      const limpio = texto.trim();
+      if (limpio.length === 0) return;
+
+      const ultimo = turnos[turnos.length - 1];
+      if (!ultimo) return;
+
+      // Un `id` NUEVO, nunca el del turno reemplazado: es la clave de
+      // idempotencia de ESTE envío, y es también lo que hace que la lista le
+      // dé una `key` distinta al turno — así el voto, el orden de la tabla y
+      // la vista ampliada del turno reemplazado se resetean solos al volver
+      // a montarse, sin código propio que los limpie a mano.
+      const id = crypto.randomUUID();
+      const reemplaza = ultimo.id;
+
+      setTurnos((previos) => [...previos.slice(0, -1), { id, pregunta: limpio, reemplaza }]);
+      await enviar(id, limpio, reemplaza);
     },
     [turnos, enviar],
   );
@@ -276,6 +319,7 @@ export function useAsistente(): Asistente {
     enVuelo,
     preguntar,
     reintentar,
+    reenviarUltima,
     reiniciar,
     detener,
     sembrarDesdeHistorial,

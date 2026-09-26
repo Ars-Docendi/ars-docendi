@@ -111,6 +111,128 @@ public sealed class RegistroDeHistorialTests(PostgresFixture postgres)
         Assert.Equal(DBNull.Value, await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
     }
 
+    // --------------------------------------- reemplazo (design.md D9, ARS-147)
+
+    [Fact]
+    public async Task El_reemplazo_deja_solo_la_version_final()
+    {
+        var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
+        var registro = Registro();
+        var ct = TestContext.Current.CancellationToken;
+
+        await registro.RegistrarTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos titulares hay?", "SELECT 1", EstadoDelTurno.Respondida, Ancla),
+            ct);
+
+        await registro.ReemplazarUltimoTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos adjuntos hay?", "SELECT 2", EstadoDelTurno.Respondida,
+                Ancla.AddMinutes(5)),
+            ct);
+
+        Assert.Equal(1L, await EscalarAsync<long>("SELECT count(*) FROM asistente.hilo_historico"));
+        Assert.Equal(1L, await EscalarAsync<long>("SELECT count(*) FROM asistente.turno_historico"));
+
+        Assert.Equal(
+            "¿cuántos adjuntos hay?",
+            await EscalarAsync<string>("SELECT pregunta FROM asistente.turno_historico"));
+        Assert.Equal(
+            "SELECT 2",
+            await EscalarAsync<string>("SELECT sql_resuelto FROM asistente.turno_historico"));
+    }
+
+    [Fact]
+    public async Task El_reemplazo_toca_ultima_actividad_y_nunca_el_titulo()
+    {
+        var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
+        var registro = Registro();
+        var ct = TestContext.Current.CancellationToken;
+
+        await registro.RegistrarTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos titulares hay?", "SELECT 1", EstadoDelTurno.Respondida, Ancla),
+            ct);
+
+        await registro.ReemplazarUltimoTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos adjuntos hay?", "SELECT 2", EstadoDelTurno.Respondida,
+                Ancla.AddMinutes(5)),
+            ct);
+
+        // El título viene de la PRIMERA pregunta que abrió la conversación, y
+        // un reemplazo no lo toca (design.md D9): la conversación no se
+        // renombra sola porque su última pregunta cambió.
+        Assert.Equal(
+            "¿cuántos titulares hay?",
+            await EscalarAsync<string>("SELECT titulo FROM asistente.hilo_historico"));
+        Assert.Equal(
+            Ancla.AddMinutes(5),
+            await EscalarAsync<DateTime>("SELECT ultima_actividad FROM asistente.hilo_historico"),
+            TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task El_reemplazo_sin_conversacion_persistida_todavia_se_comporta_como_un_turno_nuevo()
+    {
+        // La escritura del turno reemplazado había fallado y se tragó su
+        // excepción (design.md D2): no hay ninguna fila que borrar, así que
+        // esto es, en los hechos, un turno nuevo cualquiera.
+        var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
+        Assert.Null(conversacion.HiloHistorico);
+
+        await Registro().ReemplazarUltimoTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(Alguien, "¿y esto?", "SELECT 1", EstadoDelTurno.Respondida, Ancla),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(conversacion.HiloHistorico);
+        Assert.Equal(1L, await EscalarAsync<long>("SELECT count(*) FROM asistente.turno_historico"));
+    }
+
+    [Fact]
+    public async Task Un_reemplazo_que_falla_deja_la_fila_vieja_intacta()
+    {
+        // La transacción entera falla al no poder ni abrir la conexión: el
+        // DELETE nunca llega a correr, así que la fila vieja sigue ahí
+        // (design.md D9, punto 3 — «una sola transacción»).
+        var conversacion = new HiloConversacional(Guid.NewGuid(), Alguien);
+        var ct = TestContext.Current.CancellationToken;
+
+        await Registro().RegistrarTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos titulares hay?", "SELECT 1", EstadoDelTurno.Respondida, Ancla),
+            ct);
+
+        await RegistroRoto().ReemplazarUltimoTurnoAsync(
+            conversacion,
+            new TurnoParaHistorial(
+                Alguien, "¿cuántos adjuntos hay?", "SELECT 2", EstadoDelTurno.Respondida,
+                Ancla.AddMinutes(5)),
+            ct);
+
+        Assert.Equal(1L, await EscalarAsync<long>("SELECT count(*) FROM asistente.turno_historico"));
+        Assert.Equal(
+            "¿cuántos titulares hay?",
+            await EscalarAsync<string>("SELECT pregunta FROM asistente.turno_historico"));
+    }
+
     private RegistroDeHistorial Registro() =>
         new(new CadenaDuena(Cadena), NullLogger<RegistroDeHistorial>.Instance);
+
+    /// <summary>
+    /// Un escritor que nunca llega a abrir conexión: para forzar, de forma
+    /// determinística, el mismo camino que un Postgres real caído — sin
+    /// depender de romper la conexión de verdad.
+    /// </summary>
+    private RegistroDeHistorial RegistroRoto()
+    {
+        var rota = new Npgsql.NpgsqlConnectionStringBuilder(Cadena) { Port = 1, Timeout = 1 }.ConnectionString;
+        return new(new CadenaDuena(rota), NullLogger<RegistroDeHistorial>.Instance);
+    }
 }

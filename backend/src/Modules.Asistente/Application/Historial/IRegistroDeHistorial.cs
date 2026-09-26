@@ -52,4 +52,28 @@ public interface IRegistroDeHistorial
     /// <param name="turno">Lo que hay que persistir de este turno.</param>
     Task RegistrarTurnoAsync(
         HiloConversacional conversacion, TurnoParaHistorial turno, CancellationToken ct);
+
+    /// <summary>
+    /// Reemplaza, en una sola transacción, la última fila de
+    /// <c>asistente.turno_historico</c> de esta conversación por <paramref
+    /// name="turno"/> — para «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta,
+    /// design.md D9 de asistente-rediseno-v3). El historial conserva sólo la
+    /// versión final: no queda ninguna fila de la pregunta reemplazada.
+    /// </summary>
+    /// <remarks>
+    /// Igual que <see cref="RegistrarTurnoAsync"/>: <b>nunca hace fallar el
+    /// turno</b>. Una fila que no se pudo borrar o insertar deja la conversación
+    /// exactamente como estaba — nunca a mitad de camino —, porque las tres
+    /// operaciones corren en una única transacción.
+    /// </remarks>
+    /// <param name="conversacion">
+    /// El hilo efímero del turno. Si todavía no tiene
+    /// <see cref="HiloConversacional.HiloHistorico"/> fijado —la fila vieja
+    /// nunca llegó a persistirse—, se comporta como
+    /// <see cref="RegistrarTurnoAsync"/>: mintea la conversación y agrega la
+    /// fila nueva.
+    /// </param>
+    /// <param name="turno">Lo que hay que persistir de la versión nueva.</param>
+    Task ReemplazarUltimoTurnoAsync(
+        HiloConversacional conversacion, TurnoParaHistorial turno, CancellationToken ct);
 }

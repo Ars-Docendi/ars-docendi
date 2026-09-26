@@ -8,6 +8,14 @@ namespace Modules.Asistente.Api;
 /// <param name="Hilo">
 /// El hilo del turno anterior, para que el seguimiento funcione. Nulo en el primero.
 /// </param>
+/// <param name="Reemplaza">
+/// El identificador del turno que este turno reemplaza —la
+/// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c> de
+/// uno restaurado por «Reanudar»—, o <c>null</c> para un turno nuevo
+/// cualquiera (asistente-edicion-de-la-ultima-pregunta, design.md D9 de
+/// asistente-rediseno-v3). Se honra sólo si nombra el último turno vigente del
+/// hilo del actor; si no, <c>409</c> y nada cambia.
+/// </param>
 /// <remarks>
 /// <b>No trae al actor.</b> El actor sale de la identidad de la sesión y de ningún
 /// otro lado: un identificador tomado del cuerpo del pedido sería un selector de
@@ -21,7 +29,11 @@ public sealed record ConsultaDelAsistente(
     [Required(AllowEmptyStrings = false)]
     [MaxLength(2000)]
     string Mensaje,
-    Guid? Hilo);
+    Guid? Hilo,
+    // Sin `[Required]`: ausente es «turno nuevo cualquiera», el caso de
+    // siempre. Ver `CapaConversacional.ResponderAsync` (design.md D9 de
+    // asistente-rediseno-v3, «Editar y reenviar»).
+    string? Reemplaza = null);
 
 /// <summary>Una opción del menú de aclaración.</summary>
 public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);

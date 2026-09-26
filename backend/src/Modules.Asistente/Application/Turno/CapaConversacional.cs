@@ -52,9 +52,29 @@ public sealed class CapaConversacional(
     /// inexistente arranca uno nuevo sin error.
     /// </param>
     /// <param name="mensaje">Lo que escribió el usuario.</param>
+    /// <param name="ct">El token del request.</param>
+    /// <param name="claveDelCliente">
+    /// La <c>Idempotency-Key</c> de este turno. Se guarda en el turno que
+    /// resulte (<see cref="TurnoDelHilo.ClaveDelCliente"/>), para que un
+    /// reemplazo futuro pueda nombrarlo (design.md D9 de asistente-rediseno-v3).
+    /// </param>
+    /// <param name="reemplaza">
+    /// El identificador del turno que este turno reemplaza —la
+    /// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c>
+    /// de uno reanudado—, o <c>null</c> para un turno nuevo cualquiera.
+    /// </param>
     /// <exception cref="HiloAjeno">Si el hilo pertenece a otro actor.</exception>
+    /// <exception cref="ReemplazoInvalido">
+    /// Si <paramref name="reemplaza"/> no nombra el último turno vigente del
+    /// hilo del actor. No cambia nada: ni el hilo, ni el historial, ni el cupo.
+    /// </exception>
     public async Task<ResultadoDelTurno> ResponderAsync(
-        Guid actor, Guid? hilo, string mensaje, CancellationToken ct)
+        Guid actor,
+        Guid? hilo,
+        string mensaje,
+        CancellationToken ct,
+        string? claveDelCliente = null,
+        string? reemplaza = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -69,8 +89,19 @@ public sealed class CapaConversacional(
             var turnoRechazado = FabricasDelResultado.Degradado(
                 conversacionRechazada, PoliticaDeAbstencion.TextoTurnoConcurrente);
 
-            await RegistrarAsync(
-                actor, conversacionRechazada, mensaje, turnoRechazado, reloj.GetUtcNow(), ct);
+            // REEMPLAZO + CANDADO RECHAZADO (design.md D9, punto 4): «el
+            // rechazo del candado no cambia nada». Un turno nuevo cualquiera
+            // sigue anotando el rechazo en el historial como siempre —y por
+            // eso lo marca como último registrado, igual que cualquier otro
+            // turno registrable—; un reemplazo NO lo anota, para que el turno
+            // viejo quede intacto.
+            if (reemplaza is null)
+            {
+                await RegistrarAsync(
+                    actor, conversacionRechazada, mensaje, turnoRechazado, reloj.GetUtcNow(), ct,
+                    claveDelCliente, conversacionRechazada.InicioDeSegmento,
+                    conversacionRechazada.AclaracionPendiente);
+            }
 
             return turnoRechazado with
             {
@@ -89,13 +120,52 @@ public sealed class CapaConversacional(
             ct, TimeSpan.FromSeconds(valores.PresupuestoDelTurnoSegundos), reloj);
 
         var conversacion = hilos.Resolver(hilo, actor);
+
+        // VALIDACIÓN DEL OBJETIVO DE REEMPLAZO (design.md D9, punto 1): después
+        // del candado, y antes de sacar nada. El objetivo se chequea contra
+        // `UltimoRegistrado` —el último turno que se registró al historial,
+        // SEA CUAL SEA SU CARRIL— y no contra el contexto SQL: un saludo, una
+        // meta-pregunta, un menú de aclaración o una degradación pre-SQL
+        // nunca entran a ese contexto, pero siguen siendo «la última
+        // pregunta». Un objetivo que no coincide —o un hilo vencido, que
+        // resolvió acá arriba en uno nuevo y vacío— es 409 y no cambia nada:
+        // no cobra cupo (no hubo llamada al modelo) y suelta el candado
+        // explícitamente, porque salir acá se salta el `finally` de abajo.
+        TurnoSacado? reemplazado = null;
+        if (reemplaza is not null)
+        {
+            var ultimo = conversacion.UltimoRegistrado;
+            if (ultimo is null || !EsElObjetivoDelReemplazo(ultimo, reemplaza))
+            {
+                await candado.DisposeAsync();
+                throw new ReemplazoInvalido(reemplaza);
+            }
+
+            // SACA EL TURNO VIEJO ANTES DE RESOLVER (design.md D9, punto 2): la
+            // pregunta nueva se resuelve contra la MISMA `conversacion`, ya sin
+            // su último turno —si había entrado al contexto SQL— y con el
+            // segmento/aclaración que tenía antes de él — la vista sin el
+            // turno reemplazado.
+            reemplazado = conversacion.QuitarUltimoParaReemplazo();
+        }
+
+        // SNAPSHOT DE «ANTES DE ESTE TURNO» (design.md D9). Se captura ACÁ —
+        // después de sacar el turno reemplazado, si lo hay, así que ve la
+        // vista ya restaurada— y no adentro de `ResolverAsync`, porque el
+        // `catch` de abajo (presupuesto vencido) nunca llega a invocarlo y
+        // necesita el mismo valor: es lo que describe el contexto que ESTE
+        // turno tuvo, para que un reemplazo futuro pueda restaurarlo.
+        var inicioDeSegmentoAntes = conversacion.InicioDeSegmento;
+        var aclaracionAntes = conversacion.AclaracionPendiente;
+
         var arranco = reloj.GetUtcNow();
         ResultadoDelTurno resultado;
 
         try
         {
             var turno = await ResolverAsync(
-                actor, conversacion, mensaje, valores, presupuesto.Token);
+                actor, conversacion, mensaje, claveDelCliente,
+                inicioDeSegmentoAntes, aclaracionAntes, valores, presupuesto.Token);
 
             if (turno.ClaveDeRetroalimentacion is { } token)
             {
@@ -113,7 +183,9 @@ public sealed class CapaConversacional(
             // impide que el logging reabra el cruce que TD-012 cierra.
             log.LogInformation("Turno del asistente resuelto para el actor {ActorId}.", actor);
 
-            await RegistrarAsync(actor, conversacion, mensaje, turno, arranco, ct);
+            await RegistrarAsync(
+                actor, conversacion, mensaje, turno, arranco, ct,
+                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado);
 
             resultado = turno;
         }
@@ -126,7 +198,9 @@ public sealed class CapaConversacional(
                 valores.PresupuestoDelTurnoSegundos);
 
             var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
-            await RegistrarAsync(actor, conversacion, mensaje, turno, arranco, ct);
+            await RegistrarAsync(
+                actor, conversacion, mensaje, turno, arranco, ct,
+                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado);
 
             resultado = turno;
         }
@@ -142,9 +216,18 @@ public sealed class CapaConversacional(
             log.LogError(
                 excepcion, "El turno del asistente terminó en una excepción no prevista.");
 
+            // FALLO EN UN REEMPLAZO: no cambia nada (design.md D9, punto 4). Se
+            // repone el turno viejo ANTES de registrar el fallo, así que el
+            // hilo queda exactamente como estaba cuando el actor pidió el
+            // reemplazo.
+            if (reemplazado is { } saliente)
+            {
+                conversacion.ReponerTrasFallo(saliente);
+            }
+
             await RegistrarAsync(
                 actor, conversacion, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas),
-                arranco, ct);
+                arranco, ct, claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes);
 
             throw;
         }
@@ -215,13 +298,33 @@ public sealed class CapaConversacional(
     /// Va con el token del request y no con el del presupuesto: si el turno se cortó
     /// por tiempo, el registro de ese corte es justamente lo que hay que conservar.
     /// </remarks>
+    /// <param name="claveDelCliente">
+    /// La <c>Idempotency-Key</c> de este turno. Queda como la identidad de
+    /// <see cref="HiloConversacional.UltimoRegistrado"/> si el turno se
+    /// registra, para que un reemplazo futuro pueda nombrarlo.
+    /// </param>
+    /// <param name="inicioDeSegmentoAntes">
+    /// El segmento que el hilo tenía justo ANTES de resolver este turno. Ver
+    /// <see cref="HiloConversacional.MarcarUltimoRegistrado"/>.
+    /// </param>
+    /// <param name="aclaracionAntes">Mismo motivo que <paramref name="inicioDeSegmentoAntes"/>.</param>
+    /// <param name="reemplazado">
+    /// El turno que este resultado reemplaza, o <c>null</c> para un turno nuevo
+    /// cualquiera (design.md D9 de asistente-rediseno-v3). Con un turno
+    /// reemplazado: se revoca su token de retroalimentación y el historial
+    /// reemplaza su fila en vez de agregar una nueva.
+    /// </param>
     private async Task RegistrarAsync(
         Guid actor,
         HiloConversacional conversacion,
         string mensaje,
         ResultadoDelTurno turno,
         DateTimeOffset arranco,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? claveDelCliente,
+        int inicioDeSegmentoAntes,
+        Aclaracion? aclaracionAntes,
+        TurnoSacado? reemplazado = null)
     {
         var ahora = reloj.GetUtcNow();
 
@@ -266,17 +369,60 @@ public sealed class CapaConversacional(
         // (RF-10), así que el mensaje es el valor correcto en ese caso.
         if (turno.Estado != EstadoDelTurno.Fallo)
         {
-            await historial.RegistrarTurnoAsync(
-                conversacion,
-                new TurnoParaHistorial(
-                    actor,
-                    turno.PreguntaInterpretada ?? mensaje,
-                    turno.SqlEjecutado,
-                    turno.Estado,
-                    ahora),
-                ct);
+            // MARCA ESTE TURNO COMO EL ÚLTIMO REGISTRADO, SEA CUAL SEA SU
+            // CARRIL (design.md D9): es lo que deja disponible para un
+            // reemplazo FUTURO, sin importar si este turno también entró al
+            // contexto SQL. `TurnoHistoricoId` queda en null a propósito: un
+            // turno vivo no se identifica por ahí —ver
+            // `EsElObjetivoDelReemplazo`—, y el reemplazo en la base apunta a
+            // «la última fila de esta conversación» sin necesitar guardar su id.
+            conversacion.MarcarUltimoRegistrado(
+                claveDelCliente,
+                turnoHistoricoId: null,
+                turno.ClaveDeRetroalimentacion,
+                inicioDeSegmentoAntes,
+                aclaracionAntes);
+
+            var paraHistorial = new TurnoParaHistorial(
+                actor,
+                turno.PreguntaInterpretada ?? mensaje,
+                turno.SqlEjecutado,
+                turno.Estado,
+                ahora);
+
+            // REEMPLAZO CON DESENLACE REGISTRABLE (design.md D9, punto 3): se
+            // revoca el token viejo y el historial reemplaza su fila, en vez de
+            // agregar una nueva. Nunca llega acá con `turno.Estado == Fallo`
+            // —ese caso restaura el turno viejo antes de llamar y no lo pasa—,
+            // así que un `reemplazado` no nulo siempre es un reemplazo que se
+            // concreta.
+            if (reemplazado is not null)
+            {
+                if (reemplazado.Identidad.ClaveDeRetroalimentacion is { } tokenViejo)
+                {
+                    validezDeRetroalimentacion.Revocar(tokenViejo);
+                }
+
+                await historial.ReemplazarUltimoTurnoAsync(conversacion, paraHistorial, ct);
+            }
+            else
+            {
+                await historial.RegistrarTurnoAsync(conversacion, paraHistorial, ct);
+            }
         }
     }
+
+    /// <summary>
+    /// Si <paramref name="reemplaza"/> nombra al último turno registrado: su
+    /// <c>Idempotency-Key</c> si es de esta sesión, o su
+    /// <c>turno_historico.id</c> si es de una conversación reanudada
+    /// (design.md D9 de asistente-rediseno-v3).
+    /// </summary>
+    private static bool EsElObjetivoDelReemplazo(IdentidadDelUltimoRegistrado ultimo, string reemplaza) =>
+        string.Equals(ultimo.ClaveDelCliente, reemplaza, StringComparison.Ordinal)
+        || (ultimo.TurnoHistoricoId is { } id
+            && Guid.TryParse(reemplaza, out var idPedido)
+            && id == idPedido);
 
     private static CarrilDelTurno CarrilDe(ResultadoDelTurno turno) => turno.Estado switch
     {
@@ -290,10 +436,20 @@ public sealed class CapaConversacional(
         _ => CarrilDelTurno.Sql,
     };
 
+    /// <param name="inicioDeSegmentoAntes">
+    /// El segmento que el hilo tenía justo ANTES de este turno —capturado por
+    /// quien llama, en <c>ResponderAsync</c>, y no acá: el <c>catch</c> del
+    /// presupuesto vencido nunca invoca este método y necesita el mismo
+    /// valor—. Viaja al turno que agrega el carril SQL (design.md D9).
+    /// </param>
+    /// <param name="aclaracionAntes">Mismo motivo que <paramref name="inicioDeSegmentoAntes"/>.</param>
     private async Task<ResultadoDelTurno> ResolverAsync(
         Guid actor,
         HiloConversacional conversacion,
         string mensaje,
+        string? claveDelCliente,
+        int inicioDeSegmentoAntes,
+        Aclaracion? aclaracionAntes,
         OpcionesAsistente valores,
         CancellationToken ct)
     {
@@ -462,7 +618,14 @@ public sealed class CapaConversacional(
         // La consulta que respondió, no la que se generó: con reintento el carril ya
         // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
         // anota nula a propósito — ver TurnoDelHilo.
-        conversacion.Agregar(interpretada, reloj.GetUtcNow(), resultado.SqlEjecutado);
+        conversacion.Agregar(
+            interpretada,
+            reloj.GetUtcNow(),
+            resultado.SqlEjecutado,
+            claveDelCliente: claveDelCliente,
+            inicioDeSegmentoAntes: inicioDeSegmentoAntes,
+            aclaracionPendienteAntes: aclaracionAntes,
+            huboAclaracionAntes: true);
 
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema

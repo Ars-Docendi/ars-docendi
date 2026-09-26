@@ -216,6 +216,13 @@ export interface TurnoDeLaConversacion {
    * «volver a consultar».
    */
   historico?: TurnoHistoricoEnCurso;
+  /**
+   * El identificador del turno que ESTE turno reemplaza —su propio `id`
+   * anterior—, si nació de «Editar y reenviar»
+   * (asistente-edicion-de-la-ultima-pregunta). Se reusa en «Reintentar»,
+   * para que un reenvío fallido reintente con el mismo objetivo.
+   */
+  reemplaza?: string;
 }
 
 // ============================================================

@@ -370,6 +370,133 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         await Task.CompletedTask;
     }
 
+    // --------------------------------------- reemplazo (design.md D9, ARS-147)
+
+    [Fact]
+    public async Task Reemplazar_una_pregunta_que_no_es_la_ultima_devuelve_409()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var primera = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", "clave-1"));
+        await LeerAsync(await Preguntar(
+            cliente, "¿y en Álgebra?", "clave-2", hilo: primera.Hilo));
+
+        using var respuesta = await Preguntar(
+            cliente, "¿y en Análisis?", "clave-3", hilo: primera.Hilo, reemplaza: "clave-1");
+
+        Assert.Equal(HttpStatusCode.Conflict, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reemplazar_sobre_un_hilo_que_no_existe_devuelve_409_y_no_escribe_nada()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(
+            cliente, "¿y en Análisis?", "clave-1",
+            hilo: Guid.NewGuid(), reemplaza: "cualquier-clave");
+
+        Assert.Equal(HttpStatusCode.Conflict, respuesta.StatusCode);
+        Assert.Equal(0, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Un_reemplazo_valido_actualiza_la_conversacion_persistida()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+        var ct = TestContext.Current.CancellationToken;
+
+        var primera = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", "clave-1"));
+
+        var segunda = await LeerAsync(await Preguntar(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primera.Hilo, reemplaza: "clave-1"));
+
+        Assert.Equal(primera.Hilo, segunda.Hilo);
+        Assert.Equal(primera.Conversacion, segunda.Conversacion);
+
+        var detalle = await cliente.GetFromJsonAsync<ConversacionDetalleDto>(
+            $"/api/asistente/historial/{segunda.Conversacion}", ct);
+
+        Assert.NotNull(detalle);
+        var turnoFinal = Assert.Single(detalle.Turnos);
+        Assert.Contains("adjuntos", turnoFinal.Pregunta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task El_reemplazo_revoca_el_token_viejo_y_acepta_el_nuevo()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+        var ct = TestContext.Current.CancellationToken;
+
+        var primera = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", "clave-1"));
+        var tokenViejo = primera.ClaveDeRetroalimentacion;
+        Assert.NotNull(tokenViejo);
+
+        var segunda = await LeerAsync(await Preguntar(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primera.Hilo, reemplaza: "clave-1"));
+
+        using var rechazado = await cliente.PostAsJsonAsync(
+            "/api/asistente/retroalimentacion",
+            new PedidoDeRetroalimentacion(tokenViejo!.Value, true, null),
+            ct);
+        Assert.Equal(HttpStatusCode.NotFound, rechazado.StatusCode);
+
+        using var aceptado = await cliente.PostAsJsonAsync(
+            "/api/asistente/retroalimentacion",
+            new PedidoDeRetroalimentacion(segunda.ClaveDeRetroalimentacion!.Value, true, null),
+            ct);
+        Assert.Equal(HttpStatusCode.NoContent, aceptado.StatusCode);
+    }
+
+    [Fact]
+    public async Task Un_reintento_con_la_misma_clave_aplica_el_reemplazo_una_sola_vez()
+    {
+        // «quota charged once even on retry with the same Idempotency-Key»: la
+        // segunda vez con la misma clave y el mismo objetivo tiene que devolver
+        // lo mismo sin volver a llamar al proveedor ni reemplazar de nuevo.
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+        var ct = TestContext.Current.CancellationToken;
+
+        var primera = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", "clave-1"));
+
+        var segunda = await LeerAsync(await Preguntar(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primera.Hilo, reemplaza: "clave-1"));
+        var gastadas = proveedor.Llamadas;
+
+        var reintento = await LeerAsync(await Preguntar(
+            cliente, "¿cuántos adjuntos hay?", "clave-2", hilo: primera.Hilo, reemplaza: "clave-1"));
+
+        Assert.Equal(gastadas, proveedor.Llamadas);
+        Assert.Equal(segunda.Respuesta, reintento.Respuesta);
+        Assert.Equal(segunda.Conversacion, reintento.Conversacion);
+
+        var detalle = await cliente.GetFromJsonAsync<ConversacionDetalleDto>(
+            $"/api/asistente/historial/{segunda.Conversacion}", ct);
+
+        Assert.NotNull(detalle);
+        // Un solo turno final: el reintento no aplicó un segundo reemplazo.
+        Assert.Single(detalle.Turnos);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static Modules.Asistente.Application.ResultadoDelTurno TurnoCualquiera() =>
@@ -392,11 +519,15 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     }
 
     private static async Task<HttpResponseMessage> Preguntar(
-        HttpClient cliente, string mensaje, string? clave = "clave-de-prueba")
+        HttpClient cliente,
+        string mensaje,
+        string? clave = "clave-de-prueba",
+        Guid? hilo = null,
+        string? reemplaza = null)
     {
         using var pedido = new HttpRequestMessage(HttpMethod.Post, Ruta)
         {
-            Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, null)),
+            Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, hilo, reemplaza)),
         };
 
         if (clave is not null)
@@ -483,6 +614,11 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     private sealed class HistorialQueNuncaEscribe : Modules.Asistente.Application.IRegistroDeHistorial
     {
         public Task RegistrarTurnoAsync(
+            Modules.Asistente.Application.HiloConversacional conversacion,
+            Modules.Asistente.Application.TurnoParaHistorial turno,
+            CancellationToken ct) => Task.CompletedTask;
+
+        public Task ReemplazarUltimoTurnoAsync(
             Modules.Asistente.Application.HiloConversacional conversacion,
             Modules.Asistente.Application.TurnoParaHistorial turno,
             CancellationToken ct) => Task.CompletedTask;

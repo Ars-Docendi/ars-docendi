@@ -60,7 +60,8 @@ public sealed class AsistenteController(
         ResultadoDelTurno turno;
         try
         {
-            turno = await capa.ResponderAsync(actor, consulta.Hilo, consulta.Mensaje, ct);
+            turno = await capa.ResponderAsync(
+                actor, consulta.Hilo, consulta.Mensaje, ct, claveDeIdempotencia, consulta.Reemplaza);
         }
         catch (HiloAjeno)
         {
@@ -71,6 +72,18 @@ public sealed class AsistenteController(
                 Title = "El hilo no existe",
                 Detail = "Empezá una conversación nueva.",
                 Status = StatusCodes.Status404NotFound,
+            });
+        }
+        catch (ReemplazoInvalido)
+        {
+            // `Reemplaza` no nombra el último turno vigente del hilo —o el hilo
+            // venció— (design.md D9 de asistente-rediseno-v3). `409` y nada
+            // cambió: ni el hilo, ni el historial, ni el cupo.
+            return Conflict(new ProblemDetails
+            {
+                Title = "Ese turno ya no se puede reemplazar",
+                Detail = "Sólo se puede reemplazar la última pregunta vigente de la conversación.",
+                Status = StatusCodes.Status409Conflict,
             });
         }
 
