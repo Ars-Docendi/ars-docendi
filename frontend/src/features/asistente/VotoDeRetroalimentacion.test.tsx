@@ -9,8 +9,9 @@ import { montar } from "./test/soporte";
 // ============================================================
 // Thumbs up/down on an answered turn, v3 (asistente-retroalimentacion,
 // asistente-superficie-frontend, asistente-accesibilidad, design.md D6/D7/D14
-// de asistente-rediseno-v3): íconos en vez de texto, panel de pastillas de
-// elección única, sin campo de texto libre.
+// de asistente-rediseno-v3, PO-changed 2026-09-26): íconos en vez de texto,
+// panel de pastillas de elección MÚLTIPLE más un comentario libre acotado,
+// igual que el mock.
 // ============================================================
 
 const TOKEN = "11111111-1111-4111-8111-111111111111";
@@ -71,7 +72,7 @@ describe("aria-pressed and keyboard operation", () => {
 });
 
 describe("El panel «¿Qué falló? Opcional» en un «No sirvió»", () => {
-  it("shows the four reason pills before sending, and no text input", async () => {
+  it("shows the four reason pills, the comment textarea, its hint and its counter", async () => {
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
@@ -83,79 +84,135 @@ describe("El panel «¿Qué falló? Opcional» en un «No sirvió»", () => {
     expect(screen.getByRole("button", { name: "No entendió la pregunta" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Faltan datos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Otro" })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).toBeNull();
+
+    const comentario = screen.getByPlaceholderText("Contanos qué esperabas ver…");
+    expect(comentario).toBeInTheDocument();
+    expect(comentario).toHaveAttribute("maxlength", "500");
+    expect(screen.getByText("No incluyas datos personales.")).toBeInTheDocument();
+    expect(screen.getByText("0/500")).toBeInTheDocument();
   });
 
-  it("«Omitir» sends the thumbs-down vote with no reason", async () => {
+  it("«Omitir» sends the thumbs-down vote with no reason and no comment", async () => {
     const enviar = vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
     await user.click(screen.getByRole("button", { name: "No sirvió" }));
+    await user.click(screen.getByRole("button", { name: "Otro" }));
+    await user.type(
+      screen.getByPlaceholderText("Contanos qué esperabas ver…"),
+      "esto no debería enviarse",
+    );
     await user.click(screen.getByRole("button", { name: "Omitir" }));
 
-    expect(enviar).toHaveBeenCalledWith({ token: TOKEN, voto: false, razon: undefined });
+    expect(enviar).toHaveBeenCalledWith({
+      token: TOKEN,
+      voto: false,
+      razones: undefined,
+      comentario: undefined,
+    });
     expect(screen.getByRole("button", { name: "No sirvió" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
   });
 
-  it("«Enviar» sin elegir ninguna pastilla también manda sin motivo", async () => {
+  it("«Enviar comentario» sin elegir ninguna pastilla y sin comentario también manda vacío", async () => {
     const enviar = vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
     await user.click(screen.getByRole("button", { name: "No sirvió" }));
-    await user.click(screen.getByRole("button", { name: "Enviar" }));
+    await user.click(screen.getByRole("button", { name: "Enviar comentario" }));
 
-    expect(enviar).toHaveBeenCalledWith({ token: TOKEN, voto: false, razon: undefined });
+    expect(enviar).toHaveBeenCalledWith({
+      token: TOKEN,
+      voto: false,
+      razones: undefined,
+      comentario: undefined,
+    });
   });
 
-  it("picking a reason and sending includes it", async () => {
+  it("picking several reasons and sending includes all of them", async () => {
     const enviar = vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
     await user.click(screen.getByRole("button", { name: "No sirvió" }));
     await user.click(screen.getByRole("button", { name: "Faltan datos" }));
-    await user.click(screen.getByRole("button", { name: "Enviar" }));
+    await user.click(screen.getByRole("button", { name: "Datos incorrectos" }));
+    await user.click(screen.getByRole("button", { name: "Enviar comentario" }));
 
-    expect(enviar).toHaveBeenCalledWith({ token: TOKEN, voto: false, razon: "faltan_datos" });
+    expect(enviar).toHaveBeenCalledWith({
+      token: TOKEN,
+      voto: false,
+      razones: ["faltan_datos", "datos_incorrectos"],
+      comentario: undefined,
+    });
   });
 
-  it("sólo una pastilla puede estar elegida a la vez", async () => {
+  it("typing a comment and sending includes it, trimmed", async () => {
+    const enviar = vi.spyOn(api, "enviarRetroalimentacion").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
+
+    await user.click(screen.getByRole("button", { name: "No sirvió" }));
+    await user.type(
+      screen.getByPlaceholderText("Contanos qué esperabas ver…"),
+      "  faltó el aula  ",
+    );
+    await user.click(screen.getByRole("button", { name: "Enviar comentario" }));
+
+    expect(enviar).toHaveBeenCalledWith({
+      token: TOKEN,
+      voto: false,
+      razones: undefined,
+      comentario: "faltó el aula",
+    });
+  });
+
+  it("the counter tracks how many characters are typed", async () => {
+    const user = userEvent.setup();
+    montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
+
+    await user.click(screen.getByRole("button", { name: "No sirvió" }));
+    await user.type(screen.getByPlaceholderText("Contanos qué esperabas ver…"), "hola");
+
+    expect(screen.getByText("4/500")).toBeInTheDocument();
+  });
+
+  it("several pills can be selected at the same time, independently", async () => {
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
     await user.click(screen.getByRole("button", { name: "No sirvió" }));
     await user.click(screen.getByRole("button", { name: "Datos incorrectos" }));
+    await user.click(screen.getByRole("button", { name: "Faltan datos" }));
+
     expect(screen.getByRole("button", { name: "Datos incorrectos" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-
-    await user.click(screen.getByRole("button", { name: "Faltan datos" }));
-
     expect(screen.getByRole("button", { name: "Faltan datos" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Datos incorrectos" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
   });
 
-  it("tocar la pastilla ya elegida la deselecciona", async () => {
+  it("tocar una pastilla ya elegida la deselecciona sin afectar a las demás", async () => {
     const user = userEvent.setup();
     montar(<VotoDeRetroalimentacion claveDeRetroalimentacion={TOKEN} />);
 
     await user.click(screen.getByRole("button", { name: "No sirvió" }));
     await user.click(screen.getByRole("button", { name: "Otro" }));
+    await user.click(screen.getByRole("button", { name: "Faltan datos" }));
     await user.click(screen.getByRole("button", { name: "Otro" }));
 
     expect(screen.getByRole("button", { name: "Otro" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Faltan datos" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });
 
@@ -217,6 +274,11 @@ describe("Confirmation and changing the vote", () => {
 
     await user.click(screen.getByRole("button", { name: "Sirvió" }));
 
-    expect(enviar).toHaveBeenCalledWith({ token: TOKEN, voto: true, razon: undefined });
+    expect(enviar).toHaveBeenCalledWith({
+      token: TOKEN,
+      voto: true,
+      razones: undefined,
+      comentario: undefined,
+    });
   });
 });

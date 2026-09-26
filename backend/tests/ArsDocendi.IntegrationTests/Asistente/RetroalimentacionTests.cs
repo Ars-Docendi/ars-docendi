@@ -145,12 +145,13 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
         await VotarAsync(cliente, token, voto: true);
-        await VotarAsync(cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
+        await VotarAsync(
+            cliente, token, voto: false, razones: [RazonesDeRetroalimentacionExpuestas.FaltanDatos]);
 
         Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(token));
-        var (voto, razon) = await LeerFilaAsync(token);
+        var (voto, razones, _) = await LeerFilaAsync(token);
         Assert.False(voto);
-        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
+        Assert.Equal([RazonesDeRetroalimentacionExpuestas.FaltanDatos], razones);
     }
 
     [Fact]
@@ -163,11 +164,127 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
 
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
-        await VotarAsync(cliente, token, voto: true, razon: RazonesDeRetroalimentacionExpuestas.Otro);
+        await VotarAsync(
+            cliente, token, voto: true, razones: [RazonesDeRetroalimentacionExpuestas.Otro]);
 
-        var (voto, razon) = await LeerFilaAsync(token);
+        var (voto, razones, _) = await LeerFilaAsync(token);
         Assert.True(voto);
-        Assert.Null(razon);
+        Assert.Null(razones);
+    }
+
+    [Fact]
+    public async Task A_thumbs_down_with_several_reasons_stores_all_of_them()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false,
+            razones:
+            [
+                RazonesDeRetroalimentacionExpuestas.DatosIncorrectos,
+                RazonesDeRetroalimentacionExpuestas.FaltanDatos,
+            ]);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var (_, razones, _) = await LeerFilaAsync(token);
+        Assert.Equal(
+            [
+                RazonesDeRetroalimentacionExpuestas.DatosIncorrectos,
+                RazonesDeRetroalimentacionExpuestas.FaltanDatos,
+            ],
+            razones);
+    }
+
+    [Fact]
+    public async Task A_duplicated_reason_is_rejected()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false,
+            razones: [RazonesDeRetroalimentacionExpuestas.Otro, RazonesDeRetroalimentacionExpuestas.Otro]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal(0L, await ContarFilaDeRetroalimentacionAsync(token));
+    }
+
+    [Fact]
+    public async Task A_comment_within_the_limit_is_stored_trimmed()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false, comentario: "  Esperaba otra cosa  ");
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var (_, _, comentario) = await LeerFilaAsync(token);
+        Assert.Equal("Esperaba otra cosa", comentario);
+    }
+
+    [Fact]
+    public async Task A_comment_over_the_limit_after_trimming_is_rejected()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+        var comentarioLargo = new string('a', 501);
+
+        using var respuesta = await VotarAsync(cliente, token, voto: false, comentario: comentarioLargo);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal(0L, await ContarFilaDeRetroalimentacionAsync(token));
+    }
+
+    [Fact]
+    public async Task A_whitespace_only_comment_is_stored_as_absent()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(cliente, token, voto: false, comentario: "   ");
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var (_, _, comentario) = await LeerFilaAsync(token);
+        Assert.Null(comentario);
+    }
+
+    [Fact]
+    public async Task A_thumbs_up_with_a_comment_present_stores_no_comment()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        await VotarAsync(cliente, token, voto: true, comentario: "no debería guardarse");
+
+        var (voto, _, comentario) = await LeerFilaAsync(token);
+        Assert.True(voto);
+        Assert.Null(comentario);
     }
 
     [Fact]
@@ -195,12 +312,13 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
 
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
-        using var respuesta = await VotarAsync(cliente, token, voto: false, razon: "no-es-una-razon-valida");
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false, razones: ["no-es-una-razon-valida"]);
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
     }
 
-    // ------------------------------------------ D7: retiring `lento` (5.2)
+    // ------------------------------------------ D7: `lento` removed entirely (5.6)
 
     [Fact]
     public async Task Faltan_datos_is_accepted_as_a_reason()
@@ -213,15 +331,15 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
         using var respuesta = await VotarAsync(
-            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
+            cliente, token, voto: false, razones: [RazonesDeRetroalimentacionExpuestas.FaltanDatos]);
 
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
-        var (_, razon) = await LeerFilaAsync(token);
-        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
+        var (_, razones, _) = await LeerFilaAsync(token);
+        Assert.Equal([RazonesDeRetroalimentacionExpuestas.FaltanDatos], razones);
     }
 
     [Fact]
-    public async Task Lento_is_rejected_as_a_new_reason()
+    public async Task Lento_is_rejected_like_any_other_unknown_reason()
     {
         await SembrarAsync();
         using var host = CrearHost();
@@ -231,34 +349,10 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
         using var respuesta = await VotarAsync(
-            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.Lento);
+            cliente, token, voto: false, razones: [RazonesDeRetroalimentacionExpuestas.Lento]);
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
         Assert.Equal(0L, await ContarFilaDeRetroalimentacionAsync(token));
-    }
-
-    [Fact]
-    public async Task Changing_a_legacy_lento_vote_replaces_its_reason()
-    {
-        await SembrarAsync();
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        Autenticar(cliente, Secretaria, "secretaria");
-
-        var token = await PreguntarYObtenerTokenAsync(cliente);
-        // Una fila de antes de este cambio, cuando `lento` todavía era válido —la
-        // API ya no la produce, así que se simula por SQL directo (design.md D7 de
-        // asistente-rediseno-v3).
-        await SembrarVotoLegacyAsync(token, RazonesDeRetroalimentacionExpuestas.Lento);
-
-        using var respuesta = await VotarAsync(
-            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
-
-        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
-        Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(token));
-        var (voto, razon) = await LeerFilaAsync(token);
-        Assert.False(voto);
-        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
     }
 
     // ------------------------------------------- D3: the log-field separation
@@ -279,7 +373,7 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
             new RegistroDeRetroalimentacion(new CadenaDuena(Cadena)),
             TimeProvider.System,
             new LoggerDeEventos<ServicioDeRetroalimentacion>(registrador));
-        await servicio.RegistrarAsync(token, true, null, TestContext.Current.CancellationToken);
+        await servicio.RegistrarAsync(token, true, null, null, TestContext.Current.CancellationToken);
 
         // The turn's own events may name the actor; none may also name the token.
         Assert.DoesNotContain(registrador.Eventos, e => e.Contains(Secretaria.ToString())
@@ -457,11 +551,15 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
     }
 
     private static async Task<HttpResponseMessage> VotarAsync(
-        HttpClient cliente, Guid token, bool voto, string? razon = null)
+        HttpClient cliente,
+        Guid token,
+        bool voto,
+        IReadOnlyList<string>? razones = null,
+        string? comentario = null)
     {
         using var pedido = new HttpRequestMessage(HttpMethod.Post, Ruta)
         {
-            Content = JsonContent.Create(new PedidoDeRetroalimentacion(token, voto, razon)),
+            Content = JsonContent.Create(new PedidoDeRetroalimentacion(token, voto, razones, comentario)),
         };
 
         return await cliente.SendAsync(pedido, TestContext.Current.CancellationToken);
@@ -479,38 +577,22 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
             "SELECT count(*) FROM asistente.retroalimentacion_turno WHERE analitico_id = @t",
             ("t", token));
 
-    private async Task<(bool Voto, string? Razon)> LeerFilaAsync(Guid token)
+    private async Task<(bool Voto, string[]? Razones, string? Comentario)> LeerFilaAsync(Guid token)
     {
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
-            "SELECT voto, razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @t",
+            "SELECT voto, razones, comentario FROM asistente.retroalimentacion_turno "
+            + "WHERE analitico_id = @t",
             conexion);
         comando.Parameters.AddWithValue("t", token);
 
         await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
         await lector.ReadAsync(TestContext.Current.CancellationToken);
 
-        return (lector.GetBoolean(0), lector.IsDBNull(1) ? null : lector.GetString(1));
-    }
-
-    /// <summary>
-    /// Deja el voto de `token` como habría quedado antes de D7: escribe `razon`
-    /// por SQL directo, porque la API ya no la acepta. `retroalimentacion_turno_razon_valida`
-    /// sigue permitiendo `lento` para SIEMPRE en la base —ver el comentario de
-    /// 003_asistente_retroalimentacion.sql: este módulo no puede `DROP`/`ALTER`
-    /// una CHECK existente (`ArquitecturaAsistenteTests`), así que el único guard
-    /// real es la API—, y por eso este insert no necesita destrabar nada.
-    /// </summary>
-    private async Task SembrarVotoLegacyAsync(Guid token, string razon)
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await using var insertar = new NpgsqlCommand(
-            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
-            + "VALUES (@id, false, @razon, now())",
-            conexion);
-        insertar.Parameters.AddWithValue("id", token);
-        insertar.Parameters.AddWithValue("razon", razon);
-        await insertar.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        return (
+            lector.GetBoolean(0),
+            lector.IsDBNull(1) ? null : lector.GetFieldValue<string[]>(1),
+            lector.IsDBNull(2) ? null : lector.GetString(2));
     }
 
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
@@ -561,9 +643,9 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         public const string Otro = "otro";
 
         /// <summary>
-        /// Retired by D7 of asistente-rediseno-v3: the API rejects it on every new
-        /// submission. Kept here only to prove that rejection and to simulate a
-        /// row recorded before the retirement (`SembrarVotoLegacyAsync`).
+        /// Removed entirely by D7 of asistente-rediseno-v3 (PO-changed 2026-09-26):
+        /// nothing shipped to production, so there is no legacy row anywhere. Kept
+        /// here only to prove the API rejects it like any other unknown value.
         /// </summary>
         public const string Lento = "lento";
     }

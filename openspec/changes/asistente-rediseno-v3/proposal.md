@@ -32,11 +32,14 @@ ready before any code (ARS-141).
   view with the question as title, «Copiar tabla», «Exportar a CSV» and «Contraer». CSV
   exports follow the displayed order. Frontend only.
 - **Answer action bar and new thumbs-down reasons (ARS-146).** Icon toolbar under each
-  answer (copy answer, expand table, export CSV | 👍 👎) replaces the text buttons.
-  Reasons become Datos incorrectos / No entendió la pregunta / Faltan datos / Otro:
-  `lento` is no longer accepted, `faltan_datos` is added; existing `lento` rows are kept
-  until the existing 90-day purge removes them. **BREAKING (API):** `razon: "lento"` is
-  now rejected with `400`.
+  answer (copy answer, expand table, export CSV | 👍 👎) replaces the text buttons. The
+  legacy reason `lento` is removed entirely (nothing shipped to production, so nothing to
+  preserve); the closed set is Datos incorrectos / No entendió la pregunta / Faltan datos
+  / Otro. The 👎 panel now takes zero or more of those reasons plus an optional free-text
+  comment (max 500 characters, never logged, never sent to the model, no read surface),
+  matching the mock. **BREAKING (API):** `POST /api/asistente/retroalimentacion` takes
+  `razones: string[]` and `comentario?: string` instead of `razon?: string`; `lento` is
+  rejected with `400` like any other unknown value.
 - **Edit and resend the last question (ARS-147).** Only the last question is editable
   inline; resending replaces that question and its answer, in the in-memory thread and in
   `turno_historico`, with no «N / M» versions. The replaced turn's feedback token stops
@@ -59,8 +62,8 @@ ready before any code (ARS-141).
 - **Docs.** Design spec v3 section (rule 9), API contracts, data model, domain doc,
   module README, BR-`asistente`-005 note, evaluation README and TD-024 (rule 6).
 
-Out of scope: mobile/narrow layouts, question versions, free-text feedback comments,
-per-reason refusal templates (ARS-139), the deterministic lane consuming references.
+Out of scope: mobile/narrow layouts, question versions, per-reason refusal templates
+(ARS-139), the deterministic lane consuming references.
 
 ## Capabilities
 
@@ -88,8 +91,9 @@ per-reason refusal templates (ARS-139), the deterministic lane consuming referen
   are visible to support, marked, until final deletion.
 - `asistente-contrato-de-respuesta`: no `sugerencias`; response names its persisted
   conversation.
-- `asistente-retroalimentacion`: new reason set with legacy `lento`; replaced turn's token
-  stops being accepted.
+- `asistente-retroalimentacion`: `lento` removed entirely; reasons become a list of zero
+  or more, plus an optional bounded free-text comment; replaced turn's token stops being
+  accepted.
 - `asistente-exportacion-csv`: export follows the displayed (sorted) order.
 - `asistente-abstencion`: refusals no longer carry suggestions.
 - `asistente-eje-social`: no-contestable items pass on abstention alone.

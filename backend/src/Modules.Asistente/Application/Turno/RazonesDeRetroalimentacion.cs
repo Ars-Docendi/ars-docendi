@@ -1,24 +1,18 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>
-/// The fixed, closed set of reasons a thumbs-down vote may carry.
+/// The fixed, closed set of reasons a thumbs-down vote may carry, zero or more at once.
 /// </summary>
 /// <remarks>
-/// Closed on purpose (asistente-retroalimentacion's spec: "MUST NOT accept
-/// free-text reasons"): free text is how a rare, identifying complaint ends up
-/// sitting next to an otherwise-anonymous row, the same class of risk TD-012
-/// already calls out for <c>intencion_sombra</c>. These four are exactly the
-/// values <see cref="Todas"/> accepts from the API — the database's own CHECK
-/// constraint (<c>retroalimentacion_turno_razon_valida</c> in
-/// <c>003_asistente_retroalimentacion.sql</c>) additionally allows the retired
-/// <c>lento</c>, forever: asistente-rediseno-v3's design.md D7 wanted a second,
-/// database-level guard rejecting new <c>lento</c> rows too, but a Postgres
-/// CHECK can only be widened by dropping and recreating it, and this module's
-/// own migration convention forbids every <c>DROP</c> — see the comment in that
-/// SQL file. <see cref="Todas"/> excluding it is therefore the ONLY guard: this
-/// table has exactly one writer (this service, through this list), so gating
-/// here is sufficient in practice, even though a hand-written SQL statement
-/// against the database directly could still write <c>lento</c>.
+/// Closed on purpose (asistente-retroalimentacion's spec): an unbounded vocabulary is how
+/// a rare, identifying detail ends up sitting next to an otherwise-anonymous row, the
+/// same class of risk TD-012 already calls out for <c>intencion_sombra</c>. These four
+/// are exactly the values <see cref="Todas"/> accepts from the API, and exactly the
+/// values the database's own CHECK constraint
+/// (<c>retroalimentacion_turno_razones_validas</c> in
+/// <c>003_asistente_retroalimentacion.sql</c>) restricts <c>razones</c>' elements to.
+/// "No duplicates" is validated by the controller and not by that CHECK — this table has
+/// exactly one writer, so gating here is sufficient in practice.
 /// </remarks>
 internal static class RazonesDeRetroalimentacion
 {

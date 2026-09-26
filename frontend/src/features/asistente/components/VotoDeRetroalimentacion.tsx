@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@ars-docendi/ui";
 
 import { checkIcon, thumbDownIcon, thumbUpIcon } from "../../../app/shell/icons";
@@ -17,16 +17,19 @@ const RAZONES: ReadonlyArray<{ valor: RazonDeRetroalimentacion; etiqueta: string
   { valor: "otro", etiqueta: "Otro" },
 ];
 
+/** Espejo de `LargoMaximoDelComentario` en `AsistenteController` (backend). */
+const LARGO_MAXIMO_DEL_COMENTARIO = 500;
+
 /**
- * Thumbs up/down for an answered turn, en v3 (asistente-rediseno-v3,
- * design.md D6/D7/D14): dos íconos —no texto— dentro de la barra de acciones
- * (`BarraDeAcciones`), y el panel «¿Qué falló?» con pastillas de elección
- * única, sin campo de texto libre.
+ * Thumbs up/down for an answered turn, en v3 (asistente-rediseno-v3, design.md
+ * D6/D7/D14, PO-changed 2026-09-26): dos íconos —no texto— dentro de la barra de
+ * acciones (`BarraDeAcciones`), y el panel «¿Qué falló?» con pastillas de
+ * elección múltiple más un comentario libre acotado, igual que el mock.
  *
  * Renders nothing without a token — there is nothing to rate without one, and
  * the backend would 404 anyway. A thumbs-up submits right away; a thumbs-down
  * opens the reason panel first and submits only from there («Omitir» o
- * «Enviar»), incluso sin ninguna pastilla elegida.
+ * «Enviar comentario»), incluso sin ninguna pastilla elegida ni comentario.
  *
  * State lives locally and not in `TurnoDeLaConversacion`: this component stays
  * mounted for the life of its turn (keyed by `turno.id` in `Conversacion`), so
@@ -41,23 +44,36 @@ const RAZONES: ReadonlyArray<{ valor: RazonDeRetroalimentacion; etiqueta: string
  * The confirmation text is picked up by the SAME live region `Conversacion.tsx`
  * already declares (`role="log" aria-live="polite"`) — there is no separate one
  * here — and nothing here ever moves focus.
+ *
+ * El comentario nunca se loguea, nunca viaja al modelo y no tiene superficie de
+ * lectura en ningún lugar de la interfaz (asistente-retroalimentacion's spec;
+ * adenda de TD-012 en docs/quality/tech-debt.md).
  */
 export function VotoDeRetroalimentacion({
   claveDeRetroalimentacion,
 }: VotoDeRetroalimentacionProps) {
+  const idComentario = useId();
   const [voto, setVoto] = useState<boolean | null>(null);
   const [mostrarPanel, setMostrarPanel] = useState(false);
-  const [razonElegida, setRazonElegida] = useState<RazonDeRetroalimentacion | null>(null);
+  const [razonesElegidas, setRazonesElegidas] = useState<RazonDeRetroalimentacion[]>([]);
+  const [comentario, setComentario] = useState("");
   const [confirmacion, setConfirmacion] = useState<string | null>(null);
 
   if (!claveDeRetroalimentacion) return null;
 
-  async function enviar(nuevoVoto: boolean, razon?: RazonDeRetroalimentacion) {
+  async function enviar(
+    nuevoVoto: boolean,
+    razones?: RazonDeRetroalimentacion[],
+    comentarioAEnviar?: string,
+  ) {
+    const comentarioRecortado = comentarioAEnviar?.trim();
+
     try {
       await enviarRetroalimentacion({
         token: claveDeRetroalimentacion!,
         voto: nuevoVoto,
-        razon,
+        razones: razones?.length ? razones : undefined,
+        comentario: comentarioRecortado ? comentarioRecortado : undefined,
       });
     } catch {
       // El token venció, o la red falló. No hay nada más que ofrecer acá: los
@@ -67,7 +83,8 @@ export function VotoDeRetroalimentacion({
 
     setVoto(nuevoVoto);
     setMostrarPanel(false);
-    setRazonElegida(null);
+    setRazonesElegidas([]);
+    setComentario("");
     // El agradecimiento es sólo del flujo de «No sirvió» (design.md D14):
     // un «Sirvió» no abre panel, así que su propia confirmación alcanza.
     setConfirmacion(
@@ -82,10 +99,11 @@ export function VotoDeRetroalimentacion({
     setConfirmacion(null);
   }
 
-  function elegirRazon(razon: RazonDeRetroalimentacion) {
-    // Elección única: tocar la ya elegida la deselecciona («Omitir» hace lo
-    // mismo con cero pastillas, así que esto no es una vía distinta).
-    setRazonElegida((actual) => (actual === razon ? null : razon));
+  function alternarRazon(razon: RazonDeRetroalimentacion) {
+    // Elección múltiple: cada pastilla se prende o apaga sola.
+    setRazonesElegidas((actuales) =>
+      actuales.includes(razon) ? actuales.filter((r) => r !== razon) : [...actuales, razon],
+    );
   }
 
   return (
@@ -125,7 +143,7 @@ export function VotoDeRetroalimentacion({
 
           <ul className="adoc-asistente-pastillas">
             {RAZONES.map((razon) => {
-              const elegida = razonElegida === razon.valor;
+              const elegida = razonesElegidas.includes(razon.valor);
               return (
                 <li key={razon.valor}>
                   <button
@@ -134,7 +152,7 @@ export function VotoDeRetroalimentacion({
                       elegida ? "adoc-asistente-pastilla elegida" : "adoc-asistente-pastilla"
                     }
                     aria-pressed={elegida}
-                    onClick={() => elegirRazon(razon.valor)}
+                    onClick={() => alternarRazon(razon.valor)}
                   >
                     {elegida && (
                       <span className="ico" aria-hidden="true">
@@ -148,6 +166,25 @@ export function VotoDeRetroalimentacion({
             })}
           </ul>
 
+          <div className="adoc-asistente-voto-panel-campo">
+            <textarea
+              id={idComentario}
+              className="adoc-asistente-voto-panel-comentario"
+              rows={2}
+              maxLength={LARGO_MAXIMO_DEL_COMENTARIO}
+              placeholder="Contanos qué esperabas ver…"
+              aria-label="Contanos qué esperabas ver"
+              value={comentario}
+              onChange={(evento) => setComentario(evento.target.value)}
+            />
+            <div className="adoc-asistente-voto-panel-pie">
+              <p className="adoc-asistente-voto-panel-hint">No incluyas datos personales.</p>
+              <p className="adoc-asistente-voto-panel-contador" aria-hidden="true">
+                {comentario.length}/{LARGO_MAXIMO_DEL_COMENTARIO}
+              </p>
+            </div>
+          </div>
+
           <div className="adoc-asistente-voto-panel-acciones">
             <Button variant="ghost" size="sm" onClick={() => void enviar(false)}>
               Omitir
@@ -155,9 +192,9 @@ export function VotoDeRetroalimentacion({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => void enviar(false, razonElegida ?? undefined)}
+              onClick={() => void enviar(false, razonesElegidas, comentario)}
             >
-              Enviar
+              Enviar comentario
             </Button>
           </div>
         </div>

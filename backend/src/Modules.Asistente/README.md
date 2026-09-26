@@ -224,7 +224,8 @@ Tres decisiones que conviene no deshacer sin leer:
   del actor, para el popover «@materia»/«#docente». Ver «Las menciones» abajo.
 - `GET /api/asistente/capacidades` — ver «El catálogo de capacidades».
 - `POST /api/asistente/retroalimentacion` — califica un turno `respondida` (thumbs
-  - razón opcional de un set cerrado de cuatro). Ver «La retroalimentación».
+  - cero o más razones de un set cerrado de cuatro + un comentario libre acotado).
+    Ver «La retroalimentación».
 - `GET /api/asistente/historial` — lista (y busca en) las conversaciones propias
   que no están pendientes de borrado, archivadas incluidas y marcadas.
 - `GET /api/asistente/historial/{id}` — el detalle de una conversación propia.
@@ -313,11 +314,15 @@ concurrente, un reemplazo es un turno como cualquier otro: se cobra una sola vez
 
 ### La retroalimentación
 
-Thumbs + una razón opcional (de cuatro: datos incorrectos, no entendió la pregunta,
-faltan datos, otro), ligada solo a `claveDeRetroalimentacion` — nunca al actor. El
-motivo retirado `lento` (asistente-rediseno-v3, design.md D7) ya no se acepta en una
-votación nueva —`400`— pero los votos viejos que lo tienen guardado siguen intactos
-hasta que la purga de 90 días se los lleva.
+Thumbs + cero o más razones (de cuatro: datos incorrectos, no entendió la pregunta,
+faltan datos, otro, sin repetidas) + un comentario libre opcional (hasta 500
+caracteres, recortado, vacío después de recortar se guarda como ausente), ligado
+solo a `claveDeRetroalimentacion` — nunca al actor. El motivo retirado `lento`
+(asistente-rediseno-v3, design.md D7, PO-changed 2026-09-26) se removió del todo:
+nada shippeó a producción con esa razón, así que no hay ninguna fila que preservar;
+se rechaza con `400` igual que cualquier otro valor desconocido. El comentario nunca
+se loguea, nunca viaja al proveedor del modelo y no tiene superficie de lectura en
+ninguna pantalla — ver la adenda de TD-012 en `docs/quality/tech-debt.md`.
 
 **Autorización por posesión del token, no por identidad.** El analítico no tiene
 columna de actor a propósito (TD-012), así que «solo el autor califica» no se puede

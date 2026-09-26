@@ -266,9 +266,19 @@ esquema más pesado; es el mismo criterio con que el módulo ya acepta el residu
 
 **Es un upsert, una fila por turno, sin historial.** `INSERT ... ON CONFLICT
 (analitico_id) DO UPDATE`: cambiar de voto reemplaza el anterior, nunca lo acumula.
-Guardar un historial de razones sería un lugar más donde una queja rara termina
-reidentificando a quien la escribió, el mismo argumento que ya vale para
+Guardar un historial de razones o de comentarios sería un lugar más donde una queja
+rara termina reidentificando a quien la escribió, el mismo argumento que ya vale para
 `intencion_sombra`.
+
+**El comentario libre (design.md D7/D14, PO-changed 2026-09-26).** El panel del 👎
+acepta, además de cero o más razones de la lista cerrada, un comentario de hasta 500
+caracteres, recortado antes de validar el largo y de guardarse (vacío después de
+recortar se trata como ausente). Es texto libre junto a una fila anónima —exactamente
+el canal de reidentificación que TD-012 existe para acotar—, así que se lo acota en
+vez de evitarlo: 500 caracteres, la pista «No incluyas datos personales.» debajo del
+campo, la misma purga de 90 días que el resto de la fila, y ninguna pantalla lo
+muestra de vuelta (ni siquiera soporte). Ver la adenda de TD-012 en
+`docs/quality/tech-debt.md`.
 
 **El logging no puede volver a abrir el cruce, un piso más arriba.** El evento del turno
 nombra al actor y nunca el token; el evento del endpoint de retroalimentación nombra al
@@ -1000,14 +1010,15 @@ respuesta», y con tabla «Ampliar tabla»/«Exportar a CSV», más 👍/👎 co
 `aria-pressed`. Visible siempre en el último turno y en cualquiera ya votado;
 en los demás aparece por hover o **foco dentro del turno** (nunca sólo hover, para
 que el teclado la alcance), y siempre en el orden de tabulación aunque no se vea.
-El panel del 👎 («¿Qué falló? Opcional») es de elección única —«Datos
-incorrectos», «No entendió la pregunta», «Faltan datos», «Otro», con
-`aria-pressed`— y **sin campo de texto libre**: el mock de referencia lo tenía, y
-se descartó porque un comentario libre junto a una fila que TD-012 mantiene
-anónima es exactamente el canal de reidentificación que ese diseño cierra. El
-motivo retirado `lento` no aparece más en la interfaz —ver «Retroalimentación del
-turno» y design.md D7— aunque los votos viejos con esa razón sigan intactos en la
-base.
+El panel del 👎 («¿Qué falló? Opcional») es de elección **múltiple** —«Datos
+incorrectos», «No entendió la pregunta», «Faltan datos», «Otro», pastillas
+independientes con `aria-pressed`, más un comentario libre acotado a 500
+caracteres con contador y la pista «No incluyas datos personales.»—, igual que el
+mock de referencia (PO-changed 2026-09-26; ver design.md D7/D14 y la
+adenda de TD-012 en `docs/quality/tech-debt.md`). El motivo retirado `lento` no
+aparece más en la interfaz ni en la API —se retiró del todo, no quedó como legado,
+porque nada shippeó a producción con esa razón (ver «Retroalimentación del
+turno»)—.
 
 ### Orden de la tabla y vista ampliada (ARS-145)
 

@@ -36,9 +36,59 @@
 ## 5. Action bar and thumbs-down reasons (ARS-146)
 
 - [x] 5.1 SQL: in `003_asistente_retroalimentacion.sql` the reason CHECK allows the four new values plus legacy `lento`, in the `CREATE` and through a guarded `DO` block that replaces the constraint on bases that predate `faltan_datos` (ratified exception in `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados`; the `razon_vigente NOT VALID` constraint was dropped in favor of the API gate — design D7 "Implemented differently"). Verify: `MigracionDelAsistenteTests.Una_base_con_el_check_viejo_acepta_faltan_datos_y_conserva_sus_votos` (old CHECK → `faltan_datos` inserts, `lento` row survives, re-applying converges) and the detector test `Solo_el_reemplazo_de_un_CHECK_ratificado_escapa_a_la_prohibicion_de_DROP`.
+
+  **Superseded by 5.5** (PO-changed decisions 4 and 8, 2026-09-26): `lento` is removed
+  entirely instead of kept as legacy, and `razon` becomes `razones`/`comentario`. See 5.5.
+
 - [x] 5.2 `RazonesDeRetroalimentacion`: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. Verify: `RetroalimentacionTests` — `faltan_datos` accepted, `lento` → `400`, changing a legacy `lento` vote replaces its reason.
+
+  **Superseded by 5.6**: the legacy-vote scenario is gone with `lento`.
+
 - [x] 5.3 `components/BarraDeAcciones.tsx` replacing `AccionesDelMensaje` and the text buttons of `VotoDeRetroalimentacion`/export: icon controls with names and tooltips, visibility rules of design D6 (always in tab order). Verify: Vitest — full bar with rows, no table actions without rows, focus-within reveals an older turn's bar, `aria-pressed` on votes.
 - [x] 5.4 👎 panel per v3: «¿Qué falló? Opcional», single-choice pills with `aria-pressed`, «Omitir» / «Enviar», thanks message, no text input; `RazonDeRetroalimentacion` TS type updated. Verify: `VotoDeRetroalimentacion.test.tsx` rewritten; vote announcement without focus move still passes.
+
+  **Superseded by 5.7** (PO-changed decision 8): multi-select pills plus a bounded
+  free-text comment, matching the mock, instead of single-choice with no text input.
+
+- [x] 5.5 SQL (PO-changed decisions 4/8, 2026-09-26): rewrite `003_asistente_retroalimentacion.sql`.
+      Fresh-base `CREATE` gets the final shape — no `razon` column, `razones text[]` with
+      `CONSTRAINT retroalimentacion_turno_razones_validas CHECK` restricting elements to the
+      four values, `comentario text` with `CONSTRAINT
+retroalimentacion_turno_comentario_longitud CHECK (char_length(comentario) <= 500)`.
+      Old bases (`arsdocendi_pr_140`) get `razones`/`comentario` via two `ALTER TABLE ... ADD
+COLUMN IF NOT EXISTS` (one column each, no inline CHECK — commas in the array literal
+      break the allowed-form regex), then one guarded `DO` block per CHECK that adds it only
+      when missing by name; both names are new entries in
+      `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados` (a bare `ADD CONSTRAINT` with
+      no `DROP` still needs ratification — only `ADD COLUMN IF NOT EXISTS` is unconditionally
+      allowed). The old `razon` column and its CHECK are left untouched and unused; a comment
+      documents why. Remove the now-useless `retroalimentacion_turno_razon_valida`
+      ratification entry and its guarded `DO` block: nothing reads or writes `razon` anymore.
+      Verify: `MigracionDelAsistenteTests` — old table with `razon` + old CHECK converges (a
+      multi-reason + comment vote inserts after migrating), re-running converges, fresh-base
+      shape has no `razon` column.
+- [x] 5.6 `RazonesDeRetroalimentacion`: drop every `lento` mention (code comments included).
+      `IRegistroDeRetroalimentacion`/`RegistroDeRetroalimentacion`: `razon: string?` becomes
+      `razones: IReadOnlyList<string>?` (written as `text[]`) plus `comentario: string?`.
+      `ServicioDeRetroalimentacion.RegistrarAsync` takes both, nulls both on a thumbs-up.
+      `PedidoDeRetroalimentacion`/`AsistenteController`: `razones: string[]?` (max the four
+      values, no duplicates, else `400`), `comentario?: string` (trimmed, empty ⇒ null, `400`
+      over 500 chars after trimming). Verify: `RetroalimentacionTests` — multiple reasons
+      accepted, `lento` → `400` (now just "not one of the four"), duplicate reason → `400`,
+      comment over 500 chars → `400`, whitespace-only comment stored as null, thumbs-up
+      ignores both fields.
+- [x] 5.7 Frontend `VotoDeRetroalimentacion.tsx`: pills become independently toggled
+      (`aria-pressed` each, no mutual exclusion), add the labeled textarea (`maxLength=500`,
+      visible counter, hint «No incluyas datos personales.» underneath), «Omitir» / «Enviar
+      comentario» (mock label). `asistenteApi.ts`/`types.ts`: `PedidoDeRetroalimentacion`
+      gains `razones?`/`comentario?` replacing `razon?`. Verify: `VotoDeRetroalimentacion.test.tsx`
+      rewritten for multi-select, the textarea, the counter and the hint;
+      `BarraDeAcciones.test.tsx` still green.
+- [x] 5.8 Docs in the same diff (rule 6): `api-contracts.md`, `data-model.md`,
+      `domains/asistente.md`, module `README.md`, the design spec's states table and
+      deviations list (the panel now follows the mock — remove the deviation entry),
+      `docs/quality/tech-debt.md` TD-012 addendum (free text can carry identifying content;
+      mitigations: hint, 500 chars, 90-day purge, no read surface). Verify: doc diff.
 
 ## 6. Edit and resend the last question (ARS-147)
 

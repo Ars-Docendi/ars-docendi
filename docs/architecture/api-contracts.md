@@ -232,14 +232,14 @@ Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de o
 
 #### `POST /api/asistente/retroalimentacion`
 
-Pedido: `{ token, voto, razon? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razon` es opcional y, solo cuando `voto` es falso, uno de cuatro valores cerrados: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. Un `razon` presente junto a `voto: true` se ignora del lado del servidor — nunca se confía en que el cliente lo haya omitido. `lento` (usado hasta `asistente-rediseno-v3`) ya no se acepta y devuelve `400`; las filas que lo tienen guardado de antes siguen intactas hasta que la purga de 90 días se las lleva (design.md D7 del rediseño v3).
+Pedido: `{ token, voto, razones?, comentario? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razones` es opcional y, solo cuando `voto` es falso, una lista de cero o más de cuatro valores cerrados, sin repetidos: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. `comentario` es opcional, texto libre de hasta 500 caracteres, recortado (los espacios al principio y al final no cuentan) antes de validar el largo y de guardarse; vacío después de recortar se trata como ausente. `razones`/`comentario` presentes junto a `voto: true` se ignoran del lado del servidor — nunca se confía en que el cliente los haya omitido. `lento` (retirado por `asistente-rediseno-v3`, design.md D7, PO-changed 2026-09-26) se rechaza igual que cualquier otro valor desconocido — nada shippeó a producción con esa razón, así que no hay ninguna fila vieja que preservar. `comentario` nunca se loguea, nunca viaja al proveedor del modelo y no tiene superficie de lectura en ninguna pantalla (ver TD-012 en `docs/quality/tech-debt.md`).
 
 Respuestas:
 
 | Estado            | Cuándo                                                                                                                              |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `204 No Content`  | El voto quedó registrado (alta o cambio de voto)                                                                                    |
-| `400 Bad Request` | `razon` no es una de las cuatro permitidas                                                                                          |
+| `400 Bad Request` | Una razón no es una de las cuatro permitidas, una razón está repetida, o `comentario` supera los 500 caracteres después de recortar |
 | `404 Not Found`   | El token no existe o venció. **Mismo cuerpo** para los dos casos —para que un llamador no pueda distinguir «vencido» de «inventado» |
 | `401`/`403`       | Igual que el resto del módulo: sin `asistente.consultar` no hay token que valga                                                     |
 

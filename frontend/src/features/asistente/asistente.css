@@ -1300,6 +1300,52 @@
   height: 12px;
 }
 
+/* El comentario libre (design.md D7/D14, PO-changed 2026-09-26): caja de texto
+   con borde propio —no el recorte sin marco del composer— porque acá SÍ hace
+   falta que se lea como un campo dentro de una caja ya bordeada. */
+.adoc-asistente-voto-panel-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-voto-panel-comentario {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  resize: none;
+}
+
+.adoc-asistente-voto-panel-comentario:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: inset 0 0 0 1px var(--color-border-focus);
+}
+
+.adoc-asistente-voto-panel-pie {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-voto-panel-hint,
+.adoc-asistente-voto-panel-contador {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-voto-panel-contador {
+  white-space: nowrap;
+}
+
 .adoc-asistente-voto-panel-acciones {
   display: flex;
   justify-content: flex-end;

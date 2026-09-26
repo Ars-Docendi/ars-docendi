@@ -92,14 +92,23 @@ public sealed record MencionesDto(IReadOnlyList<MencionDto> Resultados, bool Hay
 /// caller.
 /// </param>
 /// <param name="Voto">Thumbs up (<c>true</c>) or thumbs down (<c>false</c>).</param>
-/// <param name="Razon">
-/// One of <see cref="RazonesDeRetroalimentacion.Todas"/>, or null. Validated in
-/// the controller against that closed list rather than via an attribute, so the
-/// list is declared exactly once. Ignored server-side when <see cref="Voto"/>
-/// is <c>true</c>, even if present here — the client is never trusted to have
-/// omitted it.
+/// <param name="Razones">
+/// Zero or more of <see cref="RazonesDeRetroalimentacion.Todas"/>, no duplicates.
+/// Validated in the controller against that closed list rather than via an
+/// attribute, so the list is declared exactly once. Ignored server-side when
+/// <see cref="Voto"/> is <c>true</c>, even if present here — the client is never
+/// trusted to have omitted it.
 /// </param>
-public sealed record PedidoDeRetroalimentacion(Guid Token, bool Voto, string? Razon);
+/// <param name="Comentario">
+/// Free text, trimmed by the controller before validating and storing it; empty
+/// after trimming is treated as absent. At most 500 characters after trimming,
+/// else <c>400</c>. Same "ignored on a thumbs-up" rule as <see cref="Razones"/>.
+/// Never logged, never sent to the model provider, never surfaced back to any
+/// screen — asistente-retroalimentacion's spec and the TD-012 addendum in
+/// <c>docs/quality/tech-debt.md</c>.
+/// </param>
+public sealed record PedidoDeRetroalimentacion(
+    Guid Token, bool Voto, IReadOnlyList<string>? Razones, string? Comentario);
 
 /// <summary>
 /// Un vínculo a la pantalla que muestra lo que una celda identifica.

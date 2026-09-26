@@ -15,11 +15,20 @@ public interface IRegistroDeRetroalimentacion
     /// Upserts the vote for <paramref name="analiticoId"/>: one row per turn,
     /// last vote wins, no history of prior votes kept.
     /// </summary>
-    /// <param name="razon">
-    /// One of <see cref="RazonesDeRetroalimentacion.Todas"/>, or null. Callers
-    /// must already have applied the "thumbs-up carries no reason" rule before
+    /// <param name="razones">
+    /// Zero or more of <see cref="RazonesDeRetroalimentacion.Todas"/>, or null/empty.
+    /// Callers must already have applied the "thumbs-up carries no reason" rule before
     /// calling this — this method persists exactly what it is given.
     /// </param>
+    /// <param name="comentario">
+    /// Trimmed, non-empty, at most 500 characters, or null. Same rule as
+    /// <paramref name="razones"/>: this method persists exactly what it is given.
+    /// </param>
     Task GuardarAsync(
-        Guid analiticoId, bool voto, string? razon, DateTimeOffset ahora, CancellationToken ct);
+        Guid analiticoId,
+        bool voto,
+        IReadOnlyList<string>? razones,
+        string? comentario,
+        DateTimeOffset ahora,
+        CancellationToken ct);
 }

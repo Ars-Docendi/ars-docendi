@@ -452,13 +452,13 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
 
         using var rechazado = await cliente.PostAsJsonAsync(
             "/api/asistente/retroalimentacion",
-            new PedidoDeRetroalimentacion(tokenViejo!.Value, true, null),
+            new PedidoDeRetroalimentacion(tokenViejo!.Value, true, null, null),
             ct);
         Assert.Equal(HttpStatusCode.NotFound, rechazado.StatusCode);
 
         using var aceptado = await cliente.PostAsJsonAsync(
             "/api/asistente/retroalimentacion",
-            new PedidoDeRetroalimentacion(segunda.ClaveDeRetroalimentacion!.Value, true, null),
+            new PedidoDeRetroalimentacion(segunda.ClaveDeRetroalimentacion!.Value, true, null, null),
             ct);
         Assert.Equal(HttpStatusCode.NoContent, aceptado.StatusCode);
     }

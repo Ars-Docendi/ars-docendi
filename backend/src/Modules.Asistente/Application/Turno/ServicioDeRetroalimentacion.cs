@@ -33,7 +33,7 @@ public sealed class ServicioDeRetroalimentacion(
     ILogger<ServicioDeRetroalimentacion> log)
 {
     public async Task<ResultadoDeRetroalimentacion> RegistrarAsync(
-        Guid token, bool voto, string? razon, CancellationToken ct)
+        Guid token, bool voto, IReadOnlyList<string>? razones, string? comentario, CancellationToken ct)
     {
         var ahora = reloj.GetUtcNow();
 
@@ -44,11 +44,12 @@ public sealed class ServicioDeRetroalimentacion(
             return ResultadoDeRetroalimentacion.TokenInvalido;
         }
 
-        // Server-side, never trusting the client to have omitted it: a thumbs-up
-        // carries no reason (asistente-retroalimentacion's spec).
-        var razonFinal = voto ? null : razon;
+        // Server-side, never trusting the client to have omitted them: a thumbs-up
+        // carries no reason and no comment (asistente-retroalimentacion's spec).
+        var razonesFinal = voto ? null : (razones is { Count: > 0 } ? razones : null);
+        var comentarioFinal = voto ? null : comentario;
 
-        await registro.GuardarAsync(token, voto, razonFinal, ahora, ct);
+        await registro.GuardarAsync(token, voto, razonesFinal, comentarioFinal, ahora, ct);
 
         log.LogInformation("Retroalimentación registrada para el token {Token}.", token);
 

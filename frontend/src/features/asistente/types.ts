@@ -192,11 +192,12 @@ export interface UsoDelAsistente {
 export type PeriodoDeUso = "dia" | "semana" | "mes";
 
 /**
- * The fixed, closed set of reasons a thumbs-down vote may carry. Matches
- * `RazonesDeRetroalimentacion.Todas` on the backend exactly — see
+ * The fixed, closed set of reasons a thumbs-down vote may carry, zero or more at once.
+ * Matches `RazonesDeRetroalimentacion.Todas` on the backend exactly — see
  * `POST /api/asistente/retroalimentacion` in docs/architecture/api-contracts.md.
- * The retired `lento` (asistente-rediseno-v3, design.md D7) is deliberately
- * absent: the client never sends it, and the server rejects it with `400`.
+ * The retired `lento` (asistente-rediseno-v3, design.md D7, removed entirely
+ * 2026-09-26) is deliberately absent: the client never sends it, and the server
+ * rejects it with `400` like any other unknown value.
  */
 export type RazonDeRetroalimentacion =
   "datos_incorrectos" | "no_entendio_la_pregunta" | "faltan_datos" | "otro";

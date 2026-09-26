@@ -80,7 +80,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
 
         var columnas = await ColumnasDeAsync("retroalimentacion_turno");
-        Assert.Equal(["actualizado_en", "analitico_id", "razon", "voto"], columnas);
+        Assert.Equal(["actualizado_en", "analitico_id", "comentario", "razones", "voto"], columnas);
 
         // The foreign key: analitico_id references registro_analitico(id), and the
         // migration's own idempotent re-run (covered above) already proves it
@@ -158,26 +158,44 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             """));
     }
 
-    // --------------------------- D7 (asistente-rediseno-v3): retiring `lento`
-    //
-    // `lento` stays valid at the database so an existing vote is never rewritten;
-    // the API (`RazonesDeRetroalimentacion.Todas`) is what rejects it on new
-    // submissions. `faltan_datos` has to reach bases provisioned before it existed,
-    // which is what the guarded CHECK replacement in 003 does (the one ratified
-    // exception to the no-DROP rule, see ArquitecturaAsistenteTests).
+    // --------------------------- D7 (asistente-rediseno-v3, PO-changed 2026-09-26):
+    // `razon` (single value) becomes `razones` (list) + `comentario`, and `lento` is
+    // removed entirely. The only real "old base" is one provisioned with just
+    // `razon` and its original CHECK — `arsdocendi_pr_140` — which the migrator has
+    // to reach without a DROP (ArquitecturaAsistenteTests). The old `razon` column
+    // and its CHECK are left exactly as they are: nothing reads or writes them
+    // anymore.
+
+    /// <summary>
+    /// La forma exacta de <c>retroalimentacion_turno</c> en una base provisionada
+    /// antes de este cambio (p. ej. <c>arsdocendi_pr_140</c>): sólo <c>razon</c>,
+    /// con su CHECK original (de una ronda anterior, ya incluía <c>faltan_datos</c>
+    /// y el hoy retirado <c>lento</c>), sin <c>razones</c> ni <c>comentario</c>.
+    /// </summary>
+    private const string TablaViejaDeRetroalimentacion =
+        """
+        DROP TABLE asistente.retroalimentacion_turno;
+        CREATE TABLE asistente.retroalimentacion_turno (
+            analitico_id   uuid        PRIMARY KEY
+                                        REFERENCES asistente.registro_analitico(id) ON DELETE CASCADE,
+            voto           boolean     NOT NULL,
+            razon          text        NULL
+                                        CONSTRAINT retroalimentacion_turno_razon_valida
+                                        CHECK (razon IS NULL OR razon IN (
+                                            'datos_incorrectos', 'no_entendio_la_pregunta',
+                                            'faltan_datos', 'otro', 'lento'
+                                        )),
+            actualizado_en timestamptz NOT NULL
+        );
+        """;
 
     [Fact]
-    public async Task Una_base_con_el_check_viejo_acepta_faltan_datos_y_conserva_sus_votos()
+    public async Task Una_base_con_solo_razon_recibe_razones_y_comentario_y_los_usa()
     {
         await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-        await EjecutarAsync(
-            """
-            ALTER TABLE asistente.retroalimentacion_turno
-                DROP CONSTRAINT retroalimentacion_turno_razon_valida;
-            ALTER TABLE asistente.retroalimentacion_turno
-                ADD CONSTRAINT retroalimentacion_turno_razon_valida
-                CHECK (razon IS NULL OR razon IN ('datos_incorrectos', 'no_entendio_la_pregunta', 'lento', 'otro'));
-            """);
+        // La forma exacta de una base provisionada antes de este cambio: sólo
+        // `razon`, con su CHECK original.
+        await EjecutarAsync(TablaViejaDeRetroalimentacion);
         var votoViejo = await SembrarRegistroAnaliticoAsync();
         await EjecutarAsync(
             "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
@@ -188,49 +206,42 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         var despuesDeUna = await FormaDelSchemaAsync();
         await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
 
-        var votoNuevo = await SembrarRegistroAnaliticoAsync();
-        await EjecutarAsync(
-            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
-            + "VALUES (@id, false, 'faltan_datos', now())",
-            ("id", votoNuevo));
-
+        // La fila vieja no se toca: `razon` sigue como estaba, y las columnas
+        // nuevas le llegan en null (no hay backfill — design.md § Migration Plan).
         Assert.Equal("lento", await EscalarAsync<string>(
             "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
             ("id", votoViejo)));
+        Assert.True(await EscalarAsync<bool>(
+            "SELECT razones IS NULL FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
+            ("id", votoViejo)));
+
+        // Un voto nuevo, con varias razones y un comentario, entra sin problema.
+        var votoNuevo = await SembrarRegistroAnaliticoAsync();
+        await EjecutarAsync(
+            "INSERT INTO asistente.retroalimentacion_turno "
+            + "(analitico_id, voto, razones, comentario, actualizado_en) "
+            + "VALUES (@id, false, ARRAY['datos_incorrectos', 'faltan_datos'], 'no era lo que esperaba', now())",
+            ("id", votoNuevo));
+
+        Assert.Equal(
+            ["datos_incorrectos", "faltan_datos"],
+            await EscalarAsync<string[]>(
+                "SELECT razones FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
+                ("id", votoNuevo)));
+
         Assert.Equal(despuesDeUna, await FormaDelSchemaAsync());
     }
 
     [Fact]
-    public async Task Una_fila_lento_sobrevive_sin_que_nada_la_toque()
+    public async Task Una_base_fresca_no_tiene_columna_razon()
     {
         await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-        var analiticoId = await SembrarRegistroAnaliticoAsync();
-        await EjecutarAsync(
-            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
-            + "VALUES (@id, false, 'lento', now())",
-            ("id", analiticoId));
 
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+        var columnas = await ColumnasDeAsync("retroalimentacion_turno");
 
-        Assert.Equal("lento", await EscalarAsync<string>(
-            "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
-            ("id", analiticoId)));
-    }
-
-    [Fact]
-    public async Task Faltan_datos_entra_como_razon_nueva()
-    {
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-        var analiticoId = await SembrarRegistroAnaliticoAsync();
-
-        await EjecutarAsync(
-            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
-            + "VALUES (@id, false, 'faltan_datos', now())",
-            ("id", analiticoId));
-
-        Assert.Equal("faltan_datos", await EscalarAsync<string>(
-            "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
-            ("id", analiticoId)));
+        Assert.DoesNotContain("razon", columnas);
+        Assert.Contains("razones", columnas);
+        Assert.Contains("comentario", columnas);
     }
 
     // ------------------------------------------------------------ la base vieja

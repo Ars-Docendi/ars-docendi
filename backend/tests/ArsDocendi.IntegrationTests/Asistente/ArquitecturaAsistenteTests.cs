@@ -260,10 +260,10 @@ public sealed partial class ArquitecturaAsistenteTests
         const string Reemplazo =
             """
             ALTER TABLE asistente.retroalimentacion_turno
-                DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razon_valida;
+                DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razones_validas;
             ALTER TABLE asistente.retroalimentacion_turno
-                ADD CONSTRAINT retroalimentacion_turno_razon_valida
-                CHECK (razon IS NULL OR razon IN ('a', 'b'));
+                ADD CONSTRAINT retroalimentacion_turno_razones_validas
+                CHECK (razones IS NULL OR razones <@ ARRAY['a', 'b']::text[]);
             """;
         Archivo[] sinteticos =
         [
@@ -272,10 +272,10 @@ public sealed partial class ArquitecturaAsistenteTests
             new("018_ratificado_pero_otra_accion.sql",
                 """
                 ALTER TABLE asistente.retroalimentacion_turno
-                    DROP CONSTRAINT retroalimentacion_turno_razon_valida;
+                    DROP CONSTRAINT retroalimentacion_turno_razones_validas;
                 """),
             new("019_ratificado_y_algo_mas.sql",
-                Reemplazo + "\nALTER TABLE asistente.retroalimentacion_turno DROP COLUMN razon;"),
+                Reemplazo + "\nALTER TABLE asistente.retroalimentacion_turno DROP COLUMN razones;"),
         ];
 
         Assert.Equal(3, Detectar(sinteticos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()).Count);
@@ -998,10 +998,18 @@ public sealed partial class ArquitecturaAsistenteTests
     /// </remarks>
     private static readonly string[] ReemplazosDeCheckRatificados =
     [
-        // 003: `faltan_datos` entra al set de razones del 👎 (asistente-rediseno-v3,
-        // design.md D7). El reemplazo está guardado por la definición vigente, así
-        // que es idempotente, y sólo ensancha: ninguna fila existente lo viola.
-        "retroalimentacion_turno_razon_valida",
+        // 003 (asistente-rediseno-v3, design.md D7, PO-changed 2026-09-26): `razon`
+        // se retira en favor de `razones` (lista) + `comentario`. Ninguno de los dos
+        // ALTER de abajo hace un DROP — son altas nuevas de CHECK, guardadas por
+        // nombre en pg_constraint para que la segunda corrida sea un no-op (Postgres
+        // no tiene `ADD CONSTRAINT IF NOT EXISTS`) — pero la única forma
+        // incondicionalmente permitida de `ALTER TABLE` es `ADD COLUMN IF NOT
+        // EXISTS`, así que un `ADD CONSTRAINT` sin ratificar también cae en la
+        // prohibición general. La antigua entrada de `retroalimentacion_turno_razon_valida`
+        // se retiró con ella: ningún archivo la toca ya, así que no hay nada que
+        // ratificar en ese nombre.
+        "retroalimentacion_turno_razones_validas",
+        "retroalimentacion_turno_comentario_longitud",
     ];
 
     /// <summary>

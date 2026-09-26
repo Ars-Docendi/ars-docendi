@@ -1,8 +1,9 @@
 -- 003_asistente_retroalimentacion.sql
 --
--- Turn-level user feedback (thumbs up/down + optional reason), keyed ONLY by
--- the analytic row's own id (asistente.registro_analitico.id). No actor
--- column, no session column, no column shared with asistente.registro_operativo.
+-- Turn-level user feedback (thumbs up/down + reasons + a bounded comment),
+-- keyed ONLY by the analytic row's own id (asistente.registro_analitico.id).
+-- No actor column, no session column, no column shared with
+-- asistente.registro_operativo.
 --
 -- WHY THIS TABLE STAYS LINKED TO registro_analitico AND NOTHING ELSE
 -- TD-012 (see 002_asistente_registros.sql) exists to make it impossible to
@@ -16,73 +17,113 @@
 -- history (design.md D4). A separate surrogate key would let more than one
 -- row exist per turn, which is exactly what this design forbids.
 --
--- WHY `razon` IS CONSTRAINED TO A CLOSED SET INSTEAD OF FREE TEXT
--- Free text is how a rare, identifying complaint ends up sitting next to an
--- otherwise-anonymous row (the same class of risk TD-012 already calls out
--- for `intencion_sombra`). A closed vocabulary can't carry that.
+-- WHY `razones` IS A LIST FROM A CLOSED SET, NOT FREE TEXT
+-- Free text picked from an unbounded vocabulary is how a rare, identifying
+-- complaint ends up sitting next to an otherwise-anonymous row (the same
+-- class of risk TD-012 already calls out for `intencion_sombra`). A closed
+-- vocabulary can't carry that; the CHECK below only restricts membership
+-- (each element in the four values) — "no duplicates" is validated by the
+-- controller, the table's only writer, the same way "at most one of the four"
+-- used to be.
 --
--- WHY THE LIST BELOW INCLUDES THE RETIRED `lento` (design.md D7 of
--- asistente-rediseno-v3)
--- The UI reason set changed from {datos_incorrectos, no_entendio_la_pregunta,
--- lento, otro} to {datos_incorrectos, no_entendio_la_pregunta, faltan_datos,
--- otro}. The API rejects `lento` on every NEW submission
--- (`RazonesDeRetroalimentacion.Todas` no longer lists it), and this table's
--- only writer goes through that gate. `lento` stays valid here so an existing
--- vote is never rewritten: "slow" is not "other", and the row ages out with
--- asistente.registro_analitico's 90-day retention anyway.
+-- WHY `comentario` EXISTS DESPITE THAT SAME RISK (design.md D7/D14 of
+-- asistente-rediseno-v3, PO-changed 2026-09-26)
+-- The product owner confirmed the mock's free-text comment ships. It is
+-- bounded to 500 characters (CHECK below), trimmed before storage, hinted at
+-- in the UI ("No incluyas datos personales."), ages out with the same 90-day
+-- purge as the rest of this row, and has no read surface anywhere (no admin
+-- screen) — the risk is bounded and documented (TD-012 addendum in
+-- docs/quality/tech-debt.md) rather than avoided.
 --
--- IDEMPOTENT THE SAME WAY 002 IS: `IF NOT EXISTS` on the table. Nothing here
--- adds a column later, so there is no `ALTER TABLE ... ADD COLUMN IF NOT
--- EXISTS` yet — if one is ever needed, it goes here AND in the CREATE, same
--- rule as 002. The one other statement is the guarded CHECK replacement right
--- after the CREATE (see there).
+-- WHY THERE IS NO `razon` COLUMN HERE ANYMORE
+-- The legacy single-reason column (and the retired reason `lento` it used to
+-- also accept) is gone from this file entirely: nothing has shipped to
+-- production — the feedback table never reached `develop` — so there is no
+-- row to preserve and no reason to keep dead provisions "just in case". A
+-- base that already has the old `razon` column (from before this round) is
+-- NOT rewritten: see the ADD COLUMN statements below for why, and why that
+-- column is simply left in place, unused.
+--
+-- IDEMPOTENT THE SAME WAY 002 IS: `IF NOT EXISTS` on the table for a fresh
+-- base. For a base that already has the table (with only `razon`, from
+-- before this round), the two `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+-- statements below add `razones` and `comentario`, and the two guarded `DO`
+-- blocks after them add their CHECK constraints. This module's migration
+-- convention (see ArquitecturaAsistenteTests) never DROPs or rewrites
+-- anything that already exists, so the old `razon` column and its original
+-- CHECK are left exactly as they were: nothing in this module reads or
+-- writes them anymore, so there is nothing to converge.
 
 CREATE TABLE IF NOT EXISTS asistente.retroalimentacion_turno (
     analitico_id   uuid        PRIMARY KEY
                                 REFERENCES asistente.registro_analitico(id) ON DELETE CASCADE,
     voto           boolean     NOT NULL,
-    razon          text        NULL
-                                CONSTRAINT retroalimentacion_turno_razon_valida
-                                CHECK (razon IS NULL OR razon IN (
+    razones        text[]      NULL
+                                CONSTRAINT retroalimentacion_turno_razones_validas
+                                CHECK (razones IS NULL OR razones <@ ARRAY[
                                     'datos_incorrectos',
                                     'no_entendio_la_pregunta',
                                     'faltan_datos',
-                                    'otro',
-                                    'lento'
-                                )),
+                                    'otro'
+                                ]::text[]),
+    comentario     text        NULL
+                                CONSTRAINT retroalimentacion_turno_comentario_longitud
+                                CHECK (comentario IS NULL OR char_length(comentario) <= 500),
     actualizado_en timestamptz NOT NULL
 );
 
--- REPLACING THE REASON CHECK ON A BASE THAT ALREADY HAS THE TABLE
--- Against a base provisioned before `faltan_datos` existed, the CREATE above is
--- a no-op and the old CHECK (without `faltan_datos`) stays, so every new
--- "Faltan datos" vote would fail. A CHECK can only be widened by dropping and
--- recreating it, which is why this is the single ratified exception to
--- ArquitecturaAsistenteTests' no-DROP rule (listed there by constraint name):
--- it lives in the same file as the CREATE, so it does not depend on the order
--- files are applied; it only runs when the current definition lacks
--- `faltan_datos`, so a second run is a no-op; and it only ever widens the set,
--- so no existing row can violate the new definition.
+-- REACHING A BASE THAT ALREADY HAD THE TABLE BEFORE `razones`/`comentario`
+-- EXISTED (the only real case today: arsdocendi_pr_140). `CREATE TABLE IF NOT
+-- EXISTS` is a no-op there, so these two columns would never appear without
+-- the statements below. One column per statement, no inline CHECK: a CHECK
+-- naming the four-value array literal has commas, which the module's only
+-- permitted `ALTER TABLE` form (`ADD COLUMN IF NOT EXISTS <col> <type>;`,
+-- no comma before the semicolon) does not allow — see
+-- ArquitecturaAsistenteTests.DestruccionEnSql.
+ALTER TABLE asistente.retroalimentacion_turno ADD COLUMN IF NOT EXISTS razones text[];
+ALTER TABLE asistente.retroalimentacion_turno ADD COLUMN IF NOT EXISTS comentario text;
+
+-- ADDING THE TWO CHECKS ON A BASE THAT ALREADY HAS THE TABLE
+-- PostgreSQL has no `ADD CONSTRAINT IF NOT EXISTS`, so a plain `ALTER TABLE
+-- ... ADD CONSTRAINT` run twice would fail on the second migrator pass. Each
+-- block below adds its constraint only when a constraint with that exact
+-- name does not exist yet, which is idempotent and does not depend on file
+-- order. Both are, textually, `ALTER TABLE` statements that are not the one
+-- permitted form, so both names are ratified exceptions listed by name in
+-- ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados — even though
+-- neither one DROPs anything, because the detector's only unconditionally
+-- allowed `ALTER TABLE` shape is `ADD COLUMN IF NOT EXISTS`.
 DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1
           FROM pg_constraint
          WHERE conrelid = 'asistente.retroalimentacion_turno'::regclass
-           AND conname = 'retroalimentacion_turno_razon_valida'
-           AND pg_get_constraintdef(oid) LIKE '%faltan_datos%'
+           AND conname = 'retroalimentacion_turno_razones_validas'
     ) THEN
         ALTER TABLE asistente.retroalimentacion_turno
-            DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razon_valida;
-        ALTER TABLE asistente.retroalimentacion_turno
-            ADD CONSTRAINT retroalimentacion_turno_razon_valida
-            CHECK (razon IS NULL OR razon IN (
+            ADD CONSTRAINT retroalimentacion_turno_razones_validas
+            CHECK (razones IS NULL OR razones <@ ARRAY[
                 'datos_incorrectos',
                 'no_entendio_la_pregunta',
                 'faltan_datos',
-                'otro',
-                'lento'
-            ));
+                'otro'
+            ]::text[]);
+    END IF;
+END
+$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conrelid = 'asistente.retroalimentacion_turno'::regclass
+           AND conname = 'retroalimentacion_turno_comentario_longitud'
+    ) THEN
+        ALTER TABLE asistente.retroalimentacion_turno
+            ADD CONSTRAINT retroalimentacion_turno_comentario_longitud
+            CHECK (comentario IS NULL OR char_length(comentario) <= 500);
     END IF;
 END
 $$;
@@ -114,7 +155,7 @@ $$;
 -- `asistente_ro_pii` can read this table.
 
 COMMENT ON TABLE asistente.retroalimentacion_turno IS
-    'User feedback (thumbs up/down + optional reason) for an answered turn, keyed only by asistente.registro_analitico.id. No actor column, on purpose: see the comments above and TD-012.';
+    'User feedback (thumbs up/down + zero or more reasons + a bounded comment) for an answered turn, keyed only by asistente.registro_analitico.id. No actor column, on purpose: see the comments above and TD-012.';
 
 -- --------------------------------------------------- no audit attached, either
 --

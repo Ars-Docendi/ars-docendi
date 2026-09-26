@@ -92,15 +92,17 @@ export async function obtenerCapacidades(): Promise<CapacidadesDelAsistente> {
 export interface PedidoDeRetroalimentacion {
   token: string;
   voto: boolean;
-  razon?: RazonDeRetroalimentacion | null;
+  razones?: RazonDeRetroalimentacion[];
+  comentario?: string;
 }
 
 /**
- * Rates an already-answered turn: thumbs up/down, with an optional reason on a
- * thumbs-down.
+ * Rates an already-answered turn: thumbs up/down, with zero or more reasons and an
+ * optional free-text comment on a thumbs-down.
  *
  * `token` is the turn's own `claveDeRetroalimentacion` — it authorizes rating
- * THAT turn, and carries no identity of its own.
+ * THAT turn, and carries no identity of its own. `comentario` is never logged,
+ * never sent to the model, and has no read surface anywhere in the UI.
  */
 export async function enviarRetroalimentacion(pedido: PedidoDeRetroalimentacion): Promise<void> {
   await apiClient.post("/api/asistente/retroalimentacion", pedido);

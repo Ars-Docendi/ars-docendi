@@ -212,6 +212,9 @@ public sealed class AsistenteController(
     /// expired token 404s — the same outcome for both, so a caller can't tell
     /// which — rather than returning a body that would confirm a token existed.
     /// </remarks>
+    /// <summary>Longest <see cref="PedidoDeRetroalimentacion.Comentario"/> accepted, after trimming.</summary>
+    private const int LargoMaximoDelComentario = 500;
+
     [Authorize(Policy = Permisos.AsistenteConsultar)]
     [HttpPost("retroalimentacion")]
     public async Task<IActionResult> Retroalimentacion(
@@ -224,18 +227,48 @@ public sealed class AsistenteController(
             return Unauthorized();
         }
 
-        if (pedido.Razon is not null && !RazonesDeRetroalimentacion.Todas.Contains(pedido.Razon))
+        if (pedido.Razones is { Count: > 0 } razones)
+        {
+            if (razones.Any(razon => !RazonesDeRetroalimentacion.Todas.Contains(razon)))
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Razón desconocida",
+                    Detail = "Cada razón tiene que ser una de las cuatro que ofrece la interfaz.",
+                    Status = StatusCodes.Status400BadRequest,
+                });
+            }
+
+            if (razones.Distinct().Count() != razones.Count)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Razón repetida",
+                    Detail = "Cada razón puede aparecer una sola vez.",
+                    Status = StatusCodes.Status400BadRequest,
+                });
+            }
+        }
+
+        // Trimmed here, antes de validar el largo y de persistir: un comentario que
+        // sólo tiene espacios se trata como ausente (asistente-retroalimentacion's spec).
+        var comentario = pedido.Comentario?.Trim();
+        if (string.IsNullOrEmpty(comentario))
+        {
+            comentario = null;
+        }
+        else if (comentario.Length > LargoMaximoDelComentario)
         {
             return BadRequest(new ProblemDetails
             {
-                Title = "Razón desconocida",
-                Detail = "La razón tiene que ser una de las cuatro que ofrece la interfaz.",
+                Title = "Comentario demasiado largo",
+                Detail = $"El comentario admite hasta {LargoMaximoDelComentario} caracteres.",
                 Status = StatusCodes.Status400BadRequest,
             });
         }
 
         var resultado = await retroalimentacion.RegistrarAsync(
-            pedido.Token, pedido.Voto, pedido.Razon, ct);
+            pedido.Token, pedido.Voto, pedido.Razones, comentario, ct);
 
         return resultado switch
         {

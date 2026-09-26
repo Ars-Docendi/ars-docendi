@@ -72,7 +72,7 @@ there is no implementation-order dependency, only an archive-order one.
 **Non-Goals:**
 
 - Narrow/mobile layouts (TD-016, new TD-024).
-- Question versions («N / M»), free-text feedback, per-reason refusal templates (ARS-139).
+- Question versions («N / M»), per-reason refusal templates (ARS-139).
 - The deterministic intent lane consuming references (it runs in shadow mode; the SQL
   lane is where the answer comes from).
 - Changing the privilege or sensitivity manifests, or any other module.
@@ -159,28 +159,52 @@ Controls are always in the DOM and in tab order; visibility is opacity-only, dri
 turns. This implements the mock's quiet toolbar while honoring the existing anti-pattern
 "never hide actions only behind hover".
 
-### D7. Feedback reasons and the legacy `lento`
+### D7. Feedback reasons, now a list, plus a bounded free-text comment
 
-`RazonesDeRetroalimentacion` becomes `datos_incorrectos`, `no_entendio_la_pregunta`,
-`faltan_datos`, `otro`. In 003 the CHECK is replaced idempotently (DO block that compares
-the current definition) by one that allows the four values **plus** `lento`, and a second
-constraint `retroalimentacion_turno_razon_vigente CHECK (razon IS DISTINCT FROM 'lento')`
-is added `NOT VALID`: PostgreSQL enforces a `NOT VALID` check on every new insert and
-update but not on existing rows. Existing `lento` rows stay intact and disappear with
-their analytic row inside the existing 90-day purge; a follow-up can then drop `lento`
-from the first CHECK and `VALIDATE` the second. Alternative: rewriting `lento` rows to `otro` — rejected because it falsifies recorded feedback ("slow" is not "other") to save
-one constraint for at most 90 days. The API rejects `lento` with `400` via the closed
-list. The thumbs-down panel is single-choice and has no free-text field (D14).
+**PO-changed (2026-09-26): `lento` is removed entirely, not kept as legacy.** Nothing has
+shipped to production — the feedback table never reached `develop` — so there is no
+existing row to preserve. `RazonesDeRetroalimentacion.Todas` is exactly
+`datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`; `lento` never
+appears anywhere in code, SQL comments, tests or docs.
 
-**Implemented differently (§5 execution):** the swap runs inside a `DO` block in 003, right
-after the `CREATE`, and only when the current definition lacks `faltan_datos` — so it is
-idempotent and does not depend on file order. `ArquitecturaAsistenteTests` forbids every
-`DROP` in this module's SQL; this replacement is the single ratified exception, listed there
-by constraint name (`ReemplazosDeCheckRatificados`), because a CHECK can only be widened by
-dropping and recreating it and without it a base provisioned before this change would reject
-every «Faltan datos» vote. The second constraint (`razon_vigente ... NOT VALID`) was not
-added: `RazonesDeRetroalimentacion.Todas` rejects new `lento` at the API, the table's only
-writer, and a second DB-level exception was not worth widening the rule further.
+**PO-changed (2026-09-26): the 👎 panel now takes zero or more reasons plus a free-text
+comment**, matching the mock (toggle pills, `aria-pressed`, «Contanos qué esperabas
+ver…», «Omitir» / «Enviar comentario»). The column shape changes with it:
+
+- `razon text` is retired in favor of `razones text[]` (zero or more of the four values,
+  no duplicates — validated by the controller, not by the CHECK) and `comentario text`
+  (trimmed server- and client-side, empty ⇒ `null`, max 500 characters, enforced by a
+  CHECK and by the controller). A thumbs-up still ignores whatever the client sends in
+  either field, server-side, same rule as before.
+- **Fresh bases** get the final shape directly from the `CREATE`: no `razon` column at
+  all, `razones` with `CONSTRAINT retroalimentacion_turno_razones_validas CHECK (razones
+IS NULL OR razones <@ ARRAY[the four values]::text[])`, `comentario` with `CONSTRAINT
+retroalimentacion_turno_comentario_longitud CHECK (comentario IS NULL OR
+char_length(comentario) <= 500)`.
+- **Old dev bases** (the one that matters: `arsdocendi_pr_140`, which already has the
+  single-`razon` shape from before this PO round) cannot be altered destructively
+  (`ArquitecturaAsistenteTests`' no-`DROP` rule). 003 adds `razones` and `comentario` via
+  two `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements (one column each, no inline
+  CHECK — a CHECK naming the four-value array literal has commas, which the allowed-form
+  regex rejects), then a guarded `DO` block per constraint that adds it only when missing
+  by name. Both names are new ratified entries in `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados`
+  (a bare `ADD CONSTRAINT`, with no matching `DROP`, still needs ratification: the
+  detector's allowed form is only `ADD COLUMN IF NOT EXISTS`, so any other `ALTER TABLE`
+  — including a fresh `ADD CONSTRAINT` — is destructive unless listed by name). The old
+  `razon` column and its original CHECK are left exactly as they are: nothing reads or
+  writes them anymore, so there is nothing to converge. This is the "old base" case
+  `MigracionDelAsistenteTests` exercises explicitly.
+- The former `retroalimentacion_turno_razon_valida` ratification entry is removed: no
+  statement in 003 touches `razon` or that constraint anymore, so there is nothing left to
+  ratify.
+
+Alternative considered: keep `razon` as a single value and add a second nullable column
+for "extra reasons" — rejected, it is the same list wearing a disguise and would need its
+own uniqueness rule anyway. Alternative for the comment: unlimited length — rejected, a
+free-text field next to an otherwise-anonymous row is exactly the re-identification risk
+TD-012 exists to bound; 500 characters plus the "no incluyas datos personales" hint is the
+existing risk-acceptance pattern, made explicit instead of avoided (see TD-012 addendum in
+`docs/quality/tech-debt.md`).
 
 ### D8. `/asistente` redirect
 
@@ -298,10 +322,13 @@ existing threshold-gated `role="status"` announcer stays outside the log, so the
 live-region requirements hold. «Dejar de esperar» moves into the composer's button slot.
 Quota indicator, blocked text and metrics line stay in a strip under the composer. The
 user bubble changes from accent to the neutral v3 bubble. Degraded/clarification keep
-their `InlineAlert` severities. The 👎 panel omits the mock's textarea («Contanos qué
-esperabas ver…»): the reason set is closed by requirement and free text next to an
-anonymous row is exactly the re-identification channel 003 and TD-012 close; the
-submit button is «Enviar» (not «Enviar comentario»).
+their `InlineAlert` severities. **PO-changed (2026-09-26): the 👎 panel now follows the
+mock exactly** — multiple reason pills (`aria-pressed` each, independently toggled, no
+mutual exclusion) plus the textarea («Contanos qué esperabas ver…», `maxLength=500`, a
+visible counter, and the hint «No incluyas datos personales.» underneath); the submit
+button is «Enviar comentario» (the mock's label), «Omitir» stays for skipping. The
+comment is never logged, never sent to the model, and has no read surface anywhere in
+the UI (no admin screen) — see D7 and the TD-012 addendum.
 
 ### D15. Migrations follow the module's in-file convention
 
@@ -317,11 +344,11 @@ needed, and the change stays versioned SQL (rule "no manual DB edits").
 | 1   | What support sees during the window           | Visible, marked «Pendiente de borrado», until the 15 s server window expires; then invisible and purged within a minute (D4). Support reads stay audited.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 2   | «Borrar todas»                                | Keeps the inline confirmation (copy now mentions archived and the 10 s undo) **and** gets the undo window; single delete loses its confirmation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 3   | CSV order                                     | Displayed (sorted) order, in inline and expanded views, consistent with "export exactly what is displayed".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 4   | Existing `lento` votes                        | Kept untouched; new `lento` blocked by the API alone (`RazonesDeRetroalimentacion.Todas`). **Implemented differently from the row above**: the CHECK widens in place via a guarded `DO` block in 003, the single ratified exception to `ArquitecturaAsistenteTests`' no-DROP rule (`ReemplazosDeCheckRatificados`); the second `razon_vigente ... NOT VALID` constraint was not added — the API is the table's only writer, so a second DB-level gate bought nothing. Rows age out with the 90-day purge (D7). Not mapped to `otro`.                                                                                                                                                          |
+| 4   | Existing `lento` votes                        | **PO-changed (2026-09-26):** `lento` is removed entirely, superseding the author's original guess (kept untouched, aged out by purge). Nothing has shipped to production (the feedback table never reached `develop`), so there is no legacy to preserve. Every "legacy `lento`" provision (code, SQL comments, tests, docs) is deleted rather than kept; the reason set is exactly `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro` (D7).                                                                                                                                                                                                                              |
 | 5   | Redirect target                               | `/asistente` → `/portal?asistente=abrir`, which opens the modal and strips the marker; without access, just the home (D8).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 6   | Server-side purge                             | Mark + batch id; 15 s server window (10 s toast + 5 s grace); read-time filtering; one-minute `BackgroundService` sweep plus the daily purge as backstop (D4).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 7   | Mentions contract and SQL lane                | `referencias: [{ tipo, id }]` (max 5) re-validated server-side; search `GET /api/asistente/menciones`; scoping by `asistente_materias_visibles()` and designaciones RLS on the read-only role; bound `$refN` markers so ids never reach the model (D10, D11). **Inherited-mention revalidation**: a marker a turn reuses without asking again — «Volver a consultar» on an own turn, or the first turn after «Reanudar» — is re-validated against the actor's CURRENT scope with the same lookup, never the scope it had when first asked; a scope that shrank since resolves as any SQL that no longer runs (a friendly abstention), never a crash or an execution against the wrong entity. |
-| 8   | Free-text comment in 👎 panel                 | Not implemented; single-choice reasons, «Omitir» / «Enviar» (D14).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 8   | Free-text comment in 👎 panel                 | **PO-changed (2026-09-26):** implemented after all, matching the mock — multiple reasons (toggle pills) plus a free-text comment, «Omitir» / «Enviar comentario» (D7, D14). Supersedes the author's original "not implemented, single-choice" guess.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | 9   | Date groups in the rail                       | Keep the existing Hoy / Ayer / Últimos 7 días / Anteriores (the mock shows only two because of its sample data).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 10  | Search in the rail                            | Kept (not drawn in v3) because archived conversations must stay findable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 11  | Archive/delete of the active conversation     | Resets to the welcome screen (as in the mock); «Deshacer» re-resumes it; a new turn in an archived conversation unarchives it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -346,23 +373,26 @@ needed, and the change stays versioned SQL (rule "no manual DB edits").
   both ship together.
 - [Mobile users lose the assistant] → accepted by the PO; TD-024 records it next to
   TD-016.
-- [`NOT VALID` constraint surprises a future `VALIDATE`] → comment in 003 and TD note on
-  when to validate (after 90 days).
 - [Two background services] → same pattern, same failure isolation; the sweep is one
   indexed DELETE.
+- [Free text in `comentario` can carry identifying content in an otherwise anonymous row]
+  → 500-character cap, trimmed, the "no incluyas datos personales" hint, the same 90-day
+  purge as the vote, and no read surface anywhere in the UI (TD-012 addendum in
+  `docs/quality/tech-debt.md`).
 
 ## Migration Plan
 
 1. Deploy backend and frontend together (the response and delete contracts change).
    The SQL in 003/004 is additive and idempotent; the migrator applies it at start.
 2. No data backfill: existing conversations get `archivada_en = NULL`, no pending marks;
-   existing `lento` votes remain.
+   no `retroalimentacion_turno` row exists yet on any real base (nothing shipped), so
+   there is nothing to migrate for `razones`/`comentario` beyond adding the columns.
 3. Rollback: before redeploying the previous version, run the sweep's DELETE once
    (`DELETE FROM asistente.hilo_historico WHERE borrado_pendiente_desde IS NOT NULL`) so
    the old code, which ignores the marks, does not resurface conversations users deleted.
-   Also drop `retroalimentacion_turno_razon_vigente`: the old code still offers «Es
-   lento» and its inserts would violate it. The extra columns and the widened reason
-   CHECK are harmless to the old code (it never writes `faltan_datos`).
+   The extra `hilo_historico`/`turno_historico` columns and the new `retroalimentacion_turno`
+   columns/CHECKs are additive and harmless to the old code, which never reads or writes
+   them.
 
 ## Open Questions
 
