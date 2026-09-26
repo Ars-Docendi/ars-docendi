@@ -51,8 +51,8 @@ function regionViva(): HTMLElement {
   return screen.getByRole("log", { name: "Conversación con el asistente" });
 }
 
-describe("Reachable desde los dos montajes (tasks.md 10.3)", () => {
-  it("el rail está en la ruta (PanelDePrueba)", async () => {
+describe("El rail se ve igual en el panel aislado y en el modal real (tasks.md 10.3)", () => {
+  it("el rail está en el panel en aislamiento (PanelDePrueba)", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
     montar(<PanelDePrueba />);
 

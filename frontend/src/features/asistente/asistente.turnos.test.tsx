@@ -3,7 +3,6 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, CanceledError } from "axios";
 
-import { AsistentePage } from "./pages/AsistentePage";
 import * as api from "./api/asistenteApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 import { PanelDePrueba } from "./test/PanelDePrueba";
@@ -168,10 +167,9 @@ describe("Reintentar", () => {
 
 describe("Nueva conversación", () => {
   it("vacía el hilo, arranca de cero y devuelve el foco al campo", async () => {
-    // En la ruta el botón va en el encabezado de la página, fuera del panel.
     const user = userEvent.setup();
     const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
-    montar(<AsistentePage />);
+    montar(<PanelDePrueba />);
 
     const entrada = await screen.findByLabelText("Tu pregunta");
     await user.type(entrada, "primera{Enter}");

@@ -53,10 +53,10 @@ interface TurnoEnCurso {
  * un store agregaría decisiones de ciclo de vida —cuándo se limpia, qué pasa al
  * cambiar de rol— para un estado que muere igual al recargar la página.
  *
- * LO INVOCA EL DUEÑO DEL MONTAJE —el lanzador de la barra para el modal, la página
- * para la ruta— y no el panel. El panel se desmonta al cerrar el modal, y con él se
- * iba la conversación; el lanzador vive con la barra, así que al reabrir el hilo
- * sigue donde estaba. La ruta y el modal son dos hilos distintos.
+ * LO INVOCA EL DUEÑO DEL MONTAJE —el lanzador de la barra— y no el panel. El
+ * panel se desmonta al cerrar el modal, y con él se iba la conversación si viviera
+ * ahí; el lanzador vive con la barra, así que al reabrir el hilo sigue donde
+ * estaba.
  */
 export function useAsistente(): Asistente {
   const [turnos, setTurnos] = useState<TurnoDeLaConversacion[]>([]);
@@ -73,8 +73,9 @@ export function useAsistente(): Asistente {
 
   // Quien se desmonta con un turno en vuelo se lleva el request consigo. Sin esto
   // el pedido sobrevive al componente y la respuesta cae sobre un estado que ya no
-  // existe. Corre al desmontarse el DUEÑO del hook: navegar fuera de la ruta
-  // aborta; cerrar el modal no, porque el lanzador sigue montado.
+  // existe. Corre al desmontarse el DUEÑO del hook —el lanzador de la barra—, que
+  // en la práctica sólo pasa si la aplicación entera se desmonta; cerrar el modal
+  // no aborta nada, porque el lanzador sigue montado.
   useEffect(() => {
     montado.current = true;
     return () => {

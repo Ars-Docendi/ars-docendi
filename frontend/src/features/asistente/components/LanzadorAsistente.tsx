@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { Modal } from "@ars-docendi/ui";
 
 import { PanelAsistente } from "./PanelAsistente";
@@ -14,13 +14,16 @@ import "../asistente.css";
  *
  * Una ruta a la que hay que navegar NO resuelve el descubrimiento: si el usuario
  * tiene que acordarse de que el asistente existe y buscar dónde está, no lo usa. Por
- * eso hay dos montajes, y éste es el que está siempre a mano.
+ * eso ESTE ES EL ÚNICO MONTAJE del asistente desde ARS-151 (tasks.md §10): la
+ * antigua página a pantalla completa se borró y `/asistente` es ahora un redirect
+ * a la home que este componente sabe leer (ver más abajo, D8 de
+ * asistente-rediseno-v3).
  *
  * Ocupa el lugar del botón «Ayuda» que estaba `disabled` con `title="Próximamente"`.
  * Activarlo ELIMINA un fake UI existente en vez de agregar superficie nueva, que es
  * lo que el invariante #7 pide.
  *
- * Quien no tiene el permiso no ve nada: ni el botón deshabilitado ni una ruta
+ * Quien no tiene el permiso no ve nada: ni el botón deshabilitado ni una pantalla
  * muerta. El acceso lo decide el backend, no una lista de roles.
  *
  * LLEVA ETIQUETA Y NO SOLO UN ÍCONO. Un ícono solo obliga a descubrir qué hace
@@ -43,7 +46,7 @@ import "../asistente.css";
  * hilo en el panel, un clic fuera lo tiraba. El lanzador vive con la barra, así que
  * al reabrir la conversación sigue donde estaba, y un turno en vuelo al cerrar
  * llega igual y espera. No hay ningún pedido al backend hasta la primera pregunta y
- * nada se guarda en el navegador. La ruta tiene la suya: son dos hilos.
+ * nada se guarda en el navegador.
  */
 export function LanzadorAsistente() {
   const { tieneAcceso } = useAccesoAlAsistente();
@@ -87,6 +90,57 @@ export function LanzadorAsistente() {
       boton?.focus();
     };
   }, [abierto]);
+
+  const [parametros, fijarParametros] = useSearchParams();
+  const marcaPedida = parametros.get("asistente") === "abrir";
+
+  // NO SE PUEDE CAPTURAR LA MARCA UNA SOLA VEZ AL MONTAR (inicializador de
+  // `useState` o ref): en la app real este componente vive en la barra, fuera de
+  // la ruta, así que YA ESTÁ MONTADO cuando `/asistente` todavía no redirigió —el
+  // primer render ve la URL sin la marca todavía—. Recién en un render
+  // POSTERIOR, cuando el `<Navigate>` de `routes.tsx` resuelve, `parametros` pasa
+  // a tenerla. Por eso `marcaPedida` se lee de nuevo en cada render, y detectar
+  // SU APARICIÓN (no su valor al montar) necesita comparar contra el render
+  // anterior, mismo patrón que `rutaVista` más arriba.
+  const [marcaVista, setMarcaVista] = useState(marcaPedida);
+  const [pedidoEnEspera, setPedidoEnEspera] = useState(marcaPedida);
+
+  // AJUSTE DE ESTADO EN RENDER: registra la aparición de la marca como un pedido
+  // pendiente. No abre nada acá todavía —`tieneAcceso` puede seguir sin
+  // resolverse— así que el pedido queda anotado hasta que el bloque de abajo
+  // pueda decidir.
+  if (marcaVista !== marcaPedida) {
+    setMarcaVista(marcaPedida);
+    if (marcaPedida) setPedidoEnEspera(true);
+  }
+
+  // AJUSTE DE ESTADO EN RENDER: consume el pedido pendiente en cuanto
+  // `tieneAcceso` deja de ser `undefined`. Con acceso abre el modal; sin acceso
+  // no hace nada más (la URL se limpia aparte, más abajo). No depende de
+  // `marcaVista`/`marcaPedida` en su condición, así que no vuelve a rearmar el
+  // pedido que el bloque de arriba ya resolvió —evita el rebote entre los dos—.
+  if (pedidoEnEspera && tieneAcceso !== undefined) {
+    setPedidoEnEspera(false);
+    if (tieneAcceso) setAbierto(true);
+  }
+
+  // BORRAR LA MARCA DE LA URL SÍ ES UN EFECTO: es una escritura sobre el router,
+  // un sistema externo al componente. Sin acceso también se borra —no hay
+  // pantalla que abrir, pero tampoco hay que dejar la marca puesta—. Espera a que
+  // `tieneAcceso` deje de ser `undefined`: actuar antes perdería la marca sin
+  // haber decidido nada.
+  useEffect(() => {
+    if (!marcaPedida || tieneAcceso === undefined) return;
+
+    fijarParametros(
+      (previos) => {
+        const siguientes = new URLSearchParams(previos);
+        siguientes.delete("asistente");
+        return siguientes;
+      },
+      { replace: true },
+    );
+  }, [marcaPedida, tieneAcceso, fijarParametros]);
 
   if (tieneAcceso !== true) return null;
 

@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { AxiosError, CanceledError } from "axios";
+import { AxiosError } from "axios";
 
-import { AsistentePage } from "./pages/AsistentePage";
 import * as api from "./api/asistenteApi";
 import { apiClient } from "../../shared/api/client";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 import { PanelDePrueba } from "./test/PanelDePrueba";
-import type { RespuestaDelAsistente } from "./types";
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
@@ -69,39 +67,5 @@ describe("Todo turno lleva señal de aborto y un tope de tiempo del cliente", ()
     expect(alerta).toBeInTheDocument();
     expect(alerta.textContent).not.toMatch(/ECONNABORTED|timeout|160/);
     expect(screen.queryByText(/Revisá tu conexión/)).toBeNull();
-  });
-});
-
-// ----------------------------------------------------- el dueño se desmonta
-
-describe("Desmontar el dueño de la conversación", () => {
-  it("aborta el request en vuelo y no toca el estado de un componente desmontado", async () => {
-    // Navegar fuera de /asistente con un turno en vuelo dejaba el request vivo y la
-    // respuesta caía sobre un estado que ya no existía.
-    const user = userEvent.setup();
-    let señal: AbortSignal | undefined;
-    vi.spyOn(api, "consultar").mockImplementation(
-      (_consulta, _clave, opciones) =>
-        new Promise<RespuestaDelAsistente>((_, rechazar) => {
-          señal = opciones?.signal;
-          // Lo que hace axios de verdad cuando la señal se aborta.
-          señal?.addEventListener("abort", () => rechazar(new CanceledError("canceled")));
-        }),
-    );
-    const errores = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { unmount } = montar(<AsistentePage />);
-
-    await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
-    await waitFor(() => expect(señal).toBeDefined());
-    expect(señal?.aborted).toBe(false);
-
-    unmount();
-
-    expect(señal?.aborted).toBe(true);
-
-    // Que el rechazo llegue y se procese: acá es donde un `setState` tardío
-    // dispararía el aviso de React.
-    await new Promise((r) => setTimeout(r, 0));
-    expect(errores).not.toHaveBeenCalled();
   });
 });

@@ -766,16 +766,20 @@ datos, acá un fallo ruidoso niega un servicio que funciona.
 
 ## La superficie de usuario
 
-`frontend/src/features/asistente/`, con **dos montajes de la misma vista**: la ruta
-`/asistente` a página completa y un lanzador en la barra superior que la abre en un
-**modal centrado**. Una ruta a la que hay que navegar no resuelve el descubrimiento:
-si el usuario tiene que acordarse de que el asistente existe y buscar dónde está, no
-lo usa. Y es un modal y no un cajón lateral porque la conversación es la tarea
-mientras dura: un cajón compite por el ancho con una pantalla que quedó atrás y a
-la que nadie está mirando.
+`frontend/src/features/asistente/`, con **un solo montaje**: un lanzador en la
+barra superior que abre la conversación en un **modal centrado** —`PanelAsistente`—.
+Hasta `asistente-rediseno-v3` (ARS-140/ARS-151, tasks.md §10) había una segunda
+implementación, una ruta `/asistente` a página completa; se borró porque dos
+implementaciones se desincronizan, y porque una ruta a la que hay que navegar no
+resuelve el descubrimiento: si el usuario tiene que acordarse de que el asistente
+existe y buscar dónde está, no lo usa. Es un modal y no un cajón lateral porque la
+conversación es la tarea mientras dura: un cajón compite por el ancho con una
+pantalla que quedó atrás y a la que nadie está mirando.
 
-Dos implementaciones se desincronizarían, así que hay una sola —`PanelAsistente`—
-montada dos veces.
+`/asistente` sigue existiendo, pero sólo como redirect: lleva a la home (`/portal`)
+con la marca `?asistente=abrir` en la URL, que el lanzador consume —con el permiso
+abre el modal y borra la marca; sin él sólo la borra— (design.md D8 de
+asistente-rediseno-v3). Un vínculo viejo nunca queda en una pantalla muerta.
 
 **El lanzador elimina un fake UI.** En la barra superior había un botón «Ayuda»
 `disabled` con `title="Próximamente"`, que es exactamente lo que el invariante #7
@@ -795,26 +799,25 @@ el asistente a alguien que no debería verlo.
 
 El catálogo que trae de vuelta es el mismo que la vista necesita para su pantalla
 inicial, así que la consulta no es un costo extra. Y sin acceso no hay formulario:
-`/asistente` muestra sólo el aviso, porque un campo con botón que rechaza al enviar
-es un formulario que aparenta funcionar.
+sin el permiso, el lanzador no pinta nada —ni el botón, ni una pantalla muerta—,
+así que no hay ningún campo con botón que rechace al enviar.
 
 ### La conversación vive en el dueño del montaje
 
 El estado de la conversación —turnos, hilo, turno en vuelo— lo crea `useAsistente`
-en quien monta la vista: el lanzador de la barra para el modal, la página para la
-ruta. `PanelAsistente` lo recibe por prop y no tiene conversación propia.
+en quien monta la vista: el lanzador de la barra. `PanelAsistente` lo recibe por
+prop y no tiene conversación propia.
 
 No es una prolijidad: el panel se monta al abrir el modal y se desmonta al cerrarlo,
 y Esc o un clic afuera —también sin querer— cierran. Con el hilo en el panel, un
 clic fuera tiraba la conversación entera y el turno en vuelo con ella. El lanzador
 vive con la barra, así que al reabrir la conversación sigue donde estaba, y un turno
-que estaba en vuelo al cerrar llega igual y espera. Navegar fuera de `/asistente`
-sí aborta el suyo: la página es su dueña.
+que estaba en vuelo al cerrar llega igual y espera.
 
-La ruta y el modal son **dos hilos independientes**, y nada se guarda en el
-navegador: las filas traen datos personales, y persistirlas en `localStorage` sin
-política de retención contradice lo que el enmascarador acaba de proteger. La
-conversación muere al recargar, como decidió el backend al no persistir el hilo.
+Nada se guarda en el navegador: las filas traen datos personales, y persistirlas en
+`localStorage` sin política de retención contradice lo que el enmascarador acaba de
+proteger. La conversación muere al recargar, como decidió el backend al no
+persistir el hilo.
 
 ### Un turno a la vez, y el cliente nunca queda colgado
 

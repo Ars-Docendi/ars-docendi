@@ -73,9 +73,9 @@
 
 ## 10. Remove the `/asistente` page (ARS-151)
 
-- [ ] 10.1 Delete `pages/AsistentePage.tsx`; index route → `<Navigate to="/portal?asistente=abrir" replace />`; `LanzadorAsistente` consumes and strips the marker (opens only with access). Verify: `RutaConAltoPropio.test.tsx` replaced by a redirect test — with access the modal opens and the URL is clean; without access nothing opens; `soporte-historial` and `administracion` routes still resolve with their permissions.
-- [ ] 10.2 Remove leftovers that assumed two mounts (comments and `useId` rationale in hooks, `index.ts` doc comment, "Navegar fuera de la ruta aborta" test). Verify: `pnpm --filter frontend lint` and `test:run` green; grep finds no `AsistentePage`.
-- [ ] 10.3 Add TD-024 to `docs/quality/tech-debt.md`: the assistant is unreachable on phones until the mobile epic (linked to TD-016, owner and date). Verify: doc diff.
+- [x] 10.1 Delete `pages/AsistentePage.tsx`; index route → `<Navigate to="/portal?asistente=abrir" replace />`; `LanzadorAsistente` consumes and strips the marker (opens only with access). Verify: `RutaConAltoPropio.test.tsx` replaced by a redirect test — with access the modal opens and the URL is clean; without access nothing opens; `soporte-historial` and `administracion` routes still resolve with their permissions.
+- [x] 10.2 Remove leftovers that assumed two mounts (comments and `useId` rationale in hooks, `index.ts` doc comment, "Navegar fuera de la ruta aborta" test). Verify: `pnpm --filter frontend lint` and `test:run` green; grep finds no `AsistentePage`.
+- [x] 10.3 Add TD-024 to `docs/quality/tech-debt.md`: the assistant is unreachable on phones until the mobile epic (linked to TD-016, owner and date). Verify: doc diff.
 
 ## 11. Documentation and verification
 

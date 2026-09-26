@@ -83,17 +83,18 @@ export interface HistorialAsistente {
 
 /**
  * El historial propio: listar (con búsqueda), renombrar, archivar/desarchivar,
- * borrar (uno o todos, diferido y deshacible) y reanudar. Un solo hook para
- * los montajes que necesiten el rail —el modal del lanzador, y la ruta
- * mientras siga existiendo (tasks.md §10)—, invocado por el mismo dueño que
- * crea `asistente`.
+ * borrar (uno o todos, diferido y deshacible) y reanudar. Lo invoca el mismo
+ * dueño que crea `asistente`: el lanzador de la barra, único montaje real desde
+ * ARS-151 (tasks.md §10). `PanelDePrueba` también lo invoca, pero sólo para
+ * probar `PanelAsistente` en aislamiento — no es un segundo montaje de
+ * producción.
  *
  * @param habilitado
  * Si hay que pedir la lista AHORA. El rail ya no es un cajón que se abre y
  * cierra —vive siempre montado mientras el asistente está a la vista—, así
  * que lo que decide si vale la pena pedirla es si el ASISTENTE está a la
  * vista, y eso lo sabe el dueño del montaje (el lanzador: si el modal está
- * abierto; la ruta: siempre, mientras esté montada) — no este hook.
+ * abierto) — no este hook.
  */
 export function useHistorialAsistente(
   asistente: Asistente,
