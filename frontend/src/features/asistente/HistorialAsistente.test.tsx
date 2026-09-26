@@ -39,20 +39,37 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// El título de una conversación es la pregunta que la abrió (auto-titulado
+// desde el backend): a propósito, `CONVERSACION.titulo` y
+// `TURNO_RESPONDIDO.pregunta` son el MISMO texto acá, igual que en un caso
+// real. Desde que el rail y el encabezado quedan siempre a la vista (v3), ese
+// texto aparece en tres lugares a la vez —la fila del rail, el título del
+// encabezado y la burbuja de la pregunta—, así que cualquier aserción sobre
+// la burbuja necesita acotarse a la región viva de la conversación.
+function regionViva(): HTMLElement {
+  return screen.getByRole("log", { name: "Conversación con el asistente" });
+}
+
 describe("Reachable desde los dos montajes (tasks.md 10.3)", () => {
-  it("el botón «Historial» está en la ruta (PanelDePrueba)", async () => {
+  it("el rail está en la ruta (PanelDePrueba)", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
     montar(<PanelDePrueba />);
 
-    expect(await screen.findByRole("button", { name: "Historial" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Colapsar conversaciones" }),
+    ).toBeInTheDocument();
   });
 
-  it("el mismo botón «Historial» está en el modal del lanzador", async () => {
+  it("el mismo rail está en el modal del lanzador", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
     const user = userEvent.setup();
     montar(<LanzadorAsistente />);
 
     await user.click(await screen.findByRole("button", { name: "Preguntar" }));
 
-    expect(await screen.findByRole("button", { name: "Historial" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Colapsar conversaciones" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -69,15 +86,11 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await user.click(await screen.findByText(CONVERSACION.titulo));
 
     // Se ve el turno restaurado: la pregunta y su desenlace.
-    expect(await screen.findByText(TURNO_RESPONDIDO.pregunta)).toBeInTheDocument();
+    expect(await within(regionViva()).findByText(TURNO_RESPONDIDO.pregunta)).toBeInTheDocument();
     expect(screen.getByText("Esta pregunta fue respondida.")).toBeInTheDocument();
-
-    // El panel de historial se cierra al reanudar.
-    expect(screen.queryByLabelText("Tus conversaciones")).toBeNull();
 
     // Un seguimiento manda el hilo efímero NUEVO, no el viejo ni ninguno.
     await user.type(screen.getByLabelText("Tu pregunta"), "¿y de qué carreras?{Enter}");
@@ -93,10 +106,10 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
     // Y ese seguimiento aparece VISIBLEMENTE en la misma conversación, junto
     // al turno restaurado.
     expect(await screen.findByText("Hay 12 docentes.")).toBeInTheDocument();
-    expect(screen.getByText(TURNO_RESPONDIDO.pregunta)).toBeInTheDocument();
+    expect(within(regionViva()).getByText(TURNO_RESPONDIDO.pregunta)).toBeInTheDocument();
   });
 
-  it("al reabrir el historial, la conversación reanudada queda marcada con `aria-current`", async () => {
+  it("la fila de la conversación reanudada queda marcada con `aria-current`", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([CONVERSACION]);
     vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
       hilo: HILO_EFIMERO_NUEVO,
@@ -105,19 +118,16 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await user.click(await screen.findByText(CONVERSACION.titulo));
-    await screen.findByText(TURNO_RESPONDIDO.pregunta);
+    await within(regionViva()).findByText(TURNO_RESPONDIDO.pregunta);
 
-    // Se volvió a abrir el historial DESPUÉS de reanudar: la fila de la
-    // conversación que quedó activa en el hilo se resalta, para que se vea
-    // cuál es «esta» entre las demás.
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
-
-    // Con `within`: el título de esta conversación también aparece en la
-    // burbuja de la pregunta reanudada, en el hilo de arriba.
-    const panel = await screen.findByLabelText("Tus conversaciones");
-    expect(within(panel).getByText(CONVERSACION.titulo)).toHaveAttribute("aria-current", "true");
+    // El rail sigue a la vista —ya no hay un panel que abrir y cerrar—: la
+    // fila de la conversación que quedó activa en el hilo se resalta, para
+    // que se vea cuál es «esta» entre las demás.
+    expect(screen.getByRole("button", { name: CONVERSACION.titulo })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
   });
 
   it("reanudar la conversación de otra persona no es una acción que este panel ofrezca", async () => {
@@ -125,10 +135,8 @@ describe("Reanudar una conversación (tasks.md 12.1, 12.2)", () => {
     // sólo se dispara sobre lo que trajo `GET /historial`, que ya está
     // acotado al actor de la sesión (backend, tasks.md 7.4).
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([CONVERSACION]);
-    const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
 
     expect(await screen.findByText(CONVERSACION.titulo)).toBeInTheDocument();
     expect(screen.queryByLabelText(/id de otra conversación/i)).toBeNull();
@@ -144,9 +152,8 @@ describe("«Volver a consultar» sobre un turno restaurado (tasks.md 12.3, 12.4,
     });
     const user = userEvent.setup();
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await user.click(await screen.findByText(CONVERSACION.titulo));
-    await screen.findByText(TURNO_RESPONDIDO.pregunta);
+    await within(regionViva()).findByText(TURNO_RESPONDIDO.pregunta);
     return user;
   }
 
@@ -163,7 +170,6 @@ describe("«Volver a consultar» sobre un turno restaurado (tasks.md 12.3, 12.4,
     });
     const user = userEvent.setup();
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await user.click(await screen.findByText(CONVERSACION.titulo));
     await screen.findByText("El servicio estaba degradado cuando se hizo esta pregunta.");
 

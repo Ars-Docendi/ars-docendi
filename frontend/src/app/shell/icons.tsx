@@ -42,6 +42,31 @@ export const chevronIcon: ReactNode = (
   </svg>
 );
 
+/**
+ * Panel con flecha hacia adentro. Va en «Colapsar conversaciones», el
+ * control que angosta el rail de conversaciones del asistente a 60 px
+ * (asistente-superficie-frontend).
+ */
+export const railColapsarIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="2.5" y="3" width="13" height="12" rx="1.5" />
+    <path d="M7 3v12" />
+    <path d="M11.5 7l-2 2 2 2" />
+  </svg>
+);
+
+/**
+ * El mismo panel, con la flecha hacia afuera. Va en «Expandir
+ * conversaciones», el par del ícono anterior.
+ */
+export const railExpandirIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="2.5" y="3" width="13" height="12" rx="1.5" />
+    <path d="M7 3v12" />
+    <path d="M9.5 7l2 2-2 2" />
+  </svg>
+);
+
 /* Sidebar nav module icons, keyed for the nav config */
 export const navIcons = {
   pedidos: (

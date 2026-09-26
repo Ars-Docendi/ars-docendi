@@ -191,14 +191,14 @@ describe("Nueva conversación", () => {
   });
 
   it("está deshabilitada sin turnos y mientras hay uno en vuelo", async () => {
-    // El botón vive fuera del panel —en el título del Modal para el modal, en el
-    // encabezado de página para la ruta—, así que acá se monta al lado.
+    // Desde v3 vive en el rail, adentro del panel (design.md D1 de
+    // asistente-rediseno-v3): `PanelDePrueba` ya no necesita montarlo aparte.
     const user = userEvent.setup();
     let resolver: (valor: RespuestaDelAsistente) => void = () => {};
     vi.spyOn(api, "consultar").mockImplementationOnce(
       () => new Promise<RespuestaDelAsistente>((r) => (resolver = r)),
     );
-    montar(<PanelDePrueba conNuevaConversacion />);
+    montar(<PanelDePrueba />);
 
     const boton = await screen.findByRole("button", { name: "Nueva conversación" });
     expect(boton).toBeDisabled();

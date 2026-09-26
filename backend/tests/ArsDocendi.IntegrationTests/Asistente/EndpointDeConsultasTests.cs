@@ -291,6 +291,71 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         Assert.Equal(0, proveedor.Llamadas);
     }
 
+    // -------------------------------------------------- la conversación (D13)
+
+    [Fact]
+    public async Task Un_turno_persistido_nombra_la_conversacion_que_lista_GET_historial()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var cuerpo = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", Guid.NewGuid().ToString()));
+
+        Assert.NotNull(cuerpo.Conversacion);
+
+        var ct = TestContext.Current.CancellationToken;
+        var historial = await cliente.GetFromJsonAsync<List<ConversacionResumenDto>>(
+            "/api/asistente/historial", ct);
+
+        Assert.NotNull(historial);
+        Assert.Contains(historial, c => c.Id == cuerpo.Conversacion);
+    }
+
+    [Fact]
+    public async Task Si_la_escritura_del_historial_falla_la_respuesta_no_nombra_ninguna_conversacion()
+    {
+        // Se reemplaza `IRegistroDeHistorial` por uno que nunca escribe, en vez
+        // de forzar un error real de Postgres: `RegistroDeHistorial` ya se
+        // traga esa excepción y simplemente no fija `HiloHistorico` (ver su
+        // propio catch), así que un doble que no lo fija reproduce EXACTAMENTE
+        // el mismo estado que ve `CapaConversacional` cuando la escritura
+        // falla, sin acoplar este test a cómo se rompe una conexión.
+        await SembrarAsync();
+        using var host = CrearHost(out _, historialQueNuncaEscribe: true);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var cuerpo = await LeerAsync(
+            await Preguntar(cliente, "¿cuántos docentes hay?", Guid.NewGuid().ToString()));
+
+        Assert.Null(cuerpo.Conversacion);
+    }
+
+    [Fact]
+    public async Task La_conversacion_no_se_guarda_junto_al_registro_analitico_ni_a_la_retroalimentacion()
+    {
+        // asistente.registro_analitico y asistente.retroalimentacion_turno son,
+        // a propósito, las dos tablas que TD-012 mantiene sin nada que las
+        // vincule a una conversación o a un actor identificable — agregarle
+        // una columna a cualquiera de las dos reabriría exactamente el cruce
+        // que design.md D13 promete no crear.
+        await SembrarAsync();
+
+        var columnas = await EscalarAsync<long>(
+            """
+            SELECT count(*)
+              FROM information_schema.columns
+             WHERE table_schema = 'asistente'
+               AND table_name IN ('registro_analitico', 'retroalimentacion_turno')
+               AND column_name ILIKE '%conversacion%'
+            """);
+
+        Assert.Equal(0, columnas);
+    }
+
     [Fact]
     public async Task El_actor_sale_de_la_sesion_y_no_del_cuerpo_del_pedido()
     {
@@ -353,7 +418,8 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaDelAsistente>(ct))!;
     }
 
-    private WebApplicationFactory<Program> CrearHost(out ProveedorGuionado proveedor)
+    private WebApplicationFactory<Program> CrearHost(
+        out ProveedorGuionado proveedor, bool historialQueNuncaEscribe = false)
     {
         // Guion largo: cada turno del carril consume generación + redacción, y el
         // proveedor guionado repite su última respuesta al agotarse. Un guion corto
@@ -391,8 +457,35 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
             // El proveedor guionado reemplaza al simulado: contar sus llamadas es lo
             // único que prueba de verdad que la idempotencia no volvió a gastar.
             builder.ConfigureTestServices(servicios =>
-                servicios.AddSingleton(new ProveedorBase(guionado)));
+            {
+                servicios.AddSingleton(new ProveedorBase(guionado));
+
+                if (historialQueNuncaEscribe)
+                {
+                    // Registrado DESPUÉS del `AddScoped<IRegistroDeHistorial,
+                    // RegistroDeHistorial>` del módulo: el contenedor resuelve
+                    // la última registración, así que esto lo reemplaza sin
+                    // tocar `ModuleExtensions`.
+                    servicios.AddScoped<
+                        Modules.Asistente.Application.IRegistroDeHistorial, HistorialQueNuncaEscribe>();
+                }
+            });
         });
+    }
+
+    /// <summary>
+    /// Un <see cref="Modules.Asistente.Application.IRegistroDeHistorial"/> que
+    /// nunca escribe nada — el mismo estado observable que el real deja cuando
+    /// la escritura falla y se traga la excepción (nunca fija
+    /// <c>HiloConversacional.HiloHistorico</c>), sin depender de reproducir un
+    /// error real de Postgres.
+    /// </summary>
+    private sealed class HistorialQueNuncaEscribe : Modules.Asistente.Application.IRegistroDeHistorial
+    {
+        public Task RegistrarTurnoAsync(
+            Modules.Asistente.Application.HiloConversacional conversacion,
+            Modules.Asistente.Application.TurnoParaHistorial turno,
+            CancellationToken ct) => Task.CompletedTask;
     }
 
 }

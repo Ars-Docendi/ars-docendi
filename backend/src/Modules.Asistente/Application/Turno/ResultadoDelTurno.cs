@@ -130,6 +130,15 @@ public enum EstadoDelTurno
 /// <see cref="CapaConversacional.ResponderAsync"/> lo adjunta afuera de su
 /// <c>try/finally</c>, una vez que el cobro ya ocurrió.
 /// </param>
+/// <param name="Conversacion">
+/// <see cref="HiloConversacional.HiloHistorico"/> DESPUÉS de que
+/// <see cref="CapaConversacional.RegistrarAsync"/> intentó escribir el
+/// historial de este turno — nunca el valor de antes. Nulo si esa escritura
+/// falló o el turno no se registró (design.md D13 de
+/// asistente-rediseno-v3): el cliente lo usa para resaltar y titular la fila
+/// del rail, y nunca viaja junto a <see cref="ClaveDeRetroalimentacion"/> ni
+/// al registro analítico — ninguno de los dos lo necesita.
+/// </param>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -148,4 +157,5 @@ public sealed record ResultadoDelTurno(
     string? SqlEjecutado = null,
     IReadOnlyList<VinculoDelResultado>? Vinculos = null,
     Guid? ClaveDeRetroalimentacion = null,
-    int? CupoRestante = null);
+    int? CupoRestante = null,
+    Guid? Conversacion = null);

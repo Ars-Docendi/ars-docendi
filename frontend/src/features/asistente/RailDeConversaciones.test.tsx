@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PanelDePrueba } from "./test/PanelDePrueba";
@@ -9,9 +9,9 @@ import { CAPACIDADES, montar } from "./test/soporte";
 import type { ConversacionResumen } from "./types";
 
 // ============================================================
-// La lista de conversaciones propias: abrir el panel, buscar, renombrar y
-// borrar una o todas (asistente-historial-conversaciones,
-// asistente-superficie-frontend, tasks.md §10–§11).
+// El rail de conversaciones propias: siempre a la vista, colapsar/expandir,
+// buscar, renombrar y borrar una o todas (asistente-historial-conversaciones,
+// asistente-superficie-frontend, tasks.md §1).
 // ============================================================
 
 const UNA: ConversacionResumen = {
@@ -30,18 +30,22 @@ const OTRA: ConversacionResumen = {
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
+  // Default inocuo: el doble clic que entra en edición dispara TAMBIÉN el
+  // clic simple que abre la conversación —son dos eventos separados del
+  // DOM, y el primero llega antes que el segundo—. Sin este default, ese
+  // clic incidental golpea la red de verdad en los tests que sólo quieren
+  // probar el renombre.
+  vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
+    hilo: "99999999-9999-4999-8999-999999999999",
+    turnos: [],
+  });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function abrirHistorial(user: ReturnType<typeof userEvent.setup>) {
-  montar(<PanelDePrueba />);
-  await user.click(await screen.findByRole("button", { name: "Historial" }));
-}
-
-describe("Abrir el panel de conversaciones propias", () => {
+describe("El rail está siempre a la vista, expandido por default", () => {
   it("renderiza las conversaciones, agrupadas por fecha relativa de última actividad", async () => {
     // UNA y OTRA son de comienzos de 2026: caen en «Anteriores» sea cuando sea
     // que corra este test. HOY se agrega con la fecha real, para el grupo que
@@ -53,9 +57,8 @@ describe("Abrir el panel de conversaciones propias", () => {
       ultimaActividad: new Date().toISOString(),
     };
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([HOY, UNA, OTRA]);
-    const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
 
     expect(await screen.findByText(HOY.titulo)).toBeInTheDocument();
     expect(screen.getByText(UNA.titulo)).toBeInTheDocument();
@@ -69,18 +72,16 @@ describe("Abrir el panel de conversaciones propias", () => {
 
   it("el título completo queda en el atributo `title`, para el hover", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
 
     expect(await screen.findByText(UNA.titulo)).toHaveAttribute("title", UNA.titulo);
   });
 
   it("sin conversaciones muestra un estado vacío", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
-    const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
 
     expect(
       await screen.findByText("Todavía no tenés conversaciones guardadas."),
@@ -88,7 +89,56 @@ describe("Abrir el panel de conversaciones propias", () => {
   });
 });
 
-describe("Buscar en el historial", () => {
+describe("Colapsar y expandir el rail (tasks.md 1.4, 1.6)", () => {
+  it("colapsa a 60 px mostrando sólo expandir, «Nueva conversación» e «Historial»", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const user = userEvent.setup();
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await user.click(screen.getByRole("button", { name: "Colapsar conversaciones" }));
+
+    expect(screen.getByRole("button", { name: "Expandir conversaciones" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nueva conversación" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Historial" })).toBeInTheDocument();
+    expect(screen.queryByText(UNA.titulo)).toBeNull();
+    expect(screen.queryByRole("searchbox", { name: "Buscar en tus conversaciones" })).toBeNull();
+  });
+
+  it("colapsar mueve el foco a «Expandir conversaciones», y viceversa", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const user = userEvent.setup();
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await user.click(screen.getByRole("button", { name: "Colapsar conversaciones" }));
+
+    const expandir = screen.getByRole("button", { name: "Expandir conversaciones" });
+    expect(expandir).toHaveFocus();
+    expect(expandir).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(expandir);
+
+    const colapsar = screen.getByRole("button", { name: "Colapsar conversaciones" });
+    expect(colapsar).toHaveFocus();
+    expect(colapsar).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("«Historial», colapsado, también expande el rail", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const user = userEvent.setup();
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await user.click(screen.getByRole("button", { name: "Colapsar conversaciones" }));
+
+    await user.click(screen.getByRole("button", { name: "Historial" }));
+
+    expect(await screen.findByText(UNA.titulo)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Colapsar conversaciones" })).toBeInTheDocument();
+  });
+});
+
+describe("Buscar en el rail", () => {
   it("una búsqueda usa el endpoint de búsqueda (debounced) y muestra sólo lo que coincide", async () => {
     const listar = vi
       .spyOn(historialApi, "listarConversaciones")
@@ -97,7 +147,7 @@ describe("Buscar en el historial", () => {
       );
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await user.type(
@@ -116,7 +166,7 @@ describe("Buscar en el historial", () => {
     );
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await user.type(
@@ -130,43 +180,90 @@ describe("Buscar en el historial", () => {
   });
 });
 
-/** Abre el menú «⋮» de una fila —Renombrar y Borrar viven ahí, detrás del disparador. */
+/** Abre el menú «⋮» de una fila —Renombrar y Eliminar viven ahí, detrás del disparador. */
 async function abrirAcciones(user: ReturnType<typeof userEvent.setup>, titulo: string) {
   await user.click(screen.getByRole("button", { name: `Acciones de «${titulo}»` }));
 }
 
 describe("Renombrar", () => {
-  it("guarda el nuevo título y actualiza la lista sin recargar toda la página", async () => {
+  it("desde el «⋮», guarda con Enter y actualiza la lista sin recargar toda la página", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     const renombrar = vi.spyOn(historialApi, "renombrarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await abrirAcciones(user, UNA.titulo);
     await user.click(screen.getByRole("menuitem", { name: "Renombrar" }));
     const campo = screen.getByLabelText(`Nuevo título para «${UNA.titulo}»`);
     await user.clear(campo);
-    await user.type(campo, "Docentes designados");
-    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await user.type(campo, "Docentes designados{Enter}");
 
     expect(renombrar).toHaveBeenCalledWith(UNA.id, "Docentes designados");
     expect(await screen.findByText("Se guardó el nuevo título.")).toBeInTheDocument();
   });
+
+  it("por doble clic en el título, también entra en edición", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await user.dblClick(screen.getByText(UNA.titulo));
+
+    expect(screen.getByLabelText(`Nuevo título para «${UNA.titulo}»`)).toBeInTheDocument();
+  });
+
+  it("Escape cancela sin guardar y conserva el título anterior", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const renombrar = vi.spyOn(historialApi, "renombrarConversacion").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Renombrar" }));
+    const campo = screen.getByLabelText(`Nuevo título para «${UNA.titulo}»`);
+    await user.clear(campo);
+    await user.type(campo, "algo que no se guarda{Escape}");
+
+    expect(renombrar).not.toHaveBeenCalled();
+    expect(await screen.findByText(UNA.titulo)).toBeInTheDocument();
+  });
+
+  it("un título vacío conserva el anterior", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const renombrar = vi.spyOn(historialApi, "renombrarConversacion").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Renombrar" }));
+    const campo = screen.getByLabelText(`Nuevo título para «${UNA.titulo}»`);
+    await user.clear(campo);
+    await user.keyboard("{Enter}");
+
+    expect(renombrar).not.toHaveBeenCalled();
+    expect(await screen.findByText(UNA.titulo)).toBeInTheDocument();
+  });
 });
 
-describe("Borrar una conversación", () => {
+describe("Eliminar una conversación", () => {
   it("pide confirmación antes de borrar", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await abrirAcciones(user, UNA.titulo);
-    await user.click(screen.getByRole("menuitem", { name: "Borrar" }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
     expect(eliminar).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Confirmar borrado" })).toBeInTheDocument();
 
@@ -181,11 +278,11 @@ describe("Borrar una conversación", () => {
     const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await abrirAcciones(user, UNA.titulo);
-    await user.click(screen.getByRole("menuitem", { name: "Borrar" }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(eliminar).not.toHaveBeenCalled();
@@ -201,7 +298,7 @@ describe("Borrar todas las conversaciones", () => {
       .mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await user.click(screen.getByRole("button", { name: "Borrar todas" }));
@@ -220,62 +317,45 @@ describe("Borrar todas las conversaciones", () => {
 
   it("deshabilitado cuando no hay ninguna conversación", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([]);
-    const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
 
     expect(await screen.findByRole("button", { name: "Borrar todas" })).toBeDisabled();
   });
 });
 
-describe("Accesibilidad de la lista (tasks.md §14)", () => {
-  it("cerrar, buscar, abrir, el «⋮» y borrar todas son alcanzables con Tab, en orden", async () => {
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const user = userEvent.setup();
-
-    await abrirHistorial(user);
-    await screen.findByText(UNA.titulo);
-
-    const panel = screen.getByLabelText("Tus conversaciones");
-    const cerrar = within(panel).getByRole("button", { name: "Cerrar el historial" });
-    const buscar = within(panel).getByRole("searchbox", { name: "Buscar en tus conversaciones" });
-    const abrir = within(panel).getByText(UNA.titulo).closest("button");
-    const acciones = within(panel).getByRole("button", { name: `Acciones de «${UNA.titulo}»` });
-    const borrarTodas = within(panel).getByRole("button", { name: "Borrar todas" });
-    expect(abrir).not.toBeNull();
-
-    // El foco ya está en «Historial» —el clic de `abrirHistorial` lo dejó
-    // ahí—, así que se tabula a partir de ahí y no desde el principio del
-    // documento: lo que se afirma es el orden DENTRO del panel, no el de toda
-    // la pantalla. «Historial» vive en el encabezado, así que lo primero
-    // alcanzable adentro del panel es la «×» que lo cierra.
-    await user.tab();
-    expect(cerrar).toHaveFocus();
-    await user.tab();
-    expect(buscar).toHaveFocus();
-    await user.tab();
-    expect(abrir).toHaveFocus();
-    await user.tab();
-    expect(acciones).toHaveFocus();
-    await user.tab();
-    expect(borrarTodas).toHaveFocus();
-  });
-
+describe("Accesibilidad del rail (tasks.md §14)", () => {
   it("cada acción activa con Enter/Espacio como con un clic", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
-    await abrirHistorial(user);
+    montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }).focus();
     await user.keyboard("{Enter}");
-    screen.getByRole("menuitem", { name: "Borrar" }).focus();
+    screen.getByRole("menuitem", { name: "Eliminar" }).focus();
     await user.keyboard("{Enter}");
     screen.getByRole("button", { name: "Confirmar borrado" }).focus();
     await user.keyboard(" ");
 
     expect(eliminar).toHaveBeenCalledWith(UNA.id);
+  });
+
+  it("la fila activa se marca con `aria-current`", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
+      hilo: "44444444-4444-4444-8444-444444444444",
+      turnos: [],
+    });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await user.click(await screen.findByText(UNA.titulo));
+
+    await waitFor(() =>
+      expect(screen.getByText(UNA.titulo)).toHaveAttribute("aria-current", "true"),
+    );
   });
 });

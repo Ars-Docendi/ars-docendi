@@ -72,7 +72,11 @@ public sealed class CapaConversacional(
             await RegistrarAsync(
                 actor, conversacionRechazada, mensaje, turnoRechazado, reloj.GetUtcNow(), ct);
 
-            return turnoRechazado with { CupoRestante = await cuota.CupoRestanteAsync(actor, ct) };
+            return turnoRechazado with
+            {
+                CupoRestante = await cuota.CupoRestanteAsync(actor, ct),
+                Conversacion = conversacionRechazada.HiloHistorico,
+            };
         }
 
         var valores = opciones.Value;
@@ -187,7 +191,17 @@ public sealed class CapaConversacional(
         // hacer, no el valor de antes. Adjuntarlo adentro del `finally` no
         // alcanzaría — el valor de retorno de un `try` con `return` ya queda
         // fijado antes de que el `finally` corra.
-        return resultado with { CupoRestante = await cuota.CupoRestanteAsync(actor, ct) };
+        //
+        // `conversacion.HiloHistorico` SE LEE ACÁ, DESPUÉS de `RegistrarAsync`
+        // (design.md D13 de asistente-rediseno-v3): esa llamada es la que lo
+        // fija la primera vez que el hilo escribe una fila del historial, así
+        // que leerlo antes vería siempre `null` en el primer turno de una
+        // conversación nueva.
+        return resultado with
+        {
+            CupoRestante = await cuota.CupoRestanteAsync(actor, ct),
+            Conversacion = conversacion.HiloHistorico,
+        };
     }
 
     /// <summary>

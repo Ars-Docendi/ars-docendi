@@ -2,9 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Modal } from "@ars-docendi/ui";
 
-import { AbrirHistorial } from "./AbrirHistorial";
-import { AyudaDelAsistente } from "./AyudaDelAsistente";
-import { NuevaConversacion } from "./NuevaConversacion";
 import { PanelAsistente } from "./PanelAsistente";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
@@ -52,7 +49,9 @@ export function LanzadorAsistente() {
   const { tieneAcceso } = useAccesoAlAsistente();
   const [abierto, setAbierto] = useState(false);
   const asistente = useAsistente();
-  const historial = useHistorialAsistente(asistente);
+  // Sólo mientras el modal está abierto: cerrado, no hay rail que mostrar y no
+  // vale la pena pedir la lista (tasks.md 1.3).
+  const historial = useHistorialAsistente(asistente, abierto);
   const lanzador = useRef<HTMLButtonElement>(null);
   const { pathname } = useLocation();
   const [rutaVista, setRutaVista] = useState(pathname);
@@ -103,37 +102,27 @@ export function LanzadorAsistente() {
         Preguntar
       </button>
 
-      {/* Con título, el Modal pinta un encabezado que dice qué es esto y nombra el
-          diálogo por él; sin título quedaba un encabezado con sólo la «×» y un
-          nombre que sólo el lector de pantalla oía.
-
-          EL TÍTULO ES UNA CADENA Y NO UN NODO, a propósito. Meter «Nueva
-          conversación» adentro del título lo pone en la fila del encabezado en una
-          línea, pero la librería renderiza el título dentro del `h4` que NOMBRA al
-          diálogo: el lector de pantalla pasaba a anunciar «Asistente Nueva
-          conversación». Los tests del nombre lo atajaron.
-
-          Así que el botón entra por el cuerpo y se posiciona sobre esa fila.
-          «Historial» se sumó al mismo mecanismo y a la misma fila —es el
-          mismo botón absoluto de siempre, con uno más adentro—: la
-          alternativa honesta sigue siendo un `headerActions` en la librería
-          — TD-020. */}
+      {/* EL TÍTULO SIGUE SIENDO «Asistente», Y EL DIÁLOGO SIGUE NOMBRÁNDOSE POR ÉL:
+          la librería lo pone en un `h4` referenciado por `aria-labelledby` del
+          diálogo. Lo nuevo en v3 es que ese `h4` queda visualmente oculto
+          (`asistente.css`, mismo recorte que ya usa `.adoc-asistente-quien`) y
+          `hideCloseButton` apaga la «×» de la librería: `PanelAsistente` pinta su
+          propio encabezado de 56 px —título de la conversación activa, ayuda y
+          cierre— DENTRO del cuerpo, porque la librería sigue sin un slot de
+          acciones en su fila de encabezado (TD-020) y superponer controles ahí,
+          como hacía v2, ya no alcanza para el rail + encabezado de v3. */}
       <Modal
         open={abierto}
         onOpenChange={setAbierto}
         title="Asistente"
+        hideCloseButton
         className="adoc-asistente-modal"
       >
-        {/* Es sólo la vista: la conversación está arriba, y por eso cerrar no la
-            pierde. */}
-        <div className="adoc-asistente-ayuda-modal">
-          <AyudaDelAsistente />
-        </div>
-        <div className="adoc-asistente-acciones-modal">
-          <AbrirHistorial historial={historial} />
-          <NuevaConversacion asistente={asistente} />
-        </div>
-        <PanelAsistente asistente={asistente} historial={historial} />
+        <PanelAsistente
+          asistente={asistente}
+          historial={historial}
+          onCerrar={() => setAbierto(false)}
+        />
       </Modal>
     </>
   );

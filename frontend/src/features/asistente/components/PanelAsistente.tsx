@@ -2,16 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { InlineAlert } from "@ars-docendi/ui";
 
 import { Conversacion } from "./Conversacion";
+import { EncabezadoDeConversacion } from "./EncabezadoDeConversacion";
 import { EntradaDePregunta } from "./EntradaDePregunta";
 import { EstadoInicial } from "./EstadoInicial";
 import { FranjaDeEstado } from "./FranjaDeEstado";
 import { IrAlFinal } from "./IrAlFinal";
-import { ListaDeConversaciones } from "./ListaDeConversaciones";
+import { RailDeConversaciones } from "./RailDeConversaciones";
 import { MENSAJE_SIN_ACCESO } from "../errores";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
+import { usePreferenciaDelRail } from "../hooks/usePreferenciaDelRail";
 import type { Asistente } from "../hooks/useAsistente";
 import type { HistorialAsistente } from "../hooks/useHistorialAsistente";
+import { developmentAuthEnabled } from "../../../shared/auth/developmentAuth";
+import { obtenerSesionDesarrollo } from "../../../shared/auth/dev/session";
 
 interface PanelAsistenteProps {
   /**
@@ -20,33 +24,41 @@ interface PanelAsistenteProps {
    */
   asistente: Asistente;
   /**
-   * El historial de conversaciones propias. LO CREA EL MISMO DUEÑO que crea
-   * `asistente`, y por el mismo motivo: «Historial» vive en el encabezado de
-   * cada montaje —junto a «Nueva conversación»—, y no adentro de este panel,
-   * así que el botón y el panel que abre necesitan el MISMO hook para seguir
-   * siendo una sola cosa alcanzable desde los dos lugares (tasks.md 10.3).
+   * El historial de conversaciones propias, para el rail. LO CREA EL MISMO
+   * DUEÑO que crea `asistente`, con el mismo criterio: es un solo hook, no
+   * una copia por montaje.
    */
   historial: HistorialAsistente;
+  /**
+   * Cierra el asistente. Sólo el modal del lanzador lo tiene: la ruta
+   * `/asistente` —mientras siga existiendo, tasks.md §10— no tiene noción de
+   * «cerrar», y el encabezado no pinta ese control sin esta prop.
+   */
+  onCerrar?: () => void;
   /** Para el test del umbral, que no puede esperar el tiempo real. */
   umbralDelIndicadorMs?: number;
 }
 
 /**
- * La vista del asistente.
+ * La vista del asistente: el rail de conversaciones y la conversación
+ * activa, en la grilla de dos columnas de v3 (asistente-superficie-frontend,
+ * design.md D1 de asistente-rediseno-v3).
  *
- * ES UNA SOLA, MONTADA DOS VECES: la ruta `/asistente` la muestra a página completa
- * y el lanzador de la barra superior la muestra en un modal. Dos implementaciones se
- * desincronizarían —una recibiría una mejora y la otra no—, y nadie lo notaría hasta
- * que alguien reportara que «desde el botón anda distinto».
+ * ES UNA SOLA, MONTADA DOS VECES: el lanzador de la barra la muestra en un
+ * modal y, mientras la ruta `/asistente` siga existiendo (tasks.md §10), la
+ * muestra también a página completa. Dos implementaciones se
+ * desincronizarían —una recibiría una mejora y la otra no—, y nadie lo
+ * notaría hasta que alguien reportara que «desde el botón anda distinto».
  *
  * NO TIENE CONVERSACIÓN PROPIA: la recibe. En el modal se monta al abrir y se
  * desmonta al cerrar, y si el hilo viviera acá se iría con él —Esc y un clic
  * afuera, también sin querer, cierran—. Lo que sí es suyo es lo que se está
- * escribiendo y el foco.
+ * escribiendo, el foco y la preferencia de ancho del rail.
  */
 export function PanelAsistente({
   asistente,
   historial,
+  onCerrar,
   umbralDelIndicadorMs,
 }: PanelAsistenteProps) {
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
@@ -60,12 +72,18 @@ export function PanelAsistente({
   const entrada = useRef<HTMLTextAreaElement>(null);
   const sinTurnos = turnos.length === 0;
 
+  // NO ES UN HOOK A PROPÓSITO: la sesión de desarrollo es una lectura
+  // síncrona de `localStorage`, y pasar por `useCurrentUser` traería su
+  // propia consulta de React Query a CADA test que monta este panel —que
+  // son casi todos— sin que la preferencia del rail necesite nada de eso.
+  // En producción, sin la integración de identidad todavía armada, no hay
+  // id que leer y el rail usa el default (expandido) para todo el mundo.
+  const usuarioId = developmentAuthEnabled ? obtenerSesionDesarrollo()?.usuarioId : undefined;
+  const rail = usePreferenciaDelRail(usuarioId);
+
   // El foco vuelve al campo cuando el turno termina —también cuando se lo dejó de
   // esperar— y cuando la conversación se vacía: quien está usando un lector de
   // pantalla o el teclado no tiene que volver a buscarlo para seguir preguntando.
-  // Se mira el estado y no quién lo cambió, porque «Nueva conversación» puede
-  // vivir fuera del panel —en la ruta va en el encabezado de la página— y el
-  // campo es de acá.
   useEffect(() => {
     if (!enVuelo && !bloqueado) entrada.current?.focus();
   }, [enVuelo, bloqueado, sinTurnos]);
@@ -96,6 +114,16 @@ export function PanelAsistente({
     );
   }
 
+  // «Asistente» en la bienvenida; si no, el título de la conversación activa
+  // —la reanudada, o la que este mismo hilo en vivo acaba de persistir—
+  // (asistente-superficie-frontend). Mientras el rail todavía no trajo la
+  // lista —o la conversación nueva todavía no aparece en ella—, se sigue
+  // mostrando «Asistente»: nunca un hueco.
+  const conversacionActiva = historial.conversaciones.data?.find(
+    (c) => c.id === historial.conversacionActivaId,
+  );
+  const tituloDelEncabezado = sinTurnos ? "Asistente" : (conversacionActiva?.titulo ?? "Asistente");
+
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
       {/* Global y SIN bypass (asistente-modo-mantenimiento): se ve igual para
@@ -107,61 +135,72 @@ export function PanelAsistente({
         </InlineAlert>
       )}
 
-      {/* El botón que abre esto vive en el ENCABEZADO de cada montaje —junto a
-          «Nueva conversación»—, no acá: por eso este panel es un cajón que se
-          superpone al hilo (`position: absolute` sobre `.adoc-asistente`, que
-          por eso es `position: relative`) en vez de empujarlo hacia abajo. */}
-      {historial.abierto && <ListaDeConversaciones historial={historial} />}
+      <div className="adoc-asistente-grilla">
+        <RailDeConversaciones
+          asistente={asistente}
+          historial={historial}
+          colapsado={rail.colapsado}
+          onAlternar={rail.alternar}
+        />
 
-      {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando, el
-          campo de entrada se va hacia abajo con cada respuesta y hay que perseguirlo;
-          acá se queda quieto y lo que se mueve es la conversación, que es lo que uno
-          espera de un chat. */}
-      <div className="adoc-asistente-hilo-marco">
-        <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
-          {sinTurnos && capacidades && (
-            <EstadoInicial capacidades={capacidades} onElegir={enviar} deshabilitado={enVuelo} />
-          )}
+        <div className="adoc-asistente-columna">
+          <EncabezadoDeConversacion titulo={tituloDelEncabezado} onCerrar={onCerrar} />
 
-          <Conversacion
-            turnos={turnos}
-            onElegir={enviar}
-            onReintentar={(id) => void reintentar(id)}
-            onReejecutar={(id) => void asistente.reejecutar(id)}
+          {/* LO QUE SCROLLEA ES ESTO, y no el modal entero. Con el modal scrolleando,
+              el campo de entrada se va hacia abajo con cada respuesta y hay que
+              perseguirlo; acá se queda quieto y lo que se mueve es la conversación,
+              que es lo que uno espera de un chat. */}
+          <div className="adoc-asistente-hilo-marco">
+            <div className="adoc-asistente-hilo" ref={hilo} onScroll={onScroll}>
+              {sinTurnos && capacidades && (
+                <EstadoInicial
+                  capacidades={capacidades}
+                  onElegir={enviar}
+                  deshabilitado={enVuelo}
+                />
+              )}
+
+              <Conversacion
+                turnos={turnos}
+                onElegir={enviar}
+                onReintentar={(id) => void reintentar(id)}
+                onReejecutar={(id) => void asistente.reejecutar(id)}
+                enVuelo={enVuelo}
+                anuncio={historial.anuncio}
+              />
+            </div>
+
+            {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
+                el foco que tenía se iría a ninguna parte: pasa al campo, que es lo que
+                hay en el final al que se acaba de ir. */}
+            <IrAlFinal
+              visible={!anclado}
+              onClick={() => {
+                irAlFinal();
+                entrada.current?.focus();
+              }}
+            />
+          </div>
+
+          {/* Una sola fila, FUERA de la región viva a propósito. */}
+          <FranjaDeEstado
             enVuelo={enVuelo}
-            anuncio={historial.anuncio}
+            turnos={turnos}
+            onDetener={detener}
+            cupo={capacidades?.cupo}
+            umbralMs={umbralDelIndicadorMs}
+          />
+
+          <EntradaDePregunta
+            ref={entrada}
+            valor={borrador}
+            onCambiar={setBorrador}
+            onEnviar={() => void enviar(borrador)}
+            enVuelo={enVuelo}
+            deshabilitado={bloqueado}
           />
         </div>
-
-        {/* Flota sobre el hilo, fuera de la región viva. Al pulsarlo desaparece, y
-            el foco que tenía se iría a ninguna parte: pasa al campo, que es lo que
-            hay en el final al que se acaba de ir. */}
-        <IrAlFinal
-          visible={!anclado}
-          onClick={() => {
-            irAlFinal();
-            entrada.current?.focus();
-          }}
-        />
       </div>
-
-      {/* Una sola fila, FUERA de la región viva a propósito. */}
-      <FranjaDeEstado
-        enVuelo={enVuelo}
-        turnos={turnos}
-        onDetener={detener}
-        cupo={capacidades?.cupo}
-        umbralMs={umbralDelIndicadorMs}
-      />
-
-      <EntradaDePregunta
-        ref={entrada}
-        valor={borrador}
-        onCambiar={setBorrador}
-        onEnviar={() => void enviar(borrador)}
-        enVuelo={enVuelo}
-        deshabilitado={bloqueado}
-      />
     </section>
   );
 }

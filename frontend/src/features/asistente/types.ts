@@ -82,6 +82,13 @@ export interface RespuestaDelAsistente {
    * estado lo usa para actualizarse sin volver a pedir `capacidades`.
    */
   cupoRestante?: number | null;
+  /**
+   * El id de `GET /historial` en el que quedó este turno (design.md D13 de
+   * asistente-rediseno-v3). Ausente si no se persistió: el rail no resalta ni
+   * titula nada con este turno, y el que ya tenía la conversación activa —si
+   * lo había— no se pisa.
+   */
+  conversacion?: string | null;
 }
 
 export interface AreaCubierta {

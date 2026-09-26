@@ -18,9 +18,9 @@ interface EditorDeLimiteProps {
 /**
  * Un editor de límite numérico (cupo de rol, override de usuario, tope
  * organizacional — tasks.md 11.5), con confirmación INLINE antes de BAJAR un
- * valor que ya se guardó en esta misma sesión — mismo patrón que «Borrar» en
- * el cajón de historial (`ListaDeConversaciones.tsx`: la fila reemplaza su
- * contenido por «¿Borrar…?» + Confirmar/Cancelar), no un `Modal`.
+ * valor que ya se guardó en esta misma sesión — mismo patrón que «Eliminar»
+ * en el rail de conversaciones (`RailDeConversaciones.tsx`: la fila
+ * reemplaza su contenido por «¿Borrar…?» + Confirmar/Cancelar), no un `Modal`.
  *
  * NO HAY ENDPOINT PARA LEER EL VALOR VIGENTE (docs/architecture/api-contracts.md
  * §presupuestos/tope-organizacional: sólo `PUT`, nunca `GET`), así que «vigente»

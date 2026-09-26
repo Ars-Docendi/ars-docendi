@@ -13,17 +13,13 @@
 /* ─────────────────────────────────── el panel ──────────────────────────────── */
 
 /* Es UNO SOLO, montado dos veces: la ruta y el modal. El alto lo fija cada
-   montaje; el panel lo reparte: el hilo se estira y scrollea, lo demás no se
-   mueve.
-
-   `position: relative` es lo que ancla el cajón del historial
-   (`.adoc-asistente-historial-cajon`, más abajo): es `position: absolute`
-   sobre ESTE elemento, para superponerse al hilo en vez de empujarlo. */
+   montaje; el panel lo reparte entre el aviso de mantenimiento (si hay) y
+   `.adoc-asistente-grilla` —el rail y la columna de la conversación,
+   definidos más abajo—, que es lo que se estira y contiene el scroll. */
 .adoc-asistente {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-height: 0;
   box-sizing: border-box;
 }
@@ -80,66 +76,301 @@
   }
 }
 
-/* ──────────────────────── «Nueva conversación» en el modal ──────────────────── */
+/* ──────────────────────────── el rail y el encabezado ──────────────────────── */
 
-/* Vive en el CUERPO del Modal y se dibuja sobre su fila de encabezado. La librería
-   no expone un slot de acciones ahí —sólo `title`, `children` y `footer`—, y pasarlo
-   como parte del título lo mete adentro del `h4` que nombra al diálogo: el lector
-   de pantalla anunciaba «Asistente Nueva conversación». Los tests del nombre lo
-   atajaron, y por eso está acá y no allá. El arreglo de verdad es TD-020.
+/*
+ * EL CUERPO: rail + columna de la conversación, lado a lado
+ * (asistente-superficie-frontend, design.md D1 de asistente-rediseno-v3).
+ *
+ * FLEXBOX Y NO `grid-template-columns` ANIMADO: las dos llegan al mismo resultado
+ * visual, pero animar el ancho de un ítem flex es la transición CSS más ordinaria
+ * que hay —soportada igual en todos lados, sin las sorpresas de interpolar pistas
+ * de una grilla— y es EL RAIL el que tiene un ancho fijo que alternar (268 px /
+ * 60 px), no la columna, que siempre completa lo que sobra.
+ */
+.adoc-asistente-grilla {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
 
-   Antes ocupaba una fila entera del cuerpo, que en un modal ajustado de alto salía
-   del hilo. El `right` deja lugar para la «×» del Modal; el `top` alinea con el
-   relleno de su encabezado (18px). `.adoc-modal` ya es `position: relative`. */
-.adoc-asistente-acciones-modal {
-  position: absolute;
-  top: 14px;
-  right: 52px;
-  z-index: 1;
+/* 268 px expandido, 60 px colapsado, con la MISMA transición que usa el resto de
+   la aplicación para lo que cambia de tamaño (`--motion-base`/`--ease-standard`) —
+   `theme.css` ya la apaga entera bajo `prefers-reduced-motion`, así que no hace
+   falta una regla propia para eso acá. */
+.adoc-asistente-rail {
+  flex: none;
+  width: 268px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-right: 1px solid var(--color-border-subtle);
+  transition: width var(--motion-base) var(--ease-standard);
+  overflow: hidden;
+}
+
+.adoc-asistente-rail.colapsado {
+  width: 60px;
+  padding-inline: var(--space-2);
+}
+
+.adoc-asistente-rail-encabezado {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
 
-/* Reservado para la regla de ancho angosto de abajo: en pantalla normal la
-   etiqueta se ve como cualquier texto de botón. */
-.adoc-asistente-etiqueta-boton {
-  display: inline;
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado {
+  flex-direction: column;
 }
 
-/* El «?» va pegado al título, a su derecha. Vive en el CUERPO y se dibuja sobre la
-   fila del encabezado, igual que «Nueva conversación» y por el mismo motivo: el
-   Modal no expone dónde poner nada ahí (TD-020).
+/* Los tres controles ícono-solo del rail colapsado (expandir, «Nueva
+   conversación», «Historial») y el de colapsar del rail expandido: mismo
+   tamaño y tono que la ayuda del encabezado, para que se lean como la misma
+   familia de controles. */
+.adoc-asistente-rail-toggle,
+.adoc-asistente-rail-historial-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
 
-   EL DESPLAZAMIENTO ES FIJO Y ESO ES DEUDA, no elegancia. `left` mide el relleno
-   del encabezado del Modal más el ancho de la palabra «Asistente» a su tamaño: si
-   alguien renombra el título, el «?» queda descolocado. Se acepta porque el título
-   es una constante del componente y el desajuste se ve de inmediato; el arreglo
-   real es el `headerActions` de TD-020, que lo pondría en la fila de verdad.
+.adoc-asistente-rail-toggle:hover,
+.adoc-asistente-rail-historial-icono:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-sunken);
+}
 
-   The z-index has to beat every layer the conversation paints, not just tie with
-   them: this wrapper creates the stacking context the help popover lives in, so
-   at `1` the table's sticky header (also `1`, later in the DOM) painted over the
-   open popover. */
-.adoc-asistente-ayuda-modal {
+.adoc-asistente-rail-toggle .ico,
+.adoc-asistente-rail-historial-icono .ico {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* «Nueva conversación» es EL MISMO botón expandido y colapsado —ver
+   `RailDeConversaciones`—; acá se le esconde sólo la etiqueta cuando el rail
+   está angosto, con el mismo recorte visual que ya usa `.adoc-asistente-quien`:
+   el nombre accesible del botón no cambia. */
+.adoc-asistente-rail.colapsado .adoc-asistente-etiqueta-boton {
   position: absolute;
-  top: 14px;
-  left: 6.9rem;
-  z-index: var(--z-dropdown);
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-/* En la ruta va junto al botón, dentro de las acciones del encabezado de página. */
-.adoc-asistente-acciones-pagina {
+.adoc-asistente-rail-busqueda {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-rail-busqueda input {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-asistente-rail-lista {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.adoc-asistente-rail-vacio {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-rail-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Encabezado de grupo (Hoy / Ayer / Últimos 7 días / Anteriores) — el
+   agrupamiento por fecha relativa que comparten ChatGPT, Claude.ai, Gemini y
+   Copilot para esta misma lista. En mono y mayúsculas, como cualquier etiqueta
+   de metadato de la aplicación (mismo tratamiento que un rótulo de estado). */
+.adoc-asistente-rail-grupo-etiqueta {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.adoc-asistente-rail-grupo-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adoc-asistente-rail-item {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-xs);
+}
+
+.adoc-asistente-rail-item:hover,
+.adoc-asistente-rail-item:focus-within {
+  background: var(--color-bg-sunken);
+}
+
+/* La conversación activa: fondo de acento, no sólo texto de color —es la fila
+   que el mock resalta, y un color de texto solo se pierde en una lista larga. */
+.adoc-asistente-rail-item.activa {
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-rail-item.activa .adoc-asistente-rail-abrir {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+
+/* El «⋮» de la fila queda invisible en reposo y aparece con el mouse, el
+   teclado o el propio menú abierto — el mismo ahorro de ruido visual que
+   ChatGPT aplicó a su lista (research previo a este rediseño). Va DESDE ACÁ y
+   no en `MenuAcciones.css`: ese menú es compartido con `designaciones`, que sí
+   lo quiere siempre visible. */
+.adoc-asistente-rail-item .adoc-acciones-trigger {
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.adoc-asistente-rail-item:hover .adoc-acciones-trigger,
+.adoc-asistente-rail-item:focus-within .adoc-acciones-trigger,
+.adoc-asistente-rail-item .adoc-acciones-trigger[aria-expanded="true"] {
+  opacity: 1;
+}
+
+/* Una línea, con el sobrante en «…»: el título completo queda en el `title`
+   del botón —se lee al pasar el mouse—, y ya no hace falta una segunda línea
+   con la fecha, que ahora la da el grupo. */
+.adoc-asistente-rail-abrir {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  justify-content: flex-start;
+}
+
+.adoc-asistente-rail-item-campo {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-asistente-rail-confirmar,
+.adoc-asistente-rail-borrar-todo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-body-sm-size);
+}
+
+.adoc-asistente-rail-confirmar {
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* «Borrar todas» al pie del rail: no es la primera acción que alguien busca al
+   abrirlo, y antes competía con la búsqueda por la misma fila superior.
+   `margin-top: auto` empuja el pie al borde de abajo cuando la lista no llena
+   el rail, y se anula solo cuando ya lo completa. */
+.adoc-asistente-rail-pie {
+  flex: none;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* ─────────────────────────── la columna de la conversación ─────────────────── */
+
+.adoc-asistente-columna {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Los 56 px del encabezado: el título de la conversación activa (o
+ * «Asistente» en la bienvenida), la ayuda y, en el modal, cerrar
+ * (`EncabezadoDeConversacion`). Reemplaza la fila de encabezado del `Modal`
+ * de la librería, que sigue montada pero visualmente oculta más abajo —la
+ * librería no tiene un slot de acciones ahí (TD-020). */
+.adoc-asistente-encabezado {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-encabezado-titulo {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+}
+
+.adoc-asistente-encabezado-acciones {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
 
-/* En la ruta el «?» está contra el borde derecho: colgando hacia la derecha, el
-   panel se saldría de la ventana. */
-.adoc-asistente-acciones-pagina .adoc-asistente-ayuda-pop {
-  left: auto;
-  right: 0;
+/* Calca el botón «×» que el `Modal`/`Drawer` de la librería ya pintaba —mismo
+   tipo de letra, mismo tamaño, mismo tono— para que cerrar siga leyéndose
+   igual, ahora que esta fila reemplaza a la de la librería. */
+.adoc-asistente-encabezado-cerrar {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-encabezado-cerrar:hover {
+  color: var(--color-text-primary);
 }
 
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
@@ -603,276 +834,6 @@
   margin-inline-start: calc(-1 * var(--space-3));
 }
 
-/* ───────────────────────── historial de conversaciones propias ─────────────── */
-
-/* El botón que abre esto vive en el ENCABEZADO de cada montaje —junto a
-   «Nueva conversación»—, no acá: `AbrirHistorial` en `LanzadorAsistente` y en
-   `AsistentePage`. Lo que sigue es sólo el cajón que ese botón abre.
-
-   ES UN CAJÓN QUE SE SUPERPONE, NO UNA CAJA QUE EMPUJA. La versión anterior
-   insertaba la lista arriba del hilo, dentro del flujo normal: con más de un
-   par de conversaciones el campo de entrada quedaba fuera de la vista sin
-   haber escrito nada. `position: absolute; inset: 0` sobre `.adoc-asistente`
-   (que por eso es `position: relative`) hace que el cajón se pinte ENCIMA del
-   hilo en vez de correrlo hacia abajo — el mismo defecto que ya se resolvió
-   una vez para el modal entero (ver el comentario de `.adoc-asistente-modal`
-   sobre el overflow que atrapaba la rueda) y que no correspondía repetir acá.
-
-   `inset: 0` ignora el `padding` de `.adoc-asistente-modal .adoc-asistente`:
-   es lo que se quiere, para que el cajón llegue al borde del modal como el
-   `Drawer` de la librería llega al borde de la pantalla, y no que se vea
-   flotando adentro con un marco de aire alrededor. */
-.adoc-asistente-historial-cajon {
-  position: absolute;
-  inset: 0;
-  /* `--z-dropdown` y no `--z-sticky`: «Ir al final» flota sobre el hilo con
-     ESE mismo z-index (más abajo, `.adoc-asistente-ir-al-final`), y los dos
-     pueden estar visibles a la vez —el usuario subió a releer Y abrió el
-     historial—. Empatar no alcanza para taparlo: hace falta ganarle, no
-     empatar (mismo defecto que ya se corrigió para `.adoc-asistente-ayuda-modal`
-     más arriba). */
-  z-index: var(--z-dropdown);
-  display: flex;
-}
-
-/* El fondo cierra al clic. A ancho de escritorio el cajón no cubre todo el
-   ancho del panel —`.adoc-asistente-historial` abajo tiene un ancho fijo—, así
-   que queda hilo visible al lado; clicar ahí es la forma obvia de cerrar sin
-   ir a buscar la «×». `flex: 1` es lo que le da al fondo el resto del ancho
-   que el cajón no ocupa. Reseteo de botón porque semánticamente lo es —lo
-   opera el teclado igual que la «×»— pero no se quiere que se vea como uno. */
-.adoc-asistente-historial-fondo {
-  flex: 1;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  background: var(--color-bg-inverse);
-  /* Sutil, y no el 0.3 del `Modal`/`Drawer` de la librería: aquello dimea la
-     PANTALLA ENTERA detrás de un diálogo; esto dimea el resto de un panel que
-     ya está adentro de un modal (o de la columna angosta de la ruta), un área
-     mucho más chica y ya acotada. Al 0.3 se sentía más oscuro de lo que el
-     cajón —con su propia sombra— necesita para leerse encima. */
-  opacity: 0.12;
-  cursor: pointer;
-}
-
-/* El cajón en sí: ancho fijo y no el 100% del panel —dejar ver el hilo al
-   lado es lo que hace obvio que se puede cerrar clicando afuera—, con su
-   propio scroll porque el buscador y el pie tienen que quedar siempre a la
-   vista aunque la lista sea larga.
-
-   BORDE SUTIL Y RADIO EN EL BORDE LIBRE, como cualquier otro popover de la
-   feature (`.adoc-asistente-ayuda-pop`, `.adoc-acciones-pop`): `--color-
-   border-subtle` y no `--color-border-default` —éste es el borde de un campo,
-   no el de una superficie flotante—, y `--elev-2` en vez de `--elev-3`, que
-   es la sombra que la librería reserva para el `Modal` mismo, un nivel por
-   encima de lo que corresponde acá. El radio va sólo del lado libre (no del
-   lado pegado al borde del panel, que sería un radio que no se ve). */
-.adoc-asistente-historial {
-  flex: none;
-  width: min(340px, 100%);
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-right: 1px solid var(--color-border-subtle);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--color-bg-raised);
-  box-shadow: var(--elev-2);
-  overflow-y: auto;
-  animation: adoc-asistente-historial-entrar var(--motion-fast) var(--ease-enter);
-}
-
-@keyframes adoc-asistente-historial-entrar {
-  from {
-    transform: translateX(-100%);
-  }
-
-  to {
-    transform: none;
-  }
-}
-
-.adoc-asistente-historial-encabezado {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.adoc-asistente-historial-titulo-panel {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-primary);
-}
-
-/* Calca el botón «×» del `Modal`/`Drawer` de la librería —mismo tipo de letra,
-   mismo tamaño, mismo tono—: es el mismo lenguaje visual de «cerrar esto» que
-   ya conoce quien usó cualquiera de los dos, y este cajón no es ninguno de
-   los dos (vive DENTRO del panel, no en un portal aparte). */
-.adoc-asistente-historial-cerrar {
-  flex: none;
-  border: 0;
-  background: transparent;
-  padding: 0 var(--space-1);
-  font-family: var(--font-mono);
-  font-size: 16px;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-}
-
-.adoc-asistente-historial-cerrar:hover {
-  color: var(--color-text-primary);
-}
-
-.adoc-asistente-historial-busqueda {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adoc-asistente-historial-busqueda input {
-  flex: 1;
-  min-width: 0;
-}
-
-.adoc-asistente-historial-vacio {
-  margin: 0;
-  font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
-}
-
-.adoc-asistente-historial-grupos {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
-}
-
-/* Encabezado de grupo (Hoy / Ayer / Últimos 7 días / Anteriores) — el
-   agrupamiento por fecha relativa que comparten ChatGPT, Claude.ai, Gemini y
-   Copilot para esta misma lista. `sticky` lo mantiene a la vista mientras el
-   grupo scrollea por debajo, para que nunca se pierda a qué fecha corresponde
-   la fila que se está mirando. */
-.adoc-asistente-historial-grupo-etiqueta {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin: 0 0 var(--space-1);
-  padding-block: var(--space-1);
-  background: var(--color-bg-raised);
-  font-size: var(--text-caption-size);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.adoc-asistente-historial-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.adoc-asistente-historial-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  border-radius: var(--radius-xs);
-}
-
-.adoc-asistente-historial-item:hover,
-.adoc-asistente-historial-item:focus-within {
-  background: var(--color-bg-sunken);
-}
-
-/* El «⋮» de la fila queda invisible en reposo y aparece con el mouse, el
-   teclado o el propio menú abierto — el mismo ahorro de ruido visual que
-   ChatGPT aplicó a su lista (research previo a este rediseño): mostrar los
-   tres siempre, en una lista de varias conversaciones, es ruido que nadie lee
-   hasta que lo necesita. Va DESDE ACÁ y no en `MenuAcciones.css`: ese menú es
-   compartido con `designaciones`, que sí lo quiere siempre visible. */
-.adoc-asistente-historial-item .adoc-acciones-trigger {
-  opacity: 0;
-  transition: opacity var(--motion-fast);
-}
-
-.adoc-asistente-historial-item:hover .adoc-acciones-trigger,
-.adoc-asistente-historial-item:focus-within .adoc-acciones-trigger,
-.adoc-asistente-historial-item .adoc-acciones-trigger[aria-expanded="true"] {
-  opacity: 1;
-}
-
-/* Una línea, con el sobrante en «…»: el título completo queda en el `title`
-   del botón —se lee al pasar el mouse—, y ya no hace falta una segunda línea
-   con la fecha, que ahora la da el grupo. */
-.adoc-asistente-historial-abrir {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: start;
-  justify-content: flex-start;
-}
-
-/* La conversación reanudada: mismo acento que el resto de la aplicación usa
-   para marcar «esto es lo actual», nunca un color inventado. */
-.adoc-asistente-historial-item.activa .adoc-asistente-historial-abrir {
-  color: var(--color-accent);
-  font-weight: var(--weight-semibold);
-}
-
-.adoc-asistente-historial-form {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adoc-asistente-historial-form input {
-  flex: 1;
-  min-width: 0;
-}
-
-.adoc-asistente-historial-confirmar,
-.adoc-asistente-historial-borrar-todo {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-body-sm-size);
-}
-
-.adoc-asistente-historial-confirmar {
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-/* «Borrar todas» al pie, demotido de la parte de arriba: no es la primera
-   acción que alguien busca al abrir su historial, y antes competía con la
-   búsqueda por la misma fila superior.
-
-   `margin-top: auto` Y NO SÓLO EL ORDEN EN EL MARCADO: con pocas
-   conversaciones el cajón queda más alto que su contenido, y sin esto el pie
-   se quedaba pegado debajo de la lista con un hueco vacío abajo —no leía
-   como «el pie del cajón», leía como una fila más suelta en el medio—. El
-   margen automático empuja el pie hasta el borde de abajo cuando sobra
-   alto, y se anula solo cuando la lista ya lo completa. */
-.adoc-asistente-historial-pie {
-  flex: none;
-  margin-top: auto;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border-subtle);
-  display: flex;
-  justify-content: flex-end;
-}
-
 /* ───────────────────────── un turno restaurado del historial ───────────────── */
 
 /* Nunca se guardó el texto redactado (design.md D2/D4 de
@@ -1192,10 +1153,11 @@
   height: 1rem;
 }
 
-/* Ancho de lectura y no el de un diálogo de confirmación: la tarjeta de respuesta
-   trae tablas, y en los 520 px de la librería casi siempre scrolleaban. */
+/* 1100 × 728 px como máximo (asistente-superficie-frontend): el rail se suma al
+   ancho de lectura que ya tenía el panel —los 520 px de la librería casi siempre
+   scrolleaban con una tabla adentro—, así que el modal crece con él. */
 .adoc-asistente-modal {
-  max-width: min(880px, calc(100vw - 48px));
+  max-width: min(1100px, calc(100vw - 48px));
 }
 
 /* El `.body` del Modal impone un tamaño y un color secundario pensados para un
@@ -1206,6 +1168,28 @@
   padding: 0;
   color: inherit;
   font-size: inherit;
+}
+
+/* EL `h4` QUE NOMBRA AL DIÁLOGO SIGUE MONTADO, VISUALMENTE OCULTO
+   (design.md D1 de asistente-rediseno-v3, TD-020): `PanelAsistente` pinta su
+   propio encabezado de 56 px (`EncabezadoDeConversacion`) dentro del cuerpo, y
+   este título de la librería sólo sigue existiendo para que el diálogo se
+   nombre «Asistente» vía `aria-labelledby`. Mismo recorte que
+   `.adoc-asistente-quien`, y no `display: none`: un lector de pantalla sigue
+   necesitando que el nodo referenciado exista y tenga texto.
+
+   `hideCloseButton` en el `Modal` ya evita pintar su «×» —no hace falta
+   ocultarla acá—, así que el `header` de la librería queda con un único hijo,
+   este `h4` invisible. */
+.adoc-asistente-modal header h4 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* EL ALTO LO FIJA EL MODAL Y EL PANEL LO HEREDA. Una sola fuente de verdad, y no
@@ -1228,7 +1212,7 @@
    el diálogo, no sobre un contenedor. Escrito como descendiente no seleccionaba
    nada y el panel crecía con la conversación. */
 .adoc-asistente-modal {
-  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), 900px);
+  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), 728px);
 }
 
 .adoc-asistente-modal .body {
@@ -1324,35 +1308,10 @@
     text-align: start;
   }
 
-  /* El cajón del historial ocupa TODO el ancho: no queda hilo visible al lado
-     para justificar un fondo que cerrar al clic, así que el fondo desaparece
-     y el cajón deja de ser «fijo a 340px» para ser «todo lo que hay». */
-  .adoc-asistente-historial {
-    width: 100%;
-  }
-
-  .adoc-asistente-historial-fondo {
-    display: none;
-  }
-
-  /* «Historial» Y «Nueva conversación», SIN ETIQUETA, en la fila del
-     encabezado del modal. La fila ya tiene el título, el «?» y la «×»
-     compitiendo por el mismo ancho de teléfono; con las dos etiquetas de
-     texto se solapaban entre sí y con el título. El nombre accesible del
-     botón no cambia —sigue siendo el texto completo, sólo se oculta
-     VISUALMENTE con el mismo recorte que ya usa `.adoc-asistente-quien`—,
-     así que esto no es lo mismo que sacarle la etiqueta al botón: sigue
-     anunciándose igual con lector de pantalla. */
-  .adoc-asistente-acciones-modal .adoc-asistente-etiqueta-boton {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
+  /* EL RAIL EN TELÉFONO QUEDA SIN RESOLVER A PROPÓSITO (TD-016/TD-024 —
+     non-goal de este cambio): angosto, 268 px de rail no dejarían casi nada
+     para la conversación, y automatizar el colapso según el ancho es trabajo
+     de la épica móvil, no de este grupo. */
 }
 
 /* ───────────────────────────────── menos movimiento ────────────────────────── */
@@ -1369,7 +1328,7 @@
     animation: none;
   }
 
-  .adoc-asistente-historial {
-    animation: none;
-  }
+  /* La transición de ancho del rail (`.adoc-asistente-rail`, más arriba) no
+     necesita una regla propia acá: usa `--motion-base`, que `theme.css` ya
+     pone en `0ms` bajo esta misma media query. */
 }

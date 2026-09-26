@@ -133,6 +133,16 @@ public sealed record RespuestaDelAsistente
     /// </summary>
     public int? CupoRestante { get; init; }
 
+    /// <summary>
+    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>)
+    /// en la que este turno quedó registrado (design.md D13 de
+    /// asistente-rediseno-v3), para que el rail la resalte y titule el
+    /// encabezado. Nulo si el turno no se persistió —la escritura del
+    /// historial falló, o el turno terminó en <c>Fallo</c>—. Nunca viaja junto
+    /// a <see cref="ClaveDeRetroalimentacion"/> ni al registro analítico.
+    /// </summary>
+    public Guid? Conversacion { get; init; }
+
     /// <summary>Arma la respuesta HTTP a partir del resultado del turno.</summary>
     internal static RespuestaDelAsistente De(ResultadoDelTurno turno)
     {
@@ -157,6 +167,7 @@ public sealed record RespuestaDelAsistente
             Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
             ClaveDeRetroalimentacion = turno.ClaveDeRetroalimentacion,
             CupoRestante = turno.CupoRestante,
+            Conversacion = turno.Conversacion,
         };
     }
 

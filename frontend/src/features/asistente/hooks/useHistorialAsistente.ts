@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
 import {
@@ -17,17 +17,13 @@ const CLAVE_HISTORIAL = ["asistente", "historial"] as const;
 export const ESPERA_DE_BUSQUEDA_MS = 300;
 
 export interface HistorialAsistente {
-  /** Si el panel de conversaciones propias está abierto. */
-  abierto: boolean;
-  alternar: () => void;
-  cerrar: () => void;
   busqueda: string;
   setBusqueda: (valor: string) => void;
   conversaciones: UseQueryResult<ConversacionResumen[]>;
   renombrar: (id: string, titulo: string) => Promise<void>;
   eliminar: (id: string) => Promise<void>;
   eliminarTodo: () => Promise<void>;
-  /** Reanuda una conversación propia y cierra el panel. */
+  /** Reanuda una conversación propia. */
   abrirConversacion: (id: string) => Promise<void>;
   /**
    * El último anuncio para la región viva EXISTENTE (`Conversacion.tsx`,
@@ -36,64 +32,38 @@ export interface HistorialAsistente {
    */
   anuncio: string | null;
   /**
-   * La conversación reanudada más reciente, para resaltarla en la lista
-   * (`aria-current`). Se limpia sola cuando el hilo se vacía —«Nueva
-   * conversación» u otro reinicio—, porque ahí deja de haber una fila a la
-   * que corresponda seguir marcando.
+   * La conversación activa, para resaltarla en el rail (`aria-current`) y
+   * titular el encabezado (`asistente-superficie-frontend`, design.md D13).
+   * La fija reanudar una conversación propia Y también la primera respuesta
+   * persistida de una conversación en vivo —el rail la resalta apenas
+   * aparece, sin que el usuario tenga que abrir nada—. Se limpia sola cuando
+   * el hilo se vacía —«Nueva conversación» u otro reinicio—, porque ahí deja
+   * de haber una fila del rail a la que corresponda seguir marcando.
    */
   conversacionActivaId: string | null;
-  /**
-   * Un id ESTABLE y único por instancia de este hook, para que el botón
-   * «Historial» del encabezado apunte por `aria-controls` al panel que abre
-   * —viven en dos subárboles distintos del DOM desde que «Historial» se
-   * mudó al encabezado—. `useId` y no una constante fija: la barra superior
-   * puede tener montado el lanzador AL MISMO TIEMPO que la ruta `/asistente`
-   * muestra su propio panel, y dos ids iguales en el documento son un id
-   * inválido.
-   */
-  idDelPanel: string;
-  /**
-   * `AbrirHistorial` registra su botón acá (`ref={historial.registrarDisparador}`)
-   * para que Escape pueda devolverle el foco al cerrar: sin esto, cerrar con
-   * teclado deja el foco en el panel que se acaba de desmontar, y el
-   * navegador lo manda a `<body>` — el mismo defecto que `contenedor` ya
-   * evita para renombrar y borrar.
-   *
-   * SON DOS FUNCIONES Y NO LA REF EXPUESTA DIRECTO: una ref cruda en el
-   * objeto que devuelve este hook hace que el linter (`react-hooks/refs`)
-   * marque como sospechosa CUALQUIER lectura de una propiedad de
-   * `historial` durante el render, no sólo la de la ref. Guardarla adentro y
-   * exponer sólo funciones evita el falso positivo sin perder la
-   * funcionalidad.
-   */
-  registrarDisparador: (elemento: HTMLButtonElement | null) => void;
-  /** Enfoca el botón «Historial» ya registrado. Ver `registrarDisparador`. */
-  enfocarDisparador: () => void;
 }
 
 /**
  * El historial propio: listar (con búsqueda), renombrar, borrar (uno o
- * todos) y reanudar. Un solo hook para los dos montajes —la ruta y el modal
- * del lanzador—, invocado por el MISMO dueño que crea `asistente`
- * (`AsistentePage`, `LanzadorAsistente`) y pasado como prop a
- * `AbrirHistorial` (en el encabezado) y a `PanelAsistente` (el cajón), para
- * que sean una sola cosa y no dos implementaciones que puedan
- * desincronizarse (tasks.md 10.3).
+ * todos) y reanudar. Un solo hook para los montajes que necesiten el rail
+ * —el modal del lanzador, y la ruta mientras siga existiendo (tasks.md
+ * §10)—, invocado por el mismo dueño que crea `asistente`.
+ *
+ * @param habilitado
+ * Si hay que pedir la lista AHORA. El rail ya no es un cajón que se abre y
+ * cierra —vive siempre montado mientras el asistente está a la vista—, así
+ * que lo que decide si vale la pena pedirla es si el ASISTENTE está a la
+ * vista, y eso lo sabe el dueño del montaje (el lanzador: si el modal está
+ * abierto; la ruta: siempre, mientras esté montada) — no este hook.
  */
-export function useHistorialAsistente(asistente: Asistente): HistorialAsistente {
-  const [abierto, setAbierto] = useState(false);
+export function useHistorialAsistente(
+  asistente: Asistente,
+  habilitado: boolean,
+): HistorialAsistente {
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [anuncio, setAnuncio] = useState<string | null>(null);
   const [conversacionActivaId, setConversacionActivaId] = useState<string | null>(null);
-  const idDelPanel = useId();
-  const disparador = useRef<HTMLButtonElement | null>(null);
-  const registrarDisparador = useCallback((elemento: HTMLButtonElement | null) => {
-    disparador.current = elemento;
-  }, []);
-  const enfocarDisparador = useCallback(() => {
-    disparador.current?.focus();
-  }, []);
   const cliente = useQueryClient();
 
   useEffect(() => {
@@ -108,59 +78,50 @@ export function useHistorialAsistente(asistente: Asistente): HistorialAsistente 
   // `LanzadorAsistente` usa para cerrarse al navegar. La marca de «activa»
   // no sobrevive a que el hilo se vacíe: «Nueva conversación» y cualquier
   // otro reinicio dejan `turnos` en `[]`, y ahí ya no hay ninguna fila del
-  // historial a la que corresponda seguir resaltando. Un `useEffect` acá
-  // pintaría un frame de más con la marca vieja antes de corregirla en el
-  // siguiente commit; ajustar durante el render evita ese frame extra, que
-  // es lo que pide la regla `react-hooks/set-state-in-effect`.
+  // rail a la que corresponda seguir resaltando. Un `useEffect` acá pintaría
+  // un frame de más con la marca vieja antes de corregirla en el siguiente
+  // commit; ajustar durante el render evita ese frame extra, que es lo que
+  // pide la regla `react-hooks/set-state-in-effect`.
   const [turnosVistos, setTurnosVistos] = useState(asistente.turnos.length);
   if (asistente.turnos.length !== turnosVistos) {
     setTurnosVistos(asistente.turnos.length);
     if (asistente.turnos.length === 0) setConversacionActivaId(null);
   }
 
-  // ESCAPE CIERRA EL PANEL Y DEVUELVE EL FOCO A «HISTORIAL» (tasks.md §14,
-  // asistente-accesibilidad). Va acá y no con `useDescartarAlClicAfuera`: ese
-  // hook también cierra al clic AFUERA del panel, y el disparador que lo abre
-  // vive en un subárbol distinto del DOM —el encabezado del modal o de la
-  // página, no el panel—. Con ese hook, un clic en «Historial» para cerrar se
-  // vería primero como un clic «afuera» en el `mousedown` y volvería a abrir
-  // en el `click` que sigue: el botón dejaría de poder cerrar lo que él mismo
-  // abre.
-  //
-  // EN FASE DE CAPTURA, y con `stopPropagation`: el panel se abre DENTRO del
-  // modal del lanzador, que también cierra con Escape (`closeOnEscape` de la
-  // librería, otro listener de `keydown` en `document`, en la fase normal de
-  // burbuja). Sin esto, Escape con el panel abierto cerraba los dos a la vez
-  // —el panel Y el modal entero—, que no es lo que alguien que sólo quería
-  // cerrar la lista de conversaciones esperaba. Escuchar en captura hace que
-  // esto corra primero y `stopPropagation` evita que el evento llegue a la
-  // fase de burbuja, donde está el listener de la librería.
-  useEffect(() => {
-    if (!abierto) return;
-
-    function alTeclear(evento: KeyboardEvent) {
-      if (evento.key !== "Escape") return;
-      evento.stopPropagation();
-      setAbierto(false);
-      disparador.current?.focus();
-    }
-
-    document.addEventListener("keydown", alTeclear, { capture: true });
-    return () => document.removeEventListener("keydown", alTeclear, { capture: true });
-  }, [abierto]);
-
   const conversaciones = useQuery({
     queryKey: [...CLAVE_HISTORIAL, busquedaDebounced || null],
     queryFn: () => listarConversaciones(busquedaDebounced || undefined),
-    // Sólo mientras el panel está abierto: cerrado, no hay nada que mostrar y
-    // no vale la pena pedirlo.
-    enabled: abierto,
+    // Sólo mientras el asistente está a la vista: si no, no hay nada que
+    // mostrar y no vale la pena pedirlo.
+    enabled: habilitado,
   });
 
   const invalidar = useCallback(
     () => cliente.invalidateQueries({ queryKey: CLAVE_HISTORIAL }),
     [cliente],
   );
+
+  // EL RESPONSE NOMBRA SU CONVERSACIÓN (design.md D13, tasks.md 1.2). Cada
+  // turno que termina —lo haya respondido el modelo o no— pudo crear una
+  // conversación nueva o tocar `ultima_actividad` de una existente, así que
+  // el rail se invalida siempre. Sólo se ACTUALIZA `conversacionActivaId`
+  // cuando la respuesta trae una: un turno que no se persistió (la escritura
+  // falló) no tiene que pisar la conversación que ya se sabía activa.
+  //
+  // LA MARCA ES AJUSTE DE ESTADO EN RENDER (mismo patrón que `turnosVistos`,
+  // arriba); INVALIDAR LA QUERY SIGUE EN UN EFECTO, porque sí es sincronizar
+  // con un sistema externo —la caché de React Query— y no un cálculo
+  // derivado del estado de React.
+  const ultimaRespuesta = asistente.turnos.at(-1)?.respuesta;
+  const [ultimaRespuestaVista, setUltimaRespuestaVista] = useState(ultimaRespuesta);
+  if (ultimaRespuesta !== ultimaRespuestaVista) {
+    setUltimaRespuestaVista(ultimaRespuesta);
+    if (ultimaRespuesta?.conversacion) setConversacionActivaId(ultimaRespuesta.conversacion);
+  }
+
+  useEffect(() => {
+    if (ultimaRespuesta) void invalidar();
+  }, [ultimaRespuesta, invalidar]);
 
   const mutacionRenombrar = useMutation({
     mutationFn: ({ id, titulo }: { id: string; titulo: string }) =>
@@ -177,17 +138,11 @@ export function useHistorialAsistente(asistente: Asistente): HistorialAsistente 
   });
 
   return {
-    abierto,
-    alternar: () => setAbierto((v) => !v),
-    cerrar: () => setAbierto(false),
     busqueda,
     setBusqueda,
     conversaciones,
     anuncio,
     conversacionActivaId,
-    idDelPanel,
-    registrarDisparador,
-    enfocarDisparador,
     renombrar: async (id, titulo) => {
       await mutacionRenombrar.mutateAsync({ id, titulo });
       setAnuncio("Se guardó el nuevo título.");
@@ -204,7 +159,6 @@ export function useHistorialAsistente(asistente: Asistente): HistorialAsistente 
       const { hilo, turnos } = await reanudarConversacion(id);
       asistente.sembrarDesdeHistorial(hilo, turnos);
       setConversacionActivaId(id);
-      setAbierto(false);
       setAnuncio("La conversación está lista.");
     },
   };

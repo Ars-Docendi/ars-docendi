@@ -130,23 +130,24 @@ Pedido: `{ mensaje, hilo? }`. **No lleva actor**: sale de la identidad de la ses
 
 Respuesta:
 
-| Campo                      | Qué                                                                            |
-| -------------------------- | ------------------------------------------------------------------------------ |
-| `estado`                   | `respondida` · `no_contestable` · `necesita_aclaracion` · `servicio_degradado` |
-| `respuesta`                | El texto que lee el usuario                                                    |
-| `hilo`                     | Para mandarlo en el turno siguiente                                            |
-| `preguntaInterpretada`     | Solo si difiere del mensaje                                                    |
-| `razonamiento`             | Cómo se interpretó la pregunta, tal como lo devolvió la generación             |
-| `opciones[]`               | El menú de una aclaración. **Bloquean** el turno                               |
-| `sugerencias[]`            | Qué otra cosa probar. **No** bloquean nada                                     |
-| `columnas[]`               | Nombre y marca de sensibilidad                                                 |
-| `filas[]`                  | Los valores reales, incluidos los que no viajaron al modelo                    |
-| `truncado`                 | Booleano, **nunca** un conteo                                                  |
-| `vinculos[]`               | Qué celdas llevan a una pantalla del sistema                                   |
-| `sql`                      | Solo con `asistente.ver_consulta`                                              |
-| `metricas`                 | Llamadas al modelo y categoría                                                 |
-| `claveDeRetroalimentacion` | Solo cuando `estado = respondida`. Ver `POST /api/asistente/retroalimentacion` |
-| `cupoRestante`             | El cupo diario del actor, YA COBRADO este turno (asistente-cupo-visible)       |
+| Campo                      | Qué                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `estado`                   | `respondida` · `no_contestable` · `necesita_aclaracion` · `servicio_degradado`                                      |
+| `respuesta`                | El texto que lee el usuario                                                                                         |
+| `hilo`                     | Para mandarlo en el turno siguiente                                                                                 |
+| `preguntaInterpretada`     | Solo si difiere del mensaje                                                                                         |
+| `razonamiento`             | Cómo se interpretó la pregunta, tal como lo devolvió la generación                                                  |
+| `opciones[]`               | El menú de una aclaración. **Bloquean** el turno                                                                    |
+| `sugerencias[]`            | Qué otra cosa probar. **No** bloquean nada                                                                          |
+| `columnas[]`               | Nombre y marca de sensibilidad                                                                                      |
+| `filas[]`                  | Los valores reales, incluidos los que no viajaron al modelo                                                         |
+| `truncado`                 | Booleano, **nunca** un conteo                                                                                       |
+| `vinculos[]`               | Qué celdas llevan a una pantalla del sistema                                                                        |
+| `sql`                      | Solo con `asistente.ver_consulta`                                                                                   |
+| `metricas`                 | Llamadas al modelo y categoría                                                                                      |
+| `claveDeRetroalimentacion` | Solo cuando `estado = respondida`. Ver `POST /api/asistente/retroalimentacion`                                      |
+| `cupoRestante`             | El cupo diario del actor, YA COBRADO este turno (asistente-cupo-visible)                                            |
+| `conversacion`             | El id de `GET /historial` en que quedó este turno; nulo si no se persistió (design.md D13 de asistente-rediseno-v3) |
 
 `opciones` y `sugerencias` son campos distintos a propósito, y colapsarlos borraría el tercer estado: las opciones esperan una elección para poder seguir, las sugerencias no esperan nada.
 

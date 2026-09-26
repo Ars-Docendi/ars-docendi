@@ -60,4 +60,11 @@ describe("La hoja de estilos del asistente", () => {
   it("no escribe ningún color a mano: los hexadecimales sólo viven en comentarios", () => {
     expect(sinComentarios).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
+
+  it("tampoco escribe ningún color en oklch(): mismo motivo, mismo canal de fuga", () => {
+    // El mock de referencia de v3 (asistente-v3.dc.html) trae sus colores en
+    // `oklch(...)` inline — es exactamente lo que tasks.md 1.7 pide mapear a
+    // tokens del tema y nunca copiar tal cual (design.md, brief del cambio).
+    expect(sinComentarios).not.toMatch(/oklch\(/i);
+  });
 });

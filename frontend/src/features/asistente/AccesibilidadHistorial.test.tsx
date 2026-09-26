@@ -9,8 +9,10 @@ import { CAPACIDADES, montar } from "./test/soporte";
 import type { ConversacionResumen } from "./types";
 
 // ============================================================
-// Anuncios de renombrar/borrar/reanudar por la región viva EXISTENTE, sin
-// desorientar el foco (asistente-accesibilidad, tasks.md 14.2).
+// Anuncios de renombrar/eliminar/reanudar por la región viva EXISTENTE, sin
+// desorientar el foco (asistente-accesibilidad, tasks.md §1, §14.2). El rail
+// ya no es un cajón que se abre y cierra: está siempre a la vista, así que
+// estos tests ya no necesitan abrir nada antes de operar sobre una fila.
 // ============================================================
 
 const UNA: ConversacionResumen = {
@@ -32,35 +34,32 @@ function regionViva(): HTMLElement {
   return screen.getByRole("log", { name: "Conversación con el asistente" });
 }
 
-describe("Borrar una conversación", () => {
+describe("Eliminar una conversación", () => {
   it("anuncia por la región viva existente y el foco no se pierde en <body>", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await screen.findByText(UNA.titulo);
 
     await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
-    await user.click(screen.getByRole("menuitem", { name: "Borrar" }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
     await user.click(screen.getByRole("button", { name: "Confirmar borrado" }));
 
     const anuncio = await screen.findByText("Se borró la conversación.");
     expect(regionViva().contains(anuncio)).toBe(true);
     expect(document.activeElement).not.toBe(document.body);
-    expect(document.activeElement).toHaveAttribute("aria-label", "Tus conversaciones");
   });
 });
 
-describe("Borrar todas las conversaciones", () => {
+describe("Eliminar todas las conversaciones", () => {
   it("anuncia por la región viva existente y el foco no se pierde en <body>", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
     vi.spyOn(historialApi, "eliminarTodasLasConversaciones").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await screen.findByText(UNA.titulo);
 
     await user.click(screen.getByRole("button", { name: "Borrar todas" }));
@@ -79,33 +78,15 @@ describe("Renombrar", () => {
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await screen.findByText(UNA.titulo);
 
     await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
     await user.click(screen.getByRole("menuitem", { name: "Renombrar" }));
-    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    await user.keyboard(" (editado){Enter}");
 
     const anuncio = await screen.findByText("Se guardó el nuevo título.");
     expect(regionViva().contains(anuncio)).toBe(true);
     expect(document.activeElement).not.toBe(document.body);
-  });
-});
-
-describe("Cerrar el panel con Escape", () => {
-  it("cierra el panel y devuelve el foco al botón «Historial»", async () => {
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const user = userEvent.setup();
-
-    montar(<PanelDePrueba />);
-    const disparador = await screen.findByRole("button", { name: "Historial" });
-    await user.click(disparador);
-    await screen.findByText(UNA.titulo);
-
-    await user.keyboard("{Escape}");
-
-    expect(screen.queryByLabelText("Tus conversaciones")).toBeNull();
-    expect(disparador).toHaveFocus();
   });
 });
 
@@ -127,7 +108,6 @@ describe("Reanudar", () => {
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await user.click(await screen.findByRole("button", { name: "Historial" }));
     await user.click(await screen.findByText(UNA.titulo));
 
     const anuncio = await screen.findByText("La conversación está lista.");
