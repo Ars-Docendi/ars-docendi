@@ -24,7 +24,17 @@ internal static class DetectorDeAmbiguedad
     /// Devuelve la aclaración que hace falta, o <c>null</c> si la pregunta no es
     /// ambigua.
     /// </summary>
-    public static Aclaracion? Detectar(string pregunta, CatalogoDeEntidades catalogo)
+    /// <param name="etiquetasDeReferencias">
+    /// Las etiquetas de las menciones «@materia»/«#docente» de este turno, si
+    /// hay alguna (design.md D11 de asistente-rediseno-v3). El usuario ya eligió
+    /// una entidad exacta en el popover, así que un colisionador cubierto por
+    /// una de estas etiquetas no dispara el menú — el requerimiento «A
+    /// mentioned term SHALL NOT trigger a clarification menu for that entity».
+    /// </param>
+    public static Aclaracion? Detectar(
+        string pregunta,
+        CatalogoDeEntidades catalogo,
+        IReadOnlyCollection<string>? etiquetasDeReferencias = null)
     {
         ArgumentNullException.ThrowIfNull(catalogo);
 
@@ -35,11 +45,25 @@ internal static class DetectorDeAmbiguedad
 
         var normalizada = Enmarcar(pregunta);
 
+        // Las etiquetas también se enmarcan con el MISMO criterio de
+        // normalización que el catálogo: si no se hiciera, "Inglés Técnico I"
+        // (la etiqueta) nunca coincidiría con "ingles tecnico i" (el término
+        // indexado), y el descarte de abajo no descartaría nada.
+        var referenciasEnmarcadas = etiquetasDeReferencias is { Count: > 0 }
+            ? etiquetasDeReferencias.Select(Enmarcar).ToArray()
+            : [];
+
         // De mayor a menor longitud: «analisis matematico» tiene que ganarle a
         // «analisis» si los dos estuvieran indexados, o se ofrecería el menú
         // equivocado.
         var candidatos = catalogo.Colisiones
             .Where(termino => normalizada.Contains($" {termino} ", StringComparison.Ordinal))
+            // Un término que una mención de este turno ya cubre no es ambiguo
+            // PARA ESTE TURNO: la etiqueta lo nombra entero, palabra por
+            // palabra, aunque el catálogo lo haya indexado por una parte más
+            // corta (el apellido de un docente, por ejemplo).
+            .Where(termino => !referenciasEnmarcadas.Any(
+                referencia => referencia.Contains($" {termino} ", StringComparison.Ordinal)))
             .OrderByDescending(termino => termino.Length)
             .ThenBy(termino => termino, StringComparer.Ordinal);
 

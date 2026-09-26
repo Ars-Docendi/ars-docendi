@@ -25,6 +25,7 @@ public sealed class HistorialController(
     IAlmacenDeHilos hilos,
     IPerfilDelActor perfiles,
     IEjecutorDeConsulta ejecutor,
+    IBuscadorDeMenciones menciones,
     ICurrentUser usuario) : ControllerBase
 {
     /// <summary>Las conversaciones propias, opcionalmente filtradas por texto.</summary>
@@ -187,7 +188,8 @@ public sealed class HistorialController(
         var sembrado = hilos.Sembrar(
             actor,
             hiloId,
-            [.. turnos.Select(t => new TurnoDelHilo(t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id))]);
+            [.. turnos.Select(t => new TurnoDelHilo(
+                t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id, Referencias: t.Referencias))]);
 
         return Ok(new ReanudarDto(
             sembrado.Id, [.. turnos.Select(t => TurnoDeHistorialDto.De(t, perfil.VeLaConsulta))]));
@@ -229,10 +231,35 @@ public sealed class HistorialController(
 
         var perfil = await perfiles.ObtenerAsync(actor, ct);
 
+        // REVALIDACIÓN DE LAS MENCIONES CONTRA EL ALCANCE ACTUAL (design.md D11
+        // de asistente-rediseno-v3, tarea 7.4): entre la pregunta original y
+        // este «Volver a consultar» el actor puede haber perdido el permiso o
+        // el ámbito que alcanzaba a la entidad referenciada. Mismo texto de
+        // abstención que un rechazo del motor, para no distinguir las causas.
+        var bindings = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        if (turno.Referencias is { Count: > 0 } referencias)
+        {
+            foreach (var (marcador, referencia) in referencias)
+            {
+                var resuelta = await menciones.ResolverAsync(actor, referencia.Tipo, referencia.Id, ct);
+                if (resuelta is null)
+                {
+                    return Ok(new ReejecucionDto
+                    {
+                        Exitosa = false,
+                        Mensaje = "No pude volver a ejecutar esa consulta. Puede que ya no tengas acceso "
+                            + "a esos datos, o que hayan cambiado desde que se hizo la pregunta.",
+                    });
+                }
+
+                bindings[marcador] = referencia.Id;
+            }
+        }
+
         try
         {
             var resultado = await ejecutor.EjecutarAsync(
-                turno.SqlResuelto, actor, perfil.VeDatosPersonales, ct);
+                turno.SqlResuelto, actor, perfil.VeDatosPersonales, ct, bindings);
 
             return Ok(new ReejecucionDto
             {

@@ -30,7 +30,7 @@
   ],
   "cobertura": {
     "capturados": 0,
-    "total": 47
+    "total": 49
   },
   "entradas": [
     {
@@ -219,6 +219,14 @@
     },
     {
       "id": "cap-032",
+      "intencion": null
+    },
+    {
+      "id": "cap-033",
+      "intencion": null
+    },
+    {
+      "id": "cap-034",
       "intencion": null
     }
   ]

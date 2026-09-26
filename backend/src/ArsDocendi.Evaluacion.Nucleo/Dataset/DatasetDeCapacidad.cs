@@ -43,6 +43,26 @@ public static class ActorDeItem
     };
 }
 
+/// <summary>
+/// Una mención declarada por un ítem, tal como el fixture la conoce (design.md
+/// D10/D11 de asistente-rediseno-v3, ARS-148).
+/// </summary>
+/// <param name="Marcador">El <c>$refN</c> que <c>SqlReferencia</c> tiene que usar.</param>
+/// <param name="Tipo"><c>"materia"</c> o <c>"docente"</c>.</param>
+/// <param name="Indice">
+/// El índice del fixture —<c>GeneradorDeFixture.IdDeMateria</c> o
+/// <c>IdDePersona</c>, según <see cref="Tipo"/>—, para no depender de un GUID
+/// escrito a mano que dejaría de significar algo si el fixture cambia de forma.
+/// </param>
+/// <param name="Nombre">
+/// El nombre de la entidad, tal como <c>GeneradorDeFixture</c> la nombra. Un test
+/// verifica que coincide con <c>MateriasCompartidas</c>/<c>ApellidosCompartidos</c>,
+/// así que un fixture que cambiara esos nombres rompería el dataset en vez de
+/// dejarlo describir una entidad que ya no existe.
+/// </param>
+/// <param name="Carrera">La carrera de la materia. <c>null</c> para un docente.</param>
+public sealed record ReferenciaDeItem(string Marcador, string Tipo, int Indice, string Nombre, string? Carrera = null);
+
 /// <summary>Un ítem del dataset de capacidad.</summary>
 /// <param name="Id">Identificador estable. El gate de regresión lo usa como lock.</param>
 /// <param name="Pregunta">La pregunta, tal como la escribiría alguien.</param>
@@ -52,11 +72,18 @@ public static class ActorDeItem
 /// La consulta que responde bien, o nulo si el ítem es infactible. Se guarda la
 /// <b>consulta</b> y no su resultado: con resultados guardados, cualquier cambio
 /// del fixture desincroniza el dataset en silencio y la métrica pasa a medir esa
-/// diferencia en vez de medir al asistente.
+/// diferencia en vez de medir al asistente. Si <see cref="Referencias"/> declara
+/// marcadores, esta consulta los usa tal cual —<c>$ref1</c>, nunca el id— y el
+/// runner los liga de la misma forma que <c>EjecutorDeConsulta</c>.
 /// </param>
 /// <param name="OrdenImporta">
 /// Si el orden de las filas es parte de la pregunta. Por omisión no lo es: dos
 /// consultas que devuelven las mismas filas en distinto orden responden lo mismo.
+/// </param>
+/// <param name="Referencias">
+/// Las menciones «@materia»/«#docente» de este ítem, o nulo si no tiene ninguna
+/// (design.md D11). El runner las manda a <c>GeneradorDeSql</c> igual que un
+/// turno real, así que el eje de capacidad también mide esta traducción.
 /// </param>
 public sealed record ItemDeCapacidad(
     string Id,
@@ -64,7 +91,8 @@ public sealed record ItemDeCapacidad(
     string Categoria,
     string Actor,
     string? SqlReferencia,
-    bool OrdenImporta)
+    bool OrdenImporta,
+    IReadOnlyList<ReferenciaDeItem>? Referencias = null)
 {
     /// <summary>Si el asistente tiene que abstenerse en este ítem.</summary>
     public bool EsInfactible => CategoriaDeItem.EsInfactible(Categoria);
@@ -131,7 +159,9 @@ public sealed class DatasetDeCapacidad
         var items = archivo.Items
             .Select(item => new ItemDeCapacidad(
                 item.Id, item.Pregunta, item.Categoria, item.Actor,
-                item.SqlReferencia, item.OrdenImporta))
+                item.SqlReferencia, item.OrdenImporta,
+                item.Referencias?.Select(r => new ReferenciaDeItem(
+                    r.Marcador, r.Tipo, r.Indice, r.Nombre, r.Carrera)).ToArray()))
             .ToArray();
 
         var repetidos = items.GroupBy(item => item.Id, StringComparer.Ordinal)
@@ -176,5 +206,26 @@ public sealed class DatasetDeCapacidad
 
         [JsonPropertyName("orden_importa")]
         public bool OrdenImporta { get; init; }
+
+        [JsonPropertyName("referencias")]
+        public IReadOnlyList<ReferenciaDeArchivo>? Referencias { get; init; }
+    }
+
+    private sealed class ReferenciaDeArchivo
+    {
+        [JsonPropertyName("marcador")]
+        public string Marcador { get; init; } = string.Empty;
+
+        [JsonPropertyName("tipo")]
+        public string Tipo { get; init; } = string.Empty;
+
+        [JsonPropertyName("indice")]
+        public int Indice { get; init; }
+
+        [JsonPropertyName("nombre")]
+        public string Nombre { get; init; } = string.Empty;
+
+        [JsonPropertyName("carrera")]
+        public string? Carrera { get; init; }
     }
 }

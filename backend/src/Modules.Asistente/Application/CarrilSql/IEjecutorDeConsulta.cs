@@ -18,8 +18,20 @@ public interface IEjecutorDeConsulta
     /// vacío sobre una base llena.
     /// </param>
     /// <param name="conDatosPersonales">Cuál de las dos conexiones de lectura usar.</param>
+    /// <param name="marcadores">
+    /// El identificador de cada marcador <c>$refN</c> declarado para el turno,
+    /// con el <c>$</c> incluido en la clave (<c>"$ref1"</c>), o <c>null</c> en
+    /// un turno sin menciones (design.md D11 de asistente-rediseno-v3). El
+    /// validador ya garantizó que <paramref name="sql"/> no usa ningún marcador
+    /// fuera de este conjunto: acá se ligan como parámetro <c>uuid</c>, nunca
+    /// interpolados en el texto.
+    /// </param>
     Task<ResultadoDeConsulta> EjecutarAsync(
-        string sql, Guid actor, bool conDatosPersonales, CancellationToken ct);
+        string sql,
+        Guid actor,
+        bool conDatosPersonales,
+        CancellationToken ct,
+        IReadOnlyDictionary<string, Guid>? marcadores = null);
 }
 
 /// <summary>

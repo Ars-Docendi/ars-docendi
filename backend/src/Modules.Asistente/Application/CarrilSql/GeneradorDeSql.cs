@@ -74,11 +74,19 @@ public sealed class GeneradorDeSql(
         "No pude interpretar la pregunta con la información disponible.";
 
     /// <summary>Genera la consulta para una pregunta.</summary>
+    /// <param name="menciones">
+    /// Las menciones nuevas de este turno, ya numeradas por
+    /// <see cref="MarcadoresDeReferencias.Asignar"/>. Vacío o nulo en un turno
+    /// sin menciones —el caso mayoritario— deja el mensaje BYTE A BYTE igual que
+    /// antes de que existieran (design.md D11): el bloque «Menciones» sólo se
+    /// agrega cuando hay algo que agregar.
+    /// </param>
     public async Task<GeneracionDeSql> GenerarAsync(
         string pregunta,
         bool conDatosPersonales,
         CancellationToken ct,
-        IReadOnlyList<string>? consultasAnteriores = null)
+        IReadOnlyList<string>? consultasAnteriores = null,
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
@@ -89,7 +97,7 @@ public sealed class GeneradorDeSql(
             new SolicitudAlModelo
             {
                 PrefijoEstable = prefijo.Prefijo,
-                Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy(), consultasAnteriores),
+                Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy(), consultasAnteriores, menciones),
                 Temperatura = 0.0m,
                 // La llamada que MÁS se beneficia de deliberar: elegir el join
                 // correcto entre catorce tablas es el trabajo que mejora pensando, y
@@ -134,11 +142,20 @@ public sealed class GeneradorDeSql(
     /// de evaluación, así que meterle algo que cambia por turno lo invalidaría en
     /// cada llamada y pagaría escritura a 1,25× en vez de lectura a 0,1×.
     /// </param>
+    /// <param name="menciones">
+    /// Las menciones nuevas de este turno (design.md D11). VA DESPUÉS de la
+    /// pregunta y no antes: es la última cosa cierta de este turno —la que el
+    /// usuario eligió al escribir, no algo que haya que inferir de la pregunta—,
+    /// y por el mismo motivo por el que las consultas anteriores van después de
+    /// los ejemplos, ponerla antes la dejaría a merced de que el modelo la lea
+    /// como un ejemplo más en vez de como una instrucción sobre ESTA pregunta.
+    /// </param>
     internal static string ArmarMensaje(
         string pregunta,
         IReadOnlyList<EjemploSql> elegidos,
         DateOnly hoy,
-        IReadOnlyList<string>? consultasAnteriores = null)
+        IReadOnlyList<string>? consultasAnteriores = null,
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null)
     {
         var mensaje = new StringBuilder();
 
@@ -177,6 +194,29 @@ public sealed class GeneradorDeSql(
         }
 
         mensaje.Append(CultureInfo.InvariantCulture, $"\nPregunta del usuario:\n{pregunta}\n");
+
+        // SÓLO SI HAY MENCIONES NUEVAS: con un turno sin ellas —el caso
+        // mayoritario, y el único que existía antes de D11— este método devuelve
+        // BYTE A BYTE el mismo texto que devolvía antes, así que ningún cassette
+        // grabado se invalida (PrefijoDeLosCassettesTests sigue en pie sin
+        // regrabar nada).
+        if (menciones is { Count: > 0 })
+        {
+            mensaje.Append(
+                "\nMenciones de esta pregunta. Cada una nombra una entidad EXACTA que ya "
+                + "eligió el usuario: filtrá por su marcador reservado, NUNCA por nombre, y "
+                + "usá cada marcador declarado al menos una vez en la consulta:\n");
+
+            foreach (var (marcador, tipo, entidad) in menciones)
+            {
+                var fk = tipo == TipoDeMencion.Materia ? "materias.id" : "personas.id";
+                var clase = tipo == TipoDeMencion.Materia ? "materia" : "docente";
+                var etiqueta = MarcadoresDeReferencias.Etiqueta(tipo, entidad);
+
+                mensaje.Append(CultureInfo.InvariantCulture,
+                    $"\n{marcador}: {clase} \"{etiqueta}\" — filtrá por {fk} = {marcador} (o la clave foránea que corresponda), nunca por el nombre.\n");
+            }
+        }
 
         return mensaje.ToString();
     }

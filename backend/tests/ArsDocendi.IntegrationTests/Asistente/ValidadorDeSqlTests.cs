@@ -404,4 +404,87 @@ public sealed class ValidadorDeSqlTests
         Assert.NotNull(veredicto.Motivo);
         Assert.Contains("set_config", veredicto.Motivo, StringComparison.Ordinal);
     }
+
+    // --------------------------------------------------------- marcadores (D11)
+
+    [Fact]
+    public void Acepta_un_marcador_declarado_y_usado()
+    {
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref1",
+            new HashSet<string> { "$ref1" },
+            new HashSet<string> { "$ref1" });
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
+    [Fact]
+    public void Rechaza_un_marcador_no_declarado()
+    {
+        // El modelo inventó, o mal-copió, un marcador que nadie declaró para
+        // este turno.
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref9",
+            new HashSet<string> { "$ref1" },
+            new HashSet<string> { "$ref1" });
+
+        Assert.False(veredicto.EsValida);
+        Assert.Contains("$ref9", veredicto.Motivo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Rechaza_un_marcador_declarado_pero_sin_usar()
+    {
+        // Escenario "A query that ignores a reference is not executed" de
+        // asistente-menciones: la mención está declarada, pero el generado no
+        // filtra por ella. Se rechaza en vez de ejecutarse contra la entidad
+        // equivocada.
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT m.name FROM identity.materias m",
+            new HashSet<string> { "$ref1" },
+            new HashSet<string> { "$ref1" });
+
+        Assert.False(veredicto.EsValida);
+        Assert.Contains("$ref1", veredicto.Motivo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_marcador_heredado_sin_usar_no_se_exige()
+    {
+        // `$ref1` viene de un turno anterior del segmento (declarado, pero no
+        // "que deba usarse" — sólo `$ref2` es nuevo este turno). Un seguimiento
+        // que ya no lo necesita puede editarlo afuera sin que el validador lo
+        // rechace por eso.
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref2",
+            new HashSet<string> { "$ref1", "$ref2" },
+            new HashSet<string> { "$ref2" });
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
+
+    [Fact]
+    public void Sin_menciones_cualquier_marcador_es_rechazado()
+    {
+        // Comportamiento por defecto (sin declarar nada): un `$refN` que
+        // aparezca de la nada se trata igual que antes de que existieran las
+        // menciones — la consulta se rechaza.
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref1");
+
+        Assert.False(veredicto.EsValida);
+    }
+
+    [Fact]
+    public void Un_marcador_dentro_de_un_literal_de_texto_no_cuenta()
+    {
+        // "$ref1" adentro de comillas simples es un LITERAL, no un marcador: el
+        // tokenizador ya descarta el contenido de los literales de texto.
+        var veredicto = ValidadorDeSql.Validar(
+            "SELECT '$ref1' FROM identity.materias m",
+            new HashSet<string>(),
+            new HashSet<string>());
+
+        Assert.True(veredicto.EsValida, veredicto.Motivo);
+    }
 }

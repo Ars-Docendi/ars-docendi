@@ -99,37 +99,86 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 
 ### Asistente (`/api/asistente/`)
 
-| Método | Path                                              | Permiso                          | Descripción                                                          |
-| ------ | ------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------- |
-| GET    | `/ping`                                           | (anónimo)                        | Health check del módulo                                              |
-| POST   | `/consultas`                                      | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                    |
-| GET    | `/capacidades`                                    | `asistente.consultar`            | Qué puede hacer el asistente para este actor                         |
-| POST   | `/retroalimentacion`                              | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                        |
-| GET    | `/historial`                                      | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                        |
-| GET    | `/historial/{id}`                                 | `asistente.consultar`            | El detalle de una conversación propia                                |
-| PATCH  | `/historial/{id}`                                 | `asistente.consultar`            | Renombra una conversación propia                                     |
-| POST   | `/historial/{id}/archivar`                        | `asistente.consultar`            | Archiva una conversación propia                                      |
-| POST   | `/historial/{id}/desarchivar`                     | `asistente.consultar`            | Desarchiva una conversación propia                                   |
-| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                   |
-| DELETE | `/historial`                                      | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado         |
-| POST   | `/historial/borrados/{lote}/deshacer`             | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana              |
-| POST   | `/historial/{id}/reanudar`                        | `asistente.consultar`            | Reanuda una conversación propia                                      |
-| POST   | `/historial/turnos/{id}/reejecutar`               | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                   |
-| POST   | `/soporte/historial/{actorId}/listar`             | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria              |
-| POST   | `/soporte/historial/{actorId}/{id}/leer`          | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria            |
-| PATCH  | `/administracion/mantenimiento`                   | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo |
-| GET    | `/administracion/uso`                             | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                  |
-| PUT    | `/administracion/presupuestos/roles/{rol}`        | `asistente.administrar`          | Edita el cupo diario default de un rol                               |
-| PUT    | `/administracion/presupuestos/usuarios/{actorId}` | `asistente.administrar`          | Edita el override de cupo diario de un usuario                       |
-| PUT    | `/administracion/tope-organizacional`             | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                    |
+| Método | Path                                              | Permiso                          | Descripción                                                           |
+| ------ | ------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/ping`                                           | (anónimo)                        | Health check del módulo                                               |
+| POST   | `/consultas`                                      | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
+| GET    | `/menciones`                                      | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#» |
+| GET    | `/capacidades`                                    | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
+| POST   | `/retroalimentacion`                              | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                         |
+| GET    | `/historial`                                      | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                         |
+| GET    | `/historial/{id}`                                 | `asistente.consultar`            | El detalle de una conversación propia                                 |
+| PATCH  | `/historial/{id}`                                 | `asistente.consultar`            | Renombra una conversación propia                                      |
+| POST   | `/historial/{id}/archivar`                        | `asistente.consultar`            | Archiva una conversación propia                                       |
+| POST   | `/historial/{id}/desarchivar`                     | `asistente.consultar`            | Desarchiva una conversación propia                                    |
+| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                    |
+| DELETE | `/historial`                                      | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado          |
+| POST   | `/historial/borrados/{lote}/deshacer`             | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana               |
+| POST   | `/historial/{id}/reanudar`                        | `asistente.consultar`            | Reanuda una conversación propia                                       |
+| POST   | `/historial/turnos/{id}/reejecutar`               | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
+| POST   | `/soporte/historial/{actorId}/listar`             | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria               |
+| POST   | `/soporte/historial/{actorId}/{id}/leer`          | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria             |
+| PATCH  | `/administracion/mantenimiento`                   | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo  |
+| GET    | `/administracion/uso`                             | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                   |
+| PUT    | `/administracion/presupuestos/roles/{rol}`        | `asistente.administrar`          | Edita el cupo diario default de un rol                                |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}` | `asistente.administrar`          | Edita el override de cupo diario de un usuario                        |
+| PUT    | `/administracion/tope-organizacional`             | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
 El ping vive en un controller **propio y sin constructor**, y eso no es prolijidad: mientras compartió controller con el turno, construirlo exigía resolver las cadenas de solo lectura del asistente —cuya fábrica falla si el ambiente no las configuró— y el ping devolvía 500 sin base. Un ping que necesita configuración de base deja de poder distinguir «el módulo está cargado» de «la base responde». Hay un guard de arquitectura que lo fija.
 
+#### `GET /api/asistente/menciones`
+
+Query: `tipo` (`materia` | `docente`, cualquier otro valor → `400`) y `q` (2–100
+caracteres, si no → `400`). Respuesta: `{ resultados: [...], hayMas }`, a lo sumo
+6 filas — nunca un conteo de cuántas quedaron afuera (design.md D10 de
+asistente-rediseno-v3, ARS-148). Cada fila de `resultados`:
+
+| Campo     | Materia                              | Docente                                      |
+| --------- | ------------------------------------ | -------------------------------------------- |
+| `id`      | `identity.materias.id`               | `identity.personas.id`                       |
+| `nombre`  | Nombre de la materia                 | Nombre completo («Nombre Apellido»)          |
+| `carrera` | La carrera que distingue el homónimo | `null`                                       |
+| `codigo`  | Código de la materia                 | `null`                                       |
+| `cargo`   | `null`                               | Cargo de la designación visible más reciente |
+
+Corre sobre el rol de sólo lectura básico con el actor fijado (transacción de
+sólo lectura): el alcance de las materias lo decide
+`identity.asistente_materias_visibles()`, el de los docentes la RLS de
+`designaciones.designaciones` — que ya conjunta `designaciones.ver` con el
+ámbito del actor. Un actor sin ese permiso encuentra cero docentes porque la
+policy le deja la tabla vacía, no por un chequeo del backend. Ninguna columna
+que toca está clasificada `sensible-*` en el manifiesto (`identity.materias.name/code`,
+`identity.carreras.name`, `identity.personas.nombre/apellido`,
+`designaciones.cargos.nombre` son todas `publica`); el `id` sí llega al
+navegador —eso es lo que D10 registra como fuera de lo que esa clasificación
+gobierna—, pero nunca llega al modelo (ver más abajo).
+
 #### `POST /api/asistente/consultas`
 
-Pedido: `{ mensaje, hilo?, reemplaza? }`. **No lleva actor**: sale de la identidad de la sesión, porque un identificador tomado del cuerpo sería un selector de alcance controlado por el cliente.
+Pedido: `{ mensaje, hilo?, reemplaza?, referencias? }`. **No lleva actor**: sale de la identidad de la sesión, porque un identificador tomado del cuerpo sería un selector de alcance controlado por el cliente.
+
+`referencias` (design.md D10/D11 de asistente-rediseno-v3, ARS-148): las
+menciones «@materia»/«#docente» elegidas en el composer, a lo sumo 5 —
+`[{ tipo: "materia"|"docente", id }]`. El controller revalida cada una con la
+misma búsqueda de `GET /menciones` **antes del candado y de todo el pipeline**:
+una mención desconocida o fuera del alcance ACTUAL del actor (sus permisos
+pueden haber cambiado desde que abrió el popover) responde `400` — el **mismo**
+para las dos causas, sin oráculo de existencia — y no cobra cupo ni escribe
+historial. Una sexta referencia nunca llega a la acción: el filtro de validación
+del modelo la rechaza con `400` antes.
+
+El id de cada referencia **nunca llega al proveedor del modelo**. El generador de
+SQL le describe la entidad por nombre y le reserva un marcador `$refN`
+(`materias.id = $ref1`, nunca por nombre); el ejecutor liga cada marcador como
+parámetro `uuid` recién al correr la consulta. El validador rechaza una consulta
+que use un marcador no declarado, o que declare una mención nueva y no la use —
+en los dos casos el turno se abstiene, nunca ejecuta contra la entidad
+equivocada. Los mismos bindings se guardan con el turno (`asistente.turno_historico.referencias`)
+para que «Volver a consultar» y «Reanudar» puedan re-ligarlos —revalidándolos
+contra el alcance ACTUAL en el momento de reusarlos, con el mismo criterio que
+al crear el turno.
 
 `reemplaza` (asistente-edicion-de-la-ultima-pregunta, design.md D9 de asistente-rediseno-v3, ARS-147): el identificador del turno que este turno reemplaza — la propia `Idempotency-Key` de este pedido, con la que se mandó el turno vivo que se está editando, o el `id` de `GET /historial/{hiloId}` de un turno restaurado por `POST /historial/{hiloId}/reanudar`. Ausente en un turno nuevo cualquiera, que es el caso de siempre.
 
@@ -223,6 +272,8 @@ Sin cuerpo. Devuelve `{ hilo, turnos: [...] }`: `hilo` es un id **efímero nuevo
 #### `POST /api/asistente/historial/turnos/{turnoId}/reejecutar`
 
 Sin cuerpo. «Volver a consultar»: re-ejecuta la SQL guardada de un turno propio ya `respondida`, bajo el alcance **actual** del actor — nunca llama al modelo, nunca escribe una fila de historial ni de los registros existentes. Devuelve `{ exitosa, mensaje?, columnas[], filas[], truncado }`: con `exitosa: false` (SQL que ya no corre — privilegios que se achicaron, esquema que cambió), `mensaje` trae una explicación no técnica y `columnas`/`filas` vienen vacías — **nunca** un error HTTP crudo por un rechazo del motor. `400` si el turno no terminó `respondida` o no dejó SQL guardada; `404` si el turno no es propio.
+
+Si la SQL guardada usa un marcador `$refN` (design.md D11 de asistente-rediseno-v3), cada uno se revalida con la misma búsqueda de `GET /menciones` antes de re-ejecutar: una referencia que perdió su alcance desde que se hizo la pregunta se ve igual que cualquier otra SQL que ya no corre (`exitosa: false`), nunca un error crudo.
 
 #### `POST /api/asistente/soporte/historial/{actorId}/listar` y `/{actorId}/{hiloId}/leer`
 

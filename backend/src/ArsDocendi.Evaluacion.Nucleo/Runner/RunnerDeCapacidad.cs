@@ -1,5 +1,6 @@
 using System.Globalization;
 using ArsDocendi.Evaluacion.Nucleo.Dataset;
+using ArsDocendi.Evaluacion.Nucleo.Fixture;
 using ArsDocendi.Evaluacion.Nucleo.Puntuacion;
 using Modules.Asistente.Application;
 
@@ -102,11 +103,13 @@ public sealed class RunnerDeCapacidad(
     public async Task<ResultadoDeItem> EvaluarAsync(ItemDeCapacidad item, CancellationToken ct)
     {
         var actor = actores.Resolver(item.Actor);
+        var menciones = ResolverMenciones(item);
 
         ResultadoDelTurno turno;
         try
         {
-            turno = await carrilPorItem().ResponderAsync(actor, item.Pregunta, null, ct);
+            turno = await carrilPorItem().ResponderAsync(
+                actor, item.Pregunta, null, ct, mencionesNuevas: menciones);
         }
         catch (Exception excepcion) when (excepcion is not OperationCanceledException)
         {
@@ -169,11 +172,15 @@ public sealed class RunnerDeCapacidad(
 
         // La referencia se ejecuta EN VIVO, con el MISMO actor: si se ejecutara
         // con otro alcance, la comparación mediría la diferencia de alcances en
-        // lugar de medir la traducción.
+        // lugar de medir la traducción. Si el ítem declaró menciones, la
+        // referencia también las liga —igual que `EjecutorDeConsulta` liga las
+        // del turno real—: es la misma consulta con los mismos marcadores, así
+        // que tiene que correr con los mismos bindings.
         ResultadoDeConsulta referencia;
         try
         {
-            referencia = await ejecutor.EjecutarAsync(item.SqlReferencia, actor, false, ct);
+            referencia = await ejecutor.EjecutarAsync(
+                item.SqlReferencia, actor, false, ct, BindingsDeEjecucion(item));
         }
         catch (Exception excepcion) when (excepcion is not OperationCanceledException)
         {
@@ -198,4 +205,45 @@ public sealed class RunnerDeCapacidad(
 
     private static ResultadoDeItem Fallo(ItemDeCapacidad item, string detalle) =>
         new(item.Id, item.Categoria, DesenlaceDeItem.Fallo, detalle);
+
+    /// <summary>
+    /// Las menciones de un ítem, listas para <c>CarrilSql.ResponderAsync</c>
+    /// (design.md D11 de asistente-rediseno-v3).
+    /// </summary>
+    /// <remarks>
+    /// El id sale de <see cref="GeneradorDeFixture.IdDeMateria"/>/<c>IdDePersona</c>
+    /// por índice, nunca de un GUID escrito a mano: si el fixture cambiara de
+    /// forma, esto apuntaría a la fila correcta o el dataset test que verifica
+    /// <see cref="ReferenciaDeItem.Nombre"/> contra
+    /// <see cref="GeneradorDeFixture.MateriasCompartidas"/>/<c>ApellidosCompartidos</c>
+    /// se rompería primero.
+    /// </remarks>
+    private static IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? ResolverMenciones(
+        ItemDeCapacidad item) =>
+        item.Referencias?.Count > 0
+            ? [.. item.Referencias.Select(r => (TipoDeReferencia(r), EntidadDeReferencia(r)))]
+            : null;
+
+    /// <summary>Los mismos bindings, para ligar la SQL de referencia.</summary>
+    private static IReadOnlyDictionary<string, Guid>? BindingsDeEjecucion(ItemDeCapacidad item) =>
+        item.Referencias?.Count > 0
+            ? item.Referencias.ToDictionary(r => r.Marcador, r => Guid.Parse(IdDeReferencia(r)))
+            : null;
+
+    private static TipoDeMencion TipoDeReferencia(ReferenciaDeItem referencia) => referencia.Tipo switch
+    {
+        "materia" => TipoDeMencion.Materia,
+        "docente" => TipoDeMencion.Docente,
+        _ => throw new InvalidOperationException(
+            $"Una referencia declara el tipo '{referencia.Tipo}', que no es 'materia' ni 'docente'."),
+    };
+
+    private static string IdDeReferencia(ReferenciaDeItem referencia) => referencia.Tipo switch
+    {
+        "materia" => GeneradorDeFixture.IdDeMateria(referencia.Indice),
+        _ => GeneradorDeFixture.IdDePersona(referencia.Indice),
+    };
+
+    private static ResultadoDeMencion EntidadDeReferencia(ReferenciaDeItem referencia) =>
+        new(Guid.Parse(IdDeReferencia(referencia)), referencia.Nombre, referencia.Carrera);
 }

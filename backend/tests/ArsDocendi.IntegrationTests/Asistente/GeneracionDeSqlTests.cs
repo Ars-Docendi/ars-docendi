@@ -361,6 +361,82 @@ public sealed class GeneracionDeSqlTests
             proveedor.Recibidas[1].PrefijoEstable);
     }
 
+    // --------------------------------------------------------- menciones (D11)
+
+    [Fact]
+    public void Sin_menciones_el_mensaje_es_byte_a_byte_igual_que_antes_de_D11()
+    {
+        Assert.Equal(
+            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, ["SELECT 1"]),
+            GeneradorDeSql.ArmarMensaje("¿cuántos docentes hay?", [], Hoy, ["SELECT 1"], []));
+    }
+
+    [Fact]
+    public void El_bloque_de_menciones_nombra_el_marcador_y_la_entidad_nunca_el_id()
+    {
+        var materia = new ResultadoDeMencion(
+            Guid.Parse("70000000-0000-4000-8000-000000000102"),
+            "Algoritmos y Estructuras de Datos",
+            Carrera: "Ingeniería en Informática");
+
+        var mensaje = GeneradorDeSql.ArmarMensaje(
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            [],
+            Hoy,
+            menciones: [("$ref1", TipoDeMencion.Materia, materia)]);
+
+        Assert.Contains("$ref1", mensaje, StringComparison.Ordinal);
+        Assert.Contains("Algoritmos y Estructuras de Datos", mensaje, StringComparison.Ordinal);
+        Assert.Contains("materias.id", mensaje, StringComparison.Ordinal);
+        Assert.Contains("nunca por el nombre", mensaje, StringComparison.Ordinal);
+
+        // EL ID NUNCA APARECE COMO TEXTO (D11): lo único que el modelo ve es el
+        // marcador y la etiqueta.
+        Assert.DoesNotContain(materia.Id.ToString(), mensaje, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Las_menciones_van_despues_de_la_pregunta()
+    {
+        // La pregunta es lo primero cierto de este turno; las menciones son la
+        // última cosa cierta —lo que el usuario ya eligió al escribir—, así que
+        // van al final, después de "Pregunta del usuario".
+        var materia = new ResultadoDeMencion(Guid.NewGuid(), "Bases de Datos", Carrera: "Informática");
+
+        var mensaje = GeneradorDeSql.ArmarMensaje(
+            "¿quién la dicta?", [], Hoy, menciones: [("$ref1", TipoDeMencion.Materia, materia)]);
+
+        var pregunta = mensaje.IndexOf("Pregunta del usuario", StringComparison.Ordinal);
+        var menciones = mensaje.IndexOf("Menciones de esta pregunta", StringComparison.Ordinal);
+
+        Assert.InRange(menciones, pregunta + 1, int.MaxValue);
+    }
+
+    [Fact]
+    public async Task El_id_de_la_mencion_nunca_llega_al_proveedor()
+    {
+        // Prueba end-to-end de la propiedad de D11 en esta capa: cualquiera sea
+        // el camino, lo único que el ejecutor real del proveedor recibe es el
+        // texto de `SolicitudAlModelo.Mensaje`, y ESE es el que se manda por
+        // cable. Si el id no está ahí, no está en ningún lado que salga del
+        // servidor.
+        var id = Guid.Parse("70000000-0000-4000-8000-000000000102");
+        var materia = new ResultadoDeMencion(id, "Algoritmos y Estructuras de Datos", Carrera: "Informática");
+
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT 1 FROM identity.materias WHERE id = $ref1"));
+        var generador = Componer(proveedor);
+
+        await generador.GenerarAsync(
+            "¿qué docentes están designados en esa materia?", false, TestContext.Current.CancellationToken,
+            menciones: [("$ref1", TipoDeMencion.Materia, materia)]);
+
+        Assert.DoesNotContain(
+            id.ToString(), proveedor.Recibidas[0].Mensaje, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            id.ToString(), proveedor.Recibidas[0].PrefijoEstable, StringComparison.OrdinalIgnoreCase);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static GeneradorDeSql Componer(ProveedorGuionado proveedor, DateOnly? fecha = null) =>

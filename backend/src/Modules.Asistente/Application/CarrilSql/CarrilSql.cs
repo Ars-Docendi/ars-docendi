@@ -41,12 +41,26 @@ public sealed class CarrilSql(
     /// seguimiento se resuelva editándolas en vez de rehaciéndolas. Vacío o nulo en
     /// un primer turno y después de un pivote.
     /// </param>
+    /// <param name="mencionesNuevas">
+    /// Las menciones de ESTE turno, ya revalidadas contra el alcance actual del
+    /// actor (design.md D10/D11 de asistente-rediseno-v3). Vacío o nulo si el
+    /// turno no trae ninguna.
+    /// </param>
+    /// <param name="referenciasHeredadas">
+    /// Los marcadores <c>$refN</c> —con su tipo e id— que el segmento ya
+    /// traía, de turnos anteriores del mismo segmento (ver
+    /// <see cref="HiloConversacional.ReferenciasVigentes"/>), para que un
+    /// seguimiento que edita o anida una consulta anterior pueda reusar su
+    /// marcador sin que el validador lo vea como no declarado.
+    /// </param>
     public async Task<ResultadoDelTurno> ResponderAsync(
         Guid actor,
         string mensaje,
         string? preguntaInterpretada,
         CancellationToken ct,
-        IReadOnlyList<string>? consultasAnteriores = null)
+        IReadOnlyList<string>? consultasAnteriores = null,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -62,7 +76,8 @@ public sealed class CarrilSql(
         {
             var perfil = await perfiles.ObtenerAsync(actor, ct);
             return await ResolverAsync(
-                actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct);
+                actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct,
+                mencionesNuevas, referenciasHeredadas);
         }
         catch (ConsultaSinPrivilegio)
         {
@@ -127,10 +142,38 @@ public sealed class CarrilSql(
         string? aMostrar,
         PerfilDelActor perfil,
         IReadOnlyList<string>? consultasAnteriores,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null)
     {
+        // NUMERADAS UNA SOLA VEZ, ACÁ: la misma asignación se usa para generar,
+        // validar, ejecutar y —en el reintento— volver a generar. Numerarlas de
+        // nuevo en el reintento les cambiaría el marcador a mitad de turno sin
+        // ningún motivo.
+        var menciones = MarcadoresDeReferencias.Asignar(mencionesNuevas ?? [], consultasAnteriores);
+
+        var declarados = new HashSet<string>(referenciasHeredadas?.Keys ?? [], StringComparer.Ordinal);
+        var todasLasReferencias = new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(
+            referenciasHeredadas ?? new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(),
+            StringComparer.Ordinal);
+
+        foreach (var (marcador, tipo, entidad) in menciones)
+        {
+            declarados.Add(marcador);
+            todasLasReferencias[marcador] = (tipo, entidad.Id);
+        }
+
+        var requeridos = menciones.Select(m => m.Marcador).ToHashSet(StringComparer.Ordinal);
+
+        // LO ÚNICO QUE EL EJECUTOR NECESITA ES EL ID: el tipo sólo hacía falta
+        // para declarar y validar el marcador, y para lo que persiste el turno
+        // (`todasLasReferencias`, más abajo). Ligarlo como parámetro no exige
+        // saber de qué entidad vino.
+        var bindingsDeEjecucion = todasLasReferencias.ToDictionary(
+            par => par.Key, par => par.Value.Id, StringComparer.Ordinal);
+
         var generacion = await generador.GenerarAsync(
-            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores);
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones);
 
         if (!generacion.EsContestable || generacion.Sql is null)
         {
@@ -145,11 +188,14 @@ public sealed class CarrilSql(
                 generacion, aMostrar, PoliticaDeAbstencion.TextoNoContestable, generacion.Categoria);
         }
 
-        var veredicto = ValidadorDeSql.Validar(generacion.Sql);
+        var veredicto = ValidadorDeSql.Validar(generacion.Sql, declarados, requeridos);
         if (!veredicto.EsValida)
         {
             // El motivo va al registro, no a la respuesta: nombra construcciones
-            // de SQL y quien lee la respuesta es el usuario final.
+            // de SQL y quien lee la respuesta es el usuario final. Un marcador
+            // ignorado o inventado termina exactamente por este mismo camino: el
+            // turno se abstiene, nunca ejecuta contra la entidad equivocada
+            // (design.md D11).
             log.LogWarning(
                 "El validador rechazó la consulta generada: {Motivo}", veredicto.Motivo);
 
@@ -159,7 +205,7 @@ public sealed class CarrilSql(
         }
 
         var resultado = await ejecutor.EjecutarAsync(
-            generacion.Sql, actor, perfil.VeDatosPersonales, ct);
+            generacion.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
 
         // EL ALCANCE ES DEL TURNO, NO DEL ACTOR, y por eso se calcula acá: recién
         // con la consulta generada se sabe qué dominios tocó. La detección de portal
@@ -172,7 +218,8 @@ public sealed class CarrilSql(
         if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
-                actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct);
+                actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct,
+                menciones, declarados, requeridos, bindingsDeEjecucion);
 
             // El reintento pudo cambiar la consulta, y con ella los dominios que
             // toca: una segunda generación que agrega portal cambia el alcance del
@@ -184,13 +231,26 @@ public sealed class CarrilSql(
 
         if (resultado.EstaVacio)
         {
+            // SIN FILAS, SIN BINDINGS A PROPÓSITO: igual que `SqlEjecutado` queda
+            // nulo acá abajo, los bindings tampoco se anotan — no hay ninguna
+            // consulta que un seguimiento pueda editar o anidar.
             return Vacio(
                 generacion, aMostrar, perfil, alcanzaTodo, await CoberturaAsync(generacion, actor, ct));
         }
 
+        // Lo que de verdad viaja al turno es el ÚNICO diccionario que se
+        // construyó arriba: heredado + lo de este turno, sea cual sea la
+        // generación que terminó respondiendo (la del reintento reusa el mismo
+        // conjunto de marcadores que la original, así que no hay que recalcular
+        // nada). Vacío se anota nulo, igual que `SqlEjecutado`: no hay nada para
+        // que un seguimiento reuse.
+        var referenciasEjecutadas = todasLasReferencias.Count > 0
+            ? (IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>)todasLasReferencias
+            : null;
+
         return await RedactadoAsync(
             mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
-            await CoberturaAsync(generacion, actor, ct), ct);
+            await CoberturaAsync(generacion, actor, ct), ct, referenciasEjecutadas);
     }
 
     /// <summary>
@@ -200,7 +260,9 @@ public sealed class CarrilSql(
     /// <remarks>
     /// Si la segunda generación no es contestable o su consulta no valida, se
     /// conserva el resultado de la primera: un reintento peor que el original no
-    /// tiene por qué reemplazarlo.
+    /// tiene por qué reemplazarlo. Se le pasan las MISMAS menciones —ya
+    /// numeradas— que a la primera generación: si el turno tenía una mención, el
+    /// reintento sigue teniendo que respetarla, no sólo el primer intento.
     /// </remarks>
     private async Task<(GeneracionDeSql, ResultadoDeConsulta)> ReintentarAsync(
         Guid actor,
@@ -209,22 +271,26 @@ public sealed class CarrilSql(
         ResultadoDeConsulta resultadoOriginal,
         PerfilDelActor perfil,
         IReadOnlyList<string>? consultasAnteriores,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)> menciones,
+        IReadOnlySet<string> declarados,
+        IReadOnlySet<string> requeridos,
+        IReadOnlyDictionary<string, Guid> bindingsDeEjecucion)
     {
         contador.MarcarReintento();
 
         var segunda = await generador.GenerarAsync(
-            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores);
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones);
 
         if (!segunda.EsContestable
             || segunda.Sql is null
-            || !ValidadorDeSql.Validar(segunda.Sql).EsValida)
+            || !ValidadorDeSql.Validar(segunda.Sql, declarados, requeridos).EsValida)
         {
             return (original, resultadoOriginal);
         }
 
         var resultado = await ejecutor.EjecutarAsync(
-            segunda.Sql, actor, perfil.VeDatosPersonales, ct);
+            segunda.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
 
         return resultado.EstaVacio ? (original, resultadoOriginal) : (segunda, resultado);
     }
@@ -271,7 +337,8 @@ public sealed class CarrilSql(
         PerfilDelActor perfil,
         bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasEjecutadas = null)
     {
         // LA FRONTERA DE SALIDA. Lo que va al modelo es el resultado enmascarado;
         // lo que vuelve al llamador son las filas reales. Cambiar el orden de estas
@@ -300,7 +367,8 @@ public sealed class CarrilSql(
             // Respondida: this turn's analytic row gets an application-generated id,
             // and this is that same id, handed to the client once so it can later
             // submit feedback for exactly this row.
-            ClaveDeRetroalimentacion: Guid.NewGuid());
+            ClaveDeRetroalimentacion: Guid.NewGuid(),
+            ReferenciasEjecutadas: referenciasEjecutadas);
     }
 
     /// <summary>

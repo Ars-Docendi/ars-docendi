@@ -663,7 +663,24 @@ public sealed partial class ArquitecturaAsistenteTests
     /// public by the same "no less accessible than the public interface"
     /// rule the compiler already enforces for the others in this list.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 85;
+    /// <remarks>
+    /// Raised once more to 88 for asistente-menciones (D10/D11 de
+    /// asistente-rediseno-v3, ARS-148): <c>IBuscadorDeMenciones</c> is a new
+    /// constructor parameter of <c>AsistenteController</c> and
+    /// <c>HistorialController</c> (the search port for <c>GET /menciones</c>
+    /// and the re-validation on «Volver a consultar»); its own interface
+    /// methods carry <c>TipoDeMencion</c>, <c>ResultadoDeMencion</c> and
+    /// <c>BusquedaDeMenciones</c> as parameter/return types, and the compiler
+    /// rejects a less-accessible type there — same rule as every other entry
+    /// in this list. Everything ELSE the marker mechanism needed —the
+    /// per-turn reference tuples threaded through <c>CarrilSql</c>/
+    /// <c>GeneradorDeSql</c>/<c>HiloConversacional</c>, the JSON shape of
+    /// <c>turno_historico.referencias</c>— is either an internal type
+    /// (<c>MarcadoresDeReferencias</c>, <c>ReescritorDeMarcadores</c>) or a
+    /// value tuple, on purpose: a tuple forces nothing public, so it never
+    /// touches this count.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 88;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

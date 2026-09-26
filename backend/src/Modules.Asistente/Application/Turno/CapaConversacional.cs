@@ -62,6 +62,11 @@ public sealed class CapaConversacional(
     /// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c>
     /// de uno reanudado—, o <c>null</c> para un turno nuevo cualquiera.
     /// </param>
+    /// <param name="mencionesNuevas">
+    /// Las menciones de este turno, ya revalidadas por el controller contra el
+    /// alcance ACTUAL del actor (design.md D10/D11 de asistente-rediseno-v3).
+    /// Vacío o nulo si el turno no trae ninguna.
+    /// </param>
     /// <exception cref="HiloAjeno">Si el hilo pertenece a otro actor.</exception>
     /// <exception cref="ReemplazoInvalido">
     /// Si <paramref name="reemplaza"/> no nombra el último turno vigente del
@@ -73,7 +78,8 @@ public sealed class CapaConversacional(
         string mensaje,
         CancellationToken ct,
         string? claveDelCliente = null,
-        string? reemplaza = null)
+        string? reemplaza = null,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -164,7 +170,7 @@ public sealed class CapaConversacional(
         {
             var turno = await ResolverAsync(
                 actor, conversacion, mensaje, claveDelCliente,
-                inicioDeSegmentoAntes, aclaracionAntes, valores, presupuesto.Token);
+                inicioDeSegmentoAntes, aclaracionAntes, valores, presupuesto.Token, mencionesNuevas);
 
             if (turno.ClaveDeRetroalimentacion is { } token)
             {
@@ -387,7 +393,8 @@ public sealed class CapaConversacional(
                 turno.PreguntaInterpretada ?? mensaje,
                 turno.SqlEjecutado,
                 turno.Estado,
-                ahora);
+                ahora,
+                turno.ReferenciasEjecutadas);
 
             // REEMPLAZO CON DESENLACE REGISTRABLE (design.md D9, punto 3): se
             // revoca el token viejo y el historial reemplaza su fila, en vez de
@@ -450,7 +457,8 @@ public sealed class CapaConversacional(
         int inicioDeSegmentoAntes,
         Aclaracion? aclaracionAntes,
         OpcionesAsistente valores,
-        CancellationToken ct)
+        CancellationToken ct,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null)
     {
         // EL VEREDICTO SOBRE EL MODELO, resuelto una sola vez y ANTES del pipeline.
         // No corta el turno: los cinco pasos que no necesitan proveedor siguen
@@ -581,8 +589,15 @@ public sealed class CapaConversacional(
 
         // 6 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis
         // Matemático?» no contiene ninguna entidad ambigua hasta que se la
-        // reescribe, y la reescrita sí.
-        var aclaracion = DetectorDeAmbiguedad.Detectar(interpretada, catalogo);
+        // reescribe, y la reescrita sí. Las etiquetas de las menciones de este
+        // turno se excluyen (design.md D11): el usuario ya eligió una entidad
+        // exacta en el popover, así que un homónimo suyo no tiene que volver a
+        // preguntarse.
+        var etiquetasReferenciadas = mencionesNuevas is { Count: > 0 }
+            ? mencionesNuevas.Select(m => MarcadoresDeReferencias.Etiqueta(m.Tipo, m.Entidad)).ToArray()
+            : null;
+
+        var aclaracion = DetectorDeAmbiguedad.Detectar(interpretada, catalogo, etiquetasReferenciadas);
         if (aclaracion is not null)
         {
             conversacion.Pendiente(aclaracion);
@@ -608,8 +623,14 @@ public sealed class CapaConversacional(
         var consultasAnteriores = conversacion.ConsultasVigentes(
             valores.TopeDeTurnosDelHistorial);
 
+        // LOS MARCADORES QUE EL SEGMENTO YA TRAÍA (design.md D11), del mismo
+        // recorte que `consultasAnteriores`: para que un seguimiento que edita
+        // o anida una consulta anterior pueda reusar su marcador sin que el
+        // validador lo vea como no declarado.
+        var referenciasHeredadas = conversacion.ReferenciasVigentes(valores.TopeDeTurnosDelHistorial);
+
         var resultado = await carril.ResponderAsync(
-            actor, mensaje, aMostrar, ct, consultasAnteriores);
+            actor, mensaje, aMostrar, ct, consultasAnteriores, mencionesNuevas, referenciasHeredadas);
 
         // La consulta que respondió, no la que se generó: con reintento el carril ya
         // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
@@ -621,7 +642,8 @@ public sealed class CapaConversacional(
             claveDelCliente: claveDelCliente,
             inicioDeSegmentoAntes: inicioDeSegmentoAntes,
             aclaracionPendienteAntes: aclaracionAntes,
-            huboAclaracionAntes: true);
+            huboAclaracionAntes: true,
+            referencias: resultado.ReferenciasEjecutadas);
 
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema

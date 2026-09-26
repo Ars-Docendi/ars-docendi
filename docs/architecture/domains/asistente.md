@@ -161,6 +161,7 @@ o se declara la excepción.
 | ------ | ------------------------------------------------------ | -------------------------------- | --------------------------------------------------------------------- |
 | GET    | `/api/asistente/ping`                                  | (anónimo)                        | Smoke test, sin base ni proveedor                                     |
 | POST   | `/api/asistente/consultas`                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
+| GET    | `/api/asistente/menciones`                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para «@»/«#»            |
 | GET    | `/api/asistente/capacidades`                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
 | POST   | `/api/asistente/retroalimentacion`                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token |
 | GET    | `/api/asistente/historial`                             | `asistente.consultar`            | Lista y busca las conversaciones propias                              |
@@ -317,6 +318,49 @@ otras.
 Hallazgo del camino: la envoltura en subconsulta hace **estructuralmente**
 imposible colar DML, porque PostgreSQL admite una CTE que modifica datos solo en el
 nivel superior de la sentencia.
+
+### Menciones «@materia» / «#docente» (design.md D10/D11, ARS-148)
+
+El composer deja elegir una materia o un docente exactos en vez de que el modelo
+adivine a partir del texto libre. Dos piezas nuevas, ninguna con privilegio nuevo:
+
+**Búsqueda (`GET /menciones`, `IBuscadorDeMenciones`).** Corre sobre el rol básico
+de sólo lectura con `PreambuloDelActor` — transacción `READ ONLY`, actor fijado —,
+igual que el resto del módulo. El alcance de las materias lo decide
+`identity.asistente_materias_visibles()`; el de los docentes, la RLS de
+`designaciones.designaciones` (§ arriba), que ya conjunta `designaciones.ver` con
+el ámbito. Un actor sin ese permiso encuentra cero docentes porque la tabla le
+queda vacía, no porque el backend lo haya filtrado. Devuelve a lo sumo 6
+resultados y un booleano de «hay más» — nunca un conteo, mismo criterio que el
+truncado del carril.
+
+**Revisión del manifiesto de sensibilidad (tarea 7.7).** Las columnas que la
+búsqueda toca — `identity.materias.name/code`, `identity.carreras.name`,
+`identity.personas.nombre/apellido`, `designaciones.cargos.nombre` — están
+clasificadas `publica` en `database/asistente/manifiesto-sensibilidad.json`, y
+siguen estándolo: **no hizo falta ningún cambio de manifiesto ni de GRANT**. La
+única cosa nueva es que este endpoint devuelve el `id` (`identificador`) al
+navegador del propio actor, y esa clasificación gobierna otra pregunta —qué sale
+hacia el proveedor del modelo—, no qué ve el dueño del dato en su propia pantalla.
+El id sigue sin llegar al modelo nunca: ver el punto siguiente.
+
+**Marcadores `$refN` (`GeneradorDeSql`, `ValidadorDeSql`, `EjecutorDeConsulta`).**
+El turno manda hasta 5 referencias `{ tipo, id }`; el controller las revalida con
+la misma búsqueda antes del candado (una desconocida o fuera de alcance da el
+mismo `400` que cualquier otra, sin oráculo de existencia). `ArmarMensaje` agrega
+un bloque «Menciones» al prompt de usuario — nunca al prefijo cacheado, así que
+`PrefijoDeLosCassettesTests` sigue en pie sin regrabar nada — con el nombre de
+cada entidad y un marcador reservado (`$ref1`, `$ref2`…), numerados después de
+los que ya trae el segmento. El validador tokeniza `$refN` como su propia clase
+de token y rechaza tanto un marcador no declarado como uno declarado que la
+consulta ignore — las dos veces, abstención, nunca ejecución contra la entidad
+equivocada. El ejecutor reescribe cada `$refN` a un parámetro `@refN` y lo liga
+como `uuid`: el id nunca viaja interpolado en un texto que el modelo pueda leer,
+ni en éste ni en un seguimiento que edite o anide la misma consulta. Se persiste
+en `asistente.turno_historico.referencias` (marcador → tipo e id) para que
+«Volver a consultar» y «Reanudar» puedan volver a ligarlo, revalidando contra el
+alcance actual en el momento de reusarlo. `DetectorDeAmbiguedad` no pregunta por
+un homónimo que una mención de este turno ya nombra.
 
 ### La abstención
 
@@ -1154,3 +1198,14 @@ TD-017.
 - **El carril es un servicio y no un endpoint** — construir el contrato antes de
   tener los cuatro estados y el hilo conversacional obligaría a inventarlo dos
   veces.
+- **Las menciones se buscan con el rol básico, nunca con la conexión dueña** —
+  el mismo motivo que el resto del módulo: si el filtro de alcance viviera en
+  C#, alguien podría olvidarlo sin que nada avise (design.md D10 de
+  asistente-rediseno-v3).
+- **El id de una mención viaja al navegador pero nunca al modelo** — un
+  identificador estable y pseudónimo de una persona es exactamente el canal que
+  TD-022 y la clasificación `identificador` quieren cerrado; el marcador `$refN`
+  es la frontera (design.md D11).
+- **Manifiesto de sensibilidad sin cambios** — la búsqueda de menciones sólo lee
+  columnas ya `publica`; devolver el `id` al dueño de la sesión es una pregunta
+  distinta de la que ese manifiesto gobierna (design.md D10, tarea 7.7).

@@ -16,6 +16,15 @@ namespace Modules.Asistente.Api;
 /// asistente-rediseno-v3). Se honra sólo si nombra el último turno vigente del
 /// hilo del actor; si no, <c>409</c> y nada cambia.
 /// </param>
+/// <param name="Referencias">
+/// Las menciones «@materia»/«#docente» elegidas en el composer (design.md
+/// D10/D11 de asistente-rediseno-v3), a lo sumo 5. El controller revalida cada
+/// una contra el alcance ACTUAL del actor con la misma búsqueda de
+/// <c>GET /menciones</c>, antes del candado y del resto del pipeline: una
+/// mención desconocida o fuera de alcance da <c>400</c> — el mismo para las dos
+/// causas, para no confirmar cuál de las dos fue — y no cobra cupo ni escribe
+/// historial.
+/// </param>
 /// <remarks>
 /// <b>No trae al actor.</b> El actor sale de la identidad de la sesión y de ningún
 /// otro lado: un identificador tomado del cuerpo del pedido sería un selector de
@@ -33,10 +42,48 @@ public sealed record ConsultaDelAsistente(
     // Sin `[Required]`: ausente es «turno nuevo cualquiera», el caso de
     // siempre. Ver `CapaConversacional.ResponderAsync` (design.md D9 de
     // asistente-rediseno-v3, «Editar y reenviar»).
-    string? Reemplaza = null);
+    string? Reemplaza = null,
+    // `[MaxLength(5)]` sobre una colección cuenta elementos, no caracteres:
+    // con `[ApiController]`, una sexta referencia nunca llega a la acción — el
+    // filtro de validación del modelo devuelve 400 antes (escenario «Too many
+    // references are rejected» de asistente-menciones).
+    [MaxLength(5)]
+    IReadOnlyList<ReferenciaDto>? Referencias = null);
+
+/// <summary>Una mención tal como la manda el cliente en el turno (design.md D11).</summary>
+/// <param name="Tipo">
+/// <c>"materia"</c> o <c>"docente"</c>. Cualquier otro valor se trata igual que
+/// un identificador que no existe: <c>400</c>, sin confirmar cuál de las dos
+/// cosas fue.
+/// </param>
+public sealed record ReferenciaDto(string Tipo, Guid Id);
 
 /// <summary>Una opción del menú de aclaración.</summary>
 public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);
+
+/// <summary>
+/// Una materia o un docente encontrado por <c>GET /api/asistente/menciones</c>
+/// (design.md D10 de asistente-rediseno-v3).
+/// </summary>
+/// <param name="Carrera">La carrera de la materia. <c>null</c> para un docente.</param>
+/// <param name="Codigo">El código de la materia. <c>null</c> para un docente.</param>
+/// <param name="Cargo">El cargo de la designación del docente. <c>null</c> para una materia.</param>
+public sealed record MencionDto(Guid Id, string Nombre, string? Carrera, string? Codigo, string? Cargo)
+{
+    internal static MencionDto De(ResultadoDeMencion resultado) => new(
+        resultado.Id, resultado.Nombre, resultado.Carrera, resultado.Codigo, resultado.Cargo);
+}
+
+/// <summary>La respuesta de <c>GET /api/asistente/menciones</c>.</summary>
+/// <param name="HayMas">
+/// Si había más coincidencias que las devueltas. Nunca un conteo — mismo motivo
+/// que <see cref="RespuestaDelAsistente.Truncado"/>.
+/// </param>
+public sealed record MencionesDto(IReadOnlyList<MencionDto> Resultados, bool HayMas)
+{
+    internal static MencionesDto De(BusquedaDeMenciones busqueda) =>
+        new([.. busqueda.Resultados.Select(MencionDto.De)], busqueda.HayMas);
+}
 
 /// <summary>What the client sends to rate an already-answered turn.</summary>
 /// <param name="Token">

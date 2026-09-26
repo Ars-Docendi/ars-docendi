@@ -502,18 +502,140 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Empty(fallidos);
     }
 
+    // --------------------------------------------------------- menciones (D11)
+
+    private static readonly Guid MateriaAlgoritmos = Guid.Parse("70000000-0000-4000-8000-000000000102");
+
+    [Fact]
+    public async Task Una_mencion_filtra_por_el_marcador_exacto()
+    {
+        await SembrarAsync();
+
+        var materia = new ResultadoDeMencion(
+            MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");
+
+        var (turno, _) = await PreguntarAsync(
+            Secretaria,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            mencionesNuevas: [(TipoDeMencion.Materia, materia)]);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+
+        var esperadas = await EscalarAsync<long>(
+            "SELECT count(*) FROM designaciones.designaciones WHERE materia_id = @materia",
+            ("materia", MateriaAlgoritmos));
+
+        Assert.Equal(esperadas, turno.Filas.Count);
+    }
+
+    [Fact]
+    public async Task Una_consulta_que_ignora_el_marcador_declarado_se_abstiene()
+    {
+        await SembrarAsync();
+
+        var materia = new ResultadoDeMencion(MateriaAlgoritmos, "Algoritmos y Estructuras de Datos");
+
+        // El generado no usa `$ref1` en absoluto: el validador lo rechaza y el
+        // turno termina sin ejecutar nada contra la entidad equivocada.
+        var (turno, _) = await PreguntarAsync(
+            Secretaria,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id",
+            mencionesNuevas: [(TipoDeMencion.Materia, materia)]);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+    }
+
+    [Fact]
+    public async Task El_turno_respondido_anota_los_bindings_ejecutados()
+    {
+        await SembrarAsync();
+
+        var materia = new ResultadoDeMencion(MateriaAlgoritmos, "Algoritmos y Estructuras de Datos");
+
+        var (turno, _) = await PreguntarAsync(
+            Secretaria,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            mencionesNuevas: [(TipoDeMencion.Materia, materia)]);
+
+        Assert.NotNull(turno.ReferenciasEjecutadas);
+        Assert.Equal((TipoDeMencion.Materia, MateriaAlgoritmos), turno.ReferenciasEjecutadas!["$ref1"]);
+    }
+
+    [Fact]
+    public async Task El_id_referenciado_nunca_aparece_en_lo_que_se_manda_al_proveedor_en_un_turno_y_su_seguimiento()
+    {
+        // ESTA ES LA PROPIEDAD DE SEGURIDAD DE D11, verificada de punta a punta
+        // contra una base real: ni el turno con la mención nueva, ni el
+        // seguimiento que hereda su marcador (vía `referenciasHeredadas`,
+        // el mismo mecanismo que usa CapaConversacional), le mandan el uuid
+        // al proveedor — ni en el mensaje del turno, ni en el prefijo, ni en
+        // ninguno de los dos turnos.
+        await SembrarAsync();
+
+        var materia = new ResultadoDeMencion(
+            MateriaAlgoritmos, "Algoritmos y Estructuras de Datos", Carrera: "Ingeniería en Informática");
+
+        var sqlPrimerTurno =
+            "SELECT p.apellido FROM designaciones.designaciones d "
+            + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1";
+
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(sqlPrimerTurno),
+            // El seguimiento anida la misma consulta, reusando `$ref1` sin que
+            // nadie se lo vuelva a explicar: es exactamente lo que el bloque
+            // "Consultas de los turnos anteriores" habilita.
+            ProveedorGuionado.Generacion(
+                sqlPrimerTurno.Replace("p.apellido", "p.apellido, p.nombre", StringComparison.Ordinal)));
+
+        var carril = CarrilCon(proveedor);
+        var ct = TestContext.Current.CancellationToken;
+
+        var primero = await carril.ResponderAsync(
+            Secretaria, "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?", null, ct,
+            mencionesNuevas: [(TipoDeMencion.Materia, materia)]);
+
+        Assert.Equal(EstadoDelTurno.Respondida, primero.Estado);
+        Assert.NotNull(primero.ReferenciasEjecutadas);
+
+        var segundo = await carril.ResponderAsync(
+            Secretaria, "¿y con nombre completo?", null, ct,
+            consultasAnteriores: [primero.SqlEjecutado!],
+            referenciasHeredadas: primero.ReferenciasEjecutadas);
+
+        Assert.Equal(EstadoDelTurno.Respondida, segundo.Estado);
+
+        foreach (var solicitud in proveedor.Recibidas)
+        {
+            Assert.DoesNotContain(
+                MateriaAlgoritmos.ToString(), solicitud.Mensaje, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(
+                MateriaAlgoritmos.ToString(), solicitud.PrefijoEstable, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ProveedorGuionado Guion(string? sql = null) =>
         new(ProveedorGuionado.Generacion(sql ?? ContarPedidos));
 
     private async Task<(ResultadoDelTurno Turno, ProveedorGuionado Proveedor)> PreguntarAsync(
-        Guid actor, string pregunta, string sql, string razonamiento = "Interpreté la pregunta.")
+        Guid actor,
+        string pregunta,
+        string sql,
+        string razonamiento = "Interpreté la pregunta.",
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null)
     {
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(sql, razonamiento));
 
         var turno = await CarrilCon(proveedor).ResponderAsync(
-            actor, pregunta, null, TestContext.Current.CancellationToken);
+            actor, pregunta, null, TestContext.Current.CancellationToken,
+            mencionesNuevas: mencionesNuevas);
 
         return (turno, proveedor);
     }

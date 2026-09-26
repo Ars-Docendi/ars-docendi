@@ -683,6 +683,97 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         Assert.Empty(reejecucion.Filas);
     }
 
+    // ------------------------------------------------------- reejecutar con D11
+
+    private static readonly Guid MateriaAlgoritmos = Guid.Parse("70000000-0000-4000-8000-000000000102");
+    private static readonly Guid MateriaDeIndustrial = Guid.Parse("70000000-0000-4000-8000-000000000201");
+
+    [Fact]
+    public async Task Reejecutar_con_una_referencia_vigente_la_vuelve_a_bindear()
+    {
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
+        var turno = await SembrarTurnoAsync(
+            propia,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaAlgoritmos));
+
+        using var host = CrearHost(new ProveedorGuionado());
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var reejecucion = await LeerAsync<ReejecucionDto>(await cliente.PostAsync(
+            $"/api/asistente/historial/turnos/{turno}/reejecutar", null,
+            TestContext.Current.CancellationToken));
+
+        Assert.True(reejecucion.Exitosa);
+
+        var esperadas = await EscalarAsync<long>(
+            "SELECT count(*) FROM designaciones.designaciones WHERE materia_id = @materia",
+            ("materia", MateriaAlgoritmos));
+
+        Assert.Equal(esperadas, reejecucion.Filas.Count);
+    }
+
+    [Fact]
+    public async Task Reejecutar_con_una_referencia_fuera_del_alcance_actual_se_abstiene()
+    {
+        // "the stored bindings are re-validated against the actor's current
+        // scope on reuse": el coordinador tiene ámbito de Ingeniería en
+        // Informática, y la referencia guardada nombra una materia de
+        // Ingeniería Industrial. La revalidación la rechaza igual que un
+        // rechazo del motor — nunca un error crudo.
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        var turno = await SembrarTurnoAsync(
+            propia,
+            "¿quién la dicta?",
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaDeIndustrial));
+
+        using var host = CrearHost(new ProveedorGuionado());
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Coordinador, "coordinador_carrera");
+
+        var reejecucion = await LeerAsync<ReejecucionDto>(await cliente.PostAsync(
+            $"/api/asistente/historial/turnos/{turno}/reejecutar", null,
+            TestContext.Current.CancellationToken));
+
+        Assert.False(reejecucion.Exitosa);
+        Assert.NotNull(reejecucion.Mensaje);
+    }
+
+    [Fact]
+    public async Task Reanudar_siembra_las_referencias_del_turno_persistido()
+    {
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
+        await SembrarTurnoAsync(
+            propia,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaAlgoritmos));
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        // NO afirma sobre el cuerpo de /reanudar —`ReanudarDto`/`TurnoDeHistorialDto`
+        // no exponen las referencias, sólo `SqlResuelto` (mismo criterio que
+        // `Sql`/`SqlEjecutado` en el turno en vivo)—, sino sobre que el
+        // endpoint no revienta al sembrar un turno con referencias.
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/reanudar", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
@@ -700,6 +791,13 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
 
         return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
     }
+
+    /// <summary>
+    /// El JSON de <c>turno_historico.referencias</c> para un único marcador
+    /// <c>$ref1</c> (el mismo formato que <c>SerializacionDeReferencias</c>).
+    /// </summary>
+    private static string ReferenciaJson(string tipo, Guid id) =>
+        "{\"$ref1\":{\"tipo\":\"" + tipo + "\",\"id\":\"" + id + "\"}}";
 
     private WebApplicationFactory<Program> CrearHost(
         ProveedorGuionado? guionado = null, TimeProvider? reloj = null) =>
@@ -791,14 +889,15 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
 
     private async Task<Guid> SembrarTurnoAsync(
         Guid hiloId, string pregunta, string? sql, DateTimeOffset? ocurrioEn = null,
-        string estado = "Respondida")
+        string estado = "Respondida", string? referencias = null)
     {
         var id = Guid.NewGuid();
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """
-            INSERT INTO asistente.turno_historico (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en)
-            VALUES (@id, @hilo, @pregunta, @sql, @estado, @ahora)
+            INSERT INTO asistente.turno_historico
+                (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en, referencias)
+            VALUES (@id, @hilo, @pregunta, @sql, @estado, @ahora, @referencias)
             """, conexion);
 
         comando.Parameters.AddWithValue("id", id);
@@ -808,6 +907,8 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
             "sql", NpgsqlTypes.NpgsqlDbType.Text, (object?)sql ?? DBNull.Value);
         comando.Parameters.AddWithValue("estado", estado);
         comando.Parameters.AddWithValue("ahora", ocurrioEn ?? Ancla);
+        comando.Parameters.AddWithValue(
+            "referencias", NpgsqlTypes.NpgsqlDbType.Jsonb, (object?)referencias ?? DBNull.Value);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         return id;

@@ -137,7 +137,11 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // tres en HistorialController — archivar, desarchivar y deshacer un
         // lote de borrado (`POST /historial/{id}/archivar`,
         // `/desarchivar`, `/historial/borrados/{lote}/deshacer`).
-        Assert.Equal(87, operaciones.Length);
+        //
+        // Subió de 87 a 88 con asistente-rediseno-v3 (§7, ARS-148): uno en
+        // AsistenteController (`GET /api/asistente/menciones`, el buscador de
+        // materias/docentes para el popover «@»/«#»).
+        Assert.Equal(88, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

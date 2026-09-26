@@ -172,6 +172,35 @@ sistema reproduce ejemplos que ya vio — y como el catálogo de capacidades der
 sus sugerencias de esos ejemplos, el asistente estaría proponiendo las preguntas
 con las que se lo evalúa.
 
+### Ítems con menciones «@materia» / «#docente» (ARS-148)
+
+`cap-033` y `cap-034` declaran `referencias`: una mención de materia con
+homónimo (`Análisis Matemático`, compartida por las tres carreras del fixture —
+`GeneradorDeFixture.MateriasCompartidas`) y una de docente con apellido
+compartido (`Suárez` — `ApellidosCompartidos`). Cada referencia nombra:
+
+```json
+{
+  "marcador": "$ref1",
+  "tipo": "materia",
+  "indice": 7,
+  "nombre": "Análisis Matemático",
+  "carrera": "Ingeniería en Informática"
+}
+```
+
+`indice` es el índice determinista del fixture (`GeneradorDeFixture.IdDeMateria`/
+`IdDePersona`), nunca un GUID escrito a mano: si el fixture cambiara de forma, el
+test que compara `nombre` contra `MateriasCompartidas`/`ApellidosCompartidos` se
+rompe antes de que el ítem apunte a una fila que ya no significa lo mismo.
+`sql_referencia` usa el marcador tal cual —`$ref1`, nunca el id— igual que la SQL
+que genera el modelo (design.md D11 de asistente-rediseno-v3): `RunnerDeCapacidad`
+manda las referencias a `GeneradorDeSql` igual que un turno real, y liga los
+mismos marcadores al ejecutar tanto la consulta generada como la de referencia.
+`ReferenciasEjecutablesTests` hace lo mismo antes de correr la SQL cruda contra el
+fixture, así que un ítem con una mención rota que no ejecutara se vería igual que
+cualquier otra referencia rota.
+
 ## La puntuación
 
 | Situación                              | Vale                          |

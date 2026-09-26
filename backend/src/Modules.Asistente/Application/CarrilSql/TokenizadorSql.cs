@@ -11,10 +11,27 @@ internal enum ClaseDeToken
 
     /// <summary>Separador de sentencias en el nivel superior.</summary>
     FinDeSentencia,
+
+    /// <summary>
+    /// Un marcador de mención —<c>$ref1</c>, <c>$ref2</c>…— (design.md D11 de
+    /// asistente-rediseno-v3). Es su propia clase y no una <see cref="Palabra"/>
+    /// porque el validador tiene que poder exigir que TODO marcador que aparezca
+    /// esté declarado para el turno, sin confundirlo con una columna que se
+    /// llamara igual por casualidad.
+    /// </summary>
+    Marcador,
 }
 
-/// <summary>Un token con su clase y su texto ya en minúsculas.</summary>
-internal readonly record struct TokenSql(ClaseDeToken Clase, string Texto);
+/// <summary>
+/// Un token con su clase y su texto ya en minúsculas.
+/// </summary>
+/// <param name="Inicio">
+/// Posición del primer carácter del token en el texto original. Sólo
+/// <see cref="ClaseDeToken.Marcador"/> la necesita —<see cref="ReescritorDeMarcadores"/>
+/// la usa para reescribir el <c>$</c> en <c>@</c> sin reconstruir la consulta
+/// entera—; el resto de los tokens la deja en su valor por defecto.
+/// </param>
+internal readonly record struct TokenSql(ClaseDeToken Clase, string Texto, int Inicio = -1);
 
 /// <summary>
 /// El texto tiene una construcción que no cierra: comilla, comentario o
@@ -81,6 +98,17 @@ internal static class TokenizadorSql
 
                 case '"':
                     posicion = LeerIdentificador(sql, posicion, tokens);
+                    break;
+
+                // VA ANTES del signo pesos de abajo: un marcador y la apertura de un
+                // literal delimitado por signo pesos empiezan igual —"$" seguido de
+                // letras—, y "$ref1" tiene forma de las dos. Un marcador nunca es lo
+                // que el modelo elegiría como etiqueta de un literal —esa etiqueta
+                // la inventa el motor, no el prompt— así que priorizarlo acá no le
+                // saca ningún caso legítimo al literal delimitado.
+                case '$' when EsMarcador(sql, posicion, out var marcador):
+                    tokens.Add(new TokenSql(ClaseDeToken.Marcador, marcador, posicion));
+                    posicion += marcador.Length;
                     break;
 
                 case '$' when EsAperturaDeSignoPesos(sql, posicion, out var etiqueta):
@@ -372,6 +400,45 @@ internal static class TokenizadorSql
         }
 
         return decodificado.ToString();
+    }
+
+    /// <summary>
+    /// Reconoce un marcador de mención: <c>$ref</c> seguido de uno o más dígitos,
+    /// y no seguido de otra letra, dígito o guión bajo —<c>$ref12x</c> no es un
+    /// marcador válido, es una palabra que empieza igual—.
+    /// </summary>
+    private static bool EsMarcador(string sql, int posicion, out string marcador)
+    {
+        const string prefijo = "ref";
+        marcador = string.Empty;
+        var recorrido = posicion + 1;
+
+        if (recorrido + prefijo.Length > sql.Length
+            || !sql.AsSpan(recorrido, prefijo.Length).Equals(prefijo, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        recorrido += prefijo.Length;
+        var inicioDeLosDigitos = recorrido;
+
+        while (recorrido < sql.Length && char.IsAsciiDigit(sql[recorrido]))
+        {
+            recorrido++;
+        }
+
+        if (recorrido == inicioDeLosDigitos)
+        {
+            return false;
+        }
+
+        if (recorrido < sql.Length && (char.IsLetterOrDigit(sql[recorrido]) || sql[recorrido] == '_'))
+        {
+            return false;
+        }
+
+        marcador = $"$ref{sql[inicioDeLosDigitos..recorrido]}";
+        return true;
     }
 
     /// <summary>

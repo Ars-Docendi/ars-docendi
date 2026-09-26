@@ -497,6 +497,149 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         Assert.Single(detalle.Turnos);
     }
 
+    // ------------------------------------------------ menciones (D10/D11, 7.2/7.3)
+
+    private static readonly Guid MateriaAlgoritmos = Guid.Parse("70000000-0000-4000-8000-000000000102");
+    private static readonly Guid MateriaDeIndustrial = Guid.Parse("70000000-0000-4000-8000-000000000201");
+
+    [Fact]
+    public async Task GET_menciones_devuelve_materias_dentro_del_alcance()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await cliente.GetAsync(
+            "/api/asistente/menciones?tipo=materia&q=algoritmos", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+
+        var cuerpo = await respuesta.Content.ReadFromJsonAsync<MencionesDto>(
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(cuerpo);
+        Assert.Contains(cuerpo!.Resultados, r => r.Id == MateriaAlgoritmos);
+    }
+
+    [Fact]
+    public async Task GET_menciones_con_menos_de_dos_letras_es_400()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await cliente.GetAsync(
+            "/api/asistente/menciones?tipo=materia&q=a", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task GET_menciones_con_un_tipo_desconocido_es_400()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await cliente.GetAsync(
+            "/api/asistente/menciones?tipo=alumno&q=algoritmos", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Una_referencia_fuera_de_alcance_es_400_sin_gastar_cupo_ni_historial()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor);
+        using var cliente = host.CreateClient();
+        // Coordinador: ámbito de Ingeniería en Informática. La materia
+        // referenciada es de Ingeniería Industrial.
+        Autenticar(cliente, Coordinador, "coordinador_carrera");
+
+        using var respuesta = await Preguntar(
+            cliente, "¿quién la dicta?",
+            referencias: [new ReferenciaDto("materia", MateriaDeIndustrial)]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal(0, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Una_referencia_a_un_id_inexistente_da_el_mismo_400_que_una_fuera_de_alcance()
+    {
+        // Sin oráculo de existencia (design.md D11): mismo código y mismo cuerpo
+        // para las dos causas.
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Coordinador, "coordinador_carrera");
+
+        var fueraDeAlcance = await Preguntar(
+            cliente, "¿quién la dicta?", referencias: [new ReferenciaDto("materia", MateriaDeIndustrial)]);
+        var inexistente = await Preguntar(
+            cliente, "¿quién la dicta?", referencias: [new ReferenciaDto("materia", Guid.NewGuid())]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, fueraDeAlcance.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, inexistente.StatusCode);
+
+        var cuerpoFueraDeAlcance = await fueraDeAlcance.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+        var cuerpoInexistente = await inexistente.Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(cuerpoFueraDeAlcance, cuerpoInexistente);
+    }
+
+    [Fact]
+    public async Task Un_tipo_de_referencia_desconocido_es_400_como_cualquier_referencia_invalida()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(
+            cliente, "¿quién la dicta?", referencias: [new ReferenciaDto("alumno", MateriaAlgoritmos)]);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Mas_de_cinco_referencias_es_400_antes_de_resolver_nada()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var seis = Enumerable.Range(0, 6)
+            .Select(_ => new ReferenciaDto("materia", MateriaAlgoritmos))
+            .ToArray();
+
+        using var respuesta = await Preguntar(cliente, "¿quién la dicta?", referencias: seis);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal(0, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Una_referencia_valida_dentro_del_alcance_no_se_rechaza()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(
+            cliente, "¿quién la dicta?", referencias: [new ReferenciaDto("materia", MateriaAlgoritmos)]);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static Modules.Asistente.Application.ResultadoDelTurno TurnoCualquiera() =>
@@ -523,11 +666,12 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         string mensaje,
         string? clave = "clave-de-prueba",
         Guid? hilo = null,
-        string? reemplaza = null)
+        string? reemplaza = null,
+        IReadOnlyList<ReferenciaDto>? referencias = null)
     {
         using var pedido = new HttpRequestMessage(HttpMethod.Post, Ruta)
         {
-            Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, hilo, reemplaza)),
+            Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, hilo, reemplaza, referencias)),
         };
 
         if (clave is not null)

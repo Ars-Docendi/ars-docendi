@@ -29,8 +29,18 @@ public sealed record ConversacionResumen(
 /// consulta — el mismo criterio que <c>CarrilSql.LaConsulta</c> ya aplica
 /// para el turno en vivo.
 /// </remarks>
+/// <param name="Referencias">
+/// Los marcadores <c>$refN</c> —con su tipo e id— que <see cref="SqlResuelto"/>
+/// usa, o <c>null</c> si no usó ninguno (design.md D11 de asistente-rediseno-v3).
+/// Lo que <c>Reanudar</c> siembra en <c>TurnoDelHilo.Referencias</c>.
+/// </param>
 public sealed record TurnoDeHistorial(
-    Guid Id, string Pregunta, string? SqlResuelto, EstadoDelTurno Estado, DateTimeOffset OcurrioEn);
+    Guid Id,
+    string Pregunta,
+    string? SqlResuelto,
+    EstadoDelTurno Estado,
+    DateTimeOffset OcurrioEn,
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null);
 
 /// <summary>Una conversación persistida, con todos sus turnos.</summary>
 public sealed record ConversacionDetalle(
@@ -41,7 +51,15 @@ public sealed record ConversacionDetalle(
     IReadOnlyList<TurnoDeHistorial> Turnos);
 
 /// <summary>Lo que necesita la re-ejecución de un turno ya respondido.</summary>
-public sealed record TurnoParaReejecutar(EstadoDelTurno Estado, string? SqlResuelto);
+/// <param name="Referencias">
+/// Los marcadores que la SQL guardada usa (design.md D11): «Volver a
+/// consultar» revalida cada uno contra el alcance ACTUAL del actor —con la
+/// misma búsqueda que <c>GET /menciones</c>— antes de volver a ejecutar.
+/// </param>
+public sealed record TurnoParaReejecutar(
+    EstadoDelTurno Estado,
+    string? SqlResuelto,
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null);
 
 /// <summary>
 /// El lado de LECTURA propia del historial: listar, buscar, ver el detalle de

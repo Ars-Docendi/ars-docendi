@@ -256,6 +256,7 @@ public static class ModuleExtensions
         services.AddScoped<IPerfilDelActor, ConsultorDeAlcance>();
         services.AddScoped<IConsultorDeCobertura, ConsultorDeCobertura>();
         services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
+        services.AddScoped<IBuscadorDeMenciones, BuscadorDeMenciones>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
 

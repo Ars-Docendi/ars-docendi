@@ -20,12 +20,19 @@ namespace Modules.Asistente.Application;
 /// llamador lo excluye antes de invocar este método (design.md D2).
 /// </param>
 /// <param name="OcurrioEn">Cuándo se resolvió el turno.</param>
+/// <param name="Referencias">
+/// Los marcadores <c>$refN</c> —con su tipo e id— que <paramref name="SqlResuelto"/>
+/// usa, o <c>null</c> si el turno no usó ninguno (design.md D11 de
+/// asistente-rediseno-v3). Se persiste en <c>asistente.turno_historico.referencias</c>
+/// para que «Volver a consultar» y «Reanudar» puedan volver a ligarlos.
+/// </param>
 public sealed record TurnoParaHistorial(
     Guid Actor,
     string Pregunta,
     string? SqlResuelto,
     EstadoDelTurno Estado,
-    DateTimeOffset OcurrioEn);
+    DateTimeOffset OcurrioEn,
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null);
 
 /// <summary>
 /// Persiste un turno al historial propio del actor (asistente-historial-conversaciones).

@@ -358,6 +358,91 @@ public sealed class HiloConversacionalTests
         Assert.Equal(["SELECT 3", "SELECT 4", "SELECT 5"], hilo.ConsultasVigentes(tope: 3));
     }
 
+    // ------------------------------------------------- referencias (D11)
+
+    private static readonly Guid MateriaCualquiera = Guid.NewGuid();
+
+    [Fact]
+    public void Sin_turnos_las_referencias_vigentes_estan_vacias()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        Assert.Empty(hilo.ReferenciasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void Un_turno_sin_referencias_no_aporta_ninguna()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("primera", Inicio, "SELECT 1");
+
+        Assert.Empty(hilo.ReferenciasVigentes(tope: 4));
+    }
+
+    [Fact]
+    public void Las_referencias_de_un_turno_quedan_vigentes_para_el_siguiente()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar(
+            "primera", Inicio, "SELECT 1 WHERE id = $ref1",
+            referencias: new Dictionary<string, (TipoDeMencion, Guid)>
+            {
+                ["$ref1"] = (TipoDeMencion.Materia, MateriaCualquiera),
+            });
+
+        var vigentes = hilo.ReferenciasVigentes(tope: 4);
+
+        Assert.Equal((TipoDeMencion.Materia, MateriaCualquiera), vigentes["$ref1"]);
+    }
+
+    [Fact]
+    public void Las_referencias_de_dos_turnos_se_combinan()
+    {
+        var docente = Guid.NewGuid();
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar(
+            "primera", Inicio, "SELECT 1 WHERE id = $ref1",
+            referencias: new Dictionary<string, (TipoDeMencion, Guid)>
+            {
+                ["$ref1"] = (TipoDeMencion.Materia, MateriaCualquiera),
+            });
+        hilo.Agregar(
+            "segunda", Inicio, "SELECT 2 WHERE persona_id = $ref2",
+            referencias: new Dictionary<string, (TipoDeMencion, Guid)>
+            {
+                ["$ref2"] = (TipoDeMencion.Docente, docente),
+            });
+
+        var vigentes = hilo.ReferenciasVigentes(tope: 4);
+
+        Assert.Equal(2, vigentes.Count);
+        Assert.Equal((TipoDeMencion.Materia, MateriaCualquiera), vigentes["$ref1"]);
+        Assert.Equal((TipoDeMencion.Docente, docente), vigentes["$ref2"]);
+    }
+
+    [Fact]
+    public void El_pivote_suelta_las_referencias_igual_que_las_consultas()
+    {
+        // Mismo mecanismo que `ConsultasVigentes`: se deriva de
+        // `HistorialVigente`, así que el pivote las suelta a las dos juntas sin
+        // una segunda regla que pueda desincronizarse.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar(
+            "antes del pivote", Inicio, "SELECT 1 WHERE id = $ref1",
+            referencias: new Dictionary<string, (TipoDeMencion, Guid)>
+            {
+                ["$ref1"] = (TipoDeMencion.Materia, MateriaCualquiera),
+            });
+
+        hilo.SoltarElTema();
+
+        Assert.Empty(hilo.ReferenciasVigentes(tope: 4));
+    }
+
     // --------------------------------------------- reemplazo (design.md D9)
 
     [Fact]

@@ -110,6 +110,41 @@ public sealed class AmbiguedadTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Una_mencion_de_este_turno_tambien_evita_la_aclaracion()
+    {
+        // Escenario "A referenced subject with a homonym does not ask for
+        // clarification" de asistente-menciones (design.md D11): el usuario ya
+        // eligió la entidad exacta en el popover, así que su etiqueta hace lo
+        // mismo que nombrar la carrera a mano.
+        await SembrarAsync();
+        await AgregarColisionesAsync();
+        var catalogo = await Indice().ObtenerAsync(TestContext.Current.CancellationToken);
+
+        var etiquetaDeLaMencion = new[] { "Bases de Datos (Ingeniería en Informática)" };
+
+        Assert.Null(DetectorDeAmbiguedad.Detectar(
+            "¿Quiénes dan @Bases de Datos?", catalogo, etiquetaDeLaMencion));
+    }
+
+    [Fact]
+    public async Task Una_mencion_de_otro_termino_no_apaga_una_colision_distinta()
+    {
+        // La supresión es por entidad, no un interruptor general: mencionar una
+        // materia no puede volver invisible una colisión de apellido en la
+        // misma pregunta.
+        await SembrarAsync();
+        await AgregarColisionesAsync();
+        var catalogo = await Indice().ObtenerAsync(TestContext.Current.CancellationToken);
+
+        var etiquetaDeLaMencion = new[] { "Bases de Datos (Ingeniería en Informática)" };
+
+        var aclaracion = DetectorDeAmbiguedad.Detectar(
+            "¿Qué pedidos tiene López?", catalogo, etiquetaDeLaMencion);
+
+        Assert.NotNull(aclaracion);
+    }
+
+    [Fact]
     public async Task Una_materia_sin_colision_no_dispara()
     {
         await SembrarAsync();

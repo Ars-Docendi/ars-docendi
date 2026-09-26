@@ -105,6 +105,30 @@ CarrilSql.ResponderAsync(actor, mensaje, preguntaInterpretada)
   └─ RedactorDeRespuesta    ──► LLAMADA 2 · temperatura 0,3 · sin caché
 ```
 
+### Las menciones «@materia» / «#docente» (design.md D10/D11 de asistente-rediseno-v3)
+
+`IBuscadorDeMenciones` (`Infrastructure/BuscadorDeMenciones.cs`) corre con la
+misma `AperturaDeLectura`/`PreambuloDelActor` que todo lo demás — rol básico,
+transacción `READ ONLY`, actor fijado — y nunca con la conexión dueña ni con un
+filtro de C# como única guardia: el alcance de materias lo decide
+`identity.asistente_materias_visibles()`, el de docentes la RLS de
+`designaciones.designaciones`. `GET /menciones` lo expone; `POST /consultas`
+revalida cada referencia del pedido con el mismo puerto **antes del candado**.
+
+El id de la entidad **nunca llega al modelo**. `MarcadoresDeReferencias.Asignar`
+numera un `$refN` por mención, continuando donde quedó el segmento;
+`GeneradorDeSql.ArmarMensaje` describe la entidad por nombre en un bloque
+«Menciones» que va DESPUÉS del prefijo cacheado (no lo toca —
+`PrefijoDeLosCassettesTests` sigue en pie sin regrabar nada); `ValidadorDeSql`
+tokeniza `$refN` como su propia clase y rechaza un marcador no declarado o uno
+declarado y sin usar; `ReescritorDeMarcadores`/`EjecutorDeConsulta` reescriben
+cada `$refN` a `@refN` y lo ligan como parámetro `uuid`. Los bindings se
+persisten en `asistente.turno_historico.referencias` para que «Volver a
+consultar» y «Reanudar» los vuelvan a ligar, revalidados contra el alcance
+actual. Ninguna columna que la búsqueda toca está clasificada `sensible-*` en
+el manifiesto (siguen abajo) — no hizo falta tocarlo. Detalle completo, con la
+revisión del manifiesto, en `docs/architecture/domains/asistente.md`.
+
 ### La frontera de salida
 
 Los `GRANT` deciden quién puede **leer** qué. El enmascarador decide qué **sale
@@ -196,6 +220,8 @@ Tres decisiones que conviene no deshacer sin leer:
   ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
   «la base responde».
 - `POST /api/asistente/consultas` — un turno. Ver «El contrato de respuesta».
+- `GET /api/asistente/menciones` — busca materias o docentes dentro del alcance
+  del actor, para el popover «@materia»/«#docente». Ver «Las menciones» abajo.
 - `GET /api/asistente/capacidades` — ver «El catálogo de capacidades».
 - `POST /api/asistente/retroalimentacion` — califica un turno `respondida` (thumbs
   - razón opcional de un set cerrado de cuatro). Ver «La retroalimentación».

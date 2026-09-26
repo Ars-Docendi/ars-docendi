@@ -39,6 +39,12 @@ namespace Modules.Asistente.Application;
 /// (asistente-edicion-de-la-ultima-pregunta): eso lo hace
 /// <see cref="IdentidadDelUltimoRegistrado"/>, aparte.
 /// </remarks>
+/// <param name="Referencias">
+/// Los marcadores <c>$refN</c> —con su tipo e id— que <see cref="SqlEjecutado"/>
+/// usa, o <c>null</c> si este turno no usó ninguno (design.md D11 de
+/// asistente-rediseno-v3). Igual criterio que <see cref="SqlEjecutado"/>: nulo
+/// cuando no hay nada que un seguimiento pueda editar o anidar.
+/// </param>
 public sealed record TurnoDelHilo(
     string Pregunta,
     DateTimeOffset Cuando,
@@ -46,7 +52,8 @@ public sealed record TurnoDelHilo(
     string? ClaveDelCliente = null,
     Guid? TurnoHistoricoId = null,
     int InicioDeSegmentoAntes = 0,
-    Aclaracion? AclaracionPendienteAntes = null);
+    Aclaracion? AclaracionPendienteAntes = null,
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null);
 
 /// <summary>
 /// La identidad del último turno que se registró al historial del hilo —sea
@@ -208,6 +215,10 @@ public sealed class HiloConversacional(Guid id, Guid actor)
     /// Si <paramref name="aclaracionPendienteAntes"/> se pasó explícitamente.
     /// En falso, se usa <see cref="AclaracionPendiente"/> actual.
     /// </param>
+    /// <param name="referencias">
+    /// Los marcadores <c>$refN</c> que <paramref name="sqlEjecutado"/> usa. Ver
+    /// <see cref="TurnoDelHilo.Referencias"/>.
+    /// </param>
     public void Agregar(
         string pregunta,
         DateTimeOffset cuando,
@@ -216,7 +227,8 @@ public sealed class HiloConversacional(Guid id, Guid actor)
         Guid? turnoHistoricoId = null,
         int? inicioDeSegmentoAntes = null,
         Aclaracion? aclaracionPendienteAntes = null,
-        bool huboAclaracionAntes = false)
+        bool huboAclaracionAntes = false,
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referencias = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
@@ -227,7 +239,8 @@ public sealed class HiloConversacional(Guid id, Guid actor)
             claveDelCliente,
             turnoHistoricoId,
             inicioDeSegmentoAntes ?? InicioDeSegmento,
-            huboAclaracionAntes ? aclaracionPendienteAntes : AclaracionPendiente));
+            huboAclaracionAntes ? aclaracionPendienteAntes : AclaracionPendiente,
+            referencias));
         UltimaActividad = cuando;
     }
 
@@ -263,6 +276,41 @@ public sealed class HiloConversacional(Guid id, Guid actor)
             .Select(turno => turno.SqlEjecutado)
             .Where(sql => !string.IsNullOrWhiteSpace(sql))
             .Select(sql => sql!)];
+
+    /// <summary>
+    /// Los marcadores <c>$refN</c> que trae el segmento vigente, de todos sus
+    /// turnos combinados (design.md D11 de asistente-rediseno-v3), para que un
+    /// seguimiento que edita o anida una consulta anterior pueda reusar su
+    /// marcador.
+    /// </summary>
+    /// <remarks>
+    /// Se deriva de <see cref="HistorialVigente"/>, mismo motivo que
+    /// <see cref="ConsultasVigentes"/>: un pivote de tema vacía las dos listas por
+    /// el mismo mecanismo, sin un segundo lugar que pueda desincronizarse. La
+    /// numeración es monótonamente creciente dentro de un segmento
+    /// (<c>MarcadoresDeReferencias.Asignar</c>), así que dos turnos del mismo
+    /// segmento nunca declaran el mismo marcador para entidades distintas — el
+    /// último que lo trae simplemente pisa al anterior, y sería el mismo valor.
+    /// </remarks>
+    public IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)> ReferenciasVigentes(int tope)
+    {
+        var combinadas = new Dictionary<string, (TipoDeMencion Tipo, Guid Id)>(StringComparer.Ordinal);
+
+        foreach (var turno in HistorialVigente(tope))
+        {
+            if (turno.Referencias is null)
+            {
+                continue;
+            }
+
+            foreach (var (marcador, referencia) in turno.Referencias)
+            {
+                combinadas[marcador] = referencia;
+            }
+        }
+
+        return combinadas;
+    }
 
     /// <summary>Renueva la vigencia sin agregar un turno.</summary>
     public void Tocar(DateTimeOffset cuando) => UltimaActividad = cuando;

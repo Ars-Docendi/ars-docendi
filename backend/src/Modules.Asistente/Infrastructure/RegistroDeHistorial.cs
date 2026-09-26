@@ -209,8 +209,9 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
     {
         await using var comando = new NpgsqlCommand(
             """
-            INSERT INTO asistente.turno_historico (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en)
-            VALUES (@id, @hilo, @pregunta, @sql, @estado, @ahora)
+            INSERT INTO asistente.turno_historico
+                (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en, referencias)
+            VALUES (@id, @hilo, @pregunta, @sql, @estado, @ahora, @referencias)
             """, conexion, transaccion);
 
         comando.Parameters.AddWithValue("id", Guid.NewGuid());
@@ -220,6 +221,9 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
             "sql", NpgsqlTypes.NpgsqlDbType.Text, (object?)turno.SqlResuelto ?? DBNull.Value);
         comando.Parameters.AddWithValue("estado", turno.Estado.ToString());
         comando.Parameters.AddWithValue("ahora", turno.OcurrioEn);
+        comando.Parameters.AddWithValue(
+            "referencias", NpgsqlTypes.NpgsqlDbType.Jsonb,
+            (object?)SerializacionDeReferencias.Serializar(turno.Referencias) ?? DBNull.Value);
 
         await comando.ExecuteNonQueryAsync(ct);
     }

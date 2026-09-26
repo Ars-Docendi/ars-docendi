@@ -13,10 +13,15 @@ public sealed class AsistenteController(
     ICatalogoDeCapacidades capacidades,
     IIdempotencia idempotencia,
     ServicioDeRetroalimentacion retroalimentacion,
+    IBuscadorDeMenciones menciones,
     ICurrentUser usuario) : ControllerBase
 {
     /// <summary>Cabecera con la clave de idempotencia del turno.</summary>
     public const string CabeceraDeIdempotencia = "Idempotency-Key";
+
+    /// <summary>Tipos de mención admitidos en la URL y en el cuerpo del turno.</summary>
+    private const string TipoMateria = "materia";
+    private const string TipoDocente = "docente";
 
     /// <summary>
     /// Un turno del asistente.
@@ -51,6 +56,40 @@ public sealed class AsistenteController(
             return Unauthorized();
         }
 
+        // REVALIDACIÓN DE LAS MENCIONES, ANTES DEL CANDADO Y DE TODO LO DEMÁS
+        // (design.md D11 de asistente-rediseno-v3, tarea 7.3): una mención
+        // desconocida o fuera del alcance ACTUAL del actor —sus permisos
+        // pueden haber cambiado desde que abrió el popover— corta acá, antes
+        // de cobrar cupo o escribir historial. `400` para las dos causas, sin
+        // decir cuál: no hay oráculo de existencia.
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesResueltas = null;
+        if (consulta.Referencias is { Count: > 0 } referencias)
+        {
+            var resueltas = new List<(TipoDeMencion, ResultadoDeMencion)>(referencias.Count);
+
+            foreach (var referencia in referencias)
+            {
+                var tipo = TipoDeMencionDe(referencia.Tipo);
+                var resuelta = tipo is null
+                    ? null
+                    : await menciones.ResolverAsync(actor, tipo.Value, referencia.Id, ct);
+
+                if (resuelta is null)
+                {
+                    return BadRequest(new ProblemDetails
+                    {
+                        Title = "Mención no disponible",
+                        Detail = "Una de las menciones ya no está disponible. Volvé a elegirla.",
+                        Status = StatusCodes.Status400BadRequest,
+                    });
+                }
+
+                resueltas.Add((tipo!.Value, resuelta));
+            }
+
+            mencionesResueltas = resueltas;
+        }
+
         var recordado = idempotencia.Recordar(actor, claveDeIdempotencia);
         if (recordado is not null)
         {
@@ -61,7 +100,8 @@ public sealed class AsistenteController(
         try
         {
             turno = await capa.ResponderAsync(
-                actor, consulta.Hilo, consulta.Mensaje, ct, claveDeIdempotencia, consulta.Reemplaza);
+                actor, consulta.Hilo, consulta.Mensaje, ct, claveDeIdempotencia, consulta.Reemplaza,
+                mencionesResueltas);
         }
         catch (HiloAjeno)
         {
@@ -113,6 +153,52 @@ public sealed class AsistenteController(
         }
 
         return Ok(CapacidadesDto.De(await capacidades.ObtenerAsync(actor, ct)));
+    }
+
+    /// <summary>
+    /// Busca materias o docentes para el popover de menciones «@materia» /
+    /// «#docente» del composer (design.md D10 de asistente-rediseno-v3).
+    /// </summary>
+    /// <remarks>
+    /// Corre sobre <see cref="IBuscadorDeMenciones"/>, que hace todo el trabajo
+    /// de alcance con el motor —RLS y <c>identity.asistente_materias_visibles()</c>—
+    /// y nunca con un filtro de acá. Este método sólo valida la forma del pedido
+    /// (<paramref name="tipo"/> y el largo de <paramref name="q"/>) y traduce.
+    /// </remarks>
+    [Authorize(Policy = Permisos.AsistenteConsultar)]
+    [HttpGet("menciones")]
+    public async Task<ActionResult<MencionesDto>> Menciones(
+        [FromQuery] string? tipo, [FromQuery] string? q, CancellationToken ct)
+    {
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var tipoDeMencion = TipoDeMencionDe(tipo);
+        if (tipoDeMencion is null)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Tipo de mención desconocido",
+                Detail = $"'tipo' tiene que ser '{TipoMateria}' o '{TipoDocente}'.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+
+        if (q is null || q.Length < 2 || q.Length > 100)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Término de búsqueda inválido",
+                Detail = "'q' tiene que tener entre 2 y 100 caracteres.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+
+        var busqueda = await menciones.BuscarAsync(actor, tipoDeMencion.Value, q, ct);
+
+        return Ok(MencionesDto.De(busqueda));
     }
 
     /// <summary>
@@ -175,4 +261,16 @@ public sealed class AsistenteController(
     /// </remarks>
     private bool ActorDeLaSesion(out Guid actor) =>
         Guid.TryParse(usuario.UserId, out actor);
+
+    /// <summary>
+    /// Traduce el <c>tipo</c> de la URL o del cuerpo a <see cref="TipoDeMencion"/>,
+    /// o <c>null</c> si no es ninguno de los dos admitidos —se trata igual que un
+    /// identificador que no existe, nunca con un mensaje que lo distinga.
+    /// </summary>
+    private static TipoDeMencion? TipoDeMencionDe(string? tipo) => tipo switch
+    {
+        TipoMateria => TipoDeMencion.Materia,
+        TipoDocente => TipoDeMencion.Docente,
+        _ => null,
+    };
 }

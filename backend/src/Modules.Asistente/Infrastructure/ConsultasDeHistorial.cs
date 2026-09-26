@@ -214,7 +214,7 @@ internal sealed class ConsultasDeHistorial(
         await using var conexion = await AbrirAsync(ct);
         await using var comando = new NpgsqlCommand(
             """
-            SELECT t.estado, t.sql_resuelto
+            SELECT t.estado, t.sql_resuelto, t.referencias
               FROM asistente.turno_historico t
               JOIN asistente.hilo_historico h ON h.id = t.hilo_id
              WHERE t.id = @turno AND h.actor_id = @actor AND h.borrado_pendiente_desde IS NULL
@@ -231,8 +231,11 @@ internal sealed class ConsultasDeHistorial(
 
         var estado = Enum.Parse<EstadoDelTurno>(lector.GetString(0));
         var sql = lector.IsDBNull(1) ? null : lector.GetString(1);
+        var referencias = lector.IsDBNull(2)
+            ? null
+            : SerializacionDeReferencias.Deserializar(lector.GetString(2));
 
-        return new TurnoParaReejecutar(estado, sql);
+        return new TurnoParaReejecutar(estado, sql, referencias);
     }
 
     // ------------------------------------------------------------------ apoyo
@@ -265,7 +268,7 @@ internal sealed class ConsultasDeHistorial(
     {
         await using var comando = new NpgsqlCommand(
             """
-            SELECT id, pregunta, sql_resuelto, estado, ocurrido_en
+            SELECT id, pregunta, sql_resuelto, estado, ocurrido_en, referencias
               FROM asistente.turno_historico
              WHERE hilo_id = @hilo
              ORDER BY ocurrido_en
@@ -282,7 +285,8 @@ internal sealed class ConsultasDeHistorial(
                 lector.GetString(1),
                 lector.IsDBNull(2) ? null : lector.GetString(2),
                 Enum.Parse<EstadoDelTurno>(lector.GetString(3)),
-                lector.GetFieldValue<DateTimeOffset>(4)));
+                lector.GetFieldValue<DateTimeOffset>(4),
+                lector.IsDBNull(5) ? null : SerializacionDeReferencias.Deserializar(lector.GetString(5))));
         }
 
         return turnos;

@@ -133,8 +133,29 @@ internal static class ValidadorDeSql
         "select", "with",
     };
 
-    /// <summary>Decide si la consulta generada puede ejecutarse.</summary>
-    public static ResultadoDeValidacion Validar(string sql)
+    /// <summary>
+    /// Decide si la consulta generada puede ejecutarse.
+    /// </summary>
+    /// <param name="marcadoresDeclarados">
+    /// Todo marcador <c>$refN</c> que la consulta puede usar sin ser rechazada
+    /// por «marcador no declarado» —los de las menciones de este turno más los
+    /// que ya traía el segmento (design.md D11 de asistente-rediseno-v3)—.
+    /// <c>null</c> o vacío se comporta igual que antes de que existieran las
+    /// menciones: cualquier <c>$refN</c> en la consulta la rechaza.
+    /// </param>
+    /// <param name="marcadoresQueDebenUsarse">
+    /// El subconjunto de <paramref name="marcadoresDeclarados"/> que tiene que
+    /// aparecer al menos una vez —las menciones NUEVAS de este turno—. Un
+    /// marcador heredado de un turno anterior puede quedar sin usar (el
+    /// seguimiento editó la consulta y ya no lo necesita); uno recién declarado,
+    /// no: ignorarlo es la señal de que el modelo malinterpretó o descartó la
+    /// mención, y el requerimiento pide rechazar esa consulta en vez de
+    /// ejecutarla contra la entidad equivocada.
+    /// </param>
+    public static ResultadoDeValidacion Validar(
+        string sql,
+        IReadOnlySet<string>? marcadoresDeclarados = null,
+        IReadOnlySet<string>? marcadoresQueDebenUsarse = null)
     {
         if (string.IsNullOrWhiteSpace(sql))
         {
@@ -154,10 +175,13 @@ internal static class ValidadorDeSql
             return ResultadoDeValidacion.Rechazada(excepcion.Message);
         }
 
-        return Verificar(tokens);
+        return Verificar(tokens, marcadoresDeclarados, marcadoresQueDebenUsarse);
     }
 
-    private static ResultadoDeValidacion Verificar(IReadOnlyList<TokenSql> tokens)
+    private static ResultadoDeValidacion Verificar(
+        IReadOnlyList<TokenSql> tokens,
+        IReadOnlySet<string>? marcadoresDeclarados,
+        IReadOnlySet<string>? marcadoresQueDebenUsarse)
     {
         var primeraPalabra = tokens.FirstOrDefault(t => t.Clase == ClaseDeToken.Palabra);
         if (primeraPalabra.Texto is null || !ComienzosAdmitidos.Contains(primeraPalabra.Texto))
@@ -180,6 +204,42 @@ internal static class ValidadorDeSql
             {
                 return ResultadoDeValidacion.Rechazada(motivo);
             }
+        }
+
+        return VerificarMarcadores(tokens, marcadoresDeclarados, marcadoresQueDebenUsarse);
+    }
+
+    /// <summary>
+    /// Los dos chequeos de D11: ningún marcador sin declarar, y todo marcador
+    /// nuevo declarado tiene que aparecer.
+    /// </summary>
+    private static ResultadoDeValidacion VerificarMarcadores(
+        IReadOnlyList<TokenSql> tokens,
+        IReadOnlySet<string>? marcadoresDeclarados,
+        IReadOnlySet<string>? marcadoresQueDebenUsarse)
+    {
+        var usados = tokens
+            .Where(t => t.Clase == ClaseDeToken.Marcador)
+            .Select(t => t.Texto)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (usados.Count > 0)
+        {
+            var declarados = marcadoresDeclarados ?? new HashSet<string>(StringComparer.Ordinal);
+            var noDeclarado = usados.FirstOrDefault(m => !declarados.Contains(m));
+            if (noDeclarado is not null)
+            {
+                return ResultadoDeValidacion.Rechazada(
+                    $"La consulta usa el marcador '{noDeclarado}', que no está declarado para este turno.");
+            }
+        }
+
+        var requeridos = marcadoresQueDebenUsarse ?? new HashSet<string>(StringComparer.Ordinal);
+        var sinUsar = requeridos.FirstOrDefault(m => !usados.Contains(m));
+        if (sinUsar is not null)
+        {
+            return ResultadoDeValidacion.Rechazada(
+                $"La consulta no usa el marcador '{sinUsar}', declarado para una mención de este turno.");
         }
 
         return ResultadoDeValidacion.Valida;

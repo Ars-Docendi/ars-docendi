@@ -131,6 +131,17 @@ public enum EstadoDelTurno
 /// del rail, y nunca viaja junto a <see cref="ClaveDeRetroalimentacion"/> ni
 /// al registro analítico — ninguno de los dos lo necesita.
 /// </param>
+/// <param name="ReferenciasEjecutadas">
+/// Los marcadores <c>$refN</c> —con su tipo e id— que <see cref="SqlEjecutado"/>
+/// usa, heredados del segmento más los nuevos de este turno (design.md D11 de
+/// asistente-rediseno-v3). <b>Nunca se manda al cliente</b> —no está en
+/// <c>RespuestaDelAsistente</c>, mismo criterio que <c>SqlEjecutado</c>—: sólo
+/// sirve para que <c>CapaConversacional</c> lo guarde en
+/// <see cref="TurnoDelHilo.Referencias"/> y en <c>asistente.turno_historico.referencias</c>,
+/// para que un seguimiento, «Volver a consultar» o «Reanudar» puedan volver a
+/// ligarlos. Nulo si <see cref="SqlEjecutado"/> también lo es, o si el turno no
+/// usó ninguna mención.
+/// </param>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -149,4 +160,5 @@ public sealed record ResultadoDelTurno(
     IReadOnlyList<VinculoDelResultado>? Vinculos = null,
     Guid? ClaveDeRetroalimentacion = null,
     int? CupoRestante = null,
-    Guid? Conversacion = null);
+    Guid? Conversacion = null,
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasEjecutadas = null);

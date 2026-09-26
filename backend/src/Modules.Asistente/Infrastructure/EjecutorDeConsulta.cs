@@ -27,11 +27,23 @@ internal sealed class EjecutorDeConsulta(
     IOptions<OpcionesAsistente> opciones) : IEjecutorDeConsulta
 {
     public async Task<ResultadoDeConsulta> EjecutarAsync(
-        string sql, Guid actor, bool conDatosPersonales, CancellationToken ct)
+        string sql,
+        Guid actor,
+        bool conDatosPersonales,
+        CancellationToken ct,
+        IReadOnlyDictionary<string, Guid>? marcadores = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
 
         var valores = opciones.Value;
+
+        // Reescribe $refN -> @refN ANTES de abrir la conexión: es puro (no toca la
+        // base), y si algo estuviera mal —un marcador sin binding, señal de que el
+        // validador y este ejecutor divergieron— revienta sin haber gastado una
+        // transacción.
+        var (sqlParaEjecutar, bindings) = marcadores is { Count: > 0 }
+            ? ReescritorDeMarcadores.Reescribir(sql, marcadores)
+            : (sql, (IReadOnlyDictionary<string, Guid>)new Dictionary<string, Guid>());
 
         // Conexión y transacción NUEVAS por ejecución, también en el reintento.
         // Reusar la transacción dejaría que una segunda ejecución heredara el
@@ -54,7 +66,8 @@ internal sealed class EjecutorDeConsulta(
             // tendríamos las filas en memoria sin saber cuáles se pueden mandar afuera.
             await clasificador.PrepararAsync(ct);
 
-            return await LeerAsync(conexion, transaccion, sql, valores.TopeDeFilas, clasificador, ct);
+            return await LeerAsync(
+                conexion, transaccion, sqlParaEjecutar, valores.TopeDeFilas, clasificador, bindings, ct);
         }
         catch (PostgresException excepcion)
         {
@@ -82,11 +95,22 @@ internal sealed class EjecutorDeConsulta(
         string sql,
         int tope,
         IClasificadorDeSensibilidad clasificador,
+        IReadOnlyDictionary<string, Guid> bindings,
         CancellationToken ct)
     {
         var envuelta = $"SELECT * FROM (\n{sql}\n) AS resultado_asistente LIMIT {tope + 1}";
 
         await using var comando = new NpgsqlCommand(envuelta, conexion, transaccion);
+
+        // Los `@refN` que reescribió el validador se ligan como `uuid`, nunca
+        // interpolados: es la frontera que hace que un identificador interno no
+        // pueda llegar al modelo por ningún camino, ni siquiera el de una
+        // consulta que lo carga en el WHERE (design.md D11).
+        foreach (var (nombre, id) in bindings)
+        {
+            comando.Parameters.Add(new NpgsqlParameter(nombre, NpgsqlTypes.NpgsqlDbType.Uuid) { Value = id });
+        }
+
         await using var lector = await comando.ExecuteReaderAsync(ct);
 
         var columnas = new List<string>(lector.FieldCount);

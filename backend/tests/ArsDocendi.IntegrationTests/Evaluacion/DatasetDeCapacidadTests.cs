@@ -1,4 +1,5 @@
 using ArsDocendi.Evaluacion.Nucleo.Dataset;
+using ArsDocendi.Evaluacion.Nucleo.Fixture;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
@@ -98,9 +99,17 @@ public sealed class DatasetDeCapacidadTests
     {
         // Una referencia que el propio validador rechazaría nunca podría empatar
         // con una respuesta del asistente: el ítem sería imposible de acertar.
+        //
+        // Los marcadores declarados del ítem viajan como "declarados" y
+        // "requeridos" — mismo criterio que `CarrilSql`: una referencia de D11
+        // que la consulta de referencia no use sería un ítem mal escrito.
         var rechazadas = Dataset.Items
             .Where(item => item.SqlReferencia is not null)
-            .Select(item => (item.Id, Veredicto: ValidadorDeSql.Validar(item.SqlReferencia!)))
+            .Select(item =>
+            {
+                var marcadores = item.Referencias?.Select(r => r.Marcador).ToHashSet(StringComparer.Ordinal);
+                return (item.Id, Veredicto: ValidadorDeSql.Validar(item.SqlReferencia!, marcadores, marcadores));
+            })
             .Where(par => !par.Veredicto.EsValida)
             .Select(par => $"{par.Id} — {par.Veredicto.Motivo}")
             .ToArray();
@@ -254,6 +263,79 @@ public sealed class DatasetDeCapacidadTests
                 """));
 
         Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------ menciones (D10/D11)
+
+    [Fact]
+    public void Hay_al_menos_un_item_con_mencion_de_materia_y_uno_de_docente()
+    {
+        // ARS-148, tarea 7.5: el eje de capacidad también mide la traducción de
+        // una pregunta con «@materia»/«#docente», no sólo la de una pregunta
+        // libre.
+        Assert.Contains(
+            Dataset.Items, item => item.Referencias?.Any(r => r.Tipo == "materia") == true);
+        Assert.Contains(
+            Dataset.Items, item => item.Referencias?.Any(r => r.Tipo == "docente") == true);
+    }
+
+    [Fact]
+    public void Toda_referencia_declara_un_tipo_conocido()
+    {
+        var invalidos = Dataset.Items
+            .SelectMany(item => (item.Referencias ?? []).Select(r => (item.Id, r.Tipo)))
+            .Where(par => par.Tipo != "materia" && par.Tipo != "docente")
+            .Select(par => $"{par.Id}: '{par.Tipo}'")
+            .ToArray();
+
+        Assert.Empty(invalidos);
+    }
+
+    [Fact]
+    public void La_mencion_de_materia_nombra_una_de_las_compartidas_del_fixture()
+    {
+        // Homónimo real: "Algoritmos y Estructuras de Datos" es una de las tres
+        // entradas de `MateriasCompartidas`, así que hay más de una fila con ese
+        // nombre — exactamente el caso que D10 dice que un id exacto por fila
+        // desambigua.
+        var nombresCompartidos = GeneradorDeFixture.MateriasCompartidas.Select(m => m.Nombre).ToHashSet();
+
+        var referencias = Dataset.Items
+            .SelectMany(item => item.Referencias ?? [])
+            .Where(r => r.Tipo == "materia")
+            .ToArray();
+
+        Assert.NotEmpty(referencias);
+        Assert.All(referencias, r => Assert.Contains(r.Nombre, nombresCompartidos));
+    }
+
+    [Fact]
+    public void La_mencion_de_docente_nombra_un_apellido_compartido_del_fixture()
+    {
+        var apellidosCompartidos = GeneradorDeFixture.ApellidosCompartidos.Select(a => a.Apellido).ToHashSet();
+
+        var referencias = Dataset.Items
+            .SelectMany(item => item.Referencias ?? [])
+            .Where(r => r.Tipo == "docente")
+            .ToArray();
+
+        Assert.NotEmpty(referencias);
+        Assert.All(
+            referencias,
+            r => Assert.Contains(apellidosCompartidos, apellido => r.Nombre.Contains(apellido, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void Cada_marcador_declarado_aparece_en_su_propia_consulta_de_referencia()
+    {
+        var faltantes = Dataset.Items
+            .Where(item => item.Referencias is { Count: > 0 })
+            .Where(item => item.Referencias!.Any(
+                r => !(item.SqlReferencia ?? string.Empty).Contains(r.Marcador, StringComparison.Ordinal)))
+            .Select(item => item.Id)
+            .ToArray();
+
+        Assert.Empty(faltantes);
     }
 
     // ------------------------------------------------------------------ apoyo
