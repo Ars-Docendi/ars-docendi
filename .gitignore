@@ -88,3 +88,6 @@ pgdata/
 
 # ---------- Husky (artefactos internos, no los hooks versionados) ----------
 .husky/_/
+
+# ---------- CodeGraph ----------
+.codegraph/

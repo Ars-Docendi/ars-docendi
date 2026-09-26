@@ -34,9 +34,14 @@
 -- vive en `docs/business-rules/portal.md` con su cita normativa.
 --
 -- Idempotente: ON CONFLICT DO NOTHING.
+--
+-- El id es ...031 y no ...023: `develop` tomó ...023 para `sistema.estado.ver` en
+-- `012_identity_permisos_administracion_sistema.sql`. Mismo choque que documenta
+-- `011_identity_permiso_asistente.sql`; cede esta migración porque todavía no
+-- llegó a `develop`.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000023', 'portal.ver_trayectoria_ajena', 'Ver la trayectoria de otros docentes', 'Consultar la formación, la experiencia laboral, las certificaciones y las habilidades declaradas de cualquier docente del padrón. No incluye el contacto personal ni el archivo del CV.')
+    ('b2000000-0000-4000-8000-000000000031', 'portal.ver_trayectoria_ajena', 'Ver la trayectoria de otros docentes', 'Consultar la formación, la experiencia laboral, las certificaciones y las habilidades declaradas de cualquier docente del padrón. No incluye el contacto personal ni el archivo del CV.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda de sys_admin, igual que en 011 y 014: `sys_admin` NO hereda permisos

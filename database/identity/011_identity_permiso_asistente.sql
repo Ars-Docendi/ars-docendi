@@ -19,7 +19,7 @@
 --
 -- Idempotente: los dos INSERT llevan ON CONFLICT DO NOTHING.
 --
--- EL ID ES ...024 Y NO ...021, Y CONVIENE DECIR POR QUÉ. Las dos ramas partieron
+-- EL ID ES ...030 Y NO ...021 NI ...024, Y CONVIENE DECIR POR QUÉ. Las dos ramas partieron
 -- del mismo `007_identity_permisos.sql`, que llegaba hasta ...020, y cada una tomó
 -- ...021 como el siguiente libre: acá para `asistente.consultar`, y en
 -- `database-schema` para `designaciones.revisar`, que quedó en la migración
@@ -30,9 +30,14 @@
 -- catálogo base. Asignar UUIDs a mano en ramas paralelas produce exactamente esto;
 -- el siguiente que agregue un permiso conviene que mire el máximo en TODAS las
 -- migraciones de identity, no sólo en la suya.
+--
+-- Pasó una segunda vez con ...024: `develop` lo tomó para `auditoria.ver` en
+-- `012_identity_permisos_administracion_sistema.sql` (dashboard del sistema), ya
+-- integrado cuando esta rama lo mergeó. Cede otra vez esta migración, que todavía
+-- no llegó a `develop`, y salta a ...030, el primero libre en todas.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000024', 'asistente.consultar', 'Consultar el asistente', 'Hacer preguntas en lenguaje natural al asistente conversacional. El asistente responde solo con datos que el usuario ya puede ver.')
+    ('b2000000-0000-4000-8000-000000000030', 'asistente.consultar', 'Consultar el asistente', 'Hacer preguntas en lenguaje natural al asistente conversacional. El asistente responde solo con datos que el usuario ya puede ver.')
 ON CONFLICT (code) DO NOTHING;
 
 -- Guarda: si mañana aparece un rol de sistema que esta migración no contempla,

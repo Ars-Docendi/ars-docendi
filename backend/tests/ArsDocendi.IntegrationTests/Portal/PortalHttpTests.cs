@@ -141,7 +141,13 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // Subió de 87 a 88 con asistente-rediseno-v3 (§7, ARS-148): uno en
         // AsistenteController (`GET /api/asistente/menciones`, el buscador de
         // materias/docentes para el popover «@»/«#»).
-        Assert.Equal(88, operaciones.Length);
+        //
+        // Subió de 88 a 90 con dashboard-sistema-y-audit-logs (develop): dos en
+        // el Host (`GET /api/administracion/sistema/estado` y
+        // `GET /api/administracion/auditoria`).
+        Assert.Equal(90, operaciones.Length);
+        Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
+        Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 
         foreach (var (ruta, metodo) in operaciones)
         {
