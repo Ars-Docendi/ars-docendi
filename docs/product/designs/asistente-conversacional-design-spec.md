@@ -443,7 +443,7 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
 │ ANTERIORES …                    │                                                      │
 │ ─────────────                   ├─────────────────────────────────────────────────────┤
 │ ▸ ARCHIVADAS             2      │ ✦ [Preguntá algo · @ materia · # docente ] [Enviar] │
-│ [Borrar todas]                  │ Franja: cupo restante / bloqueo …… métricas          │
+│ [Borrar todas]                  │ Franja: cupo restante / bloqueo …… métricas (debug)  │
 │ ┌ Conversación eliminada  Deshacer ┐                                                  │
 └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -482,7 +482,9 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
 - **Composer**: marco con borde `--color-border-default` que pasa a acento con foco; destello en
   `--color-accent`; placeholder «Preguntá algo · @ materia · # docente»; fila de chips de
   menciones; el lugar del botón muestra «Enviar» (acento; deshabilitado vacío o en vuelo) o
-  «Dejar de esperar» (pasado el umbral). Debajo, la franja con el cupo y las métricas.
+  «Dejar de esperar» (pasado el umbral). Debajo, la franja con el cupo (siempre visible) y,
+  **sólo en modo debug** (`VITE_ASISTENTE_DEBUG`, PO-changed 2026-09-26, decisión 14), las
+  métricas.
 
 ### Componentes y estados
 
@@ -493,7 +495,8 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
 | Dejaste de esperar        | «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.» en texto secundario, sin alerta ni «Reintentar».                                                                                                                                                                                                                                                                                                                                                                                               |
 | Error                     | Caja con borde `--color-border-danger`, fondo `--color-status-danger-bg`, texto `--color-status-danger-fg`: «No se pudo consultar» + mensaje + «Reintentar».                                                                                                                                                                                                                                                                                                                                                                  |
 | Degradado / aclaración    | `InlineAlert` warning / info como hoy; rechazos sin chips (y los rechazos por motivo de ARS-139, cuando lleguen, tampoco).                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Mantenimiento / cupo      | Banner warning arriba del hilo; cupo restante y texto de bloqueo en la franja bajo el composer, fuera de la región viva.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Mantenimiento / cupo      | Banner warning arriba del hilo; cupo restante y texto de bloqueo en la franja bajo el composer, fuera de la región viva, visibles para cualquier actor.                                                                                                                                                                                                                                                                                                                                                                       |
+| Métricas                  | «N consultas al modelo» / «Resuelto sin consultar al modelo» en la misma franja, **sólo con `VITE_ASISTENTE_DEBUG=true`** (PO-changed 2026-09-26, decisión 14 — el mismo switch que gatea «Cómo lo interpreté»); fuera del modo debug no se monta, aunque el turno tenga métricas.                                                                                                                                                                                                                                            |
 | Barra de acciones         | Visible en el último turno y en los votados; en los demás aparece con hover **o foco dentro del turno**; siempre en el orden de Tab. Íconos con tooltip y nombre accesible. «Copiado»: tilde en acento 2 s.                                                                                                                                                                                                                                                                                                                   |
 | Orden de la tabla         | Encabezado como botón: «⇅» tenue al hover/foco, «↑»/«↓» en acento en la columna activa; `aria-sort` sólo en ésa. Número, fecha ISO o texto en español; vacíos al final; siempre sobre el valor mostrado.                                                                                                                                                                                                                                                                                                                      |
 | Tabla ampliada            | Capa sobre todo el modal: eyebrow «Tabla ampliada» (mono, mayúsculas, `--color-text-tertiary`) + la pregunta como título; «Copiar tabla», «Exportar a CSV», «Contraer». Esc contrae sin cerrar el modal; el foco vuelve a «Ampliar tabla».                                                                                                                                                                                                                                                                                    |
@@ -555,20 +558,26 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
   evitarse (adenda de TD-012 en `docs/quality/tech-debt.md`).
 - Las materias del popover van una fila por materia y carrera (no una fila con varias carreras
   como etiquetas): cada fila corresponde a un id exacto.
-- Se mantienen aunque el mock no los dibuja: buscador del rail, «Borrar todas», franja con cupo y
-  métricas, banner de mantenimiento, «Ver la consulta», «Cómo lo interpreté» (debug) y los cuatro
-  grupos de fecha.
+- Se mantienen aunque el mock no los dibuja: buscador del rail, «Borrar todas», franja con cupo
+  (siempre visible), banner de mantenimiento, «Ver la consulta», y los cuatro grupos de fecha.
+  Las métricas de la misma franja y «Cómo lo interpreté» comparten el mismo gate: sólo en modo
+  debug (PO-changed 2026-09-26, decisión 14 para las métricas).
 - «Deshacer» usa `--color-text-on-inverse` en semibold en lugar del acento claro del mock: el
   acento no alcanza 4,5:1 sobre `--color-bg-inverse` en ninguno de los dos temas.
 - El anuncio de renombrar/archivar/borrar/reanudar por la región viva (`Conversacion`'s
   `anuncio`) pasó a ser sólo para lectores de pantalla (`.adoc-sr`): cada acción ya tiene su
   propia confirmación visible (el aviso de deshacer, los íconos con `aria-pressed`, las flechas
   de orden), y el texto quedaba duplicado en pantalla para quien ve.
-- **Límite conocido, no cubierto por este change:** un turno reanudado o revisitado en el
-  historial muestra sus menciones como texto plano, sin chip. `GET /historial/{id}` no expone
-  `turno_historico.referencias` al frontend — sólo lo usa el propio backend para revalidar
-  «Volver a consultar»/«Reanudar» —, así que la pregunta se pinta tal como se escribió
-  (`@Análisis Matemático`), sin la estructura `{ tipo, id }` que un chip necesita.
+- **Implementado (PO-changed 2026-09-26, decisión 15):** un turno reanudado o revisitado en el
+  historial muestra sus menciones como chip, igual que uno en vivo. `GET /historial/{id}` y
+  «Reanudar» exponen `menciones: [{ tipo, id, etiqueta }]`, re-resueltas contra el alcance
+  ACTUAL de quien lee (nunca el de cuando se hizo la pregunta) vía
+  `IBuscadorDeMenciones.ResolverAsync` — una referencia que el lector ya no alcanza se omite,
+  nunca se filtra ni se pinta un chip roto. El frontend reusa `ubicarMenciones` para ubicar el
+  chip en el texto, así que «Editar y reenviar» de la última pregunta reanudada conserva la
+  referencia mientras el texto de la mención siga presente. La lectura de soporte
+  (`SoporteHistorialController`) no recibe este campo: ahí quien lee nunca es el actor cuyo
+  alcance decide la visibilidad.
 
 ## Referencias
 

@@ -105,7 +105,7 @@ public sealed class CapaConversacional(
                 await RegistrarAsync(
                     actor, conversacionRechazada, mensaje, turnoRechazado, reloj.GetUtcNow(), ct,
                     claveDelCliente, conversacionRechazada.InicioDeSegmento,
-                    conversacionRechazada.AclaracionPendiente);
+                    conversacionRechazada.AclaracionPendiente, mencionesNuevas: mencionesNuevas);
             }
 
             return turnoRechazado with
@@ -190,7 +190,7 @@ public sealed class CapaConversacional(
 
             await RegistrarAsync(
                 actor, conversacion, mensaje, turno, arranco, ct,
-                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado);
+                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado, mencionesNuevas);
 
             resultado = turno;
         }
@@ -205,7 +205,7 @@ public sealed class CapaConversacional(
             var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
             await RegistrarAsync(
                 actor, conversacion, mensaje, turno, arranco, ct,
-                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado);
+                claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado, mencionesNuevas);
 
             resultado = turno;
         }
@@ -232,7 +232,8 @@ public sealed class CapaConversacional(
 
             await RegistrarAsync(
                 actor, conversacion, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas),
-                arranco, ct, claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes);
+                arranco, ct, claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes,
+                mencionesNuevas: mencionesNuevas);
 
             throw;
         }
@@ -319,6 +320,17 @@ public sealed class CapaConversacional(
     /// reemplazado: se revoca su token de retroalimentación y el historial
     /// reemplaza su fila en vez de agregar una nueva.
     /// </param>
+    /// <param name="mencionesNuevas">
+    /// Las menciones que el pedido declaró, ya revalidadas por el controller
+    /// contra el alcance ACTUAL del actor —las mismas que <see cref="ResponderAsync"/>
+    /// recibió—, usadas como respaldo de <see cref="TurnoParaHistorial.Referencias"/>
+    /// cuando <paramref name="turno"/> no llegó a bindear sus propios marcadores
+    /// (decisión 15 del PO, 2026-09-26): un rechazo, una aclaración, una
+    /// degradación o una respuesta social/meta nunca entran al carril SQL
+    /// —<see cref="ResultadoDelTurno.ReferenciasEjecutadas"/> queda nulo—, pero
+    /// el pedido sí mencionó algo, y esa mención tiene que sobrevivir al
+    /// historial igual que la pregunta misma.
+    /// </param>
     private async Task RegistrarAsync(
         Guid actor,
         HiloConversacional conversacion,
@@ -329,7 +341,8 @@ public sealed class CapaConversacional(
         string? claveDelCliente,
         int inicioDeSegmentoAntes,
         Aclaracion? aclaracionAntes,
-        TurnoSacado? reemplazado = null)
+        TurnoSacado? reemplazado = null,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null)
     {
         var ahora = reloj.GetUtcNow();
 
@@ -394,7 +407,7 @@ public sealed class CapaConversacional(
                 turno.SqlEjecutado,
                 turno.Estado,
                 ahora,
-                turno.ReferenciasEjecutadas);
+                ReferenciasParaElHistorial(turno.ReferenciasEjecutadas, mencionesNuevas));
 
             // REEMPLAZO CON DESENLACE REGISTRABLE (design.md D9, punto 3): se
             // revoca el token viejo y el historial reemplaza su fila, en vez de
@@ -416,6 +429,46 @@ public sealed class CapaConversacional(
                 await historial.RegistrarTurnoAsync(conversacion, paraHistorial, ct);
             }
         }
+    }
+
+    /// <summary>
+    /// Lo que se persiste en <c>asistente.turno_historico.referencias</c>
+    /// (decisión 15 del PO, 2026-09-26, design.md D11 de asistente-rediseno-v3).
+    /// </summary>
+    /// <remarks>
+    /// <b>El carril SQL manda cuando corrió</b>: <paramref name="referenciasEjecutadas"/>
+    /// —heredadas más nuevas, ya ligadas a los marcadores que la consulta
+    /// realmente usa— es siempre el conjunto completo cuando no es nulo, porque
+    /// el validador rechaza un marcador declarado y no usado (design.md D11):
+    /// nunca es un subconjunto silencioso.
+    ///
+    /// <b>Si el carril SQL nunca corrió</b> —rechazo, aclaración, degradación,
+    /// una respuesta social o de capacidades—, no hay nada que bindear, pero el
+    /// pedido sí declaró menciones y el controller ya las revalidó contra el
+    /// alcance del actor antes del candado. Numerarlas con
+    /// <see cref="MarcadoresDeReferencias.Asignar"/> sin <c>consultasAnteriores</c>
+    /// las deja en la MISMA forma que persiste el carril SQL —un diccionario
+    /// marcador → (tipo, id)— sin que ese marcador corresponda a nada en
+    /// <c>sql_resuelto</c> (que queda <c>null</c> acá): nadie vuelve a leer esas
+    /// claves para bindear una consulta que no existe, sólo para reconstruir
+    /// los chips del historial (<c>TurnoDeHistorialDto.DeAsync</c>).
+    /// </remarks>
+    private static IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasParaElHistorial(
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasEjecutadas,
+        IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas)
+    {
+        if (referenciasEjecutadas is { Count: > 0 })
+        {
+            return referenciasEjecutadas;
+        }
+
+        if (mencionesNuevas is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        return MarcadoresDeReferencias.Asignar(mencionesNuevas, consultasAnteriores: null)
+            .ToDictionary(m => m.Marcador, m => (m.Tipo, m.Entidad.Id));
     }
 
     /// <summary>

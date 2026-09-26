@@ -764,14 +764,88 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
-        // NO afirma sobre el cuerpo de /reanudar —`ReanudarDto`/`TurnoDeHistorialDto`
-        // no exponen las referencias, sólo `SqlResuelto` (mismo criterio que
-        // `Sql`/`SqlEjecutado` en el turno en vivo)—, sino sobre que el
-        // endpoint no revienta al sembrar un turno con referencias.
         var respuesta = await cliente.PostAsync(
             $"/api/asistente/historial/{propia}/reanudar", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
+    // ------------------------------------------------- menciones en el historial (decisión 15)
+
+    [Fact]
+    public async Task Obtener_expone_la_mencion_como_chip_cuando_sigue_en_el_alcance_actual()
+    {
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
+        await SembrarTurnoAsync(
+            propia,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaAlgoritmos));
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var detalle = await LeerAsync<ConversacionDetalleDto>(await cliente.GetAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken));
+
+        var mencion = Assert.Single(detalle.Turnos[0].Menciones!);
+        Assert.Equal("materia", mencion.Tipo);
+        Assert.Equal(MateriaAlgoritmos, mencion.Id);
+        Assert.Equal("@Algoritmos y Estructuras de Datos", mencion.Etiqueta);
+    }
+
+    [Fact]
+    public async Task Obtener_omite_la_mencion_fuera_del_alcance_actual_sin_filtrar_nada()
+    {
+        // El coordinador tiene ámbito de Ingeniería Informática; la referencia
+        // guardada nombra una materia de Ingeniería Industrial. La mención se
+        // omite —el texto de la pregunta queda plano— en vez de filtrar por
+        // qué dejó de verla (decisión 15 del PO, design.md D11).
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await SembrarTurnoAsync(
+            propia,
+            "¿quién la dicta?",
+            "SELECT m.name FROM identity.materias m WHERE m.id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaDeIndustrial));
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Coordinador, "coordinador_carrera");
+
+        var detalle = await LeerAsync<ConversacionDetalleDto>(await cliente.GetAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken));
+
+        Assert.Empty(detalle.Turnos[0].Menciones!);
+    }
+
+    [Fact]
+    public async Task Reanudar_tambien_expone_las_menciones_como_chip()
+    {
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
+        await SembrarTurnoAsync(
+            propia,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            referencias: ReferenciaJson("materia", MateriaAlgoritmos));
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var reanudado = await LeerAsync<ReanudarDto>(await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/reanudar", null, TestContext.Current.CancellationToken));
+
+        var mencion = Assert.Single(reanudado.Turnos[0].Menciones!);
+        Assert.Equal("@Algoritmos y Estructuras de Datos", mencion.Etiqueta);
     }
 
     // ------------------------------------------------------------------ apoyo

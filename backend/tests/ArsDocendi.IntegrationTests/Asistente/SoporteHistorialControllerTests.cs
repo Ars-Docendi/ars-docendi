@@ -252,6 +252,45 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Leer_no_expone_menciones_aunque_el_turno_tenga_referencias_persistidas()
+    {
+        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3): quien lee
+        // acá nunca es el actor cuyo alcance decide si una mención se ve, así
+        // que este endpoint no gana el campo — ni siquiera vacío — a
+        // diferencia del lado propio (`HistorialControllerTests`).
+        await SembrarAsync();
+        await ConcederPermisoDeSoporteAAsync(Secretaria);
+
+        var materiaAlgoritmos = Guid.Parse("70000000-0000-4000-8000-000000000102");
+        var conversacion = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await SembrarTurnoAsync(
+            conversacion,
+            "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            "SELECT p.apellido FROM designaciones.designaciones d "
+                + "JOIN identity.personas p ON p.id = d.persona_id WHERE d.materia_id = $ref1",
+            referencias: ReferenciaJson("materia", materiaAlgoritmos));
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var cuerpo = await (await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/{conversacion}/leer",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken)).Content.ReadAsStringAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain("menciones", cuerpo, StringComparison.OrdinalIgnoreCase);
+
+        var detalle = await LeerAsync<ConversacionDetalleDto>(await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/{conversacion}/leer",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken));
+
+        Assert.Null(detalle.Turnos[0].Menciones);
+    }
+
+    [Fact]
     public async Task Leer_audita_nombrando_esa_conversacion_puntual()
     {
         await SembrarAsync();
@@ -496,14 +535,16 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
-    private async Task<Guid> SembrarTurnoAsync(Guid hiloId, string pregunta, string? sql)
+    private async Task<Guid> SembrarTurnoAsync(
+        Guid hiloId, string pregunta, string? sql, string? referencias = null)
     {
         var id = Guid.NewGuid();
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """
-            INSERT INTO asistente.turno_historico (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en)
-            VALUES (@id, @hilo, @pregunta, @sql, 'Respondida', @ahora)
+            INSERT INTO asistente.turno_historico
+                (id, hilo_id, pregunta, sql_resuelto, estado, ocurrido_en, referencias)
+            VALUES (@id, @hilo, @pregunta, @sql, 'Respondida', @ahora, @referencias)
             """, conexion);
 
         comando.Parameters.AddWithValue("id", id);
@@ -512,8 +553,17 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         comando.Parameters.AddWithValue(
             "sql", NpgsqlTypes.NpgsqlDbType.Text, (object?)sql ?? DBNull.Value);
         comando.Parameters.AddWithValue("ahora", Ancla);
+        comando.Parameters.AddWithValue(
+            "referencias", NpgsqlTypes.NpgsqlDbType.Jsonb, (object?)referencias ?? DBNull.Value);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         return id;
     }
+
+    /// <summary>
+    /// El JSON de <c>turno_historico.referencias</c> para un único marcador
+    /// <c>$ref1</c> (el mismo formato que <c>SerializacionDeReferencias</c>).
+    /// </summary>
+    private static string ReferenciaJson(string tipo, Guid id) =>
+        "{\"$ref1\":{\"tipo\":\"" + tipo + "\",\"id\":\"" + id + "\"}}";
 }

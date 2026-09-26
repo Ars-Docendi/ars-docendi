@@ -60,7 +60,10 @@ public sealed class HistorialController(
 
         var perfil = await perfiles.ObtenerAsync(actor, ct);
 
-        return Ok(ConversacionDetalleDto.De(conversacion, perfil.VeLaConsulta));
+        // Las menciones de cada turno se re-resuelven para ESTE actor (el que lee
+        // ahora, siempre el propio dueño acá) — nunca para el que hizo la pregunta
+        // originalmente (design.md D11 de asistente-rediseno-v3, decisión 15 del PO).
+        return Ok(await ConversacionDetalleDto.DeAsync(conversacion, perfil.VeLaConsulta, actor, menciones, ct));
     }
 
     /// <summary>Renombra una conversación propia.</summary>
@@ -191,8 +194,13 @@ public sealed class HistorialController(
             [.. turnos.Select(t => new TurnoDelHilo(
                 t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id, Referencias: t.Referencias))]);
 
-        return Ok(new ReanudarDto(
-            sembrado.Id, [.. turnos.Select(t => TurnoDeHistorialDto.De(t, perfil.VeLaConsulta))]));
+        // Mismo criterio que `Obtener`: las menciones se re-resuelven para el actor
+        // que reanuda, así que el cliente pinta el chip apenas siembra la
+        // conversación (decisión 15 del PO).
+        var turnosDto = await Task.WhenAll(
+            turnos.Select(t => TurnoDeHistorialDto.DeAsync(t, perfil.VeLaConsulta, actor, menciones, ct)));
+
+        return Ok(new ReanudarDto(sembrado.Id, turnosDto));
     }
 
     /// <summary>

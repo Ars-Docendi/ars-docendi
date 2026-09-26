@@ -290,6 +290,39 @@ manifest is unchanged; the domain doc records this reasoning.
   `turno_historico` gets `referencias jsonb NULL` (marker → tipo, id) so «Volver a
   consultar» and «Reanudar» bind them again; RLS re-scopes at execution as today.
 - `DetectorDeAmbiguedad` skips the terms covered by a reference's display text.
+- **History chips (PO-changed 2026-09-26, row 15):** `GET /historial/{hiloId}` and
+  `POST /historial/{hiloId}/reanudar` add `menciones: [{ tipo, id, etiqueta }]` to each
+  turn, built by `TurnoDeHistorialDto` re-resolving `turno_historico.referencias`
+  through `IBuscadorDeMenciones.ResolverAsync` for the actor reading NOW (own history:
+  the caller; never the actor who originally asked). A reference outside the current
+  reader's scope is omitted from the list — its question text stays plain — the same
+  never-leak, never-crash rule D11 already applies to «Volver a consultar». `etiqueta`
+  is the exact composer text (`"@Nombre"`/`"#Nombre"`, `textoDeLaMencion`'s format), so
+  the frontend's existing `ubicarMenciones` (already used for «Editar y reenviar»)
+  places the chip in the question text without the backend computing positions; if the
+  entity's name changed since the question was asked, the text no longer matches and
+  the mention silently reverts to plain text, same as deleting the mention text today.
+  `SoporteHistorialController.Leer` does NOT gain this field: the reader there is the
+  support agent, never the subject whose scope must decide visibility, and that
+  endpoint already limits itself to text and moments with no interactive affordance.
+  The field is nullable and `[JsonIgnore(Condition = WhenWritingNull)]` so it is
+  entirely absent from the support response instead of an always-empty array.
+- **Persisting references independent of the SQL lane (fixed 2026-09-26, gap found before
+  commit):** `turno_historico.referencias` was only ever written from
+  `ResultadoDelTurno.ReferenciasEjecutadas`, which only `CarrilSql`'s fully-resolved
+  success path sets. A mention turn that ended in refusal, a clarification menu,
+  degradation, or a social/meta reply never enters that path — `sql_resuelto` stays
+  `null`, and so did `referencias`, so it resumed as plain text and «Editar y reenviar»
+  lost the reference — exactly the most common edit case (people edit after a refusal).
+  `CapaConversacional.RegistrarAsync` now falls back: when `ReferenciasEjecutadas` is
+  null or empty, it numbers the request's own declared-and-validated `mencionesNuevas`
+  with `MarcadoresDeReferencias.Asignar` (no `consultasAnteriores`, since there is no SQL
+  segment to continue) and persists that instead. `sql_resuelto` stays `null` either way
+  — only `referencias` gains the fallback. The live in-memory thread
+  (`TurnoDelHilo`/`HiloConversacional.ReferenciasVigentes`) is untouched: only the SQL
+  lane ever adds a `TurnoDelHilo`, so this fallback never affects follow-up inheritance
+  inside a segment. «Volver a consultar» is unaffected — it already gates on
+  `SqlResuelto is null` before ever looking at `Referencias`.
 - Alternatives: literal UUIDs in the prompt (simplest, but sends a stable pseudonymous
   identifier of a person to the provider on every question about them, linkable across
   users, against the spirit of `identificador` and TD-022); natural keys (materia code is
@@ -320,8 +353,14 @@ analytic id (TD-012 / D8 of the history change); the owner already holds both.
 «Consultando…» moves visually into the pending turn (dots, `aria-hidden`), while the
 existing threshold-gated `role="status"` announcer stays outside the log, so the
 live-region requirements hold. «Dejar de esperar» moves into the composer's button slot.
-Quota indicator, blocked text and metrics line stay in a strip under the composer. The
-user bubble changes from accent to the neutral v3 bubble. Degraded/clarification keep
+Quota indicator and blocked text stay in a strip under the composer, visible to
+everyone. **PO-changed (2026-09-26, row 14):** the metrics line joins them in the same
+strip, but only in frontend debug mode (`VITE_ASISTENTE_DEBUG`) — the same switch
+`asistente-razonamiento-solo-en-debug` uses for «Cómo lo interpreté» — instead of
+unconditionally, superseding the author's original guess. `FranjaDeEstado`/
+`LineaDeMetricas` take a `debug` prop defaulting to `modoDebugAsistente`, the same
+pattern `Mensaje` already uses. The user bubble changes from accent to the neutral v3
+bubble. Degraded/clarification keep
 their `InlineAlert` severities. **PO-changed (2026-09-26): the 👎 panel now follows the
 mock exactly** — multiple reason pills (`aria-pressed` each, independently toggled, no
 mutual exclusion) plus the textarea («Contanos qué esperabas ver…», `maxLength=500`, a
@@ -354,8 +393,8 @@ needed, and the change stays versioned SQL (rule "no manual DB edits").
 | 11  | Archive/delete of the active conversation     | Resets to the welcome screen (as in the mock); «Deshacer» re-resumes it; a new turn in an archived conversation unarchives it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | 12  | Editable last question                        | Also a question restored by «Reanudar»; a replacement never changes the conversation title.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 13  | Mention results per career                    | One row per subject-and-career instead of one row with several career tags (exact id per row).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 14  | Metrics line                                  | Kept in the strip under the composer, next to the quota indicator.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| 15  | Resumed/history mentions render as plain text | Known limitation, not covered by this change: `GET /historial/{id}` exposes `{ id, pregunta, sql, estado, ocurrioEn }` — the question text carries the typed `@materia`/`#docente`, but not the `{ tipo, id }` structure a chip needs; that structure lives only in `turno_historico.referencias`, server-side, to rebind «Volver a consultar»/«Reanudar», never to redraw the UI. Editing and resending a resumed question resends its plain text as-is, unable to re-pick its original mentions as chips.                                                                                                                                                                                   |
+| 14  | Metrics line                                  | **PO-changed (2026-09-26):** shown only in frontend debug mode (`VITE_ASISTENTE_DEBUG`) — the same switch `asistente-razonamiento-solo-en-debug` uses for «Cómo lo interpreté» — next to the quota indicator, which stays visible for everyone. Supersedes the author's original guess that it stayed unconditionally in the strip (D14).                                                                                                                                                                                                                                                                                                                                                     |
+| 15  | Resumed/history mentions render as plain text | **PO-changed (2026-09-26):** implemented after all. Each history turn exposes `menciones: [{ tipo, id, etiqueta }]`, built by re-resolving `turno_historico.referencias` for the actor reading NOW via `IBuscadorDeMenciones.ResolverAsync` — never the actor who asked; a reference outside the current scope is omitted, never leaked. `etiqueta` is the exact composer text (`"@Nombre"`/`"#Nombre"`), so the frontend's existing `ubicarMenciones` places the chip without the backend computing positions. `SoporteHistorialController` does NOT gain this field (D11). Supersedes the author's original "known limitation, not covered" guess.                                          |
 
 ## Risks / Trade-offs
 

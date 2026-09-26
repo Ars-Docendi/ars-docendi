@@ -112,11 +112,85 @@ bindings its query needs, and SHALL bind them again when that turn is re-run fro
 or its conversation is resumed. The stored query text SHALL keep the markers, not the
 identifiers.
 
+**Fixed 2026-09-26 (gap found before commit):** the system SHALL persist a turn's
+declared, already-validated references for EVERY turn it registers to history —
+**regardless of which lane produced the outcome**, not only a turn whose query ends up
+binding markers. A turn that never enters the SQL lane (a refusal, a clarification menu,
+a degradation, or a social/meta reply) never has a query to bind, so its stored query
+text stays absent, but its references are still stored, numbered the same way, so the
+history/resume/chip requirement below has something to re-resolve regardless of outcome.
+
 #### Scenario: Re-running a turn with a reference binds it again
 
 - **GIVEN** a persisted answered turn whose query used a subject reference
 - **WHEN** the owner activates «Volver a consultar» on it
 - **THEN** the query runs bound to the same subject under the owner's current reach
+
+#### Scenario: A refused turn still persists its declared reference
+
+- **GIVEN** a turn that referenced a subject within the actor's reach but the model abstained, never producing a query
+- **WHEN** the turn is registered to history
+- **THEN** its reference is persisted and its stored query text is absent
+
+#### Scenario: A turn that triggers a clarification menu still persists its declared reference
+
+- **GIVEN** a turn that referenced a subject within the actor's reach but also named an ambiguous term, triggering a clarification menu before any query is generated
+- **WHEN** the turn is registered to history
+- **THEN** its reference is persisted and its stored query text is absent
+
+### Requirement: A history turn's mentions render as chips, re-resolved for the current reader
+
+**PO-changed (2026-09-26, row 15):** the system SHALL expose, for each own history turn
+returned by `GET /historial/{hiloId}` and `POST /historial/{hiloId}/reanudar`, its
+mentions re-resolved against the CURRENT reader's reach — never the reach the original
+asker had — so the client renders them as chips exactly like a live turn, using the
+same trigger-plus-name text the composer inserted. A reference the current reader can no
+longer reach SHALL be omitted from that list — never leaked, its question text staying
+plain — with the same never-a-crash rule the re-run scenario above already applies.
+Editing and resending a resumed conversation's last question SHALL keep a reference
+whose chip text still survives in the edited text, under the existing rule that a
+reference travels only while its text remains. The support read of another actor's
+history (`SoporteHistorialController`) SHALL NOT expose this field: the reader there is
+never the actor whose reach decides visibility. This applies to a turn regardless of
+which lane produced its outcome — a refused turn, one that raised a clarification menu,
+or one that answered all carry their references the same way, since references are
+persisted independent of whether the turn's query ever ran (see the requirement above).
+
+#### Scenario: A resumed turn's mention renders as a chip
+
+- **GIVEN** a persisted answered turn whose question referenced a subject still within the owner's reach
+- **WHEN** the owner reopens that conversation from the rail
+- **THEN** the question bubble shows the mention as a chip, not as plain trigger-plus-name text
+
+#### Scenario: A refused turn with a mention still shows its chip on resume
+
+- **GIVEN** a persisted turn that referenced a subject within the owner's reach but ended not-answerable, with no stored query
+- **WHEN** the owner reopens that conversation
+- **THEN** the question bubble shows the mention as a chip, and no «Volver a consultar» is offered on that turn
+
+#### Scenario: A clarification turn with a mention still shows its chip on resume
+
+- **GIVEN** a persisted turn that referenced a subject within the owner's reach but triggered a clarification menu, with no stored query
+- **WHEN** the owner reopens that conversation
+- **THEN** the question bubble shows the mention as a chip
+
+#### Scenario: A reference outside the current reach is omitted, not leaked
+
+- **GIVEN** a persisted turn referencing a subject the owner can no longer reach
+- **WHEN** the owner reopens that conversation
+- **THEN** that mention renders as plain text, with no chip and no reference in the response
+
+#### Scenario: Editing and resending a resumed question keeps its surviving reference
+
+- **GIVEN** a resumed conversation whose last turn carries a mention chip
+- **WHEN** the owner edits the question, keeping the mention's text, and resends it
+- **THEN** the request carries that mention's reference
+
+#### Scenario: Support's reading of another actor's history has no mention chips
+
+- **GIVEN** a turn with a persisted reference, read through the support endpoint
+- **WHEN** the response is inspected
+- **THEN** it carries no `menciones` field for that turn
 
 ### Requirement: The composer offers mentions through an accessible popover
 

@@ -319,6 +319,20 @@ export interface LoteDeBorrado {
   loteDeBorrado: string;
 }
 
+/**
+ * Una mención de un turno histórico, ya re-resuelta por el backend para EL
+ * ACTOR QUE LEE ahora (design.md D11 de asistente-rediseno-v3, decisión 15
+ * del PO): `etiqueta` es el texto exacto que el composer insertó al
+ * elegirla («@Nombre» / «#Nombre»), así que `sembrarDesdeHistorial`
+ * (`useAsistente.ts`) la ubica en el texto de la pregunta reusando
+ * `ubicarMenciones`, sin que el backend calcule posiciones.
+ */
+export interface MencionDeHistorial {
+  tipo: TipoDeMencion;
+  id: string;
+  etiqueta: string;
+}
+
 /** Un turno de una conversación propia, tal como lo devuelve el historial. */
 export interface TurnoDeHistorial {
   id: string;
@@ -327,6 +341,12 @@ export interface TurnoDeHistorial {
   sql?: string | null;
   estado: EstadoDelTurno;
   ocurrioEn: string;
+  /**
+   * AUSENTE en la lectura de soporte (nunca es el actor cuyo alcance decide
+   * la visibilidad); en el lado propio siempre viaja, aunque quede vacío si
+   * ninguna referencia sobrevivió la revalidación.
+   */
+  menciones?: MencionDeHistorial[];
 }
 
 /** Una conversación propia, con sus turnos. */

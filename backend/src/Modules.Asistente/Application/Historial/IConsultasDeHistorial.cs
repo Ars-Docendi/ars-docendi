@@ -30,9 +30,14 @@ public sealed record ConversacionResumen(
 /// para el turno en vivo.
 /// </remarks>
 /// <param name="Referencias">
-/// Los marcadores <c>$refN</c> —con su tipo e id— que <see cref="SqlResuelto"/>
-/// usa, o <c>null</c> si no usó ninguno (design.md D11 de asistente-rediseno-v3).
-/// Lo que <c>Reanudar</c> siembra en <c>TurnoDelHilo.Referencias</c>.
+/// Un diccionario marcador → (tipo, id) de las menciones de este turno, o
+/// <c>null</c> si no declaró ninguna — presente aunque <see cref="SqlResuelto"/>
+/// sea nulo: un rechazo, una aclaración, una degradación o una respuesta
+/// social/meta también recuerda qué mencionó (decisión 15 del PO,
+/// 2026-09-26, design.md D11 de asistente-rediseno-v3; ver
+/// <c>IRegistroDeHistorial.TurnoParaHistorial.Referencias</c>). Lo que
+/// <c>Reanudar</c> siembra en <c>TurnoDelHilo.Referencias</c> y lo que
+/// <c>TurnoDeHistorialDto.DeAsync</c> re-resuelve en <c>menciones</c>.
 /// </param>
 public sealed record TurnoDeHistorial(
     Guid Id,

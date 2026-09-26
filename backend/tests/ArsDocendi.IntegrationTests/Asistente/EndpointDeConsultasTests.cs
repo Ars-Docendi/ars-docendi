@@ -640,6 +640,114 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
+    // --------------------- menciones que sobreviven a un turno sin SQL (decisión 15)
+
+    [Fact]
+    public async Task Un_turno_con_mencion_que_termina_no_contestable_persiste_sus_referencias()
+    {
+        // Decisión 15 del PO (design.md D11 de asistente-rediseno-v3, 2026-09-26):
+        // el carril SQL nunca corrió —el modelo se abstuvo—, así que
+        // `sql_resuelto` queda null, pero el pedido SÍ declaró una mención
+        // válida y el controller ya la revalidó antes del candado; esa mención
+        // tiene que sobrevivir al historial igual que la pregunta misma, para
+        // que un turno reanudado o revisitado la muestre como chip.
+        await SembrarAsync();
+        using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await LeerAsync(await Preguntar(
+            cliente, "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+            referencias: [new ReferenciaDto("materia", MateriaAlgoritmos)]));
+
+        Assert.Equal("no_contestable", respuesta.Estado);
+        var hiloHistorico = respuesta.Conversacion;
+        Assert.NotNull(hiloHistorico);
+
+        await VerificaElCicloCompletoAsync(cliente, hiloHistorico!.Value, esperaSqlGuardado: false);
+    }
+
+    [Fact]
+    public async Task Un_turno_con_mencion_que_termina_en_aclaracion_persiste_sus_referencias()
+    {
+        // Mismo motivo que el de arriba, pero con el otro carril que nunca
+        // llega al contexto SQL: el detector de ambigüedad corta ANTES de
+        // generar nada (design.md D11: las etiquetas de las menciones propias
+        // se excluyen de la ambigüedad, así que «Bases de Datos» —sembrada acá
+        // como homónimo— sigue pidiendo aclaración aunque la pregunta también
+        // mencione @Algoritmos y Estructuras de Datos).
+        await SembrarAsync();
+        await AgregarUnHomonimoAsync();
+        using var host = CrearHost(out _, guionPropio: []);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await LeerAsync(await Preguntar(
+            cliente,
+            "¿Quiénes dan Bases de Datos, además de en @Algoritmos y Estructuras de Datos?",
+            referencias: [new ReferenciaDto("materia", MateriaAlgoritmos)]));
+
+        Assert.Equal("necesita_aclaracion", respuesta.Estado);
+        Assert.NotEmpty(respuesta.Opciones);
+        var hiloHistorico = respuesta.Conversacion;
+        Assert.NotNull(hiloHistorico);
+
+        await VerificaElCicloCompletoAsync(cliente, hiloHistorico!.Value, esperaSqlGuardado: false);
+    }
+
+    /// <summary>
+    /// El resto del ciclo que la decisión 15 promete, una vez que
+    /// <c>turno_historico.referencias</c> quedó poblado: <c>GET /historial/{id}</c>
+    /// expone <c>menciones</c> re-resueltas, y «Reanudar» las siembra igual.
+    /// </summary>
+    private async Task VerificaElCicloCompletoAsync(
+        HttpClient cliente, Guid hiloHistorico, bool esperaSqlGuardado)
+    {
+        var referenciasGuardadas = await EscalarAsync<string>(
+            "SELECT referencias::text FROM asistente.turno_historico WHERE hilo_id = @hilo",
+            ("hilo", hiloHistorico));
+        Assert.Contains(MateriaAlgoritmos.ToString(), referenciasGuardadas, StringComparison.OrdinalIgnoreCase);
+
+        var sqlGuardado = await EscalarAsync<bool>(
+            "SELECT sql_resuelto IS NOT NULL FROM asistente.turno_historico WHERE hilo_id = @hilo",
+            ("hilo", hiloHistorico));
+        Assert.Equal(esperaSqlGuardado, sqlGuardado);
+
+        var detalle = await LeerAsyncDto<ConversacionDetalleDto>(await cliente.GetAsync(
+            $"/api/asistente/historial/{hiloHistorico}", TestContext.Current.CancellationToken));
+        var mencionDelDetalle = Assert.Single(detalle.Turnos[0].Menciones!);
+        Assert.Equal("materia", mencionDelDetalle.Tipo);
+        Assert.Equal(MateriaAlgoritmos, mencionDelDetalle.Id);
+        Assert.Equal("@Algoritmos y Estructuras de Datos", mencionDelDetalle.Etiqueta);
+
+        var reanudado = await LeerAsyncDto<ReanudarDto>(await cliente.PostAsync(
+            $"/api/asistente/historial/{hiloHistorico}/reanudar", null, TestContext.Current.CancellationToken));
+        var mencionReanudada = Assert.Single(reanudado.Turnos[0].Menciones!);
+        Assert.Equal("@Algoritmos y Estructuras de Datos", mencionReanudada.Etiqueta);
+    }
+
+    private static async Task<T> LeerAsyncDto<T>(HttpResponseMessage respuesta)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
+        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
+        return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
+    }
+
+    private async Task AgregarUnHomonimoAsync()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO identity.materias (id, code, name, carrera_id, is_active)
+            VALUES ('70000000-0000-4000-8000-0000000009f1', '04910', 'Bases de Datos',
+                    'c0000000-0000-4000-8000-000000000202', true)
+            """,
+            conexion);
+
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static Modules.Asistente.Application.ResultadoDelTurno TurnoCualquiera() =>
@@ -694,13 +802,13 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
     }
 
     private WebApplicationFactory<Program> CrearHost(
-        out ProveedorGuionado proveedor, bool historialQueNuncaEscribe = false)
+        out ProveedorGuionado proveedor, bool historialQueNuncaEscribe = false, string[]? guionPropio = null)
     {
         // Guion largo: cada turno del carril consume generación + redacción, y el
         // proveedor guionado repite su última respuesta al agotarse. Un guion corto
         // haría que un turno de más terminara no contestable por una razón que no es
         // la que el test mide.
-        var guion = Enumerable.Range(0, 12).SelectMany(_ => new[]
+        var guion = guionPropio ?? Enumerable.Range(0, 12).SelectMany(_ => new[]
         {
             ProveedorGuionado.Generacion(ContarDocentes),
             "Hay 4 docentes designados.",

@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { AxiosError } from "axios";
 
 import * as api from "./api/asistenteApi";
+import * as historialApi from "./api/historialApi";
 import * as mencionesApi from "./api/mencionesApi";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 import { PanelDePrueba } from "./test/PanelDePrueba";
-import type { ResultadoDeMencion } from "./types";
+import type { ConversacionResumen, ResultadoDeMencion } from "./types";
 
 // ============================================================
 // El popover de menciones «@materia» / «#docente» del composer
@@ -436,5 +437,55 @@ describe("Una mención que dejó de estar disponible al enviar", () => {
     // El composer no quedó bloqueado: se puede escribir y elegir una mención nueva.
     expect(campo).toHaveValue("");
     expect(campo).not.toBeDisabled();
+  });
+});
+
+describe("Menciones de una conversación reanudada (decisión 15 del PO, design.md D11)", () => {
+  const CONVERSACION: ConversacionResumen = {
+    id: "33333333-3333-4333-8333-333333333333",
+    titulo: "¿Qué docentes están designados en Algoritmos?",
+    creadoEn: "2026-01-10T10:00:00Z",
+    ultimaActividad: "2026-01-10T10:05:00Z",
+    archivada: false,
+  };
+
+  it("editar y reenviar la última pregunta reanudada, sin tocar la mención, manda su referencia", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([CONVERSACION]);
+    vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
+      hilo: "44444444-4444-4444-8444-444444444444",
+      turnos: [
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          pregunta: "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+          sql: null,
+          estado: "respondida",
+          ocurrioEn: "2026-01-10T10:00:05Z",
+          menciones: [
+            { tipo: "materia", id: ALGORITMOS.id, etiqueta: "@Algoritmos y Estructuras de Datos" },
+          ],
+        },
+      ],
+    });
+    const consultar = vi.spyOn(api, "consultar").mockResolvedValue(respuesta());
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await user.click(await screen.findByText(CONVERSACION.titulo));
+
+    const log = screen.getByRole("log", { name: "Conversación con el asistente" });
+    await within(log).findByText("@Algoritmos y Estructuras de Datos", {
+      selector: ".adoc-asistente-mencion-chip--enviada",
+    });
+
+    await user.click(within(log).getByRole("button", { name: "Editar y reenviar" }));
+    const edicion = screen.getByLabelText("Editar tu pregunta");
+    await user.type(edicion, " ¿Y cuántos hay en total?");
+    await user.click(within(log).getByRole("button", { name: "Enviar" }));
+
+    await screen.findByText("Hay 4 docentes designados.");
+    expect(consultar).toHaveBeenCalledOnce();
+    expect(consultar.mock.calls[0][0].referencias).toEqual([
+      { tipo: "materia", id: ALGORITMOS.id },
+    ]);
   });
 });

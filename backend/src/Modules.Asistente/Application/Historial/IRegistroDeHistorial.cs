@@ -21,10 +21,18 @@ namespace Modules.Asistente.Application;
 /// </param>
 /// <param name="OcurrioEn">Cuándo se resolvió el turno.</param>
 /// <param name="Referencias">
-/// Los marcadores <c>$refN</c> —con su tipo e id— que <paramref name="SqlResuelto"/>
-/// usa, o <c>null</c> si el turno no usó ninguno (design.md D11 de
-/// asistente-rediseno-v3). Se persiste en <c>asistente.turno_historico.referencias</c>
-/// para que «Volver a consultar» y «Reanudar» puedan volver a ligarlos.
+/// Un diccionario marcador → (tipo, id) de las menciones de este turno, o
+/// <c>null</c> si no declaró ninguna. Se persiste en
+/// <c>asistente.turno_historico.referencias</c>. **No implica que <paramref
+/// name="SqlResuelto"/> las use**: cuando el carril SQL corrió, son
+/// exactamente los marcadores que la consulta liga —para que «Volver a
+/// consultar» y «Reanudar» puedan volver a bindearla—; cuando el turno nunca
+/// entró al carril SQL (rechazo, aclaración, degradación, social/meta), son
+/// las menciones que el pedido declaró y el controller ya revalidó, numeradas
+/// igual pero sin ninguna consulta que las use (decisión 15 del PO,
+/// 2026-09-26, design.md D11 de asistente-rediseno-v3): existen para que
+/// <c>GET /historial/{id}</c> arme sus chips, no para re-ejecutar nada — «Volver
+/// a consultar» sigue exigiendo <see cref="SqlResuelto"/> antes de mirar acá.
 /// </param>
 public sealed record TurnoParaHistorial(
     Guid Actor,

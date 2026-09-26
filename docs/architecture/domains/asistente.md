@@ -1042,15 +1042,39 @@ referencia, para que nunca se manden ids que ya no corresponden a nada visible�
 Escape cierra el popover, nunca el modal (mismo orden de escapes que el menú «⋮» y
 la tabla ampliada).
 
-**Límite conocido: un turno reanudado o leído del historial muestra sus menciones
-como texto plano, sin chip.** `TurnoDeHistorialDto` (`GET /historial/{id}`,
-«Reanudar») expone `{ id, pregunta, sql, estado, ocurrioEn }` — la pregunta ya
-incluye el texto «@Análisis Matemático» tal como se escribió, pero no la
-estructura `{ tipo, id }` que un chip necesita para ser interactivo; esa
-estructura vive sólo en `turno_historico.referencias`, del lado del servidor, para
-revalidar «Volver a consultar»/«Reanudar» (ver abajo), no para redibujar la
-interfaz. Editar y reenviar una pregunta reanudada reenvía su texto tal cual, sin
-poder tocar sus menciones originales como chips.
+**Un turno reanudado o leído del historial muestra sus menciones como chip, igual
+que uno en vivo** (decisión 15 del PO, 2026-09-26; ya no es la limitación
+conocida que este párrafo describía antes). `TurnoDeHistorialDto` (`GET
+/historial/{id}`, «Reanudar») expone `menciones: [{ tipo, id, etiqueta }]` por cada
+referencia guardada en `turno_historico.referencias`, re-resuelta con
+`IBuscadorDeMenciones.ResolverAsync` contra el alcance **actual** de quien lee —
+nunca el que tenía el actor que hizo la pregunta originalmente. Una referencia que
+ese alcance ya no llega a ver se omite de la lista, nunca se filtra; la pregunta
+queda con el texto tal como se escribió («@Análisis Matemático») y, sin su chip,
+se ve como texto plano. `etiqueta` es el texto exacto que insertó el composer al
+elegirla, así que el cliente reusa `ubicarMenciones` —la misma función que ya
+ubica un chip en vivo— para pintarlo, sin que el backend calcule posiciones.
+Editar y reenviar una pregunta reanudada conserva la referencia mientras el texto
+de su mención siga presente en lo editado, con la misma regla que un envío
+cualquiera. `SoporteHistorialController` **no** gana este campo: quien lee ahí
+nunca es el actor cuyo alcance decide la visibilidad de una mención ajena, y ese
+endpoint ya se limita a texto y momentos, sin ninguna interacción.
+
+**La persistencia de `referencias` es independiente del carril SQL** (gap
+encontrado antes de commitear, corregido el mismo día). `turno_historico.referencias`
+salía únicamente de `ResultadoDelTurno.ReferenciasEjecutadas`, y sólo el camino de
+`CarrilSql` que termina bindeando marcadores lo llena — un turno que se abstuvo, pidió
+aclaración, se degradó o fue una respuesta social/meta nunca entra a ese camino, así
+que quedaba sin `referencias` igual que sin `sql_resuelto`, y un turno así reanudado
+mostraba la mención como texto plano; «Editar y reenviar» sobre él —el caso más común,
+la gente edita después de un rechazo— perdía la referencia. `CapaConversacional.RegistrarAsync`
+ahora numera las menciones que el pedido declaró —ya revalidadas por el controller—
+con `MarcadoresDeReferencias.Asignar` cuando `ReferenciasEjecutadas` viene nulo o vacío,
+y persiste eso en su lugar; `sql_resuelto` sigue nulo en esos casos, sólo `referencias`
+gana el respaldo. El hilo en memoria (`TurnoDelHilo`/`HiloConversacional.ReferenciasVigentes`)
+queda intacto: sólo el carril SQL agrega un `TurnoDelHilo`, así que este respaldo nunca
+toca la herencia entre turnos de un mismo segmento. «Volver a consultar» no se ve
+afectado: ya exige `SqlResuelto` no nulo antes de mirar `Referencias`.
 
 **Revalidación de menciones heredadas.** Cada mención que un turno reutiliza
 —«Volver a consultar» sobre un turno propio, o el primer turno de una conversación
@@ -1065,7 +1089,7 @@ ya no corre, nunca un error crudo ni una ejecución contra la entidad equivocada
 | Regla                                                          | Por qué                                                                                                                                                                                                                                                            |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `role="log"` + `aria-live` **solo sobre la lista de mensajes** | En el prototipo previo la región envolvía el contenedor entero, así que cada re-render hacía que el lector leyera todo de nuevo                                                                                                                                    |
-| La línea de métricas, **fuera**                                | Cambia en cada turno: adentro es lo que más ruido genera                                                                                                                                                                                                           |
+| La línea de métricas, **fuera**, y sólo en modo debug          | Cambia en cada turno: adentro es lo que más ruido genera; desde la decisión 14 del PO (2026-09-26) tampoco se monta fuera del modo debug (`VITE_ASISTENTE_DEBUG`), el mismo switch de «Cómo lo interpreté»                                                         |
 | El indicador, en su propio `role="status"` y fuera del log     | Es un estado, no un mensaje de la conversación                                                                                                                                                                                                                     |
 | Umbral de aparición del indicador                              | Los tres carriles se diferencian en un orden de magnitud; un indicador que parpadea es peor que ninguno                                                                                                                                                            |
 | Foco al campo de entrada al responder                          | Quien usa teclado o lector no tiene que volver a buscarlo                                                                                                                                                                                                          |

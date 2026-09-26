@@ -215,6 +215,37 @@ describe("«Volver a consultar» sobre un turno restaurado (tasks.md 12.3, 12.4,
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  it("una mención re-resuelta por el backend se pinta como chip (decisión 15 del PO)", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([CONVERSACION]);
+    vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
+      hilo: HILO_EFIMERO_NUEVO,
+      turnos: [
+        {
+          ...TURNO_RESPONDIDO,
+          pregunta: "¿qué docentes están designados en @Algoritmos y Estructuras de Datos?",
+          menciones: [
+            {
+              tipo: "materia",
+              id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              etiqueta: "@Algoritmos y Estructuras de Datos",
+            },
+          ],
+        },
+      ],
+    });
+
+    montar(<PanelDePrueba />);
+    await userEvent.setup().click(await screen.findByText(CONVERSACION.titulo));
+
+    // Igual que un turno en vivo (`Menciones.test.tsx`): la mención re-ubicada
+    // en el texto de la pregunta se pinta como chip, no como texto plano.
+    expect(
+      await within(regionViva()).findByText("@Algoritmos y Estructuras de Datos", {
+        selector: ".adoc-asistente-mencion-chip--enviada",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("es operable por teclado y anuncia su desenlace por la región viva existente", async () => {
     const user = await reanudarConversacion();
     vi.spyOn(historialApi, "reejecutarTurno").mockResolvedValue({

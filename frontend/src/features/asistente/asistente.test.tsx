@@ -12,6 +12,14 @@ import type { RespuestaDelAsistente } from "./types";
 // tests reventaron por una diferencia de banco que ningún test estaba probando.
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 
+// La línea de métricas sólo se monta en modo debug (decisión 14 del PO,
+// 2026-09-26): este archivo no prueba ESE gate —lo hace `FranjaDeEstado.test.tsx`—,
+// sino el contrato de accesibilidad de la línea una vez montada (fuera de la
+// región viva), así que se fuerza el modo debug acá en vez de threadearlo como
+// prop por todo `PanelAsistente` (que hoy no lo expone, a diferencia de
+// `umbralDelIndicadorMs`).
+vi.mock("./utils/modoDebug", () => ({ modoDebugAsistente: true }));
+
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
 });

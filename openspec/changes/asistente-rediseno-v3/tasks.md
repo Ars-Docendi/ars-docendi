@@ -107,6 +107,10 @@ COLUMN IF NOT EXISTS` (one column each, no inline CHECK — commas in the array 
 - [x] 7.4 SQL lane: «Menciones» block with `$refN` markers in `GeneradorDeSql.ArmarMensaje` (prefix untouched); `TokenizadorSql`/`ValidadorDeSql` accept only declared markers and reject unused ones; `EjecutorDeConsulta` binds `uuid` parameters; thread and `turno_historico.referencias` keep marker SQL plus bindings; «Volver a consultar» and «Reanudar» rebind; `DetectorDeAmbiguedad` skips referenced terms. Verify: `ValidadorDeSqlTests`, `GeneracionDeSqlTests`, `CarrilSqlTests`, `HistorialControllerTests` (rerun with a reference); an integration test with the recorded provider asserting no request body contains the referenced uuid across a turn and its follow-up; `PrefijoDeLosCassettesTests` and `HigieneDeCassettesTests` still green.
 - [x] 7.5 Evaluation: add mention items (subject with homonym, teacher) to the capability dataset with their references. Verify: dataset tests (`DatasetDeCapacidadTests`) green; items documented in `backend/eval/README.md`.
 - [x] 7.6 Frontend: `api/mencionesApi.ts`; `components/PopoverDeMenciones.tsx` (hint under 2 letters, groups, career and code, cargo, «Hay más coincidencias…», scoped empty text, footer lock note and «Enter elige · Esc cierra»); combobox ARIA with `aria-activedescendant`; chips row in the composer; placeholder «Preguntá algo · @ materia · # docente»; mentions rendered as chips in the sent question; references sent only while their text remains. Verify: new `Menciones.test.tsx` covering every frontend scenario of `asistente-menciones`, including Escape not closing the modal and no request under 2 letters.
+
+  **Extended by 12.2** (PO-changed decision 15, 2026-09-26): a resumed/history turn's
+  mentions now render as chips too, reusing this same chip-in-text machinery.
+
 - [x] 7.7 Record the sensitivity-manifest review outcome (no change, reasoning of D10) in `docs/architecture/domains/asistente.md`. Verify: doc diff.
 
 ## 8. Remove suggestions except the welcome screen (ARS-149)
@@ -119,6 +123,10 @@ COLUMN IF NOT EXISTS` (one column each, no inline CHECK — commas in the array 
 
 - [x] 9.1 Pending turn: inline dots + «Consultando…» (`aria-hidden`, reduced-motion safe) while the threshold-gated `role="status"` stays outside the log. Verify: `asistente.turnos.test.tsx` — inline indicator after 400 ms, single announcement, no stages.
 - [x] 9.2 Composer: «Enviar» disabled when empty or before the threshold in flight, «Dejar de esperar» in its slot after the threshold; stopped note text unchanged; status strip under the composer with quota indicator, blocked text and metrics line, outside the live region. Verify: `EntradaDePregunta.test.tsx`, `FranjaDeEstado.test.tsx`, `EstadoDeCupoYMantenimiento.test.tsx` updated.
+
+  **Superseded by 12.4** (PO-changed decision 14, 2026-09-26): the metrics line moves
+  behind frontend debug mode; the quota indicator and blocked text stay unconditional.
+
 - [x] 9.3 Error box «No se pudo consultar» + «Reintentar», degraded/clarification alerts, maintenance banner at the top of the conversation column, neutral user bubble, «Entendí:», «Ver la consulta», debug-only «Cómo lo interpreté». Verify: existing tests for these states still pass after the restyle; `Mensaje.test.tsx` debug-mode cases unchanged.
 
 ## 10. Remove the `/asistente` page (ARS-151)
@@ -135,3 +143,78 @@ COLUMN IF NOT EXISTS` (one column each, no inline CHECK — commas in the array 
 - [x] 11.4 `docs/business-rules/asistente.md`: append to BR-`asistente`-005 that archived conversations follow the same 180-day retention and that a deletion is final after its undo window. Verify: doc diff.
 - [x] 11.5 Confirm the design spec § "Rediseño v3" (already updated by this change) matches what was built; adjust it in the same diff if implementation deviated. Verify: reviewer checklist.
 - [x] 11.6 Run `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`. Verify: all green, or the environment limitation recorded in the PR.
+
+## 12. PO-changed decisions 14 and 15 (2026-09-26)
+
+- [x] 12.1 Backend (decision 15): `ModelosHistorial.cs` — add `MencionDeHistorialDto(Tipo,
+Id, Etiqueta)`; `TurnoDeHistorialDto` gains a nullable `Menciones` list
+      (`[JsonIgnore(Condition = WhenWritingNull)]` so it is entirely absent, not an empty
+      array, when not resolved) plus an async `DeAsync` that resolves each
+      `turno_historico.referencias` entry via `IBuscadorDeMenciones.ResolverAsync` for the
+      actor reading now, omitting an entry that no longer resolves; `ConversacionDetalleDto`
+      gains a matching `DeAsync`. `HistorialController.Obtener` and `.Reanudar` call the
+      async path with the session's own actor; `SoporteHistorialController.Leer` keeps
+      calling the existing sync `De` untouched, so it never gains the field. Verify:
+      failing-first `HistorialControllerTests` — an in-scope reference produces a chip with
+      `tipo`/`id`/`etiqueta`, an out-of-scope one is silently omitted (never leaked, never a
+      crash), `Reanudar` carries the same chip data, a foreign conversation is still `404`;
+      `SoporteHistorialControllerTests` — `menciones` is absent (not `[]`) even when the
+      turn has persisted referencias.
+- [x] 12.2 Frontend (decision 15): `types.ts` — add `MencionDeHistorial { tipo; id; etiqueta
+}`, `TurnoDeHistorial.menciones?: MencionDeHistorial[]`. `useAsistente.ts` —
+      `sembrarDesdeHistorial` maps each turn's `menciones` (`{ tipo, id, etiqueta }` →
+      `{ tipo, id, texto: etiqueta }`) through the existing `ubicarMenciones` against
+      `t.pregunta` into `TurnoDeLaConversacion.menciones`, no new positioning code. No
+      change needed in `Mensaje.tsx` (`pintarPregunta` already renders any turno's
+      `menciones` unconditionally) nor in `reenviarUltima` (already calls
+      `ubicarMenciones(ultimo.menciones ?? [], limpio)`, so «Editar y reenviar» of a
+      resumed last question already carries a surviving reference once `menciones` is
+      populated). Verify: `HistorialAsistente.test.tsx` — a resumed turn's mention renders
+      as `.adoc-asistente-mencion-chip--enviada`; a further edit-and-resend of that turn
+      sends the reference in `referencias`.
+- [x] 12.3 Docs (decision 15, rule 6): `api-contracts.md` — `menciones` field on
+      `GET /historial/{hiloId}` and `POST /historial/{hiloId}/reanudar`, and its explicit
+      absence on `POST /soporte/historial/.../leer`; `domains/asistente.md` — replace the
+      "Límite conocido" paragraph about plain-text mentions in history with the implemented
+      behavior; design spec § "Rediseño v3" — replace its own "Límite conocido" bullet the
+      same way. Verify: doc diff; `OpcionesDocumentadasTests` still green.
+- [x] 12.4 Frontend (decision 14): `FranjaDeEstado`/`LineaDeMetricas` gain a `debug?:
+boolean` prop defaulting to `modoDebugAsistente` (same pattern as `Mensaje`'s);
+      `LineaDeMetricas` renders `null` when `debug` is off, regardless of whether the last
+      turn carries metrics. The quota indicator (`IndicadorDeCupo`) and the blocked text
+      stay unconditional. Verify: `FranjaDeEstado.test.tsx` — debug on → metrics line
+      present; debug off → absent from the DOM entirely, quota indicator unaffected either
+      way; `asistente.test.tsx`'s existing "la línea de métricas queda fuera de la región
+      viva" test updated to render with `debug` on so it keeps testing what it says.
+- [x] 12.5 Docs (decision 14, rule 6): design spec § "Rediseño v3" — the layout diagram, the
+      composer paragraph and the "Mantenimiento / cupo" states table (new "Métricas" row)
+      now say the metrics line is debug-only; the "Desvíos del mock" bullet listing what's
+      kept undrawn updates accordingly. `domains/asistente.md`'s accessibility table row
+      about the metrics line living outside the log gets the same debug-only note. Verify:
+      doc diff.
+- [x] 12.6 Run the full verification suite (rule 5/the brief): `dotnet test
+backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend
+lint`, `pnpm --filter frontend build`, `pnpm format:check`, `dotnet format
+backend/ArsDocendi.slnx --verify-no-changes` on touched files, `pnpm exec openspec
+validate --all --strict`. Verify: all green, or the environment limitation recorded
+      in the report.
+- [x] 12.7 Backend gap found before commit (decision 15): `turno_historico.referencias`
+      was only ever written from `ResultadoDelTurno.ReferenciasEjecutadas`, which only
+      `CarrilSql`'s fully-resolved success path sets — a mention turn that ended in
+      refusal, a clarification menu, degradation, or a social/meta reply never entered
+      that path, so it resumed with no chip and «Editar y reenviar» lost the reference.
+      `CapaConversacional.RegistrarAsync` now falls back to numbering the request's own
+      declared, already-validated `mencionesNuevas` with `MarcadoresDeReferencias.Asignar`
+      (no `consultasAnteriores`) whenever `ReferenciasEjecutadas` is null or empty, and
+      persists that instead; `sql_resuelto` stays null either way, only `referencias`
+      gains the fallback. The live in-memory thread (`TurnoDelHilo`/`ReferenciasVigentes`)
+      is untouched — only the SQL lane ever adds a `TurnoDelHilo`. Verify: failing-first
+      `EndpointDeConsultasTests` — a mention turn scripted to end `no_contestable`
+      persists its reference (`sql_resuelto` stays null), and one that triggers a
+      clarification menu (a seeded homonym) does too; both confirmed red without the
+      fix (2 failing) and green with it, via `GET /historial/{hiloId}` exposing
+      `menciones` and `Reanudar` exposing them too. Full backend suite green
+      (1740/1740). Docs updated in the same diff: `data-model.md`
+      (`turno_historico.referencias` no longer implies `sql_resuelto` uses it),
+      `domains/asistente.md`, design.md D11, and the `asistente-menciones` delta spec
+      (new requirement text + 4 scenarios covering both non-SQL lanes).

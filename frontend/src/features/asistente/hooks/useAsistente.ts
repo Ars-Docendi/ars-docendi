@@ -287,6 +287,19 @@ export function useAsistente(): Asistente {
         turnosHistoricos.map((t) => ({
           id: t.id,
           pregunta: t.pregunta,
+          // Las menciones ya vienen re-resueltas por el backend para ESTE
+          // actor (`menciones: [{ tipo, id, etiqueta }]`, decisión 15 del PO,
+          // design.md D11 de asistente-rediseno-v3): se reusa la misma
+          // `ubicarMenciones` que ya ubica un chip en vivo, tratando cada
+          // mención como un chip cuyo texto es su `etiqueta`. Así `Mensaje`
+          // pinta el chip igual que en un turno en vivo, y `reenviarUltima`
+          // —que ya llama `ubicarMenciones(ultimo.menciones ?? [], limpio)`—
+          // conserva la referencia al editar y reenviar sin ningún cambio
+          // propio.
+          menciones: ubicarMenciones(
+            (t.menciones ?? []).map((m) => ({ tipo: m.tipo, id: m.id, texto: m.etiqueta })),
+            t.pregunta,
+          ),
           historico: { estado: t.estado, sql: t.sql ?? null, ocurrioEn: t.ocurrioEn },
         })),
       );

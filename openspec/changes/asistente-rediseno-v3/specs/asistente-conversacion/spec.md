@@ -27,16 +27,33 @@ The system SHALL keep, restyled with the v3 tokens and layout: the transport-err
 titled «No se pudo consultar» with «Reintentar»; the stopped-waiting note; the degraded
 and clarification alerts; the maintenance banner at the top of the conversation column;
 the remaining-quota indicator and the blocked-state text in a strip under the composer,
-outside the conversation live region; «Entendí: …» when the question was reinterpreted;
-«Ver la consulta» only with the query-visibility permission; and «Cómo lo interpreté» only
-in frontend debug mode. The user's question SHALL be shown right-aligned on the neutral
-bubble of the v3 design.
+outside the conversation live region, visible to every actor regardless of debug mode;
+«Entendí: …» when the question was reinterpreted; «Ver la consulta» only with the
+query-visibility permission; and «Cómo lo interpreté» only in frontend debug mode. The
+metrics line («N consultas al modelo» / «Resuelto sin consultar al modelo») joins the
+quota indicator and blocked-state text in the same strip, but — PO-changed
+(2026-09-26) — only in frontend debug mode, the same switch that gates «Cómo lo
+interpreté»: outside debug mode it never mounts, regardless of whether the last turn
+carries metrics. The user's question SHALL be shown right-aligned on the neutral bubble
+of the v3 design.
 
 #### Scenario: The quota indicator stays out of the live region
 
 - **GIVEN** an actor with a daily quota
 - **WHEN** a turn completes and the indicator updates
 - **THEN** the update is shown in the strip under the composer and is not part of the conversation live region
+
+#### Scenario: The metrics line is absent outside debug mode
+
+- **GIVEN** frontend debug mode is off and a turn just answered
+- **WHEN** the user looks at the strip under the composer
+- **THEN** the quota indicator is shown and the metrics line does not exist in the DOM
+
+#### Scenario: The metrics line appears in debug mode
+
+- **GIVEN** frontend debug mode is on and a turn just answered
+- **WHEN** the user looks at the strip under the composer
+- **THEN** the metrics line reads how many model calls that turn cost, next to the quota indicator
 
 #### Scenario: The error box offers «Reintentar»
 
