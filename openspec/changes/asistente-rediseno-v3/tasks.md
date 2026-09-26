@@ -61,9 +61,9 @@
 
 ## 8. Remove suggestions except the welcome screen (ARS-149)
 
-- [ ] 8.1 Backend: delete `ISugerenciasDeSeguimiento`, `SugerenciasDeSeguimiento`, `Sugerencias`, the `sugerencias` parameter of `FabricasDelResultado.SinDatos`, `ResultadoDelTurno.Sugerencias`, `RespuestaDelAsistente.Sugerencias`, the DI registration and the call sites in `CarrilSql` and `CapaConversacional`. Verify: `dotnet build` clean; `SugerenciasYConsultaTests` rewritten to assert no response carries suggestions (refusal, answer, clarification, meta-question) and options stay on clarifications.
-- [ ] 8.2 Evaluation: `RunnerSocial.EvaluarNoContestable` passes on abstention alone; `social.json` description updated; `RunnersDeEjesTests.Un_no_contestable_sin_sugerencias_falla` replaced by "abstention passes / answering fails". Verify: evaluation tests green.
-- [ ] 8.3 Frontend: delete `Sugerencias.tsx` and its test, the `sugerencias` TS field and its rendering in `Mensaje.tsx`; `EstadoInicial` renders the catalog examples as a 2 × 2 card grid. Verify: `Mensaje.test.tsx` asserts no suggestion section for any state; `EstadoInicial.test.tsx` updated.
+- [x] 8.1 Backend: delete `ISugerenciasDeSeguimiento`, `SugerenciasDeSeguimiento`, `Sugerencias`, the `sugerencias` parameter of `FabricasDelResultado.SinDatos`, `ResultadoDelTurno.Sugerencias`, `RespuestaDelAsistente.Sugerencias`, the DI registration and the call sites in `CarrilSql` and `CapaConversacional`. Verify: `dotnet build` clean; `SugerenciasYConsultaTests` rewritten to assert no response carries suggestions (refusal, answer, clarification, meta-question) and options stay on clarifications.
+- [x] 8.2 Evaluation: `RunnerSocial.EvaluarNoContestable` passes on abstention alone; `social.json` description updated; `RunnersDeEjesTests.Un_no_contestable_sin_sugerencias_falla` replaced by "abstention passes / answering fails". Verify: evaluation tests green.
+- [x] 8.3 Frontend: delete `Sugerencias.tsx` and its test, the `sugerencias` TS field and its rendering in `Mensaje.tsx`; `EstadoInicial` renders the catalog examples as a 2 × 2 card grid. Verify: `Mensaje.test.tsx` asserts no suggestion section for any state; `EstadoInicial.test.tsx` updated.
 
 ## 9. Integrate existing states in v3 (ARS-150)
 

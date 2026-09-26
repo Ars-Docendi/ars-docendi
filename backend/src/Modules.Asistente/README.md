@@ -239,10 +239,11 @@ los dos anteriores. Ver «El historial de conversaciones y el acceso de soporte�
 
 ### El contrato de respuesta
 
-`opciones` y `sugerencias` son campos **separados**. Las opciones bloquean el turno
-esperando una elección; las sugerencias no bloquean nada. Un solo campo obligaría a la
-interfaz a adivinar cuál le llegó mirando el estado, y el día que un turno respondido
-quiera sugerir algo la distinción se pierde del todo.
+`opciones` bloquea el turno esperando una elección, y sólo existe cuando `estado =
+necesita_aclaracion`. No hay un campo equivalente para después de una respuesta o un
+rechazo: el asistente ya no sugiere próximos pasos fuera de la bienvenida (ARS-149,
+design.md D12 de asistente-rediseno-v3) — el catálogo de `/capacidades` sigue siendo
+la única fuente de ejemplos clicables, y vive ahí, no en el turno.
 
 `estado` viaja con etiquetas propias del contrato (`respondida`, `no_contestable`,
 `necesita_aclaracion`, `servicio_degradado`) y no con el nombre del enum: renombrarlo
@@ -262,11 +263,6 @@ respuesta —no en el controller—, para que cualquier camino nuevo lo herede.
 del turno en `registro_analitico`, generada por la aplicación y no por el `DEFAULT`
 de la columna, para que sea el mismo valor que el escritor del registro usa después.
 Ver «La retroalimentación».
-
-`sugerencias` ya no es exclusivo del rechazo: un turno respondido también puede
-traerlas, elegidas por categoría contra el mismo catálogo y filtradas por la misma
-verificación `EXPLAIN` que usa `/capacidades`. Vacío cuando nada del catálogo
-califica —nunca un relleno genérico—, a diferencia del rechazo.
 
 ### La retroalimentación
 

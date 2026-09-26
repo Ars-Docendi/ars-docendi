@@ -208,7 +208,6 @@ internal sealed class BancoDelAsistente
                     indice,
                     new ReescritorDePreguntas(conTecho, Options.Create(new OpcionesAsistente())),
                     carril,
-                    new SelectorDeEjemplos(),
                     catalogo,
                     enrutador,
                     conTecho,
@@ -279,9 +278,7 @@ internal sealed class BancoDelAsistente
             ejecutor,
             new ConsultorDeAlcance(apertura),
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
-            new SelectorDeEjemplos(),
             new ConsultorDeCobertura(apertura),
-            new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()),
             contador,
             log);
 }

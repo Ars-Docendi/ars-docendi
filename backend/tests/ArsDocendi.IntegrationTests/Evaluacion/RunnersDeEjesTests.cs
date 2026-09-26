@@ -79,10 +79,10 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Un_no_contestable_sin_sugerencias_falla()
+    public async Task Un_no_contestable_que_se_abstiene_aprueba()
     {
-        // Abstenerse no alcanza: un «no puedo» sin salida deja al usuario sin nada
-        // que hacer, y el rechazo cooperativo existe justamente para eso.
+        // Abstenerse ALCANZA (ARS-149): el turno ya no lleva sugerencias, así que
+        // el criterio no puede seguir exigiéndolas para acreditar el ítem.
         await SembrarAsync();
         var banco = Banco(out var medidor,
             [ProveedorGuionado.NoContestable(), .. GuionDeTurnos(2)]);
@@ -101,10 +101,44 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
 
         var abstenido = Assert.Single(resultado.Reporte!.Resultados, r => r.Id == "nc1");
 
-        // El carril SÍ sugiere hoy, así que este ítem aprueba. Lo que el test fija es
-        // que el criterio EXIGE las sugerencias: sin ellas, el desenlace sería otro.
         Assert.Equal(DesenlaceDeItem.AbstencionCorrecta, abstenido.Desenlace);
-        Assert.Contains("sugirió", abstenido.Detalle, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_no_contestable_que_el_modelo_responde_falla()
+    {
+        // RESPONDER LO QUE NO SE PODÍA RESPONDER SIGUE SIENDO EL FALLO QUE ESTE EJE
+        // MIDE. Sin la exigencia de sugerencias, lo único que distingue acierto de
+        // fallo en este ítem es si el turno se abstuvo o contestó.
+        //
+        // SIN `ConPreflight`/`GuionDeTurnos` A PROPÓSITO: ese prefijo es para
+        // `RunnerDeCapacidad`/`RunnerDeDialogo`, que sí piden una completación
+        // trivial antes de evaluar. `RunnerSocial` no tiene preflight (ver su
+        // propio remark), así que el primer turno consume directo la primera
+        // entrada del guion.
+        await SembrarAsync();
+        var banco = Banco(
+            out var medidor,
+            [
+                ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes designados.",
+                ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes designados.",
+            ]);
+
+        var resultado = await Social(banco, medidor).CorrerAsync(
+            DatasetSocial.Interpretar("""
+                {"items": [
+                  {"id": "nc1", "clase": "no_contestable", "actor": "global",
+                   "pregunta": "¿cuántos docentes están designados?"},
+                  {"id": "n1", "clase": "negativo", "actor": "global",
+                   "pregunta": "¿cuántos docentes están designados?"}
+                ]}
+                """),
+            Sello,
+            TestContext.Current.CancellationToken);
+
+        var respondido = Assert.Single(resultado.Reporte!.Resultados, r => r.Id == "nc1");
+
+        Assert.Equal(DesenlaceDeItem.IntentoSobreLoInfactible, respondido.Desenlace);
     }
 
     [Fact]

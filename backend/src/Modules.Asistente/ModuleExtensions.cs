@@ -259,12 +259,6 @@ public static class ModuleExtensions
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
 
-        // Follow-up suggestions after a successful turn: category match plus the
-        // same actor-scoped executability check /capacidades already applies to
-        // its own examples. Scoped like the rest of the carril: it opens an
-        // actor-scoped connection per turn.
-        services.AddScoped<ISugerenciasDeSeguimiento, SugerenciasDeSeguimiento>();
-
         services.AddScoped<CarrilSql>();
 
         // ---------------------------------------------- capa conversacional

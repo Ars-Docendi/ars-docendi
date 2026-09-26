@@ -12,8 +12,10 @@ interface OpcionesProps {
  * El menú de una aclaración.
  *
  * BLOQUEAN el turno: hasta que el usuario elija, la pregunta original no se puede
- * responder. Por eso se presentan como una elección que continúa lo que empezó —y no
- * como preguntas nuevas, que es lo que son las sugerencias—.
+ * responder. Es el único campo del turno que ofrece algo para elegir: desde
+ * ARS-149 el asistente ya no sugiere próximos pasos después de un rechazo o de
+ * una respuesta — los únicos ejemplos clicables son los de la bienvenida
+ * (`EstadoInicial`), que no bloquean nada porque ahí todavía no hay turno.
  */
 export function Opciones({ opciones, onElegir, deshabilitado }: OpcionesProps) {
   if (opciones.length === 0) return null;

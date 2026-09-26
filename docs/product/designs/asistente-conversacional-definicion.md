@@ -143,28 +143,28 @@ la API no tiene.
 
 ### 3.1 Funcionales
 
-| ID    | Requisito                                                                                             |
-| ----- | ----------------------------------------------------------------------------------------------------- |
-| RF-01 | Consulta en español, respuesta redactada en español                                                   |
-| RF-02 | Enrutado determinista a tres carriles: sin datos · API · SQL                                          |
-| RF-03 | El carril social y meta resuelve con **0 tokens**                                                     |
-| RF-04 | Catálogo de capacidades **por actor**, derivado de los GRANT efectivos y nunca del payload del prompt |
-| RF-05 | Rechazo cooperativo con `sugerencias`, campo distinto de `opciones`                                   |
-| RF-06 | Desambiguación por consulta a la base, sin LLM                                                        |
-| RF-07 | Reconocer la respuesta a una aclaración: etiqueta → token distintivo → ordinal                        |
-| RF-08 | Seguimiento conversacional con reescritura a pregunta autocontenida                                   |
-| RF-09 | El cambio de tema **fuerza** historial vacío; no se le pide al modelo que lo ignore                   |
-| RF-10 | Mostrar `pregunta_interpretada` cuando difiere del mensaje del usuario                                |
-| RF-11 | Transparencia **media**: exponer `razonamiento`, sin explicación paso a paso                          |
-| RF-12 | Enmascarar datos sensibles hacia el LLM; valores reales al cliente                                    |
-| RF-13 | Autorización por **permiso leído en runtime**, dentro del predicado RLS                               |
-| RF-14 | Cuatro estados: respondida · no contestable · necesita aclaración · servicio degradado                |
-| RF-15 | Feedback progresivo con estados honestos y umbral de aparición                                        |
-| RF-16 | Registro operativo y analítico **desvinculados entre sí**                                             |
-| RF-17 | Política de abstención (sección 3.3)                                                                  |
-| RF-18 | La fecha de referencia es un parámetro del turno                                                      |
-| RF-19 | El modo degradado resuelve por los carriles deterministas                                             |
-| RF-20 | Cuota por actor medida en **llamadas al LLM**, no en requests HTTP                                    |
+| ID    | Requisito                                                                                                                                            |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RF-01 | Consulta en español, respuesta redactada en español                                                                                                  |
+| RF-02 | Enrutado determinista a tres carriles: sin datos · API · SQL                                                                                         |
+| RF-03 | El carril social y meta resuelve con **0 tokens**                                                                                                    |
+| RF-04 | Catálogo de capacidades **por actor**, derivado de los GRANT efectivos y nunca del payload del prompt                                                |
+| RF-05 | Rechazo cooperativo explicado en su propio texto, sin `sugerencias` (ARS-140, ARS-149); `opciones` sigue existiendo, pero sólo bloquea la aclaración |
+| RF-06 | Desambiguación por consulta a la base, sin LLM                                                                                                       |
+| RF-07 | Reconocer la respuesta a una aclaración: etiqueta → token distintivo → ordinal                                                                       |
+| RF-08 | Seguimiento conversacional con reescritura a pregunta autocontenida                                                                                  |
+| RF-09 | El cambio de tema **fuerza** historial vacío; no se le pide al modelo que lo ignore                                                                  |
+| RF-10 | Mostrar `pregunta_interpretada` cuando difiere del mensaje del usuario                                                                               |
+| RF-11 | Transparencia **media**: exponer `razonamiento`, sin explicación paso a paso                                                                         |
+| RF-12 | Enmascarar datos sensibles hacia el LLM; valores reales al cliente                                                                                   |
+| RF-13 | Autorización por **permiso leído en runtime**, dentro del predicado RLS                                                                              |
+| RF-14 | Cuatro estados: respondida · no contestable · necesita aclaración · servicio degradado                                                               |
+| RF-15 | Feedback progresivo con estados honestos y umbral de aparición                                                                                       |
+| RF-16 | Registro operativo y analítico **desvinculados entre sí**                                                                                            |
+| RF-17 | Política de abstención (sección 3.3)                                                                                                                 |
+| RF-18 | La fecha de referencia es un parámetro del turno                                                                                                     |
+| RF-19 | El modo degradado resuelve por los carriles deterministas                                                                                            |
+| RF-20 | Cuota por actor medida en **llamadas al LLM**, no en requests HTTP                                                                                   |
 
 ### 3.2 No funcionales
 
@@ -197,15 +197,15 @@ la API no tiene.
 
 ### 3.3 Política de abstención
 
-| #   | Cuándo                                                                   | Qué devuelve                                          |
-| --- | ------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 1   | El esquema no cubre la pregunta                                          | No contestable **+ sugerencias**                      |
-| 2   | Choque de valores (apellido compartido, materia repetida entre carreras) | Necesita aclaración + opciones                        |
-| 3   | Resultado vacío **y actor no global**                                    | «No encontré nada en tu alcance» — **nunca «no hay»** |
-| 4   | El resultado se truncó                                                   | Sin afirmar conteo                                    |
-| 5   | El validador rechaza la SQL                                              | No contestable, sin reintento ciego                   |
-| 6   | Proveedor caído o cuota agotada                                          | Servicio degradado                                    |
-| 7   | El dato existe pero falta el permiso                                     | «No tenés acceso» — **nunca «no hay»**                |
+| #   | Cuándo                                                                   | Qué devuelve                                            |
+| --- | ------------------------------------------------------------------------ | ------------------------------------------------------- |
+| 1   | El esquema no cubre la pregunta                                          | No contestable, explicado en el texto (sin sugerencias) |
+| 2   | Choque de valores (apellido compartido, materia repetida entre carreras) | Necesita aclaración + opciones                          |
+| 3   | Resultado vacío **y actor no global**                                    | «No encontré nada en tu alcance» — **nunca «no hay»**   |
+| 4   | El resultado se truncó                                                   | Sin afirmar conteo                                      |
+| 5   | El validador rechaza la SQL                                              | No contestable, sin reintento ciego                     |
+| 6   | Proveedor caído o cuota agotada                                          | Servicio degradado                                      |
+| 7   | El dato existe pero falta el permiso                                     | «No tenés acceso» — **nunca «no hay»**                  |
 
 **Restricción dura**: nunca declarar cuántas filas quedaron afuera. «Ves 3 de 124» es un canal
 de inferencia sobre datos que el usuario no puede ver.
@@ -433,7 +433,7 @@ de vuelta, no el de ida.
 | `GET /api/asistente/ping`        | `[AllowAnonymous]`, sin base ni proveedor — invariante #3 |
 
 Respuesta: `estado` (los cuatro) · `respuesta` · `pregunta_interpretada?` · `razonamiento?` ·
-`opciones[]?` · `sugerencias[]?` · `filas[]?` · `columnas[]` con marca de sensibilidad · `sql?`
+`opciones[]?` · `filas[]?` · `columnas[]` con marca de sensibilidad · `sql?`
 detrás de permiso · `metricas{}`.
 
 **`Idempotency-Key` obligatorio** en el POST — un doble submit cuesta 2 o 3 llamadas al LLM. Se

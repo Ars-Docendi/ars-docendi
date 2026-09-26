@@ -25,7 +25,6 @@ public sealed class CapaConversacional(
     IIndiceDeEntidades indice,
     ReescritorDePreguntas reescritor,
     CarrilSql carril,
-    ISelectorDeEjemplos ejemplos,
     ICatalogoDeCapacidades capacidades,
     EnrutadorDeDominio enrutador,
     IProveedorDeModelo proveedor,
@@ -500,10 +499,7 @@ public sealed class CapaConversacional(
             {
                 var puede = await capacidades.ObtenerAsync(actor, ct);
 
-                return FabricasDelResultado.SinDatos(
-                    conversacion,
-                    RedaccionDeCapacidades.Texto(puede),
-                    puede.Ejemplos);
+                return FabricasDelResultado.SinDatos(conversacion, RedaccionDeCapacidades.Texto(puede));
             }
 
             if (intencion != IntencionSocial.Ninguna)
@@ -682,8 +678,7 @@ public sealed class CapaConversacional(
                 [],
                 GeneracionDeSql.CategoriaNoContestable,
                 LlamadasAlModelo: 0,
-                conversacion.Id,
-                Sugerencias: Sugerencias.Para(pendiente.PreguntaOriginal, ejemplos)));
+                conversacion.Id));
         }
 
         return (mensaje, FabricasDelResultado.NecesitaAclaracion(

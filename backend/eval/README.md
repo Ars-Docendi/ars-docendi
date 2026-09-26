@@ -138,6 +138,12 @@ Se miden **tokens y no llamadas**: cero llamadas implica cero tokens, pero no al
 —un proveedor que devuelve vacío consumió entrada igual—. El número sale del
 transporte, con un decorador que es a la vez el instrumento.
 
+Los ítems `no_contestable` aprueban con la **sola abstención** —no contestable o
+necesita aclaración—; responder los hace fallar. Hasta ARS-149 el criterio exigía
+además que el turno sugiriera algo; el turno ya no lleva un campo de sugerencias
+(design.md D12 de asistente-rediseno-v3), así que exigirlo sería pedir algo que el
+contrato dejó de prometer.
+
 Los ítems **negativos** son preguntas legítimas tomadas del eje de capacidad y de las
 clases coloquial y parcial de robustez: el enrutador **no** debe capturarlas, y
 capturarlas resta. Sin negativos, un enrutador que se come todo daría perfecto.

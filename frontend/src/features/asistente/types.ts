@@ -57,10 +57,13 @@ export interface RespuestaDelAsistente {
   hilo: string;
   preguntaInterpretada?: string | null;
   razonamiento?: string | null;
-  /** Bloquean el turno: hay que elegir una para seguir. */
+  /**
+   * Bloquean el turno: hay que elegir una para seguir. Sólo llega con
+   * `estado = "necesita_aclaracion"`. Ningún otro estado ofrece preguntas
+   * nuevas para probar — desde ARS-149 el único lugar con ejemplos clicables
+   * es la bienvenida (`capacidades.ejemplos`).
+   */
   opciones: OpcionDeAclaracion[];
-  /** NO bloquean nada: son preguntas nuevas que se sabe que funcionan. */
-  sugerencias: string[];
   columnas: ColumnaDelResultado[];
   filas: unknown[][];
   /** Booleano y nunca un conteo: cuántas filas faltan es un canal de inferencia. */

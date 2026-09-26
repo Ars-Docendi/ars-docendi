@@ -237,6 +237,17 @@ export const arrowDownIcon = (
 );
 
 /**
+ * Flecha hacia la derecha. Va al final de cada tarjeta de ejemplo de la
+ * bienvenida del asistente: marca que la tarjeta hace algo (envía la
+ * pregunta), no que navega a otro lado.
+ */
+export const arrowRightIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M3.5 9h11M9.5 4.5 14 9l-4.5 4.5" />
+  </svg>
+);
+
+/**
  * Pulgar hacia arriba. Va en el botón «Me sirvió» de la calificación de un
  * turno del asistente.
  */

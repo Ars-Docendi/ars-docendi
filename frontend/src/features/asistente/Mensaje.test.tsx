@@ -163,6 +163,30 @@ describe("Lo que nunca se muestra", () => {
   });
 });
 
+// ============================================================
+// Sin sugerencias en ningún estado (ARS-140, ARS-149).
+//
+// El turno ya no lleva un campo de sugerencias — `Sugerencias.tsx` y su bloque
+// se borraron con el rediseño v3. Este test no depende de ese componente, que
+// ya no existe: cubre que ningún estado deje una sección de "próximos pasos"
+// donde antes vivían las sugerencias, sea cual sea el texto del rechazo o de
+// la respuesta.
+// ============================================================
+
+describe("Sin sugerencias en ningún estado", () => {
+  it.each<RespuestaDelAsistente["estado"]>([
+    "respondida",
+    "no_contestable",
+    "necesita_aclaracion",
+    "servicio_degradado",
+  ])("el estado %s no ofrece ninguna sugerencia", (estado) => {
+    montarMensaje(turno({ estado, respuesta: "Un texto cualquiera." }));
+
+    expect(screen.queryByText("Probá con alguna de estas:")).toBeNull();
+    expect(document.querySelector(".adoc-asistente-sugerencias")).toBeNull();
+  });
+});
+
 // ------------------------------------------------------------------- copiar
 
 const TABLA: Partial<RespuestaDelAsistente> = {

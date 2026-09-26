@@ -1,13 +1,14 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente;
+using Modules.Asistente.Api;
 using Modules.Asistente.Application;
-using Modules.Asistente.Infrastructure;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica el rechazo cooperativo y la consulta detrás de permiso (ARS-47).
+/// Verifica que ningún turno vuelve a traer sugerencias (ARS-140, ARS-149) y la
+/// consulta detrás de permiso (ARS-47).
 /// </summary>
 /// <remarks>
 /// Las dos cosas comparten un mismo criterio: qué se le devuelve al usuario cuando
@@ -26,10 +27,27 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     private const string ContarDocentes =
         "SELECT count(*) AS cantidad FROM designaciones.designaciones";
 
-    // ------------------------------------------------------- las sugerencias
+    // ------------------------------------------- sin sugerencias en ningún turno
 
     [Fact]
-    public async Task Un_rechazo_trae_sugerencias_y_no_trae_opciones()
+    public void ResultadoDelTurno_no_declara_un_campo_de_sugerencias()
+    {
+        // Estructural y no de comportamiento (design.md D12 de
+        // asistente-rediseno-v3): si alguien reintroduce el campo, este test lo
+        // nota sin depender de qué camino del carril lo llene.
+        Assert.Null(typeof(ResultadoDelTurno).GetProperty("Sugerencias"));
+    }
+
+    [Fact]
+    public void RespuestaDelAsistente_no_declara_un_campo_de_sugerencias()
+    {
+        // Mismo invariante, en el contrato HTTP: `opciones` es el único campo de
+        // "qué hacer ahora", y sólo bloquea en la aclaración.
+        Assert.Null(typeof(RespuestaDelAsistente).GetProperty("Sugerencias"));
+    }
+
+    [Fact]
+    public async Task Un_rechazo_no_trae_opciones()
     {
         await SembrarAsync();
         var banco = Banco(ProveedorGuionado.NoContestable());
@@ -39,17 +57,15 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
             TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
-        Assert.NotNull(turno.Sugerencias);
-        Assert.NotEmpty(turno.Sugerencias!);
         Assert.True(turno.Opciones is null or { Count: 0 });
     }
 
     [Fact]
-    public async Task Una_aclaracion_trae_opciones_y_no_trae_sugerencias()
+    public async Task Una_aclaracion_trae_opciones()
     {
-        // ES LA DISTINCIÓN ENTERA. Las opciones BLOQUEAN el turno esperando una
-        // elección; las sugerencias no bloquean nada. Un solo campo para las dos
-        // cosas obligaría a la interfaz a adivinar cuál le llegó.
+        // La aclaración sigue siendo el único estado que bloquea el turno con un
+        // menú: eso no lo tocó ARS-149, que sólo quitó las sugerencias del rechazo
+        // y del turno respondido.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco();
@@ -61,42 +77,10 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
         Assert.NotNull(turno.Opciones);
         Assert.NotEmpty(turno.Opciones!);
-        Assert.True(turno.Sugerencias is null or { Count: 0 });
     }
 
     [Fact]
-    public async Task Cada_sugerencia_es_la_pregunta_de_un_ejemplo_verificado()
-    {
-        // No salen del modelo. Las del catálogo tienen su consulta al lado, ejecutan
-        // sin error y pasan el validador: son, por construcción, cosas que el
-        // asistente sabe hacer. Una sugerencia que no funciona convierte un rechazo
-        // honesto en dos, y el segundo con la pregunta que el propio sistema propuso.
-        await SembrarAsync();
-        var banco = Banco(ProveedorGuionado.NoContestable());
-        var catalogo = new SelectorDeEjemplos().Catalogo.Select(e => e.Pregunta).ToHashSet(
-            StringComparer.Ordinal);
-
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria, null, "¿cuánto sale el café de la máquina?",
-            TestContext.Current.CancellationToken);
-
-        Assert.All(turno.Sugerencias!, sugerencia => Assert.Contains(sugerencia, catalogo));
-    }
-
-    [Fact]
-    public void Sin_parecido_lexico_igual_hay_sugerencias()
-    {
-        // El selector devuelve vacío a propósito cuando ninguna se parece lo
-        // suficiente. El requisito pide que SIEMPRE haya al menos una, así que
-        // ahí se cae a las primeras del catálogo.
-        var ejemplos = new SelectorDeEjemplos();
-
-        Assert.Empty(ejemplos.Elegir("zxqwv plffk"));
-        Assert.NotEmpty(Sugerencias.Para("zxqwv plffk", ejemplos));
-    }
-
-    [Fact]
-    public async Task Un_rechazo_del_validador_tambien_sugiere()
+    public async Task Un_rechazo_del_validador_resuelve_no_contestable_sin_reintentar()
     {
         await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion("DELETE FROM designaciones.pedidos"));
@@ -106,14 +90,12 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
             TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
-        Assert.NotEmpty(turno.Sugerencias!);
+        Assert.True(turno.Opciones is null or { Count: 0 });
     }
 
     [Fact]
-    public async Task Un_servicio_degradado_no_sugiere_nada()
+    public async Task Un_servicio_degradado_no_trae_opciones()
     {
-        // La pregunta no tiene nada de malo: proponerle otra al usuario le sugeriría
-        // que el problema es suyo, cuando el problema es del proveedor.
         await SembrarAsync();
         var banco = Banco(new OpcionesAsistente { FallosParaAbrirElBreaker = 1 });
         banco.Breaker.Fallo();
@@ -123,43 +105,11 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
             TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.ServicioDegradado, turno.Estado);
-        Assert.True(turno.Sugerencias is null or { Count: 0 });
-    }
-
-    // ------------------------------- follow-up suggestions after success (4.x)
-
-    [Fact]
-    public void ParaCategoria_matches_by_category_and_excludes_the_just_answered_query()
-    {
-        EjemploSql[] catalogo =
-        [
-            new("¿Qué carreras están vigentes?", "SELECT 1", "consulta_simple"),
-            new("¿Cuántos pedidos hay?", "SELECT 2", "consulta_simple"),
-            new("¿Qué docentes hay?", "SELECT 3", "cruce_de_tablas"),
-        ];
-
-        var elegidos = Sugerencias.ParaCategoria("consulta_simple", "SELECT 1", catalogo);
-
-        Assert.Equal(["¿Cuántos pedidos hay?"], elegidos.Select(e => e.Pregunta));
+        Assert.True(turno.Opciones is null or { Count: 0 });
     }
 
     [Fact]
-    public void ParaCategoria_with_no_executed_sql_keeps_every_category_match()
-    {
-        EjemploSql[] catalogo =
-        [
-            new("A", "SELECT 1", "agregacion"),
-            new("B", "SELECT 2", "agregacion"),
-            new("C", "SELECT 3", "cruce_de_tablas"),
-        ];
-
-        var elegidos = Sugerencias.ParaCategoria("agregacion", null, catalogo);
-
-        Assert.Equal(["A", "B"], elegidos.Select(e => e.Pregunta));
-    }
-
-    [Fact]
-    public async Task A_successful_turn_suggests_up_to_three_executable_examples_of_its_category()
+    public async Task Un_turno_respondido_no_trae_opciones()
     {
         await SembrarAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes));
@@ -169,79 +119,25 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
             TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.NotNull(turno.Sugerencias);
-        Assert.NotEmpty(turno.Sugerencias!);
-        Assert.True(turno.Sugerencias!.Count <= Sugerencias.Cuantas);
-
-        var catalogo = new SelectorDeEjemplos().Catalogo
-            .Where(e => e.Categoria == "cruce_de_tablas")
-            .Select(e => e.Pregunta)
-            .ToHashSet(StringComparer.Ordinal);
-        Assert.All(turno.Sugerencias!, sugerencia => Assert.Contains(sugerencia, catalogo));
+        Assert.True(turno.Opciones is null or { Count: 0 });
     }
 
     [Fact]
-    public async Task A_successful_turn_never_suggests_back_the_query_it_just_ran()
+    public async Task La_meta_pregunta_responde_sin_llamar_al_modelo_y_sin_opciones()
     {
+        // La meta-pregunta («¿qué podés hacer?») lista sus ejemplos ejecutables
+        // ADENTRO del texto (RedaccionDeCapacidades.Texto) — no hay un segundo
+        // campo aparte desde ARS-149. Ver CapacidadesTests para la aserción sobre
+        // ese texto.
         await SembrarAsync();
-        var yaRespondida = new SelectorDeEjemplos().Catalogo
-            .First(e => e.Categoria == "cruce_de_tablas");
-        var banco = Banco(ProveedorGuionado.Generacion(yaRespondida.Sql));
+        var banco = Banco();
 
         var turno = await banco.Capa().ResponderAsync(
-            Secretaria, null, yaRespondida.Pregunta, TestContext.Current.CancellationToken);
+            Secretaria, null, "¿qué podés hacer?", TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.DoesNotContain(yaRespondida.Pregunta, turno.Sugerencias ?? []);
-    }
-
-    [Fact]
-    public async Task A_successful_turn_in_a_category_with_no_catalog_match_suggests_nothing()
-    {
-        // "ambigua" has zero entries in the real catalog (see the categories
-        // asserted in EjemplosEjecutablesTests-adjacent coverage): there is
-        // nothing to fall back to, and the requirement is that nothing does.
-        await SembrarAsync();
-        const string SinCoincidencias = """
-            {"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaciones.pedidos",
-             "razonamiento": "x", "categoria": "ambigua"}
-            """;
-        var banco = Banco(SinCoincidencias);
-
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria, null, "¿cuántos pedidos hay?", TestContext.Current.CancellationToken);
-
-        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.True(turno.Sugerencias is null or { Count: 0 });
-    }
-
-    [Fact]
-    public async Task Post_success_suggestions_exclude_an_example_the_actor_cannot_execute()
-    {
-        // Synthetic catalog, same reason CapacidadesTests uses one for
-        // EjecutableAsync: the real catalog has nothing that touches personal
-        // data, so this is the only way to prove the filter actually filters.
-        await SembrarAsync();
-        var catalogoFalso = new CatalogoFalso(
-            new EjemploSql(
-                "¿Cuál es el documento de cada persona?",
-                "SELECT documento FROM identity.personas",
-                "consulta_simple"),
-            new EjemploSql(
-                "¿Qué carreras están vigentes?",
-                "SELECT name FROM identity.carreras WHERE is_active",
-                "consulta_simple"));
-        var sugeridor = new SugerenciasDeSeguimiento(Apertura, catalogoFalso);
-        var ct = TestContext.Current.CancellationToken;
-
-        var conRolBasico = await sugeridor.ObtenerAsync(
-            Secretaria, "consulta_simple", ContarDocentes, conDatosPersonales: false, ct);
-        var conRolPii = await sugeridor.ObtenerAsync(
-            Secretaria, "consulta_simple", ContarDocentes, conDatosPersonales: true, ct);
-
-        Assert.DoesNotContain("¿Cuál es el documento de cada persona?", conRolBasico);
-        Assert.Contains("¿Qué carreras están vigentes?", conRolBasico);
-        Assert.Contains("¿Cuál es el documento de cada persona?", conRolPii);
+        Assert.Equal(0, turno.LlamadasAlModelo);
+        Assert.True(turno.Opciones is null or { Count: 0 });
     }
 
     // --------------------------------------------- la consulta tras el permiso
@@ -365,18 +261,5 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
             conexion);
 
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
-    }
-
-    /// <summary>
-    /// A stand-in <see cref="ISelectorDeEjemplos"/> with a hand-picked catalog, for
-    /// exercising the executability filter with entries the real catalog does not
-    /// have (see <c>CapacidadesTests</c>'s own synthetic-query test for why: the
-    /// real catalog touches no personal data, so the filter is a no-op against it).
-    /// </summary>
-    private sealed class CatalogoFalso(params EjemploSql[] catalogo) : ISelectorDeEjemplos
-    {
-        public string Huella => "catalogo-falso";
-        public IReadOnlyList<EjemploSql> Catalogo { get; } = catalogo;
-        public IReadOnlyList<EjemploSql> Elegir(string pregunta) => [];
     }
 }

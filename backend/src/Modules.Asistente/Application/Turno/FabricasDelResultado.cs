@@ -75,15 +75,14 @@ internal static class FabricasDelResultado
 
     /// <summary>Un turno del carril sin datos: cero llamadas al modelo.</summary>
     /// <remarks>
-    /// Las sugerencias viajan acá aunque el turno esté respondido, y no es una
-    /// contradicción con el rechazo cooperativo: las sugerencias no bloquean. Son
-    /// los ejemplos ejecutables que acompañan a la meta-pregunta, y es lo que hace
-    /// que «¿qué podés hacer?» termine en algo clicable en vez de en un párrafo.
+    /// Cubre la meta-pregunta («¿qué podés hacer?») y el resto del carril social:
+    /// ninguno de los dos pasó por el modelo ni por el motor. La meta-pregunta ya
+    /// lista sus ejemplos ejecutables adentro del propio texto (ver
+    /// <c>RedaccionDeCapacidades.Texto</c>); este constructor no vuelve a
+    /// adjuntarlos aparte — no hay sugerencias de seguimiento (design.md D12 de
+    /// asistente-rediseno-v3, ARS-149).
     /// </remarks>
-    public static ResultadoDelTurno SinDatos(
-        HiloConversacional conversacion,
-        string texto,
-        IReadOnlyList<string>? sugerencias = null) =>
+    public static ResultadoDelTurno SinDatos(HiloConversacional conversacion, string texto) =>
         new(EstadoDelTurno.Respondida,
             texto,
             Razonamiento: string.Empty,
@@ -95,7 +94,6 @@ internal static class FabricasDelResultado
             GeneracionDeSql.CategoriaNoContestable,
             LlamadasAlModelo: 0,
             conversacion.Id,
-            Sugerencias: sugerencias,
             // Respondida, same as any other case of this state: this turn gets a
             // feedback token too, even though it never touched the model or the
             // database — a greeting or a "what can you do?" answer is still an

@@ -231,13 +231,12 @@ describe("Los cuatro estados", () => {
     expect(consultar.mock.calls[1][0].mensaje).toBe("Bases de Datos (Informática)");
   });
 
-  it("un rechazo ofrece sugerencias, presentadas distinto de las opciones", async () => {
+  it("un rechazo no ofrece ninguna sugerencia (ARS-149)", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "consultar").mockResolvedValue(
       respuesta({
         estado: "no_contestable",
         respuesta: "No puedo responder eso.",
-        sugerencias: ["¿Qué carreras están vigentes?"],
         metricas: { llamadasAlModelo: 1 },
       }),
     );
@@ -245,8 +244,11 @@ describe("Los cuatro estados", () => {
 
     await user.type(await screen.findByLabelText("Tu pregunta"), "algo{Enter}");
 
-    // Las sugerencias no bloquean; las opciones sí. El texto las distingue.
-    expect(await screen.findByText("Probá con alguna de estas:")).toBeInTheDocument();
+    await screen.findByText("No puedo responder eso.");
+
+    // Ya no hay un segundo campo de "próximos pasos" para un rechazo: el texto
+    // del rechazo es toda la respuesta.
+    expect(screen.queryByText("Probá con alguna de estas:")).toBeNull();
     expect(screen.queryByText("Elegí una para continuar:")).toBeNull();
   });
 

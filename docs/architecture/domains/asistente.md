@@ -187,20 +187,12 @@ significa que la pregunta no se puede responder nunca; «necesita aclaración» 
 que se puede en cuanto el usuario elija. Colapsarlos hace que el asistente diga «no
 puedo» cuando corresponde «¿cuál de estas?».
 
-Por el mismo motivo, `opciones` y `sugerencias` son campos **separados**: las opciones
-bloquean el turno esperando una elección, las sugerencias son próximos pasos y no
-bloquean nada. Un solo campo para las dos cosas borra el tercer estado.
-
-Las sugerencias salen del **catálogo de ejemplos verificados** y no del modelo. Pedirlas
-al modelo costaría una llamada más justo en el camino donde el sistema ya decidió que no
-puede responder, y produciría preguntas que no se sabe si funcionan; las del catálogo
-tienen su consulta al lado y pasan el validador. Una sugerencia que no funciona convierte
-un rechazo honesto en dos, y el segundo con la pregunta que el propio sistema propuso.
-
-**`sugerencias` dejó de ser exclusivo del rechazo.** Un turno `respondida` también puede
-traerlas — ver [Retroalimentación del turno](#retroalimentación-del-turno) más abajo — y
-la distinción con `opciones` sigue exactamente igual: ninguna de las dos bloquea nada en
-ese camino, porque el turno ya terminó.
+Por el mismo motivo, `opciones` sólo viaja en el tercer estado: bloquea el turno
+esperando una elección. Ningún otro estado lleva un campo equivalente — el asistente
+ya no sugiere próximos pasos después de un rechazo o de una respuesta (ARS-140, ARS-149,
+design.md D12 de asistente-rediseno-v3). El catálogo de ejemplos verificados sigue
+existiendo, pero como la única fuente de ejemplos clicables de la pantalla de bienvenida
+(`GET /capacidades`), no como un campo del turno.
 
 ### La consulta generada, detrás de un permiso
 
@@ -289,16 +281,12 @@ respuesta del asistente. Ninguno de los tres trae `claveDeRetroalimentacion`, y 
 endpoint responde `404` para cualquier token que se le adivine para esos turnos, porque
 nunca se emitió ninguno.
 
-**Sugerencias tras una respuesta exitosa, en el mismo camino.** Después de `Respondida`,
-el carril intenta llenar `sugerencias` con hasta 3 preguntas del catálogo verificado de la
-misma categoría que la respuesta, excluyendo la que textualmente ya se ejecutó, y
-filtradas por la **misma verificación `EXPLAIN`** que usa `/capacidades` — nunca una que
-el actor no pueda ejecutar. Sin coincidencias, el campo queda vacío: no hay relleno
-genérico para este camino, a diferencia del rechazo, que sí cae a las primeras del
-catálogo cuando el parecido léxico no alcanza. La señal de relación es **sólo categoría**
-—el catálogo no declara qué tablas toca cada ejemplo— y es deliberadamente más pobre que
-un extractor de tablas tocadas; extender el catálogo con un campo `tablas` explícito es
-el camino más barato si la señal actual resulta insuficiente en uso real.
+**Sin sugerencias después de una respuesta (ARS-140, ARS-149).** El carril no vuelve a
+llamar al catálogo de ejemplos después de `Respondida`: la meta-pregunta («¿qué podés
+hacer?») ya lista sus ejemplos ejecutables adentro del propio texto redactado
+(`RedaccionDeCapacidades.Texto`), y el resto de los turnos respondidos no ofrece ningún
+próximo paso — el único lugar del asistente con ejemplos clicables es la pantalla de
+bienvenida, servida por `GET /capacidades` (design.md D12 de asistente-rediseno-v3).
 
 ## El carril SQL
 
@@ -903,8 +891,9 @@ Los cuatro estados se renderizan distinguibles, y el **degradado va como aviso, 
 error**: un banner rojo le diría al usuario que hizo algo mal, y su pregunta no tiene
 nada de malo.
 
-`opciones` y `sugerencias` se presentan distinto porque son cosas distintas: las
-opciones continúan el turno, las sugerencias son preguntas nuevas.
+`opciones` sólo se presenta en la aclaración: continúa el turno esperando una elección.
+Ningún otro estado ofrece preguntas nuevas para probar — desde ARS-149 el único lugar
+con ejemplos clicables es la pantalla de bienvenida.
 
 **El razonamiento se lee a pedido, y sólo en modo debug.** El backend lo redacta
 para el usuario final y lo sigue mandando en toda respuesta —queda visible en

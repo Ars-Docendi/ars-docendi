@@ -97,9 +97,6 @@ public sealed record RespuestaDelAsistente
     /// <summary>Las opciones de una aclaración. <b>Bloquean</b> el turno.</summary>
     public IReadOnlyList<OpcionDto> Opciones { get; init; } = [];
 
-    /// <summary>Qué otra cosa probar. <b>No</b> bloquean nada.</summary>
-    public IReadOnlyList<string> Sugerencias { get; init; } = [];
-
     /// <summary>Las columnas del resultado, con su marca de sensibilidad.</summary>
     public IReadOnlyList<ColumnaDto> Columnas { get; init; } = [];
 
@@ -168,7 +165,6 @@ public sealed record RespuestaDelAsistente
             PreguntaInterpretada = turno.PreguntaInterpretada,
             Razonamiento = string.IsNullOrWhiteSpace(turno.Razonamiento) ? null : turno.Razonamiento,
             Opciones = [.. (turno.Opciones ?? []).Select(o => new OpcionDto(o.Etiqueta, o.PreguntaResuelta))],
-            Sugerencias = turno.Sugerencias ?? [],
             Columnas = [.. turno.Columnas.Select((nombre, i) =>
                 new ColumnaDto(nombre, turno.Sensibilidad.Count > i && turno.Sensibilidad[i].Tapa))],
             Filas = turno.Filas,

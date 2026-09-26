@@ -6,7 +6,6 @@ import { ContenidoHistorico } from "./ContenidoHistorico";
 import { HerramientasDePregunta } from "./HerramientasDePregunta";
 import { Opciones } from "./Opciones";
 import { Razonamiento } from "./Razonamiento";
-import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
 import { sendIcon } from "../../../app/shell/icons";
 import { modoDebugAsistente } from "../utils/modoDebug";
@@ -262,12 +261,6 @@ export function Mensaje({
           />
 
           <Opciones opciones={respuesta.opciones} onElegir={onElegir} deshabilitado={enVuelo} />
-
-          <Sugerencias
-            sugerencias={respuesta.sugerencias}
-            onElegir={onElegir}
-            deshabilitado={enVuelo}
-          />
 
           {((debug && respuesta.razonamiento) || respuesta.sql) && (
             // El pie: lo que se puede desplegar a pedido, después de todo lo que

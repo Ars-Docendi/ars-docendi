@@ -406,10 +406,12 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         Assert.Equal(0, banco.Proveedor.Llamadas);
         Assert.Equal(0, turno.LlamadasAlModelo);
 
-        // Menciona ejemplos reales del catálogo verificado, y viajan como
-        // sugerencias para que la interfaz los pueda hacer clicables.
-        Assert.NotEmpty(turno.Sugerencias!);
-        Assert.Contains(turno.Sugerencias![0], turno.Respuesta, StringComparison.Ordinal);
+        // Menciona ejemplos reales del catálogo verificado, adentro del propio
+        // texto («Por ejemplo:») — no hay un campo de sugerencias aparte desde
+        // ARS-149 (design.md D12 de asistente-rediseno-v3).
+        var puede = await Catalogo().ObtenerAsync(Secretaria, TestContext.Current.CancellationToken);
+        Assert.NotEmpty(puede.Ejemplos);
+        Assert.Contains(puede.Ejemplos[0], turno.Respuesta, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -427,7 +429,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             Secretaria, null, "¿qué podés hacer?", TestContext.Current.CancellationToken);
 
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.NotEmpty(turno.Sugerencias!);
         Assert.Equal(0, banco.Proveedor.Llamadas);
     }
 

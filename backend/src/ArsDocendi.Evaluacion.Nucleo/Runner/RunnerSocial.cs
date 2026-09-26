@@ -105,7 +105,6 @@ public sealed class RunnerSocial(
         // Se miden TOKENS y no llamadas. Cero llamadas implica cero tokens, pero no
         // al revés, y el requisito habla de tokens de entrada.
         var costoCero = medidor.TokensDeEntrada == 0;
-        var sugirio = turno.Sugerencias is { Count: > 0 };
 
         if (!costoCero)
         {
@@ -121,14 +120,18 @@ public sealed class RunnerSocial(
                 "Resolvió a costo cero pero no respondió.");
         }
 
-        // La meta-pregunta trae ejemplos ejecutables; el saludo y el agradecimiento,
-        // no. Exigir sugerencias en todos convertiría una decisión de redacción en un
-        // fallo, así que solo se informa.
-        return new ResultadoDeItem(
-            item.Id, item.Clase, DesenlaceDeItem.TraduccionCorrecta,
-            sugirio ? "Cero tokens, con sugerencias." : "Cero tokens.");
+        return new ResultadoDeItem(item.Id, item.Clase, DesenlaceDeItem.TraduccionCorrecta, "Cero tokens.");
     }
 
+    /// <summary>
+    /// Los ítems no contestables aprueban con la sola abstención.
+    /// </summary>
+    /// <remarks>
+    /// El turno ya no lleva sugerencias (design.md D12 de asistente-rediseno-v3,
+    /// ARS-149): exigirlas convertiría un criterio que el contrato no promete en
+    /// un requisito de este eje. Responder lo que no se podía responder sigue
+    /// fallando: eso es lo que este eje mide.
+    /// </remarks>
     private static ResultadoDeItem EvaluarNoContestable(ItemSocial item, ResultadoDelTurno turno)
     {
         // Resolvió «no contestable» sin que el modelo decidiera nada: no se acredita.
@@ -140,22 +143,11 @@ public sealed class RunnerSocial(
         var seAbstuvo = turno.Estado is EstadoDelTurno.NoContestable
             or EstadoDelTurno.NecesitaAclaracion;
 
-        // ABSTENERSE NO ALCANZA. Un «no puedo» sin salida deja al usuario sin nada
-        // que hacer, y el rechazo cooperativo existe justamente para eso.
-        var sugirio = turno.Sugerencias is { Count: > 0 };
-
-        if (seAbstuvo && sugirio)
-        {
-            return new ResultadoDeItem(
-                item.Id, item.Clase, DesenlaceDeItem.AbstencionCorrecta,
-                "Se abstuvo y sugirió una salida.");
-        }
-
-        return new ResultadoDeItem(
-            item.Id,
-            item.Clase,
-            seAbstuvo ? DesenlaceDeItem.TraduccionIncorrecta : DesenlaceDeItem.IntentoSobreLoInfactible,
-            seAbstuvo ? "Se abstuvo sin sugerir nada." : "Respondió lo que no podía responder.");
+        return seAbstuvo
+            ? new ResultadoDeItem(item.Id, item.Clase, DesenlaceDeItem.AbstencionCorrecta, "Se abstuvo.")
+            : new ResultadoDeItem(
+                item.Id, item.Clase, DesenlaceDeItem.IntentoSobreLoInfactible,
+                "Respondió lo que no podía responder.");
     }
 
     private ResultadoDeItem EvaluarNegativo(ItemSocial item)

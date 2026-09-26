@@ -558,23 +558,103 @@
 
 /* ────────────────────────────────── el inicio ──────────────────────────────── */
 
-/* La pantalla vacía: un título que invita a escribir, el alcance, los ejemplos
-   como chips y, más abajo y en chico, qué se puede consultar y qué no. Sin caja
-   ni borde: es lo que hay en el hilo antes del primer turno, no un aviso. Todo
-   sale del catálogo del backend. */
+/* La pantalla vacía: destello, título y los ejemplos como tarjetas en una
+   grilla de dos columnas — las ÚNICAS sugerencias clicables que le quedan al
+   asistente (ARS-149). Columna centrada, sin caja ni borde propio: es lo que
+   hay en el hilo antes del primer turno, no un aviso. El alcance y los límites
+   viven en la ayuda «?» del encabezado y no acá (ver `EncabezadoDeConversacion`
+   / `AyudaDelAsistente`). Todo sale del catálogo del backend. */
 .adoc-asistente-inicio {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-4);
   max-width: 72ch;
-  padding: var(--space-6) var(--space-2) var(--space-2);
+  margin-inline: auto;
+  padding: 96px var(--space-2) var(--space-2);
+  text-align: center;
+}
+
+.adoc-asistente-inicio-destello {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-hover);
+}
+
+.adoc-asistente-inicio-destello .ico,
+.adoc-asistente-inicio-destello svg {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .adoc-asistente-inicio-titulo {
   margin: 0;
-  font-size: var(--text-heading-size);
-  line-height: var(--text-heading-lh);
-  font-weight: var(--text-heading-weight);
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-lh);
+  font-weight: var(--text-title-weight);
+}
+
+/* Grilla de dos columnas, alineada a la izquierda adentro de la columna
+   centrada: el título se centra, las tarjetas se leen de izquierda a derecha
+   como cualquier lista de opciones. */
+.adoc-asistente-inicio-ejemplos {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.adoc-asistente-inicio-ejemplo {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adoc-asistente-inicio-ejemplo:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-inicio-ejemplo:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-inicio-ejemplo:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.adoc-asistente-inicio-ejemplo > span:first-child {
+  flex: 1;
+}
+
+.adoc-asistente-inicio-ejemplo .ico {
+  flex: none;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  margin-top: 2px;
+  color: var(--color-text-tertiary);
 }
 
 /* ────────────────────────────────── la ayuda ───────────────────────────────── */
@@ -1175,26 +1255,21 @@
   color: var(--color-text-secondary);
 }
 
-/* ─────────────────────────── opciones y sugerencias ────────────────────────── */
+/* ─────────────────────────────────── opciones ──────────────────────────────── */
 
-/* Las opciones BLOQUEAN el turno y las sugerencias no: se ven distinto a propósito.
-   Las opciones van en un bloque con barra de acento y botones con marco, una
-   elección pendiente. Las sugerencias —y los ejemplos del inicio— son chips:
-   pastillas sin relleno que se leen como preguntas para probar. */
-.adoc-asistente-opciones ul,
-.adoc-asistente-chips {
+/* Las opciones BLOQUEAN el turno: van en un bloque con barra de acento y botones
+   con marco, una elección pendiente. Desde ARS-149 son el único menú de
+   "próximos pasos" que le queda a un turno — el asistente ya no sugiere nada
+   después de un rechazo o de una respuesta; los ejemplos de la bienvenida
+   (`.adoc-asistente-inicio-ejemplo`) son tarjetas, no pastillas, y no bloquean
+   nada porque ahí todavía no hay turno. */
+.adoc-asistente-opciones ul {
   list-style: none;
-  margin: 0;
+  margin: var(--space-2) 0 0;
   padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-/* Debajo de su título; en el inicio el espacio lo pone el contenedor. */
-.adoc-asistente-opciones ul,
-.adoc-asistente-sugerencias .adoc-asistente-chips {
-  margin-top: var(--space-2);
 }
 
 .adoc-asistente-opciones {
@@ -1207,7 +1282,7 @@
    línea se parte en dos renglones en vez de desbordar el hilo; por eso el alto es
    libre. La clase del panel adelante le gana en especificidad al tamaño de la
    librería, no con !important. */
-.adoc-asistente .adoc-asistente-chips li > button {
+.adoc-asistente .adoc-asistente-opciones li > button {
   max-width: 100%;
   height: auto;
   min-height: 28px;
@@ -1218,16 +1293,10 @@
   text-align: start;
 }
 
-.adoc-asistente-opciones-titulo,
-.adoc-asistente-sugerencias-titulo {
+.adoc-asistente-opciones-titulo {
   margin: 0;
   font-size: var(--text-body-sm-size);
   font-weight: var(--weight-semibold);
-}
-
-.adoc-asistente-sugerencias-titulo {
-  font-weight: var(--weight-regular);
-  color: var(--color-text-secondary);
 }
 
 /* ─────────────────────────────────── el pie ────────────────────────────────── */
@@ -1763,17 +1832,15 @@
     max-width: 92%;
   }
 
-  /* Los chips y las opciones a ancho completo: en una pantalla angosta, una fila
-     de pastillas que se parte en tres renglones es más difícil de tocar que una
-     lista. El botón de la librería fija alto y una sola línea; acá se le permite
-     crecer. */
-  .adoc-asistente .adoc-asistente-opciones li,
-  .adoc-asistente .adoc-asistente-chips li {
+  /* Las opciones a ancho completo: en una pantalla angosta, una fila de
+     pastillas que se parte en tres renglones es más difícil de tocar que una
+     lista. El botón de la librería fija alto y una sola línea; acá se le
+     permite crecer. */
+  .adoc-asistente .adoc-asistente-opciones li {
     flex: 1 1 100%;
   }
 
-  .adoc-asistente .adoc-asistente-opciones li > button,
-  .adoc-asistente .adoc-asistente-chips li > button {
+  .adoc-asistente .adoc-asistente-opciones li > button {
     width: 100%;
     height: auto;
     min-height: 28px;

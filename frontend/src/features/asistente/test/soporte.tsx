@@ -53,7 +53,6 @@ export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): Respues
     respuesta: "Hay 4 docentes designados.",
     hilo: "11111111-1111-4111-8111-111111111111",
     opciones: [],
-    sugerencias: [],
     columnas: [],
     filas: [],
     truncado: false,

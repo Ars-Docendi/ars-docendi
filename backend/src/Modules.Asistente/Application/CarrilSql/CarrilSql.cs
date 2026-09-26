@@ -6,7 +6,7 @@ namespace Modules.Asistente.Application;
 /// Compone el carril SQL: de la pregunta en español a la respuesta redactada.
 /// </summary>
 /// <remarks>
-/// Dos llamadas al modelo por turno —generación y redacción— y siete piezas
+/// Dos llamadas al modelo por turno —generación y redacción— y seis piezas
 /// deterministas alrededor. La asimetría es deliberada: cada pieza determinista
 /// que se agrega al medio es una pieza que no puede alucinar.
 ///
@@ -21,9 +21,7 @@ public sealed class CarrilSql(
     IEjecutorDeConsulta ejecutor,
     IPerfilDelActor perfiles,
     RedactorDeRespuesta redactor,
-    ISelectorDeEjemplos ejemplos,
     IConsultorDeCobertura cobertura,
-    ISugerenciasDeSeguimiento sugeridorDeSeguimiento,
     ContadorDeLlamadasDelTurno contador,
     ILogger<CarrilSql> log)
 {
@@ -77,7 +75,7 @@ public sealed class CarrilSql(
             // «no tenés acceso a eso» es una respuesta, no una falla.
             log.LogWarning(
                 "El motor rechazó la lectura por falta de privilegio del rol del asistente.");
-            return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
+            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
         }
         catch (ConsultaRechazadaPorElMotor excepcion)
         {
@@ -87,7 +85,7 @@ public sealed class CarrilSql(
             // respuesta.
             log.LogWarning(
                 excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.Estado);
-            return SinDatos(pregunta, aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
+            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
         }
         catch (TechoDeLlamadasSuperado)
         {
@@ -144,8 +142,7 @@ public sealed class CarrilSql(
             // abstención de una generación cortada por el techo de tokens. El
             // usuario ve lo mismo en las dos.
             return NoContestable(
-                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoNoContestable,
-                generacion.Categoria);
+                generacion, aMostrar, PoliticaDeAbstencion.TextoNoContestable, generacion.Categoria);
         }
 
         var veredicto = ValidadorDeSql.Validar(generacion.Sql);
@@ -157,7 +154,7 @@ public sealed class CarrilSql(
                 "El validador rechazó la consulta generada: {Motivo}", veredicto.Motivo);
 
             return NoContestable(
-                generacion, pregunta, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador,
+                generacion, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador,
                 GeneracionDeSql.CategoriaNoContestable);
         }
 
@@ -185,37 +182,15 @@ public sealed class CarrilSql(
                 perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
         }
 
-        return resultado.EstaVacio
-            ? await VacioAsync(generacion, aMostrar, perfil, alcanzaTodo,
-                await CoberturaAsync(generacion, actor, ct), actor, ct)
-            : await RedactadoAsync(
-                mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
-                await CoberturaAsync(generacion, actor, ct), actor, ct);
-    }
+        if (resultado.EstaVacio)
+        {
+            return Vacio(
+                generacion, aMostrar, perfil, alcanzaTodo, await CoberturaAsync(generacion, actor, ct));
+        }
 
-    /// <summary>
-    /// Follow-up suggestions for an answered turn, or empty on any failure.
-    /// </summary>
-    /// <remarks>
-    /// Same degrade-gracefully shape as <see cref="CoberturaAsync"/>: a follow-up
-    /// suggestion is a nice-to-have on a turn that already succeeded, never a
-    /// reason to fail one that did.
-    /// </remarks>
-    private async Task<IReadOnlyList<string>> SugerenciasDeSeguimientoAsync(
-        GeneracionDeSql generacion, Guid actor, PerfilDelActor perfil, CancellationToken ct)
-    {
-        try
-        {
-            return await sugeridorDeSeguimiento.ObtenerAsync(
-                actor, generacion.Categoria, generacion.Sql, perfil.VeDatosPersonales, ct);
-        }
-        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
-        {
-            log.LogWarning(
-                excepcion,
-                "No se pudieron calcular las sugerencias de seguimiento; se responde sin ellas.");
-            return [];
-        }
+        return await RedactadoAsync(
+            mensaje, generacion, aMostrar, resultado, perfil, alcanzaTodo,
+            await CoberturaAsync(generacion, actor, ct), ct);
     }
 
     /// <summary>
@@ -296,7 +271,6 @@ public sealed class CarrilSql(
         PerfilDelActor perfil,
         bool alcanzaTodo,
         IReadOnlyList<CoberturaDeUnDato> cobertura,
-        Guid actor,
         CancellationToken ct)
     {
         // LA FRONTERA DE SALIDA. Lo que va al modelo es el resultado enmascarado;
@@ -326,8 +300,7 @@ public sealed class CarrilSql(
             // Respondida: this turn's analytic row gets an application-generated id,
             // and this is that same id, handed to the client once so it can later
             // submit feedback for exactly this row.
-            ClaveDeRetroalimentacion: Guid.NewGuid(),
-            Sugerencias: await SugerenciasDeSeguimientoAsync(generacion, actor, perfil, ct));
+            ClaveDeRetroalimentacion: Guid.NewGuid());
     }
 
     /// <summary>
@@ -339,14 +312,12 @@ public sealed class CarrilSql(
     /// distinción entre «no hay» y «no podés verlo» sea mecánica en lugar de
     /// depender de que el modelo respete una instrucción del prompt.
     /// </remarks>
-    private async Task<ResultadoDelTurno> VacioAsync(
+    private ResultadoDelTurno Vacio(
         GeneracionDeSql generacion,
         string? aMostrar,
         PerfilDelActor perfil,
         bool alcanzaTodo,
-        IReadOnlyList<CoberturaDeUnDato> cobertura,
-        Guid actor,
-        CancellationToken ct) =>
+        IReadOnlyList<CoberturaDeUnDato> cobertura) =>
         new(EstadoDelTurno.Respondida,
             PoliticaDeAbstencion.TextoDeResultadoVacio(
                 alcanzaTodo, CoberturaDelPortal.LaQueExplicaElVacio(cobertura)),
@@ -364,12 +335,10 @@ public sealed class CarrilSql(
             Sql: LaConsulta(generacion, perfil),
             // Respondida too (zero rows is still an answer), so it gets a token the
             // same way RedactadoAsync's branch does.
-            ClaveDeRetroalimentacion: Guid.NewGuid(),
-            Sugerencias: await SugerenciasDeSeguimientoAsync(generacion, actor, perfil, ct));
+            ClaveDeRetroalimentacion: Guid.NewGuid());
 
     private ResultadoDelTurno NoContestable(
         GeneracionDeSql generacion,
-        string pregunta,
         string? aMostrar,
         string texto,
         string categoria) =>
@@ -382,8 +351,7 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             categoria,
-            contador.Llamadas,
-            Sugerencias: Sugerencias.Para(pregunta, ejemplos));
+            contador.Llamadas);
 
     /// <summary>
     /// Un turno que termina sin filas y sin haber llegado a la redacción.
@@ -392,7 +360,7 @@ public sealed class CarrilSql(
     /// No consume la segunda llamada al modelo: no hay nada que narrar, y pedirle
     /// que narre una falla es pedirle que invente una explicación.
     /// </remarks>
-    private ResultadoDelTurno SinDatos(string pregunta, string? aMostrar, string texto) =>
+    private ResultadoDelTurno SinDatos(string? aMostrar, string texto) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             Razonamiento: string.Empty,
@@ -402,8 +370,7 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             GeneracionDeSql.CategoriaNoContestable,
-            contador.Llamadas,
-            Sugerencias: Sugerencias.Para(pregunta, ejemplos));
+            contador.Llamadas);
 
     /// <summary>
     /// La consulta generada, solo si el actor puede verla.

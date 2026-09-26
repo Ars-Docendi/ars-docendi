@@ -145,7 +145,6 @@ Respuesta:
 | `preguntaInterpretada`     | Solo si difiere del mensaje                                                                                         |
 | `razonamiento`             | Cómo se interpretó la pregunta, tal como lo devolvió la generación                                                  |
 | `opciones[]`               | El menú de una aclaración. **Bloquean** el turno                                                                    |
-| `sugerencias[]`            | Qué otra cosa probar. **No** bloquean nada                                                                          |
 | `columnas[]`               | Nombre y marca de sensibilidad                                                                                      |
 | `filas[]`                  | Los valores reales, incluidos los que no viajaron al modelo                                                         |
 | `truncado`                 | Booleano, **nunca** un conteo                                                                                       |
@@ -156,9 +155,7 @@ Respuesta:
 | `cupoRestante`             | El cupo diario del actor, YA COBRADO este turno (asistente-cupo-visible)                                            |
 | `conversacion`             | El id de `GET /historial` en que quedó este turno; nulo si no se persistió (design.md D13 de asistente-rediseno-v3) |
 
-`opciones` y `sugerencias` son campos distintos a propósito, y colapsarlos borraría el tercer estado: las opciones esperan una elección para poder seguir, las sugerencias no esperan nada.
-
-`sugerencias` ya no es exclusivo de un rechazo: un turno `respondida` también puede traerlas, hasta 3, elegidas por categoría contra el mismo catálogo verificado y filtradas por la misma verificación `EXPLAIN` que usa `/capacidades`. Vacío cuando ningún ejemplo del catálogo califica — nunca un relleno genérico. `necesita_aclaracion` sigue sin traer ninguna: bloquea el turno esperando una elección, y no hay nada que sugerir todavía.
+`opciones` sólo viaja cuando `estado = necesita_aclaracion`: bloquea el turno esperando una elección. No hay un campo equivalente para después de una respuesta o un rechazo — el asistente ya no sugiere próximos pasos fuera de la pantalla de bienvenida (ARS-140, ARS-149, design.md D12 de asistente-rediseno-v3); el catálogo de `GET /capacidades` sigue siendo la única fuente de ejemplos clicables.
 
 `estado` usa etiquetas propias del contrato y no el nombre del enum del backend: renombrar un valor interno no puede romper a los clientes en silencio.
 

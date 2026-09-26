@@ -49,6 +49,46 @@ describe("El estado inicial", () => {
     expect(screen.queryByText(/Conozco 2 áreas de datos del sistema/)).toBeNull();
   });
 
+  it("los ejemplos se muestran como tarjetas en una grilla de dos columnas", async () => {
+    // Ni pastilla ni botón fantasma (design spec § «Rediseño v3», fila
+    // «Bienvenida»): son las ÚNICAS sugerencias clicables que le quedan al
+    // asistente (ARS-149), y se leen como tarjetas con flecha, no como chips.
+    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
+      ...CAPACIDADES,
+      ejemplos: [
+        "¿Qué carreras están vigentes?",
+        "¿Cuántos pedidos hay en cada estado?",
+        "¿Quién es el jefe de cátedra de Bases de Datos?",
+        "¿Cuántos docentes están designados?",
+      ],
+    });
+    montar(<PanelDePrueba />);
+
+    const lista = await screen.findByRole("list", { name: "Preguntas de ejemplo" });
+    expect(lista).toHaveClass("adoc-asistente-inicio-ejemplos");
+
+    const tarjetas = within(lista).getAllByRole("button");
+    expect(tarjetas).toHaveLength(4);
+    for (const tarjeta of tarjetas) {
+      expect(tarjeta).toHaveClass("adoc-asistente-inicio-ejemplo");
+    }
+  });
+
+  it("si el catálogo manda más de cuatro ejemplos, sólo se muestran los primeros cuatro", async () => {
+    // El catálogo puede mandar hasta seis (`CatalogoDeCapacidades.MaximoDeEjemplos`);
+    // la grilla es 2×2 y fija, así que el resto se descarta y no al revés.
+    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue({
+      ...CAPACIDADES,
+      ejemplos: ["uno", "dos", "tres", "cuatro", "cinco", "seis"],
+    });
+    montar(<PanelDePrueba />);
+
+    const lista = await screen.findByRole("list", { name: "Preguntas de ejemplo" });
+    expect(within(lista).getAllByRole("button")).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: "cinco" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "seis" })).toBeNull();
+  });
+
   it("el alcance, cuántas áreas hay y los límites están en la ayuda", async () => {
     montar(<PanelDePrueba />);
     await abrirAyuda();

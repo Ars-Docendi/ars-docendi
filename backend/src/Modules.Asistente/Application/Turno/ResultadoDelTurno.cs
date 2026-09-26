@@ -66,21 +66,13 @@ public enum EstadoDelTurno
 /// </param>
 /// <param name="Opciones">
 /// Las opciones de la aclaración, cuando el turno terminó en
-/// <see cref="EstadoDelTurno.NecesitaAclaracion"/>.
+/// <see cref="EstadoDelTurno.NecesitaAclaracion"/>. BLOQUEAN el turno: el hilo
+/// espera una elección para poder seguir. No hay un campo equivalente para
+/// después de un rechazo o una respuesta: el asistente ya no sugiere próximos
+/// pasos fuera de la bienvenida (design.md D12 de asistente-rediseno-v3,
+/// ARS-149) — el catálogo de capacidades sigue siendo la única fuente de
+/// ejemplos clicables, y vive en <c>GET /capacidades</c>, no en el turno.
 /// </param>
-/// <param name="Sugerencias">
-/// Qué otra cosa probar, cuando el turno terminó en un rechazo.
-/// </param>
-/// <remarks>
-/// <c>Opciones</c> y <c>Sugerencias</c> son campos <b>distintos</b>, y colapsarlos
-/// borraría el tercer estado del sistema. Las opciones <b>bloquean</b>: el turno
-/// espera una elección para poder seguir. Las sugerencias no bloquean nada: el
-/// turno ya terminó, y son próximos pasos.
-///
-/// Con un solo campo, la interfaz tendría que adivinar cuál de las dos cosas le
-/// llegó mirando el estado — y el día que un turno respondido quiera sugerir algo,
-/// la distinción se pierde del todo.
-/// </remarks>
 /// <param name="Sql">
 /// La consulta que se ejecutó. Presente <b>solo</b> si el actor tiene el permiso
 /// de verla; nula en cualquier otro caso.
@@ -152,7 +144,6 @@ public sealed record ResultadoDelTurno(
     int LlamadasAlModelo,
     Guid Hilo = default,
     IReadOnlyList<OpcionDeAclaracion>? Opciones = null,
-    IReadOnlyList<string>? Sugerencias = null,
     string? Sql = null,
     string? SqlEjecutado = null,
     IReadOnlyList<VinculoDelResultado>? Vinculos = null,
