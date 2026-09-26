@@ -3,13 +3,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { consultar } from "../api/asistenteApi";
 import { reejecutarTurno } from "../api/historialApi";
 import { esCancelacion, esHiloPerdido, mensajeDeError } from "../errores";
-import type { TurnoDeHistorial, TurnoDeLaConversacion } from "../types";
+import type { MencionEnPregunta, TurnoDeHistorial, TurnoDeLaConversacion } from "../types";
 import { crearMedidorDeEspera, esperarHasta } from "../utils/esperaPareja";
+import { ubicarMenciones } from "../utils/menciones";
 
 export interface Asistente {
   turnos: TurnoDeLaConversacion[];
   enVuelo: boolean;
-  preguntar: (mensaje: string) => Promise<void>;
+  /**
+   * `menciones`: las «@materia»/«#docente» elegidas en el composer, ya
+   * ubicadas en `mensaje` (asistente-menciones). El turno las guarda para
+   * pintarlas como chips y para que «Reintentar» las reenvíe con la misma
+   * clave; el request sólo manda `{ tipo, id }` de cada una — nunca el texto.
+   */
+  preguntar: (mensaje: string, menciones?: MencionEnPregunta[]) => Promise<void>;
   /** Reenvía un turno que terminó en error, con su misma clave y su mismo texto. */
   reintentar: (id: string) => Promise<void>;
   /**
@@ -89,66 +96,78 @@ export function useAsistente(): Asistente {
   // vuelva. `reemplaza` es el identificador del turno que este envío
   // reemplaza —ausente en un turno nuevo cualquiera y en un reintento de
   // ÉSE—, para «Editar y reenviar».
-  const enviar = useCallback(async (id: string, texto: string, reemplaza?: string) => {
-    const aborto = new AbortController();
-    enCurso.current = { id, aborto };
-    setEnVuelo(true);
+  const enviar = useCallback(
+    async (id: string, texto: string, reemplaza?: string, menciones?: MencionEnPregunta[]) => {
+      const aborto = new AbortController();
+      enCurso.current = { id, aborto };
+      setEnVuelo(true);
 
-    const arranco = performance.now();
+      const arranco = performance.now();
 
-    try {
-      const respuesta = await consultar({ mensaje: texto, hilo: hilo.current, reemplaza }, id, {
-        signal: aborto.signal,
-      });
-      // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que
-      // llegue ya no es de nadie: tampoco el hilo, que resucitaría una
-      // conversación que el usuario dio por cerrada.
-      if (aborto.signal.aborted) return;
-      hilo.current = respuesta.hilo;
+      // Sólo `{ tipo, id }` viaja (design.md D11): el texto de la mención es
+      // del lado del cliente —para pintar el chip—, nunca del pedido.
+      const referencias = menciones?.map(({ tipo, id: idDeLaEntidad }) => ({
+        tipo,
+        id: idDeLaEntidad,
+      }));
 
-      const tardo = performance.now() - arranco;
-
-      if (respuesta.metricas.llamadasAlModelo > 0) {
-        // De acá sale la media con la que se retiene a los otros.
-        medidor.current.anotar(tardo);
-      } else if (respuesta.estado !== "servicio_degradado") {
-        // ESPERA PAREJA. Un carril determinista contesta en milisegundos, y esa
-        // respuesta instantánea se lee como «no hizo nada». Se retiene hasta
-        // parecerse a un turno con modelo, con lo que ya tardó descontado.
-        //
-        // El degradado queda AFUERA a propósito: es el sistema avisando que no
-        // está disponible, y hacer esperar a alguien para darle esa noticia es la
-        // clase de coherencia que no vale lo que cuesta.
-        await esperarHasta(medidor.current.objetivoMs() - tardo, aborto.signal);
-        // La espera es abortable: si se dejó de esperar mientras corría, esta
-        // respuesta ya no es de nadie.
+      try {
+        const respuesta = await consultar(
+          { mensaje: texto, hilo: hilo.current, reemplaza, referencias },
+          id,
+          { signal: aborto.signal },
+        );
+        // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que
+        // llegue ya no es de nadie: tampoco el hilo, que resucitaría una
+        // conversación que el usuario dio por cerrada.
         if (aborto.signal.aborted) return;
-      }
+        hilo.current = respuesta.hilo;
 
-      if (!montado.current) return;
-      setTurnos((previos) => previos.map((t) => (t.id === id ? { ...t, respuesta } : t)));
-    } catch (error) {
-      // Un aborto no es un error: lo pidió este lado. El turno queda como está.
-      if (esCancelacion(error)) return;
-      // Un hilo que el backend ya no reconoce no se vuelve a mandar: la siguiente
-      // pregunta abre una conversación nueva en lugar de repetir el mismo 404.
-      if (esHiloPerdido(error)) hilo.current = null;
-      if (!montado.current) return;
-      setTurnos((previos) =>
-        previos.map((t) => (t.id === id ? { ...t, error: mensajeDeError(error) } : t)),
-      );
-    } finally {
-      // Sólo si este turno sigue siendo el actual: uno que se dejó de esperar
-      // termina de rechazarse cuando quizá ya hay otro en vuelo, y ése no es suyo.
-      if (enCurso.current?.aborto === aborto) {
-        enCurso.current = null;
-        if (montado.current) setEnVuelo(false);
+        const tardo = performance.now() - arranco;
+
+        if (respuesta.metricas.llamadasAlModelo > 0) {
+          // De acá sale la media con la que se retiene a los otros.
+          medidor.current.anotar(tardo);
+        } else if (respuesta.estado !== "servicio_degradado") {
+          // ESPERA PAREJA. Un carril determinista contesta en milisegundos, y esa
+          // respuesta instantánea se lee como «no hizo nada». Se retiene hasta
+          // parecerse a un turno con modelo, con lo que ya tardó descontado.
+          //
+          // El degradado queda AFUERA a propósito: es el sistema avisando que no
+          // está disponible, y hacer esperar a alguien para darle esa noticia es la
+          // clase de coherencia que no vale lo que cuesta.
+          await esperarHasta(medidor.current.objetivoMs() - tardo, aborto.signal);
+          // La espera es abortable: si se dejó de esperar mientras corría, esta
+          // respuesta ya no es de nadie.
+          if (aborto.signal.aborted) return;
+        }
+
+        if (!montado.current) return;
+        setTurnos((previos) => previos.map((t) => (t.id === id ? { ...t, respuesta } : t)));
+      } catch (error) {
+        // Un aborto no es un error: lo pidió este lado. El turno queda como está.
+        if (esCancelacion(error)) return;
+        // Un hilo que el backend ya no reconoce no se vuelve a mandar: la siguiente
+        // pregunta abre una conversación nueva en lugar de repetir el mismo 404.
+        if (esHiloPerdido(error)) hilo.current = null;
+        if (!montado.current) return;
+        setTurnos((previos) =>
+          previos.map((t) => (t.id === id ? { ...t, error: mensajeDeError(error) } : t)),
+        );
+      } finally {
+        // Sólo si este turno sigue siendo el actual: uno que se dejó de esperar
+        // termina de rechazarse cuando quizá ya hay otro en vuelo, y ése no es suyo.
+        if (enCurso.current?.aborto === aborto) {
+          enCurso.current = null;
+          if (montado.current) setEnVuelo(false);
+        }
       }
-    }
-  }, []);
+    },
+    [],
+  );
 
   const preguntar = useCallback(
-    async (mensaje: string) => {
+    async (mensaje: string, menciones?: MencionEnPregunta[]) => {
       const texto = mensaje.trim();
       if (texto.length === 0) return;
 
@@ -162,8 +181,8 @@ export function useAsistente(): Asistente {
       // turnos haría que el segundo recibiera la respuesta del primero, que es
       // justo lo contrario de lo que se busca.
       const id = crypto.randomUUID();
-      setTurnos((previos) => [...previos, { id, pregunta: texto }]);
-      await enviar(id, texto);
+      setTurnos((previos) => [...previos, { id, pregunta: texto, menciones }]);
+      await enviar(id, texto, undefined, menciones);
     },
     [enviar],
   );
@@ -178,17 +197,19 @@ export function useAsistente(): Asistente {
       // entero otra vez. Uno que se dejó de esperar sigue corriendo allá.
       if (!turno?.error) return;
 
-      // Misma clave —el id—, mismo texto y mismo objetivo de reemplazo si
-      // había uno: si el backend ya había terminado cuando se cortó,
-      // devuelve lo que guardó en lugar de cobrarle otra vez al modelo, y
-      // aplica el reemplazo a lo sumo una vez (asistente-edicion-de-la-
-      // ultima-pregunta).
+      // Misma clave —el id—, mismo texto, mismas menciones y mismo objetivo de
+      // reemplazo si había uno: si el backend ya había terminado cuando se
+      // cortó, devuelve lo que guardó en lugar de cobrarle otra vez al
+      // modelo, y aplica el reemplazo a lo sumo una vez (asistente-edicion-
+      // de-la-ultima-pregunta).
       setTurnos((previos) =>
         previos.map((t) =>
-          t.id === id ? { id: t.id, pregunta: t.pregunta, reemplaza: t.reemplaza } : t,
+          t.id === id
+            ? { id: t.id, pregunta: t.pregunta, reemplaza: t.reemplaza, menciones: t.menciones }
+            : t,
         ),
       );
-      await enviar(id, turno.pregunta, turno.reemplaza);
+      await enviar(id, turno.pregunta, turno.reemplaza, turno.menciones);
     },
     [turnos, enviar],
   );
@@ -213,8 +234,19 @@ export function useAsistente(): Asistente {
       const id = crypto.randomUUID();
       const reemplaza = ultimo.id;
 
-      setTurnos((previos) => [...previos.slice(0, -1), { id, pregunta: limpio, reemplaza }]);
-      await enviar(id, limpio, reemplaza);
+      // El editor es un textarea sin popover de menciones (asistente-
+      // menciones no cubre editar): lo que sobrevive de las menciones del
+      // turno reemplazado es lo mismo que sobrevive en cualquier envío —el
+      // texto de cada una sigue presente en lo editado—, así que se resuelve
+      // igual que un envío nuevo en lugar de perderlas sin que nadie las
+      // tocara.
+      const menciones = ubicarMenciones(ultimo.menciones ?? [], limpio);
+
+      setTurnos((previos) => [
+        ...previos.slice(0, -1),
+        { id, pregunta: limpio, reemplaza, menciones },
+      ]);
+      await enviar(id, limpio, reemplaza, menciones);
     },
     [turnos, enviar],
   );

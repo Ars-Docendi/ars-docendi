@@ -2,6 +2,7 @@ import { apiClient } from "../../../shared/api/client";
 import type {
   CapacidadesDelAsistente,
   RazonDeRetroalimentacion,
+  ReferenciaDeMencion,
   RespuestaDelAsistente,
 } from "../types";
 
@@ -17,6 +18,13 @@ export interface ConsultaDelAsistente {
    * cualquiera.
    */
   reemplaza?: string;
+  /**
+   * Las «@materia»/«#docente» elegidas en el composer (asistente-menciones,
+   * design.md D10/D11 de asistente-rediseno-v3), a lo sumo 5. El controller
+   * las revalida contra el alcance ACTUAL del actor antes del candado: una
+   * desconocida o fuera de alcance da `400`, sin decir cuál de las dos fue.
+   */
+  referencias?: ReferenciaDeMencion[];
 }
 
 /**

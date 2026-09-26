@@ -11,7 +11,7 @@ import { UMBRAL_DE_APARICION_MS } from "./IndicadorDeProceso";
 import { sendIcon } from "../../../app/shell/icons";
 import { useVisibleTrasUmbral } from "../hooks/useVisibleTrasUmbral";
 import { modoDebugAsistente } from "../utils/modoDebug";
-import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
+import type { EstadoDelTurno, MencionEnPregunta, TurnoDeLaConversacion } from "../types";
 
 interface MensajeProps {
   turno: TurnoDeLaConversacion;
@@ -195,7 +195,8 @@ export function Mensaje({
                 de pantalla anuncia «Vosdame 3 materias…» de corrido. La clase la saca
                 además de la selección, para que copiar la pregunta no arrastre la
                 etiqueta al portapapeles — pasó, y el texto pegado volvió al modelo. */}
-            <span className="adoc-asistente-quien">Vos:</span> {turno.pregunta}
+            <span className="adoc-asistente-quien">Vos:</span>{" "}
+            {pintarPregunta(turno.pregunta, turno.menciones)}
           </p>
 
           <HerramientasDePregunta
@@ -335,6 +336,42 @@ export function Mensaje({
       )}
     </li>
   );
+}
+
+/**
+ * La pregunta enviada, con cada mención elegida en el composer pintada como
+ * chip (asistente-menciones, «In the sent question, each mention SHALL be
+ * displayed as a chip»).
+ *
+ * `menciones` YA VIENE UBICADA (`resolverEnvio`/`ubicarMenciones` al enviar):
+ * este componente sólo corta el texto en esas posiciones, nunca vuelve a
+ * buscarlas — la pregunta de un turno enviado no cambia, así que la posición
+ * tampoco.
+ */
+function pintarPregunta(pregunta: string, menciones: MencionEnPregunta[] | undefined) {
+  if (!menciones || menciones.length === 0) return pregunta;
+
+  const partes: React.ReactNode[] = [];
+  let cursor = 0;
+
+  menciones.forEach((mencion, indice) => {
+    if (mencion.inicio > cursor) {
+      partes.push(pregunta.slice(cursor, mencion.inicio));
+    }
+    partes.push(
+      <span
+        key={`${mencion.tipo}-${mencion.id}-${indice}`}
+        className="adoc-asistente-mencion-chip adoc-asistente-mencion-chip--enviada"
+      >
+        {mencion.texto}
+      </span>,
+    );
+    cursor = mencion.fin;
+  });
+
+  if (cursor < pregunta.length) partes.push(pregunta.slice(cursor));
+
+  return partes;
 }
 
 /**

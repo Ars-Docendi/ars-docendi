@@ -14,6 +14,7 @@ import { useAnclaAlFinal } from "../hooks/useAnclaAlFinal";
 import { usePreferenciaDelRail } from "../hooks/usePreferenciaDelRail";
 import type { Asistente } from "../hooks/useAsistente";
 import type { HistorialAsistente } from "../hooks/useHistorialAsistente";
+import type { MencionEnPregunta } from "../types";
 import { developmentAuthEnabled } from "../../../shared/auth/developmentAuth";
 import { obtenerSesionDesarrollo } from "../../../shared/auth/dev/session";
 
@@ -64,6 +65,12 @@ export function PanelAsistente({
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar, reintentar, reenviarUltima, detener } = asistente;
   const [borrador, setBorrador] = useState("");
+  // El anuncio de cuántas materias/docentes coincidieron en el popover de
+  // menciones (asistente-menciones) sale por la MISMA región viva que ya
+  // usan renombrar/archivar/reanudar del rail (asistente-accesibilidad: «no
+  // agregar una segunda»); por eso vive acá, junto a `historial.anuncio`, y
+  // no adentro del composer, que no tiene ninguna región viva propia.
+  const [anuncioDeMenciones, setAnuncioDeMenciones] = useState<string | null>(null);
   // El bypass del admin ya lo aplicó el backend en `cupo.bloqueado` (a diferencia de
   // `mantenimiento`, que es global y sin bypass): un actor con
   // `asistente.administrar` no se ve bloqueado por su propio mantenimiento y puede
@@ -93,13 +100,13 @@ export function PanelAsistente({
   // se queda donde está con «Ir al final» a mano.
   const { hilo, anclado, irAlFinal, onScroll } = useAnclaAlFinal(turnos);
 
-  async function enviar(mensaje: string) {
+  async function enviar(mensaje: string, menciones?: MencionEnPregunta[]) {
     // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el
     // botón, ni por un chip—, pero se puede seguir escribiendo: el borrador no se
     // toca. El hook tiene su propio guard; éste es el que cuida lo escrito.
     if (enVuelo || bloqueado) return;
     setBorrador("");
-    await preguntar(mensaje);
+    await preguntar(mensaje, menciones);
   }
 
   // SIN ACCESO NO HAY FORMULARIO. Con 403 el campo y el botón quedaban activos y
@@ -180,7 +187,7 @@ export function PanelAsistente({
                     onEditarYReenviar={(texto) => void reenviarUltima(texto)}
                     enVuelo={enVuelo}
                     bloqueado={bloqueado}
-                    anuncio={historial.anuncio}
+                    anuncio={anuncioDeMenciones ?? historial.anuncio}
                     umbralDelIndicadorMs={umbralDelIndicadorMs}
                   />
                 </div>
@@ -207,7 +214,8 @@ export function PanelAsistente({
                   ref={entrada}
                   valor={borrador}
                   onCambiar={setBorrador}
-                  onEnviar={() => void enviar(borrador)}
+                  onEnviar={(menciones) => void enviar(borrador, menciones)}
+                  onAnunciar={setAnuncioDeMenciones}
                   onDetener={detener}
                   enVuelo={enVuelo}
                   deshabilitado={bloqueado}

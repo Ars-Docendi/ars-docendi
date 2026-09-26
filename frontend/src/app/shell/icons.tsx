@@ -405,4 +405,37 @@ export const checkIcon = (
   </svg>
 );
 
+/**
+ * Un documento con líneas. Va en cada fila «materia» del popover de
+ * menciones del asistente («@», asistente-menciones).
+ */
+export const fileTextIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M5.5 2h5l3 3v9.5a1 1 0 01-1 1h-7a1 1 0 01-1-1V3a1 1 0 011-1z" />
+    <path d="M10.5 2v2.5a1 1 0 001 1H14" />
+    <path d="M6.5 10h5M6.5 12.5h5" />
+  </svg>
+);
+
+/**
+ * Una persona. Va en cada fila «docente» del popover de menciones del
+ * asistente («#», asistente-menciones).
+ */
+export const personIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <circle cx="9" cy="6" r="3" />
+    <path d="M3.5 15v-1a4 4 0 014-4h3a4 4 0 014 4v1" />
+  </svg>
+);
+
+/**
+ * Una cruz chica. Va en el botón que quita un chip de mención del composer
+ * del asistente (asistente-menciones), antes de enviar.
+ */
+export const closeIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M4.5 4.5l9 9M13.5 4.5l-9 9" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

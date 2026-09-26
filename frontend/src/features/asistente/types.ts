@@ -201,10 +201,73 @@ export type PeriodoDeUso = "dia" | "semana" | "mes";
 export type RazonDeRetroalimentacion =
   "datos_incorrectos" | "no_entendio_la_pregunta" | "faltan_datos" | "otro";
 
+// ============================================================
+// Menciones «@materia» / «#docente» del composer (asistente-menciones,
+// design.md D10/D11 de asistente-rediseno-v3). Ver
+// docs/architecture/api-contracts.md §Asistente — Menciones.
+// ============================================================
+
+/** El disparador elige el tipo: no hay una tercera cosa que mencionar. */
+export type TipoDeMencion = "materia" | "docente";
+
+/** Lo que viaja en `POST /consultas`: sólo el tipo y el id, nunca el texto. */
+export interface ReferenciaDeMencion {
+  tipo: TipoDeMencion;
+  id: string;
+}
+
+/** Una fila de `GET /api/asistente/menciones`. */
+export interface ResultadoDeMencion {
+  id: string;
+  nombre: string;
+  /** Sólo en una materia. */
+  carrera?: string | null;
+  /** Sólo en una materia. */
+  codigo?: string | null;
+  /** Sólo en un docente. */
+  cargo?: string | null;
+}
+
+/** La respuesta completa de `GET /api/asistente/menciones`. */
+export interface BusquedaDeMenciones {
+  resultados: ResultadoDeMencion[];
+  /** Nunca un conteo — mismo motivo que `RespuestaDelAsistente.truncado`. */
+  hayMas: boolean;
+}
+
+/**
+ * Una mención elegida en el popover, mientras se sigue escribiendo el
+ * borrador: la referencia que viajaría, más el texto —disparador y nombre—
+ * que quedó insertado en el campo. `referenciasVigentes` (utils/menciones.ts)
+ * la filtra contra el borrador actual al enviar: si el texto ya no está, la
+ * referencia no viaja (asistente-menciones, «Deleting the mention text drops
+ * its reference»).
+ */
+export interface ChipDeMencion extends ReferenciaDeMencion {
+  texto: string;
+}
+
+/**
+ * Una mención ya ubicada en el texto de una pregunta YA ENVIADA, con la
+ * posición donde `Mensaje` la reemplaza por un chip. Se congela al enviar:
+ * la pregunta de un turno no vuelve a cambiar, así que la posición tampoco.
+ */
+export interface MencionEnPregunta extends ReferenciaDeMencion {
+  texto: string;
+  inicio: number;
+  fin: number;
+}
+
 /** Un turno ya renderizable, del lado del cliente. */
 export interface TurnoDeLaConversacion {
   id: string;
   pregunta: string;
+  /**
+   * Las menciones de ESTA pregunta, ya ubicadas en su texto (asistente-
+   * menciones): `Mensaje` las pinta como chips. Ausente si no se elegió
+   * ninguna, o si ninguna sobrevivió hasta el envío.
+   */
+  menciones?: MencionEnPregunta[];
   /** Ausente mientras el turno está en vuelo. */
   respuesta?: RespuestaDelAsistente;
   /** Mensaje comprensible cuando el pedido falló por transporte. */

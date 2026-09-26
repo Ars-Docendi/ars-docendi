@@ -26,6 +26,16 @@ export function mensajeDeError(error: unknown): string {
     return MENSAJE_SIN_ACCESO;
   }
 
+  // Una mención revalidada al enviar y que ya no está disponible —desconocida
+  // o fuera del alcance ACTUAL del actor, design.md D11 de asistente-
+  // rediseno-v3—: SÍ se distingue del 400 genérico de más abajo, porque acá
+  // hay algo concreto que hacer (elegir otra) y no sólo reformular. El chip
+  // del composer ya se vació al enviar, así que «volver a elegirla» es
+  // escribir una pregunta nueva con una mención nueva.
+  if (esMencionNoDisponible(error)) {
+    return "Una de las menciones ya no está disponible. Volvé a elegirla.";
+  }
+
   if (esHiloPerdido(error)) {
     return "Se perdió el hilo de la conversación. Volvé a hacer la pregunta.";
   }
@@ -57,6 +67,25 @@ export function mensajeDeError(error: unknown): string {
  */
 export function esHiloPerdido(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
+/**
+ * El `400` puntual de `AsistenteController` cuando una referencia —conocida
+ * o no— ya no resuelve contra el alcance actual del actor (asistente-
+ * menciones). Se detecta por el `title` del `ProblemDetails`, nunca por su
+ * `detail`: el texto que se le muestra al usuario lo elige este archivo, no
+ * el backend.
+ */
+export function esMencionNoDisponible(error: unknown): boolean {
+  if (!axios.isAxiosError(error) || error.response?.status !== 400) return false;
+
+  const datos: unknown = error.response.data;
+  return (
+    typeof datos === "object" &&
+    datos !== null &&
+    "title" in datos &&
+    datos.title === "Mención no disponible"
+  );
 }
 
 /**
