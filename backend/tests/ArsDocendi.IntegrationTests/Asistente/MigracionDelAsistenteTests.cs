@@ -158,6 +158,81 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             """));
     }
 
+    // --------------------------- D7 (asistente-rediseno-v3): retiring `lento`
+    //
+    // `lento` stays valid at the database so an existing vote is never rewritten;
+    // the API (`RazonesDeRetroalimentacion.Todas`) is what rejects it on new
+    // submissions. `faltan_datos` has to reach bases provisioned before it existed,
+    // which is what the guarded CHECK replacement in 003 does (the one ratified
+    // exception to the no-DROP rule, see ArquitecturaAsistenteTests).
+
+    [Fact]
+    public async Task Una_base_con_el_check_viejo_acepta_faltan_datos_y_conserva_sus_votos()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+        await EjecutarAsync(
+            """
+            ALTER TABLE asistente.retroalimentacion_turno
+                DROP CONSTRAINT retroalimentacion_turno_razon_valida;
+            ALTER TABLE asistente.retroalimentacion_turno
+                ADD CONSTRAINT retroalimentacion_turno_razon_valida
+                CHECK (razon IS NULL OR razon IN ('datos_incorrectos', 'no_entendio_la_pregunta', 'lento', 'otro'));
+            """);
+        var votoViejo = await SembrarRegistroAnaliticoAsync();
+        await EjecutarAsync(
+            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
+            + "VALUES (@id, false, 'lento', now())",
+            ("id", votoViejo));
+
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+        var despuesDeUna = await FormaDelSchemaAsync();
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        var votoNuevo = await SembrarRegistroAnaliticoAsync();
+        await EjecutarAsync(
+            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
+            + "VALUES (@id, false, 'faltan_datos', now())",
+            ("id", votoNuevo));
+
+        Assert.Equal("lento", await EscalarAsync<string>(
+            "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
+            ("id", votoViejo)));
+        Assert.Equal(despuesDeUna, await FormaDelSchemaAsync());
+    }
+
+    [Fact]
+    public async Task Una_fila_lento_sobrevive_sin_que_nada_la_toque()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+        var analiticoId = await SembrarRegistroAnaliticoAsync();
+        await EjecutarAsync(
+            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
+            + "VALUES (@id, false, 'lento', now())",
+            ("id", analiticoId));
+
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("lento", await EscalarAsync<string>(
+            "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
+            ("id", analiticoId)));
+    }
+
+    [Fact]
+    public async Task Faltan_datos_entra_como_razon_nueva()
+    {
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+        var analiticoId = await SembrarRegistroAnaliticoAsync();
+
+        await EjecutarAsync(
+            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
+            + "VALUES (@id, false, 'faltan_datos', now())",
+            ("id", analiticoId));
+
+        Assert.Equal("faltan_datos", await EscalarAsync<string>(
+            "SELECT razon FROM asistente.retroalimentacion_turno WHERE analitico_id = @id",
+            ("id", analiticoId)));
+    }
+
     // ------------------------------------------------------------ la base vieja
 
     [Fact]
@@ -282,6 +357,12 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         await EjecutarAsync("DROP SCHEMA asistente CASCADE");
         await EjecutarAsync(TablaVieja);
     }
+
+    private Task<Guid> SembrarRegistroAnaliticoAsync() =>
+        EscalarAsync<Guid>(
+            "INSERT INTO asistente.registro_analitico (pregunta, categoria, estado, dia) "
+            + "VALUES ('¿cuántos docentes hay?', 'cruce_de_tablas', 'respondida', current_date) "
+            + "RETURNING id");
 
     private Task SembrarFilaViejaAsync() =>
         EjecutarAsync(

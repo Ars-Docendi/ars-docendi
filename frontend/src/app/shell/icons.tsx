@@ -384,4 +384,14 @@ export const contraerTablaIcon = (
   </svg>
 );
 
+/**
+ * Un tilde. Va en «Copiado» de la barra de acciones (2 s) y en la pastilla
+ * elegida del panel «¿Qué falló?» del asistente.
+ */
+export const checkIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M4 9.5l3.5 3.5L14 6" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

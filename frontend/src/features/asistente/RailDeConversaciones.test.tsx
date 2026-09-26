@@ -358,6 +358,20 @@ describe("La sección «Archivadas» (tasks.md §2.5)", () => {
 
     expect(screen.queryByRole("button", { name: /^Archivadas/ })).toBeNull();
   });
+
+  it("dentro de su propia sección no lleva la marca «Archivada» — sería redundante", async () => {
+    // La marca sólo hace falta en los resultados de búsqueda, donde activas y
+    // archivadas se mezclan (asistente-rediseno-v3, hallazgo de verificación
+    // visual: el mock no la dibuja acá).
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, ARCHIVADA]);
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await userEvent.setup().click(screen.getByRole("button", { name: /^Archivadas/ }));
+
+    expect(screen.getByText(ARCHIVADA.titulo)).toBeInTheDocument();
+    expect(screen.queryByText("Archivada")).toBeNull();
+  });
 });
 
 describe("Eliminar una conversación (tasks.md §3): sin confirmación, con aviso", () => {

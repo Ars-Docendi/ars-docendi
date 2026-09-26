@@ -16,15 +16,26 @@
 -- history (design.md D4). A separate surrogate key would let more than one
 -- row exist per turn, which is exactly what this design forbids.
 --
--- WHY `razon` IS CONSTRAINED TO FOUR VALUES INSTEAD OF FREE TEXT
+-- WHY `razon` IS CONSTRAINED TO A CLOSED SET INSTEAD OF FREE TEXT
 -- Free text is how a rare, identifying complaint ends up sitting next to an
 -- otherwise-anonymous row (the same class of risk TD-012 already calls out
 -- for `intencion_sombra`). A closed vocabulary can't carry that.
 --
+-- WHY THE LIST BELOW INCLUDES THE RETIRED `lento` (design.md D7 of
+-- asistente-rediseno-v3)
+-- The UI reason set changed from {datos_incorrectos, no_entendio_la_pregunta,
+-- lento, otro} to {datos_incorrectos, no_entendio_la_pregunta, faltan_datos,
+-- otro}. The API rejects `lento` on every NEW submission
+-- (`RazonesDeRetroalimentacion.Todas` no longer lists it), and this table's
+-- only writer goes through that gate. `lento` stays valid here so an existing
+-- vote is never rewritten: "slow" is not "other", and the row ages out with
+-- asistente.registro_analitico's 90-day retention anyway.
+--
 -- IDEMPOTENT THE SAME WAY 002 IS: `IF NOT EXISTS` on the table. Nothing here
 -- adds a column later, so there is no `ALTER TABLE ... ADD COLUMN IF NOT
 -- EXISTS` yet — if one is ever needed, it goes here AND in the CREATE, same
--- rule as 002.
+-- rule as 002. The one other statement is the guarded CHECK replacement right
+-- after the CREATE (see there).
 
 CREATE TABLE IF NOT EXISTS asistente.retroalimentacion_turno (
     analitico_id   uuid        PRIMARY KEY
@@ -35,11 +46,46 @@ CREATE TABLE IF NOT EXISTS asistente.retroalimentacion_turno (
                                 CHECK (razon IS NULL OR razon IN (
                                     'datos_incorrectos',
                                     'no_entendio_la_pregunta',
-                                    'lento',
-                                    'otro'
+                                    'faltan_datos',
+                                    'otro',
+                                    'lento'
                                 )),
     actualizado_en timestamptz NOT NULL
 );
+
+-- REPLACING THE REASON CHECK ON A BASE THAT ALREADY HAS THE TABLE
+-- Against a base provisioned before `faltan_datos` existed, the CREATE above is
+-- a no-op and the old CHECK (without `faltan_datos`) stays, so every new
+-- "Faltan datos" vote would fail. A CHECK can only be widened by dropping and
+-- recreating it, which is why this is the single ratified exception to
+-- ArquitecturaAsistenteTests' no-DROP rule (listed there by constraint name):
+-- it lives in the same file as the CREATE, so it does not depend on the order
+-- files are applied; it only runs when the current definition lacks
+-- `faltan_datos`, so a second run is a no-op; and it only ever widens the set,
+-- so no existing row can violate the new definition.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conrelid = 'asistente.retroalimentacion_turno'::regclass
+           AND conname = 'retroalimentacion_turno_razon_valida'
+           AND pg_get_constraintdef(oid) LIKE '%faltan_datos%'
+    ) THEN
+        ALTER TABLE asistente.retroalimentacion_turno
+            DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razon_valida;
+        ALTER TABLE asistente.retroalimentacion_turno
+            ADD CONSTRAINT retroalimentacion_turno_razon_valida
+            CHECK (razon IS NULL OR razon IN (
+                'datos_incorrectos',
+                'no_entendio_la_pregunta',
+                'faltan_datos',
+                'otro',
+                'lento'
+            ));
+    END IF;
+END
+$$;
 
 -- DO NOT ADD AN ACTOR COLUMN HERE "FOR CONSISTENCY" WITH registro_operativo.
 -- registro_operativo carries actor_id because it exists to answer "who used

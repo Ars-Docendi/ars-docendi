@@ -145,12 +145,12 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         var token = await PreguntarYObtenerTokenAsync(cliente);
 
         await VotarAsync(cliente, token, voto: true);
-        await VotarAsync(cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.Lento);
+        await VotarAsync(cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
 
         Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(token));
         var (voto, razon) = await LeerFilaAsync(token);
         Assert.False(voto);
-        Assert.Equal(RazonesDeRetroalimentacionExpuestas.Lento, razon);
+        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
     }
 
     [Fact]
@@ -198,6 +198,67 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         using var respuesta = await VotarAsync(cliente, token, voto: false, razon: "no-es-una-razon-valida");
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    // ------------------------------------------ D7: retiring `lento` (5.2)
+
+    [Fact]
+    public async Task Faltan_datos_is_accepted_as_a_reason()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var (_, razon) = await LeerFilaAsync(token);
+        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
+    }
+
+    [Fact]
+    public async Task Lento_is_rejected_as_a_new_reason()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.Lento);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal(0L, await ContarFilaDeRetroalimentacionAsync(token));
+    }
+
+    [Fact]
+    public async Task Changing_a_legacy_lento_vote_replaces_its_reason()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var token = await PreguntarYObtenerTokenAsync(cliente);
+        // Una fila de antes de este cambio, cuando `lento` todavía era válido —la
+        // API ya no la produce, así que se simula por SQL directo (design.md D7 de
+        // asistente-rediseno-v3).
+        await SembrarVotoLegacyAsync(token, RazonesDeRetroalimentacionExpuestas.Lento);
+
+        using var respuesta = await VotarAsync(
+            cliente, token, voto: false, razon: RazonesDeRetroalimentacionExpuestas.FaltanDatos);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        Assert.Equal(1L, await ContarFilaDeRetroalimentacionAsync(token));
+        var (voto, razon) = await LeerFilaAsync(token);
+        Assert.False(voto);
+        Assert.Equal(RazonesDeRetroalimentacionExpuestas.FaltanDatos, razon);
     }
 
     // ------------------------------------------- D3: the log-field separation
@@ -349,6 +410,26 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         return (lector.GetBoolean(0), lector.IsDBNull(1) ? null : lector.GetString(1));
     }
 
+    /// <summary>
+    /// Deja el voto de `token` como habría quedado antes de D7: escribe `razon`
+    /// por SQL directo, porque la API ya no la acepta. `retroalimentacion_turno_razon_valida`
+    /// sigue permitiendo `lento` para SIEMPRE en la base —ver el comentario de
+    /// 003_asistente_retroalimentacion.sql: este módulo no puede `DROP`/`ALTER`
+    /// una CHECK existente (`ArquitecturaAsistenteTests`), así que el único guard
+    /// real es la API—, y por eso este insert no necesita destrabar nada.
+    /// </summary>
+    private async Task SembrarVotoLegacyAsync(Guid token, string razon)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var insertar = new NpgsqlCommand(
+            "INSERT INTO asistente.retroalimentacion_turno (analitico_id, voto, razon, actualizado_en) "
+            + "VALUES (@id, false, @razon, now())",
+            conexion);
+        insertar.Parameters.AddWithValue("id", token);
+        insertar.Parameters.AddWithValue("razon", razon);
+        await insertar.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
     private static void Autenticar(HttpClient cliente, Guid usuario, string rol)
     {
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
@@ -388,11 +469,20 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         });
     }
 
-    /// <summary>Mirrors the four reason values without depending on the internal type.</summary>
+    /// <summary>Mirrors the reason values without depending on the internal type.</summary>
     private static class RazonesDeRetroalimentacionExpuestas
     {
-        public const string Lento = "lento";
+        public const string DatosIncorrectos = "datos_incorrectos";
+        public const string NoEntendioLaPregunta = "no_entendio_la_pregunta";
+        public const string FaltanDatos = "faltan_datos";
         public const string Otro = "otro";
+
+        /// <summary>
+        /// Retired by D7 of asistente-rediseno-v3: the API rejects it on every new
+        /// submission. Kept here only to prove that rejection and to simulate a
+        /// row recorded before the retirement (`SembrarVotoLegacyAsync`).
+        /// </summary>
+        public const string Lento = "lento";
     }
 
     /// <summary>Captures every formatted log event, across every logger.</summary>

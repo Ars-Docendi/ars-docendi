@@ -14,7 +14,7 @@ import {
 } from "../utils/portapapeles";
 import type { ColumnaDelResultado, VinculoDelResultado } from "../types";
 
-/** Cuánto dura «Copiado» antes de volver a «Copiar tabla». Igual que `AccionesDelMensaje`. */
+/** Cuánto dura «Copiado» antes de volver a «Copiar tabla». Igual que `BarraDeAcciones`. */
 const DURACION_DEL_COPIADO_MS = 2000;
 
 interface TablaAmpliadaProps {

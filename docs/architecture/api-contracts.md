@@ -180,7 +180,7 @@ Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de o
 
 #### `POST /api/asistente/retroalimentacion`
 
-Pedido: `{ token, voto, razon? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razon` es opcional y, solo cuando `voto` es falso, uno de cuatro valores cerrados: `datos_incorrectos`, `no_entendio_la_pregunta`, `lento`, `otro`. Un `razon` presente junto a `voto: true` se ignora del lado del servidor — nunca se confía en que el cliente lo haya omitido.
+Pedido: `{ token, voto, razon? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razon` es opcional y, solo cuando `voto` es falso, uno de cuatro valores cerrados: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. Un `razon` presente junto a `voto: true` se ignora del lado del servidor — nunca se confía en que el cliente lo haya omitido. `lento` (usado hasta `asistente-rediseno-v3`) ya no se acepta y devuelve `400`; las filas que lo tienen guardado de antes siguen intactas hasta que la purga de 90 días se las lleva (design.md D7 del rediseño v3).
 
 Respuestas:
 

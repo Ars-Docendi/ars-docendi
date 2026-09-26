@@ -186,6 +186,41 @@ describe("Ampliar tabla", () => {
     expect(await within(region).findByRole("button", { name: "Copiado" })).toBeInTheDocument();
   });
 
+  it("mientras está abierta, sus hermanos quedan `inert` — y dejan de estarlo al contraer", async () => {
+    // La vista ampliada cubre visualmente el resto del modal, pero sin esto
+    // Tab podía seguir alcanzando el rail o el hilo de abajo (asistente-
+    // accesibilidad, hallazgo de verificación visual de asistente-rediseno-v3).
+    const user = abrir();
+    montar(
+      <div className="adoc-asistente-grilla">
+        <nav data-testid="rail">rail</nav>
+        <div data-testid="columna">
+          <TablaDeResultado
+            columnas={COLUMNAS}
+            filas={FILAS}
+            truncado={false}
+            pregunta={PREGUNTA}
+          />
+        </div>
+      </div>,
+    );
+
+    expect(screen.getByTestId("rail")).not.toHaveAttribute("inert");
+    expect(screen.getByTestId("columna")).not.toHaveAttribute("inert");
+
+    await ampliar(user);
+
+    expect(screen.getByTestId("rail")).toHaveAttribute("inert");
+    expect(screen.getByTestId("columna")).toHaveAttribute("inert");
+    // La propia capa ampliada nunca se pone `inert` a sí misma.
+    expect(screen.getByRole("region", { name: "Tabla ampliada" })).not.toHaveAttribute("inert");
+
+    await user.click(screen.getByRole("button", { name: "Contraer" }));
+
+    expect(screen.getByTestId("rail")).not.toHaveAttribute("inert");
+    expect(screen.getByTestId("columna")).not.toHaveAttribute("inert");
+  });
+
   it("«Exportar a CSV» exporta la tabla en el orden mostrado", async () => {
     const disparo = vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
     const user = abrir();

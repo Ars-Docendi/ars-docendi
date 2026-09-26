@@ -461,8 +461,9 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
   aviso de deshacer. **Rail colapsado**: sólo «Expandir conversaciones», «Nueva conversación» e
   «Historial» (que expande). El estado se recuerda por usuario en el navegador (única
   preferencia guardada; nunca turnos).
-- **Fila**: una línea de 36 px, título recortado con «…» y completo en `title`; «⋮» a la derecha
-  (tenue hasta el hover o el foco). La activa: fondo `--color-accent-subtle`, texto
+- **Fila**: una línea de 36 px, título recortado con «…» y completo en `title`; «⋮» a la derecha,
+  siempre visible en tono tenue, más oscuro con fondo al hover o al foco (nunca oculto en reposo:
+  el mock lo dibuja en cada fila). La activa: fondo `--color-accent-subtle`, texto
   `--color-accent-pressed`, peso 500, `aria-current`. Doble clic o «Renombrar» → campo inline con
   borde de foco en acento; Enter o salir del campo guarda, Escape cancela, vacío conserva el título.
 - **Menú «⋮»** (`MenuAcciones` compartido): «Renombrar» / «Archivar» / «Eliminar» en filas

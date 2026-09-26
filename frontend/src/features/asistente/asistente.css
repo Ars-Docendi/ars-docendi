@@ -317,28 +317,28 @@
   font-weight: var(--weight-semibold);
 }
 
-/* El «⋮» de la fila queda invisible en reposo y aparece con el mouse, el
-   teclado o el propio menú abierto — el mismo ahorro de ruido visual que
-   ChatGPT aplicó a su lista (research previo a este rediseño). Va DESDE ACÁ y
-   no en `MenuAcciones.css`: ese menú es compartido con `designaciones`, que sí
-   lo quiere siempre visible. */
-.adoc-asistente-rail-item .adoc-acciones-trigger {
-  opacity: 0;
-  transition: opacity var(--motion-fast);
-}
-
-.adoc-asistente-rail-item:hover .adoc-acciones-trigger,
-.adoc-asistente-rail-item:focus-within .adoc-acciones-trigger,
-.adoc-asistente-rail-item .adoc-acciones-trigger[aria-expanded="true"] {
-  opacity: 1;
-}
+/* El «⋮» de la fila queda SIEMPRE visible, en el color tenue de reposo que ya
+   trae `MenuAcciones.css` (`--color-text-tertiary`) — el mock lo dibuja así en
+   cada fila, no sólo al pasar el mouse o el teclado (asistente-rediseno-v3,
+   hallazgo de verificación visual: la versión anterior de esta regla lo
+   ocultaba con `opacity: 0`, leyendo mal «tenue hasta el hover» del design
+   spec como «invisible hasta el hover»). El hover/foco que oscurece el color
+   y le pone fondo ya los da `MenuAcciones.css` sin nada más de acá. */
 
 /* Una línea, con el sobrante en «…»: el título completo queda en el `title`
    del botón —se lee al pasar el mouse—, y ya no hace falta una segunda línea
-   con la fecha, que ahora la da el grupo. */
+   con la fecha, que ahora la da el grupo.
+
+   `padding: 0`: el botón fantasma de la librería trae 16 px propios a los
+   lados (tamaño por defecto, sin `size="sm"`), así que el texto arrancaba 16
+   px más adentro que la etiqueta del grupo de fecha —10 px de
+   `.adoc-asistente-rail-item`— y las dos columnas no alineaban (hallazgo de
+   verificación visual). Sin relleno propio, el texto arranca justo en el
+   borde del `<li>`, igual que la etiqueta. */
 .adoc-asistente-rail-abrir {
   flex: 1 1 auto;
   min-width: 0;
+  padding: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -918,8 +918,13 @@
   color: var(--color-text-secondary);
 }
 
-/* ────────────────────────── exportar a CSV, y el voto ──────────────────────── */
+/* ────────────────────────── exportar a CSV (sin controlar) ─────────────────── */
 
+/* Sólo se pinta cuando `TablaDeResultado` NO recibe `onAmpliarChange` —el
+   único llamador, `Mensaje`, siempre lo pasa, así que este bloque hoy sólo
+   corre en los tests que montan la tabla sola—: controlada, el disparador ya
+   vive en `BarraDeAcciones` (design.md D6 de asistente-rediseno-v3, ARS-146
+   §5), y uno propio acá sería el duplicado que esa barra ya resuelve. */
 .adoc-asistente-exportar {
   display: flex;
   flex-direction: column;
@@ -933,41 +938,186 @@
   gap: var(--space-1);
 }
 
-.adoc-asistente-exportar-confirmacion,
-.adoc-asistente-voto-confirmacion {
+.adoc-asistente-exportar-confirmacion {
   margin: 0;
   font-size: var(--text-caption-size);
   color: var(--color-text-secondary);
 }
 
-.adoc-asistente-voto {
+/* ───────────────────── barra de acciones (ARS-146, design.md D6) ───────────── */
+
+/* La fila de íconos bajo cada respuesta: copiar, ampliar, exportar | separador,
+   votar. `display: flex` y no `inline-flex`: ocupa el ancho de la respuesta,
+   igual que el pie que reemplaza. */
+.adoc-asistente-barra {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
   margin-top: var(--space-2);
+  /* SIEMPRE EN EL DOM Y EN EL ORDEN DE TAB (design.md D6): lo que cambia es
+     sólo la opacidad, nunca `display`/`visibility`, así que Tab la alcanza
+     igual con la barra "apagada" — el mismo mecanismo que ya usa el «⇅» de
+     una columna sin ordenar (`.adoc-asistente-orden-icono--inactivo`) y el
+     «⋮» del rail. */
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+/* Visible en el último turno, en cualquiera votado —sin estado nuevo: alcanza
+   con que ALGÚN control de acá tenga `aria-pressed="true"`, que es lo que
+   pasa apenas se vota— y con el mouse o el teclado dentro del turno. */
+.adoc-asistente-turno--ultimo .adoc-asistente-barra,
+.adoc-asistente-turno:hover .adoc-asistente-barra,
+.adoc-asistente-turno:focus-within .adoc-asistente-barra,
+.adoc-asistente-turno:has([aria-pressed="true"]) .adoc-asistente-barra {
+  opacity: 1;
+}
+
+/* 28 px, sin borde, íconos de 15 px — el tamaño de ícono-solo que comparten
+   copiar/ampliar/exportar/votar (asistente-rediseno-v3, mock v3). */
+.adoc-asistente-barra-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.adoc-asistente-barra-boton:hover {
+  background: var(--color-bg-canvas);
+}
+
+.adoc-asistente-barra-boton svg {
+  width: 15px;
+  height: 15px;
+}
+
+.adoc-asistente-barra-separador {
+  width: 1px;
+  height: 14px;
+  flex: none;
+  margin: 0 var(--space-1);
+  background: var(--color-border-default);
+}
+
+/* ──────────────────────────────── el voto ──────────────────────────────────── */
+
+/* `display: contents`: este `<div>` desaparece de la caja y deja que sus
+   hijos —el grupo de dos botones, el panel, el agradecimiento— sean ítems
+   directos de `.adoc-asistente-barra`, sin que `VotoDeRetroalimentacion`
+   tenga que saber nada del layout de su llamador. */
+.adoc-asistente-voto {
+  display: contents;
 }
 
 .adoc-asistente-voto-botones {
-  display: flex;
-  gap: var(--space-2);
+  display: inline-flex;
+  gap: 2px;
 }
 
-.adoc-asistente-voto-razones {
+/* 👍 activo: fondo y texto de acento — el mismo par que la fila activa del
+   rail (mapeo del mock: `--color-accent-subtle` / `--color-accent-pressed`). */
+.adoc-asistente-voto-arriba[aria-pressed="true"] {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+}
+
+/* 👎 activo: la inversión de color que ya usa el aviso de deshacer —fondo
+   oscuro, texto claro— para que «no sirvió» se lea distinto de «sirvió» y no
+   sólo por el ícono. */
+.adoc-asistente-voto-abajo[aria-pressed="true"] {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+}
+
+/* El panel «¿Qué falló? Opcional»: caja con borde sutil sobre el fondo del
+   rail —la misma superficie que ya usa la cabecera de la tabla ampliada—,
+   `flex: 0 0 100%` para pasar a su propia línea dentro de la barra en vez de
+   apretarse contra los íconos de al lado. */
+.adoc-asistente-voto-panel {
+  flex: 0 0 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  border-left: 3px solid var(--color-border-default);
-  padding-left: var(--space-3);
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
 }
 
-.adoc-asistente-voto-razones-titulo {
+.adoc-asistente-voto-panel-titulo {
   margin: 0;
   font-size: var(--text-body-sm-size);
-  color: var(--color-text-secondary);
+  font-weight: var(--weight-semibold);
 }
 
-.adoc-asistente-voto-razones ul.adoc-asistente-chips {
-  margin-top: 0;
+.adoc-asistente-voto-panel-opcional {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-pastillas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-pastilla {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 4px var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.adoc-asistente-pastilla:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* Elegida: borde y fondo de acento + tilde — el mismo trío que la fila activa
+   del rail, para que «elegido» se lea igual en toda la feature. */
+.adoc-asistente-pastilla.elegida {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+}
+
+.adoc-asistente-pastilla .ico {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+}
+
+.adoc-asistente-voto-panel-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-voto-confirmacion {
+  flex: 0 0 100%;
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
 }
 
 /* ─────────────────────────── opciones y sugerencias ────────────────────────── */
@@ -1071,16 +1221,6 @@
   background: var(--color-bg-raised);
   font-family: var(--font-mono);
   font-size: var(--text-caption-size);
-}
-
-/* «Copiar respuesta» y «Copiar tabla», al pie y siempre a la vista: el hover no
-   existe con el teclado ni con el dedo. Botones fantasma: son acciones de
-   servicio, no la respuesta. */
-.adoc-asistente-acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-inline-start: calc(-1 * var(--space-3));
 }
 
 /* ───────────────────────── un turno restaurado del historial ───────────────── */

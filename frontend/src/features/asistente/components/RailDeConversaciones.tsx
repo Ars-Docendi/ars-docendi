@@ -192,6 +192,7 @@ export function RailDeConversaciones({
                           activa={conversacion.id === conversacionActivaId}
                           historial={historial}
                           enfocarLista={enfocarLista}
+                          mostrarMarcaArchivada
                         />
                       ))}
                     </ul>
@@ -288,12 +289,22 @@ function ItemDeConversacion({
   activa,
   historial,
   enfocarLista,
+  mostrarMarcaArchivada = false,
 }: {
   conversacion: ConversacionResumen;
   activa: boolean;
   historial: HistorialAsistente;
   /** A dónde va el foco cuando renombrar, archivar o eliminar se llevan el control que lo tenía. */
   enfocarLista: () => void;
+  /**
+   * La marca «Archivada» junto al título. SÓLO en los resultados de
+   * búsqueda —donde activas y archivadas se mezclan en una sola lista y hace
+   * falta distinguirlas—: dentro de su propia sección «Archivadas» la marca
+   * es redundante (asistente-rediseno-v3, hallazgo de verificación visual;
+   * el mock no la dibuja ahí). Default `false`: ni la lista agrupada por
+   * fecha ni la sección de archivadas la piden.
+   */
+  mostrarMarcaArchivada?: boolean;
 }) {
   const [renombrando, setRenombrando] = useState(false);
   const [titulo, setTitulo] = useState(conversacion.titulo);
@@ -401,7 +412,7 @@ function ItemDeConversacion({
         {conversacion.titulo}
       </Button>
 
-      {conversacion.archivada && (
+      {mostrarMarcaArchivada && conversacion.archivada && (
         <span className="adoc-asistente-rail-marca-archivada">Archivada</span>
       )}
 

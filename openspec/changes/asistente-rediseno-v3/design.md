@@ -172,6 +172,16 @@ from the first CHECK and `VALIDATE` the second. Alternative: rewriting `lento` r
 one constraint for at most 90 days. The API rejects `lento` with `400` via the closed
 list. The thumbs-down panel is single-choice and has no free-text field (D14).
 
+**Implemented differently (§5 execution):** the swap runs inside a `DO` block in 003, right
+after the `CREATE`, and only when the current definition lacks `faltan_datos` — so it is
+idempotent and does not depend on file order. `ArquitecturaAsistenteTests` forbids every
+`DROP` in this module's SQL; this replacement is the single ratified exception, listed there
+by constraint name (`ReemplazosDeCheckRatificados`), because a CHECK can only be widened by
+dropping and recreating it and without it a base provisioned before this change would reject
+every «Faltan datos» vote. The second constraint (`razon_vigente ... NOT VALID`) was not
+added: `RazonesDeRetroalimentacion.Todas` rejects new `lento` at the API, the table's only
+writer, and a second DB-level exception was not worth widening the rule further.
+
 ### D8. `/asistente` redirect
 
 `routes.tsx` index → `<Navigate to="/portal?asistente=abrir" replace />` (`/portal` is the

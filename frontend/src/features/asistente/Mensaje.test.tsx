@@ -2,9 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { AccionesDelMensaje } from "./components/AccionesDelMensaje";
+import { BarraDeAcciones } from "./components/BarraDeAcciones";
 import { Mensaje } from "./components/Mensaje";
 import * as api from "./api/asistenteApi";
+import * as descargas from "./utils/descargas";
 import { CAPACIDADES, montar, respuesta } from "./test/soporte";
 import { PanelDePrueba } from "./test/PanelDePrueba";
 import type { RespuestaDelAsistente, TurnoDeLaConversacion } from "./types";
@@ -175,36 +176,80 @@ const TABLA: Partial<RespuestaDelAsistente> = {
 describe("Copiar", () => {
   // `userEvent.setup()` instala un portapapeles de mentira en `navigator`: lo
   // que se escribe se puede leer después.
-  it("«Copiar respuesta» deja el texto en el portapapeles y confirma con «Copiado»", async () => {
+  it("«Copiar respuesta» deja el texto en el portapapeles y confirma con un tilde", async () => {
     const user = userEvent.setup();
     montarMensaje(turno());
 
     await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
 
     expect(await navigator.clipboard.readText()).toBe("Hay 4 docentes designados.");
+    // El nombre accesible pasa a «Copiado» —el ícono también cambia a un
+    // tilde, pero eso no se puede afirmar por accesibilidad— durante la
+    // confirmación (asistente-rediseno-v3, design.md D6).
     expect(await screen.findByRole("button", { name: "Copiado" })).toBeInTheDocument();
   });
 
-  it("«Copiar tabla» deja la tabla como texto tabulado con cabecera", async () => {
+  // «Copiar tabla» de la barra de acciones se retira en v3: el juego de
+  // íconos de la barra es «Copiar respuesta» / «Ampliar tabla» / «Exportar a
+  // CSV» | «Sirvió» / «No sirvió» (asistente-superficie-frontend, design.md
+  // D6). Copiar la tabla como texto tabulado sigue existiendo, pero sólo
+  // dentro de la vista ampliada (`TablaAmpliada.test.tsx`).
+
+  it("con tabla, la barra también ofrece «Ampliar tabla» y «Exportar a CSV»", () => {
+    userEvent.setup();
+    montarMensaje(turno(TABLA));
+
+    expect(screen.getByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ampliar tabla" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exportar a CSV" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copiar tabla" })).toBeNull();
+  });
+
+  it("montar con tabla no descarga nada por su cuenta, y «Exportar a CSV» sí exporta lo mostrado", async () => {
+    // REGRESIÓN: `TablaDeResultado` expone su función de exportar a `Mensaje`
+    // vía `onExportarDisponible`, y `Mensaje` la guarda con `useState`. Pasarle
+    // la función DIRECTO a `setExportar` —en vez de `setExportar(() => fn)`—
+    // hace que React la interprete como la forma "actualizador" de
+    // `useState` y la EJECUTE ahí mismo, con el estado previo como argumento:
+    // la exportación se disparaba sola al montar, y el botón de la barra
+    // quedaba con `undefined`, muerto al pulsarlo (fake UI). Este test cubre
+    // las dos puntas: nada se descarga sin que el usuario haga nada, y el
+    // botón de la barra sí funciona.
+    const disparo = vi.spyOn(descargas, "descargarArchivo").mockImplementation(() => {});
     const user = userEvent.setup();
     montarMensaje(turno(TABLA));
 
-    await user.click(screen.getByRole("button", { name: "Copiar tabla" }));
+    expect(disparo).not.toHaveBeenCalled();
 
-    expect(await navigator.clipboard.readText()).toBe("apellido\thoras\nGómez\t42");
+    await user.click(screen.getByRole("button", { name: "Exportar a CSV" }));
+
+    expect(disparo).toHaveBeenCalledTimes(1);
+    const contenido = disparo.mock.calls[0][1];
+    expect(contenido).toContain("Gómez");
+
+    disparo.mockRestore();
   });
 
-  it("sin tabla no hay «Copiar tabla»", () => {
+  it("sin tabla no hay «Ampliar tabla» ni «Exportar a CSV»", () => {
     userEvent.setup();
     montarMensaje(turno());
 
     expect(screen.getByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Copiar tabla" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ampliar tabla" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Exportar a CSV" })).toBeNull();
   });
 
   it("«Copiado» vuelve a ser la etiqueta de siempre pasado un momento", async () => {
     const user = userEvent.setup();
-    montar(<AccionesDelMensaje texto="algo" duracionDelCopiadoMs={20} />);
+    montar(
+      <BarraDeAcciones
+        texto="algo"
+        onExportar={null}
+        onAmpliar={() => {}}
+        ampliarBotonRef={{ current: null }}
+        duracionDelCopiadoMs={20}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Copiar respuesta" }));
     await screen.findByRole("button", { name: "Copiado" });
@@ -212,10 +257,11 @@ describe("Copiar", () => {
     expect(await screen.findByRole("button", { name: "Copiar respuesta" })).toBeInTheDocument();
   });
 
-  it("sin portapapeles no hay ningún botón de copiar", () => {
+  it("sin portapapeles no hay botón de copiar, pero la tabla sigue con sus propios íconos", () => {
     // Un contexto sin portapapeles —http sin TLS, un navegador viejo— no puede
     // copiar nada: un botón que falla al pulsarlo es fake UI, así que no se
-    // renderiza ninguno.
+    // renderiza ninguno. «Ampliar tabla» / «Exportar a CSV» no dependen del
+    // portapapeles (asistente-superficie-frontend), así que siguen ahí.
     const original = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
 
@@ -223,6 +269,8 @@ describe("Copiar", () => {
       montarMensaje(turno(TABLA));
 
       expect(screen.queryByRole("button", { name: /Copiar/ })).toBeNull();
+      expect(screen.getByRole("button", { name: "Ampliar tabla" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Exportar a CSV" })).toBeInTheDocument();
       expect(screen.getByText("Hay 4 docentes designados.")).toBeVisible();
     } finally {
       if (original) Object.defineProperty(navigator, "clipboard", original);

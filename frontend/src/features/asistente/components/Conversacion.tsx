@@ -44,7 +44,7 @@ export function Conversacion({
       aria-live="polite"
       aria-label="Conversación con el asistente"
     >
-      {turnos.map((turno) => (
+      {turnos.map((turno, indice) => (
         <Mensaje
           key={turno.id}
           turno={turno}
@@ -52,13 +52,21 @@ export function Conversacion({
           onReintentar={onReintentar}
           onReejecutar={onReejecutar}
           enVuelo={enVuelo}
+          esUltimo={indice === turnos.length - 1}
         />
       ))}
 
       {/* El historial (renombrar, borrar, reanudar) no tiene turno propio:
           esto es lo que le da un lugar en ESTA región viva sin abrir una
-          segunda. Vacío no agrega ningún nodo. */}
-      {anuncio && <li className="adoc-asistente-anuncio">{anuncio}</li>}
+          segunda. Vacío no agrega ningún nodo.
+
+          `.adoc-sr`: en v3 cada acción anunciada ya tiene su propia
+          confirmación visible en otro lado —el aviso oscuro de deshacer, los
+          íconos con `aria-pressed`, las flechas de orden— así que este texto
+          quedaba DUPLICADO en pantalla (asistente-rediseno-v3, hallazgo de
+          verificación visual). Sigue en el DOM y en la región viva —el lector
+          de pantalla lo anuncia igual—, sólo deja de pintarse. */}
+      {anuncio && <li className="adoc-asistente-anuncio adoc-sr">{anuncio}</li>}
     </ul>
   );
 }

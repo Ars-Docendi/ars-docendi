@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button, Table } from "@ars-docendi/ui";
 import { Link } from "react-router-dom";
@@ -46,6 +46,17 @@ interface TablaDeResultadoProps {
    */
   ampliado?: boolean;
   onAmpliarChange?: (ampliado: boolean) => void;
+  /**
+   * Expone la función de exportar cuando la barra de acciones (ARS-146, §5)
+   * quiere su propio ícono «Exportar a CSV»: llega YA resuelta contra el
+   * orden mostrado (`ordenDeFilas`), la misma fuente que usa la vista en
+   * línea y la ampliada —no hay una segunda función que ordene por su cuenta
+   * (asistente-exportacion-csv: exportar SIEMPRE el orden mostrado). Pasada,
+   * esta tabla DEJA DE DIBUJAR su propio botón «Exportar a CSV», igual que
+   * con `ampliado`/`onAmpliarChange`. Sin ella, la tabla exporta con su
+   * propio botón, como siempre.
+   */
+  onExportarDisponible?: (exportar: () => void) => void;
 }
 
 /**
@@ -80,6 +91,7 @@ export function TablaDeResultado({
   pregunta = "",
   ampliado,
   onAmpliarChange,
+  onExportarDisponible,
 }: TablaDeResultadoProps) {
   if (columnas.length === 0 || filas.length === 0) return null;
 
@@ -97,6 +109,7 @@ export function TablaDeResultado({
       porCelda={porCelda}
       ampliadoControlado={ampliado}
       onAmpliarChange={onAmpliarChange}
+      onExportarDisponible={onExportarDisponible}
     />
   );
 }
@@ -111,6 +124,8 @@ interface TablaConAccionesProps {
   /** Ver `TablaDeResultadoProps.ampliado`. */
   ampliadoControlado?: boolean;
   onAmpliarChange?: (ampliado: boolean) => void;
+  /** Ver `TablaDeResultadoProps.onExportarDisponible`. */
+  onExportarDisponible?: (exportar: () => void) => void;
   porCelda: Map<string, VinculoDelResultado>;
 }
 
@@ -141,6 +156,7 @@ function TablaConAcciones({
   porCelda,
   ampliadoControlado,
   onAmpliarChange,
+  onExportarDisponible,
 }: TablaConAccionesProps) {
   const [orden, setOrden] = useState<OrdenDeColumna | null>(null);
   const [ampliadoPropio, setAmpliadoPropio] = useState(false);
@@ -173,6 +189,25 @@ function TablaConAcciones({
     setContenedorAmpliada(contenedorDelModal(raizRef.current));
   }, []);
 
+  // CONTENCIÓN DE FOCO: la vista ampliada CUBRE el modal entero (rail, hilo,
+  // composer) pero no era la única cosa alcanzable con Tab — sin esto, un
+  // Tab bastaba para salir de la capa que se ve encima y caer en un control
+  // tapado visualmente (asistente-rediseno-v3, hallazgo de verificación
+  // visual). `inert` en cada HERMANO del nodo que el portal va a montar
+  // —nunca en el propio `contenedorAmpliada`, que se quedaría inerte él
+  // mismo— saca esos hermanos del árbol de foco y de accesibilidad mientras
+  // dura, y el cleanup los devuelve exactamente como estaban al cerrar.
+  useEffect(() => {
+    if (!ampliado || !contenedorAmpliada) return;
+
+    const hermanos = Array.from(contenedorAmpliada.children).filter(
+      (nodo) => !nodo.classList.contains("adoc-asistente-ampliada"),
+    );
+    hermanos.forEach((nodo) => nodo.setAttribute("inert", ""));
+
+    return () => hermanos.forEach((nodo) => nodo.removeAttribute("inert"));
+  }, [ampliado, contenedorAmpliada]);
+
   const ordenDeFilas = useMemo(() => ordenarFilas(filas, orden), [filas, orden]);
 
   function alOrdenar(indiceDeColumna: number) {
@@ -204,7 +239,7 @@ function TablaConAcciones({
     disparadorAmpliarRef.current?.focus();
   }
 
-  function exportar() {
+  const exportar = useCallback(() => {
     // Se relee EN EL MOMENTO DE EXPORTAR, con el orden actual: nunca se cachea
     // una copia reordenada de `filas` aparte del array de índices, así que no
     // hay una segunda fuente de verdad que se pueda desincronizar del orden
@@ -215,7 +250,14 @@ function TablaConAcciones({
 
     descargarArchivo(nombre, csv, "text/csv;charset=utf-8");
     setConfirmacion("El archivo está listo para descargar.");
-  }
+  }, [columnas, filas, hilo, ordenDeFilas, truncado]);
+
+  // LA MISMA FUNCIÓN, nunca una copia: quien la recibe (la barra de acciones,
+  // §5) exporta exactamente lo que esta tabla muestra, sin repetir el cálculo
+  // de `ordenDeFilas` ni el armado del CSV en otro archivo.
+  useEffect(() => {
+    onExportarDisponible?.(exportar);
+  }, [exportar, onExportarDisponible]);
 
   const anuncioDeOrden = textoDelAnuncioDeOrden(orden, columnas);
 
@@ -253,33 +295,46 @@ function TablaConAcciones({
         </p>
       )}
 
-      <div className="adoc-asistente-exportar">
-        <div className="adoc-asistente-exportar-botones">
-          {/* Sólo sin control externo: controlada, el disparador ya vive en
-              otro lado (la barra de acciones, §5) y uno propio acá sería el
-              duplicado que ese grupo tendría que borrar. */}
-          {!controlada && (
-            <Button
-              ref={disparadorAmpliarRef}
-              variant="ghost"
-              size="sm"
-              leadingIcon={ampliarTablaIcon}
-              onClick={abrirAmpliada}
-            >
-              Ampliar tabla
-            </Button>
-          )}
+      {/* Vacío y sin renderizar cuando las dos props de control llegaron —los
+          dos botones de acá abajo se apagaron y todavía no hay confirmación
+          que anunciar—: sin esta guarda, quedaría un `<div>` fantasma con su
+          propio margen, aportando un hueco visual que nadie pidió. */}
+      {(!controlada || !onExportarDisponible || confirmacion) && (
+        <div className="adoc-asistente-exportar">
+          <div className="adoc-asistente-exportar-botones">
+            {/* Sólo sin control externo: controlada, el disparador ya vive en
+                otro lado (la barra de acciones, §5) y uno propio acá sería el
+                duplicado que ese grupo tendría que borrar. */}
+            {!controlada && (
+              <Button
+                ref={disparadorAmpliarRef}
+                variant="ghost"
+                size="sm"
+                leadingIcon={ampliarTablaIcon}
+                onClick={abrirAmpliada}
+              >
+                Ampliar tabla
+              </Button>
+            )}
 
-          <Button variant="ghost" size="sm" leadingIcon={downloadIcon} onClick={exportar}>
-            Exportar a CSV
-          </Button>
+            {/* Igual que arriba, pero contra `onExportarDisponible`: no hace
+                falta que sea el MISMO llamador que trae `onAmpliarChange`
+                —cada botón se apaga contra la prop que efectivamente lo
+                reemplaza—, aunque hoy los dos siempre llegan juntos desde
+                `Mensaje`. */}
+            {!onExportarDisponible && (
+              <Button variant="ghost" size="sm" leadingIcon={downloadIcon} onClick={exportar}>
+                Exportar a CSV
+              </Button>
+            )}
+          </div>
+
+          {/* Anunciado por la región viva ancestral (Conversacion.tsx, role="log"
+              aria-live="polite"): no hay una región propia acá, y el foco no se
+              mueve — sigue en el botón que se activó. */}
+          {confirmacion && <p className="adoc-asistente-exportar-confirmacion">{confirmacion}</p>}
         </div>
-
-        {/* Anunciado por la región viva ancestral (Conversacion.tsx, role="log"
-            aria-live="polite"): no hay una región propia acá, y el foco no se
-            mueve — sigue en el botón que se activó. */}
-        {confirmacion && <p className="adoc-asistente-exportar-confirmacion">{confirmacion}</p>}
-      </div>
+      )}
 
       {ampliado &&
         contenedorAmpliada &&

@@ -245,10 +245,43 @@ public sealed partial class ArquitecturaAsistenteTests
         // La guarda `IF NOT EXISTS` es parte de lo permitido y no un detalle de
         // estilo: sin ella la segunda corrida aborta, que es justo lo que
         // `IMigradorModulo` prohíbe.
+        //
+        // La única excepción son los reemplazos de CHECK ratificados por nombre
+        // (ver ReemplazosDeCheckRatificados).
         var archivos = DdlDelAsistente();
 
         Assert.NotEmpty(archivos);
-        Assert.Empty(Detectar(archivos, DestruccionEnSql()));
+        Assert.Empty(Detectar(archivos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()));
+    }
+
+    [Fact]
+    public void Solo_el_reemplazo_de_un_CHECK_ratificado_escapa_a_la_prohibicion_de_DROP()
+    {
+        const string Reemplazo =
+            """
+            ALTER TABLE asistente.retroalimentacion_turno
+                DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razon_valida;
+            ALTER TABLE asistente.retroalimentacion_turno
+                ADD CONSTRAINT retroalimentacion_turno_razon_valida
+                CHECK (razon IS NULL OR razon IN ('a', 'b'));
+            """;
+        Archivo[] sinteticos =
+        [
+            new("017_check_no_ratificado.sql",
+                "ALTER TABLE asistente.registro_operativo DROP CONSTRAINT IF EXISTS otro_check;"),
+            new("018_ratificado_pero_otra_accion.sql",
+                """
+                ALTER TABLE asistente.retroalimentacion_turno
+                    DROP CONSTRAINT retroalimentacion_turno_razon_valida;
+                """),
+            new("019_ratificado_y_algo_mas.sql",
+                Reemplazo + "\nALTER TABLE asistente.retroalimentacion_turno DROP COLUMN razon;"),
+        ];
+
+        Assert.Equal(3, Detectar(sinteticos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()).Count);
+        Assert.Empty(Detectar(
+            [SinReemplazosDeCheckRatificados(new("020_ratificado.sql", Reemplazo))],
+            DestruccionEnSql()));
     }
 
     [Fact]
@@ -929,6 +962,41 @@ public sealed partial class ArquitecturaAsistenteTests
         @"\bALTER\s+TABLE\s+(?!""?asistente""?\.""?\w+""?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+[^;,]+;)",
         RegexOptions.IgnoreCase)]
     private static partial Regex DestruccionEnSql();
+
+    /// <summary>
+    /// CHECK de tablas propias que su archivo puede reemplazar, y por qué.
+    /// </summary>
+    /// <remarks>
+    /// Un CHECK sólo se ensancha borrándolo y recreándolo, y contra una base que ya
+    /// tiene la tabla el <c>CREATE TABLE IF NOT EXISTS</c> no lo toca. Se admite
+    /// únicamente el par <c>DROP CONSTRAINT IF EXISTS</c> / <c>ADD CONSTRAINT ...
+    /// CHECK</c> sobre el nombre listado acá; cualquier otro DROP sigue prohibido. La
+    /// lista crece sólo con un motivo escrito.
+    /// </remarks>
+    private static readonly string[] ReemplazosDeCheckRatificados =
+    [
+        // 003: `faltan_datos` entra al set de razones del 👎 (asistente-rediseno-v3,
+        // design.md D7). El reemplazo está guardado por la definición vigente, así
+        // que es idempotente, y sólo ensancha: ninguna fila existente lo viola.
+        "retroalimentacion_turno_razon_valida",
+    ];
+
+    /// <summary>
+    /// El contenido del archivo sin los reemplazos de CHECK ratificados, para que
+    /// <see cref="DestruccionEnSql"/> juzgue todo lo demás.
+    /// </summary>
+    private static Archivo SinReemplazosDeCheckRatificados(Archivo archivo) =>
+        archivo with
+        {
+            Contenido = ReemplazosDeCheckRatificados.Aggregate(archivo.Contenido, (contenido, nombre) =>
+                Regex.Replace(
+                    contenido,
+                    @"\bALTER\s+TABLE\s+asistente\.\w+\s+(?:DROP\s+CONSTRAINT\s+IF\s+EXISTS\s+"
+                        + Regex.Escape(nombre) + @"|ADD\s+CONSTRAINT\s+" + Regex.Escape(nombre)
+                        + @"\s+CHECK\b[^;]*)\s*;",
+                    string.Empty,
+                    RegexOptions.IgnoreCase)),
+        };
 
     // El namespace raíz del SDK y sus tipos propios. Alcanza con el namespace: no
     // hay forma de usar el SDK sin nombrarlo, porque el módulo no tiene ningún

@@ -190,11 +190,13 @@ export type PeriodoDeUso = "dia" | "semana" | "mes";
 
 /**
  * The fixed, closed set of reasons a thumbs-down vote may carry. Matches
- * `RazonesDeRetroalimentacion` on the backend exactly — see
+ * `RazonesDeRetroalimentacion.Todas` on the backend exactly — see
  * `POST /api/asistente/retroalimentacion` in docs/architecture/api-contracts.md.
+ * The retired `lento` (asistente-rediseno-v3, design.md D7) is deliberately
+ * absent: the client never sends it, and the server rejects it with `400`.
  */
 export type RazonDeRetroalimentacion =
-  "datos_incorrectos" | "no_entendio_la_pregunta" | "lento" | "otro";
+  "datos_incorrectos" | "no_entendio_la_pregunta" | "faltan_datos" | "otro";
 
 /** Un turno ya renderizable, del lado del cliente. */
 export interface TurnoDeLaConversacion {
