@@ -1610,6 +1610,17 @@
   min-height: 28px;
 }
 
+/* SIN NADA VISIBLE —sin cupo configurado y fuera de debug—, la franja se
+   pliega: sólo queda el `IndicadorDeProceso` `sr-only`, que no ocupa lugar,
+   y el margen negativo anula el `gap` del marco para que el campo de entrada
+   quede pegado al pie del modal en vez de sobre una fila vacía. No se usa
+   `display: none` porque ese indicador tiene que seguir en el árbol de
+   accesibilidad. */
+.adoc-asistente-franja:not(:has(.adoc-asistente-cupo, .adoc-asistente-metricas)) {
+  min-height: 0;
+  margin-top: calc(-1 * var(--space-2));
+}
+
 .adoc-asistente-metricas {
   margin: 0 0 0 auto;
   font-size: var(--text-caption-size);
