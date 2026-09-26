@@ -19,6 +19,7 @@ const CONVERSACION: ConversacionResumen = {
   titulo: "¿Cuántos docentes hay?",
   creadoEn: "2026-01-10T10:00:00Z",
   ultimaActividad: "2026-01-10T10:05:00Z",
+  archivada: false,
 };
 
 const TURNO_RESPONDIDO: TurnoDeHistorial = {

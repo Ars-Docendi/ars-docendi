@@ -12,7 +12,13 @@ import type { ConversacionResumen } from "../types";
 const AHORA = new Date("2026-06-15T12:00:00");
 
 function conversacion(id: string, ultimaActividad: string): ConversacionResumen {
-  return { id, titulo: `Conversación ${id}`, creadoEn: ultimaActividad, ultimaActividad };
+  return {
+    id,
+    titulo: `Conversación ${id}`,
+    creadoEn: ultimaActividad,
+    ultimaActividad,
+    archivada: false,
+  };
 }
 
 describe("agruparPorFecha", () => {

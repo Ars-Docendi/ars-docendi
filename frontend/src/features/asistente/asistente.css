@@ -98,6 +98,7 @@
  * 60 px), no la columna, que siempre completa lo que sobra.
  */
 .adoc-asistente-grilla {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -350,17 +351,12 @@
   min-width: 0;
 }
 
-.adoc-asistente-rail-confirmar,
 .adoc-asistente-rail-borrar-todo {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-body-sm-size);
-}
-
-.adoc-asistente-rail-confirmar {
-  flex: 1;
-  flex-wrap: wrap;
 }
 
 /* «Borrar todas» al pie del rail: no es la primera acción que alguien busca al
@@ -372,6 +368,119 @@
   margin-top: auto;
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border-subtle);
+}
+
+/* La sección «Archivadas», colapsable, al pie de la lista (asistente-superficie-frontend,
+   design.md D3 de asistente-rediseno-v3). El encabezado toma el mismo
+   tratamiento mono/mayúsculas que `.adoc-asistente-rail-grupo-etiqueta`
+   —es la misma familia de metadato— pero interactivo. */
+.adoc-asistente-rail-archivadas {
+  flex: none;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+}
+
+.adoc-asistente-rail-archivadas-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.adoc-asistente-rail-archivadas-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.adoc-asistente-rail-archivadas-toggle .chev {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  transition: transform var(--motion-fast);
+}
+
+.adoc-asistente-rail-archivadas-toggle .chev.collapsed {
+  transform: rotate(-90deg);
+}
+
+.adoc-asistente-rail-archivadas-etiqueta {
+  flex: 1;
+  text-align: start;
+}
+
+.adoc-asistente-rail-archivadas-contador {
+  font-family: var(--font-mono);
+}
+
+/* La marca «Archivada», junto al título — en los resultados de búsqueda y
+   en la propia sección de archivadas. */
+.adoc-asistente-rail-marca-archivada {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* El aviso de deshacer, al pie del rail (design spec § v3): fondo y texto
+   invertidos respecto del resto de la interfaz — es la ÚNICA superficie
+   oscura del asistente, a propósito, para que se lea como una notificación
+   flotante y no como parte de la lista.
+   SIGUE VISIBLE CON EL RAIL COLAPSADO Y NUNCA SE RECORTA: en el marcado
+   `RailDeConversaciones` lo pone AFUERA del `<nav>` —que recorta su
+   contenido con `overflow: hidden` durante la transición de ancho— y lo
+   posiciona contra `.adoc-asistente-grilla` (`position: relative`, más
+   arriba), el contenedor común del rail y la columna. Un ancho fijo,
+   siempre mayor que los 60 px del rail colapsado, es lo que lo deja
+   superponerse al hilo en ese caso, como en el mock. */
+.adoc-asistente-aviso {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 240px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.adoc-asistente-aviso-texto {
+  font-size: var(--text-body-sm-size);
+}
+
+/* «Deshacer» en `--color-text-on-inverse` semibold y no el acento claro del
+   mock (desvío documentado en el design spec § v3): el acento no alcanza
+   4,5:1 sobre `--color-bg-inverse` en ninguno de los dos temas. */
+.adoc-asistente-aviso-deshacer {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-on-inverse);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* ─────────────────────────── la columna de la conversación ─────────────────── */
@@ -981,6 +1090,20 @@
   font-size: var(--text-body-sm-size);
   color: var(--color-text-link);
   text-align: start;
+}
+
+/* Marcas «Archivada» / «Pendiente de borrado» junto al título, en la lista
+   de soporte (asistente-acceso-de-soporte-al-historial, design.md D4). */
+.adoc-asistente-soporte-marca {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .adoc-asistente-soporte-detalle {

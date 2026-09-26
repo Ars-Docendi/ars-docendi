@@ -132,7 +132,12 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // Subió de 79 a 84 con asistente-administracion-de-uso: cinco en
         // AdministracionAsistenteController (mantenimiento, uso, presupuestos
         // de rol, presupuestos de usuario, tope organizacional).
-        Assert.Equal(84, operaciones.Length);
+        //
+        // Subió de 84 a 87 con asistente-rediseno-v3 (§2/§3, ARS-143/144):
+        // tres en HistorialController — archivar, desarchivar y deshacer un
+        // lote de borrado (`POST /historial/{id}/archivar`,
+        // `/desarchivar`, `/historial/borrados/{lote}/deshacer`).
+        Assert.Equal(87, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {

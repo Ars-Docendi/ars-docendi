@@ -89,6 +89,25 @@ public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
         Assert.Equal(0, await purga.PurgarAsync(ct));
     }
 
+    [Fact]
+    public async Task Una_conversacion_archivada_sigue_la_misma_retencion_y_se_purga()
+    {
+        // design.md D3 de asistente-rediseno-v3: archivar no es una segunda
+        // política de retención. Vencida su ventana de 180 días igual que
+        // cualquier otra, se purga igual — archivada_en no la protege.
+        var reloj = new RelojFijo(Ancla);
+
+        var archivadaVieja = await SembrarHiloAsync(
+            creadoEn: Ancla.AddDays(-300), ultimaActividad: Ancla.AddDays(-200), archivada: true);
+
+        var borradas = await Purga(reloj, diasHistorial: 180).PurgarAsync(
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, borradas);
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", archivadaVieja)));
+    }
+
     // ---------------------------------------------------------------- auditoría
 
     [Fact]
@@ -149,21 +168,29 @@ public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
             reloj,
             NullLogger<PurgaDeRegistros>.Instance);
 
-    private async Task<Guid> SembrarHiloAsync(DateTimeOffset creadoEn, DateTimeOffset ultimaActividad)
+    private Task<Guid> SembrarHiloAsync(DateTimeOffset creadoEn, DateTimeOffset ultimaActividad) =>
+        SembrarHiloAsync(creadoEn, ultimaActividad, archivada: false);
+
+    private async Task<Guid> SembrarHiloAsync(
+        DateTimeOffset creadoEn, DateTimeOffset ultimaActividad, bool archivada)
     {
         var id = Guid.NewGuid();
 
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """
-            INSERT INTO asistente.hilo_historico (id, actor_id, titulo, creado_en, ultima_actividad)
-            VALUES (@id, @actor, 'una conversación', @creado, @actividad)
+            INSERT INTO asistente.hilo_historico
+                (id, actor_id, titulo, creado_en, ultima_actividad, archivada_en)
+            VALUES (@id, @actor, 'una conversación', @creado, @actividad, @archivadaEn)
             """, conexion);
 
         comando.Parameters.AddWithValue("id", id);
         comando.Parameters.AddWithValue("actor", Alguien);
         comando.Parameters.AddWithValue("creado", creadoEn);
         comando.Parameters.AddWithValue("actividad", ultimaActividad);
+        comando.Parameters.AddWithValue(
+            "archivadaEn", NpgsqlTypes.NpgsqlDbType.TimestampTz,
+            archivada ? (object)ultimaActividad : DBNull.Value);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         return id;

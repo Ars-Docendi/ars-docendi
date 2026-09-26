@@ -3,11 +3,17 @@ import { Button, Input } from "@ars-docendi/ui";
 
 import { MenuAcciones } from "../../../shared/ui/MenuAcciones";
 import {
+  archiveIcon,
+  archiveRestoreIcon,
+  chevronIcon,
   historyIcon,
+  pencilIcon,
   railColapsarIcon,
   railExpandirIcon,
   searchIcon,
+  trashIcon,
 } from "../../../app/shell/icons";
+import { AvisoDeDeshacer } from "./AvisoDeDeshacer";
 import { agruparPorFecha } from "../utils/agruparPorFecha";
 import { NuevaConversacion } from "./NuevaConversacion";
 import type { Asistente } from "../hooks/useAsistente";
@@ -30,8 +36,8 @@ interface RailDeConversacionesProps {
  * `AbrirHistorial`, ahora borrados). La lista ya no tiene un estado propio
  * de «abierto»: lo único que colapsa es el ANCHO del rail —268 px
  * expandido, 60 px colapsado—, y el contenido (buscar, agrupar, renombrar,
- * borrar) es el mismo tanto si el rail lo mostró siempre como si lo acaba
- * de destapar.
+ * archivar, borrar) es el mismo tanto si el rail lo mostró siempre como si
+ * lo acaba de destapar.
  *
  * COLAPSADO MUESTRA TRES CONTROLES ÍCONO-SOLO: expandir, «Nueva
  * conversación» y «Historial» —éste último también expande, es la forma
@@ -40,10 +46,16 @@ interface RailDeConversacionesProps {
  * estilos le esconde la etiqueta visualmente cuando el rail está colapsado,
  * en vez de duplicar el botón.
  *
- * §1 (ARS-142) sólo trae Renombrar y Eliminar al «⋮» —las acciones que ya
- * existen en el backend hoy—: Archivar y el aviso de deshacer llegan con
- * §2/§3 (ARS-143/144), y agregarlos acá sería la UI muerta que el
- * invariante #7 prohíbe.
+ * SIN BÚSQUEDA: activas agrupadas por fecha relativa, y las archivadas en su
+ * propia sección colapsable al pie («Archivadas N», oculta sin ninguna).
+ * CON BÚSQUEDA: una sola lista plana con todo lo que coincide —activas y
+ * archivadas mezcladas, éstas marcadas «Archivada»— y la sección de
+ * archivadas se esconde (asistente-superficie-frontend): las archivadas
+ * tienen que seguir siendo encontrables por texto aun colapsadas.
+ *
+ * EL AVISO DE DESHACER VIVE ACÁ AFUERA DEL BLOQUE QUE EL COLAPSO ESCONDE
+ * (design spec § v3: sigue visible con el rail colapsado, superpuesto al
+ * hilo).
  */
 export function RailDeConversaciones({
   asistente,
@@ -51,9 +63,12 @@ export function RailDeConversaciones({
   colapsado,
   onAlternar,
 }: RailDeConversacionesProps) {
-  const { conversaciones, busqueda, setBusqueda, conversacionActivaId } = historial;
+  const { conversaciones, busqueda, setBusqueda, conversacionActivaId, aviso } = historial;
   const lista = conversaciones.data ?? [];
-  const grupos = agruparPorFecha(lista);
+  const conBusqueda = busqueda.trim().length > 0;
+  const activas = conBusqueda ? lista : lista.filter((c) => !c.archivada);
+  const archivadas = conBusqueda ? [] : lista.filter((c) => c.archivada);
+  const grupos = agruparPorFecha(activas);
 
   // FOCO AL CONTROL VISIBLE EN EL NUEVO ESTADO, NUNCA AL DOCUMENTO
   // (asistente-accesibilidad, tasks.md 1.6): colapsar desmonta «Colapsar
@@ -71,123 +86,200 @@ export function RailDeConversaciones({
     toggleRef.current?.focus();
   }, [colapsado]);
 
-  // RENOMBRAR Y ELIMINAR SE LLEVAN CONSIGO EL CONTROL QUE TENÍA EL FOCO:
-  // guardar un título cierra el campo inline, y borrar saca la fila entera de
-  // la lista. Sin esto, el navegador manda el foco a `<body>` —perdido, no
-  // «donde estaba»—, que es justo lo que asistente-accesibilidad prohíbe. El
-  // destino es la lista misma, que no se va a ningún lado con ninguna de las
-  // dos acciones.
+  // RENOMBRAR, ARCHIVAR Y ELIMINAR SE LLEVAN CONSIGO EL CONTROL QUE TENÍA EL
+  // FOCO: guardar un título cierra el campo inline, y las otras dos sacan la
+  // fila entera de la lista. Sin esto, el navegador manda el foco a `<body>`
+  // —perdido, no «donde estaba»—, que es justo lo que asistente-accesibilidad
+  // prohíbe. El destino es la lista misma, que no se va a ningún lado con
+  // ninguna de las acciones.
   const listaRef = useRef<HTMLDivElement>(null);
   const enfocarLista = () => listaRef.current?.focus();
 
   return (
-    <nav
-      className={colapsado ? "adoc-asistente-rail colapsado" : "adoc-asistente-rail"}
-      aria-label="Conversaciones"
-    >
-      <div className="adoc-asistente-rail-encabezado">
-        {colapsado ? (
+    // FRAGMENTO Y NO UN SOLO `<nav>`: el aviso de deshacer tiene que seguir
+    // visible con el rail colapsado, superpuesto al hilo (design spec § v3),
+    // y el `<nav>` recorta su contenido con `overflow: hidden` durante la
+    // transición de ancho. Puesto AFUERA, se posiciona contra
+    // `.adoc-asistente-grilla` (el contenedor común del rail y la columna,
+    // `position: relative` en `asistente.css`) y no queda nunca recortado.
+    <>
+      <nav
+        className={colapsado ? "adoc-asistente-rail colapsado" : "adoc-asistente-rail"}
+        aria-label="Conversaciones"
+      >
+        <div className="adoc-asistente-rail-encabezado">
+          {colapsado ? (
+            <>
+              <button
+                ref={toggleRef}
+                type="button"
+                className="adoc-asistente-rail-toggle"
+                aria-label="Expandir conversaciones"
+                aria-expanded={false}
+                onClick={onAlternar}
+              >
+                <span className="ico">{railExpandirIcon}</span>
+              </button>
+
+              <NuevaConversacion asistente={asistente} />
+
+              <button
+                type="button"
+                className="adoc-asistente-rail-historial-icono"
+                aria-label="Historial"
+                onClick={onAlternar}
+              >
+                <span className="ico">{historyIcon}</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Ancho completo, con el toggle a su derecha — design spec § v3. */}
+              <NuevaConversacion asistente={asistente} />
+
+              <button
+                ref={toggleRef}
+                type="button"
+                className="adoc-asistente-rail-toggle"
+                aria-label="Colapsar conversaciones"
+                aria-expanded={true}
+                onClick={onAlternar}
+              >
+                <span className="ico">{railColapsarIcon}</span>
+              </button>
+            </>
+          )}
+        </div>
+
+        {!colapsado && (
           <>
-            <button
-              ref={toggleRef}
-              type="button"
-              className="adoc-asistente-rail-toggle"
-              aria-label="Expandir conversaciones"
-              aria-expanded={false}
-              onClick={onAlternar}
-            >
-              <span className="ico">{railExpandirIcon}</span>
-            </button>
-
-            <NuevaConversacion asistente={asistente} />
-
-            <button
-              type="button"
-              className="adoc-asistente-rail-historial-icono"
-              aria-label="Historial"
-              onClick={onAlternar}
-            >
-              <span className="ico">{historyIcon}</span>
-            </button>
-          </>
-        ) : (
-          <>
-            {/* Ancho completo, con el toggle a su derecha — design spec § v3. */}
-            <NuevaConversacion asistente={asistente} />
-
-            <button
-              ref={toggleRef}
-              type="button"
-              className="adoc-asistente-rail-toggle"
-              aria-label="Colapsar conversaciones"
-              aria-expanded={true}
-              onClick={onAlternar}
-            >
-              <span className="ico">{railColapsarIcon}</span>
-            </button>
-          </>
-        )}
-      </div>
-
-      {!colapsado && (
-        <>
-          <div className="adoc-asistente-rail-busqueda">
-            <span className="ico" aria-hidden="true">
-              {searchIcon}
-            </span>
-            <Input
-              type="search"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar en tus conversaciones…"
-              aria-label="Buscar en tus conversaciones"
-            />
-          </div>
-
-          <div
-            ref={listaRef}
-            className="adoc-asistente-rail-lista"
-            aria-label="Tus conversaciones"
-            tabIndex={-1}
-          >
-            {conversaciones.isLoading && <p>Buscando tus conversaciones…</p>}
-
-            {!conversaciones.isLoading && lista.length === 0 && (
-              <p className="adoc-asistente-rail-vacio">
-                {busqueda
-                  ? "Ninguna conversación coincide con esa búsqueda."
-                  : "Todavía no tenés conversaciones guardadas."}
-              </p>
-            )}
-
-            {grupos.map((grupo) => (
-              <div key={grupo.etiqueta} className="adoc-asistente-rail-grupo">
-                <p className="adoc-asistente-rail-grupo-etiqueta">{grupo.etiqueta}</p>
-                <ul className="adoc-asistente-rail-grupo-lista">
-                  {grupo.conversaciones.map((conversacion) => (
-                    <ItemDeConversacion
-                      key={conversacion.id}
-                      conversacion={conversacion}
-                      activa={conversacion.id === conversacionActivaId}
-                      historial={historial}
-                      enfocarLista={enfocarLista}
-                    />
-                  ))}
-                </ul>
-              </div>
-            ))}
-
-            <div className="adoc-asistente-rail-pie">
-              <BorrarTodo
-                historial={historial}
-                deshabilitado={lista.length === 0}
-                enfocarLista={enfocarLista}
+            <div className="adoc-asistente-rail-busqueda">
+              <span className="ico" aria-hidden="true">
+                {searchIcon}
+              </span>
+              <Input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar en tus conversaciones…"
+                aria-label="Buscar en tus conversaciones"
               />
             </div>
-          </div>
-        </>
+
+            <div
+              ref={listaRef}
+              className="adoc-asistente-rail-lista"
+              aria-label="Tus conversaciones"
+              tabIndex={-1}
+            >
+              {conversaciones.isLoading && <p>Buscando tus conversaciones…</p>}
+
+              {!conversaciones.isLoading && lista.length === 0 && (
+                <p className="adoc-asistente-rail-vacio">
+                  {busqueda
+                    ? "Ninguna conversación coincide con esa búsqueda."
+                    : "Todavía no tenés conversaciones guardadas."}
+                </p>
+              )}
+
+              {conBusqueda
+                ? activas.length > 0 && (
+                    <ul className="adoc-asistente-rail-grupo-lista">
+                      {activas.map((conversacion) => (
+                        <ItemDeConversacion
+                          key={conversacion.id}
+                          conversacion={conversacion}
+                          activa={conversacion.id === conversacionActivaId}
+                          historial={historial}
+                          enfocarLista={enfocarLista}
+                        />
+                      ))}
+                    </ul>
+                  )
+                : grupos.map((grupo) => (
+                    <div key={grupo.etiqueta} className="adoc-asistente-rail-grupo">
+                      <p className="adoc-asistente-rail-grupo-etiqueta">{grupo.etiqueta}</p>
+                      <ul className="adoc-asistente-rail-grupo-lista">
+                        {grupo.conversaciones.map((conversacion) => (
+                          <ItemDeConversacion
+                            key={conversacion.id}
+                            conversacion={conversacion}
+                            activa={conversacion.id === conversacionActivaId}
+                            historial={historial}
+                            enfocarLista={enfocarLista}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+
+              {archivadas.length > 0 && (
+                <SeccionDeArchivadas
+                  archivadas={archivadas}
+                  conversacionActivaId={conversacionActivaId}
+                  historial={historial}
+                  enfocarLista={enfocarLista}
+                />
+              )}
+
+              <div className="adoc-asistente-rail-pie">
+                <BorrarTodo historial={historial} deshabilitado={lista.length === 0} />
+              </div>
+            </div>
+          </>
+        )}
+      </nav>
+
+      {aviso && <AvisoDeDeshacer aviso={aviso} enfocarLista={enfocarLista} />}
+    </>
+  );
+}
+
+function SeccionDeArchivadas({
+  archivadas,
+  conversacionActivaId,
+  historial,
+  enfocarLista,
+}: {
+  archivadas: ConversacionResumen[];
+  conversacionActivaId: string | null;
+  historial: HistorialAsistente;
+  enfocarLista: () => void;
+}) {
+  // COLAPSADA POR DEFAULT, al revés que los grupos colapsables del nav
+  // (design spec § v3): archivar es justamente sacar algo del primer plano,
+  // así que la sección arranca cerrada.
+  const [abierta, setAbierta] = useState(false);
+
+  return (
+    <div className="adoc-asistente-rail-archivadas">
+      <button
+        type="button"
+        className="adoc-asistente-rail-archivadas-toggle"
+        aria-expanded={abierta}
+        onClick={() => setAbierta((a) => !a)}
+      >
+        <span className={abierta ? "chev" : "chev collapsed"} aria-hidden="true">
+          {chevronIcon}
+        </span>
+        <span className="adoc-asistente-rail-archivadas-etiqueta">Archivadas</span>
+        <span className="adoc-asistente-rail-archivadas-contador">{archivadas.length}</span>
+      </button>
+
+      {abierta && (
+        <ul className="adoc-asistente-rail-grupo-lista">
+          {archivadas.map((conversacion) => (
+            <ItemDeConversacion
+              key={conversacion.id}
+              conversacion={conversacion}
+              activa={conversacion.id === conversacionActivaId}
+              historial={historial}
+              enfocarLista={enfocarLista}
+            />
+          ))}
+        </ul>
       )}
-    </nav>
+    </div>
   );
 }
 
@@ -200,12 +292,11 @@ function ItemDeConversacion({
   conversacion: ConversacionResumen;
   activa: boolean;
   historial: HistorialAsistente;
-  /** A dónde va el foco cuando renombrar o eliminar se llevan el control que lo tenía. */
+  /** A dónde va el foco cuando renombrar, archivar o eliminar se llevan el control que lo tenía. */
   enfocarLista: () => void;
 }) {
   const [renombrando, setRenombrando] = useState(false);
   const [titulo, setTitulo] = useState(conversacion.titulo);
-  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
   // Escape cancela sin guardar; sin esta marca, quitarle el foco al campo al
   // desmontarlo (React ya sacó el `renombrando` del estado) dispara TAMBIÉN
   // el `onBlur` que guarda, y el título cancelado se guardaría igual.
@@ -251,9 +342,15 @@ function ItemDeConversacion({
     }
   }
 
-  async function confirmarBorrado() {
+  // SIN CONFIRMACIÓN (asistente-superficie-frontend, design.md D4 de
+  // asistente-rediseno-v3): la fila desaparece de inmediato y el aviso de
+  // deshacer —con foco en «Deshacer»— es la red de seguridad.
+  async function eliminar() {
     await historial.eliminar(conversacion.id);
-    enfocarLista();
+    // NO se llama `enfocarLista()` acá: el aviso de deshacer que aparece a
+    // continuación se lleva el foco a su propio «Deshacer»
+    // (asistente-accesibilidad) — enfocar la lista primero lo movería ahí
+    // sólo para que el aviso lo vuelva a mover un instante después.
   }
 
   if (renombrando) {
@@ -272,21 +369,24 @@ function ItemDeConversacion({
     );
   }
 
-  if (confirmandoBorrado) {
-    return (
-      <li className="adoc-asistente-rail-item">
-        <span className="adoc-asistente-rail-confirmar">
-          <span>¿Borrar «{conversacion.titulo}»?</span>
-          <Button variant="secondary" size="sm" onClick={() => void confirmarBorrado()}>
-            Confirmar borrado
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setConfirmandoBorrado(false)}>
-            Cancelar
-          </Button>
-        </span>
-      </li>
-    );
-  }
+  const acciones = conversacion.archivada
+    ? [
+        {
+          etiqueta: "Desarchivar",
+          icono: archiveRestoreIcon,
+          onSelect: () => void historial.desarchivar(conversacion.id),
+        },
+        { etiqueta: "Eliminar", icono: trashIcon, peligro: true, onSelect: () => void eliminar() },
+      ]
+    : [
+        { etiqueta: "Renombrar", icono: pencilIcon, onSelect: empezarRenombre },
+        {
+          etiqueta: "Archivar",
+          icono: archiveIcon,
+          onSelect: () => void historial.archivar(conversacion.id),
+        },
+        { etiqueta: "Eliminar", icono: trashIcon, peligro: true, onSelect: () => void eliminar() },
+      ];
 
   return (
     <li className={activa ? "adoc-asistente-rail-item activa" : "adoc-asistente-rail-item"}>
@@ -296,18 +396,16 @@ function ItemDeConversacion({
         title={conversacion.titulo}
         aria-current={activa || undefined}
         onClick={() => void historial.abrirConversacion(conversacion.id)}
-        onDoubleClick={empezarRenombre}
+        onDoubleClick={conversacion.archivada ? undefined : empezarRenombre}
       >
         {conversacion.titulo}
       </Button>
 
-      <MenuAcciones
-        etiquetaAria={`Acciones de «${conversacion.titulo}»`}
-        acciones={[
-          { etiqueta: "Renombrar", onSelect: empezarRenombre },
-          { etiqueta: "Eliminar", peligro: true, onSelect: () => setConfirmandoBorrado(true) },
-        ]}
-      />
+      {conversacion.archivada && (
+        <span className="adoc-asistente-rail-marca-archivada">Archivada</span>
+      )}
+
+      <MenuAcciones etiquetaAria={`Acciones de «${conversacion.titulo}»`} acciones={acciones} />
     </li>
   );
 }
@@ -315,24 +413,27 @@ function ItemDeConversacion({
 function BorrarTodo({
   historial,
   deshabilitado,
-  enfocarLista,
 }: {
   historial: HistorialAsistente;
   deshabilitado: boolean;
-  enfocarLista: () => void;
 }) {
   const [confirmando, setConfirmando] = useState(false);
 
   async function confirmarBorradoDeTodo() {
     await historial.eliminarTodo();
     setConfirmando(false);
-    enfocarLista();
+    // NO se llama `enfocarLista()` acá, mismo motivo que en `eliminar()` de
+    // `ItemDeConversacion`: el aviso de deshacer se lleva el foco a
+    // «Deshacer» apenas aparece.
   }
 
   if (confirmando) {
     return (
       <div className="adoc-asistente-rail-borrar-todo">
-        <span>¿Borrar TODAS tus conversaciones? No se puede deshacer.</span>
+        <span>
+          ¿Borrar TODAS tus conversaciones, incluidas las archivadas? Vas a poder deshacerlo durante
+          10 segundos.
+        </span>
         <Button variant="secondary" size="sm" onClick={() => void confirmarBorradoDeTodo()}>
           Confirmar borrado de todo
         </Button>

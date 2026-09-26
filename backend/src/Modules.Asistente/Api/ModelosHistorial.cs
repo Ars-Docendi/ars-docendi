@@ -4,12 +4,30 @@ using Modules.Asistente.Application;
 namespace Modules.Asistente.Api;
 
 /// <summary>Una conversación propia, en la lista.</summary>
+/// <param name="Archivada">design.md D3 de asistente-historial-conversaciones.</param>
+/// <param name="PendienteDeBorrado">
+/// design.md D4. Siempre falso del lado propio (<see cref="HistorialController"/>
+/// nunca lista una conversación pendiente); en verdad únicamente en la
+/// lectura de soporte (<see cref="SoporteHistorialController"/>,
+/// asistente-acceso-de-soporte-al-historial).
+/// </param>
 public sealed record ConversacionResumenDto(
-    Guid Id, string Titulo, DateTimeOffset CreadoEn, DateTimeOffset UltimaActividad)
+    Guid Id,
+    string Titulo,
+    DateTimeOffset CreadoEn,
+    DateTimeOffset UltimaActividad,
+    bool Archivada,
+    bool PendienteDeBorrado)
 {
     internal static ConversacionResumenDto De(ConversacionResumen c) =>
-        new(c.Id, c.Titulo, c.CreadoEn, c.UltimaActividad);
+        new(c.Id, c.Titulo, c.CreadoEn, c.UltimaActividad, c.Archivada, c.PendienteDeBorrado);
 }
+
+/// <summary>
+/// Lo que devuelve un borrado — uno o todos —: el id del lote, para poder
+/// deshacerlo dentro de su ventana (design.md D4).
+/// </summary>
+public sealed record LoteDeBorradoDto(Guid LoteDeBorrado);
 
 /// <summary>Un turno de una conversación propia.</summary>
 /// <param name="Sql">

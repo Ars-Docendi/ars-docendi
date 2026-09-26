@@ -318,6 +318,38 @@ public sealed class OpcionesAsistente
     public int PeriodoDePurgaHoras { get; set; } = 24;
 
     /// <summary>
+    /// Ventana, en segundos, en que un borrado sigue pendiente y se puede
+    /// deshacer (asistente-rediseno-v3, design.md D4 de
+    /// asistente-historial-conversaciones).
+    /// </summary>
+    /// <remarks>
+    /// Son los 10 s que «Deshacer» se muestra en la interfaz MÁS 5 s de
+    /// margen: el timer del aviso arranca cuando llega la respuesta del
+    /// `DELETE`, así que un clic a los 9,9 s con una red lenta todavía tiene
+    /// que llegar a tiempo. Cada consulta propia filtra
+    /// <c>borrado_pendiente_desde IS NULL</c>; cada lectura de soporte
+    /// filtra <c>IS NULL OR &gt; ahora - esta ventana</c> — es la misma
+    /// ventana la que hace final el borrado en TODOS lados, sin depender de
+    /// que el cliente siga abierto.
+    /// </remarks>
+    public int VentanaDeDeshacerSegundos { get; set; } = 15;
+
+    /// <summary>
+    /// Cada cuánto corre el barrido que purga físicamente lo que superó
+    /// <see cref="VentanaDeDeshacerSegundos"/>, en segundos.
+    /// </summary>
+    /// <remarks>
+    /// Corto a propósito y distinto de <see cref="PeriodoDePurgaHoras"/>: la
+    /// finalidad LÓGICA ya la da el filtro de lectura de todas las consultas
+    /// en cuanto vence la ventana; este barrido es lo que la hace FÍSICA
+    /// —el borrado deja de existir en la base— dentro del minuto siguiente,
+    /// y no hasta la próxima purga diaria. La purga diaria (<c>PurgaDeRegistros</c>)
+    /// corre la misma sentencia como red, así que un despliegue sin este
+    /// servicio corriendo todavía converge, sólo que más lento.
+    /// </remarks>
+    public int PeriodoDeBarridoDeBorradosSegundos { get; set; } = 60;
+
+    /// <summary>
     /// Cuánto vale una clave de idempotencia, en minutos.
     /// </summary>
     /// <remarks>

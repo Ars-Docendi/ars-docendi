@@ -98,20 +98,42 @@ internal sealed class PurgaDeRegistros(
             corteDeAuditoriaDeAdministracion,
             ct);
 
-        var total = operativas + analiticas + conversaciones + auditorias + auditoriasDeAdministracion;
+        // BACKSTOP DEL BARRIDO DE UN MINUTO (design.md D4 de
+        // asistente-historial-conversaciones): `BarridoDeBorradosPendientes`
+        // ya corre esta misma sentencia cada
+        // `PeriodoDeBarridoDeBorradosSegundos`; ésta es la red para el
+        // despliegue en que ese servicio no llegó a correr — un borrado
+        // pendiente vencido no puede quedar sin purgar más allá de la
+        // próxima purga diaria.
+        var corteDeBorradosPendientes =
+            reloj.GetUtcNow() - TimeSpan.FromSeconds(valores.VentanaDeDeshacerSegundos);
+        var borradosPendientes = await BorrarAsync(
+            conexion,
+            """
+            DELETE FROM asistente.hilo_historico
+             WHERE borrado_pendiente_desde IS NOT NULL
+               AND borrado_pendiente_desde <= @corte
+            """,
+            "corte",
+            corteDeBorradosPendientes,
+            ct);
+
+        var total = operativas + analiticas + conversaciones + auditorias
+            + auditoriasDeAdministracion + borradosPendientes;
 
         if (total > 0)
         {
             log.LogInformation(
                 "Purga del asistente: {Operativas} filas operativas, {Analiticas} analíticas, "
-                + "{Conversaciones} conversaciones, {Auditorias} auditorías de soporte y "
-                + "{AuditoriasDeAdministracion} auditorías de administración anteriores a sus "
-                + "respectivos cortes.",
+                + "{Conversaciones} conversaciones, {Auditorias} auditorías de soporte, "
+                + "{AuditoriasDeAdministracion} auditorías de administración y "
+                + "{BorradosPendientes} borrados pendientes anteriores a sus respectivos cortes.",
                 operativas,
                 analiticas,
                 conversaciones,
                 auditorias,
-                auditoriasDeAdministracion);
+                auditoriasDeAdministracion,
+                borradosPendientes);
         }
 
         return total;

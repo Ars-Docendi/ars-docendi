@@ -61,6 +61,13 @@ public sealed partial class ArquitecturaAsistenteTests
         "RegistroDeHistorial.cs",
         "ConsultasDeHistorial.cs",
         "ConsultasDeAuditoriaDeSoporte.cs",
+        // BarridoDeBorradosPendientes.cs: BarridoDePendientes, la parte
+        // scoped y testeable de ese archivo, abre su propia conexión con la
+        // cadena dueña para el DELETE físico del backstop de deshacer
+        // (asistente-rediseno-v3, design.md D4) — misma tabla, mismo schema
+        // revocado entero que ConsultasDeHistorial ya necesita leer y
+        // escribir con esta conexión.
+        "BarridoDeBorradosPendientes.cs",
         // CuotaPersistente.cs: same reason as ConsultasDeHistorial.cs — reads
         // presupuesto_rol/presupuesto_usuario/registro_operativo, all inside
         // the wholesale-revoked `asistente` schema, so even reading needs the
@@ -487,6 +494,10 @@ public sealed partial class ArquitecturaAsistenteTests
         // Reads another actor's history and writes the append-only audit row,
         // both against the same wholesale-revoked schema.
         "ConsultasDeAuditoriaDeSoporte.cs",
+        // BarridoDeBorradosPendientes.cs: BarridoDePendientes physically
+        // deletes rows of the same wholesale-revoked schema (the deferred
+        // delete's backstop, design.md D4) — same reason as PurgaDeRegistros.cs.
+        "BarridoDeBorradosPendientes.cs",
         // Reads presupuesto_rol/presupuesto_usuario and counts
         // registro_operativo (asistente-administracion-de-uso) — all three
         // inside the same wholesale-revoked `asistente` schema, so even

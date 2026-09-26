@@ -199,11 +199,18 @@ Tres decisiones que conviene no deshacer sin leer:
 - `GET /api/asistente/capacidades` — ver «El catálogo de capacidades».
 - `POST /api/asistente/retroalimentacion` — califica un turno `respondida` (thumbs
   - razón opcional de un set cerrado de cuatro). Ver «La retroalimentación».
-- `GET /api/asistente/historial` — lista (y busca en) las conversaciones propias.
+- `GET /api/asistente/historial` — lista (y busca en) las conversaciones propias
+  que no están pendientes de borrado, archivadas incluidas y marcadas.
 - `GET /api/asistente/historial/{id}` — el detalle de una conversación propia.
 - `PATCH /api/asistente/historial/{id}` — la renombra.
-- `DELETE /api/asistente/historial/{id}` — la borra, permanentemente.
-- `DELETE /api/asistente/historial` — borra TODAS las conversaciones propias.
+- `POST /api/asistente/historial/{id}/archivar` — la archiva. `204`, `404` para ajena/inexistente.
+- `POST /api/asistente/historial/{id}/desarchivar` — la desarchiva. Mismo contrato.
+- `DELETE /api/asistente/historial/{id}` — la marca pendiente de borrado y devuelve
+  `200 { "loteDeBorrado": "<uuid>" }`. Ver «El historial: borrado diferido» más abajo.
+- `DELETE /api/asistente/historial` — marca TODAS las conversaciones propias
+  (archivadas incluidas) pendientes de borrado, con un lote nuevo; mismo `200`.
+- `POST /api/asistente/historial/borrados/{lote}/deshacer` — deshace un lote propio
+  dentro de su ventana. `204`, `404` si no existe, no es propio o venció.
 - `POST /api/asistente/historial/{id}/reanudar` — siembra un hilo efímero nuevo con
   los turnos persistidos.
 - `POST /api/asistente/historial/turnos/{id}/reejecutar` — «volver a consultar»
@@ -290,6 +297,37 @@ primero.
 
 No se reusa ni se copia `designaciones.idempotencia_comandos`: guarda el `response_body`
 completo, que es exactamente lo que este módulo decidió no persistir.
+
+### El historial: archivar y borrado diferido
+
+(asistente-rediseno-v3, design.md D3/D4 de asistente-historial-conversaciones).
+
+**Archivar** es un timestamp nulable (`hilo_historico.archivada_en`) que no toca
+`ultima_actividad`: la retención de 180 días sigue contando igual. `RegistroDeHistorial`
+lo limpia solo al escribir un turno nuevo — una conversación archivada retomada se
+desarchiva sola.
+
+**Borrar es diferido.** `DELETE` marca `borrado_pendiente_desde`/`lote_de_borrado` y
+devuelve el lote; no ejecuta ningún `DELETE` de SQL. Toda consulta propia
+(`IConsultasDeHistorial`) filtra `borrado_pendiente_desde IS NULL`, así que una
+conversación pendiente desaparece de inmediato para su dueño, aunque siga existiendo en
+la fila. `POST .../borrados/{lote}/deshacer` limpia esas dos columnas si el lote es
+propio y `borrado_pendiente_desde` es más reciente que
+`Asistente__VentanaDeDeshacerSegundos` (default 15 = los 10 s que la interfaz muestra
+«Deshacer» + 5 s de margen de red); vencida, ajena o desconocida responden el mismo
+`404`.
+
+**La finalidad física, no depende del cliente.** `BarridoDeBorradosPendientes`
+(`BackgroundService`, mismo patrón que `ServicioDePurga`) corre cada
+`Asistente__PeriodoDeBarridoDeBorradosSegundos` (default 60) y ejecuta el `DELETE` real
+de lo que superó la ventana — la cascada se lleva los turnos. `PurgaDeRegistros` corre
+la misma sentencia como red diaria, para el despliegue donde ese servicio no llegó a
+correr.
+
+**Soporte ve un poco más que el dueño.** `IConsultasDeAuditoriaDeSoporte` no filtra
+`borrado_pendiente_desde IS NULL` sino `IS NULL OR > ahora - la misma ventana`: una
+conversación pendiente sigue visible, marcada, hasta que la ventana cierra — después,
+invisible ahí también.
 
 ### El catálogo de capacidades
 
@@ -618,6 +656,8 @@ turno: para eso tiene su propio máximo de intentos.
 | `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
 | `RetencionDeAuditoriaDeAdministracionDias` | 365     | Cuánto vive un registro de auditoría de administración (§ Administración de uso) |
 | `PeriodoDePurgaHoras`                      | 24      | Cada cuánto corre la purga                                                       |
+| `VentanaDeDeshacerSegundos`                | 15      | Cuánto sigue pendiente un borrado y se puede deshacer                            |
+| `PeriodoDeBarridoDeBorradosSegundos`       | 60      | Cada cuánto corre el barrido que purga físicamente lo vencido                    |
 
 **Un turno que se cae deja fila.** La cuota se cobra en un `finally` —un fallo no puede
 ser una forma de consultar gratis—, así que el registro tiene que cobrar en el mismo

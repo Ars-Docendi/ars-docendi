@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Api;
 using Modules.Asistente.Infrastructure;
@@ -176,10 +177,115 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
             await EscalarAsync<string>("SELECT titulo FROM asistente.hilo_historico WHERE id = @id", ("id", ajena)));
     }
 
+    // ------------------------------------------------------------------ archivar
+
+    [Fact]
+    public async Task Archivar_una_conversacion_propia_la_marca()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/archivar", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken));
+        Assert.True(Assert.Single(lista).Archivada);
+    }
+
+    [Fact]
+    public async Task Desarchivar_le_quita_la_marca()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/archivar", null, TestContext.Current.CancellationToken);
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/desarchivar", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken));
+        Assert.False(Assert.Single(lista).Archivada);
+    }
+
+    [Theory]
+    [InlineData("archivar")]
+    [InlineData("desarchivar")]
+    public async Task Archivar_o_desarchivar_una_conversacion_ajena_da_404(string accion)
+    {
+        await SembrarAsync();
+        var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuestaAjena = await cliente.PostAsync(
+            $"/api/asistente/historial/{ajena}/{accion}", null, TestContext.Current.CancellationToken);
+        var respuestaInexistente = await cliente.PostAsync(
+            $"/api/asistente/historial/{Guid.NewGuid()}/{accion}", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, respuestaAjena.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, respuestaInexistente.StatusCode);
+        Assert.Equal(
+            await respuestaAjena.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            await respuestaInexistente.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task La_busqueda_encuentra_una_conversacion_archivada_y_la_marca()
+    {
+        await SembrarAsync();
+        var archivada = await SembrarHiloAsync(Secretaria, "sobre designaciones", Ancla);
+        await SembrarTurnoAsync(archivada, "¿cuántas designaciones vencen este cuatrimestre?", "SELECT 1");
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        await cliente.PostAsync(
+            $"/api/asistente/historial/{archivada}/archivar", null, TestContext.Current.CancellationToken);
+
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(await cliente.GetAsync(
+            "/api/asistente/historial?q=designaciones", TestContext.Current.CancellationToken));
+
+        Assert.True(Assert.Single(lista).Archivada);
+    }
+
+    [Fact]
+    public async Task Archivar_no_toca_la_ultima_actividad()
+    {
+        await SembrarAsync();
+        var vieja = Ancla.AddDays(-100);
+        var propia = await SembrarHiloAsync(Secretaria, "propia", vieja);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/archivar", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(vieja.UtcDateTime, await EscalarAsync<DateTime>(
+            "SELECT ultima_actividad FROM asistente.hilo_historico WHERE id = @id", ("id", propia)));
+    }
+
     // ------------------------------------------------------------------ eliminar
 
     [Fact]
-    public async Task Eliminar_una_conversacion_no_toca_las_demas()
+    public async Task Eliminar_devuelve_el_lote_y_la_conversacion_desaparece_de_la_lista_de_inmediato()
     {
         await SembrarAsync();
 
@@ -190,14 +296,45 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
 
-        var respuesta = await cliente.DeleteAsync(
-            $"/api/asistente/historial/{unaConversacion}", TestContext.Current.CancellationToken);
+        var lote = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            $"/api/asistente/historial/{unaConversacion}", TestContext.Current.CancellationToken));
 
-        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
-        Assert.Equal(0L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", unaConversacion)));
+        Assert.NotEqual(Guid.Empty, lote.LoteDeBorrado);
+
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken));
+        Assert.Single(lista);
+        Assert.Equal(otraConversacion, lista[0].Id);
+
+        // TODAVÍA EXISTE EN LA BASE — el DELETE marca, no borra. Ver
+        // «Un_borrado_fuera_de_ventana_se_purga_y_ya_no_existe» para la
+        // finalidad física.
         Assert.Equal(1L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", otraConversacion)));
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", unaConversacion)));
+    }
+
+    [Fact]
+    public async Task Una_conversacion_pendiente_es_invisible_para_obtener_reanudar_y_renombrar()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        await cliente.DeleteAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await cliente.GetAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/reanudar", null,
+            TestContext.Current.CancellationToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await cliente.PatchAsJsonAsync(
+            $"/api/asistente/historial/{propia}",
+            new RenombrarConversacionDto("robado"),
+            TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]
@@ -216,30 +353,194 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
         Assert.Equal(1L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", ajena)));
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id AND borrado_pendiente_desde IS NULL",
+            ("id", ajena)));
     }
 
     [Fact]
-    public async Task Eliminar_todo_deja_solo_las_conversaciones_ajenas()
+    public async Task Eliminar_todo_marca_las_propias_archivadas_incluidas_y_deja_la_ajena()
     {
         await SembrarAsync();
 
-        await SembrarHiloAsync(Secretaria, "uno", Ancla);
-        await SembrarHiloAsync(Secretaria, "dos", Ancla);
+        var unaPropia = await SembrarHiloAsync(Secretaria, "uno", Ancla);
+        var archivada = await SembrarHiloAsync(Secretaria, "dos", Ancla);
         var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
 
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         Autenticar(cliente, Secretaria, "secretaria");
+        await cliente.PostAsync(
+            $"/api/asistente/historial/{archivada}/archivar", null, TestContext.Current.CancellationToken);
 
-        var respuesta = await cliente.DeleteAsync(
-            "/api/asistente/historial", TestContext.Current.CancellationToken);
+        var lote = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            "/api/asistente/historial", TestContext.Current.CancellationToken));
+
+        Assert.NotEqual(Guid.Empty, lote.LoteDeBorrado);
+        Assert.Empty(await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken)));
+        Assert.Equal(2L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE lote_de_borrado = @lote",
+            ("lote", lote.LoteDeBorrado)));
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id AND borrado_pendiente_desde IS NULL",
+            ("id", ajena)));
+
+        _ = unaPropia;
+    }
+
+    // -------------------------------------------------------------- deshacer
+
+    [Fact]
+    public async Task Deshacer_dentro_de_la_ventana_restaura_la_conversacion_sin_cambios()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+        await SembrarTurnoAsync(propia, "¿cuántos hay?", "SELECT 1");
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var lote = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken));
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/borrados/{lote.LoteDeBorrado}/deshacer", null,
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
-        Assert.Equal(0L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.hilo_historico WHERE actor_id = @a", ("a", Secretaria)));
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken));
+        var restaurada = Assert.Single(lista);
+        Assert.Equal(propia, restaurada.Id);
+        Assert.Equal("propia", restaurada.Titulo);
+    }
+
+    [Fact]
+    public async Task Deshacer_un_lote_ajeno_da_404_y_no_restaura_nada()
+    {
+        await SembrarAsync();
+        var ajena = await SembrarHiloAsync(Coordinador, "ajena", Ancla);
+        var lote = Guid.NewGuid();
+        await MarcarPendienteAsync(ajena, Ancla, lote);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/borrados/{lote}/deshacer", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
         Assert.Equal(1L, await EscalarAsync<long>(
-            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", ajena)));
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id AND borrado_pendiente_desde IS NOT NULL",
+            ("id", ajena)));
+    }
+
+    [Fact]
+    public async Task Deshacer_un_lote_desconocido_da_404()
+    {
+        await SembrarAsync();
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/borrados/{Guid.NewGuid()}/deshacer", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deshacer_fuera_de_la_ventana_da_404_y_la_conversacion_sigue_pendiente()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+
+        var reloj = new RelojFijo(Ancla);
+        using var host = CrearHost(reloj: reloj);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var lote = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken));
+
+        reloj.Avanzar(TimeSpan.FromSeconds(16));
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/borrados/{lote.LoteDeBorrado}/deshacer", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id AND borrado_pendiente_desde IS NOT NULL",
+            ("id", propia)));
+    }
+
+    [Fact]
+    public async Task Borrar_una_y_despues_borrar_todo_deshacer_todo_deja_la_primera_pendiente_por_su_cuenta()
+    {
+        // EL CASO EXACTO DE LA SPEC: A se borra sola; dentro de su ventana se
+        // borran todas. Deshacer el lote de «todas» restaura únicamente ese
+        // lote — A sigue pendiente, en el suyo.
+        await SembrarAsync();
+        var a = await SembrarHiloAsync(Secretaria, "a", Ancla);
+        var b = await SembrarHiloAsync(Secretaria, "b", Ancla);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var loteDeA = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            $"/api/asistente/historial/{a}", TestContext.Current.CancellationToken));
+        var loteDeTodas = await LeerAsync<LoteDeBorradoDto>(await cliente.DeleteAsync(
+            "/api/asistente/historial", TestContext.Current.CancellationToken));
+
+        Assert.NotEqual(loteDeA.LoteDeBorrado, loteDeTodas.LoteDeBorrado);
+
+        var respuesta = await cliente.PostAsync(
+            $"/api/asistente/historial/borrados/{loteDeTodas.LoteDeBorrado}/deshacer", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(
+            await cliente.GetAsync("/api/asistente/historial", TestContext.Current.CancellationToken));
+        Assert.Equal(b, Assert.Single(lista).Id);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id AND lote_de_borrado = @lote",
+            ("id", a), ("lote", loteDeA.LoteDeBorrado)));
+    }
+
+    // -------------------------------------------------------------- el barrido
+
+    [Fact]
+    public async Task Un_borrado_fuera_de_la_ventana_se_purga_por_el_barrido_y_desaparece_de_verdad()
+    {
+        await SembrarAsync();
+        var propia = await SembrarHiloAsync(Secretaria, "propia", Ancla);
+        await SembrarTurnoAsync(propia, "¿cuántos hay?", "SELECT 1");
+
+        var reloj = new RelojFijo(Ancla);
+        using var host = CrearHost(reloj: reloj);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        await cliente.DeleteAsync(
+            $"/api/asistente/historial/{propia}", TestContext.Current.CancellationToken);
+        reloj.Avanzar(TimeSpan.FromSeconds(16));
+
+        var barrido = new BarridoDePendientes(
+            new CadenaDuena(Cadena), Options.Create(new OpcionesAsistente()), reloj);
+        var borradas = await barrido.BarrerAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, borradas);
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.hilo_historico WHERE id = @id", ("id", propia)));
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.turno_historico WHERE hilo_id = @id", ("id", propia)));
     }
 
     // ------------------------------------------------------------------ reanudar
@@ -400,13 +701,23 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
     }
 
-    private WebApplicationFactory<Program> CrearHost(ProveedorGuionado? guionado = null) =>
+    private WebApplicationFactory<Program> CrearHost(
+        ProveedorGuionado? guionado = null, TimeProvider? reloj = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             if (guionado is not null)
             {
                 builder.ConfigureTestServices(servicios =>
                     servicios.AddSingleton(new ProveedorBase(guionado)));
+            }
+
+            // Reemplaza al `TimeProvider.System` que el módulo registra con
+            // `TryAddSingleton` — la última registración gana, mismo truco
+            // que el `ProveedorBase` de arriba — para poder adelantar la
+            // ventana de «Deshacer» sin esperarla de verdad.
+            if (reloj is not null)
+            {
+                builder.ConfigureTestServices(servicios => servicios.AddSingleton(reloj));
             }
 
             builder.UseEnvironment("Development");
@@ -459,6 +770,23 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         return id;
+    }
+
+    /// <summary>Marca un hilo ya sembrado como pendiente de borrado, sin pasar por el endpoint.</summary>
+    private async Task MarcarPendienteAsync(Guid hiloId, DateTimeOffset desde, Guid lote)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET borrado_pendiente_desde = @desde, lote_de_borrado = @lote
+             WHERE id = @hilo
+            """, conexion);
+
+        comando.Parameters.AddWithValue("desde", desde);
+        comando.Parameters.AddWithValue("lote", lote);
+        comando.Parameters.AddWithValue("hilo", hiloId);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<Guid> SembrarTurnoAsync(

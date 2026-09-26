@@ -90,6 +90,7 @@ const CONVERSACION_AJENA: ConversacionDetalle = {
   titulo: "¿Cuántas materias tengo?",
   creadoEn: "2026-03-01T09:00:00Z",
   ultimaActividad: "2026-03-01T09:05:00Z",
+  archivada: false,
   turnos: [
     {
       id: "88888888-8888-4888-8888-888888888888",
@@ -120,6 +121,7 @@ describe("La razón es obligatoria (tasks.md 13.2)", () => {
         titulo: CONVERSACION_AJENA.titulo,
         creadoEn: CONVERSACION_AJENA.creadoEn,
         ultimaActividad: CONVERSACION_AJENA.ultimaActividad,
+        archivada: false,
       },
     ]);
     const user = userEvent.setup();
@@ -156,6 +158,7 @@ describe("Sólo pregunta/SQL/desenlace/momentos, nada de filas ni re-ejecución 
         titulo: CONVERSACION_AJENA.titulo,
         creadoEn: CONVERSACION_AJENA.creadoEn,
         ultimaActividad: CONVERSACION_AJENA.ultimaActividad,
+        archivada: false,
       },
     ]);
     vi.spyOn(soporteApi, "leerHistorialDeSoporte").mockResolvedValue(CONVERSACION_AJENA);
@@ -183,5 +186,52 @@ describe("Sólo pregunta/SQL/desenlace/momentos, nada de filas ni re-ejecución 
     // re-ejecución.
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.queryByRole("button", { name: "Volver a consultar" })).toBeNull();
+  });
+});
+
+describe("Marcas «Archivada» / «Pendiente de borrado» (tasks.md 3.5)", () => {
+  it("marca una conversación archivada", async () => {
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
+    vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([
+      {
+        id: CONVERSACION_AJENA.id,
+        titulo: CONVERSACION_AJENA.titulo,
+        creadoEn: CONVERSACION_AJENA.creadoEn,
+        ultimaActividad: CONVERSACION_AJENA.ultimaActividad,
+        archivada: true,
+      },
+    ]);
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+
+    expect(await screen.findByText("Archivada")).toBeInTheDocument();
+    expect(screen.queryByText("Pendiente de borrado")).toBeNull();
+  });
+
+  it("marca una conversación pendiente de borrado", async () => {
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
+    vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([
+      {
+        id: CONVERSACION_AJENA.id,
+        titulo: CONVERSACION_AJENA.titulo,
+        creadoEn: CONVERSACION_AJENA.creadoEn,
+        ultimaActividad: CONVERSACION_AJENA.ultimaActividad,
+        archivada: false,
+        pendienteDeBorrado: true,
+      },
+    ]);
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+
+    expect(await screen.findByText("Pendiente de borrado")).toBeInTheDocument();
+    expect(screen.queryByText("Archivada")).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -18,9 +19,19 @@ namespace Modules.Asistente.Infrastructure;
 /// de <c>asistente-feedback-export-seguimiento</c> D3: la fila de auditoría ya
 /// es el registro completo del qué y el por qué; el log es sólo para
 /// observabilidad operativa.
+///
+/// <b>La única de las dos lecturas que SÍ ve una conversación pendiente de
+/// borrado</b> (design.md D4 de asistente-historial-conversaciones,
+/// asistente-acceso-de-soporte-al-historial): mientras su ventana no venza,
+/// vuelve marcada <c>PendienteDeBorrado</c>; vencida, desaparece de acá
+/// también — el mismo corte que usa <see cref="ConsultasDeHistorial"/> para
+/// deshacer, no uno propio.
 /// </remarks>
 internal sealed class ConsultasDeAuditoriaDeSoporte(
-    CadenaDuena cadena, ILogger<ConsultasDeAuditoriaDeSoporte> log)
+    CadenaDuena cadena,
+    TimeProvider reloj,
+    IOptions<OpcionesAsistente> opciones,
+    ILogger<ConsultasDeAuditoriaDeSoporte> log)
     : IConsultasDeAuditoriaDeSoporte
 {
     public async Task<IReadOnlyList<ConversacionResumen>> ListarAsync(
@@ -40,13 +51,15 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
 
         await using var comando = new NpgsqlCommand(
             """
-            SELECT id, titulo, creado_en, ultima_actividad
+            SELECT id, titulo, creado_en, ultima_actividad, archivada_en, borrado_pendiente_desde
               FROM asistente.hilo_historico
              WHERE actor_id = @sujeto
+               AND (borrado_pendiente_desde IS NULL OR borrado_pendiente_desde > @corte)
              ORDER BY ultima_actividad DESC
             """, conexion);
 
         comando.Parameters.AddWithValue("sujeto", sujeto);
+        comando.Parameters.AddWithValue("corte", VentanaDesde(reloj.GetUtcNow()));
 
         var resultado = new List<ConversacionResumen>();
         await using var lector_ = await comando.ExecuteReaderAsync(ct);
@@ -54,11 +67,17 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
         {
             resultado.Add(new ConversacionResumen(
                 lector_.GetGuid(0), lector_.GetString(1), lector_.GetFieldValue<DateTimeOffset>(2),
-                lector_.GetFieldValue<DateTimeOffset>(3)));
+                lector_.GetFieldValue<DateTimeOffset>(3),
+                Archivada: !lector_.IsDBNull(4),
+                PendienteDeBorrado: !lector_.IsDBNull(5)));
         }
 
         return resultado;
     }
+
+    /// <summary>El corte a partir del cual un borrado sigue dentro de su ventana.</summary>
+    private DateTimeOffset VentanaDesde(DateTimeOffset ahora) =>
+        ahora - TimeSpan.FromSeconds(opciones.Value.VentanaDeDeshacerSegundos);
 
     public async Task<ConversacionDetalle?> LeerAsync(
         Guid lector, Guid sujeto, Guid hiloId, string razon, CancellationToken ct)
@@ -74,7 +93,8 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
 
         log.LogInformation("Lectura de soporte de una conversación de un actor.");
 
-        var cabecera = await LeerCabeceraAsync(conexion, sujeto, hiloId, ct);
+        var cabecera = await LeerCabeceraAsync(
+            conexion, sujeto, hiloId, VentanaDesde(reloj.GetUtcNow()), ct);
         if (cabecera is null)
         {
             return null;
@@ -114,17 +134,20 @@ internal sealed class ConsultasDeAuditoriaDeSoporte(
     }
 
     private static async Task<(Guid Id, string Titulo, DateTimeOffset CreadoEn, DateTimeOffset UltimaActividad)?>
-        LeerCabeceraAsync(NpgsqlConnection conexion, Guid sujeto, Guid hiloId, CancellationToken ct)
+        LeerCabeceraAsync(
+            NpgsqlConnection conexion, Guid sujeto, Guid hiloId, DateTimeOffset corte, CancellationToken ct)
     {
         await using var comando = new NpgsqlCommand(
             """
             SELECT id, titulo, creado_en, ultima_actividad
               FROM asistente.hilo_historico
              WHERE id = @hilo AND actor_id = @sujeto
+               AND (borrado_pendiente_desde IS NULL OR borrado_pendiente_desde > @corte)
             """, conexion);
 
         comando.Parameters.AddWithValue("hilo", hiloId);
         comando.Parameters.AddWithValue("sujeto", sujeto);
+        comando.Parameters.AddWithValue("corte", corte);
 
         await using var lector = await comando.ExecuteReaderAsync(ct);
         if (!await lector.ReadAsync(ct))

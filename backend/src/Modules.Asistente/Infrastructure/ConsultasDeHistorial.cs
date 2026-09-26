@@ -1,4 +1,5 @@
 using ArsDocendi.Shared.Persistencia;
+using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -12,8 +13,16 @@ namespace Modules.Asistente.Infrastructure;
 /// y <c>asistente.turno_historico</c> viven en el schema propio del asistente,
 /// que los dos roles de solo lectura tienen revocado entero — leerlas necesita
 /// la misma conexión que escribirlas.
+///
+/// <b>Toda consulta filtra <c>borrado_pendiente_desde IS NULL</c></b>
+/// (asistente-rediseno-v3, design.md D4): una conversación pendiente de
+/// borrado no existe para su propio dueño ni por esta interfaz, aunque su
+/// ventana de «Deshacer» todavía no haya vencido — eso lo ve únicamente
+/// <c>IConsultasDeAuditoriaDeSoporte</c>, marcada.
 /// </remarks>
-internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHistorial
+internal sealed class ConsultasDeHistorial(
+    CadenaDuena cadena, TimeProvider reloj, IOptions<OpcionesAsistente> opciones)
+    : IConsultasDeHistorial
 {
     public async Task<IReadOnlyList<ConversacionResumen>> ListarAsync(
         Guid actor, string? busqueda, CancellationToken ct)
@@ -25,17 +34,19 @@ internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHis
         await using var comando = new NpgsqlCommand(
             conBusqueda
                 ? """
-                  SELECT DISTINCT h.id, h.titulo, h.creado_en, h.ultima_actividad
+                  SELECT DISTINCT h.id, h.titulo, h.creado_en, h.ultima_actividad, h.archivada_en
                     FROM asistente.hilo_historico h
                     JOIN asistente.turno_historico t ON t.hilo_id = h.id
                    WHERE h.actor_id = @actor
+                     AND h.borrado_pendiente_desde IS NULL
                      AND to_tsvector('spanish', t.pregunta) @@ plainto_tsquery('spanish', @busqueda)
                    ORDER BY h.ultima_actividad DESC
                   """
                 : """
-                  SELECT id, titulo, creado_en, ultima_actividad
+                  SELECT id, titulo, creado_en, ultima_actividad, archivada_en
                     FROM asistente.hilo_historico
                    WHERE actor_id = @actor
+                     AND borrado_pendiente_desde IS NULL
                    ORDER BY ultima_actividad DESC
                   """,
             conexion);
@@ -52,11 +63,104 @@ internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHis
         {
             resultado.Add(new ConversacionResumen(
                 lector.GetGuid(0), lector.GetString(1), lector.GetFieldValue<DateTimeOffset>(2),
-                lector.GetFieldValue<DateTimeOffset>(3)));
+                lector.GetFieldValue<DateTimeOffset>(3), Archivada: !lector.IsDBNull(4)));
         }
 
         return resultado;
     }
+
+    public async Task<bool> ArchivarAsync(Guid actor, Guid hiloId, CancellationToken ct) =>
+        await MarcarArchivadaAsync(actor, hiloId, archivar: true, ct);
+
+    public async Task<bool> DesarchivarAsync(Guid actor, Guid hiloId, CancellationToken ct) =>
+        await MarcarArchivadaAsync(actor, hiloId, archivar: false, ct);
+
+    public async Task<Guid?> EliminarAsync(Guid actor, Guid hiloId, CancellationToken ct)
+    {
+        var lote = Guid.NewGuid();
+        var ahora = reloj.GetUtcNow();
+
+        await using var conexion = await AbrirAsync(ct);
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET borrado_pendiente_desde = @ahora, lote_de_borrado = @lote
+             WHERE id = @hilo AND actor_id = @actor AND borrado_pendiente_desde IS NULL
+            """, conexion);
+
+        comando.Parameters.AddWithValue("ahora", ahora);
+        comando.Parameters.AddWithValue("lote", lote);
+        comando.Parameters.AddWithValue("hilo", hiloId);
+        comando.Parameters.AddWithValue("actor", actor);
+
+        var afectadas = await comando.ExecuteNonQueryAsync(ct);
+        return afectadas > 0 ? lote : null;
+    }
+
+    public async Task<Guid> EliminarTodoAsync(Guid actor, CancellationToken ct)
+    {
+        var lote = Guid.NewGuid();
+        var ahora = reloj.GetUtcNow();
+
+        await using var conexion = await AbrirAsync(ct);
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET borrado_pendiente_desde = @ahora, lote_de_borrado = @lote
+             WHERE actor_id = @actor AND borrado_pendiente_desde IS NULL
+            """, conexion);
+
+        comando.Parameters.AddWithValue("ahora", ahora);
+        comando.Parameters.AddWithValue("lote", lote);
+        comando.Parameters.AddWithValue("actor", actor);
+
+        await comando.ExecuteNonQueryAsync(ct);
+        return lote;
+    }
+
+    public async Task<bool> DeshacerBorradoAsync(Guid actor, Guid lote, CancellationToken ct)
+    {
+        var corte = VentanaDesde(reloj.GetUtcNow());
+
+        await using var conexion = await AbrirAsync(ct);
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET borrado_pendiente_desde = NULL, lote_de_borrado = NULL
+             WHERE actor_id = @actor AND lote_de_borrado = @lote
+               AND borrado_pendiente_desde > @corte
+            """, conexion);
+
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("lote", lote);
+        comando.Parameters.AddWithValue("corte", corte);
+
+        return await comando.ExecuteNonQueryAsync(ct) > 0;
+    }
+
+    private async Task<bool> MarcarArchivadaAsync(
+        Guid actor, Guid hiloId, bool archivar, CancellationToken ct)
+    {
+        await using var conexion = await AbrirAsync(ct);
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET archivada_en = @archivadaEn
+             WHERE id = @hilo AND actor_id = @actor AND borrado_pendiente_desde IS NULL
+            """, conexion);
+
+        comando.Parameters.AddWithValue(
+            "archivadaEn", NpgsqlTypes.NpgsqlDbType.TimestampTz,
+            archivar ? (object)reloj.GetUtcNow() : DBNull.Value);
+        comando.Parameters.AddWithValue("hilo", hiloId);
+        comando.Parameters.AddWithValue("actor", actor);
+
+        return await comando.ExecuteNonQueryAsync(ct) > 0;
+    }
+
+    /// <summary>El corte a partir del cual un borrado sigue dentro de su ventana.</summary>
+    private DateTimeOffset VentanaDesde(DateTimeOffset ahora) =>
+        ahora - TimeSpan.FromSeconds(opciones.Value.VentanaDeDeshacerSegundos);
 
     public async Task<ConversacionDetalle?> ObtenerAsync(Guid actor, Guid hiloId, CancellationToken ct)
     {
@@ -82,37 +186,17 @@ internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHis
 
         await using var conexion = await AbrirAsync(ct);
         await using var comando = new NpgsqlCommand(
-            "UPDATE asistente.hilo_historico SET titulo = @titulo WHERE id = @hilo AND actor_id = @actor",
-            conexion);
+            """
+            UPDATE asistente.hilo_historico
+               SET titulo = @titulo
+             WHERE id = @hilo AND actor_id = @actor AND borrado_pendiente_desde IS NULL
+            """, conexion);
 
         comando.Parameters.AddWithValue("titulo", nuevoTitulo.Trim());
         comando.Parameters.AddWithValue("hilo", hiloId);
         comando.Parameters.AddWithValue("actor", actor);
 
         return await comando.ExecuteNonQueryAsync(ct) > 0;
-    }
-
-    public async Task<bool> EliminarAsync(Guid actor, Guid hiloId, CancellationToken ct)
-    {
-        await using var conexion = await AbrirAsync(ct);
-        await using var comando = new NpgsqlCommand(
-            "DELETE FROM asistente.hilo_historico WHERE id = @hilo AND actor_id = @actor", conexion);
-
-        comando.Parameters.AddWithValue("hilo", hiloId);
-        comando.Parameters.AddWithValue("actor", actor);
-
-        return await comando.ExecuteNonQueryAsync(ct) > 0;
-    }
-
-    public async Task<int> EliminarTodoAsync(Guid actor, CancellationToken ct)
-    {
-        await using var conexion = await AbrirAsync(ct);
-        await using var comando = new NpgsqlCommand(
-            "DELETE FROM asistente.hilo_historico WHERE actor_id = @actor", conexion);
-
-        comando.Parameters.AddWithValue("actor", actor);
-
-        return await comando.ExecuteNonQueryAsync(ct);
     }
 
     public async Task<IReadOnlyList<TurnoDeHistorial>?> ObtenerTurnosAsync(
@@ -133,7 +217,7 @@ internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHis
             SELECT t.estado, t.sql_resuelto
               FROM asistente.turno_historico t
               JOIN asistente.hilo_historico h ON h.id = t.hilo_id
-             WHERE t.id = @turno AND h.actor_id = @actor
+             WHERE t.id = @turno AND h.actor_id = @actor AND h.borrado_pendiente_desde IS NULL
             """, conexion);
 
         comando.Parameters.AddWithValue("turno", turnoId);
@@ -160,7 +244,7 @@ internal sealed class ConsultasDeHistorial(CadenaDuena cadena) : IConsultasDeHis
             """
             SELECT id, titulo, creado_en, ultima_actividad
               FROM asistente.hilo_historico
-             WHERE id = @hilo AND actor_id = @actor
+             WHERE id = @hilo AND actor_id = @actor AND borrado_pendiente_desde IS NULL
             """, conexion);
 
         comando.Parameters.AddWithValue("hilo", hiloId);

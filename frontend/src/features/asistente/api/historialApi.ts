@@ -2,6 +2,7 @@ import { apiClient } from "../../../shared/api/client";
 import type {
   ConversacionDetalle,
   ConversacionResumen,
+  LoteDeBorrado,
   ReanudarRespuesta,
   ReejecucionResultado,
 } from "../types";
@@ -30,14 +31,35 @@ export async function renombrarConversacion(hiloId: string, titulo: string): Pro
   await apiClient.patch(`/api/asistente/historial/${hiloId}`, { titulo });
 }
 
-/** Borra, permanentemente, una conversación propia. */
-export async function eliminarConversacion(hiloId: string): Promise<void> {
-  await apiClient.delete(`/api/asistente/historial/${hiloId}`);
+/** Archiva una conversación propia (design.md D3 de asistente-rediseno-v3). */
+export async function archivarConversacion(hiloId: string): Promise<void> {
+  await apiClient.post(`/api/asistente/historial/${hiloId}/archivar`);
 }
 
-/** Borra, permanentemente, TODAS las conversaciones propias. */
-export async function eliminarTodasLasConversaciones(): Promise<void> {
-  await apiClient.delete("/api/asistente/historial");
+/** Desarchiva una conversación propia. */
+export async function desarchivarConversacion(hiloId: string): Promise<void> {
+  await apiClient.post(`/api/asistente/historial/${hiloId}/desarchivar`);
+}
+
+/**
+ * Marca una conversación propia pendiente de borrado: desaparece de
+ * inmediato de la lista, pero se puede deshacer con {@link deshacerBorrado}
+ * dentro de su ventana (design.md D4 de asistente-rediseno-v3).
+ */
+export async function eliminarConversacion(hiloId: string): Promise<LoteDeBorrado> {
+  const { data } = await apiClient.delete<LoteDeBorrado>(`/api/asistente/historial/${hiloId}`);
+  return data;
+}
+
+/** Marca TODAS las conversaciones propias (archivadas incluidas) pendientes de borrado. */
+export async function eliminarTodasLasConversaciones(): Promise<LoteDeBorrado> {
+  const { data } = await apiClient.delete<LoteDeBorrado>("/api/asistente/historial");
+  return data;
+}
+
+/** Deshace un lote de borrado propio, dentro de su ventana. */
+export async function deshacerBorrado(lote: string): Promise<void> {
+  await apiClient.post(`/api/asistente/historial/borrados/${lote}/deshacer`);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PanelDePrueba } from "./test/PanelDePrueba";
@@ -9,10 +9,11 @@ import { CAPACIDADES, montar } from "./test/soporte";
 import type { ConversacionResumen } from "./types";
 
 // ============================================================
-// Anuncios de renombrar/eliminar/reanudar por la región viva EXISTENTE, sin
-// desorientar el foco (asistente-accesibilidad, tasks.md §1, §14.2). El rail
-// ya no es un cajón que se abre y cierra: está siempre a la vista, así que
-// estos tests ya no necesitan abrir nada antes de operar sobre una fila.
+// Anuncios de renombrar/archivar/eliminar/reanudar por la región viva
+// EXISTENTE, sin desorientar el foco (asistente-accesibilidad, tasks.md §1,
+// §3.7, §14.2). El rail ya no es un cajón que se abre y cierra: está siempre
+// a la vista, así que estos tests ya no necesitan abrir nada antes de operar
+// sobre una fila.
 // ============================================================
 
 const UNA: ConversacionResumen = {
@@ -20,7 +21,10 @@ const UNA: ConversacionResumen = {
   titulo: "¿Cuántos docentes hay?",
   creadoEn: "2026-01-10T10:00:00Z",
   ultimaActividad: "2026-01-10T10:05:00Z",
+  archivada: false,
 };
+
+const LOTE = "22222222-2222-4222-8222-222222222222";
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
@@ -34,10 +38,10 @@ function regionViva(): HTMLElement {
   return screen.getByRole("log", { name: "Conversación con el asistente" });
 }
 
-describe("Eliminar una conversación", () => {
-  it("anuncia por la región viva existente y el foco no se pierde en <body>", async () => {
+describe("Eliminar una conversación (sin confirmación, con aviso — tasks.md §3.7)", () => {
+  it("anuncia por la región viva existente, sin una segunda, y el foco no se pierde en <body>", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
@@ -45,18 +49,85 @@ describe("Eliminar una conversación", () => {
 
     await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
     await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
-    await user.click(screen.getByRole("button", { name: "Confirmar borrado" }));
 
-    const anuncio = await screen.findByText("Se borró la conversación.");
+    const anuncio = await screen.findByText(
+      "Se eliminó la conversación. Podés deshacerlo durante 10 segundos.",
+    );
+    expect(regionViva().contains(anuncio)).toBe(true);
+    expect(document.activeElement).not.toBe(document.body);
+    // Ninguna segunda región viva para el aviso: sólo la que ya existe.
+    expect(document.querySelectorAll('[aria-live], [role="status"], [role="log"]')).toHaveLength(2);
+  });
+
+  it("por teclado, eliminar deja el foco en «Deshacer»", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }).focus();
+    await user.keyboard("{Enter}");
+    screen.getByRole("menuitem", { name: "Eliminar" }).focus();
+    await user.keyboard("{Enter}");
+
+    const deshacer = await screen.findByRole("button", { name: "Deshacer" });
+    expect(deshacer).toHaveFocus();
+  });
+
+  it("deshacer por teclado restaura la fila y le devuelve el foco", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    vi.spyOn(historialApi, "deshacerBorrado").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+    const deshacer = await screen.findByRole("button", { name: "Deshacer" });
+
+    deshacer.focus();
+    await user.keyboard("{Enter}");
+
+    const anuncio = await screen.findByText("Se restauró la conversación.");
     expect(regionViva().contains(anuncio)).toBe(true);
     expect(document.activeElement).not.toBe(document.body);
   });
+
+  it("un aviso que vence sin que nadie lo deshaga no deja el foco en <body>", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+    const deshacer = await screen.findByRole("button", { name: "Deshacer" });
+    deshacer.focus();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(screen.queryByRole("button", { name: "Deshacer" })).toBeNull();
+    expect(document.activeElement).not.toBe(document.body);
+    // El destino exacto es la lista, no cualquier otro lado.
+    expect(document.activeElement).toBe(screen.getByLabelText("Tus conversaciones"));
+
+    vi.useRealTimers();
+  });
 });
 
-describe("Eliminar todas las conversaciones", () => {
+describe("Borrar todas las conversaciones", () => {
   it("anuncia por la región viva existente y el foco no se pierde en <body>", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    vi.spyOn(historialApi, "eliminarTodasLasConversaciones").mockResolvedValue(undefined);
+    vi.spyOn(historialApi, "eliminarTodasLasConversaciones").mockResolvedValue({
+      loteDeBorrado: LOTE,
+    });
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
@@ -65,9 +136,31 @@ describe("Eliminar todas las conversaciones", () => {
     await user.click(screen.getByRole("button", { name: "Borrar todas" }));
     await user.click(screen.getByRole("button", { name: "Confirmar borrado de todo" }));
 
-    const anuncio = await screen.findByText("Se borraron todas tus conversaciones.");
+    const anuncio = await screen.findByText(
+      "Se eliminaron todas tus conversaciones. Podés deshacerlo durante 10 segundos.",
+    );
     expect(regionViva().contains(anuncio)).toBe(true);
     expect(document.activeElement).not.toBe(document.body);
+  });
+});
+
+describe("Archivar", () => {
+  it("anuncia por la región viva existente y deja el foco en «Deshacer»", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "archivarConversacion").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await user.click(screen.getByRole("button", { name: `Acciones de «${UNA.titulo}»` }));
+    await user.click(screen.getByRole("menuitem", { name: "Archivar" }));
+
+    const anuncio = await screen.findByText(
+      "Se archivó la conversación. Podés deshacerlo durante 10 segundos.",
+    );
+    expect(regionViva().contains(anuncio)).toBe(true);
+    expect(await screen.findByRole("button", { name: "Deshacer" })).toHaveFocus();
   });
 });
 

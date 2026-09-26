@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
 import {
+  archivarConversacion,
+  desarchivarConversacion,
+  deshacerBorrado,
   eliminarConversacion,
   eliminarTodasLasConversaciones,
   listarConversaciones,
@@ -16,15 +19,50 @@ const CLAVE_HISTORIAL = ["asistente", "historial"] as const;
 /** Cuánto se espera desde la última tecla antes de buscar (tasks.md 10.2: debounced). */
 export const ESPERA_DE_BUSQUEDA_MS = 300;
 
+/**
+ * Cuánto se muestra el aviso de deshacer, en milisegundos
+ * (asistente-superficie-frontend, design.md D4/D15 de asistente-rediseno-v3).
+ *
+ * SON 10 s ACÁ Y 15 EN EL SERVIDOR, A PROPÓSITO: el servidor da 5 s de
+ * margen de red por encima de lo que la interfaz muestra, para que un clic a
+ * los 9,9 s con una conexión lenta todavía llegue a tiempo. Los dos números
+ * viven en archivos distintos porque describen cosas distintas — cuánto
+ * dura el aviso en pantalla, y hasta cuándo el servidor lo acepta — y no
+ * porque se hayan desincronizado.
+ */
+export const DURACION_DEL_AVISO_MS = 10_000;
+
+/** El aviso de deshacer al pie del rail. Uno a la vez. */
+export interface AvisoDeDeshacer {
+  texto: string;
+  deshacer: () => Promise<void>;
+}
+
 export interface HistorialAsistente {
   busqueda: string;
   setBusqueda: (valor: string) => void;
   conversaciones: UseQueryResult<ConversacionResumen[]>;
   renombrar: (id: string, titulo: string) => Promise<void>;
+  /** Archiva una conversación propia (design.md D3). */
+  archivar: (id: string) => Promise<void>;
+  /** Desarchiva una conversación propia. */
+  desarchivar: (id: string) => Promise<void>;
+  /**
+   * Marca una conversación propia pendiente de borrado. SIN CONFIRMACIÓN
+   * (asistente-superficie-frontend): la fila desaparece de inmediato y el
+   * aviso de deshacer es la red de seguridad, no un diálogo previo.
+   */
   eliminar: (id: string) => Promise<void>;
+  /** Marca TODAS las conversaciones propias (archivadas incluidas) pendientes de borrado. */
   eliminarTodo: () => Promise<void>;
   /** Reanuda una conversación propia. */
   abrirConversacion: (id: string) => Promise<void>;
+  /**
+   * El aviso de deshacer vigente, o `null` sin ninguno. Se vence solo a los
+   * `DURACION_DEL_AVISO_MS`; una acción nueva lo reemplaza (nunca conviven
+   * dos).
+   */
+  aviso: AvisoDeDeshacer | null;
   /**
    * El último anuncio para la región viva EXISTENTE (`Conversacion.tsx`,
    * `role="log" aria-live="polite"`) — nada de esto tiene un turno propio al
@@ -44,10 +82,11 @@ export interface HistorialAsistente {
 }
 
 /**
- * El historial propio: listar (con búsqueda), renombrar, borrar (uno o
- * todos) y reanudar. Un solo hook para los montajes que necesiten el rail
- * —el modal del lanzador, y la ruta mientras siga existiendo (tasks.md
- * §10)—, invocado por el mismo dueño que crea `asistente`.
+ * El historial propio: listar (con búsqueda), renombrar, archivar/desarchivar,
+ * borrar (uno o todos, diferido y deshacible) y reanudar. Un solo hook para
+ * los montajes que necesiten el rail —el modal del lanzador, y la ruta
+ * mientras siga existiendo (tasks.md §10)—, invocado por el mismo dueño que
+ * crea `asistente`.
  *
  * @param habilitado
  * Si hay que pedir la lista AHORA. El rail ya no es un cajón que se abre y
@@ -64,6 +103,7 @@ export function useHistorialAsistente(
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [anuncio, setAnuncio] = useState<string | null>(null);
   const [conversacionActivaId, setConversacionActivaId] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<AvisoDeDeshacer | null>(null);
   const cliente = useQueryClient();
 
   useEffect(() => {
@@ -73,6 +113,17 @@ export function useHistorialAsistente(
     );
     return () => window.clearTimeout(temporizador);
   }, [busqueda]);
+
+  // EL AVISO SE VENCE SOLO. Atado a la IDENTIDAD del objeto `aviso` y no a
+  // su texto: una acción nueva siempre crea un objeto nuevo —incluso con el
+  // mismo texto—, así que este efecto limpia el temporizador viejo y arranca
+  // uno propio, que es exactamente «una acción nueva reemplaza al aviso
+  // anterior» (asistente-superficie-frontend).
+  useEffect(() => {
+    if (!aviso) return;
+    const temporizador = window.setTimeout(() => setAviso(null), DURACION_DEL_AVISO_MS);
+    return () => window.clearTimeout(temporizador);
+  }, [aviso]);
 
   // AJUSTE DE ESTADO EN RENDER, no un efecto — mismo patrón que
   // `LanzadorAsistente` usa para cerrarse al navegar. La marca de «activa»
@@ -128,6 +179,14 @@ export function useHistorialAsistente(
       renombrarConversacion(id, titulo),
     onSuccess: invalidar,
   });
+  const mutacionArchivar = useMutation({
+    mutationFn: (id: string) => archivarConversacion(id),
+    onSuccess: invalidar,
+  });
+  const mutacionDesarchivar = useMutation({
+    mutationFn: (id: string) => desarchivarConversacion(id),
+    onSuccess: invalidar,
+  });
   const mutacionEliminar = useMutation({
     mutationFn: (id: string) => eliminarConversacion(id),
     onSuccess: invalidar,
@@ -136,29 +195,110 @@ export function useHistorialAsistente(
     mutationFn: eliminarTodasLasConversaciones,
     onSuccess: invalidar,
   });
+  const mutacionDeshacer = useMutation({
+    mutationFn: (lote: string) => deshacerBorrado(lote),
+    onSuccess: invalidar,
+  });
+
+  /**
+   * Reanuda una conversación propia — la misma acción que `abrirConversacion`
+   * expone hacia afuera, pero también usada internamente para «Deshacer»
+   * cuando la conversación archivada/borrada era la activa (asistente-superficie-frontend:
+   * «Deshacer» la reanuda de nuevo).
+   */
+  const resumir = useCallback(
+    async (id: string) => {
+      const { hilo, turnos } = await reanudarConversacion(id);
+      asistente.sembrarDesdeHistorial(hilo, turnos);
+      setConversacionActivaId(id);
+    },
+    [asistente],
+  );
+
+  /**
+   * Si `id` es la conversación activa, vuelve a la bienvenida
+   * (asistente-superficie-frontend: archivar o eliminar la conversación
+   * activa resetea el hilo) y devuelve si lo hizo — lo que necesita el
+   * llamador para saber si «Deshacer» tiene que volver a reanudarla.
+   */
+  function soltarSiEsLaActiva(id: string): boolean {
+    if (id !== conversacionActivaId) return false;
+    asistente.reiniciar();
+    setConversacionActivaId(null);
+    return true;
+  }
+
+  async function reanudarSiEraLaActiva(id: string, eraActiva: boolean) {
+    if (eraActiva) await resumir(id);
+  }
 
   return {
     busqueda,
     setBusqueda,
     conversaciones,
+    aviso,
     anuncio,
     conversacionActivaId,
     renombrar: async (id, titulo) => {
       await mutacionRenombrar.mutateAsync({ id, titulo });
       setAnuncio("Se guardó el nuevo título.");
     },
+    archivar: async (id) => {
+      const eraActiva = soltarSiEsLaActiva(id);
+      await mutacionArchivar.mutateAsync(id);
+      setAnuncio("Se archivó la conversación. Podés deshacerlo durante 10 segundos.");
+      setAviso({
+        texto: "Conversación archivada",
+        deshacer: async () => {
+          await mutacionDesarchivar.mutateAsync(id);
+          await reanudarSiEraLaActiva(id, eraActiva);
+          setAnuncio("Se restauró la conversación.");
+        },
+      });
+    },
+    desarchivar: async (id) => {
+      await mutacionDesarchivar.mutateAsync(id);
+      setAnuncio("Se restauró la conversación. Podés deshacerlo durante 10 segundos.");
+      setAviso({
+        texto: "Conversación restaurada",
+        deshacer: async () => {
+          await mutacionArchivar.mutateAsync(id);
+          setAnuncio("Se archivó la conversación.");
+        },
+      });
+    },
     eliminar: async (id) => {
-      await mutacionEliminar.mutateAsync(id);
-      setAnuncio("Se borró la conversación.");
+      const eraActiva = soltarSiEsLaActiva(id);
+      const { loteDeBorrado } = await mutacionEliminar.mutateAsync(id);
+      setAnuncio("Se eliminó la conversación. Podés deshacerlo durante 10 segundos.");
+      setAviso({
+        texto: "Conversación eliminada",
+        deshacer: async () => {
+          await mutacionDeshacer.mutateAsync(loteDeBorrado);
+          await reanudarSiEraLaActiva(id, eraActiva);
+          setAnuncio("Se restauró la conversación.");
+        },
+      });
     },
     eliminarTodo: async () => {
-      await mutacionEliminarTodo.mutateAsync();
-      setAnuncio("Se borraron todas tus conversaciones.");
+      const idActivaAntes = conversacionActivaId;
+      if (idActivaAntes) {
+        asistente.reiniciar();
+        setConversacionActivaId(null);
+      }
+      const { loteDeBorrado } = await mutacionEliminarTodo.mutateAsync();
+      setAnuncio("Se eliminaron todas tus conversaciones. Podés deshacerlo durante 10 segundos.");
+      setAviso({
+        texto: "Conversaciones eliminadas",
+        deshacer: async () => {
+          await mutacionDeshacer.mutateAsync(loteDeBorrado);
+          if (idActivaAntes) await resumir(idActivaAntes);
+          setAnuncio("Se restauraron tus conversaciones.");
+        },
+      });
     },
     abrirConversacion: async (id) => {
-      const { hilo, turnos } = await reanudarConversacion(id);
-      asistente.sembrarDesdeHistorial(hilo, turnos);
-      setConversacionActivaId(id);
+      await resumir(id);
       setAnuncio("La conversación está lista.");
     },
   };

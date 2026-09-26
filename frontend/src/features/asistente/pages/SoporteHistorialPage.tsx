@@ -107,6 +107,12 @@ export function SoporteHistorialPage() {
                   onClick={() => setHiloAbierto(conversacion.id)}
                 >
                   {conversacion.titulo}
+                  {conversacion.archivada && (
+                    <span className="adoc-asistente-soporte-marca">Archivada</span>
+                  )}
+                  {conversacion.pendienteDeBorrado && (
+                    <span className="adoc-asistente-soporte-marca">Pendiente de borrado</span>
+                  )}
                 </button>
               </li>
             ))}

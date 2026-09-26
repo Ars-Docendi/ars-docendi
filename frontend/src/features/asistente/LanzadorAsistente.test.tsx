@@ -28,6 +28,7 @@ const CONVERSACION_NUEVA: ConversacionResumen = {
   titulo: "¿Cuántos docentes hay?",
   creadoEn: "2026-01-10T10:00:00Z",
   ultimaActividad: "2026-01-10T10:00:00Z",
+  archivada: false,
 };
 
 describe("El modal del asistente", () => {

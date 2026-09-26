@@ -45,11 +45,14 @@
 -- same rule as 002_asistente_registros.sql.
 
 CREATE TABLE IF NOT EXISTS asistente.hilo_historico (
-    id               uuid        PRIMARY KEY,
-    actor_id         uuid        NOT NULL,
-    titulo           text        NOT NULL,
-    creado_en        timestamptz NOT NULL,
-    ultima_actividad timestamptz NOT NULL
+    id                      uuid        PRIMARY KEY,
+    actor_id                uuid        NOT NULL,
+    titulo                  text        NOT NULL,
+    creado_en               timestamptz NOT NULL,
+    ultima_actividad        timestamptz NOT NULL,
+    archivada_en            timestamptz NULL,
+    borrado_pendiente_desde timestamptz NULL,
+    lote_de_borrado         uuid        NULL
 );
 
 CREATE TABLE IF NOT EXISTS asistente.turno_historico (
@@ -59,8 +62,45 @@ CREATE TABLE IF NOT EXISTS asistente.turno_historico (
     pregunta      text        NOT NULL,
     sql_resuelto  text        NULL,
     estado        text        NOT NULL,
-    ocurrido_en   timestamptz NOT NULL
+    ocurrido_en   timestamptz NOT NULL,
+    referencias   jsonb       NULL
 );
+
+-- LAS CUATRO COLUMNAS DE ABAJO SE AGREGARON DESPUÉS DE QUE LAS TABLAS
+-- EXISTIERAN, y por eso van también como ALTER — mismo motivo, y mismo
+-- riesgo si se lo salteara, que documenta 002_asistente_registros.sql: contra
+-- una base que ya tenía la tabla, el CREATE de arriba es un no-op.
+--
+-- `archivada_en`, `borrado_pendiente_desde` y `lote_de_borrado`
+-- (asistente-rediseno-v3, design.md D3/D4 de asistente-historial-conversaciones):
+-- archivar es un timestamp nulable, sin efecto sobre `ultima_actividad`
+-- (retención no se mueve); un borrado marca las dos últimas en vez de
+-- ejecutar el DELETE en el momento — el DELETE de verdad lo hace el barrido
+-- de un minuto (`BarridoDeBorradosPendientes`) y, como red, la purga diaria
+-- — así que la ventana de «Deshacer» sobrevive a que se cierre la pestaña.
+--
+-- `referencias` (asistente-menciones, design.md D11): marcador `$refN` → tipo
+-- y id de la mención citada en la SQL de este turno, para que «Volver a
+-- consultar» y «Reanudar» puedan volver a bindearlos. Nula en todo turno sin
+-- menciones, que sigue siendo el caso normal.
+ALTER TABLE asistente.hilo_historico
+    ADD COLUMN IF NOT EXISTS archivada_en timestamptz;
+
+ALTER TABLE asistente.hilo_historico
+    ADD COLUMN IF NOT EXISTS borrado_pendiente_desde timestamptz;
+
+ALTER TABLE asistente.hilo_historico
+    ADD COLUMN IF NOT EXISTS lote_de_borrado uuid;
+
+ALTER TABLE asistente.turno_historico
+    ADD COLUMN IF NOT EXISTS referencias jsonb;
+
+-- El barrido y las lecturas de soporte dentro de la ventana filtran por
+-- `borrado_pendiente_desde`; el índice parcial sólo cubre las filas
+-- efectivamente pendientes, que son las únicas que esas dos consultas tocan.
+CREATE INDEX IF NOT EXISTS ix_hilo_historico_borrado_pendiente
+    ON asistente.hilo_historico (borrado_pendiente_desde)
+ WHERE borrado_pendiente_desde IS NOT NULL;
 
 COMMENT ON TABLE asistente.hilo_historico IS
     'Own conversation history, one row per persisted conversation. Actor-linked ON PURPOSE, unlike registro_analitico/registro_operativo — see the header of this file and design.md D1/D12 of asistente-historial-conversaciones. Retention of 180 days by default, counted from ultima_actividad (not creado_en), with automatic purge.';

@@ -227,6 +227,20 @@ export interface ConversacionResumen {
   titulo: string;
   creadoEn: string;
   ultimaActividad: string;
+  /** design.md D3 de asistente-rediseno-v3. Archivar no toca `ultimaActividad`. */
+  archivada: boolean;
+  /**
+   * design.md D4. Ausente/falso en el propio historial —nunca lista una
+   * conversación pendiente—; presente en verdadero SÓLO en la lectura de
+   * soporte (asistente-acceso-de-soporte-al-historial), mientras la ventana
+   * de «Deshacer» de esa conversación no venció.
+   */
+  pendienteDeBorrado?: boolean;
+}
+
+/** Lo que devuelve un borrado — uno o todos —: el lote, para poder deshacerlo. */
+export interface LoteDeBorrado {
+  loteDeBorrado: string;
 }
 
 /** Un turno de una conversación propia, tal como lo devuelve el historial. */

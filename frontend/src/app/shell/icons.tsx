@@ -280,4 +280,50 @@ export const historyIcon = (
   </svg>
 );
 
+/**
+ * Lápiz sobre una línea. Va en «Renombrar», en el «⋮» del rail de
+ * conversaciones del asistente.
+ */
+export const pencilIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M11.5 2.5a1.4 1.4 0 0 1 2 2L5.5 12.5l-3 1 1-3z" />
+    <path d="M10 4l2 2" />
+  </svg>
+);
+
+/**
+ * Caja con flecha hacia adentro. Va en «Archivar», en el «⋮» del rail.
+ */
+export const archiveIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="2.5" y="3" width="13" height="3.5" rx="1" />
+    <path d="M3.5 6.5v6.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6.5" />
+    <path d="M7.2 9.5h3.6" />
+  </svg>
+);
+
+/**
+ * La misma caja, con la flecha hacia afuera. Va en «Desarchivar».
+ */
+export const archiveRestoreIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <rect x="2.5" y="3" width="13" height="3.5" rx="1" />
+    <path d="M3.5 6.5v6.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6.5" />
+    <path d="M9 11.5V8M7.2 9.7 9 8l1.8 1.7" />
+  </svg>
+);
+
+/**
+ * Tacho de basura. Va en «Eliminar», en el «⋮» del rail —en
+ * `--color-text-danger` (design spec § v3).
+ */
+export const trashIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M3.5 5h11" />
+    <path d="M6 5V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V5" />
+    <path d="M4.5 5v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5" />
+    <path d="M7.5 8v4M10.5 8v4" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

@@ -344,6 +344,14 @@ public static class ModuleExtensions
         services.AddScoped<PurgaDeRegistros>();
         services.AddHostedService<ServicioDePurga>();
 
+        // El barrido de borrados pendientes (asistente-rediseno-v3, design.md
+        // D4 de asistente-historial-conversaciones): scoped por el mismo
+        // motivo que la purga de arriba, con su propio período —mucho más
+        // corto, un minuto— porque acá la finalidad tiene que ser física
+        // dentro de la ventana de «Deshacer», no dentro del día.
+        services.AddScoped<BarridoDePendientes>();
+        services.AddHostedService<BarridoDeBorradosPendientes>();
+
         // Cliente HTTP del proveedor, con el reintento de transporte ya puesto.
         // Todavía no lo consume nadie —el proveedor real llega con el carril SQL—,
         // pero se registra acá para que esa implementación lo pida por nombre y no

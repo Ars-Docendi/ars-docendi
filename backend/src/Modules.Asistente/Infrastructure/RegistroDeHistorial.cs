@@ -29,15 +29,26 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
             await using var conexion = new NpgsqlConnection(cadena.Valor);
             await conexion.OpenAsync(ct);
 
-            var yaExistia = conversacion.HiloHistorico is { } existente;
+            // SI LA CONVERSACIÓN EXISTENTE ESTÁ PENDIENTE DE BORRADO, SE MINTEA
+            // UNA NUEVA (design.md D4 de asistente-rediseno-v3) en vez de
+            // reusarla: el UPDATE de abajo trae su propio filtro
+            // `borrado_pendiente_desde IS NULL` y no afecta ninguna fila
+            // cuando está pendiente, así que `tocada` sale en falso y cae al
+            // mismo camino que un hilo que todavía no escribió nada. Nunca
+            // hay que decidirlo con una consulta aparte: el mismo UPDATE que
+            // toca la conversación es el que confirma que se puede tocar.
+            var hiloHistoricoId = Guid.Empty;
+            var tocada = false;
 
-            var hiloHistoricoId = yaExistia
-                ? conversacion.HiloHistorico!.Value
-                : await MintarConversacionAsync(conexion, turno, ct);
-
-            if (yaExistia)
+            if (conversacion.HiloHistorico is { } existente)
             {
-                await TocarConversacionAsync(conexion, hiloHistoricoId, turno.OcurrioEn, ct);
+                tocada = await TocarConversacionAsync(conexion, existente, turno.OcurrioEn, ct);
+                hiloHistoricoId = existente;
+            }
+
+            if (!tocada)
+            {
+                hiloHistoricoId = await MintarConversacionAsync(conexion, turno, ct);
             }
 
             await InsertarTurnoAsync(conexion, hiloHistoricoId, turno, ct);
@@ -83,17 +94,27 @@ internal sealed class RegistroDeHistorial(CadenaDuena cadena, ILogger<RegistroDe
         return id;
     }
 
-    private static async Task TocarConversacionAsync(
+    /// <summary>
+    /// Toca <c>ultima_actividad</c> y desarchiva (design.md D3: una nueva
+    /// actividad desarchiva) — pero SÓLO si la conversación no está pendiente
+    /// de borrado. Devuelve si efectivamente la tocó: en falso, el llamador
+    /// mintea una conversación nueva en vez de escribir en una pendiente
+    /// (design.md D4).
+    /// </summary>
+    private static async Task<bool> TocarConversacionAsync(
         NpgsqlConnection conexion, Guid hiloHistoricoId, DateTimeOffset ahora, CancellationToken ct)
     {
         await using var comando = new NpgsqlCommand(
-            "UPDATE asistente.hilo_historico SET ultima_actividad = @ahora WHERE id = @id",
-            conexion);
+            """
+            UPDATE asistente.hilo_historico
+               SET ultima_actividad = @ahora, archivada_en = NULL
+             WHERE id = @id AND borrado_pendiente_desde IS NULL
+            """, conexion);
 
         comando.Parameters.AddWithValue("ahora", ahora);
         comando.Parameters.AddWithValue("id", hiloHistoricoId);
 
-        await comando.ExecuteNonQueryAsync(ct);
+        return await comando.ExecuteNonQueryAsync(ct) > 0;
     }
 
     private static async Task InsertarTurnoAsync(

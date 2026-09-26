@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PanelDePrueba } from "./test/PanelDePrueba";
@@ -10,8 +10,9 @@ import type { ConversacionResumen } from "./types";
 
 // ============================================================
 // El rail de conversaciones propias: siempre a la vista, colapsar/expandir,
-// buscar, renombrar y borrar una o todas (asistente-historial-conversaciones,
-// asistente-superficie-frontend, tasks.md §1).
+// buscar, renombrar, archivar/desarchivar y borrar (una, diferido y
+// deshacible, o todas) (asistente-historial-conversaciones,
+// asistente-superficie-frontend, tasks.md §1, §2, §3).
 // ============================================================
 
 const UNA: ConversacionResumen = {
@@ -19,6 +20,7 @@ const UNA: ConversacionResumen = {
   titulo: "¿Cuántos docentes hay?",
   creadoEn: "2026-01-10T10:00:00Z",
   ultimaActividad: "2026-01-10T10:05:00Z",
+  archivada: false,
 };
 
 const OTRA: ConversacionResumen = {
@@ -26,7 +28,18 @@ const OTRA: ConversacionResumen = {
   titulo: "Pedidos de la cátedra",
   creadoEn: "2026-02-01T09:00:00Z",
   ultimaActividad: "2026-02-01T09:10:00Z",
+  archivada: false,
 };
+
+const ARCHIVADA: ConversacionResumen = {
+  id: "44444444-4444-4444-8444-444444444444",
+  titulo: "Sobre designaciones",
+  creadoEn: "2026-01-05T09:00:00Z",
+  ultimaActividad: "2026-01-05T09:10:00Z",
+  archivada: true,
+};
+
+const LOTE = "55555555-5555-4555-8555-555555555555";
 
 beforeEach(() => {
   vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
@@ -55,6 +68,7 @@ describe("El rail está siempre a la vista, expandido por default", () => {
       titulo: "¿Qué pasó hoy?",
       creadoEn: new Date().toISOString(),
       ultimaActividad: new Date().toISOString(),
+      archivada: false,
     };
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([HOY, UNA, OTRA]);
 
@@ -178,9 +192,27 @@ describe("Buscar en el rail", () => {
       await screen.findByText("Ninguna conversación coincide con esa búsqueda."),
     ).toBeInTheDocument();
   });
+
+  it("marca «Archivada» a las que coinciden y esconde la sección de archivadas", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockImplementation((q) =>
+      Promise.resolve(q ? [ARCHIVADA] : [UNA, ARCHIVADA]),
+    );
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await user.type(
+      screen.getByRole("searchbox", { name: "Buscar en tus conversaciones" }),
+      "designaciones",
+    );
+
+    expect(await screen.findByText("Archivada")).toBeInTheDocument();
+    expect(screen.queryByText(/^Archivadas/)).toBeNull();
+  });
 });
 
-/** Abre el menú «⋮» de una fila —Renombrar y Eliminar viven ahí, detrás del disparador. */
+/** Abre el menú «⋮» de una fila —Renombrar, Archivar y Eliminar viven ahí. */
 async function abrirAcciones(user: ReturnType<typeof userEvent.setup>, titulo: string) {
   await user.click(screen.getByRole("button", { name: `Acciones de «${titulo}»` }));
 }
@@ -253,49 +285,126 @@ describe("Renombrar", () => {
   });
 });
 
-describe("Eliminar una conversación", () => {
-  it("pide confirmación antes de borrar", async () => {
+describe("Archivar y desarchivar (tasks.md §2)", () => {
+  it("archivar quita la fila de la lista activa y muestra el aviso de deshacer", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
+    const archivar = vi.spyOn(historialApi, "archivarConversacion").mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
     await screen.findByText(UNA.titulo);
 
     await abrirAcciones(user, UNA.titulo);
-    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
-    expect(eliminar).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Confirmar borrado" })).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Archivar" }));
 
-    await user.click(screen.getByRole("button", { name: "Confirmar borrado" }));
-
-    expect(eliminar).toHaveBeenCalledWith(UNA.id);
-    expect(await screen.findByText("Se borró la conversación.")).toBeInTheDocument();
+    expect(archivar).toHaveBeenCalledWith(UNA.id);
+    expect(await screen.findByText("Conversación archivada")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Deshacer" })).toBeInTheDocument();
   });
 
-  it("cancelar la confirmación no borra nada", async () => {
-    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
+  it("el menú de una fila archivada ofrece Desarchivar y Eliminar, no Renombrar", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([ARCHIVADA]);
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
-    await screen.findByText(UNA.titulo);
+    await user.click(await screen.findByRole("button", { name: /^Archivadas/ }));
+    await abrirAcciones(user, ARCHIVADA.titulo);
 
-    await abrirAcciones(user, UNA.titulo);
-    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
-    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("menuitem", { name: "Desarchivar" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Eliminar" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Renombrar" })).toBeNull();
+  });
 
-    expect(eliminar).not.toHaveBeenCalled();
-    expect(screen.getByText(UNA.titulo)).toBeInTheDocument();
+  it("desarchivar muestra «Conversación restaurada»", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([ARCHIVADA]);
+    const desarchivar = vi
+      .spyOn(historialApi, "desarchivarConversacion")
+      .mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await user.click(await screen.findByRole("button", { name: /^Archivadas/ }));
+    await abrirAcciones(user, ARCHIVADA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Desarchivar" }));
+
+    expect(desarchivar).toHaveBeenCalledWith(ARCHIVADA.id);
+    expect(await screen.findByText("Conversación restaurada")).toBeInTheDocument();
   });
 });
 
-describe("Borrar todas las conversaciones", () => {
-  it("pide confirmación y, tras confirmar, la lista queda vacía", async () => {
+describe("La sección «Archivadas» (tasks.md §2.5)", () => {
+  it("muestra el contador, colapsada por default, y expande al activarla", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, ARCHIVADA]);
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    const toggle = screen.getByRole("button", { name: /^Archivadas/ });
+    expect(toggle).toHaveTextContent("1");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(ARCHIVADA.titulo)).toBeNull();
+
+    await userEvent.setup().click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(ARCHIVADA.titulo)).toBeInTheDocument();
+  });
+
+  it("no aparece cuando no hay ninguna conversación archivada", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    expect(screen.queryByRole("button", { name: /^Archivadas/ })).toBeNull();
+  });
+});
+
+describe("Eliminar una conversación (tasks.md §3): sin confirmación, con aviso", () => {
+  it("elimina sin pedir confirmación y muestra el aviso de deshacer", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    const eliminar = vi
+      .spyOn(historialApi, "eliminarConversacion")
+      .mockResolvedValue({ loteDeBorrado: LOTE });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+
+    expect(eliminar).toHaveBeenCalledWith(UNA.id);
+    expect(screen.queryByRole("button", { name: "Confirmar borrado" })).toBeNull();
+    expect(await screen.findByText("Conversación eliminada")).toBeInTheDocument();
+  });
+
+  it("«Deshacer» restaura la conversación", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    const deshacer = vi.spyOn(historialApi, "deshacerBorrado").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+    await screen.findByText("Conversación eliminada");
+
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    await user.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    expect(deshacer).toHaveBeenCalledWith(LOTE);
+    expect(await screen.findByText(UNA.titulo)).toBeInTheDocument();
+  });
+});
+
+describe("Borrar todas las conversaciones (tasks.md §3.6)", () => {
+  it("pide confirmación con la nueva leyenda y, tras confirmar, la lista queda vacía con el aviso", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, OTRA]);
     const eliminarTodo = vi
       .spyOn(historialApi, "eliminarTodasLasConversaciones")
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ loteDeBorrado: LOTE });
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
@@ -303,6 +412,11 @@ describe("Borrar todas las conversaciones", () => {
 
     await user.click(screen.getByRole("button", { name: "Borrar todas" }));
     expect(eliminarTodo).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        "¿Borrar TODAS tus conversaciones, incluidas las archivadas? Vas a poder deshacerlo durante 10 segundos.",
+      ),
+    ).toBeInTheDocument();
 
     // Tras confirmar, `listarConversaciones` se invalida y vuelve a pedirse
     // vacía: es lo que ve la persona, sin recargar la página.
@@ -313,6 +427,7 @@ describe("Borrar todas las conversaciones", () => {
     expect(
       await screen.findByText("Todavía no tenés conversaciones guardadas."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Conversaciones eliminadas")).toBeInTheDocument();
   });
 
   it("deshabilitado cuando no hay ninguna conversación", async () => {
@@ -324,10 +439,103 @@ describe("Borrar todas las conversaciones", () => {
   });
 });
 
+describe("El aviso de deshacer (tasks.md §3.6)", () => {
+  it("una acción nueva reemplaza al aviso anterior", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA, OTRA]);
+    vi.spyOn(historialApi, "archivarConversacion").mockResolvedValue(undefined);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Archivar" }));
+    expect(await screen.findByText("Conversación archivada")).toBeInTheDocument();
+
+    await abrirAcciones(user, OTRA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+
+    expect(await screen.findByText("Conversación eliminada")).toBeInTheDocument();
+    expect(screen.queryByText("Conversación archivada")).toBeNull();
+    // Uno a la vez: un solo botón «Deshacer» en pantalla.
+    expect(screen.getAllByRole("button", { name: "Deshacer" })).toHaveLength(1);
+  });
+
+  it("se vence a los 10 segundos", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue({ loteDeBorrado: LOTE });
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await screen.findByText(UNA.titulo);
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
+    await screen.findByText("Conversación eliminada");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(screen.queryByText("Conversación eliminada")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deshacer" })).toBeNull();
+
+    vi.useRealTimers();
+  });
+});
+
+describe("Archivar o eliminar la conversación activa (tasks.md §2.5, §3.6)", () => {
+  it("archivar la conversación activa vuelve a la bienvenida, y «Deshacer» la reanuda", async () => {
+    vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
+    vi.spyOn(historialApi, "reanudarConversacion").mockResolvedValue({
+      hilo: "66666666-6666-4666-8666-666666666666",
+      turnos: [
+        {
+          id: "77777777-7777-4777-8777-777777777777",
+          pregunta: UNA.titulo,
+          sql: null,
+          estado: "respondida",
+          ocurrioEn: UNA.ultimaActividad,
+        },
+      ],
+    });
+    vi.spyOn(historialApi, "archivarConversacion").mockResolvedValue(undefined);
+    vi.spyOn(historialApi, "desarchivarConversacion").mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    montar(<PanelDePrueba />);
+    await user.click(await screen.findByText(UNA.titulo));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: UNA.titulo })).toHaveAttribute(
+        "aria-current",
+        "true",
+      ),
+    );
+
+    await abrirAcciones(user, UNA.titulo);
+    await user.click(screen.getByRole("menuitem", { name: "Archivar" }));
+
+    // Vuelve a la bienvenida: la pregunta restaurada ya no está a la vista.
+    expect(await screen.findByText("¿Qué querés saber del sistema?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Deshacer" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: UNA.titulo })).toHaveAttribute(
+        "aria-current",
+        "true",
+      ),
+    );
+  });
+});
+
 describe("Accesibilidad del rail (tasks.md §14)", () => {
   it("cada acción activa con Enter/Espacio como con un clic", async () => {
     vi.spyOn(historialApi, "listarConversaciones").mockResolvedValue([UNA]);
-    const eliminar = vi.spyOn(historialApi, "eliminarConversacion").mockResolvedValue(undefined);
+    const eliminar = vi
+      .spyOn(historialApi, "eliminarConversacion")
+      .mockResolvedValue({ loteDeBorrado: LOTE });
     const user = userEvent.setup();
 
     montar(<PanelDePrueba />);
@@ -337,8 +545,6 @@ describe("Accesibilidad del rail (tasks.md §14)", () => {
     await user.keyboard("{Enter}");
     screen.getByRole("menuitem", { name: "Eliminar" }).focus();
     await user.keyboard("{Enter}");
-    screen.getByRole("button", { name: "Confirmar borrado" }).focus();
-    await user.keyboard(" ");
 
     expect(eliminar).toHaveBeenCalledWith(UNA.id);
   });

@@ -1,8 +1,25 @@
 namespace Modules.Asistente.Application;
 
 /// <summary>Una conversación persistida, sin sus turnos.</summary>
+/// <param name="Archivada">
+/// Si está archivada (design.md D3 de asistente-historial-conversaciones).
+/// Archivar no toca <see cref="UltimaActividad"/>: la retención sigue
+/// contando igual, archivada o no.
+/// </param>
+/// <param name="PendienteDeBorrado">
+/// Si un borrado la marcó y su ventana todavía no venció (design.md D4).
+/// SIEMPRE falso en el lado propio del historial —<see cref="IConsultasDeHistorial"/>
+/// nunca devuelve una conversación pendiente, ni al actor ni a nadie—; sólo
+/// <c>IConsultasDeAuditoriaDeSoporte</c> lo pone en verdadero, porque support
+/// SÍ ve una conversación pendiente, marcada, hasta que la ventana cierra.
+/// </param>
 public sealed record ConversacionResumen(
-    Guid Id, string Titulo, DateTimeOffset CreadoEn, DateTimeOffset UltimaActividad);
+    Guid Id,
+    string Titulo,
+    DateTimeOffset CreadoEn,
+    DateTimeOffset UltimaActividad,
+    bool Archivada,
+    bool PendienteDeBorrado = false);
 
 /// <summary>Un turno persistido, tal como el historial lo guarda.</summary>
 /// <remarks>
@@ -57,11 +74,33 @@ public interface IConsultasDeHistorial
     /// <summary>Renombra una conversación propia. <c>false</c> si no es propia.</summary>
     Task<bool> RenombrarAsync(Guid actor, Guid hiloId, string nuevoTitulo, CancellationToken ct);
 
-    /// <summary>Borra una conversación propia (y sus turnos, por cascada).</summary>
-    Task<bool> EliminarAsync(Guid actor, Guid hiloId, CancellationToken ct);
+    /// <summary>Archiva una conversación propia. <c>false</c> si no es propia.</summary>
+    Task<bool> ArchivarAsync(Guid actor, Guid hiloId, CancellationToken ct);
 
-    /// <summary>Borra TODAS las conversaciones propias. Devuelve cuántas borró.</summary>
-    Task<int> EliminarTodoAsync(Guid actor, CancellationToken ct);
+    /// <summary>Desarchiva una conversación propia. <c>false</c> si no es propia.</summary>
+    Task<bool> DesarchivarAsync(Guid actor, Guid hiloId, CancellationToken ct);
+
+    /// <summary>
+    /// Marca una conversación propia como pendiente de borrado (design.md D4):
+    /// no la borra todavía, así que sigue siendo <c>UNDO</c>able dentro de su
+    /// ventana. Devuelve el id del lote de borrado, o <c>null</c> si el hilo
+    /// no existe o no es propio.
+    /// </summary>
+    Task<Guid?> EliminarAsync(Guid actor, Guid hiloId, CancellationToken ct);
+
+    /// <summary>
+    /// Marca TODAS las conversaciones propias (archivadas incluidas) como
+    /// pendientes de borrado, con un lote nuevo. Siempre devuelve un lote,
+    /// aunque no haya ninguna conversación que marcar.
+    /// </summary>
+    Task<Guid> EliminarTodoAsync(Guid actor, CancellationToken ct);
+
+    /// <summary>
+    /// Deshace un lote de borrado propio, dentro de su ventana
+    /// (<c>OpcionesAsistente.VentanaDeDeshacerSegundos</c>). <c>false</c>
+    /// si el lote no existe, no es propio, o venció.
+    /// </summary>
+    Task<bool> DeshacerBorradoAsync(Guid actor, Guid lote, CancellationToken ct);
 
     /// <summary>
     /// Los turnos de una conversación propia, tal como el historial los

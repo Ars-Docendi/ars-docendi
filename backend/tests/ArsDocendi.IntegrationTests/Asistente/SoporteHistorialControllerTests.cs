@@ -6,7 +6,10 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Api;
 using Modules.Asistente.Application;
@@ -123,6 +126,105 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         Assert.Equal("un reclamo de soporte", lector.GetString(3));
     }
 
+    // ----------------------------------------- archivadas y pendientes de borrado
+
+    [Fact]
+    public async Task Una_conversacion_archivada_se_lista_marcada()
+    {
+        await SembrarAsync();
+        await ConcederPermisoDeSoporteAAsync(Secretaria);
+
+        var archivada = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await MarcarArchivadaAsync(archivada);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/listar",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken));
+
+        Assert.True(Assert.Single(lista).Archivada);
+    }
+
+    [Fact]
+    public async Task Una_conversacion_dentro_de_su_ventana_de_borrado_se_lista_marcada()
+    {
+        await SembrarAsync();
+        await ConcederPermisoDeSoporteAAsync(Secretaria);
+
+        var pendiente = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await MarcarPendienteAsync(pendiente, Ancla.AddSeconds(-3), Guid.NewGuid());
+
+        var reloj = new RelojFijo(Ancla);
+        using var host = CrearHost(reloj: reloj);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/listar",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken));
+
+        var marcada = Assert.Single(lista);
+        Assert.True(marcada.PendienteDeBorrado);
+        Assert.False(marcada.Archivada);
+    }
+
+    [Fact]
+    public async Task Una_conversacion_cuya_ventana_de_borrado_vencio_es_invisible_para_soporte()
+    {
+        await SembrarAsync();
+        await ConcederPermisoDeSoporteAAsync(Secretaria);
+
+        var vencida = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await MarcarPendienteAsync(vencida, Ancla.AddSeconds(-16), Guid.NewGuid());
+
+        var reloj = new RelojFijo(Ancla);
+        using var host = CrearHost(reloj: reloj);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var lista = await LeerAsync<List<ConversacionResumenDto>>(await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/listar",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken));
+        Assert.Empty(lista);
+
+        var respuestaLeer = await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/{vencida}/leer",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, respuestaLeer.StatusCode);
+    }
+
+    [Fact]
+    public async Task Leer_una_conversacion_pendiente_dentro_de_la_ventana_audita_igual()
+    {
+        await SembrarAsync();
+        await ConcederPermisoDeSoporteAAsync(Secretaria);
+
+        var pendiente = await SembrarHiloAsync(Coordinador, "una charla", Ancla);
+        await MarcarPendienteAsync(pendiente, Ancla.AddSeconds(-3), Guid.NewGuid());
+
+        var reloj = new RelojFijo(Ancla);
+        using var host = CrearHost(reloj: reloj);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.PostAsJsonAsync(
+            $"/api/asistente/soporte/historial/{Coordinador}/{pendiente}/leer",
+            new RazonDto("un reclamo de soporte"),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(respuesta.IsSuccessStatusCode);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_acceso_historial WHERE hilo_historico_id = @id",
+            ("id", pendiente)));
+    }
+
     // -------------------------------------------------------------------- leer
 
     [Fact]
@@ -182,6 +284,8 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
 
         var consultas = new ConsultasDeAuditoriaDeSoporte(
             new CadenaDuena("Host=localhost;Port=1;Database=inalcanzable;Timeout=1"),
+            new RelojFijo(Ancla),
+            Options.Create(new OpcionesAsistente()),
             NullLogger<ConsultasDeAuditoriaDeSoporte>.Instance);
 
         await Assert.ThrowsAnyAsync<NpgsqlException>(() => consultas.LeerAsync(
@@ -204,7 +308,10 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
 
         var registro = new RegistroDeCapturas();
         var consultas = new ConsultasDeAuditoriaDeSoporte(
-            new CadenaDuena(Cadena), registro.Logger<ConsultasDeAuditoriaDeSoporte>());
+            new CadenaDuena(Cadena),
+            new RelojFijo(Ancla),
+            Options.Create(new OpcionesAsistente()),
+            registro.Logger<ConsultasDeAuditoriaDeSoporte>());
 
         await consultas.ListarAsync(Secretaria, Coordinador, "un reclamo", TestContext.Current.CancellationToken);
         await consultas.LeerAsync(
@@ -316,9 +423,17 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
     }
 
-    private WebApplicationFactory<Program> CrearHost() =>
+    private WebApplicationFactory<Program> CrearHost(TimeProvider? reloj = null) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
+            // Reemplaza al `TimeProvider.System` que el módulo registra con
+            // `TryAddSingleton` — la última registración gana — para poder
+            // adelantar la ventana de «Deshacer» sin esperarla de verdad.
+            if (reloj is not null)
+            {
+                builder.ConfigureTestServices(servicios => servicios.AddSingleton(reloj));
+            }
+
             builder.UseEnvironment("Development");
             builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", "true");
@@ -354,6 +469,31 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
 
         return id;
+    }
+
+    private async Task MarcarArchivadaAsync(Guid hiloId)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "UPDATE asistente.hilo_historico SET archivada_en = now() WHERE id = @hilo", conexion);
+        comando.Parameters.AddWithValue("hilo", hiloId);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task MarcarPendienteAsync(Guid hiloId, DateTimeOffset desde, Guid lote)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.hilo_historico
+               SET borrado_pendiente_desde = @desde, lote_de_borrado = @lote
+             WHERE id = @hilo
+            """, conexion);
+
+        comando.Parameters.AddWithValue("desde", desde);
+        comando.Parameters.AddWithValue("lote", lote);
+        comando.Parameters.AddWithValue("hilo", hiloId);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<Guid> SembrarTurnoAsync(Guid hiloId, string pregunta, string? sql)

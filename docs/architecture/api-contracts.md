@@ -108,8 +108,11 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | GET    | `/historial`                                      | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                        |
 | GET    | `/historial/{id}`                                 | `asistente.consultar`            | El detalle de una conversación propia                                |
 | PATCH  | `/historial/{id}`                                 | `asistente.consultar`            | Renombra una conversación propia                                     |
-| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Borra una conversación propia                                        |
-| DELETE | `/historial`                                      | `asistente.consultar`            | Borra TODAS las conversaciones propias                               |
+| POST   | `/historial/{id}/archivar`                        | `asistente.consultar`            | Archiva una conversación propia                                      |
+| POST   | `/historial/{id}/desarchivar`                     | `asistente.consultar`            | Desarchiva una conversación propia                                   |
+| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                   |
+| DELETE | `/historial`                                      | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado         |
+| POST   | `/historial/borrados/{lote}/deshacer`             | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana              |
 | POST   | `/historial/{id}/reanudar`                        | `asistente.consultar`            | Reanuda una conversación propia                                      |
 | POST   | `/historial/turnos/{id}/reejecutar`               | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                   |
 | POST   | `/soporte/historial/{actorId}/listar`             | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria              |
@@ -196,13 +199,19 @@ Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devol
 
 #### `GET /api/asistente/historial` y `/historial/{hiloId}`
 
-`GET /historial?q=<texto>` devuelve `[{ id, titulo, creadoEn, ultimaActividad }]`, acotado a las conversaciones propias del actor de la sesión, de la más reciente a la más vieja. `q` opcional busca por texto completo (español, con stemming) contra las preguntas propias — nunca contra las de otro actor.
+`GET /historial?q=<texto>` devuelve `[{ id, titulo, creadoEn, ultimaActividad, archivada, pendienteDeBorrado }]`, acotado a las conversaciones propias del actor de la sesión que **no** están pendientes de borrado, de la más reciente a la más vieja. `q` opcional busca por texto completo (español, con stemming) contra las preguntas propias — nunca contra las de otro actor. Incluye las archivadas, flagueadas: `archivada` distingue el estado; `pendienteDeBorrado` siempre viaja en `false` acá — una conversación pendiente nunca aparece en este endpoint, ver más abajo (design.md D3/D4 de asistente-rediseno-v3).
 
-`GET /historial/{hiloId}` devuelve la conversación con sus turnos: `{ id, titulo, creadoEn, ultimaActividad, turnos: [{ id, pregunta, sql, estado, ocurrioEn }] }`. `sql` viaja **solo** con `asistente.ver_consulta` — mismo gate que `sql` en `POST /consultas`. `404` si el id no existe o no es del actor: **mismo cuerpo** para los dos casos.
+`GET /historial/{hiloId}` devuelve la conversación con sus turnos: `{ id, titulo, creadoEn, ultimaActividad, turnos: [{ id, pregunta, sql, estado, ocurrioEn }] }`. `sql` viaja **solo** con `asistente.ver_consulta` — mismo gate que `sql` en `POST /consultas`. `404` si el id no existe, no es del actor, o está pendiente de borrado: **mismo cuerpo** para los tres casos.
 
-#### `PATCH /api/asistente/historial/{hiloId}` y `DELETE`
+#### `PATCH /api/asistente/historial/{hiloId}`, `.../archivar`, `.../desarchivar`
 
-`PATCH` renombra: `{ titulo }`, `204` si es propia, `404` si no. `DELETE /historial/{hiloId}` borra una conversación propia (y sus turnos, por cascada). `DELETE /historial` (sin id) borra **todas** las conversaciones propias. Las dos formas de `DELETE` son permanentes: no hay papelera ni recuperación.
+`PATCH` renombra: `{ titulo }`, `204` si es propia, `404` si no. `POST .../archivar` y `.../desarchivar` no llevan cuerpo: `204`/`404`, mismo criterio. Archivar no toca `ultimaActividad` — la retención de 180 días sigue contando igual — y una conversación archivada se desarchiva sola en cuanto recibe un turno nuevo.
+
+#### `DELETE /api/asistente/historial/{hiloId}`, `DELETE /historial` y `POST .../borrados/{lote}/deshacer`
+
+**Rotura de contrato:** las dos formas de `DELETE` devolvían `204` sin cuerpo; ahora devuelven `200 { "loteDeBorrado": "<uuid>" }` (design.md D4). `DELETE /historial/{hiloId}` marca pendiente de borrado una conversación propia — desaparece de inmediato de `GET /historial` y de cualquier otro endpoint propio, aunque todavía exista en la base — y `404` si no es propia o ya estaba pendiente. `DELETE /historial` (sin id) marca pendientes **todas** las conversaciones propias no pendientes, archivadas incluidas, con un lote nuevo; siempre `200`, aunque no haya ninguna.
+
+`POST /historial/borrados/{lote}/deshacer` (sin cuerpo) limpia esa marca si el lote es del actor y todavía está dentro de la ventana del servidor (`Asistente__VentanaDeDeshacerSegundos`, default 15 s — los 10 s que la interfaz muestra «Deshacer» más 5 s de margen de red): `204`. Un lote ajeno, desconocido o vencido responde el mismo `404` — los tres casos son indistinguibles a propósito. Un borrado que nunca se deshace es físicamente permanente dentro de `Asistente__PeriodoDeBarridoDeBorradosSegundos` (default 60 s) desde que vence su ventana, sin depender de que el cliente siga abierto.
 
 #### `POST /api/asistente/historial/{hiloId}/reanudar`
 
@@ -216,7 +225,7 @@ Sin cuerpo. «Volver a consultar»: re-ejecuta la SQL guardada de un turno propi
 
 Exigen `asistente.leer_historial_ajeno` — sembrado a **ningún** rol por default, distinto de `asistente.consultar` — y un cuerpo `{ razon }` con texto no vacío. `POST` (no `GET`) a propósito: la razón nunca viaja en la URL, donde terminaría en un log de acceso o el historial del navegador. `400` sin razón o con razón en blanco.
 
-`listar` devuelve la lista de conversaciones del actor indicado (mismo shape que `GET /historial`, sin turnos). `leer` devuelve una conversación puntual con `sql` **siempre** presente (sin el gate de `asistente.ver_consulta`: el permiso de soporte ya es el de diagnóstico) — nunca filas de resultado, y ninguna acción de re-ejecución en la respuesta ni en ningún otro endpoint de este controller. Cada llamada escribe, ANTES de devolver nada, una fila en `asistente.auditoria_acceso_historial`; si esa escritura falla, no se devuelve ningún dato. Ningún endpoint del módulo expone, al actor cuyo historial fue leído, que alguien lo haya leído — decisión final, no pendiente.
+`listar` devuelve la lista de conversaciones del actor indicado (mismo shape que `GET /historial`, sin turnos) — con una diferencia deliberada: **también incluye las que están pendientes de borrado, mientras su ventana no haya vencido**, con `pendienteDeBorrado: true` (asistente-acceso-de-soporte-al-historial, design.md D4). Vencida la ventana, desaparece de acá también. `leer` devuelve una conversación puntual con `sql` **siempre** presente (sin el gate de `asistente.ver_consulta`: el permiso de soporte ya es el de diagnóstico) — nunca filas de resultado, y ninguna acción de re-ejecución en la respuesta ni en ningún otro endpoint de este controller; `404` si la conversación no existe, no es del actor indicado, o su ventana de borrado ya venció. Cada llamada escribe, ANTES de devolver nada, una fila en `asistente.auditoria_acceso_historial` — inclusive al leer una conversación pendiente; si esa escritura falla, no se devuelve ningún dato. Ningún endpoint del módulo expone, al actor cuyo historial fue leído, que alguien lo haya leído — decisión final, no pendiente.
 
 #### `PATCH /api/asistente/administracion/mantenimiento`
 

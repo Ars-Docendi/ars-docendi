@@ -79,32 +79,85 @@ public sealed class HistorialController(
         return renombrada ? NoContent() : ConversacionNoEncontrada();
     }
 
-    /// <summary>Borra, permanentemente, una conversación propia.</summary>
-    [HttpDelete("{hiloId:guid}")]
-    public async Task<IActionResult> Eliminar(Guid hiloId, CancellationToken ct)
+    /// <summary>Archiva una conversación propia.</summary>
+    [HttpPost("{hiloId:guid}/archivar")]
+    public async Task<IActionResult> Archivar(Guid hiloId, CancellationToken ct)
     {
         if (!ActorDeLaSesion(out var actor))
         {
             return Unauthorized();
         }
 
-        var eliminada = await consultas.EliminarAsync(actor, hiloId, ct);
+        var archivada = await consultas.ArchivarAsync(actor, hiloId, ct);
 
-        return eliminada ? NoContent() : ConversacionNoEncontrada();
+        return archivada ? NoContent() : ConversacionNoEncontrada();
     }
 
-    /// <summary>Borra, permanentemente, TODAS las conversaciones propias.</summary>
-    [HttpDelete]
-    public async Task<IActionResult> EliminarTodo(CancellationToken ct)
+    /// <summary>Desarchiva una conversación propia.</summary>
+    [HttpPost("{hiloId:guid}/desarchivar")]
+    public async Task<IActionResult> Desarchivar(Guid hiloId, CancellationToken ct)
     {
         if (!ActorDeLaSesion(out var actor))
         {
             return Unauthorized();
         }
 
-        await consultas.EliminarTodoAsync(actor, ct);
+        var desarchivada = await consultas.DesarchivarAsync(actor, hiloId, ct);
 
-        return NoContent();
+        return desarchivada ? NoContent() : ConversacionNoEncontrada();
+    }
+
+    /// <summary>
+    /// Marca una conversación propia como pendiente de borrado (design.md D4):
+    /// desaparece de inmediato de todo endpoint propio, y puede deshacerse
+    /// dentro de su ventana con <see cref="DeshacerBorrado"/>.
+    /// </summary>
+    [HttpDelete("{hiloId:guid}")]
+    public async Task<ActionResult<LoteDeBorradoDto>> Eliminar(Guid hiloId, CancellationToken ct)
+    {
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var lote = await consultas.EliminarAsync(actor, hiloId, ct);
+
+        return lote is null ? ConversacionNoEncontrada() : Ok(new LoteDeBorradoDto(lote.Value));
+    }
+
+    /// <summary>
+    /// Marca TODAS las conversaciones propias (archivadas incluidas) como
+    /// pendientes de borrado, con un lote nuevo.
+    /// </summary>
+    [HttpDelete]
+    public async Task<ActionResult<LoteDeBorradoDto>> EliminarTodo(CancellationToken ct)
+    {
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var lote = await consultas.EliminarTodoAsync(actor, ct);
+
+        return Ok(new LoteDeBorradoDto(lote));
+    }
+
+    /// <summary>
+    /// Deshace un lote de borrado propio, dentro de su ventana. <c>404</c> si
+    /// el lote no existe, no es propio, o venció — los tres casos son
+    /// indistinguibles a propósito.
+    /// </summary>
+    [HttpPost("borrados/{lote:guid}/deshacer")]
+    public async Task<IActionResult> DeshacerBorrado(Guid lote, CancellationToken ct)
+    {
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var deshecho = await consultas.DeshacerBorradoAsync(actor, lote, ct);
+
+        return deshecho ? NoContent() : LoteNoEncontrado();
     }
 
     /// <summary>
@@ -202,6 +255,13 @@ public sealed class HistorialController(
     {
         Title = "La conversación no existe",
         Detail = "No existe, o no es una conversación propia.",
+        Status = StatusCodes.Status404NotFound,
+    });
+
+    private ActionResult LoteNoEncontrado() => NotFound(new ProblemDetails
+    {
+        Title = "El borrado no existe",
+        Detail = "No existe, no es propio, o venció la ventana para deshacerlo.",
         Status = StatusCodes.Status404NotFound,
     });
 
