@@ -290,10 +290,34 @@ del turno en `registro_analitico`, generada por la aplicación y no por el `DEFA
 de la columna, para que sea el mismo valor que el escritor del registro usa después.
 Ver «La retroalimentación».
 
+`conversacion` es `hilo_historico.id` en el que este turno quedó registrado (design.md
+D13 de asistente-rediseno-v3), nulo si la escritura del historial falló o el turno
+terminó en `Fallo`. El rail lo usa para resaltar la fila activa y titular el
+encabezado; nunca viaja junto a `claveDeRetroalimentacion` ni al registro analítico.
+
+### Editar y reenviar la última pregunta (design.md D9 de asistente-rediseno-v3)
+
+`ConsultaDelAsistente.Reemplaza` manda el identificador del turno que este turno
+reemplaza: la propia `Idempotency-Key` de un turno vivo, o el `turno_historico.id` de
+uno restaurado por «Reanudar». Ausente en un turno nuevo cualquiera. Se honra **solo**
+si nombra el último turno vigente del hilo del actor — si no, `409 Conflict` y **nada
+cambia**: ni el hilo, ni el historial, ni el cupo, así que un reintento con un
+objetivo válido es seguro. Sobre éxito, la nueva pregunta se resuelve contra la misma
+foto de contexto que tenía la reemplazada (segmento y aclaración pendiente
+snapshoteados antes de ese turno), pisa el turno viejo en el hilo efímero, revoca su
+`claveDeRetroalimentacion` (que pasa a rechazarse como un token desconocido) y
+reemplaza su fila de `turno_historico` en una sola transacción — el historial conserva
+sólo la versión final, sin contador de versiones. El título de la conversación
+**no cambia** por un reemplazo. Para el cupo, la idempotencia y la exclusión de turno
+concurrente, un reemplazo es un turno como cualquier otro: se cobra una sola vez.
+
 ### La retroalimentación
 
 Thumbs + una razón opcional (de cuatro: datos incorrectos, no entendió la pregunta,
-lento, otro), ligada solo a `claveDeRetroalimentacion` — nunca al actor.
+faltan datos, otro), ligada solo a `claveDeRetroalimentacion` — nunca al actor. El
+motivo retirado `lento` (asistente-rediseno-v3, design.md D7) ya no se acepta en una
+votación nueva —`400`— pero los votos viejos que lo tienen guardado siguen intactos
+hasta que la purga de 90 días se los lleva.
 
 **Autorización por posesión del token, no por identidad.** El analítico no tiene
 columna de actor a propósito (TD-012), así que «solo el autor califica» no se puede

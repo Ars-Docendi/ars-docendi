@@ -914,6 +914,141 @@ nombre ni ningún tooltip insinúan que se ahorró la llamada al modelo.
 un hilo nulo como conversación nueva, así que es real. Sin confirmación, porque no
 hay nada persistido que perder. Deshabilitado sin turnos y en vuelo.
 
+### El rail de conversaciones (`asistente-rediseno-v3`, ARS-142)
+
+`RailDeConversaciones` reemplaza al cajón `ListaDeConversaciones`/`AbrirHistorial`
+previo: vive **siempre montado** a la izquierda del modal (268 px expandido, 60 px
+colapsado, con la misma transición de grilla del modal) en vez de abrirse a pedido,
+porque el historial persistido (`GET /historial`) es información permanente, no un
+estado transitorio de la conversación en vuelo. La preferencia de
+expandido/colapsado se guarda en `localStorage` **por usuario**
+(`asistente.rail.<userId>`, con `try/catch`: un storage que tira sigue permitiendo
+alternar, sólo no recuerda la próxima vez) — nunca los turnos, por el mismo motivo
+que el resto del feature no persiste nada en el navegador.
+
+Cada turno respondido invalida `["asistente","historial"]` y usa
+`RespuestaDelAsistente.Conversacion` (D13) para resaltar la fila activa y titular
+el encabezado: el rail nunca adivina cuál conversación está viva, se lo dice la
+propia respuesta del turno. La búsqueda del rail (`GET /historial?q=`) se mantiene
+aunque el mock de referencia no la dibuje, porque las archivadas tienen que seguir
+siendo encontrables por texto.
+
+### Archivar y borrado diferido, desde el rail (ARS-143/ARS-144)
+
+El «⋮» de cada fila abre `Archivar`/`Desarchivar` (activas) o `Desarchivar` (ninguna
+fila archivada ofrece «Archivar» dos veces) y `Eliminar`, con el mismo criterio de
+404-idéntico del backend para una fila ajena o inexistente. Archivar o eliminar la
+conversación **activa** vacía el hilo a la pantalla de bienvenida — no queda un
+panel mostrando una conversación que el rail ya no lista —, y «Deshacer» la
+reanuda (`POST .../reanudar`) en vez de sólo destacarla de nuevo.
+
+**Eliminar nunca es un `DELETE` inmediato del lado del cliente tampoco.** Un
+`DELETE` (uno o «Borrar todas») devuelve `{ loteDeBorrado }`, la fila desaparece
+del rail al instante (el backend ya la excluye de `GET /historial`), y
+`AvisoDeDeshacer` — al pie del rail, visible incluso colapsado, superpuesto al
+hilo — ofrece «Deshacer» durante los 10 s que la interfaz cuenta (el servidor da 15:
+10 de aviso más 5 de margen de red, `Asistente__VentanaDeDeshacerSegundos`). Un solo
+aviso a la vez: una acción nueva reemplaza al anterior en el mismo componente en vez
+de apilarlos. Pasados esos 10 s sin deshacer, el borrado es lógicamente definitivo
+del lado del cliente (ya lo era del lado del backend desde el `DELETE`); dentro del
+minuto siguiente (`Asistente__PeriodoDeBarridoDeBorradosSegundos`) el
+`BackgroundService` del servidor lo hace físico —ver «Historial de conversaciones»
+más abajo—, sin que el cliente tenga que seguir abierto ni pedir nada más. «Borrar
+todas» conserva su confirmación inline (única acción del historial que la pide,
+porque afecta todo de una vez) y su copy ahora nombra las archivadas y el margen de
+10 s; «Eliminar» de una sola fila no pide confirmación, porque tiene deshacer.
+
+El anuncio de cada acción (archivar, eliminar, deshacer, vencimiento) sale por la
+región viva **existente** del hilo (`Conversacion`'s `anuncio`, un `<li>` oculto
+visualmente con la clase `adoc-sr` dentro del `role="log"` de siempre) y no por el
+propio `AvisoDeDeshacer`, que es `role="presentation"`: el recuadro visible y el
+anuncio a lectores de pantalla son dos superficies separadas a propósito, para que
+el mismo texto no se anuncie dos veces por dos regiones vivas —un test cuenta
+`aria-live` en la página y falla si aparece una segunda—. El foco va a «Deshacer»
+al aparecer el aviso, a la fila restaurada al deshacer, y a la lista si el aviso
+vence (o se resuelve) con el foco todavía en el botón.
+
+### Editar y reenviar la última pregunta (ARS-147, design.md D9)
+
+Sólo la última pregunta de la conversación —vigente o restaurada por «Reanudar»—
+ofrece «Editar y reenviar»: un textarea inline reemplaza la pregunta, la respuesta
+queda al 40 % de opacidad mientras se edita, y Escape cancela devolviendo el foco al
+botón. Reenviar manda un `POST /consultas` normal con `reemplaza` (la
+`Idempotency-Key` del turno en vivo que se reemplaza, o el `id` de
+`turno_historico` de uno restaurado) y **no** con un endpoint propio: cupo,
+candado e idempotencia tratan el reemplazo como un turno cualquiera, cobrado una
+sola vez.
+
+El backend resuelve la nueva pregunta contra la **misma foto de contexto** que
+tenía la reemplazada —segmento vigente y aclaración pendiente snapshoteados antes
+de ese turno, guardados en el propio `TurnoDelHilo`— y sólo pisa el turno viejo
+(hilo en memoria y fila de `turno_historico`, en una sola transacción) si la
+respuesta nueva llega a un resultado registrable; un `Reemplaza` que no nombra el
+último turno vigente del hilo, o un hilo vencido, da `409` sin tocar nada. El
+`claveDeRetroalimentacion` viejo se revoca (rechaza como un token desconocido en
+adelante) y el título de la conversación **no cambia** — el historial conserva
+sólo la versión final, sin contador de versiones ni rastro de la pregunta
+reemplazada. La interfaz no dibuja «N / M»: la navegación de versiones del mock de
+referencia se descartó por decisión de producto (design.md, «Decisiones… pendientes
+de confirmación del PO»).
+
+### Barra de acciones y motivos del 👎 (ARS-146)
+
+`BarraDeAcciones` reemplaza a los botones de texto de `AccionesDelMensaje`/
+`VotoDeRetroalimentacion` por íconos con nombre accesible y tooltip: «Copiar
+respuesta», y con tabla «Ampliar tabla»/«Exportar a CSV», más 👍/👎 con
+`aria-pressed`. Visible siempre en el último turno y en cualquiera ya votado;
+en los demás aparece por hover o **foco dentro del turno** (nunca sólo hover, para
+que el teclado la alcance), y siempre en el orden de tabulación aunque no se vea.
+El panel del 👎 («¿Qué falló? Opcional») es de elección única —«Datos
+incorrectos», «No entendió la pregunta», «Faltan datos», «Otro», con
+`aria-pressed`— y **sin campo de texto libre**: el mock de referencia lo tenía, y
+se descartó porque un comentario libre junto a una fila que TD-012 mantiene
+anónima es exactamente el canal de reidentificación que ese diseño cierra. El
+motivo retirado `lento` no aparece más en la interfaz —ver «Retroalimentación del
+turno» y design.md D7— aunque los votos viejos con esa razón sigan intactos en la
+base.
+
+### Orden de la tabla y vista ampliada (ARS-145)
+
+El orden de columnas es estado puramente del cliente (`ordenarFilas`, `numérico` /
+`fecha ISO` / colación española, vacíos siempre al final, `stable sort` sobre el
+índice original) y vive en el turno, no en `TablaDeResultado`: reabrir un turno
+viejo no hereda el orden de otro. Los vínculos de celda (`Vinculos[]`) siguen la
+fila **por su índice original**, no por su posición visual, así que ordenar nunca
+rompe a qué trámite abre un clic. «Tabla ampliada» superpone el resultado sobre todo
+el modal con «Copiar tabla»/«Exportar a CSV» en el **orden mostrado** —nunca el
+orden en que la respuesta llegó—; Escape la contrae sin cerrar el modal encima, y
+el foco vuelve a «Ampliar tabla».
+
+### Menciones «@materia» / «#docente», del lado del cliente (ARS-148)
+
+`PopoverDeMenciones` es un combobox ARIA (`aria-activedescendant`) que sólo busca a
+partir de 2 letras (antes, un aviso fijo, cero pedidos al backend); cada resultado
+elegido queda como chip en el composer y viaja en `referencias` mientras su texto
+siga en la pregunta —borrar el `@materia`/`#docente` del texto quita también la
+referencia, para que nunca se manden ids que ya no corresponden a nada visible—.
+Escape cierra el popover, nunca el modal (mismo orden de escapes que el menú «⋮» y
+la tabla ampliada).
+
+**Límite conocido: un turno reanudado o leído del historial muestra sus menciones
+como texto plano, sin chip.** `TurnoDeHistorialDto` (`GET /historial/{id}`,
+«Reanudar») expone `{ id, pregunta, sql, estado, ocurrioEn }` — la pregunta ya
+incluye el texto «@Análisis Matemático» tal como se escribió, pero no la
+estructura `{ tipo, id }` que un chip necesita para ser interactivo; esa
+estructura vive sólo en `turno_historico.referencias`, del lado del servidor, para
+revalidar «Volver a consultar»/«Reanudar» (ver abajo), no para redibujar la
+interfaz. Editar y reenviar una pregunta reanudada reenvía su texto tal cual, sin
+poder tocar sus menciones originales como chips.
+
+**Revalidación de menciones heredadas.** Cada mención que un turno reutiliza
+—«Volver a consultar» sobre un turno propio, o el primer turno de una conversación
+recién reanudada— se revalida contra el alcance **actual** del actor con la misma
+búsqueda que `GET /menciones`, nunca contra el alcance que tenía cuando se hizo la
+pregunta originalmente: un permiso o un ámbito que se achicó desde entonces hace
+que la re-ejecución se abstenga con el mismo texto amigable que cualquier SQL que
+ya no corre, nunca un error crudo ni una ejecución contra la entidad equivocada.
+
 ### La accesibilidad, que es donde estaba el defecto conocido
 
 | Regla                                                          | Por qué                                                                                                                                                                                                                                                            |
@@ -969,10 +1104,13 @@ personal, no por dónde viajó ni cómo se enmascaró: eso es mecánica interna.
 truncado se avisa **sin números**: «ves 3 de 124» es un canal de inferencia sobre
 datos que el usuario no puede ver.
 
-**Sólo acciones reales por mensaje**: «Copiar respuesta» y, con tabla, «Copiar
-tabla», y únicamente cuando el portapapeles del navegador existe. Regenerar,
-calificar, editar y adjuntar no tienen backend, y un botón que no hace nada es el
-fake UI del invariante #7.
+**Sólo acciones reales por mensaje.** «Copiar respuesta» y, con tabla, «Copiar
+tabla»/«Exportar a CSV», únicamente cuando el portapapeles del navegador existe;
+👍/👎 (calificar) y, en la última pregunta, «Editar y reenviar», los dos con
+backend propio — ver «Barra de acciones y motivos del 👎» y «Editar y reenviar la
+última pregunta» más arriba. **Regenerar y adjuntar siguen sin backend** y por
+eso siguen sin botón: uno que no hiciera nada sería el fake UI que el invariante
+#7 prohíbe.
 
 ## Historial de conversaciones y acceso de soporte
 
@@ -1006,20 +1144,40 @@ entre los dos es `HiloConversacional.HiloHistorico` (`Guid?`, nulo hasta el
 primer turno que se persiste), fijado por el escritor y leído por
 `Reanudar`.
 
-### Auto-título, búsqueda, y las cuatro operaciones propias
+### Auto-título, búsqueda, archivar y las operaciones propias
 
 El título de una conversación se deriva de su primera pregunta la primera
 vez que se persiste (truncado a 80 caracteres en un límite de palabra, con
 elipsis) y nunca se vuelve a tocar solo — renombrarla es explícito y
-permanente. La búsqueda usa `to_tsvector('spanish', pregunta)` con un índice
-GIN, no un `ILIKE`: con acentuación y flexión española, `ILIKE` ni usa índice
-ni entiende que "designación" y "designaciones" son la misma raíz.
+permanente, y un reemplazo (D9) tampoco lo cambia. La búsqueda usa
+`to_tsvector('spanish', pregunta)` con un índice GIN, no un `ILIKE`: con
+acentuación y flexión española, `ILIKE` ni usa índice ni entiende que
+"designación" y "designaciones" son la misma raíz.
 
-Borrar una conversación, o todas, es un `DELETE` permanente — sin papelera,
-sin recuperación — acotado siempre al `actor_id` del que llama: un id que
-existe pero es de otro actor se trata **igual** que un id que no existe, en
-las cuatro operaciones (ver, renombrar, borrar, reanudar), para no filtrar
-cuál de los dos casos fue.
+**Archivar** (`hilo_historico.archivada_en`, asistente-rediseno-v3, design.md
+D3) es un timestamp nulable que no toca `ultima_actividad` — la retención de
+180 días de abajo sigue contando igual — y que `RegistroDeHistorial` limpia
+solo al escribir un turno nuevo: una conversación archivada retomada se
+desarchiva sola. `GET /historial` sigue listándola, marcada
+(`archivada: true`), en vez de escondiéndola en un endpoint aparte.
+
+**Borrar ya no es un `DELETE` inmediato (asistente-rediseno-v3, design.md
+D4).** `DELETE /historial/{id}` (una) y `DELETE /historial` (todas, archivadas
+incluidas) marcan `borrado_pendiente_desde`/`lote_de_borrado` y devuelven el
+lote — la fila sigue existiendo. Toda consulta propia (`IConsultasDeHistorial`)
+filtra `borrado_pendiente_desde IS NULL`, así que la conversación desaparece de
+inmediato de las cuatro operaciones propias (ver, renombrar, reanudar, y de la
+propia lista) para su dueño, sin que el `DELETE` físico haya ocurrido todavía.
+`POST /historial/borrados/{lote}/deshacer` limpia esas dos columnas si el lote
+es propio y sigue dentro de `Asistente__VentanaDeDeshacerSegundos` (default 15
+s); un lote ajeno, desconocido o vencido da el mismo `404` — tres casos
+indistinguibles a propósito, mismo criterio que un id que no existe o es de
+otro actor en las demás operaciones. Pasada la ventana el borrado es
+**lógicamente** definitivo (nadie que lo consulte por los canales propios lo
+va a volver a ver) y se vuelve **físicamente** definitivo — sin papelera, sin
+recuperación, con cascada sobre sus turnos — dentro del minuto siguiente,
+cuando `BarridoDePendientes.BarrerAsync` corre (ver «Retención y purga» más
+abajo): la finalidad no depende de que el cliente siga abierto.
 
 ### Reanudar: siembra, no revive
 
@@ -1100,7 +1258,21 @@ auditoría de soporte (`Asistente__RetencionDeAuditoriaDeSoporteDias`), en
 una ventana **independiente** de la del historial que describe —
 justamente porque tiene que sobrevivirlo. `PurgaDeRegistros` suma estos dos
 barridos a los dos que ya tenía; mismo mecanismo, mismo `TimeProvider`, mismo
-criterio de loguear y seguir si una vuelta falla.
+criterio de loguear y seguir si una vuelta falla. **Las conversaciones
+archivadas siguen la misma retención de 180 días** que las demás: archivar no
+mueve `ultima_actividad`, así que archivar una conversación no la protege de
+la purga ni la expone antes que a cualquier otra.
+
+**El barrido de un minuto, aparte de la purga diaria (asistente-rediseno-v3,
+design.md D4).** La finalidad lógica de un borrado ya la da el filtro de
+lectura de arriba en cuanto vence `Asistente__VentanaDeDeshacerSegundos`; la
+física la da `BarridoDePendientes.BarrerAsync`, corrida por el
+`BackgroundService` `BarridoDeBorradosPendientes` cada
+`Asistente__PeriodoDeBarridoDeBorradosSegundos` (default 60 s) — scoped, mismo
+patrón que `PurgaDeRegistros`, con su propio `TimeProvider` inyectable para
+test. `PurgaDeRegistros` corre la misma sentencia como red diaria, para el
+despliegue donde el barrido corto no llegó a levantar. Un tick que falla se
+loguea y no frena al siguiente — mismo criterio que el resto de la purga.
 
 ### TD-012, con una dependencia nueva y documentada
 
@@ -1153,6 +1325,7 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
 - `openspec/changes/asistente-feedback-export-seguimiento/` — el token de retroalimentación, la exportación CSV y las sugerencias de seguimiento
 - `openspec/changes/asistente-historial-conversaciones/` — el historial propio, reanudar, «volver a consultar» y el acceso de soporte auditado
+- `openspec/changes/asistente-rediseno-v3/` — un solo montaje, el rail, archivar, borrado diferido con deshacer, editar y reenviar la última pregunta, menciones «@materia»/«#docente» y el fin de las sugerencias fuera de la bienvenida
 
 ## Evaluación
 

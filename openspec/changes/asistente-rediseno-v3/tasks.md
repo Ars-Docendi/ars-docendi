@@ -79,9 +79,9 @@
 
 ## 11. Documentation and verification
 
-- [ ] 11.1 `docs/architecture/api-contracts.md`: final pass over every endpoint touched (menciones, archivar, desarchivar, borrados/deshacer, delete bodies, `referencias`, `reemplaza`, `conversacion`, removed `sugerencias`, reason set). Verify: every field in `ModelosAsistente.cs`/`ModelosHistorial.cs` appears in the doc.
-- [ ] 11.2 `docs/architecture/data-model.md`: new columns of `hilo_historico`/`turno_historico`, the reason constraints and the inherited schema deny. Verify: doc diff.
-- [ ] 11.3 `docs/architecture/domains/asistente.md`: single mount, rail, deferred deletion and sweep, archive, edit, mentions and markers, no suggestions; `backend/src/Modules.Asistente/README.md` endpoints and the three new options. Verify: `OpcionesDocumentadasTests` green.
-- [ ] 11.4 `docs/business-rules/asistente.md`: append to BR-`asistente`-005 that archived conversations follow the same 180-day retention and that a deletion is final after its undo window. Verify: doc diff.
-- [ ] 11.5 Confirm the design spec § "Rediseño v3" (already updated by this change) matches what was built; adjust it in the same diff if implementation deviated. Verify: reviewer checklist.
-- [ ] 11.6 Run `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`. Verify: all green, or the environment limitation recorded in the PR.
+- [x] 11.1 `docs/architecture/api-contracts.md`: final pass over every endpoint touched (menciones, archivar, desarchivar, borrados/deshacer, delete bodies, `referencias`, `reemplaza`, `conversacion`, removed `sugerencias`, reason set). Verify: every field in `ModelosAsistente.cs`/`ModelosHistorial.cs` appears in the doc.
+- [x] 11.2 `docs/architecture/data-model.md`: new columns of `hilo_historico`/`turno_historico`, the reason constraints and the inherited schema deny. Verify: doc diff.
+- [x] 11.3 `docs/architecture/domains/asistente.md`: single mount, rail, deferred deletion and sweep, archive, edit, mentions and markers, no suggestions; `backend/src/Modules.Asistente/README.md` endpoints and the three new options. Verify: `OpcionesDocumentadasTests` green.
+- [x] 11.4 `docs/business-rules/asistente.md`: append to BR-`asistente`-005 that archived conversations follow the same 180-day retention and that a deletion is final after its undo window. Verify: doc diff.
+- [x] 11.5 Confirm the design spec § "Rediseño v3" (already updated by this change) matches what was built; adjust it in the same diff if implementation deviated. Verify: reviewer checklist.
+- [x] 11.6 Run `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`. Verify: all green, or the environment limitation recorded in the PR.

@@ -559,6 +559,15 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
   grupos de fecha.
 - «Deshacer» usa `--color-text-on-inverse` en semibold en lugar del acento claro del mock: el
   acento no alcanza 4,5:1 sobre `--color-bg-inverse` en ninguno de los dos temas.
+- El anuncio de renombrar/archivar/borrar/reanudar por la región viva (`Conversacion`'s
+  `anuncio`) pasó a ser sólo para lectores de pantalla (`.adoc-sr`): cada acción ya tiene su
+  propia confirmación visible (el aviso de deshacer, los íconos con `aria-pressed`, las flechas
+  de orden), y el texto quedaba duplicado en pantalla para quien ve.
+- **Límite conocido, no cubierto por este change:** un turno reanudado o revisitado en el
+  historial muestra sus menciones como texto plano, sin chip. `GET /historial/{id}` no expone
+  `turno_historico.referencias` al frontend — sólo lo usa el propio backend para revalidar
+  «Volver a consultar»/«Reanudar» —, así que la pregunta se pinta tal como se escribió
+  (`@Análisis Matemático`), sin la estructura `{ tipo, id }` que un chip necesita.
 
 ## Referencias
 

@@ -478,7 +478,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     {
         await SembrarAsync();
         var (basica, conDatosPersonales) = CadenasDeLectura();
-        var ejecutor = new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(),
+        var ejecutor = new EjecutorDeConsulta(Apertura, ClasificadorDeSensibilidad(),
             Options.Create(new OpcionesAsistente()));
         var ct = TestContext.Current.CancellationToken;
 
@@ -714,7 +714,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             basica,
             conDatosPersonales,
             Apertura,
-            new EjecutorDeConsulta(Apertura,ClasificadorDeSensibilidad(), opciones),
+            new EjecutorDeConsulta(Apertura, ClasificadorDeSensibilidad(), opciones),
             conTecho,
             contadorDelTurno,
             Options.Create(new OpcionesAsistente()),
