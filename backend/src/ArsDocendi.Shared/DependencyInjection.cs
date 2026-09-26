@@ -24,12 +24,17 @@ public static class DependencyInjection
     /// </summary>
     public static IServiceCollection AddArsDocendiShared(this IServiceCollection services, IConfiguration configuration)
     {
+        // La cadena del dueño se resuelve UNA vez y viaja tipada. Los DbContext y
+        // los migradores la piden por tipo, no por clave de configuración: pedir la
+        // cadena equivocada deja de ser posible sin romper la compilación.
+        services.AddSingleton(CadenaDuena.Desde(configuration));
+
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
         services.AddScoped<AuditDbConnectionInterceptor>();
 
         services.AddDbContext<IdentityDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", IdentityDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 

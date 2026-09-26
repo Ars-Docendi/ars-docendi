@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ArsDocendi.Evaluacion</RootNamespace>
+    <AssemblyName>ArsDocendi.Evaluacion</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    ESTE PROYECTO NO ESTÁ —Y NO PUEDE ESTAR— EN backend/ArsDocendi.slnx.
+
+    Es lo único del repositorio que instancia un proveedor de modelo real. El CI
+    corre los tests de la solución SIN FILTRO: adentro, este proyecto ejecutaría
+    la API real decenas de veces por semana, y el síntoma de olvidarlo no es un
+    test rojo — es una factura, que se descubre a fin de mes.
+
+    Un filtro en el YAML del CI se descartó a propósito: vive en el YAML, y un
+    identificador mal escrito o un merge que revierta el flag cuesta dinero sin
+    que nadie lo note. La exclusión tiene que ser estructural.
+
+    Hay un guard DENTRO de la solución —ExclusionDelEvaluadorTests— que lee el
+    archivo de solución y falla si este proyecto aparece.
+
+    Todo lo que no cuesta dinero vive en ArsDocendi.Evaluacion.Nucleo, que SÍ
+    está en la solución y sí tiene tests en el CI.
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ArsDocendi.Evaluacion.Nucleo\ArsDocendi.Evaluacion.Nucleo.csproj" />
+
+    <!--
+      El módulo entero, y no solo su contrato: el proveedor se resuelve del
+      contenedor del módulo para que el `switch` de ModuleExtensions siga siendo
+      el ÚNICO registro de adaptadores. Construir uno a mano acá crearía una
+      segunda forma de elegir proveedor, capaz de quedar en desacuerdo con la de
+      producción sin que nada falle.
+
+      Referenciarlo NO mete este proyecto en la solución, que es lo que el guard
+      ExclusionDelEvaluadorTests vigila.
+    -->
+    <ProjectReference Include="..\..\src\Modules.Asistente\Modules.Asistente.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+  </ItemGroup>
+
+</Project>

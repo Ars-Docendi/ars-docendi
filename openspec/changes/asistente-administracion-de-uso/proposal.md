@@ -1,0 +1,37 @@
+## Why
+
+The assistant is used concurrently by ~30 staff against a single Anthropic API key and (soon) a single-GPU local model, but it has no admin surface: quota lives only in memory (`CuotaEnMemoria`, TD-011) and resets on every redeploy, nothing stops two concurrent turns from the same actor, there is no way to turn the assistant off for maintenance, and nobody — admin or end user — can see usage or remaining quota. TD-011 was accepted in-memory because there was no evidence of abuse; the justification for reopening it now is administrative cost control under concurrent real usage, not abuse (LiteLLM persists budgets in the DB for the same reason). This change adds the minimum admin control surface (usage visibility, persistent budgets, single in-flight turn per actor, kill switch, and visible remaining quota) without touching the SQL lane, the masking layer, or the 4-state response contract's set of states.
+
+## What Changes
+
+- **A1 — Usage dashboard**: new admin-only screen and read endpoints that aggregate `asistente.registro_operativo` per user, per role, and org-wide over a selectable period (turns, outcomes incl. abstentions/errors, model calls, tokens in/out/cache, latency, provider/model, estimated cost). Estimated cost comes from a versioned, configurable price table per provider/model, explicitly labeled as an estimate (the provider invoice is the source of truth).
+- **A2 — Persistent budgets**: replace `CuotaEnMemoria` with a Postgres-backed budget: per-user **daily quota in turns**, with per-role defaults and per-user overrides, plus an **org-wide monthly cap in estimated USD** derived from token cost. Visible thresholds at 50/80/100%; at 100% a new turn resolves as the existing `ServicioDegradado` outcome (never a 500), with its own explanation text. Resets on schedule. No email/notification system is added (TD-013 stays closed as written): alerts surface only in the dashboard plus a structured log warning.
+- **A3 — One in-flight turn per actor**: a second concurrent turn from the same authenticated actor is rejected with the same `ServicioDegradado` outcome and a friendly, distinct message, protecting the shared Anthropic rate limit and the future single-GPU local model. Guarded by a Postgres advisory lock (not an in-process lock), released on completion, cancellation, exception, or the 150 s turn budget timeout.
+- **A4 — Kill switch / maintenance mode**: a persisted, audited (who/when/reason) flag that an admin toggles; `GET /api/asistente/capacidades` reports it so the frontend shows a banner and disables input; admins holding the new permission can still submit turns while it is active, to verify recovery. Designed behind a small abstraction so a future Azure App Configuration feature flag can replace the Postgres-backed default without touching callers — no Azure dependency is added now.
+- **A5 — Remaining quota shown to the user**: `GET /api/asistente/capacidades` (and the turn outcome, for the authoritative value at submit time) exposes the actor's remaining daily quota and any blocked state; the frontend renders it unobtrusively in the existing status strip, outside the live message region.
+- **Minimal admin-configuration audit**: every budget edit and kill-switch toggle is appended to a new admin audit log (actor, moment, action, before/after), independent from the existing `asistente.auditoria_acceso_historial` (support-history reads) and from `audit.change_log` (per rule 4, only administración writes identity; this module owns its own operational audit the same way it owns `registro_operativo`/`registro_analitico`/`hilo_historico`).
+- New permission `asistente.administrar`, seeded — following the pattern of `asistente.ver_consulta`/`asistente.leer_historial_ajeno` — to `sys_admin` only (see design.md for the justification and the collision check against `origin/develop`).
+- **BREAKING** (internal only, no external consumer): `ICuotaDelActor` changes shape/semantics from a sliding-window model-call counter to a daily turn-count budget; `CuotaEnMemoria` is removed.
+
+## Capabilities
+
+### New Capabilities
+
+- `asistente-panel-de-uso`: admin-only usage dashboard and aggregation endpoints over `asistente.registro_operativo`, with a versioned cost-estimation table.
+- `asistente-presupuesto-persistente`: Postgres-backed per-user daily turn quota (role defaults + per-user overrides) and org-wide monthly USD cap, replacing `CuotaEnMemoria`.
+- `asistente-turno-exclusivo-del-actor`: one in-flight turn per authenticated actor, enforced with a Postgres advisory lock.
+- `asistente-modo-mantenimiento`: persisted, audited kill switch reflected in `GET /api/asistente/capacidades`, with an admin-bypass rule and an abstraction ready for a future Azure App Configuration flag.
+- `asistente-cupo-visible`: remaining daily quota and blocked-state exposure to the end user, in capabilities and in the turn outcome.
+- `asistente-auditoria-de-administracion`: append-only audit trail for budget edits and kill-switch toggles.
+
+### Modified Capabilities
+
+_(none — see Impact: the capabilities this change interacts with — `asistente-cuota`, `asistente-contrato-de-respuesta`, `asistente-capacidades` — are still unarchived, so there is no base spec under `openspec/specs/` to file a delta against; see design.md for how this change stays consistent with them anyway.)_
+
+## Impact
+
+- **Backend (`Modules.Asistente`)**: removes `CuotaEnMemoria`; changes `ICuotaDelActor`'s contract; extends `DisponibilidadDelModelo.MotivoSinModelo` with new values (quota exhausted stays, plus org cap exceeded, concurrent turn, maintenance) that all continue to resolve as the existing `EstadoDelTurno.ServicioDegradado` — no fifth wire-level state is introduced. Extends `CapacidadesDto` (`Api/ModelosAsistente.cs`) with quota/maintenance fields. New controller/endpoints for the dashboard and for admin actions (toggle maintenance, edit budgets). New `PurgaDeRegistros` sweep for the new tables' retention.
+- **Database**: new tables under the `asistente` schema (budgets, maintenance state, admin audit, price table) via versioned migrations (next number to confirm against `origin/develop` in design.md); the assistant's two read-only roles (`asistente_ro_*`) must keep the `asistente` schema fully revoked, including these new tables — covered by `ManifiestoPrivilegiosTests`/`PrivilegiosLecturaTests`.
+- **Frontend**: new gated admin route (permission `asistente.administrar`), consistent with the existing support-history screen's `RequirePermission` pattern; extends `useAccesoAlAsistente`/`CapacidadesDelAsistente` and the status-strip component for the quota/maintenance banner; a11y consistent with the assistant's existing accessibility rules (banner stays outside the live region).
+- **Docs**: `docs/architecture/domains/asistente.md` (new "Administración de uso" section), module `README.md`, `docs/architecture/api-contracts.md` and `data-model.md`, `docs/business-rules/asistente.md` (new BR-`asistente`-00X entries starting at 007), `docs/product/designs/asistente-conversacional-design-spec.md` (new section + "Estados a diseñar" table update), `docs/quality/tech-debt.md` (TD-011 reopened/updated, not closed outright — see design.md).
+- **Known gap noted, not fixed by this change**: the dashboard's need for human-readable actor names faces the same choice the support-history screen already made (reuse `GET /api/administracion/usuarios`, gated by `usuarios.ver`, vs. a module-owned lookup) — resolved in design.md.

@@ -1,0 +1,220 @@
+## 1. Layout: rail, header and single owner (ARS-142)
+
+- [x] 1.1 Backend: add `Conversacion: Guid?` to `RespuestaDelAsistente` from `HiloConversacional.HiloHistorico` after registration (design D13). Write first a failing `EndpointDeConsultasTests` case: a persisted first turn returns the id that `GET /historial` lists; a turn whose history write fails returns null. Verify: tests green; a test asserts `registro_analitico` and `retroalimentacion_turno` have no column holding it.
+- [x] 1.2 Add `conversacion?: string | null` to `RespuestaDelAsistente` in `types.ts`; after each turn invalidate the `["asistente","historial"]` query and set the active conversation from the response. Verify: Vitest — after a first answer the rail lists and highlights the new conversation and the header shows its title.
+- [x] 1.3 Create `components/RailDeConversaciones.tsx` (expanded 268 px / collapsed 60 px, «Nueva conversación», collapse/expand, «Historial» icon, search, date groups via `agruparPorFecha`, active row with `aria-current`, «⋮» via `shared/ui/MenuAcciones`, inline rename by double-click or «Renombrar» with Enter/blur save and Escape cancel). Move list/rename logic out of `ListaDeConversaciones.tsx` and delete that file and `AbrirHistorial.tsx`; drop `abierto/alternar/registrarDisparador` from `useHistorialAsistente` and load the list whenever the modal is open. Verify: rewritten `ListaDeConversaciones.test.tsx` → `RailDeConversaciones.test.tsx` and `HistorialAsistente.test.tsx` green.
+- [x] 1.4 Persist the rail state per user in `localStorage` (`asistente.rail.<userId>`, try/catch, default expanded) in a small hook `hooks/usePreferenciaDelRail.ts`. Verify: Vitest — preference survives remount, is per user, and a throwing `localStorage` still toggles.
+- [x] 1.5 Restructure `PanelAsistente` into the v3 two-column grid (1100 × 728 max, `--motion-base`/`--ease-standard` transition, none under reduced motion) and add `components/EncabezadoDeConversacion.tsx` (56 px: title or «Asistente», `AyudaDelAsistente`, close). Keep the dialog's accessible name «Asistente» with the library title visually hidden (TD-020). Verify: `LanzadorAsistente.test.tsx` — dialog name unchanged, header title follows the active conversation, focus returns to the launcher on close.
+- [x] 1.6 Focus management for collapse/expand and `aria-expanded` on the toggles (asistente-accesibilidad). Verify: Vitest keyboard test — collapsing focuses «Expandir conversaciones» and vice versa.
+- [x] 1.7 Rewrite the modal CSS in `asistente.css` with theme tokens only (mapping in the design spec § v3). Verify: `asistente.tokens.test.ts` extended to reject `oklch(` as well as hex outside comments.
+
+## 2. Archive and «Archivadas» (ARS-143)
+
+- [x] 2.1 SQL: in `database/asistente/004_asistente_historial.sql` add `archivada_en`, `borrado_pendiente_desde`, `lote_de_borrado` to `hilo_historico` and `referencias jsonb` to `turno_historico`, in the `CREATE` and as `ALTER TABLE … ADD COLUMN IF NOT EXISTS`, plus the partial index on `borrado_pendiente_desde` (design D3, D4, D15). Verify: `MigracionDelAsistenteTests` — applying twice converges; `PrivilegiosLecturaTests` — neither `asistente_ro` nor `asistente_ro_pii` can read the new columns; `ManifiestoPrivilegiosTests` unchanged and green.
+- [x] 2.2 `IConsultasDeHistorial`/`ConsultasDeHistorial`: `ArchivarAsync`, `DesarchivarAsync`; `ConversacionResumen` gains `Archivada`; list and search return archived rows flagged. `RegistroDeHistorial` clears `archivada_en` when appending. Verify: failing-first `HistorialControllerTests` cases — archive/unarchive own, 404 for foreign/unknown with identical body, search finds archived, new turn unarchives, `ultima_actividad` untouched by archiving.
+- [x] 2.3 `HistorialController`: `POST /historial/{id}/archivar` and `/desarchivar` → `204`/`404`. Verify: controller tests above; `api-contracts.md` updated in the same diff (rule 6).
+- [x] 2.4 Retention: extend `HistorialYAuditoriaPurgaTests` with an archived conversation past 180 days being purged. Verify: test green.
+- [x] 2.5 Frontend: `historialApi.ts` archive/unarchive; «⋮» options per row state; «Archivadas N» collapsible section (collapsed by default, hidden at 0); flat search results with «Archivada» marker. Archiving the active conversation resets the thread to welcome. Verify: Vitest in `RailDeConversaciones.test.tsx`.
+
+## 3. Deferred delete and undo (ARS-144)
+
+- [x] 3.1 `ConsultasDeHistorial`: `EliminarAsync`/`EliminarTodoAsync` mark rows with `now()` and a batch id and return it; `DeshacerBorradoAsync(actor, lote)` clears marks younger than `VentanaDeDeshacerSegundos` (new option, default 15, validated and documented); every owner query filters pending rows; `RegistroDeHistorial` mints a new conversation instead of writing into a pending one. Verify: failing-first tests in `HistorialControllerTests` — delete returns `200 { loteDeBorrado }`, pending rows invisible to list/get/resume/rerun, undo inside the window restores exactly the batch (including the "delete one, then delete all" case), undo after the window and foreign batch both `404`.
+- [x] 3.2 `HistorialController`: new `DELETE` response bodies and `POST /historial/borrados/{lote}/deshacer`. Verify: controller tests; `api-contracts.md` updated (breaking `204` → `200` noted).
+- [x] 3.3 Add `Infrastructure/BarridoDeBorradosPendientes.cs` (`BackgroundService`, own scope per tick, logs and survives failures, `PeriodoDeBarridoDeBorradosSegundos` default 60) and the same DELETE in `PurgaDeRegistros` as backstop; register in `ModuleExtensions`. Verify: integration tests with a fake `TimeProvider` — a pending row inside the window survives a sweep, one outside it is physically gone with its turns; a failing tick does not stop the next; `OpcionesDocumentadasTests` green after README update.
+- [x] 3.4 Support: `ConsultasDeAuditoriaDeSoporte`/support list and read include archived and in-window pending conversations with `archivada`/`pendienteDeBorrado`; expired pending ones are absent. Verify: `SoporteHistorialControllerTests` new cases, including that reading a pending one writes the audit row.
+- [x] 3.5 Support screen: show «Archivada» / «Pendiente de borrado» markers. Verify: `SoporteHistorialPage.test.tsx`.
+- [x] 3.6 Frontend: `components/AvisoDeDeshacer.tsx` (one notice at a time, 10 s from the response, «Deshacer», visible when the rail is collapsed) wired to archive/unarchive/delete/delete-all; delete-one without confirmation; «Borrar todas» with the new confirmation copy; undo of the active conversation re-resumes it. Verify: Vitest with fake timers — notice text, 10 s expiry, undo calls the right endpoint, new action replaces the notice.
+- [x] 3.7 Accessibility of the notice: announcement through `Conversacion`'s `anuncio`, focus to «Deshacer», to the restored row on undo, to the list on expiry. Verify: `AccesibilidadHistorial.test.tsx` updated; no second live region (test counts `aria-live` regions).
+
+## 4. Result table: sort and expand (ARS-145)
+
+- [x] 4.1 `utils/ordenarFilas.ts`: stable sort over original row indexes, type inference per column (number / ISO date / Spanish collator), empty cells last, keys from `formatearCelda`. Verify: unit tests for numeric vs lexical, dates, empties in both directions, masked strings, stability.
+- [x] 4.2 `TablaDeResultado`: sortable header buttons with «⇅»/«↑»/«↓», `aria-sort` on the sorted `th` only, links keyed by original index, sort announcement through the live region; sort state per turn lifted to the owner. Verify: `TablaDeResultado.test.tsx` — keyboard sort, `aria-sort`, link follows its row after sorting.
+- [x] 4.3 `components/TablaAmpliada.tsx`: overlay over the modal body, «Tabla ampliada» + question, «Copiar tabla» (TSV in displayed order), «Exportar a CSV», «Contraer»; Escape captured so the modal stays open; focus back to the opener; truncation note and sensitive legend kept. Verify: Vitest for each scenario in `asistente-tabla-de-resultado`.
+- [x] 4.4 CSV and TSV use the displayed order (`tablaComoCsv`/`tablaComoTsv` receive the ordered rows). Verify: `portapapeles.test.ts` new cases for sorted export.
+
+## 5. Action bar and thumbs-down reasons (ARS-146)
+
+- [x] 5.1 SQL: in `003_asistente_retroalimentacion.sql` the reason CHECK allows the four new values plus legacy `lento`, in the `CREATE` and through a guarded `DO` block that replaces the constraint on bases that predate `faltan_datos` (ratified exception in `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados`; the `razon_vigente NOT VALID` constraint was dropped in favor of the API gate — design D7 "Implemented differently"). Verify: `MigracionDelAsistenteTests.Una_base_con_el_check_viejo_acepta_faltan_datos_y_conserva_sus_votos` (old CHECK → `faltan_datos` inserts, `lento` row survives, re-applying converges) and the detector test `Solo_el_reemplazo_de_un_CHECK_ratificado_escapa_a_la_prohibicion_de_DROP`.
+
+  **Superseded by 5.5** (PO-changed decisions 4 and 8, 2026-09-26): `lento` is removed
+  entirely instead of kept as legacy, and `razon` becomes `razones`/`comentario`. See 5.5.
+
+- [x] 5.2 `RazonesDeRetroalimentacion`: `datos_incorrectos`, `no_entendio_la_pregunta`, `faltan_datos`, `otro`. Verify: `RetroalimentacionTests` — `faltan_datos` accepted, `lento` → `400`, changing a legacy `lento` vote replaces its reason.
+
+  **Superseded by 5.6**: the legacy-vote scenario is gone with `lento`.
+
+- [x] 5.3 `components/BarraDeAcciones.tsx` replacing `AccionesDelMensaje` and the text buttons of `VotoDeRetroalimentacion`/export: icon controls with names and tooltips, visibility rules of design D6 (always in tab order). Verify: Vitest — full bar with rows, no table actions without rows, focus-within reveals an older turn's bar, `aria-pressed` on votes.
+- [x] 5.4 👎 panel per v3: «¿Qué falló? Opcional», single-choice pills with `aria-pressed`, «Omitir» / «Enviar», thanks message, no text input; `RazonDeRetroalimentacion` TS type updated. Verify: `VotoDeRetroalimentacion.test.tsx` rewritten; vote announcement without focus move still passes.
+
+  **Superseded by 5.7** (PO-changed decision 8): multi-select pills plus a bounded
+  free-text comment, matching the mock, instead of single-choice with no text input.
+
+- [x] 5.5 SQL (PO-changed decisions 4/8, 2026-09-26): rewrite `003_asistente_retroalimentacion.sql`.
+      Fresh-base `CREATE` gets the final shape — no `razon` column, `razones text[]` with
+      `CONSTRAINT retroalimentacion_turno_razones_validas CHECK` restricting elements to the
+      four values, `comentario text` with `CONSTRAINT
+retroalimentacion_turno_comentario_longitud CHECK (char_length(comentario) <= 500)`.
+      Old bases (`arsdocendi_pr_140`) get `razones`/`comentario` via two `ALTER TABLE ... ADD
+COLUMN IF NOT EXISTS` (one column each, no inline CHECK — commas in the array literal
+      break the allowed-form regex), then one guarded `DO` block per CHECK that adds it only
+      when missing by name; both names are new entries in
+      `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados` (a bare `ADD CONSTRAINT` with
+      no `DROP` still needs ratification — only `ADD COLUMN IF NOT EXISTS` is unconditionally
+      allowed). The old `razon` column and its CHECK are left untouched and unused; a comment
+      documents why. Remove the now-useless `retroalimentacion_turno_razon_valida`
+      ratification entry and its guarded `DO` block: nothing reads or writes `razon` anymore.
+      Verify: `MigracionDelAsistenteTests` — old table with `razon` + old CHECK converges (a
+      multi-reason + comment vote inserts after migrating), re-running converges, fresh-base
+      shape has no `razon` column.
+- [x] 5.6 `RazonesDeRetroalimentacion`: drop every `lento` mention (code comments included).
+      `IRegistroDeRetroalimentacion`/`RegistroDeRetroalimentacion`: `razon: string?` becomes
+      `razones: IReadOnlyList<string>?` (written as `text[]`) plus `comentario: string?`.
+      `ServicioDeRetroalimentacion.RegistrarAsync` takes both, nulls both on a thumbs-up.
+      `PedidoDeRetroalimentacion`/`AsistenteController`: `razones: string[]?` (max the four
+      values, no duplicates, else `400`), `comentario?: string` (trimmed, empty ⇒ null, `400`
+      over 500 chars after trimming). Verify: `RetroalimentacionTests` — multiple reasons
+      accepted, `lento` → `400` (now just "not one of the four"), duplicate reason → `400`,
+      comment over 500 chars → `400`, whitespace-only comment stored as null, thumbs-up
+      ignores both fields.
+- [x] 5.7 Frontend `VotoDeRetroalimentacion.tsx`: pills become independently toggled
+      (`aria-pressed` each, no mutual exclusion), add the labeled textarea (`maxLength=500`,
+      visible counter, hint «No incluyas datos personales.» underneath), «Omitir» / «Enviar
+      comentario» (mock label). `asistenteApi.ts`/`types.ts`: `PedidoDeRetroalimentacion`
+      gains `razones?`/`comentario?` replacing `razon?`. Verify: `VotoDeRetroalimentacion.test.tsx`
+      rewritten for multi-select, the textarea, the counter and the hint;
+      `BarraDeAcciones.test.tsx` still green.
+- [x] 5.8 Docs in the same diff (rule 6): `api-contracts.md`, `data-model.md`,
+      `domains/asistente.md`, module `README.md`, the design spec's states table and
+      deviations list (the panel now follows the mock — remove the deviation entry),
+      `docs/quality/tech-debt.md` TD-012 addendum (free text can carry identifying content;
+      mitigations: hint, 500 chars, 90-day purge, no read surface). Verify: doc diff.
+
+## 6. Edit and resend the last question (ARS-147)
+
+- [x] 6.1 `HiloConversacional`/`TurnoDelHilo`: `ClaveDelCliente`, `TurnoHistoricoId`, snapshot of segment start and pending clarification before each turn; `Sembrar` fills `TurnoHistoricoId`. Verify: `HiloConversacionalTests` — view without the last turn restores its context.
+- [x] 6.2 `ConsultaDelAsistente.Reemplaza`; `CapaConversacional` replacement flow (design D9): `409` for non-last/expired targets, resolve on the view, swap only on a registrable outcome, lock rejection changes nothing, `IValidezDeRetroalimentacion.Revocar` on the old token. Verify: failing-first tests in `CapaConversacionalTests`/`EndpointDeConsultasTests` for every scenario of `asistente-edicion-de-la-ultima-pregunta`, including quota charged once and retry with the same key applying at most one replacement.
+- [x] 6.3 `RegistroDeHistorial`: replace the target `turno_historico` row in one transaction, touching `ultima_actividad`, never the title. Verify: `RegistroDeHistorialTests` — history lists only the final version; a failed insert leaves the old row.
+- [x] 6.4 Feedback: old token rejected like an unknown one, new one accepted, old vote kept. Verify: `RetroalimentacionTests` cases.
+- [x] 6.5 Frontend: question tools («Copiar pregunta», «Editar y reenviar» on the last question only, hidden in flight or when blocked), inline textarea with Cancelar/Enviar, Escape → focus to «Editar y reenviar», answer dimmed while editing; `useAsistente.reenviarUltima` sends a new key with `reemplaza`, resets vote/sort/expanded view, reuses key and target on «Reintentar». Verify: new `EdicionDeLaUltimaPregunta.test.tsx` covering every frontend scenario and asserting no version counter.
+- [x] 6.6 `api-contracts.md`: `reemplaza`, `409`. Verify: doc diff in the same commit.
+
+## 7. Mentions @materia / #docente (ARS-148)
+
+- [x] 7.1 `Application/Menciones/IBuscadorDeMenciones.cs` + `Infrastructure/BuscadorDeMenciones.cs` on `AperturaDeLectura` basic role with `PreambuloDelActor` (design D10), search by term and lookup by ids. Verify: new `MencionesTests` next to `RlsAlcanceTests` — career-scoped actor does not see foreign subjects or teachers, actor without `designaciones.ver` gets no teachers, 6 results + `hayMas`, no `sensible-*` column in any result (checked against `manifiesto-sensibilidad.json`).
+- [x] 7.2 `GET /api/asistente/menciones` (`asistente.consultar`, `q` 2–100 else `400`). Verify: controller tests; `api-contracts.md` updated.
+- [x] 7.3 `ConsultaDelAsistente.Referencias` (max 5) validated with the lookup before the lock; unknown and out-of-scope give the same `400`, no quota, no history. Verify: `EndpointDeConsultasTests` cases.
+- [x] 7.4 SQL lane: «Menciones» block with `$refN` markers in `GeneradorDeSql.ArmarMensaje` (prefix untouched); `TokenizadorSql`/`ValidadorDeSql` accept only declared markers and reject unused ones; `EjecutorDeConsulta` binds `uuid` parameters; thread and `turno_historico.referencias` keep marker SQL plus bindings; «Volver a consultar» and «Reanudar» rebind; `DetectorDeAmbiguedad` skips referenced terms. Verify: `ValidadorDeSqlTests`, `GeneracionDeSqlTests`, `CarrilSqlTests`, `HistorialControllerTests` (rerun with a reference); an integration test with the recorded provider asserting no request body contains the referenced uuid across a turn and its follow-up; `PrefijoDeLosCassettesTests` and `HigieneDeCassettesTests` still green.
+- [x] 7.5 Evaluation: add mention items (subject with homonym, teacher) to the capability dataset with their references. Verify: dataset tests (`DatasetDeCapacidadTests`) green; items documented in `backend/eval/README.md`.
+- [x] 7.6 Frontend: `api/mencionesApi.ts`; `components/PopoverDeMenciones.tsx` (hint under 2 letters, groups, career and code, cargo, «Hay más coincidencias…», scoped empty text, footer lock note and «Enter elige · Esc cierra»); combobox ARIA with `aria-activedescendant`; chips row in the composer; placeholder «Preguntá algo · @ materia · # docente»; mentions rendered as chips in the sent question; references sent only while their text remains. Verify: new `Menciones.test.tsx` covering every frontend scenario of `asistente-menciones`, including Escape not closing the modal and no request under 2 letters.
+
+  **Extended by 12.2** (PO-changed decision 15, 2026-09-26): a resumed/history turn's
+  mentions now render as chips too, reusing this same chip-in-text machinery.
+
+- [x] 7.7 Record the sensitivity-manifest review outcome (no change, reasoning of D10) in `docs/architecture/domains/asistente.md`. Verify: doc diff.
+
+## 8. Remove suggestions except the welcome screen (ARS-149)
+
+- [x] 8.1 Backend: delete `ISugerenciasDeSeguimiento`, `SugerenciasDeSeguimiento`, `Sugerencias`, the `sugerencias` parameter of `FabricasDelResultado.SinDatos`, `ResultadoDelTurno.Sugerencias`, `RespuestaDelAsistente.Sugerencias`, the DI registration and the call sites in `CarrilSql` and `CapaConversacional`. Verify: `dotnet build` clean; `SugerenciasYConsultaTests` rewritten to assert no response carries suggestions (refusal, answer, clarification, meta-question) and options stay on clarifications.
+- [x] 8.2 Evaluation: `RunnerSocial.EvaluarNoContestable` passes on abstention alone; `social.json` description updated; `RunnersDeEjesTests.Un_no_contestable_sin_sugerencias_falla` replaced by "abstention passes / answering fails". Verify: evaluation tests green.
+- [x] 8.3 Frontend: delete `Sugerencias.tsx` and its test, the `sugerencias` TS field and its rendering in `Mensaje.tsx`; `EstadoInicial` renders the catalog examples as a 2 × 2 card grid. Verify: `Mensaje.test.tsx` asserts no suggestion section for any state; `EstadoInicial.test.tsx` updated.
+
+## 9. Integrate existing states in v3 (ARS-150)
+
+- [x] 9.1 Pending turn: inline dots + «Consultando…» (`aria-hidden`, reduced-motion safe) while the threshold-gated `role="status"` stays outside the log. Verify: `asistente.turnos.test.tsx` — inline indicator after 400 ms, single announcement, no stages.
+- [x] 9.2 Composer: «Enviar» disabled when empty or before the threshold in flight, «Dejar de esperar» in its slot after the threshold; stopped note text unchanged; status strip under the composer with quota indicator, blocked text and metrics line, outside the live region. Verify: `EntradaDePregunta.test.tsx`, `FranjaDeEstado.test.tsx`, `EstadoDeCupoYMantenimiento.test.tsx` updated.
+
+  **Superseded by 12.4** (PO-changed decision 14, 2026-09-26): the metrics line moves
+  behind frontend debug mode; the quota indicator and blocked text stay unconditional.
+
+- [x] 9.3 Error box «No se pudo consultar» + «Reintentar», degraded/clarification alerts, maintenance banner at the top of the conversation column, neutral user bubble, «Entendí:», «Ver la consulta», debug-only «Cómo lo interpreté». Verify: existing tests for these states still pass after the restyle; `Mensaje.test.tsx` debug-mode cases unchanged.
+
+## 10. Remove the `/asistente` page (ARS-151)
+
+- [x] 10.1 Delete `pages/AsistentePage.tsx`; index route → `<Navigate to="/portal?asistente=abrir" replace />`; `LanzadorAsistente` consumes and strips the marker (opens only with access). Verify: `RutaConAltoPropio.test.tsx` replaced by a redirect test — with access the modal opens and the URL is clean; without access nothing opens; `soporte-historial` and `administracion` routes still resolve with their permissions.
+- [x] 10.2 Remove leftovers that assumed two mounts (comments and `useId` rationale in hooks, `index.ts` doc comment, "Navegar fuera de la ruta aborta" test). Verify: `pnpm --filter frontend lint` and `test:run` green; grep finds no `AsistentePage`.
+- [x] 10.3 Add TD-024 to `docs/quality/tech-debt.md`: the assistant is unreachable on phones until the mobile epic (linked to TD-016, owner and date). Verify: doc diff.
+
+## 11. Documentation and verification
+
+- [x] 11.1 `docs/architecture/api-contracts.md`: final pass over every endpoint touched (menciones, archivar, desarchivar, borrados/deshacer, delete bodies, `referencias`, `reemplaza`, `conversacion`, removed `sugerencias`, reason set). Verify: every field in `ModelosAsistente.cs`/`ModelosHistorial.cs` appears in the doc.
+- [x] 11.2 `docs/architecture/data-model.md`: new columns of `hilo_historico`/`turno_historico`, the reason constraints and the inherited schema deny. Verify: doc diff.
+- [x] 11.3 `docs/architecture/domains/asistente.md`: single mount, rail, deferred deletion and sweep, archive, edit, mentions and markers, no suggestions; `backend/src/Modules.Asistente/README.md` endpoints and the three new options. Verify: `OpcionesDocumentadasTests` green.
+- [x] 11.4 `docs/business-rules/asistente.md`: append to BR-`asistente`-005 that archived conversations follow the same 180-day retention and that a deletion is final after its undo window. Verify: doc diff.
+- [x] 11.5 Confirm the design spec § "Rediseño v3" (already updated by this change) matches what was built; adjust it in the same diff if implementation deviated. Verify: reviewer checklist.
+- [x] 11.6 Run `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`. Verify: all green, or the environment limitation recorded in the PR.
+
+## 12. PO-changed decisions 14 and 15 (2026-09-26)
+
+- [x] 12.1 Backend (decision 15): `ModelosHistorial.cs` — add `MencionDeHistorialDto(Tipo,
+Id, Etiqueta)`; `TurnoDeHistorialDto` gains a nullable `Menciones` list
+      (`[JsonIgnore(Condition = WhenWritingNull)]` so it is entirely absent, not an empty
+      array, when not resolved) plus an async `DeAsync` that resolves each
+      `turno_historico.referencias` entry via `IBuscadorDeMenciones.ResolverAsync` for the
+      actor reading now, omitting an entry that no longer resolves; `ConversacionDetalleDto`
+      gains a matching `DeAsync`. `HistorialController.Obtener` and `.Reanudar` call the
+      async path with the session's own actor; `SoporteHistorialController.Leer` keeps
+      calling the existing sync `De` untouched, so it never gains the field. Verify:
+      failing-first `HistorialControllerTests` — an in-scope reference produces a chip with
+      `tipo`/`id`/`etiqueta`, an out-of-scope one is silently omitted (never leaked, never a
+      crash), `Reanudar` carries the same chip data, a foreign conversation is still `404`;
+      `SoporteHistorialControllerTests` — `menciones` is absent (not `[]`) even when the
+      turn has persisted referencias.
+- [x] 12.2 Frontend (decision 15): `types.ts` — add `MencionDeHistorial { tipo; id; etiqueta
+}`, `TurnoDeHistorial.menciones?: MencionDeHistorial[]`. `useAsistente.ts` —
+      `sembrarDesdeHistorial` maps each turn's `menciones` (`{ tipo, id, etiqueta }` →
+      `{ tipo, id, texto: etiqueta }`) through the existing `ubicarMenciones` against
+      `t.pregunta` into `TurnoDeLaConversacion.menciones`, no new positioning code. No
+      change needed in `Mensaje.tsx` (`pintarPregunta` already renders any turno's
+      `menciones` unconditionally) nor in `reenviarUltima` (already calls
+      `ubicarMenciones(ultimo.menciones ?? [], limpio)`, so «Editar y reenviar» of a
+      resumed last question already carries a surviving reference once `menciones` is
+      populated). Verify: `HistorialAsistente.test.tsx` — a resumed turn's mention renders
+      as `.adoc-asistente-mencion-chip--enviada`; a further edit-and-resend of that turn
+      sends the reference in `referencias`.
+- [x] 12.3 Docs (decision 15, rule 6): `api-contracts.md` — `menciones` field on
+      `GET /historial/{hiloId}` and `POST /historial/{hiloId}/reanudar`, and its explicit
+      absence on `POST /soporte/historial/.../leer`; `domains/asistente.md` — replace the
+      "Límite conocido" paragraph about plain-text mentions in history with the implemented
+      behavior; design spec § "Rediseño v3" — replace its own "Límite conocido" bullet the
+      same way. Verify: doc diff; `OpcionesDocumentadasTests` still green.
+- [x] 12.4 Frontend (decision 14): `FranjaDeEstado`/`LineaDeMetricas` gain a `debug?:
+boolean` prop defaulting to `modoDebugAsistente` (same pattern as `Mensaje`'s);
+      `LineaDeMetricas` renders `null` when `debug` is off, regardless of whether the last
+      turn carries metrics. The quota indicator (`IndicadorDeCupo`) and the blocked text
+      stay unconditional. Verify: `FranjaDeEstado.test.tsx` — debug on → metrics line
+      present; debug off → absent from the DOM entirely, quota indicator unaffected either
+      way; `asistente.test.tsx`'s existing "la línea de métricas queda fuera de la región
+      viva" test updated to render with `debug` on so it keeps testing what it says.
+- [x] 12.5 Docs (decision 14, rule 6): design spec § "Rediseño v3" — the layout diagram, the
+      composer paragraph and the "Mantenimiento / cupo" states table (new "Métricas" row)
+      now say the metrics line is debug-only; the "Desvíos del mock" bullet listing what's
+      kept undrawn updates accordingly. `domains/asistente.md`'s accessibility table row
+      about the metrics line living outside the log gets the same debug-only note. Verify:
+      doc diff.
+- [x] 12.6 Run the full verification suite (rule 5/the brief): `dotnet test
+backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend
+lint`, `pnpm --filter frontend build`, `pnpm format:check`, `dotnet format
+backend/ArsDocendi.slnx --verify-no-changes` on touched files, `pnpm exec openspec
+validate --all --strict`. Verify: all green, or the environment limitation recorded
+      in the report.
+- [x] 12.7 Backend gap found before commit (decision 15): `turno_historico.referencias`
+      was only ever written from `ResultadoDelTurno.ReferenciasEjecutadas`, which only
+      `CarrilSql`'s fully-resolved success path sets — a mention turn that ended in
+      refusal, a clarification menu, degradation, or a social/meta reply never entered
+      that path, so it resumed with no chip and «Editar y reenviar» lost the reference.
+      `CapaConversacional.RegistrarAsync` now falls back to numbering the request's own
+      declared, already-validated `mencionesNuevas` with `MarcadoresDeReferencias.Asignar`
+      (no `consultasAnteriores`) whenever `ReferenciasEjecutadas` is null or empty, and
+      persists that instead; `sql_resuelto` stays null either way, only `referencias`
+      gains the fallback. The live in-memory thread (`TurnoDelHilo`/`ReferenciasVigentes`)
+      is untouched — only the SQL lane ever adds a `TurnoDelHilo`. Verify: failing-first
+      `EndpointDeConsultasTests` — a mention turn scripted to end `no_contestable`
+      persists its reference (`sql_resuelto` stays null), and one that triggers a
+      clarification menu (a seeded homonym) does too; both confirmed red without the
+      fix (2 failing) and green with it, via `GET /historial/{hiloId}` exposing
+      `menciones` and `Reanudar` exposing them too. Full backend suite green
+      (1740/1740). Docs updated in the same diff: `data-model.md`
+      (`turno_historico.referencias` no longer implies `sql_resuelto` uses it),
+      `domains/asistente.md`, design.md D11, and the `asistente-menciones` delta spec
+      (new requirement text + 4 scenarios covering both non-SQL lanes).

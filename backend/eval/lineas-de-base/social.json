@@ -1,0 +1,30 @@
+{
+  "Eje": "social y meta",
+  "Sello": {
+    "Prefijo": "b95d56de8343e6219ac2c7eb90b0c3786b826315c9115e4ae382507364ae565f",
+    "Dataset": "e0368ea178c6524733f3c4681e2190a5e7a51524442965e6c7f240dc36a346b0",
+    "Fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2"
+  },
+  "Items": {
+    "soc-001": "traduccion_correcta",
+    "soc-002": "traduccion_correcta",
+    "soc-003": "traduccion_correcta",
+    "soc-004": "traduccion_correcta",
+    "soc-005": "traduccion_correcta",
+    "soc-006": "traduccion_correcta",
+    "soc-007": "traduccion_correcta",
+    "soc-017": "traduccion_correcta",
+    "soc-018": "traduccion_correcta",
+    "soc-019": "traduccion_correcta",
+    "soc-020": "traduccion_correcta",
+    "soc-008": "abstencion_correcta",
+    "soc-009": "abstencion_correcta",
+    "soc-010": "abstencion_correcta",
+    "soc-011": "traduccion_correcta",
+    "soc-012": "traduccion_correcta",
+    "soc-013": "traduccion_correcta",
+    "soc-014": "traduccion_correcta",
+    "soc-015": "traduccion_correcta",
+    "soc-016": "traduccion_correcta"
+  }
+}

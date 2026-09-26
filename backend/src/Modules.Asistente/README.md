@@ -1,0 +1,989 @@
+# Modules.Asistente
+
+Módulo del **asistente conversacional**: responde preguntas en lenguaje natural
+sobre datos que ya viven en la base del sistema, en modo solo lectura.
+
+Definición funcional y arquitectura objetivo en
+[docs/product/designs/asistente-conversacional-definicion.md](../../../docs/product/designs/asistente-conversacional-definicion.md).
+Change de planning: `openspec/changes/asistente-fundaciones/`.
+
+## Estado
+
+**El asistente responde de punta a punta.** Una pregunta en español entra por
+`POST /api/asistente/consultas`, se reescribe contra el hilo, se traduce a una
+consulta, se valida, se ejecuta acotada al actor, se enmascara y se redacta. Hay
+superficie de usuario en `frontend/src/features/asistente/`.
+
+De las cinco épicas que esta tabla listaba como pendientes, cuatro están
+construidas y una sigue abierta de verdad:
+
+| Qué                                                          | Épica | Estado        |
+| ------------------------------------------------------------ | ----- | ------------- |
+| Enmascaramiento de columnas sensibles                        | E4    | Construida    |
+| Hilo conversacional, reescritor y detector de ambigüedad     | E5    | Construida    |
+| Carril determinista de API vía `Modules.<X>.Contracts`       | E6    | **Pendiente** |
+| `POST /api/asistente/consultas` y contrato de cuatro estados | E7    | Construida    |
+| Cuota por actor, circuit breaker y registros                 | E8    | Construida    |
+
+**E6 es la que falta, y no es un detalle de redacción.** `Modules.Asistente.Contracts`
+no tiene ningún `.cs`, y el enrutador determinista corre **en modo sombra**: decide
+y registra su decisión, pero el turno sigue por el carril SQL igual. Está declarado
+y argumentado en `openspec/changes/asistente-enrutador-de-dominio/design.md` (D2).
+
+No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
+tiene entidades propias — lee las de otros schemas y orquesta. Si algún día
+aparece un agregado que le pertenezca, se crea entonces.
+
+## La capa conversacional
+
+Va encima del carril, no adentro. `CarrilSql.ResponderAsync` ya recibía una pregunta
+autocontenida; la capa es quien la calcula.
+
+```
+CapaConversacional.ResponderAsync(actor, hilo, mensaje)
+  │
+  ├─ IAlmacenDeHilos        ──► hilo en memoria, TTL 2 h, atado al actor
+  │                             guarda PREGUNTAS y la CONSULTA que respondió,
+  │                             nunca filas
+  │
+  ├─ EnrutadorSocial        ──► CARRIL SIN DATOS · 0 tokens
+  │                             se SALTEA si hay aclaración pendiente
+  │
+  ├─ ReconocedorDeAclaracion──► etiqueta → token distintivo → ordinal · 0 tokens
+  │
+  ├─ DetectorDeCambioDeTema ──► al marcarlo, SUELTA el segmento
+  │                             (el reescritor queda sin historial que arrastrar)
+  │
+  ├─ ReescritorDePreguntas  ──► única llamada al modelo de la capa; solo con historial
+  │
+  ├─ DetectorDeAmbiguedad   ──► necesita_aclaracion · 0 tokens · un SELECT, no el modelo
+  │
+  └─ CARRIL SQL (abajo)
+```
+
+**El pivote se fuerza.** Al detectar cambio de tema no se le pide al modelo que
+ignore el historial: se suelta el segmento y el reescritor no recibe ninguno. Por
+eso el test del pivote no mira la salida del modelo, mira qué se le mandó.
+
+**«¿y en Sistemas?» no es un pivote**, aunque nombre una entidad que no está activa.
+Lo salva la guarda del marcador anafórico, que va antes que la de entidad.
+
+**El detector de ambigüedad no se extiende a la vaguedad.** Dispara solo ante una
+colisión verificada por consulta. Preguntar tiene un costo medido: las aclaraciones
+de calidad baja son peores que no preguntar.
+
+## El carril SQL
+
+Dos llamadas al modelo por turno y ocho piezas deterministas alrededor. La
+asimetría es deliberada: cada pieza determinista que se agrega al medio es una
+pieza que no puede alucinar.
+
+```
+CarrilSql.ResponderAsync(actor, mensaje, preguntaInterpretada)
+  │
+  ├─ IPerfilDelActor        ──► alcance global · acceso a datos personales
+  │                             (valida el actor: un oid de Azure falla acá)
+  │
+  ├─ GeneradorDeSql         ──► LLAMADA 1 · temperatura 0 · prefijo cacheado
+  │    ├─ IProveedorDeEsquema  prefijo estable, derivado de los GRANT efectivos
+  │    ├─ ISelectorDeEjemplos  ejemplos por similitud léxica, en el prompt de usuario
+  │    └─ IFechaDeReferencia   «hoy» como parámetro, nunca now()
+  │
+  ├─ ValidadorDeSql         ──► rechazo → no contestable, SIN reintento ciego
+  │
+  ├─ IEjecutorDeConsulta    ──► transacción nueva READ ONLY, actor transaction-local,
+  │                             LIMIT tope+1, fila sonda descartada
+  │                             clasifica cada columna por (OID, attnum) del motor
+  │                             42501 del motor → abstención, nunca error crudo
+  │
+  ├─ PoliticaDeAbstencion   ──► vacío + actor global → un reintento de generación
+  │                             vacío + actor acotado → respuesta SIN segunda llamada
+  │
+  ├─ Enmascarador           ──► FRONTERA DE SALIDA · lo que va al modelo va tapado,
+  │                             lo real sigue viaje al llamador
+  │
+  └─ RedactorDeRespuesta    ──► LLAMADA 2 · temperatura 0,3 · sin caché
+```
+
+### Las menciones «@materia» / «#docente» (design.md D10/D11 de asistente-rediseno-v3)
+
+`IBuscadorDeMenciones` (`Infrastructure/BuscadorDeMenciones.cs`) corre con la
+misma `AperturaDeLectura`/`PreambuloDelActor` que todo lo demás — rol básico,
+transacción `READ ONLY`, actor fijado — y nunca con la conexión dueña ni con un
+filtro de C# como única guardia: el alcance de materias lo decide
+`identity.asistente_materias_visibles()`, el de docentes la RLS de
+`designaciones.designaciones`. `GET /menciones` lo expone; `POST /consultas`
+revalida cada referencia del pedido con el mismo puerto **antes del candado**.
+
+El id de la entidad **nunca llega al modelo**. `MarcadoresDeReferencias.Asignar`
+numera un `$refN` por mención, continuando donde quedó el segmento;
+`GeneradorDeSql.ArmarMensaje` describe la entidad por nombre en un bloque
+«Menciones» que va DESPUÉS del prefijo cacheado (no lo toca —
+`PrefijoDeLosCassettesTests` sigue en pie sin regrabar nada); `ValidadorDeSql`
+tokeniza `$refN` como su propia clase y rechaza un marcador no declarado o uno
+declarado y sin usar; `ReescritorDeMarcadores`/`EjecutorDeConsulta` reescriben
+cada `$refN` a `@refN` y lo ligan como parámetro `uuid`. Los bindings se
+persisten en `asistente.turno_historico.referencias` para que «Volver a
+consultar» y «Reanudar» los vuelvan a ligar, revalidados contra el alcance
+actual. Ninguna columna que la búsqueda toca está clasificada `sensible-*` en
+el manifiesto (siguen abajo) — no hizo falta tocarlo. Detalle completo, con la
+revisión del manifiesto, en `docs/architecture/domains/asistente.md`.
+
+### La frontera de salida
+
+Los `GRANT` deciden quién puede **leer** qué. El enmascarador decide qué **sale
+hacia un tercero**, que es otra pregunta: un actor puede tener todo el derecho a
+ver un teléfono en pantalla y no haber ninguna razón para que llegue al proveedor.
+
+`database/asistente/manifiesto-sensibilidad.json` clasifica cada columna legible en
+`publica`, `sensible-valor` (al modelo va `«documento 1»`, el valor real va al
+llamador) o `sensible-texto` (se suprime la columna entera, nombre incluido).
+
+La columna se identifica por el par `(OID de tabla, número de atributo)` que emite
+el motor, **no por su nombre en el resultado**: ese nombre es el alias que eligió la
+consulta generada, y un `SELECT p.documento AS codigo` lo dejaría pasar entero.
+
+El marcador es un contador por orden de aparición, no un hash del valor: un hash de
+un documento se invierte por fuerza bruta en segundos.
+
+**Es asimétrico**: la pregunta cruda del usuario viaja al proveedor a través de la
+generación. Protege el camino de vuelta, no el de ida.
+
+El caso que el par no cubre —una expresión sobre una columna personal— está en
+TD-009.
+
+### Cómo se agrega un ejemplo al catálogo
+
+`Recursos/ejemplos-sql.json`, embebido como recurso del assembly. Cada entrada
+lleva `pregunta`, `sql` y `categoria`.
+
+Tres cosas se verifican solas al agregarlo:
+
+- la consulta **ejecuta** contra el esquema vigente (`CarrilSqlTests`);
+- la consulta **pasa el validador** (`SelectorDeEjemplosTests`) — un ejemplo que el
+  propio validador rechazaría le estaría enseñando al modelo a escribir consultas
+  que después se van a rechazar;
+- la huella del catálogo cambia, y con ella el sellado de los reportes de
+  evaluación.
+
+**Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
+son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
+ejemplos que ya vio — y como el catálogo de capacidades deriva sus sugerencias de
+acá, el asistente estaría proponiendo las preguntas con las que se lo evalúa.
+
+### Cuándo se recalcula el prefijo
+
+**Al reiniciar el proceso, y solo entonces.** El prefijo se construye la primera
+vez que alguien lo pide, se cachea por rol y no se invalida por su cuenta.
+
+Es deliberado. Un prefijo que se invalidara solo podría cambiar entre dos turnos
+consecutivos —lo que RNF-14 prohíbe— y cada invalidación pagaría escritura de
+caché a 1,25× en vez de lectura a 0,1× sobre el bloque más grande del prompt.
+
+Consecuencia operativa: **una migración que cambie el esquema exige reiniciar**.
+El despliegue ya lo hace. Y el hash del prefijo va sellado en cada reporte de
+evaluación, así que una corrida contra un esquema viejo queda registrada como tal.
+
+Los dos roles tienen prefijos distintos, con huellas distintas: el prefijo se
+deriva de los privilegios **efectivos** de cada conexión, no de una lista en el
+código.
+
+### Los valores de los catálogos cerrados
+
+El prefijo lleva, además del esquema, **los valores que existen** para un puñado
+de columnas de catálogo (`LectorDeValoresDeCatalogo`). No es cosmética: sin eso,
+un literal que el modelo arma con las palabras del usuario es una adivinanza.
+
+El caso que lo motivó: alguien preguntó por «ingeniería informática», el modelo
+copió esas palabras al `WHERE`, y la carrera se llama «Ingeniería **en**
+Informática». Cero filas con SQL válido — indistinguible de un dato que no
+existe, y ni el motor ni el validador pueden notarlo.
+
+Tres decisiones que conviene no deshacer sin leer:
+
+- **La lista de columnas se declara, no se detecta.** «Enumerar las tablas
+  chicas» funciona hoy y es una fuga mañana: el vocabulario viaja entero al
+  proveedor del modelo, y la tabla de ocho filas puede tener apellidos el mes que
+  viene. Hay un test que falla si alguien agrega una tabla fuera de las
+  admitidas.
+- **Una columna que pasa el tope se omite entera, no se recorta.** El prompt
+  afirma que los valores listados son _todos_; con una lista recortada esa
+  afirmación es falsa, y un valor que quedó afuera pasa a no existir para el
+  modelo — que se abstendría con total convicción.
+- **`identity.materias` queda afuera**, aunque sea lo que más se nombra en las
+  preguntas. No es un catálogo cerrado. Para ésas está la regla 8 del prompt:
+  comparar con `ILIKE` sobre la palabra distintiva en vez de con `=`.
+
+## Endpoints (superficie HTTP)
+
+- `GET /api/asistente/ping` — smoke test, `[AllowAnonymous]`. No toca la base ni
+  ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
+  «la base responde».
+- `POST /api/asistente/consultas` — un turno. Ver «El contrato de respuesta».
+- `GET /api/asistente/menciones` — busca materias o docentes dentro del alcance
+  del actor, para el popover «@materia»/«#docente». Ver «Las menciones» abajo.
+- `GET /api/asistente/capacidades` — ver «El catálogo de capacidades».
+- `POST /api/asistente/retroalimentacion` — califica un turno `respondida` (thumbs
+  - cero o más razones de un set cerrado de cuatro + un comentario libre acotado).
+    Ver «La retroalimentación».
+- `GET /api/asistente/historial` — lista (y busca en) las conversaciones propias
+  que no están pendientes de borrado, archivadas incluidas y marcadas.
+- `GET /api/asistente/historial/{id}` — el detalle de una conversación propia.
+- `PATCH /api/asistente/historial/{id}` — la renombra.
+- `POST /api/asistente/historial/{id}/archivar` — la archiva. `204`, `404` para ajena/inexistente.
+- `POST /api/asistente/historial/{id}/desarchivar` — la desarchiva. Mismo contrato.
+- `DELETE /api/asistente/historial/{id}` — la marca pendiente de borrado y devuelve
+  `200 { "loteDeBorrado": "<uuid>" }`. Ver «El historial: borrado diferido» más abajo.
+- `DELETE /api/asistente/historial` — marca TODAS las conversaciones propias
+  (archivadas incluidas) pendientes de borrado, con un lote nuevo; mismo `200`.
+- `POST /api/asistente/historial/borrados/{lote}/deshacer` — deshace un lote propio
+  dentro de su ventana. `204`, `404` si no existe, no es propio o venció.
+- `POST /api/asistente/historial/{id}/reanudar` — siembra un hilo efímero nuevo con
+  los turnos persistidos.
+- `POST /api/asistente/historial/turnos/{id}/reejecutar` — «volver a consultar»
+  un turno propio ya respondido, sin llamar al modelo.
+- `POST /api/asistente/soporte/historial/{actorId}/listar` — `asistente.leer_historial_ajeno`,
+  razón obligatoria en el cuerpo, audita antes de listar el historial de otro actor.
+- `POST /api/asistente/soporte/historial/{actorId}/{id}/leer` — idem, para una
+  conversación puntual.
+- `PATCH /api/asistente/administracion/mantenimiento` — prende/apaga el kill switch.
+  Razón obligatoria para prenderlo. Audita antes de responder.
+- `GET /api/asistente/administracion/uso` — panel de uso por usuario, por rol y
+  organizacional. Ver «Administración de uso» más abajo.
+- `PUT /api/asistente/administracion/presupuestos/roles/{rol}` — edita el cupo diario
+  default de un rol.
+- `PUT /api/asistente/administracion/presupuestos/usuarios/{actorId}` — edita el
+  override de cupo diario de un actor puntual.
+- `PUT /api/asistente/administracion/tope-organizacional` — edita el tope de gasto
+  mensual de la organización.
+
+Los siete primeros nuevos exigen `asistente.consultar`, igual que el turno; los dos de
+soporte exigen `asistente.leer_historial_ajeno` — un permiso propio, sembrado a ningún
+rol, que NO se deriva de tener admisión al asistente. Los cinco de administración
+exigen `asistente.administrar` — sembrado directamente a `sys_admin`, distinto de
+los dos anteriores. Ver «El historial de conversaciones y el acceso de soporte» y
+«Administración de uso» más abajo.
+
+### El contrato de respuesta
+
+`opciones` bloquea el turno esperando una elección, y sólo existe cuando `estado =
+necesita_aclaracion`. No hay un campo equivalente para después de una respuesta o un
+rechazo: el asistente ya no sugiere próximos pasos fuera de la bienvenida (ARS-149,
+design.md D12 de asistente-rediseno-v3) — el catálogo de `/capacidades` sigue siendo
+la única fuente de ejemplos clicables, y vive ahí, no en el turno.
+
+`estado` viaja con etiquetas propias del contrato (`respondida`, `no_contestable`,
+`necesita_aclaracion`, `servicio_degradado`) y no con el nombre del enum: renombrarlo
+adentro no puede romper a los clientes en silencio.
+
+`metricas.categoria` es más fina que `estado`. Una generación cortada por el techo de
+tokens llega como `no_contestable` con el mismo texto que una abstención, pero con
+`categoria = truncado_en_generacion`: el registro operativo guarda el estado y ve una
+abstención más; el analítico guarda la categoría y las distingue. Es lo que le permite
+al evaluador no acreditar como abstención correcta un turno en que el modelo no
+decidió nada.
+
+`sql` solo viaja con `asistente.ver_consulta`, y el chequeo está donde se arma la
+respuesta —no en el controller—, para que cualquier camino nuevo lo herede.
+
+`claveDeRetroalimentacion` viaja solo cuando `estado = respondida`: es la propia id
+del turno en `registro_analitico`, generada por la aplicación y no por el `DEFAULT`
+de la columna, para que sea el mismo valor que el escritor del registro usa después.
+Ver «La retroalimentación».
+
+`conversacion` es `hilo_historico.id` en el que este turno quedó registrado (design.md
+D13 de asistente-rediseno-v3), nulo si la escritura del historial falló o el turno
+terminó en `Fallo`. El rail lo usa para resaltar la fila activa y titular el
+encabezado; nunca viaja junto a `claveDeRetroalimentacion` ni al registro analítico.
+
+### Editar y reenviar la última pregunta (design.md D9 de asistente-rediseno-v3)
+
+`ConsultaDelAsistente.Reemplaza` manda el identificador del turno que este turno
+reemplaza: la propia `Idempotency-Key` de un turno vivo, o el `turno_historico.id` de
+uno restaurado por «Reanudar». Ausente en un turno nuevo cualquiera. Se honra **solo**
+si nombra el último turno vigente del hilo del actor — si no, `409 Conflict` y **nada
+cambia**: ni el hilo, ni el historial, ni el cupo, así que un reintento con un
+objetivo válido es seguro. Sobre éxito, la nueva pregunta se resuelve contra la misma
+foto de contexto que tenía la reemplazada (segmento y aclaración pendiente
+snapshoteados antes de ese turno), pisa el turno viejo en el hilo efímero, revoca su
+`claveDeRetroalimentacion` (que pasa a rechazarse como un token desconocido) y
+reemplaza su fila de `turno_historico` en una sola transacción — el historial conserva
+sólo la versión final, sin contador de versiones. El título de la conversación
+**no cambia** por un reemplazo. Para el cupo, la idempotencia y la exclusión de turno
+concurrente, un reemplazo es un turno como cualquier otro: se cobra una sola vez.
+
+### La retroalimentación
+
+Thumbs + cero o más razones (de cuatro: datos incorrectos, no entendió la pregunta,
+faltan datos, otro, sin repetidas) + un comentario libre opcional (hasta 500
+caracteres, recortado, vacío después de recortar se guarda como ausente), ligado
+solo a `claveDeRetroalimentacion` — nunca al actor. El motivo retirado `lento`
+(asistente-rediseno-v3, design.md D7, PO-changed 2026-09-26) se removió del todo:
+nada shippeó a producción con esa razón, así que no hay ninguna fila que preservar;
+se rechaza con `400` igual que cualquier otro valor desconocido. El comentario nunca
+se loguea, nunca viaja al proveedor del modelo y no tiene superficie de lectura en
+ninguna pantalla — ver la adenda de TD-012 en `docs/quality/tech-debt.md`.
+
+**Autorización por posesión del token, no por identidad.** El analítico no tiene
+columna de actor a propósito (TD-012), así que «solo el autor califica» no se puede
+verificar comparando actores. El token es un UUID aleatorio devuelto una sola vez;
+una vigencia de 120 minutos en memoria —`Asistente__VigenciaDeRetroalimentacionMinutos`,
+mismo criterio que `IIdempotencia`— lo vence; y el endpoint sigue exigiendo
+`asistente.consultar`. Un token vencido y uno inventado responden el mismo `404`.
+
+Es un upsert: `INSERT ... ON CONFLICT (analitico_id) DO UPDATE`, una fila por turno,
+sin historial de votos previos.
+
+**El logging no reabre el cruce un piso más arriba.** El evento del turno nombra al
+actor y nunca el token de retroalimentación; el evento de este endpoint nombra el
+token y nunca al actor.
+
+### La idempotencia
+
+En memoria, acotada por **(actor, clave)** y con expiración corta. La clave sola
+alcanzaría para el doble clic y sería un canal de fuga: dos usuarios que manden la misma
+—cosa que pasa, los clientes generan claves y nada garantiza que no colisionen—
+compartirían respuesta, y el segundo recibiría datos calculados con el alcance del
+primero.
+
+No se reusa ni se copia `designaciones.idempotencia_comandos`: guarda el `response_body`
+completo, que es exactamente lo que este módulo decidió no persistir.
+
+### El historial: archivar y borrado diferido
+
+(asistente-rediseno-v3, design.md D3/D4 de asistente-historial-conversaciones).
+
+**Archivar** es un timestamp nulable (`hilo_historico.archivada_en`) que no toca
+`ultima_actividad`: la retención de 180 días sigue contando igual. `RegistroDeHistorial`
+lo limpia solo al escribir un turno nuevo — una conversación archivada retomada se
+desarchiva sola.
+
+**Borrar es diferido.** `DELETE` marca `borrado_pendiente_desde`/`lote_de_borrado` y
+devuelve el lote; no ejecuta ningún `DELETE` de SQL. Toda consulta propia
+(`IConsultasDeHistorial`) filtra `borrado_pendiente_desde IS NULL`, así que una
+conversación pendiente desaparece de inmediato para su dueño, aunque siga existiendo en
+la fila. `POST .../borrados/{lote}/deshacer` limpia esas dos columnas si el lote es
+propio y `borrado_pendiente_desde` es más reciente que
+`Asistente__VentanaDeDeshacerSegundos` (default 15 = los 10 s que la interfaz muestra
+«Deshacer» + 5 s de margen de red); vencida, ajena o desconocida responden el mismo
+`404`.
+
+**La finalidad física, no depende del cliente.** `BarridoDeBorradosPendientes`
+(`BackgroundService`, mismo patrón que `ServicioDePurga`) corre cada
+`Asistente__PeriodoDeBarridoDeBorradosSegundos` (default 60) y ejecuta el `DELETE` real
+de lo que superó la ventana — la cascada se lleva los turnos. `PurgaDeRegistros` corre
+la misma sentencia como red diaria, para el despliegue donde ese servicio no llegó a
+correr.
+
+**Soporte ve un poco más que el dueño.** `IConsultasDeAuditoriaDeSoporte` no filtra
+`borrado_pendiente_desde IS NULL` sino `IS NULL OR > ahora - la misma ventana`: una
+conversación pendiente sigue visible, marcada, hasta que la ventana cierra — después,
+invisible ahí también.
+
+### El catálogo de capacidades
+
+Scoped, con la caché singleton al lado. Los alcances no son intercambiables: el catálogo
+depende de `IPerfilDelActor`, que resuelve al actor del turno, y un catálogo singleton
+capturaría el perfil del primer actor que consultara. El contenedor rechaza esa
+registración al arrancar, y hace bien.
+
+Lo que sí sobrevive al request es el resultado de leer el catálogo de PostgreSQL, y eso
+vive en `CacheDeCapacidades`, indexado por **rol**: hay exactamente dos variantes y los
+`GRANT` no cambian en runtime.
+
+`Presentacion` queda **fuera** de esa caché, como el alcance: es del actor y no del rol de
+lectura, así que cachearla le devolvería a todos la del primero.
+
+### La única lectura de rol del módulo
+
+`PresentacionPorRol` elige la línea con que el asistente se presenta —por qué cosas suele
+venir a preguntar este usuario— a partir del código de rol que `ConsultorDeAlcance` lee de
+`identity.user_roles`.
+
+Es la única pieza que nombra códigos de rol, y las funciones de `identity` explican por qué
+el resto no lo hace: `identity.roles` no es un catálogo cerrado —Secretaría crea roles desde
+la aplicación— así que una lista embebida **falla ABIERTA**, dejando pasar por default a
+cualquier rol que nadie evaluó. Esa regla protege la **autorización**, y sigue intacta: nada
+de lo que decide el consultor —alcance, datos personales, ver la consulta— mira este valor.
+
+Acá el rol elige un saludo. El modo de falla es el opuesto y es inocuo: un rol que la tabla
+no conoce cae a la presentación genérica, que no promete nada que el asistente no haga.
+
+**Un actor con varios roles recibe la genérica**, sin tabla de precedencia. Decidir que
+«secretaria gana a jefe_catedra» sería inventar una jerarquía que nadie pidió con el único fin
+de elegir un texto. La regla entera es: un solo rol vigente y conocido, su texto; cualquier
+otro caso, el genérico.
+
+`RedaccionDeCapacidades` —la respuesta a la meta-pregunta, que cuesta cero tokens— abre con
+esa misma presentación. Las dos superficies contestan «¿qué podés hacer?», y que se
+contradijeran sería el defecto más visible de las dos.
+
+## Proveedor del modelo
+
+`IProveedorDeModelo` (en `Application/`) es la interfaz propia detrás de la cual
+vive el proveedor de LLM. No menciona ningún proveedor: `PrefijoEstable`,
+`Mensaje`, `Temperatura` y `MaximoDeTokens` de ida; texto y conteo de tokens de
+vuelta.
+
+El `switch` de `ModuleExtensions` **es el registro de adaptadores** y la selección
+va por ambiente (`Asistente:Proveedor`):
+
+| Clave       | Implementación       | Cuándo                                                |
+| ----------- | -------------------- | ----------------------------------------------------- |
+| `simulado`  | `ProveedorSimulado`  | Default de todos los ambientes. Determinista, sin red |
+| `anthropic` | `ProveedorAnthropic` | Requiere `Asistente:ClaveDelProveedor`                |
+
+Sumar uno nuevo —otro proveedor, o un modelo propio corriendo en la nube— es una
+clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline que
+rehacer, y los dos conviven en la misma compilación con ambientes distintos
+eligiendo uno u otro.
+
+El default es el simulado y usar uno real exige configuración explícita. El motivo
+no es estilístico: los ambientes efímeros de PR no pueden tener clave real, porque
+su workflow hace checkout del head del pull request y ejecuta un script que viene de
+ese mismo PR, en un job con los secrets del environment.
+
+La respuesta simulada se identifica como tal en la bandera `EsSimulada` **y** en el
+texto. Un proveedor de mentira que devolviera algo verosímil sería peor que uno que
+falla: la métrica del asistente es corrección con abstención.
+
+### Configuración del adaptador real
+
+| Variable                           | Default           | Qué decide                                    |
+| ---------------------------------- | ----------------- | --------------------------------------------- |
+| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                   |
+| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado |
+| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                    |
+| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta           |
+| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español           |
+| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento     |
+
+**Los esfuerzos son tres y no uno, y el motivo es de latencia.** Con un valor
+global, la redacción deliberaba antes de escribir la primera palabra: para quien
+preguntó eso es espera pura, porque las filas ya estaban. Medido sobre una corrida
+completa de los cuatro ejes, separarlos bajó el p95 de 9,4 s a 6,7 s **sin mover
+ninguno de los cuatro puntajes**.
+
+La generación se queda en `medio` a propósito: elegir el join correcto entre
+catorce tablas es el trabajo que sí mejora deliberando, y es la llamada donde
+equivocarse produce una respuesta falsa.
+
+Valores aceptados: `minimo`, `bajo`, `medio`, `alto`, `maximo`. Uno mal escrito
+falla al resolver el proveedor y nombra cuál de los tres es.
+
+**Por qué esos dos defaults.** El esquema que el modelo maneja es chico —catorce
+tablas, poco más de cien columnas— y ése es el factor que más pesa en traducir
+preguntas a SQL, así que Opus no se paga. Hacia abajo tampoco conviene: Haiku 4.5
+no acepta el parámetro de esfuerzo (cada llamada volvería `400`) y su retiro está
+anunciado para no antes de octubre de 2026.
+
+El esfuerzo va en `medium` por costo **y** por un riesgo concreto: los modelos
+actuales piensan por defecto, esos tokens se facturan como salida y cuentan contra
+el techo de la llamada (`MaximoDeTokensDeGeneracion`). Con esfuerzo alto el modelo
+puede gastar el presupuesto pensando y cortar el JSON antes de cerrarlo. Para el
+usuario eso es «no pude interpretar la pregunta», el mismo texto que una abstención
+genuina (RNF-18: nada de presupuestos ni de formatos), pero **ya no se confunde con
+una**: cuando el proveedor declara que paró por presupuesto y el objeto no se puede
+interpretar, el turno sale con `categoria = truncado_en_generacion`, y el evaluador
+lo cuenta aparte —ni acierto ni abstención—. Si esa fila aparece en el reporte, el
+techo es lo que hay que subir. Ya no es una hipótesis que se infiere de abstenciones
+sin explicación: se mide.
+
+Las dos elecciones se confirman o se corrigen con una corrida del evaluador, que
+para eso existe. Cambiar de modelo entre corridas es una variable de ambiente.
+
+Para levantarlo en desarrollo con clave real, exportándola en la terminal:
+
+```bash
+export Asistente__Proveedor=anthropic
+export Asistente__ClaveDelProveedor=...
+dotnet run --project backend/src/ArsDocendi.Host
+```
+
+Faltando la clave, el Host **arranca igual** y el ping responde: el error llega
+recién a quien pida el proveedor, y nombra el valor que falta. Un ambiente a medio
+configurar tiene que poder levantar.
+
+#### La clave desde el `.env` del proyecto
+
+Exportar a mano cansa y se olvida entre terminales, así que en **Development** el
+Host suma el `.env` de la raíz del repositorio como una fuente más de
+configuración (`ArchivoDeEntorno`, en el Host). Las mismas dos líneas de arriba,
+sin el `export`:
+
+```dotenv
+Asistente__Proveedor=anthropic
+Asistente__ClaveDelProveedor=sk-ant-...
+```
+
+Es el mismo archivo que ya lee `docker compose`, y `.gitignore` lo excluye desde
+antes de que esto existiera.
+
+Tres propiedades que hacen que esto no sea un agujero, y que están cubiertas por
+`ArchivoDeEntornoTests`:
+
+- **Sólo en Development.** En los ambientes desplegados la credencial la inyecta
+  `infra/scripts/spin-up.sh` y no hay ningún `.env` que leer; un lector activo
+  allá sería un segundo camino hacia la credencial, más débil y preferido en
+  silencio si alguien deja un archivo olvidado. Staging queda afuera aunque no
+  sea producción, por lo mismo.
+- **Las variables de ambiente reales le ganan al archivo.** Un `export` en la
+  terminal sigue mandando. Al revés, un `.env` viejo pisaría lo que alguien acaba
+  de exportar para probar, y eso se ve como «el cambio no tomó».
+- **Nunca se registra un valor.** El log de arranque nombra la ruta y la cantidad
+  de claves, nada más.
+
+**El archivo NO puede elegir el ambiente.** `ASPNETCORE_ENVIRONMENT` se resuelve
+antes de que esta fuente exista, así que la línea que el `.env.example` trae para
+la sección de deploy no tiene efecto acá — y no podría tenerlo, porque el lector
+se apaga justamente fuera de Development.
+
+### Los cassettes del proveedor
+
+Graban el cuerpo **crudo** de la respuesta del proveedor y lo vuelven a servir
+desde disco, con el mismo criterio que cualquier suite de fixtures VCR: si el
+cassette existe y la variable de re-grabación no está, se lee del disco; si no
+está, se llama a la API real y se graba.
+
+| Variable                           | Default | Qué decide                                                            |
+| ---------------------------------- | ------- | --------------------------------------------------------------------- |
+| `Asistente__DirectorioDeCassettes` | vacío   | Dónde viven los cassettes. **Vacío apaga el mecanismo entero**        |
+| `Asistente__RegrabarCassettes`     | vacío   | Cualquier valor no vacío permite salir a la red a grabar lo que falte |
+
+**Con el directorio vacío el handler ni siquiera se registra**, así que el
+pipeline del cliente HTTP queda idéntico al de antes de que el mecanismo
+existiera: producción no paga nada y no hay nada que se pueda misconfigurar. La
+única forma de encenderlo es escribir una ruta.
+
+**Con una ruta puesta y sin la variable de re-grabación, una llamada sin cassette
+falla y NO sale a la red.** Es lo que hace imposible que el CI gaste plata por
+este camino (RNF-15, RNF-16): el handler lanza sin invocar hacia adentro, y el
+error nombra la clave que faltó y el directorio donde se la buscó.
+
+**Con el cassette presente no se re-graba**, aunque la variable esté puesta.
+Re-grabar es una operación deliberada sobre las claves que faltan, no un modo en
+que cada corrida vuelva a pagar por respuestas que ya están en disco.
+
+Cada cassette lleva un sello con el modelo, la fecha, el hash del prefijo y el
+hash del fixture contra el que se grabó. Uno cuyo sello no corresponda al prefijo
+o al fixture vigentes **se rechaza en vez de servirse**: la respuesta que guarda
+la dio el modelo sobre otro esquema o sobre otros datos.
+
+> **Un cassette prueba el parseo, no la calidad.** Congela una respuesta, no la
+> competencia del modelo: lo que estos tests cubren es que
+> `GeneradorDeSql.Interpretar`, el redactor y el reescritor sepan leer lo que un
+> modelo real devolvió. Si la traducción es buena o mala lo mide el evaluador, y
+> nada de esto lo reemplaza.
+
+Los cassettes versionados viven en
+`backend/tests/ArsDocendi.IntegrationTests/Cassettes/`, con el nombre de su clave.
+Los tests de parseo **iteran el directorio**: agregar uno suma un caso sin tocar
+ningún archivo de test, y un directorio vacío falla en vez de pasar en verde con
+cero cobertura. Se clasifican por el hash del prefijo del sello, que las tres
+llamadas del pipeline tienen distinto.
+
+Los que hay hoy se grabaron contra el transporte que impersona la API, para que el
+mecanismo tenga con qué probarse. **Los cassettes de salida real del modelo llegan
+con la primera corrida financiada del evaluador, que bloquea ARS-67 y que este
+trabajo no incluye**: lo que se entrega acá es el mecanismo, probado punta a punta
+sin clave. Ver [`backend/eval/README.md`](../../eval/README.md).
+
+Lo que la fixture congelada **no** detecta —un cambio de formato de cable del
+proveedor, que dejaría los tests en verde mientras la API real devuelve otra cosa—
+está registrado como **TD-017**.
+
+### Levantar el asistente entero en local
+
+El asistente es el único módulo que necesita **dos roles de PostgreSQL extra**, y
+esos roles no los crea ninguna migración: tienen que existir antes, porque las
+migraciones les conceden privilegios. Los crea `infra/scripts/provision-db.sh`,
+que corre `psql` en un contenedor efímero adjunto a la red `arsdocendi-datos`.
+
+Verificado de punta a punta con el ambiente `pr-25`:
+
+```bash
+# 1. Postgres y la red que los scripts esperan
+docker network create arsdocendi-datos
+docker run -d --name arsdocendi-local --network arsdocendi-datos \
+  -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+  -p 55432:5432 postgres:18-alpine
+
+# 2. Base + los tres roles (app, asistente básico, asistente con PII)
+PGHOST=arsdocendi-local PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres \
+APP_DB_USER=app_pr_25 APP_DB_PASSWORD=... \
+ASISTENTE_RO_PASSWORD=... ASISTENTE_RO_PII_PASSWORD=... \
+  infra/scripts/provision-db.sh pr-25
+
+# 3. Migraciones de los cinco módulos, incluidos los GRANT del asistente
+ConnectionStrings__ArsDocendi="Host=localhost;Port=55432;Database=arsdocendi_pr_25;Username=app_pr_25;Password=..." \
+Asistente__RolSoloLectura=asistente_ro_pr_25 \
+Asistente__RolSoloLecturaPii=asistente_ro_pii_pr_25 \
+Asistente__PasswordSoloLectura=... Asistente__PasswordSoloLecturaPii=... \
+  dotnet run --project backend/src/ArsDocendi.Host -- --migrate
+
+# 4. Datos sintéticos
+PGHOST=arsdocendi-local PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres \
+  infra/scripts/seed.sh pr-25
+
+# 5. El Host, con identidad de desarrollo
+ASPNETCORE_ENVIRONMENT=Development DevelopmentAuthentication__Enabled=true \
+  <las mismas variables del paso 3> \
+  dotnet run --project backend/src/ArsDocendi.Host --no-launch-profile
+
+# 6. El frontend, que llega a la API por el proxy de Vite
+VITE_API_PROXY_TARGET=http://localhost:5099 pnpm --filter frontend dev
+```
+
+Dos cosas que cuestan una tarde si no están escritas:
+
+- La sección de la identidad de desarrollo es `DevelopmentAuthentication`, no
+  `AutenticacionDesarrollo`. Con el nombre equivocado el flag queda en `false`,
+  no se registra ningún esquema de autenticación, y **todo endpoint protegido
+  responde 500 en lugar de 401** — el error no dice que falte configuración.
+- El navegador tiene que hablar con el mismo origen. El Host no declara CORS y no
+  tiene por qué: en los ambientes desplegados Traefik publica la API bajo `/api`
+  en el mismo host. En desarrollo eso lo resuelve el proxy de `vite.config.ts`.
+
+### Qué absorbe el adaptador, y por qué eso es su trabajo
+
+- **La temperatura no viaja.** Los modelos Claude actuales la rechazan con 400. El
+  puerto la conserva porque otros proveedores sí la usan; el determinismo del
+  carril SQL se pide por instrucción del prefijo y por `Esfuerzo`.
+- **El prefijo va marcado para cachear.** Es el bloque más grande del prompt y se
+  repite idéntico turno a turno. Sin la marca nada falla: el ahorro simplemente no
+  ocurre, y solo se nota en la factura.
+- **El adaptador no reintenta.** El SDK lo hace por defecto; se apaga. El reintento
+  vive en `ReintentoDeTransporte`, y con los dos encendidos el peor caso documentado
+  de un turno pasaría de 12 requests a 36 sin que nada falle.
+- **Ninguna excepción del SDK sale de él.** `ProveedorConBreaker` cuenta dos formas
+  de fallo —su propia cancelación y `HttpRequestException`— y cualquier otra lo
+  atraviesa sin contarse. Un tipo del SDK que se escapara haría que el corte no
+  abriera nunca.
+
+Un test de arquitectura fija que el SDK se nombre en **un solo archivo**. Es lo que
+hace verificable —y no meramente intencional— la promesa de que el puerto es
+agnóstico.
+
+## Reintento y techo de llamadas
+
+Dos cotas explícitas, y explícitas porque **se multiplican**:
+
+| Cota                               | Default | Dónde                        |
+| ---------------------------------- | ------- | ---------------------------- |
+| Llamadas al modelo **por turno**   | 4       | `ContadorDeLlamadasDelTurno` |
+| Intentos de transporte por llamada | 3       | `ReintentoDeTransporte`      |
+
+Peor caso de un turno: `4 × 3 = 12` requests HTTP. El número se puede decir en voz
+alta justamente porque las dos cotas están escritas.
+
+El techo de llamadas es **global del turno, no por capa**. Repartido por capa, cada
+una respeta su límite y el total se multiplica igual — que es el modo de falla del
+que este requisito nace. Lo aplica un decorador sobre `IProveedorDeModelo`, así que
+ninguna capa puede saltearlo sin dejar de usar el proveedor.
+
+El reintento de transporte va como `DelegatingHandler` del cliente HTTP, con
+backoff exponencial y **jitter completo**, y honra `retry-after` cuando viene. No
+reintenta ningún `400` —incluido el del límite de gasto: reintentar un rechazo por
+presupuesto agotado gasta presupuesto que ya no hay— ni `401`/`403`, porque una
+credencial no se arregla esperando.
+
+Un reintento de transporte ocurre **dentro** de una llamada y no consume cupo del
+turno: para eso tiene su propio máximo de intentos.
+
+## Presupuesto, degradación y registros
+
+### Configuración
+
+| Opción                                     | Default | Qué acota                                                                        |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------- |
+| `MaximoDeLlamadasPorTurno`                 | 4       | Llamadas al modelo de un turno, global y no por capa                             |
+| `MaximoDeIntentosDeTransporte`             | 3       | Intentos de red **dentro** de una llamada                                        |
+| `PresupuestoDelTurnoSegundos`              | 150     | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota                 |
+| `TimeoutDeLlamadaSegundos`                 | 60      | Una llamada al proveedor                                                         |
+| `FallosParaAbrirElBreaker`                 | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker                    |
+| `EsperaDelBreakerSegundos`                 | 30      | Cuánto espera antes de probar de nuevo                                           |
+| `RetencionDeRegistrosDias`                 | 90      | Cuánto viven las filas de los dos registros                                      |
+| `RetencionDeHistorialDias`                 | 180     | Cuánto vive una conversación propia, desde su última actividad                   |
+| `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
+| `RetencionDeAuditoriaDeAdministracionDias` | 365     | Cuánto vive un registro de auditoría de administración (§ Administración de uso) |
+| `PeriodoDePurgaHoras`                      | 24      | Cada cuánto corre la purga                                                       |
+| `VentanaDeDeshacerSegundos`                | 15      | Cuánto sigue pendiente un borrado y se puede deshacer                            |
+| `PeriodoDeBarridoDeBorradosSegundos`       | 60      | Cada cuánto corre el barrido que purga físicamente lo vencido                    |
+
+**Un turno que se cae deja fila.** La cuota se cobra en un `finally` —un fallo no puede
+ser una forma de consultar gratis—, así que el registro tiene que cobrar en el mismo
+lugar: una excepción no prevista escribe una fila con carril y estado `Fallo` y las
+llamadas que alcanzó a emitir, y después se relanza. Quien llamó sigue viendo la
+excepción; el contrato HTTP no cambia, y de hecho `Fallo` **no tiene nombre en el
+contrato**: el mapeo del estado revienta si se le pide uno, que es lo que garantiza que
+no se filtre como un quinto estado a los clientes.
+
+**Las dos cotas de tiempo subieron con los modelos que razonan.** El presupuesto del
+turno pasó de 30 s a 150 y el timeout por llamada de 20 s a 60: el razonamiento ocurre
+**antes** del primer token de la respuesta, así que una generación que antes tardaba
+segundos ahora puede tardar decenas. Con los valores viejos el corte llegaba antes que
+la respuesta y el turno degradaba como si el proveedor estuviera caído. Son techos, no
+esperas: un turno que resuelve rápido no paga nada porque el techo sea alto.
+
+Esta tabla la verifica `OpcionesDocumentadasTests` contra `new OpcionesAsistente()`. Un
+default que se mueve sin tocar acá falla el CI, por el mismo criterio con que
+`manifiesto-privilegios.json` se compara contra los privilegios efectivos: un valor
+operativo documentado es un dato verificado, no prosa.
+
+El cupo por actor dejó de ser una opción de esta tabla (asistente-administracion-de-uso):
+ahora es persistente, en `asistente.presupuesto_rol`/`presupuesto_usuario` — ver
+§ Administración de uso, más abajo. En desarrollo y en los ambientes efímeros conviene
+dejar esas filas en cero (el default con que se siembran): el proveedor es el simulado
+y no cuesta nada.
+
+### El orden de los decoradores
+
+```
+ProveedorConTechoDeLlamadas   ← techo del turno
+  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
+       └─ proveedor real
+```
+
+De afuera hacia adentro, de más barato a más caro. Invertir los dos primeros haría
+que el breaker registrara intentos que el techo iba a rechazar igual, y un solo turno
+desbocado terminaría abriendo el corte para todos los demás.
+
+**La cuota no está en esta cadena.** La cobra `CapaConversacional` en un `finally`,
+con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor, y
+meterla acá exigiría un objeto de request mutable con el actor adentro, leído por
+capas que no lo declaran.
+
+### Qué sigue funcionando sin proveedor
+
+Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de modelo **no
+corta el turno**. El veredicto se resuelve una vez, antes de empezar, y se consulta
+solo en el reescritor y al delegar en el carril SQL.
+
+Con el corte abierto, el cupo agotado, el tope organizacional agotado o el
+mantenimiento activo: un saludo responde con cero llamadas, una pregunta
+ambigua devuelve su menú, y la respuesta a un menú abierto se reconoce. Solo
+una pregunta que exige generar una consulta termina en servicio degradado.
+
+### Administración de uso
+
+(asistente-administracion-de-uso; detalle completo en
+[docs/architecture/domains/asistente.md § Presupuesto y degradación](../../../docs/architecture/domains/asistente.md)).
+
+Cuatro piezas nuevas, todas gated por `asistente.administrar` (sembrado
+directamente a `sys_admin`, migración `020_identity_permiso_administrar.sql`):
+
+- **Cupo persistente por actor** (`CuotaPersistente`, reemplaza a
+  `CuotaEnMemoria`): turnos/día calendario UTC, con default por rol y override
+  por usuario, derivado contando `registro_operativo` en vez de un contador
+  propio.
+- **Tope organizacional** (`PresupuestoOrganizacionalPersistente`): USD
+  estimados por mes, vía `CalculadoraDeCosto` contra `tabla_de_precios`,
+  acumulado en `consumo_organizacional_mensual`.
+- **Turno exclusivo del actor** (`CandadoDelTurno`): advisory lock de sesión
+  de Postgres, en una conexión dedicada sin pool.
+- **Modo mantenimiento** (`DisponibilidadDelModuloReal`, puerto
+  `IDisponibilidadDelModulo`): kill switch persistido, sin caché de proceso,
+  con bypass del admin decidido por el llamador.
+
+Cada edición de presupuesto y cada toggle de mantenimiento se audita en
+`asistente.auditoria_administracion` (append-only, `IAuditoriaDeAdministracion`),
+con retención propia (`RetencionDeAuditoriaDeAdministracionDias`, default 365).
+El panel de uso (`GET /api/asistente/administracion/uso`) agrega
+`registro_operativo` — nunca `registro_analitico` — por usuario, por rol y
+organizacional, con nombres resueltos vía `IConsultasIdentity`, nunca
+`usuarios.ver`.
+
+## El enrutador en sombra y cómo se lo mide
+
+`EnrutadorDeDominio` corre en **modo sombra**: decide en cada turno y el turno sigue
+por el carril SQL igual. No hay a dónde enrutar hasta que existan los edges hacia los
+`Contracts` (ARS-46) y los adaptadores de respuesta. Detalle del pipeline y del
+catálogo en
+[domains/asistente.md](../../../docs/architecture/domains/asistente.md#el-enrutador-y-el-modo-sombra).
+
+Está cableado igual porque ese pedido de aprobación se fundamenta con un número, y el
+número no existe si la decisión no se toma nunca. La decisión va a
+`asistente.registro_operativo.intencion_sombra`: el nombre de la intención del
+catálogo, o nulo si ninguna capturó la pregunta. **Nulo es el caso normal**, no un
+dato faltante.
+
+### La cobertura sobre tráfico real
+
+```sql
+SELECT count(*) FILTER (WHERE intencion_sombra IS NOT NULL) AS capturados,
+       count(*)                                             AS turnos,
+       round(100.0 * count(*) FILTER (WHERE intencion_sombra IS NOT NULL)
+             / nullif(count(*), 0), 1)                      AS cobertura_pct
+  FROM asistente.registro_operativo
+ WHERE ocurrido_en >= now() - interval '30 days';
+```
+
+Y el desglose, que es lo que dice **cuál** de las cinco intenciones vale la pena
+conectar primero:
+
+```sql
+SELECT coalesce(intencion_sombra, '(ninguna)') AS intencion,
+       count(*)                                AS turnos
+  FROM asistente.registro_operativo
+ WHERE ocurrido_en >= now() - interval '30 days'
+ GROUP BY 1
+ ORDER BY turnos DESC, intencion;
+```
+
+> **`carril` e `intencion_sombra` no responden la misma pregunta.** `carril` es la
+> ruta **real** por la que se resolvió el turno; `intencion_sombra` es la que **se
+> habría** tomado. Un turno capturado se resuelve igual por SQL, y también puede
+> terminar en `Aclaracion` o en `Fallo` sin dejar de haber sido capturado. Agrupar por
+> `carril` para contar capturas devuelve un número, y ese número está mal.
+
+### La tabla dorada: el mismo número sin esperar tráfico
+
+El resolutor es determinista y cuesta cero llamadas al modelo, así que se lo corre
+sobre los datasets de evaluación y se obtiene la cota que se puede tener hoy.
+[`tabla-dorada-enrutador.json`](../../tests/ArsDocendi.IntegrationTests/Asistente/tabla-dorada-enrutador.json)
+fija una entrada por ítem de `capacidad.json` y `robustez.json` con la intención que
+captura o nulo, más el bloque `cobertura` con el número —hoy **0 de 39**—.
+
+Mide dos cosas. **Cobertura**: cuántos ítems del corpus captura el catálogo.
+**Consistencia de fraseo**: cada ítem de `robustez.json` declara su `origen` en
+`capacidad.json`, y como es la misma pregunta dicha de otra manera, el enrutador tiene
+que decidir lo mismo para las dos; una divergencia es un error suyo, medible sin
+tráfico. Lo que **no** afirma es que la intención capturada sea la correcta para la
+pregunta: los datasets llevan `sql_referencia`, no una intención esperada.
+
+**Se regenera a mano y nunca como efecto de correr el test.** Si regenerar fuera
+automático, una intención demasiado laxa se absorbería sola en el primer commit que la
+causara. Cuando el test falla, dice el ítem y la dirección: `nulo → intención` es
+posible laxitud —se revisa la intención, no el dataset— y `intención → nulo` es una
+captura perdida. Se edita la entrada, y el diff del archivo es lo que se revisa. Es la
+disciplina que [`backend/eval/lineas-de-base/README.md`](../../eval/lineas-de-base/README.md)
+ya documenta para el gate de regresión.
+
+**El número offline no es el número del tráfico real**, y no pretende serlo: el corpus
+se escribió para medir traducción a SQL, no para parecerse a la demanda. Da la línea de
+base contra la que comparar la del tráfico cuando la haya, y el pedido de ARS-46 tiene
+que citar las dos diciendo cuál es cuál.
+
+### Qué pasa con la columna cuando ARS-46 se apruebe
+
+**No se borra ni se renombra: pasa a registrar la intención que sí enrutó.** Borrarla
+partiría la serie justo en el momento en que se vuelve interesante, porque comparar el
+antes con el después es la única forma de saber si la sombra predijo bien. Y un
+`RENAME` es un `ALTER`, que el guard del DDL prohíbe, y además rompería toda consulta
+escrita contra la serie que la columna existe para preservar.
+
+Corolario aceptado: después del cutover el nombre miente un poco. Lo que se actualiza
+es su `COMMENT ON COLUMN`.
+
+## Conexiones
+
+El módulo registra `CadenaSoloLectura` y `CadenaSoloLecturaPii`, derivadas de la
+`CadenaDuena` con los roles y contraseñas de la sección `Asistente`. Ver
+[data-model.md → Cadenas tipadas](../../../docs/architecture/data-model.md).
+
+Cuál de las dos usa un turno lo decide `IPerfilDelActor`: la de datos personales
+exige alcance global **además** del permiso. La política de la aplicación es la
+puerta, pero los endpoints de docentes acotan los datos por separado en el
+controller; sin la conjunción, el asistente heredaría la puerta sin el acotamiento,
+y como `identity.personas` no tiene RLS, un jefe de cátedra leería documento y
+teléfono de todo el padrón.
+
+## Evaluación
+
+La métrica primaria del proyecto —corrección con abstención— se mide con el
+evaluador de [`backend/eval/`](../../eval/README.md).
+
+Está partido en dos por **qué cuesta dinero**: `ArsDocendi.Evaluacion.Nucleo` está
+en la solución y tiene tests en el CI; el ejecutable, que es lo único que
+instancia un proveedor real, está fuera, con un guard adentro que falla si vuelve
+a entrar.
+
+**Al agregar un ejemplo al catálogo** de este módulo, un test verifica que no
+choque con ninguna pregunta del dataset de capacidad. Si chocara, la métrica
+mediría cuán bien el sistema reproduce ejemplos que ya vio.
+
+## Dependencias
+
+Solo `ArsDocendi.Shared`. No referencia ningún otro módulo ni su propio
+`.Contracts` (que nace vacío: ver
+[Modules.Asistente.Contracts/README.md](../Modules.Asistente.Contracts/README.md)).
+
+Tampoco declara EF Core, Npgsql ni MediatR: llegan cuando haya código que los use.
+
+## Schema PostgreSQL
+
+El asistente **lee** los schemas de otros módulos a través de dos roles de solo
+lectura, con privilegios enumerados columna por columna, y **escribe** un schema
+propio, `asistente`, con sus dos registros, la tabla de retroalimentación, las
+tres del historial de conversaciones y su auditoría de soporte, y las siete de
+administración de uso —trece tablas que no se cruzan entre sí. Las trece las
+escribe la conexión dueña y sus propios roles de lectura las tienen revocadas
+enteras, sin ningún `GRANT` propio que declarar: todas heredan la denegación
+del schema.
+
+**`hilo_historico`/`turno_historico` son, a propósito, actor-vinculadas — a
+diferencia de `registro_analitico`/`registro_operativo`.** Son telemetría de
+privacidad distinta: los dos registros existen para NO poder responder «quién
+preguntó qué»; el historial existe exactamente para poder responderlo, para su
+propio dueño y para un lector de soporte permisionado y auditado. Nunca
+referencian a los otros tres —ni al revés—, para no reabrir por otro lado el
+cruce que separar los dos registros existe para impedir.
+
+**`auditoria_acceso_historial` no lleva clave foránea hacia `hilo_historico`, a
+propósito**: la fila de auditoría tiene que sobrevivir a que el propio dueño
+borre esa conversación (borrado permanente, sin papelera). Sin FK, un id que ya
+no existe sigue siendo una fila de auditoría perfectamente legible.
+
+El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
+assembly, igual que `database/designaciones/*.sql` en su módulo.
+`MigradorAsistente` lo ejecuta en el arranque `--migrate`, **último** de todos los
+migradores: los `GRANT` necesitan que las tablas de `identity` y `designaciones`
+ya existan.
+
+No usa EF Core. El módulo no tiene entidades de dominio, así que no hay nada que
+versionar con un historial de migraciones; los scripts convergen por construcción y
+re-ejecutarlos no cambia nada.
+
+**Convergir no es lo mismo que no fallar, y la diferencia costó un defecto.** Un
+`CREATE TABLE IF NOT EXISTS` contra una base que ya tiene la tabla es un no-op: una
+columna agregada al `CREATE` no aparece nunca ahí. Por eso toda columna que se sume
+después de que la tabla exista va **en los dos lugares** —el `CREATE TABLE` y un
+`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`—, que es la única forma que el guard de
+arquitectura permite: agrega lo que falta, no toca lo que está y no depende del
+orden. `DROP`, `RENAME` y `ALTER COLUMN ... TYPE` siguen prohibidos.
+
+Y si alguien se olvida del ALTER, `MigradorAsistente` **no deja arrancar**: después
+de aplicar los scripts verifica contra `information_schema.columns` que estén todas
+las columnas que el registro escribe, y falla nombrando la que falta. Sin esa red, la
+columna faltante hace reventar el `INSERT` del registro en cada turno, el escritor se
+traga el fallo para no tumbar el servicio y el registro deja de guardar en silencio.
+
+Los archivos corren en orden y el orden importa: `001_asistente_grants.sql`
+concede la lectura; `002_asistente_registros.sql` crea el schema propio y se lo
+revoca a los dos roles —para revocar un schema, primero tiene que existir—;
+`003_asistente_retroalimentacion.sql` crea la tabla de retroalimentación **después**,
+porque su clave primaria es una FK hacia `registro_analitico`; y
+`004_asistente_historial.sql`/`005_asistente_auditoria_soporte.sql` crean las tres
+tablas del historial y su auditoría, sin necesidad de orden relativo a la
+retroalimentación —no hay ninguna FK entre ellas—. Ninguna de las tres necesita
+revocar nada por su cuenta: la denegación del schema completo ya las cubre.
+
+`006_asistente_administracion.sql` suma las siete tablas de administración de
+uso (asistente-administracion-de-uso): `presupuesto_rol`, `presupuesto_usuario`,
+`tope_organizacional`, `consumo_organizacional_mensual`, `tabla_de_precios`,
+`modo_mantenimiento` (fila única) y `auditoria_administracion` (append-only).
+Igual que el resto, sin necesidad de orden relativo a las anteriores y sin
+ningún `GRANT` propio. Ver «Administración de uso» más abajo y
+[docs/architecture/data-model.md](../../../docs/architecture/data-model.md).
+
+`database/asistente/manifiesto-privilegios.json` es la fuente de verdad de qué se
+concede. Un test lo compara contra los privilegios efectivos de la base en tres
+direcciones: si alguien agrega una tabla o cambia un `GRANT` sin tocar el
+manifiesto, el CI falla.
+
+Los `COMMENT ON` de las tablas y columnas legibles viven en el DDL de **cada
+módulo dueño** —`database/identity/013_*.sql` y
+`database/designaciones/010_*.sql`—, por el mismo criterio con que las policies RLS
+viven en el de `designaciones`. No son documentación: el proveedor de esquema los
+lee del catálogo y los pone en el prompt, así que una columna sin comentar le llega
+al modelo como un nombre pelado y un tipo.

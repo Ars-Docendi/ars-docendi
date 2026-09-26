@@ -71,6 +71,26 @@ export const NAVEGACION: NavGroup[] = [
       { to: "/usuarios", icon: "usuarios", label: "Usuarios", permiso: "usuarios.ver" },
       { to: "/docentes", icon: "docentes", label: "Docentes", permiso: "docentes.ver" },
       { to: "/roles", icon: "roles", label: "Roles", permiso: "roles.ver" },
+      {
+        to: "/asistente/soporte-historial",
+        icon: "historial",
+        label: "Historial del asistente",
+        // Sembrado a NINGÚN rol por default (asistente-acceso-de-soporte-al-historial):
+        // sin el permiso, este ítem no aparece, y sin el ítem no hay cómo llegar a la
+        // ruta desde la navegación —la ruta en sí también la protege
+        // `RequirePermission` (ver features/asistente/routes.tsx), así que escribir la
+        // URL a mano tampoco alcanza.
+        permiso: "asistente.leer_historial_ajeno",
+      },
+      {
+        to: "/asistente/administracion",
+        icon: "reportes",
+        label: "Uso del asistente",
+        // Sembrado directamente a `sys_admin` (asistente-administracion-de-uso,
+        // design.md D13): mismo criterio que el ítem de arriba —sin el permiso
+        // no hay ítem, y la ruta misma también la protege `RequirePermission`.
+        permiso: "asistente.administrar",
+      },
     ],
   },
 ];

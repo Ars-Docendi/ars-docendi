@@ -1,0 +1,2244 @@
+/* ============================================================
+   Superficie del asistente conversacional.
+
+   TODO SALE DEL TEMA. Cada color, radio, tamaño de letra y espacio es un token de
+   @ars-docendi/ui/theme.css: el asistente es una parte de la aplicación y se tiene
+   que ver como el resto, en claro y en oscuro. Ningún valor propio y ningún
+   fallback: un `var(--token, fallback)` sobre un token que no existe se renderiza
+   siempre con el fallback y nadie lo nota, y así fue como esta hoja llegó a
+   pintarse en slate e indigo (#64748b, #6366f1) ajenos al acento institucional.
+   `asistente.tokens.test.ts` lo vigila.
+   ============================================================ */
+
+/* ─────────────────────────────────── el panel ──────────────────────────────── */
+
+/* Es UNO SOLO, montado dos veces: la ruta y el modal. El alto lo fija cada
+   montaje; el panel lo reparte con `.adoc-asistente-grilla` —el rail y la
+   columna de la conversación, definidos más abajo—, que es lo que se estira
+   y contiene el scroll. */
+.adoc-asistente {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* Arriba del hilo (asistente-conversacion, mock v3): adentro de la columna de
+   la conversación y no del panel entero —nunca se superpone al rail—. El
+   relleno horizontal es el mismo que el resto de `.adoc-asistente-columna-
+   cuerpo`; el superior lo separa del encabezado. */
+.adoc-asistente-mantenimiento {
+  margin: var(--space-4) var(--space-5) 0;
+}
+
+/* El marco del hilo: lo que le da a «Ir al final» contra qué flotar. Es también
+   el contenedor de posición de las tarjetas —el hilo no lo es a propósito—, así
+   que `tarjeta.offsetTop - hilo.offsetTop` mide desde el mismo origen aunque el
+   contenido esté centrado adentro de `.adoc-asistente-hilo-contenido`: ninguno
+   de los envoltorios nuevos es un ancestro posicionado. */
+.adoc-asistente-hilo-marco {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La región que scrollea, a lo ancho de toda la columna —así el thumb del
+   scroll queda contra el borde del modal—. `min-height: 0` no es decorativo:
+   sin él, un hijo flex no se encoge por debajo de su contenido y el
+   desbordamiento se lo come el contenedor de abajo —que acá es el campo de
+   entrada, y desaparece—. */
+.adoc-asistente-hilo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Lo que de verdad se centra (mock v3): columna de lectura de 720 px, con su
+   propio relleno —el scroll de arriba no tiene ninguno— para que el texto no
+   se pegue al borde ni al scrollbar. */
+.adoc-asistente-hilo-contenido {
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 28px 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+
+/* «Ir al final»: abajo a la derecha del hilo, corrido de la barra de scroll, y
+   sólo mientras el usuario está arriba. Aparece con un fundido corto; el
+   movimiento se apaga más abajo, con el resto. */
+.adoc-asistente-ir-al-final {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-3);
+  z-index: var(--z-sticky);
+  animation: adoc-asistente-aparecer var(--motion-fast) var(--ease-enter);
+}
+
+/* Despegado del contenido sobre el que flota. */
+.adoc-asistente-ir-al-final > button {
+  box-shadow: var(--elev-3);
+}
+
+@keyframes adoc-asistente-aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ──────────────────────────── el rail y el encabezado ──────────────────────── */
+
+/*
+ * EL CUERPO: rail + columna de la conversación, lado a lado
+ * (asistente-superficie-frontend, design.md D1 de asistente-rediseno-v3).
+ *
+ * FLEXBOX Y NO `grid-template-columns` ANIMADO: las dos llegan al mismo resultado
+ * visual, pero animar el ancho de un ítem flex es la transición CSS más ordinaria
+ * que hay —soportada igual en todos lados, sin las sorpresas de interpolar pistas
+ * de una grilla— y es EL RAIL el que tiene un ancho fijo que alternar (268 px /
+ * 60 px), no la columna, que siempre completa lo que sobra.
+ */
+.adoc-asistente-grilla {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* 268 px expandido, 60 px colapsado, con la MISMA transición que usa el resto de
+   la aplicación para lo que cambia de tamaño (`--motion-base`/`--ease-standard`) —
+   `theme.css` ya la apaga entera bajo `prefers-reduced-motion`, así que no hace
+   falta una regla propia para eso acá. */
+.adoc-asistente-rail {
+  flex: none;
+  width: 268px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border-subtle);
+  transition: width var(--motion-base) var(--ease-standard);
+  overflow: hidden;
+}
+
+.adoc-asistente-rail.colapsado {
+  width: 60px;
+  padding-inline: var(--space-2);
+}
+
+.adoc-asistente-rail-encabezado {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado {
+  flex-direction: column;
+}
+
+/* «Nueva conversación»: botón con borde a todo el ancho del rail, y el
+   toggle a su derecha —el mismo `.adoc-btn` que `NuevaConversacion` ya
+   renderiza (variante `secondary`), sin pisarle el tamaño base de la
+   librería (36 px / 14px / 500), que es exactamente el de la maqueta. */
+.adoc-asistente-rail-encabezado .adoc-btn {
+  flex: 1;
+}
+
+/* Colapsado, el mismo botón se reduce a un ícono cuadrado más —misma
+   familia visual que el toggle y «Historial» de al lado—, no la variante
+   con borde de arriba: a 60 px de ancho un botón con borde y relleno
+   propios ya no entra. */
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado .adoc-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-rail.colapsado .adoc-asistente-rail-encabezado .adoc-btn:hover {
+  background: var(--color-bg-sunken);
+  color: var(--color-text-primary);
+}
+
+/* SIN TURNOS, «Nueva conversación» SIGUE LEYÉNDOSE COMO EL MISMO BOTÓN
+   (asistente-superficie-frontend): queda deshabilitado de verdad —no hay
+   nada que vaciar en la bienvenida, y `asistente.turnos.test.tsx` fija ese
+   comportamiento— pero el aspecto «gris» que trae `.v-secondary:disabled`
+   de la librería (pensado para un botón de formulario) leía como roto acá,
+   donde la maqueta lo muestra siempre con su borde. Se neutraliza sólo el
+   aspecto, nunca `pointer-events` ni el atributo `disabled` en sí. */
+.adoc-asistente-rail:not(.colapsado) .adoc-asistente-rail-encabezado .adoc-btn:disabled {
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+/* Los tres controles ícono-solo del rail colapsado (expandir, «Nueva
+   conversación», «Historial») y el de colapsar del rail expandido: mismo
+   tamaño y tono que la ayuda del encabezado, para que se lean como la misma
+   familia de controles. */
+.adoc-asistente-rail-toggle,
+.adoc-asistente-rail-historial-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-rail-toggle:hover,
+.adoc-asistente-rail-historial-icono:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-sunken);
+}
+
+.adoc-asistente-rail-toggle .ico,
+.adoc-asistente-rail-historial-icono .ico {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* «Nueva conversación» es EL MISMO botón expandido y colapsado —ver
+   `RailDeConversaciones`—; acá se le esconde sólo la etiqueta cuando el rail
+   está angosto, con el mismo recorte visual que ya usa `.adoc-asistente-quien`:
+   el nombre accesible del botón no cambia. */
+.adoc-asistente-rail.colapsado .adoc-asistente-etiqueta-boton {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.adoc-asistente-rail-busqueda {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-rail-busqueda input {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-asistente-rail-lista {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.adoc-asistente-rail-vacio {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-rail-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Encabezado de grupo (Hoy / Ayer / Últimos 7 días / Anteriores) — el
+   agrupamiento por fecha relativa que comparten ChatGPT, Claude.ai, Gemini y
+   Copilot para esta misma lista. En mono y mayúsculas, como cualquier etiqueta
+   de metadato de la aplicación (mismo tratamiento que un rótulo de estado). */
+.adoc-asistente-rail-grupo-etiqueta {
+  margin: 0;
+  padding: 14px 10px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.adoc-asistente-rail-grupo-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adoc-asistente-rail-item {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-body-sm-size);
+}
+
+/* 26 px y no los 28 por default de `MenuAcciones` (compartido con
+   `designaciones`, que sí quiere el suyo): la maqueta del rail lo pide un
+   poco más chico, y las filas ya son angostas. */
+.adoc-asistente-rail-item .adoc-acciones-trigger {
+  width: 26px;
+  height: 26px;
+}
+
+.adoc-asistente-rail-item:hover,
+.adoc-asistente-rail-item:focus-within {
+  background: var(--color-bg-sunken);
+}
+
+/* La conversación activa: fondo de acento, no sólo texto de color —es la fila
+   que el mock resalta, y un color de texto solo se pierde en una lista larga. */
+.adoc-asistente-rail-item.activa {
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-rail-item.activa .adoc-asistente-rail-abrir {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+
+/* El «⋮» de la fila queda SIEMPRE visible, en el color tenue de reposo que ya
+   trae `MenuAcciones.css` (`--color-text-tertiary`) — el mock lo dibuja así en
+   cada fila, no sólo al pasar el mouse o el teclado (asistente-rediseno-v3,
+   hallazgo de verificación visual: la versión anterior de esta regla lo
+   ocultaba con `opacity: 0`, leyendo mal «tenue hasta el hover» del design
+   spec como «invisible hasta el hover»). El hover/foco que oscurece el color
+   y le pone fondo ya los da `MenuAcciones.css` sin nada más de acá. */
+
+/* Una línea, con el sobrante en «…»: el título completo queda en el `title`
+   del botón —se lee al pasar el mouse—, y ya no hace falta una segunda línea
+   con la fecha, que ahora la da el grupo.
+
+   `padding: 0`: el botón fantasma de la librería trae 16 px propios a los
+   lados (tamaño por defecto, sin `size="sm"`), así que el texto arrancaba 16
+   px más adentro que la etiqueta del grupo de fecha —10 px de
+   `.adoc-asistente-rail-item`— y las dos columnas no alineaban (hallazgo de
+   verificación visual). Sin relleno propio, el texto arranca justo en el
+   borde del `<li>`, igual que la etiqueta. */
+.adoc-asistente-rail-abrir {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  justify-content: flex-start;
+}
+
+.adoc-asistente-rail-item-campo {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-asistente-rail-borrar-todo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-body-sm-size);
+}
+
+/* «Borrar todas» al pie del rail: no es la primera acción que alguien busca al
+   abrirlo, y antes competía con la búsqueda por la misma fila superior.
+   `margin-top: auto` empuja el pie al borde de abajo cuando la lista no llena
+   el rail, y se anula solo cuando ya lo completa. */
+.adoc-asistente-rail-pie {
+  flex: none;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* La sección «Archivadas», colapsable, al pie de la lista (asistente-superficie-frontend,
+   design.md D3 de asistente-rediseno-v3). El encabezado toma el mismo
+   tratamiento mono/mayúsculas que `.adoc-asistente-rail-grupo-etiqueta`
+   —es la misma familia de metadato— pero interactivo. */
+.adoc-asistente-rail-archivadas {
+  flex: none;
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+}
+
+.adoc-asistente-rail-archivadas-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.adoc-asistente-rail-archivadas-toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.adoc-asistente-rail-archivadas-toggle .chev {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  transition: transform var(--motion-fast);
+}
+
+.adoc-asistente-rail-archivadas-toggle .chev.collapsed {
+  transform: rotate(-90deg);
+}
+
+.adoc-asistente-rail-archivadas-etiqueta {
+  flex: 1;
+  text-align: start;
+}
+
+.adoc-asistente-rail-archivadas-contador {
+  font-family: var(--font-mono);
+}
+
+/* La marca «Archivada», junto al título — en los resultados de búsqueda y
+   en la propia sección de archivadas. */
+.adoc-asistente-rail-marca-archivada {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* El aviso de deshacer, al pie del rail (design spec § v3): con la misma
+   apariencia que el `Toast` de `@ars-docendi/ui` —fondo elevado, borde
+   fuerte, filete de acento a la izquierda y sombra— para que se lea como
+   una notificación del sistema y no como parte de la lista. No usa el
+   componente `Toast` en sí: éste fija su propio `aria-live`, y el aviso se
+   anuncia por la región viva existente del hilo (asistente-accesibilidad).
+   SIGUE VISIBLE CON EL RAIL COLAPSADO Y NUNCA SE RECORTA: en el marcado
+   `RailDeConversaciones` lo pone AFUERA del `<nav>` —que recorta su
+   contenido con `overflow: hidden` durante la transición de ancho— y lo
+   posiciona contra `.adoc-asistente-grilla` (`position: relative`, más
+   arriba), el contenedor común del rail y la columna. Un ancho fijo,
+   siempre mayor que los 60 px del rail colapsado, es lo que lo deja
+   superponerse al hilo en ese caso, como en el mock. */
+.adoc-asistente-aviso {
+  position: absolute;
+  left: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 240px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.adoc-asistente-aviso-texto {
+  font-size: var(--text-body-sm-size);
+}
+
+/* «Deshacer» como enlace del sistema: `--color-text-link` en semibold. */
+.adoc-asistente-aviso-deshacer {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-link);
+  font-family: var(--font-sans);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ─────────────────────────── la columna de la conversación ─────────────────── */
+
+.adoc-asistente-columna {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TODO LO DE LA COLUMNA MENOS EL ENCABEZADO: el banner de mantenimiento, el
+   hilo y el compositor. SIN relleno propio (mock v3): el banner, el hilo y
+   el compositor tienen cada uno el suyo, con anchos de columna distintos
+   —720 px de lectura, 684 px de composer—, así que un relleno acá los
+   angostaría a todos por igual. */
+.adoc-asistente-columna-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Los 56 px del encabezado: el título de la conversación activa (o
+ * «Asistente» en la bienvenida) seguido de la ayuda, y —en el modal— cerrar
+ * contra el borde derecho (`EncabezadoDeConversacion`). Reemplaza la fila de
+ * encabezado del `Modal` de la librería, que sigue montada pero sin ocupar
+ * lugar más abajo —la librería no tiene un slot de acciones ahí (TD-020). */
+.adoc-asistente-encabezado {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+/* Ancho acotado y no `flex: 1`: un título largo se recorta con «…» antes de
+   empujar la ayuda y el cierre lejos de donde la maqueta los pone —pegados
+   al título, no contra el borde derecho—. */
+.adoc-asistente-encabezado-titulo {
+  flex: 0 1 auto;
+  max-width: 60%;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+}
+
+/* Empuja SÓLO el cierre al borde derecho; la ayuda se queda pegada al
+   título, como en la maqueta. Sin `onCerrar` —la ruta, mientras exista— no
+   hay nada después de la ayuda que este margen tenga que empujar. */
+.adoc-asistente-encabezado-cerrar {
+  flex: none;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-encabezado-cerrar:hover {
+  color: var(--color-text-primary);
+}
+
+/* ────────────────────────────────── el inicio ──────────────────────────────── */
+
+/* La pantalla vacía: destello, título y los ejemplos como tarjetas en una
+   grilla de dos columnas — las ÚNICAS sugerencias clicables que le quedan al
+   asistente (ARS-149). Columna centrada, sin caja ni borde propio: es lo que
+   hay en el hilo antes del primer turno, no un aviso. El alcance y los límites
+   viven en la ayuda «?» del encabezado y no acá (ver `EncabezadoDeConversacion`
+   / `AyudaDelAsistente`). Todo sale del catálogo del backend. */
+.adoc-asistente-inicio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 72ch;
+  margin-inline: auto;
+  padding: 96px var(--space-2) var(--space-2);
+  text-align: center;
+}
+
+.adoc-asistente-inicio-destello {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-hover);
+}
+
+.adoc-asistente-inicio-destello .ico,
+.adoc-asistente-inicio-destello svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.adoc-asistente-inicio-titulo {
+  margin: 0;
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-lh);
+  font-weight: var(--text-title-weight);
+}
+
+/* Grilla de dos columnas, alineada a la izquierda adentro de la columna
+   centrada: el título se centra, las tarjetas se leen de izquierda a derecha
+   como cualquier lista de opciones. */
+.adoc-asistente-inicio-ejemplos {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.adoc-asistente-inicio-ejemplo {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  line-height: 1.45;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adoc-asistente-inicio-ejemplo:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-inicio-ejemplo:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-inicio-ejemplo:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.adoc-asistente-inicio-ejemplo > span:first-child {
+  flex: 1;
+}
+
+.adoc-asistente-inicio-ejemplo .ico {
+  flex: none;
+  width: 0.9375rem;
+  height: 0.9375rem;
+  margin-top: 2px;
+  color: var(--color-text-tertiary);
+}
+
+/* ────────────────────────────────── la ayuda ───────────────────────────────── */
+
+/* `relative` porque el popover se ancla acá y no al hilo, que scrollea: anclado al
+   hilo, la ayuda se quedaría donde se abrió mientras la conversación se mueve. */
+.adoc-asistente-ayuda {
+  position: relative;
+  display: inline-flex;
+}
+
+.adoc-asistente-ayuda-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+.adoc-asistente-ayuda-boton:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-sunken);
+}
+
+.adoc-asistente-ayuda-boton .ico {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Ancho acotado para que el párrafo se lea: a lo ancho del modal serían líneas de
+   más de cien caracteres. El `max-height` con scroll propio es para la ventana
+   baja — sin él, el popover se sale del modal y no hay forma de leer el final. */
+.adoc-asistente-ayuda-pop {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  /* Por default cuelga hacia la DERECHA del disparador, que es donde hay lugar
+     cuando el «?» está pegado al título. En la ruta el botón vive en las acciones
+     del encabezado, contra el borde derecho, y ahí se invierte. */
+  left: 0;
+  z-index: var(--z-sticky);
+  width: min(28rem, calc(100vw - 4rem));
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-2);
+}
+
+.adoc-asistente-inicio-presentacion {
+  margin: 0;
+}
+
+.adoc-asistente-inicio-alcance {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Los límites, separados del resto por un filete. Era una grilla de dos columnas
+   con «Puedo consultar:» al lado, hasta que esa sección se fue: pintaba el
+   comentario de la tabla que se escribió para el modelo. */
+.adoc-asistente-inicio-detalle {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-inicio-rotulo {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-inicio-lista {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────── la conversación ───────────────────────────── */
+
+/* No scrollea ella: scrollea el hilo entero, para que el bloque de inicio y los
+   turnos se muevan juntos. 44 px entre turnos (mock v3, más aire que el resto
+   de la feature: acá cada elemento es una pregunta y una respuesta completa,
+   no una fila). */
+.adoc-asistente-conversacion {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+
+.adoc-asistente-turno {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* El anuncio del historial (renombrar/borrar/reanudar) no tiene turno propio:
+   este `<li>` chico es lo que le da un lugar en la MISMA región viva, sin
+   agregar una segunda. Visible y no `sr-only`: es la misma confirmación que
+   ya se ve en otros pies de turno, sólo que sin un turno al que colgarse. */
+.adoc-asistente-anuncio {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+/* «Vos» y «Asistente». La alineación de las burbujas hace el trabajo visual, así
+   que la etiqueta se oculta —sigue en el DOM para el lector de pantalla, que no
+   ve de qué lado está cada una—. */
+/* Etiqueta de quién habla, sólo para lectores de pantalla: la burbuja y la
+   alineación dicen lo mismo a quien ve, y un lector de pantalla no las tiene.
+   Está en el DOM aunque no se vea, así que entra en la SELECCIÓN — y copiar la
+   pregunta arrastraba «Vos» pegado a la primera palabra. Alguien pegó eso en el
+   input y la pregunta que llegó al modelo fue «Vosdame 3 materias…».
+   `user-select: none` la deja afuera del portapapeles sin sacarla del árbol de
+   accesibilidad, que es lo único que se quiere conservar. */
+.adoc-asistente-quien {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* La fila de la pregunta: la burbuja y, debajo, sus herramientas —«Copiar
+   pregunta» y, en la última, «Editar y reenviar»—, las dos alineadas al
+   mismo borde derecho que la burbuja (asistente-edicion-de-la-ultima-
+   pregunta, mock v3). */
+.adoc-asistente-pregunta-fila {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+/* Lo que escribió el usuario: burbuja NEUTRA y sutil, a la derecha, con
+   ancho acotado (asistente-rediseno-v3, mock v3 — reemplaza la burbuja de
+   acento sólido de v2, que hoy es dueña esta feature). */
+.adoc-asistente-pregunta {
+  align-self: flex-end;
+  max-width: 80%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: var(--weight-medium);
+}
+
+/* Las herramientas de la pregunta: mismo mecanismo de revelado que
+   `.adoc-asistente-barra` —opacidad, nunca `display`/`visibility`, para que
+   Tab las alcance igual con el turno "apagado". */
+.adoc-asistente-pregunta-herramientas {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.adoc-asistente-turno:hover .adoc-asistente-pregunta-herramientas,
+.adoc-asistente-turno:focus-within .adoc-asistente-pregunta-herramientas {
+  opacity: 1;
+}
+
+/* El modo edición: textarea de ancho completo con borde de acento, y la
+   fila Cancelar/Enviar debajo (asistente-edicion-de-la-ultima-pregunta). */
+.adoc-asistente-pregunta-edicion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-pregunta-campo {
+  width: 100%;
+  border-color: var(--color-border-focus);
+}
+
+.adoc-asistente-pregunta-edicion-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* La respuesta se atenúa, nunca se oculta, mientras se edita la pregunta que
+ la produjo — sigue legible, sólo de fondo. */
+.adoc-asistente-respuesta--editando {
+  opacity: 0.4;
+}
+
+/* «Reintentar», debajo del mensaje de la alerta de error. */
+.adoc-asistente-reintento {
+  margin-top: var(--space-2);
+}
+
+/* Se dejó de esperar: una nota bajo la pregunta y no una alerta, porque no es un
+   error —lo pidió el usuario—. */
+.adoc-asistente-detenido {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* El lugar de la respuesta mientras se espera (asistente-rediseno-v3, D14):
+   los puntos que laten y «Consultando…», en el mismo tono que el resto del
+   chrome discreto. `aria-hidden` en el componente: es sólo visual, el anuncio
+   sigue siendo el `role="status"` de `IndicadorDeProceso`, fuera del hilo. */
+.adoc-asistente-pendiente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Tres puntos, no un pseudo-elemento: acá no hay ningún texto que un lector
+   pudiera confundir con el dibujo, así que no hace falta el truco de sombras
+   de un solo elemento. Laten con la opacidad, escalonados por `nth-child`. */
+.adoc-asistente-puntos {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--color-accent);
+}
+
+.adoc-asistente-puntos > span {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: currentColor;
+  animation: adoc-asistente-latido 1.2s infinite var(--ease-standard);
+}
+
+.adoc-asistente-puntos > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.adoc-asistente-puntos > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes adoc-asistente-latido {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+/* La respuesta: texto plano, ancho completo. No es una tarjeta —sin borde ni
+   fondo propio (asistente-rediseno-v3, mock v3: reemplaza la tarjeta gris de
+   v2)—; la tabla y los demás bloques, que no son sólo texto, usan el ancho
+   entero del turno. */
+.adoc-asistente-respuesta {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* El texto sí tiene ancho de lectura; la tabla, que va aparte, usa el turno
+   entero. */
+.adoc-asistente-texto {
+  margin: 0;
+  max-width: 68ch;
+  white-space: pre-wrap;
+  font-size: var(--text-body-size);
+  line-height: 1.6;
+}
+
+.adoc-asistente-interpretada {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────── la tabla ──────────────────────────────── */
+
+/* La tabla scrollea DENTRO de su propio marco, en los dos ejes. El envoltorio de la
+   librería trae `overflow: hidden` y la tabla `width: 100%`: con más columnas de
+   las que entran, las de la derecha se recortaban sin aviso antes de que un
+   contenedor externo tuviera qué scrollear. Las dos clases le ganan en
+   especificidad a la regla de la librería sin `!important` ni fork; la clase
+   propia es la que `TablaDeResultado` le pasa al `Table`. */
+.adoc-asistente-tabla .adoc-asistente-tabla-wrap {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+/* `max-content` deja que la tabla sea tan ancha como sus columnas —es lo que le da
+   al marco algo que scrollear—; `min-width: 100%` la mantiene a ancho completo
+   cuando entra. */
+.adoc-asistente-tabla table.adoc-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* La cabecera se queda a la vista mientras las filas scrollean dentro del marco.
+   La librería ya le da fondo, así que las filas no se transparentan debajo. Con
+   bordes colapsados el borde inferior no viaja con la celda pegajosa —es un
+   límite conocido de los navegadores—, y por eso la línea se dibuja como sombra
+   interior. */
+.adoc-asistente-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-shadow: inset 0 -1px 0 var(--color-border-strong);
+}
+
+/* `numeric` de la librería sólo cambia la tipografía —mono, en el tono
+   secundario— y deja `text-align: start`: una columna de cantidades quedaba
+   pegada a la izquierda, con las unidades desalineadas de una fila a otra. Las
+   cifras van a la derecha y en cifras tabulares, para que las columnas de
+   dígitos queden una bajo la otra. La clase del marco adelante le gana a la
+   regla de la librería sin `!important`. */
+.adoc-asistente-tabla td.num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La celda que lleva a una pantalla del sistema.
+
+   SE VE COMO ENLACE Y NO COMO BOTÓN: navega, no ejecuta nada, y el subrayado es lo
+   que lo distingue de las celdas de al lado sin agregarle peso a una tabla que ya
+   es densa. El `offset` lo separa de los descendentes para que el número siga
+   siendo legible de un vistazo. */
+.adoc-asistente-vinculo {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.adoc-asistente-vinculo:hover {
+  text-decoration-thickness: 2px;
+}
+
+.adoc-asistente-vinculo:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-sensible {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-inline-start: var(--space-1);
+}
+
+.adoc-asistente-candado {
+  display: inline-flex;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.adoc-asistente-leyenda-sensible {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-truncado {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* ───────────────────────── orden de la tabla (ARS-145) ─────────────────────── */
+
+/* El botón ocupa toda la celda: es más fácil de acertar con el mouse y con el
+   dedo, y la celda ya tiene el fondo/borde pegajoso de la cabecera —el botón
+   sólo aporta el layout interno. */
+.adoc-asistente-th-orden {
+  padding: 0;
+}
+
+.adoc-asistente-orden-boton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: var(--weight-medium);
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.adoc-asistente-orden-boton:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.adoc-asistente-orden-icono {
+  display: inline-flex;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* Tenue hasta el hover o el foco del propio encabezado — el mismo ahorro de
+   ruido visual que ya usa el «⋮» del rail (`.adoc-asistente-rail-item
+   .adoc-acciones-trigger`). */
+.adoc-asistente-orden-icono--inactivo {
+  color: var(--color-text-disabled);
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+.adoc-asistente-th-orden:hover .adoc-asistente-orden-icono--inactivo,
+.adoc-asistente-orden-boton:focus-visible .adoc-asistente-orden-icono--inactivo {
+  opacity: 1;
+}
+
+.adoc-asistente-orden-icono--activo {
+  color: var(--color-accent);
+}
+
+.adoc-asistente-orden-anuncio {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+/* ────────────────────────── exportar a CSV (sin controlar) ─────────────────── */
+
+/* Sólo se pinta cuando `TablaDeResultado` NO recibe `onAmpliarChange` —el
+   único llamador, `Mensaje`, siempre lo pasa, así que este bloque hoy sólo
+   corre en los tests que montan la tabla sola—: controlada, el disparador ya
+   vive en `BarraDeAcciones` (design.md D6 de asistente-rediseno-v3, ARS-146
+   §5), y uno propio acá sería el duplicado que esa barra ya resuelve. */
+.adoc-asistente-exportar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.adoc-asistente-exportar-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-exportar-confirmacion {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+/* ───────────────────── barra de acciones (ARS-146, design.md D6) ───────────── */
+
+/* La fila de íconos bajo cada respuesta: copiar, ampliar, exportar | separador,
+   votar. `display: flex` y no `inline-flex`: ocupa el ancho de la respuesta,
+   igual que el pie que reemplaza. */
+.adoc-asistente-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-2);
+  /* SIEMPRE EN EL DOM Y EN EL ORDEN DE TAB (design.md D6): lo que cambia es
+     sólo la opacidad, nunca `display`/`visibility`, así que Tab la alcanza
+     igual con la barra "apagada" — el mismo mecanismo que ya usa el «⇅» de
+     una columna sin ordenar (`.adoc-asistente-orden-icono--inactivo`) y el
+     «⋮» del rail. */
+  opacity: 0;
+  transition: opacity var(--motion-fast);
+}
+
+/* Visible en el último turno, en cualquiera votado —sin estado nuevo: alcanza
+   con que ALGÚN control de acá tenga `aria-pressed="true"`, que es lo que
+   pasa apenas se vota— y con el mouse o el teclado dentro del turno. */
+.adoc-asistente-turno--ultimo .adoc-asistente-barra,
+.adoc-asistente-turno:hover .adoc-asistente-barra,
+.adoc-asistente-turno:focus-within .adoc-asistente-barra,
+.adoc-asistente-turno:has([aria-pressed="true"]) .adoc-asistente-barra {
+  opacity: 1;
+}
+
+/* 28 px, sin borde, íconos de 15 px — el tamaño de ícono-solo que comparten
+   copiar/ampliar/exportar/votar (asistente-rediseno-v3, mock v3). */
+.adoc-asistente-barra-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.adoc-asistente-barra-boton:hover {
+  background: var(--color-bg-canvas);
+}
+
+.adoc-asistente-barra-boton svg {
+  width: 15px;
+  height: 15px;
+}
+
+.adoc-asistente-barra-separador {
+  width: 1px;
+  height: 14px;
+  flex: none;
+  margin: 0 var(--space-1);
+  background: var(--color-border-default);
+}
+
+/* ──────────────────────────────── el voto ──────────────────────────────────── */
+
+/* `display: contents`: este `<div>` desaparece de la caja y deja que sus
+   hijos —el grupo de dos botones, el panel, el agradecimiento— sean ítems
+   directos de `.adoc-asistente-barra`, sin que `VotoDeRetroalimentacion`
+   tenga que saber nada del layout de su llamador. */
+.adoc-asistente-voto {
+  display: contents;
+}
+
+.adoc-asistente-voto-botones {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* 👍 activo: fondo y texto de acento — el mismo par que la fila activa del
+   rail (mapeo del mock: `--color-accent-subtle` / `--color-accent-pressed`). */
+.adoc-asistente-voto-arriba[aria-pressed="true"] {
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+}
+
+/* 👎 activo: inversión de color —fondo oscuro, texto claro— para que «no sirvió» se lea distinto de «sirvió» y no
+   sólo por el ícono. */
+.adoc-asistente-voto-abajo[aria-pressed="true"] {
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+}
+
+/* El panel «¿Qué falló? Opcional»: caja con borde sutil sobre el fondo del
+   rail —la misma superficie que ya usa la cabecera de la tabla ampliada—,
+   `flex: 0 0 100%` para pasar a su propia línea dentro de la barra en vez de
+   apretarse contra los íconos de al lado. */
+.adoc-asistente-voto-panel {
+  flex: 0 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+}
+
+.adoc-asistente-voto-panel-titulo {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+}
+
+.adoc-asistente-voto-panel-opcional {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-pastillas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-pastilla {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 4px var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.adoc-asistente-pastilla:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* Elegida: borde y fondo de acento + tilde — el mismo trío que la fila activa
+   del rail, para que «elegido» se lea igual en toda la feature. */
+.adoc-asistente-pastilla.elegida {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+}
+
+.adoc-asistente-pastilla .ico {
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+}
+
+/* El comentario libre (design.md D7/D14, PO-changed 2026-09-26): caja de texto
+   con borde propio —no el recorte sin marco del composer— porque acá SÍ hace
+   falta que se lea como un campo dentro de una caja ya bordeada. */
+.adoc-asistente-voto-panel-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-voto-panel-comentario {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--text-body-sm-size);
+  resize: none;
+}
+
+.adoc-asistente-voto-panel-comentario:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: inset 0 0 0 1px var(--color-border-focus);
+}
+
+.adoc-asistente-voto-panel-pie {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-voto-panel-hint,
+.adoc-asistente-voto-panel-contador {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-voto-panel-contador {
+  white-space: nowrap;
+}
+
+.adoc-asistente-voto-panel-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-voto-confirmacion {
+  flex: 0 0 100%;
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────── opciones ──────────────────────────────── */
+
+/* Las opciones BLOQUEAN el turno: van en un bloque con barra de acento y botones
+   con marco, una elección pendiente. Desde ARS-149 son el único menú de
+   "próximos pasos" que le queda a un turno — el asistente ya no sugiere nada
+   después de un rechazo o de una respuesta; los ejemplos de la bienvenida
+   (`.adoc-asistente-inicio-ejemplo`) son tarjetas, no pastillas, y no bloquean
+   nada porque ahí todavía no hay turno. */
+.adoc-asistente-opciones ul {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-opciones {
+  border-left: 3px solid var(--color-accent);
+  padding-left: var(--space-3);
+}
+
+/* Pastilla con contorno sutil: el botón fantasma de la librería es transparente y
+   sin borde, y solo se vería como texto suelto. Una pregunta que no entra en la
+   línea se parte en dos renglones en vez de desbordar el hilo; por eso el alto es
+   libre. La clase del panel adelante le gana en especificidad al tamaño de la
+   librería, no con !important. */
+.adoc-asistente .adoc-asistente-opciones li > button {
+  max-width: 100%;
+  height: auto;
+  min-height: 28px;
+  padding-block: var(--space-1);
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-pill);
+  white-space: normal;
+  text-align: start;
+}
+
+.adoc-asistente-opciones-titulo {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+}
+
+/* ─────────────────────────────────── el pie ────────────────────────────────── */
+
+/* Lo que se puede desplegar, al pie de la respuesta: cómo se interpretó la pregunta
+   y, con permiso, la consulta. Sólo existe cuando hay algo que desplegar, así que
+   nunca deja un hueco. */
+.adoc-asistente-pie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Las dos disclosures se ven igual: una nota que se abre a pedido, no un control
+   que reclame atención. El marcador nativo se conserva; es la señal de que hay
+   algo plegado. */
+.adoc-asistente-razonamiento summary,
+.adoc-asistente-sql summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-razonamiento summary:focus-visible,
+.adoc-asistente-sql summary:focus-visible {
+  outline: none;
+  border-radius: var(--radius-xs);
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-razonamiento p {
+  margin: var(--space-2) 0 0;
+  max-width: 72ch;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* Fondo elevado y no hundido: va DENTRO de la tarjeta hundida, y con el mismo
+   fondo no se distinguiría. */
+.adoc-asistente-sql pre {
+  margin: var(--space-2) 0 0;
+  overflow-x: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+}
+
+/* ───────────────────────── un turno restaurado del historial ───────────────── */
+
+/* Nunca se guardó el texto redactado (design.md D2/D4 de
+   asistente-historial-conversaciones): en vez del párrafo de respuesta, esto
+   muestra el desenlace y, si terminó respondida, «Volver a consultar». */
+.adoc-asistente-historico {
+  gap: var(--space-2);
+}
+
+.adoc-asistente-volver-a-consultar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ───────────────────── lectura de soporte del historial ajeno ──────────────── */
+
+/* La pantalla de soporte (asistente-acceso-de-soporte-al-historial): elegir a
+   quién, la razón obligatoria, la lista de sus conversaciones y el detalle de
+   una. Sin tabla de resultado ni acción de re-ejecución en ningún lugar de
+   acá: eso no existe para el historial ajeno (design.md D4/D10). */
+.adoc-asistente-soporte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.adoc-asistente-soporte-formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adoc-asistente-soporte-selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-soporte-personas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-soporte-sin-razon {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-soporte-lista ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-soporte-abrir {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-link);
+  text-align: start;
+}
+
+/* Marcas «Archivada» / «Pendiente de borrado» junto al título, en la lista
+   de soporte (asistente-acceso-de-soporte-al-historial, design.md D4). */
+.adoc-asistente-soporte-marca {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-sunken);
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.adoc-asistente-soporte-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.adoc-asistente-soporte-turnos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adoc-asistente-soporte-turno {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.adoc-asistente-soporte-turno-pregunta {
+  margin: 0;
+}
+
+.adoc-asistente-soporte-turno-estado {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────── el compositor ──────────────────────────── */
+
+/* Su propia fila, bajo el hilo: relleno vertical corto arriba —el hilo ya
+   termina con el suyo— y más largo abajo, contra el borde del modal (mock
+   v3). */
+.adoc-asistente-compositor {
+  flex: none;
+  padding: 8px 28px 20px;
+}
+
+/* Columna más angosta que la del hilo (684 px contra 720 px): el composer y
+   la franja no necesitan el ancho de lectura, y centrados los dos quedan
+   alineados con el texto de arriba. */
+.adoc-asistente-compositor-marco {
+  max-width: 684px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ─────────────────────────────── la franja de estado ───────────────────────── */
+
+/* Una sola fila bajo el campo de entrada: el cupo restante a la izquierda, lo
+   que costó el último turno a la derecha. `IndicadorDeProceso` también vive
+   acá pero ya no se ve (es `sr-only`, más abajo): los puntos y el
+   «Consultando…» visibles se mudaron al turno en vuelo (asistente-rediseno-
+   v3, D14). Los tres siguen FUERA de la región viva del hilo. */
+.adoc-asistente-franja {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 28px;
+}
+
+/* SIN NADA VISIBLE —sin cupo configurado y fuera de debug—, la franja se
+   pliega: sólo queda el `IndicadorDeProceso` `sr-only`, que no ocupa lugar,
+   y el margen negativo anula el `gap` del marco para que el campo de entrada
+   quede pegado al pie del modal en vez de sobre una fila vacía. No se usa
+   `display: none` porque ese indicador tiene que seguir en el árbol de
+   accesibilidad. */
+.adoc-asistente-franja:not(:has(.adoc-asistente-cupo, .adoc-asistente-metricas)) {
+  min-height: 0;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.adoc-asistente-metricas {
+  margin: 0 0 0 auto;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+/* El cupo restante (asistente-cupo-visible): a diferencia de las métricas, ESTE
+   texto lo lee un lector de pantalla —no es `aria-hidden`—, así que sigue el
+   mismo tono discreto pero sin ocultarse. Cuando también hay métricas a la
+   derecha, el cupo es quien empuja al grupo entero: la regla siguiente le quita
+   el margen automático a las métricas para que no vuelvan a separarse. */
+.adoc-asistente-cupo {
+  margin: 0 0 0 auto;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.adoc-asistente-cupo--bloqueado {
+  color: var(--color-text-danger);
+}
+
+.adoc-asistente-cupo + .adoc-asistente-metricas {
+  margin-inline-start: 0;
+}
+
+/* ────────────────────────────────── la entrada ─────────────────────────────── */
+
+/* Una grilla de tres columnas —destello, campo, botón— y una segunda fila para el
+   contador, que sólo existe cerca del límite. Con el destello como celda propia
+   ya no hace falta posicionarlo en absoluto ni reservarle relleno: se centra en
+   la fila del campo, no en el formulario entero, así que cuando el contador
+   aparece abajo el destello no se descuelga.
+
+   EL BORDE ES NEUTRO EN REPOSO Y ACENTO RECIÉN CON EL FOCO (mock v3): antes
+   era acento siempre —2 px— y el foco sumaba encima el anillo genérico de
+   `--focus-ring` (4 px), que se leía como DOS aros verdes concéntricos con
+   relleno extra alrededor. Acá hay un solo anillo, hacia adentro y del mismo
+   color que el borde con foco, así que no crece el tamaño de la caja. */
+.adoc-asistente-entrada {
+  /* Relativo: la pista y el popover de menciones (más abajo) se posicionan
+     `absolute` contra ESTE marco y no contra `.adoc-asistente-compositor-
+     marco`, que también contiene la franja de abajo — con ese ancestro,
+     `bottom: calc(100% + …)` los subiría de más, con el alto de la franja
+     de hueco de sobra. */
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-entrada:focus-within {
+  border-color: var(--color-border-focus);
+  box-shadow: inset 0 0 0 1px var(--color-border-focus);
+}
+
+.adoc-asistente-destello {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-accent);
+  pointer-events: none;
+}
+
+/* El campo pierde su marco, su sombra y su fondo: el marco ahora es el del
+   contenedor, y dos bordes concéntricos se leen como un error de maquetado. Va con
+   la clase del formulario adelante para ganarle en especificidad al de la
+   librería, no con !important. */
+.adoc-asistente-entrada textarea,
+.adoc-asistente-entrada textarea:focus,
+.adoc-asistente-entrada textarea:focus-visible {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  resize: none;
+  padding: var(--space-2) 0;
+
+  /* La librería le pone un alto mínimo pensado para un campo de formulario. Acá es
+     una línea de chat: arranca en una línea y crece hasta seis, que es donde una
+     pregunta larga sigue entrando sin que el campo se coma la conversación. El
+     tope son seis líneas más el relleno vertical, en `em` para seguir al tamaño
+     de letra del campo. `field-sizing` hace crecer; donde el navegador no lo
+     entiende, `useAltoAutomatico` fija el alto a mano con el mismo tope. */
+  min-height: 0;
+  height: auto;
+  field-sizing: content;
+  max-height: calc(6 * 1.45em + 2 * var(--space-2));
+  line-height: 1.45;
+}
+
+/* «1 850 / 2 000». Debajo del campo y alineado con el botón, en el tono de una
+   nota: informa, no alarma. Cifras tabulares para que no baile a cada tecla. */
+.adoc-asistente-contador {
+  grid-column: 2 / -1;
+  justify-self: end;
+  padding-bottom: var(--space-1);
+  font-size: var(--text-caption-size);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-tertiary);
+}
+
+/* ──────────────────────────── menciones «@materia» / «#docente» ────────────── */
+
+/* Su propia fila arriba del campo, la primera hija del grid (asistente-
+   menciones): al ocupar las tres columnas empuja el destello/campo/botón a
+   la fila siguiente, exactamente como ya hace `.adoc-asistente-contador` con
+   la suya de abajo — mismo truco de auto-flow, sin filas fijadas a mano. */
+.adoc-asistente-menciones-chips {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+/* Se reusa TAL CUAL para la mención ya enviada, adentro de la pregunta del
+   turno (`Mensaje.tsx`, clase `--enviada` de más abajo): es el mismo chip en
+   los dos lugares, y dos estilos para lo mismo los desincroniza en el primer
+   retoque que toque uno y no el otro. */
+.adoc-asistente-mencion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 22px;
+  padding: 0 var(--space-2) 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/* La enviada no tiene «quitar»: ya es historia del turno, no un borrador. */
+.adoc-asistente-mencion-chip--enviada {
+  vertical-align: -3px;
+}
+
+.adoc-asistente-mencion-chip-quitar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin-right: calc(var(--space-1) * -1);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.adoc-asistente-mencion-chip-quitar:hover {
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+}
+
+.adoc-asistente-mencion-chip-quitar svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* La pista bajo 2 letras: mismo marco que el popover, arriba del campo. */
+.adoc-asistente-menciones-pista {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  background: var(--color-bg-raised);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption-size);
+}
+
+.adoc-asistente-menciones-pista-disparador {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  color: var(--color-accent);
+}
+
+/* El popover: borde FUERTE (a diferencia del resto del composer, en borde
+   neutro) — es lo que en el mock lo distingue de una tarjeta más del
+   sistema, mock v3 (design.md D10 de asistente-rediseno-v3). */
+.adoc-asistente-menciones-popover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--space-2));
+  z-index: var(--z-sticky);
+  background: var(--color-bg-raised);
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  box-shadow: var(--elev-3);
+}
+
+.adoc-asistente-menciones-grupo {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-menciones-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.adoc-asistente-mencion-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adoc-asistente-mencion-fila:hover,
+.adoc-asistente-mencion-fila--activa {
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-mencion-fila--activa {
+  color: var(--color-accent-pressed);
+}
+
+.adoc-asistente-mencion-icono {
+  display: inline-flex;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-mencion-icono svg {
+  width: 15px;
+  height: 15px;
+}
+
+.adoc-asistente-mencion-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adoc-asistente-mencion-datos {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.adoc-asistente-mencion-pastilla {
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.adoc-asistente-mencion-codigo {
+  flex: none;
+  min-width: 36px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-menciones-vacio,
+.adoc-asistente-menciones-capped {
+  margin: 0;
+  padding: var(--space-2) var(--space-2) 2px;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-menciones-capped {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-menciones-pie {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-mencion-candado {
+  display: inline-flex;
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
+.adoc-asistente-mencion-candado svg {
+  width: 13px;
+  height: 13px;
+}
+
+.adoc-asistente-menciones-alcance {
+  flex: 1;
+}
+
+.adoc-asistente-menciones-atajos {
+  flex: none;
+  white-space: nowrap;
+  color: var(--color-text-tertiary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   EL LANZADOR Y EL MODAL
+
+   La conversación es la tarea mientras dura, así que ocupa el centro. Los colores
+   salen del acento del sistema y no de valores propios: el asistente es una parte
+   de la aplicación, no un widget pegado encima.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Mide lo mismo que los botones de ícono de la barra en la que vive. */
+.adoc-asistente-lanzador {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-body-sm-size);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adoc-asistente-lanzador:hover {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.adoc-asistente-lanzador:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.adoc-asistente-lanzador .ico {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+}
+
+/* 1100 × 728 px RENDERIZADOS como máximo (asistente-superficie-frontend): el
+   rail se suma al ancho de lectura que ya tenía el panel —los 520 px de la
+   librería casi siempre scrolleaban con una tabla adentro—, así que el modal
+   crece con él.
+
+   DIVIDIDO POR `--ui-zoom`, LOS DOS TÉRMINOS: `index.css` aplica
+   `zoom: var(--ui-zoom)` (1.125) a toda la aplicación, portal del `Modal`
+   incluido —es hijo de `<html>`—, así que un `max-width: 1100px` sin dividir
+   renderiza a 1100 × 1.125 ≈ 1237 px de verdad. Se divide acá y no en cada
+   medida de adentro (rail, encabezado, filas) porque ESTE es el número que
+   se compara 1:1 contra el mock (`asistente-v3.dc.html`, sin zoom propio);
+   las medidas internas siguen expresadas en px lógicos, igual que el resto
+   de la aplicación (el header de 56px de la barra superior, por ejemplo). */
+.adoc-asistente-modal {
+  max-width: min(calc(1100px / var(--ui-zoom, 1)), calc(100vw / var(--ui-zoom, 1) - 48px));
+}
+
+/* El `.body` del Modal impone un tamaño y un color secundario pensados para un
+   texto de confirmación. Acá adentro va el mismo panel que en la ruta y se tiene
+   que ver igual: hereda del modal —que ya usa el color primario— y el relleno lo
+   pone el panel. */
+.adoc-asistente-modal .body {
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* EL ENCABEZADO DE LA LIBRERÍA SIGUE MONTADO, SIN OCUPAR NINGÚN LUGAR
+   (design.md D1 de asistente-rediseno-v3, TD-020): `PanelAsistente` pinta su
+   propio encabezado de 56 px (`EncabezadoDeConversacion`) dentro del cuerpo, y
+   el `h4` de la librería sólo sigue existiendo para que el diálogo se nombre
+   «Asistente» vía `aria-labelledby` — un lector de pantalla necesita que el
+   nodo referenciado exista y tenga texto, no que se vea.
+
+   NO ALCANZA CON ESCONDER SÓLO EL `h4`: el `header` que lo envuelve trae su
+   propio relleno y borde inferior de la librería (`.adoc-modal header`), y
+   eso es la franja vacía que quedaba arriba del rail. Achicar el `header`
+   entero a alto cero es lo que la saca del todo, sin tocar el `h4` — que
+   sigue siendo un nodo de texto normal, legible por su nombre accesible
+   aunque su contenedor no tenga alto.
+
+   `hideCloseButton` en el `Modal` ya evita pintar su «×» —no hace falta
+   ocultarla acá—, así que el `header` de la librería queda con un único
+   hijo, este `h4`. */
+.adoc-asistente-modal header {
+  height: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+}
+
+/* EL ALTO LO FIJA EL MODAL Y EL PANEL LO HEREDA. Una sola fuente de verdad, y no
+   es prolijidad: antes el panel llevaba `min(72vh/zoom, 680px)`, calculado EN
+   PARALELO al espacio que el cuerpo del modal realmente tiene —alto del escenario,
+   menos su relleno, menos el encabezado—. Los dos números quedaban a pocos píxeles
+   uno del otro, así que cualquier variación —un encabezado que envuelve, otro zoom
+   del navegador— volcaba el panel por encima del cuerpo.
+
+   Y el cuerpo del Modal de la librería trae `overflow: auto`. Al desbordar por unos
+   píxeles se convertía en el contenedor que atrapa la rueda: con el puntero sobre
+   el campo de entrada, scrollear movía el panel entero y el input se iba de la
+   pantalla. Está reportado y reproducido; la captura muestra el hilo cortado arriba
+   y un vacío debajo del input.
+
+   `overflow: hidden` en el cuerpo es lo que cierra el defecto de raíz: deja de
+   haber un contenedor scrolleable entre el hilo y el diálogo. El único que scrollea
+   es `.adoc-asistente-hilo`, que es lo que uno espera de un chat. */
+/* Va en el MISMO elemento que `.adoc-modal`: `className` del Modal se aplica sobre
+   el diálogo, no sobre un contenedor. Escrito como descendiente no seleccionaba
+   nada y el panel crecía con la conversación. */
+/* `728px` TAMBIÉN dividido por `--ui-zoom`, mismo motivo que el `max-width`
+   de arriba: los dos términos de un `min()` tienen que vivir en las mismas
+   unidades, y acá las lógicas —el término de `100vh` ya lo estaba, así que
+   antes de esta división el cupo fijo (728px sin dividir) nunca hubiera
+   ganado la comparación contra el término de `vh` en una pantalla baja. */
+.adoc-asistente-modal {
+  height: min(calc(100vh / var(--ui-zoom, 1) - 48px), calc(728px / var(--ui-zoom, 1)));
+}
+
+.adoc-asistente-modal .body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.adoc-asistente-modal .adoc-asistente {
+  height: 100%;
+}
+
+/* ───────────────────────────────── pantallas chicas ────────────────────────── */
+
+/* En un teléfono la conversación es la pantalla entera: sin margen, sin borde ni
+   radio, y el panel ocupa todo el alto. `:has` sólo toca el relleno del escenario,
+   y sólo cuando el modal que contiene es éste. */
+@media (max-width: 640px) {
+  .adoc-modal-stage:has(.adoc-asistente-modal) {
+    padding: 0;
+  }
+
+  .adoc-asistente-modal {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  /* El cuerpo se estira para que el panel tenga contra qué medir su 100 %. */
+  .adoc-asistente-modal .body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .adoc-asistente-modal .adoc-asistente {
+    height: 100%;
+    padding: var(--space-3);
+  }
+
+  .adoc-asistente-pregunta {
+    max-width: 92%;
+  }
+
+  /* Las opciones a ancho completo: en una pantalla angosta, una fila de
+     pastillas que se parte en tres renglones es más difícil de tocar que una
+     lista. El botón de la librería fija alto y una sola línea; acá se le
+     permite crecer. */
+  .adoc-asistente .adoc-asistente-opciones li {
+    flex: 1 1 100%;
+  }
+
+  .adoc-asistente .adoc-asistente-opciones li > button {
+    width: 100%;
+    height: auto;
+    min-height: 28px;
+    padding-block: var(--space-1);
+    white-space: normal;
+    text-align: start;
+  }
+
+  /* EL RAIL EN TELÉFONO QUEDA SIN RESOLVER A PROPÓSITO (TD-016/TD-024 —
+     non-goal de este cambio): angosto, 268 px de rail no dejarían casi nada
+     para la conversación, y automatizar el colapso según el ancho es trabajo
+     de la épica móvil, no de este grupo. */
+}
+
+/* ─────────────────────────── tabla ampliada (ARS-145) ───────────────────────── */
+
+/* Cubre TODO el modal —rail incluido—, nunca sólo el turno: `.adoc-asistente-grilla`
+   (más arriba, `position: relative`) es el mismo `<div>` que reparte el rail y la
+   columna de la conversación, y `TablaDeResultado` la porta ahí adentro
+   (`contenedorDelModal`) exactamente para que este `inset: 0` coincida con esa caja
+   y no con el turno, mucho más chico, del que salió. */
+.adoc-asistente-ampliada {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-ampliada-encabezado {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--space-16);
+  padding-inline: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.adoc-asistente-ampliada-titulo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adoc-asistente-ampliada-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  font-weight: var(--text-micro-weight);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-ampliada-pregunta {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adoc-asistente-ampliada-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
+}
+
+/* La misma tabla que la vista en línea, sin el límite de 50vh —acá el marco
+   ES el modal entero, no un turno dentro del hilo— y con celdas más grandes
+   (15px, contra los 14px de línea), tal como pide el mock. */
+.adoc-asistente-ampliada .adoc-asistente-tabla-wrap {
+  max-height: none;
+}
+
+.adoc-asistente-ampliada table.adoc-table {
+  font-size: 15px;
+}
+
+/* ───────────────────────────────── menos movimiento ────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .adoc-asistente-puntos > span {
+    animation: none;
+    opacity: 1;
+  }
+
+  .adoc-asistente-ir-al-final {
+    animation: none;
+  }
+
+  /* La transición de ancho del rail (`.adoc-asistente-rail`, más arriba) no
+     necesita una regla propia acá: usa `--motion-base`, que `theme.css` ya
+     pone en `0ms` bajo esta misma media query. */
+}

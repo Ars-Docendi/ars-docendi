@@ -23,11 +23,12 @@ infra/
 │   ├── config.yml            # ingress wildcard único
 │   └── README.md             # crear túnel + credenciales
 ├── scripts/
-│   ├── _comun.sh             # helpers (logging, validación, nombres de base)
-│   ├── provision-db.sh       # crea base + rol del ambiente (idempotente)
+│   ├── _comun.sh             # helpers (logging, validación, nombres de base y rol)
+│   ├── provision-db.sh       # crea base + roles del ambiente (idempotente)
 │   ├── seed.sh               # siembra datos sintéticos (aborta si datos de prod)
-│   ├── drop-db.sh            # DROP DATABASE (solo staging/pr-N, nunca prod)
-│   ├── spin-up.sh <env>      # reconstruye descartables, migra, siembra y levanta
+│   ├── drop-db.sh            # DROP DATABASE + DROP ROLE (solo staging/pr-N)
+│   ├── verificar-roles-asistente.sh  # test de humo read-only de los roles del asistente
+│   ├── spin-up.sh <env>      # reconstruye descartables, provisiona, migra, siembra y levanta
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
 │   └── seed-data/sintetico.sql
 ├── reaper/
@@ -129,6 +130,90 @@ base por ambiente** (D7), `arsdocendi_<env>`; las crea/borra `provision-db.sh` /
 > corren el cliente en un contenedor efímero adjunto a esa red (`psql_en_docker`
 > en `scripts/_comun.sh`). El host del runner solo necesita Docker, no
 > `postgresql-client`. Override: `RED_DATOS`, `IMAGEN_PSQL`.
+
+### 2b. Roles de solo lectura del asistente
+
+`provision-db.sh` crea, además del rol de la app, **dos roles por ambiente** para
+el asistente conversacional:
+
+| Rol                           | Para qué                                            |
+| ----------------------------- | --------------------------------------------------- |
+| `asistente_ro_<ambiente>`     | Lectura sin columnas de datos personales            |
+| `asistente_ro_pii_<ambiente>` | Lectura incluyendo las columnas de datos personales |
+
+**Un par por ambiente y no un par global**: los roles son objetos de **cluster** y
+la instancia es una sola con una base por ambiente. Un rol único sería el mismo
+principal —y la misma contraseña— para producción y para cada ambiente efímero de
+PR, que corre código arbitrario de un pull request sobre la misma red de datos.
+
+**Qué hace el provisioning y qué no**: acá solo nacen los roles, con `LOGIN`,
+`GRANT CONNECT`, `search_path` vacío y `statement_timeout`. Los `GRANT USAGE` / `GRANT SELECT` por
+columna van en una migración del módulo, porque `spin-up.sh` corre el provisioning
+en el paso 1 sobre una base **vacía**: un `GRANT ... ON ALL TABLES` escrito acá
+otorgaría exactamente nada y no fallaría.
+
+El `statement_timeout = '8s'` va como atributo del **rol en esta base**, y no en
+el DDL del módulo, por una razón mecánica: `PrivilegiosAsistente` corre con la
+cadena del dueño, y el dueño no puede hacer `ALTER ROLE` sobre otro rol —los dos de
+lectura son `NOSUPERUSER NOCREATEROLE`—. Cierra un hueco real: el ejecutor del
+carril ya fijaba el timeout transaction-local en cada consulta generada, pero era
+la única de las cuatro conexiones de lectura del módulo que lo hacía; el proveedor
+de esquema, el índice de entidades y el catálogo de capacidades corrían con el
+default de Npgsql, 30 s. Como vive en `pg_db_role_setting` —clave `(base, rol)`—
+una base nueva **no lo hereda**, y por eso `verificar-roles-asistente.sh` lo cuenta
+igual que al `search_path`. El rol de la app no se toca: sigue sin límite.
+
+El provisioning también hace `REVOKE ALL ON DATABASE ... FROM PUBLIC`. Sin eso, el
+`GRANT CONNECT` sería decorativo —PUBLIC trae `CONNECT` sobre toda base nueva, así
+que el rol de otro ambiente ya podía conectarse— y el asistente podría crear tablas
+temporales, que se resuelven **antes** que el `search_path` y pueden tapar una tabla
+real. El rol de la app no se ve afectado: recibe `ALL PRIVILEGES` explícitamente.
+
+**Secrets de CI** (uno por clase de ambiente, además de los de la app):
+
+```
+ASISTENTE_RO_PASSWORD_PROD        ASISTENTE_RO_PII_PASSWORD_PROD
+ASISTENTE_RO_PASSWORD_STAGING     ASISTENTE_RO_PII_PASSWORD_STAGING
+ASISTENTE_RO_PASSWORD_PREVIEW     ASISTENTE_RO_PII_PASSWORD_PREVIEW
+```
+
+**El proveedor del modelo va aparte, y por defecto es el simulado.** El backend
+recibe `Asistente__Proveedor` y `Asistente__ClaveDelProveedor` desde
+`ASISTENTE_PROVEEDOR` y `ASISTENTE_CLAVE`; sin la segunda, `spin-up.sh` **degrada a
+`simulado`** en vez de levantar un ambiente que falla recién cuando alguien
+pregunta. En los ambientes de PR los dos vienen del environment `pr-preview`, con
+los nombres de secret `ASISTENTE__PROVEEDOR` y `ASISTENTE__CLAVEDELPROVEEDOR`.
+
+> **Por qué el default es el simulado y no un descuido.** El job de
+> `pr-env-deploy.yml` hace checkout del SHA del PR y corre `spin-up.sh` **desde ese
+> checkout**, con los secrets del environment a la vista. Quien pueda abrir un PR y
+> conseguir la label `deploy-preview` puede editar ese script. Las dos compuertas
+> —la label y los required reviewers del environment— autorizan el **deploy**, no
+> auditan el **diff del script**. Una clave real acá tiene que tener presupuesto
+> acotado propio; la alternativa más barata es dejar el asistente real sólo en
+> staging, que no ejecuta código venido de un PR.
+
+> **Límite conocido**: igual que `APP_DB_PASSWORD_PREVIEW`, los dos secrets
+> `*_PREVIEW` los comparten **todos** los pr-N. Los nombres de rol sí son distintos
+> por ambiente, y el `REVOKE ... FROM PUBLIC` impide que un pr-N alcance la base de
+> otro, pero la contraseña es la misma. Cerrarlo requiere derivar una contraseña por
+> ambiente desde un secret base; queda fuera del alcance de esta tarea.
+
+**Baja**: `drop-db.sh` elimina los dos roles con `DROP OWNED BY` + `DROP ROLE` al
+destruir la base. Los roles sobreviven a un `DROP DATABASE` —son de cluster—, así
+que hay que darlos de baja explícitamente. El rol de la app, en cambio, sigue sin
+darse de baja (comportamiento previo, no lo cambia esta tarea).
+
+**Test de humo**: `verificar-roles-asistente.sh <ambiente>` es read-only y comprueba
+que los roles existen, que no tienen privilegios de cluster (en particular
+`NOBYPASSRLS`, sin el cual las policies de RLS no los contienen), que tienen
+`CONNECT` pero no `CREATE` ni `TEMPORARY`, y que no acumularon ningún privilegio de
+mutación. `spin-up.sh` lo corre dos veces: después del provisioning y después de las
+migraciones.
+
+> No es verificable desde el cluster que dos ambientes no compartan contraseña:
+> SCRAM guarda un hash con salt propio por rol, así que dos contraseñas iguales
+> producen verificadores distintos. Esa garantía depende de qué valores se inyectan.
 
 ## 3. Traefik (reverse proxy interno)
 

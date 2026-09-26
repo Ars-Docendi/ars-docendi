@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-09-12",
+  "hash_del_prefijo": "fc9e4bc9c72116bd5007951565c50ed31ec82382444d0a6035a48a6c426cac65",
+  "hash_del_fixture": "d6f5b67a1667c68b6d06031c4128b660994b2ab3c001c9795906f1adac4410f2",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CexfSgm9gSQtEbSR5Mqbv\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"No dispongo de información sobre aulas en las tablas a las que tengo acceso, así que no puedo responder eso.\\n\\n```json\\n{\\\"es_contestable\\\": false, \\\"sql\\\": null, \\\"razonamiento\\\": \\\"El esquema disponible no incluye información sobre aulas o ubicaciones físicas donde se dictan las materias, así que no puedo determinar el aula de una materia.\\\", \\\"categoria\\\": \\\"no_contestable\\\"}\\n```\"}],\"container\":null,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":87,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":12211,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":140,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\"}}"
+}

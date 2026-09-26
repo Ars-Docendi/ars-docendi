@@ -40,6 +40,14 @@ docker compose up -d
 docker compose ps            # postgres debe quedar healthy
 ```
 
+> **El `.env` también configura el backend, y sólo en Development.** Además de
+> `docker compose`, el Host lo suma como fuente de configuración: cualquier clave
+> con la forma de una variable de ambiente de .NET (`Seccion__Clave=valor`) entra
+> ahí sin exportar nada. Las variables de ambiente reales le ganan al archivo, y
+> fuera de Development el archivo no se lee. Es el lugar para la clave del
+> asistente en desarrollo — ver
+> [Modules.Asistente/README.md](backend/src/Modules.Asistente/README.md).
+
 #### 2. Node deps (raíz + frontend workspace)
 
 ```bash
@@ -68,6 +76,15 @@ pnpm --filter frontend dev
 ```
 
 - App: `http://localhost:5173`
+
+**Variables de entorno del frontend** (`VITE_*`, Vite las inlinea en build time — cambiarlas
+requiere reiniciar `dev` o rebuildear):
+
+- `VITE_DEVELOPMENT_AUTH_ENABLED`: opt-in de autenticación sembrada en un bundle
+  optimizado (ver `docs/architecture/infrastructure.md`).
+- `VITE_ASISTENTE_DEBUG`: en `"true"` muestra la disclosure «Cómo lo interpreté» del
+  asistente conversacional. Apagado por defecto, incluso en `pnpm --filter frontend
+dev` — no hay fallback a modo desarrollo (ver `docs/architecture/domains/asistente.md`).
 
 ## Comandos útiles
 

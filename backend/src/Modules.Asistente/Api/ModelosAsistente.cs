@@ -1,0 +1,402 @@
+using System.ComponentModel.DataAnnotations;
+using Modules.Asistente.Application;
+
+namespace Modules.Asistente.Api;
+
+/// <summary>Lo que el cliente manda en un turno.</summary>
+/// <param name="Mensaje">Lo que escribió el usuario.</param>
+/// <param name="Hilo">
+/// El hilo del turno anterior, para que el seguimiento funcione. Nulo en el primero.
+/// </param>
+/// <param name="Reemplaza">
+/// El identificador del turno que este turno reemplaza —la
+/// <c>Idempotency-Key</c> de un turno vivo, o el <c>turno_historico.id</c> de
+/// uno restaurado por «Reanudar»—, o <c>null</c> para un turno nuevo
+/// cualquiera (asistente-edicion-de-la-ultima-pregunta, design.md D9 de
+/// asistente-rediseno-v3). Se honra sólo si nombra el último turno vigente del
+/// hilo del actor; si no, <c>409</c> y nada cambia.
+/// </param>
+/// <param name="Referencias">
+/// Las menciones «@materia»/«#docente» elegidas en el composer (design.md
+/// D10/D11 de asistente-rediseno-v3), a lo sumo 5. El controller revalida cada
+/// una contra el alcance ACTUAL del actor con la misma búsqueda de
+/// <c>GET /menciones</c>, antes del candado y del resto del pipeline: una
+/// mención desconocida o fuera de alcance da <c>400</c> — el mismo para las dos
+/// causas, para no confirmar cuál de las dos fue — y no cobra cupo ni escribe
+/// historial.
+/// </param>
+/// <remarks>
+/// <b>No trae al actor.</b> El actor sale de la identidad de la sesión y de ningún
+/// otro lado: un identificador tomado del cuerpo del pedido sería un selector de
+/// alcance controlado por el cliente.
+/// </remarks>
+public sealed record ConsultaDelAsistente(
+    // Las anotaciones van en el PARÁMETRO y no en la propiedad. Con
+    // `[property: ...]` sobre un parámetro del constructor primario, ASP.NET Core
+    // levanta excepción al validar el modelo —no las ignora en silencio— y todo
+    // request al endpoint termina en 500.
+    [Required(AllowEmptyStrings = false)]
+    [MaxLength(2000)]
+    string Mensaje,
+    Guid? Hilo,
+    // Sin `[Required]`: ausente es «turno nuevo cualquiera», el caso de
+    // siempre. Ver `CapaConversacional.ResponderAsync` (design.md D9 de
+    // asistente-rediseno-v3, «Editar y reenviar»).
+    string? Reemplaza = null,
+    // `[MaxLength(5)]` sobre una colección cuenta elementos, no caracteres:
+    // con `[ApiController]`, una sexta referencia nunca llega a la acción — el
+    // filtro de validación del modelo devuelve 400 antes (escenario «Too many
+    // references are rejected» de asistente-menciones).
+    [MaxLength(5)]
+    IReadOnlyList<ReferenciaDto>? Referencias = null);
+
+/// <summary>Una mención tal como la manda el cliente en el turno (design.md D11).</summary>
+/// <param name="Tipo">
+/// <c>"materia"</c> o <c>"docente"</c>. Cualquier otro valor se trata igual que
+/// un identificador que no existe: <c>400</c>, sin confirmar cuál de las dos
+/// cosas fue.
+/// </param>
+public sealed record ReferenciaDto(string Tipo, Guid Id);
+
+/// <summary>Una opción del menú de aclaración.</summary>
+public sealed record OpcionDto(string Etiqueta, string PreguntaResuelta);
+
+/// <summary>
+/// Una materia o un docente encontrado por <c>GET /api/asistente/menciones</c>
+/// (design.md D10 de asistente-rediseno-v3).
+/// </summary>
+/// <param name="Carrera">La carrera de la materia. <c>null</c> para un docente.</param>
+/// <param name="Codigo">El código de la materia. <c>null</c> para un docente.</param>
+/// <param name="Cargo">El cargo de la designación del docente. <c>null</c> para una materia.</param>
+public sealed record MencionDto(Guid Id, string Nombre, string? Carrera, string? Codigo, string? Cargo)
+{
+    internal static MencionDto De(ResultadoDeMencion resultado) => new(
+        resultado.Id, resultado.Nombre, resultado.Carrera, resultado.Codigo, resultado.Cargo);
+}
+
+/// <summary>La respuesta de <c>GET /api/asistente/menciones</c>.</summary>
+/// <param name="HayMas">
+/// Si había más coincidencias que las devueltas. Nunca un conteo — mismo motivo
+/// que <see cref="RespuestaDelAsistente.Truncado"/>.
+/// </param>
+public sealed record MencionesDto(IReadOnlyList<MencionDto> Resultados, bool HayMas)
+{
+    internal static MencionesDto De(BusquedaDeMenciones busqueda) =>
+        new([.. busqueda.Resultados.Select(MencionDto.De)], busqueda.HayMas);
+}
+
+/// <summary>What the client sends to rate an already-answered turn.</summary>
+/// <param name="Token">
+/// The feedback token minted for that turn (<c>ClaveDeRetroalimentacion</c> in
+/// the turn's response). Authorizes rating THAT turn; it does not identify the
+/// caller.
+/// </param>
+/// <param name="Voto">Thumbs up (<c>true</c>) or thumbs down (<c>false</c>).</param>
+/// <param name="Razones">
+/// Zero or more of <see cref="RazonesDeRetroalimentacion.Todas"/>, no duplicates.
+/// Validated in the controller against that closed list rather than via an
+/// attribute, so the list is declared exactly once. Ignored server-side when
+/// <see cref="Voto"/> is <c>true</c>, even if present here — the client is never
+/// trusted to have omitted it.
+/// </param>
+/// <param name="Comentario">
+/// Free text, trimmed by the controller before validating and storing it; empty
+/// after trimming is treated as absent. At most 500 characters after trimming,
+/// else <c>400</c>. Same "ignored on a thumbs-up" rule as <see cref="Razones"/>.
+/// Never logged, never sent to the model provider, never surfaced back to any
+/// screen — asistente-retroalimentacion's spec and the TD-012 addendum in
+/// <c>docs/quality/tech-debt.md</c>.
+/// </param>
+public sealed record PedidoDeRetroalimentacion(
+    Guid Token, bool Voto, IReadOnlyList<string>? Razones, string? Comentario);
+
+/// <summary>
+/// Un vínculo a la pantalla que muestra lo que una celda identifica.
+/// </summary>
+/// <param name="Fila">Índice de la fila dentro de <c>filas</c>.</param>
+/// <param name="Columna">Índice de la columna dentro de esa fila.</param>
+/// <param name="Tipo">Qué clase de recurso es. El cliente lo traduce a una ruta.</param>
+/// <param name="Id">Con qué identificador se abre.</param>
+/// <remarks>
+/// <b>Sin URL, a propósito.</b> La ruta es una decisión de la interfaz, y un
+/// cliente que no reconozca el <paramref name="Tipo"/> no pinta nada — así un tipo
+/// nuevo no rompe a un cliente viejo, sólo no lo aprovecha.
+/// </remarks>
+public sealed record VinculoDto(int Fila, int Columna, string Tipo, string Id);
+
+/// <summary>Una columna del resultado, con su marca de sensibilidad.</summary>
+/// <param name="Sensible">
+/// Si la columna trae un dato personal. Lo necesita quien renderiza: con columnas
+/// sensibles la narración deja de ser el vehículo del dato —el modelo redacta el
+/// marco y la interfaz muestra la tabla—.
+/// </param>
+public sealed record ColumnaDto(string Nombre, bool Sensible);
+
+/// <summary>Lo que el cliente recibe de un turno (§4.6).</summary>
+public sealed record RespuestaDelAsistente
+{
+    /// <summary>Uno de los cuatro: respondida, no contestable, necesita aclaración, degradado.</summary>
+    public required string Estado { get; init; }
+
+    /// <summary>El texto que lee el usuario.</summary>
+    public required string Respuesta { get; init; }
+
+    /// <summary>El hilo, para mandarlo en el turno siguiente.</summary>
+    public required Guid Hilo { get; init; }
+
+    /// <summary>Cómo se interpretó la pregunta. Presente solo si difiere del mensaje.</summary>
+    public string? PreguntaInterpretada { get; init; }
+
+    /// <summary>Cómo el asistente llegó a la consulta, tal como lo devolvió la generación.</summary>
+    public string? Razonamiento { get; init; }
+
+    /// <summary>Las opciones de una aclaración. <b>Bloquean</b> el turno.</summary>
+    public IReadOnlyList<OpcionDto> Opciones { get; init; } = [];
+
+    /// <summary>Las columnas del resultado, con su marca de sensibilidad.</summary>
+    public IReadOnlyList<ColumnaDto> Columnas { get; init; } = [];
+
+    /// <summary>Las filas, con los valores reales.</summary>
+    public IReadOnlyList<IReadOnlyList<object?>> Filas { get; init; } = [];
+
+    /// <summary>
+    /// Si hubo más filas que el tope. Booleano y nunca un conteo: cuántas quedaron
+    /// afuera es un canal de inferencia sobre datos que el usuario no puede ver.
+    /// </summary>
+    public bool Truncado { get; init; }
+
+    /// <summary>La consulta que se ejecutó. Presente solo con el permiso correspondiente.</summary>
+    public string? Sql { get; init; }
+
+    /// <summary>
+    /// The feedback token: present only when <c>estado</c> is <c>respondida</c>.
+    /// Submit it once to <c>POST /api/asistente/retroalimentacion</c> to rate this
+    /// turn. Never derived from, and never carries, any actor identifier.
+    /// </summary>
+    public Guid? ClaveDeRetroalimentacion { get; init; }
+
+    /// <summary>
+    /// Las celdas que identifican algo que el actor <b>puede abrir</b>. Vacío si no
+    /// hay ninguna.
+    /// </summary>
+    /// <remarks>
+    /// Que una fila esté en <c>filas</c> no implica que su recurso tenga vínculo:
+    /// las filas las filtra el motor y la pantalla la autoriza el módulo dueño, que
+    /// son dos reglas distintas. Este campo trae el veredicto de la segunda.
+    /// </remarks>
+    public IReadOnlyList<VinculoDto> Vinculos { get; init; } = [];
+
+    /// <summary>Lo que costó el turno.</summary>
+    public required MetricasDto Metricas { get; init; }
+
+    /// <summary>
+    /// El cupo diario del actor, ya cobrado este turno (asistente-cupo-visible).
+    /// Nulo sólo si <see cref="ResultadoDelTurno.CupoRestante"/> no se resolvió
+    /// —no debería ocurrir en producción, y es exactamente lo que
+    /// <see cref="int.MaxValue"/> vs. un número concreto ya distingue de "sin
+    /// tope" vs. "con tope".
+    /// </summary>
+    public int? CupoRestante { get; init; }
+
+    /// <summary>
+    /// El id de la conversación persistida (<c>asistente.hilo_historico.id</c>)
+    /// en la que este turno quedó registrado (design.md D13 de
+    /// asistente-rediseno-v3), para que el rail la resalte y titule el
+    /// encabezado. Nulo si el turno no se persistió —la escritura del
+    /// historial falló, o el turno terminó en <c>Fallo</c>—. Nunca viaja junto
+    /// a <see cref="ClaveDeRetroalimentacion"/> ni al registro analítico.
+    /// </summary>
+    public Guid? Conversacion { get; init; }
+
+    /// <summary>Arma la respuesta HTTP a partir del resultado del turno.</summary>
+    internal static RespuestaDelAsistente De(ResultadoDelTurno turno)
+    {
+        ArgumentNullException.ThrowIfNull(turno);
+
+        return new RespuestaDelAsistente
+        {
+            Estado = Nombrar(turno.Estado),
+            Respuesta = turno.Respuesta,
+            Hilo = turno.Hilo,
+            PreguntaInterpretada = turno.PreguntaInterpretada,
+            Razonamiento = string.IsNullOrWhiteSpace(turno.Razonamiento) ? null : turno.Razonamiento,
+            Opciones = [.. (turno.Opciones ?? []).Select(o => new OpcionDto(o.Etiqueta, o.PreguntaResuelta))],
+            Columnas = [.. turno.Columnas.Select((nombre, i) =>
+                new ColumnaDto(nombre, turno.Sensibilidad.Count > i && turno.Sensibilidad[i].Tapa))],
+            Filas = turno.Filas,
+            Truncado = turno.Truncado,
+            Sql = turno.Sql,
+            Vinculos = [.. (turno.Vinculos ?? []).Select(
+                v => new VinculoDto(v.Fila, v.Columna, v.Tipo, v.Id))],
+            Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
+            ClaveDeRetroalimentacion = turno.ClaveDeRetroalimentacion,
+            CupoRestante = turno.CupoRestante,
+            Conversacion = turno.Conversacion,
+        };
+    }
+
+    /// <summary>
+    /// Traduce el estado a la forma del contrato HTTP.
+    /// </summary>
+    /// <remarks>
+    /// Explícito y no <c>ToString()</c>: el nombre del enum es un detalle interno del
+    /// backend, y renombrarlo no puede romper a los clientes en silencio.
+    /// </remarks>
+    private static string Nombrar(EstadoDelTurno estado) => estado switch
+    {
+        EstadoDelTurno.Respondida => "respondida",
+        EstadoDelTurno.NoContestable => "no_contestable",
+        EstadoDelTurno.NecesitaAclaracion => "necesita_aclaracion",
+        EstadoDelTurno.ServicioDegradado => "servicio_degradado",
+        _ => throw new ArgumentOutOfRangeException(nameof(estado), estado, "Estado desconocido."),
+    };
+}
+
+/// <summary>Lo que costó el turno.</summary>
+public sealed record MetricasDto(int LlamadasAlModelo, string Categoria);
+
+/// <summary>
+/// Lo que se manda a <c>PATCH /api/asistente/administracion/mantenimiento</c>
+/// (asistente-modo-mantenimiento).
+/// </summary>
+/// <param name="Activo">Prender o apagar el mantenimiento.</param>
+/// <param name="Razon">
+/// Obligatoria para activar (tarea 6.2); opcional para desactivar.
+/// </param>
+public sealed record PedidoDeMantenimientoDto(bool Activo, string? Razon);
+
+/// <summary>El modo mantenimiento, tal como lo ve cualquier consultante.</summary>
+public sealed record MantenimientoDto(bool Activo, string? Razon)
+{
+    internal static MantenimientoDto De(EstadoDeMantenimiento estado) =>
+        new(estado.Activo, estado.Razon);
+}
+
+/// <summary>
+/// El cupo diario del actor, tal como lo cuenta <c>capacidades</c> y el
+/// resultado del propio turno (asistente-cupo-visible).
+/// </summary>
+/// <param name="Restante">
+/// Turnos que le quedan hoy. <see cref="int.MaxValue"/> si el cupo está
+/// desactivado — ver <c>ICuotaDelActor.CupoRestanteAsync</c>.
+/// </param>
+/// <param name="Bloqueado">Si el actor está bloqueado AHORA MISMO.</param>
+/// <param name="Motivo">
+/// Uno de <c>presupuesto_propio</c>, <c>tope_organizacional</c> o
+/// <c>mantenimiento</c>. Nulo si no está bloqueado.
+/// </param>
+/// <param name="VuelveA">Cuándo se destraba, si se sabe.</param>
+public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateTimeOffset? VuelveA);
+
+/// <summary>Un agregado de uso: por usuario, por rol, u organizacional (asistente-panel-de-uso).</summary>
+/// <param name="EsEstimado">
+/// Siempre <c>true</c>: el costo es una estimación propia, nunca la factura
+/// del proveedor (tarea 9.4).
+/// </param>
+public sealed record UsoAgregadoDto(
+    string Clave,
+    string? NombreParaMostrar,
+    int Turnos,
+    IReadOnlyDictionary<string, int> PorEstado,
+    int LlamadasAlModelo,
+    long TokensDeEntrada,
+    long TokensDeSalida,
+    long TokensDeCache,
+    double LatenciaPromedioMs,
+    double LatenciaP95Ms,
+    IReadOnlyList<string> Proveedores,
+    decimal CostoEstimado,
+    bool EsEstimado,
+    int TurnosSinPrecio)
+{
+    internal static UsoAgregadoDto De(UsoAgregado agregado) => new(
+        agregado.Clave,
+        agregado.NombreParaMostrar,
+        agregado.Turnos,
+        agregado.PorEstado,
+        agregado.LlamadasAlModelo,
+        agregado.TokensDeEntrada,
+        agregado.TokensDeSalida,
+        agregado.TokensDeCache,
+        agregado.LatenciaPromedioMs,
+        agregado.LatenciaP95Ms,
+        agregado.Proveedores,
+        agregado.CostoEstimado,
+        EsEstimado: true,
+        agregado.TurnosSinPrecio);
+}
+
+/// <summary>El panel de uso completo (<c>GET /api/asistente/administracion/uso</c>).</summary>
+public sealed record UsoDto(
+    IReadOnlyList<UsoAgregadoDto> PorUsuario,
+    IReadOnlyList<UsoAgregadoDto> PorRol,
+    UsoAgregadoDto Organizacion)
+{
+    internal static UsoDto De(PanelDeUso panel) => new(
+        [.. panel.PorUsuario.Select(UsoAgregadoDto.De)],
+        [.. panel.PorRol.Select(UsoAgregadoDto.De)],
+        UsoAgregadoDto.De(panel.Organizacion));
+}
+
+/// <summary>Lo que se manda a editar un cupo (de rol o de usuario).</summary>
+public sealed record PedidoDeCupoDto(int Cupo);
+
+/// <summary>Lo que se manda a editar el tope organizacional.</summary>
+public sealed record PedidoDeTopeDto(decimal TopeMensualUsd);
+
+/// <summary>Un área que el actor puede consultar.</summary>
+public sealed record AreaDto(string Nombre, string? Descripcion, int Columnas);
+
+/// <summary>El catálogo de capacidades del actor.</summary>
+public sealed record CapacidadesDto
+{
+    /// <summary>Las áreas, con sus conteos.</summary>
+    public required IReadOnlyList<AreaDto> Cubre { get; init; }
+
+    /// <summary>Cuántas tablas puede consultar.</summary>
+    public required int Tablas { get; init; }
+
+    /// <summary>Cuántas columnas puede leer.</summary>
+    public required int Columnas { get; init; }
+
+    /// <summary>Preguntas ejecutables, verificadas contra sus privilegios.</summary>
+    public required IReadOnlyList<string> Ejemplos { get; init; }
+
+    /// <summary>Los límites del asistente.</summary>
+    public required IReadOnlyList<string> NoPuede { get; init; }
+
+    /// <summary>Qué filas ve, dicho aparte de los conteos.</summary>
+    public required string Alcance { get; init; }
+
+    /// <summary>Por qué cosas suele venir a preguntar este actor, según su rol.</summary>
+    public required string Presentacion { get; init; }
+
+    /// <summary>El modo mantenimiento, global (asistente-modo-mantenimiento).</summary>
+    public required MantenimientoDto Mantenimiento { get; init; }
+
+    /// <summary>El cupo diario de este actor (asistente-cupo-visible).</summary>
+    public required CupoDto Cupo { get; init; }
+
+    /// <summary>Arma el DTO a partir del catálogo.</summary>
+    internal static CapacidadesDto De(CapacidadesDelActor capacidades)
+    {
+        ArgumentNullException.ThrowIfNull(capacidades);
+
+        return new CapacidadesDto
+        {
+            Cubre = [.. capacidades.Cubre.Select(a => new AreaDto(a.Nombre, a.Descripcion, a.Columnas))],
+            Tablas = capacidades.Tablas,
+            Columnas = capacidades.Columnas,
+            Ejemplos = capacidades.Ejemplos,
+            NoPuede = capacidades.NoPuede,
+            Alcance = capacidades.Alcance,
+            Presentacion = capacidades.Presentacion,
+            Mantenimiento = MantenimientoDto.De(capacidades.Mantenimiento),
+            Cupo = new CupoDto(
+                capacidades.Cupo.Restante,
+                capacidades.Cupo.Bloqueado,
+                capacidades.Cupo.Motivo,
+                capacidades.Cupo.VuelveA),
+        };
+    }
+}
