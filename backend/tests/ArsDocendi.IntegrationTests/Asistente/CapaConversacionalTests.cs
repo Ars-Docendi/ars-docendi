@@ -430,6 +430,132 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, turno.Respuesta);
     }
 
+    // -------------------------------------- escalación de rechazos (grupo 6.2)
+
+    [Fact]
+    public async Task Una_conversacion_nueva_arranca_en_la_primera_variante()
+    {
+        await SembrarAsync();
+        var banco = Banco(ProveedorGuionado.NoContestable());
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿algo raro?", TestContext.Current.CancellationToken);
+
+        // `no_cubierto`, primera variante, sin término: el texto genérico
+        // preexistente, palabra por palabra — con o sin catálogo.
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, turno.Respuesta);
+    }
+
+    [Fact]
+    public async Task Dos_rechazos_consecutivos_en_el_mismo_hilo_difieren()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        const string Pregunta = "¿instalás linux en el servidor?";
+
+        var banco = Banco(
+            ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"), // turno 1: sin historial
+            Pregunta, // turno 2: reescritura no-op (mismo texto, sin arrastre real)
+            ProveedorGuionado.NoContestableConMotivo("fuera_de_tema")); // turno 2: generación
+
+        var primero = await banco.Capa().ResponderAsync(Secretaria, null, Pregunta, ct);
+        var segundo = await banco.Capa().ResponderAsync(Secretaria, primero.Hilo, Pregunta, ct);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, primero.Estado);
+        Assert.Equal(EstadoDelTurno.NoContestable, segundo.Estado);
+        Assert.NotEqual(primero.Respuesta, segundo.Respuesta);
+
+        // La segunda variante nombra las áreas del catálogo REAL de este actor,
+        // o cae al puntero de ayuda si el catálogo no tuviera nada que nombrar.
+        var capacidades = await banco.Capacidades.ObtenerAsync(Secretaria, ct);
+        var areasEsperadas = EtiquetasDeAreas.Nombrar(capacidades.Cubre);
+
+        if (areasEsperadas is not null)
+        {
+            Assert.Contains(areasEsperadas, segundo.Respuesta, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Contains("qué podés hacer", segundo.Respuesta, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public async Task Cinco_rechazos_consecutivos_nunca_repiten_texto_seguido()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        const string Pregunta = "¿instalás linux en el servidor?";
+
+        // Turno 1: un solo llamado (sin historial, sin reescritura). Turnos 2 a
+        // 5: un llamado de reescritura NO-OP (el mismo texto, para que la
+        // pregunta llegue igual al generador) más el de generación.
+        var banco = Banco(
+            ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"),
+            Pregunta, ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"),
+            Pregunta, ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"),
+            Pregunta, ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"),
+            Pregunta, ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"));
+
+        var textos = new List<string>();
+        Guid? hilo = null;
+
+        for (var i = 0; i < 5; i++)
+        {
+            var turno = await banco.Capa().ResponderAsync(Secretaria, hilo, Pregunta, ct);
+            hilo = turno.Hilo;
+            textos.Add(turno.Respuesta);
+        }
+
+        for (var i = 0; i < textos.Count - 1; i++)
+        {
+            Assert.NotEqual(textos[i], textos[i + 1]);
+        }
+    }
+
+    [Fact]
+    public async Task Una_edicion_que_se_rechaza_de_nuevo_reusa_la_variante_del_turno_reemplazado()
+    {
+        // El turno reemplazado se saca del hilo ANTES de resolver la edición
+        // (design.md D9 de asistente-rediseno-v3), así que `RechazosPrevios()`
+        // vuelve a cero para ella: no cuenta el turno que reemplaza, cuenta el
+        // que reemplazó.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(ProveedorGuionado.NoContestable(), ProveedorGuionado.NoContestable());
+
+        var original = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿algo raro?", ct, claveDelCliente: "clave-1");
+
+        var reemplazo = await banco.Capa().ResponderAsync(
+            Secretaria, original.Hilo, "¿otra cosa rara?", ct,
+            claveDelCliente: "clave-2", reemplaza: "clave-1");
+
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, original.Respuesta);
+        Assert.Equal(PoliticaDeAbstencion.TextoNoContestable, reemplazo.Respuesta);
+    }
+
+    [Fact]
+    public async Task Una_referencia_sin_resolver_pisa_el_texto_aunque_ya_hubo_un_rechazo_antes()
+    {
+        // La precedencia de CierreDelTurno.TextoDelRechazo se sostiene aunque la
+        // escalación ya esté en la segunda variante: el diagnóstico de
+        // referencia sin resolver es más específico que el motivo del modelo.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var banco = Banco(
+            ProveedorGuionado.NoContestable(),
+            "¿los profesores de esa materia?",
+            ProveedorGuionado.NoContestable());
+
+        var primero = await banco.Capa().ResponderAsync(Secretaria, null, "¿algo raro?", ct);
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿los profesores de esa materia?", ct);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, segundo.Estado);
+        Assert.Equal(PoliticaDeAbstencion.TextoReferenciaSinResolver, segundo.Respuesta);
+    }
+
     [Fact]
     public async Task Un_seguimiento_con_demostrativo_que_se_resuelve_no_cambia_nada()
     {

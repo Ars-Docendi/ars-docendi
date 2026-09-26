@@ -602,6 +602,76 @@ public sealed class HiloConversacionalTests
         Assert.Equal("clave-2", hilo.UltimoRegistrado?.ClaveDelCliente);
     }
 
+    // --------------------------------------- RechazosPrevios (asistente-rechazos-dinamicos)
+
+    [Fact]
+    public void Sin_turnos_no_hubo_ningun_rechazo()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        Assert.Equal(0, hilo.RechazosPrevios());
+    }
+
+    [Fact]
+    public void Cuenta_los_turnos_no_contestables_de_toda_la_conversacion()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("t1", Inicio, estado: EstadoDelTurno.Respondida);
+        hilo.Agregar("t2", Inicio, estado: EstadoDelTurno.NoContestable);
+        hilo.Agregar("t3", Inicio, estado: EstadoDelTurno.NoContestable);
+
+        Assert.Equal(2, hilo.RechazosPrevios());
+    }
+
+    [Fact]
+    public void El_conteo_sobrevive_a_un_pivote_de_tema()
+    {
+        // No es del segmento, es de TODA la conversación: un pivote no
+        // resetea la frustración acumulada de quien pregunta.
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+
+        hilo.Agregar("t1", Inicio, estado: EstadoDelTurno.NoContestable);
+        hilo.SoltarElTema();
+        hilo.Agregar("t2", Inicio, estado: EstadoDelTurno.Respondida);
+
+        Assert.Equal(1, hilo.RechazosPrevios());
+        Assert.Empty(hilo.HistorialVigente(tope: 10).Where(t => t.Estado == EstadoDelTurno.NoContestable));
+    }
+
+    [Fact]
+    public void Quitar_el_ultimo_para_reemplazo_saca_un_rechazo_del_conteo()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, estado: EstadoDelTurno.NoContestable);
+        hilo.Agregar(
+            "t2", Inicio, claveDelCliente: "clave-2", estado: EstadoDelTurno.NoContestable);
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 1, null);
+
+        Assert.Equal(2, hilo.RechazosPrevios());
+
+        hilo.QuitarUltimoParaReemplazo();
+
+        Assert.Equal(1, hilo.RechazosPrevios());
+    }
+
+    [Fact]
+    public void Reponer_tras_un_fallo_restaura_el_rechazo_al_conteo()
+    {
+        var hilo = new HiloConversacional(Guid.NewGuid(), Ana);
+        hilo.Agregar("t1", Inicio, estado: EstadoDelTurno.NoContestable);
+        hilo.Agregar(
+            "t2", Inicio, claveDelCliente: "clave-2", estado: EstadoDelTurno.NoContestable);
+        hilo.MarcarUltimoRegistrado("clave-2", null, null, inicioDeSegmentoAntes: 1, null);
+
+        var sacado = hilo.QuitarUltimoParaReemplazo();
+        Assert.Equal(1, hilo.RechazosPrevios());
+
+        hilo.ReponerTrasFallo(sacado);
+
+        Assert.Equal(2, hilo.RechazosPrevios());
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static (AlmacenDeHilosEnMemoria Almacen, RelojFijo Reloj) Almacen(

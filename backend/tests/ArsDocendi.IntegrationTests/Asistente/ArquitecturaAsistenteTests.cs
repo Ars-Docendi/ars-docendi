@@ -680,7 +680,17 @@ public sealed partial class ArquitecturaAsistenteTests
     /// value tuple, on purpose: a tuple forces nothing public, so it never
     /// touches this count.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 88;
+    /// <remarks>
+    /// Raised once more to 89 for asistente-rechazos-dinamicos: <c>MotivoDeRechazo</c>
+    /// is the type of a parameter/property on three public records
+    /// —<c>GeneracionDeSql.Motivo</c>, <c>ResultadoDelTurno.MotivoDeRechazo</c>,
+    /// <c>TurnoParaRegistrar.MotivoDeRechazo</c>—, and the compiler rejects a
+    /// less-accessible enum there, same rule as every other entry in this
+    /// list. Everything else the feature needed —<c>MotivosDeRechazo</c>,
+    /// <c>PlantillasDeRechazo</c>, <c>TerminoDelRechazo</c>,
+    /// <c>EtiquetasDeAreas</c>— stayed `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 89;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
@@ -1010,6 +1020,14 @@ public sealed partial class ArquitecturaAsistenteTests
         // ratificar en ese nombre.
         "retroalimentacion_turno_razones_validas",
         "retroalimentacion_turno_comentario_longitud",
+
+        // asistente-rechazos-dinamicos: `motivo_rechazo` lleva su CHECK inline en el
+        // `CREATE TABLE` (que no tiene la restricción de una sola acción sin coma),
+        // y este mismo `ADD CONSTRAINT` lo agrega también contra una base que ya
+        // tenía `registro_operativo` sin la columna — mismo patrón que los dos de
+        // arriba, guardado por nombre en `pg_constraint` para que la segunda corrida
+        // sea un no-op.
+        "registro_operativo_motivo_rechazo_valido",
     ];
 
     /// <summary>

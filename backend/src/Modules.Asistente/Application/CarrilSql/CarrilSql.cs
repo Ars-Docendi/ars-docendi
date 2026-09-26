@@ -24,6 +24,7 @@ public sealed class CarrilSql(
     IConsultorDeCobertura cobertura,
     IBuscadorDeMenciones buscadorDeMenciones,
     ContadorDeLlamadasDelTurno contador,
+    ICatalogoDeCapacidades capacidades,
     ILogger<CarrilSql> log)
 {
     /// <summary>Responde una pregunta acotada al actor.</summary>
@@ -54,6 +55,14 @@ public sealed class CarrilSql(
     /// seguimiento que edita o anida una consulta anterior pueda reusar su
     /// marcador sin que el validador lo vea como no declarado.
     /// </param>
+    /// <param name="rechazosPrevios">
+    /// Cuántos rechazos anteriores tuvo esta conversación
+    /// (<see cref="HiloConversacional.RechazosPrevios"/>), para escalar la
+    /// plantilla de un rechazo declarado por el modelo (design.md D5 de
+    /// asistente-rechazos-dinamicos). <c>0</c> —el valor por omisión— en el
+    /// primer rechazo de una conversación, o siempre en el evaluador, que no
+    /// tiene hilo.
+    /// </param>
     public async Task<ResultadoDelTurno> ResponderAsync(
         Guid actor,
         string mensaje,
@@ -61,7 +70,8 @@ public sealed class CarrilSql(
         CancellationToken ct,
         IReadOnlyList<string>? consultasAnteriores = null,
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
-        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null)
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null,
+        int rechazosPrevios = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -78,7 +88,7 @@ public sealed class CarrilSql(
             var perfil = await perfiles.ObtenerAsync(actor, ct);
             return await ResolverAsync(
                 actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct,
-                mencionesNuevas, referenciasHeredadas);
+                mencionesNuevas, referenciasHeredadas, rechazosPrevios);
         }
         catch (ConsultaSinPrivilegio)
         {
@@ -145,7 +155,8 @@ public sealed class CarrilSql(
         IReadOnlyList<string>? consultasAnteriores,
         CancellationToken ct,
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
-        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null)
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null,
+        int rechazosPrevios = 0)
     {
         // NUMERADAS UNA SOLA VEZ, ACÁ: la misma asignación se usa para generar,
         // validar, ejecutar y —en el reintento— volver a generar. Numerarlas de
@@ -201,8 +212,25 @@ public sealed class CarrilSql(
             // que distingue, en el registro analítico y en el evaluador, una
             // abstención de una generación cortada por el techo de tokens. El
             // usuario ve lo mismo en las dos.
-            return NoContestable(
-                generacion, aMostrar, PoliticaDeAbstencion.TextoNoContestable, generacion.Categoria);
+            //
+            // EL TEXTO SE RENDERIZA ACÁ, EN LA RAMA DEL RECHAZO DECLARADO POR EL
+            // MODELO (design.md D1 de asistente-rechazos-dinamicos): cubre las
+            // tres razones de esta rama —abstención declarada, respuesta
+            // ininteligible y corte por presupuesto— con la MISMA llamada.
+            // `generacion.Motivo` es `null` en las dos últimas (design.md D2) y
+            // `PlantillasDeRechazo.Texto` lo trata como `NoCubierto`, así que un
+            // cassette viejo sin `motivo` (o una generación que no llegó a
+            // decidir nada) sigue resolviendo exactamente el texto genérico de
+            // siempre cuando tampoco hay término ni escalación.
+            var motivo = generacion.Motivo ?? MotivoDeRechazo.NoCubierto;
+            var termino = TerminoDelRechazo.Validar(generacion.TerminoCandidato, mensaje);
+            var areas = await AreasDelRechazoAsync(actor, ct);
+            var texto = PlantillasDeRechazo.Texto(motivo, termino, areas, rechazosPrevios);
+
+            log.LogInformation(
+                "El carril SQL rechazó la pregunta ({Motivo}).", MotivosDeRechazo.ValorDeCable(motivo));
+
+            return NoContestable(generacion, aMostrar, texto, generacion.Categoria);
         }
 
         var veredicto = ValidadorDeSql.Validar(generacion.Sql, declarados, requeridos);
@@ -476,7 +504,40 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             categoria,
-            contador.Llamadas);
+            contador.Llamadas,
+            // `generacion.Motivo` es no nulo únicamente en la rama del rechazo
+            // declarado por el modelo (ver `ResolverAsync`): el rechazo del
+            // validador reusa este mismo constructor con una `generacion` cuyo
+            // `EsContestable` era verdadero, así que ahí siempre es `null` — el
+            // motivo del registro operativo nunca lo pone el validador.
+            MotivoDeRechazo: generacion.Motivo);
+
+    /// <summary>
+    /// Las áreas consultables del actor, ya renderizadas para un rechazo, o
+    /// <c>null</c> si el catálogo no se pudo leer.
+    /// </summary>
+    /// <remarks>
+    /// Se lee SÓLO en esta rama (design.md D1): pagar las tres consultas del
+    /// catálogo —áreas, cupo, mantenimiento— en cada rechazo es aceptable
+    /// porque el turno ya se abstuvo de ejecutar y de redactar. Un fallo se
+    /// atrapa y se registra, nunca tumba el turno — misma regla que
+    /// <see cref="CoberturaAsync"/>: el contexto que mejora la respuesta no
+    /// puede romperla.
+    /// </remarks>
+    private async Task<string?> AreasDelRechazoAsync(Guid actor, CancellationToken ct)
+    {
+        try
+        {
+            var capacidadesDelActor = await capacidades.ObtenerAsync(actor, ct);
+            return EtiquetasDeAreas.Nombrar(capacidadesDelActor.Cubre);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudo leer el catálogo de capacidades; el rechazo se responde sin áreas.");
+            return null;
+        }
+    }
 
     /// <summary>
     /// Un turno que termina sin filas y sin haber llegado a la redacción.

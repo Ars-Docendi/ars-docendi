@@ -171,7 +171,13 @@ internal static class PoliticaDeAbstencion
     /// Son demostrativos y referencias de posición, sin artículos ni pronombres
     /// átonos. Ya normalizados: sin acentos y en minúscula.
     /// </remarks>
-    private static readonly HashSet<string> Demostrativos = new(StringComparer.Ordinal)
+    /// <remarks>
+    /// <b>Internal, y no privada</b>: <see cref="TerminoDelRechazo.Validar"/> la
+    /// reusa para descartar un término que sólo es un demostrativo —«eso» no
+    /// puede convertirse en «No puedo responder sobre «eso»»— con la MISMA
+    /// lista, no una copia que pueda desincronizarse.
+    /// </remarks>
+    internal static readonly HashSet<string> Demostrativos = new(StringComparer.Ordinal)
     {
         "eso", "esa", "ese", "esos", "esas", "esto", "estos", "estas",
         "aquel", "aquella", "aquellos", "aquellas",

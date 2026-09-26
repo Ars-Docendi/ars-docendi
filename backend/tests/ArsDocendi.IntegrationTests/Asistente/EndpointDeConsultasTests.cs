@@ -667,6 +667,30 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         await VerificaElCicloCompletoAsync(cliente, hiloHistorico!.Value, esperaSqlGuardado: false);
     }
 
+    // ---------------------------------------------- rechazos dinámicos (tarea 1.3)
+
+    [Fact]
+    public async Task El_cuerpo_de_un_rechazo_no_expone_el_motivo_ni_sugerencias()
+    {
+        // `ResultadoDelTurno.MotivoDeRechazo` (asistente-rechazos-dinamicos,
+        // design.md D8) y `Sugerencias` (eliminado, ARS-149) son campos de
+        // servidor: `RespuestaDelAsistente.De` los deja afuera del DTO a
+        // propósito, así que ninguna clave del JSON puede nombrarlos —el
+        // rechazo se explica por su texto solo.
+        await SembrarAsync();
+        using var host = CrearHost(out _, guionPropio: [ProveedorGuionado.NoContestable()]);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(cliente, "¿cuánto gana cada docente?");
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
+        Assert.DoesNotContain("motivo", cuerpo, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("sugerencias", cuerpo, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("termino", cuerpo, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task Un_turno_con_mencion_que_termina_en_aclaracion_persiste_sus_referencias()
     {

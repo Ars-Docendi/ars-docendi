@@ -49,12 +49,35 @@ public enum DesenlaceDeItem
 /// <param name="Categoria">Categoría declarada.</param>
 /// <param name="Desenlace">Cómo terminó.</param>
 /// <param name="Detalle">Qué pasó, en una línea. Para el reporte, no para la métrica.</param>
+/// <param name="MotivoDeclarado">
+/// El valor de cable del motivo de rechazo que el turno declaró
+/// (asistente-rechazos-dinamicos), o <c>null</c> si el turno no terminó en un
+/// rechazo declarado por el modelo. INFORMATIVO: no participa de
+/// <see cref="Desenlace"/> ni de ninguna puntuación — sólo alimenta la sección
+/// de acuerdo del reporte (design.md D10).
+/// </param>
+/// <param name="MotivosAceptables">
+/// Los motivos que el ítem del dataset acepta como correctos
+/// (<c>ItemDeCapacidad.MotivosAceptables</c>), o <c>null</c> si el ítem no los
+/// declara. También informativo.
+/// </param>
 public sealed record ResultadoDeItem(
     string Id,
     string Categoria,
     DesenlaceDeItem Desenlace,
-    string Detalle)
+    string Detalle,
+    string? MotivoDeclarado = null,
+    IReadOnlyList<string>? MotivosAceptables = null)
 {
+    /// <summary>
+    /// Si este ítem tiene motivo para comparar —abstuvo con un motivo
+    /// declarado, y el ítem declara los suyos— y ese motivo está entre los
+    /// aceptables. <c>null</c> si no hay nada que comparar.
+    /// </summary>
+    public bool? MotivoDeAcuerdo => MotivoDeclarado is null || MotivosAceptables is null
+        ? null
+        : MotivosAceptables.Contains(MotivoDeclarado, StringComparer.Ordinal);
+
     /// <summary>Un turno cuya generación se cortó por el techo de tokens.</summary>
     public static ResultadoDeItem PorGeneracionTruncada(string id, string categoria) =>
         new(id,

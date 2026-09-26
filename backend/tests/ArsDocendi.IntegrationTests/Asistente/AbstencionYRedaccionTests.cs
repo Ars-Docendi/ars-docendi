@@ -108,10 +108,49 @@ public sealed class AbstencionYRedaccionTests
             PoliticaDeAbstencion.TextoServicioDegradado,
             PoliticaDeAbstencion.TextoDeResultadoVacio(true),
             PoliticaDeAbstencion.TextoDeResultadoVacio(false),
+            // asistente-rechazos-dinamicos: las plantillas de rechazo, con
+            // áreas realistas —las mismas etiquetas que EtiquetasDeAreas
+            // deriva del catálogo, nunca un nombre de esquema o tabla—.
+            .. TodasLasPlantillasDeRechazo(),
         ];
 
         Assert.All(textos, texto =>
             Assert.DoesNotContain(prohibida, texto, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Todas las renderizaciones de <see cref="PlantillasDeRechazo"/> sobre
+    /// áreas realistas, para extender este mismo guard a las plantillas
+    /// nuevas (tarea 4.2 de asistente-rechazos-dinamicos).
+    /// </summary>
+    private static IEnumerable<string> TodasLasPlantillasDeRechazo()
+    {
+        var areasRealistas = EtiquetasDeAreas.Nombrar([
+            new AreaCubierta("designaciones.designaciones", null, 4),
+            new AreaCubierta("identity.materias", null, 6),
+            new AreaCubierta("identity.carreras", null, 2),
+            new AreaCubierta("identity.personas", null, 5),
+        ]);
+
+        MotivoDeRechazo[] motivos =
+        [
+            MotivoDeRechazo.FueraDeTema, MotivoDeRechazo.OtroSistema,
+            MotivoDeRechazo.MuyGeneral, MotivoDeRechazo.NoCubierto,
+        ];
+
+        foreach (var motivo in motivos)
+        {
+            for (var rechazosPrevios = 0; rechazosPrevios < 3; rechazosPrevios++)
+            {
+                foreach (var termino in new[] { null, "python" })
+                {
+                    foreach (var areas in new[] { null, areasRealistas })
+                    {
+                        yield return PlantillasDeRechazo.Texto(motivo, termino, areas, rechazosPrevios);
+                    }
+                }
+            }
+        }
     }
 
     [Fact]

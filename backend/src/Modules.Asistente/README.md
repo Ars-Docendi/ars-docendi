@@ -129,6 +129,48 @@ actual. Ninguna columna que la búsqueda toca está clasificada `sensible-*` en
 el manifiesto (siguen abajo) — no hizo falta tocarlo. Detalle completo, con la
 revisión del manifiesto, en `docs/architecture/domains/asistente.md`.
 
+### Las plantillas de rechazo (`asistente-rechazos-dinamicos`)
+
+En la rama `!generacion.EsContestable || generacion.Sql is null` de
+`CarrilSql.ResolverAsync`, el texto ya no es un único genérico: se renderiza con
+`Application/Abstencion/PlantillasDeRechazo.cs`, una plantilla por motivo con
+escalación por conversación.
+
+```
+generacion.Motivo ?? NoCubierto      ← MotivosDeRechazo.Interpretar (conjunto cerrado de 4)
+  │
+  ├─ TerminoDelRechazo.Validar(generacion.TerminoCandidato, mensaje)
+  │     span verbatim de `mensaje` (nunca la pregunta reescrita), límite de
+  │     palabra, 2-40 caracteres, ≤ 4 palabras, sin guillemets/saltos de línea,
+  │     no sólo demostrativos/palabras vacías → término o null
+  │
+  ├─ EtiquetasDeAreas.Nombrar(capacidades.Cubre)
+  │     MISMO catálogo que responde «¿qué podés hacer?»; catch → sin áreas,
+  │     LogWarning, el turno no se rompe
+  │
+  └─ PlantillasDeRechazo.Texto(motivo, termino, areas, rechazosPrevios)
+        variante = rechazosPrevios == 0 ? 1 : 2 + (rechazosPrevios - 1) % 2
+```
+
+`MotivoDeRechazo` es `internal enum { FueraDeTema, OtroSistema, MuyGeneral,
+NoCubierto }`; un valor fuera del conjunto, ausente, o una generación
+ininteligible/cortada por el techo de tokens resuelven `NoCubierto`. La primera
+variante de `no_cubierto` sin término es, byte a byte,
+`PoliticaDeAbstencion.TextoNoContestable`: un cassette viejo (sin `motivo`) o una
+generación cortada replay exactamente el texto de siempre — el prefijo del prompt
+no cambia en esta unidad (unidad A del ticket; la unidad B, que agrega `motivo` y
+`termino` a `InstruccionesDeGeneracion`, espera un corpus re-grabado).
+
+`HiloConversacional.RechazosPrevios()` cuenta turnos `NoContestable` de **toda**
+la conversación, no del segmento vigente; `CapaConversacional` lo pasa a
+`CarrilSql.ResponderAsync` y anota `resultado.Estado` en cada turno agregado.
+`HistorialController.Reanudar` siembra el `Estado` de cada fila persistida, así
+que el conteo sobrevive a reanudar. `CierreDelTurno.TextoDelRechazo` mantiene su
+precedencia: una referencia sin resolver sigue pisando la plantilla.
+
+El motivo declarado viaja a `asistente.registro_operativo.motivo_rechazo`
+(nulo en cualquier otro turno); el término nunca se registra ni se persiste.
+
 ### La frontera de salida
 
 Los `GRANT` deciden quién puede **leer** qué. El enmascarador decide qué **sale

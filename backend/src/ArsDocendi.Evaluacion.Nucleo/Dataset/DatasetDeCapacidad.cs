@@ -85,6 +85,13 @@ public sealed record ReferenciaDeItem(string Marcador, string Tipo, int Indice, 
 /// (design.md D11). El runner las manda a <c>GeneradorDeSql</c> igual que un
 /// turno real, así que el eje de capacidad también mide esta traducción.
 /// </param>
+/// <param name="MotivosAceptables">
+/// Los motivos de rechazo que este ítem acepta como correctos
+/// (asistente-rechazos-dinamicos, design.md D10), sólo en un ítem
+/// <c>no_contestable</c>. Informativo: no cambia el desenlace del ítem —una
+/// abstención con un motivo distinto sigue siendo <c>AbstencionCorrecta</c>—,
+/// sólo alimenta la sección de acuerdo del reporte.
+/// </param>
 public sealed record ItemDeCapacidad(
     string Id,
     string Pregunta,
@@ -92,10 +99,31 @@ public sealed record ItemDeCapacidad(
     string Actor,
     string? SqlReferencia,
     bool OrdenImporta,
-    IReadOnlyList<ReferenciaDeItem>? Referencias = null)
+    IReadOnlyList<ReferenciaDeItem>? Referencias = null,
+    IReadOnlyList<string>? MotivosAceptables = null)
 {
     /// <summary>Si el asistente tiene que abstenerse en este ítem.</summary>
     public bool EsInfactible => CategoriaDeItem.EsInfactible(Categoria);
+}
+
+/// <summary>
+/// El conjunto cerrado de motivos de rechazo, tal como lo declara el modelo
+/// (asistente-rechazos-dinamicos). Duplicado deliberado del enum
+/// <c>MotivoDeRechazo</c> de <c>Modules.Asistente</c>: éste es un archivo de
+/// datos versionado y no puede depender de un tipo <c>internal</c> de otro
+/// proyecto.
+/// </summary>
+public static class MotivosDeRechazoAceptables
+{
+    public const string FueraDeTema = "fuera_de_tema";
+    public const string OtroSistema = "otro_sistema";
+    public const string MuyGeneral = "muy_general";
+    public const string NoCubierto = "no_cubierto";
+
+    public static readonly IReadOnlySet<string> Todos = new HashSet<string>(StringComparer.Ordinal)
+    {
+        FueraDeTema, OtroSistema, MuyGeneral, NoCubierto,
+    };
 }
 
 /// <summary>
@@ -161,8 +189,14 @@ public sealed class DatasetDeCapacidad
                 item.Id, item.Pregunta, item.Categoria, item.Actor,
                 item.SqlReferencia, item.OrdenImporta,
                 item.Referencias?.Select(r => new ReferenciaDeItem(
-                    r.Marcador, r.Tipo, r.Indice, r.Nombre, r.Carrera)).ToArray()))
+                    r.Marcador, r.Tipo, r.Indice, r.Nombre, r.Carrera)).ToArray(),
+                item.MotivosAceptables))
             .ToArray();
+
+        foreach (var item in items)
+        {
+            ValidarMotivosAceptables(item);
+        }
 
         var repetidos = items.GroupBy(item => item.Id, StringComparer.Ordinal)
             .Where(grupo => grupo.Count() > 1)
@@ -179,6 +213,53 @@ public sealed class DatasetDeCapacidad
 
         var huella = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(crudo)));
         return new DatasetDeCapacidad(items, huella);
+    }
+
+    /// <summary>
+    /// Valida <see cref="ItemDeCapacidad.MotivosAceptables"/> (design.md D10 de
+    /// asistente-rechazos-dinamicos): no vacío, cada valor del conjunto
+    /// cerrado, y sólo declarado en un ítem <c>no_contestable</c>.
+    /// </summary>
+    private static void ValidarMotivosAceptables(ItemDeCapacidad item)
+    {
+        if (item.Categoria != CategoriaDeItem.NoContestable)
+        {
+            if (item.MotivosAceptables is not null)
+            {
+                throw new InvalidOperationException(
+                    $"El ítem '{item.Id}' es de categoría '{item.Categoria}' y declara "
+                    + "`motivos_aceptables`: sólo un ítem `no_contestable` puede declararlo.");
+            }
+
+            return;
+        }
+
+        if (item.MotivosAceptables is null)
+        {
+            // OPCIONAL EN LA UNIDAD A (tarea 8.1): todavía no hay dataset que lo
+            // declare en todos los ítems `no_contestable` — eso llega con la
+            // tarea 10.2, en la corrida financiada. `capacidad.json` de hoy
+            // sigue cargando sin tocarlo.
+            return;
+        }
+
+        if (item.MotivosAceptables.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"El ítem '{item.Id}' declara `motivos_aceptables` vacío: tiene que nombrar al "
+                + "menos un motivo, o no declarar la clave.");
+        }
+
+        var invalidos = item.MotivosAceptables
+            .Where(motivo => !MotivosDeRechazoAceptables.Todos.Contains(motivo))
+            .ToArray();
+
+        if (invalidos.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"El ítem '{item.Id}' declara `motivos_aceptables` fuera del conjunto cerrado: "
+                + string.Join(", ", invalidos) + ".");
+        }
     }
 
     private sealed class ArchivoDeDataset
@@ -209,6 +290,9 @@ public sealed class DatasetDeCapacidad
 
         [JsonPropertyName("referencias")]
         public IReadOnlyList<ReferenciaDeArchivo>? Referencias { get; init; }
+
+        [JsonPropertyName("motivos_aceptables")]
+        public IReadOnlyList<string>? MotivosAceptables { get; init; }
     }
 
     private sealed class ReferenciaDeArchivo

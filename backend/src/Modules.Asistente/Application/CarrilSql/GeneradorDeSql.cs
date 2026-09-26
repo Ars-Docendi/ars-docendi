@@ -15,15 +15,34 @@ namespace Modules.Asistente.Application;
 /// media (RF-11); no se descarta.
 /// </param>
 /// <param name="Categoria">Categoría estimada de dificultad.</param>
+/// <param name="Motivo">
+/// El motivo declarado por el modelo cuando <paramref name="EsContestable"/> es
+/// falso (design.md D2 de asistente-rechazos-dinamicos). <c>null</c> significa
+/// «el modelo no decidió nada»: una contradicción (contestable sin consulta),
+/// una respuesta ininteligible o una generación cortada por el techo de
+/// tokens — nunca una abstención declarada con un motivo fuera del conjunto,
+/// que resuelve <see cref="MotivoDeRechazo.NoCubierto"/> y no <c>null</c>. Esa
+/// distinción es la que mantiene <c>motivo_rechazo</c> limpia de fallas de
+/// formato (design.md D7).
+/// </param>
+/// <param name="TerminoCandidato">
+/// El término que el modelo propone para nombrar lo que no pudo responder, sin
+/// validar todavía. Sólo <see cref="TerminoDelRechazo.Validar"/> decide si
+/// llega al texto, y sólo como un span de lo que el usuario tipeó — nunca esta
+/// cadena tal cual.
+/// </param>
 public sealed record GeneracionDeSql(
     bool EsContestable,
     string? Sql,
     string Razonamiento,
-    string Categoria)
+    string Categoria,
+    MotivoDeRechazo? Motivo = null,
+    string? TerminoCandidato = null)
 {
     /// <summary>Generación que declara la pregunta fuera de alcance.</summary>
-    public static GeneracionDeSql NoContestable(string razonamiento) =>
-        new(false, null, razonamiento, CategoriaNoContestable);
+    public static GeneracionDeSql NoContestable(
+        string razonamiento, MotivoDeRechazo? motivo = null, string? terminoCandidato = null) =>
+        new(false, null, razonamiento, CategoriaNoContestable, motivo, terminoCandidato);
 
     /// <summary>
     /// Generación que se cortó por el techo de tokens antes de poder decidir.
@@ -268,9 +287,24 @@ public sealed class GeneradorDeSql(
             ? RazonamientoIninteligible
             : interpretada.Razonamiento.Trim();
 
+        // EL MODELO DECLARÓ, EXPLÍCITAMENTE, QUE NO ES CONTESTABLE (design.md D2
+        // de asistente-rechazos-dinamicos): acá SÍ hubo una decisión, así que el
+        // motivo se interpreta —cualquier valor fuera del conjunto cerrado
+        // resuelve `NoCubierto`, nunca `null`— y el término candidato queda
+        // expuesto sin validar todavía.
+        if (!interpretada.EsContestable)
+        {
+            var motivo = MotivosDeRechazo.Interpretar(ComoCadena(interpretada.Motivo));
+            var termino = ComoCadena(interpretada.Termino);
+
+            return GeneracionDeSql.NoContestable(razonamiento, motivo, termino);
+        }
+
         // Contestable sin consulta es una contradicción del modelo: se resuelve
-        // como abstención en lugar de seguir con una consulta vacía.
-        if (!interpretada.EsContestable || string.IsNullOrWhiteSpace(interpretada.Sql))
+        // como abstención en lugar de seguir con una consulta vacía. El motivo
+        // queda `null` a propósito (design.md D2): no fue una decisión del
+        // modelo SOBRE EL MOTIVO, fue una contradicción del objeto entero.
+        if (string.IsNullOrWhiteSpace(interpretada.Sql))
         {
             return GeneracionDeSql.NoContestable(razonamiento);
         }
@@ -305,6 +339,14 @@ public sealed class GeneradorDeSql(
         return inicio >= 0 && fin > inicio ? texto[inicio..(fin + 1)] : null;
     }
 
+    /// <summary>
+    /// Lee un <see cref="JsonElement"/> como cadena, o <c>null</c> si no lo es
+    /// (design.md D2): un `motivo`/`termino` que el modelo mandó como número o
+    /// booleano se ignora en lugar de tirar la generación entera abajo.
+    /// </summary>
+    private static string? ComoCadena(JsonElement? elemento) =>
+        elemento is { ValueKind: JsonValueKind.String } valor ? valor.GetString() : null;
+
     private sealed class RespuestaDeGeneracion
     {
         [JsonPropertyName("es_contestable")]
@@ -318,5 +360,16 @@ public sealed class GeneradorDeSql(
 
         [JsonPropertyName("categoria")]
         public string? Categoria { get; init; }
+
+        // TOLERANTE A PROPÓSITO (design.md D2): `JsonElement?` en vez de
+        // `string?` para que un `motivo`/`termino` que no es cadena —42, un
+        // objeto, `true`— se ignore en `ComoCadena` en lugar de que
+        // `JsonSerializer.Deserialize` tire `JsonException` y pierda la
+        // decisión entera (`es_contestable`, `sql`, `razonamiento`) con ella.
+        [JsonPropertyName("motivo")]
+        public JsonElement? Motivo { get; init; }
+
+        [JsonPropertyName("termino")]
+        public JsonElement? Termino { get; init; }
     }
 }

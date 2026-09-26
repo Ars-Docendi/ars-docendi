@@ -45,6 +45,15 @@ namespace Modules.Asistente.Application;
 /// asistente-rediseno-v3). Igual criterio que <see cref="SqlEjecutado"/>: nulo
 /// cuando no hay nada que un seguimiento pueda editar o anidar.
 /// </param>
+/// <param name="Estado">
+/// El estado en que terminó el turno (asistente-rechazos-dinamicos, design.md
+/// D5), o <c>null</c> cuando no se conoce —el único caso hoy es un turno
+/// sembrado por <see cref="Sembrar"/> desde una fila de <c>turno_historico</c>
+/// anterior a esta columna—. Lo cuenta <see cref="RechazosPrevios"/> para
+/// escalar la plantilla de un rechazo: cada turno que el carril SQL agrega
+/// trae el suyo, así que la cuenta sobrevive a un pivote de tema y a
+/// reanudar la conversación.
+/// </param>
 public sealed record TurnoDelHilo(
     string Pregunta,
     DateTimeOffset Cuando,
@@ -53,7 +62,8 @@ public sealed record TurnoDelHilo(
     Guid? TurnoHistoricoId = null,
     int InicioDeSegmentoAntes = 0,
     Aclaracion? AclaracionPendienteAntes = null,
-    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null);
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? Referencias = null,
+    EstadoDelTurno? Estado = null);
 
 /// <summary>
 /// La identidad del último turno que se registró al historial del hilo —sea
@@ -219,6 +229,10 @@ public sealed class HiloConversacional(Guid id, Guid actor)
     /// Los marcadores <c>$refN</c> que <paramref name="sqlEjecutado"/> usa. Ver
     /// <see cref="TurnoDelHilo.Referencias"/>.
     /// </param>
+    /// <param name="estado">
+    /// En qué estado terminó el turno (asistente-rechazos-dinamicos, design.md
+    /// D5). Ver <see cref="TurnoDelHilo.Estado"/>.
+    /// </param>
     public void Agregar(
         string pregunta,
         DateTimeOffset cuando,
@@ -228,7 +242,8 @@ public sealed class HiloConversacional(Guid id, Guid actor)
         int? inicioDeSegmentoAntes = null,
         Aclaracion? aclaracionPendienteAntes = null,
         bool huboAclaracionAntes = false,
-        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referencias = null)
+        IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referencias = null,
+        EstadoDelTurno? estado = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
@@ -240,9 +255,29 @@ public sealed class HiloConversacional(Guid id, Guid actor)
             turnoHistoricoId,
             inicioDeSegmentoAntes ?? InicioDeSegmento,
             huboAclaracionAntes ? aclaracionPendienteAntes : AclaracionPendiente,
-            referencias));
+            referencias,
+            estado));
         UltimaActividad = cuando;
     }
+
+    /// <summary>
+    /// Cuántos turnos de <b>toda</b> la conversación —no del segmento
+    /// vigente— terminaron <see cref="EstadoDelTurno.NoContestable"/>
+    /// (design.md D5 de asistente-rechazos-dinamicos).
+    /// </summary>
+    /// <remarks>
+    /// <b>Toda la conversación y no el segmento</b>: un pivote de tema no
+    /// resetea la frustración acumulada de quien pregunta — <c>SoltarElTema</c>
+    /// sólo cambia qué contexto se le manda al reescritor, nunca cuántas veces
+    /// ya se lo rechazó.
+    ///
+    /// <b>Cuenta sobre <see cref="Turnos"/>, la lista completa</b>: un turno
+    /// que <see cref="QuitarUltimoParaReemplazo"/> saca del contexto deja de
+    /// contar de inmediato, y si <see cref="ReponerTrasFallo"/> lo repone
+    /// vuelve a contar — sin ningún contador aparte que pueda desincronizarse
+    /// de la lista.
+    /// </remarks>
+    public int RechazosPrevios() => _turnos.Count(turno => turno.Estado == EstadoDelTurno.NoContestable);
 
     /// <summary>
     /// Marca este turno como el último que se registró al historial del hilo,

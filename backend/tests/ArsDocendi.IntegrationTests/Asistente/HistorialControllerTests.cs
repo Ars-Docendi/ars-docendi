@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Modules.Asistente;
 using Modules.Asistente.Api;
+using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 using Npgsql;
 
@@ -581,6 +582,54 @@ public sealed class HistorialControllerTests(PostgresFixture postgres)
             $"/api/asistente/historial/{ajena}/reanudar", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Un_hilo_reanudado_cuyo_ultimo_turno_fue_rechazado_escala_el_siguiente_rechazo()
+    {
+        // asistente-rechazos-dinamicos, design.md D5: `HistorialController.Reanudar`
+        // siembra `Estado: t.Estado` en cada `TurnoDelHilo`, así que
+        // `RechazosPrevios()` cuenta el rechazo persistido AUNQUE el hilo en
+        // memoria acabe de nacer — el conteo es del actor, no del proceso.
+        await SembrarAsync();
+
+        var propia = await SembrarHiloAsync(Secretaria, "una charla", Ancla);
+        await SembrarTurnoAsync(propia, "no sé qué preguntar", null, Ancla, estado: "NoContestable");
+
+        const string Pregunta = "¿instalás linux en el servidor?";
+
+        // `no_cubierto` a propósito: su primera variante sin término es
+        // BYTE A BYTE `PoliticaDeAbstencion.TextoNoContestable` (design.md
+        // D11) — si `RechazosPrevios()` no contara el rechazo persistido, el
+        // texto de acá abajo sería exactamente ése, y la aserción final no
+        // detectaría nada.
+        var guionado = new ProveedorGuionado(
+            Pregunta, // reescritura no-op: hay historial vigente al reanudar
+            ProveedorGuionado.NoContestableConMotivo("no_cubierto"));
+
+        using var host = CrearHost(guionado);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var reanudada = await LeerAsync<ReanudarDto>(await cliente.PostAsync(
+            $"/api/asistente/historial/{propia}/reanudar", null,
+            TestContext.Current.CancellationToken));
+
+        using var pedido = new HttpRequestMessage(HttpMethod.Post, "/api/asistente/consultas")
+        {
+            Content = JsonContent.Create(new ConsultaDelAsistente(Pregunta, reanudada.Hilo)),
+        };
+        pedido.Headers.TryAddWithoutValidation(AsistenteController.CabeceraDeIdempotencia, "clave-de-prueba");
+
+        using var respuesta = await cliente.SendAsync(pedido, TestContext.Current.CancellationToken);
+        var cuerpo = await LeerAsync<RespuestaDelAsistente>(respuesta);
+
+        Assert.Equal("no_contestable", cuerpo.Estado);
+
+        // Ya hubo un rechazo antes de que este hilo en memoria existiera: la
+        // primera variante no aplica más — el texto nombra las áreas del
+        // catálogo, o el puntero de ayuda si el catálogo no tuviera nada.
+        Assert.NotEqual(PoliticaDeAbstencion.TextoNoContestable, cuerpo.Respuesta);
     }
 
     // ------------------------------------------------------------------ reejecutar

@@ -61,9 +61,62 @@ public sealed record Reporte(
         EscribirPuntajes(texto);
         EscribirDesenlaces(texto);
         EscribirCategorias(texto);
+
+        // SÓLO EL EJE DE CAPACIDAD (design.md D10 de asistente-rechazos-dinamicos):
+        // es el único que declara `motivos_aceptables`; en los demás la sección
+        // sería un renglón vacío en cada corrida.
+        if (string.Equals(Eje, "capacidad", StringComparison.Ordinal))
+        {
+            EscribirAcuerdoDeMotivo(texto);
+        }
+
         EscribirItems(texto);
 
         return texto.ToString();
+    }
+
+    /// <summary>
+    /// «Motivo del rechazo (informativo)» (design.md D10 de
+    /// asistente-rechazos-dinamicos): entre los ítems <c>no_contestable</c>
+    /// donde el turno se abstuvo con un motivo declarado por el modelo,
+    /// cuántos declararon un motivo aceptable y cuáles no. NUNCA toca
+    /// <see cref="Puntajes"/>, <see cref="Conteos"/> ni el gate de regresión.
+    /// </summary>
+    private void EscribirAcuerdoDeMotivo(StringBuilder texto)
+    {
+        var comparables = Resultados
+            .Where(resultado => resultado.MotivoDeAcuerdo is not null)
+            .ToList();
+
+        texto.Append("## Motivo del rechazo (informativo)\n\n");
+
+        if (comparables.Count == 0)
+        {
+            texto.Append(
+                "> Ningún ítem tiene motivo declarado y motivos aceptables para comparar todavía.\n\n");
+            return;
+        }
+
+        var deAcuerdo = comparables.Count(resultado => resultado.MotivoDeAcuerdo == true);
+        var endesacuerdo = comparables.Where(resultado => resultado.MotivoDeAcuerdo == false).ToList();
+
+        texto.Append(CultureInfo.InvariantCulture,
+            $"{deAcuerdo} de {comparables.Count} ítem(s) comparables declararon un motivo aceptable.\n\n");
+
+        if (endesacuerdo.Count > 0)
+        {
+            texto.Append("| Ítem | Motivo declarado | Motivos aceptables |\n");
+            texto.Append("| ---- | ----------------- | ------------------- |\n");
+
+            foreach (var resultado in endesacuerdo)
+            {
+                texto.Append(CultureInfo.InvariantCulture,
+                    $"| `{resultado.Id}` | `{resultado.MotivoDeclarado}` | "
+                    + $"{string.Join(", ", resultado.MotivosAceptables ?? [])} |\n");
+            }
+
+            texto.Append('\n');
+        }
     }
 
     private void EscribirPuntajes(StringBuilder texto)

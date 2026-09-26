@@ -143,13 +143,23 @@ public sealed class RunnerDeCapacidad(
         var seAbstuvo = turno.Estado is EstadoDelTurno.NoContestable
             or EstadoDelTurno.NecesitaAclaracion;
 
+        // INFORMATIVO Y APARTE DEL DESENLACE (design.md D10 de
+        // asistente-rechazos-dinamicos): un motivo declarado que no coincide
+        // con `MotivosAceptables` sigue siendo `AbstencionCorrecta` — sólo
+        // cambia lo que la sección de acuerdo del reporte cuenta.
+        var motivoDeclarado = turno.MotivoDeRechazo is { } motivo
+            ? MotivosDeRechazo.ValorDeCable(motivo)
+            : null;
+
         return new ResultadoDeItem(
             item.Id,
             item.Categoria,
             seAbstuvo ? DesenlaceDeItem.AbstencionCorrecta : DesenlaceDeItem.IntentoSobreLoInfactible,
             seAbstuvo
                 ? "Se abstuvo, como corresponde."
-                : "Respondió una pregunta que no debía responder.");
+                : "Respondió una pregunta que no debía responder.",
+            motivoDeclarado,
+            item.MotivosAceptables);
     }
 
     private async Task<ResultadoDeItem> EvaluarFactibleAsync(

@@ -360,7 +360,7 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             conTecho,
             contador,
             opciones,
-            registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());
+            log: registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());
     }
 
 }

@@ -105,4 +105,20 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
          "razonamiento": {{System.Text.Json.JsonSerializer.Serialize(razonamiento)}},
          "categoria": "no_contestable"}
         """;
+
+    /// <summary>
+    /// Arma la respuesta JSON de una generación que se abstiene declarando un
+    /// motivo y, opcionalmente, un término candidato (asistente-rechazos-dinamicos).
+    /// </summary>
+    public static string NoContestableConMotivo(
+        string motivo,
+        string? termino = null,
+        string razonamiento = "La pregunta excede lo que puedo consultar.") =>
+        $$"""
+        {"es_contestable": false, "sql": null,
+         "razonamiento": {{System.Text.Json.JsonSerializer.Serialize(razonamiento)}},
+         "categoria": "no_contestable",
+         "motivo": {{System.Text.Json.JsonSerializer.Serialize(motivo)}},
+         "termino": {{(termino is null ? "null" : System.Text.Json.JsonSerializer.Serialize(termino))}}}
+        """;
 }

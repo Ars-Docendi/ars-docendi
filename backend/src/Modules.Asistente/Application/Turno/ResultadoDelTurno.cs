@@ -142,6 +142,15 @@ public enum EstadoDelTurno
 /// ligarlos. Nulo si <see cref="SqlEjecutado"/> también lo es, o si el turno no
 /// usó ninguna mención.
 /// </param>
+/// <param name="MotivoDeRechazo">
+/// El motivo declarado por la generación cuando este turno terminó en un
+/// rechazo declarado por el modelo (asistente-rechazos-dinamicos), o
+/// <c>null</c> en cualquier otro caso — incluidos el rechazo del validador, el
+/// error del motor, el resultado vacío y la generación cortada por el techo de
+/// tokens. <b>Nunca se mapea al DTO de la API</b> (design.md D8): no hay
+/// consumidor que lo necesite, y el texto ya lo explica. Va sólo al registro
+/// operativo (<see cref="TurnoParaRegistrar.MotivoDeRechazo"/>).
+/// </param>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -161,4 +170,5 @@ public sealed record ResultadoDelTurno(
     Guid? ClaveDeRetroalimentacion = null,
     int? CupoRestante = null,
     Guid? Conversacion = null,
-    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasEjecutadas = null);
+    IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasEjecutadas = null,
+    MotivoDeRechazo? MotivoDeRechazo = null);

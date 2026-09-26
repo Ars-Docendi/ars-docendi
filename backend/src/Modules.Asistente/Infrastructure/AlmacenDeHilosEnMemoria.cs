@@ -67,7 +67,7 @@ internal sealed class AlmacenDeHilosEnMemoria(
             // (design.md D9 de asistente-rediseno-v3).
             nuevo.Agregar(
                 turno.Pregunta, turno.Cuando, turno.SqlEjecutado, turnoHistoricoId: turno.TurnoHistoricoId,
-                referencias: turno.Referencias);
+                referencias: turno.Referencias, estado: turno.Estado);
         }
 
         if (turnos.Count > 0)

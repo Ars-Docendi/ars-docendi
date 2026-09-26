@@ -201,6 +201,7 @@ internal sealed class BancoDelAsistente
                     conTecho,
                     contador,
                     opciones,
+                    catalogo,
                     NullLogger<CarrilSql>.Instance);
 
                 return new CapaConversacional(
@@ -266,7 +267,8 @@ internal sealed class BancoDelAsistente
         IProveedorDeModelo conTecho,
         ContadorDeLlamadasDelTurno contador,
         IOptions<OpcionesAsistente> opcionesDelGenerador,
-        ILogger<CarrilSql> log) =>
+        ICatalogoDeCapacidades? capacidades = null,
+        ILogger<CarrilSql>? log = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -281,5 +283,23 @@ internal sealed class BancoDelAsistente
             new ConsultorDeCobertura(apertura),
             new BuscadorDeMenciones(apertura),
             contador,
-            log);
+            // Un catálogo real por omisión, sobre la misma base: un test que no
+            // pasa el suyo sigue pudiendo ejercitar un rechazo con áreas, en vez
+            // de forzar a cada llamador a construir uno a mano.
+            capacidades ?? new CatalogoDeCapacidades(
+                apertura,
+                new ConsultorDeAlcance(apertura),
+                new SelectorDeEjemplos(),
+                new CacheDeCapacidades(),
+                new DisponibilidadDelModeloReal(
+                    new CuotaDeActorFalsa(0, TimeProvider.System),
+                    new PresupuestoOrganizacionalFalso(0),
+                    new DisponibilidadDelModuloFalsa(),
+                    new BreakerDelProveedor(
+                        opcionesDelGenerador, TimeProvider.System, NullLogger<BreakerDelProveedor>.Instance)),
+                new DisponibilidadDelModuloFalsa(),
+                new CuotaDeActorFalsa(0, TimeProvider.System),
+                new ConsultasIdentityFalsa(),
+                NullLogger<CatalogoDeCapacidades>.Instance),
+            log ?? NullLogger<CarrilSql>.Instance);
 }

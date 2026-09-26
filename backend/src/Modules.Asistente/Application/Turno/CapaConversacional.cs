@@ -369,7 +369,8 @@ public sealed class CapaConversacional(
                 mensaje,
                 turno.Categoria,
                 proveedor.Nombre,
-                decisionSombra.Intencion),
+                decisionSombra.Intencion,
+                turno.MotivoDeRechazo),
             ct);
 
         // HISTORIAL PROPIO (asistente-historial-conversaciones). Se excluye
@@ -682,8 +683,14 @@ public sealed class CapaConversacional(
         // validador lo vea como no declarado.
         var referenciasHeredadas = conversacion.ReferenciasVigentes(valores.TopeDeTurnosDelHistorial);
 
+        // EL CONTEO ES DE TODA LA CONVERSACIÓN (design.md D5 de
+        // asistente-rechazos-dinamicos): se lee del hilo, nunca del cliente —
+        // el pedido sólo trae el id del hilo, y cualquier conteo en el cuerpo
+        // sería forjable y le dejaría al cliente fijar la primera variante
+        // para siempre.
         var resultado = await carril.ResponderAsync(
-            actor, mensaje, aMostrar, ct, consultasAnteriores, mencionesNuevas, referenciasHeredadas);
+            actor, mensaje, aMostrar, ct, consultasAnteriores, mencionesNuevas, referenciasHeredadas,
+            conversacion.RechazosPrevios());
 
         // La consulta que respondió, no la que se generó: con reintento el carril ya
         // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
@@ -696,7 +703,8 @@ public sealed class CapaConversacional(
             inicioDeSegmentoAntes: inicioDeSegmentoAntes,
             aclaracionPendienteAntes: aclaracionAntes,
             huboAclaracionAntes: true,
-            referencias: resultado.ReferenciasEjecutadas);
+            referencias: resultado.ReferenciasEjecutadas,
+            estado: resultado.Estado);
 
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema

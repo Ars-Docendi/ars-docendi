@@ -43,7 +43,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
             [
                 "actor_id", "ocurrido_en", "carril", "estado", "llamadas_al_modelo",
                 "tokens_de_entrada", "tokens_de_salida", "latencia_ms", "hubo_reintento",
-                "truncado", "proveedor", "tokens_de_cache", "intencion_sombra",
+                "truncado", "proveedor", "tokens_de_cache", "intencion_sombra", "motivo_rechazo",
             ],
             ["registro_analitico"] = ["id", "pregunta", "categoria", "estado", "dia"],
         };
@@ -90,6 +90,14 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         // normal, y una cadena vacía sería una intención sin nombre.
         comando.Parameters.AddWithValue(
             "intencion_sombra", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
+
+        // También nulo por omisión, y también es el caso normal (asistente-
+        // rechazos-dinamicos): sólo un rechazo declarado por el modelo lo
+        // trae. El término del rechazo NUNCA se persiste — sólo el motivo.
+        comando.Parameters.AddWithValue(
+            "motivo_rechazo",
+            NpgsqlDbType.Text,
+            turno.MotivoDeRechazo is { } motivo ? MotivosDeRechazo.ValorDeCable(motivo) : DBNull.Value);
 
         await comando.ExecuteNonQueryAsync(ct);
     }

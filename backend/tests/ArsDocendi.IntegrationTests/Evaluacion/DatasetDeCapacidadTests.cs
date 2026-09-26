@@ -265,6 +265,78 @@ public sealed class DatasetDeCapacidadTests
         Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
     }
 
+    // ---------------------- motivos_aceptables (asistente-rechazos-dinamicos, D10)
+
+    [Fact]
+    public void Un_item_no_contestable_puede_declarar_motivos_aceptables()
+    {
+        var dataset = DatasetDeCapacidad.Interpretar(
+            """
+            {"items":[{"id":"x-1","pregunta":"a","categoria":"no_contestable","actor":"global",
+                       "motivos_aceptables":["muy_general","no_cubierto"]}]}
+            """);
+
+        Assert.Equal(
+            ["muy_general", "no_cubierto"], dataset.Items[0].MotivosAceptables);
+    }
+
+    [Fact]
+    public void Un_item_no_contestable_sin_motivos_aceptables_sigue_cargando()
+    {
+        // Opcional en la unidad A (tarea 8.1): el dataset de hoy todavía no lo
+        // declara en ningún ítem, y tiene que seguir cargando sin tocarlo.
+        var dataset = DatasetDeCapacidad.Interpretar(
+            """{"items":[{"id":"x-1","pregunta":"a","categoria":"no_contestable","actor":"global"}]}""");
+
+        Assert.Null(dataset.Items[0].MotivosAceptables);
+    }
+
+    [Fact]
+    public void Un_item_no_contestable_con_motivos_aceptables_vacio_se_rechaza()
+    {
+        var excepcion = Assert.Throws<InvalidOperationException>(() => DatasetDeCapacidad.Interpretar(
+            """
+            {"items":[{"id":"x-1","pregunta":"a","categoria":"no_contestable","actor":"global",
+                       "motivos_aceptables":[]}]}
+            """));
+
+        Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_item_no_contestable_con_un_motivo_fuera_del_conjunto_se_rechaza()
+    {
+        var excepcion = Assert.Throws<InvalidOperationException>(() => DatasetDeCapacidad.Interpretar(
+            """
+            {"items":[{"id":"x-1","pregunta":"a","categoria":"no_contestable","actor":"global",
+                       "motivos_aceptables":["clima"]}]}
+            """));
+
+        Assert.Contains("clima", excepcion.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Un_item_factible_no_puede_declarar_motivos_aceptables()
+    {
+        var excepcion = Assert.Throws<InvalidOperationException>(() => DatasetDeCapacidad.Interpretar(
+            """
+            {"items":[{"id":"x-1","pregunta":"a","categoria":"consulta_simple","actor":"global",
+                       "sql_referencia":"SELECT 1","motivos_aceptables":["no_cubierto"]}]}
+            """));
+
+        Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void El_dataset_vigente_sigue_cargando_sin_tocar_motivos_aceptables()
+    {
+        // El dataset de hoy no declara `motivos_aceptables` en ningún ítem
+        // (llega en la tarea 10.2, unidad B): la validación no lo exige, y
+        // este test es la constancia de que la unidad A no lo rompió.
+        Assert.NotEmpty(Dataset.Items);
+        Assert.All(Dataset.Items, item => Assert.Null(item.MotivosAceptables));
+    }
+
     // ------------------------------------------------------ menciones (D10/D11)
 
     [Fact]

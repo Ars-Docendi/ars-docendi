@@ -57,7 +57,12 @@ CREATE TABLE IF NOT EXISTS asistente.registro_operativo (
     truncado           boolean     NOT NULL,
     proveedor          text        NULL,
     tokens_de_cache    integer     NULL,
-    intencion_sombra   text        NULL
+    intencion_sombra   text        NULL,
+    motivo_rechazo     text        NULL
+                                   CONSTRAINT registro_operativo_motivo_rechazo_valido
+                                   CHECK (motivo_rechazo IN (
+                                       'fuera_de_tema', 'otro_sistema', 'muy_general', 'no_cubierto'
+                                   ))
 );
 
 -- LAS TRES ÚLTIMAS COLUMNAS SE AGREGARON DESPUÉS DE QUE LA TABLA EXISTIERA, y por
@@ -91,6 +96,47 @@ ALTER TABLE asistente.registro_operativo
 
 ALTER TABLE asistente.registro_operativo
     ADD COLUMN IF NOT EXISTS intencion_sombra text;
+
+-- `motivo_rechazo` guarda, sólo cuando el turno terminó en un rechazo
+-- DECLARADO POR EL MODELO (asistente-rechazos-dinamicos), cuál de los cuatro
+-- motivos declaró: `fuera_de_tema`, `otro_sistema`, `muy_general` o
+-- `no_cubierto`.
+--
+-- SIN CHECK INLINE ACÁ, A DIFERENCIA DE LAS OTRAS TRES: el detector de
+-- `ArquitecturaAsistenteTests` exige que un `ALTER TABLE` no ratificado sea
+-- `ADD COLUMN IF NOT EXISTS` con una sola acción y ninguna coma antes del
+-- `;`, y la lista de motivos necesita comas. La columna sí lleva su CHECK en
+-- el `CREATE TABLE` de arriba —que no tiene esa restricción—, y el bloque
+-- guardado de más abajo (mismo patrón que
+-- `retroalimentacion_turno_razones_validas`/`comentario_longitud` en
+-- `003_asistente_retroalimentacion.sql`) lo agrega también contra una base
+-- que ya tenía la tabla sin esta columna.
+ALTER TABLE asistente.registro_operativo
+    ADD COLUMN IF NOT EXISTS motivo_rechazo text;
+
+-- AGREGAR EL CHECK CONTRA UNA BASE QUE YA TENÍA LA TABLA. PostgreSQL no tiene
+-- `ADD CONSTRAINT IF NOT EXISTS`: este bloque lo agrega sólo cuando no existe
+-- todavía un constraint con ese nombre exacto, así que la segunda corrida es
+-- un no-op. Es, textualmente, un `ALTER TABLE ... ADD CONSTRAINT` y no la
+-- única forma incondicionalmente permitida —por eso su nombre está ratificado
+-- por nombre en `ArquitecturaAsistenteTests.ReemplazosDeCheckRatificados`—,
+-- igual que los dos de `retroalimentacion_turno`.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+          FROM pg_constraint
+         WHERE conrelid = 'asistente.registro_operativo'::regclass
+           AND conname = 'registro_operativo_motivo_rechazo_valido'
+    ) THEN
+        ALTER TABLE asistente.registro_operativo
+            ADD CONSTRAINT registro_operativo_motivo_rechazo_valido
+            CHECK (motivo_rechazo IN (
+                'fuera_de_tema', 'otro_sistema', 'muy_general', 'no_cubierto'
+            ));
+    END IF;
+END
+$$;
 
 -- `proveedor` guarda quién respondió, con su modelo: `anthropic/claude-sonnet-5`.
 -- Es la identidad que expone el puerto —IProveedorDeModelo.Nombre—, nunca la
@@ -142,6 +188,9 @@ COMMENT ON TABLE asistente.registro_operativo IS
 COMMENT ON COLUMN asistente.registro_operativo.intencion_sombra IS
     'Intención del catálogo que el enrutador de dominio eligió en modo sombra, o nulo si ninguna capturó la pregunta. NO es lo mismo que `carril`: `carril` es la ruta REAL por la que se resolvió el turno y esta columna la que se habría tomado. Nulo es el caso normal.';
 
+COMMENT ON COLUMN asistente.registro_operativo.motivo_rechazo IS
+    'Motivo del rechazo declarado por la generación (fuera_de_tema, otro_sistema, muy_general, no_cubierto), sólo cuando el turno terminó no_contestable por decisión del modelo. Nulo en cualquier otro caso: turno respondido, rechazo del validador, error del motor, resultado vacío o generación cortada por el techo de tokens. Nulo es el caso normal.';
+
 CREATE INDEX IF NOT EXISTS ix_registro_operativo_ocurrido_en
     ON asistente.registro_operativo (ocurrido_en);
 
@@ -177,6 +226,15 @@ CREATE TABLE IF NOT EXISTS asistente.registro_analitico (
 --   numerador y el denominador ya están en el operativo, solos.
 --
 -- Hay un test que falla si a esta tabla le aparece la columna.
+--
+-- LO MISMO APLICA A `motivo_rechazo` (asistente-rechazos-dinamicos), y por el
+-- MISMO motivo: quien tenga acceso a la base ya lee el texto de la pregunta acá
+-- adentro, así que agregarle el motivo del rechazo en el operativo no le da
+-- ninguna información que no tenga ya — sólo afina en cuál de cuatro cubetas
+-- cae una fila que ya podía leer directamente. Ponerlo ACÁ, en cambio, sería
+-- una dimensión nueva por la cual agrupar una pregunta anónima con otras del
+-- mismo día, y el mismo test que protege `intencion_sombra` protege también
+-- ésta.
 
 COMMENT ON TABLE asistente.registro_analitico IS
     'Qué se le pregunta al asistente. No guarda actor ni hora exacta: con la escala de usuarios de este sistema, cruzarlo con el registro operativo permitiría reidentificar al autor. Retención de 90 días con purga automática.';

@@ -428,6 +428,22 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
             new ConsultorDeCobertura(Apertura),
             new BuscadorDeMenciones(Apertura),
             contador,
+            new CatalogoDeCapacidades(
+                Apertura,
+                new ConsultorDeAlcance(Apertura),
+                new SelectorDeEjemplos(),
+                new CacheDeCapacidades(),
+                new DisponibilidadDelModeloReal(
+                    new CuotaDeActorFalsa(0, TimeProvider.System),
+                    new PresupuestoOrganizacionalFalso(0),
+                    new DisponibilidadDelModuloFalsa(),
+                    new BreakerDelProveedor(
+                        Options.Create(new OpcionesAsistente()), TimeProvider.System,
+                        NullLogger<BreakerDelProveedor>.Instance)),
+                new DisponibilidadDelModuloFalsa(),
+                new CuotaDeActorFalsa(0, TimeProvider.System),
+                new ConsultasIdentityFalsa(),
+                NullLogger<CatalogoDeCapacidades>.Instance),
             NullLogger<CarrilSql>.Instance);
 
         var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresDePrueba(), proveedor);

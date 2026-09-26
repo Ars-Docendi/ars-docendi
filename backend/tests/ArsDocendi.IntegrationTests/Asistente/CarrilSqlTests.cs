@@ -139,6 +139,12 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // con alta probabilidad, lo mismo.
         Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
         Assert.Equal(1, proveedor.Llamadas);
+
+        // El rechazo del validador NUNCA pasa por las plantillas por motivo
+        // (asistente-rechazos-dinamicos): conserva su texto fijo y no anota
+        // ningún motivo en el registro.
+        Assert.Equal(PoliticaDeAbstencion.TextoRechazadaPorValidador, turno.Respuesta);
+        Assert.Null(turno.MotivoDeRechazo);
     }
 
     [Fact]
@@ -177,6 +183,139 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.DoesNotContain("SELECT", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
     }
 
+    // ------------------------------------------ rechazos dinámicos (grupo 5)
+
+    [Fact]
+    public async Task Cada_motivo_declarado_produce_su_propio_texto()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var textos = new List<string>();
+        foreach (var motivo in new[] { "fuera_de_tema", "otro_sistema", "muy_general", "no_cubierto" })
+        {
+            var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo(motivo));
+            var turno = await CarrilCon(proveedor).ResponderAsync(
+                Secretaria, "¿alguna pregunta rara?", null, ct);
+            textos.Add(turno.Respuesta);
+        }
+
+        Assert.Equal(textos.Count, textos.Distinct(StringComparer.Ordinal).Count());
+    }
+
+    [Fact]
+    public async Task Un_motivo_declarado_queda_anotado_en_el_resultado()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.NoContestableConMotivo("muy_general"));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "python", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(MotivoDeRechazo.MuyGeneral, turno.MotivoDeRechazo);
+    }
+
+    [Fact]
+    public async Task El_razonamiento_del_modelo_nunca_llega_al_cuerpo_del_rechazo()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo(
+            "no_cubierto", razonamiento: "Frase muy particular que jamás debería aparecer citada."));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿algo raro?", null, TestContext.Current.CancellationToken);
+
+        Assert.DoesNotContain(
+            "Frase muy particular", turno.Respuesta, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_termino_del_mensaje_crudo_se_cita_y_el_de_la_pregunta_reescrita_no()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var conElTermino = new ProveedorGuionado(
+            ProveedorGuionado.NoContestableConMotivo("no_cubierto", "python"));
+        var turnoConTermino = await CarrilCon(conElTermino).ResponderAsync(
+            Secretaria, "¿alguien sabe python?", null, ct);
+
+        Assert.Contains("«python»", turnoConTermino.Respuesta, StringComparison.Ordinal);
+
+        // El mismo término, pero sólo presente en la pregunta REESCRITA — el
+        // usuario tipeó otra cosa este turno. TerminoDelRechazo.Validar mira
+        // `mensaje`, nunca la reescritura, así que se descarta.
+        var sinElTermino = new ProveedorGuionado(
+            ProveedorGuionado.NoContestableConMotivo("no_cubierto", "python"));
+        var turnoSinTermino = await CarrilCon(sinElTermino).ResponderAsync(
+            Secretaria, "¿alguien sabe ese lenguaje?", "¿alguien sabe python?", ct);
+
+        Assert.DoesNotContain("python", turnoSinTermino.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Una_falla_del_catalogo_de_capacidades_no_rompe_el_rechazo()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.NoContestableConMotivo("fuera_de_tema"));
+
+        var turno = await CarrilCon(proveedor, capacidades: new CatalogoQueFalla()).ResponderAsync(
+            Secretaria, "¿algo raro?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+
+        // Sin catálogo, la variante 1 de `fuera_de_tema` cae al puntero de
+        // ayuda en lugar de nombrar áreas — nunca revienta el turno.
+        Assert.Contains("qué podés hacer", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("materias", turno.Respuesta, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Un_rechazo_declarado_por_el_modelo_gasta_una_sola_llamada()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestableConMotivo("no_cubierto"));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿algo raro?", null, TestContext.Current.CancellationToken);
+
+        // Sin segunda llamada de redacción, y sin nada ejecutado: no corrió
+        // ninguna consulta (design.md D6).
+        Assert.Equal(1, proveedor.Llamadas);
+        Assert.Equal(1, turno.LlamadasAlModelo);
+        Assert.Empty(turno.Filas);
+        Assert.Empty(turno.Columnas);
+        Assert.Null(turno.SqlEjecutado);
+    }
+
+    [Fact]
+    public async Task Un_rechazo_del_motor_por_privilegio_mantiene_su_texto_generico_sin_motivo()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            "SELECT telefono FROM identity.personas"));
+
+        // Coordinador no ve datos personales: el motor rechaza la columna por
+        // privilegio (42501), y ese rechazo NUNCA pasa por las plantillas de
+        // rechazo por motivo — sigue siendo el texto fijo de siempre.
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Coordinador, "¿cuáles son los teléfonos de los docentes?", null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+        Assert.Equal(PoliticaDeAbstencion.TextoSinAccesoALosDatos, turno.Respuesta);
+        Assert.Null(turno.MotivoDeRechazo);
+    }
+
+    /// <summary>Un catálogo de capacidades que siempre falla al leerse.</summary>
+    private sealed class CatalogoQueFalla : ICatalogoDeCapacidades
+    {
+        public Task<CapacidadesDelActor> ObtenerAsync(Guid actor, CancellationToken ct) =>
+            throw new InvalidOperationException("El catálogo no está disponible (simulado).");
+    }
+
     // ---------------------------------------------------- vacío y reintento
 
     [Fact]
@@ -193,6 +332,10 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         // resuelve sin modelo.
         Assert.Equal(1, proveedor.Llamadas);
         Assert.Empty(turno.Filas);
+
+        // Un resultado vacío nunca es un rechazo declarado por el modelo
+        // (asistente-rechazos-dinamicos): no anota ningún motivo.
+        Assert.Null(turno.MotivoDeRechazo);
     }
 
     [Fact]
@@ -698,7 +841,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     private CarrilSql CarrilCon(
         ProveedorGuionado proveedor,
         int tope = 200,
-        ContadorDeLlamadasDelTurno? contador = null)
+        ContadorDeLlamadasDelTurno? contador = null,
+        ICatalogoDeCapacidades? capacidades = null)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente { TopeDeFilas = tope });
@@ -718,7 +862,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             conTecho,
             contadorDelTurno,
             Options.Create(new OpcionesAsistente()),
-            NullLogger<CarrilSql>.Instance);
+            capacidades: capacidades,
+            log: NullLogger<CarrilSql>.Instance);
     }
 
 }

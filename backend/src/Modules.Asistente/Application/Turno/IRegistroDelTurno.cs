@@ -75,6 +75,13 @@ public enum CarrilDelTurno
 /// <b>No es lo mismo que <see cref="Carril"/>.</b> El carril es la ruta REAL del
 /// turno; esta es la que se habría tomado.
 /// </remarks>
+/// <param name="MotivoDeRechazo">
+/// El motivo del rechazo declarado por el modelo (asistente-rechazos-dinamicos),
+/// o <c>null</c> para cualquier otro turno — incluidos el rechazo del
+/// validador, el error del motor, el resultado vacío y la generación cortada
+/// por el techo de tokens. Va SÓLO al registro operativo: el analítico no lo
+/// recibe nunca (TD-012, ver <c>database/asistente/002_asistente_registros.sql</c>).
+/// </param>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
     Guid AnaliticoId,
@@ -91,7 +98,8 @@ public sealed record TurnoParaRegistrar(
     string Pregunta,
     string Categoria,
     string Proveedor,
-    string? IntencionSombra);
+    string? IntencionSombra,
+    MotivoDeRechazo? MotivoDeRechazo = null);
 
 /// <summary>
 /// Escribe los dos registros desvinculados (RF-16).

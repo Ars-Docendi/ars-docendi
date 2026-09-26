@@ -188,11 +188,17 @@ public sealed class HistorialController(
         // tiene Idempotency-Key de esta sesión, así que un reemplazo sobre él se
         // nombra por su id de `turno_historico` (design.md D9 de
         // asistente-rediseno-v3, «Editar y reenviar»).
+        // `Estado: t.Estado` (asistente-rechazos-dinamicos, design.md D5): un
+        // hilo reanudado cuya última fila terminó `no_contestable` tiene que
+        // seguir contando ese rechazo para la escalación — sin esto, cada
+        // reanudación reiniciaría la cuenta en cero y el primer rechazo tras
+        // reanudar volvería a mostrar la primera variante.
         var sembrado = hilos.Sembrar(
             actor,
             hiloId,
             [.. turnos.Select(t => new TurnoDelHilo(
-                t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id, Referencias: t.Referencias))]);
+                t.Pregunta, t.OcurrioEn, t.SqlResuelto, TurnoHistoricoId: t.Id, Referencias: t.Referencias,
+                Estado: t.Estado))]);
 
         // Mismo criterio que `Obtener`: las menciones se re-resuelven para el actor
         // que reanuda, así que el cliente pinta el chip apenas siembra la

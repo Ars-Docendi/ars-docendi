@@ -124,6 +124,111 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
         Assert.Contains("carril", Assert.Single(comentario), StringComparison.Ordinal);
     }
 
+    // -------------------------------------------- motivo_rechazo (asistente-rechazos-dinamicos)
+
+    [Fact]
+    public async Task El_motivo_del_rechazo_es_texto_anulable_y_sin_valor_por_omision()
+    {
+        // Nulo es el caso NORMAL: sólo lo trae un rechazo declarado por el
+        // modelo, y todo lo demás —respondido, rechazo del validador, error
+        // del motor, generación truncada— no tiene nada que anotar acá.
+        var forma = await LeerAsync<string>(
+            """
+            SELECT data_type || ' · ' || is_nullable
+                   || ' · ' || coalesce(column_default, 'sin default')
+              FROM information_schema.columns
+             WHERE table_schema = 'asistente' AND table_name = 'registro_operativo'
+               AND column_name = 'motivo_rechazo'
+            """);
+
+        Assert.Equal(["text · YES · sin default"], forma);
+    }
+
+    [Fact]
+    public async Task El_motivo_del_rechazo_lleva_un_comentario()
+    {
+        var comentario = await LeerAsync<string>(
+            """
+            SELECT pg_catalog.col_description(c.oid, a.attnum)
+              FROM pg_catalog.pg_class c
+              JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+              JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+             WHERE n.nspname = 'asistente' AND c.relname = 'registro_operativo'
+               AND a.attname = 'motivo_rechazo'
+               AND pg_catalog.col_description(c.oid, a.attnum) IS NOT NULL
+            """);
+
+        Assert.Contains("no_contestable", Assert.Single(comentario), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Un_rechazo_declarado_por_el_modelo_escribe_su_motivo()
+    {
+        await RegistrarAsync(Turno(
+            estado: EstadoDelTurno.NoContestable, motivoDeRechazo: MotivoDeRechazo.MuyGeneral));
+
+        Assert.Equal(
+            ["muy_general"],
+            await LeerAsync<string>("SELECT motivo_rechazo FROM asistente.registro_operativo"));
+    }
+
+    [Theory]
+    [InlineData(EstadoDelTurno.Respondida)]
+    [InlineData(EstadoDelTurno.NecesitaAclaracion)]
+    [InlineData(EstadoDelTurno.ServicioDegradado)]
+    public async Task Un_turno_que_no_es_un_rechazo_declarado_escribe_null(EstadoDelTurno estado)
+    {
+        await RegistrarAsync(Turno(estado: estado, motivoDeRechazo: null));
+
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.registro_operativo WHERE motivo_rechazo IS NOT NULL"));
+    }
+
+    [Fact]
+    public async Task Un_rechazo_del_validador_o_una_generacion_truncada_tambien_escriben_null()
+    {
+        // `MotivoDeRechazo` es `null` en la generación para las dos: la
+        // contradicción y el corte por presupuesto nunca fueron una decisión
+        // del modelo sobre el motivo (design.md D2).
+        await RegistrarAsync(Turno(
+            estado: EstadoDelTurno.NoContestable, motivoDeRechazo: null));
+
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.registro_operativo WHERE motivo_rechazo IS NOT NULL"));
+    }
+
+    [Fact]
+    public async Task El_motor_rechaza_un_motivo_fuera_del_conjunto_cerrado()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO asistente.registro_operativo
+                (actor_id, ocurrido_en, carril, estado, llamadas_al_modelo, tokens_de_entrada,
+                 tokens_de_salida, latencia_ms, hubo_reintento, truncado, motivo_rechazo)
+            VALUES (@actor, now(), 'Sql', 'NoContestable', 1, 10, 10, 100, false, false, 'clima')
+            """, conexion);
+
+        comando.Parameters.AddWithValue("actor", Alguien);
+
+        var excepcion = await Assert.ThrowsAsync<PostgresException>(
+            () => comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("23514", excepcion.SqlState); // check_violation
+    }
+
+    [Fact]
+    public async Task El_registro_analitico_no_tiene_ninguna_columna_para_el_motivo_del_rechazo()
+    {
+        // Mismo guard que el de `intencion_sombra`, y en verde desde el primer
+        // día por el mismo motivo: lo que sostiene la desvinculación es la
+        // AUSENCIA de la columna, no una convención de escritura.
+        var columnas = await ColumnasDeAsync("registro_analitico");
+
+        Assert.DoesNotContain("motivo_rechazo", columnas);
+        Assert.DoesNotContain(columnas, c => c.Contains("motivo", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task El_analitico_no_guarda_actor_ni_hora()
     {
@@ -647,12 +752,16 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     }
 
     private static TurnoParaRegistrar Turno(
-        Guid? actor = null, DateTimeOffset? cuando = null, string pregunta = "¿cuántos docentes hay?") =>
+        Guid? actor = null,
+        DateTimeOffset? cuando = null,
+        string pregunta = "¿cuántos docentes hay?",
+        EstadoDelTurno estado = EstadoDelTurno.Respondida,
+        MotivoDeRechazo? motivoDeRechazo = null) =>
         new(actor ?? Alguien,
             Guid.NewGuid(),
             cuando ?? Ancla,
             CarrilDelTurno.Sql,
-            EstadoDelTurno.Respondida,
+            estado,
             LlamadasAlModelo: 2,
             TokensDeEntrada: 1200,
             TokensDeSalida: 80,
@@ -663,7 +772,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             pregunta,
             "cruce_de_tablas",
             Proveedor: "anthropic/claude-sonnet-5",
-            IntencionSombra: null);
+            IntencionSombra: null,
+            MotivoDeRechazo: motivoDeRechazo);
 
     private async Task RegistrarAsync(TurnoParaRegistrar turno)
     {

@@ -222,6 +222,94 @@ public sealed class GeneracionDeSqlTests
         Assert.DoesNotContain("tabla", razonamiento, StringComparison.OrdinalIgnoreCase);
     }
 
+    // ---------------------------------- motivo y término (asistente-rechazos-dinamicos)
+
+    [Fact]
+    public void Un_motivo_valido_se_conserva()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": false, "sql": null, "razonamiento": "x", "categoria": "no_contestable", "motivo": "otro_sistema"}""");
+
+        Assert.False(generacion.EsContestable);
+        Assert.Equal(MotivoDeRechazo.OtroSistema, generacion.Motivo);
+    }
+
+    [Fact]
+    public void Un_motivo_invalido_resuelve_no_cubierto()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": false, "sql": null, "razonamiento": "x", "categoria": "no_contestable", "motivo": "clima"}""");
+
+        Assert.Equal(MotivoDeRechazo.NoCubierto, generacion.Motivo);
+    }
+
+    [Fact]
+    public void Un_motivo_ausente_resuelve_no_cubierto()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": false, "sql": null, "razonamiento": "x", "categoria": "no_contestable"}""");
+
+        Assert.Equal(MotivoDeRechazo.NoCubierto, generacion.Motivo);
+    }
+
+    [Fact]
+    public void El_motivo_se_ignora_cuando_la_generacion_es_contestable()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": true, "sql": "SELECT 1", "razonamiento": "x", "categoria": "y", "motivo": "fuera_de_tema"}""");
+
+        Assert.True(generacion.EsContestable);
+        Assert.Null(generacion.Motivo);
+    }
+
+    [Fact]
+    public void Un_termino_no_cadena_se_ignora_y_el_objeto_sigue_no_contestable()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": false, "sql": null, "razonamiento": "x", "categoria": "no_contestable", "termino": 42}""");
+
+        Assert.False(generacion.EsContestable);
+        Assert.Null(generacion.TerminoCandidato);
+    }
+
+    [Fact]
+    public void Un_termino_valido_se_expone_sin_validar()
+    {
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": false, "sql": null, "razonamiento": "x", "categoria": "no_contestable", "termino": "python"}""");
+
+        Assert.Equal("python", generacion.TerminoCandidato);
+    }
+
+    [Fact]
+    public void Una_contradiccion_deja_el_motivo_nulo()
+    {
+        // Contestable sin consulta es una contradicción del modelo, no una
+        // decisión sobre el motivo (design.md D2): resuelve no contestable
+        // pero el motivo queda `null`, no `NoCubierto`.
+        var generacion = GeneradorDeSql.Interpretar(
+            """{"es_contestable": true, "sql": null, "razonamiento": "x", "categoria": "y", "motivo": "muy_general"}""");
+
+        Assert.False(generacion.EsContestable);
+        Assert.Null(generacion.Motivo);
+    }
+
+    [Fact]
+    public async Task Una_generacion_cortada_por_presupuesto_deja_el_motivo_nulo()
+    {
+        var proveedor = new ProveedorGuionado(
+            """{"es_contestable": true, "sql": "SELECT count(*) AS cantidad FROM designaci""")
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var generacion = await Componer(proveedor).GenerarAsync(
+            "¿Cuántos pedidos hay?", conDatosPersonales: false, TestContext.Current.CancellationToken);
+
+        Assert.Equal(GeneracionDeSql.CategoriaTruncada, generacion.Categoria);
+        Assert.Null(generacion.Motivo);
+    }
+
     // ------------------------------------------------- corte por presupuesto
 
     [Fact]

@@ -30,7 +30,13 @@ internal static class NormalizadorLexico
     /// pregunta: si contaran, dos preguntas sin nada en común pero largas se
     /// parecerían más que dos cortas sobre el mismo tema.
     /// </summary>
-    private static readonly HashSet<string> PalabrasVacias = new(StringComparer.Ordinal)
+    /// <remarks>
+    /// <b>Internal, y no privada</b> (asistente-rechazos-dinamicos, design.md
+    /// D3): <see cref="TerminoDelRechazo.Validar"/> la reusa para descartar un
+    /// término candidato que sólo está hecho de palabras vacías, con la MISMA
+    /// lista que usa el selector de ejemplos.
+    /// </remarks>
+    internal static readonly HashSet<string> PalabrasVacias = new(StringComparer.Ordinal)
     {
         "a", "al", "algo", "algun", "alguna", "algunas", "alguno", "algunos", "ante",
         "aqui", "asi", "aun", "cada", "como", "con", "contra", "cual", "cuales",

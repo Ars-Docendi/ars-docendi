@@ -386,6 +386,41 @@ instrucción del prompt.
 Restricción dura: ninguna respuesta declara cuántas filas quedaron afuera. El
 indicador de truncado es un booleano y no un número.
 
+**Un rechazo declarado por el modelo se redacta con plantillas por motivo**
+(`asistente-rechazos-dinamicos`), nunca con el texto del modelo. La generación
+declara `motivo` —cerrado a `fuera_de_tema`, `otro_sistema`, `muy_general`,
+`no_cubierto`; cualquier otro valor o su ausencia resuelve `no_cubierto`— y, opcional,
+un `termino`. `PlantillasDeRechazo.Texto(motivo, termino, areas, rechazosPrevios)`
+arma el cuerpo:
+
+- **El término sólo se cita si es del usuario.** `TerminoDelRechazo.Validar` lo busca
+  como un span verbatim de `mensaje` —lo que el usuario tipeó ESTE turno, nunca la
+  pregunta reescrita—, con límites de palabra, 2-40 caracteres, hasta 4 palabras, sin
+  guillemets ni saltos de línea, y no hecho sólo de demostrativos o palabras vacías.
+  Lo que se muestra son los caracteres del mensaje, nunca la cadena del modelo.
+- **Las áreas salen del mismo catálogo que responde «¿qué podés hacer?»**
+  (`EtiquetasDeAreas.Nombrar` sobre `ICatalogoDeCapacidades.Cubre`), con etiquetas
+  humanas — nunca esquema, tabla ni columna. `otro_sistema` sólo nombra Guaraní y
+  planillas, del límite fijo ya existente. Un catálogo que falla al leerse deja el
+  texto sin áreas y no rompe el turno.
+- **Ninguna variante afirma ausencia.** Nunca corrió una consulta: decir «no
+  encontré nada sobre «python»» sería el mismo falso negativo que ya documenta
+  `PoliticaDeAbstencion.AlcanzaTodo` para el resultado vacío — y de hecho el
+  fixture declara tres docentes con esa habilidad.
+- **La variante escala por conversación**, contada en el servidor
+  (`HiloConversacional.RechazosPrevios`, sobre TODA la conversación, no el
+  segmento): la primera usa la 1ª, después alterna 2ª/3ª, y dos rechazos seguidos
+  nunca muestran el mismo texto. El conteo sobrevive a reanudar una conversación
+  persistida (`HistorialController.Reanudar` siembra el `Estado` de cada turno) y a
+  un pivote de tema; nunca lo decide el cliente.
+- **Los casos sensibles a privacidad no cambian.** El rechazo de permiso, el error
+  del motor, el resultado vacío, la referencia sin resolver y la aclaración agotada
+  conservan su texto fijo — `CierreDelTurno.TextoDelRechazo` mantiene su
+  precedencia sobre la plantilla.
+
+El motivo declarado se registra en `asistente.registro_operativo.motivo_rechazo`
+(nulo en cualquier otro turno) — ver «Los dos registros», más abajo.
+
 ### La capa conversacional
 
 Va **encima** del carril, no adentro. Esa separación es lo que deja intactos el
@@ -781,12 +816,27 @@ pipeline, ni los que no necesitan proveedor.
 Dos tablas en el schema `asistente` que **no se cruzan**, con retención de 90 días y
 purga automática.
 
-| Registro             | Guarda                                                                                     | No guarda                                |
-| -------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| `registro_operativo` | actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado, proveedor | El texto de la pregunta, y la credencial |
-| `registro_analitico` | pregunta, categoría, estado, **fecha redondeada al día**                                   | El actor, la hora exacta                 |
+| Registro             | Guarda                                                                                                         | No guarda                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `registro_operativo` | actor, momento, carril, estado, llamadas, tokens, latencia, reintento, truncado, proveedor, motivo del rechazo | El texto de la pregunta, y la credencial |
+| `registro_analitico` | pregunta, categoría, estado, **fecha redondeada al día**                                                       | El actor, la hora exacta                 |
 
 La columna `proveedor` guarda la identidad que expone el puerto —`anthropic/claude-sonnet-5`—, nunca la clave. Es lo que permite separar el costo de antes y el de después de un cambio de modelo, que sin ella quedarían mezclados en la misma serie. Va solo al registro operativo: en el analítico sería una dimensión más por la cual agrupar preguntas, y a esta escala cada dimensión achica el conjunto en el que un usuario se esconde.
+
+**`motivo_rechazo` (`asistente-rechazos-dinamicos`) va por el mismo motivo.** Guarda
+el motivo declarado por la generación —`fuera_de_tema`, `otro_sistema`,
+`muy_general`, `no_cubierto`— sólo cuando el turno terminó en un rechazo declarado
+por el modelo; nulo (sin default) en cualquier otro turno, incluidos el rechazo del
+validador, el error del motor, el resultado vacío y una generación cortada por el
+techo de tokens. **Sólo va al operativo, nunca al analítico**: quien tiene acceso al
+operativo ya lee el texto de la pregunta ahí mismo, así que el motivo no le agrega
+ninguna información — sumarlo al analítico sería, en cambio, una dimensión más por
+la cual agrupar una pregunta anónima con otras del mismo día, exactamente el riesgo
+que TD-012 ya documenta para `intencion_sombra`. El término del rechazo nunca se
+persiste en ninguno de los dos registros. Habilita `SELECT motivo_rechazo,
+count(*) FROM asistente.registro_operativo WHERE estado = 'no_contestable' GROUP BY
+1` para la tasa de rechazo por motivo, sin cambio de esquema si algún día se quisiera
+mostrar en el panel de administración.
 
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni
 detrás de un flag: son exactamente los datos que el enmascaramiento acaba de sacar
