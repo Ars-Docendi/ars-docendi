@@ -419,7 +419,6 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var banco = Banco(new OpcionesAsistente
         {
             FallosParaAbrirElBreaker = 1,
-            CupoDeLlamadasPorActor = 0,
         });
 
         banco.Breaker.Fallo();
@@ -538,13 +537,31 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
 
     private CatalogoDeCapacidades Catalogo()
     {
-        var (basica, pii) = CadenasDeLectura();
+        var cadena = new ArsDocendi.Shared.Persistencia.CadenaDuena(Cadena);
+        var reloj = TimeProvider.System;
+        var identidad = new ArsDocendi.Shared.Identity.ConsultasIdentity(
+            PostgresFixture.CrearIdentity(Cadena));
+        var cuota = new CuotaPersistente(cadena, identidad, reloj, new DetectorDeUmbrales(), NullLogger<CuotaPersistente>.Instance);
+        var presupuestoOrganizacional = new PresupuestoOrganizacionalPersistente(cadena, reloj, new DetectorDeUmbrales(), NullLogger<PresupuestoOrganizacionalPersistente>.Instance);
+        var disponibilidadDelModulo = new DisponibilidadDelModuloReal(cadena);
+        var disponibilidad = new DisponibilidadDelModeloReal(
+            cuota,
+            presupuestoOrganizacional,
+            disponibilidadDelModulo,
+            new BreakerDelProveedor(
+                Microsoft.Extensions.Options.Options.Create(new OpcionesAsistente()),
+                reloj,
+                NullLogger<BreakerDelProveedor>.Instance));
 
         return new CatalogoDeCapacidades(
             Apertura,
             new ConsultorDeAlcance(Apertura),
             new SelectorDeEjemplos(),
             new CacheDeCapacidades(),
+            disponibilidad,
+            disponibilidadDelModulo,
+            cuota,
+            identidad,
             NullLogger<CatalogoDeCapacidades>.Instance);
     }
 
@@ -557,7 +574,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
             pii,
             ClasificadorDeSensibilidad(),
             Apertura,
-            configuracion ?? new OpcionesAsistente { CupoDeLlamadasPorActor = 0 });
+            configuracion ?? new OpcionesAsistente());
     }
 
     /// <summary>

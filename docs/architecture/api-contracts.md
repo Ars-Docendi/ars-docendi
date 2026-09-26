@@ -99,11 +99,26 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 
 ### Asistente (`/api/asistente/`)
 
-| Método | Path           | Permiso               | Descripción                                  |
-| ------ | -------------- | --------------------- | -------------------------------------------- |
-| GET    | `/ping`        | (anónimo)             | Health check del módulo                      |
-| POST   | `/consultas`   | `asistente.consultar` | Un turno. Exige `Idempotency-Key`            |
-| GET    | `/capacidades` | `asistente.consultar` | Qué puede hacer el asistente para este actor |
+| Método | Path                                              | Permiso                          | Descripción                                                          |
+| ------ | ------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------- |
+| GET    | `/ping`                                           | (anónimo)                        | Health check del módulo                                              |
+| POST   | `/consultas`                                      | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                    |
+| GET    | `/capacidades`                                    | `asistente.consultar`            | Qué puede hacer el asistente para este actor                         |
+| POST   | `/retroalimentacion`                              | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                        |
+| GET    | `/historial`                                      | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                        |
+| GET    | `/historial/{id}`                                 | `asistente.consultar`            | El detalle de una conversación propia                                |
+| PATCH  | `/historial/{id}`                                 | `asistente.consultar`            | Renombra una conversación propia                                     |
+| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Borra una conversación propia                                        |
+| DELETE | `/historial`                                      | `asistente.consultar`            | Borra TODAS las conversaciones propias                               |
+| POST   | `/historial/{id}/reanudar`                        | `asistente.consultar`            | Reanuda una conversación propia                                      |
+| POST   | `/historial/turnos/{id}/reejecutar`               | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                   |
+| POST   | `/soporte/historial/{actorId}/listar`             | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria              |
+| POST   | `/soporte/historial/{actorId}/{id}/leer`          | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria            |
+| PATCH  | `/administracion/mantenimiento`                   | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo |
+| GET    | `/administracion/uso`                             | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                  |
+| PUT    | `/administracion/presupuestos/roles/{rol}`        | `asistente.administrar`          | Edita el cupo diario default de un rol                               |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}` | `asistente.administrar`          | Edita el override de cupo diario de un usuario                       |
+| PUT    | `/administracion/tope-organizacional`             | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                    |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
@@ -115,23 +130,27 @@ Pedido: `{ mensaje, hilo? }`. **No lleva actor**: sale de la identidad de la ses
 
 Respuesta:
 
-| Campo                  | Qué                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------ |
-| `estado`               | `respondida` · `no_contestable` · `necesita_aclaracion` · `servicio_degradado` |
-| `respuesta`            | El texto que lee el usuario                                                    |
-| `hilo`                 | Para mandarlo en el turno siguiente                                            |
-| `preguntaInterpretada` | Solo si difiere del mensaje                                                    |
-| `razonamiento`         | Cómo se interpretó la pregunta, tal como lo devolvió la generación             |
-| `opciones[]`           | El menú de una aclaración. **Bloquean** el turno                               |
-| `sugerencias[]`        | Qué otra cosa probar. **No** bloquean nada                                     |
-| `columnas[]`           | Nombre y marca de sensibilidad                                                 |
-| `filas[]`              | Los valores reales, incluidos los que no viajaron al modelo                    |
-| `truncado`             | Booleano, **nunca** un conteo                                                  |
-| `vinculos[]`           | Qué celdas llevan a una pantalla del sistema                                   |
-| `sql`                  | Solo con `asistente.ver_consulta`                                              |
-| `metricas`             | Llamadas al modelo y categoría                                                 |
+| Campo                      | Qué                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `estado`                   | `respondida` · `no_contestable` · `necesita_aclaracion` · `servicio_degradado` |
+| `respuesta`                | El texto que lee el usuario                                                    |
+| `hilo`                     | Para mandarlo en el turno siguiente                                            |
+| `preguntaInterpretada`     | Solo si difiere del mensaje                                                    |
+| `razonamiento`             | Cómo se interpretó la pregunta, tal como lo devolvió la generación             |
+| `opciones[]`               | El menú de una aclaración. **Bloquean** el turno                               |
+| `sugerencias[]`            | Qué otra cosa probar. **No** bloquean nada                                     |
+| `columnas[]`               | Nombre y marca de sensibilidad                                                 |
+| `filas[]`                  | Los valores reales, incluidos los que no viajaron al modelo                    |
+| `truncado`                 | Booleano, **nunca** un conteo                                                  |
+| `vinculos[]`               | Qué celdas llevan a una pantalla del sistema                                   |
+| `sql`                      | Solo con `asistente.ver_consulta`                                              |
+| `metricas`                 | Llamadas al modelo y categoría                                                 |
+| `claveDeRetroalimentacion` | Solo cuando `estado = respondida`. Ver `POST /api/asistente/retroalimentacion` |
+| `cupoRestante`             | El cupo diario del actor, YA COBRADO este turno (asistente-cupo-visible)       |
 
 `opciones` y `sugerencias` son campos distintos a propósito, y colapsarlos borraría el tercer estado: las opciones esperan una elección para poder seguir, las sugerencias no esperan nada.
+
+`sugerencias` ya no es exclusivo de un rechazo: un turno `respondida` también puede traerlas, hasta 3, elegidas por categoría contra el mismo catálogo verificado y filtradas por la misma verificación `EXPLAIN` que usa `/capacidades`. Vacío cuando ningún ejemplo del catálogo califica — nunca un relleno genérico. `necesita_aclaracion` sigue sin traer ninguna: bloquea el turno esperando una elección, y no hay nada que sugerir todavía.
 
 `estado` usa etiquetas propias del contrato y no el nombre del enum del backend: renombrar un valor interno no puede romper a los clientes en silencio.
 
@@ -143,7 +162,11 @@ Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas la
 
 #### `GET /api/asistente/capacidades`
 
-Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede[]`, `alcance` y `presentacion`.
+Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede[]`, `alcance`, `presentacion`, `mantenimiento` y `cupo` (asistente-modo-mantenimiento / asistente-cupo-visible).
+
+`mantenimiento: { activo, razon }` refleja el estado GLOBAL del kill switch, sin bypass — así el banner es consistente para todo el mundo aunque un admin no esté bloqueado por él.
+
+`cupo: { restante, bloqueado, motivo, vuelveA }` es el cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya aplicado: un actor con `asistente.administrar` no se ve a sí mismo como bloqueado por mantenimiento. `motivo` es uno de `presupuesto_propio` | `tope_organizacional` | `mantenimiento`, nulo si no está bloqueado. `restante` vale `2147483647` (`int.MaxValue`) cuando el cupo está desactivado (0). `vuelveA` sólo se conoce para `presupuesto_propio`.
 
 `presentacion` es la única parte del catálogo que mira el **rol** del actor y no sus GRANT: es la línea que le dice por qué cosas suele venir a preguntar. Sale del código de su único rol vigente; con varios roles, con ninguno, o con uno que el backend no reconoce, devuelve un texto genérico que no promete nada de más. Vive en el backend porque el cliente no tiene catálogo de roles y no debe crecer uno: `identity.roles` no es cerrado —Secretaría crea roles desde la aplicación— así que una lista embebida en el cliente se desactualizaría sola. El rol **no** influye en `alcance`, en los conteos, en los ejemplos ni en qué conexión de lectura se usa.
 
@@ -151,9 +174,66 @@ Se deriva de los **GRANT efectivos** del rol con el que el actor consulta y **nu
 
 Cada ejemplo se valida con `EXPLAIN` contra los privilegios del actor antes de ofrecerse. Cuesta cero tokens, así que sigue respondiendo con el proveedor caído.
 
-## Idempotencia
+#### `POST /api/asistente/retroalimentacion`
+
+Pedido: `{ token, voto, razon? }`. `token` es `claveDeRetroalimentacion` de un turno `respondida` — autoriza calificar **ese turno**, no identifica a quién lo envía. `voto` es booleano (👍/👎). `razon` es opcional y, solo cuando `voto` es falso, uno de cuatro valores cerrados: `datos_incorrectos`, `no_entendio_la_pregunta`, `lento`, `otro`. Un `razon` presente junto a `voto: true` se ignora del lado del servidor — nunca se confía en que el cliente lo haya omitido.
+
+Respuestas:
+
+| Estado            | Cuándo                                                                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `204 No Content`  | El voto quedó registrado (alta o cambio de voto)                                                                                    |
+| `400 Bad Request` | `razon` no es una de las cuatro permitidas                                                                                          |
+| `404 Not Found`   | El token no existe o venció. **Mismo cuerpo** para los dos casos —para que un llamador no pueda distinguir «vencido» de «inventado» |
+| `401`/`403`       | Igual que el resto del módulo: sin `asistente.consultar` no hay token que valga                                                     |
+
+**Autorización por posesión del token, no por identidad del actor.** El token es un UUID aleatorio devuelto una sola vez, en la misma respuesta del turno; una ventana de validez de 120 minutos (config `Asistente__VigenciaDeRetroalimentacionMinutos`) lo vence, en memoria y sin persistencia, con el mismo criterio que la idempotencia de `/consultas`. Ver `asistente-retroalimentacion` en `docs/architecture/domains/asistente.md` y TD-012.
+
+**Es un upsert.** Reenviar con el mismo token reemplaza el voto y la razón anteriores — no se conserva historial de votos previos (una fila por turno, la última gana).
 
 Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico retorna la misma respuesta y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.
+
+#### `GET /api/asistente/historial` y `/historial/{hiloId}`
+
+`GET /historial?q=<texto>` devuelve `[{ id, titulo, creadoEn, ultimaActividad }]`, acotado a las conversaciones propias del actor de la sesión, de la más reciente a la más vieja. `q` opcional busca por texto completo (español, con stemming) contra las preguntas propias — nunca contra las de otro actor.
+
+`GET /historial/{hiloId}` devuelve la conversación con sus turnos: `{ id, titulo, creadoEn, ultimaActividad, turnos: [{ id, pregunta, sql, estado, ocurrioEn }] }`. `sql` viaja **solo** con `asistente.ver_consulta` — mismo gate que `sql` en `POST /consultas`. `404` si el id no existe o no es del actor: **mismo cuerpo** para los dos casos.
+
+#### `PATCH /api/asistente/historial/{hiloId}` y `DELETE`
+
+`PATCH` renombra: `{ titulo }`, `204` si es propia, `404` si no. `DELETE /historial/{hiloId}` borra una conversación propia (y sus turnos, por cascada). `DELETE /historial` (sin id) borra **todas** las conversaciones propias. Las dos formas de `DELETE` son permanentes: no hay papelera ni recuperación.
+
+#### `POST /api/asistente/historial/{hiloId}/reanudar`
+
+Sin cuerpo. Devuelve `{ hilo, turnos: [...] }`: `hilo` es un id **efímero nuevo** —el mismo campo que `POST /consultas` ya round-tripea— con el que seguir preguntando; `turnos` son los persistidos, para que la interfaz los pinte de una. El servidor siembra un hilo conversacional nuevo con esos turnos ya cargados, así que un seguimiento con anáfora ("¿y el de Pérez?") resuelve contra ese contexto igual que si la conversación nunca se hubiera cortado. `404` si la conversación no es propia.
+
+#### `POST /api/asistente/historial/turnos/{turnoId}/reejecutar`
+
+Sin cuerpo. «Volver a consultar»: re-ejecuta la SQL guardada de un turno propio ya `respondida`, bajo el alcance **actual** del actor — nunca llama al modelo, nunca escribe una fila de historial ni de los registros existentes. Devuelve `{ exitosa, mensaje?, columnas[], filas[], truncado }`: con `exitosa: false` (SQL que ya no corre — privilegios que se achicaron, esquema que cambió), `mensaje` trae una explicación no técnica y `columnas`/`filas` vienen vacías — **nunca** un error HTTP crudo por un rechazo del motor. `400` si el turno no terminó `respondida` o no dejó SQL guardada; `404` si el turno no es propio.
+
+#### `POST /api/asistente/soporte/historial/{actorId}/listar` y `/{actorId}/{hiloId}/leer`
+
+Exigen `asistente.leer_historial_ajeno` — sembrado a **ningún** rol por default, distinto de `asistente.consultar` — y un cuerpo `{ razon }` con texto no vacío. `POST` (no `GET`) a propósito: la razón nunca viaja en la URL, donde terminaría en un log de acceso o el historial del navegador. `400` sin razón o con razón en blanco.
+
+`listar` devuelve la lista de conversaciones del actor indicado (mismo shape que `GET /historial`, sin turnos). `leer` devuelve una conversación puntual con `sql` **siempre** presente (sin el gate de `asistente.ver_consulta`: el permiso de soporte ya es el de diagnóstico) — nunca filas de resultado, y ninguna acción de re-ejecución en la respuesta ni en ningún otro endpoint de este controller. Cada llamada escribe, ANTES de devolver nada, una fila en `asistente.auditoria_acceso_historial`; si esa escritura falla, no se devuelve ningún dato. Ningún endpoint del módulo expone, al actor cuyo historial fue leído, que alguien lo haya leído — decisión final, no pendiente.
+
+#### `PATCH /api/asistente/administracion/mantenimiento`
+
+Pedido: `{ activo, razon? }`. Exige `asistente.administrar` — sembrado directamente a `sys_admin` (design.md D13 de asistente-administracion-de-uso), distinto de `asistente.leer_historial_ajeno`. `razon` es obligatoria para `activo: true`; `400` si viene vacía o en blanco y el flag no cambia. Desactivar no exige razón. Devuelve `{ activo, razon }`. Cada toggle (encendido o apagado) escribe, ANTES de devolver éxito, una fila en `asistente.auditoria_administracion` con actor, momento, acción y el par antes/después.
+
+#### `GET /api/asistente/administracion/uso`
+
+Query: `periodo` (`dia` | `semana` | `mes`, default `dia`) o el rango explícito `desde`/`hasta`. Exige `asistente.administrar`. Devuelve `{ porUsuario[], porRol[], organizacion }`, cada uno con `{ clave, nombreParaMostrar?, turnos, porEstado, llamadasAlModelo, tokensDeEntrada, tokensDeSalida, tokensDeCache, latenciaPromedioMs, latenciaP95Ms, proveedores[], costoEstimado, esEstimado: true, turnosSinPrecio }`.
+
+Se agrega **sólo** desde `asistente.registro_operativo` — nunca `registro_analitico` (TD-012): no hay ningún campo con el texto de una pregunta. `nombreParaMostrar` se resuelve vía `IConsultasIdentity.ListarUsuariosAsync` (design.md D12), nunca vía `usuarios.ver`: un admin con sólo `asistente.administrar` ve nombres igual. `costoEstimado` sale de `CalculadoraDeCosto` contra `asistente.tabla_de_precios`, con el precio vigente en el momento en que cada fila ocurrió; `turnosSinPrecio` cuenta las filas sin ningún precio vigente para su proveedor/modelo — **nunca** se costean en cero. Un actor con más de un rol de sistema vigente suma su uso a TODOS esos roles en `porRol`.
+
+#### `PUT /api/asistente/administracion/presupuestos/roles/{rol}` y `/presupuestos/usuarios/{actorId}`
+
+Pedido: `{ cupo }` (turnos por día; `0` desactiva). Exigen `asistente.administrar`. El primero edita el default de un código de rol de sistema; el segundo, el override de un actor puntual, que **siempre** gana sobre el default de su rol (design.md D2/D3, tareas 3.4/9.5), más chico o más grande. Ambos escriben, antes de devolver `204`, una fila en `asistente.auditoria_administracion` con el par antes/después.
+
+#### `PUT /api/asistente/administracion/tope-organizacional`
+
+Pedido: `{ topeMensualUsd }` (`0` desactiva). Exige `asistente.administrar`. Igual disciplina de auditoría que los dos anteriores.
 
 ## Versioning
 

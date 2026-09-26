@@ -30,21 +30,29 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         "SELECT count(*) AS cantidad FROM designaciones.designaciones";
 
     // ------------------------------------------------------------ la cuota
+    //
+    // Desde asistente-administracion-de-uso la cuota se mide en TURNOS por día
+    // calendario UTC, no en llamadas al modelo ni en una ventana deslizante
+    // (design.md D2). `cupoDiario` acá reemplaza al viejo
+    // `OpcionesAsistente.CupoDeLlamadasPorActor`, y `banco.Cuota` es ahora
+    // asíncrono: ver ICuotaDelActor.
 
     [Fact]
     public async Task Un_turno_con_reescritor_cobra_tres_llamadas()
     {
-        // La unidad de la cuota son LLAMADAS AL MODELO, no requests ni turnos.
-        // Contar requests subestimaría el consumo por un factor de tres, que es
-        // exactamente la diferencia que este test mide.
+        // Este test es sobre LlamadasAlModelo, no sobre la cuota: la cuota va
+        // sin tope (default) para no interferir con lo que mide.
         await SembrarAsync();
         var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 100 },
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 4 docentes.",
-            "¿cuántos docentes están designados en Sistemas?",
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 2 docentes.");
+            new OpcionesAsistente(),
+            guion:
+            [
+                ProveedorGuionado.Generacion(ContarDocentes),
+                "Hay 4 docentes.",
+                "¿cuántos docentes están designados en Sistemas?",
+                ProveedorGuionado.Generacion(ContarDocentes),
+                "Hay 2 docentes.",
+            ]);
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -65,13 +73,13 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     public async Task Un_saludo_no_consume_cupo()
     {
         await SembrarAsync();
-        var banco = Banco(new OpcionesAsistente { CupoDeLlamadasPorActor = 1 });
+        var banco = Banco(new OpcionesAsistente(), cupoDiario: 1);
         var ct = TestContext.Current.CancellationToken;
 
         await banco.Capa().ResponderAsync(Secretaria, null, "hola", ct);
         await banco.Capa().ResponderAsync(Secretaria, null, "gracias", ct);
 
-        Assert.True(banco.Cuota.HayCupo(Secretaria));
+        Assert.True(await banco.Cuota.HayCupoAsync(Secretaria, ct));
     }
 
     [Fact]
@@ -82,9 +90,9 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         // gasto, que es lo único que la cuota existe para evitar.
         await SembrarAsync();
         var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 2 },
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 4 docentes.");
+            new OpcionesAsistente(),
+            cupoDiario: 1,
+            guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -106,9 +114,9 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
         var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 2, VentanaDeCuotaMinutos = 60 },
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 4 docentes.");
+            new OpcionesAsistente(),
+            cupoDiario: 1,
+            guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -128,9 +136,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     public async Task Dos_actores_no_comparten_cupo()
     {
         await SembrarAsync();
-        var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 2 },
-            [.. GuionDeTurnos(2)]);
+        var banco = Banco(new OpcionesAsistente(), cupoDiario: 1, guion: [.. GuionDeTurnos(2)]);
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -147,9 +153,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     public async Task Un_cupo_en_cero_nunca_bloquea()
     {
         await SembrarAsync();
-        var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
-            [.. GuionDeTurnos(5)]);
+        var banco = Banco(new OpcionesAsistente(), cupoDiario: 0, guion: [.. GuionDeTurnos(5)]);
 
         var ct = TestContext.Current.CancellationToken;
 
@@ -167,17 +171,19 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         // Si el cargo fuera solo al terminar bien, fallar sería una forma de
         // consultar gratis: bastaría con hacer explotar el turno después de la
-        // llamada cara. Por eso se cobra en `finally`.
+        // llamada cara. Por eso se cobra en `finally`. Con cupo=1 TURNO, este
+        // turno que se cae —pero llegó a llamar al modelo— agota el cupo igual.
         await SembrarAsync();
         var banco = BancoCon(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 2 },
+            new OpcionesAsistente(),
             null,
             new ProveedorGuionado(ProveedorGuionado.Generacion(ContarDocentes))
             {
                 // La generación pasa; la redacción revienta con algo que el carril
                 // no atrapa, así que el turno entero se cae.
                 Antes = SegundaExplota(),
-            });
+            },
+            cupoDiario: 1);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             banco.Capa().ResponderAsync(
@@ -185,7 +191,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
                 TestContext.Current.CancellationToken));
 
         Assert.Equal(2, banco.Proveedor.Llamadas);
-        Assert.False(banco.Cuota.HayCupo(Secretaria));
+        Assert.False(await banco.Cuota.HayCupoAsync(
+            Secretaria, TestContext.Current.CancellationToken));
     }
 
     // ----------------------------------------------------- los topes del turno
@@ -205,7 +212,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             {
                 PresupuestoDelTurnoSegundos = 30,
                 TimeoutDeLlamadaSegundos = 20,
-                CupoDeLlamadasPorActor = 0,
             },
             reloj,
             new ProveedorGuionado(
@@ -227,7 +233,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         // Sin esta distinción, cada persona que cierra la pestaña quedaría contada
         // como una caída del servicio y la métrica de disponibilidad mentiría.
         await SembrarAsync();
-        var banco = Banco(new OpcionesAsistente { CupoDeLlamadasPorActor = 0 });
+        var banco = Banco(new OpcionesAsistente());
 
         var fuente = new CancellationTokenSource();
         await fuente.CancelAsync();
@@ -242,9 +248,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
         var banco = Banco(
-            new OpcionesAsistente { PresupuestoDelTurnoSegundos = 0, CupoDeLlamadasPorActor = 0 },
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 4 docentes.");
+            new OpcionesAsistente { PresupuestoDelTurnoSegundos = 0 },
+            guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
 
         var turno = await banco.Capa().ResponderAsync(
             Secretaria, null, "¿cuántos docentes están designados?",
@@ -258,9 +263,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     {
         await SembrarAsync();
         var banco = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
-            ProveedorGuionado.Generacion(ContarDocentes),
-            "Hay 4 docentes.");
+            new OpcionesAsistente(),
+            guion: [ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes."]);
 
         var turno = await banco.Capa().ResponderAsync(
             Secretaria, null, "¿cuántos docentes están designados?",
@@ -350,28 +354,33 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         // modelo no hay llamadas, y sin llamadas no hay nada que cobrar. Un proveedor
         // caído no le gasta el cupo a nadie.
         await SembrarAsync();
-        var banco = BancoSinProveedor(cupo: 4);
+        var banco = BancoSinProveedor(cupoDiario: 4);
+        var ct = TestContext.Current.CancellationToken;
 
         for (var i = 0; i < 10; i++)
         {
             await banco.Capa().ResponderAsync(
-                Secretaria, null, "¿cuántos docentes están designados?",
-                TestContext.Current.CancellationToken);
+                Secretaria, null, "¿cuántos docentes están designados?", ct);
         }
 
-        Assert.True(banco.Cuota.HayCupo(Secretaria));
+        Assert.True(await banco.Cuota.HayCupoAsync(Secretaria, ct));
     }
 
     [Fact]
     public async Task Sin_cupo_un_saludo_sigue_resolviendo()
     {
         await SembrarAsync();
-        var banco = Banco(new OpcionesAsistente { CupoDeLlamadasPorActor = 1 });
+        var banco = Banco(new OpcionesAsistente(), cupoDiario: 1);
+        var ct = TestContext.Current.CancellationToken;
 
-        banco.Cuota.Anotar(Secretaria, 5);
+        // Cinco turnos anotados a mano —no importa cuántos, ICuotaDelActor ya no
+        // recibe un conteo de llamadas— agotan el único cupo diario.
+        for (var i = 0; i < 5; i++)
+        {
+            await banco.Cuota.AnotarAsync(Secretaria, ct);
+        }
 
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria, null, "hola", TestContext.Current.CancellationToken);
+        var turno = await banco.Capa().ResponderAsync(Secretaria, null, "hola", ct);
 
         Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
         Assert.Equal(0, banco.Proveedor.Llamadas);
@@ -391,8 +400,8 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             TestContext.Current.CancellationToken);
 
         var sano = Banco(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
-            ProveedorGuionado.NoContestable());
+            new OpcionesAsistente(),
+            guion: [ProveedorGuionado.NoContestable()]);
 
         var noContestable = await sano.Capa().ResponderAsync(
             Secretaria, null, "¿cuál es la temperatura de la sala?",
@@ -415,7 +424,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         await SembrarAsync();
 
         var banco = BancoCon(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
+            new OpcionesAsistente(),
             null,
             new ProveedorGuionado { Falla = new InvalidOperationException("el proveedor explotó") });
 
@@ -446,7 +455,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         await SembrarAsync();
 
         var banco = BancoCon(
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
+            new OpcionesAsistente(),
             null,
             new ProveedorGuionado { Falla = new InvalidOperationException("el proveedor explotó") });
 
@@ -487,13 +496,15 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
 
     private BancoDelAsistente Banco(
         OpcionesAsistente configuracion,
+        int cupoDiario = 0,
         params string[] guion) =>
-        BancoCon(configuracion, null, null, guion);
+        BancoCon(configuracion, null, null, cupoDiario, guion);
 
     private BancoDelAsistente BancoCon(
         OpcionesAsistente configuracion,
         RelojFijo? reloj,
         ProveedorGuionado? proveedor,
+        int cupoDiario = 0,
         params string[] guion)
     {
         var (basica, pii) = CadenasDeLectura();
@@ -508,17 +519,16 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             proveedor: proveedor,
             registro: null,
             envolver: null,
+            cupoDiario: cupoDiario,
             guion: guion);
     }
 
     /// <summary>Un banco con el corte al proveedor ya abierto.</summary>
-    private BancoDelAsistente BancoSinProveedor(int cupo = 0)
+    private BancoDelAsistente BancoSinProveedor(int cupoDiario = 0)
     {
-        var banco = Banco(new OpcionesAsistente
-        {
-            FallosParaAbrirElBreaker = 1,
-            CupoDeLlamadasPorActor = cupo,
-        });
+        var banco = Banco(
+            new OpcionesAsistente { FallosParaAbrirElBreaker = 1 },
+            cupoDiario: cupoDiario);
 
         banco.Breaker.Fallo();
 

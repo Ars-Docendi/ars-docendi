@@ -280,25 +280,29 @@ Fuera de alcance, con motivo escrito:
 
 Las columnas personales de `identity.personas` —`documento`, `cuil`, `fecha_nacimiento`, `telefono`— y `identity.users.upn` van **solo** al rol con datos personales.
 
-### Los dos permisos del asistente
+### Los tres permisos del asistente
 
-| Permiso                  | Qué habilita                                | Concedido a                                         |
-| ------------------------ | ------------------------------------------- | --------------------------------------------------- |
-| `asistente.consultar`    | Usar el asistente                           | Los seis roles de sistema no `docente`              |
-| `asistente.ver_consulta` | Ver la consulta SQL que el asistente generó | **Ningún rol.** Se concede desde `/membresia-roles` |
+| Permiso                          | Qué habilita                                                     | Concedido a                                                                  |
+| -------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `asistente.consultar`            | Usar el asistente (incluye el historial propio)                  | Los seis roles de sistema no `docente`                                       |
+| `asistente.ver_consulta`         | Ver la consulta SQL que el asistente generó (propia o histórica) | **Ningún rol.** Se concede desde `/membresia-roles`                          |
+| `asistente.leer_historial_ajeno` | Leer, con razón y auditoría, el historial de OTRO usuario        | **Ningún rol**, ni siquiera `sys_admin`. Se concede desde `/membresia-roles` |
 
-El segundo está sembrado y vacío a propósito: la consulta generada es superficie de diagnóstico y su `WHERE` puede llevar un documento, un legajo o un nombre. Quién necesita verla es una decisión del Departamento, no de quien escribe la migración. Un permiso concedido de arranque es difícil de quitar; uno vacío se concede en treinta segundos cuando alguien lo pide.
+Los tres nacen vacíos a propósito, cada uno por su propio motivo escrito en su migración: `asistente.ver_consulta` porque la consulta generada es superficie de diagnóstico y su `WHERE` puede llevar un documento, un legajo o un nombre; `asistente.leer_historial_ajeno` porque habilita leer las preguntas y consultas de OTRA persona, no las propias — superficie de soporte, no de uso (asistente-acceso-de-soporte-al-historial). Quién necesita cada uno es una decisión del Departamento, no de quien escribe la migración. Un permiso concedido de arranque es difícil de quitar; uno vacío se concede en treinta segundos cuando alguien lo pide.
 
-Ninguno de los dos es una lista de roles en código, por el mismo motivo: `identity.roles` no es un catálogo cerrado, y una lista embebida falla **abierta** con cualquier rol que no conozca.
+Ninguno de los tres es una lista de roles en código, por el mismo motivo: `identity.roles` no es un catálogo cerrado, y una lista embebida falla **abierta** con cualquier rol que no conozca.
 
 ### El schema `asistente`: dos registros que no se cruzan
 
 Es el único schema que el asistente escribe, y lo escribe con la **conexión dueña**. Sus propios roles de solo lectura lo tienen revocado entero.
 
-| Tabla                          | Guarda                                                                                                                                                                          | No guarda                                              |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `asistente.registro_operativo` | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens de entrada, de salida y `tokens_de_cache`, latencia, reintento, truncado, `proveedor`, `intencion_sombra` | El texto de la pregunta, y la credencial del proveedor |
-| `asistente.registro_analitico` | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                                                                                              | El actor y la hora exacta                              |
+| Tabla                               | Guarda                                                                                                                                                                          | No guarda                                                        |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `asistente.registro_operativo`      | `actor_id`, `ocurrido_en`, carril, estado, llamadas al modelo, tokens de entrada, de salida y `tokens_de_cache`, latencia, reintento, truncado, `proveedor`, `intencion_sombra` | El texto de la pregunta, y la credencial del proveedor           |
+| `asistente.registro_analitico`      | `pregunta`, categoría, estado, `dia` (tipo `date`)                                                                                                                              | El actor y la hora exacta                                        |
+| `asistente.retroalimentacion_turno` | `analitico_id` (FK a `registro_analitico.id`, `ON DELETE CASCADE`), `voto`, `razon` (4 valores cerrados), `actualizado_en`                                                      | El actor, y cualquier columna que exista en `registro_operativo` |
+
+**`retroalimentacion_turno` es la tercera fila que no se cruza, no una excepción.** Su única clave es la del analítico: sin `actor_id` propio, sin FK hacia `registro_operativo`, y con la misma denegación de esquema heredada — ninguna de las dos hereda un `GRANT` propio, así que no hace falta tocar `manifiesto-privilegios.json` para mantenerla afuera de los dos roles de solo lectura. Feature completa en [Retroalimentación del turno (domains/asistente.md)](domains/asistente.md#retroalimentación-del-turno) y TD-012.
 
 **Ninguno guarda las filas devueltas ni la consulta generada.** Ni por defecto ni detrás de un flag.
 
@@ -320,9 +324,57 @@ Retención de 90 días configurable, con purga automática en el proceso (`Purga
 
 **Dónde vive qué**: el alta de los roles está en `infra/scripts/provision-db.sh` (corre antes que las tablas); los `GRANT` están en `database/asistente/001_asistente_grants.sql`, que ejecuta el migrador del módulo con las tablas ya creadas.
 
+### El historial propio y la auditoría de soporte
+
+Tres tablas más, en el mismo schema `asistente` — heredan la denegación wholesale sin ningún `GRANT` ni cambio de manifiesto propio, mismo precedente que `retroalimentacion_turno` (asistente-historial-conversaciones):
+
+| Tabla                                  | Guarda                                                                                                                       | No guarda                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `asistente.hilo_historico`             | `id` (propio, minteado por la aplicación), `actor_id`, `titulo`, `creado_en`, `ultima_actividad`                             | Cualquier dato del propio turno                                          |
+| `asistente.turno_historico`            | `id`, `hilo_id` (FK a `hilo_historico`, `ON DELETE CASCADE`), `pregunta`, `sql_resuelto` (nullable), `estado`, `ocurrido_en` | Las filas que devolvió la consulta, y el texto redactado de la respuesta |
+| `asistente.auditoria_acceso_historial` | `id`, `lector_id`, `sujeto_id`, `hilo_historico_id` (nullable, **sin FK**), `razon`, `ocurrido_en`                           | — (es, ella misma, el registro de auditoría)                             |
+
+**`hilo_historico` es, a propósito, la tabla actor-vinculada que `registro_analitico`/`registro_operativo` no son.** «Historial propio» sólo significa algo si es atribuible a su dueño: es un canal de privacidad nuevo y deliberado, contenido por el mismo deny-by-default de esquema, un permiso propio para cualquier acceso más allá del dueño, y auditoría permanente en todo lo demás. Ver TD-012 más abajo.
+
+**`hilo_historico.id` es independiente del id efímero de `HiloConversacional`.** El hilo en memoria vive 120 minutos y se pierde en cada redespliegue; la conversación persistida tiene que sobrevivir 180 días y ser resumible mucho después. `Reanudar` mintea un hilo efímero **nuevo** con los turnos persistidos ya cargados, y ese hilo nuevo sigue extendiendo la misma conversación persistida.
+
+**Ninguna de las tres referencia `registro_analitico`, `registro_operativo` o `retroalimentacion_turno`, ni al revés.** El historial es un canal enteramente separado: nunca guarda ni deriva el token de retroalimentación de un turno, para no reabrir por otro lado el cruce que TD-012 cierra.
+
+**`auditoria_acceso_historial.hilo_historico_id` no lleva clave foránea, a propósito.** La fila de auditoría tiene que sobrevivir a que el propio dueño borre esa conversación (borrado permanente, sin papelera); sin FK, un id que ya no existe en `hilo_historico` sigue siendo una fila de auditoría perfectamente legible — quién leyó, a quién, cuándo, por qué.
+
+**Retención de 180 días para el historial** (`Asistente__RetencionDeHistorialDias`), contada desde `ultima_actividad` y no desde `creado_en` — una conversación retomada nueve meses después no pierde sus turnos más viejos mientras siga activa. **365 días para la auditoría de soporte** (`Asistente__RetencionDeAuditoriaDeSoporteDias`), en una ventana **independiente**: la auditoría no se purga por el estado de la conversación que describe. `PurgaDeRegistros` suma estos dos barridos a los dos que ya tenía, mismo mecanismo, mismo criterio de fallar sin tumbar el proceso.
+
+**No hay endpoint que le diga al sujeto quién leyó su historial** (design.md D11 de asistente-historial-conversaciones). Es la decisión final del cliente, no una pendiente: el trade-off aceptado es el de los tres precedentes citados en el diseño (ChatGPT Enterprise, Claude Enterprise, Microsoft Purview) — el log de acceso queda del lado del administrador, no del sujeto.
+
+**TD-012, actualizado.** La anonimidad de `registro_analitico` sigue intacta frente al asistente y a cualquiera sin acceso al historial: nada de lo de arriba lo toca. Lo que cambió es que ahora existe, a propósito, una tabla que responde exactamente la pregunta que `registro_analitico` se niega a responder — "qué preguntó fulano" — pero atribuida a su dueño y a un lector de soporte permisionado y auditado. La garantía de TD-012 hoy depende también de que nadie tenga, además, acceso al historial.
+
 **Deny-by-default verificable**: `database/asistente/manifiesto-privilegios.json` enumera toda tabla de los schemas expuestos y toda columna de las concedidas. Un test compara ese manifiesto contra los privilegios efectivos en tres direcciones y falla si divergen: privilegio efectivo no declarado, privilegio declarado inexistente, y tabla o columna sin clasificar. Una tabla nueva rompe el CI en vez de quedar concedida en silencio.
 
 **Qué sale hacia afuera** es una pregunta distinta de quién puede leer qué, y tiene su propio manifiesto: `database/asistente/manifiesto-sensibilidad.json` clasifica cada columna concedida en `publica`, `sensible-valor` —al proveedor del modelo va un marcador, el valor real va al llamador— o `sensible-texto`, que no viaja en absoluto. Las cuatro columnas personales de `identity.personas` y el correo institucional de `identity.users` son `sensible-valor`; las tres columnas de texto libre del trámite son `sensible-texto`. Un test falla si una columna concedida queda sin clasificar, y otro si el manifiesto clasifica una que nadie concede.
+
+### Administración de uso (presupuestos, tope, mantenimiento, auditoría)
+
+Siete tablas más, en el mismo schema `asistente` — mismo criterio que las tres de arriba: heredan la denegación wholesale (`REVOKE ALL ON SCHEMA asistente` de `002_asistente_registros.sql`) sin ningún `GRANT` ni cambio de manifiesto propio. Viven todas en `database/asistente/006_asistente_administracion.sql`.
+
+| Tabla                                      | Guarda                                                                                                       | No guarda                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `asistente.presupuesto_rol`                | `rol_code` (PK), `cupo_diario_turnos` (0 desactiva), `actualizado_en`                                        | Historial de valores anteriores (va en `auditoria_administracion`) |
+| `asistente.presupuesto_usuario`            | `id`, `actor_id`, `cupo_diario_turnos`, `vigente_desde`, `vigente_hasta` (nulo = vigente)                    | —                                                                  |
+| `asistente.tope_organizacional`            | `id`, `tope_mensual_usd` (0 desactiva), `vigente_desde`                                                      | —                                                                  |
+| `asistente.consumo_organizacional_mensual` | `anio`, `mes` (PK compuesta), `costo_estimado_acumulado`                                                     | Costo por usuario o por turno (eso lo deriva el panel de uso)      |
+| `asistente.tabla_de_precios`               | `proveedor`, `modelo`, precio por token de entrada/salida/caché, `version`, `vigente_desde`, `vigente_hasta` | —                                                                  |
+| `asistente.modo_mantenimiento`             | Fila única (`id = 1`, `CHECK`): `activo`, `razon`, `actor_id`, `actualizado_en`                              | —                                                                  |
+| `asistente.auditoria_administracion`       | `id`, `actor_id`, `ocurrido_en`, `accion`, `antes`/`despues` (JSON serializado por la aplicación)            | — (es, ella misma, el registro de auditoría)                       |
+
+**`presupuesto_usuario` y `tabla_de_precios` son versionadas, nunca editadas en el lugar** (design.md D6 de asistente-administracion-de-uso): editar un override o publicar un precio nuevo cierra la fila vigente (`vigente_hasta = now()`) y abre una nueva. Así, costear un turno ya ocurrido siempre usa el precio que estaba vigente cuando ocurrió, sin que un cambio posterior lo reescriba. `presupuesto_rol` y `tope_organizacional` no necesitan esa disciplina: sólo importa su valor **actual**, y el histórico de ediciones ya queda en `auditoria_administracion`.
+
+**`0` desactiva**, mismo convenio que el resto del módulo (`CupoDeLlamadasPorActor` en su momento): un cupo de rol en `0`, un override en `0` o un tope organizacional en `0` significan «sin tope», nunca «tope cero turnos». Los siete roles de sistema se siembran en `0` y el tope organizacional también, hasta que el Departamento confirme los números reales (design.md, Open Questions) — ningún precio se siembra en `tabla_de_precios`, para no costear con un número adivinado.
+
+**`consumo_organizacional_mensual` se resetea solo**: no hay ninguna acción de purga ni de admin — un mes nuevo simplemente no tiene fila todavía, y una fila ausente vale `0`.
+
+**`auditoria_administracion` es append-only por ausencia de código, no por trigger** — mismo criterio que `auditoria_acceso_historial`: el puerto `IAuditoriaDeAdministracion` sólo tiene un método (`RegistrarAsync`), y ningún endpoint del módulo actualiza ni borra una fila. Retención propia de 365 días (`Asistente__RetencionDeAuditoriaDeAdministracionDias`), purgada por el mismo `PurgaDeRegistros`.
+
+**Ninguna de las siete lleva clave foránea hacia `identity`** — mismo motivo que el resto del schema: tienen que poder purgarse y conservarse con independencia del padrón.
 
 ### Row Level Security sobre el trámite
 

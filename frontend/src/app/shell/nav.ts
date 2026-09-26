@@ -65,6 +65,15 @@ export const NAVEGACION: NavGroup[] = [
         // URL a mano tampoco alcanza.
         permiso: "asistente.leer_historial_ajeno",
       },
+      {
+        to: "/asistente/administracion",
+        icon: "reportes",
+        label: "Uso del asistente",
+        // Sembrado directamente a `sys_admin` (asistente-administracion-de-uso,
+        // design.md D13): mismo criterio que el ítem de arriba —sin el permiso
+        // no hay ítem, y la ruta misma también la protege `RequirePermission`.
+        permiso: "asistente.administrar",
+      },
     ],
   },
 ];

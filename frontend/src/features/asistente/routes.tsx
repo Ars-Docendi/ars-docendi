@@ -1,6 +1,7 @@
 import type { RouteObject } from "react-router-dom";
 
 import { RequirePermission } from "../../shared/auth/RequirePermission";
+import { AdministracionAsistentePage } from "./pages/AdministracionAsistentePage";
 import { AsistentePage } from "./pages/AsistentePage";
 import { SoporteHistorialPage } from "./pages/SoporteHistorialPage";
 
@@ -20,6 +21,11 @@ import { SoporteHistorialPage } from "./pages/SoporteHistorialPage";
  * es una lectura de OTRA persona, así que además del gate del backend en cada
  * endpoint (§9), la ruta misma no resuelve sin el permiso — no hay elemento que
  * montar, y por eso tasks.md 13.1 la pide «sin match de ruta» y no sólo sin link.
+ *
+ * `administracion` sigue el MISMO criterio (asistente-administracion-de-uso,
+ * tasks.md 11.1): editar presupuestos y el kill switch es una acción
+ * administrativa, no una lectura propia, así que sin `asistente.administrar`
+ * tampoco hay ruta que resuelva.
  */
 export const routes: RouteObject = {
   path: "asistente",
@@ -28,6 +34,10 @@ export const routes: RouteObject = {
     {
       element: <RequirePermission permission="asistente.leer_historial_ajeno" />,
       children: [{ path: "soporte-historial", element: <SoporteHistorialPage /> }],
+    },
+    {
+      element: <RequirePermission permission="asistente.administrar" />,
+      children: [{ path: "administracion", element: <AdministracionAsistentePage /> }],
     },
   ],
 };

@@ -505,13 +505,17 @@ El catálogo nace con cinco intenciones y crece **de a una, cada una con su caso
 
 ## Presupuesto y degradación
 
-Tres cotas, más un estado propio para cuando alguna se agota.
+Seis cotas — cuatro persistentes, en Postgres, y dos de proceso — más un estado
+propio para cuando alguna se agota (asistente-administracion-de-uso).
 
-### La cuota por actor
+### La cuota por actor (persistente, TD-011 actualizado)
 
-Se mide en **llamadas al modelo**, no en requests HTTP. Un turno con reescritor
-cuesta tres llamadas y con reintento de transporte hasta cuatro requests por
-llamada: contar requests del cliente subestimaría el consumo por un factor de tres.
+Se mide en **turnos por día calendario UTC**, no en llamadas al modelo ni en
+una ventana deslizante — eso es lo que cambió: la versión anterior contaba
+llamadas en memoria (`CuotaEnMemoria`, ya eliminada) sobre una ventana
+deslizante, y se perdía en cada redespliegue. Turnos/día es lo que un admin
+no técnico puede razonar y configurar sin conocer el fan-out del pipeline, y
+un presupuesto persistido necesita un límite de período estable y auditable.
 
 Con una sola clave de API por ambiente, el proveedor factura al ambiente entero y no
 puede atribuir consumo a nadie. Si la cuota no vive en la aplicación, no vive en
@@ -521,13 +525,101 @@ Se acota por **identidad autenticada** y nunca por dirección de origen: todo el
 tráfico entra por un túnel, así que un departamento tras NAT compartiría cupo con
 sus vecinos.
 
-El chequeo va **antes** del pipeline: superado el cupo no se emite ninguna llamada,
-no una que falle. El cargo, en cambio, se hace al terminar el turno, en un `finally`
-—así un turno que se cae a la mitad paga igual lo que llegó a gastar—.
+El cupo efectivo de un actor sale de `asistente.presupuesto_usuario` (un
+override vigente, siempre gana, más chico o más grande que el default de su
+rol) o, si no hay override, del **mínimo** entre los cupos de
+`asistente.presupuesto_rol` de sus roles vigentes que estén **activados**
+(mayor que cero) — un rol sin tope (cero) no arrastra a los demás a cero por
+ser el número más chico. `0` desactiva el cupo, mismo convenio que el resto
+del módulo; los siete roles se siembran en cero hasta que el Departamento
+confirme los números reales.
 
-Vive en memoria y se pierde en cada redespliegue. Es un mecanismo de equidad entre
-usuarios, no la última línea contra una factura: esa es el techo de gasto en la
-consola del proveedor. Registrado como TD-011.
+El consumo se **deriva** contando, al vuelo, las filas de
+`asistente.registro_operativo` del día con `llamadas_al_modelo > 0` — nunca
+un contador propio, para no abrir una segunda fuente de verdad que pueda
+desincronizarse del registro real. Un turno cuenta si y solo si invocó al
+modelo al menos una vez: un saludo o un menú de aclaración resuelto sin
+proveedor no gasta cupo.
+
+El chequeo va **antes** del pipeline: superado el cupo no se emite ninguna llamada,
+no una que falle. El cargo (la anotación del turno, que en la implementación
+persistente es un no-op porque el consumo ya se derivó del registro) se hace
+al terminar el turno, en el mismo `finally` que libera el candado del turno —
+así un turno que se cae a la mitad paga igual lo que llegó a gastar.
+
+### El tope organizacional
+
+Un segundo límite, **de toda la organización**, en **USD estimados por mes**
+y no en turnos: el cupo por actor responde "¿esta persona usa el asistente
+con equidad respecto de sus pares?"; el tope organizacional responde
+"¿estamos a punto de recibir una factura inesperada?" — y ahí el driver real
+es tokens × precio, no cantidad de turnos, así que dos proveedores o dos
+modelos a distinta verbosidad harían de "turnos" una mala proxy.
+
+Se acumula **incrementalmente**, una vez por turno que invocó al modelo (mismo
+guard que la cuota), con el precio vigente **en ese momento** —
+`asistente.tabla_de_precios`, versionada por rango de vigencia—, contra
+`asistente.consumo_organizacional_mensual` (una fila por año/mes; un mes sin
+fila vale cero, así que el reset a fin de mes no necesita ninguna acción).
+`0` en `asistente.tope_organizacional` desactiva el tope, mismo convenio.
+
+Bloquea a **todos los actores por igual**, incluso a uno que todavía tiene su
+propio cupo disponible — es el mismo choque de prioridad que el cupo, un
+paso más adelante en `DisponibilidadDelModeloReal`. El texto al usuario
+**nunca** menciona el costo ni el tope de la organización: esos números son
+del panel de uso, gated por `asistente.administrar`.
+
+Una fila sin ningún precio vigente para su proveedor/modelo **no acumula
+nada** — nunca se costea en cero. Es una limitación conocida y no un bug: un
+proveedor sin precio cargado no puede aportar al tope, y el panel de uso
+sigue reportando esas filas como "sin precio", visibles.
+
+### El turno exclusivo del actor
+
+Un segundo turno del mismo actor mientras el primero está en curso se
+rechaza — protege el límite de tasa compartido del proveedor (y, a futuro, el
+modelo local de una sola GPU) de dos pestañas, dos dispositivos o un
+reintento del cliente llegando a la vez. El guard del lado del cliente
+(`useAsistente`, "un turno a la vez") es una cortesía, no un control: no
+frena a dos pestañas.
+
+Implementado con un **advisory lock de sesión de Postgres**
+(`pg_try_advisory_lock`), no un candado en memoria: un candado de proceso
+sólo protege una instancia del Host, y el Host puede correr más de una
+(redespliegues rolling). Se toma en una conexión **dedicada, sin pool**
+—liberar un candado de sesión exige que la MISMA conexión física llame
+`pg_advisory_unlock`, y el pool podría reasignarla con el candado todavía
+puesto— y es lo **primero** que se consulta en el turno, antes del cupo, del
+tope y del mantenimiento: es el chequeo más barato y el más probable de
+rechazar al instante. Se libera en el mismo `finally` que cobra la cuota, en
+los cuatro casos (éxito, degradación, excepción, timeout del presupuesto del
+turno) y también ante una cancelación del lado del cliente.
+
+Un proceso que muere a mitad de turno libera el candado igual: Postgres lo
+suelta en cuanto detecta el socket caído. Sólo un bug de código que se salte
+el `finally` mientras el proceso sigue vivo podría dejarlo colgado — el mismo
+modo de falla que cualquier otro `finally` olvidado.
+
+### El modo mantenimiento (kill switch)
+
+Un interruptor persistido y auditado (`asistente.modo_mantenimiento`, fila
+única) que un admin prende o apaga con una razón — obligatoria para prender,
+no para apagar. `GET /api/asistente/capacidades` lo reporta siempre, sin
+caché de proceso: cada consulta relee la fila, para que dos instancias del
+Host vean el mismo valor sin ningún mecanismo de invalidación.
+
+Detrás de un puerto chico (`IDisponibilidadDelModulo`), a propósito: hoy lo
+implementa Postgres, y nada de Azure se referencia en ningún lado —el puerto
+existe para que un futuro backend en Azure App Configuration sea una clase
+nueva y un cambio de composición, nunca un cambio en quien lo llama, mismo
+patrón que el módulo ya usa para el proveedor del modelo.
+
+Un admin con `asistente.administrar` puede seguir usando el asistente en
+mantenimiento — para verificar la recuperación antes de reabrirlo a todos —,
+pero el bypass es **sólo del motivo mantenimiento**: sigue sujeto a su propio
+cupo, al tope organizacional y a la exclusión de turno concurrente. La
+decisión de bypass la toma el LLAMADOR (`CapaConversacional`, que resuelve
+los permisos del actor), nunca el puerto de almacenamiento del flag.
 
 ### Las dos cotas de tiempo
 
@@ -615,16 +707,32 @@ Cinco de los ocho pasos del pipeline no necesitan proveedor. La falta de modelo 
 corta el turno**: la capa conversacional resuelve el veredicto una vez, antes de
 empezar, y lo consulta solo donde hace falta.
 
-| Con el modelo caído o sin cupo     | Qué pasa                       |
-| ---------------------------------- | ------------------------------ |
-| Un saludo o un agradecimiento      | Responde, cero llamadas        |
-| Una pregunta con entidad ambigua   | Devuelve su menú de aclaración |
-| La respuesta a un menú abierto     | Se reconoce y se cierra        |
-| Una pregunta de seguimiento        | Se responde sin reescribir     |
-| Una pregunta que exige generar SQL | Servicio degradado             |
+| Con el modelo caído, sin cupo, sin tope o en mantenimiento | Qué pasa                       |
+| ---------------------------------------------------------- | ------------------------------ |
+| Un saludo o un agradecimiento                              | Responde, cero llamadas        |
+| Una pregunta con entidad ambigua                           | Devuelve su menú de aclaración |
+| La respuesta a un menú abierto                             | Se reconoce y se cierra        |
+| Una pregunta de seguimiento                                | Se responde sin reescribir     |
+| Una pregunta que exige generar SQL                         | Servicio degradado             |
 
-El texto distingue las dos causas. Con la cuota agotada el sistema **sabe** cuándo
-vuelve el cupo y lo dice; con el proveedor caído no lo sabe nadie y no promete plazo.
+El texto distingue las causas. Con la cuota agotada el sistema **sabe** cuándo
+vuelve el cupo y lo dice; con el proveedor caído no lo sabe nadie y no promete plazo;
+con el tope organizacional agotado, nunca menciona costo ni tope; con el
+mantenimiento activo, nombra la razón que el admin escribió al activarlo.
+
+**`MotivoSinModelo` tiene hoy seis valores** (`Ninguno` no cuenta, es "se puede
+llamar"): `CuotaAgotada`, `ProveedorCaido`, y los tres que suma
+asistente-administracion-de-uso — `TopeOrganizacionalAgotado`,
+`TurnoConcurrente`, `Mantenimiento`. **Los seis siguen resolviendo como el
+mismo `EstadoDelTurno.ServicioDegradado`** del contrato HTTP: el "carril es un
+servicio... antes de tener los cuatro estados" es un invariante deliberado
+(ver "Decisiones registradas" más abajo), y cada motivo nuevo es,
+semánticamente, "no se puede conseguir una respuesta del modelo ahora" —
+exactamente lo que ese estado ya significa para el cliente. `TurnoConcurrente`
+es la única excepción de ORIGEN: no pasa por `DisponibilidadDelModelo` — el
+candado del turno se consulta antes de siquiera resolver el hilo, así que un
+segundo turno concurrente nunca llega a correr ninguno de los ocho pasos del
+pipeline, ni los que no necesitan proveedor.
 
 ## Los dos registros
 

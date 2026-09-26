@@ -387,10 +387,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
                 $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
                 PostgresFixture.PasswordDeRol);
 
-            // La cuota apagada: acá se mide la puerta, no el presupuesto.
-            builder.UseSetting(
-                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.CupoDeLlamadasPorActor)}",
-                "0");
 
             // El proveedor guionado reemplaza al simulado: contar sus llamadas es lo
             // único que prueba de verdad que la idempotencia no volvió a gastar.

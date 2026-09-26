@@ -281,6 +281,59 @@ internal static class PoliticaDeAbstencion
         : "Alcanzaste tu límite de consultas por ahora. Probá de nuevo más tarde.";
 
     /// <summary>
+    /// Texto de tope organizacional agotado (design.md D1/D3 de
+    /// asistente-administracion-de-uso).
+    /// </summary>
+    /// <remarks>
+    /// <b>NUNCA menciona el costo ni el tope de la organización</b> — es un
+    /// requisito explícito, no una omisión: el gasto y el límite del
+    /// Departamento no son información que corresponda mostrarle a un
+    /// usuario sin <c>asistente.administrar</c>, aunque sea la causa exacta
+    /// del bloqueo. Quien necesita esos números tiene el panel de uso
+    /// (grupo 9), gated por ese permiso.
+    ///
+    /// Distinto texto que <see cref="TextoServicioDegradado"/> por el mismo
+    /// motivo que <see cref="TextoCuotaAgotada"/> lo es: la causa es
+    /// verificable y vale la pena decir que es de la organización entera, no
+    /// del proveedor — aunque acá, a diferencia de la cuota personal, no hay
+    /// una hora exacta que dar (el tope se resetea al empezar el mes, no en
+    /// un instante que este texto pueda calcular sin exponer el mes o el año
+    /// de referencia).
+    /// </remarks>
+    public const string TextoTopeOrganizacionalAgotado =
+        "El asistente alcanzó el límite de uso de la organización para este mes. "
+        + "Va a estar disponible de nuevo el próximo mes.";
+
+    /// <summary>
+    /// Texto de un turno rechazado por ya tener otro en curso
+    /// (asistente-turno-exclusivo-del-actor, design.md D5).
+    /// </summary>
+    /// <remarks>
+    /// Distinto texto y no <see cref="TextoServicioDegradado"/>: la causa es
+    /// del lado del propio usuario —otra pestaña, otro dispositivo, un doble
+    /// envío— y decírselo así, en vez de sugerir una caída del sistema, es lo
+    /// que le permite entender qué hacer (esperar a que termine el otro
+    /// turno) en lugar de reintentar contra algo que no está caído.
+    /// </remarks>
+    public const string TextoTurnoConcurrente =
+        "Ya tenés una consulta en curso. Esperá a que termine antes de mandar otra.";
+
+    /// <summary>
+    /// Texto de modo mantenimiento activo (asistente-modo-mantenimiento,
+    /// design.md D7/D8).
+    /// </summary>
+    /// <remarks>
+    /// Nombra la razón que el admin escribió al activarlo (obligatoria,
+    /// tarea 6.2) — a diferencia del tope organizacional, la razón del
+    /// mantenimiento SÍ es información que corresponde mostrar: es
+    /// exactamente lo que el Departamento quiere comunicar ("mantenimiento
+    /// programado hasta las 14:00", por ejemplo).
+    /// </remarks>
+    public static string TextoMantenimiento(string? razon) => string.IsNullOrWhiteSpace(razon)
+        ? "El asistente está en mantenimiento. Volvé a intentar más tarde."
+        : $"El asistente está en mantenimiento: {razon}";
+
+    /// <summary>
     /// Los límites del asistente, tal como se los cuenta al usuario (RF-04).
     /// </summary>
     /// <remarks>

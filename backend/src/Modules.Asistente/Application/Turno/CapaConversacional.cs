@@ -1,3 +1,5 @@
+using ArsDocendi.Shared.Auth;
+using ArsDocendi.Shared.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -28,8 +30,14 @@ public sealed class CapaConversacional(
     EnrutadorDeDominio enrutador,
     IProveedorDeModelo proveedor,
     IRegistroDelTurno registro,
+    IRegistroDeHistorial historial,
+    IValidezDeRetroalimentacion validezDeRetroalimentacion,
     IDisponibilidadDelModelo disponibilidad,
+    IDisponibilidadDelModulo disponibilidadDelModulo,
+    IConsultasIdentity identidad,
     ICuotaDelActor cuota,
+    IPresupuestoOrganizacional presupuestoOrganizacional,
+    ICandadoDelTurno candadoDelTurno,
     IResolutorDeVinculos vinculos,
     ContadorDeLlamadasDelTurno contador,
     DecisionSombraDelTurno decisionSombra,
@@ -50,6 +58,23 @@ public sealed class CapaConversacional(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
+        // EL CANDADO DEL TURNO. Primerísimo, antes de abrir el presupuesto y de
+        // resolver el hilo (design.md D5 de asistente-administracion-de-uso): es
+        // el chequeo más barato de todos y el más probable de rechazar al
+        // instante, así que quien pierde la carrera no paga el resto.
+        var candado = await candadoDelTurno.IntentarAsync(actor, ct);
+        if (candado is null)
+        {
+            var conversacionRechazada = hilos.Resolver(hilo, actor);
+            var turnoRechazado = FabricasDelResultado.Degradado(
+                conversacionRechazada, PoliticaDeAbstencion.TextoTurnoConcurrente);
+
+            await RegistrarAsync(
+                actor, conversacionRechazada, mensaje, turnoRechazado, reloj.GetUtcNow(), ct);
+
+            return turnoRechazado with { CupoRestante = await cuota.CupoRestanteAsync(actor, ct) };
+        }
+
         var valores = opciones.Value;
 
         // LA COTA DEL TURNO. Una sola, punta a punta, encadenada al token del
@@ -61,15 +86,32 @@ public sealed class CapaConversacional(
 
         var conversacion = hilos.Resolver(hilo, actor);
         var arranco = reloj.GetUtcNow();
+        ResultadoDelTurno resultado;
 
         try
         {
             var turno = await ResolverAsync(
                 actor, conversacion, mensaje, valores, presupuesto.Token);
 
-            await RegistrarAsync(actor, mensaje, turno, arranco, ct);
+            if (turno.ClaveDeRetroalimentacion is { } token)
+            {
+                // Minted right here and not inside IRegistroDelTurno's
+                // fire-and-forget write: the token has to be live before the
+                // response carrying it is even built, and writing to this
+                // in-memory store can't fail the turn either way.
+                validezDeRetroalimentacion.Registrar(token, reloj.GetUtcNow());
+            }
 
-            return turno;
+            // EL LADO DEL ACTOR DE D3. Este evento nombra al actor —como ya hace la
+            // cuota— y nunca el token de retroalimentación: el endpoint de
+            // retroalimentación es el que nombra el token, y nunca el actor. Que
+            // los dos campos nunca aparezcan juntos en un mismo evento es lo que
+            // impide que el logging reabra el cruce que TD-012 cierra.
+            log.LogInformation("Turno del asistente resuelto para el actor {ActorId}.", actor);
+
+            await RegistrarAsync(actor, conversacion, mensaje, turno, arranco, ct);
+
+            resultado = turno;
         }
         catch (OperationCanceledException) when (presupuesto.Vencio)
         {
@@ -80,9 +122,9 @@ public sealed class CapaConversacional(
                 valores.PresupuestoDelTurnoSegundos);
 
             var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
-            await RegistrarAsync(actor, mensaje, turno, arranco, ct);
+            await RegistrarAsync(actor, conversacion, mensaje, turno, arranco, ct);
 
-            return turno;
+            resultado = turno;
         }
         catch (Exception excepcion) when (!presupuesto.Vencio)
         {
@@ -96,17 +138,56 @@ public sealed class CapaConversacional(
             log.LogError(
                 excepcion, "El turno del asistente terminó en una excepción no prevista.");
 
-            await RegistrarAsync(actor, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas), arranco, ct);
+            await RegistrarAsync(
+                actor, conversacion, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas),
+                arranco, ct);
 
             throw;
         }
         finally
         {
+            // EL CANDADO SE LIBERA ACÁ, en el mismo `finally` que ya cobraba la
+            // cuota — no uno nuevo (design.md D5/D4: mismos puntos de salida). Se
+            // libera SIEMPRE, incluso si el turno se cayó o el presupuesto venció
+            // (los dos `catch` de arriba también terminan acá), porque
+            // CandadoDelTurno.DisposeAsync usa CancellationToken.None por dentro:
+            // el candado tiene que soltarse aunque el token de este turno ya esté
+            // cancelado.
+            await candado.DisposeAsync();
+
             // Se anota en `finally` para que un turno que se cayó a la mitad pague
             // igual las llamadas que llegó a emitir. Cobrar solo los turnos que
             // terminan bien haría del fallo una forma de consultar gratis.
-            cuota.Anotar(actor, contador.Llamadas);
+            //
+            // El guard de `contador.Llamadas > 0` es EL sitio donde vive design.md
+            // D4 ("no llamó al modelo, no paga"): ICuotaDelActor.AnotarAsync ya no
+            // recibe cuántas llamadas hizo el turno —se derivó de
+            // registro_operativo, que ya distingue por sí solo cuánto costó cada
+            // fila (asistente-administracion-de-uso)—, así que decidir SI corresponde
+            // cobrar es responsabilidad de este sitio de llamada, no de la
+            // implementación de la cuota.
+            if (contador.Llamadas > 0)
+            {
+                await cuota.AnotarAsync(actor, ct);
+
+                // Mismo guard y mismo sitio que la cuota, por el mismo D4: si
+                // no hubo llamada al modelo, no hay tokens que costear.
+                await presupuestoOrganizacional.AcumularAsync(
+                    proveedor.Nombre,
+                    reloj.GetUtcNow(),
+                    contador.TokensDeEntrada,
+                    contador.TokensDeSalida,
+                    contador.TokensDeCache,
+                    ct);
+            }
         }
+
+        // FUERA del try/finally, a propósito (tarea 7.2): el cupo restante
+        // tiene que reflejar el cobro que el `finally` de arriba ACABA de
+        // hacer, no el valor de antes. Adjuntarlo adentro del `finally` no
+        // alcanzaría — el valor de retorno de un `try` con `return` ya queda
+        // fijado antes de que el `finally` corra.
+        return resultado with { CupoRestante = await cuota.CupoRestanteAsync(actor, ct) };
     }
 
     /// <summary>
@@ -120,8 +201,9 @@ public sealed class CapaConversacional(
     /// Va con el token del request y no con el del presupuesto: si el turno se cortó
     /// por tiempo, el registro de ese corte es justamente lo que hay que conservar.
     /// </remarks>
-    private Task RegistrarAsync(
+    private async Task RegistrarAsync(
         Guid actor,
+        HiloConversacional conversacion,
         string mensaje,
         ResultadoDelTurno turno,
         DateTimeOffset arranco,
@@ -135,7 +217,7 @@ public sealed class CapaConversacional(
         // outside this write will ever need it.
         var analiticoId = turno.ClaveDeRetroalimentacion ?? Guid.NewGuid();
 
-        return registro.RegistrarAsync(
+        await registro.RegistrarAsync(
             new TurnoParaRegistrar(
                 actor,
                 analiticoId,
@@ -154,6 +236,32 @@ public sealed class CapaConversacional(
                 proveedor.Nombre,
                 decisionSombra.Intencion),
             ct);
+
+        // HISTORIAL PROPIO (asistente-historial-conversaciones). Se excluye
+        // EXACTAMENTE Fallo, y es la ÚNICA exclusión — no hay opt-out por
+        // conversación (design.md D2): un turno caído nunca produjo cuerpo
+        // HTTP (el mapeo del estado revienta si se le pide un nombre público),
+        // así que no hay nada coherente para mostrar en una conversación
+        // retomada.
+        //
+        // La pregunta que se persiste es la INTERPRETADA —la misma que
+        // `HiloConversacional.Agregar` ya recibe—, no el mensaje crudo: es lo
+        // que Reanudar necesita para volver a poblar `HistorialVigente` con
+        // turnos autocontenidos, igual que el hilo en memoria ya los guarda.
+        // `PreguntaInterpretada` viene nula cuando coincide con el mensaje
+        // (RF-10), así que el mensaje es el valor correcto en ese caso.
+        if (turno.Estado != EstadoDelTurno.Fallo)
+        {
+            await historial.RegistrarTurnoAsync(
+                conversacion,
+                new TurnoParaHistorial(
+                    actor,
+                    turno.PreguntaInterpretada ?? mensaje,
+                    turno.SqlEjecutado,
+                    turno.Estado,
+                    ahora),
+                ct);
+        }
     }
 
     private static CarrilDelTurno CarrilDe(ResultadoDelTurno turno) => turno.Estado switch
@@ -179,7 +287,24 @@ public sealed class CapaConversacional(
         // No corta el turno: los cinco pasos que no necesitan proveedor siguen
         // corriendo. Tratarlo como excepción apagaría el saludo a cero tokens y el
         // menú de aclaración justo cuando son lo único que queda en pie.
-        var motivo = disponibilidad.Consultar(actor);
+        var motivo = await disponibilidad.ConsultarAsync(actor, ct);
+
+        // EL BYPASS DE MANTENIMIENTO ES CASO POR CASO Y VIVE ACÁ, no en el
+        // puerto de almacenamiento (design.md D8): un admin con
+        // asistente.administrar puede seguir usando el asistente en
+        // mantenimiento —para verificar que la recuperación funcionó antes
+        // de reabrirlo a todos—, pero NO está exento de su propio cupo ni del
+        // tope organizacional ni de la exclusión de turno concurrente: sólo
+        // se ignora el motivo Mantenimiento, y sólo ese.
+        if (motivo == MotivoSinModelo.Mantenimiento)
+        {
+            var permisos = await identidad.ObtenerCodigosDePermisosAsync(actor, ct);
+            if (permisos.Contains(Permisos.AsistenteAdministrar))
+            {
+                motivo = MotivoSinModelo.Ninguno;
+            }
+        }
+
         var hayModelo = motivo == MotivoSinModelo.Ninguno;
 
         if (!hayModelo)
@@ -303,7 +428,7 @@ public sealed class CapaConversacional(
         // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
         if (!hayModelo)
         {
-            return FabricasDelResultado.Degradado(conversacion, TextoSinModelo(actor, motivo));
+            return FabricasDelResultado.Degradado(conversacion, await TextoSinModeloAsync(actor, motivo, ct));
         }
 
         var aMostrar = string.Equals(interpretada, mensaje, StringComparison.Ordinal)
@@ -397,9 +522,15 @@ public sealed class CapaConversacional(
     /// en unos minutos» en el primer caso manda a reintentar a ciegas contra algo
     /// que no se destraba hasta una hora fija.
     /// </remarks>
-    private string TextoSinModelo(Guid actor, MotivoSinModelo motivo) =>
-        motivo == MotivoSinModelo.CuotaAgotada
-            ? PoliticaDeAbstencion.TextoCuotaAgotada(disponibilidad.CupoVuelveA(actor))
-            : PoliticaDeAbstencion.TextoServicioDegradado;
+    private async Task<string> TextoSinModeloAsync(Guid actor, MotivoSinModelo motivo, CancellationToken ct) =>
+        motivo switch
+        {
+            MotivoSinModelo.CuotaAgotada =>
+                PoliticaDeAbstencion.TextoCuotaAgotada(await disponibilidad.CupoVuelveAAsync(actor, ct)),
+            MotivoSinModelo.TopeOrganizacionalAgotado => PoliticaDeAbstencion.TextoTopeOrganizacionalAgotado,
+            MotivoSinModelo.Mantenimiento =>
+                PoliticaDeAbstencion.TextoMantenimiento((await disponibilidadDelModulo.ConsultarAsync(ct)).Razon),
+            _ => PoliticaDeAbstencion.TextoServicioDegradado,
+        };
 
 }

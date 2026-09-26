@@ -1,4 +1,6 @@
 using System.Data;
+using ArsDocendi.Shared.Auth;
+using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Logging;
 using Modules.Asistente.Application;
@@ -30,6 +32,10 @@ internal sealed class CatalogoDeCapacidades(
     IPerfilDelActor perfiles,
     ISelectorDeEjemplos ejemplos,
     CacheDeCapacidades cache,
+    IDisponibilidadDelModelo disponibilidad,
+    IDisponibilidadDelModulo disponibilidadDelModulo,
+    ICuotaDelActor cuota,
+    IConsultasIdentity identidad,
     ILogger<CatalogoDeCapacidades> log) : ICatalogoDeCapacidades
 {
     /// <summary>Cuántos ejemplos se ofrecen: entre cuatro y seis.</summary>
@@ -55,7 +61,42 @@ internal sealed class CatalogoDeCapacidades(
             // Fuera de la caché a propósito: lo cacheado se indexa por rol de
             // lectura —dos variantes— y la presentación es del actor, como el
             // alcance. Meterla adentro le devolvería a todos la del primero.
-            PresentacionPorRol.Texto(perfil));
+            PresentacionPorRol.Texto(perfil),
+            await disponibilidadDelModulo.ConsultarAsync(ct),
+            await CupoDeAsync(actor, ct));
+    }
+
+    /// <summary>
+    /// El cupo del actor, con el MISMO bypass de mantenimiento que aplica
+    /// <c>CapaConversacional</c> (design.md D8): sin él, un admin vería su
+    /// propio cupo como "bloqueado por mantenimiento" aunque en la práctica
+    /// pueda seguir consultando.
+    /// </summary>
+    private async Task<EstadoDelCupoDelActor> CupoDeAsync(Guid actor, CancellationToken ct)
+    {
+        var restante = await cuota.CupoRestanteAsync(actor, ct);
+        var motivoModelo = await disponibilidad.ConsultarAsync(actor, ct);
+
+        if (motivoModelo == MotivoSinModelo.Mantenimiento)
+        {
+            var permisos = await identidad.ObtenerCodigosDePermisosAsync(actor, ct);
+            if (permisos.Contains(Permisos.AsistenteAdministrar))
+            {
+                motivoModelo = MotivoSinModelo.Ninguno;
+            }
+        }
+
+        return motivoModelo switch
+        {
+            MotivoSinModelo.CuotaAgotada => new EstadoDelCupoDelActor(
+                restante, true, EstadoDelCupoDelActor.MotivoPresupuestoPropio,
+                await disponibilidad.CupoVuelveAAsync(actor, ct)),
+            MotivoSinModelo.TopeOrganizacionalAgotado => new EstadoDelCupoDelActor(
+                restante, true, EstadoDelCupoDelActor.MotivoTopeOrganizacional, null),
+            MotivoSinModelo.Mantenimiento => new EstadoDelCupoDelActor(
+                restante, true, EstadoDelCupoDelActor.MotivoMantenimiento, null),
+            _ => new EstadoDelCupoDelActor(restante, false, null, null),
+        };
     }
 
     private Task<Resuelto> ResolverAsync(Guid actor, bool conDatosPersonales, CancellationToken ct) =>

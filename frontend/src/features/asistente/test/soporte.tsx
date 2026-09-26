@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 
+import { CUPO_SIN_LIMITE } from "../types";
 import type { CapacidadesDelAsistente, RespuestaDelAsistente } from "../types";
 
 // ============================================================
@@ -40,6 +41,10 @@ export const CAPACIDADES: CapacidadesDelAsistente = {
   alcance: "Ves los datos de todo el Departamento.",
   presentacion:
     "Preguntá por cualquier cátedra del Departamento: designaciones, pedidos, períodos y cómo viene el trámite en cada carrera.",
+  // Sin mantenimiento y con cupo desactivado por default (asistente-administracion-de-uso,
+  // design.md Open Questions): un test que necesite otro escenario lo pisa con `Partial`.
+  mantenimiento: { activo: false, razon: null },
+  cupo: { restante: CUPO_SIN_LIMITE, bloqueado: false, motivo: null, vuelveA: null },
 };
 
 export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): RespuestaDelAsistente {

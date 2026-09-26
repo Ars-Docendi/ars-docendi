@@ -195,6 +195,40 @@ Tres decisiones que conviene no deshacer sin leer:
 - `GET /api/asistente/ping` — smoke test, `[AllowAnonymous]`. No toca la base ni
   ningún servicio externo: tiene que poder distinguir «el módulo está cargado» de
   «la base responde».
+- `POST /api/asistente/consultas` — un turno. Ver «El contrato de respuesta».
+- `GET /api/asistente/capacidades` — ver «El catálogo de capacidades».
+- `POST /api/asistente/retroalimentacion` — califica un turno `respondida` (thumbs
+  - razón opcional de un set cerrado de cuatro). Ver «La retroalimentación».
+- `GET /api/asistente/historial` — lista (y busca en) las conversaciones propias.
+- `GET /api/asistente/historial/{id}` — el detalle de una conversación propia.
+- `PATCH /api/asistente/historial/{id}` — la renombra.
+- `DELETE /api/asistente/historial/{id}` — la borra, permanentemente.
+- `DELETE /api/asistente/historial` — borra TODAS las conversaciones propias.
+- `POST /api/asistente/historial/{id}/reanudar` — siembra un hilo efímero nuevo con
+  los turnos persistidos.
+- `POST /api/asistente/historial/turnos/{id}/reejecutar` — «volver a consultar»
+  un turno propio ya respondido, sin llamar al modelo.
+- `POST /api/asistente/soporte/historial/{actorId}/listar` — `asistente.leer_historial_ajeno`,
+  razón obligatoria en el cuerpo, audita antes de listar el historial de otro actor.
+- `POST /api/asistente/soporte/historial/{actorId}/{id}/leer` — idem, para una
+  conversación puntual.
+- `PATCH /api/asistente/administracion/mantenimiento` — prende/apaga el kill switch.
+  Razón obligatoria para prenderlo. Audita antes de responder.
+- `GET /api/asistente/administracion/uso` — panel de uso por usuario, por rol y
+  organizacional. Ver «Administración de uso» más abajo.
+- `PUT /api/asistente/administracion/presupuestos/roles/{rol}` — edita el cupo diario
+  default de un rol.
+- `PUT /api/asistente/administracion/presupuestos/usuarios/{actorId}` — edita el
+  override de cupo diario de un actor puntual.
+- `PUT /api/asistente/administracion/tope-organizacional` — edita el tope de gasto
+  mensual de la organización.
+
+Los siete primeros nuevos exigen `asistente.consultar`, igual que el turno; los dos de
+soporte exigen `asistente.leer_historial_ajeno` — un permiso propio, sembrado a ningún
+rol, que NO se deriva de tener admisión al asistente. Los cinco de administración
+exigen `asistente.administrar` — sembrado directamente a `sys_admin`, distinto de
+los dos anteriores. Ver «El historial de conversaciones y el acceso de soporte» y
+«Administración de uso» más abajo.
 
 ### El contrato de respuesta
 
@@ -571,18 +605,19 @@ turno: para eso tiene su propio máximo de intentos.
 
 ### Configuración
 
-| Opción                         | Default | Qué acota                                                        |
-| ------------------------------ | ------- | ---------------------------------------------------------------- |
-| `MaximoDeLlamadasPorTurno`     | 4       | Llamadas al modelo de un turno, global y no por capa             |
-| `MaximoDeIntentosDeTransporte` | 3       | Intentos de red **dentro** de una llamada                        |
-| `PresupuestoDelTurnoSegundos`  | 150     | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota |
-| `TimeoutDeLlamadaSegundos`     | 60      | Una llamada al proveedor                                         |
-| `CupoDeLlamadasPorActor`       | 60      | Llamadas de un actor por ventana. **Cero desactiva la cuota**    |
-| `VentanaDeCuotaMinutos`        | 60      | La ventana deslizante del cupo                                   |
-| `FallosParaAbrirElBreaker`     | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker    |
-| `EsperaDelBreakerSegundos`     | 30      | Cuánto espera antes de probar de nuevo                           |
-| `RetencionDeRegistrosDias`     | 90      | Cuánto viven las filas de los dos registros                      |
-| `PeriodoDePurgaHoras`          | 24      | Cada cuánto corre la purga                                       |
+| Opción                                     | Default | Qué acota                                                                        |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------- |
+| `MaximoDeLlamadasPorTurno`                 | 4       | Llamadas al modelo de un turno, global y no por capa                             |
+| `MaximoDeIntentosDeTransporte`             | 3       | Intentos de red **dentro** de una llamada                                        |
+| `PresupuestoDelTurnoSegundos`              | 150     | El turno completo, punta a punta (RNF-09). Cero lo deja sin cota                 |
+| `TimeoutDeLlamadaSegundos`                 | 60      | Una llamada al proveedor                                                         |
+| `FallosParaAbrirElBreaker`                 | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker                    |
+| `EsperaDelBreakerSegundos`                 | 30      | Cuánto espera antes de probar de nuevo                                           |
+| `RetencionDeRegistrosDias`                 | 90      | Cuánto viven las filas de los dos registros                                      |
+| `RetencionDeHistorialDias`                 | 180     | Cuánto vive una conversación propia, desde su última actividad                   |
+| `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
+| `RetencionDeAuditoriaDeAdministracionDias` | 365     | Cuánto vive un registro de auditoría de administración (§ Administración de uso) |
+| `PeriodoDePurgaHoras`                      | 24      | Cada cuánto corre la purga                                                       |
 
 **Un turno que se cae deja fila.** La cuota se cobra en un `finally` —un fallo no puede
 ser una forma de consultar gratis—, así que el registro tiene que cobrar en el mismo
@@ -604,8 +639,11 @@ default que se mueve sin tocar acá falla el CI, por el mismo criterio con que
 `manifiesto-privilegios.json` se compara contra los privilegios efectivos: un valor
 operativo documentado es un dato verificado, no prosa.
 
-En desarrollo y en los ambientes efímeros conviene `CupoDeLlamadasPorActor: 0`: el
-proveedor es el simulado y no cuesta nada.
+El cupo por actor dejó de ser una opción de esta tabla (asistente-administracion-de-uso):
+ahora es persistente, en `asistente.presupuesto_rol`/`presupuesto_usuario` — ver
+§ Administración de uso, más abajo. En desarrollo y en los ambientes efímeros conviene
+dejar esas filas en cero (el default con que se siembran): el proveedor es el simulado
+y no cuesta nada.
 
 ### El orden de los decoradores
 
@@ -630,9 +668,39 @@ Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de model
 corta el turno**. El veredicto se resuelve una vez, antes de empezar, y se consulta
 solo en el reescritor y al delegar en el carril SQL.
 
-Con el corte abierto o el cupo agotado: un saludo responde con cero llamadas, una
-pregunta ambigua devuelve su menú, y la respuesta a un menú abierto se reconoce. Solo
+Con el corte abierto, el cupo agotado, el tope organizacional agotado o el
+mantenimiento activo: un saludo responde con cero llamadas, una pregunta
+ambigua devuelve su menú, y la respuesta a un menú abierto se reconoce. Solo
 una pregunta que exige generar una consulta termina en servicio degradado.
+
+### Administración de uso
+
+(asistente-administracion-de-uso; detalle completo en
+[docs/architecture/domains/asistente.md § Presupuesto y degradación](../../../docs/architecture/domains/asistente.md)).
+
+Cuatro piezas nuevas, todas gated por `asistente.administrar` (sembrado
+directamente a `sys_admin`, migración `020_identity_permiso_administrar.sql`):
+
+- **Cupo persistente por actor** (`CuotaPersistente`, reemplaza a
+  `CuotaEnMemoria`): turnos/día calendario UTC, con default por rol y override
+  por usuario, derivado contando `registro_operativo` en vez de un contador
+  propio.
+- **Tope organizacional** (`PresupuestoOrganizacionalPersistente`): USD
+  estimados por mes, vía `CalculadoraDeCosto` contra `tabla_de_precios`,
+  acumulado en `consumo_organizacional_mensual`.
+- **Turno exclusivo del actor** (`CandadoDelTurno`): advisory lock de sesión
+  de Postgres, en una conexión dedicada sin pool.
+- **Modo mantenimiento** (`DisponibilidadDelModuloReal`, puerto
+  `IDisponibilidadDelModulo`): kill switch persistido, sin caché de proceso,
+  con bypass del admin decidido por el llamador.
+
+Cada edición de presupuesto y cada toggle de mantenimiento se audita en
+`asistente.auditoria_administracion` (append-only, `IAuditoriaDeAdministracion`),
+con retención propia (`RetencionDeAuditoriaDeAdministracionDias`, default 365).
+El panel de uso (`GET /api/asistente/administracion/uso`) agrega
+`registro_operativo` — nunca `registro_analitico` — por usuario, por rol y
+organizacional, con nombres resueltos vía `IConsultasIdentity`, nunca
+`usuarios.ver`.
 
 ## El enrutador en sombra y cómo se lo mide
 
@@ -755,9 +823,25 @@ Tampoco declara EF Core, Npgsql ni MediatR: llegan cuando haya código que los u
 
 El asistente **lee** los schemas de otros módulos a través de dos roles de solo
 lectura, con privilegios enumerados columna por columna, y **escribe** un schema
-propio, `asistente`, con sus dos registros. Esos registros son telemetría suya, no
-datos del sistema: los escribe la conexión dueña y sus propios roles de lectura los
-tienen revocados enteros.
+propio, `asistente`, con sus dos registros, la tabla de retroalimentación, las
+tres del historial de conversaciones y su auditoría de soporte, y las siete de
+administración de uso —trece tablas que no se cruzan entre sí. Las trece las
+escribe la conexión dueña y sus propios roles de lectura las tienen revocadas
+enteras, sin ningún `GRANT` propio que declarar: todas heredan la denegación
+del schema.
+
+**`hilo_historico`/`turno_historico` son, a propósito, actor-vinculadas — a
+diferencia de `registro_analitico`/`registro_operativo`.** Son telemetría de
+privacidad distinta: los dos registros existen para NO poder responder «quién
+preguntó qué»; el historial existe exactamente para poder responderlo, para su
+propio dueño y para un lector de soporte permisionado y auditado. Nunca
+referencian a los otros tres —ni al revés—, para no reabrir por otro lado el
+cruce que separar los dos registros existe para impedir.
+
+**`auditoria_acceso_historial` no lleva clave foránea hacia `hilo_historico`, a
+propósito**: la fila de auditoría tiene que sobrevivir a que el propio dueño
+borre esa conversación (borrado permanente, sin papelera). Sin FK, un id que ya
+no existe sigue siendo una fila de auditoría perfectamente legible.
 
 El DDL vive en `database/asistente/*.sql` y se embebe como recurso de **este**
 assembly, igual que `database/designaciones/*.sql` en su módulo.
@@ -783,9 +867,23 @@ las columnas que el registro escribe, y falla nombrando la que falta. Sin esa re
 columna faltante hace reventar el `INSERT` del registro en cada turno, el escritor se
 traga el fallo para no tumbar el servicio y el registro deja de guardar en silencio.
 
-Los dos archivos corren en orden y el orden importa: `001_asistente_grants.sql`
-concede la lectura, y `002_asistente_registros.sql` crea el schema propio y se lo
-revoca a los dos roles —para revocar un schema, primero tiene que existir—.
+Los archivos corren en orden y el orden importa: `001_asistente_grants.sql`
+concede la lectura; `002_asistente_registros.sql` crea el schema propio y se lo
+revoca a los dos roles —para revocar un schema, primero tiene que existir—;
+`003_asistente_retroalimentacion.sql` crea la tabla de retroalimentación **después**,
+porque su clave primaria es una FK hacia `registro_analitico`; y
+`004_asistente_historial.sql`/`005_asistente_auditoria_soporte.sql` crean las tres
+tablas del historial y su auditoría, sin necesidad de orden relativo a la
+retroalimentación —no hay ninguna FK entre ellas—. Ninguna de las tres necesita
+revocar nada por su cuenta: la denegación del schema completo ya las cubre.
+
+`006_asistente_administracion.sql` suma las siete tablas de administración de
+uso (asistente-administracion-de-uso): `presupuesto_rol`, `presupuesto_usuario`,
+`tope_organizacional`, `consumo_organizacional_mensual`, `tabla_de_precios`,
+`modo_mantenimiento` (fila única) y `auditoria_administracion` (append-only).
+Igual que el resto, sin necesidad de orden relativo a las anteriores y sin
+ningún `GRANT` propio. Ver «Administración de uso» más abajo y
+[docs/architecture/data-model.md](../../../docs/architecture/data-model.md).
 
 `database/asistente/manifiesto-privilegios.json` es la fuente de verdad de qué se
 concede. Un test lo compara contra los privilegios efectivos de la base en tres

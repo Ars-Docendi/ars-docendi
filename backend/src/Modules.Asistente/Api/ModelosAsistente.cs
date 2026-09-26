@@ -124,6 +124,15 @@ public sealed record RespuestaDelAsistente
     /// <summary>Lo que costó el turno.</summary>
     public required MetricasDto Metricas { get; init; }
 
+    /// <summary>
+    /// El cupo diario del actor, ya cobrado este turno (asistente-cupo-visible).
+    /// Nulo sólo si <see cref="ResultadoDelTurno.CupoRestante"/> no se resolvió
+    /// —no debería ocurrir en producción, y es exactamente lo que
+    /// <see cref="int.MaxValue"/> vs. un número concreto ya distingue de "sin
+    /// tope" vs. "con tope".
+    /// </summary>
+    public int? CupoRestante { get; init; }
+
     /// <summary>Arma la respuesta HTTP a partir del resultado del turno.</summary>
     internal static RespuestaDelAsistente De(ResultadoDelTurno turno)
     {
@@ -147,6 +156,7 @@ public sealed record RespuestaDelAsistente
                 v => new VinculoDto(v.Fila, v.Columna, v.Tipo, v.Id))],
             Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
             ClaveDeRetroalimentacion = turno.ClaveDeRetroalimentacion,
+            CupoRestante = turno.CupoRestante,
         };
     }
 
@@ -169,6 +179,95 @@ public sealed record RespuestaDelAsistente
 
 /// <summary>Lo que costó el turno.</summary>
 public sealed record MetricasDto(int LlamadasAlModelo, string Categoria);
+
+/// <summary>
+/// Lo que se manda a <c>PATCH /api/asistente/administracion/mantenimiento</c>
+/// (asistente-modo-mantenimiento).
+/// </summary>
+/// <param name="Activo">Prender o apagar el mantenimiento.</param>
+/// <param name="Razon">
+/// Obligatoria para activar (tarea 6.2); opcional para desactivar.
+/// </param>
+public sealed record PedidoDeMantenimientoDto(bool Activo, string? Razon);
+
+/// <summary>El modo mantenimiento, tal como lo ve cualquier consultante.</summary>
+public sealed record MantenimientoDto(bool Activo, string? Razon)
+{
+    internal static MantenimientoDto De(EstadoDeMantenimiento estado) =>
+        new(estado.Activo, estado.Razon);
+}
+
+/// <summary>
+/// El cupo diario del actor, tal como lo cuenta <c>capacidades</c> y el
+/// resultado del propio turno (asistente-cupo-visible).
+/// </summary>
+/// <param name="Restante">
+/// Turnos que le quedan hoy. <see cref="int.MaxValue"/> si el cupo está
+/// desactivado — ver <c>ICuotaDelActor.CupoRestanteAsync</c>.
+/// </param>
+/// <param name="Bloqueado">Si el actor está bloqueado AHORA MISMO.</param>
+/// <param name="Motivo">
+/// Uno de <c>presupuesto_propio</c>, <c>tope_organizacional</c> o
+/// <c>mantenimiento</c>. Nulo si no está bloqueado.
+/// </param>
+/// <param name="VuelveA">Cuándo se destraba, si se sabe.</param>
+public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateTimeOffset? VuelveA);
+
+/// <summary>Un agregado de uso: por usuario, por rol, u organizacional (asistente-panel-de-uso).</summary>
+/// <param name="EsEstimado">
+/// Siempre <c>true</c>: el costo es una estimación propia, nunca la factura
+/// del proveedor (tarea 9.4).
+/// </param>
+public sealed record UsoAgregadoDto(
+    string Clave,
+    string? NombreParaMostrar,
+    int Turnos,
+    IReadOnlyDictionary<string, int> PorEstado,
+    int LlamadasAlModelo,
+    long TokensDeEntrada,
+    long TokensDeSalida,
+    long TokensDeCache,
+    double LatenciaPromedioMs,
+    double LatenciaP95Ms,
+    IReadOnlyList<string> Proveedores,
+    decimal CostoEstimado,
+    bool EsEstimado,
+    int TurnosSinPrecio)
+{
+    internal static UsoAgregadoDto De(UsoAgregado agregado) => new(
+        agregado.Clave,
+        agregado.NombreParaMostrar,
+        agregado.Turnos,
+        agregado.PorEstado,
+        agregado.LlamadasAlModelo,
+        agregado.TokensDeEntrada,
+        agregado.TokensDeSalida,
+        agregado.TokensDeCache,
+        agregado.LatenciaPromedioMs,
+        agregado.LatenciaP95Ms,
+        agregado.Proveedores,
+        agregado.CostoEstimado,
+        EsEstimado: true,
+        agregado.TurnosSinPrecio);
+}
+
+/// <summary>El panel de uso completo (<c>GET /api/asistente/administracion/uso</c>).</summary>
+public sealed record UsoDto(
+    IReadOnlyList<UsoAgregadoDto> PorUsuario,
+    IReadOnlyList<UsoAgregadoDto> PorRol,
+    UsoAgregadoDto Organizacion)
+{
+    internal static UsoDto De(PanelDeUso panel) => new(
+        [.. panel.PorUsuario.Select(UsoAgregadoDto.De)],
+        [.. panel.PorRol.Select(UsoAgregadoDto.De)],
+        UsoAgregadoDto.De(panel.Organizacion));
+}
+
+/// <summary>Lo que se manda a editar un cupo (de rol o de usuario).</summary>
+public sealed record PedidoDeCupoDto(int Cupo);
+
+/// <summary>Lo que se manda a editar el tope organizacional.</summary>
+public sealed record PedidoDeTopeDto(decimal TopeMensualUsd);
 
 /// <summary>Un área que el actor puede consultar.</summary>
 public sealed record AreaDto(string Nombre, string? Descripcion, int Columnas);
@@ -197,6 +296,12 @@ public sealed record CapacidadesDto
     /// <summary>Por qué cosas suele venir a preguntar este actor, según su rol.</summary>
     public required string Presentacion { get; init; }
 
+    /// <summary>El modo mantenimiento, global (asistente-modo-mantenimiento).</summary>
+    public required MantenimientoDto Mantenimiento { get; init; }
+
+    /// <summary>El cupo diario de este actor (asistente-cupo-visible).</summary>
+    public required CupoDto Cupo { get; init; }
+
     /// <summary>Arma el DTO a partir del catálogo.</summary>
     internal static CapacidadesDto De(CapacidadesDelActor capacidades)
     {
@@ -211,6 +316,12 @@ public sealed record CapacidadesDto
             NoPuede = capacidades.NoPuede,
             Alcance = capacidades.Alcance,
             Presentacion = capacidades.Presentacion,
+            Mantenimiento = MantenimientoDto.De(capacidades.Mantenimiento),
+            Cupo = new CupoDto(
+                capacidades.Cupo.Restante,
+                capacidades.Cupo.Bloqueado,
+                capacidades.Cupo.Motivo,
+                capacidades.Cupo.VuelveA),
         };
     }
 }

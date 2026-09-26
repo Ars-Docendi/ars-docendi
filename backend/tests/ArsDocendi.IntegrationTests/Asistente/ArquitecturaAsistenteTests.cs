@@ -30,6 +30,20 @@ public sealed partial class ArquitecturaAsistenteTests
     /// <item>El escritor de los registros y su purga: los dos registros los escribe
     /// la aplicación, y los roles del asistente tienen su schema revocado entero
     /// (definición §3.4).</item>
+    /// <item><c>RegistroDeRetroalimentacion.cs</c>: same reason as the registro
+    /// writer above — the feedback table lives in the same wholesale-revoked
+    /// `asistente` schema, so the two read-only roles could not write there even
+    /// if this code tried to use them.</item>
+    /// <item><c>RegistroDeHistorial.cs</c>: writes `hilo_historico`/
+    /// `turno_historico`, both inside the same wholesale-revoked `asistente`
+    /// schema.</item>
+    /// <item><c>ConsultasDeHistorial.cs</c>: the READ side of own history
+    /// (list/search/rename/delete/resume/re-execution's turn lookup). The two
+    /// read-only roles have the whole `asistente` schema revoked, so reading it
+    /// at all — not just writing it — needs the owner connection.</item>
+    /// <item><c>ConsultasDeAuditoriaDeSoporte.cs</c>: the support-read path
+    /// (list/read another actor's history) plus the append-only audit write,
+    /// both against tables in the same wholesale-revoked schema.</item>
     /// </list>
     ///
     /// La lista es corta a propósito y crece solo con un motivo escrito. Lo que
@@ -43,6 +57,38 @@ public sealed partial class ArquitecturaAsistenteTests
         "ModuleExtensions.cs",
         "RegistroDelTurno.cs",
         "PurgaDeRegistros.cs",
+        "RegistroDeRetroalimentacion.cs",
+        "RegistroDeHistorial.cs",
+        "ConsultasDeHistorial.cs",
+        "ConsultasDeAuditoriaDeSoporte.cs",
+        // CuotaPersistente.cs: same reason as ConsultasDeHistorial.cs — reads
+        // presupuesto_rol/presupuesto_usuario/registro_operativo, all inside
+        // the wholesale-revoked `asistente` schema, so even reading needs the
+        // owner connection (asistente-administracion-de-uso).
+        "CuotaPersistente.cs",
+        // Same reason as CuotaPersistente.cs above — reads
+        // tope_organizacional/consumo_organizacional_mensual/tabla_de_precios
+        // and writes the accumulator, all inside the same revoked schema.
+        "PresupuestoOrganizacionalPersistente.cs",
+        // CandadoDelTurnoReal.cs takes CadenaDuena to hand it to
+        // CandadoDelTurno, which needs the owner's credentials to open its
+        // own dedicated (unpooled) connection for the advisory lock —
+        // design.md D5 of asistente-administracion-de-uso.
+        "CandadoDelTurnoReal.cs",
+        // CandadoDelTurno.cs itself: same reason, it is the class that
+        // actually opens the dedicated connection with CadenaDuena.
+        "CandadoDelTurno.cs",
+        // Reads/writes modo_mantenimiento, inside the wholesale-revoked
+        // `asistente` schema — same reason as CuotaPersistente.cs above.
+        "DisponibilidadDelModuloReal.cs",
+        // Writes the append-only auditoria_administracion, same schema.
+        "AuditoriaDeAdministracionReal.cs",
+        // Aggregates registro_operativo/tabla_de_precios for the usage panel,
+        // same wholesale-revoked schema (tarea 9.1-9.4).
+        "ConsultasDeUso.cs",
+        // Reads/writes presupuesto_rol/presupuesto_usuario/tope_organizacional,
+        // same wholesale-revoked schema (tareas 9.5/9.6).
+        "PresupuestosAdministrablesReal.cs",
     ];
 
     // ------------------------------------------------- la cadena del dueño no se filtra
@@ -283,6 +329,19 @@ public sealed partial class ArquitecturaAsistenteTests
     [
         "PrivilegiosAsistente.cs",
         "RegistrosAsistente.cs",
+        // Same reason as RegistrosAsistente.cs: migration DDL run with the owner
+        // connection, no actor to fix and RLS does not apply to the owner.
+        "RetroalimentacionAsistente.cs",
+        // Same reason: DDL runners for the two new tables, no actor involved.
+        "HistorialAsistente.cs",
+        "AuditoriaDeSoporteAsistente.cs",
+        // Same reason: DDL runner for the seven administration-of-use tables
+        // (asistente-administracion-de-uso), no actor involved.
+        "AdministracionAsistente.cs",
+        // Writes presupuesto_usuario in its own short transaction (close the
+        // previous version, open the new one) — no RLS-scoped read of
+        // anything keyed to identity.asistente_actor(), so no actor to fix.
+        "PresupuestosAdministrablesReal.cs",
     ];
 
     [Fact]
@@ -414,6 +473,39 @@ public sealed partial class ArquitecturaAsistenteTests
         "MigradorAsistente.cs",
         "RegistroDelTurno.cs",
         "PurgaDeRegistros.cs",
+        // Same reason as RegistroDelTurno.cs above: writes the feedback table
+        // with the owner connection, since both read-only roles have the whole
+        // `asistente` schema revoked.
+        "RegistroDeRetroalimentacion.cs",
+        // Same reason: writes hilo_historico/turno_historico with the owner
+        // connection, same wholesale-revoked schema.
+        "RegistroDeHistorial.cs",
+        // Reads (not writes) hilo_historico/turno_historico — the read-only
+        // roles cannot reach the schema at all, so even reading it needs the
+        // owner connection.
+        "ConsultasDeHistorial.cs",
+        // Reads another actor's history and writes the append-only audit row,
+        // both against the same wholesale-revoked schema.
+        "ConsultasDeAuditoriaDeSoporte.cs",
+        // Reads presupuesto_rol/presupuesto_usuario and counts
+        // registro_operativo (asistente-administracion-de-uso) — all three
+        // inside the same wholesale-revoked `asistente` schema, so even
+        // reading needs the owner connection, same reason as
+        // ConsultasDeHistorial.cs above.
+        "CuotaPersistente.cs",
+        // Same reason as CuotaPersistente.cs above.
+        "PresupuestoOrganizacionalPersistente.cs",
+        // CandadoDelTurno.cs needs its OWN dedicated, unpooled connection for
+        // the session-level advisory lock (design.md D5): AperturaDeLectura's
+        // pooled connections cannot own a session-scoped lock, since the
+        // pool can hand that same physical connection to someone else the
+        // moment it is returned.
+        "CandadoDelTurno.cs",
+        // Same reason as CuotaPersistente.cs above.
+        "DisponibilidadDelModuloReal.cs",
+        "AuditoriaDeAdministracionReal.cs",
+        "ConsultasDeUso.cs",
+        "PresupuestosAdministrablesReal.cs",
     ];
 
     [Fact]
@@ -462,7 +554,66 @@ public sealed partial class ArquitecturaAsistenteTests
     /// Lo que este guard impide es lo otro: que vuelva a subir por costumbre.
     /// Estaba en 93 sin que nadie lo hubiera decidido.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 61;
+    /// <remarks>
+    /// Raised from 61 to 66 for asistente-feedback-export-seguimiento: five new
+    /// declarations (<c>IValidezDeRetroalimentacion</c>,
+    /// <c>ISugerenciasDeSeguimiento</c>, <c>IRegistroDeRetroalimentacion</c>,
+    /// <c>ServicioDeRetroalimentacion</c>, <c>ResultadoDeRetroalimentacion</c>),
+    /// none of them optional: each is a constructor parameter type or a public
+    /// method's return type on an already-public class
+    /// (<c>CapaConversacional</c>, <c>CarrilSql</c>, or <c>AsistenteController</c>
+    /// by way of <c>ServicioDeRetroalimentacion</c>), and the compiler rejects a
+    /// less-accessible type there. <c>RazonesDeRetroalimentacion</c> stayed
+    /// <c>internal</c> for the same reason the others could not: nothing public
+    /// references it in a signature.
+    /// </remarks>
+    /// <remarks>
+    /// Raised from 66 to 68, then to 73, then to 74, for
+    /// asistente-historial-conversaciones. First two (<c>IRegistroDeHistorial</c>,
+    /// <c>TurnoParaHistorial</c>): <c>CapaConversacional</c>'s constructor now
+    /// takes an <c>IRegistroDeHistorial</c>, and that interface's own method
+    /// carries <c>TurnoParaHistorial</c> as a parameter. Then five more
+    /// (<c>IConsultasDeHistorial</c>, <c>ConversacionResumen</c>,
+    /// <c>TurnoDeHistorial</c>, <c>ConversacionDetalle</c>,
+    /// <c>TurnoParaReejecutar</c>): <c>HistorialController</c>'s constructor
+    /// takes an <c>IConsultasDeHistorial</c>, and that interface's own methods
+    /// carry the other four as parameters or return types. Then one more
+    /// (<c>IConsultasDeAuditoriaDeSoporte</c>): <c>SoporteHistorialController</c>'s
+    /// constructor takes it — it reuses <c>ConversacionResumen</c>/
+    /// <c>ConversacionDetalle</c> rather than adding new record types. None
+    /// optional — in every case the compiler rejects a less-accessible type on
+    /// an already-public constructor or interface member. <c>TituloDeConversacion</c>
+    /// stayed <c>internal</c>: nothing public references it in a signature.
+    ///
+    /// Raised once more to 75 for asistente-administracion-de-uso:
+    /// <c>IPresupuestoOrganizacional</c>, matching the same public visibility
+    /// as its sibling ports <c>ICuotaDelActor</c>/<c>IDisponibilidadDelModelo</c>
+    /// (also injected into <c>CapaConversacional</c>'s already-public
+    /// constructor). <c>CalculadoraDeCosto</c> and its three record types
+    /// (<c>FilaDeConsumo</c>, <c>PrecioVigente</c>, <c>ResultadoDeCosteo</c>)
+    /// stayed <c>internal</c>: nothing public references them, since
+    /// <c>PresupuestoOrganizacionalPersistente</c> (Infrastructure, same
+    /// assembly) is their only caller.
+    ///
+    /// Raised once more to 76, same change: <c>ICandadoDelTurno</c>, same
+    /// reason (also a constructor parameter of <c>CapaConversacional</c>).
+    ///
+    /// Raised once more to 80, same change (groups 6/7/8): <c>EstadoDeMantenimiento</c>
+    /// and <c>IDisponibilidadDelModulo</c> (kill switch, constructor parameters
+    /// of <c>CapaConversacional</c>/<c>CatalogoDeCapacidades</c>);
+    /// <c>IAuditoriaDeAdministracion</c> (constructor parameter of the new
+    /// admin controller); <c>EstadoDelCupoDelActor</c> (a field of the
+    /// already-public <c>CapacidadesDelActor</c>, tarea 7.1).
+    ///
+    /// Raised once more to 85, same change (group 9): <c>IConsultasDeUso</c>
+    /// and <c>IPresupuestosAdministrables</c> (constructor parameters of the
+    /// admin controller); <c>RangoDePeriodo</c> (a parameter of
+    /// <c>IConsultasDeUso.ObtenerAsync</c>) and <c>PanelDeUso</c>/<c>UsoAgregado</c>
+    /// (its return type and one of that type's own fields) — all three forced
+    /// public by the same "no less accessible than the public interface"
+    /// rule the compiler already enforces for the others in this list.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 85;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

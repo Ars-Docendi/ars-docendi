@@ -117,7 +117,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
         var banco = Banco(
             out var medidor,
             GuionDeTurnos(2),
-            new OpcionesAsistente { FallosParaAbrirElBreaker = 1, CupoDeLlamadasPorActor = 0 });
+            new OpcionesAsistente { FallosParaAbrirElBreaker = 1 });
 
         banco.Breaker.Fallo();
 
@@ -155,7 +155,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
         var banco = Banco(
             out var medidor,
             GuionDeTurnos(4),
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0, MaximoDeLlamadasPorTurno = 2 });
+            new OpcionesAsistente { MaximoDeLlamadasPorTurno = 2 });
 
         var resultado = await Social(banco, medidor).CorrerAsync(
             DatasetSocial.Interpretar("""
@@ -252,7 +252,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
         var banco = Banco(
             out _,
             GuionDeSeguimiento(),
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0, MaximoDeLlamadasPorTurno = 2 });
+            new OpcionesAsistente { MaximoDeLlamadasPorTurno = 2 });
 
         var resultado = await Dialogo(banco).CorrerAsync(
             DatasetDeDialogo.Interpretar($$"""
@@ -327,7 +327,7 @@ public sealed class RunnersDeEjesTests(PostgresFixture postgres)
             pii,
             ClasificadorDeSensibilidad(),
             Apertura,
-            configuracion ?? new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
+            configuracion ?? new OpcionesAsistente(),
             // No simulado: el preflight rechaza a los proveedores simulados, y lo que
             // estos tests miden es el criterio de puntuación de cada eje. El preflight
             // tiene sus propios tests.

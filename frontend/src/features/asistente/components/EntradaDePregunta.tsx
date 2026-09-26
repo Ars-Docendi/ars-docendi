@@ -11,6 +11,14 @@ interface EntradaDePreguntaProps {
   /** Se llama sin argumentos: el texto ya lo tiene quien sostiene `valor`. */
   onEnviar: () => void;
   enVuelo: boolean;
+  /**
+   * Cupo agotado, tope organizacional o mantenimiento (asistente-cupo-visible /
+   * asistente-modo-mantenimiento): a diferencia de `enVuelo` —que deja
+   * seguir escribiendo mientras se espera un turno—, ESTO deshabilita el
+   * campo de verdad, porque no hay ningún turno que enviar todavía va a
+   * poder completarse.
+   */
+  deshabilitado?: boolean;
   /** El del backend: `ModelosAsistente.cs` rechaza mensajes más largos. */
   maxCaracteres?: number;
   /** Desde cuántos caracteres se muestra el contador. */
@@ -46,6 +54,7 @@ export function EntradaDePregunta({
   onCambiar,
   onEnviar,
   enVuelo,
+  deshabilitado = false,
   maxCaracteres = 2000,
   umbralDelContador = 1800,
   ref,
@@ -53,6 +62,7 @@ export function EntradaDePregunta({
   const campo = useRef<HTMLTextAreaElement>(null);
   const idDelContador = useId();
   const mostrarContador = valor.length >= umbralDelContador;
+  const noEnviaAhora = enVuelo || deshabilitado;
 
   useAltoAutomatico(campo, valor);
 
@@ -74,7 +84,7 @@ export function EntradaDePregunta({
 
     // Enter no inserta un salto ni en vuelo: viajaría con la pregunta siguiente.
     evento.preventDefault();
-    if (enVuelo) return;
+    if (noEnviaAhora) return;
     onEnviar();
   }
 
@@ -83,7 +93,7 @@ export function EntradaDePregunta({
       className="adoc-asistente-entrada"
       onSubmit={(evento) => {
         evento.preventDefault();
-        if (!enVuelo) onEnviar();
+        if (!noEnviaAhora) onEnviar();
       }}
     >
       {/* El mismo destello del lanzador: es la misma promesa —«acá le hablás al
@@ -102,9 +112,14 @@ export function EntradaDePregunta({
         placeholder="Escribí tu pregunta…"
         aria-label="Tu pregunta"
         aria-describedby={mostrarContador ? idDelContador : undefined}
+        disabled={deshabilitado}
       />
 
-      <Button type="submit" leadingIcon={sendIcon} disabled={enVuelo || valor.trim().length === 0}>
+      <Button
+        type="submit"
+        leadingIcon={sendIcon}
+        disabled={noEnviaAhora || valor.trim().length === 0}
+      >
         Enviar
       </Button>
 

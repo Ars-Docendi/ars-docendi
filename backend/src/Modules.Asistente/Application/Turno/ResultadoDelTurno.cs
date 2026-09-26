@@ -124,6 +124,12 @@ public enum EstadoDelTurno
 /// calculan adentro: quién puede abrir un trámite lo decide el módulo dueño, no la
 /// policy que dejó pasar la fila. Ver <see cref="IResolutorDeVinculos"/>.
 /// </remarks>
+/// <param name="CupoRestante">
+/// El cupo diario del actor INMEDIATAMENTE DESPUÉS de que este turno se
+/// cobrara (asistente-cupo-visible, tarea 7.2) — nunca el valor de antes.
+/// <see cref="CapaConversacional.ResponderAsync"/> lo adjunta afuera de su
+/// <c>try/finally</c>, una vez que el cobro ya ocurrió.
+/// </param>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -141,4 +147,5 @@ public sealed record ResultadoDelTurno(
     string? Sql = null,
     string? SqlEjecutado = null,
     IReadOnlyList<VinculoDelResultado>? Vinculos = null,
-    Guid? ClaveDeRetroalimentacion = null);
+    Guid? ClaveDeRetroalimentacion = null,
+    int? CupoRestante = null);

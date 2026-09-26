@@ -76,6 +76,12 @@ export interface RespuestaDelAsistente {
    * who asked — see asistente-retroalimentacion's spec.
    */
   claveDeRetroalimentacion?: string | null;
+  /**
+   * El cupo diario del actor INMEDIATAMENTE DESPUÉS de que este turno se
+   * cobrara (asistente-cupo-visible) — nunca el valor de antes. La franja de
+   * estado lo usa para actualizarse sin volver a pedir `capacidades`.
+   */
+  cupoRestante?: number | null;
 }
 
 export interface AreaCubierta {
@@ -83,6 +89,40 @@ export interface AreaCubierta {
   descripcion?: string | null;
   columnas: number;
 }
+
+// ============================================================
+// Mantenimiento y cupo (asistente-modo-mantenimiento / asistente-cupo-visible).
+// Ver docs/architecture/api-contracts.md §GET /api/asistente/capacidades.
+// ============================================================
+
+/** El modo mantenimiento, global y sin bypass: consistente para todo el mundo. */
+export interface MantenimientoDelAsistente {
+  activo: boolean;
+  razon?: string | null;
+}
+
+/**
+ * Uno de los tres motivos por los que un turno puede estar bloqueado. El texto
+ * lo elige la interfaz; el backend sólo manda cuál de los tres es.
+ */
+export type MotivoDeBloqueo = "presupuesto_propio" | "tope_organizacional" | "mantenimiento";
+
+/**
+ * El cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya
+ * aplicado del lado del backend (a diferencia de `mantenimiento`, que es
+ * global y sin bypass).
+ */
+export interface CupoDelActor {
+  /** `2147483647` (`int.MaxValue`) cuando el cupo está desactivado. */
+  restante: number;
+  bloqueado: boolean;
+  motivo?: MotivoDeBloqueo | null;
+  /** Sólo se conoce para `presupuesto_propio`. */
+  vuelveA?: string | null;
+}
+
+/** El valor de `restante` cuando el cupo diario está desactivado (0 = sin tope). */
+export const CUPO_SIN_LIMITE = 2147483647;
 
 export interface CapacidadesDelAsistente {
   cubre: AreaCubierta[];
@@ -98,7 +138,48 @@ export interface CapacidadesDelAsistente {
    * que no reconoce recibe un texto genérico.
    */
   presentacion: string;
+  mantenimiento: MantenimientoDelAsistente;
+  cupo: CupoDelActor;
 }
+
+// ============================================================
+// Panel de uso administrativo (asistente-panel-de-uso,
+// asistente-presupuesto-persistente). Sólo lo ve quien tiene
+// `asistente.administrar`. Ver docs/architecture/api-contracts.md
+// §GET /api/asistente/administracion/uso.
+// ============================================================
+
+/** Un agregado de uso: por usuario, por rol, u organizacional. */
+export interface UsoAgregado {
+  clave: string;
+  /** Sólo en los agregados por usuario (resuelto vía `IConsultasIdentity`). */
+  nombreParaMostrar?: string | null;
+  turnos: number;
+  porEstado: Record<string, number>;
+  llamadasAlModelo: number;
+  tokensDeEntrada: number;
+  tokensDeSalida: number;
+  tokensDeCache: number;
+  latenciaPromedioMs: number;
+  latenciaP95Ms: number;
+  proveedores: string[];
+  /** Siempre una ESTIMACIÓN: la factura del proveedor es la fuente de verdad. */
+  costoEstimado: number;
+  /** Siempre `true`: nunca se muestra sin la etiqueta de estimado. */
+  esEstimado: boolean;
+  /** Turnos cuyo proveedor/modelo no tiene precio vigente: NUNCA costeados en 0. */
+  turnosSinPrecio: number;
+}
+
+/** El panel de uso completo (`GET /api/asistente/administracion/uso`). */
+export interface UsoDelAsistente {
+  porUsuario: UsoAgregado[];
+  porRol: UsoAgregado[];
+  organizacion: UsoAgregado;
+}
+
+/** Período del panel de uso: relativo (`día`/`semana`/`mes`) o un rango explícito. */
+export type PeriodoDeUso = "dia" | "semana" | "mes";
 
 /**
  * The fixed, closed set of reasons a thumbs-down vote may carry. Matches

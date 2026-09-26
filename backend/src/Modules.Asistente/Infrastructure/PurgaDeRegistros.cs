@@ -84,18 +84,34 @@ internal sealed class PurgaDeRegistros(
             corteDeAuditoria,
             ct);
 
-        var total = operativas + analiticas + conversaciones + auditorias;
+        // LA AUDITORÍA DE ADMINISTRACIÓN TIENE SU PROPIA VENTANA, por el mismo
+        // motivo que la de soporte de arriba (design.md D11 de
+        // asistente-administracion-de-uso): un presupuesto se puede volver a
+        // editar, y el registro de que en algún momento valió tal cosa no
+        // tiene por qué desaparecer sólo porque el valor cambió de nuevo.
+        var corteDeAuditoriaDeAdministracion =
+            reloj.GetUtcNow() - TimeSpan.FromDays(valores.RetencionDeAuditoriaDeAdministracionDias);
+        var auditoriasDeAdministracion = await BorrarAsync(
+            conexion,
+            "DELETE FROM asistente.auditoria_administracion WHERE ocurrido_en < @corte",
+            "corte",
+            corteDeAuditoriaDeAdministracion,
+            ct);
+
+        var total = operativas + analiticas + conversaciones + auditorias + auditoriasDeAdministracion;
 
         if (total > 0)
         {
             log.LogInformation(
                 "Purga del asistente: {Operativas} filas operativas, {Analiticas} analíticas, "
-                + "{Conversaciones} conversaciones y {Auditorias} auditorías de soporte anteriores "
-                + "a sus respectivos cortes.",
+                + "{Conversaciones} conversaciones, {Auditorias} auditorías de soporte y "
+                + "{AuditoriasDeAdministracion} auditorías de administración anteriores a sus "
+                + "respectivos cortes.",
                 operativas,
                 analiticas,
                 conversaciones,
-                auditorias);
+                auditorias,
+                auditoriasDeAdministracion);
         }
 
         return total;

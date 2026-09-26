@@ -79,15 +79,17 @@ public sealed class ValidacionDeOpcionesTests
     // ------------------------------------------------- el cero como apagado
 
     [Fact]
-    public void Las_cuatro_perillas_que_apagan_con_cero_aceptan_el_cero()
+    public void Las_tres_perillas_que_apagan_con_cero_aceptan_el_cero()
     {
-        // Es el punto del renglón: `[Range(1, …)]` sobre estas cuatro —el reflejo
-        // obvio— rompería una capacidad que el módulo ofrece a propósito. Sin cupo
-        // por actor, sin corte del proveedor, sin presupuesto de turno y sin
-        // historial para el reescritor son cuatro configuraciones válidas.
+        // Es el punto del renglón: `[Range(1, …)]` sobre estas tres —el reflejo
+        // obvio— rompería una capacidad que el módulo ofrece a propósito. Sin
+        // corte del proveedor, sin presupuesto de turno y sin historial para el
+        // reescritor son tres configuraciones válidas. El cupo por actor dejó de
+        // ser una perilla de OpcionesAsistente (asistente-administracion-de-uso):
+        // ahora vive en asistente.presupuesto_rol/presupuesto_usuario, con el
+        // mismo convenio de cero-desactiva, probado en CuotaPersistenteTests.
         var resultado = Validar(o =>
         {
-            o.CupoDeLlamadasPorActor = 0;
             o.FallosParaAbrirElBreaker = 0;
             o.PresupuestoDelTurnoSegundos = 0;
             o.TopeDeTurnosDelHistorial = 0;
@@ -96,7 +98,6 @@ public sealed class ValidacionDeOpcionesTests
         Assert.True(resultado.Succeeded, string.Join(" | ", resultado.Failures ?? []));
 
         // El cero las apaga; el negativo no significa nada y se sigue rechazando.
-        Assert.False(EnPerilla(nameof(OpcionesAsistente.CupoDeLlamadasPorActor), -1).Succeeded);
     }
 
     [Fact]

@@ -254,22 +254,6 @@ public sealed class OpcionesAsistente
     public int TimeoutDeLlamadaSegundos { get; set; } = 60;
 
     /// <summary>
-    /// Cuántas llamadas al modelo puede consumir un actor en una ventana (RF-20).
-    /// </summary>
-    /// <remarks>
-    /// Se mide en llamadas y no en turnos ni en requests: un turno con reescritor
-    /// cuesta tres. Con el default, un actor tiene alrededor de quince turnos
-    /// completos por ventana.
-    ///
-    /// Cero desactiva la cuota. Es lo que corresponde en desarrollo y en los
-    /// ambientes efímeros, donde el proveedor es el simulado y no cuesta nada.
-    /// </remarks>
-    public int CupoDeLlamadasPorActor { get; set; } = 60;
-
-    /// <summary>Ventana deslizante de la cuota, en minutos.</summary>
-    public int VentanaDeCuotaMinutos { get; set; } = 60;
-
-    /// <summary>
     /// Fallos seguidos del proveedor que abren el corte.
     /// </summary>
     /// <remarks>
@@ -316,6 +300,19 @@ public sealed class OpcionesAsistente
     /// describe, incluso si el propio usuario la borra — ver design.md D10.
     /// </remarks>
     public int RetencionDeAuditoriaDeSoporteDias { get; set; } = 365;
+
+    /// <summary>
+    /// Cuánto se conserva la auditoría de administración (ediciones de
+    /// presupuesto y toggles de mantenimiento), en días.
+    /// </summary>
+    /// <remarks>
+    /// Perilla propia, mismo criterio que <see cref="RetencionDeAuditoriaDeSoporteDias"/>
+    /// (design.md D11 de asistente-administracion-de-uso): un registro de
+    /// auditoría sobrevive a lo que describe — un presupuesto se puede volver
+    /// a editar, y el registro de que en algún momento valió tal cosa no
+    /// tiene por qué desaparecer solo porque el valor cambió de nuevo.
+    /// </remarks>
+    public int RetencionDeAuditoriaDeAdministracionDias { get; set; } = 365;
 
     /// <summary>Cada cuánto corre la purga, en horas.</summary>
     public int PeriodoDePurgaHoras { get; set; } = 24;

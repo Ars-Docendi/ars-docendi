@@ -27,12 +27,24 @@ public sealed record AreaCubierta(string Nombre, string? Descripcion, int Column
 /// no los GRANT, y por eso no toca nada más: el alcance, los ejemplos y los
 /// conteos se siguen derivando de los privilegios efectivos.
 /// </param>
+/// <param name="Mantenimiento">
+/// El estado GLOBAL del kill switch (asistente-modo-mantenimiento), sin
+/// bypass: se muestra igual a todo el mundo, para que el banner de
+/// mantenimiento sea consistente aunque un admin no esté bloqueado por él.
+/// </param>
+/// <param name="Cupo">
+/// El cupo diario de ESTE actor, con el bypass de mantenimiento YA aplicado
+/// (asistente-cupo-visible): un admin que puede seguir usando el asistente
+/// en mantenimiento no se ve a sí mismo como bloqueado por esa causa.
+/// </param>
 public sealed record CapacidadesDelActor(
     IReadOnlyList<AreaCubierta> Cubre,
     IReadOnlyList<string> Ejemplos,
     IReadOnlyList<string> NoPuede,
     string Alcance,
-    string Presentacion)
+    string Presentacion,
+    EstadoDeMantenimiento Mantenimiento,
+    EstadoDelCupoDelActor Cupo)
 {
     /// <summary>Cuántas tablas puede consultar.</summary>
     public int Tablas => Cubre.Count;

@@ -168,10 +168,36 @@ public static class ModuleExtensions
         // request. Uno por turno no acumularía ningún fallo y nunca abriría.
         services.AddSingleton<BreakerDelProveedor>();
 
-        // La cuota también, y por lo mismo: la ventana deslizante de un actor tiene
-        // que sobrevivir a sus turnos.
-        services.AddSingleton<ICuotaDelActor, CuotaEnMemoria>();
-        services.AddSingleton<IDisponibilidadDelModelo, DisponibilidadDelModeloReal>();
+        // SCOPED desde asistente-administracion-de-uso, y no por elección: la cuota
+        // ahora vive en Postgres (CuotaPersistente) y resuelve el rol del actor a
+        // través de IConsultasIdentity, que el Host registra scoped — capturarlo
+        // desde un singleton sería una dependencia cautiva. Ya no hay estado de
+        // proceso que preservar entre turnos: el estado vive en la base.
+        // Singleton: es sólo deduplicación de logs entre turnos del mismo
+        // período (tarea 9.7), nunca una decisión de negocio — ver su XML-doc.
+        services.AddSingleton<DetectorDeUmbrales>();
+
+        services.AddScoped<ICuotaDelActor, CuotaPersistente>();
+
+        // También scoped: PresupuestoOrganizacionalPersistente no depende de
+        // IConsultasIdentity, pero DisponibilidadDelModeloReal ya lo es por
+        // ICuotaDelActor, y las dos piezas del mismo veredicto conviven mejor
+        // con el mismo alcance.
+        services.AddScoped<IPresupuestoOrganizacional, PresupuestoOrganizacionalPersistente>();
+
+        // El kill switch (design.md D7): sin caché de proceso, misma vida que
+        // el resto de esta sección.
+        services.AddScoped<IDisponibilidadDelModulo, DisponibilidadDelModuloReal>();
+        services.AddScoped<IAuditoriaDeAdministracion, AuditoriaDeAdministracionReal>();
+        services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
+        services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
+
+        services.AddScoped<IDisponibilidadDelModelo, DisponibilidadDelModeloReal>();
+
+        // El candado del turno (asistente-turno-exclusivo-del-actor) abre su
+        // PROPIA conexión dedicada, sin pool (ver CandadoDelTurno) — scoped
+        // igual que el resto de esta sección, una instancia por turno.
+        services.AddScoped<ICandadoDelTurno, CandadoDelTurnoReal>();
 
         // Nadie puede pedir el proveedor sin pasar por el techo: la interfaz solo
         // resuelve al decorador.

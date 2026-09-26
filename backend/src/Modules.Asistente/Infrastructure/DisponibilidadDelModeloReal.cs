@@ -12,13 +12,36 @@ namespace Modules.Asistente.Infrastructure;
 /// consultas a las 15:40» sí.
 /// </remarks>
 internal sealed class DisponibilidadDelModeloReal(
-    ICuotaDelActor cuota, BreakerDelProveedor breaker) : IDisponibilidadDelModelo
+    ICuotaDelActor cuota,
+    IPresupuestoOrganizacional presupuestoOrganizacional,
+    IDisponibilidadDelModulo disponibilidadDelModulo,
+    BreakerDelProveedor breaker)
+    : IDisponibilidadDelModelo
 {
-    public MotivoSinModelo Consultar(Guid actor)
+    public async Task<MotivoSinModelo> ConsultarAsync(Guid actor, CancellationToken ct)
     {
-        if (!cuota.HayCupo(actor))
+        if (!await cuota.HayCupoAsync(actor, ct))
         {
             return MotivoSinModelo.CuotaAgotada;
+        }
+
+        // Mismo choque que la cuota (design.md D3/D4 de
+        // asistente-administracion-de-uso): un tope organizacional agotado
+        // bloquea a TODOS los actores, incluso a uno que todavía tiene su
+        // propio cupo disponible.
+        if (!await presupuestoOrganizacional.HayPresupuestoAsync(ct))
+        {
+            return MotivoSinModelo.TopeOrganizacionalAgotado;
+        }
+
+        // El mantenimiento SIEMPRE se reporta acá, sin excepción para nadie
+        // (design.md D8): el bypass del admin es decisión del LLAMADOR
+        // (CapaConversacional, que conoce los permisos del actor), no de
+        // este puerto de almacenamiento — que no sabe nada de permisos.
+        var mantenimiento = await disponibilidadDelModulo.ConsultarAsync(ct);
+        if (mantenimiento.Activo)
+        {
+            return MotivoSinModelo.Mantenimiento;
         }
 
         return breaker.Estado == EstadoDelBreaker.Abierto
@@ -26,5 +49,6 @@ internal sealed class DisponibilidadDelModeloReal(
             : MotivoSinModelo.Ninguno;
     }
 
-    public DateTimeOffset? CupoVuelveA(Guid actor) => cuota.CupoVuelveA(actor);
+    public Task<DateTimeOffset?> CupoVuelveAAsync(Guid actor, CancellationToken ct) =>
+        cuota.CupoVuelveAAsync(actor, ct);
 }

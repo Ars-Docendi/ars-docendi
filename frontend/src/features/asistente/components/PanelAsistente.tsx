@@ -52,6 +52,11 @@ export function PanelAsistente({
   const { capacidades, tieneAcceso } = useAccesoAlAsistente();
   const { turnos, enVuelo, preguntar, reintentar, detener } = asistente;
   const [borrador, setBorrador] = useState("");
+  // El bypass del admin ya lo aplicó el backend en `cupo.bloqueado` (a diferencia de
+  // `mantenimiento`, que es global y sin bypass): un actor con
+  // `asistente.administrar` no se ve bloqueado por su propio mantenimiento y puede
+  // seguir escribiendo para verificar la recuperación.
+  const bloqueado = capacidades?.cupo.bloqueado ?? false;
   const entrada = useRef<HTMLTextAreaElement>(null);
   const sinTurnos = turnos.length === 0;
 
@@ -62,8 +67,8 @@ export function PanelAsistente({
   // vivir fuera del panel —en la ruta va en el encabezado de la página— y el
   // campo es de acá.
   useEffect(() => {
-    if (!enVuelo) entrada.current?.focus();
-  }, [enVuelo, sinTurnos]);
+    if (!enVuelo && !bloqueado) entrada.current?.focus();
+  }, [enVuelo, bloqueado, sinTurnos]);
 
   // El hilo sigue a quien está abajo y no arrastra a quien subió: al enviar va al
   // fondo, la respuesta se muestra desde su inicio, y si el usuario subió a releer
@@ -74,7 +79,7 @@ export function PanelAsistente({
     // Mientras hay un turno en vuelo no se envía nada —ni por Enter, ni por el
     // botón, ni por un chip—, pero se puede seguir escribiendo: el borrador no se
     // toca. El hook tiene su propio guard; éste es el que cuida lo escrito.
-    if (enVuelo) return;
+    if (enVuelo || bloqueado) return;
     setBorrador("");
     await preguntar(mensaje);
   }
@@ -93,6 +98,15 @@ export function PanelAsistente({
 
   return (
     <section className="adoc-asistente" aria-label="Asistente conversacional">
+      {/* Global y SIN bypass (asistente-modo-mantenimiento): se ve igual para
+          todo el mundo, admin incluido, aunque el campo de abajo sólo se
+          deshabilite para quien el backend efectivamente bloquea. */}
+      {capacidades?.mantenimiento.activo && (
+        <InlineAlert severity="warning" className="adoc-asistente-mantenimiento">
+          {mensajeDeMantenimiento(capacidades.mantenimiento.razon)}
+        </InlineAlert>
+      )}
+
       {/* El botón que abre esto vive en el ENCABEZADO de cada montaje —junto a
           «Nueva conversación»—, no acá: por eso este panel es un cajón que se
           superpone al hilo (`position: absolute` sobre `.adoc-asistente`, que
@@ -136,6 +150,7 @@ export function PanelAsistente({
         enVuelo={enVuelo}
         turnos={turnos}
         onDetener={detener}
+        cupo={capacidades?.cupo}
         umbralMs={umbralDelIndicadorMs}
       />
 
@@ -145,7 +160,20 @@ export function PanelAsistente({
         onCambiar={setBorrador}
         onEnviar={() => void enviar(borrador)}
         enVuelo={enVuelo}
+        deshabilitado={bloqueado}
       />
     </section>
   );
+}
+
+/**
+ * «El asistente está en mantenimiento: {razón}.» — texto exacto del design
+ * spec (docs/product/designs/asistente-conversacional-design-spec.md
+ * §Administración de uso), para que el banner diga lo mismo en cualquier
+ * lugar donde se lo muestre.
+ */
+function mensajeDeMantenimiento(razon: string | null | undefined): string {
+  return razon
+    ? `El asistente está en mantenimiento: ${razon}.`
+    : "El asistente está en mantenimiento.";
 }

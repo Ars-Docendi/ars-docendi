@@ -38,11 +38,29 @@ internal sealed class BancoDelAsistente
     /// <summary>La cuota, compartida entre turnos.</summary>
     public required ICuotaDelActor Cuota { get; init; }
 
+    /// <summary>El tope organizacional, compartido entre turnos.</summary>
+    public required IPresupuestoOrganizacional PresupuestoOrganizacional { get; init; }
+
+    /// <summary>El candado de turno en curso, compartido entre turnos.</summary>
+    public required ICandadoDelTurno CandadoDelTurno { get; init; }
+
+    /// <summary>El modo mantenimiento, compartido entre turnos.</summary>
+    public required IDisponibilidadDelModulo DisponibilidadDelModulo { get; init; }
+
+    /// <summary>Identidad falsa, para fijar permisos/roles por actor.</summary>
+    public required ConsultasIdentityFalsa Identidad { get; init; }
+
+    /// <summary>El catálogo de capacidades, compartido entre turnos.</summary>
+    public required ICatalogoDeCapacidades Capacidades { get; init; }
+
     /// <summary>La configuración con la que se armó.</summary>
     public required OpcionesAsistente Opciones { get; init; }
 
     /// <summary>El registro del turno, sea el de memoria o el real.</summary>
     public required IRegistroDelTurno Registro { get; init; }
+
+    /// <summary>El escritor del historial propio, sea el de memoria o el real.</summary>
+    public required IRegistroDeHistorial Historial { get; init; }
 
     /// <summary>
     /// The feedback token store, shared across turns — the same instance the
@@ -65,10 +83,15 @@ internal sealed class BancoDelAsistente
         TimeProvider? reloj = null,
         ProveedorGuionado? proveedor = null,
         IRegistroDelTurno? registro = null,
+        IRegistroDeHistorial? historial = null,
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         ICatalogoDelDominio? dominio = null,
         IResolutorDeVinculos? vinculos = null,
         ILogger<CapaConversacional>? logCapa = null,
+        int cupoDiario = 0,
+        decimal topeOrganizacional = 0,
+        DisponibilidadDelModuloFalsa? disponibilidadDelModuloFalsa = null,
+        ConsultasIdentityFalsa? identidadFalsa = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
@@ -88,10 +111,16 @@ internal sealed class BancoDelAsistente
         var breaker = new BreakerDelProveedor(
             opciones, elReloj, NullLogger<BreakerDelProveedor>.Instance);
 
-        var cuota = new CuotaEnMemoria(opciones, elReloj);
-        var disponibilidad = new DisponibilidadDelModeloReal(cuota, breaker);
+        var cuota = new CuotaDeActorFalsa(cupoDiario, elReloj);
+        var presupuestoOrganizacional = new PresupuestoOrganizacionalFalso(topeOrganizacional);
+        var candadoDelTurno = new CandadoDelTurnoFalso();
+        var disponibilidadDelModulo = disponibilidadDelModuloFalsa ?? new DisponibilidadDelModuloFalsa();
+        var identidad = identidadFalsa ?? new ConsultasIdentityFalsa();
+        var disponibilidad = new DisponibilidadDelModeloReal(
+            cuota, presupuestoOrganizacional, disponibilidadDelModulo, breaker);
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
         var elRegistro = registro ?? new RegistroEnMemoria();
+        var elHistorial = historial ?? new HistorialEnMemoria();
         var validezDeRetroalimentacion = new ValidezDeRetroalimentacionEnMemoria(opciones);
 
         // El índice se comparte entre turnos, igual que en producción: es un caché,
@@ -105,6 +134,10 @@ internal sealed class BancoDelAsistente
             new ConsultorDeAlcance(apertura),
             new SelectorDeEjemplos(),
             new CacheDeCapacidades(),
+            disponibilidad,
+            disponibilidadDelModulo,
+            cuota,
+            identidad,
             NullLogger<CatalogoDeCapacidades>.Instance);
 
         // El enrutador de dominio se comparte por el mismo motivo que el índice: su
@@ -128,8 +161,14 @@ internal sealed class BancoDelAsistente
             Hilos = losHilos,
             Breaker = breaker,
             Cuota = cuota,
+            PresupuestoOrganizacional = presupuestoOrganizacional,
+            CandadoDelTurno = candadoDelTurno,
+            DisponibilidadDelModulo = disponibilidadDelModulo,
+            Identidad = identidad,
+            Capacidades = catalogo,
             Opciones = valores,
             Registro = elRegistro,
+            Historial = elHistorial,
             ValidezDeRetroalimentacion = validezDeRetroalimentacion,
             Fabrica = () =>
             {
@@ -155,8 +194,7 @@ internal sealed class BancoDelAsistente
                     conTecho,
                     contador,
                     opciones,
-                    NullLogger<CarrilSql>.Instance,
-                    new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()));
+                    NullLogger<CarrilSql>.Instance);
 
                 return new CapaConversacional(
                     losHilos,
@@ -168,8 +206,14 @@ internal sealed class BancoDelAsistente
                     enrutador,
                     conTecho,
                     elRegistro,
+                    elHistorial,
+                    validezDeRetroalimentacion,
                     disponibilidad,
+                    disponibilidadDelModulo,
+                    identidad,
                     cuota,
+                    presupuestoOrganizacional,
+                    candadoDelTurno,
                     losVinculos,
                     contador,
                     decisionSombra,
@@ -216,8 +260,7 @@ internal sealed class BancoDelAsistente
         IProveedorDeModelo conTecho,
         ContadorDeLlamadasDelTurno contador,
         IOptions<OpcionesAsistente> opcionesDelGenerador,
-        ILogger<CarrilSql> log,
-        ISugerenciasDeSeguimiento? sugerenciasDeSeguimiento = null) =>
+        ILogger<CarrilSql> log) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -231,7 +274,7 @@ internal sealed class BancoDelAsistente
             new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
             new SelectorDeEjemplos(),
             new ConsultorDeCobertura(apertura),
-            sugerenciasDeSeguimiento ?? new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()),
+            new SugerenciasDeSeguimiento(apertura, new SelectorDeEjemplos()),
             contador,
             log);
 }

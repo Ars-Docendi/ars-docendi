@@ -2,7 +2,7 @@
 status: review
 owner: "Equipo Ars Docendi"
 feature: "openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md"
-last_updated: 2026-09-04
+last_updated: 2026-09-25
 ---
 
 # Design spec: Asistente conversacional — superficie de conversación
@@ -100,7 +100,7 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
 | Respondida          | Tarjeta con texto (+ «Entendí:» si aplica), tabla, sugerencias, disclosures, copiar                                                                                                          | `estado = respondida`                                                          |
 | No contestable      | Texto del backend + sugerencias como chips                                                                                                                                                   | `estado = no_contestable`                                                      |
 | Necesita aclaración | `InlineAlert info` «Necesito que precises algo» + opciones que continúan el turno                                                                                                            | `estado = necesita_aclaracion`                                                 |
-| Servicio degradado  | `InlineAlert warning` «El asistente no está disponible ahora» + texto del backend (cupo, proveedor); nunca rojo                                                                              | `estado = servicio_degradado`                                                  |
+| Servicio degradado  | `InlineAlert warning` «El asistente no está disponible ahora» + texto del backend (cupo propio, tope organizacional, turno concurrente, proveedor caído o mantenimiento); nunca rojo         | `estado = servicio_degradado`                                                  |
 | Error de transporte | `InlineAlert danger` «No se pudo consultar» + mensaje en español + **«Reintentar»** (misma clave de idempotencia). Si fue 404, el hilo se reinicia solo                                      | Red, 5xx, 404 — siempre con el request ya terminado                            |
 | Tiempo agotado      | Mismo `InlineAlert danger` con «El asistente tardó demasiado en responder. Probá con una pregunta más acotada.» + «Reintentar»                                                               | El cliente cortó a los 160 s (por encima del presupuesto de 150 s del backend) |
 | Dejó de esperar     | Bajo la pregunta, en texto secundario: «Dejaste de esperar la respuesta. La consulta ya salió y cuenta para tu cupo.» Sin alerta y **sin «Reintentar»**. El campo se libera y recibe el foco | El usuario pulsó «Dejar de esperar»                                            |
@@ -347,6 +347,68 @@ dos confirmaciones de borrado son controles de teclado comunes, no un modal apar
 el cajón y devuelve el foco al botón «Historial» del encabezado. El botón «Volver a consultar» es
 un botón como cualquier otro: alcanzable, operable, y su resultado se anuncia por la región viva ya
 descripta.
+
+## Administración de uso (asistente-administracion-de-uso)
+
+Sección agregada por `asistente-administracion-de-uso`: el indicador de cupo y el banner de
+mantenimiento tocan el chrome del flujo principal (§ Layout / IA, § Estados a diseñar); el panel
+de administración es una pantalla nueva, en su propia ruta, mismo patrón que la de soporte de
+historial arriba.
+
+**Indicador de cupo restante, en la tira de estado, fuera de la región viva.** Junto al alcance y
+la presentación (§ Layout / IA), un texto chico y no interactivo: «Te quedan 7 consultas hoy.» Sale
+de `capacidades.cupo` al cargar la pantalla y se actualiza, tras cada turno, con
+`respuesta.cupoRestante` — **nunca** con un segundo `GET /capacidades`: son dos actualizaciones
+independientes de la interfaz (la tira de estado y la región viva del turno), y la del cupo no
+mueve el foco ni se anuncia dentro del anuncio del turno. Con el cupo desactivado (`restante` en el
+valor centinela de "sin tope"), el indicador no se muestra — un número sin techo no es información,
+es ruido. Bloqueado, el mismo lugar dice la causa en TEXTO, nunca sólo con color: «Alcanzaste tu
+límite de hoy.», «El asistente alcanzó el límite de uso de la organización.», o el motivo de
+mantenimiento (ver abajo) — nunca los tres juntos, porque `capacidades.cupo.motivo` es uno solo.
+
+**Banner de mantenimiento, visible y no descartable, con el campo deshabilitado.** Cuando
+`capacidades.mantenimiento.activo` es verdadero, un `InlineAlert warning` fijo arriba del panel —
+mismo lenguaje visual que «Servicio degradado» en § Estados a diseñar, nunca rojo — con la razón
+que el admin escribió: «El asistente está en mantenimiento: {razón}.» El campo de pregunta queda
+deshabilitado mientras el banner esté visible, con el mismo estado que «En vuelo» le da al botón
+«Enviar». Un actor con `asistente.administrar` sigue viendo el banner (la verdad global no cambia
+para nadie) pero su campo NO se deshabilita — puede seguir consultando para verificar la
+recuperación, que es exactamente lo que el bypass del backend habilita (design.md D8).
+
+**Pantalla de administración, en su propia ruta.** `/asistente/administracion` (permiso
+`asistente.administrar`, sembrado a `sys_admin`) reutiliza `RequirePermission` — mismo mecanismo
+que ya protege `/asistente/soporte-historial` y `/designaciones/periodos` — así que sin el permiso
+no hay ítem de navegación y la ruta ni resuelve. Tres bloques:
+
+- **Panel de uso**: selector de período (día/semana/mes, o rango explícito) arriba; tres tablas —
+  por usuario (con nombre, resuelto por el backend), por rol, y una fila organizacional destacada —
+  cada una con turnos, desglose por resultado, llamadas al modelo, tokens y latencia. El costo
+  estimado lleva SIEMPRE la etiqueta «(estimado)» junto al número — nunca un número solo, para no
+  leerse como la factura real — y una fila cuyo proveedor no tiene precio cargado muestra «sin
+  precio» en el lugar del costo, en un estilo visualmente distinto (nunca «$0», que se leería como
+  gratis). Un período sin datos muestra «No hay uso registrado en este período.», sin romper el
+  layout de la tabla.
+- **Presupuestos**: un control por rol de sistema (cupo diario, `0` = sin tope) y un campo con el id
+  del actor puntual para fijar su override, más el tope organizacional mensual. **NO reusa el
+  buscador de personas de la pantalla de soporte de historial** — a diferencia de la lectura de
+  soporte, ese buscador exige `usuarios.ver` (`GET /api/administracion/usuarios`), y design.md D12
+  de esta misma change existe justamente para que un administrador con SÓLO `asistente.administrar`
+  no necesite ningún otro permiso; sumarle el buscador reintroduciría la dependencia que D12 evita,
+  ahora en la mitad de escritura del panel en lugar de la de lectura. Guardar un valor que BAJA un
+  cupo hoy activo pide confirmación inline antes de aplicar — mismo patrón que «Borrar» en el cajón
+  de historial —; subirlo o desactivarlo (`0`) no la pide: sólo lo que puede cortarle a alguien una
+  consulta en curso o próxima es lo que amerita la pausa.
+- **Modo mantenimiento**: un interruptor con un campo de razón que se vuelve obligatorio recién al
+  querer PRENDERLO — el backend rechaza la activación sin razón (tarea 6.2), y el campo replica esa
+  regla en el cliente para no depender de un 400 para avisar. Apagarlo no pide razón. Cada cambio se
+  confirma por la misma región viva que ya usa el resto del panel.
+
+**Accesibilidad.** Selector de período, controles de presupuesto y el interruptor de mantenimiento
+son alcanzables por Tab en orden lógico y operables con Enter/Espacio, mismo patrón que el resto del
+proyecto. Un presupuesto guardado y un toggle de mantenimiento completado se anuncian por la región
+viva sin mover el foco. El banner de mantenimiento y el indicador de cupo son legibles por lectores
+de pantalla sin depender de `hover` ni de `title` — nunca la única forma de enterarse de una causa
+de bloqueo.
 
 ## Referencias
 

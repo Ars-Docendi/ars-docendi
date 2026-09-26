@@ -639,7 +639,7 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             pii,
             ClasificadorDeSensibilidad(),
             Apertura,
-            new OpcionesAsistente { CupoDeLlamadasPorActor = 0 },
+            new OpcionesAsistente(),
             reloj: new RelojFijo(Ancla),
             registro: new RegistroDelTurno(
                 new CadenaDuena(Cadena), NullLogger<RegistroDelTurno>.Instance),

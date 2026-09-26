@@ -36,17 +36,21 @@ namespace Modules.Asistente;
 internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAsistente>
 {
     /// <summary>
-    /// Las cuatro perillas que usan el cero como apagado deliberado y documentado.
+    /// Las tres perillas que usan el cero como apagado deliberado y documentado.
     /// </summary>
     /// <remarks>
     /// No llevan regla de positividad justamente porque el cero es un valor con
-    /// significado: sin cupo por actor, sin corte del proveedor, sin presupuesto de
-    /// turno, sin historial para el reescritor. Ponerles <c>[Range(1, …)]</c>
-    /// —que es el reflejo obvio— rompería una capacidad que el módulo ofrece.
+    /// significado: sin corte del proveedor, sin presupuesto de turno, sin
+    /// historial para el reescritor. Ponerles <c>[Range(1, …)]</c> —que es el
+    /// reflejo obvio— rompería una capacidad que el módulo ofrece.
+    ///
+    /// El cupo por actor dejó de estar acá con asistente-administracion-de-uso:
+    /// ya no es una perilla de <see cref="OpcionesAsistente"/> sino una fila en
+    /// <c>asistente.presupuesto_rol</c>/<c>presupuesto_usuario</c>, y el mismo
+    /// convenio de "cero desactiva" sigue vigente ahí (ver <c>CuotaPersistente</c>).
     /// </remarks>
     private static readonly (string Nombre, Func<OpcionesAsistente, int> Leer)[] ConCeroComoApagado =
     [
-        (nameof(OpcionesAsistente.CupoDeLlamadasPorActor), o => o.CupoDeLlamadasPorActor),
         (nameof(OpcionesAsistente.FallosParaAbrirElBreaker), o => o.FallosParaAbrirElBreaker),
         (nameof(OpcionesAsistente.PresupuestoDelTurnoSegundos), o => o.PresupuestoDelTurnoSegundos),
         (nameof(OpcionesAsistente.TopeDeTurnosDelHistorial), o => o.TopeDeTurnosDelHistorial),
@@ -63,11 +67,11 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.TimeoutDeComandoSegundos), o => o.TimeoutDeComandoSegundos),
         (nameof(OpcionesAsistente.VigenciaDelHiloMinutos), o => o.VigenciaDelHiloMinutos),
         (nameof(OpcionesAsistente.TimeoutDeLlamadaSegundos), o => o.TimeoutDeLlamadaSegundos),
-        (nameof(OpcionesAsistente.VentanaDeCuotaMinutos), o => o.VentanaDeCuotaMinutos),
         (nameof(OpcionesAsistente.EsperaDelBreakerSegundos), o => o.EsperaDelBreakerSegundos),
         (nameof(OpcionesAsistente.RetencionDeRegistrosDias), o => o.RetencionDeRegistrosDias),
         (nameof(OpcionesAsistente.RetencionDeHistorialDias), o => o.RetencionDeHistorialDias),
         (nameof(OpcionesAsistente.RetencionDeAuditoriaDeSoporteDias), o => o.RetencionDeAuditoriaDeSoporteDias),
+        (nameof(OpcionesAsistente.RetencionDeAuditoriaDeAdministracionDias), o => o.RetencionDeAuditoriaDeAdministracionDias),
         (nameof(OpcionesAsistente.PeriodoDePurgaHoras), o => o.PeriodoDePurgaHoras),
         (nameof(OpcionesAsistente.VigenciaDeIdempotenciaMinutos), o => o.VigenciaDeIdempotenciaMinutos),
         (nameof(OpcionesAsistente.VigenciaDeRetroalimentacionMinutos), o => o.VigenciaDeRetroalimentacionMinutos),

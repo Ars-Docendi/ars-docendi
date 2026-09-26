@@ -61,6 +61,12 @@ internal sealed class MigradorAsistente(
         await HistorialAsistente.AplicarAsync(conexion, ct);
         await AuditoriaDeSoporteAsistente.AplicarAsync(conexion, ct);
 
+        // Same reason as the two calls above: no role GUCs needed, lives
+        // inside the already wholesale-denied `asistente` schema. Runs last
+        // among the DDL calls only for readability — nothing in it depends
+        // on the other tables existing.
+        await AdministracionAsistente.AplicarAsync(conexion, ct);
+
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 
         log.LogInformation(

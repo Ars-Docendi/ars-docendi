@@ -1,16 +1,19 @@
 import { Button } from "@ars-docendi/ui";
 
+import { IndicadorDeCupo } from "./IndicadorDeCupo";
 import { IndicadorDeProceso, UMBRAL_DE_APARICION_MS } from "./IndicadorDeProceso";
 import { LineaDeMetricas } from "./LineaDeMetricas";
 import { stopIcon } from "../../../app/shell/icons";
 import { useVisibleTrasUmbral } from "../hooks/useVisibleTrasUmbral";
-import type { TurnoDeLaConversacion } from "../types";
+import type { CupoDelActor, TurnoDeLaConversacion } from "../types";
 
 interface FranjaDeEstadoProps {
   enVuelo: boolean;
   turnos: TurnoDeLaConversacion[];
   /** Dejar de esperar el turno en vuelo. */
   onDetener: () => void;
+  /** El cupo diario de `capacidades` (asistente-cupo-visible). */
+  cupo?: CupoDelActor;
   /** Para el test del umbral, que no puede esperar el tiempo real. */
   umbralMs?: number;
 }
@@ -31,6 +34,7 @@ export function FranjaDeEstado({
   enVuelo,
   turnos,
   onDetener,
+  cupo,
   umbralMs = UMBRAL_DE_APARICION_MS,
 }: FranjaDeEstadoProps) {
   // Aparece con el indicador y no antes: un botón que se ve un instante en cada
@@ -51,6 +55,7 @@ export function FranjaDeEstado({
         </Button>
       )}
 
+      <IndicadorDeCupo cupo={cupo} turnos={turnos} />
       <LineaDeMetricas turnos={turnos} />
     </div>
   );

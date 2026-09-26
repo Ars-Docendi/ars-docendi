@@ -8,125 +8,22 @@ using Modules.Asistente.Infrastructure;
 namespace ArsDocendi.IntegrationTests.Asistente;
 
 /// <summary>
-/// Verifica la cuota por actor y el circuit breaker, en memoria.
+/// Verifica el circuit breaker, en memoria.
 /// </summary>
 /// <remarks>
-/// Las dos piezas son puras salvo por el reloj, así que se prueban sin base y sin
-/// proveedor. Que no necesiten infraestructura es justamente lo que permite
-/// probarlas de verdad: un test de cuota que dependiera de una base tendería a
-/// probar la base.
+/// Es puro salvo por el reloj, así que se prueba sin base y sin proveedor. Que
+/// no necesite infraestructura es justamente lo que permite probarlo de
+/// verdad: un test que dependiera de una base tendería a probar la base.
+///
+/// La cuota por actor YA NO vive acá: desde asistente-administracion-de-uso es
+/// persistente (Postgres, turnos/día calendario UTC) y sus tests están en
+/// <c>CuotaPersistenteTests</c>. Este archivo conserva su nombre por el resto
+/// de lo que prueba (el breaker y el decorador del proveedor), pero ya no
+/// prueba cuota.
 /// </remarks>
 public sealed class CuotaYBreakerTests
 {
     private static readonly DateTimeOffset Ancla = new(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
-    private static readonly Guid Alguien = Guid.Parse("a0000000-0000-4000-8000-000000000001");
-    private static readonly Guid Otro = Guid.Parse("a0000000-0000-4000-8000-000000000002");
-
-    // ------------------------------------------------------------------ cuota
-
-    [Fact]
-    public void El_cupo_se_agota_al_llegar_al_limite()
-    {
-        var (cuota, _) = Cuota(cupo: 6);
-
-        cuota.Anotar(Alguien, 3);
-        Assert.True(cuota.HayCupo(Alguien));
-
-        cuota.Anotar(Alguien, 3);
-        Assert.False(cuota.HayCupo(Alguien));
-    }
-
-    [Fact]
-    public void Dos_actores_no_comparten_cupo()
-    {
-        var (cuota, _) = Cuota(cupo: 3);
-
-        cuota.Anotar(Alguien, 3);
-
-        Assert.False(cuota.HayCupo(Alguien));
-        Assert.True(cuota.HayCupo(Otro));
-    }
-
-    [Fact]
-    public void Al_pasar_la_ventana_vuelve_el_cupo()
-    {
-        var (cuota, reloj) = Cuota(cupo: 3, ventanaMinutos: 60);
-
-        cuota.Anotar(Alguien, 3);
-        Assert.False(cuota.HayCupo(Alguien));
-
-        reloj.Avanzar(TimeSpan.FromMinutes(61));
-
-        Assert.True(cuota.HayCupo(Alguien));
-    }
-
-    [Fact]
-    public void La_ventana_es_deslizante_y_no_un_balde_que_se_vacia_de_golpe()
-    {
-        // Con una ventana fija por bloques, lo consumido a las 10:59 se perdonaría
-        // entero a las 11:00 y un actor podría gastar dos cupos en dos minutos.
-        var (cuota, reloj) = Cuota(cupo: 4, ventanaMinutos: 60);
-
-        cuota.Anotar(Alguien, 2);
-        reloj.Avanzar(TimeSpan.FromMinutes(30));
-        cuota.Anotar(Alguien, 2);
-
-        Assert.False(cuota.HayCupo(Alguien));
-
-        // A los 61 minutos del primero, sale el primero y no el segundo.
-        reloj.Avanzar(TimeSpan.FromMinutes(31));
-
-        Assert.True(cuota.HayCupo(Alguien));
-        cuota.Anotar(Alguien, 2);
-        Assert.False(cuota.HayCupo(Alguien));
-    }
-
-    [Fact]
-    public void Un_cupo_en_cero_desactiva_la_cuota()
-    {
-        var (cuota, _) = Cuota(cupo: 0);
-
-        cuota.Anotar(Alguien, 10_000);
-
-        Assert.True(cuota.HayCupo(Alguien));
-        Assert.Null(cuota.CupoVuelveA(Alguien));
-    }
-
-    [Fact]
-    public void Con_cupo_disponible_no_hay_hora_de_vuelta()
-    {
-        var (cuota, _) = Cuota(cupo: 6);
-
-        cuota.Anotar(Alguien, 3);
-
-        Assert.Null(cuota.CupoVuelveA(Alguien));
-    }
-
-    [Fact]
-    public void Sin_cupo_la_hora_de_vuelta_es_la_del_consumo_mas_viejo()
-    {
-        var (cuota, reloj) = Cuota(cupo: 4, ventanaMinutos: 60);
-
-        cuota.Anotar(Alguien, 2);
-        reloj.Avanzar(TimeSpan.FromMinutes(20));
-        cuota.Anotar(Alguien, 2);
-
-        // El primero salió de la ventana a los 60 minutos de haberse hecho, no a
-        // los 60 del último: decirle al usuario la hora del último lo mandaría a
-        // esperar de más.
-        Assert.Equal(Ancla + TimeSpan.FromMinutes(60), cuota.CupoVuelveA(Alguien));
-    }
-
-    [Fact]
-    public void Anotar_cero_llamadas_no_consume_nada()
-    {
-        // Es el caso del turno degradado: corrió, no llamó a nadie, no paga.
-        var (cuota, _) = Cuota(cupo: 1);
-
-        cuota.Anotar(Alguien, 0);
-
-        Assert.True(cuota.HayCupo(Alguien));
-    }
 
     // ---------------------------------------------------------------- breaker
 
@@ -331,20 +228,6 @@ public sealed class CuotaYBreakerTests
         Esfuerzo = EsfuerzoDelModelo.Medio,
         MaximoDeTokens = 100,
     };
-
-    private static (ICuotaDelActor Cuota, RelojFijo Reloj) Cuota(
-        int cupo, int ventanaMinutos = 60)
-    {
-        var reloj = new RelojFijo(Ancla);
-
-        var opciones = Options.Create(new OpcionesAsistente
-        {
-            CupoDeLlamadasPorActor = cupo,
-            VentanaDeCuotaMinutos = ventanaMinutos,
-        });
-
-        return (new CuotaEnMemoria(opciones, reloj), reloj);
-    }
 
     private static (BreakerDelProveedor Breaker, RelojFijo Reloj) Breaker(
         int umbral, int esperaSegundos = 30)

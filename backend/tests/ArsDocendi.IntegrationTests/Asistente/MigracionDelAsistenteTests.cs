@@ -100,7 +100,6 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             """));
     }
 
-
     // --------------------------------------- own history tables (task 1.1/2.1)
 
     [Fact]

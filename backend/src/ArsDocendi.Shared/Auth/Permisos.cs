@@ -47,6 +47,20 @@ public static class Permisos
     /// </remarks>
     public const string AsistenteLeerHistorialAjeno = "asistente.leer_historial_ajeno";
 
+    /// <summary>
+    /// Administrar el uso del asistente: presupuestos, tope organizacional,
+    /// modo mantenimiento y el panel de uso.
+    /// </summary>
+    /// <remarks>
+    /// A diferencia de <see cref="AsistenteVerConsulta"/> y
+    /// <see cref="AsistenteLeerHistorialAjeno"/>, que se siembran sin
+    /// concedérselas a ningún rol, éste se siembra directamente a
+    /// <c>sys_admin</c>: gobierna controles operativos sobre disponibilidad y
+    /// gasto del módulo entero, no una superficie de diagnóstico o soporte
+    /// sobre datos de otra persona.
+    /// </remarks>
+    public const string AsistenteAdministrar = "asistente.administrar";
+
     public static readonly string[] Todos =
     [
         UsuariosVer,
@@ -65,5 +79,6 @@ public static class Permisos
         AsistenteConsultar,
         AsistenteVerConsulta,
         AsistenteLeerHistorialAjeno,
+        AsistenteAdministrar,
     ];
 }

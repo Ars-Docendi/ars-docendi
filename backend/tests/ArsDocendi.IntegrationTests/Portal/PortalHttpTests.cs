@@ -128,7 +128,11 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // HistorialController (listar, obtener, renombrar, eliminar uno,
         // eliminar todo, reanudar, reejecutar) y dos en SoporteHistorialController
         // (listar y leer el historial ajeno).
-        Assert.Equal(79, operaciones.Length);
+        //
+        // Subió de 79 a 84 con asistente-administracion-de-uso: cinco en
+        // AdministracionAsistenteController (mantenimiento, uso, presupuestos
+        // de rol, presupuestos de usuario, tope organizacional).
+        Assert.Equal(84, operaciones.Length);
 
         foreach (var (ruta, metodo) in operaciones)
         {
