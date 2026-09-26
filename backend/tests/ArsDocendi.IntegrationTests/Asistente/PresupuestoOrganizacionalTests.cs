@@ -113,14 +113,19 @@ public sealed class PresupuestoOrganizacionalTests(PostgresFixture postgres)
     private async Task FijarPrecioAsync(
         string proveedor, string modelo, decimal precioPorTokenEntrada)
     {
+        // El precio tiene que regir a la vez "ahora" (el acumulador lo busca con
+        // now() del motor) y en el `ocurridoEn` del reloj fijo (la calculadora lo
+        // cruza contra esa fecha). Con `now() - 1 día` el test caducaba solo un
+        // día después de `Ancla`: el precio pasaba a empezar después del turno.
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """
             INSERT INTO asistente.tabla_de_precios
                 (proveedor, modelo, precio_por_token_entrada, precio_por_token_salida,
                  precio_por_token_cache, version, vigente_desde)
-            VALUES (@proveedor, @modelo, @precio, 0, 0, 1, now() - interval '1 day')
+            VALUES (@proveedor, @modelo, @precio, 0, 0, 1, LEAST(now(), @ancla) - interval '1 day')
             """, conexion);
+        comando.Parameters.AddWithValue("ancla", Ancla);
         comando.Parameters.AddWithValue("proveedor", proveedor);
         comando.Parameters.AddWithValue("modelo", modelo);
         comando.Parameters.AddWithValue("precio", precioPorTokenEntrada);
