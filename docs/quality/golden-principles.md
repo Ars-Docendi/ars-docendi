@@ -33,10 +33,12 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 
 - **Parsear en el borde** — validar DTOs en el límite HTTP/módulo; no propagar shapes sin validar.
 
-## Autorización por rol
+## Autorización por permisos efectivos
 
-- Toda acción mutativa requiere autorización por rol. **Nunca** dejar un endpoint sin `[Authorize(Roles = ...)]` salvo health checks.
-- **Test cada combinación rol × acción** que sea relevante (especialmente que un rol bajo NO puede aprobar algo de rol alto).
+- Las rutas administrativas deben requerir `[Authorize(Policy = Permisos.<...>)]` y validar permisos efectivos; no acoplar acceso a nombres de roles con `[Authorize(Roles = ...)]`.
+- Toda ruta debe autorizar en backend salvo los pings de salud declarados explícitamente públicos.
+- **Test cada combinación permiso × ruta** relevante, especialmente denegación cuando falta el permiso requerido.
+- La visibilidad de navegación y los guards del frontend mejoran la UX, pero nunca sustituyen la autorización backend.
 
 ## Producto y UX
 
