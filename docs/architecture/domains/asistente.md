@@ -798,11 +798,17 @@ nada de malo.
 `opciones` y `sugerencias` se presentan distinto porque son cosas distintas: las
 opciones continúan el turno, las sugerencias son preguntas nuevas.
 
-**El razonamiento se lee a pedido.** El backend lo redacta para el usuario final, y
-va al pie del mensaje como una disclosure cerrada, «Cómo lo interpreté», al lado de
-«Ver la consulta». La pregunta interpretada queda **visible** como «Entendí: …»,
-fuera de la disclosure: es el aviso de que la pregunta se reinterpretó, y esconderlo
-derrotaría su razón de ser.
+**El razonamiento se lee a pedido, y sólo en modo debug.** El backend lo redacta
+para el usuario final y lo sigue mandando en toda respuesta —queda visible en
+devtools/network, es una decisión aceptada—, pero el cliente sólo lo RENDERIZA como
+disclosure cerrada, «Cómo lo interpreté», al lado de «Ver la consulta», cuando la
+variable de build `VITE_ASISTENTE_DEBUG` vale `"true"` (asistente-razonamiento-solo-en-debug).
+Apagado por defecto, y sin fallback a `import.meta.env.DEV`: a diferencia de
+`VITE_DEVELOPMENT_AUTH_ENABLED`, correr `vite dev` no lo prende solo. El resolver
+puro vive en `frontend/src/features/asistente/utils/modoDebug.ts`. La pregunta
+interpretada queda **visible** como «Entendí: …», fuera de la disclosure y sin
+depender del modo debug: es el aviso de que la pregunta se reinterpretó, y
+esconderlo derrotaría su razón de ser.
 
 **Ninguna etiqueta interna llega a la pantalla.** `metricas.categoria` —el carril
 que resolvió el turno— salió del tipo del cliente: el backend la sigue mandando y lo

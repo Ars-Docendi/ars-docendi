@@ -28,17 +28,27 @@ function turno(parcial: Partial<RespuestaDelAsistente> = {}): TurnoDeLaConversac
   return { id: "t-1", pregunta: "¿cuántos docentes hay?", respuesta: respuesta(parcial) };
 }
 
-function montarMensaje(unTurno: TurnoDeLaConversacion) {
+function montarMensaje(unTurno: TurnoDeLaConversacion, opciones: { debug?: boolean } = {}) {
+  const { debug = false } = opciones;
   return montar(
     <ul>
-      <Mensaje turno={unTurno} onElegir={() => {}} onReintentar={() => {}} enVuelo={false} />
+      <Mensaje
+        turno={unTurno}
+        onElegir={() => {}}
+        onReintentar={() => {}}
+        enVuelo={false}
+        debug={debug}
+      />
     </ul>,
   );
 }
 
 describe("El razonamiento", () => {
-  it("con razonamiento hay una disclosure «Cómo lo interpreté», cerrada", () => {
-    montarMensaje(turno({ razonamiento: RAZONAMIENTO }));
+  // Sólo se muestra con el modo debug prendido (`VITE_ASISTENTE_DEBUG=true`,
+  // asistente-razonamiento-solo-en-debug): el backend lo sigue mandando en la
+  // respuesta igual, pero el cliente decide si lo renderiza.
+  it("con razonamiento y debug prendido hay una disclosure «Cómo lo interpreté», cerrada", () => {
+    montarMensaje(turno({ razonamiento: RAZONAMIENTO }), { debug: true });
 
     const resumen = screen.getByText("Cómo lo interpreté");
     expect(resumen.tagName).toBe("SUMMARY");
@@ -52,15 +62,21 @@ describe("El razonamiento", () => {
 
   it("al abrirla se lee el razonamiento", async () => {
     const user = userEvent.setup();
-    montarMensaje(turno({ razonamiento: RAZONAMIENTO }));
+    montarMensaje(turno({ razonamiento: RAZONAMIENTO }), { debug: true });
 
     await user.click(screen.getByText("Cómo lo interpreté"));
 
     expect(screen.getByText(RAZONAMIENTO)).toBeVisible();
   });
 
-  it("sin razonamiento no hay disclosure", () => {
-    montarMensaje(turno());
+  it("con razonamiento pero debug apagado no hay disclosure", () => {
+    montarMensaje(turno({ razonamiento: RAZONAMIENTO }), { debug: false });
+
+    expect(screen.queryByText("Cómo lo interpreté")).toBeNull();
+  });
+
+  it("sin razonamiento no hay disclosure, aunque el debug esté prendido", () => {
+    montarMensaje(turno(), { debug: true });
 
     expect(screen.queryByText("Cómo lo interpreté")).toBeNull();
   });
@@ -71,6 +87,7 @@ describe("El razonamiento", () => {
         preguntaInterpretada: "¿Cuántos docentes tienen designación vigente?",
         razonamiento: RAZONAMIENTO,
       }),
+      { debug: true },
     );
 
     const entendi = screen.getByText(/Entendí:/);
@@ -79,6 +96,19 @@ describe("El razonamiento", () => {
 
     const disclosure = screen.getByText("Cómo lo interpreté").closest("details");
     expect(disclosure?.contains(entendi)).toBe(false);
+  });
+
+  it("«Entendí:» queda visible aunque el debug esté apagado y no haya disclosure", () => {
+    montarMensaje(
+      turno({
+        preguntaInterpretada: "¿Cuántos docentes tienen designación vigente?",
+        razonamiento: RAZONAMIENTO,
+      }),
+      { debug: false },
+    );
+
+    expect(screen.getByText(/Entendí:/)).toBeVisible();
+    expect(screen.queryByText("Cómo lo interpreté")).toBeNull();
   });
 });
 

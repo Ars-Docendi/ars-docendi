@@ -172,9 +172,12 @@ nadie pidió para elegir un saludo, y un genérico correcto es mejor que un espe
   empareja respuestas; hacer esperar a alguien para darle una mala noticia es coherencia que no
   vale lo que cuesta.
 
-- **`razonamiento` va dentro del mensaje, colapsado** (cierra ARS-79 variante 1, RF-11). Un
-  `<details>` nativo con resumen «Cómo lo interpreté»: parte de la respuesta, en la región viva, y
-  no se anuncia hasta abrirlo. `preguntaInterpretada` queda **visible** (RF-10), no dentro.
+- **`razonamiento` va dentro del mensaje, colapsado, y sólo en modo debug** (cierra ARS-79
+  variante 1, RF-11; acotado por asistente-razonamiento-solo-en-debug). Un `<details>` nativo con
+  resumen «Cómo lo interpreté»: parte de la respuesta, en la región viva, y no se anuncia hasta
+  abrirlo. El backend sigue mandando `razonamiento` en toda respuesta, pero el cliente sólo lo
+  renderiza con `VITE_ASISTENTE_DEBUG=true` (opt-in explícito, sin fallback a modo desarrollo).
+  `preguntaInterpretada` queda **visible** (RF-10), no dentro, y no depende del flag.
 - **`metricas.categoria` no se muestra y sale del tipo TS**: es una etiqueta interna
   (`consulta_simple`, `cruce_de_tablas`…). De `cubre[]` no se muestra ni `nombre` —`schema.tabla`—
   ni `descripcion`: es el comentario de la tabla en PostgreSQL, el mismo texto que el backend le

@@ -77,6 +77,15 @@ pnpm --filter frontend dev
 
 - App: `http://localhost:5173`
 
+**Variables de entorno del frontend** (`VITE_*`, Vite las inlinea en build time — cambiarlas
+requiere reiniciar `dev` o rebuildear):
+
+- `VITE_DEVELOPMENT_AUTH_ENABLED`: opt-in de autenticación sembrada en un bundle
+  optimizado (ver `docs/architecture/infrastructure.md`).
+- `VITE_ASISTENTE_DEBUG`: en `"true"` muestra la disclosure «Cómo lo interpreté» del
+  asistente conversacional. Apagado por defecto, incluso en `pnpm --filter frontend
+dev` — no hay fallback a modo desarrollo (ver `docs/architecture/domains/asistente.md`).
+
 ## Comandos útiles
 
 ```bash

@@ -8,6 +8,7 @@ import { Sugerencias } from "./Sugerencias";
 import { TablaDeResultado } from "./TablaDeResultado";
 import { VotoDeRetroalimentacion } from "./VotoDeRetroalimentacion";
 import { hayPortapapeles } from "../utils/portapapeles";
+import { modoDebugAsistente } from "../utils/modoDebug";
 import type { EstadoDelTurno, TurnoDeLaConversacion } from "../types";
 
 interface MensajeProps {
@@ -17,6 +18,13 @@ interface MensajeProps {
   /** «Volver a consultar» sobre un turno histórico (asistente-historial-conversaciones). */
   onReejecutar?: (id: string) => void;
   enVuelo: boolean;
+  /**
+   * Modo debug (`VITE_ASISTENTE_DEBUG=true`, ver `utils/modoDebug`): sólo con
+   * esto prendido se muestra la disclosure «Cómo lo interpreté». Parámetro,
+   * no lectura directa del env, para que los tests no dependan de
+   * `import.meta.env`; en producción usa el valor real por defecto.
+   */
+  debug?: boolean;
 }
 
 /** Un turno completo: lo que preguntó el usuario y lo que contestó el asistente. */
@@ -26,6 +34,7 @@ export function Mensaje({
   onReintentar,
   onReejecutar,
   enVuelo,
+  debug = modoDebugAsistente,
 }: MensajeProps) {
   const { respuesta } = turno;
 
@@ -104,12 +113,14 @@ export function Mensaje({
             deshabilitado={enVuelo}
           />
 
-          {(respuesta.razonamiento || respuesta.sql || hayPortapapeles()) && (
+          {((debug && respuesta.razonamiento) || respuesta.sql || hayPortapapeles()) && (
             // El pie: lo que se puede desplegar a pedido y lo que se puede hacer
             // con el mensaje, después de todo lo que hay que leer. Sólo existe
-            // cuando hay algo que poner: un pie vacío dejaría un hueco.
+            // cuando hay algo que poner: un pie vacío dejaría un hueco. Con el
+            // modo debug apagado, el razonamiento no cuenta como «algo que
+            // poner» aunque el backend lo haya mandado.
             <div className="adoc-asistente-pie">
-              <Razonamiento razonamiento={respuesta.razonamiento} />
+              <Razonamiento razonamiento={respuesta.razonamiento} debug={debug} />
 
               {respuesta.sql && (
                 // Solo llega con `asistente.ver_consulta`. Que esté acá no es
