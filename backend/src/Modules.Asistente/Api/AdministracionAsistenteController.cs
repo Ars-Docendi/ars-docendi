@@ -64,6 +64,36 @@ public sealed class AdministracionAsistenteController(
         return Ok(UsoDto.De(await consultasDeUso.ObtenerAsync(rango, ct)));
     }
 
+    /// <summary>
+    /// El estado persistido de los presupuestos: el tope organizacional
+    /// vigente, el cupo default de cada rol, cada override de usuario
+    /// vigente, y el gasto estimado del mes calendario en curso (tarea 12.8
+    /// de sistema-seccion-unificada — cierra el gap de "sólo <c>PUT</c>,
+    /// nunca <c>GET</c>" que documentaban
+    /// <c>TopeOrganizacionalCard</c>/<c>EditorDeCupoEnFila</c>).
+    /// </summary>
+    /// <remarks>
+    /// Deliberadamente NO trae la serie diaria de uso, la telemetría del
+    /// proveedor cloud/local, ni un toggle de acceso por fila/rol — esos tres
+    /// siguen sin implementar (ver el reporte de apply adjunto al change).
+    /// </remarks>
+    [HttpGet("presupuestos")]
+    public async Task<ActionResult<PresupuestosDto>> Presupuestos(CancellationToken ct)
+    {
+        var estado = await presupuestos.ObtenerEstadoAsync(ct);
+
+        // El mes CALENDARIO en curso, con el mismo límite UTC que el
+        // acumulador que aplica el tope (design.md D2 de
+        // asistente-administracion-de-uso: "el límite ya es UTC en todo el
+        // resto del módulo") — nunca América/Argentina/Buenos_Aires, para no
+        // introducir una segunda noción de "mes" para este único endpoint.
+        var ahora = reloj.GetUtcNow();
+        var inicioDelMes = new DateTimeOffset(ahora.Year, ahora.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        var panelDelMes = await consultasDeUso.ObtenerAsync(new RangoDePeriodo(inicioDelMes, ahora), ct);
+
+        return Ok(PresupuestosDto.De(estado, panelDelMes.Organizacion.CostoEstimado));
+    }
+
     /// <summary>Edita el cupo diario default de un rol. Audita (tarea 9.5).</summary>
     [HttpPut("presupuestos/roles/{rol}")]
     public async Task<IActionResult> PresupuestoDeRol(string rol, PedidoDeCupoDto pedido, CancellationToken ct)

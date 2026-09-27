@@ -697,7 +697,21 @@ public sealed partial class ArquitecturaAsistenteTests
     /// <c>PlantillasDeRechazo</c>, <c>TerminoDelRechazo</c>,
     /// <c>EtiquetasDeAreas</c>— stayed `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 89;
+    /// <remarks>
+    /// Raised to 92 for tarea 12.8 de sistema-seccion-unificada:
+    /// <c>EstadoDePresupuestos</c> is the return type of the new
+    /// <c>IPresupuestosAdministrables.ObtenerEstadoAsync</c> — a public
+    /// interface member's return type must be at least as accessible as the
+    /// interface itself, and <c>IPresupuestosAdministrables</c> was already
+    /// public. <c>CupoDeRolVigente</c> and <c>OverrideDeUsuarioVigente</c>
+    /// are, in turn, the element type of two of that record's properties,
+    /// same transitive rule. All three exist only to answer
+    /// <c>GET /api/asistente/administracion/presupuestos</c> (the persisted
+    /// org cap and role/user quotas); nothing else the task needed —the
+    /// <c>PresupuestosAdministrablesReal</c> SQL reads themselves— stayed
+    /// `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 92;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

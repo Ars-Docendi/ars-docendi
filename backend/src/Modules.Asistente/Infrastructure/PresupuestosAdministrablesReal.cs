@@ -1,3 +1,4 @@
+using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
 using Modules.Asistente.Application;
 using Npgsql;
@@ -8,7 +9,8 @@ namespace Modules.Asistente.Infrastructure;
 /// <see cref="IPresupuestosAdministrables"/> sobre Postgres (design.md D6/D11
 /// de asistente-administracion-de-uso).
 /// </summary>
-internal sealed class PresupuestosAdministrablesReal(CadenaDuena cadena, TimeProvider reloj)
+internal sealed class PresupuestosAdministrablesReal(
+    CadenaDuena cadena, TimeProvider reloj, IConsultasIdentity identidad)
     : IPresupuestosAdministrables
 {
     public async Task<(int Antes, int Despues)> EditarCupoDeRolAsync(
@@ -104,5 +106,78 @@ internal sealed class PresupuestosAdministrablesReal(CadenaDuena cadena, TimePro
         await escribir.ExecuteNonQueryAsync(ct);
 
         return (antes, tope);
+    }
+
+    public async Task<EstadoDePresupuestos> ObtenerEstadoAsync(CancellationToken ct)
+    {
+        await using var conexion = new NpgsqlConnection(cadena.Valor);
+        await conexion.OpenAsync(ct);
+
+        var tope = await TopeVigenteAsync(conexion, ct);
+        var cuposPorRol = await CuposPorRolAsync(conexion, ct);
+        var overrides = await OverridesDeUsuarioAsync(conexion, ct);
+
+        // Sólo resuelve nombres si hace falta — mismo criterio de "no pedir lo
+        // que no se va a usar" que ya sigue ConsultasDeUso (design.md D12).
+        var nombres = overrides.Count == 0
+            ? new Dictionary<Guid, string>()
+            : (await identidad.ListarUsuariosAsync(ct)).ToDictionary(u => u.Id, u => u.NombreParaMostrar);
+
+        var overridesConNombre = overrides
+            .Select(o => new OverrideDeUsuarioVigente(o.ActorId, nombres.GetValueOrDefault(o.ActorId), o.Cupo))
+            .ToList();
+
+        return new EstadoDePresupuestos(tope, cuposPorRol, overridesConNombre);
+    }
+
+    private static async Task<decimal> TopeVigenteAsync(NpgsqlConnection conexion, CancellationToken ct)
+    {
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT tope_mensual_usd FROM asistente.tope_organizacional
+             WHERE vigente_desde <= now()
+             ORDER BY vigente_desde DESC
+             LIMIT 1
+            """, conexion);
+
+        var valor = await comando.ExecuteScalarAsync(ct);
+        return valor is null or DBNull ? 0m : (decimal)valor;
+    }
+
+    private static async Task<List<CupoDeRolVigente>> CuposPorRolAsync(
+        NpgsqlConnection conexion, CancellationToken ct)
+    {
+        await using var comando = new NpgsqlCommand(
+            "SELECT rol_code, cupo_diario_turnos FROM asistente.presupuesto_rol ORDER BY rol_code", conexion);
+
+        var cupos = new List<CupoDeRolVigente>();
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        while (await lector.ReadAsync(ct))
+        {
+            cupos.Add(new CupoDeRolVigente(lector.GetString(0), lector.GetInt32(1)));
+        }
+
+        return cupos;
+    }
+
+    private static async Task<List<(Guid ActorId, int Cupo)>> OverridesDeUsuarioAsync(
+        NpgsqlConnection conexion, CancellationToken ct)
+    {
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT actor_id, cupo_diario_turnos
+              FROM asistente.presupuesto_usuario
+             WHERE vigente_hasta IS NULL
+             ORDER BY actor_id
+            """, conexion);
+
+        var overrides = new List<(Guid, int)>();
+        await using var lector = await comando.ExecuteReaderAsync(ct);
+        while (await lector.ReadAsync(ct))
+        {
+            overrides.Add((lector.GetGuid(0), lector.GetInt32(1)));
+        }
+
+        return overrides;
     }
 }

@@ -145,7 +145,13 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // Subió de 88 a 90 con dashboard-sistema-y-audit-logs (develop): dos en
         // el Host (`GET /api/administracion/sistema/estado` y
         // `GET /api/administracion/auditoria`).
-        Assert.Equal(90, operaciones.Length);
+        //
+        // Subió de 90 a 91 con la tarea 12.8 de sistema-seccion-unificada:
+        // uno en AdministracionAsistenteController
+        // (`GET /api/asistente/administracion/presupuestos` — el tope
+        // organizacional, los cupos por rol/usuario y el gasto estimado del
+        // mes, hasta ahora sólo editables por `PUT`, nunca legibles).
+        Assert.Equal(91, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

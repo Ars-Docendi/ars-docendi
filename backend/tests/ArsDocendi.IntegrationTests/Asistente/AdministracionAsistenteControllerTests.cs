@@ -239,6 +239,114 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
             "SELECT count(*) FROM asistente.auditoria_administracion WHERE accion = 'tope_organizacional'"));
     }
 
+    // ------------------------------------------------------------------ 12.8
+
+    [Fact]
+    public async Task Sin_el_permiso_leer_los_presupuestos_se_rechaza()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.GetAsync(
+            "/api/asistente/administracion/presupuestos", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sin_ningun_presupuesto_editado_el_estado_vacio_es_el_seed_de_la_006()
+    {
+        // El seed de 006_asistente_administracion.sql deja el tope en 0 y el
+        // cupo de los siete roles de sistema en 0 (design.md, Open Questions):
+        // un default adivinado y restrictivo es peor que arrancar "apagado".
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+
+        var presupuestos = await LeerAsync<PresupuestosDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/presupuestos", TestContext.Current.CancellationToken));
+
+        Assert.Equal(0m, presupuestos.TopeMensualUsd);
+        Assert.Equal(0m, presupuestos.GastoEstimadoDelMes);
+        Assert.True(presupuestos.EsEstimado);
+        Assert.Empty(presupuestos.OverridesPorUsuario);
+        Assert.Contains(presupuestos.CuposPorRol, c => c.Rol == "secretaria" && c.CupoDiarioTurnos == 0);
+        Assert.Contains(presupuestos.CuposPorRol, c => c.Rol == "sys_admin" && c.CupoDiarioTurnos == 0);
+    }
+
+    [Fact]
+    public async Task Los_valores_editados_por_PUT_se_leen_de_vuelta_por_GET()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var ct = TestContext.Current.CancellationToken;
+
+        await cliente.PutAsJsonAsync(
+            "/api/asistente/administracion/presupuestos/roles/secretaria", new PedidoDeCupoDto(15), ct);
+        await cliente.PutAsJsonAsync(
+            $"/api/asistente/administracion/presupuestos/usuarios/{Secretaria}", new PedidoDeCupoDto(3), ct);
+        await cliente.PutAsJsonAsync(
+            "/api/asistente/administracion/tope-organizacional", new PedidoDeTopeDto(500m), ct);
+
+        var presupuestos = await LeerAsync<PresupuestosDto>(
+            await cliente.GetAsync("/api/asistente/administracion/presupuestos", ct));
+
+        Assert.Equal(500m, presupuestos.TopeMensualUsd);
+        Assert.Contains(presupuestos.CuposPorRol, c => c.Rol == "secretaria" && c.CupoDiarioTurnos == 15);
+
+        var overrideDeSecretaria = Assert.Single(
+            presupuestos.OverridesPorUsuario, o => o.ActorId == Secretaria);
+        Assert.Equal(3, overrideDeSecretaria.CupoDiarioTurnos);
+        Assert.Equal("Lucía Fernández", overrideDeSecretaria.NombreParaMostrar);
+    }
+
+    [Fact]
+    public async Task El_gasto_del_mes_coincide_con_el_costo_que_reporta_el_panel_de_uso()
+    {
+        await SembrarAsync();
+        await FijarPrecioVigenteAsync("anthropic", "claude-sonnet-5", 0.001m);
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 1000, 0, 10);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var ct = TestContext.Current.CancellationToken;
+
+        var presupuestos = await LeerAsync<PresupuestosDto>(
+            await cliente.GetAsync("/api/asistente/administracion/presupuestos", ct));
+
+        var ahora = DateTimeOffset.UtcNow;
+        var inicioDelMes = new DateTimeOffset(ahora.Year, ahora.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        var usoDelMes = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            $"/api/asistente/administracion/uso?desde={Uri.EscapeDataString(inicioDelMes.ToString("O"))}"
+            + $"&hasta={Uri.EscapeDataString(ahora.ToString("O"))}",
+            ct));
+
+        Assert.True(presupuestos.GastoEstimadoDelMes > 0m);
+        Assert.Equal(usoDelMes.Organizacion.CostoEstimado, presupuestos.GastoEstimadoDelMes);
+    }
+
+    private async Task FijarPrecioVigenteAsync(string proveedor, string modelo, decimal precioPorTokenEntrada)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO asistente.tabla_de_precios
+                (proveedor, modelo, precio_por_token_entrada, precio_por_token_salida,
+                 precio_por_token_cache, version, vigente_desde)
+            VALUES (@proveedor, @modelo, @precio, 0, 0, 1, now() - interval '1 day')
+            """, conexion);
+        comando.Parameters.AddWithValue("proveedor", proveedor);
+        comando.Parameters.AddWithValue("modelo", modelo);
+        comando.Parameters.AddWithValue("precio", precioPorTokenEntrada);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private async Task SembrarTurnoAsync(

@@ -344,6 +344,51 @@ public sealed record PedidoDeCupoDto(int Cupo);
 /// <summary>Lo que se manda a editar el tope organizacional.</summary>
 public sealed record PedidoDeTopeDto(decimal TopeMensualUsd);
 
+/// <summary>El cupo diario default de UN rol, tal como está persistido (tarea 12.8).</summary>
+public sealed record CupoDeRolDto(string Rol, int CupoDiarioTurnos)
+{
+    internal static CupoDeRolDto De(CupoDeRolVigente cupo) => new(cupo.Rol, cupo.CupoDiarioTurnos);
+}
+
+/// <summary>El override de cupo diario de un usuario puntual, tal como está persistido (tarea 12.8).</summary>
+public sealed record OverrideDeUsuarioDto(Guid ActorId, string? NombreParaMostrar, int CupoDiarioTurnos)
+{
+    internal static OverrideDeUsuarioDto De(OverrideDeUsuarioVigente over) =>
+        new(over.ActorId, over.NombreParaMostrar, over.CupoDiarioTurnos);
+}
+
+/// <summary>
+/// El estado persistido de los presupuestos
+/// (<c>GET /api/asistente/administracion/presupuestos</c>, tarea 12.8 de
+/// sistema-seccion-unificada). Cierra sólo el gap de "tope y cupos actuales":
+/// la serie diaria de uso, la telemetría del proveedor cloud/local, y el
+/// toggle de acceso por fila/rol siguen sin implementar (ver el reporte de
+/// apply adjunto al change).
+/// </summary>
+/// <param name="TopeMensualUsd">El tope organizacional vigente. <c>0</c> = desactivado.</param>
+/// <param name="GastoEstimadoDelMes">
+/// El costo estimado del mes calendario en curso (límite UTC, igual que el
+/// acumulador que aplica el tope — design.md D2 de
+/// asistente-administracion-de-uso), calculado con el mismo mecanismo de
+/// costeo versionado que <c>GET /uso</c> (<c>IConsultasDeUso</c>). Nunca la
+/// factura real del proveedor.
+/// </param>
+/// <param name="EsEstimado">Siempre <c>true</c> — mismo campo que <see cref="UsoAgregadoDto"/>.</param>
+public sealed record PresupuestosDto(
+    decimal TopeMensualUsd,
+    decimal GastoEstimadoDelMes,
+    bool EsEstimado,
+    IReadOnlyList<CupoDeRolDto> CuposPorRol,
+    IReadOnlyList<OverrideDeUsuarioDto> OverridesPorUsuario)
+{
+    internal static PresupuestosDto De(EstadoDePresupuestos estado, decimal gastoEstimadoDelMes) => new(
+        estado.TopeMensualUsd,
+        gastoEstimadoDelMes,
+        EsEstimado: true,
+        [.. estado.CuposPorRol.Select(CupoDeRolDto.De)],
+        [.. estado.OverridesPorUsuario.Select(OverrideDeUsuarioDto.De)]);
+}
+
 /// <summary>Un área que el actor puede consultar.</summary>
 public sealed record AreaDto(string Nombre, string? Descripcion, int Columnas);
 

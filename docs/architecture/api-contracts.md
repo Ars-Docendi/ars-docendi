@@ -121,6 +121,7 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | POST   | `/soporte/historial/{actorId}/{id}/leer`          | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria             |
 | PATCH  | `/administracion/mantenimiento`                   | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo  |
 | GET    | `/administracion/uso`                             | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                   |
+| GET    | `/administracion/presupuestos`                    | `asistente.administrar`          | Tope organizacional, cupos por rol/usuario y gasto estimado del mes   |
 | PUT    | `/administracion/presupuestos/roles/{rol}`        | `asistente.administrar`          | Edita el cupo diario default de un rol                                |
 | PUT    | `/administracion/presupuestos/usuarios/{actorId}` | `asistente.administrar`          | Edita el override de cupo diario de un usuario                        |
 | PUT    | `/administracion/tope-organizacional`             | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
@@ -293,6 +294,26 @@ Pedido: `{ activo, razon? }`. Exige `asistente.administrar` — sembrado directa
 Query: `periodo` (`dia` | `semana` | `mes`, default `dia`) o el rango explícito `desde`/`hasta`. Exige `asistente.administrar`. Devuelve `{ porUsuario[], porRol[], organizacion }`, cada uno con `{ clave, nombreParaMostrar?, turnos, porEstado, llamadasAlModelo, tokensDeEntrada, tokensDeSalida, tokensDeCache, latenciaPromedioMs, latenciaP95Ms, proveedores[], costoEstimado, esEstimado: true, turnosSinPrecio }`.
 
 Se agrega **sólo** desde `asistente.registro_operativo` — nunca `registro_analitico` (TD-012): no hay ningún campo con el texto de una pregunta. `nombreParaMostrar` se resuelve vía `IConsultasIdentity.ListarUsuariosAsync` (design.md D12), nunca vía `usuarios.ver`: un admin con sólo `asistente.administrar` ve nombres igual. `costoEstimado` sale de `CalculadoraDeCosto` contra `asistente.tabla_de_precios`, con el precio vigente en el momento en que cada fila ocurrió; `turnosSinPrecio` cuenta las filas sin ningún precio vigente para su proveedor/modelo — **nunca** se costean en cero. Un actor con más de un rol de sistema vigente suma su uso a TODOS esos roles en `porRol`.
+
+#### `GET /api/asistente/administracion/presupuestos`
+
+Exige `asistente.administrar`. Cierra el gap de "sólo `PUT`, nunca `GET`" que documentaban `TopeOrganizacionalCard`/`EditorDeCupoEnFila` (tarea 12.8 de `sistema-seccion-unificada`): expone el tope y los cupos que las tres rutas `PUT` de abajo editan, más el gasto estimado del mes en curso. Devuelve:
+
+```json
+{
+  "topeMensualUsd": 500.00,
+  "gastoEstimadoDelMes": 123.45,
+  "esEstimado": true,
+  "cuposPorRol": [{ "rol": "docente", "cupoDiarioTurnos": 20 }, ...],
+  "overridesPorUsuario": [{ "actorId": "...", "nombreParaMostrar": "...", "cupoDiarioTurnos": 5 }, ...]
+}
+```
+
+`topeMensualUsd` y cada `cupoDiarioTurnos` son `0` cuando ese límite está desactivado — mismo convenio que sus `PUT`. `cuposPorRol` trae los siete roles de sistema, siempre (seed de `006_asistente_administracion.sql`); `overridesPorUsuario` sólo trae actores con un override vigente (`presupuesto_usuario.vigente_hasta IS NULL`). `nombreParaMostrar` se resuelve vía `IConsultasIdentity.ListarUsuariosAsync`, mismo seam que `GET …/uso` (design.md D12) — no hay un método para el nombre legible de un ROL, así que `cuposPorRol` sólo trae el código.
+
+`gastoEstimadoDelMes` es el costo estimado del mes **calendario** en curso, con el mismo límite UTC que ya usa el acumulador que aplica el tope (design.md D2 de `asistente-administracion-de-uso`) — no América/Argentina/Buenos_Aires: introducir una segunda noción de "mes" para este único campo hubiera sido una inconsistencia nueva, no una mejora. Se calcula llamando al mismo `IConsultasDeUso` que `GET …/uso` usa, con el rango `[inicio del mes, ahora)`, así que por construcción coincide con lo que ese otro endpoint reportaría para el mismo rango — nunca la factura real del proveedor (`esEstimado: true`, mismo campo que `UsoAgregadoDto`).
+
+**Deliberadamente fuera de alcance** (ver el reporte de apply del cambio `sistema-seccion-unificada`, tarea 12.8): la serie diaria de uso para un gráfico de tendencia, la telemetría de proveedor cloud/local (GPU, KV cache, slots del servidor local), y un toggle de acceso on/off por usuario o por rol — este último no tiene ningún concepto de backend todavía.
 
 #### `PUT /api/asistente/administracion/presupuestos/roles/{rol}` y `/presupuestos/usuarios/{actorId}`
 
