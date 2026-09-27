@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../../shared/ui/PageHeader";
 import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
+import { IconoRefreshCw } from "../../../shared/ui/iconos";
 import { useSeccionSistema, type IdPestanaSistema } from "../hooks/useSeccionSistema";
 import { PREFIJO_SALUD, useSaludSistema } from "../hooks/useSaludSistema";
 import { COMPONENTES_PING } from "../api/sistemaApi";
@@ -155,6 +156,9 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
             disabled={actualizando}
             loading={actualizando}
           >
+            <span className="sistema-icono-actualizar">
+              <IconoRefreshCw />
+            </span>
             {actualizando ? "Actualizando…" : "Actualizar"}
           </Button>
         }
