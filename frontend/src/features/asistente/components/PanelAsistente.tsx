@@ -156,7 +156,7 @@ export function PanelAsistente({
                 para quien el backend efectivamente bloquea. */}
             {capacidades?.mantenimiento.activo && (
               <InlineAlert severity="warning" className="adoc-asistente-mantenimiento">
-                {mensajeDeMantenimiento(capacidades.mantenimiento.razon)}
+                {mensajeDeMantenimiento(capacidades.mantenimiento.razon, !bloqueado)}
               </InlineAlert>
             )}
 
@@ -244,8 +244,12 @@ export function PanelAsistente({
  * §Administración de uso), para que el banner diga lo mismo en cualquier
  * lugar donde se lo muestre.
  */
-function mensajeDeMantenimiento(razon: string | null | undefined): string {
-  return razon
+function mensajeDeMantenimiento(razon: string | null | undefined, exento: boolean): string {
+  const base = razon
     ? `El asistente está en mantenimiento: ${razon}.`
     : "El asistente está en mantenimiento.";
+  // Si el backend no lo bloquea, es quien administra (el bypass de
+  // asistente-modo-mantenimiento): sin decirlo, el campo habilitado bajo el
+  // banner se lee como una falla del mantenimiento.
+  return exento ? `${base} Como administrador podés seguir consultando para verificarlo.` : base;
 }

@@ -84,6 +84,25 @@ describe("El banner de mantenimiento (tasks.md 12.3)", () => {
     expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   });
 
+  it("a quien administra le aclara que puede seguir consultando para verificar", async () => {
+    // El backend no bloquea a quien tiene `asistente.administrar`
+    // (asistente-modo-mantenimiento): sin esta aclaración, el campo habilitado
+    // bajo un banner de mantenimiento parece un error.
+    conCapacidades({
+      mantenimiento: { activo: true, razon: "Mantenimiento programado" },
+      cupo: { restante: 13, bloqueado: false, motivo: null, vuelveA: null },
+    });
+
+    montar(<PanelDePrueba />);
+
+    expect(
+      await screen.findByText(
+        "El asistente está en mantenimiento: Mantenimiento programado. Como administrador podés seguir consultando para verificarlo.",
+      ),
+    ).toBeInTheDocument();
+    expect(await screen.findByLabelText("Tu pregunta")).not.toBeDisabled();
+  });
+
   it("sin mantenimiento no aparece ningún banner y el campo queda habilitado", async () => {
     conCapacidades({});
 
