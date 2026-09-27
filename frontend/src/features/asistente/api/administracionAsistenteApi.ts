@@ -1,5 +1,10 @@
 import { apiClient } from "../../../shared/api/client";
-import type { MantenimientoDelAsistente, PeriodoDeUso, UsoDelAsistente } from "../types";
+import type {
+  MantenimientoDelAsistente,
+  PeriodoDeUso,
+  PresupuestosDelAsistente,
+  UsoDelAsistente,
+} from "../types";
 
 /**
  * Superficie admin de `asistente-administracion-de-uso` (grupo 9/6 del
@@ -14,6 +19,18 @@ export async function obtenerUso(periodo: PeriodoDeUso): Promise<UsoDelAsistente
   const { data } = await apiClient.get<UsoDelAsistente>("/api/asistente/administracion/uso", {
     params: { periodo },
   });
+  return data;
+}
+
+/**
+ * El estado persistido de los presupuestos: el tope organizacional, el cupo
+ * default de cada rol, cada override de usuario vigente, y el gasto estimado
+ * del mes calendario en curso (tarea 12.8 de sistema-seccion-unificada).
+ */
+export async function obtenerPresupuestos(): Promise<PresupuestosDelAsistente> {
+  const { data } = await apiClient.get<PresupuestosDelAsistente>(
+    "/api/asistente/administracion/presupuestos",
+  );
   return data;
 }
 

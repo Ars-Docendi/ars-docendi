@@ -55,11 +55,25 @@ export function ToggleDeMantenimiento({ mantenimiento, onGuardar }: ToggleDeMant
 
   return (
     <div
-      className="adoc-asistente-admin-mantenimiento"
+      className={
+        activo
+          ? "adoc-asistente-admin-mantenimiento adoc-asistente-admin-mantenimiento--activo"
+          : "adoc-asistente-admin-mantenimiento"
+      }
       role="group"
       aria-label="Modo mantenimiento"
     >
-      <h3>Modo mantenimiento</h3>
+      <div className="adoc-asistente-admin-mantenimiento-encabezado">
+        <span className="adoc-asistente-admin-mantenimiento-punto" aria-hidden="true" />
+        <div>
+          <h3>Modo mantenimiento</h3>
+          <p className="adoc-asistente-admin-mantenimiento-copete">
+            {activo
+              ? "Nadie puede consultar mientras esté activo."
+              : "Todos los usuarios con permiso pueden consultar."}
+          </p>
+        </div>
+      </div>
 
       <Toggle
         label="Asistente en mantenimiento"

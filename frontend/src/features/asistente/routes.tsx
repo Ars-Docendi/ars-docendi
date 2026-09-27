@@ -1,7 +1,6 @@
 import { Navigate, type RouteObject } from "react-router-dom";
 
 import { RequirePermission } from "../../shared/auth/RequirePermission";
-import { AdministracionAsistentePage } from "./pages/AdministracionAsistentePage";
 import { SoporteHistorialPage } from "./pages/SoporteHistorialPage";
 
 /**
@@ -22,6 +21,12 @@ import { SoporteHistorialPage } from "./pages/SoporteHistorialPage";
  * tasks.md 11.1): editar presupuestos y el kill switch es una acción
  * administrativa, no una lectura propia, así que sin `asistente.administrar`
  * tampoco hay ruta que resuelva.
+ *
+ * `administracion` YA NO ES UNA PÁGINA (sistema-seccion-unificada, ARS-154,
+ * design D8): redirige a `/sistema#asistente`, donde vive embebido
+ * `PanelAdministracionAsistente` como la pestaña Asistente. El gate sigue
+ * siendo el mismo permiso, en el mismo lugar (`RequirePermission` antes del
+ * redirect), así que un bookmark viejo sin el permiso sigue sin resolver.
  */
 export const routes: RouteObject = {
   path: "asistente",
@@ -33,7 +38,12 @@ export const routes: RouteObject = {
     },
     {
       element: <RequirePermission permission="asistente.administrar" />,
-      children: [{ path: "administracion", element: <AdministracionAsistentePage /> }],
+      children: [
+        {
+          path: "administracion",
+          element: <Navigate to={{ pathname: "/sistema", hash: "#asistente" }} replace />,
+        },
+      ],
     },
   ],
 };

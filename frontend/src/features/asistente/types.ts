@@ -191,6 +191,47 @@ export interface UsoDelAsistente {
 /** Período del panel de uso: relativo (`día`/`semana`/`mes`) o un rango explícito. */
 export type PeriodoDeUso = "dia" | "semana" | "mes";
 
+// ============================================================
+// Estado persistido de los presupuestos (asistente-administracion-de-uso,
+// tarea 12.8 de sistema-seccion-unificada). Ver
+// docs/architecture/api-contracts.md §GET /api/asistente/administracion/presupuestos.
+// ============================================================
+
+/** El cupo diario default de UN rol, tal como está persistido. */
+export interface CupoDeRolPersistido {
+  rol: string;
+  cupoDiarioTurnos: number;
+}
+
+/** El override de cupo diario de un usuario puntual, tal como está persistido. */
+export interface OverrideDeUsuarioPersistido {
+  actorId: string;
+  /** Resuelto vía `IConsultasIdentity`, igual que `UsoAgregado.nombreParaMostrar`. */
+  nombreParaMostrar?: string | null;
+  cupoDiarioTurnos: number;
+}
+
+/**
+ * El estado persistido de los presupuestos
+ * (`GET /api/asistente/administracion/presupuestos`). Cierra sólo el gap de
+ * "tope y cupos actuales" — la serie diaria de uso, la telemetría del
+ * proveedor cloud/local y el toggle de acceso por fila siguen sin
+ * implementar (ver el reporte de apply del cambio `sistema-seccion-unificada`).
+ */
+export interface PresupuestosDelAsistente {
+  /** El tope organizacional vigente. `0` = desactivado. */
+  topeMensualUsd: number;
+  /**
+   * El costo estimado del mes calendario en curso (límite UTC), calculado
+   * con el mismo mecanismo de costeo versionado que `GET …/uso`.
+   */
+  gastoEstimadoDelMes: number;
+  /** Siempre `true`: nunca la factura real del proveedor. */
+  esEstimado: boolean;
+  cuposPorRol: CupoDeRolPersistido[];
+  overridesPorUsuario: OverrideDeUsuarioPersistido[];
+}
+
 /**
  * The fixed, closed set of reasons a thumbs-down vote may carry, zero or more at once.
  * Matches `RazonesDeRetroalimentacion.Todas` on the backend exactly — see

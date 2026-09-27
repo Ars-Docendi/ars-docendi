@@ -8,6 +8,7 @@ import { routes } from "./routes";
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
 import { CAPACIDADES } from "./test/soporte";
+import * as useCurrentUserMod from "../../shared/auth/useCurrentUser";
 
 // ============================================================
 // El redirect de `/asistente` (ARS-151, tasks.md §10; design.md D8 de
@@ -16,10 +17,12 @@ import { CAPACIDADES } from "./test/soporte";
 // archivo reemplaza a `RutaConAltoPropio.test.tsx`, que probaba el CSS de esa
 // página.
 //
-// `soporte-historial` y `administracion` no cambian con este task y siguen
-// cubiertos por sus propios archivos (`SoporteHistorialPage.test.tsx`,
-// `AdministracionAsistentePage.test.tsx`), que ya montan por el mismo `routes`
-// que acá — su verde sigue siendo la prueba de que esas dos rutas resuelven.
+// `soporte-historial` no cambia con este task y sigue cubierta por
+// `SoporteHistorialPage.test.tsx`, que ya monta por el mismo `routes` que acá.
+// `administracion` SÍ cambió (sistema-seccion-unificada, ARS-154, design D8):
+// dejó de montar una página propia y ahora redirige a `/sistema#asistente`;
+// ese redirect se cubre acá abajo, y el contenido embebido en
+// `PanelAdministracionAsistente.test.tsx`.
 //
 // EL SHELL SE MONTA IGUAL QUE `AppLayout` DE VERDAD (`app/router.tsx`):
 // `LanzadorAsistente` vive en la barra, POR ENCIMA de `/asistente` en el árbol
@@ -49,7 +52,17 @@ function Shell() {
 function montarConRouter(entrada: string) {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   const router = createMemoryRouter(
-    [{ element: <Shell />, children: [{ path: "/portal", element: null }, routes] }],
+    [
+      {
+        element: <Shell />,
+        children: [
+          { path: "/", element: null },
+          { path: "/portal", element: null },
+          { path: "/sistema", element: null },
+          routes,
+        ],
+      },
+    ],
     { initialEntries: [entrada] },
   );
   return render(
@@ -70,6 +83,28 @@ describe("Un vínculo viejo a /asistente, con acceso (tasks.md 10.1)", () => {
       expect(screen.getByTestId("ubicacion")).not.toHaveTextContent("asistente=abrir"),
     );
     expect(screen.getByTestId("ubicacion")).toHaveTextContent("/portal");
+  });
+});
+
+describe("Un vínculo viejo a /asistente/administracion (sistema-seccion-unificada, ARS-154)", () => {
+  it("redirige a /sistema#asistente conservando el gate por permiso", async () => {
+    vi.spyOn(useCurrentUserMod, "useCurrentUser").mockReturnValue({
+      user: {
+        name: "x",
+        initials: "X",
+        upn: "x@unlam.edu.ar",
+        role: "r",
+        roleCode: "r",
+        permissions: ["asistente.administrar"],
+      },
+      isLoading: false,
+      error: null,
+      retry: () => undefined,
+    });
+
+    montarConRouter("/asistente/administracion");
+
+    await waitFor(() => expect(screen.getByTestId("ubicacion")).toHaveTextContent("/sistema"));
   });
 });
 

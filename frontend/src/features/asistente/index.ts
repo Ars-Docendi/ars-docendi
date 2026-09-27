@@ -16,3 +16,9 @@
  */
 export { routes } from "./routes";
 export { LanzadorAsistente } from "./components/LanzadorAsistente";
+// `features/sistema` compone esto en su pestaña Asistente (design D8,
+// sistema-seccion-unificada); pasa por acá por la misma razón que
+// `LanzadorAsistente` — sin este export, `app/router.tsx` tendría que
+// alcanzar `components/…` directo, el import profundo cross-frontera que
+// `no-restricted-imports` prohíbe.
+export { PanelAdministracionAsistente } from "./components/PanelAdministracionAsistente";

@@ -2242,3 +2242,251 @@
      necesita una regla propia acá: usa `--motion-base`, que `theme.css` ya
      pone en `0ms` bajo esta misma media query. */
 }
+
+/* ═══════════════════════ Panel de administración (asistente-administracion-
+   de-uso, rediseño 1:1 con la referencia «Uso del asistente» de
+   sistema-seccion-unificada) ═══════════════════════
+
+   Hasta este rediseño estas clases NO TENÍAN NINGUNA REGLA: el panel viejo
+   era HTML semántico sin estilo propio —de ahí la queja de «secciones
+   apiladas, todo por defecto del navegador». Los tonos oklch de la referencia
+   se mapean a los mismos tokens que ya documenta `sistema.css` (mismo canvas
+   de Claude Design, mismo criterio de mapeo). */
+
+.adoc-asistente-administracion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.adoc-asistente-admin-anuncio {
+  margin: 0;
+  min-height: 1px;
+}
+
+.adoc-asistente-admin-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.adoc-asistente-admin-copete {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* El período en pastillas: mismo patrón que `.auditoria-periodo`/
+   `.auditoria-toggle` (sistema.css) — reemplaza el `<select>` de ancho
+   completo del panel viejo. */
+.adoc-asistente-admin-periodo {
+  display: flex;
+  padding: 3px;
+  border: var(--border-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.adoc-asistente-admin-periodo-boton {
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.adoc-asistente-admin-periodo-boton[aria-pressed="true"] {
+  background: var(--neutral-800);
+  color: var(--color-text-on-inverse);
+}
+
+/* ---------- Modo mantenimiento, con forma de banner ---------- */
+
+.adoc-asistente-admin-mantenimiento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-admin-mantenimiento--activo {
+  background: var(--warning-100);
+  border-color: var(--warning-500);
+}
+
+.adoc-asistente-admin-mantenimiento-encabezado {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.adoc-asistente-admin-mantenimiento h3 {
+  margin: 0;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+}
+
+.adoc-asistente-admin-mantenimiento-punto {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--success-500);
+}
+
+.adoc-asistente-admin-mantenimiento--activo .adoc-asistente-admin-mantenimiento-punto {
+  background: var(--warning-500);
+}
+
+.adoc-asistente-admin-mantenimiento-copete {
+  margin: 2px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-mantenimiento--activo .adoc-asistente-admin-mantenimiento-copete {
+  color: var(--warning-700);
+}
+
+/* ---------- KPIs organizacionales + tope mensual ---------- */
+
+.adoc-asistente-admin-kpis-fila {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.4fr);
+  gap: var(--space-3);
+}
+
+.adoc-asistente-admin-kpis {
+  display: contents;
+}
+
+.adoc-asistente-admin-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-admin-kpi-etiqueta {
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-admin-kpi-valor {
+  font-size: var(--text-heading-size);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.adoc-asistente-admin-kpi-nota {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-kpi-nota--advertencia {
+  color: var(--warning-700);
+}
+
+.adoc-asistente-admin-tope {
+  justify-content: center;
+}
+
+.adoc-asistente-admin-tope-acciones {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* La barra de gasto-vs-tope (tarea 12.8 de sistema-seccion-unificada): el
+   color lo decide `colorDelGasto` inline (mismo umbral 50/80/100% que
+   `DetectorDeUmbrales` ya loguea del lado del backend). */
+.adoc-asistente-admin-tope-barra {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-border-subtle);
+  overflow: hidden;
+}
+
+.adoc-asistente-admin-tope-barra-relleno {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 200ms ease;
+}
+
+.adoc-asistente-admin-confirmar {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--warning-700);
+}
+
+@media (max-width: 1100px) {
+  .adoc-asistente-admin-kpis-fila {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Detalle por usuario / por rol ---------- */
+
+.adoc-asistente-admin-panel-uso {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adoc-asistente-admin-uso-buscador {
+  max-width: 20rem;
+}
+
+.adoc-asistente-admin-tabla-uso table.adoc-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.adoc-asistente-admin-sin-precio {
+  display: block;
+  font-size: var(--text-micro-size);
+  color: var(--warning-700);
+}
+
+.adoc-asistente-admin-cupo-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.adoc-asistente-admin-cupo-valor {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.adoc-asistente-admin-cupo-origen {
+  font-family: var(--font-sans, inherit);
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-cupo-input {
+  width: 5rem;
+}
+
+.adoc-asistente-admin-cupo-confirmar {
+  font-size: var(--text-micro-size);
+  color: var(--warning-700);
+  max-width: 16rem;
+}

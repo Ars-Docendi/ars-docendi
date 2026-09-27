@@ -1,146 +1,112 @@
+import { isAxiosError } from "axios";
+
 import { apiClient } from "../../../shared/api/client";
 
-export type EstadoComponente = "disponible" | "no_disponible" | "desconocido";
+export type EstadoDisponibilidad = "disponible" | "no_disponible" | "desconocido";
+export type MantenimientoAsistente = "activo" | "inactivo" | "desconocido";
+export type MotivoFalla = "timeout" | "error";
 
-export interface ComprobacionComponente {
-  id: string;
-  nombre: string;
-  estado: EstadoComponente;
-  comprobadoEn: string;
-  duracionMs: number;
-}
-
-export interface EstadoSistema {
-  modulos: ComprobacionComponente[];
-  baseDatos: ComprobacionComponente;
-}
-
-interface RespuestaPing {
-  status?: string;
-}
-
-interface RespuestaEstadoBaseDatos {
-  estado?: unknown;
-  comprobadoEn: string;
-  duracionMs: number;
-}
-
-function normalizarEstado(valor: unknown): EstadoComponente {
-  return valor === "disponible" || valor === "no_disponible" ? valor : "desconocido";
-}
-
-const modulos = [
+export const COMPONENTES_PING = [
   { id: "aulas", nombre: "Aulas" },
   { id: "tareas", nombre: "Tareas" },
   { id: "designaciones", nombre: "Designaciones" },
   { id: "portal", nombre: "Portal" },
+  { id: "asistente", nombre: "Asistente" },
 ] as const;
 
-async function comprobarModulo(modulo: (typeof modulos)[number]): Promise<ComprobacionComponente> {
+export type IdComponentePing = (typeof COMPONENTES_PING)[number]["id"];
+
+export interface ResultadoPing {
+  id: IdComponentePing;
+  nombre: string;
+  disponible: boolean;
+  /** Presente sólo cuando `disponible` es `false`: distingue timeout de error de red/protocolo. */
+  motivoFalla?: MotivoFalla;
+  duracionMs: number;
+  comprobadoEn: string;
+}
+
+export interface EstadoSistemaDto {
+  estado: EstadoDisponibilidad;
+  comprobadoEn: string;
+  duracionMs: number;
+  /** design D7: se agrega al mismo endpoint, sin exponer razón ni actor. */
+  mantenimientoAsistente: MantenimientoAsistente;
+}
+
+interface RespuestaPing {
+  status?: unknown;
+}
+
+interface RespuestaEstadoSistema {
+  estado?: unknown;
+  comprobadoEn: string;
+  duracionMs: number;
+  mantenimientoAsistente?: unknown;
+}
+
+function normalizarEstado(valor: unknown): EstadoDisponibilidad {
+  return valor === "disponible" || valor === "no_disponible" ? valor : "desconocido";
+}
+
+function normalizarMantenimiento(valor: unknown): MantenimientoAsistente {
+  return valor === "activo" || valor === "inactivo" ? valor : "desconocido";
+}
+
+/**
+ * Una sonda por componente (design D12): pings HTTP de 5 s, medidos por el
+ * cliente. `asistente` es una sonda más de esta lista (antes sólo se leía a
+ * través de `/api/administracion/sistema/estado`); su estado de mantenimiento
+ * viaja aparte, en `consultarEstadoSistema`.
+ */
+export async function comprobarPing(
+  componente: (typeof COMPONENTES_PING)[number],
+): Promise<ResultadoPing> {
   const inicio = performance.now();
   try {
-    const { data } = await apiClient.get<RespuestaPing>(`/api/${modulo.id}/ping`, {
+    const { data } = await apiClient.get<RespuestaPing>(`/api/${componente.id}/ping`, {
       timeout: 5000,
     });
+    const disponible = data.status === "ok";
     return {
-      ...modulo,
-      estado: data.status === "ok" ? "disponible" : "desconocido",
-      comprobadoEn: new Date().toISOString(),
+      ...componente,
+      disponible,
+      motivoFalla: disponible ? undefined : "error",
       duracionMs: Math.round(performance.now() - inicio),
+      comprobadoEn: new Date().toISOString(),
     };
-  } catch {
+  } catch (error) {
+    const timeout = isAxiosError(error) && error.code === "ECONNABORTED";
     return {
-      ...modulo,
-      estado: "no_disponible",
-      comprobadoEn: new Date().toISOString(),
+      ...componente,
+      disponible: false,
+      motivoFalla: timeout ? "timeout" : "error",
       duracionMs: Math.round(performance.now() - inicio),
+      comprobadoEn: new Date().toISOString(),
     };
   }
 }
 
-async function comprobarBaseDatos(): Promise<ComprobacionComponente> {
+/** El chequeo de PostgreSQL, medido por el servidor, con el estado de mantenimiento del asistente. */
+export async function consultarEstadoSistema(): Promise<EstadoSistemaDto> {
   const inicio = performance.now();
   try {
-    const { data } = await apiClient.get<RespuestaEstadoBaseDatos>(
+    const { data } = await apiClient.get<RespuestaEstadoSistema>(
       "/api/administracion/sistema/estado",
       { timeout: 5000 },
     );
     return {
-      id: "postgresql",
-      nombre: "PostgreSQL",
       estado: normalizarEstado(data.estado),
       comprobadoEn: data.comprobadoEn,
       duracionMs: data.duracionMs,
+      mantenimientoAsistente: normalizarMantenimiento(data.mantenimientoAsistente),
     };
   } catch {
     return {
-      id: "postgresql",
-      nombre: "PostgreSQL",
       estado: "no_disponible",
       comprobadoEn: new Date().toISOString(),
       duracionMs: Math.round(performance.now() - inicio),
+      mantenimientoAsistente: "desconocido",
     };
   }
-}
-
-/** Cada sonda es independiente: una falla no convierte el resto del tablero en una sola alarma. */
-export async function consultarEstadoSistema(): Promise<EstadoSistema> {
-  const [resultados, baseDatos] = await Promise.all([
-    Promise.all(modulos.map(comprobarModulo)),
-    comprobarBaseDatos(),
-  ]);
-  return { modulos: resultados, baseDatos };
-}
-
-export interface FiltrosAuditoria {
-  pagina: number;
-  tamanoPagina: number;
-  desde?: string;
-  hasta?: string;
-  accion?: string;
-  schema?: string;
-  tabla?: string;
-  cambiadoPor?: string;
-  actor?: string;
-  rowPk?: string;
-}
-
-export interface CambioAuditoria {
-  campo: string;
-  etiquetaCampo: string;
-  valorAnterior: string | null;
-  valorNuevo: string | null;
-  oculto: boolean;
-}
-
-export interface EventoAuditoria {
-  id: number;
-  schema: string;
-  tabla: string;
-  rowPk: string;
-  accion: "INSERT" | "UPDATE" | "DELETE";
-  cambiadoEn: string;
-  cambiadoPor: string | null;
-  requestId: string | null;
-  columnasCambiadas: string[];
-  cambios: CambioAuditoria[];
-  actor: string;
-  accionEtiqueta: string;
-  modulo: string;
-  objeto: string;
-  resumen: string;
-}
-
-export interface PaginaAuditoria {
-  elementos: EventoAuditoria[];
-  pagina: number;
-  tamanoPagina: number;
-  total: number;
-}
-
-export async function listarAuditoria(filtros: FiltrosAuditoria): Promise<PaginaAuditoria> {
-  const { data } = await apiClient.get<PaginaAuditoria>("/api/administracion/auditoria", {
-    params: filtros,
-  });
-  return data;
 }
