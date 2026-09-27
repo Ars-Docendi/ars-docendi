@@ -442,7 +442,39 @@ El prefijo se calcula perezosamente —construirlo al arrancar rompería el inva
 
 ### Exposición de snapshots de auditoría
 
-La API administrativa sólo consulta `audit.change_log` y pagina los resultados (50 por defecto, máximo 100, timeout de consulta de 5 segundos). Resuelve el nombre visible del actor con joins opcionales a `identity.users` y `identity.personas`: usa `Apellido, Nombre`, recurre a `display_name` si no hay persona vinculada y muestra `Actor no identificado` si no existe una cuenta resoluble. El permiso `auditoria.ver` habilita ese nombre mínimo necesario; UPN, correo, documento, CUIL, teléfono y otros datos personales no forman parte de la respuesta. El resumen usa metadata histórica, nombres legibles de objeto/campo y no consulta el estado actual de las filas. Nunca envía `old_row` ni `new_row` crudos. Sólo los valores de campos explícitamente aprobados se serializan; los campos personales/secretos y cualquier campo no clasificado se devuelven ocultos con valores nulos. `client_ip` existe en el DDL de auditoría, pero no forma parte del DTO ni se expone. La UI presenta este detalle como consulta de solo lectura bajo `auditoria.ver`.
+Desde `sistema-seccion-unificada` (ARS-157) la API administrativa **fusiona dos fuentes**:
+`audit.change_log` (consultado directamente, como antes) y `asistente.auditoria_administracion`
+(consultado **exclusivamente** a través de `Modules.Asistente.Contracts.
+IConsultasDeAuditoriaDeAdministracion` — el Host nunca abre SQL directo contra el schema
+`asistente`; ver [dependency-graph.md](./dependency-graph.md#administración-de-estado-y-auditoría)).
+Pagina los resultados combinados (50 por defecto, máximo 100), con timeout de consulta de 5
+segundos para `audit.change_log` y un cupo de lectura de 2000 filas para el rastro del asistente
+(365 días de retención a ritmo humano de edición, así que en la práctica nunca se alcanza; si se
+alcanza o esa fuente falla por cualquier otro motivo, la página se sirve igual sólo con
+`audit.change_log`, marcada `parcial: true`).
+
+Resuelve el nombre visible del actor con joins opcionales a `identity.users` y
+`identity.personas` — la MISMA resolución para las dos fuentes, ya que el rastro del asistente
+también estampa un `actor_id uuid NOT NULL`. Usa **orden natural** «Nombre Apellido» (no
+«Apellido, Nombre» como antes de este cambio), recurre a `display_name` si no hay persona
+vinculada, y muestra «Actor no identificado» si no existe una cuenta resoluble. Para
+`audit.change_log`, cuyo `changed_by` puede ser NULL, un actor nulo se distingue en dos casos: si
+tampoco hay `request_id` es «Proceso automático» (migración, seed o proceso de fondo, sin ningún
+contexto HTTP); si hay `request_id` mostraba un request real cuyo usuario no se pudo identificar,
+también «Actor no identificado». El rastro del asistente nunca produce «Proceso automático»
+—su `actor_id` es `NOT NULL`— así que sólo puede resolver a persona o a «Actor no identificado».
+
+El permiso `auditoria.ver` habilita ese nombre mínimo necesario; UPN, correo, documento, CUIL, teléfono y otros datos personales no forman parte de la respuesta, de ninguna de las dos fuentes. El resumen usa metadata histórica, nombres legibles de objeto/campo y no consulta el estado actual de las filas. Nunca envía `old_row` ni `new_row` crudos, ni el JSON `antes`/`despues` sin normalizar del rastro del asistente. Sólo los valores de campos explícitamente aprobados se serializan; los campos personales/secretos y cualquier campo no clasificado se devuelven ocultos con valores nulos — el rastro del asistente aplica exactamente la misma lista blanca (`cupo`, `tope_mensual_usd`, `activo` son seguros; `razon` queda sin clasificar y por lo tanto enmascarada). `client_ip` existe en el DDL de auditoría, pero no forma parte del DTO ni se expone. La UI presenta este detalle como consulta de solo lectura bajo `auditoria.ver`.
+
+**Búsqueda por etiqueta (`q`) y `unaccent`.** El filtro `q` (reemplaza a `actor`) compara contra
+etiquetas — módulo, objeto, campo, tabla, clave de fila y el actor tal como se muestra— nunca
+contra un valor de columna, para que un dato enmascarado o sin clasificar no sea buscable ni
+indirectamente. La comparación normaliza acentos con la extensión PostgreSQL `unaccent`
+(`database/audit/002_audit_busqueda.sql`, `CREATE EXTENSION IF NOT EXISTS unaccent`, aplicada por
+una migración de `IdentityDbContext`) combinada con `ILIKE`. `unaccent` ya era una dependencia
+del asistente (`database/asistente/001_asistente_grants.sql`, para sus propias columnas); ahora
+es también una dependencia explícita de `audit`, declarada por su cuenta — las dos migraciones
+piden la misma extensión de forma idempotente, sin que una dependa del orden de la otra.
 
 ## Relaciones cross-schema
 

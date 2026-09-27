@@ -37,6 +37,7 @@ builder.Services.AddScoped<ResolutorAlcanceDocentes>();
 builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>();
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
+builder.Services.AddScoped<FuenteAuditoriaAsistente>();
 builder.Services.AddScoped<ServicioAuditoria>();
 var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
     && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
