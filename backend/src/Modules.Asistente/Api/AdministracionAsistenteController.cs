@@ -31,7 +31,12 @@ public sealed class AdministracionAsistenteController(
     /// <summary>
     /// El panel de uso: turnos, resultado, llamadas, tokens, latencia,
     /// proveedor y costo estimado, por usuario, por rol y organizacional
-    /// (tareas 9.1-9.4).
+    /// (tareas 9.1-9.4). Cada fila de <c>PorUsuario</c> también trae sus
+    /// códigos de rol y el cupo diario efectivo con su origen — resuelto acá
+    /// contra <see cref="IPresupuestosAdministrables.ObtenerEstadoAsync"/>
+    /// para que el valor mostrado sea, siempre, el que la aplicación real del
+    /// cupo usaría (tarea «rol y cupo efectivo por usuario» de
+    /// sistema-seccion-unificada).
     /// </summary>
     /// <param name="periodo">
     /// Uno de <c>dia</c>, <c>semana</c>, <c>mes</c> (relativo a ahora). Default: <c>dia</c>.
@@ -61,7 +66,10 @@ public sealed class AdministracionAsistenteController(
             rango = new RangoDePeriodo(new DateTimeOffset(comienzo, TimeSpan.Zero), ahora);
         }
 
-        return Ok(UsoDto.De(await consultasDeUso.ObtenerAsync(rango, ct)));
+        var panel = await consultasDeUso.ObtenerAsync(rango, ct);
+        var estado = await presupuestos.ObtenerEstadoAsync(ct);
+
+        return Ok(UsoDto.De(panel, estado));
     }
 
     /// <summary>

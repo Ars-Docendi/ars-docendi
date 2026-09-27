@@ -23,6 +23,17 @@ public sealed record RangoDePeriodo(DateTimeOffset Desde, DateTimeOffset Hasta);
 /// Turnos cuyo proveedor/modelo no tenía ningún precio vigente al momento en
 /// que ocurrieron — reportados aparte, nunca costeados en cero.
 /// </param>
+/// <param name="CodigosDeRol">
+/// Sólo para agregados por usuario: los códigos de rol de sistema vigentes
+/// del actor, resueltos vía
+/// <see cref="ArsDocendi.Shared.Identity.IConsultasIdentity.ObtenerCodigosDeRolesDeSistemaAsync"/>
+/// — el mismo seam que <see cref="NombreParaMostrar"/>, nunca SQL directo a
+/// <c>identity</c> (regla 4, AGENTS.md). Lista vacía para un agregado por rol
+/// o el organizacional, donde el concepto no aplica. Un nombre legible de rol
+/// NO viaja acá: <c>IConsultasIdentity</c> no expone ninguno hoy — el
+/// frontend traduce el código (tarea «rol y cupo efectivo por usuario» de
+/// sistema-seccion-unificada).
+/// </param>
 public sealed record UsoAgregado(
     string Clave,
     string? NombreParaMostrar,
@@ -36,7 +47,8 @@ public sealed record UsoAgregado(
     double LatenciaP95Ms,
     IReadOnlyList<string> Proveedores,
     decimal CostoEstimado,
-    int TurnosSinPrecio);
+    int TurnosSinPrecio,
+    IReadOnlyList<string> CodigosDeRol);
 
 /// <summary>El panel de uso completo para un período (asistente-panel-de-uso).</summary>
 public sealed record PanelDeUso(

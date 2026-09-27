@@ -5,8 +5,10 @@ using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Modules.Asistente;
 using Modules.Asistente.Api;
+using Modules.Asistente.Application;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Asistente;
@@ -160,6 +162,80 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
 
         Assert.DoesNotContain("Pregunta", propiedades);
         Assert.DoesNotContain("Categoria", propiedades);
+    }
+
+    // --------------------------------------------- rol y cupo efectivo por usuario
+
+    [Fact]
+    public async Task Cada_fila_de_usuario_trae_sus_codigos_de_rol()
+    {
+        await SembrarAsync();
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=dia", TestContext.Current.CancellationToken));
+
+        var deSecretaria = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.Equal(["secretaria"], deSecretaria.CodigosDeRol);
+    }
+
+    [Fact]
+    public async Task El_override_de_un_usuario_gana_al_cupo_de_su_rol_en_el_panel_de_uso()
+    {
+        await SembrarAsync();
+        await FijarCupoDeRolAsync("secretaria", 3);
+        await FijarOverrideAsync(Secretaria, 100);
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=dia", TestContext.Current.CancellationToken));
+
+        var deSecretaria = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.Equal("override", deSecretaria.OrigenDeCupo);
+        Assert.Equal(100, deSecretaria.CupoEfectivo);
+    }
+
+    [Fact]
+    public async Task El_cupo_efectivo_de_un_usuario_con_varios_roles_coincide_con_el_que_aplicaria_la_cuota_real()
+    {
+        // El mínimo entre los roles ACTIVADOS de Secretaria (3 y 10) es 3 —
+        // misma regla que CuotaPersistente aplicaría de verdad al bloquear un
+        // turno (CuotaPersistenteTests.Con_varios_roles_activados_...).
+        await SembrarAsync();
+        await FijarCupoDeRolAsync("secretaria", 3);
+        await FijarCupoDeRolAsync("decanato", 10);
+        await AgregarRolAsync(Secretaria, "decanato");
+        // Turno de AYER: cuenta para el panel de uso (periodo=semana) pero NO
+        // para "hoy" — así ICuotaDelActor.CupoRestanteAsync ve cero turnos
+        // consumidos hoy y su "restante" ES el cupo efectivo completo,
+        // comparable 1:1 con lo que expone /uso sin duplicar su cómputo acá.
+        await SembrarTurnoDeAyerAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=semana", TestContext.Current.CancellationToken));
+
+        var deSecretaria = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.Equal(["decanato", "secretaria"], deSecretaria.CodigosDeRol);
+        Assert.Equal("rol", deSecretaria.OrigenDeCupo);
+        Assert.Equal(3, deSecretaria.CupoEfectivo);
+
+        using var alcance = host.Services.CreateScope();
+        var cuota = alcance.ServiceProvider.GetRequiredService<ICuotaDelActor>();
+        var restante = await cuota.CupoRestanteAsync(Secretaria, TestContext.Current.CancellationToken);
+
+        Assert.Equal(deSecretaria.CupoEfectivo, restante);
     }
 
     // ------------------------------------------------------------ 9.5, 9.6
@@ -367,6 +443,68 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         comando.Parameters.AddWithValue("salida", salida);
         comando.Parameters.AddWithValue("latencia", latenciaMs);
         comando.Parameters.AddWithValue("proveedor", proveedor);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SembrarTurnoDeAyerAsync(
+        Guid actor, string proveedor, string estado, int llamadas, int entrada, int salida, int latenciaMs)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO asistente.registro_operativo
+                (actor_id, ocurrido_en, carril, estado, llamadas_al_modelo, tokens_de_entrada,
+                 tokens_de_salida, latencia_ms, hubo_reintento, truncado, proveedor)
+            VALUES (@actor, now() - interval '1 day', 'Sql', @estado, @llamadas, @entrada, @salida,
+                    @latencia, false, false, @proveedor)
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("estado", estado);
+        comando.Parameters.AddWithValue("llamadas", llamadas);
+        comando.Parameters.AddWithValue("entrada", entrada);
+        comando.Parameters.AddWithValue("salida", salida);
+        comando.Parameters.AddWithValue("latencia", latenciaMs);
+        comando.Parameters.AddWithValue("proveedor", proveedor);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task FijarCupoDeRolAsync(string rol, int cupo)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            UPDATE asistente.presupuesto_rol
+               SET cupo_diario_turnos = @cupo, actualizado_en = now()
+             WHERE rol_code = @rol
+            """, conexion);
+        comando.Parameters.AddWithValue("cupo", cupo);
+        comando.Parameters.AddWithValue("rol", rol);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task FijarOverrideAsync(Guid actor, int cupo)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO asistente.presupuesto_usuario (actor_id, cupo_diario_turnos, vigente_desde, vigente_hasta)
+            VALUES (@actor, @cupo, now(), NULL)
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("cupo", cupo);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task AgregarRolAsync(Guid actor, string rol)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO identity.user_roles (user_id, role_id)
+            SELECT @actor, id FROM identity.roles WHERE code = @rol
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("rol", rol);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 

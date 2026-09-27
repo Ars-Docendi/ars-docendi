@@ -33,6 +33,37 @@ public sealed class ConsultasDeUsoTests(PostgresFixture postgres)
         Assert.Equal("Lucía Fernández", deSecretaria.NombreParaMostrar);
     }
 
+    // -------------------------------------------- rol y cupo efectivo por usuario
+
+    [Fact]
+    public async Task Una_fila_de_usuario_trae_sus_codigos_de_rol_ordenados()
+    {
+        await SembrarAsync();
+        await AgregarRolAsync(Secretaria, "decanato");
+        await SembrarFilaAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 100, 50, 10);
+
+        var panel = await Consultas().ObtenerAsync(
+            new RangoDePeriodo(Ancla.AddDays(-1), Ancla.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        var deSecretaria = Assert.Single(panel.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.Equal(["decanato", "secretaria"], deSecretaria.CodigosDeRol);
+    }
+
+    [Fact]
+    public async Task Una_fila_de_rol_y_la_de_organizacion_no_traen_codigos_de_rol()
+    {
+        await SembrarAsync();
+        await SembrarFilaAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 100, 50, 10);
+
+        var panel = await Consultas().ObtenerAsync(
+            new RangoDePeriodo(Ancla.AddDays(-1), Ancla.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Empty(Assert.Single(panel.PorRol, r => r.Clave == "secretaria").CodigosDeRol);
+        Assert.Empty(panel.Organizacion.CodigosDeRol);
+    }
+
     // ---------------------------------------------------------------- 9.4
 
     [Fact]
@@ -113,6 +144,19 @@ public sealed class ConsultasDeUsoTests(PostgresFixture postgres)
         comando.Parameters.AddWithValue("salida", salida);
         comando.Parameters.AddWithValue("latencia", latenciaMs);
         comando.Parameters.AddWithValue("proveedor", proveedor);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task AgregarRolAsync(Guid actor, string rol)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO identity.user_roles (user_id, role_id)
+            SELECT @actor, id FROM identity.roles WHERE code = @rol
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", actor);
+        comando.Parameters.AddWithValue("rol", rol);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 

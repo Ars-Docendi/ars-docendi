@@ -293,6 +293,20 @@ public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateT
 /// Siempre <c>true</c>: el costo es una estimación propia, nunca la factura
 /// del proveedor (tarea 9.4).
 /// </param>
+/// <param name="CodigosDeRol">
+/// Sólo en una fila de <c>PorUsuario</c>: los códigos de rol de sistema
+/// vigentes del actor. Vacío en una fila de rol o la de organización.
+/// </param>
+/// <param name="CupoEfectivo">
+/// Sólo en una fila de <c>PorUsuario</c>: el cupo diario que hoy le aplicaría
+/// la ejecución real del turno a este actor (misma regla que
+/// <c>CuotaPersistente.CupoEfectivoAsync</c>), o <c>null</c> si no se puede
+/// resolver (el actor no tiene override ni ningún rol de sistema).
+/// </param>
+/// <param name="OrigenDeCupo">
+/// De dónde sale <see cref="CupoEfectivo"/>: <c>"override"</c> o
+/// <c>"rol"</c>, o <c>null</c> junto con <see cref="CupoEfectivo"/> nulo.
+/// </param>
 public sealed record UsoAgregadoDto(
     string Clave,
     string? NombreParaMostrar,
@@ -307,7 +321,10 @@ public sealed record UsoAgregadoDto(
     IReadOnlyList<string> Proveedores,
     decimal CostoEstimado,
     bool EsEstimado,
-    int TurnosSinPrecio)
+    int TurnosSinPrecio,
+    IReadOnlyList<string> CodigosDeRol,
+    int? CupoEfectivo,
+    string? OrigenDeCupo)
 {
     internal static UsoAgregadoDto De(UsoAgregado agregado) => new(
         agregado.Clave,
@@ -323,7 +340,31 @@ public sealed record UsoAgregadoDto(
         agregado.Proveedores,
         agregado.CostoEstimado,
         EsEstimado: true,
-        agregado.TurnosSinPrecio);
+        agregado.TurnosSinPrecio,
+        agregado.CodigosDeRol,
+        CupoEfectivo: null,
+        OrigenDeCupo: null);
+
+    /// <summary>
+    /// Como <see cref="De"/>, pero además resuelve <see cref="CupoEfectivo"/>
+    /// y <see cref="OrigenDeCupo"/> con <see cref="ReglaDeCupoEfectivo"/> —
+    /// sólo tiene sentido para una fila de <c>PorUsuario</c>: una fila de rol
+    /// o la de organización ya ES su propio cupo, sin necesidad de resolver
+    /// nada (se lee directo de <c>GET …/presupuestos</c>).
+    /// </summary>
+    internal static UsoAgregadoDto DeUsuario(UsoAgregado agregado, EstadoDePresupuestos presupuestos)
+    {
+        var overrideDeUsuario = Guid.TryParse(agregado.Clave, out var actorId)
+            ? presupuestos.OverridesPorUsuario.FirstOrDefault(o => o.ActorId == actorId)?.CupoDiarioTurnos
+            : null;
+
+        var cuposPorRol = presupuestos.CuposPorRol
+            .ToDictionary(c => c.Rol, c => c.CupoDiarioTurnos, StringComparer.Ordinal);
+
+        var (cupo, origen) = ReglaDeCupoEfectivo.Resolver(overrideDeUsuario, agregado.CodigosDeRol, cuposPorRol);
+
+        return De(agregado) with { CupoEfectivo = cupo, OrigenDeCupo = origen };
+    }
 }
 
 /// <summary>El panel de uso completo (<c>GET /api/asistente/administracion/uso</c>).</summary>
@@ -332,8 +373,8 @@ public sealed record UsoDto(
     IReadOnlyList<UsoAgregadoDto> PorRol,
     UsoAgregadoDto Organizacion)
 {
-    internal static UsoDto De(PanelDeUso panel) => new(
-        [.. panel.PorUsuario.Select(UsoAgregadoDto.De)],
+    internal static UsoDto De(PanelDeUso panel, EstadoDePresupuestos presupuestos) => new(
+        [.. panel.PorUsuario.Select(a => UsoAgregadoDto.DeUsuario(a, presupuestos))],
         [.. panel.PorRol.Select(UsoAgregadoDto.De)],
         UsoAgregadoDto.De(panel.Organizacion));
 }

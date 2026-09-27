@@ -32,17 +32,30 @@ internal sealed class ConsultasDeUso(CadenaDuena cadena, IConsultasIdentity iden
         var nombres = (await identidad.ListarUsuariosAsync(ct))
             .ToDictionary(u => u.Id, u => u.NombreParaMostrar);
 
+        // Un solo pedido de roles por actor DISTINTO, reusado para armar el
+        // agregado por rol Y para exponer los códigos de rol de cada fila de
+        // usuario (tarea «rol y cupo efectivo por usuario» de
+        // sistema-seccion-unificada) — antes se pedía una vez POR FILA acá
+        // abajo, redundante para un actor con varios turnos en el período.
+        var rolesPorActor = new Dictionary<Guid, IReadOnlyList<string>>();
+        foreach (var actor in filas.Select(f => f.Actor).Distinct())
+        {
+            rolesPorActor[actor] = [.. (await identidad.ObtenerCodigosDeRolesDeSistemaAsync(actor, ct))
+                .Order(StringComparer.Ordinal)];
+        }
+
         var porUsuario = filas
             .GroupBy(f => f.Actor)
             .Select(g => Agregar(
-                g.Key.ToString(), nombres.GetValueOrDefault(g.Key), [.. g], precios))
+                g.Key.ToString(), nombres.GetValueOrDefault(g.Key), [.. g], precios,
+                codigosDeRol: rolesPorActor.GetValueOrDefault(g.Key, [])))
             .OrderBy(a => a.Clave, StringComparer.Ordinal)
             .ToList();
 
         var porRol = new Dictionary<string, List<Fila>>(StringComparer.Ordinal);
         foreach (var fila in filas)
         {
-            foreach (var rol in await identidad.ObtenerCodigosDeRolesDeSistemaAsync(fila.Actor, ct))
+            foreach (var rol in rolesPorActor.GetValueOrDefault(fila.Actor, []))
             {
                 if (!porRol.TryGetValue(rol, out var lista))
                 {
@@ -65,7 +78,8 @@ internal sealed class ConsultasDeUso(CadenaDuena cadena, IConsultasIdentity iden
     }
 
     private static UsoAgregado Agregar(
-        string clave, string? nombre, IReadOnlyList<Fila> filas, IReadOnlyList<PrecioVigente> precios)
+        string clave, string? nombre, IReadOnlyList<Fila> filas, IReadOnlyList<PrecioVigente> precios,
+        IReadOnlyList<string>? codigosDeRol = null)
     {
         var porEstado = filas
             .GroupBy(f => f.Estado, StringComparer.Ordinal)
@@ -91,7 +105,8 @@ internal sealed class ConsultasDeUso(CadenaDuena cadena, IConsultasIdentity iden
             Percentil95(latencias),
             [.. filas.Select(f => f.Proveedor).Where(p => p is not null).Distinct().Order()!],
             costeo.CostoEstimadoTotal,
-            costeo.FilasSinPrecio);
+            costeo.FilasSinPrecio,
+            codigosDeRol ?? []);
     }
 
     /// <summary>El percentil 95, por interpolación del rango más cercano.</summary>
