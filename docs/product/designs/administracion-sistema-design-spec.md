@@ -81,15 +81,25 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   un reintento global que reintente lo que ya está bien). Debajo, «Cambios recientes» como una
   lista angosta de máximo 4 filas con un link «Ver todo en Auditoría →».
 - **Asistente**: el `PanelAdministracionAsistente` (sin `PageHeader` propio) ocupa todo el
-  ancho de la tab. Internamente: período como grupo de botones presionados (mismo patrón que
-  el período de Auditoría); `KpisDeUso` (4 tarjetas: sesiones, llamadas, costo estimado,
-  latencia p95) + `TopeOrganizacionalCard` en una fila; `ToggleDeMantenimiento` con forma de
-  banner (verde disponible / ámbar en mantenimiento); y `PanelDeUso` con `Tabs` «Por usuario» /
-  «Por rol» (con badge de cantidad) sobre una tabla con buscador, encabezados ordenables
-  (Turnos/Costo/Latencia) y el cupo diario editado inline por fila (`EditorDeCupoEnFila`: lápiz
-  → stepper → Guardar/Cancelar, con confirmación al bajar un valor ya conocido). No hay
-  gauge de gasto-vs-tope ni gráfico de tendencia por día: la referencia los pide, pero
-  requieren datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8).
+  ancho de la tab, con un `<h2>«Uso del asistente»` propio (nunca un segundo `<h1>`: la página
+  ya tiene el suyo) + copete, y a la derecha el período como grupo de botones presionados
+  («Hoy» / «7 días» / «30 días», mismo patrón y mismas etiquetas que el período de Auditoría)
+  más «Exportar CSV» (descarga client-side de las filas ya cargadas de la vista activa, sin
+  pedir nada nuevo al backend). `BannerDeMantenimiento` es un banner compacto de una fila
+  (punto + «Asistente disponible» / ícono + «Asistente en mantenimiento», ámbar) con
+  «Activar mantenimiento» abriendo un panel de razón obligatoria debajo, y «Desactivar
+  mantenimiento» de un solo click. Debajo, `KpisDeUso` (Sesiones, Llamadas, Costo estimado
+  con el prefijo «US$» más chico que el número, Latencia p95) + `TopeOrganizacionalCard`
+  («Tope de {mes}», el gasto del mes como número principal y el tope al lado, barra
+  segmentada con marcas al 50 %/75 %, lápiz-ícono para editar) en una fila. Por último,
+  `PanelDeUso` en una sola tarjeta: `Tabs` «Por usuario» / «Por rol» (con badge de cantidad) a
+  la izquierda y un selector de métrica «Sesiones | Costo | Tokens | Latencia» a la derecha;
+  la tabla tiene una sola columna de detalle —la métrica elegida, con una barra proporcional
+  al máximo de la vista— en vez de columnas siempre visibles, ordenada sola y descendente por
+  esa métrica; el cupo diario se sigue editando inline por fila (`EditorDeCupoEnFila`: lápiz →
+  stepper → Guardar/Cancelar, con confirmación al bajar un valor ya conocido). No hay columna
+  de acceso on/off ni gráfico de tendencia por día: la referencia los pide, pero requieren
+  datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8 y §13).
 - **Auditoría**: panel de filtros arriba (búsqueda + período como grupo de botones + chips de
   Acción/Módulo + «Más filtros» colapsable con badge de cuántos están activos), luego una
   grilla de dos columnas `minmax(0,1fr) 380px` cuando el detalle está abierto — la lista angosta
@@ -231,6 +241,16 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
   separado», «Estado de mantenimiento sin comprobar»; botones «Reintentar», «Ver uso →».
 - Cambios recientes: título «Cambios recientes»; enlace «Ver todo en Auditoría →»; vacío
   «Todavía no hay cambios registrados.»; horas «Hoy HH:mm» / «Ayer HH:mm» / «d/m HH:mm».
+- Asistente: título «Uso del asistente»; copete «Consumo, presupuestos, acceso y
+  mantenimiento.»; período «Hoy» / «7 días» / «30 días»; botón «Exportar CSV»; banner
+  «Asistente disponible» / «Todos los usuarios con permiso pueden consultar.» / «Activar
+  mantenimiento»; panel de razón «Razón» (obligatoria) / «Se muestra en el banner de todos los
+  usuarios.» / «Cancelar»; banner activo «Asistente en mantenimiento» / «Nadie puede consultar.
+  Razón visible: «{razón}»» / «Desactivar mantenimiento»; KPIs «Sesiones» / «Llamadas» / «Costo
+  estimado» / «Latencia p95»; tope «Tope de {Mes}» / «de {tope} (estimado)» / «{N} % usado · al
+  100 % se bloquean las consultas»; tabs «Por usuario» / «Por rol»; selector de métrica
+  «Sesiones» / «Costo» / «Tokens» / «Latencia»; buscador «Buscar usuario o rol»; vacío «No hay
+  uso registrado en este período.».
 - Auditoría — filtros: placeholder «Buscar por usuario, objeto o cambio»; período «Hoy» / «7
   días» / «30 días» / «Todo»; chips de Acción «Todas» / «Altas» / «Cambios» / «Eliminaciones»;
   chips de Módulo «Todos» / «Identidad» / «Designaciones» / «Portal» / «Asistente»; «Más

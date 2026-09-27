@@ -3,72 +3,137 @@ import { Input, Table, Tabs } from "@ars-docendi/ui";
 import type { TabItem } from "@ars-docendi/ui";
 
 import { EditorDeCupoEnFila } from "./EditorDeCupoEnFila";
-import { formatearUsd } from "../utils/formatoDeUso";
-import type {
-  CupoDeRolPersistido,
-  OverrideDeUsuarioPersistido,
-  UsoAgregado,
-  UsoDelAsistente,
-} from "../types";
+import { IconoSearch } from "../../../shared/ui/iconos";
+import { formatearEntero, formatearLatenciaMs, formatearUsd } from "../utils/formatoDeUso";
+import { subtituloDeRoles } from "../utils/etiquetasDeRol";
+import type { CupoDeRolPersistido, UsoAgregado, UsoDelAsistente } from "../types";
 
 type Pestana = "usuarios" | "roles";
-type CampoOrdenable = "turnos" | "costoEstimado" | "latenciaP95Ms";
-interface OrdenDeUso {
-  campo: CampoOrdenable;
-  direccion: "ascendente" | "descendente";
-}
+type Metrica = "turnos" | "costo" | "tokens" | "latencia";
 
 interface PanelDeUsoProps {
   uso: UsoDelAsistente | undefined;
   cargando: boolean;
   /** El cupo default de cada rol, tal como está persistido (tarea 12.8). */
   cuposPorRol: CupoDeRolPersistido[];
-  /** Cada override de usuario vigente, tal como está persistido (tarea 12.8). */
-  overridesPorUsuario: OverrideDeUsuarioPersistido[];
   onGuardarCupoDeRol: (rol: string, cupo: number) => Promise<void>;
   onGuardarCupoDeUsuario: (actorId: string, cupo: number) => Promise<void>;
   /** Texto para la región viva compartida de la página (tasks.md 13.2). */
   onGuardado: (mensaje: string) => void;
+  /**
+   * Pestaña controlada desde afuera: «Exportar CSV» en el encabezado de la
+   * pestaña (`PanelAdministracionAsistente`) necesita saber cuál es la vista
+   * activa para exportar exactamente lo que se está viendo. Si no se pasa,
+   * el panel maneja su propio estado — mismo patrón controlado/no controlado
+   * que un `<input>`, para no forzar este prop en cada test que monta el
+   * panel de forma aislada.
+   */
+  pestana?: Pestana;
+  onCambiarPestana?: (pestana: Pestana) => void;
 }
 
-const ENCABEZADOS: { campo: CampoOrdenable; etiqueta: string }[] = [
-  { campo: "turnos", etiqueta: "Turnos" },
-  { campo: "costoEstimado", etiqueta: "Costo estimado" },
-  { campo: "latenciaP95Ms", etiqueta: "Latencia" },
-];
+/** El encabezado de la columna de detalle: el nombre completo de la métrica. */
+const ETIQUETAS_METRICA: Record<Metrica, string> = {
+  turnos: "Sesiones",
+  costo: "Costo estimado",
+  tokens: "Tokens",
+  latencia: "Latencia",
+};
+
+/** El selector de métrica usa etiquetas cortas (mismo canvas: «Costo», no «Costo estimado»). */
+const ETIQUETAS_METRICA_CORTAS: Record<Metrica, string> = {
+  turnos: "Sesiones",
+  costo: "Costo",
+  tokens: "Tokens",
+  latencia: "Latencia",
+};
+
+const METRICAS: Metrica[] = ["turnos", "costo", "tokens", "latencia"];
+
+/** El total de tokens de una fila: entrada + salida + caché, sumados una sola vez acá. */
+function tokensTotales(fila: UsoAgregado): number {
+  return fila.tokensDeEntrada + fila.tokensDeSalida + fila.tokensDeCache;
+}
+
+/** El valor numérico de la métrica elegida — lo que ordena la tabla y dimensiona la barra. */
+function valorDeMetrica(fila: UsoAgregado, metrica: Metrica): number {
+  if (metrica === "turnos") return fila.turnos;
+  if (metrica === "costo") return fila.costoEstimado;
+  if (metrica === "tokens") return tokensTotales(fila);
+  return fila.latenciaP95Ms;
+}
+
+/** El texto principal de la celda de métrica: siempre con su unidad, nunca un número pelado. */
+function textoDeMetrica(fila: UsoAgregado, metrica: Metrica): string {
+  if (metrica === "turnos") return `${formatearEntero(fila.turnos)} sesiones`;
+  if (metrica === "costo") return `${formatearUsd(fila.costoEstimado)} (estimado)`;
+  if (metrica === "tokens") return `${formatearEntero(tokensTotales(fila))} tokens`;
+  return formatearLatenciaMs(fila.latenciaP95Ms);
+}
+
+/** La nota chica debajo del valor: sin uso, promedio de latencia, o turnos sin precio vigente. */
+function notaDeMetrica(fila: UsoAgregado, metrica: Metrica): string {
+  if (fila.turnos === 0) return "Sin uso";
+  if (metrica === "latencia") return `promedio ${formatearLatenciaMs(fila.latenciaPromedioMs)}`;
+  if (metrica === "costo" && fila.turnosSinPrecio > 0) {
+    return `${fila.turnosSinPrecio} ${fila.turnosSinPrecio === 1 ? "turno" : "turnos"} sin precio`;
+  }
+  return "";
+}
 
 /**
  * El detalle del panel de uso —por usuario y por rol— del rediseño «Uso del
- * asistente» (sistema-seccion-unificada): dos pestañas con buscador y
- * columnas ordenables en vez de tres tablas siempre apiladas, y el cupo
- * diario editable DIRECTO EN LA FILA (`EditorDeCupoEnFila`) en vez de un
- * formulario aparte que pedía escribir un código de rol o un UUID.
+ * asistente» (sistema-seccion-unificada), en su pasada de fidelidad con el
+ * canvas de Claude Design: UNA sola tarjeta con las pestañas y el selector de
+ * métrica (Sesiones/Costo/Tokens/Latencia) arriba, y una columna de detalle
+ * que muestra la métrica elegida con una barra proporcional al máximo de la
+ * vista — reemplaza las seis columnas siempre visibles y el ordenamiento
+ * manual por encabezado del primer rediseño. Las filas se ordenan solas,
+ * descendente por la métrica elegida (mismo criterio que el canvas).
  *
- * El agregado «Organización» ya NO vive acá: pasó a `KpisDeUso`, arriba.
+ * El cupo diario sigue editándose DIRECTO EN LA FILA (`EditorDeCupoEnFila`).
+ * El agregado «Organización» no vive acá: está en `KpisDeUso`, arriba.
  *
- * EL COSTO SIEMPRE LLEVA «(estimado)» AL LADO, nunca sólo en un título de
- * sección, y un turno sin precio vigente NUNCA se cuenta como costo cero:
- * se ve aparte, con su propio texto (asistente-panel-de-uso).
+ * EL COSTO SIEMPRE LLEVA «(estimado)» cuando la métrica elegida es Costo, y
+ * un turno sin precio vigente NUNCA se cuenta como costo cero: se ve aparte
+ * (asistente-panel-de-uso). No hay columna «Acceso»: ese concepto no existe
+ * del lado del backend todavía (fuera de alcance, decisión del cliente).
  */
 export function PanelDeUso({
   uso,
   cargando,
   cuposPorRol,
-  overridesPorUsuario,
   onGuardarCupoDeRol,
   onGuardarCupoDeUsuario,
   onGuardado,
+  pestana: pestanaControlada,
+  onCambiarPestana,
 }: PanelDeUsoProps) {
-  const [pestana, setPestana] = useState<Pestana>("usuarios");
+  const [pestanaPropia, setPestanaPropia] = useState<Pestana>("usuarios");
+  const pestana = pestanaControlada ?? pestanaPropia;
+  const [metrica, setMetrica] = useState<Metrica>("turnos");
   const [busqueda, setBusqueda] = useState("");
-  const [orden, setOrden] = useState<OrdenDeUso | null>(null);
+
+  function cambiarPestana(siguiente: Pestana) {
+    setPestanaPropia(siguiente);
+    setBusqueda("");
+    onCambiarPestana?.(siguiente);
+  }
 
   if (cargando) {
-    return <p aria-live="polite">Cargando el panel de uso…</p>;
+    return (
+      <div className="adoc-asistente-admin-panel-uso-tarjeta adoc-asistente-admin-panel-vacio">
+        <p aria-live="polite">Cargando el panel de uso…</p>
+      </div>
+    );
   }
 
   if (!uso) {
-    return <p>No se pudo cargar el panel de uso todavía.</p>;
+    return (
+      <div className="adoc-asistente-admin-panel-uso-tarjeta adoc-asistente-admin-panel-vacio">
+        <p>No se pudo cargar el panel de uso todavía.</p>
+      </div>
+    );
   }
 
   const esUsuarios = pestana === "usuarios";
@@ -77,44 +142,55 @@ export function PanelDeUso({
   const filtradas = q
     ? filas.filter((f) => (f.nombreParaMostrar ?? f.clave).toLowerCase().includes(q))
     : filas;
-  const ordenadas = ordenarUso(filtradas, orden);
+  const ordenadas = [...filtradas].sort((a, b) => {
+    const diferencia = valorDeMetrica(b, metrica) - valorDeMetrica(a, metrica);
+    if (diferencia !== 0) return diferencia;
+    return (a.nombreParaMostrar ?? a.clave).localeCompare(b.nombreParaMostrar ?? b.clave, "es");
+  });
+  const maxValor = Math.max(0.0001, ...ordenadas.map((f) => valorDeMetrica(f, metrica)));
   const guardarCupo = esUsuarios ? onGuardarCupoDeUsuario : onGuardarCupoDeRol;
 
-  // El default de cada rol siempre está persistido (seed de 006); el override
-  // de un usuario sólo existe si un admin ya lo fijó — de ahí que el mapa de
-  // roles use el valor directo y el de usuarios distinga "no hay override"
-  // (tarea 12.8 de sistema-seccion-unificada).
+  // El default de cada rol siempre está persistido (seed de 006). El cupo de
+  // una fila de USUARIO ya no se arma acá con un mapa aparte: viene resuelto
+  // desde el backend en la propia fila (`cupoEfectivo`/`origenDeCupo`, tarea
+  // «rol y cupo efectivo por usuario» de sistema-seccion-unificada) — la
+  // misma regla que aplicaría la ejecución real del turno.
   const cuposPorRolMap = new Map(cuposPorRol.map((c) => [c.rol, c.cupoDiarioTurnos]));
-  const overridesPorUsuarioMap = new Map(
-    overridesPorUsuario.map((o) => [o.actorId, o.cupoDiarioTurnos]),
-  );
 
   const tabs: TabItem[] = [
     { id: "usuarios", label: "Por usuario", count: uso.porUsuario.length },
     { id: "roles", label: "Por rol", count: uso.porRol.length },
   ];
 
-  function alOrdenar(campo: CampoOrdenable) {
-    setOrden((actual) =>
-      actual?.campo === campo
-        ? { campo, direccion: actual.direccion === "descendente" ? "ascendente" : "descendente" }
-        : { campo, direccion: "descendente" },
-    );
-  }
-
   return (
-    <div className="adoc-asistente-admin-panel-uso">
-      <Tabs
-        items={tabs}
-        value={pestana}
-        onChange={(id) => {
-          setPestana(id as Pestana);
-          setBusqueda("");
-        }}
-        aria-label="Detalle de uso"
-      />
+    <div className="adoc-asistente-admin-panel-uso-tarjeta">
+      <div className="adoc-asistente-admin-panel-uso-encabezado">
+        <Tabs
+          items={tabs}
+          value={pestana}
+          onChange={(id) => cambiarPestana(id as Pestana)}
+          aria-label="Detalle de uso"
+        />
+        <div role="radiogroup" aria-label="Métrica" className="adoc-asistente-admin-metrica-switch">
+          {METRICAS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={metrica === m}
+              className="adoc-asistente-admin-metrica-boton"
+              onClick={() => setMetrica(m)}
+            >
+              {ETIQUETAS_METRICA_CORTAS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="adoc-asistente-admin-uso-buscador">
+        <span className="adoc-asistente-admin-uso-buscador-icono" aria-hidden="true">
+          <IconoSearch />
+        </span>
         <Input
           aria-label="Buscar usuario o rol"
           placeholder="Buscar usuario o rol"
@@ -124,124 +200,88 @@ export function PanelDeUso({
       </div>
 
       {ordenadas.length === 0 ? (
-        <p>No hay uso registrado en este período.</p>
+        <p className="adoc-asistente-admin-panel-vacio-texto">
+          No hay uso registrado en este período.
+        </p>
       ) : (
         <Table className="adoc-asistente-admin-tabla-uso">
           <Table.Root>
             <Table.Head>
               <Table.Row>
                 <Table.HeaderCell>{esUsuarios ? "Usuario" : "Rol"}</Table.HeaderCell>
-                {ENCABEZADOS.map((h) => (
-                  <EncabezadoOrdenableDeUso
-                    key={h.campo}
-                    etiqueta={h.etiqueta}
-                    campo={h.campo}
-                    orden={orden}
-                    onOrdenar={alOrdenar}
-                  />
-                ))}
-                <Table.HeaderCell>Llamadas al modelo</Table.HeaderCell>
-                <Table.HeaderCell>Tokens entrada/salida/caché</Table.HeaderCell>
+                <Table.HeaderCell>{ETIQUETAS_METRICA[metrica]}</Table.HeaderCell>
                 <Table.HeaderCell>Cupo diario</Table.HeaderCell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {ordenadas.map((fila) => (
-                <Table.Row key={fila.clave}>
-                  <Table.Cell>{fila.nombreParaMostrar ?? fila.clave}</Table.Cell>
-                  <Table.Cell numeric>{fila.turnos}</Table.Cell>
-                  <Table.Cell numeric>
-                    <span>{formatearUsd(fila.costoEstimado)} (estimado)</span>
-                    {fila.turnosSinPrecio > 0 && (
-                      <span className="adoc-asistente-admin-sin-precio">
-                        {fila.turnosSinPrecio} {fila.turnosSinPrecio === 1 ? "turno" : "turnos"} sin
-                        precio
-                      </span>
-                    )}
-                  </Table.Cell>
-                  <Table.Cell numeric>
-                    {Math.round(fila.latenciaPromedioMs)} ms / {Math.round(fila.latenciaP95Ms)} ms
-                  </Table.Cell>
-                  <Table.Cell numeric>{fila.llamadasAlModelo}</Table.Cell>
-                  <Table.Cell numeric>
-                    {fila.tokensDeEntrada} / {fila.tokensDeSalida} / {fila.tokensDeCache}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <EditorDeCupoEnFila
-                      nombre={fila.nombreParaMostrar ?? fila.clave}
-                      cupoConocido={
-                        esUsuarios
-                          ? overridesPorUsuarioMap.get(fila.clave)
-                          : cuposPorRolMap.get(fila.clave)
-                      }
-                      origen={
-                        esUsuarios
-                          ? overridesPorUsuarioMap.has(fila.clave)
-                            ? "override"
-                            : undefined
-                          : "rol"
-                      }
-                      onGuardar={(cupo) => guardarCupo(fila.clave, cupo)}
-                      onGuardado={(cupo) => {
-                        // El valor persistido lo vuelve a traer la próxima
-                        // vez que se invaliden las queries del panel (el
-                        // padre lo hace tras un guardado exitoso) — ya NO
-                        // hace falta un estado local "guardado en esta
-                        // sesión" (tarea 12.8 de sistema-seccion-unificada).
-                        onGuardado(
-                          `Cupo diario de ${fila.nombreParaMostrar ?? fila.clave}: ${
-                            cupo === 0 ? "sin tope" : `${cupo} turnos`
-                          }.`,
-                        );
-                      }}
-                    />
-                  </Table.Cell>
-                </Table.Row>
-              ))}
+              {ordenadas.map((fila) => {
+                const valor = valorDeMetrica(fila, metrica);
+                const anchoBarra = fila.turnos === 0 ? 0 : Math.max(2, (valor / maxValor) * 100);
+                const subtitulo = esUsuarios ? subtituloDeRoles(fila.codigosDeRol) : undefined;
+                return (
+                  <Table.Row key={fila.clave}>
+                    <Table.Cell>
+                      <div className="adoc-asistente-admin-uso-nombre-celda">
+                        <span>{fila.nombreParaMostrar ?? fila.clave}</span>
+                        {subtitulo && (
+                          <span className="adoc-asistente-admin-uso-nombre-subtitulo">
+                            {subtitulo}
+                          </span>
+                        )}
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="adoc-asistente-admin-metrica-celda">
+                        <span
+                          className="adoc-asistente-admin-metrica-barra"
+                          style={{ width: `${anchoBarra}%` }}
+                          aria-hidden="true"
+                        />
+                        <span className="adoc-asistente-admin-metrica-texto">
+                          <span>{textoDeMetrica(fila, metrica)}</span>
+                          {notaDeMetrica(fila, metrica) && (
+                            <span className="adoc-asistente-admin-metrica-nota">
+                              {notaDeMetrica(fila, metrica)}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <EditorDeCupoEnFila
+                        nombre={fila.nombreParaMostrar ?? fila.clave}
+                        cupoConocido={
+                          esUsuarios
+                            ? (fila.cupoEfectivo ?? undefined)
+                            : cuposPorRolMap.get(fila.clave)
+                        }
+                        origen={esUsuarios ? (fila.origenDeCupo ?? undefined) : "rol"}
+                        onGuardar={(cupo) => guardarCupo(fila.clave, cupo)}
+                        onGuardado={(cupo) => {
+                          // El valor persistido lo vuelve a traer la próxima
+                          // vez que se invaliden las queries del panel (el
+                          // padre lo hace tras un guardado exitoso) — ya NO
+                          // hace falta un estado local "guardado en esta
+                          // sesión" (tarea 12.8 de sistema-seccion-unificada).
+                          onGuardado(
+                            `Cupo diario de ${fila.nombreParaMostrar ?? fila.clave}: ${
+                              cupo === 0 ? "sin tope" : `${cupo} turnos`
+                            }.`,
+                          );
+                        }}
+                      />
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table.Root>
         </Table>
       )}
+      <p className="adoc-asistente-admin-panel-uso-pie">
+        El cupo diario se hereda del rol salvo que el usuario tenga un override propio, y se
+        reinicia a las 00 h.
+      </p>
     </div>
-  );
-}
-
-function ordenarUso(filas: UsoAgregado[], orden: OrdenDeUso | null): UsoAgregado[] {
-  if (!orden) return filas;
-  const signo = orden.direccion === "ascendente" ? 1 : -1;
-  return [...filas].sort((a, b) => signo * (a[orden.campo] - b[orden.campo]));
-}
-
-interface EncabezadoOrdenableDeUsoProps {
-  etiqueta: string;
-  campo: CampoOrdenable;
-  orden: OrdenDeUso | null;
-  onOrdenar: (campo: CampoOrdenable) => void;
-}
-
-function EncabezadoOrdenableDeUso({
-  etiqueta,
-  campo,
-  orden,
-  onOrdenar,
-}: EncabezadoOrdenableDeUsoProps) {
-  const activo = orden?.campo === campo;
-  return (
-    <Table.HeaderCell
-      className="adoc-asistente-th-orden"
-      aria-sort={
-        activo ? (orden!.direccion === "ascendente" ? "ascending" : "descending") : undefined
-      }
-    >
-      <button
-        type="button"
-        className="adoc-asistente-orden-boton"
-        title={`Ordenar por «${etiqueta}»`}
-        onClick={() => onOrdenar(campo)}
-      >
-        <span>{etiqueta}</span>
-        <span className="adoc-sr"> ordenar por esta columna</span>
-      </button>
-    </Table.HeaderCell>
   );
 }

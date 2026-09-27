@@ -39,7 +39,7 @@ describe("TopeOrganizacionalCard", () => {
     expect(screen.queryByRole("button", { name: "Editar tope" })).not.toBeInTheDocument();
   });
 
-  it("tope en 0 (desactivado): se ve «Sin tope» y ninguna barra de gasto", () => {
+  it("el título lleva el mes en curso, «Tope de {Mes}» (fidelidad con el canvas)", () => {
     render(
       <TopeOrganizacionalCard
         topeConocido={0}
@@ -50,12 +50,31 @@ describe("TopeOrganizacionalCard", () => {
       />,
     );
 
-    expect(screen.getByText("Sin tope")).toBeInTheDocument();
+    const mesEnCurso = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(new Date());
+    const etiqueta = `Tope de ${mesEnCurso.charAt(0).toUpperCase()}${mesEnCurso.slice(1)}`;
+    expect(screen.getByText(etiqueta)).toBeInTheDocument();
+  });
+
+  it("tope en 0 (desactivado): el gasto se ve igual, «gastado este mes», y ninguna barra", () => {
+    render(
+      <TopeOrganizacionalCard
+        topeConocido={0}
+        gastoEstimadoDelMes={0}
+        error={false}
+        onGuardar={vi.fn()}
+        onGuardado={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("US$ 0,00")).toBeInTheDocument();
+    // «de sin tope» (copiado del canvas) no se lee; sin tope no hay «de».
+    expect(screen.getByText("gastado este mes")).toBeInTheDocument();
+    expect(screen.queryByText(/de sin tope/)).not.toBeInTheDocument();
     expect(screen.getByText("Sin tope: el gasto no bloquea consultas.")).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
   });
 
-  it("con tope activo, la barra de gasto muestra el porcentaje usado", () => {
+  it("con tope activo, el gasto es el número principal y la barra muestra el porcentaje usado", () => {
     render(
       <TopeOrganizacionalCard
         topeConocido={100}
@@ -66,6 +85,8 @@ describe("TopeOrganizacionalCard", () => {
       />,
     );
 
+    expect(screen.getByText("US$ 85,00")).toBeInTheDocument();
+    expect(screen.getByText(/^de\s+US\$\s*100,00\s*\(estimado\)$/)).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: /Gasto del mes/ })).toHaveAttribute(
       "aria-valuenow",
       "85",
@@ -148,7 +169,7 @@ describe("TopeOrganizacionalCard", () => {
     await user.click(screen.getByRole("button", { name: "Editar tope" }));
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
-    expect(screen.getByText("US$ 80,00")).toBeInTheDocument();
+    expect(screen.getByText(/^de\s+US\$\s*80,00\s*\(estimado\)$/)).toBeInTheDocument();
     expect(onGuardar).not.toHaveBeenCalled();
   });
 });

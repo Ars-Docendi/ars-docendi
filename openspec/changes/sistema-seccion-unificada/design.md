@@ -513,6 +513,58 @@ with audited data" by decision, not discovered at runtime: which schemas call
 surface to keep consistent for a list that changes once per module. When Aulas or Tareas
 gain audited tables, adding their chip is part of that change (noted in the design spec).
 
+### D14. Role and effective quota per user, resolved server-side in `GET …/uso`
+
+The «Por usuario» view of the usage table needed each user's role (for a subtitle under
+their name) and their effective daily quota with its origin (for the «N por día · del rol»
+/ «N por día · propio» label `EditorDeCupoEnFila` already rendered, but only ever showed
+«sin dato» for a user without an override — neither `GET …/uso` nor `GET …/presupuestos`
+carried the relation from a user to their role).
+
+**Where it's added**: `porUsuario` rows of `GET /api/asistente/administracion/uso`, not a
+new user→role list on `GET …/presupuestos`. `ConsultasDeUso` already resolves every actor's
+current system-role codes to build the `porRol` aggregate (design's original D12 of
+`asistente-administracion-de-uso`); reusing that per-actor lookup to also stamp
+`codigosDeRol` on each `porUsuario` row costs nothing new. `GET …/presupuestos` already
+returns every role's default and every existing override — a second copy of "which user has
+which role" there would duplicate what `/uso` now carries, with no consumer needing it in
+that shape.
+
+**Role codes only, never a role name**: `IConsultasIdentity.ObtenerCodigosDeRolesDeSistemaAsync`
+— the only seam a module may read identity through (AGENTS.md rule 4) — returns codes, not
+names; no method on that interface exposes a role catalog. The DTO carries `codigosDeRol`
+(codes); the frontend translates each code to its Spanish label with a small fixed
+dictionary (`utils/etiquetasDeRol.ts`, mirroring `database/identity/002_identity_roles.sql`'s
+seven system roles) — the same "translate the code client-side" pattern the audit chips
+(D13) already use for module names. A user with more than one role shows every role's name,
+joined with « · », consistent with `ConsultasDeUso`'s own rule that a multi-role actor's
+usage belongs to every one of their roles at once (see that class's remarks).
+
+**Multi-role quota rule**: the displayed «del rol» value must equal what the real turn-time
+enforcement would apply, so it follows `CuotaPersistente.CupoEfectivoAsync` exactly — a
+vigent user override always wins (bigger or smaller than any role default); absent an
+override, it's the MINIMUM cupo among the user's roles whose default is activated (greater
+than zero), ignoring roles at zero (zero means "this role imposes no cap", not "the smallest
+possible cap"). That rule is mirrored, not called: `CuotaPersistente` resolves its own
+ingredients against Postgres on the turn-blocking path, and that security-sensitive path
+should not gain a new dependency just so an admin panel can display the same number. The
+mirror lives as a pure function, `Application/Administracion/ReglaDeCupoEfectivo.Resolver`,
+exercised by unit tests covering every case `CuotaPersistenteTests` already documents, plus
+one integration test that seeds a real multi-role user with no turns "today" and asserts the
+value `/uso` returns equals what `ICuotaDelActor.CupoRestanteAsync` — the real enforcement
+surface — returns for that same actor (when today's usage is zero, "restante" IS the
+effective cupo), so a future edit to either rule that lets them drift is caught by a test
+that exercises the real enforcement code, not a second copy of it.
+
+One case CuotaPersistente does NOT need to distinguish, and this feature does: a user with
+NO override and NO system role at all. Enforcement returns `0` there (meaning "unlimited",
+since it always needs a number to gate a turn on). The display, instead, returns
+`cupoEfectivo: null, origenDeCupo: null` — there is no role to attribute a "del rol" label
+to, and showing «sin tope · del rol» would invent a role that does not exist. That is the
+only case where `EditorDeCupoEnFila` still shows «sin dato», replacing the earlier (now
+outdated) reason — "no relation from user to role existed at all" — since that relation now
+exists for every user who has at least one role.
+
 ## Risks / Trade-offs
 
 - [Direct SQL sessions without GUCs are shown as «Proceso automático»] → Documented in the
@@ -537,6 +589,13 @@ gain audited tables, adding their chip is part of that change (noted in the desi
   frontend is the only consumer; both ship in one deploy.
 - [Subtitle mentions areas a partially permitted user cannot see] → Accepted: it describes
   the section, not the user's access, and no action is offered for hidden tabs.
+- [`EditorDeCupoEnFila`'s and `TopeOrganizacionalCard`'s pencil-edit button rendered
+  invisible] → Found while verifying D14 with a headless screenshot: `.adoc-btn.sz-sm`
+  (two classes) always beat the feature's own single-class icon-button override
+  (`.adoc-asistente-admin-cupo-editar`/`-tope-editar`) on CSS specificity, forcing the
+  library's 12px horizontal padding into a fixed 26px-wide button and squeezing the SVG to a
+  sub-pixel width via flexbox shrink — not a hover-only style, a genuine invisible button.
+  Fixed by prefixing both selectors with `.adoc-btn.` to match the two-class specificity.
 
 ## Migration Plan
 

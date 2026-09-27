@@ -2259,23 +2259,58 @@
   gap: var(--space-5);
 }
 
+/* Región viva sólo para lectores de pantalla: la confirmación visible ya es
+   el cambio del banner, y el canvas no dibuja ninguna línea de estado. */
 .adoc-asistente-admin-anuncio {
-  margin: 0;
-  min-height: 1px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .adoc-asistente-admin-encabezado {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
   flex-wrap: wrap;
 }
 
-.adoc-asistente-admin-copete {
+/* El título de SECCIÓN dentro de la pestaña (fidelidad con el canvas «Uso del
+   asistente»): un `<h2>`, nunca un segundo `<h1>` — la página «Sistema» ya
+   tiene el suyo en `PageHeader`. */
+.adoc-asistente-admin-titulo {
   margin: 0;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+}
+
+.adoc-asistente-admin-copete {
+  margin: 2px 0 0;
   font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-encabezado-acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.adoc-asistente-admin-exportar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-admin-exportar svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* El período en pastillas: mismo patrón que `.auditoria-periodo`/
@@ -2305,13 +2340,12 @@
   color: var(--color-text-on-inverse);
 }
 
-/* ---------- Modo mantenimiento, con forma de banner ---------- */
+/* ---------- Modo mantenimiento, banner compacto de una fila ---------- */
 
 .adoc-asistente-admin-mantenimiento {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  gap: 0;
   border: var(--border-default) solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background: var(--color-bg-raised);
@@ -2322,15 +2356,36 @@
   border-color: var(--warning-500);
 }
 
-.adoc-asistente-admin-mantenimiento-encabezado {
+.adoc-asistente-admin-mantenimiento-fila {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
 }
 
-.adoc-asistente-admin-mantenimiento h3 {
+.adoc-asistente-admin-mantenimiento--activo .adoc-asistente-admin-mantenimiento-fila {
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+}
+
+.adoc-asistente-admin-mantenimiento-icono {
+  flex: none;
+  display: inline-flex;
+  color: var(--warning-700);
+}
+
+.adoc-asistente-admin-mantenimiento-icono svg {
+  width: 18px;
+  height: 18px;
+}
+
+.adoc-asistente-admin-mantenimiento-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-asistente-admin-mantenimiento-titulo {
   margin: 0;
-  font-size: var(--text-subhead-size);
+  font-size: var(--text-body-sm-size);
   font-weight: var(--weight-semibold);
 }
 
@@ -2342,10 +2397,6 @@
   background: var(--success-500);
 }
 
-.adoc-asistente-admin-mantenimiento--activo .adoc-asistente-admin-mantenimiento-punto {
-  background: var(--warning-500);
-}
-
 .adoc-asistente-admin-mantenimiento-copete {
   margin: 2px 0 0;
   font-size: var(--text-caption-size);
@@ -2354,6 +2405,47 @@
 
 .adoc-asistente-admin-mantenimiento--activo .adoc-asistente-admin-mantenimiento-copete {
   color: var(--warning-700);
+}
+
+/* `.adoc-btn.v-secondary` ya trae `color`/`border-color` con la misma
+   especificidad (dos clases): sin repetir `.adoc-btn` acá, esa regla ganaba
+   por orden de aparición y el botón se veía con el borde neutro de siempre
+   en vez del ámbar del canvas. */
+.adoc-btn.adoc-asistente-admin-mantenimiento-activar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--warning-700);
+  border-color: var(--warning-500);
+}
+
+.adoc-btn.adoc-asistente-admin-mantenimiento-activar:hover {
+  background: var(--warning-100);
+  border-color: var(--warning-500);
+}
+
+.adoc-asistente-admin-mantenimiento-activar svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* El panel de razón aparece DEBAJO del banner, no adentro de un modal —mismo
+   criterio que el canvas: una tarjeta ámbar pegada al banner, con su propio
+   borde inferior redondeado. */
+.adoc-asistente-admin-mantenimiento-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--warning-100);
+  border-top: var(--border-default) solid var(--warning-500);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+.adoc-asistente-admin-mantenimiento-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 /* ---------- KPIs organizacionales + tope mensual ---------- */
@@ -2386,11 +2478,26 @@
   color: var(--color-text-tertiary);
 }
 
-.adoc-asistente-admin-kpi-valor {
-  font-size: var(--text-heading-size);
+/* El número grande de cada tarjeta (fidelidad con el canvas: 28px en la
+   referencia; acá el escalón de tema más cercano por arriba de los 24px del
+   título de página, para no inventar un tamaño propio). */
+.adoc-asistente-admin-kpi-valor-linea {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-title-size);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
+}
+
+/* El prefijo «US$» del costo, más chico que el número —mismo patrón que el
+   canvas separa `k.prefix` de `k.value`. */
+.adoc-asistente-admin-kpi-prefijo {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
 }
 
 .adoc-asistente-admin-kpi-nota {
@@ -2403,7 +2510,40 @@
 }
 
 .adoc-asistente-admin-tope {
+  justify-content: flex-start;
+}
+
+.adoc-asistente-admin-tope-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* `.adoc-btn.` antepuesto por la misma razón que `.adoc-asistente-admin-cupo-editar`
+   más abajo: sin la especificidad extra, `.adoc-btn.sz-sm` le imponía 12px de
+   padding horizontal y el ícono terminaba encogido a invisible. */
+.adoc-btn.adoc-asistente-admin-tope-editar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+}
+
+.adoc-asistente-admin-tope-editar svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* «de US$ X (estimado)» al lado del gasto —más chico, mismo patrón que el
+   canvas separa `topeSpent` de `topeLabel`. */
+.adoc-asistente-admin-tope-de {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-secondary);
 }
 
 .adoc-asistente-admin-tope-acciones {
@@ -2413,8 +2553,10 @@
 
 /* La barra de gasto-vs-tope (tarea 12.8 de sistema-seccion-unificada): el
    color lo decide `colorDelGasto` inline (mismo umbral 50/80/100% que
-   `DetectorDeUmbrales` ya loguea del lado del backend). */
+   `DetectorDeUmbrales` ya loguea del lado del backend). Las dos marcas al
+   50%/75% son decorativas —mismo canvas—, no miden nada por sí solas. */
 .adoc-asistente-admin-tope-barra {
+  position: relative;
   width: 100%;
   height: 6px;
   border-radius: 9999px;
@@ -2426,6 +2568,14 @@
   height: 100%;
   border-radius: 9999px;
   transition: width 200ms ease;
+}
+
+.adoc-asistente-admin-tope-barra-marca {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-bg-raised);
 }
 
 .adoc-asistente-admin-confirmar {
@@ -2440,16 +2590,87 @@
   }
 }
 
-/* ---------- Detalle por usuario / por rol ---------- */
+/* ---------- Detalle por usuario / por rol: una sola tarjeta ---------- */
 
-.adoc-asistente-admin-panel-uso {
+.adoc-asistente-admin-panel-uso-tarjeta {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-admin-panel-vacio {
+  align-items: center;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-panel-vacio-texto {
+  margin: var(--space-3) 0;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.adoc-asistente-admin-panel-uso-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* El selector de métrica (Sesiones/Costo/Tokens/Latencia): mismo patrón
+   segmentado que el período de arriba, en `role="radiogroup"` porque elige
+   UNA entre varias, no dispara una acción cada una. */
+.adoc-asistente-admin-metrica-switch {
+  display: flex;
+  padding: 3px;
+  border: var(--border-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.adoc-asistente-admin-metrica-boton {
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.adoc-asistente-admin-metrica-boton[aria-checked="true"] {
+  background: var(--neutral-800);
+  color: var(--color-text-on-inverse);
 }
 
 .adoc-asistente-admin-uso-buscador {
+  position: relative;
   max-width: 20rem;
+}
+
+.adoc-asistente-admin-uso-buscador-icono {
+  position: absolute;
+  left: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.adoc-asistente-admin-uso-buscador-icono svg {
+  width: 15px;
+  height: 15px;
+}
+
+.adoc-asistente-admin-uso-buscador input {
+  padding-left: calc(var(--space-2) * 2 + 15px);
 }
 
 .adoc-asistente-admin-tabla-uso table.adoc-table {
@@ -2457,10 +2678,56 @@
   min-width: 100%;
 }
 
-.adoc-asistente-admin-sin-precio {
-  display: block;
+/* El subtítulo de rol bajo el nombre de una fila de usuario (tarea «rol y
+   cupo efectivo por usuario» de sistema-seccion-unificada). */
+.adoc-asistente-admin-uso-nombre-celda {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.adoc-asistente-admin-uso-nombre-subtitulo {
   font-size: var(--text-micro-size);
-  color: var(--warning-700);
+  color: var(--color-text-secondary);
+}
+
+/* La celda de métrica: una barra proporcional al máximo de la vista, con el
+   valor y la nota al lado —reemplaza las columnas siempre visibles del
+   primer rediseño (fidelidad con el canvas). */
+.adoc-asistente-admin-metrica-celda {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.adoc-asistente-admin-metrica-barra {
+  flex: none;
+  height: 18px;
+  min-width: 3px;
+  max-width: 40%;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent);
+  transition: width 200ms ease;
+}
+
+.adoc-asistente-admin-metrica-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.adoc-asistente-admin-metrica-nota {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-panel-uso-pie {
+  margin: 0;
+  font-size: var(--text-micro-size);
+  color: var(--color-text-tertiary);
 }
 
 .adoc-asistente-admin-cupo-fila {
@@ -2475,10 +2742,26 @@
   font-variant-numeric: tabular-nums;
 }
 
-.adoc-asistente-admin-cupo-origen {
-  font-family: var(--font-sans, inherit);
-  font-size: var(--text-micro-size);
-  color: var(--color-text-secondary);
+/* El lápiz reemplaza el texto «Editar» (fidelidad con el canvas, punto 3):
+   mismo tamaño de ícono que el resto de los botones-ícono de esta pantalla.
+   `.adoc-btn.` antepuesto por especificidad: `.adoc-btn.sz-sm` (dos clases)
+   le ganaba a esta regla de una sola clase y le imponía sus 12px de padding
+   horizontal — con un ancho fijo de 26px eso dejaba casi cero lugar para el
+   ícono, que terminaba encogido a un ancho invisible (bug encontrado en la
+   pasada de fidelidad: el botón nunca se veía, no era un tema de hover). */
+.adoc-btn.adoc-asistente-admin-cupo-editar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adoc-asistente-admin-cupo-editar svg {
+  width: 15px;
+  height: 15px;
 }
 
 .adoc-asistente-admin-cupo-input {
@@ -2489,4 +2772,10 @@
   font-size: var(--text-micro-size);
   color: var(--warning-700);
   max-width: 16rem;
+}
+
+.adoc-asistente-admin-cupo-hint {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }

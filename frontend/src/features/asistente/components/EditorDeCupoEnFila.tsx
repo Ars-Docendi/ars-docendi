@@ -1,18 +1,44 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@ars-docendi/ui";
 
+import { IconoSquarePen } from "../../../shared/ui/iconos";
+
+/**
+ * «40 por día · del rol» / «60 por día · propio» / «sin tope · propio» —
+ * mismo patrón del canvas (`{{ r.cupo }} por día · {{ r.badge }}`), con
+ * «sin tope» en vez de «∞ por día» (criterio ya usado en el resto de la
+ * feature: `formatoDeUso`, los mensajes de `onGuardado`).
+ *
+ * `origen` puede faltar por dos motivos bien distintos: una fila de ROL sin
+ * cupo seedeado (no debería pasar: los siete roles siempre lo tienen) o una
+ * fila de USUARIO sin override Y sin ningún rol de sistema vigente — ahí
+ * «sin dato» es la verdad, porque no hay ningún rol del que heredar un
+ * default (`ReglaDeCupoEfectivo` en el backend, tarea «rol y cupo efectivo
+ * por usuario» de sistema-seccion-unificada). Un usuario CON al menos un rol
+ * y sin override sí trae un cupo resuelto: «N por día · del rol» — ya no
+ * «sin dato», que es lo que este componente mostraba de la 12.8 hasta acá.
+ */
+function textoDeCupo(valor: number | undefined, origen: "rol" | "override" | undefined): string {
+  if (valor === undefined) return "sin dato";
+  const sufijo = origen ? (origen === "rol" ? "del rol" : "propio") : undefined;
+  const base = valor === 0 ? "sin tope" : `${valor} por día`;
+  return sufijo ? `${base} · ${sufijo}` : base;
+}
+
 interface EditorDeCupoEnFilaProps {
   /** El nombre para mostrar de la fila (usuario o rol): nunca se escribe a mano. */
   nombre: string;
   /**
-   * `0` desactiva el cupo; `undefined` si esta fila no tiene un cupo
-   * persistido todavía (una fila de usuario sin override propio).
+   * `0` desactiva el cupo; `undefined` cuando esta fila no tiene ningún
+   * valor efectivo resoluble —hoy, sólo una fila de usuario sin override
+   * propio y sin ningún rol de sistema vigente (tarea «rol y cupo efectivo
+   * por usuario» de sistema-seccion-unificada)—.
    */
   cupoConocido: number | undefined;
   /**
-   * De dónde sale `cupoConocido`, para distinguir el default del rol de un
-   * override puntual de usuario (tarea 12.8 de sistema-seccion-unificada).
-   * `undefined` cuando `cupoConocido` también lo es —nada que etiquetar—.
+   * De dónde sale `cupoConocido`: el default del rol, o un override puntual
+   * de usuario (tarea 12.8 de sistema-seccion-unificada). `undefined` cuando
+   * `cupoConocido` también lo es —nada que etiquetar—.
    */
   origen?: "rol" | "override";
   onGuardar: (cupo: number) => Promise<void>;
@@ -27,10 +53,9 @@ interface EditorDeCupoEnFilaProps {
  * mano. Acá la fila YA ES la clave: no hay nada que tipear para identificarla.
  *
  * Mismo patrón de confirmación inline al BAJAR un valor ya conocido que
- * `EditorDeLimite` usaba, y la misma limitación documentada ahí: no hay
- * `GET` para leer el cupo vigente (docs/architecture/api-contracts.md
- * §presupuestos), así que «conocido» es sólo lo que este admin guardó con
- * éxito EN ESTA SESIÓN.
+ * `EditorDeLimite` usaba. El botón lleva un ícono de lápiz —no el texto
+ * «Editar»— con el nombre accesible en `aria-label` (fidelidad con el
+ * canvas, punto 3).
  */
 export function EditorDeCupoEnFila({
   nombre,
@@ -133,35 +158,26 @@ export function EditorDeCupoEnFila({
         <Button variant="ghost" size="sm" disabled={enviando} onClick={cancelar}>
           Cancelar
         </Button>
+        <span className="adoc-asistente-admin-cupo-hint">0 = sin tope.</span>
       </div>
     );
   }
 
   return (
     <div className="adoc-asistente-admin-cupo-fila">
-      <span className="adoc-asistente-admin-cupo-valor">
-        {cupoConocido === undefined
-          ? "sin override propio"
-          : cupoConocido === 0
-            ? "sin tope"
-            : cupoConocido}
-        {cupoConocido !== undefined && origen && (
-          <span className="adoc-asistente-admin-cupo-origen">
-            {origen === "rol" ? " (del rol)" : " (override)"}
-          </span>
-        )}
-      </span>
+      <span className="adoc-asistente-admin-cupo-valor">{textoDeCupo(cupoConocido, origen)}</span>
       <Button
         ref={botonEditarRef}
         variant="ghost"
         size="sm"
+        className="adoc-asistente-admin-cupo-editar"
         aria-label={`Editar cupo diario de ${nombre}`}
         onClick={() => {
           setValor(cupoConocido !== undefined ? String(cupoConocido) : "");
           setEditando(true);
         }}
       >
-        Editar
+        <IconoSquarePen />
       </Button>
     </div>
   );

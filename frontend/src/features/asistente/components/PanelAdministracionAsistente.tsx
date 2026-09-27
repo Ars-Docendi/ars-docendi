@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@ars-docendi/ui";
 
+import { BannerDeMantenimiento } from "./BannerDeMantenimiento";
 import { KpisDeUso } from "./KpisDeUso";
 import { PanelDeUso } from "./PanelDeUso";
-import { ToggleDeMantenimiento } from "./ToggleDeMantenimiento";
 import { TopeOrganizacionalCard } from "./TopeOrganizacionalCard";
 import {
   editarCupoDeRol,
@@ -14,13 +15,16 @@ import {
   obtenerUso,
 } from "../api/administracionAsistenteApi";
 import { obtenerCapacidades } from "../api/asistenteApi";
+import { IconoDownload } from "../../../shared/ui/iconos";
+import { construirCsvDeUso, nombreDeArchivoDeUso } from "../utils/exportarUsoCsv";
+import { descargarArchivo } from "../utils/descargas";
 import type { PeriodoDeUso } from "../types";
 import "../asistente.css";
 
 const PERIODOS: { valor: PeriodoDeUso; etiqueta: string }[] = [
   { valor: "dia", etiqueta: "Hoy" },
-  { valor: "semana", etiqueta: "Última semana" },
-  { valor: "mes", etiqueta: "Último mes" },
+  { valor: "semana", etiqueta: "7 días" },
+  { valor: "mes", etiqueta: "30 días" },
 ];
 
 interface PanelAdministracionAsistenteProps {
@@ -36,12 +40,19 @@ interface PanelAdministracionAsistenteProps {
 
 /**
  * El panel administrativo del asistente (asistente-administracion-de-uso),
- * rediseñado 1:1 con la referencia «Uso del asistente» (sistema-seccion-
- * unificada): un período en pastillas en vez de un `<select>` de ancho
- * completo, cuatro KPIs organizacionales + el tope mensual arriba, y el
- * detalle por usuario/rol con el cupo diario editado directo en la fila
- * (`PanelDeUso`) en vez de formularios sueltos que pedían escribir un código
- * de rol o un UUID a mano.
+ * en su pasada de fidelidad 1:1 con el canvas «Uso del asistente» de Claude
+ * Design: título propio + período relabeleado («Hoy»/«7 días»/«30 días»,
+ * mismo criterio que ya usa `FiltrosAuditoria`) y «Exportar CSV» a la
+ * derecha; el banner de mantenimiento compacto (`BannerDeMantenimiento`) en
+ * vez de la tarjeta con toggle; los cinco KPIs arriba; y el detalle por
+ * usuario/rol con el cupo diario editado directo en la fila (`PanelDeUso`).
+ *
+ * EL TÍTULO «Uso del asistente» ES UN `<h2>`, no un segundo `<h1>`: la
+ * página «Sistema» ya tiene el suyo (`PageHeader`); este es el título de LA
+ * SECCIÓN dentro de la pestaña, tal como lo muestra el canvas —antes este
+ * panel no tenía ningún título propio, lo cual dejaba a la pestaña «Asistente»
+ * sin la jerarquía de encabezados que sí tiene, por ejemplo, la pestaña
+ * Auditoría.
  *
  * SÓLO LLEGA ACÁ QUIEN TIENE `asistente.administrar`: el gate lo aplica la
  * pestaña de `SistemaPage` (mismo criterio que antes aplicaba `routes.tsx`
@@ -49,6 +60,7 @@ interface PanelAdministracionAsistenteProps {
  */
 export function PanelAdministracionAsistente({ actualizacion }: PanelAdministracionAsistenteProps) {
   const [periodo, setPeriodo] = useState<PeriodoDeUso>("dia");
+  const [pestana, setPestana] = useState<"usuarios" | "roles">("usuarios");
   const [anuncio, setAnuncio] = useState("");
   const queryClient = useQueryClient();
 
@@ -114,6 +126,18 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     await refrescarPresupuestos();
   }
 
+  // «Exportar CSV»: exporta EXACTAMENTE lo que ya está cargado para la vista
+  // activa (Por usuario / Por rol) del período elegido — ningún pedido nuevo
+  // al backend, ninguna columna que la tabla no muestre ya.
+  function exportarCsv() {
+    if (!uso.data) return;
+    const filas = pestana === "usuarios" ? uso.data.porUsuario : uso.data.porRol;
+    const csv = construirCsvDeUso(filas, pestana === "usuarios");
+    descargarArchivo(nombreDeArchivoDeUso(periodo), csv, "text/csv;charset=utf-8");
+  }
+
+  const usuariosActivos = uso.data?.porUsuario.filter((f) => f.turnos > 0).length;
+
   return (
     <div className="adoc-asistente-administracion">
       {/* Única región viva de esta pantalla: anuncia guardados sin mover el foco
@@ -124,31 +148,46 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
       </p>
 
       <div className="adoc-asistente-admin-encabezado">
-        <p className="adoc-asistente-admin-copete">
-          Consumo, presupuestos, acceso y mantenimiento.
-        </p>
-        <div className="adoc-asistente-admin-periodo" role="group" aria-label="Período">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.valor}
-              type="button"
-              aria-pressed={periodo === p.valor}
-              className="adoc-asistente-admin-periodo-boton"
-              onClick={() => setPeriodo(p.valor)}
-            >
-              {p.etiqueta}
-            </button>
-          ))}
+        <div>
+          <h2 className="adoc-asistente-admin-titulo">Uso del asistente</h2>
+          <p className="adoc-asistente-admin-copete">
+            Consumo, presupuestos, acceso y mantenimiento.
+          </p>
+        </div>
+        <div className="adoc-asistente-admin-encabezado-acciones">
+          <div className="adoc-asistente-admin-periodo" role="group" aria-label="Período">
+            {PERIODOS.map((p) => (
+              <button
+                key={p.valor}
+                type="button"
+                aria-pressed={periodo === p.valor}
+                className="adoc-asistente-admin-periodo-boton"
+                onClick={() => setPeriodo(p.valor)}
+              >
+                {p.etiqueta}
+              </button>
+            ))}
+          </div>
+          <Button
+            variant="secondary"
+            type="button"
+            className="adoc-asistente-admin-exportar"
+            onClick={exportarCsv}
+            disabled={!uso.data}
+          >
+            <IconoDownload />
+            Exportar CSV
+          </Button>
         </div>
       </div>
 
-      <ToggleDeMantenimiento
+      <BannerDeMantenimiento
         mantenimiento={capacidades.data?.mantenimiento}
         onGuardar={guardarMantenimiento}
       />
 
       <section aria-label="Organización" className="adoc-asistente-admin-kpis-fila">
-        <KpisDeUso organizacion={uso.data?.organizacion} />
+        <KpisDeUso organizacion={uso.data?.organizacion} usuariosActivos={usuariosActivos} />
         <TopeOrganizacionalCard
           topeConocido={presupuestos.data?.topeMensualUsd}
           gastoEstimadoDelMes={presupuestos.data?.gastoEstimadoDelMes}
@@ -163,10 +202,11 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
           uso={uso.data}
           cargando={uso.isLoading}
           cuposPorRol={presupuestos.data?.cuposPorRol ?? []}
-          overridesPorUsuario={presupuestos.data?.overridesPorUsuario ?? []}
           onGuardarCupoDeRol={guardarCupoDeRolYRefrescar}
           onGuardarCupoDeUsuario={guardarCupoDeUsuarioYRefrescar}
           onGuardado={setAnuncio}
+          pestana={pestana}
+          onCambiarPestana={setPestana}
         />
       </section>
     </div>

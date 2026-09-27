@@ -267,13 +267,19 @@ When the session holds both `sistema.estado.ver` and `auditoria.ver`, the Estado
 
 The Asistente tab SHALL render the assistant's usage and administration panel — the same content, data and actions as the former «Uso del asistente» page — embedded in the section, without its own page header. It MUST be reachable only with `asistente.administrar`; the assistant's endpoints keep their own authorization. «Actualizar» on this tab MUST refetch the panel's data without discarding the period the user selected.
 
-The panel SHALL follow the visual and interaction design of the «Uso del asistente» reference (Claude Design canvas): a period selector rendered as a pressed-button group (not a full-width `<select>`); the organization-wide totals for the selected period (sessions, model calls, estimated cost, p95 latency) summarized as KPI cards, separate from the per-user/per-role detail; the organization's current monthly cap and its estimated spend-to-date for the calendar month, shown as a fifth card with a spend-vs-cap bar; the per-user and per-role detail rendered as two tabs (with a count badge each) over one sortable table with a name/role search field, each row showing its persisted daily quota (distinguishing a role's default from a user's own override) and edited inline in that row (no free-text role code or user UUID field). Elements of the reference design that depend on data or operations the backend does not expose (a live cloud/local provider switch with local-server telemetry, and a per-day usage trend chart) remain out of scope for this requirement until that data is available.
+The panel SHALL follow the visual and interaction design of the «Uso del asistente» reference (Claude Design canvas): an `<h2>` section title «Uso del asistente» with a subtitle (never a second `<h1>` — the page already has its own), a period selector rendered as a pressed-button group labelled «Hoy» / «7 días» / «30 días» (not a full-width `<select>`), and an «Exportar CSV» action that downloads, client-side, the currently loaded rows of the active per-user/per-role view for the selected period — no new backend request and no column beyond what the table already shows. A compact one-row maintenance banner (a status dot or icon, a title and a note) replaces a full-width toggle card; activating requires a reason entered in a panel that appears below the banner and is disabled until non-empty, deactivating is a single action with no reason required. The organization-wide totals for the selected period (sessions, model calls, estimated cost, p95 latency) are summarized as KPI cards, separate from the per-user/per-role detail. The organization's current monthly cap and its estimated spend-to-date for the calendar month are shown as a fifth card titled with the current month, the estimated spend as the primary figure next to the cap, and a spend-vs-cap bar. The per-user and per-role detail is rendered as two tabs (with a count badge each) alongside a metric switch (sessions, cost, tokens, latency) over one table with a name/role search field; each row shows the selected metric with a bar proportional to the view's maximum value, sorted by that metric descending, and its persisted daily quota (distinguishing a role's default from a user's own override) edited inline in that row (no free-text role code or user UUID field), with a visible pencil-edit button. A user row additionally shows that user's role(s) as a subtitle under their name, and an effective daily quota — the same value the assistant's real quota enforcement would apply for that user right now — labelled «N por día · del rol» when it comes from a role default, distinct from «N por día · propio» for an override; «sin dato» is shown only when the quota truly cannot be resolved for that user (no override and no system role at all). Elements of the reference design that depend on data or operations the backend does not expose (a live cloud/local provider switch with local-server telemetry, a per-day usage trend chart, and a per-user/per-role access on/off toggle) remain out of scope for this requirement until that data is available.
 
 #### Scenario: Embedded panel
 
 - **GIVEN** a user holding `asistente.administrar`
 - **WHEN** they open `/sistema#asistente`
-- **THEN** they see the usage panel, the maintenance banner and the organizational KPIs, and no second page heading «Uso del asistente»
+- **THEN** they see the usage panel, the maintenance banner and the organizational KPIs, with «Uso del asistente» as an `<h2>` section title and no second `<h1>`
+
+#### Scenario: Export CSV downloads the active view, client-side
+
+- **GIVEN** a user holding `asistente.administrar` on the Asistente tab with usage data loaded
+- **WHEN** they press «Exportar CSV»
+- **THEN** a CSV file downloads with the rows of the currently active view (Por usuario or Por rol) for the selected period, named with the period and the export date, with no new backend request
 
 #### Scenario: Refresh keeps the selected period
 
@@ -285,13 +291,31 @@ The panel SHALL follow the visual and interaction design of the «Uso del asiste
 
 - **GIVEN** a user holding `asistente.administrar` on the Asistente tab
 - **WHEN** they look at the period control
-- **THEN** it renders as a group of pressed buttons («Hoy», «Última semana», «Último mes»), not a `<select>` element
+- **THEN** it renders as a group of pressed buttons («Hoy», «7 días», «30 días»), not a `<select>` element
 
 #### Scenario: Daily quota is edited in the row, never as a typed code or UUID
 
 - **GIVEN** the per-user or per-role detail table
 - **WHEN** the admin edits a row's daily quota
 - **THEN** the edit happens inline in that row, identified by the row itself, with no field asking for a role code or a user id to be typed
+
+#### Scenario: A user row shows their role(s) and the effective quota the real enforcement would apply
+
+- **GIVEN** a user holding `asistente.administrar` on the «Por usuario» view, and a listed user who has no daily-quota override and holds more than one system role
+- **WHEN** they look at that user's row
+- **THEN** the user's role names appear as a subtitle under their name, and the quota column reads «N por día · del rol», where N is the minimum daily quota among that user's roles whose default is activated (greater than zero) — the same value the assistant's quota enforcement would apply to that user right now
+
+#### Scenario: A user's own override still wins over their role's quota
+
+- **GIVEN** the «Por usuario» view and a listed user who has a daily-quota override set
+- **WHEN** they look at that user's row
+- **THEN** the quota column reads «N por día · propio» with the override's value, regardless of what any of that user's roles' defaults would be
+
+#### Scenario: «sin dato» only when the quota truly cannot be resolved
+
+- **GIVEN** the «Por usuario» view and a listed user who has no override and holds no system role at all
+- **WHEN** they look at that user's row
+- **THEN** the quota column reads «sin dato»; every other user row shows a resolved quota, never «sin dato», once they hold at least one role
 
 #### Scenario: The organization cap card shows the persisted cap and a spend-vs-cap bar
 

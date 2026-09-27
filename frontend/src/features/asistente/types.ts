@@ -179,6 +179,22 @@ export interface UsoAgregado {
   esEstimado: boolean;
   /** Turnos cuyo proveedor/modelo no tiene precio vigente: NUNCA costeados en 0. */
   turnosSinPrecio: number;
+  /**
+   * Sólo en los agregados por usuario: los códigos de rol de sistema
+   * vigentes del actor (resuelto vía `IConsultasIdentity`, sin nombre legible
+   * — el backend no lo tiene, `etiquetasDeRol` lo traduce acá). Vacío en un
+   * agregado por rol o el organizacional.
+   */
+  codigosDeRol: string[];
+  /**
+   * Sólo en los agregados por usuario: el cupo diario que hoy le aplicaría
+   * la ejecución real del turno a este actor —la misma regla que aplica el
+   * backend al bloquear un turno—, o `null` si no se puede resolver (el
+   * actor no tiene override ni ningún rol de sistema vigente).
+   */
+  cupoEfectivo: number | null;
+  /** De dónde sale `cupoEfectivo`: `"override"` o `"rol"`, o `null` junto con `cupoEfectivo` nulo. */
+  origenDeCupo: "override" | "rol" | null;
 }
 
 /** El panel de uso completo (`GET /api/asistente/administracion/uso`). */

@@ -3,19 +3,16 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { PanelDeUso } from "./PanelDeUso";
-import type {
-  CupoDeRolPersistido,
-  OverrideDeUsuarioPersistido,
-  UsoAgregado,
-  UsoDelAsistente,
-} from "../types";
+import type { CupoDeRolPersistido, UsoAgregado, UsoDelAsistente } from "../types";
 
 // ============================================================
 // El detalle del panel de uso (asistente-panel-de-uso, sistema-seccion-
-// unificada): pestañas Por usuario/Por rol, buscador, columnas ordenables y
-// el cupo diario editado directo en la fila. `PanelAdministracionAsistente.
-// test.tsx` cubre la integración (región viva compartida, KPIs, mantenimiento);
-// acá va el comportamiento propio de esta pieza.
+// unificada), en su pasada de fidelidad con el canvas de Claude Design: una
+// tarjeta con pestañas Por usuario/Por rol + selector de métrica, buscador,
+// y la métrica elegida con una barra por fila (ordenada sola, descendente).
+// `PanelAdministracionAsistente.test.tsx` cubre la integración (región viva
+// compartida, KPIs, mantenimiento, CSV); acá va el comportamiento propio de
+// esta pieza.
 // ============================================================
 
 function fila(parcial: Partial<UsoAgregado>): UsoAgregado {
@@ -33,6 +30,9 @@ function fila(parcial: Partial<UsoAgregado>): UsoAgregado {
     costoEstimado: 0,
     esEstimado: true,
     turnosSinPrecio: 0,
+    codigosDeRol: [],
+    cupoEfectivo: null,
+    origenDeCupo: null,
     ...parcial,
   };
 }
@@ -49,7 +49,6 @@ const USO: UsoDelAsistente = {
 function montar(
   usoAMontar: UsoDelAsistente | undefined = USO,
   cuposPorRol: CupoDeRolPersistido[] = [],
-  overridesPorUsuario: OverrideDeUsuarioPersistido[] = [],
 ) {
   const onGuardarCupoDeRol = vi.fn().mockResolvedValue(undefined);
   const onGuardarCupoDeUsuario = vi.fn().mockResolvedValue(undefined);
@@ -59,7 +58,6 @@ function montar(
       uso={usoAMontar}
       cargando={false}
       cuposPorRol={cuposPorRol}
-      overridesPorUsuario={overridesPorUsuario}
       onGuardarCupoDeRol={onGuardarCupoDeRol}
       onGuardarCupoDeUsuario={onGuardarCupoDeUsuario}
       onGuardado={onGuardado}
@@ -117,31 +115,81 @@ describe("Buscador", () => {
   });
 });
 
-describe("Columnas ordenables", () => {
-  it("ordenar por Turnos alterna descendente/ascendente", async () => {
+describe("Selector de métrica (Sesiones/Costo/Tokens/Latencia)", () => {
+  it("arranca en «Sesiones» y las filas se ordenan solas, descendente por esa métrica", () => {
+    montar();
+
+    const switcher = within(screen.getByRole("radiogroup", { name: "Métrica" }));
+    expect(switcher.getByRole("radio", { name: "Sesiones" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    const filas = screen.getAllByRole("row").slice(1); // sin el encabezado
+    expect(within(filas[0]).getByText("Bruno Paz")).toBeInTheDocument(); // 20 turnos primero
+  });
+
+  it("cambiar a «Costo» reordena por costo y muestra el valor de esa métrica", async () => {
     const user = userEvent.setup();
     montar();
 
-    const botonTurnos = within(screen.getByRole("columnheader", { name: /Turnos/ })).getByRole(
-      "button",
+    const switcher = within(screen.getByRole("radiogroup", { name: "Métrica" }));
+    await user.click(switcher.getByRole("radio", { name: "Costo" }));
+
+    expect(switcher.getByRole("radio", { name: "Costo" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("columnheader", { name: "Costo estimado" })).toBeInTheDocument();
+    const filas = screen.getAllByRole("row").slice(1);
+    expect(within(filas[0]).getByText("Bruno Paz")).toBeInTheDocument(); // US$ 2 primero
+  });
+
+  it("en «Latencia» cada fila muestra el promedio como nota", async () => {
+    const user = userEvent.setup();
+    montar({
+      porUsuario: [
+        fila({
+          clave: "u1",
+          nombreParaMostrar: "Marina Díaz",
+          turnos: 5,
+          latenciaP95Ms: 1500,
+          latenciaPromedioMs: 900,
+        }),
+      ],
+      porRol: [],
+      organizacion: fila({ clave: "organizacion" }),
+    });
+
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: "Métrica" })).getByRole("radio", {
+        name: "Latencia",
+      }),
     );
 
-    await user.click(botonTurnos);
-    let filas = screen.getAllByRole("row").slice(1); // sin el encabezado
-    expect(within(filas[0]).getByText("Bruno Paz")).toBeInTheDocument(); // 20 turnos primero
+    const filaDeMarina = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(within(filaDeMarina).getByText(/promedio/)).toBeInTheDocument();
+  });
 
-    await user.click(botonTurnos);
-    filas = screen.getAllByRole("row").slice(1);
-    expect(within(filas[0]).getByText("Marina Díaz")).toBeInTheDocument(); // 5 turnos primero
+  it("una fila sin uso muestra «Sin uso» en vez del valor de la métrica", () => {
+    montar({
+      porUsuario: [fila({ clave: "u1", nombreParaMostrar: "Sin Uso", turnos: 0 })],
+      porRol: [],
+      organizacion: fila({ clave: "organizacion" }),
+    });
+
+    const filaSinUso = screen.getByText("Sin Uso").closest("tr")!;
+    expect(within(filaSinUso).getByText("Sin uso")).toBeInTheDocument();
   });
 });
 
 describe("El costo estimado nunca se ve como cero silencioso", () => {
-  it("lleva «(estimado)» y muestra aparte los turnos sin precio", async () => {
+  it("con la métrica en Costo, lleva «(estimado)» y muestra aparte los turnos sin precio", async () => {
     const user = userEvent.setup();
     montar();
 
     await user.click(screen.getByRole("tab", { name: /Por rol/ }));
+    await user.click(
+      within(screen.getByRole("radiogroup", { name: "Métrica" })).getByRole("radio", {
+        name: "Costo",
+      }),
+    );
 
     const filaDelRol = screen.getByText("docente").closest("tr")!;
     expect(within(filaDelRol).getByText(/\(estimado\)/)).toBeInTheDocument();
@@ -176,28 +224,117 @@ describe("Cupo diario editado en la fila", () => {
 });
 
 describe("El cupo mostrado en la fila viene de lo persistido (tarea 12.8)", () => {
-  it("una fila de rol muestra su default persistido, etiquetado «(del rol)»", async () => {
+  it("una fila de rol muestra su default persistido, «N por día · del rol» (copia del canvas)", async () => {
     const user = userEvent.setup();
     montar(USO, [{ rol: "docente", cupoDiarioTurnos: 15 }]);
 
     // "Por rol" no es la pestaña inicial.
     await user.click(screen.getByRole("tab", { name: /Por rol/ }));
 
-    expect(screen.getByText("15")).toBeInTheDocument();
-    expect(screen.getByText("(del rol)")).toBeInTheDocument();
+    expect(screen.getByText("15 por día · del rol")).toBeInTheDocument();
   });
 
-  it("una fila de usuario con override la muestra etiquetada «(override)»", () => {
-    montar(USO, [], [{ actorId: "u1", nombreParaMostrar: "Marina Díaz", cupoDiarioTurnos: 7 }]);
+  it("una fila de usuario con override la muestra «N por día · propio»", () => {
+    montar({
+      ...USO,
+      porUsuario: [
+        fila({
+          clave: "u1",
+          nombreParaMostrar: "Marina Díaz",
+          turnos: 5,
+          cupoEfectivo: 7,
+          origenDeCupo: "override",
+        }),
+      ],
+    });
 
-    expect(screen.getByText("7")).toBeInTheDocument();
-    expect(screen.getByText("(override)")).toBeInTheDocument();
+    expect(screen.getByText("7 por día · propio")).toBeInTheDocument();
   });
 
-  it("una fila de usuario sin override no inventa el default de ningún rol", () => {
-    montar(USO, [{ rol: "docente", cupoDiarioTurnos: 15 }], []);
+  it("una fila de usuario sin override muestra el cupo efectivo del rol que ya resolvió el backend", () => {
+    // Ya NO hace falta un mapa de roles aparte: `GET …/uso` trae, por fila de
+    // usuario, el cupo efectivo y su origen — la misma regla que aplicaría
+    // la ejecución real del turno (tarea «rol y cupo efectivo por usuario»).
+    montar({
+      ...USO,
+      porUsuario: [
+        fila({
+          clave: "u1",
+          nombreParaMostrar: "Marina Díaz",
+          turnos: 5,
+          codigosDeRol: ["docente"],
+          cupoEfectivo: 15,
+          origenDeCupo: "rol",
+        }),
+      ],
+    });
 
     const filaDeMarina = screen.getByText("Marina Díaz").closest("tr")!;
-    expect(within(filaDeMarina).getByText("sin override propio")).toBeInTheDocument();
+    expect(within(filaDeMarina).getByText("15 por día · del rol")).toBeInTheDocument();
+  });
+
+  it("una fila de usuario sin override y sin ningún rol de sistema dice «sin dato»", () => {
+    // El único caso legítimo de «sin dato»: ni override ni rol del que
+    // heredar un default (`ReglaDeCupoEfectivo` en el backend).
+    montar({
+      ...USO,
+      porUsuario: [fila({ clave: "u1", nombreParaMostrar: "Marina Díaz", turnos: 5 })],
+    });
+
+    const filaDeMarina = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(within(filaDeMarina).getByText("sin dato")).toBeInTheDocument();
+  });
+});
+
+describe("Subtítulo de rol bajo el nombre (tarea «rol y cupo efectivo por usuario»)", () => {
+  it("una fila de usuario con roles vigentes muestra sus nombres legibles como subtítulo", () => {
+    montar({
+      ...USO,
+      porUsuario: [
+        fila({
+          clave: "u1",
+          nombreParaMostrar: "Marina Díaz",
+          turnos: 5,
+          codigosDeRol: ["decanato", "secretaria"],
+        }),
+      ],
+    });
+
+    const filaDeMarina = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(within(filaDeMarina).getByText("Decanato · Secretaría Académica")).toBeInTheDocument();
+  });
+
+  it("una fila de rol nunca muestra un subtítulo (ella misma ya es el rol)", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole("tab", { name: /Por rol/ }));
+
+    const filaDelRol = screen.getByText("docente").closest("tr")!;
+    expect(within(filaDelRol).queryByText(/·/)).not.toBeInTheDocument();
+  });
+});
+
+describe("El botón de editar cupo está presente en cada fila (fidelidad con el canvas)", () => {
+  it("cada fila de usuario expone su botón de editar con el aria-label correcto", () => {
+    montar();
+
+    expect(
+      screen.getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Editar cupo diario de Bruno Paz" }),
+    ).toBeInTheDocument();
+  });
+
+  it("cada fila de rol también expone su botón de editar", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole("tab", { name: /Por rol/ }));
+
+    expect(
+      screen.getByRole("button", { name: "Editar cupo diario de docente" }),
+    ).toBeInTheDocument();
   });
 });

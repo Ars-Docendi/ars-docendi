@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@ars-docendi/ui";
 
+import { IconoSquarePen } from "../../../shared/ui/iconos";
 import { formatearUsd } from "../utils/formatoDeUso";
 
 interface TopeOrganizacionalCardProps {
@@ -34,10 +35,22 @@ function colorDelGasto(porcentaje: number): string {
   return "var(--success-500)";
 }
 
+/** «septiembre», con mayúscula inicial — el canvas titula la tarjeta «Tope de {Mes}». */
+function mesActualCapitalizado(): string {
+  const mes = new Intl.DateTimeFormat("es-AR", { month: "long" }).format(new Date());
+  return mes.charAt(0).toUpperCase() + mes.slice(1);
+}
+
 /**
- * La quinta tarjeta de la fila de KPIs (rediseño «Uso del asistente»): el
- * tope organizacional de gasto mensual, con el mismo patrón de confirmación
- * inline al BAJAR un valor que `EditorDeLimite` ya usaba.
+ * La quinta tarjeta de la fila de KPIs (rediseño «Uso del asistente», 1:1
+ * con el canvas de Claude Design): el tope organizacional de gasto mensual,
+ * titulada «Tope de {mes}», con el gasto del mes como número principal y el
+ * tope al lado («de US$ X»), y el mismo patrón de confirmación inline al
+ * BAJAR un valor que `EditorDeLimite` ya usaba. El nombre accesible del
+ * grupo se mantiene «Tope organizacional mensual» a propósito —es lo que ya
+ * usan los tests de integración— aunque la etiqueta VISIBLE ahora lleve el
+ * mes, igual que un botón de ícono puede tener un `aria-label` más
+ * descriptivo que lo que se ve.
  *
  * Lee el tope y el gasto del mes de `GET /api/asistente/administracion/presupuestos`
  * (tarea 12.8 de sistema-seccion-unificada) — YA NO depende de «lo último que
@@ -71,6 +84,8 @@ export function TopeOrganizacionalCard({
       volverAEnfocarRef.current = false;
     }
   }, [editando, confirmando]);
+
+  const etiqueta = `Tope de ${mesActualCapitalizado()}`;
 
   async function aplicar(nuevoTope: number) {
     setEnviando(true);
@@ -110,20 +125,20 @@ export function TopeOrganizacionalCard({
         role="group"
         aria-label="Tope organizacional mensual"
       >
-        <span className="adoc-asistente-admin-kpi-etiqueta">Tope organizacional mensual</span>
+        <span className="adoc-asistente-admin-kpi-etiqueta">{etiqueta}</span>
         <p>No se pudo cargar el tope organizacional.</p>
       </div>
     );
   }
 
-  if (topeConocido === undefined) {
+  if (topeConocido === undefined || gastoEstimadoDelMes === undefined) {
     return (
       <div
         className="adoc-asistente-admin-kpi adoc-asistente-admin-tope"
         role="group"
         aria-label="Tope organizacional mensual"
       >
-        <span className="adoc-asistente-admin-kpi-etiqueta">Tope organizacional mensual</span>
+        <span className="adoc-asistente-admin-kpi-etiqueta">{etiqueta}</span>
         <p aria-live="polite">Cargando…</p>
       </div>
     );
@@ -136,7 +151,7 @@ export function TopeOrganizacionalCard({
         role="group"
         aria-label="Tope organizacional mensual"
       >
-        <span className="adoc-asistente-admin-kpi-etiqueta">Tope organizacional mensual</span>
+        <span className="adoc-asistente-admin-kpi-etiqueta">{etiqueta}</span>
         <p className="adoc-asistente-admin-confirmar">
           ¿Bajar de {formatearUsd(topeConocido)} a {formatearUsd(confirmando)}? Si el gasto ya lo
           supera, se bloquea al instante.
@@ -166,7 +181,7 @@ export function TopeOrganizacionalCard({
         role="group"
         aria-label="Tope organizacional mensual"
       >
-        <span className="adoc-asistente-admin-kpi-etiqueta">Tope organizacional mensual</span>
+        <span className="adoc-asistente-admin-kpi-etiqueta">{etiqueta}</span>
         <Input
           type="number"
           min={0}
@@ -196,10 +211,7 @@ export function TopeOrganizacionalCard({
   }
 
   const hayTope = topeConocido > 0;
-  const porcentaje =
-    hayTope && gastoEstimadoDelMes !== undefined
-      ? Math.min(100, (gastoEstimadoDelMes / topeConocido) * 100)
-      : 0;
+  const porcentaje = hayTope ? Math.min(100, (gastoEstimadoDelMes / topeConocido) * 100) : 0;
 
   return (
     <div
@@ -207,11 +219,30 @@ export function TopeOrganizacionalCard({
       role="group"
       aria-label="Tope organizacional mensual"
     >
-      <span className="adoc-asistente-admin-kpi-etiqueta">Tope organizacional mensual</span>
-      <span className="adoc-asistente-admin-kpi-valor">
-        {topeConocido === 0 ? "Sin tope" : formatearUsd(topeConocido)}
+      <div className="adoc-asistente-admin-tope-encabezado">
+        <span className="adoc-asistente-admin-kpi-etiqueta">{etiqueta}</span>
+        <Button
+          ref={botonEditarRef}
+          variant="ghost"
+          size="sm"
+          className="adoc-asistente-admin-tope-editar"
+          aria-label="Editar tope"
+          title="Editar tope"
+          onClick={() => {
+            setValor(String(topeConocido));
+            setEditando(true);
+          }}
+        >
+          <IconoSquarePen />
+        </Button>
+      </div>
+      <span className="adoc-asistente-admin-kpi-valor-linea">
+        <span>{formatearUsd(gastoEstimadoDelMes)}</span>
+        <span className="adoc-asistente-admin-tope-de">
+          {hayTope ? `de ${formatearUsd(topeConocido)} (estimado)` : "gastado este mes"}
+        </span>
       </span>
-      {hayTope && gastoEstimadoDelMes !== undefined && (
+      {hayTope && (
         <>
           <div
             className="adoc-asistente-admin-tope-barra"
@@ -225,9 +256,10 @@ export function TopeOrganizacionalCard({
               className="adoc-asistente-admin-tope-barra-relleno"
               style={{ width: `${porcentaje}%`, background: colorDelGasto(porcentaje) }}
             />
+            <span className="adoc-asistente-admin-tope-barra-marca" style={{ left: "50%" }} />
+            <span className="adoc-asistente-admin-tope-barra-marca" style={{ left: "75%" }} />
           </div>
           <span className="adoc-asistente-admin-kpi-nota">
-            {formatearUsd(gastoEstimadoDelMes)} de {formatearUsd(topeConocido)} (estimado) ·{" "}
             {Math.round(porcentaje)}% usado · al 100% se bloquean las consultas
           </span>
         </>
@@ -237,17 +269,6 @@ export function TopeOrganizacionalCard({
           Sin tope: el gasto no bloquea consultas.
         </span>
       )}
-      <Button
-        ref={botonEditarRef}
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setValor(String(topeConocido));
-          setEditando(true);
-        }}
-      >
-        Editar tope
-      </Button>
     </div>
   );
 }
