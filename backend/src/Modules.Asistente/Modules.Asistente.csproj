@@ -23,10 +23,11 @@
   </ItemGroup>
 
   <!--
-    Referencia única a ArsDocendi.Shared. El módulo NO referencia todavía su
-    propio .Contracts (que nace vacío, ver Modules.Asistente.Contracts/README.md)
-    ni ningún otro módulo: los edges hacia Contracts ajenos llegan con el carril
-    determinista de API.
+    ArsDocendi.Shared y su propio Contracts (sistema-seccion-unificada, design.md
+    D1): el módulo implementa IConsultasDeAuditoriaDeAdministracion e
+    IConsultaDeMantenimiento ahí para que el Host los lea sin SQL directo. El
+    módulo NO referencia ningún otro módulo ni Contracts ajeno: esos edges
+    llegan con el carril determinista de API.
 
     Npgsql va sin EF Core: el módulo no tiene entidades ni DbContext. Lo único
     que necesita hoy es abrir una conexión para aplicar sus GRANT, y más adelante
@@ -34,6 +35,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
+    <ProjectReference Include="..\Modules.Asistente.Contracts\Modules.Asistente.Contracts.csproj" />
   </ItemGroup>
 
   <!--

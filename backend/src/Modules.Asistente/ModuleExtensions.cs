@@ -192,6 +192,14 @@ public static class ModuleExtensions
         services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
         services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
 
+        // El primer contrato público del módulo (sistema-seccion-unificada,
+        // design.md D1): el Host los resuelve para el feed unificado de
+        // auditoría y el estado del sistema, sin SQL directo ni referenciar
+        // estos internals.
+        services.AddScoped<Contracts.IConsultasDeAuditoriaDeAdministracion,
+            ConsultasDeAuditoriaDeAdministracion>();
+        services.AddScoped<Contracts.IConsultaDeMantenimiento, ConsultaDeMantenimiento>();
+
         services.AddScoped<IDisponibilidadDelModelo, DisponibilidadDelModeloReal>();
 
         // El candado del turno (asistente-turno-exclusivo-del-actor) abre su

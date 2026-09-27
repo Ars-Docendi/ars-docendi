@@ -1,31 +1,36 @@
 # Modules.Asistente.Contracts
 
-**Este proyecto está vacío a propósito, y su existencia es una decisión abierta.**
+## La decisión: conservado
 
-## El problema
+Este proyecto nació vacío a propósito mientras el equipo decidía si conservarlo o
+borrarlo: la convención del repo es que cada `Modules.<X>` tenga su
+`Modules.<X>.Contracts` como única superficie pública cross-module, y con el
+asistente esa simetría no se sostenía sola — el módulo **consumía** Contracts
+ajenos pero **nadie lo consumía a él**.
 
-La convención del repo es que cada `Modules.<X>` tenga su `Modules.<X>.Contracts`
-como única superficie pública cross-module. Con el asistente esa simetría no se
-sostiene sola: el módulo **consume** Contracts ajenos —para enrutar preguntas por
-el carril determinista de API— pero **nadie lo consume a él**. Un asistente es una
-hoja del grafo de dependencias.
+`sistema-seccion-unificada` (ARS-157) cerró la decisión en **conservarlo**: el
+asistente publica su primer contrato porque el Host necesita leer
+`asistente.auditoria_administracion` y el estado de mantenimiento sin cruzar a
+SQL directo ni referenciar los internals del módulo (regla 1 de AGENTS.md).
 
-Un `.Contracts` sin tipos, que ningún proyecto referencia, no es una frontera: es
-estructura decorativa que hay que compilar, versionar y explicar.
+## Primeros tipos y consumidores
 
-## Las dos salidas
+- `IConsultasDeAuditoriaDeAdministracion` / `EventoDeAdministracion` /
+  `CampoDeAdministracion` / `LoteDeAuditoriaDeAdministracion`: el feed unificado
+  de auditoría (`ServicioAuditoria` en `ArsDocendi.Host`) lee el rastro de
+  administración del asistente a través de esta interfaz — nunca el JSON crudo
+  de `antes`/`despues`, que el módulo normaliza antes de exponerlo.
+- `IConsultaDeMantenimiento` / `EstadoDeMantenimientoPublico`: `GET
+/api/administracion/sistema/estado` la usa para mostrar el modo mantenimiento
+  a quien sólo tiene `sistema.estado.ver`, sin exponer la razón ni el actor
+  (esos quedan detrás de `asistente.consultar`).
 
-| Opción                         | A favor                                                                                        | En contra                                                             |
-| ------------------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Conservarlo** por convención | Si mañana el asistente publica algo (un evento de consulta respondida, para métricas), ya está | Hoy es un assembly vacío en la solución                               |
-| **Borrarlo** y documentar      | La solución solo tiene proyectos con contenido                                                 | Rompe la simetría; recrearlo después toca `.slnx`, CI y el Dockerfile |
+`Modules.Asistente` implementa ambas como clases `internal` registradas en su
+`ModuleExtensions`; los tipos públicos de esta implementación son exactamente los
+de este proyecto. `ArsDocendi.Host` y `Modules.Asistente` referencian este
+proyecto; este proyecto no referencia a nadie, así que ningún ciclo es posible.
 
-Mientras no se resuelva, el proyecto queda en la solución **sin que nadie lo
-referencie**. Es deliberado: un proyecto huérfano es visible en cada build y en
-cada review, y obliga a cerrar la pregunta. Una referencia de cortesía desde
-`Modules.Asistente` la escondería.
+## Reglas
 
-## Si se conserva
-
-Valen las mismas reglas que para el resto: solo DTOs, interfaces y tokens. **Sin
-lógica.**
+Valen las mismas que para el resto de los `.Contracts` del repo: sólo DTOs,
+interfaces y tokens. **Sin lógica.**

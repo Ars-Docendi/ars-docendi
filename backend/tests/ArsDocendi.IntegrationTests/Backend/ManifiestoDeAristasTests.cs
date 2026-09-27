@@ -208,44 +208,52 @@ public sealed class ManifiestoDeAristasTests
     [Fact]
     public void Un_proyecto_huerfano_sin_motivo_dispara_una_desviacion()
     {
+        // Modules.Asistente.Contracts dejó de ser el huérfano del repo
+        // (sistema-seccion-unificada, ARS-157: ahora Host y Modules.Asistente lo
+        // referencian), así que este guard prueba su propio mecanismo con un
+        // huérfano SINTÉTICO en vez de depender de que exista uno real.
         var (manifiesto, grafo) = Reales();
-        var sinMotivo = manifiesto with
+        var conHuerfanoSinMotivo = manifiesto with
         {
             Proyectos =
             [
-                .. manifiesto.Proyectos.Select(p =>
-                    p.EsHuerfano ? p with { Motivo = null } : p),
+                .. manifiesto.Proyectos,
+                new ProyectoDeclarado { Nombre = "Modules.Encuestas", Estado = "huerfano", Motivo = null },
             ],
         };
+        var conProyectoSuelto = grafo with { Proyectos = [.. grafo.Proyectos, "Modules.Encuestas"] };
 
         // El motivo es lo que hace que un huérfano sea una decisión visible y no un
         // proyecto que quedó ahí. Sin él, la fila solo dice que nadie lo referencia,
         // que es lo que ya se veía sin manifiesto.
-        var desviaciones = ComparadorDeAristas.Comparar(sinMotivo, grafo);
+        var desviaciones = ComparadorDeAristas.Comparar(conHuerfanoSinMotivo, conProyectoSuelto);
 
         var detectada = Assert.Single(
             desviaciones, d => d.Tipo == TipoDesviacionDeArista.HuerfanoSinMotivo);
-        Assert.Equal("Modules.Asistente.Contracts", detectada.Objeto);
+        Assert.Equal("Modules.Encuestas", detectada.Objeto);
     }
 
     [Fact]
     public void Un_proyecto_que_ninguna_arista_alcanza_declarado_activo_es_incoherente()
     {
+        // Mismo motivo que el test anterior: se prueba con un proyecto sintético
+        // sin ninguna arista real, declarado "activo" a propósito.
         var (manifiesto, grafo) = Reales();
-        var comoActivo = manifiesto with
+        var conProyectoActivoSuelto = manifiesto with
         {
             Proyectos =
             [
-                .. manifiesto.Proyectos.Select(p =>
-                    p.EsHuerfano ? p with { Estado = "activo", Motivo = null } : p),
+                .. manifiesto.Proyectos,
+                new ProyectoDeclarado { Nombre = "Modules.Encuestas", Estado = "activo" },
             ],
         };
+        var conProyectoSuelto = grafo with { Proyectos = [.. grafo.Proyectos, "Modules.Encuestas"] };
 
-        var desviaciones = ComparadorDeAristas.Comparar(comoActivo, grafo);
+        var desviaciones = ComparadorDeAristas.Comparar(conProyectoActivoSuelto, conProyectoSuelto);
 
         var detectada = Assert.Single(
             desviaciones, d => d.Tipo == TipoDesviacionDeArista.EstadoDeProyectoIncoherente);
-        Assert.Equal("Modules.Asistente.Contracts", detectada.Objeto);
+        Assert.Equal("Modules.Encuestas", detectada.Objeto);
     }
 
     // --------------------------------------------- las tres direcciones, contra el repo

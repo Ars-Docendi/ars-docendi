@@ -31,7 +31,7 @@ flowchart TD
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
     TareasContracts["Modules.Tareas.Contracts"]
-    AsistenteContracts["Modules.Asistente.Contracts<br/>(huérfano: decisión abierta)"]
+    AsistenteContracts["Modules.Asistente.Contracts"]
   end
   subgraph modules [Modules internos]
     Designaciones["Modules.Designaciones"]
@@ -51,12 +51,14 @@ flowchart TD
   Host --> Tareas
   Host --> Asistente
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
+  Host -->|"auditoría de administración + estado de mantenimiento"| AsistenteContracts
 
   Designaciones --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
   Asistente --> Shared
+  Asistente --> AsistenteContracts
 
   Designaciones --> DesignacionesContracts
   Aulas --> AulasContracts
@@ -91,9 +93,28 @@ La disciplina, corolario del invariante #4 enmendado:
 
 ## Administración de estado y auditoría
 
-Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. El repositorio de auditoría consulta `IdentityDbContext` con `AsNoTracking`, joins izquierdos opcionales de `changed_by` a `identity.users` y `persona_id` a `identity.personas`, filtros parametrizados aplicados antes de conteo/paginación, orden por fecha/ID y timeout de 5 segundos; ningún módulo de negocio consulta `audit.change_log` directamente. La comprobación de PostgreSQL ejecuta sólo `SELECT 1` con timeout de 3 segundos. No se agrega una referencia de proyecto nueva ni se modifica la frontera entre módulos.
+Los endpoints administrativos viven en `ArsDocendi.Host` y siguen Controller → Service → Repository. El repositorio de auditoría consulta `IdentityDbContext` con `AsNoTracking`, joins izquierdos opcionales de `changed_by` a `identity.users` y `persona_id` a `identity.personas`, filtros parametrizados aplicados antes de conteo/paginación, orden por fecha/ID y timeout de 5 segundos; ningún módulo de negocio consulta `audit.change_log` directamente. La comprobación de PostgreSQL ejecuta sólo `SELECT 1` con timeout de 3 segundos.
 
-La API de auditoría expone metadatos y valores aprobados, nunca snapshots JSON completos ni `client_ip`. El permiso `auditoria.ver` limita la lectura administrativa; `sistema.estado.ver` protege la sonda PostgreSQL.
+**Desde `sistema-seccion-unificada` (ARS-157), el Host referencia `Modules.Asistente.Contracts`.**
+Es la PRIMERA arista hacia ese proyecto — antes huérfano, sin ningún consumidor — y la
+implementación vive en `Modules.Asistente`, que también pasa a referenciarlo (su propio
+contrato público). Dos interfaces nuevas, ambas puros DTOs/interfaces sin lógica:
+
+- `IConsultasDeAuditoriaDeAdministracion`: el `ServicioAuditoria` del Host la usa para fusionar
+  `audit.change_log` con el rastro de administración del asistente
+  (`asistente.auditoria_administracion`) en un único feed. El Host nunca abre una conexión al
+  schema `asistente`; el módulo normaliza su propio JSON interno (`antes`/`despues`) a campos con
+  nombre antes de cruzar la frontera, así que ese formato privado nunca se filtra.
+- `IConsultaDeMantenimiento`: `ServicioEstadoSistema` la usa para mostrar el modo mantenimiento
+  del asistente a quien sólo tiene `sistema.estado.ver`, sin exponer la razón ni el actor (esos
+  quedan detrás de `asistente.consultar`).
+
+Esta arista **no** es una excepción a la regla 1 de AGENTS.md ni a la regla 11 (la del
+Asistente leyendo otros schemas): es la dirección contraria — otro módulo consumiendo el
+`.Contracts` propio del asistente, exactamente el patrón que sostiene a `Modules.Designaciones`
+desde antes. El grafo sigue acíclico: `Modules.Asistente.Contracts` no referencia a nadie.
+
+La API de auditoría expone metadatos y valores aprobados, nunca snapshots JSON completos ni `client_ip`, de ninguna de las dos fuentes. El permiso `auditoria.ver` limita la lectura administrativa; `sistema.estado.ver` protege tanto la sonda PostgreSQL como el estado de mantenimiento del asistente.
 
 La creación de una persona sin cuenta para un Alta mantiene esa frontera: el
 módulo Designaciones consume `IAdministracionIdentity` por DI, mientras que

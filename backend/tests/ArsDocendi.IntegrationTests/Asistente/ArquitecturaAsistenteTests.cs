@@ -96,6 +96,10 @@ public sealed partial class ArquitecturaAsistenteTests
         // Reads/writes presupuesto_rol/presupuesto_usuario/tope_organizacional,
         // same wholesale-revoked schema (tareas 9.5/9.6).
         "PresupuestosAdministrablesReal.cs",
+        // Reads auditoria_administracion (sistema-seccion-unificada, design.md
+        // D1, tarea 1.2) — same wholesale-revoked schema as the rest of this
+        // list, so even reading its own audit trail needs the owner connection.
+        "ConsultasDeAuditoriaDeAdministracion.cs",
     ];
 
     // ------------------------------------------------- la cadena del dueño no se filtra
@@ -556,6 +560,9 @@ public sealed partial class ArquitecturaAsistenteTests
         "AuditoriaDeAdministracionReal.cs",
         "ConsultasDeUso.cs",
         "PresupuestosAdministrablesReal.cs",
+        // Same reason as ConsultasDeUso.cs above (sistema-seccion-unificada,
+        // design.md D1, tarea 1.2).
+        "ConsultasDeAuditoriaDeAdministracion.cs",
     ];
 
     [Fact]
@@ -732,7 +739,7 @@ public sealed partial class ArquitecturaAsistenteTests
     // ------------------------------------------------------------- las referencias
 
     [Fact]
-    public void El_modulo_solo_referencia_ArsDocendi_Shared()
+    public void El_modulo_solo_referencia_ArsDocendi_Shared_y_su_propio_Contracts()
     {
         var proyecto = Path.Combine(
             RaizRepositorio.BackendSrc(), "Modules.Asistente", "Modules.Asistente.csproj");
@@ -746,9 +753,11 @@ public sealed partial class ArquitecturaAsistenteTests
             .Select(ruta => Path.GetFileNameWithoutExtension(ruta))
             .ToArray();
 
-        // Los edges hacia Contracts ajenos llegan con el carril determinista de API.
-        // Hasta entonces, cualquier referencia nueva es un error, no una decisión.
-        Assert.Equal(["ArsDocendi.Shared"], referencias);
+        // Los edges hacia Contracts AJENOS llegan con el carril determinista de API.
+        // Modules.Asistente.Contracts es su propio contrato público
+        // (sistema-seccion-unificada, design.md D1); cualquier otra referencia
+        // nueva sigue siendo un error, no una decisión.
+        Assert.Equal(["ArsDocendi.Shared", "Modules.Asistente.Contracts"], referencias);
     }
 
     [Fact]

@@ -56,8 +56,7 @@
     },
     {
       "nombre": "Modules.Asistente.Contracts",
-      "estado": "huerfano",
-      "motivo": "Ningún proyecto lo referencia y él no referencia a nadie: el asistente consume Contracts ajenos y nadie lo consume a él, así que su .Contracts nació vacío. Se conserva sin referencias a propósito, para que la decisión de mantenerlo o borrarlo quede visible en cada build en vez de esconderse detrás de una referencia de cortesía desde Modules.Asistente. La decisión abierta está planteada en backend/src/Modules.Asistente.Contracts/README.md."
+      "estado": "activo"
     }
   ],
   "aristas": [
@@ -102,6 +101,12 @@
       "destino": "Modules.Asistente",
       "via": "project-reference",
       "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "Modules.Asistente.Contracts",
+      "via": "project-reference",
+      "motivo": "IConsultasDeAuditoriaDeAdministracion e IConsultaDeMantenimiento (sistema-seccion-unificada, design.md D1): el feed unificado de auditoría y el estado del sistema leen el rastro de administración y el modo mantenimiento del asistente sin SQL directo ni referenciar sus internals."
     },
     {
       "origen": "Modules.Designaciones",
@@ -161,7 +166,13 @@
       "origen": "Modules.Asistente",
       "destino": "ArsDocendi.Shared",
       "via": "project-reference",
-      "motivo": "Utilidades transversales y lectura de identity para autorizar. Es su ÚNICA referencia: las aristas hacia Contracts ajenos llegan con el carril determinista de API (ARS-46), y hasta entonces cualquier referencia nueva es un error y no una decisión."
+      "motivo": "Utilidades transversales y lectura de identity para autorizar. Las aristas hacia Contracts ajenos llegan con el carril determinista de API (ARS-46); su propio Contracts es la única otra referencia permitida (ver la fila siguiente), y cualquier otra es un error y no una decisión."
+    },
+    {
+      "origen": "Modules.Asistente",
+      "destino": "Modules.Asistente.Contracts",
+      "via": "project-reference",
+      "motivo": "El módulo implementa IConsultasDeAuditoriaDeAdministracion e IConsultaDeMantenimiento (internal, registradas en ModuleExtensions) contra su propio contrato público (sistema-seccion-unificada, design.md D1)."
     },
     {
       "origen": "ArsDocendi.Evaluacion.Nucleo",
