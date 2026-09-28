@@ -52,15 +52,16 @@ Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepcion
 
 Los DTOs, permisos, códigos de error y respuestas exactas están detallados en [Administración y desarrollo](./api-contracts-administracion.md) y [Designaciones](./api-contracts-designaciones.md).
 
-| Superficie       | Rutas principales                                                                                 | Autorización                                                        |
-| ---------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Usuarios         | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
-| Docentes         | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
-| Roles y permisos | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
-| Períodos         | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
-| Catálogos        | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
-| Pedidos          | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
-| Sesión dev       | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
+| Superficie          | Rutas principales                                                                                 | Autorización                                                        |
+| ------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Usuarios            | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
+| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
+| Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
+| Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                     | `sistema.estado.ver`, `auditoria.ver`                               |
+| Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
+| Catálogos           | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
+| Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
+| Sesión dev          | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
 
 Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados. En pedidos, el Alta envía `persona { documento, nombre, apellido }` sin `personaId`; Baja y Cambio envían `personaId` y siempre `materiaId` explícito.
 

@@ -7,7 +7,7 @@
 -- (`sys_admin`), que puede todo y es la máxima jerarquía.
 
 INSERT INTO identity.permisos (id, code, nombre, descripcion) VALUES
-    ('b2000000-0000-4000-8000-000000000023', 'proyectos.gestionar',
+    ('b2000000-0000-4000-8000-000000000025', 'proyectos.gestionar',
      'Gestionar proyectos',
      'Crear proyectos de Tareas y cambiar su estado.')
 ON CONFLICT (code) DO UPDATE SET
