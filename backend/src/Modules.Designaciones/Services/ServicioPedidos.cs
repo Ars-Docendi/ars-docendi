@@ -1,5 +1,7 @@
+using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
+using ArsDocendi.Storage.Contracts;
 using Microsoft.Extensions.Logging;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Infrastructure;
@@ -21,7 +23,8 @@ internal sealed class ServicioPedidos(
     IConsultasIdentity identity,
     UnidadDeTrabajo unidadDeTrabajo,
     ILogger<ServicioPedidos> logger,
-    IAdministracionIdentity? administracionIdentity = null)
+    IAdministracionIdentity? administracionIdentity = null,
+    IAlmacenamientoArchivos? almacenamiento = null)
 {
     /// <summary>
     /// Crea un pedido en borrador.
@@ -42,7 +45,7 @@ internal sealed class ServicioPedidos(
                 "Sólo el Jefe de Cátedra de la materia puede cargar un pedido sobre esa cátedra [BR-designaciones-009].");
         }
 
-        await ValidarDatosAsync(datos, actor, ct);
+        var archivos = await ValidarDatosAsync(datos, actor, ct);
         var datosResueltos = await ResolverPersonaAsync(datos, ct);
 
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
@@ -65,7 +68,7 @@ internal sealed class ServicioPedidos(
             CreadoEn = DateTimeOffset.UtcNow,
         };
         AplicarDatos(pedido, datosResueltos);
-        foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos)) pedido.Adjuntos.Add(adjunto);
+        foreach (var adjunto in ConstruirAdjuntos(pedido.Id, datosResueltos.Adjuntos, archivos, datosResueltos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null)) pedido.Adjuntos.Add(adjunto);
 
         pedidos.Agregar(pedido);
         RegistrarEnHistorial(pedido, AccionesHistorial.Crear, RolesCircuito.JefeCatedra, actor, null);
@@ -96,7 +99,7 @@ internal sealed class ServicioPedidos(
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
-        await ValidarDatosAsync(datos, actor, ct);
+        var archivos = await ValidarDatosAsync(datos, actor, ct);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datos.PeriodoId, datos.PersonaId.Value, pedidoId, ct))
         {
@@ -112,7 +115,7 @@ internal sealed class ServicioPedidos(
             pedido.MateriaId = datos.MateriaId;
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
-            pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos));
+            pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
             var rol = pedido.Estado == EstadosPedido.Borrador
                 ? RolesCircuito.JefeCatedra
                 : pedido.PropietarioActual ?? RolesCircuito.JefeCatedra;
@@ -292,7 +295,7 @@ internal sealed class ServicioPedidos(
             HorasExternas: vigente?.HorasExternas);
     }
 
-    private async Task ValidarDatosAsync(
+    private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarDatosAsync(
         DatosPedido datos, ActorContexto actor, CancellationToken ct)
     {
         if (!Novedades.Admitidas.Contains(datos.Novedad))
@@ -338,8 +341,10 @@ internal sealed class ServicioPedidos(
             || (datos.DedicacionSolicitadaId is { } dedicacionId
                 && !await pedidos.ExisteDedicacionActivaAsync(dedicacionId, ct)))
             throw new ErrorDominioPedido("La dedicación solicitada no es válida.");
-        if (datos.Adjuntos.Any(a => !EsTipoAdjuntoValido(a.Tipo) || string.IsNullOrWhiteSpace(a.Nombre)))
-            throw new ErrorDominioPedido("Uno de los adjuntos tiene tipo o nombre inválido.");
+        if (datos.Adjuntos.Any(a => !EsTipoAdjuntoValido(a.Tipo)
+            || (a.ArchivoId is null && almacenamiento is not null && !EsLegacyCompat(a))
+            || (almacenamiento is null && string.IsNullOrWhiteSpace(a.Nombre))))
+            throw new ErrorDominioPedido("Uno de los adjuntos no referencia un archivo confirmado.");
 
         var tiposAdjuntos = datos.Adjuntos.Select(a => a.Tipo).ToHashSet();
         if (datos.Novedad == Novedades.Alta
@@ -365,6 +370,43 @@ internal sealed class ServicioPedidos(
                 || await designaciones.ObtenerVigenteAsync(persona.Id, datos.MateriaId, ct) is null))
             throw new ErrorDominioPedido(
                 "La persona no tiene una designación vigente en la materia seleccionada.");
+
+        return await ValidarAdjuntosAsync(datos.Adjuntos, actor.UsuarioId, ct);
+    }
+
+    private async Task<IReadOnlyDictionary<Guid, ArchivoDto>> ValidarAdjuntosAsync(
+        IReadOnlyList<Modules.Designaciones.Api.GuardarAdjuntoPedidoDto> adjuntos,
+        Guid propietarioId,
+        CancellationToken ct)
+    {
+        if (almacenamiento is null) return new Dictionary<Guid, ArchivoDto>();
+        var archivos = new Dictionary<Guid, ArchivoDto>();
+        foreach (var adjunto in adjuntos)
+        {
+            if (adjunto.ArchivoId is not { } archivoId)
+            {
+                if (!EsLegacyCompat(adjunto)) throw new ErrorDominioPedido("El adjunto no fue validado por almacenamiento.");
+                continue;
+            }
+            var proposito = adjunto.Tipo switch
+            {
+                TiposAdjunto.Cv => PropositosArchivo.Cv,
+                TiposAdjunto.DniFrente => PropositosArchivo.DniFrente,
+                TiposAdjunto.DniDorso => PropositosArchivo.DniDorso,
+                TiposAdjunto.Justificativo => PropositosArchivo.Justificativo,
+                _ => string.Empty,
+            };
+            try
+            {
+                archivos[archivoId] = await almacenamiento.RequerirDisponibleDePropietarioAsync(
+                    archivoId, proposito, propietarioId, ct);
+            }
+            catch (ExcepcionAplicacion ex)
+            {
+                throw new ErrorDominioPedido(ex.Message);
+            }
+        }
+        return archivos;
     }
 
     private async Task<DatosPedido> ResolverPersonaAsync(DatosPedido datos, CancellationToken ct)
@@ -406,19 +448,46 @@ internal sealed class ServicioPedidos(
 
     private static IReadOnlyList<PedidoAdjunto> ConstruirAdjuntos(
         Guid pedidoId,
-        IReadOnlyList<Modules.Designaciones.Api.GuardarAdjuntoPedidoDto> datos) =>
-        datos.Select(a => new PedidoAdjunto
+        IReadOnlyList<Modules.Designaciones.Api.GuardarAdjuntoPedidoDto> datos,
+        IReadOnlyDictionary<Guid, ArchivoDto> archivos,
+        bool aceptarLegacy) =>
+        datos.Select(a =>
         {
-            Id = Guid.NewGuid(),
-            PedidoId = pedidoId,
-            Tipo = a.Tipo,
-            Nombre = a.Nombre.Trim(),
-            Uri = Normalizar(a.Uri),
-            CreadoEn = DateTimeOffset.UtcNow,
+            if (a.ArchivoId is not { } archivoId)
+            {
+                if (!aceptarLegacy || !EsLegacyCompat(a))
+                    throw new ErrorDominioPedido("El adjunto no fue validado por almacenamiento.");
+                return new PedidoAdjunto
+                {
+                    Id = Guid.NewGuid(),
+                    PedidoId = pedidoId,
+                    Tipo = a.Tipo,
+                    Nombre = a.Nombre!.Trim(),
+                    Uri = string.IsNullOrWhiteSpace(a.Uri) ? null : a.Uri!.Trim(),
+                    CreadoEn = DateTimeOffset.UtcNow,
+                };
+            }
+            if (!archivos.TryGetValue(archivoId, out var archivo))
+                throw new ErrorDominioPedido("El adjunto no fue validado por almacenamiento.");
+            return new PedidoAdjunto
+            {
+                Id = Guid.NewGuid(),
+                PedidoId = pedidoId,
+                Tipo = a.Tipo,
+                Nombre = archivo.NombreOriginal,
+                Uri = null,
+                ArchivoId = archivoId,
+                CreadoEn = DateTimeOffset.UtcNow,
+            };
         }).ToArray();
 
     private static bool EsTipoAdjuntoValido(string tipo) => tipo is
         TiposAdjunto.Cv or TiposAdjunto.DniFrente or TiposAdjunto.DniDorso or TiposAdjunto.Justificativo;
+
+    private static bool EsLegacyCompat(Modules.Designaciones.Api.GuardarAdjuntoPedidoDto adjunto) =>
+        adjunto.ArchivoId is null
+        && !string.IsNullOrWhiteSpace(adjunto.Nombre)
+        && (string.IsNullOrWhiteSpace(adjunto.Uri) || adjunto.Uri.StartsWith("synthetic://", StringComparison.Ordinal));
 
     private static string? Normalizar(string? valor) =>
         string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();

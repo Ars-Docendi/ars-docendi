@@ -259,9 +259,12 @@ export type EstadoPedido =
 
 export interface Adjunto {
   id: string;
-  nombre: string; // solo nombre/tipo en el mock
+  nombre: string;
   tipo: "cv" | "dni_frente" | "dni_dorso" | "justificativo";
-  // TODO(backend): subir a File Storage y guardar URL (RNF-4). Hoy es solo metadata mock.
+  archivoId: string | null;
+  estadoArchivo: "pendiente" | "disponible" | "rechazado" | "legacy";
+  // El archivo local existe solo durante la edición; nunca se serializa al backend.
+  archivo?: File;
 }
 
 export interface EventoHistorial {
@@ -361,17 +364,17 @@ Tabla de transiciones. `maquinaEstados.ts` la implementa como función pura `apl
 
 > Verificar al inicio que `release/v1.0.2` exporta los componentes "nuevos" (ApprovalTimeline, AuditLog, FileUpload, Drawer, Tabs, Radio, Textarea, Toast, Pagination). El `../ui-lib` local (v1.0.1) los tiene. Si falta alguno en v1.0.2 → bumpear el pin.
 
-| Necesidad                | Componente de la lib                                                         | Notas                                                                |
-| ------------------------ | ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Form de pedido           | `Field`, `Input`, `Select`, `Radio`, `Textarea`, `DatePicker`, `Button`      | Radio para novedad; Field envuelve cada control con label/hint/error |
-| Adjuntos                 | `FileUpload`                                                                 | Stateless: el padre maneja la lista. Mock (solo metadata)            |
-| Validación inline        | `InlineAlert` (severities) + `Field error`                                   |                                                                      |
-| Mis pedidos              | `Table` (namespace) o cards + `StatusBadge` + `Button`                       |                                                                      |
-| Kanban                   | **in-app** `ColumnaKanban` + `PedidoCard` (+ `StatusBadge`)                  | La lib NO trae Kanban/Card                                           |
-| Detalle                  | `DataList`, `ApprovalTimeline`, `AuditLog`, `StatusBadge`, `Tabs` (opcional) | Tabs: Solicitud / Historial / Documentos                             |
-| Acciones de revisión     | `Modal` + `Textarea` + `Button` (primary/destructive/warning/ghost)          | `ModalAccionRevision` reusa Modal                                    |
-| Breadcrumbs / paginación | `Breadcrumbs`, `Pagination`                                                  |                                                                      |
-| Usuario / rol            | `RoleBadge`, `RoleMenu`                                                      | Ya están en el TopBar                                                |
+| Necesidad                | Componente de la lib                                                         | Notas                                                                                    |
+| ------------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Form de pedido           | `Field`, `Input`, `Select`, `Radio`, `Textarea`, `DatePicker`, `Button`      | Radio para novedad; Field envuelve cada control con label/hint/error                     |
+| Adjuntos                 | `FileUpload`                                                                 | Sesión de carga del backend; el formulario conserva solo `archivoId`, estado y metadata. |
+| Validación inline        | `InlineAlert` (severities) + `Field error`                                   |                                                                                          |
+| Mis pedidos              | `Table` (namespace) o cards + `StatusBadge` + `Button`                       |                                                                                          |
+| Kanban                   | **in-app** `ColumnaKanban` + `PedidoCard` (+ `StatusBadge`)                  | La lib NO trae Kanban/Card                                                               |
+| Detalle                  | `DataList`, `ApprovalTimeline`, `AuditLog`, `StatusBadge`, `Tabs` (opcional) | Tabs: Solicitud / Historial / Documentos                                                 |
+| Acciones de revisión     | `Modal` + `Textarea` + `Button` (primary/destructive/warning/ghost)          | `ModalAccionRevision` reusa Modal                                                        |
+| Breadcrumbs / paginación | `Breadcrumbs`, `Pagination`                                                  |                                                                                          |
+| Usuario / rol            | `RoleBadge`, `RoleMenu`                                                      | Ya están en el TopBar                                                                    |
 
 **A construir in-app** (no están en la lib): `ColumnaKanban`, `PedidoCard`, (y si hace falta) un `Card` base en `shared/ui/`. Tooltip y date-range **no** se necesitan para 7/8.
 

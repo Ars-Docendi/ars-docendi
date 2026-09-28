@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-09-21
+goal: Reemplazar MinIO por SeaweedFS como almacenamiento privado S3-compatible,
+  manteniendo el contrato de archivos, la seguridad por ambiente, la validación
+  antivirus y las integraciones de Designaciones y Portal, sin migrar objetos
+  existentes.
+skip_specs: true

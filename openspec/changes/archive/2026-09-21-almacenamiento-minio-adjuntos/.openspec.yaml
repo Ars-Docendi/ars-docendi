@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-17
+goal: Incorporar MinIO self-hosted como almacenamiento privado y validado para
+  PDFs e imágenes adjuntos a novedades de designaciones y documentos del Portal,
+  con metadata, cargas y descargas autorizadas, cuarentena, limpieza y operación
+  reproducible por ambiente.

@@ -46,11 +46,7 @@ export function usePerfilDocente() {
       setError(null);
       void Promise.all([
         siguiente.contacto !== anterior.contacto ? guardarContacto(siguiente.contacto) : undefined,
-        siguiente.cv !== anterior.cv
-          ? siguiente.cv
-            ? guardarCv(siguiente.cv)
-            : eliminarCv()
-          : undefined,
+        undefined,
         sincronizar(
           anterior.experiencia,
           siguiente.experiencia,
@@ -108,12 +104,48 @@ export function usePerfilDocente() {
     : consulta.isError
       ? "error"
       : "listo";
+  const cargarCv = useCallback(
+    async (archivo: File) => {
+      if (!consulta.data) return;
+      const anterior = consulta.data;
+      const pendiente = {
+        archivoId: `pendiente-${crypto.randomUUID()}`,
+        nombre: archivo.name,
+        fechaCarga: new Date().toISOString().slice(0, 10),
+        tamanoBytes: archivo.size,
+        estado: "pendiente",
+      };
+      cliente.setQueryData([...perfilKey, upn], { ...anterior, cv: pendiente });
+      try {
+        setError(null);
+        await guardarCv(archivo);
+        await cliente.invalidateQueries({ queryKey: perfilKey });
+        setGuardado(true);
+      } catch (causa) {
+        cliente.setQueryData([...perfilKey, upn], anterior);
+        setError(mensajeProblema(causa, "No se pudo confirmar el CV."));
+      }
+    },
+    [cliente, consulta.data, upn],
+  );
+  const borrarCv = useCallback(async () => {
+    try {
+      setError(null);
+      await eliminarCv();
+      await cliente.invalidateQueries({ queryKey: perfilKey });
+      setGuardado(true);
+    } catch (causa) {
+      setError(mensajeProblema(causa, "No se pudo eliminar el CV."));
+    }
+  }, [cliente]);
   return {
     estado,
     perfil: consulta.data ?? null,
     guardado,
     error,
     actualizar,
+    cargarCv,
+    borrarCv,
     ocultarAviso: () => setGuardado(false),
   };
 }

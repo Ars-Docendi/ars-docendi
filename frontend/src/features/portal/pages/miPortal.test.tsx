@@ -115,7 +115,11 @@ function seccion(titulo: string): HTMLElement {
 beforeEach(() => {
   sesion.upn = "admin.aulas@unlam.edu.ar";
   for (const metodo of [apiClient.get, apiClient.post, apiClient.put, apiClient.delete]) {
-    vi.mocked(metodo).mockReset().mockResolvedValue({ data: {} });
+    vi.mocked(metodo)
+      .mockReset()
+      .mockResolvedValue({
+        data: { id: "archivo-test", estado: "disponible" },
+      });
   }
 });
 

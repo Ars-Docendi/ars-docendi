@@ -30,6 +30,7 @@ public sealed class Cv
     public required string Nombre { get; set; }
     public DateTimeOffset FechaCarga { get; set; }
     public string? Uri { get; set; }
+    public Guid? ArchivoId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }
 
@@ -83,6 +84,7 @@ public sealed class DocumentoProyecto
     public required string Nombre { get; set; }
     public DateTimeOffset FechaCarga { get; set; }
     public string? Uri { get; set; }
+    public Guid? ArchivoId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 }
 
