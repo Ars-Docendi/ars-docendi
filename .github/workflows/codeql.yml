@@ -1,0 +1,61 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: "32 21 * * 2"
+  workflow_dispatch:
+
+# Evita análisis duplicados cuando se actualiza rápidamente una misma referencia.
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permisos mínimos a nivel de workflow; el job añade el permiso de publicar SARIF.
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # El repositorio versiona cinco workflows de GitHub Actions.
+          - language: actions
+            build-mode: none
+          # El backend es un monorepo .NET 10; C# admite análisis sin build.
+          - language: csharp
+            build-mode: none
+          # El frontend es Vite + React + TypeScript.
+          - language: javascript-typescript
+            build-mode: none
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c23de5a82f64bb08c6d9f28844551440ca298e76 # v4.38.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+          dependency-caching: true
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c23de5a82f64bb08c6d9f28844551440ca298e76 # v4.38.1
+        with:
+          category: "/language:${{ matrix.language }}"
