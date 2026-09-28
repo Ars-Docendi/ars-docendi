@@ -34,6 +34,7 @@ Leé antes de cambiar:
 - Las autorizaciones y reglas de negocio se validan en backend aunque el frontend las anticipe.
 - No expongas PII, credenciales ni datos de ámbitos ajenos en errores o logs.
 - Usá migraciones/SQL versionado para datos y constraints; no edites una base manualmente como solución.
+- El entorno de desarrollo local se siembra, la primera vez (base vacía), con `infra/scripts/seed-data/sintetico.sql` (fixtures) y `infra/scripts/seed-data/sga.sql` (carreras, materias y docentes reales del SGA) juntos — ver [README.md](README.md#3-migraciones-y-seed). No se reaplica sobre una base ya sembrada (pisaría ediciones hechas desde la app); resetear al dataset original es una decisión explícita de quien desarrolla. `sga.sql` tiene PII real y por eso **nunca** corre fuera de dev local; staging/prod usan `infra/scripts/seed.sh`, que solo acepta datasets sin datos reales.
 
 ## Verificación
 

@@ -96,10 +96,46 @@ if [ "$SKIP_BUILD" = false ]; then
     ok "Backend buildeado"
 fi
 
-# === Migrations (TBD: cuando estén definidas) ===
-# log "Aplicando migrations..."
-# dotnet ef database update --project backend/src/Modules.Designaciones --startup-project backend/src/ArsDocendi.Host --context DesignacionesDbContext
-# (repetir por cada módulo cuando existan)
+# === Migrations ===
+log "Aplicando migraciones..."
+dotnet run --project backend/src/ArsDocendi.Host -- --migrate
+ok "Migraciones aplicadas"
+
+# === Seed de desarrollo local ===
+# Dos datasets, siempre los dos: sintetico.sql (fixtures de prueba, sin datos reales,
+# cubre los flujos de Designaciones/Aulas/Tareas) y sga.sql (carreras, materias y
+# docentes reales del SGA, para poder probar con el volumen y los casos reales de la
+# UNLaM). Ninguno de los dos corre nunca fuera de dev local — no hay equivalente de
+# este paso para staging/prod: esos ambientes usan infra/scripts/seed.sh, que sólo
+# acepta sintetico.sql (o el que se le indique por SEED_SQL) y nunca datos con PII real.
+# Se ejecuta dentro del contenedor de Postgres (docker compose exec) para no depender
+# de tener el cliente psql instalado en el host.
+#
+# Solo se siembra la PRIMERA vez (base vacía). Ambos archivos hacen upsert por id
+# (ON CONFLICT ... DO UPDATE), así que re-sembrar sobre una base ya en uso le pisaría a
+# cualquier edición hecha desde la app (por ejemplo, un docente editado a mano desde la
+# pantalla de administración). Si un desarrollador quiere volver al dataset original,
+# es su decisión explícita: `docker compose down -v && ./scripts/setup.sh`.
+YA_SEMBRADO=$(docker compose exec -T postgres psql \
+    -U "${POSTGRES_USER:-arsdocendi}" -d "${POSTGRES_DB:-arsdocendi}" -tAc \
+    "SELECT to_regclass('public.seed_metadata') IS NOT NULL;" 2>/dev/null | tr -d '[:space:]')
+
+if [ "$YA_SEMBRADO" = "t" ]; then
+    warn "La base ya tiene datos de seed — no se vuelve a sembrar (evita pisar ediciones manuales)."
+    warn "Para resetear al dataset original: docker compose down -v && ./scripts/setup.sh"
+else
+    log "Sembrando datos de desarrollo (sintético + SGA)..."
+    for seed in infra/scripts/seed-data/sintetico.sql infra/scripts/seed-data/sga.sql; do
+        if [ -f "$seed" ]; then
+            docker compose exec -T postgres psql \
+                -U "${POSTGRES_USER:-arsdocendi}" -d "${POSTGRES_DB:-arsdocendi}" \
+                -v ON_ERROR_STOP=1 < "$seed" >/dev/null
+            ok "Sembrado: $seed"
+        else
+            warn "No encontrado, se salteó: $seed"
+        fi
+    done
+fi
 
 echo
 ok "Setup completo."
