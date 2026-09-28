@@ -60,6 +60,16 @@ describe("Sidebar — sector Designaciones", () => {
     }
   });
 
+  it.each([
+    ["sistema.estado.ver", "Dashboard del sistema", "/sistema", "Registros de auditoría"],
+    ["auditoria.ver", "Registros de auditoría", "/auditoria", "Dashboard del sistema"],
+  ])("muestra %s sólo con su permiso", (permiso, etiqueta, ruta, oculto) => {
+    renderSidebar([permiso]);
+
+    expect(screen.getByRole("link", { name: etiqueta })).toHaveAttribute("href", ruta);
+    expect(screen.queryByRole("link", { name: oculto })).not.toBeInTheDocument();
+  });
+
   it("Docente: no tiene sector Designaciones", () => {
     renderSidebar(["aulas.ver"], { route: "/aulas" });
 
