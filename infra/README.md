@@ -14,7 +14,9 @@ Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Reemplaza el modelo vie
 infra/
 ├── compose/
 │   ├── compose.base.yml      # definición de servicios (frontend+backend), parametrizada
-│   └── .env.example          # variables de UN ambiente
+│   ├── compose.storage.yml   # SeaweedFS prod o pool compartido no-prod
+│   ├── compose.antivirus.yml # ClamAV compartido por todos los ambientes
+│   └── .env.example          # variables de un ambiente
 ├── traefik/
 │   ├── traefik.yml           # config estática (entrypoints, docker provider, sin ACME)
 │   ├── dynamic/headers-seguridad.yml
@@ -29,6 +31,8 @@ infra/
 │   ├── drop-db.sh            # DROP DATABASE (solo staging/pr-N, nunca prod)
 │   ├── spin-up.sh <env>      # reconstruye descartables, migra, siembra y levanta
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
+│   ├── backup-storage.sh <env> <dir> # backup PostgreSQL + objetos S3 verificable
+│   ├── restore-storage.sh <env> <dir> # restore descartable con hashes
 │   └── seed-data/sintetico.sql
 ├── reaper/
 │   ├── reap-pr-envs.sh       # destruye pr-N > N días
@@ -43,6 +47,9 @@ infra/
 
 CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 `pr-env-deploy`, `pr-env-teardown`.
+
+La matriz de variables, secrets y gates de GitHub está en
+[`docs/operations/github-pr-deploy.md`](../docs/operations/github-pr-deploy.md).
 
 ## Operación manual
 
@@ -312,6 +319,17 @@ desde cero. El rollback de `prod` requiere restaurar el backup y desplegar la
 versión conjunta anterior de backend y frontend. `spin-up.sh prod` no ejecuta
 `down`, `drop-db.sh` ni `seed.sh`: sólo aprovisiona de forma idempotente,
 migra y publica.
+
+### Backup y restore de storage
+
+El backup institucional se ejecuta con `infra/scripts/backup-storage.sh` y
+produce `postgres.dump`, `objects/`, `manifest.json` y `checksums.sha256` en un
+directorio cifrado. El restore de prueba se ejecuta con
+`infra/scripts/restore-storage.sh <staging|pr-N> <backup>`; verifica los hashes,
+recrea la base descartable, restaura PostgreSQL y repone los objetos mediante
+S3 verificando tamaño y SHA-256. El script rechaza `prod`. El procedimiento
+completo y el mapeo de secretos están en
+[docs/operations/storage-runbook.md](../docs/operations/storage-runbook.md).
 
 ### Operar y reejecutar el dataset sintético
 

@@ -3,6 +3,7 @@ import { apiClient } from "../../../shared/api/client";
 import {
   aceptarPedido,
   crearPedido,
+  descargarAdjuntoPedido,
   despriorizarPedido,
   devolverPedido,
   eliminarPedido,
@@ -162,6 +163,48 @@ describe("pedidosApi HTTP", () => {
     });
   });
 
+  it("conserva la disponibilidad de los adjuntos y distingue un legacy", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          adjuntos: [
+            {
+              id: "adjunto-1",
+              tipo: "cv",
+              nombre: "cv.pdf",
+              archivoId: "archivo-1",
+              estadoArchivo: "disponible",
+            },
+            {
+              id: "adjunto-2",
+              tipo: "justificativo",
+              nombre: "legacy.pdf",
+              archivoId: null,
+              estadoArchivo: "legacy",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0].adjuntos).toEqual([
+      {
+        id: "adjunto-1",
+        tipo: "cv",
+        nombre: "cv.pdf",
+        archivoId: "archivo-1",
+        estadoArchivo: "disponible",
+      },
+      {
+        id: "adjunto-2",
+        tipo: "justificativo",
+        nombre: "legacy.pdf",
+        estadoArchivo: "legacy",
+      },
+    ]);
+  });
+
   it("crea un Alta con los datos de la persona y la materia canónica", async () => {
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearPedido(
@@ -236,5 +279,17 @@ describe("pedidosApi HTTP", () => {
     });
     vi.mocked(apiClient.post).mockRejectedValue(conflicto);
     await expect(aceptarPedido("pedido-1")).rejects.toBe(conflicto);
+  });
+
+  it("descarga un adjunto del pedido como contenido binario autenticado", async () => {
+    const contenido = new Blob(["%PDF-1.7"], { type: "application/pdf" });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: contenido });
+
+    await expect(descargarAdjuntoPedido("pedido-1", "archivo-1")).resolves.toBe(contenido);
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos/pedido-1/adjuntos/archivo-1",
+      { responseType: "blob" },
+    );
   });
 });
