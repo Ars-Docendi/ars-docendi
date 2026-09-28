@@ -47,6 +47,7 @@ describe("TablaMisPedidos", () => {
     await user.click(fila);
     expect(onVer).toHaveBeenCalledOnce();
 
+    expect(within(fila).queryByRole("button", { name: "Ver" })).not.toBeInTheDocument();
     await user.click(within(fila).getByRole("button", { name: "Editar" }));
     expect(onEditar).toHaveBeenCalledOnce();
     await user.click(within(fila).getByRole("button", { name: "Eliminar pedido de Ana García" }));
@@ -95,5 +96,89 @@ describe("TablaMisPedidos", () => {
     await user.keyboard("{Enter}");
     await user.keyboard(" ");
     expect(onVer).toHaveBeenCalledTimes(2);
+  });
+
+  it("elimina con un botón de texto sin abrir el detalle", async () => {
+    const user = userEvent.setup();
+    const onVer = vi.fn();
+    const onEliminar = vi.fn();
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={onVer}
+        onEditar={vi.fn()}
+        onEliminar={onEliminar}
+      />,
+    );
+
+    const eliminar = screen.getByRole("button", { name: "Eliminar pedido de Ana García" });
+    expect(eliminar).toHaveTextContent("Eliminar");
+
+    await user.click(eliminar);
+    expect(onEliminar).toHaveBeenCalledOnce();
+    expect(onVer).not.toHaveBeenCalled();
+  });
+
+  it("Enter sobre un botón de la fila ejecuta el botón, no la navegación de la fila", async () => {
+    const user = userEvent.setup();
+    const onVer = vi.fn();
+    const onEditar = vi.fn();
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={onVer}
+        onEditar={onEditar}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    screen.getByRole("button", { name: "Editar" }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(onEditar).toHaveBeenCalledOnce();
+    expect(onVer).not.toHaveBeenCalled();
+  });
+
+  it("recorta Docente, Cátedra y Tipo cuando no entran", () => {
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={vi.fn()}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    for (const texto of ["Ana García", "Cálculo I", "Alta"]) {
+      expect(screen.getByText(texto)).toHaveClass("adoc-texto-recortado");
+    }
+  });
+
+  it("no muestra la columna N°", () => {
+    render(
+      <TablaMisPedidos
+        pedidos={[pedido()]}
+        onVerDetalle={vi.fn()}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("columnheader", { name: /^N°/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("N°-2026-0001")).not.toBeInTheDocument();
+  });
+
+  it('nombra el estado por el área donde está, sin repetir "En revisión"', () => {
+    render(
+      <TablaMisPedidos
+        pedidos={[{ ...pedido(), estado: "en_revision_secretaria" }]}
+        onVerDetalle={vi.fn()}
+        onEditar={vi.fn()}
+        onEliminar={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("En Secretaría")).toBeInTheDocument();
+    expect(screen.queryByText(/En revisión/)).not.toBeInTheDocument();
   });
 });

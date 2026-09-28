@@ -5,7 +5,7 @@ import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemEducacion } from "./ItemsPerfil";
 import { ModalEducacion } from "./ModalEducacion";
-import { ModalConfirmarEliminar } from "./ModalConfirmarEliminar";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 
 interface SeccionEducacionProps {
   items: Educacion[];
@@ -41,7 +41,7 @@ export function SeccionEducacion({ items, onCambio }: SeccionEducacionProps) {
         open={s.aEliminar !== null}
         onOpenChange={(abierto) => !abierto && s.cancelarBorrado()}
         titulo="Eliminar formación"
-        nombre={s.aEliminar?.carrera ?? ""}
+        objeto={<strong>"{s.aEliminar?.carrera}"</strong>}
         onConfirmar={() => {
           if (s.aEliminar) onCambio(eliminarPorId(items, s.aEliminar.id));
           s.cancelarBorrado();

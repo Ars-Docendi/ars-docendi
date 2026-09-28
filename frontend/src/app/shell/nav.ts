@@ -16,7 +16,7 @@ export interface NavGroup {
 export const NAVEGACION: NavGroup[] = [
   {
     label: "Personal",
-    items: [{ to: "/portal", icon: "portal", label: "Mi Portal", permiso: "portal.ver" }],
+    items: [{ to: "/portal", icon: "portal", label: "Mi portal", permiso: "portal.ver" }],
   },
   {
     label: "Trabajo",
@@ -26,7 +26,7 @@ export const NAVEGACION: NavGroup[] = [
     ],
   },
   {
-    label: "DESIGNACIONES",
+    label: "Designaciones",
     items: [
       {
         to: "/designaciones/mis-pedidos",

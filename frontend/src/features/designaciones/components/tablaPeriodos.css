@@ -1,0 +1,6 @@
+/* Acciones de fila de Períodos: botones de texto, mismo patrón que Mis pedidos. */
+.adoc-periodos-acc {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}

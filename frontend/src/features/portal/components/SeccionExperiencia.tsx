@@ -5,7 +5,7 @@ import { useSeccionLista } from "../hooks/useSeccionLista";
 import { SeccionLista } from "./SeccionLista";
 import { ItemExperiencia } from "./ItemsPerfil";
 import { ModalExperiencia } from "./ModalExperiencia";
-import { ModalConfirmarEliminar } from "./ModalConfirmarEliminar";
+import { ModalConfirmarEliminar } from "../../../shared/ui/ModalConfirmarEliminar";
 
 interface SeccionExperienciaProps {
   items: Experiencia[];
@@ -43,7 +43,7 @@ export function SeccionExperiencia({ items, onCambio }: SeccionExperienciaProps)
         open={s.aEliminar !== null}
         onOpenChange={(abierto) => !abierto && s.cancelarBorrado()}
         titulo="Eliminar experiencia"
-        nombre={s.aEliminar?.puesto ?? ""}
+        objeto={<strong>"{s.aEliminar?.puesto}"</strong>}
         onConfirmar={() => {
           if (s.aEliminar) onCambio(eliminarPorId(items, s.aEliminar.id));
           s.cancelarBorrado();

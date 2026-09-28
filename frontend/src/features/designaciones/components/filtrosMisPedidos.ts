@@ -5,7 +5,6 @@ export type FiltroEstado =
 
 export interface FiltrosMisPedidosState {
   docente: string;
-  numero: string;
   legajo: string;
   catedra: string;
   enviado: string;
@@ -15,7 +14,6 @@ export interface FiltrosMisPedidosState {
 
 export const FILTROS_INICIALES: FiltrosMisPedidosState = {
   docente: "",
-  numero: "",
   legajo: "",
   catedra: "",
   enviado: "",
@@ -24,7 +22,7 @@ export const FILTROS_INICIALES: FiltrosMisPedidosState = {
 };
 
 export type ColumnaOrdenMisPedidos =
-  "numero" | "docente" | "legajo" | "catedra" | "tipo" | "enviado" | "estado";
+  "docente" | "legajo" | "catedra" | "tipo" | "enviado" | "estado";
 
 export interface OrdenMisPedidos {
   columna: ColumnaOrdenMisPedidos;
@@ -124,13 +122,11 @@ export function aplicarFiltrosMisPedidos(
   filtros: FiltrosMisPedidosState,
 ): PedidoDesignacion[] {
   const docente = normalizarTexto(filtros.docente);
-  const numero = normalizarTexto(filtros.numero);
   const legajo = normalizarTexto(filtros.legajo);
   const catedra = normalizarTexto(filtros.catedra);
   const enviado = normalizarTexto(filtros.enviado);
   return pedidos.filter((pedido) => {
     if (docente && !normalizarTexto(pedido.docente.nombre).includes(docente)) return false;
-    if (numero && !normalizarTexto(pedido.numero ?? "").includes(numero)) return false;
     if (legajo && !normalizarTexto(pedido.docente.legajo ?? "").includes(legajo)) return false;
     if (catedra && !normalizarTexto(pedido.catedra).includes(catedra)) return false;
     if (
@@ -152,8 +148,6 @@ export function aplicarFiltrosMisPedidos(
 
 function valorOrden(pedido: PedidoDesignacion, columna: ColumnaOrdenMisPedidos): string {
   switch (columna) {
-    case "numero":
-      return pedido.numero ?? "";
     case "docente":
       return pedido.docente.nombre;
     case "legajo":
@@ -196,7 +190,7 @@ export function compararPedidos(
   const valorA = valorOrden(a, columna);
   const valorB = valorOrden(b, columna);
   if (columna === "enviado") return compararFecha(valorA, valorB);
-  if (columna === "numero" || columna === "legajo") return compararNumero(valorA, valorB);
+  if (columna === "legajo") return compararNumero(valorA, valorB);
   return compararTexto(valorA, valorB);
 }
 

@@ -92,7 +92,7 @@ export function IndexPage() {
     <>
       <Breadcrumbs
         separator="›"
-        items={[{ label: "Inicio", href: "/" }, { label: esJdC ? "Mis Docentes" : "Docentes" }]}
+        items={[{ label: "Inicio", href: "/" }, { label: esJdC ? "Mis docentes" : "Docentes" }]}
       />
       {(remoto.consulta.isLoading || remoto.catalogos.isLoading) && (
         <p role="status">Cargando docentes…</p>
@@ -118,7 +118,7 @@ export function IndexPage() {
         <p role="status">Guardando docente…</p>
       )}
       <PageHeader
-        title={esJdC ? "Mis Docentes" : "Administración de Docentes"}
+        title={esJdC ? "Mis docentes" : "Administración de docentes"}
         meta={`${docentesFiltrados.length} docentes · ${docentesFiltrados.filter((d) => d.is_active).length} activos`}
         actions={
           !esJdC && (

@@ -1,29 +1,35 @@
-import { Modal, Button, InlineAlert } from "@ars-docendi/ui";
-import type { PedidoDesignacion } from "../types";
+import type { ReactNode } from "react";
+import { Button, InlineAlert, Modal } from "@ars-docendi/ui";
 
-interface ModalEliminarPedidoProps {
+interface ModalConfirmarEliminarProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pedido: PedidoDesignacion | undefined;
+  /** Título del diálogo, p. ej. "Eliminar período". */
+  titulo: string;
+  /** Qué se borra, para que se reconozca: p. ej. `el período <strong>"X"</strong>`. */
+  objeto: ReactNode;
+  /** Motivo por el que el borrado falló; el diálogo queda abierto. */
   error?: string;
+  /** Borrado en curso: bloquea Cancelar y muestra la carga en Eliminar. */
   eliminando?: boolean;
   onConfirmar: () => void;
 }
 
-/** Confirmación para eliminar un pedido en borrador — mismo patrón que `ModalEliminarPeriodo`. */
-export function ModalEliminarPedido({
+/** Confirmación de borrado única para todas las pantallas. */
+export function ModalConfirmarEliminar({
   open,
   onOpenChange,
-  pedido,
+  titulo,
+  objeto,
   error,
   eliminando = false,
   onConfirmar,
-}: ModalEliminarPedidoProps) {
+}: ModalConfirmarEliminarProps) {
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Eliminar pedido"
+      title={titulo}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={eliminando}>
@@ -42,8 +48,7 @@ export function ModalEliminarPedido({
           </InlineAlert>
         )}
         <p style={{ margin: 0, color: "var(--color-text-primary)" }}>
-          ¿Estás seguro de que querés eliminar el pedido {pedido?.numero ?? "sin número"} de{" "}
-          <strong>"{pedido?.docente.nombre}"</strong>?
+          ¿Estás seguro de que querés eliminar {objeto}?
         </p>
         <p
           style={{
