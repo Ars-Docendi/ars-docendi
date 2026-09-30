@@ -100,31 +100,34 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 
 ### Asistente (`/api/asistente/`)
 
-| Método | Path                                              | Permiso                          | Descripción                                                           |
-| ------ | ------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/ping`                                           | (anónimo)                        | Health check del módulo                                               |
-| POST   | `/consultas`                                      | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
-| GET    | `/menciones`                                      | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#» |
-| GET    | `/capacidades`                                    | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
-| POST   | `/retroalimentacion`                              | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                         |
-| GET    | `/historial`                                      | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                         |
-| GET    | `/historial/{id}`                                 | `asistente.consultar`            | El detalle de una conversación propia                                 |
-| PATCH  | `/historial/{id}`                                 | `asistente.consultar`            | Renombra una conversación propia                                      |
-| POST   | `/historial/{id}/archivar`                        | `asistente.consultar`            | Archiva una conversación propia                                       |
-| POST   | `/historial/{id}/desarchivar`                     | `asistente.consultar`            | Desarchiva una conversación propia                                    |
-| DELETE | `/historial/{id}`                                 | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                    |
-| DELETE | `/historial`                                      | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado          |
-| POST   | `/historial/borrados/{lote}/deshacer`             | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana               |
-| POST   | `/historial/{id}/reanudar`                        | `asistente.consultar`            | Reanuda una conversación propia                                       |
-| POST   | `/historial/turnos/{id}/reejecutar`               | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
-| POST   | `/soporte/historial/{actorId}/listar`             | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria               |
-| POST   | `/soporte/historial/{actorId}/{id}/leer`          | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria             |
-| PATCH  | `/administracion/mantenimiento`                   | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo  |
-| GET    | `/administracion/uso`                             | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                   |
-| GET    | `/administracion/presupuestos`                    | `asistente.administrar`          | Tope organizacional, cupos por rol/usuario y gasto estimado del mes   |
-| PUT    | `/administracion/presupuestos/roles/{rol}`        | `asistente.administrar`          | Edita el cupo diario default de un rol                                |
-| PUT    | `/administracion/presupuestos/usuarios/{actorId}` | `asistente.administrar`          | Edita el override de cupo diario de un usuario                        |
-| PUT    | `/administracion/tope-organizacional`             | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
+| Método | Path                                                     | Permiso                          | Descripción                                                           |
+| ------ | -------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/ping`                                                  | (anónimo)                        | Health check del módulo                                               |
+| POST   | `/consultas`                                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
+| GET    | `/menciones`                                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#» |
+| GET    | `/capacidades`                                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
+| POST   | `/retroalimentacion`                                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                         |
+| GET    | `/historial`                                             | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                         |
+| GET    | `/historial/{id}`                                        | `asistente.consultar`            | El detalle de una conversación propia                                 |
+| PATCH  | `/historial/{id}`                                        | `asistente.consultar`            | Renombra una conversación propia                                      |
+| POST   | `/historial/{id}/archivar`                               | `asistente.consultar`            | Archiva una conversación propia                                       |
+| POST   | `/historial/{id}/desarchivar`                            | `asistente.consultar`            | Desarchiva una conversación propia                                    |
+| DELETE | `/historial/{id}`                                        | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                    |
+| DELETE | `/historial`                                             | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado          |
+| POST   | `/historial/borrados/{lote}/deshacer`                    | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana               |
+| POST   | `/historial/{id}/reanudar`                               | `asistente.consultar`            | Reanuda una conversación propia                                       |
+| POST   | `/historial/turnos/{id}/reejecutar`                      | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
+| POST   | `/soporte/historial/{actorId}/listar`                    | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria               |
+| POST   | `/soporte/historial/{actorId}/{id}/leer`                 | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria             |
+| PATCH  | `/administracion/mantenimiento`                          | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo  |
+| GET    | `/administracion/uso`                                    | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                   |
+| GET    | `/administracion/presupuestos`                           | `asistente.administrar`          | Tope organizacional, cupos por rol/usuario y gasto estimado del mes   |
+| PUT    | `/administracion/presupuestos/roles/{rol}`               | `asistente.administrar`          | Edita el cupo diario default de un rol                                |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Edita el override de cupo diario de un usuario                        |
+| DELETE | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Restablece el cupo de un usuario al de su rol                         |
+| PUT    | `/administracion/presupuestos/roles/{rol}/acceso`        | `asistente.administrar`          | Prende/apaga el acceso de un rol al asistente                         |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}/acceso` | `asistente.administrar`          | Quita o restablece el acceso de un usuario (nunca lo da)              |
+| PUT    | `/administracion/tope-organizacional`                    | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
@@ -224,7 +227,7 @@ Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede
 
 `mantenimiento: { activo, razon }` refleja el estado GLOBAL del kill switch, sin bypass — así el banner es consistente para todo el mundo aunque un admin no esté bloqueado por él.
 
-`cupo: { restante, bloqueado, motivo, vuelveA }` es el cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya aplicado: un actor con `asistente.administrar` no se ve a sí mismo como bloqueado por mantenimiento. `motivo` es uno de `presupuesto_propio` | `tope_organizacional` | `mantenimiento`, nulo si no está bloqueado. `restante` vale `2147483647` (`int.MaxValue`) cuando el cupo está desactivado (0). `vuelveA` sólo se conoce para `presupuesto_propio`.
+`cupo: { restante, bloqueado, motivo, vuelveA }` es el cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya aplicado: un actor con `asistente.administrar` no se ve a sí mismo como bloqueado por mantenimiento. `motivo` es uno de `presupuesto_propio` | `tope_organizacional` | `mantenimiento` | `sin_acceso` (asistente-acceso-granular; ningún bypass lo levanta), nulo si no está bloqueado. `restante` vale `2147483647` (`int.MaxValue`) cuando el cupo está desactivado (0). `vuelveA` sólo se conoce para `presupuesto_propio`.
 
 `presentacion` es la única parte del catálogo que mira el **rol** del actor y no sus GRANT: es la línea que le dice por qué cosas suele venir a preguntar. Sale del código de su único rol vigente; con varios roles, con ninguno, o con uno que el backend no reconoce, devuelve un texto genérico que no promete nada de más. Vive en el backend porque el cliente no tiene catálogo de roles y no debe crecer uno: `identity.roles` no es cerrado —Secretaría crea roles desde la aplicación— así que una lista embebida en el cliente se desactualizaría sola. El rol **no** influye en `alcance`, en los conteos, en los ejemplos ni en qué conexión de lectura se usa.
 
@@ -291,11 +294,13 @@ Pedido: `{ activo, razon? }`. Exige `asistente.administrar` — sembrado directa
 
 #### `GET /api/asistente/administracion/uso`
 
-Query: `periodo` (`dia` | `semana` | `mes`, default `dia`) o el rango explícito `desde`/`hasta`. Exige `asistente.administrar`. Devuelve `{ porUsuario[], porRol[], organizacion }`, cada uno con `{ clave, nombreParaMostrar?, turnos, porEstado, llamadasAlModelo, tokensDeEntrada, tokensDeSalida, tokensDeCache, latenciaPromedioMs, latenciaP95Ms, proveedores[], costoEstimado, esEstimado: true, turnosSinPrecio, codigosDeRol[], cupoEfectivo, origenDeCupo }`.
+Query: `periodo` (`dia` | `semana` | `mes`, default `dia`) o el rango explícito `desde`/`hasta`. Exige `asistente.administrar`. Devuelve `{ porUsuario[], porRol[], organizacion }`, cada uno con `{ clave, nombreParaMostrar?, turnos, porEstado, llamadasAlModelo, tokensDeEntrada, tokensDeSalida, tokensDeCache, latenciaPromedioMs, latenciaP95Ms, proveedores[], costoEstimado, esEstimado: true, turnosSinPrecio, codigosDeRol[], cupoEfectivo, origenDeCupo, accesoEfectivo, origenDeAcceso }`.
 
 Se agrega **sólo** desde `asistente.registro_operativo` — nunca `registro_analitico` (TD-012): no hay ningún campo con el texto de una pregunta. `nombreParaMostrar` se resuelve vía `IConsultasIdentity.ListarUsuariosAsync` (design.md D12), nunca vía `usuarios.ver`: un admin con sólo `asistente.administrar` ve nombres igual. `costoEstimado` sale de `CalculadoraDeCosto` contra `asistente.tabla_de_precios`, con el precio vigente en el momento en que cada fila ocurrió; `turnosSinPrecio` cuenta las filas sin ningún precio vigente para su proveedor/modelo — **nunca** se costean en cero. Un actor con más de un rol de sistema vigente suma su uso a TODOS esos roles en `porRol`.
 
 `codigosDeRol`, `cupoEfectivo` y `origenDeCupo` sólo tienen contenido en una fila de `porUsuario` (lista/`null`/`null` en una fila de `porRol` o en `organizacion`, donde el concepto no aplica). `codigosDeRol` son los códigos de rol de sistema vigentes del actor, resueltos vía `IConsultasIdentity.ObtenerCodigosDeRolesDeSistemaAsync` — nunca un nombre legible: esa interfaz no expone ningún catálogo de roles con nombre, así que el frontend traduce el código. `cupoEfectivo`/`origenDeCupo` (`"override"` | `"rol"` | `null`) resuelven, con la misma regla que aplicaría un turno real (`CuotaPersistente.CupoEfectivoAsync`, espejada en `ReglaDeCupoEfectivo`), el cupo diario efectivo de ese actor contra `GET …/presupuestos`: un override vigente gana siempre; si no hay override, es el mínimo cupo entre los roles del actor cuyo default está activado (mayor que cero); `null`/`null` sólo cuando el actor no tiene override NI ningún rol de sistema del que heredar un default — el único caso donde no hay nada que mostrar sin inventarlo.
+
+`accesoEfectivo`/`origenDeAcceso` (`"rol"` | `"propio"`) también sólo en `porUsuario` (`null`/`null` en el resto): si el actor tiene hoy acceso operativo al asistente, resuelto con `ReglaDeAccesoEfectivo` — la **misma** clase que usa el bloqueo del turno, no un espejo (asistente-acceso-granular, design.md D2). Una revocación propia gana (`false`/`"propio"`); si no, basta un rol del actor con el acceso habilitado; un actor sin roles de sistema tiene acceso (lo decide sólo `asistente.consultar`).
 
 #### `GET /api/asistente/administracion/presupuestos`
 
@@ -306,8 +311,9 @@ Exige `asistente.administrar`. Cierra el gap de "sólo `PUT`, nunca `GET`" que d
   "topeMensualUsd": 500.00,
   "gastoEstimadoDelMes": 123.45,
   "esEstimado": true,
-  "cuposPorRol": [{ "rol": "docente", "cupoDiarioTurnos": 20 }, ...],
-  "overridesPorUsuario": [{ "actorId": "...", "nombreParaMostrar": "...", "cupoDiarioTurnos": 5 }, ...]
+  "cuposPorRol": [{ "rol": "docente", "cupoDiarioTurnos": 20, "accesoHabilitado": true }, ...],
+  "overridesPorUsuario": [{ "actorId": "...", "nombreParaMostrar": "...", "cupoDiarioTurnos": 5 }, ...],
+  "accesosRevocados": ["<actorId>", ...]
 }
 ```
 
@@ -315,11 +321,19 @@ Exige `asistente.administrar`. Cierra el gap de "sólo `PUT`, nunca `GET`" que d
 
 `gastoEstimadoDelMes` es el costo estimado del mes **calendario** en curso, con el mismo límite UTC que ya usa el acumulador que aplica el tope (design.md D2 de `asistente-administracion-de-uso`) — no América/Argentina/Buenos_Aires: introducir una segunda noción de "mes" para este único campo hubiera sido una inconsistencia nueva, no una mejora. Se calcula llamando al mismo `IConsultasDeUso` que `GET …/uso` usa, con el rango `[inicio del mes, ahora)`, así que por construcción coincide con lo que ese otro endpoint reportaría para el mismo rango — nunca la factura real del proveedor (`esEstimado: true`, mismo campo que `UsoAgregadoDto`).
 
-**Deliberadamente fuera de alcance** (ver el reporte de apply del cambio `sistema-seccion-unificada`, tarea 12.8): la serie diaria de uso para un gráfico de tendencia, la telemetría de proveedor cloud/local (GPU, KV cache, slots del servidor local), y un toggle de acceso on/off por usuario o por rol — este último no tiene ningún concepto de backend todavía.
+**Deliberadamente fuera de alcance** (ver el reporte de apply del cambio `sistema-seccion-unificada`, tarea 12.8): la serie diaria de uso para un gráfico de tendencia y la telemetría de proveedor cloud/local (GPU, KV cache, slots del servidor local). El acceso por rol (`accesoHabilitado`) y las revocaciones por usuario (`accesosRevocados`) se suman con `asistente-acceso-granular`.
 
 #### `PUT /api/asistente/administracion/presupuestos/roles/{rol}` y `/presupuestos/usuarios/{actorId}`
 
 Pedido: `{ cupo }` (turnos por día; `0` desactiva). Exigen `asistente.administrar`. El primero edita el default de un código de rol de sistema; el segundo, el override de un actor puntual, que **siempre** gana sobre el default de su rol (design.md D2/D3, tareas 3.4/9.5), más chico o más grande. Ambos escriben, antes de devolver `204`, una fila en `asistente.auditoria_administracion` con el par antes/después.
+
+#### `DELETE /api/asistente/administracion/presupuestos/usuarios/{actorId}`
+
+Exige `asistente.administrar`. Restablece el cupo del usuario al de su rol: cierra la vigencia del override (`vigente_hasta = now()`) sin abrir otro, así la historia queda entera (asistente-acceso-granular, design.md D5). Sin override vigente, no cambia nada. Audita `presupuesto.usuario.restablecer` y devuelve `204`.
+
+#### `PUT /api/asistente/administracion/presupuestos/roles/{rol}/acceso` y `/presupuestos/usuarios/{actorId}/acceso`
+
+Pedido: `{ habilitado }`. Exigen `asistente.administrar`. El acceso operativo es una capa **adicional** a `asistente.consultar` y sólo puede restringir (design.md D1). En un rol, prende o apaga `presupuesto_rol.acceso_habilitado`. En un usuario, `false` lo revoca y `true` **sólo borra la revocación**: a un usuario se le puede quitar el acceso, no darlo por encima de su rol (D3). Un actor sin acceso efectivo recibe sus turnos como `servicio_degradado` con el motivo `sin_acceso` en `GET /capacidades` (`cupo.motivo`), sin llamar al modelo ni correr el pipeline. Auditan `acceso.rol` / `acceso.usuario` y devuelven `204`.
 
 #### `PUT /api/asistente/administracion/tope-organizacional`
 

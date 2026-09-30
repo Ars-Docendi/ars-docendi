@@ -1013,8 +1013,10 @@ revocar nada por su cuenta: la denegación del schema completo ya las cubre.
 `006_asistente_administracion.sql` suma las siete tablas de administración de
 uso (asistente-administracion-de-uso): `presupuesto_rol`, `presupuesto_usuario`,
 `tope_organizacional`, `consumo_organizacional_mensual`, `tabla_de_precios`,
-`modo_mantenimiento` (fila única) y `auditoria_administracion` (append-only).
-Igual que el resto, sin necesidad de orden relativo a las anteriores y sin
+`modo_mantenimiento` (fila única) y `auditoria_administracion` (append-only), más
+`acceso_usuario_revocado` y la columna `presupuesto_rol.acceso_habilitado`
+(asistente-acceso-granular: el acceso operativo por rol, que un administrador
+puede quitarle a un usuario puntual pero nunca darle). Igual que el resto, sin necesidad de orden relativo a las anteriores y sin
 ningún `GRANT` propio. Ver «Administración de uso» más abajo y
 [docs/architecture/data-model.md](../../../docs/architecture/data-model.md).
 

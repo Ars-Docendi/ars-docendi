@@ -21,6 +21,8 @@ const ORGANIZACION: UsoAgregado = {
   codigosDeRol: [],
   cupoEfectivo: null,
   origenDeCupo: null,
+  accesoEfectivo: null,
+  origenDeAcceso: null,
 };
 
 /** Busca el texto agregado de un contenedor cuyos hijos lo partieron en

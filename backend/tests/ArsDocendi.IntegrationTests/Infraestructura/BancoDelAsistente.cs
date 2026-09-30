@@ -93,6 +93,7 @@ internal sealed class BancoDelAsistente
         decimal topeOrganizacional = 0,
         DisponibilidadDelModuloFalsa? disponibilidadDelModuloFalsa = null,
         ConsultasIdentityFalsa? identidadFalsa = null,
+        IAccesoAlAsistente? acceso = null,
         params string[] guion)
     {
         var valores = configuracion ?? new OpcionesAsistente();
@@ -118,7 +119,7 @@ internal sealed class BancoDelAsistente
         var disponibilidadDelModulo = disponibilidadDelModuloFalsa ?? new DisponibilidadDelModuloFalsa();
         var identidad = identidadFalsa ?? new ConsultasIdentityFalsa();
         var disponibilidad = new DisponibilidadDelModeloReal(
-            cuota, presupuestoOrganizacional, disponibilidadDelModulo, breaker);
+            acceso ?? new AccesoAlAsistenteFalso(), cuota, presupuestoOrganizacional, disponibilidadDelModulo, breaker);
         var losHilos = hilos ?? new AlmacenDeHilosEnMemoria(opciones, elReloj);
         var elRegistro = registro ?? new RegistroEnMemoria();
         var elHistorial = historial ?? new HistorialEnMemoria();
@@ -292,6 +293,7 @@ internal sealed class BancoDelAsistente
                 new SelectorDeEjemplos(),
                 new CacheDeCapacidades(),
                 new DisponibilidadDelModeloReal(
+                    new AccesoAlAsistenteFalso(),
                     new CuotaDeActorFalsa(0, TimeProvider.System),
                     new PresupuestoOrganizacionalFalso(0),
                     new DisponibilidadDelModuloFalsa(),

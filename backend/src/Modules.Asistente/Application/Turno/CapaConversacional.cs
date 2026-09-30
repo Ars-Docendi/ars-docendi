@@ -536,6 +536,16 @@ public sealed class CapaConversacional(
             }
         }
 
+        // SIN ACCESO CORTA ACÁ, antes de TODO el pipeline (asistente-acceso-granular,
+        // design.md D4): a diferencia del resto de los motivos, no es que falte el
+        // modelo — es que este actor no puede usar el asistente, y los pasos que
+        // no necesitan proveedor (el menú de aclaración sale de una consulta a la
+        // base) tampoco le corresponden.
+        if (motivo == MotivoSinModelo.SinAcceso)
+        {
+            return FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoSinAcceso);
+        }
+
         var hayModelo = motivo == MotivoSinModelo.Ninguno;
 
         if (!hayModelo)
@@ -783,6 +793,7 @@ public sealed class CapaConversacional(
             MotivoSinModelo.CuotaAgotada =>
                 PoliticaDeAbstencion.TextoCuotaAgotada(await disponibilidad.CupoVuelveAAsync(actor, ct)),
             MotivoSinModelo.TopeOrganizacionalAgotado => PoliticaDeAbstencion.TextoTopeOrganizacionalAgotado,
+            MotivoSinModelo.SinAcceso => PoliticaDeAbstencion.TextoSinAcceso,
             MotivoSinModelo.Mantenimiento =>
                 PoliticaDeAbstencion.TextoMantenimiento((await disponibilidadDelModulo.ConsultarAsync(ct)).Razon),
             _ => PoliticaDeAbstencion.TextoServicioDegradado,

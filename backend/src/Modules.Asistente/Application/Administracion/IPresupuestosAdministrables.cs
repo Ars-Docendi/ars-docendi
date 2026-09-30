@@ -1,7 +1,10 @@
 namespace Modules.Asistente.Application;
 
-/// <summary>El cupo diario default de UN rol de sistema, tal como está persistido ahora.</summary>
-public sealed record CupoDeRolVigente(string Rol, int CupoDiarioTurnos);
+/// <summary>
+/// El cupo diario default de UN rol de sistema y su acceso operativo
+/// (asistente-acceso-granular), tal como están persistidos ahora.
+/// </summary>
+public sealed record CupoDeRolVigente(string Rol, int CupoDiarioTurnos, bool AccesoHabilitado);
 
 /// <summary>
 /// El override de cupo diario de un actor puntual, vigente ahora
@@ -27,10 +30,15 @@ public sealed record OverrideDeUsuarioVigente(Guid ActorId, string? NombreParaMo
 /// (<see cref="IConsultasDeUso"/>) con el mismo mecanismo de costeo
 /// versionado, para que ambos números nunca puedan discreparse.
 /// </remarks>
+/// <param name="AccesosRevocados">
+/// Los actores con el acceso revocado por un administrador
+/// (<c>acceso_usuario_revocado</c>, asistente-acceso-granular).
+/// </param>
 public sealed record EstadoDePresupuestos(
     decimal TopeMensualUsd,
     IReadOnlyList<CupoDeRolVigente> CuposPorRol,
-    IReadOnlyList<OverrideDeUsuarioVigente> OverridesPorUsuario);
+    IReadOnlyList<OverrideDeUsuarioVigente> OverridesPorUsuario,
+    IReadOnlyList<Guid> AccesosRevocados);
 
 /// <summary>
 /// Edita los presupuestos persistentes (default de rol, override de usuario,
@@ -52,6 +60,25 @@ public interface IPresupuestosAdministrables
     /// nulo si el actor no tenía override vigente.
     /// </summary>
     Task<(int? Antes, int Despues)> EditarOverrideDeUsuarioAsync(Guid actor, int cupo, CancellationToken ct);
+
+    /// <summary>
+    /// Restablece el cupo de un actor al de su rol: cierra la vigencia de su
+    /// override sin abrir otro (asistente-acceso-granular, design.md D5).
+    /// Devuelve el cupo que tenía, o nulo si no tenía override vigente.
+    /// </summary>
+    Task<int?> RestablecerOverrideDeUsuarioAsync(Guid actor, CancellationToken ct);
+
+    /// <summary>Prende o apaga el acceso operativo de un código de rol de sistema.</summary>
+    Task<(bool Antes, bool Despues)> EditarAccesoDeRolAsync(string rol, bool habilitado, CancellationToken ct);
+
+    /// <summary>
+    /// Revoca (<paramref name="habilitado"/> <c>false</c>) o restablece
+    /// (<c>true</c>) el acceso de un actor puntual. Restablecer sólo borra la
+    /// revocación: nunca le da acceso por encima de su rol (D3). Devuelve si
+    /// estaba revocado antes y después.
+    /// </summary>
+    Task<(bool RevocadoAntes, bool RevocadoDespues)> EditarAccesoDeUsuarioAsync(
+        Guid actor, bool habilitado, Guid administrador, CancellationToken ct);
 
     /// <summary>Edita el tope organizacional de gasto mensual, en USD.</summary>
     Task<(decimal Antes, decimal Despues)> EditarTopeOrganizacionalAsync(decimal tope, CancellationToken ct);

@@ -6,7 +6,7 @@
 -- mantenimiento y la auditoría de administración. Ver design.md, Migration
 -- Plan punto 2.
 --
--- POR QUÉ SIETE TABLAS EN UNA SOLA MIGRACIÓN
+-- POR QUÉ SIETE TABLAS EN UNA SOLA MIGRACIÓN (ocho desde asistente-acceso-granular)
 -- Igual que 002_asistente_registros.sql creó sus dos registros juntos: nacen
 -- juntas porque describen una única capacidad —control operativo sobre uso y
 -- gasto— y separarlas en migraciones sucesivas no compra nada.
@@ -55,6 +55,14 @@ VALUES
     ('sys_admin', 0, now())
 ON CONFLICT (rol_code) DO NOTHING;
 
+-- Acceso operativo del rol al asistente (asistente-acceso-granular, D1):
+-- una capa ADICIONAL al permiso asistente.consultar de identity, que sólo
+-- puede restringir. Default `true` para que desplegar esta columna no cambie
+-- quién accede hoy. Vive en esta tabla porque ya es "una fila por rol" y el
+-- panel edita acceso y cupo en la misma fila.
+ALTER TABLE asistente.presupuesto_rol
+    ADD COLUMN IF NOT EXISTS acceso_habilitado boolean NOT NULL DEFAULT true;
+
 -- --------------------------------------------------------- presupuesto_usuario
 --
 -- Override de cupo diario para UN actor puntual, con precedencia sobre el
@@ -81,6 +89,22 @@ COMMENT ON TABLE asistente.presupuesto_usuario IS
 
 CREATE INDEX IF NOT EXISTS ix_presupuesto_usuario_actor_vigente
     ON asistente.presupuesto_usuario (actor_id, vigente_hasta);
+
+-- ------------------------------------------------------ acceso_usuario_revocado
+--
+-- Revocación del acceso de UN actor puntual (asistente-acceso-granular, D3):
+-- a un usuario se le puede QUITAR el acceso que hereda de su rol, nunca dar
+-- uno que su rol no tiene — por eso es la mera existencia de la fila, sin
+-- valor. Restablecer borra la fila y el actor vuelve a heredar del rol; el
+-- antes/después de cada cambio vive en auditoria_administracion.
+CREATE TABLE IF NOT EXISTS asistente.acceso_usuario_revocado (
+    actor_id     uuid        PRIMARY KEY,
+    revocado_por uuid        NOT NULL,
+    revocado_en  timestamptz NOT NULL
+);
+
+COMMENT ON TABLE asistente.acceso_usuario_revocado IS
+    'Actores a los que un administrador les quitó el acceso al asistente, por encima del acceso heredado del rol. Una fila por actor; restablecer la borra.';
 
 -- ------------------------------------------------------------- tope_organizacional
 --
@@ -208,7 +232,7 @@ CREATE INDEX IF NOT EXISTS ix_auditoria_administracion_ocurrido_en
 
 -- --------------------------------------------- el asistente no lee esta administración
 --
--- Igual que 004/005: no hace falta ningún REVOKE nuevo. Las siete tablas
+-- Igual que 004/005: no hace falta ningún REVOKE nuevo. Las ocho tablas
 -- viven en el schema `asistente`, ya denegado por completo a los dos roles
 -- de solo lectura desde 002_asistente_registros.sql (REVOKE ALL ON SCHEMA).
 -- Hay tests (ManifiestoPrivilegiosTests/PrivilegiosLecturaTests) que verifican

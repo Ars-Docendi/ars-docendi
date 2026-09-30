@@ -282,8 +282,8 @@ public sealed record MantenimientoDto(bool Activo, string? Razon)
 /// </param>
 /// <param name="Bloqueado">Si el actor está bloqueado AHORA MISMO.</param>
 /// <param name="Motivo">
-/// Uno de <c>presupuesto_propio</c>, <c>tope_organizacional</c> o
-/// <c>mantenimiento</c>. Nulo si no está bloqueado.
+/// Uno de <c>presupuesto_propio</c>, <c>tope_organizacional</c>,
+/// <c>mantenimiento</c> o <c>sin_acceso</c>. Nulo si no está bloqueado.
 /// </param>
 /// <param name="VuelveA">Cuándo se destraba, si se sabe.</param>
 public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateTimeOffset? VuelveA);
@@ -307,6 +307,15 @@ public sealed record CupoDto(int Restante, bool Bloqueado, string? Motivo, DateT
 /// De dónde sale <see cref="CupoEfectivo"/>: <c>"override"</c> o
 /// <c>"rol"</c>, o <c>null</c> junto con <see cref="CupoEfectivo"/> nulo.
 /// </param>
+/// <param name="AccesoEfectivo">
+/// Sólo en una fila de <c>PorUsuario</c>: si el actor tiene hoy acceso
+/// operativo al asistente, con la MISMA <see cref="ReglaDeAccesoEfectivo"/>
+/// que aplica el turno (asistente-acceso-granular). Nulo en las demás filas.
+/// </param>
+/// <param name="OrigenDeAcceso">
+/// De dónde sale <see cref="AccesoEfectivo"/>: <c>"rol"</c> o <c>"propio"</c>
+/// (una revocación del usuario). Nulo junto con <see cref="AccesoEfectivo"/>.
+/// </param>
 public sealed record UsoAgregadoDto(
     string Clave,
     string? NombreParaMostrar,
@@ -324,7 +333,9 @@ public sealed record UsoAgregadoDto(
     int TurnosSinPrecio,
     IReadOnlyList<string> CodigosDeRol,
     int? CupoEfectivo,
-    string? OrigenDeCupo)
+    string? OrigenDeCupo,
+    bool? AccesoEfectivo,
+    string? OrigenDeAcceso)
 {
     internal static UsoAgregadoDto De(UsoAgregado agregado) => new(
         agregado.Clave,
@@ -343,7 +354,9 @@ public sealed record UsoAgregadoDto(
         agregado.TurnosSinPrecio,
         agregado.CodigosDeRol,
         CupoEfectivo: null,
-        OrigenDeCupo: null);
+        OrigenDeCupo: null,
+        AccesoEfectivo: null,
+        OrigenDeAcceso: null);
 
     /// <summary>
     /// Como <see cref="De"/>, pero además resuelve <see cref="CupoEfectivo"/>
@@ -354,7 +367,8 @@ public sealed record UsoAgregadoDto(
     /// </summary>
     internal static UsoAgregadoDto DeUsuario(UsoAgregado agregado, EstadoDePresupuestos presupuestos)
     {
-        var overrideDeUsuario = Guid.TryParse(agregado.Clave, out var actorId)
+        var esActor = Guid.TryParse(agregado.Clave, out var actorId);
+        var overrideDeUsuario = esActor
             ? presupuestos.OverridesPorUsuario.FirstOrDefault(o => o.ActorId == actorId)?.CupoDiarioTurnos
             : null;
 
@@ -363,7 +377,18 @@ public sealed record UsoAgregadoDto(
 
         var (cupo, origen) = ReglaDeCupoEfectivo.Resolver(overrideDeUsuario, agregado.CodigosDeRol, cuposPorRol);
 
-        return De(agregado) with { CupoEfectivo = cupo, OrigenDeCupo = origen };
+        var accesoPorRol = presupuestos.CuposPorRol
+            .ToDictionary(c => c.Rol, c => c.AccesoHabilitado, StringComparer.Ordinal);
+        var revocado = esActor && presupuestos.AccesosRevocados.Contains(actorId);
+        var (acceso, origenDeAcceso) = ReglaDeAccesoEfectivo.Resolver(revocado, agregado.CodigosDeRol, accesoPorRol);
+
+        return De(agregado) with
+        {
+            CupoEfectivo = cupo,
+            OrigenDeCupo = origen,
+            AccesoEfectivo = acceso,
+            OrigenDeAcceso = origenDeAcceso,
+        };
     }
 }
 
@@ -382,13 +407,24 @@ public sealed record UsoDto(
 /// <summary>Lo que se manda a editar un cupo (de rol o de usuario).</summary>
 public sealed record PedidoDeCupoDto(int Cupo);
 
+/// <summary>
+/// Lo que se manda a cambiar el acceso de un rol o de un usuario
+/// (asistente-acceso-granular). Para un usuario, <c>true</c> sólo borra su
+/// revocación: nunca le da acceso por encima de su rol.
+/// </summary>
+public sealed record PedidoDeAccesoDto(bool Habilitado);
+
 /// <summary>Lo que se manda a editar el tope organizacional.</summary>
 public sealed record PedidoDeTopeDto(decimal TopeMensualUsd);
 
-/// <summary>El cupo diario default de UN rol, tal como está persistido (tarea 12.8).</summary>
-public sealed record CupoDeRolDto(string Rol, int CupoDiarioTurnos)
+/// <summary>
+/// El cupo diario default de UN rol y su acceso operativo, tal como están
+/// persistidos (tarea 12.8; acceso: asistente-acceso-granular).
+/// </summary>
+public sealed record CupoDeRolDto(string Rol, int CupoDiarioTurnos, bool AccesoHabilitado)
 {
-    internal static CupoDeRolDto De(CupoDeRolVigente cupo) => new(cupo.Rol, cupo.CupoDiarioTurnos);
+    internal static CupoDeRolDto De(CupoDeRolVigente cupo) =>
+        new(cupo.Rol, cupo.CupoDiarioTurnos, cupo.AccesoHabilitado);
 }
 
 /// <summary>El override de cupo diario de un usuario puntual, tal como está persistido (tarea 12.8).</summary>
@@ -401,10 +437,10 @@ public sealed record OverrideDeUsuarioDto(Guid ActorId, string? NombreParaMostra
 /// <summary>
 /// El estado persistido de los presupuestos
 /// (<c>GET /api/asistente/administracion/presupuestos</c>, tarea 12.8 de
-/// sistema-seccion-unificada). Cierra sólo el gap de "tope y cupos actuales":
-/// la serie diaria de uso, la telemetría del proveedor cloud/local, y el
-/// toggle de acceso por fila/rol siguen sin implementar (ver el reporte de
-/// apply adjunto al change).
+/// sistema-seccion-unificada). Cierra el gap de "tope y cupos actuales" y,
+/// desde asistente-acceso-granular, el acceso por rol y las revocaciones por
+/// usuario. La serie diaria de uso y la telemetría del proveedor cloud/local
+/// siguen sin implementar.
 /// </summary>
 /// <param name="TopeMensualUsd">El tope organizacional vigente. <c>0</c> = desactivado.</param>
 /// <param name="GastoEstimadoDelMes">
@@ -415,19 +451,22 @@ public sealed record OverrideDeUsuarioDto(Guid ActorId, string? NombreParaMostra
 /// factura real del proveedor.
 /// </param>
 /// <param name="EsEstimado">Siempre <c>true</c> — mismo campo que <see cref="UsoAgregadoDto"/>.</param>
+/// <param name="AccesosRevocados">Los actores con el acceso revocado (asistente-acceso-granular).</param>
 public sealed record PresupuestosDto(
     decimal TopeMensualUsd,
     decimal GastoEstimadoDelMes,
     bool EsEstimado,
     IReadOnlyList<CupoDeRolDto> CuposPorRol,
-    IReadOnlyList<OverrideDeUsuarioDto> OverridesPorUsuario)
+    IReadOnlyList<OverrideDeUsuarioDto> OverridesPorUsuario,
+    IReadOnlyList<Guid> AccesosRevocados)
 {
     internal static PresupuestosDto De(EstadoDePresupuestos estado, decimal gastoEstimadoDelMes) => new(
         estado.TopeMensualUsd,
         gastoEstimadoDelMes,
         EsEstimado: true,
         [.. estado.CuposPorRol.Select(CupoDeRolDto.De)],
-        [.. estado.OverridesPorUsuario.Select(OverrideDeUsuarioDto.De)]);
+        [.. estado.OverridesPorUsuario.Select(OverrideDeUsuarioDto.De)],
+        estado.AccesosRevocados);
 }
 
 /// <summary>Un área que el actor puede consultar.</summary>

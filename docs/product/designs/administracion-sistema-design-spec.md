@@ -97,9 +97,15 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   la tabla tiene una sola columna de detalle —la métrica elegida, con una barra proporcional
   al máximo de la vista— en vez de columnas siempre visibles, ordenada sola y descendente por
   esa métrica; el cupo diario se sigue editando inline por fila (`EditorDeCupoEnFila`: lápiz →
-  stepper → Guardar/Cancelar, con confirmación al bajar un valor ya conocido). No hay columna
-  de acceso on/off ni gráfico de tendencia por día: la referencia los pide, pero requieren
-  datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8 y §13).
+  stepper → Guardar/Cancelar, con confirmación al bajar un valor ya conocido). Desde
+  `asistente-acceso-granular` la tabla tiene columna **Acceso** entre la métrica y el cupo
+  (`CeldaDeAcceso`): interruptor «Con acceso» / «Sin acceso» con el origen debajo («del rol» /
+  «propio», este último en color de acento) y un ícono ↺ para restablecer una revocación
+  propia. Acceso y cupo se heredan del rol; a un usuario se le puede **quitar** el acceso, no
+  darlo: si su rol no lo tiene, el interruptor queda deshabilitado. Un cupo propio muestra
+  también ↺ para volver al del rol, y sin acceso el cupo se atenúa y el lápiz se deshabilita.
+  En «Por rol», el interruptor prende y apaga el acceso del rol. No hay gráfico de tendencia
+  por día: requiere datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8 y §13).
 - **Auditoría**: panel de filtros arriba (búsqueda + período como grupo de botones + chips de
   Acción/Módulo + «Más filtros» colapsable con badge de cuántos están activos), luego una
   grilla de dos columnas `minmax(0,1fr) 380px` cuando el detalle está abierto — la lista angosta
@@ -250,7 +256,11 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
   estimado» / «Latencia p95»; tope «Tope de {Mes}» / «de {tope} (estimado)» / «{N} % usado · al
   100 % se bloquean las consultas»; tabs «Por usuario» / «Por rol»; selector de métrica
   «Sesiones» / «Costo» / «Tokens» / «Latencia»; buscador «Buscar usuario o rol»; vacío «No hay
-  uso registrado en este período.».
+  uso registrado en este período.»; columnas «Usuario»/«Rol» / métrica / «Acceso» / «Cupo
+  diario»; acceso «Con acceso» / «Sin acceso» con «del rol» / «propio»; cupo «{N} por día» /
+  «sin tope» con «· del rol» / «· propio»; restablecer «Restablecer el acceso de {nombre} al del
+  rol» / «Restablecer el cupo de {nombre} al del rol»; pie «Acceso y cupo se heredan del rol; a
+  un usuario se le puede quitar el acceso, no darlo. El cupo se reinicia a las 00 h.».
 - Auditoría — filtros: placeholder «Buscar por usuario, objeto o cambio»; período «Hoy» / «7
   días» / «30 días» / «Todo»; chips de Acción «Todas» / «Altas» / «Cambios» / «Eliminaciones»;
   chips de Módulo «Todos» / «Identidad» / «Designaciones» / «Portal» / «Asistente»; «Más

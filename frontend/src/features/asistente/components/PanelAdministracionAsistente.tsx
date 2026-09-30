@@ -7,8 +7,11 @@ import { KpisDeUso } from "./KpisDeUso";
 import { PanelDeUso } from "./PanelDeUso";
 import { TopeOrganizacionalCard } from "./TopeOrganizacionalCard";
 import {
+  editarAccesoDeRol,
+  editarAccesoDeUsuario,
   editarCupoDeRol,
   editarCupoDeUsuario,
+  restablecerCupoDeUsuario,
   editarMantenimiento,
   editarTopeOrganizacional,
   obtenerPresupuestos,
@@ -116,14 +119,37 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     await refrescarPresupuestos();
   }
 
+  // El cupo y el acceso de una fila de USUARIO los resuelve el backend en
+  // `GET …/uso` (`cupoEfectivo`, `accesoEfectivo`), no en `…/presupuestos`:
+  // después de editar cualquiera de los dos hay que refrescar ambos, o la
+  // fila sigue mostrando el valor viejo.
+  async function refrescarUsoYPresupuestos() {
+    await queryClient.invalidateQueries({ queryKey: ["asistente", "administracion"] });
+  }
+
   async function guardarCupoDeRolYRefrescar(rol: string, cupo: number) {
     await editarCupoDeRol(rol, cupo);
-    await refrescarPresupuestos();
+    await refrescarUsoYPresupuestos();
   }
 
   async function guardarCupoDeUsuarioYRefrescar(actorId: string, cupo: number) {
     await editarCupoDeUsuario(actorId, cupo);
-    await refrescarPresupuestos();
+    await refrescarUsoYPresupuestos();
+  }
+
+  async function restablecerCupoDeUsuarioYRefrescar(actorId: string) {
+    await restablecerCupoDeUsuario(actorId);
+    await refrescarUsoYPresupuestos();
+  }
+
+  async function cambiarAccesoDeRolYRefrescar(rol: string, habilitado: boolean) {
+    await editarAccesoDeRol(rol, habilitado);
+    await refrescarUsoYPresupuestos();
+  }
+
+  async function cambiarAccesoDeUsuarioYRefrescar(actorId: string, habilitado: boolean) {
+    await editarAccesoDeUsuario(actorId, habilitado);
+    await refrescarUsoYPresupuestos();
   }
 
   // «Exportar CSV»: exporta EXACTAMENTE lo que ya está cargado para la vista
@@ -204,6 +230,9 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
           cuposPorRol={presupuestos.data?.cuposPorRol ?? []}
           onGuardarCupoDeRol={guardarCupoDeRolYRefrescar}
           onGuardarCupoDeUsuario={guardarCupoDeUsuarioYRefrescar}
+          onRestablecerCupoDeUsuario={restablecerCupoDeUsuarioYRefrescar}
+          onCambiarAccesoDeRol={cambiarAccesoDeRolYRefrescar}
+          onCambiarAccesoDeUsuario={cambiarAccesoDeUsuarioYRefrescar}
           onGuardado={setAnuncio}
           pestana={pestana}
           onCambiarPestana={setPestana}

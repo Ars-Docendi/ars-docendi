@@ -95,6 +95,8 @@ internal sealed class CatalogoDeCapacidades(
                 restante, true, EstadoDelCupoDelActor.MotivoTopeOrganizacional, null),
             MotivoSinModelo.Mantenimiento => new EstadoDelCupoDelActor(
                 restante, true, EstadoDelCupoDelActor.MotivoMantenimiento, null),
+            MotivoSinModelo.SinAcceso => new EstadoDelCupoDelActor(
+                restante, true, EstadoDelCupoDelActor.MotivoSinAcceso, null),
             _ => new EstadoDelCupoDelActor(restante, false, null, null),
         };
     }

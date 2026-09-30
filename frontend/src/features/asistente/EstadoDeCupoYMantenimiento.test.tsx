@@ -66,6 +66,16 @@ describe("El estado bloqueado se transmite por texto (tasks.md 12.2)", () => {
     );
     expect(texto.textContent).not.toMatch(/\$|USD|\d+([.,]\d+)?\s*(usd|dólar)/i);
   });
+
+  it("sin acceso (asistente-acceso-granular): lo dice, sin decir si fue el rol o el usuario", async () => {
+    conCapacidades({
+      cupo: { restante: 0, bloqueado: true, motivo: "sin_acceso", vuelveA: null },
+    });
+
+    montar(<PanelDePrueba />);
+
+    expect(await screen.findByText("No tenés acceso al asistente.")).toBeInTheDocument();
+  });
 });
 
 describe("El banner de mantenimiento (tasks.md 12.3)", () => {

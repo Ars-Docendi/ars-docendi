@@ -546,6 +546,7 @@ public sealed class CapacidadesTests(PostgresFixture postgres)
         var presupuestoOrganizacional = new PresupuestoOrganizacionalPersistente(cadena, reloj, new DetectorDeUmbrales(), NullLogger<PresupuestoOrganizacionalPersistente>.Instance);
         var disponibilidadDelModulo = new DisponibilidadDelModuloReal(cadena);
         var disponibilidad = new DisponibilidadDelModeloReal(
+            new AccesoPersistente(cadena, identidad),
             cuota,
             presupuestoOrganizacional,
             disponibilidadDelModulo,

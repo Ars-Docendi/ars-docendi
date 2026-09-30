@@ -434,6 +434,7 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
                 new SelectorDeEjemplos(),
                 new CacheDeCapacidades(),
                 new DisponibilidadDelModeloReal(
+                    new AccesoAlAsistenteFalso(),
                     new CuotaDeActorFalsa(0, TimeProvider.System),
                     new PresupuestoOrganizacionalFalso(0),
                     new DisponibilidadDelModuloFalsa(),

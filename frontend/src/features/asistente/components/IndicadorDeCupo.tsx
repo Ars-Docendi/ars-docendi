@@ -65,6 +65,10 @@ function textoDeBloqueo(cupo: CupoDelActor): string | null {
     // a propósito, igual que ya lo exige el backend para este motivo.
     case "tope_organizacional":
       return "El asistente alcanzó el límite de uso de la organización.";
+    // asistente-acceso-granular: no dice si se lo quitaron a él o a su rol —
+    // es administración interna, y lo que puede hacer es lo mismo.
+    case "sin_acceso":
+      return "No tenés acceso al asistente.";
     default:
       return null;
   }

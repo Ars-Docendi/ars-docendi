@@ -31,6 +31,7 @@ const PRESUPUESTOS_VACIOS: PresupuestosDelAsistente = {
   esEstimado: true,
   cuposPorRol: [],
   overridesPorUsuario: [],
+  accesosRevocados: [],
 };
 
 // `GET …/presupuestos` (tarea 12.8) se pide en TODAS las variantes del panel:
@@ -74,6 +75,8 @@ const FILA_USUARIO: UsoAgregado = {
   codigosDeRol: ["docente"],
   cupoEfectivo: 15,
   origenDeCupo: "rol",
+  accesoEfectivo: true,
+  origenDeAcceso: "rol",
 };
 
 const FILA_ROL: UsoAgregado = {

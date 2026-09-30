@@ -44,6 +44,32 @@ export async function editarCupoDeUsuario(actorId: string, cupo: number): Promis
   await apiClient.put(`/api/asistente/administracion/presupuestos/usuarios/${actorId}`, { cupo });
 }
 
+/**
+ * Restablece el cupo de un usuario al de su rol: cierra la vigencia de su
+ * override (asistente-acceso-granular).
+ */
+export async function restablecerCupoDeUsuario(actorId: string): Promise<void> {
+  await apiClient.delete(`/api/asistente/administracion/presupuestos/usuarios/${actorId}`);
+}
+
+/** Prende o apaga el acceso de un rol al asistente. */
+export async function editarAccesoDeRol(rol: string, habilitado: boolean): Promise<void> {
+  await apiClient.put(`/api/asistente/administracion/presupuestos/roles/${rol}/acceso`, {
+    habilitado,
+  });
+}
+
+/**
+ * Quita (`false`) o restablece (`true`) el acceso de un usuario. Restablecer
+ * sólo borra la revocación: a un usuario se le puede quitar el acceso, no
+ * darlo por encima de su rol.
+ */
+export async function editarAccesoDeUsuario(actorId: string, habilitado: boolean): Promise<void> {
+  await apiClient.put(`/api/asistente/administracion/presupuestos/usuarios/${actorId}/acceso`, {
+    habilitado,
+  });
+}
+
 /** Edita el tope organizacional de gasto mensual estimado, en USD (`0` desactiva). */
 export async function editarTopeOrganizacional(topeMensualUsd: number): Promise<void> {
   await apiClient.put("/api/asistente/administracion/tope-organizacional", { topeMensualUsd });

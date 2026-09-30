@@ -21,6 +21,8 @@ const FILA: UsoAgregado = {
   codigosDeRol: [],
   cupoEfectivo: null,
   origenDeCupo: null,
+  accesoEfectivo: null,
+  origenDeAcceso: null,
 };
 
 describe("construirCsvDeUso", () => {

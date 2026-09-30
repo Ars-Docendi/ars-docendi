@@ -24,6 +24,8 @@ public static class EtiquetasAuditoria
         // Del rastro de administración del asistente (design.md D5): activo ya
         // está arriba; cupo y tope_mensual_usd son propios de esa fuente.
         "cupo", "tope_mensual_usd",
+        // asistente-acceso-granular.
+        "acceso_habilitado", "acceso_revocado",
     };
 
     /// <summary>
@@ -39,7 +41,7 @@ public static class EtiquetasAuditoria
     /// </summary>
     public static readonly HashSet<string> CamposBooleanos = new(StringComparer.OrdinalIgnoreCase)
     {
-        "activo", "is_active", "es_sistema",
+        "activo", "is_active", "es_sistema", "acceso_habilitado", "acceso_revocado",
     };
 
     public static readonly HashSet<string> CamposPersonalesOSecretos = new(StringComparer.OrdinalIgnoreCase)
@@ -123,6 +125,8 @@ public static class EtiquetasAuditoria
         // Campos del rastro de administración del asistente (design.md D5).
         ["cupo"] = "Cupo diario",
         ["tope_mensual_usd"] = "Tope mensual (USD)",
+        ["acceso_habilitado"] = "Acceso habilitado",
+        ["acceso_revocado"] = "Acceso revocado",
         ["razon"] = "Razón",
         // Resto de las tablas auditadas (audit.attach) — sin esto, Humanizar()
         // deja etiquetas crudas como «Carrera id» o el nombre en inglés sin

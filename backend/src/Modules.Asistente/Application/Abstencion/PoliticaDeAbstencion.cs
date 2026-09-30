@@ -311,6 +311,17 @@ internal static class PoliticaDeAbstencion
         + "Va a estar disponible de nuevo el próximo mes.";
 
     /// <summary>
+    /// Texto de un actor sin acceso operativo al asistente
+    /// (asistente-acceso-granular).
+    /// </summary>
+    /// <remarks>
+    /// No dice si se lo quitaron a él o a su rol: eso es administración
+    /// interna, y lo que el usuario puede hacer es lo mismo en los dos casos.
+    /// </remarks>
+    public const string TextoSinAcceso =
+        "No tenés acceso al asistente en este momento. Si lo necesitás, pedíselo al área que lo administra.";
+
+    /// <summary>
     /// Texto de un turno rechazado por ya tener otro en curso
     /// (asistente-turno-exclusivo-del-actor, design.md D5).
     /// </summary>

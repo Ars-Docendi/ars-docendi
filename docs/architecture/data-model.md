@@ -362,11 +362,12 @@ Tres tablas más, en el mismo schema `asistente` — heredan la denegación whol
 
 ### Administración de uso (presupuestos, tope, mantenimiento, auditoría)
 
-Siete tablas más, en el mismo schema `asistente` — mismo criterio que las tres de arriba: heredan la denegación wholesale (`REVOKE ALL ON SCHEMA asistente` de `002_asistente_registros.sql`) sin ningún `GRANT` ni cambio de manifiesto propio. Viven todas en `database/asistente/006_asistente_administracion.sql`.
+Ocho tablas más, en el mismo schema `asistente` — mismo criterio que las tres de arriba: heredan la denegación wholesale (`REVOKE ALL ON SCHEMA asistente` de `002_asistente_registros.sql`) sin ningún `GRANT` ni cambio de manifiesto propio. Viven todas en `database/asistente/006_asistente_administracion.sql`.
 
 | Tabla                                      | Guarda                                                                                                       | No guarda                                                          |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `asistente.presupuesto_rol`                | `rol_code` (PK), `cupo_diario_turnos` (0 desactiva), `actualizado_en`                                        | Historial de valores anteriores (va en `auditoria_administracion`) |
+| `asistente.presupuesto_rol`                | `rol_code` (PK), `cupo_diario_turnos` (0 desactiva), `acceso_habilitado` (default `true`), `actualizado_en`  | Historial de valores anteriores (va en `auditoria_administracion`) |
+| `asistente.acceso_usuario_revocado`        | `actor_id` (PK), `revocado_por`, `revocado_en` — la fila existe mientras el acceso está quitado              | Un acceso «concedido»: a un usuario sólo se le puede quitar        |
 | `asistente.presupuesto_usuario`            | `id`, `actor_id`, `cupo_diario_turnos`, `vigente_desde`, `vigente_hasta` (nulo = vigente)                    | —                                                                  |
 | `asistente.tope_organizacional`            | `id`, `tope_mensual_usd` (0 desactiva), `vigente_desde`                                                      | —                                                                  |
 | `asistente.consumo_organizacional_mensual` | `anio`, `mes` (PK compuesta), `costo_estimado_acumulado`                                                     | Costo por usuario o por turno (eso lo deriva el panel de uso)      |

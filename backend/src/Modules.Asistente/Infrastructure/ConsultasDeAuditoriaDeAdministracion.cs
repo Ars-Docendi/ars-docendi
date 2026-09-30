@@ -98,6 +98,25 @@ internal sealed class ConsultasDeAuditoriaDeAdministracion(CadenaDuena cadena)
                 UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
                 Campos: [CampoDe("cupo", docAntes, docDespues)]),
 
+            "presupuesto.usuario.restablecer" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
+                Campos: [CampoDe("cupo", docAntes, docDespues)]),
+
+            // asistente-acceso-granular: acceso operativo por rol y revocación por usuario.
+            "acceso.rol" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "rol") ?? Texto(docAntes, "rol"),
+                UsuarioAfectado: null,
+                Campos: [CampoDe("acceso_habilitado", docAntes, docDespues, "habilitado")]),
+
+            "acceso.usuario" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: null,
+                UsuarioAfectado: LeerGuid(docDespues, "actorId") ?? LeerGuid(docAntes, "actorId"),
+                Campos: [CampoDe("acceso_revocado", docAntes, docDespues, "revocado")]),
+
             "tope_organizacional" => new EventoDeAdministracion(
                 id, actorId, ocurridoEn, tipo,
                 Clave: null,

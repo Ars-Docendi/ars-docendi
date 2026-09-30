@@ -81,9 +81,9 @@ public sealed class AdministracionAsistenteController(
     /// <c>TopeOrganizacionalCard</c>/<c>EditorDeCupoEnFila</c>).
     /// </summary>
     /// <remarks>
-    /// Deliberadamente NO trae la serie diaria de uso, la telemetría del
-    /// proveedor cloud/local, ni un toggle de acceso por fila/rol — esos tres
-    /// siguen sin implementar (ver el reporte de apply adjunto al change).
+    /// Deliberadamente NO trae la serie diaria de uso ni la telemetría del
+    /// proveedor cloud/local — siguen sin implementar. El acceso por rol y
+    /// las revocaciones por usuario sí (asistente-acceso-granular).
     /// </remarks>
     [HttpGet("presupuestos")]
     public async Task<ActionResult<PresupuestosDto>> Presupuestos(CancellationToken ct)
@@ -142,6 +142,82 @@ public sealed class AdministracionAsistenteController(
             actor, "presupuesto.usuario",
             $"{{\"actorId\":\"{actorId}\",\"cupo\":{(antes is null ? "null" : antes)}}}",
             $"{{\"actorId\":\"{actorId}\",\"cupo\":{despues}}}",
+            ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Restablece el cupo de un usuario al de su rol: cierra la vigencia de
+    /// su override (asistente-acceso-granular, design.md D5). Audita.
+    /// </summary>
+    [HttpDelete("presupuestos/usuarios/{actorId:guid}")]
+    public async Task<IActionResult> RestablecerPresupuestoDeUsuario(Guid actorId, CancellationToken ct)
+    {
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var antes = await presupuestos.RestablecerOverrideDeUsuarioAsync(actorId, ct);
+
+        await auditoria.RegistrarAsync(
+            actor, "presupuesto.usuario.restablecer",
+            $"{{\"actorId\":\"{actorId}\",\"cupo\":{(antes is null ? "null" : antes)}}}",
+            $"{{\"actorId\":\"{actorId}\",\"cupo\":null}}",
+            ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Prende o apaga el acceso operativo de un rol (asistente-acceso-granular).
+    /// Audita.
+    /// </summary>
+    [HttpPut("presupuestos/roles/{rol}/acceso")]
+    public async Task<IActionResult> AccesoDeRol(string rol, PedidoDeAccesoDto pedido, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pedido);
+
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var (antes, despues) = await presupuestos.EditarAccesoDeRolAsync(rol, pedido.Habilitado, ct);
+
+        await auditoria.RegistrarAsync(
+            actor, "acceso.rol",
+            JsonSerializer.Serialize(new { rol, habilitado = antes }),
+            JsonSerializer.Serialize(new { rol, habilitado = despues }),
+            ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Revoca (<c>habilitado: false</c>) o restablece (<c>true</c>) el acceso
+    /// de un usuario (asistente-acceso-granular, design.md D3): a un usuario
+    /// se le puede quitar el acceso, no darlo por encima de su rol. Audita.
+    /// </summary>
+    [HttpPut("presupuestos/usuarios/{actorId:guid}/acceso")]
+    public async Task<IActionResult> AccesoDeUsuario(
+        Guid actorId, PedidoDeAccesoDto pedido, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pedido);
+
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var (revocadoAntes, revocadoDespues) =
+            await presupuestos.EditarAccesoDeUsuarioAsync(actorId, pedido.Habilitado, actor, ct);
+
+        await auditoria.RegistrarAsync(
+            actor, "acceso.usuario",
+            JsonSerializer.Serialize(new { actorId, revocado = revocadoAntes }),
+            JsonSerializer.Serialize(new { actorId, revocado = revocadoDespues }),
             ct);
 
         return NoContent();

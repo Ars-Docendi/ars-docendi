@@ -12,6 +12,7 @@ namespace Modules.Asistente.Infrastructure;
 /// consultas a las 15:40» sí.
 /// </remarks>
 internal sealed class DisponibilidadDelModeloReal(
+    IAccesoAlAsistente acceso,
     ICuotaDelActor cuota,
     IPresupuestoOrganizacional presupuestoOrganizacional,
     IDisponibilidadDelModulo disponibilidadDelModulo,
@@ -20,6 +21,13 @@ internal sealed class DisponibilidadDelModeloReal(
 {
     public async Task<MotivoSinModelo> ConsultarAsync(Guid actor, CancellationToken ct)
     {
+        // Antes que la cuota (asistente-acceso-granular, design.md D4): a un
+        // actor sin acceso no hay cupo que contarle.
+        if (!await acceso.TieneAccesoAsync(actor, ct))
+        {
+            return MotivoSinModelo.SinAcceso;
+        }
+
         if (!await cuota.HayCupoAsync(actor, ct))
         {
             return MotivoSinModelo.CuotaAgotada;

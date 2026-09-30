@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Input, Table, Tabs } from "@ars-docendi/ui";
 import type { TabItem } from "@ars-docendi/ui";
 
+import { CeldaDeAcceso } from "./CeldaDeAcceso";
 import { EditorDeCupoEnFila } from "./EditorDeCupoEnFila";
 import { IconoSearch } from "../../../shared/ui/iconos";
 import { formatearEntero, formatearLatenciaMs, formatearUsd } from "../utils/formatoDeUso";
@@ -18,6 +19,11 @@ interface PanelDeUsoProps {
   cuposPorRol: CupoDeRolPersistido[];
   onGuardarCupoDeRol: (rol: string, cupo: number) => Promise<void>;
   onGuardarCupoDeUsuario: (actorId: string, cupo: number) => Promise<void>;
+  /** Vuelve el cupo de un usuario al de su rol (asistente-acceso-granular). */
+  onRestablecerCupoDeUsuario: (actorId: string) => Promise<void>;
+  onCambiarAccesoDeRol: (rol: string, habilitado: boolean) => Promise<void>;
+  /** `false` le quita el acceso; `true` sólo restablece el del rol. */
+  onCambiarAccesoDeUsuario: (actorId: string, habilitado: boolean) => Promise<void>;
   /** Texto para la región viva compartida de la página (tasks.md 13.2). */
   onGuardado: (mensaje: string) => void;
   /**
@@ -91,13 +97,16 @@ function notaDeMetrica(fila: UsoAgregado, metrica: Metrica): string {
  * manual por encabezado del primer rediseño. Las filas se ordenan solas,
  * descendente por la métrica elegida (mismo criterio que el canvas).
  *
- * El cupo diario sigue editándose DIRECTO EN LA FILA (`EditorDeCupoEnFila`).
+ * El cupo diario sigue editándose DIRECTO EN LA FILA (`EditorDeCupoEnFila`),
+ * y desde asistente-acceso-granular cada fila tiene además su columna
+ * «Acceso» (`CeldaDeAcceso`): el acceso y el cupo se heredan del rol; a un
+ * usuario se le puede quitar el acceso, no darlo, y tanto la revocación como
+ * un cupo propio se restablecen al del rol desde la misma fila.
  * El agregado «Organización» no vive acá: está en `KpisDeUso`, arriba.
  *
  * EL COSTO SIEMPRE LLEVA «(estimado)» cuando la métrica elegida es Costo, y
  * un turno sin precio vigente NUNCA se cuenta como costo cero: se ve aparte
- * (asistente-panel-de-uso). No hay columna «Acceso»: ese concepto no existe
- * del lado del backend todavía (fuera de alcance, decisión del cliente).
+ * (asistente-panel-de-uso).
  */
 export function PanelDeUso({
   uso,
@@ -105,6 +114,9 @@ export function PanelDeUso({
   cuposPorRol,
   onGuardarCupoDeRol,
   onGuardarCupoDeUsuario,
+  onRestablecerCupoDeUsuario,
+  onCambiarAccesoDeRol,
+  onCambiarAccesoDeUsuario,
   onGuardado,
   pestana: pestanaControlada,
   onCambiarPestana,
@@ -156,6 +168,9 @@ export function PanelDeUso({
   // «rol y cupo efectivo por usuario» de sistema-seccion-unificada) — la
   // misma regla que aplicaría la ejecución real del turno.
   const cuposPorRolMap = new Map(cuposPorRol.map((c) => [c.rol, c.cupoDiarioTurnos]));
+  // Un rol sin fila persistida cuenta como habilitado — misma regla que el
+  // backend (`ReglaDeAccesoEfectivo`).
+  const accesoPorRolMap = new Map(cuposPorRol.map((c) => [c.rol, c.accesoHabilitado]));
 
   const tabs: TabItem[] = [
     { id: "usuarios", label: "Por usuario", count: uso.porUsuario.length },
@@ -210,6 +225,7 @@ export function PanelDeUso({
               <Table.Row>
                 <Table.HeaderCell>{esUsuarios ? "Usuario" : "Rol"}</Table.HeaderCell>
                 <Table.HeaderCell>{ETIQUETAS_METRICA[metrica]}</Table.HeaderCell>
+                <Table.HeaderCell>Acceso</Table.HeaderCell>
                 <Table.HeaderCell>Cupo diario</Table.HeaderCell>
               </Table.Row>
             </Table.Head>
@@ -218,6 +234,10 @@ export function PanelDeUso({
                 const valor = valorDeMetrica(fila, metrica);
                 const anchoBarra = fila.turnos === 0 ? 0 : Math.max(2, (valor / maxValor) * 100);
                 const subtitulo = esUsuarios ? subtituloDeRoles(fila.codigosDeRol) : undefined;
+                const nombre = fila.nombreParaMostrar ?? fila.clave;
+                const acceso = esUsuarios
+                  ? (fila.accesoEfectivo ?? true)
+                  : (accesoPorRolMap.get(fila.clave) ?? true);
                 return (
                   <Table.Row key={fila.clave}>
                     <Table.Cell>
@@ -248,8 +268,39 @@ export function PanelDeUso({
                       </div>
                     </Table.Cell>
                     <Table.Cell>
+                      <CeldaDeAcceso
+                        nombre={nombre}
+                        acceso={acceso}
+                        origen={esUsuarios ? (fila.origenDeAcceso ?? "rol") : undefined}
+                        onCambiar={async (habilitado) => {
+                          if (esUsuarios) {
+                            await onCambiarAccesoDeUsuario(fila.clave, habilitado);
+                            onGuardado(
+                              habilitado
+                                ? `Acceso de ${nombre}: restablecido al del rol.`
+                                : `Acceso de ${nombre}: quitado.`,
+                            );
+                          } else {
+                            await onCambiarAccesoDeRol(fila.clave, habilitado);
+                            onGuardado(
+                              `Acceso del rol ${nombre}: ${habilitado ? "habilitado" : "quitado"}.`,
+                            );
+                          }
+                        }}
+                      />
+                    </Table.Cell>
+                    <Table.Cell>
                       <EditorDeCupoEnFila
-                        nombre={fila.nombreParaMostrar ?? fila.clave}
+                        nombre={nombre}
+                        deshabilitado={!acceso}
+                        onRestablecer={
+                          esUsuarios
+                            ? async () => {
+                                await onRestablecerCupoDeUsuario(fila.clave);
+                                onGuardado(`Cupo diario de ${nombre}: restablecido al del rol.`);
+                              }
+                            : undefined
+                        }
                         cupoConocido={
                           esUsuarios
                             ? (fila.cupoEfectivo ?? undefined)
@@ -279,8 +330,8 @@ export function PanelDeUso({
         </Table>
       )}
       <p className="adoc-asistente-admin-panel-uso-pie">
-        El cupo diario se hereda del rol salvo que el usuario tenga un override propio, y se
-        reinicia a las 00 h.
+        Acceso y cupo se heredan del rol; a un usuario se le puede quitar el acceso, no darlo. El
+        cupo se reinicia a las 00 h.
       </p>
     </div>
   );

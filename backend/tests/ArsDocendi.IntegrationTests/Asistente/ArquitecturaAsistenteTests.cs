@@ -96,6 +96,10 @@ public sealed partial class ArquitecturaAsistenteTests
         // Reads/writes presupuesto_rol/presupuesto_usuario/tope_organizacional,
         // same wholesale-revoked schema (tareas 9.5/9.6).
         "PresupuestosAdministrablesReal.cs",
+        // Reads presupuesto_rol.acceso_habilitado and acceso_usuario_revocado
+        // (asistente-acceso-granular), same wholesale-revoked schema — same
+        // reason as CuotaPersistente.cs.
+        "AccesoPersistente.cs",
         // Reads auditoria_administracion (sistema-seccion-unificada, design.md
         // D1, tarea 1.2) — same wholesale-revoked schema as the rest of this
         // list, so even reading its own audit trail needs the owner connection.
@@ -549,6 +553,8 @@ public sealed partial class ArquitecturaAsistenteTests
         "CuotaPersistente.cs",
         // Same reason as CuotaPersistente.cs above.
         "PresupuestoOrganizacionalPersistente.cs",
+        // Same reason as CuotaPersistente.cs above (asistente-acceso-granular).
+        "AccesoPersistente.cs",
         // CandadoDelTurno.cs needs its OWN dedicated, unpooled connection for
         // the session-level advisory lock (design.md D5): AperturaDeLectura's
         // pooled connections cannot own a session-scoped lock, since the

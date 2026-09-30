@@ -29,6 +29,13 @@ public enum MotivoSinModelo
 
     /// <summary>El módulo está en modo mantenimiento.</summary>
     Mantenimiento,
+
+    /// <summary>
+    /// El actor no tiene acceso operativo: se lo quitaron a él o a todos sus
+    /// roles (asistente-acceso-granular). Ningún bypass lo levanta, ni el de
+    /// mantenimiento del admin.
+    /// </summary>
+    SinAcceso,
 }
 
 /// <summary>

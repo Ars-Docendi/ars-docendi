@@ -151,7 +151,12 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // (`GET /api/asistente/administracion/presupuestos` — el tope
         // organizacional, los cupos por rol/usuario y el gasto estimado del
         // mes, hasta ahora sólo editables por `PUT`, nunca legibles).
-        Assert.Equal(91, operaciones.Length);
+        //
+        // Subió de 91 a 94 con asistente-acceso-granular: tres en
+        // AdministracionAsistenteController (`DELETE …/presupuestos/usuarios/{actorId}`
+        // para restablecer el cupo al del rol, y `PUT …/presupuestos/roles/{rol}/acceso`
+        // y `PUT …/presupuestos/usuarios/{actorId}/acceso`).
+        Assert.Equal(94, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

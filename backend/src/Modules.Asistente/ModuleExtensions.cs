@@ -179,6 +179,10 @@ public static class ModuleExtensions
 
         services.AddScoped<ICuotaDelActor, CuotaPersistente>();
 
+        // Misma vida y mismo motivo que CuotaPersistente: resuelve los roles del
+        // actor vía IConsultasIdentity, scoped (asistente-acceso-granular).
+        services.AddScoped<IAccesoAlAsistente, AccesoPersistente>();
+
         // También scoped: PresupuestoOrganizacionalPersistente no depende de
         // IConsultasIdentity, pero DisponibilidadDelModeloReal ya lo es por
         // ICuotaDelActor, y las dos piezas del mismo veredicto conviven mejor

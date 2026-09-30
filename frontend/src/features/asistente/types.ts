@@ -112,10 +112,13 @@ export interface MantenimientoDelAsistente {
 }
 
 /**
- * Uno de los tres motivos por los que un turno puede estar bloqueado. El texto
- * lo elige la interfaz; el backend sólo manda cuál de los tres es.
+ * Uno de los motivos por los que un turno puede estar bloqueado. El texto lo
+ * elige la interfaz; el backend sólo manda cuál es. `sin_acceso`: un
+ * administrador le quitó el acceso a este usuario o a todos sus roles
+ * (asistente-acceso-granular).
  */
-export type MotivoDeBloqueo = "presupuesto_propio" | "tope_organizacional" | "mantenimiento";
+export type MotivoDeBloqueo =
+  "presupuesto_propio" | "tope_organizacional" | "mantenimiento" | "sin_acceso";
 
 /**
  * El cupo diario de ESTE actor, con el bypass de mantenimiento del admin ya
@@ -195,6 +198,14 @@ export interface UsoAgregado {
   cupoEfectivo: number | null;
   /** De dónde sale `cupoEfectivo`: `"override"` o `"rol"`, o `null` junto con `cupoEfectivo` nulo. */
   origenDeCupo: "override" | "rol" | null;
+  /**
+   * Sólo en los agregados por usuario: si el actor tiene hoy acceso al
+   * asistente, con la misma regla que aplica el turno
+   * (asistente-acceso-granular). `null` en un agregado por rol o el organizacional.
+   */
+  accesoEfectivo: boolean | null;
+  /** De dónde sale `accesoEfectivo`: heredado del `"rol"` o una revocación `"propio"`. */
+  origenDeAcceso: "rol" | "propio" | null;
 }
 
 /** El panel de uso completo (`GET /api/asistente/administracion/uso`). */
@@ -217,6 +228,8 @@ export type PeriodoDeUso = "dia" | "semana" | "mes";
 export interface CupoDeRolPersistido {
   rol: string;
   cupoDiarioTurnos: number;
+  /** El acceso operativo del rol al asistente (asistente-acceso-granular). */
+  accesoHabilitado: boolean;
 }
 
 /** El override de cupo diario de un usuario puntual, tal como está persistido. */
@@ -229,10 +242,9 @@ export interface OverrideDeUsuarioPersistido {
 
 /**
  * El estado persistido de los presupuestos
- * (`GET /api/asistente/administracion/presupuestos`). Cierra sólo el gap de
- * "tope y cupos actuales" — la serie diaria de uso, la telemetría del
- * proveedor cloud/local y el toggle de acceso por fila siguen sin
- * implementar (ver el reporte de apply del cambio `sistema-seccion-unificada`).
+ * (`GET /api/asistente/administracion/presupuestos`): tope, cupos, acceso por
+ * rol y revocaciones por usuario (asistente-acceso-granular). La serie diaria
+ * de uso y la telemetría del proveedor cloud/local siguen sin implementar.
  */
 export interface PresupuestosDelAsistente {
   /** El tope organizacional vigente. `0` = desactivado. */
@@ -246,6 +258,8 @@ export interface PresupuestosDelAsistente {
   esEstimado: boolean;
   cuposPorRol: CupoDeRolPersistido[];
   overridesPorUsuario: OverrideDeUsuarioPersistido[];
+  /** Los actores con el acceso revocado por un administrador. */
+  accesosRevocados: string[];
 }
 
 /**

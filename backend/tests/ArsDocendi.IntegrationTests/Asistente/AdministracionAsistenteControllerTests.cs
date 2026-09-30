@@ -407,6 +407,101 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         Assert.Equal(usoDelMes.Organizacion.CostoEstimado, presupuestos.GastoEstimadoDelMes);
     }
 
+    // ------------------------------------------------ asistente-acceso-granular
+
+    [Fact]
+    public async Task Quitar_el_acceso_de_un_usuario_se_ve_en_el_panel_y_se_audita()
+    {
+        await SembrarAsync();
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var ct = TestContext.Current.CancellationToken;
+
+        var respuesta = await cliente.PutAsJsonAsync(
+            $"/api/asistente/administracion/presupuestos/usuarios/{Secretaria}/acceso",
+            new PedidoDeAccesoDto(false), ct);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=mes", ct));
+        var fila = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.False(fila.AccesoEfectivo);
+        Assert.Equal("propio", fila.OrigenDeAcceso);
+        var presupuestos = await LeerAsync<PresupuestosDto>(
+            await cliente.GetAsync("/api/asistente/administracion/presupuestos", ct));
+        Assert.Contains(Secretaria, presupuestos.AccesosRevocados);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_administracion WHERE accion = 'acceso.usuario'"));
+    }
+
+    [Fact]
+    public async Task Apagar_el_acceso_de_un_rol_lo_hereda_el_usuario_y_se_audita()
+    {
+        await SembrarAsync();
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var ct = TestContext.Current.CancellationToken;
+
+        var respuesta = await cliente.PutAsJsonAsync(
+            "/api/asistente/administracion/presupuestos/roles/secretaria/acceso",
+            new PedidoDeAccesoDto(false), ct);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=mes", ct));
+        var fila = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.False(fila.AccesoEfectivo);
+        Assert.Equal("rol", fila.OrigenDeAcceso);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_administracion WHERE accion = 'acceso.rol'"));
+    }
+
+    [Fact]
+    public async Task Restablecer_el_cupo_de_un_usuario_vuelve_al_del_rol_y_se_audita()
+    {
+        await SembrarAsync();
+        await SembrarTurnoAsync(Secretaria, "anthropic/claude-sonnet-5", "Respondida", 1, 10, 10, 5);
+        await FijarCupoDeRolAsync("secretaria", 15);
+        await FijarOverrideAsync(Secretaria, 60);
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var ct = TestContext.Current.CancellationToken;
+
+        var respuesta = await cliente.DeleteAsync(
+            $"/api/asistente/administracion/presupuestos/usuarios/{Secretaria}", ct);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        var uso = await LeerAsync<UsoDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/uso?periodo=mes", ct));
+        var fila = Assert.Single(uso.PorUsuario, u => u.Clave == Secretaria.ToString());
+        Assert.Equal(15, fila.CupoEfectivo);
+        Assert.Equal("rol", fila.OrigenDeCupo);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_administracion WHERE accion = 'presupuesto.usuario.restablecer'"));
+    }
+
+    [Fact]
+    public async Task Sin_el_permiso_cambiar_el_acceso_se_rechaza()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.PutAsJsonAsync(
+            "/api/asistente/administracion/presupuestos/roles/secretaria/acceso",
+            new PedidoDeAccesoDto(false), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_administracion"));
+    }
+
     private async Task FijarPrecioVigenteAsync(string proveedor, string modelo, decimal precioPorTokenEntrada)
     {
         await using var conexion = await AbrirConexionAsync();

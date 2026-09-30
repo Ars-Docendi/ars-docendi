@@ -33,6 +33,8 @@ function fila(parcial: Partial<UsoAgregado>): UsoAgregado {
     codigosDeRol: [],
     cupoEfectivo: null,
     origenDeCupo: null,
+    accesoEfectivo: true,
+    origenDeAcceso: "rol",
     ...parcial,
   };
 }
@@ -52,6 +54,9 @@ function montar(
 ) {
   const onGuardarCupoDeRol = vi.fn().mockResolvedValue(undefined);
   const onGuardarCupoDeUsuario = vi.fn().mockResolvedValue(undefined);
+  const onRestablecerCupoDeUsuario = vi.fn().mockResolvedValue(undefined);
+  const onCambiarAccesoDeRol = vi.fn().mockResolvedValue(undefined);
+  const onCambiarAccesoDeUsuario = vi.fn().mockResolvedValue(undefined);
   const onGuardado = vi.fn();
   const resultado = render(
     <PanelDeUso
@@ -60,10 +65,21 @@ function montar(
       cuposPorRol={cuposPorRol}
       onGuardarCupoDeRol={onGuardarCupoDeRol}
       onGuardarCupoDeUsuario={onGuardarCupoDeUsuario}
+      onRestablecerCupoDeUsuario={onRestablecerCupoDeUsuario}
+      onCambiarAccesoDeRol={onCambiarAccesoDeRol}
+      onCambiarAccesoDeUsuario={onCambiarAccesoDeUsuario}
       onGuardado={onGuardado}
     />,
   );
-  return { ...resultado, onGuardarCupoDeRol, onGuardarCupoDeUsuario, onGuardado };
+  return {
+    ...resultado,
+    onGuardarCupoDeRol,
+    onGuardarCupoDeUsuario,
+    onRestablecerCupoDeUsuario,
+    onCambiarAccesoDeRol,
+    onCambiarAccesoDeUsuario,
+    onGuardado,
+  };
 }
 
 describe("Pestañas Por usuario / Por rol", () => {
@@ -226,7 +242,7 @@ describe("Cupo diario editado en la fila", () => {
 describe("El cupo mostrado en la fila viene de lo persistido (tarea 12.8)", () => {
   it("una fila de rol muestra su default persistido, «N por día · del rol» (copia del canvas)", async () => {
     const user = userEvent.setup();
-    montar(USO, [{ rol: "docente", cupoDiarioTurnos: 15 }]);
+    montar(USO, [{ rol: "docente", cupoDiarioTurnos: 15, accesoHabilitado: true }]);
 
     // "Por rol" no es la pestaña inicial.
     await user.click(screen.getByRole("tab", { name: /Por rol/ }));
@@ -335,6 +351,112 @@ describe("El botón de editar cupo está presente en cada fila (fidelidad con el
 
     expect(
       screen.getByRole("button", { name: "Editar cupo diario de docente" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("Columna «Acceso» (asistente-acceso-granular)", () => {
+  function usuario(parcial: Partial<UsoAgregado>) {
+    return {
+      ...USO,
+      porUsuario: [fila({ clave: "u1", nombreParaMostrar: "Marina Díaz", turnos: 5, ...parcial })],
+    };
+  }
+
+  it("un usuario con acceso heredado lo muestra «Con acceso · del rol» y se le puede quitar", async () => {
+    const user = userEvent.setup();
+    const { onCambiarAccesoDeUsuario, onGuardado } = montar(usuario({}));
+
+    const fila = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(within(fila).getByText("Con acceso")).toBeInTheDocument();
+    expect(within(fila).getByText("del rol")).toBeInTheDocument();
+
+    await user.click(
+      within(fila).getByRole("switch", { name: "Acceso de Marina Díaz al asistente" }),
+    );
+
+    await waitFor(() => expect(onCambiarAccesoDeUsuario).toHaveBeenCalledWith("u1", false));
+    expect(onGuardado).toHaveBeenCalledWith("Acceso de Marina Díaz: quitado.");
+  });
+
+  it("un usuario revocado se ve «Sin acceso · propio», con restablecer, y su cupo no se edita", async () => {
+    const user = userEvent.setup();
+    const { onCambiarAccesoDeUsuario } = montar(
+      usuario({
+        accesoEfectivo: false,
+        origenDeAcceso: "propio",
+        cupoEfectivo: 10,
+        origenDeCupo: "rol",
+      }),
+    );
+
+    const fila = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(within(fila).getByText("Sin acceso")).toBeInTheDocument();
+    expect(within(fila).getByText("propio")).toBeInTheDocument();
+    expect(
+      within(fila).getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),
+    ).toBeDisabled();
+
+    await user.click(
+      within(fila).getByRole("button", { name: "Restablecer el acceso de Marina Díaz al del rol" }),
+    );
+
+    await waitFor(() => expect(onCambiarAccesoDeUsuario).toHaveBeenCalledWith("u1", true));
+  });
+
+  it("a un usuario sin acceso por su rol no se le puede dar: el interruptor está deshabilitado", () => {
+    montar(usuario({ accesoEfectivo: false, origenDeAcceso: "rol" }));
+
+    const fila = screen.getByText("Marina Díaz").closest("tr")!;
+    expect(
+      within(fila).getByRole("switch", { name: "Acceso de Marina Díaz al asistente" }),
+    ).toBeDisabled();
+    expect(
+      within(fila).queryByRole("button", { name: /Restablecer el acceso/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("un cupo propio se restablece al del rol desde la fila", async () => {
+    const user = userEvent.setup();
+    const { onRestablecerCupoDeUsuario, onGuardado } = montar(
+      usuario({ cupoEfectivo: 60, origenDeCupo: "override" }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Restablecer el cupo de Marina Díaz al del rol" }),
+    );
+
+    await waitFor(() => expect(onRestablecerCupoDeUsuario).toHaveBeenCalledWith("u1"));
+    expect(onGuardado).toHaveBeenCalledWith("Cupo diario de Marina Díaz: restablecido al del rol.");
+  });
+
+  it("un cupo heredado del rol no ofrece restablecer", () => {
+    montar(usuario({ cupoEfectivo: 15, origenDeCupo: "rol" }));
+
+    expect(screen.queryByRole("button", { name: /Restablecer el cupo/ })).not.toBeInTheDocument();
+  });
+
+  it("en «Por rol» el acceso del rol se prende y apaga libremente", async () => {
+    const user = userEvent.setup();
+    const { onCambiarAccesoDeRol } = montar(USO, [
+      { rol: "docente", cupoDiarioTurnos: 15, accesoHabilitado: false },
+    ]);
+
+    await user.click(screen.getByRole("tab", { name: /Por rol/ }));
+    const interruptor = screen.getByRole("switch", { name: /al asistente/ });
+    expect(interruptor).not.toBeChecked();
+    expect(interruptor).toBeEnabled();
+
+    await user.click(interruptor);
+
+    await waitFor(() => expect(onCambiarAccesoDeRol).toHaveBeenCalledWith("docente", true));
+  });
+
+  it("el pie explica la herencia: el acceso se puede quitar, no dar", () => {
+    montar();
+
+    expect(
+      screen.getByText(/a un usuario se le puede quitar el acceso, no darlo/),
     ).toBeInTheDocument();
   });
 });

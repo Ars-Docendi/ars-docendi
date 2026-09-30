@@ -99,6 +99,29 @@ public sealed class FuenteAuditoriaAsistente(
                     return (objeto, "presupuesto_usuario", clave, esAlta ? "Alta" : "Cambio", resumen);
                 }
 
+            case "presupuesto.usuario.restablecer":
+                {
+                    var nombre = nombreAfectado ?? "usuario no identificado";
+                    var objeto = $"Cupo diario de {nombre}";
+                    return (objeto, "presupuesto_usuario", evento.UsuarioAfectado?.ToString() ?? "—", "Cambio",
+                        $"{objeto}: {Antes("cupo")} → del rol");
+                }
+
+            case "acceso.rol":
+                {
+                    var objeto = $"Acceso al asistente del rol {evento.Clave ?? "—"}";
+                    return (objeto, "presupuesto_rol", evento.Clave ?? "—", "Cambio",
+                        $"{objeto}: {(Despues("acceso_habilitado") == "Sí" ? "habilitado" : "quitado")}");
+                }
+
+            case "acceso.usuario":
+                {
+                    var nombre = nombreAfectado ?? "usuario no identificado";
+                    var objeto = $"Acceso al asistente de {nombre}";
+                    return (objeto, "acceso_usuario_revocado", evento.UsuarioAfectado?.ToString() ?? "—", "Cambio",
+                        $"{objeto}: {(Despues("acceso_revocado") == "Sí" ? "quitado" : "restablecido al del rol")}");
+                }
+
             case "tope_organizacional":
                 {
                     const string objeto = "Tope mensual organizacional";

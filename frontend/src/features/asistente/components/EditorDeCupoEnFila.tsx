@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input } from "@ars-docendi/ui";
 
-import { IconoSquarePen } from "../../../shared/ui/iconos";
+import { IconoRotateCcw, IconoSquarePen } from "../../../shared/ui/iconos";
 
 /**
  * «40 por día · del rol» / «60 por día · propio» / «sin tope · propio» —
@@ -43,6 +43,16 @@ interface EditorDeCupoEnFilaProps {
   origen?: "rol" | "override";
   onGuardar: (cupo: number) => Promise<void>;
   onGuardado: (cupo: number) => void;
+  /**
+   * Restablece el cupo al del rol (asistente-acceso-granular). Sólo se
+   * ofrece cuando la fila tiene un cupo propio (`origen === "override"`).
+   */
+  onRestablecer?: () => Promise<void>;
+  /**
+   * Sin acceso al asistente el cupo no aplica: se muestra atenuado y no se
+   * edita (canvas «Uso del asistente», columna «Acceso»).
+   */
+  deshabilitado?: boolean;
 }
 
 /**
@@ -63,6 +73,8 @@ export function EditorDeCupoEnFila({
   origen,
   onGuardar,
   onGuardado,
+  onRestablecer,
+  deshabilitado = false,
 }: EditorDeCupoEnFilaProps) {
   const [editando, setEditando] = useState(false);
   const [valor, setValor] = useState("");
@@ -163,15 +175,46 @@ export function EditorDeCupoEnFila({
     );
   }
 
+  async function restablecer() {
+    if (!onRestablecer) return;
+    setEnviando(true);
+    try {
+      await onRestablecer();
+      // El botón de restablecer desaparece con el override: el foco vuelve
+      // al lápiz, que siempre está (tasks.md 13.2).
+      botonEditarRef.current?.focus();
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   return (
-    <div className="adoc-asistente-admin-cupo-fila">
+    <div
+      className={`adoc-asistente-admin-cupo-fila${
+        deshabilitado ? " adoc-asistente-admin-cupo-fila--deshabilitada" : ""
+      }`}
+    >
       <span className="adoc-asistente-admin-cupo-valor">{textoDeCupo(cupoConocido, origen)}</span>
+      {origen === "override" && onRestablecer && !deshabilitado && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="adoc-asistente-admin-cupo-editar"
+          aria-label={`Restablecer el cupo de ${nombre} al del rol`}
+          title="Volver al cupo del rol"
+          disabled={enviando}
+          onClick={() => void restablecer()}
+        >
+          <IconoRotateCcw />
+        </Button>
+      )}
       <Button
         ref={botonEditarRef}
         variant="ghost"
         size="sm"
         className="adoc-asistente-admin-cupo-editar"
         aria-label={`Editar cupo diario de ${nombre}`}
+        disabled={deshabilitado || enviando}
         onClick={() => {
           setValor(cupoConocido !== undefined ? String(cupoConocido) : "");
           setEditando(true);

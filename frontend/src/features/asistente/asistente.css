@@ -2779,3 +2779,32 @@
   color: var(--color-text-tertiary);
   white-space: nowrap;
 }
+
+/* La columna «Acceso» (asistente-acceso-granular, canvas «Uso del asistente»):
+   interruptor, «Con acceso / Sin acceso» con su origen debajo, y el ícono de
+   restablecer cuando el valor es propio del usuario. */
+.adoc-asistente-admin-acceso {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adoc-asistente-admin-acceso-texto {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.adoc-asistente-admin-acceso-origen {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-acceso-origen--propio {
+  color: var(--color-accent);
+}
+
+/* Sin acceso el cupo no aplica: se atenúa, y el lápiz queda deshabilitado. */
+.adoc-asistente-admin-cupo-fila--deshabilitada .adoc-asistente-admin-cupo-valor {
+  color: var(--color-text-tertiary);
+}
