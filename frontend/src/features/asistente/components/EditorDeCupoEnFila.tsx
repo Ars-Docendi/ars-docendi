@@ -190,7 +190,7 @@ export function EditorDeCupoEnFila({
 
   return (
     <div
-      className={`adoc-asistente-admin-cupo-fila${
+      className={`adoc-asistente-admin-cupo-fila adoc-asistente-admin-cupo-fila--vista${
         deshabilitado ? " adoc-asistente-admin-cupo-fila--deshabilitada" : ""
       }`}
     >

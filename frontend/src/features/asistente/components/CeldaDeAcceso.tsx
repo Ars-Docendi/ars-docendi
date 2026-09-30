@@ -22,18 +22,18 @@ interface CeldaDeAccesoProps {
 
 /**
  * La columna «Acceso» del panel de uso (asistente-acceso-granular, canvas
- * «Uso del asistente»): «Con acceso / Sin acceso» con su origen debajo, y el
- * ícono de restablecer cuando el valor es propio del usuario.
+ * «Uso del asistente»): sólo el interruptor —su nombre accesible dice de quién
+ * es—, más «propio» y el ícono de restablecer cuando el valor es una
+ * revocación del usuario.
  *
  * El backend valida la misma regla (design.md D3); el interruptor
  * deshabilitado para un usuario sin acceso heredado del rol sólo la anticipa.
  */
 export function CeldaDeAcceso({ nombre, acceso, origen, onCambiar }: CeldaDeAccesoProps) {
   const [enviando, setEnviando] = useState(false);
-  const esUsuario = origen !== undefined;
   // «Quitar, no dar»: un usuario al que el rol no le da acceso no puede
   // prenderse desde acá — sólo se restablece una revocación propia.
-  const bloqueadoPorRol = esUsuario && !acceso && origen === "rol";
+  const bloqueadoPorRol = !acceso && origen === "rol";
 
   async function cambiar(habilitado: boolean) {
     setEnviando(true);
@@ -51,21 +51,14 @@ export function CeldaDeAcceso({ nombre, acceso, origen, onCambiar }: CeldaDeAcce
         disabled={enviando || bloqueadoPorRol}
         aria-label={`Acceso de ${nombre} al asistente`}
         onChange={(e) => void cambiar(e.target.checked)}
-        label={
-          <span className="adoc-asistente-admin-acceso-texto">
-            <span>{acceso ? "Con acceso" : "Sin acceso"}</span>
-            {esUsuario && (
-              <span
-                className={`adoc-asistente-admin-acceso-origen${
-                  origen === "propio" ? " adoc-asistente-admin-acceso-origen--propio" : ""
-                }`}
-              >
-                {origen === "propio" ? "propio" : "del rol"}
-              </span>
-            )}
-          </span>
-        }
       />
+      {/* Sólo lo excepcional lleva texto: el interruptor ya dice si hay acceso,
+          y «del rol» es lo esperado en casi todas las filas. */}
+      {origen === "propio" && (
+        <span className="adoc-asistente-admin-acceso-origen adoc-asistente-admin-acceso-origen--propio">
+          propio
+        </span>
+      )}
       {origen === "propio" && (
         <Button
           variant="ghost"

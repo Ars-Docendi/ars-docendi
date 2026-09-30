@@ -363,23 +363,26 @@ describe("Columna «Acceso» (asistente-acceso-granular)", () => {
     };
   }
 
-  it("un usuario con acceso heredado lo muestra «Con acceso · del rol» y se le puede quitar", async () => {
+  it("un usuario con acceso heredado muestra sólo el interruptor prendido, y se le puede quitar", async () => {
     const user = userEvent.setup();
     const { onCambiarAccesoDeUsuario, onGuardado } = montar(usuario({}));
 
     const fila = screen.getByText("Marina Díaz").closest("tr")!;
-    expect(within(fila).getByText("Con acceso")).toBeInTheDocument();
-    expect(within(fila).getByText("del rol")).toBeInTheDocument();
+    const interruptor = within(fila).getByRole("switch", {
+      name: "Acceso de Marina Díaz al asistente",
+    });
+    expect(interruptor).toBeChecked();
+    // El interruptor alcanza: ni «Con acceso» ni «del rol» repetidos en cada fila.
+    expect(within(fila).queryByText("Con acceso")).not.toBeInTheDocument();
+    expect(within(fila).queryByText("propio")).not.toBeInTheDocument();
 
-    await user.click(
-      within(fila).getByRole("switch", { name: "Acceso de Marina Díaz al asistente" }),
-    );
+    await user.click(interruptor);
 
     await waitFor(() => expect(onCambiarAccesoDeUsuario).toHaveBeenCalledWith("u1", false));
     expect(onGuardado).toHaveBeenCalledWith("Acceso de Marina Díaz: quitado.");
   });
 
-  it("un usuario revocado se ve «Sin acceso · propio», con restablecer, y su cupo no se edita", async () => {
+  it("un usuario revocado se ve apagado y «propio», con restablecer, y su cupo no se edita", async () => {
     const user = userEvent.setup();
     const { onCambiarAccesoDeUsuario } = montar(
       usuario({
@@ -391,7 +394,9 @@ describe("Columna «Acceso» (asistente-acceso-granular)", () => {
     );
 
     const fila = screen.getByText("Marina Díaz").closest("tr")!;
-    expect(within(fila).getByText("Sin acceso")).toBeInTheDocument();
+    expect(
+      within(fila).getByRole("switch", { name: "Acceso de Marina Díaz al asistente" }),
+    ).not.toBeChecked();
     expect(within(fila).getByText("propio")).toBeInTheDocument();
     expect(
       within(fila).getByRole("button", { name: "Editar cupo diario de Marina Díaz" }),

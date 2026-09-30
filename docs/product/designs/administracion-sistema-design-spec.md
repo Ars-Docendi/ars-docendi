@@ -99,9 +99,12 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   esa métrica; el cupo diario se sigue editando inline por fila (`EditorDeCupoEnFila`: lápiz →
   stepper → Guardar/Cancelar, con confirmación al bajar un valor ya conocido). Desde
   `asistente-acceso-granular` la tabla tiene columna **Acceso** entre la métrica y el cupo
-  (`CeldaDeAcceso`): interruptor «Con acceso» / «Sin acceso» con el origen debajo («del rol» /
-  «propio», este último en color de acento) y un ícono ↺ para restablecer una revocación
-  propia. Acceso y cupo se heredan del rol; a un usuario se le puede **quitar** el acceso, no
+  (`CeldaDeAcceso`): sólo el interruptor, sin texto por fila —el estado lo dice el propio
+  switch y su nombre accesible («Acceso de {nombre} al asistente»)—; únicamente una revocación
+  propia agrega «propio» en color de acento y un ícono ↺ para restablecerla. Las columnas
+  tienen reparto fijo (Usuario 22 % · métrica 39 % · Acceso 13 % · Cupo 26 %) para que la
+  barra de la métrica tenga una pista ancha y se lea como gráfico: la barra es un porcentaje
+  de esa pista y el valor queda alineado a su derecha. Acceso y cupo se heredan del rol; a un usuario se le puede **quitar** el acceso, no
   darlo: si su rol no lo tiene, el interruptor queda deshabilitado. Un cupo propio muestra
   también ↺ para volver al del rol, y sin acceso el cupo se atenúa y el lápiz se deshabilita.
   En «Por rol», el interruptor prende y apaga el acceso del rol. No hay gráfico de tendencia
@@ -257,7 +260,7 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
   100 % se bloquean las consultas»; tabs «Por usuario» / «Por rol»; selector de métrica
   «Sesiones» / «Costo» / «Tokens» / «Latencia»; buscador «Buscar usuario o rol»; vacío «No hay
   uso registrado en este período.»; columnas «Usuario»/«Rol» / métrica / «Acceso» / «Cupo
-  diario»; acceso «Con acceso» / «Sin acceso» con «del rol» / «propio»; cupo «{N} por día» /
+  diario»; acceso: interruptor sin texto, con «propio» sólo si el usuario fue revocado; cupo «{N} por día» /
   «sin tope» con «· del rol» / «· propio»; restablecer «Restablecer el acceso de {nombre} al del
   rol» / «Restablecer el cupo de {nombre} al del rol»; pie «Acceso y cupo se heredan del rol; a
   un usuario se le puede quitar el acceso, no darlo. El cupo se reinicia a las 00 h.».

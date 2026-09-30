@@ -4,7 +4,7 @@ El panel «Uso del asistente» sólo deja editar el cupo diario, y en una sola d
 
 ## What Changes
 
-- **Acceso por rol**: cada rol de sistema tiene un interruptor «Con acceso / Sin acceso», persistido en `asistente.presupuesto_rol.acceso_habilitado` (default `true`, así ningún despliegue cambia quién accede hoy).
+- **Acceso por rol**: cada rol de sistema tiene un interruptor de acceso, persistido en `asistente.presupuesto_rol.acceso_habilitado` (default `true`, así ningún despliegue cambia quién accede hoy).
 - **Revocación por usuario**: a un usuario se le puede **quitar** el acceso, nunca darlo por encima de su rol. Se persiste en `asistente.acceso_usuario_revocado`; restablecer borra la revocación y el usuario vuelve a heredar del rol.
 - **Restablecer el cupo propio**: `DELETE …/presupuestos/usuarios/{actorId}` cierra la vigencia del override y el usuario vuelve al cupo del rol.
 - **El turno se bloquea de verdad**: un actor sin acceso efectivo recibe el motivo nuevo `sin_acceso` (mismo carril que cupo agotado / tope / mantenimiento), sin llamar al modelo.

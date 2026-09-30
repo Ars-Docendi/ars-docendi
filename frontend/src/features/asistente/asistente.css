@@ -2673,9 +2673,29 @@
   padding-left: calc(var(--space-2) * 2 + 15px);
 }
 
+/* Reparto fijo de columnas (asistente-acceso-granular): la métrica se lleva
+   el mayor ancho para que la barra se lea como gráfico; Acceso es sólo un
+   interruptor y ocupa lo justo. Bajo 760px la tabla scrollea en su contenedor. */
 .adoc-asistente-admin-tabla-uso table.adoc-table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
+}
+
+.adoc-asistente-admin-tabla-uso th:nth-child(1) {
+  width: 22%;
+}
+
+.adoc-asistente-admin-tabla-uso th:nth-child(2) {
+  width: 39%;
+}
+
+.adoc-asistente-admin-tabla-uso th:nth-child(3) {
+  width: 13%;
+}
+
+.adoc-asistente-admin-tabla-uso th:nth-child(4) {
+  width: 26%;
 }
 
 /* El subtítulo de rol bajo el nombre de una fila de usuario (tarea «rol y
@@ -2701,17 +2721,25 @@
   min-width: 0;
 }
 
+/* La pista ocupa todo el ancho libre de la celda y la barra es un porcentaje
+   de ella, así el máximo de la vista llena la pista y el resto se compara a ojo. */
+.adoc-asistente-admin-metrica-pista {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
 .adoc-asistente-admin-metrica-barra {
-  flex: none;
   height: 18px;
   min-width: 3px;
-  max-width: 40%;
   border-radius: var(--radius-xs);
   background: var(--color-accent);
   transition: width 200ms ease;
 }
 
 .adoc-asistente-admin-metrica-texto {
+  flex: none;
+  min-width: 8.5rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -2787,12 +2815,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-
-.adoc-asistente-admin-acceso-texto {
-  display: inline-flex;
-  flex-direction: column;
-  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .adoc-asistente-admin-acceso-origen {
@@ -2802,6 +2825,13 @@
 
 .adoc-asistente-admin-acceso-origen--propio {
   color: var(--color-accent);
+}
+
+/* Mostrando (no editando), valor e íconos van en una sola línea: el ancho de
+   la columna ya está pensado para «60 por día · propio» + ↺ + lápiz. */
+.adoc-asistente-admin-cupo-fila--vista {
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 /* Sin acceso el cupo no aplica: se atenúa, y el lápiz queda deshabilitado. */

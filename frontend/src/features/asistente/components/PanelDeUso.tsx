@@ -252,11 +252,12 @@ export function PanelDeUso({
                     </Table.Cell>
                     <Table.Cell>
                       <div className="adoc-asistente-admin-metrica-celda">
-                        <span
-                          className="adoc-asistente-admin-metrica-barra"
-                          style={{ width: `${anchoBarra}%` }}
-                          aria-hidden="true"
-                        />
+                        <span className="adoc-asistente-admin-metrica-pista" aria-hidden="true">
+                          <span
+                            className="adoc-asistente-admin-metrica-barra"
+                            style={{ width: `${anchoBarra}%` }}
+                          />
+                        </span>
                         <span className="adoc-asistente-admin-metrica-texto">
                           <span>{textoDeMetrica(fila, metrica)}</span>
                           {notaDeMetrica(fila, metrica) && (
