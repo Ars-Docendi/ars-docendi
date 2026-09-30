@@ -320,6 +320,18 @@ versión conjunta anterior de backend y frontend. `spin-up.sh prod` no ejecuta
 `down`, `drop-db.sh` ni `seed.sh`: sólo aprovisiona de forma idempotente,
 migra y publica.
 
+### Sellado verificable de auditoría (job opcional de prod)
+
+El job one-shot se ejecuta como `dotnet ArsDocendi.Host.dll --sellar-auditoria`; no abre listener HTTP. `infra/compose/compose.audit-seal.yml` lo conecta sólo a `arsdocendi-datos`, no publica puertos y no tiene labels de Traefik. Un timer systemd lo invoca cada cinco minutos. El deploy productivo etiqueta localmente la imagen recién compilada como `audit-seal-prod`; ese tag no se publica al registry.
+
+Antes de habilitar el timer hacen falta tres servicios HTTPS externos, con credenciales separadas: firmador que conserva la clave privada, custodio primario y testigo secundario administrados independientemente. El firmador recibe hash SHA-256/manifiesto y devuelve `idClave`/`firmaBase64`; el custodio primario recibe el manifiesto y firma, la valida contra una clave pública confiable y confirma el SHA-256 del manifiesto (`hashAceptado`); el testigo secundario recibe sólo ambiente/rango/SHA-256 del manifiesto y confirma ese mismo fingerprint. El manifiesto firmado contiene el hash de los eventos y su predecesor; el hash del manifiesto es el que los testigos anclan. Los servicios deben ser idempotentes por ambiente+rango+fingerprint. No se deben usar SeaweedFS ni dos buckets de la misma cuenta como testigos independientes sin probar su separación administrativa e inmutabilidad.
+
+El script `infra/scripts/configure-audit-sealer.sh prod` crea/actualiza `audit_sealer_prod` con atributos `NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOINHERIT` y grants mínimos de lectura más inserción/actualización de campos de firma/acuses; requiere ejecutarse por un operador autorizado después de migrar el esquema. La contraseña del rol se envía al contenedor `psql` como variable de entorno, no como argumento de proceso. No correrlo desde CI/PR ni reutilizar este login en la API.
+
+Copiar `infra/audit-seal/audit-seal.env.example` fuera del repo a `/etc/arsdocendi/audit-seal.env`, completar endpoints, una cadena DB de mínimo privilegio y credenciales reales desde el gestor institucional, y proteger el archivo con modo `0600`. Las credenciales del firmador y de ambos testigos deben ser distintas y no estar disponibles al backend, a los runners de PR ni a staging/previews. Instalar `arsdocendi-audit-seal.service` y `.timer` sólo en el host productivo; no iniciar el job hasta comprobar que las identidades de DB y custodios tienen el aislamiento previsto.
+
+La preparación local guarda un lote pendiente idempotente. Un fallo de un testigo no marca doble custodia ni permite avanzar al siguiente lote; el reintento reutiliza la firma/acuse ya confirmados. En este estado del cambio, el job aún no incorpora un canal de alertas externo ni una lectura independiente de contenido desde otra infraestructura; journald por sí solo no constituye vigilancia independiente. No afirmar que la integridad externa está activa hasta configurar y probar los tres endpoints y la sonda de frescura.
+
 ### Backup y restore de storage
 
 El backup institucional se ejecuta con `infra/scripts/backup-storage.sh` y

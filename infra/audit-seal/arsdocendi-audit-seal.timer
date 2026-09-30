@@ -1,0 +1,11 @@
+[Unit]
+Description=Programa el sellado de auditoría cada cinco minutos
+
+[Timer]
+OnCalendar=*:0/5
+RandomizedDelaySec=30
+Persistent=true
+Unit=arsdocendi-audit-seal.service
+
+[Install]
+WantedBy=timers.target

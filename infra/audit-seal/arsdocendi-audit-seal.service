@@ -1,0 +1,21 @@
+# Instalar en el host productivo junto con audit-seal.timer.
+# Crear /etc/arsdocendi/audit-seal.env con modo 0600 y endpoints/credenciales
+# emitidos por custodios administrados de forma independiente.
+[Unit]
+Description=Ars Docendi — prepara, firma y ancla un lote de auditoría
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=arsdocendi
+SupplementaryGroups=docker
+WorkingDirectory=/opt/arsdocendi/repo
+EnvironmentFile=/etc/arsdocendi/audit-seal.env
+ExecStart=/usr/bin/docker compose --project-name audit-seal-prod --file /opt/arsdocendi/repo/infra/compose/compose.audit-seal.yml run --rm --no-deps audit-sealer
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=arsdocendi-audit-seal
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077

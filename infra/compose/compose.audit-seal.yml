@@ -1,0 +1,30 @@
+services:
+  audit-sealer:
+    image: ${REGISTRO}/arsdocendi-backend:audit-seal-prod
+    pull_policy: never
+    command: ["dotnet", "ArsDocendi.Host.dll", "--sellar-auditoria"]
+    restart: "no"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__AuditSeal: ${AUDIT_SEAL_CONNECTION_STRING:?falta AUDIT_SEAL_CONNECTION_STRING}
+      AuditoriaSellado__Ambiente: ${AUDIT_SEAL_ENVIRONMENT:?falta AUDIT_SEAL_ENVIRONMENT}
+      AuditoriaSellado__MaxEventosPorLote: ${AUDIT_SEAL_MAX_EVENTS:-1000}
+      AuditoriaSellado__FirmadorEndpoint: ${AUDIT_SEAL_SIGNER_URL:?falta AUDIT_SEAL_SIGNER_URL}
+      AuditoriaSellado__FirmadorToken: ${AUDIT_SEAL_SIGNER_TOKEN:?falta AUDIT_SEAL_SIGNER_TOKEN}
+      AuditoriaSellado__TestigoPrimarioEndpoint: ${AUDIT_SEAL_WITNESS_PRIMARY_URL:?falta AUDIT_SEAL_WITNESS_PRIMARY_URL}
+      AuditoriaSellado__TestigoPrimarioToken: ${AUDIT_SEAL_WITNESS_PRIMARY_TOKEN:?falta AUDIT_SEAL_WITNESS_PRIMARY_TOKEN}
+      AuditoriaSellado__TestigoSecundarioEndpoint: ${AUDIT_SEAL_WITNESS_SECONDARY_URL:?falta AUDIT_SEAL_WITNESS_SECONDARY_URL}
+      AuditoriaSellado__TestigoSecundarioToken: ${AUDIT_SEAL_WITNESS_SECONDARY_TOKEN:?falta AUDIT_SEAL_WITNESS_SECONDARY_TOKEN}
+      AuditoriaSellado__TestigoPrimarioLecturaEndpoint: ${AUDIT_SEAL_WITNESS_PRIMARY_READ_URL:?falta AUDIT_SEAL_WITNESS_PRIMARY_READ_URL}
+      AuditoriaSellado__TestigoPrimarioLecturaToken: ${AUDIT_SEAL_WITNESS_PRIMARY_READ_TOKEN:?falta AUDIT_SEAL_WITNESS_PRIMARY_READ_TOKEN}
+      AuditoriaSellado__TestigoSecundarioLecturaEndpoint: ${AUDIT_SEAL_WITNESS_SECONDARY_READ_URL:?falta AUDIT_SEAL_WITNESS_SECONDARY_READ_URL}
+      AuditoriaSellado__TestigoSecundarioLecturaToken: ${AUDIT_SEAL_WITNESS_SECONDARY_READ_TOKEN:?falta AUDIT_SEAL_WITNESS_SECONDARY_READ_TOKEN}
+      AuditoriaSellado__ClavesPublicasJson: ${AUDIT_SEAL_PUBLIC_KEYS_JSON:?falta AUDIT_SEAL_PUBLIC_KEYS_JSON}
+      AuditoriaSellado__TransicionesJson: ${AUDIT_SEAL_KEY_TRANSITIONS_JSON:-[]}
+    networks:
+      - red-datos
+
+networks:
+  red-datos:
+    external: true
+    name: arsdocendi-datos

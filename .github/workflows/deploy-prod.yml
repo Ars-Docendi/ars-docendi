@@ -68,3 +68,6 @@ jobs:
 
       - name: Spin-up prod
         run: infra/scripts/spin-up.sh prod
+
+      - name: Actualizar alias local del job de sellado
+        run: docker tag "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" "${REGISTRO}/arsdocendi-backend:audit-seal-prod"

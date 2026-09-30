@@ -178,6 +178,14 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
 
         await using var conexion = await AbrirConexionAsync();
+        var propietarioOriginal = await EscalarAsync<string>(conexion, """
+            SELECT pg_get_userbyid(datdba)
+              FROM pg_database
+             WHERE datname = current_database()
+            """);
+        var commandBuilder = new NpgsqlCommandBuilder();
+        var baseCitada = commandBuilder.QuoteIdentifier(baseActual);
+        var propietarioCitado = commandBuilder.QuoteIdentifier(propietarioOriginal);
         try
         {
             await EjecutarAsync(conexion, $"""
@@ -196,11 +204,10 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         finally
         {
             await EjecutarAsync(conexion, "RESET ROLE;");
-            await EjecutarAsync(conexion, $"""
-                ALTER DATABASE "{baseActual}" OWNER TO postgres;
-                REVOKE SELECT ON TABLE public.seed_identities FROM "{rolAplicacion}";
-                DROP ROLE IF EXISTS "{rolAplicacion}";
-                """);
+            await EjecutarAsync(conexion, $"ALTER DATABASE {baseCitada} OWNER TO {propietarioCitado};");
+            if (await EscalarAsync<bool>(conexion, "SELECT to_regclass('public.seed_identities') IS NOT NULL"))
+                await EjecutarAsync(conexion, $"REVOKE SELECT ON TABLE public.seed_identities FROM \"{rolAplicacion}\";");
+            await EjecutarAsync(conexion, $"DROP ROLE IF EXISTS \"{rolAplicacion}\";");
         }
     }
 
