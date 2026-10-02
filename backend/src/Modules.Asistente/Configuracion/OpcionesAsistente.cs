@@ -268,6 +268,36 @@ public sealed class OpcionesAsistente
     public int EsperaDelBreakerSegundos { get; set; } = 30;
 
     /// <summary>
+    /// Cuántas llamadas al modelo pueden estar en curso a la vez, en todo el
+    /// proceso. Cero —el default— no pone límite (asistente-proveedor-local, D4).
+    /// </summary>
+    /// <remarks>
+    /// Contra un proveedor en la nube no hace falta: el límite es de la cuenta y
+    /// llega como 429, que el reintento ya maneja. Contra un modelo propio en UNA
+    /// GPU es lo que impide que treinta usuarios a la vez la saturen: el valor
+    /// correcto es el <c>--max-num-seqs</c> del servidor, así el servidor nunca
+    /// encola y la cola real es la del backend, que tiene espera máxima y se
+    /// cancela si el usuario se va.
+    ///
+    /// La espera en esta cola NO cuenta contra <see cref="TimeoutDeLlamadaSegundos"/>
+    /// ni contra el breaker: una GPU ocupada no es una GPU caída.
+    /// </remarks>
+    public int MaximoDeLlamadasConcurrentes { get; set; }
+
+    /// <summary>
+    /// Cuánto espera como mucho una llamada por un lugar en la compuerta, en
+    /// segundos. Sólo aplica con <see cref="MaximoDeLlamadasConcurrentes"/> mayor
+    /// que cero.
+    /// </summary>
+    /// <remarks>
+    /// Vencida, el turno degrada con el texto de saturación —«hay muchas consultas
+    /// en curso»— y no con el de proveedor caído. Tiene que quedar holgadamente
+    /// por debajo de <see cref="PresupuestoDelTurnoSegundos"/>: la espera se come
+    /// el presupuesto del turno.
+    /// </remarks>
+    public int EsperaMaximaEnColaSegundos { get; set; } = 30;
+
+    /// <summary>
     /// Cuánto se conservan los registros del asistente, en días (RNF-19).
     /// </summary>
     /// <remarks>
@@ -445,6 +475,30 @@ public sealed class OpcionesAsistente
     /// una respuesta, no la competencia del modelo. Eso lo mide el evaluador.
     /// </remarks>
     public string DirectorioDeCassettes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// URL base del servidor OpenAI-compatible del modelo propio, terminada en
+    /// <c>/v1</c> (por ejemplo <c>http://llm:8000/v1</c>). Sólo la usa el
+    /// proveedor <c>local</c> (asistente-proveedor-local).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ClaveDelProveedor"/> es opcional con este proveedor: si está
+    /// puesta viaja como <c>Authorization: Bearer</c> —lo que pide vLLM con
+    /// <c>--api-key</c>—, y si no, el request sale sin credencial.
+    /// </remarks>
+    public string UrlDelProveedorLocal { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Si una consulta que volvió vacía se vuelve a generar una vez. Default
+    /// <c>true</c> (asistente-proveedor-local, D6).
+    /// </summary>
+    /// <remarks>
+    /// El reintento repite el prompt <b>byte a byte</b>. Con un proveedor que
+    /// varía entre llamadas a veces encuentra otra consulta; con un modelo local a
+    /// temperatura 0 devuelve la misma, y la llamada se tira. El perfil local lo
+    /// apaga.
+    /// </remarks>
+    public bool ReintentarConsultaVacia { get; set; } = true;
 
     /// <summary>
     /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.

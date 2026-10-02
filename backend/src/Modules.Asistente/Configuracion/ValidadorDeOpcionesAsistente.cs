@@ -36,7 +36,7 @@ namespace Modules.Asistente;
 internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAsistente>
 {
     /// <summary>
-    /// Las tres perillas que usan el cero como apagado deliberado y documentado.
+    /// Las perillas que usan el cero como apagado deliberado y documentado.
     /// </summary>
     /// <remarks>
     /// No llevan regla de positividad justamente porque el cero es un valor con
@@ -54,6 +54,8 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.FallosParaAbrirElBreaker), o => o.FallosParaAbrirElBreaker),
         (nameof(OpcionesAsistente.PresupuestoDelTurnoSegundos), o => o.PresupuestoDelTurnoSegundos),
         (nameof(OpcionesAsistente.TopeDeTurnosDelHistorial), o => o.TopeDeTurnosDelHistorial),
+        // Sin compuerta de concurrencia (asistente-proveedor-local, D4).
+        (nameof(OpcionesAsistente.MaximoDeLlamadasConcurrentes), o => o.MaximoDeLlamadasConcurrentes),
     ];
 
     /// <summary>Las que en cero o en negativo dejan al pipeline sin poder trabajar.</summary>
@@ -82,6 +84,7 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.MaximoDeTokensDeGeneracion), o => o.MaximoDeTokensDeGeneracion),
         (nameof(OpcionesAsistente.MaximoDeTokensDeRedaccion), o => o.MaximoDeTokensDeRedaccion),
         (nameof(OpcionesAsistente.MaximoDeTokensDeReescritura), o => o.MaximoDeTokensDeReescritura),
+        (nameof(OpcionesAsistente.EsperaMaximaEnColaSegundos), o => o.EsperaMaximaEnColaSegundos),
     ];
 
     /// <summary>

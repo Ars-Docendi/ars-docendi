@@ -354,6 +354,71 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Con_el_reintento_apagado_un_vacio_global_no_vuelve_a_generar()
+    {
+        // asistente-proveedor-local, D6: el reintento repite el prompt byte a byte,
+        // y con un modelo local a temperatura 0 devuelve la misma consulta. El
+        // perfil local lo apaga; acá se verifica que apagarlo de verdad ahorra la
+        // llamada para el único actor que la gastaba.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(
+            "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'"));
+
+        var turno = await CarrilCon(
+                proveedor, opcionesDelGenerador: new OpcionesAsistente { ReintentarConsultaVacia = false })
+            .ResponderAsync(
+                Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, proveedor.Llamadas);
+        Assert.Empty(turno.Filas);
+    }
+
+    // ------------------------------------------- asistente-proveedor-local
+
+    [Fact]
+    public async Task La_generacion_declara_la_forma_de_su_respuesta()
+    {
+        // D3: un proveedor que puede imponer la forma —un servidor local con
+        // decodificación restringida— la recibe en la solicitud. Las claves son
+        // las que el intérprete del generador lee.
+        await SembrarAsync();
+        var (_, proveedor) = await PreguntarAsync(Secretaria, "¿Cuántos pedidos hay?", ContarPedidos);
+
+        var esquema = System.Text.Json.JsonDocument.Parse(
+            Assert.IsType<string>(proveedor.Recibidas[0].EsquemaDeSalidaJson)).RootElement;
+        var claves = esquema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToList();
+
+        Assert.Equal(
+            ["es_contestable", "sql", "razonamiento", "categoria", "motivo", "termino"], claves);
+    }
+
+    [Fact]
+    public async Task La_redaccion_no_declara_forma_porque_es_texto_libre()
+    {
+        await SembrarAsync();
+        var (_, proveedor) = await PreguntarAsync(Secretaria, "¿Cuántos pedidos hay?", ContarPedidos);
+
+        Assert.True(proveedor.Llamadas >= 2);
+        Assert.Null(proveedor.Recibidas[^1].EsquemaDeSalidaJson);
+    }
+
+    [Fact]
+    public async Task Sin_lugar_en_la_compuerta_el_turno_degrada_como_saturacion_y_no_como_caida()
+    {
+        // D4: el texto le dice al usuario que pruebe en unos segundos. El de
+        // proveedor caído —«más tarde»— lo mandaría a esperar de más.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado { Falla = new ProveedorSaturado(TimeSpan.FromSeconds(45)) };
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.ServicioDegradado, turno.Estado);
+        Assert.Equal(PoliticaDeAbstencion.TextoProveedorSaturado, turno.Respuesta);
+        Assert.NotEqual(PoliticaDeAbstencion.TextoServicioDegradado, turno.Respuesta);
+    }
+
+    [Fact]
     public async Task Con_actor_acotado_el_vacio_no_se_narra_como_inexistencia()
     {
         await SembrarAsync();
@@ -842,7 +907,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         ProveedorGuionado proveedor,
         int tope = 200,
         ContadorDeLlamadasDelTurno? contador = null,
-        ICatalogoDeCapacidades? capacidades = null)
+        ICatalogoDeCapacidades? capacidades = null,
+        OpcionesAsistente? opcionesDelGenerador = null)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente { TopeDeFilas = tope });
@@ -861,7 +927,7 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             new EjecutorDeConsulta(Apertura, ClasificadorDeSensibilidad(), opciones),
             conTecho,
             contadorDelTurno,
-            Options.Create(new OpcionesAsistente()),
+            Options.Create(opcionesDelGenerador ?? new OpcionesAsistente()),
             capacidades: capacidades,
             log: NullLogger<CarrilSql>.Instance);
     }

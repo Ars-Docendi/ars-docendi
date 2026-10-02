@@ -127,6 +127,16 @@ public sealed class CarrilSql(
             log.LogInformation("El corte al proveedor del modelo sigue abierto.");
             return Degradado(aMostrar);
         }
+        catch (ProveedorSaturado excepcion)
+        {
+            // La compuerta no dio lugar a tiempo (asistente-proveedor-local, D4).
+            // Information y no Warning: el sistema está ocupado, no roto, y el
+            // texto le dice al usuario que pruebe en unos segundos — no «más tarde».
+            log.LogInformation(
+                "No hubo lugar para llamar al modelo en {Segundos}s: hay demasiadas consultas en curso.",
+                excepcion.Espera.TotalSeconds);
+            return Degradado(aMostrar, PoliticaDeAbstencion.TextoProveedorSaturado);
+        }
         catch (TimeoutDelProveedor excepcion)
         {
             log.LogWarning(excepcion, "El proveedor del modelo agotó el tiempo de la llamada.");
@@ -260,7 +270,9 @@ public sealed class CarrilSql(
         var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
             perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
 
-        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
+        if (resultado.EstaVacio
+            && generador.ReintentaConsultaVacia
+            && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
                 actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct,
@@ -575,9 +587,10 @@ public sealed class CarrilSql(
     /// malo, así que proponerle otra al usuario le sugeriría que el problema es
     /// suyo.
     /// </summary>
-    private ResultadoDelTurno Degradado(string? aMostrar) =>
+    private ResultadoDelTurno Degradado(
+        string? aMostrar, string texto = PoliticaDeAbstencion.TextoServicioDegradado) =>
         new(EstadoDelTurno.ServicioDegradado,
-            PoliticaDeAbstencion.TextoServicioDegradado,
+            texto,
             Razonamiento: string.Empty,
             aMostrar,
             [],

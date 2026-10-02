@@ -55,6 +55,21 @@ en el repo se usa el placeholder `example.net`.
    └─────────────────────────────────────────────────────────────────┘
 ```
 
+### Modelo propio del asistente (opcional)
+
+Con `ASISTENTE_PROVEEDOR=local`, el backend habla con un servidor OpenAI-compatible
+**compartido por los ambientes**, igual que PostgreSQL: su propio Compose project
+(`infra/compose/compose.llm.yml`, contenedor `arsdocendi-llm`) en la red
+`arsdocendi-datos`, **sin puerto publicado** y con `--api-key`. El host necesita la GPU
+(RTX 5070, 12 GB), driver NVIDIA ≥ 580 y `nvidia-container-toolkit`. `spin-up.sh` suma
+`compose.asistente-local.yml` al ambiente para apuntarlo ahí con el perfil de valores
+del change `asistente-proveedor-local`.
+
+La compuerta de concurrencia es por proceso: con varios ambientes contra la misma
+GPU, el límite real es la suma de sus `ASISTENTE_MAX_LLAMADAS_CONCURRENTES`, y tiene
+que igualar el `--max-num-seqs` del servidor. Dimensionamiento, modelo y piloto en
+[modelo-local.md](modelo-local.md).
+
 ## Routing (Traefik por labels)
 
 Traefik descubre contenedores por el Docker provider leyendo labels. Dar de alta

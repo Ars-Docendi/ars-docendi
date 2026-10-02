@@ -1,0 +1,34 @@
+# Perfil del backend contra el modelo propio (asistente-proveedor-local, D7).
+#
+# Se SUMA a compose.base.yml cuando ASISTENTE_PROVEEDOR=local (lo hace
+# spin-up.sh); no cambia ningún default del código, que siguen pensados para el
+# proveedor en la nube. Cada valor está justificado en el design del change.
+#
+# El servidor (compose.llm.yml) es compartido entre ambientes: la compuerta es
+# por proceso, así que con dos ambientes usando la misma GPU el límite real es
+# la suma. Repartirlo entre ambientes (por ejemplo prod 6, staging 2).
+
+services:
+  backend:
+    environment:
+      Asistente__UrlDelProveedorLocal: ${ASISTENTE_URL_LOCAL:-http://arsdocendi-llm:8000/v1}
+      Asistente__Modelo: ${ASISTENTE_MODELO_LOCAL:-qwen3-8b}
+      # = --max-num-seqs del servidor (8 con vLLM, 4 con llama-server).
+      Asistente__MaximoDeLlamadasConcurrentes: ${ASISTENTE_MAX_LLAMADAS_CONCURRENTES:-8}
+      Asistente__EsperaMaximaEnColaSegundos: "45"
+      # Sin razonamiento en ninguna de las tres llamadas: «medio» no piensa con
+      # el adaptador local; «minimo» tampoco.
+      Asistente__EsfuerzoDeGeneracion: medio
+      Asistente__EsfuerzoDeRedaccion: minimo
+      Asistente__EsfuerzoDeReescritura: minimo
+      # Techos medidos sobre el corpus sin razonamiento (mediana 132/83/23).
+      # En local reservan KV en una GPU de 12 GB: no se dejan holgados de más.
+      Asistente__MaximoDeTokensDeGeneracion: "800"
+      Asistente__MaximoDeTokensDeRedaccion: "400"
+      Asistente__MaximoDeTokensDeReescritura: "200"
+      # Reintentar un servidor local ocupado sólo le suma carga.
+      Asistente__MaximoDeIntentosDeTransporte: "2"
+      # Debajo de los 100 s en que Cloudflare corta el origen (error 524).
+      Asistente__PresupuestoDelTurnoSegundos: "90"
+      # A temperatura 0 el reintento por consulta vacía repite la misma SQL.
+      Asistente__ReintentarConsultaVacia: "false"

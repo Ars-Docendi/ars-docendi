@@ -614,7 +614,7 @@ public sealed class CapaConversacional(
         // seguimiento con anáfora va a resolver peor, pero un turno autocontenido
         // —que es la mayoría— no pierde nada.
         var interpretada = hayModelo
-            ? await reescritor.ReescribirAsync(pregunta, historial, ct)
+            ? await ReescribirOCrudaAsync(pregunta, historial, ct)
             : pregunta;
 
         // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después
@@ -799,4 +799,33 @@ public sealed class CapaConversacional(
             _ => PoliticaDeAbstencion.TextoServicioDegradado,
         };
 
+    /// <summary>
+    /// La reescritura, o la pregunta tal cual si el proveedor falla
+    /// (asistente-proveedor-local, design.md D5).
+    /// </summary>
+    /// <remarks>
+    /// La llamada del reescritor queda fuera del <c>try</c> del carril SQL, así
+    /// que una falla del proveedor acá —saturado, corte abierto, timeout,
+    /// transporte— terminaba el turno en «excepción no prevista». Se resuelve
+    /// igual que cuando no hay modelo: sin reescritura la pregunta sigue cruda, y
+    /// el carril decide después si puede o no llamar al modelo para generar.
+    /// Las cancelaciones del request y del presupuesto del turno se propagan.
+    /// </remarks>
+    private async Task<string> ReescribirOCrudaAsync(
+        string pregunta, IReadOnlyList<TurnoDelHilo> turnosAnteriores, CancellationToken ct)
+    {
+        try
+        {
+            return await reescritor.ReescribirAsync(pregunta, turnosAnteriores, ct);
+        }
+        catch (Exception excepcion) when (excepcion is ProveedorSaturado
+            or ProveedorNoDisponible
+            or TimeoutDelProveedor
+            or HttpRequestException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudo reescribir el seguimiento; se sigue con la pregunta tal cual.");
+            return pregunta;
+        }
+    }
 }

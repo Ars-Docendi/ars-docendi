@@ -113,6 +113,22 @@ public sealed record SolicitudAlModelo
 
     /// <summary>Techo de tokens de la respuesta.</summary>
     public required int MaximoDeTokens { get; init; }
+
+    /// <summary>
+    /// JSON Schema de la respuesta esperada, o nulo si la respuesta es texto libre
+    /// (asistente-proveedor-local, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// Es una <b>declaración</b> del pipeline, no una orden a ningún proveedor: la
+    /// forma de la salida la decide quien la interpreta. Un adaptador que puede
+    /// imponerla —un servidor local con decodificación restringida— la usa; uno
+    /// que no —<c>ProveedorAnthropic</c>— la ignora y su request no cambia en un
+    /// byte, así que las claves de cassette tampoco.
+    ///
+    /// No reemplaza a ninguna validación: una salida con la forma correcta todavía
+    /// pasa por el intérprete del generador y por el validador de SQL.
+    /// </remarks>
+    public string? EsquemaDeSalidaJson { get; init; }
 }
 
 /// <summary>

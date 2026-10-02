@@ -491,14 +491,24 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                           | Default           | Qué decide                                    |
-| ---------------------------------- | ----------------- | --------------------------------------------- |
-| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                   |
-| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado |
-| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                    |
-| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta           |
-| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español           |
-| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento     |
+| Variable                           | Default           | Qué decide                                     |
+| ---------------------------------- | ----------------- | ---------------------------------------------- |
+| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                    |
+| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado  |
+| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                     |
+| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta            |
+| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español            |
+| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento      |
+| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1` |
+
+**El proveedor `local`** (asistente-proveedor-local) habla con cualquier servidor
+OpenAI-compatible —vLLM, `llama-server`, SGLang— en `{UrlDelProveedorLocal}/chat/completions`.
+La clave es opcional: si está puesta viaja como `Authorization: Bearer`. Con este
+proveedor el esfuerzo decide el razonamiento: sólo `alto`/`maximo` lo prenden
+(`enable_thinking`), porque en una GPU compartida pensar es latencia para todos. El
+servidor, el modelo elegido y el dimensionamiento para una RTX 5070 están en
+[docs/architecture/modelo-local.md](../../../docs/architecture/modelo-local.md); el
+perfil de valores, en `infra/compose/compose.asistente-local.yml`.
 
 **Los esfuerzos son tres y no uno, y el motivo es de latencia.** Con un valor
 global, la redacción deliberaba antes de escribir la primera palabra: para quien
@@ -744,6 +754,8 @@ turno: para eso tiene su propio máximo de intentos.
 | `TimeoutDeLlamadaSegundos`                 | 60      | Una llamada al proveedor                                                         |
 | `FallosParaAbrirElBreaker`                 | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker                    |
 | `EsperaDelBreakerSegundos`                 | 30      | Cuánto espera antes de probar de nuevo                                           |
+| `MaximoDeLlamadasConcurrentes`             | 0       | Llamadas al modelo en curso a la vez, en el proceso. Cero no pone límite         |
+| `EsperaMaximaEnColaSegundos`               | 30      | Cuánto espera una llamada por un lugar en la compuerta antes de degradar         |
 | `RetencionDeRegistrosDias`                 | 90      | Cuánto viven las filas de los dos registros                                      |
 | `RetencionDeHistorialDias`                 | 180     | Cuánto vive una conversación propia, desde su última actividad                   |
 | `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
@@ -781,14 +793,29 @@ y no cuesta nada.
 ### El orden de los decoradores
 
 ```
-ProveedorConTechoDeLlamadas   ← techo del turno
-  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
-       └─ proveedor real
+ProveedorConTechoDeLlamadas      ← techo del turno
+  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo con MaximoDeLlamadasConcurrentes > 0)
+       └─ ProveedorConBreaker    ← estado del proveedor + timeout por llamada
+            └─ proveedor real
 ```
 
-De afuera hacia adentro, de más barato a más caro. Invertir los dos primeros haría
+De afuera hacia adentro, de más barato a más caro. Invertir techo y breaker haría
 que el breaker registrara intentos que el techo iba a rechazar igual, y un solo turno
 desbocado terminaría abriendo el corte para todos los demás.
+
+**La compuerta va por fuera del breaker, y ese es el punto** (asistente-proveedor-local,
+D4). La espera en la cola no consume el timeout de la llamada ni cuenta como fallo:
+contra un modelo propio en una GPU, treinta usuarios a la vez acumulaban timeouts en
+la cola del servidor, abrían el breaker y apagaban el asistente para todos aunque el
+servidor estuviera sano. Una llamada que no consigue lugar a tiempo degrada con el
+texto de saturación («probá de nuevo en unos segundos»), no con el de proveedor caído.
+Y una llamada de un turno que ya llamó al modelo —la redacción después de la
+generación— entra antes que la primera de un turno nuevo: los turnos empezados
+terminan y liberan lugar.
+
+`ReintentarConsultaVacia` (default `true`) apaga el reintento por consulta vacía, que
+repite el prompt byte a byte: con un modelo local a temperatura 0 devuelve la misma
+consulta.
 
 **La cuota no está en esta cadena.** La cobra `CapaConversacional` en un `finally`,
 con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor, y

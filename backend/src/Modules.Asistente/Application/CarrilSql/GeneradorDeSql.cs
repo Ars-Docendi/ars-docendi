@@ -81,6 +81,49 @@ public sealed class GeneradorDeSql(
     IOptions<OpcionesAsistente> opciones,
     ILogger<GeneradorDeSql> log)
 {
+    /// <summary>
+    /// La forma JSON de la respuesta, declarada para que un proveedor que puede
+    /// imponerla la imponga (asistente-proveedor-local, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// Mismas claves y MISMO ORDEN que pide <c>InstruccionesDeGeneracion</c>: con
+    /// decodificación restringida el modelo escribe las propiedades en el orden del
+    /// esquema, y uno distinto del de las instrucciones lo haría pelear contra su
+    /// propio prompt. <c>motivo</c> y <c>termino</c> son opcionales y aceptan nulo,
+    /// igual que el intérprete, que los tolera ausentes o de otro tipo.
+    ///
+    /// El esquema garantiza la FORMA. Que la consulta sea segura y respete el
+    /// alcance lo sigue decidiendo <c>ValidadorDeSql</c>.
+    /// </remarks>
+    internal const string EsquemaDeSalida = """
+        {
+          "type": "object",
+          "properties": {
+            "es_contestable": { "type": "boolean" },
+            "sql": { "type": ["string", "null"] },
+            "razonamiento": { "type": "string" },
+            "categoria": {
+              "type": "string",
+              "enum": ["consulta_simple", "filtro_temporal", "cruce_de_tablas", "agregacion", "no_contestable", "ambigua"]
+            },
+            "motivo": { "type": ["string", "null"] },
+            "termino": { "type": ["string", "null"] }
+          },
+          "required": ["es_contestable", "sql", "razonamiento", "categoria"],
+          "additionalProperties": false
+        }
+        """;
+
+    /// <summary>
+    /// Si una consulta que volvió vacía se vuelve a generar
+    /// (<see cref="OpcionesAsistente.ReintentarConsultaVacia"/>, D6).
+    /// </summary>
+    /// <remarks>
+    /// Lo expone el generador porque es el dueño de la llamada que se repetiría y
+    /// el que ya recibe las opciones: el carril pregunta, no configura.
+    /// </remarks>
+    internal bool ReintentaConsultaVacia => opciones.Value.ReintentarConsultaVacia;
+
 
     /// <summary>
     /// Razonamiento con que se resuelve una respuesta que no se pudo interpretar.
@@ -125,6 +168,7 @@ public sealed class GeneradorDeSql(
                     opciones.Value.EsfuerzoDeGeneracion,
                     nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
                 MaximoDeTokens = opciones.Value.MaximoDeTokensDeGeneracion,
+                EsquemaDeSalidaJson = EsquemaDeSalida,
             },
             ct);
 
