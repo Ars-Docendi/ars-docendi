@@ -1,0 +1,235 @@
+## Purpose
+
+Gestión (ABM) de los períodos de designación docente: la Secretaría Académica crea, edita y elimina los períodos sobre los que el Jefe de Cátedra carga los pedidos de designación (SCRUM-82). Define el contenedor temporal del proyecto docente mediante dos ventanas separadas —la ventana de carga (desde/hasta) donde se admiten pedidos, y la ventana de impacto (desde/hasta) donde esas designaciones tienen efecto— y un estado activo/inactivo, con la regla de que a lo sumo un período puede estar activo a la vez.
+
+## Requirements
+
+### Requirement: Gestión persistente de períodos
+
+El listado, alta, edición, activación, desactivación y eliminación de períodos MUST operar mediante la API de Designaciones y requerir el permiso efectivo `periodos.administrar`. La unicidad del período activo y las restricciones por pedidos asociados MUST validarse en backend.
+
+#### Scenario: Gestión autorizada por permiso
+
+- **GIVEN** un actor con `periodos.administrar`
+- **WHEN** lista o modifica períodos
+- **THEN** la operación se ejecuta mediante la API y la pantalla refleja el estado persistido
+
+#### Scenario: Guardado exitoso
+
+- **GIVEN** datos válidos y un actor con `periodos.administrar`
+- **WHEN** la API confirma la creación o edición
+- **THEN** una consulta posterior devuelve el período con los valores persistidos
+
+#### Scenario: Actor sin permiso
+
+- **GIVEN** un actor autenticado sin `periodos.administrar`
+- **WHEN** intenta abrir o mutar la gestión de períodos
+- **THEN** el frontend oculta el enlace y el backend deniega la operación
+
+#### Scenario: Segundo período activo
+
+- **GIVEN** un período activo distinto al que se guarda
+- **WHEN** se intenta activar otro período
+- **THEN** la API MUST rechazar la operación sin desactivar el existente
+
+#### Scenario: Eliminación restringida
+
+- **GIVEN** un período referenciado por pedidos
+- **WHEN** se intenta eliminarlo
+- **THEN** la API MUST rechazar la operación con un conflicto identificable y conservar el período
+
+### Requirement: Listar períodos de designación
+
+El sistema SHALL mostrar una tabla con todos los períodos de designación registrados, incluyendo nombre, ventana de carga (desde/hasta), ventana de impacto (desde/hasta) y estado activo/inactivo.
+
+#### Scenario: Lista con períodos cargados
+
+- **WHEN** el usuario navega a `/designaciones/periodos`
+- **THEN** el sistema muestra una tabla con al menos un período y las columnas: Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta, Activo, Acciones
+
+#### Scenario: Impacto se muestra en formato mes/año
+
+- **WHEN** la tabla renderiza las columnas de Impacto desde/hasta
+- **THEN** el sistema SHALL mostrar únicamente mes y año (ej. "Agosto 2026"), truncando el día almacenado
+
+#### Scenario: Estado visual del período activo
+
+- **WHEN** un período tiene `activo: true`
+- **THEN** la columna Activo SHALL mostrar el texto "Activo" (de solo lectura, sin control interactivo en la tabla)
+
+#### Scenario: Estado visual del período inactivo
+
+- **WHEN** un período tiene `activo: false`
+- **THEN** la columna Activo SHALL mostrar el texto "Inactivo" (de solo lectura, sin control interactivo en la tabla)
+
+---
+
+### Requirement: Crear período de designación
+
+El sistema SHALL permitir crear un nuevo período de designación mediante un formulario modal con los campos obligatorios: nombre, fecha de carga desde, fecha de carga hasta, fecha de impacto desde y fecha de impacto hasta.
+
+#### Scenario: Apertura del modal de creación
+
+- **WHEN** el usuario hace clic en "Nuevo período"
+- **THEN** el sistema muestra un modal con título "Nuevo período" y todos los campos vacíos
+
+#### Scenario: Campos obligatorios presentes
+
+- **WHEN** el modal de creación está abierto
+- **THEN** el sistema SHALL mostrar los campos: Nombre (Input, obligatorio, vacío), Carga desde (DatePicker, obligatorio), Carga hasta (DatePicker, obligatorio), Impacto desde (DatePicker, obligatorio), Impacto hasta (DatePicker, obligatorio)
+
+#### Scenario: Sin campo de cuatrimestre, año o estado en el modal
+
+- **WHEN** el modal de creación o edición está abierto
+- **THEN** el sistema NO SHALL mostrar los campos Cuatrimestre, Año ni un selector de Estado
+
+#### Scenario: Sugerencia de fecha de carga hasta
+
+- **WHEN** el usuario completa "Impacto desde" y el campo "Carga hasta" está vacío
+- **THEN** el sistema SHALL pre-completar "Carga hasta" con la fecha correspondiente a un mes antes de "Impacto desde", editable por el usuario
+
+#### Scenario: Validación de rango carga inválido
+
+- **WHEN** el usuario intenta guardar con "Carga hasta" anterior a "Carga desde"
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error indicando que la fecha de carga hasta debe ser posterior o igual a la de carga desde
+
+#### Scenario: Validación de rango impacto inválido
+
+- **WHEN** el usuario intenta guardar con "Impacto hasta" anterior a "Impacto desde"
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error indicando que la fecha de impacto hasta debe ser posterior o igual a la de impacto desde
+
+#### Scenario: Cancelar creación
+
+- **WHEN** el usuario hace clic en "Cancelar" en el modal de creación
+- **THEN** el modal SHALL cerrarse sin modificar la lista de períodos
+
+#### Scenario: Slot de error disponible para validación de backend
+
+- **WHEN** el backend devuelva un error de validación (ej: solapamiento de fechas)
+- **THEN** el sistema SHALL mostrar un InlineAlert de severidad "warning" dentro del modal con el mensaje de error recibido
+
+---
+
+### Requirement: Editar período de designación
+
+El sistema SHALL permitir modificar los datos de un período existente mediante el mismo formulario modal, pre-poblado con los valores actuales (nombre, ventana de carga, ventana de impacto).
+
+#### Scenario: Apertura del modal de edición
+
+- **WHEN** el usuario hace clic en el botón de editar de una fila
+- **THEN** el sistema muestra un modal con título "Editar período" y los campos Nombre, Carga desde, Carga hasta, Impacto desde e Impacto hasta pre-poblados con los datos del período seleccionado
+
+#### Scenario: Cancelar edición
+
+- **WHEN** el usuario hace clic en "Cancelar" en el modal de edición
+- **THEN** el modal SHALL cerrarse sin modificar los datos del período
+
+#### Scenario: Slot de error disponible en edición
+
+- **WHEN** el backend devuelva un error al guardar la edición
+- **THEN** el sistema SHALL mostrar un InlineAlert de severidad "warning" dentro del modal con el mensaje de error
+
+---
+
+### Requirement: Eliminar período de designación
+
+El sistema SHALL requerir confirmación explícita antes de eliminar un período, mostrando un modal de confirmación que identifique el período afectado.
+
+#### Scenario: Apertura del modal de confirmación
+
+- **WHEN** el usuario hace clic en el botón de eliminar de una fila
+- **THEN** el sistema muestra un modal con título "Eliminar período" que menciona el nombre del período a eliminar
+
+#### Scenario: Cancelar eliminación
+
+- **WHEN** el usuario hace clic en "Cancelar" en el modal de eliminación
+- **THEN** el modal SHALL cerrarse sin eliminar el período
+
+#### Scenario: Confirmar eliminación
+
+- **WHEN** el usuario hace clic en "Eliminar" (variant destructive)
+- **THEN** el sistema SHALL eliminar el período de la lista y cerrar el modal
+
+#### Scenario: Slot de error para restricciones de backend
+
+- **WHEN** el backend rechace la eliminación (ej: período con pedidos asociados)
+- **THEN** el sistema SHALL mostrar un InlineAlert de severidad "danger" dentro del modal de confirmación con el motivo del rechazo, sin cerrar el modal
+
+### Requirement: Activar y desactivar período de designación
+
+El sistema SHALL permitir definir si un período está activo mediante un campo `Toggle` ("Período activo") dentro del formulario de creación/edición, confirmado junto con el resto de los datos al hacer clic en "Guardar". El sistema SHALL impedir que exista más de un período activo simultáneamente.
+
+#### Scenario: Campo "Período activo" presente en creación y edición
+
+- **WHEN** el modal de creación o edición está abierto
+- **THEN** el sistema SHALL mostrar un `Toggle` "Período activo" al final del formulario, después de la ventana de carga y el período de impacto
+
+#### Scenario: Rechazo al guardar con un segundo período activo
+
+- **WHEN** el usuario hace clic en "Guardar" con el `Toggle` "Período activo" en `true` mientras otro período (distinto al que se está guardando) ya tiene `activo: true`
+- **THEN** el sistema SHALL impedir el guardado y mostrar un error bajo el campo `Toggle` indicando cuál es el período actualmente activo, sin activar el nuevo ni desactivar el existente
+
+#### Scenario: Guardar como activo sin conflicto
+
+- **WHEN** el usuario hace clic en "Guardar" con el `Toggle` "Período activo" en `true` y ningún otro período tiene `activo: true`
+- **THEN** el sistema SHALL guardar el período con `activo: true` y cerrar el modal, sin pedir confirmación
+
+#### Scenario: Desactivar un período ya activo pide confirmación
+
+- **WHEN** el usuario edita un período con `activo: true`, apaga el `Toggle` "Período activo" y hace clic en "Guardar"
+- **THEN** el sistema SHALL cerrar el modal de edición y mostrar un modal de confirmación identificando el período antes de aplicar el cambio
+
+#### Scenario: Confirmar desactivación
+
+- **WHEN** el usuario confirma la desactivación en el modal de confirmación
+- **THEN** el sistema SHALL guardar el período con `activo: false` (junto con el resto de los cambios pendientes del formulario) y cerrar el modal
+
+#### Scenario: Cancelar desactivación
+
+- **WHEN** el usuario cancela en el modal de confirmación de desactivación
+- **THEN** el período SHALL permanecer activo, sin aplicar ningún cambio pendiente del formulario, y el modal de confirmación SHALL cerrarse
+
+#### Scenario: Crear o editar sin transición de activo a inactivo
+
+- **WHEN** el usuario hace clic en "Guardar" en cualquier otro caso (creación con cualquier valor de `activo`, o edición sin pasar de `activo: true` a `activo: false`)
+- **THEN** el sistema SHALL guardar directamente sin pedir confirmación
+
+### Requirement: Filtros y ordenamiento por encabezado en períodos
+
+La tabla de períodos de designación SHALL ofrecer un control de filtro accesible en los encabezados Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta y Activo. La columna Acciones MUST NOT ofrecer filtro ni ordenamiento. Los filtros textuales SHALL buscar coincidencias parciales sin distinguir mayúsculas ni tildes; el filtro Activo SHALL permitir seleccionar Activo, Inactivo o ambos.
+
+La tabla SHALL permitir ordenar Nombre, Carga desde, Carga hasta, Impacto desde, Impacto hasta y Activo desde sus encabezados. Las fechas SHALL ordenarse cronológicamente usando el valor almacenado, no el texto formateado; cada orden SHALL alternar entre ascendente, descendente y sin orden manual.
+
+#### Scenario: Filtrar por nombre desde el encabezado
+
+- **GIVEN** existen períodos con nombres diferentes
+- **WHEN** el operador escribe una parte del nombre en el filtro de Nombre
+- **THEN** la tabla muestra sólo los períodos coincidentes sin distinguir mayúsculas ni tildes
+
+#### Scenario: Filtrar por estado activo
+
+- **GIVEN** la tabla contiene períodos activos e inactivos
+- **WHEN** el operador selecciona "Activo" en el filtro del encabezado Activo
+- **THEN** sólo se muestran los períodos activos
+
+#### Scenario: Ordenar fechas cronológicamente
+
+- **GIVEN** los períodos tienen fechas de carga o impacto en años y meses diferentes
+- **WHEN** el operador ordena ascendentemente la columna "Impacto desde"
+- **THEN** los períodos se presentan por fecha cronológica y no por el texto "Mes Año"
+
+#### Scenario: Limpiar un filtro sin afectar otros
+
+- **GIVEN** hay filtros activos en Nombre y Activo
+- **WHEN** el operador activa "Limpiar filtro" en Nombre
+- **THEN** se elimina sólo el criterio de Nombre y Activo continúa aplicado
+
+#### Scenario: Acciones sin filtro ni orden
+
+- **WHEN** el operador observa el encabezado Acciones
+- **THEN** no se muestra control de filtro ni indicador de ordenamiento en esa columna
+
+#### Scenario: Operación accesible del encabezado
+
+- **WHEN** el operador enfoca el control de filtro y presiona Enter o Espacio
+- **THEN** se abre el menú asociado sin ejecutar una acción de fila y el orden activo se comunica al lector de pantalla

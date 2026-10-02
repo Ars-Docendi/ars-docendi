@@ -13,6 +13,8 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 
 - `Modules.<X>.Contracts`: **solo DTOs, interfaces y tokens públicos** — sin lógica, sin I/O.
 - `ArsDocendi.Shared`: **funciones puras** — sin I/O, sin network, sin estado mutable compartido.
+  - **Única excepción**: la persistencia de los schemas `identity` y `audit` (`IdentityDbContext` + su migrador). Es infraestructura transversal de la que dependen los 4 módulos, no lógica de dominio. Ninguna otra I/O entra a Shared.
+  - Corolario: los módulos **leen** identity para autorizar. Escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración — el invariante #1 no lo cubre porque no es una relación cross-module.
 - Evitar "god utils": si Shared crece mucho, **partir por concern** (objetivo: ~20 exports públicos por archivo o split).
 
 ## Capas (.NET)
@@ -31,10 +33,12 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 
 - **Parsear en el borde** — validar DTOs en el límite HTTP/módulo; no propagar shapes sin validar.
 
-## Autorización por rol
+## Autorización por permisos efectivos
 
-- Toda acción mutativa requiere autorización por rol. **Nunca** dejar un endpoint sin `[Authorize(Roles = ...)]` salvo health checks.
-- **Test cada combinación rol × acción** que sea relevante (especialmente que un rol bajo NO puede aprobar algo de rol alto).
+- Las rutas administrativas deben requerir `[Authorize(Policy = Permisos.<...>)]` y validar permisos efectivos; no acoplar acceso a nombres de roles con `[Authorize(Roles = ...)]`.
+- Toda ruta debe autorizar en backend salvo los pings de salud declarados explícitamente públicos.
+- **Test cada combinación permiso × ruta** relevante, especialmente denegación cuando falta el permiso requerido.
+- La visibilidad de navegación y los guards del frontend mejoran la UX, pero nunca sustituyen la autorización backend.
 
 ## Producto y UX
 

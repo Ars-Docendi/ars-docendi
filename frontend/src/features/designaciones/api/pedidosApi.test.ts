@@ -1,0 +1,295 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { apiClient } from "../../../shared/api/client";
+import {
+  aceptarPedido,
+  crearPedido,
+  descargarAdjuntoPedido,
+  despriorizarPedido,
+  devolverPedido,
+  eliminarPedido,
+  listarPedidosPorAmbito,
+  priorizarPedido,
+  rechazarPedido,
+  reenviarPedido,
+} from "./pedidosApi";
+
+vi.mock("../../../shared/api/client", () => ({
+  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+}));
+
+const dto = {
+  id: "pedido-1",
+  numero: "2026-0001",
+  periodo: { id: "periodo-1", nombre: "2C 2026" },
+  persona: { id: "persona-1", nombre: "Ana", apellido: "Pérez", documento: "123", legajo: "7" },
+  materia: {
+    id: "materia-1",
+    codigo: "03500",
+    nombre: "Software",
+    carreraId: "carrera-1",
+    carreraNombre: "Informática",
+  },
+  novedad: "Alta",
+  estado: "en_revision_coordinador",
+  prioritario: false,
+  cargoSolicitado: { id: "cargo-1", codigo: "adjunto", nombre: "Profesor Adjunto" },
+  dedicacionSolicitada: "Categoría 2",
+  horas: 10,
+  horasInvestigacion: 0,
+  horasExternas: 0,
+  justificacion: null,
+  tipoBaja: null,
+  tipoBajaDetalle: null,
+  etapaRetorno: null,
+  propietarioActual: "coordinador_carrera",
+  snapshot: null,
+  version: 2,
+  adjuntos: [],
+  historial: [],
+  accionesPermitidas: ["aceptar", "rechazar"],
+};
+const catalogos = {
+  periodoActivo: {
+    id: "periodo-1",
+    nombre: "2C",
+    cargaDesde: "2026-01-01",
+    cargaHasta: "2026-02-01",
+    impactoDesde: "2026-03-01",
+    impactoHasta: "2026-07-01",
+    activo: true,
+  },
+  periodos: [],
+  materias: [{ id: "materia-1", codigo: "03500", nombre: "Software", carreraId: "carrera-1" }],
+  personas: [
+    {
+      id: "persona-1",
+      nombre: "Ana",
+      apellido: "Pérez",
+      documento: "123",
+      legajo: "7",
+      designacionesVigentes: [],
+    },
+  ],
+  cargos: [
+    {
+      id: "cargo-1",
+      codigo: "adjunto",
+      nombre: "Profesor Adjunto",
+      abreviatura: "Adjunto",
+      orden: 3,
+    },
+  ],
+  dedicaciones: [{ id: "dedicacion-2", codigo: 2, nombre: "Categoría 2", orden: 2 }],
+  tiposBaja: ["Renuncia"],
+  novedades: ["Alta"],
+};
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("pedidosApi HTTP", () => {
+  it("mapea listado y conserva las acciones autorizadas por backend", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
+    const pedidos = await listarPedidosPorAmbito();
+    expect(apiClient.get).toHaveBeenCalledWith("/api/designaciones/pedidos");
+    expect(pedidos[0]).toMatchObject({
+      catedra: "Software",
+      carrera: "Informática",
+      accionesPermitidas: ["aceptar", "rechazar"],
+    });
+  });
+
+  it("mantiene separadas las horas solicitadas y las históricas de un Alta", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          horas: 12,
+          horasInvestigacion: 3,
+          horasExternas: 2,
+          snapshot: {
+            cargo: null,
+            dedicacion: null,
+            materia: "Materia nueva",
+            horas: null,
+            horasInvestigacion: null,
+            horasExternas: null,
+          },
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0]).toMatchObject({
+      catedra: "Materia nueva",
+      horas: 12,
+      horasInvestigacion: 3,
+      horasExternas: 2,
+      horasActuales: null,
+      horasInvestigacionActuales: null,
+      horasExternasActuales: null,
+    });
+  });
+
+  it("mantiene separadas las horas solicitadas y el snapshot de un Cambio devuelto", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          estado: "devuelto",
+          horas: 12,
+          horasInvestigacion: 4,
+          horasExternas: 3,
+          snapshot: {
+            cargo: "JTP",
+            dedicacion: "Categoría 3",
+            materia: "Materia histórica",
+            horas: 8,
+            horasInvestigacion: 2,
+            horasExternas: 1,
+          },
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0]).toMatchObject({
+      catedra: "Materia histórica",
+      cargoActual: "JTP",
+      dedicacionActual: "Categoría 3",
+      horas: 12,
+      horasInvestigacion: 4,
+      horasExternas: 3,
+      horasActuales: 8,
+      horasInvestigacionActuales: 2,
+      horasExternasActuales: 1,
+    });
+  });
+
+  it("conserva la disponibilidad de los adjuntos y distingue un legacy", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: [
+        {
+          ...dto,
+          adjuntos: [
+            {
+              id: "adjunto-1",
+              tipo: "cv",
+              nombre: "cv.pdf",
+              archivoId: "archivo-1",
+              estadoArchivo: "disponible",
+            },
+            {
+              id: "adjunto-2",
+              tipo: "justificativo",
+              nombre: "legacy.pdf",
+              archivoId: null,
+              estadoArchivo: "legacy",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect((await listarPedidosPorAmbito())[0].adjuntos).toEqual([
+      {
+        id: "adjunto-1",
+        tipo: "cv",
+        nombre: "cv.pdf",
+        archivoId: "archivo-1",
+        estadoArchivo: "disponible",
+      },
+      {
+        id: "adjunto-2",
+        tipo: "justificativo",
+        nombre: "legacy.pdf",
+        estadoArchivo: "legacy",
+      },
+    ]);
+  });
+
+  it("crea un Alta con los datos de la persona y la materia canónica", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await crearPedido(
+      {
+        docente: {
+          dni: "123",
+          nombre: "Ana",
+          nombrePersona: "Ana",
+          apellido: "Pérez",
+          antiguedad: 0,
+        },
+        catedra: "Software",
+        materiaId: "materia-1",
+        horas: 10,
+        cargoActual: null,
+        dedicacionActual: null,
+        novedad: "Alta",
+        cargoSolicitado: "Profesor Adjunto",
+        dedicacionSolicitada: "Categoría 2",
+        horasExternas: 0,
+        horasInvestigacion: 0,
+        adjuntos: [],
+      },
+      catalogos,
+    );
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos",
+      expect.objectContaining({
+        periodoId: "periodo-1",
+        materiaId: "materia-1",
+        persona: { documento: "123", nombre: "Ana", apellido: "Pérez" },
+        cargoSolicitadoId: "cargo-1",
+        dedicacionSolicitadaId: "dedicacion-2",
+      }),
+    );
+    expect(vi.mocked(apiClient.post).mock.calls[0][1]).not.toHaveProperty("personaId");
+  });
+
+  it("envía una clave UUID en cada transición", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await aceptarPedido("pedido-1", "Conforme");
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos/pedido-1/aceptar",
+      { comentario: "Conforme" },
+      { headers: { "Idempotency-Key": expect.stringMatching(/^[0-9a-f-]{36}$/) } },
+    );
+  });
+
+  it("usa HTTP para devolución, reenvío, rechazo, prioridad y eliminación", async () => {
+    vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
+    await devolverPedido("pedido-1", "Corregir");
+    await reenviarPedido("pedido-1");
+    await rechazarPedido("pedido-1", "No corresponde");
+    await priorizarPedido("pedido-1", "Urgente");
+    await despriorizarPedido("pedido-1");
+    await eliminarPedido("pedido-1");
+    for (const accion of ["devolver", "reenviar", "rechazar", "priorizar", "despriorizar"]) {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        `/api/designaciones/pedidos/pedido-1/${accion}`,
+        expect.anything(),
+        expect.objectContaining({
+          headers: expect.objectContaining({ "Idempotency-Key": expect.any(String) }),
+        }),
+      );
+    }
+    expect(apiClient.delete).toHaveBeenCalledWith("/api/designaciones/pedidos/pedido-1");
+  });
+
+  it("propaga un conflicto HTTP sin inventar un estado local", async () => {
+    const conflicto = Object.assign(new Error("concurrency-conflict"), {
+      response: { status: 409 },
+    });
+    vi.mocked(apiClient.post).mockRejectedValue(conflicto);
+    await expect(aceptarPedido("pedido-1")).rejects.toBe(conflicto);
+  });
+
+  it("descarga un adjunto del pedido como contenido binario autenticado", async () => {
+    const contenido = new Blob(["%PDF-1.7"], { type: "application/pdf" });
+    vi.mocked(apiClient.get).mockResolvedValue({ data: contenido });
+
+    await expect(descargarAdjuntoPedido("pedido-1", "archivo-1")).resolves.toBe(contenido);
+
+    expect(apiClient.get).toHaveBeenCalledWith(
+      "/api/designaciones/pedidos/pedido-1/adjuntos/archivo-1",
+      { responseType: "blob" },
+    );
+  });
+});

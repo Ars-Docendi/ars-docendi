@@ -19,7 +19,7 @@ Actualizar:
 3. La skill `/add-feature` (`.claude/skills/add-feature/SKILL.md`) step "Inputs de diseño".
 4. `.mcp.json` del proyecto (a crear) con el MCP server correspondiente.
 5. Skill `visual-test` (a portar del template) adaptada al MCP elegido.
-6. CLAUDE.md sección Skills disponibles agregando `visual-test`.
+6. El índice de workflows agregando `visual-test`.
 
 ## Estructura
 

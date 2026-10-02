@@ -35,12 +35,32 @@ export const collapseIcon: ReactNode = (
   </svg>
 );
 
+/* Chevron del toggle de grupos colapsables del nav (apunta hacia abajo). */
+export const chevronIcon: ReactNode = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M5 7l4 4 4-4" />
+  </svg>
+);
+
 /* Sidebar nav module icons, keyed for the nav config */
 export const navIcons = {
   pedidos: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="13" />
       <path d="M6 7h6M6 10h6M6 13h4" />
+    </svg>
+  ),
+  revision: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="4" y="3" width="10" height="13" rx="1" />
+      <path d="M7 3.2V2.4a.8.8 0 01.8-.8h2.4a.8.8 0 01.8.8v.8" />
+      <path d="M6.5 9.5l1.6 1.6 3-3.6" />
+    </svg>
+  ),
+  periodos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="3" y="4" width="12" height="11" rx="1" />
+      <path d="M3 7.5h12M6 2.5v3M12 2.5v3" />
     </svg>
   ),
   designaciones: (
@@ -76,6 +96,31 @@ export const navIcons = {
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <circle cx="9" cy="9" r="2" />
       <path d="M9 2v2M9 14v2M2 9h2M14 9h2M4 4l1.5 1.5M12.5 12.5L14 14M4 14l1.5-1.5M12.5 5.5L14 4" />
+    </svg>
+  ),
+  usuarios: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="13" cy="7" r="2" />
+      <path d="M1.5 15.5c.4-2.7 2-4 4.5-4s4.1 1.3 4.5 4M10.5 13c2.8-1.6 5.3-.4 6 2.5" />
+    </svg>
+  ),
+  docentes: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M2 6.5L9 3l7 3.5-7 3.5-7-3.5Z" />
+      <path d="M5 8.5v3.2c2.3 1.7 5.7 1.7 8 0V8.5M16 7v4" />
+    </svg>
+  ),
+  roles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M9 2.5l5.5 2v4.1c0 3.2-2.3 5.5-5.5 6.9-3.2-1.4-5.5-3.7-5.5-6.9V4.5l5.5-2Z" />
+      <path d="M6.5 8.5h5M9 6v5" />
+    </svg>
+  ),
+  membresiaRoles: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M9 2.5l5.5 2v4.1c0 3.2-2.3 5.5-5.5 6.9-3.2-1.4-5.5-3.7-5.5-6.9V4.5l5.5-2Z" />
+      <path d="m6 8.7 2 2 4-4" />
     </svg>
   ),
 } satisfies Record<string, ReactNode>;

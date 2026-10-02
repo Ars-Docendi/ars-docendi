@@ -7,6 +7,10 @@ import { routes as designacionesRoutes } from "../features/designaciones/routes"
 import { routes as aulasRoutes } from "../features/aulas/routes";
 import { routes as portalRoutes } from "../features/portal/routes";
 import { routes as tareasRoutes } from "../features/tareas/routes";
+import { routes as usuariosRoutes } from "../features/usuarios/routes";
+import { routes as docentesRoutes } from "../features/docentes/routes";
+import { routes as rolesRoutes } from "../features/roles/routes";
+import { routes as sistemaRoutes } from "../features/sistema/routes";
 
 export const router = createBrowserRouter([
   // Full-bleed split-pane login — public, rendered outside the App shell (no header/nav).
@@ -19,11 +23,16 @@ export const router = createBrowserRouter([
         path: "/",
         element: <AppLayout />,
         children: [
-          { index: true, element: <Navigate to="/designaciones" replace /> },
+          { index: true, element: <Navigate to="/portal" replace /> },
           designacionesRoutes,
           aulasRoutes,
           portalRoutes,
           tareasRoutes,
+          usuariosRoutes,
+          docentesRoutes,
+          rolesRoutes,
+          ...sistemaRoutes,
+          { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
         ],
       },
     ],

@@ -18,6 +18,10 @@ source "$(dirname "$0")/_comun.sh"
 ambiente="${1:-}"
 validar_ambiente "$ambiente"
 
+if [[ "$ambiente" == "prod" ]]; then
+  fatal "msg=\"PROHIBIDO ejecutar fixtures sintéticas sobre prod\" ambiente=\"prod\""
+fi
+
 base="$(nombre_base "$ambiente")"
 base_prod="$(nombre_base prod)"
 
@@ -42,5 +46,7 @@ psql_en_docker -e "PGDATABASE=$base" \
   -v "${seed_sql_abs}:/seed.sql:ro" \
   "$IMAGEN_PSQL" \
   psql -v ON_ERROR_STOP=1 -f /seed.sql
+
+"$(dirname "$0")/seed-storage.sh" "$ambiente"
 
 log_info msg="seed OK" ambiente="$ambiente" base="$base"

@@ -1,15 +1,21 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
-import { isAuthenticated, setToken } from "./auth";
+import { isAuthenticated } from "./auth";
+import { developmentAuthEnabled } from "./developmentAuth";
+import { seleccionarSesionDesarrollo } from "./dev/session";
 import "./LoginPage.css";
+
+const DevLoginModal = developmentAuthEnabled
+  ? lazy(() => import("./dev/DevLoginModal").then((module) => ({ default: module.DevLoginModal })))
+  : null;
 
 /** Where to land after login: the route the guard bounced us from, else the default. */
 function usePostLoginTarget(): string {
   const location = useLocation();
   const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-  return from?.pathname ?? "/designaciones";
+  return from?.pathname ?? "/portal";
 }
 
 /** Microsoft four-square brand glyph (decorative, page-local). */
@@ -57,6 +63,7 @@ type LoginState = "default" | "redirecting" | "error" | "forbidden";
 export function LoginPage() {
   const [searchParams] = useSearchParams();
   const [redirecting, setRedirecting] = useState(false);
+  const [devModalOpen, setDevModalOpen] = useState(false);
   const navigate = useNavigate();
   const target = usePostLoginTarget();
 
@@ -72,20 +79,25 @@ export function LoginPage() {
   const state: LoginState = redirecting ? "redirecting" : baseState;
 
   function handleLogin() {
-    setRedirecting(true);
     // TODO: real Azure AD redirect. When a real entry URL is configured, hand off to it.
     const loginUrl = import.meta.env.VITE_AUTH_LOGIN_URL;
     if (loginUrl) {
+      setRedirecting(true);
       window.location.assign(loginUrl);
       return;
     }
-    // STUB (dev): no Azure AD wired yet — mint a placeholder token and enter the app.
-    // Replace with the MSAL callback that stores the real token. The delay is purely
-    // cosmetic so the "Redirigiendo a Microsoft…" loading state is visible in dev.
+    // Azure AD todavía no está conectado. El selector sembrado sólo se compila en desarrollo.
+    if (DevLoginModal) setDevModalOpen(true);
+  }
+
+  function handleDevSelect(userId: string, roleCode: string) {
+    seleccionarSesionDesarrollo(userId, roleCode);
+    // Close the picker and show the loading button briefly before entering the app.
+    setDevModalOpen(false);
+    setRedirecting(true);
     setTimeout(() => {
-      setToken("dev-stub-token");
       navigate(target, { replace: true });
-    }, 1500);
+    }, 1000);
   }
 
   return (
@@ -154,6 +166,16 @@ export function LoginPage() {
           </div>
         </div>
       </div>
+
+      {DevLoginModal && (
+        <Suspense fallback={null}>
+          <DevLoginModal
+            open={devModalOpen}
+            onClose={() => setDevModalOpen(false)}
+            onSelect={handleDevSelect}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

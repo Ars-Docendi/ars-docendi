@@ -10,9 +10,9 @@ Definir la estructura intencionada del meta-layer del repo (docs + skills + onbo
 
 El meta-layer del repo SHALL mantener exactamente una fuente de verdad por cada tipo de conocimiento del agente, sin replicar el mismo contenido en múltiples registros:
 
-- **Invariantes y convenciones de arquitectura** → `CLAUDE.md`.
+- **Invariantes y convenciones de arquitectura** → `AGENTS.md`.
 - **Planning (proposals, specs, changes)** → `openspec/` (la columna vertebral).
-- **Detalle operacional de cada skill** → el `SKILL.md` de esa skill en `.claude/skills/`.
+- **Detalle operacional de cada skill** → el `SKILL.md` generado para cada herramienta.
 - **Setup y comandos de desarrollo** → `README.md`.
 - **Gitflow y flujo de PRs** → `CONTRIBUTING.md`.
 
@@ -40,15 +40,15 @@ El repo NO SHALL conservar skills cuyo funcionamiento dependa de infraestructura
 - **THEN** la skill no está presente en `.claude/skills/`
 - **AND** `docs/quality/tech-debt.md` registra que debe recrearse al definirse la infra
 
-#### Scenario: La tabla de skills refleja lo que existe
+#### Scenario: El índice de skills refleja lo que existe
 
-- **WHEN** se lee la tabla de skills de `CLAUDE.md`
+- **WHEN** se lee el índice de workflows
 - **THEN** cada fila corresponde a un directorio real en `.claude/skills/`
 - **AND** no hay filas para skills eliminadas o diferidas
 
 ### Requirement: El glue de OpenSpec no se edita a mano
 
-El glue generado por OpenSpec MUST tratarse como artefacto derivado de la CLI: no se edita ni elimina a mano, y solo cambia al correr `openspec update` (D7, Modelo A). Aplica a los comandos `opsx` y a las skills `openspec-` en `.claude/`. Cualquier recorte del scaffolding SHALL dejar ese glue intacto.
+El glue generado por OpenSpec MUST tratarse como artefacto derivado de la CLI: no se edita ni elimina a mano, y solo cambia al correr `openspec update` (D7, Modelo A). Aplica a los comandos `opsx` y a las skills `openspec-` en `.claude/` y `.agents/`. Las variantes MAY diferir únicamente en la sintaxis de invocación propia de cada herramienta.
 
 #### Scenario: Un recorte de scaffolding preserva el glue
 

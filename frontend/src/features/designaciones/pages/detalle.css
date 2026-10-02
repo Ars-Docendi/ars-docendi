@@ -1,0 +1,735 @@
+/* ============================================================
+   Detalle del pedido de designación (SCRUM-8) — layout dos
+   columnas + stepper de la cadena + paneles. Replica el frame
+   hcCfk de screens.pen con tokens del design system
+   (@ars-docendi/ui). Sin colores hardcodeados.
+   ============================================================ */
+
+.adoc-det {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- Header: botón Volver + badge de estado (reforzado, mismo lugar de siempre) --- */
+.adoc-det-headactions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.adoc-det-headactions .adoc-badge {
+  height: 28px;
+  padding: 0 14px;
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Card base + divisores + eyebrow --- */
+.adoc-card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+}
+.adoc-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+}
+.adoc-eyebrow {
+  margin: var(--space-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-regular);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* --- Stepper de la cadena de aprobación --- */
+.adoc-cadena {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  overflow-x: auto;
+}
+.adoc-cadena-seg {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+.adoc-cadena-conn {
+  flex: 1 1 auto;
+  min-width: var(--space-4);
+  height: 2px;
+  margin: 0 var(--space-3);
+  background: var(--color-border-default);
+}
+.adoc-cadena-conn.cumplida {
+  background: var(--color-accent);
+}
+.adoc-cadena-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-raised);
+  color: var(--color-text-tertiary);
+}
+.adoc-cadena-mark svg {
+  width: 13px;
+  height: 13px;
+}
+.adoc-cadena-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.adoc-cadena-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.adoc-cadena-seg.cumplida .adoc-cadena-mark {
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+}
+.adoc-cadena-seg.actual .adoc-cadena-mark {
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+.adoc-cadena-seg.pendiente .adoc-cadena-mark {
+  box-shadow: inset 0 0 0 1.5px var(--color-border-default);
+}
+.adoc-cadena-seg.rechazada .adoc-cadena-mark {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-cadena-seg.devuelta .adoc-cadena-mark {
+  box-shadow: inset 0 0 0 1.5px var(--color-status-warning-fg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-cadena-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.adoc-cadena-rol {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-cadena-detalle {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.adoc-cadena-seg.actual .adoc-cadena-detalle {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Layout de dos columnas --- */
+.adoc-det-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--space-5);
+  align-items: start;
+}
+.adoc-det-main,
+.adoc-det-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+@media (max-width: 960px) {
+  .adoc-det-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Card de datos (columna izquierda) --- */
+.adoc-det-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+.adoc-det-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.adoc-det-id {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.adoc-det-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: var(--accent-200);
+  color: var(--accent-700);
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
+}
+.adoc-det-namecol {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.adoc-det-namerow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-det-name {
+  font-size: 17px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-det-rolechip {
+  padding: 1px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-status-neutral-bg);
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+.adoc-det-meta {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.adoc-det-tipo {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 2px 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-semibold);
+}
+.adoc-det-tipo.success {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+.adoc-det-tipo.warning {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-det-tipo.danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-det-tipo.neutral {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-text-secondary);
+}
+
+/* --- Grilla de datos --- */
+.adoc-datos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+}
+@media (max-width: 560px) {
+  .adoc-datos-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.adoc-dato {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.adoc-dato-val {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+.adoc-dato-trans {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-dato-from {
+  color: var(--color-text-tertiary);
+  font-weight: var(--weight-regular);
+}
+.adoc-dato-arrow {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+}
+.adoc-dato-to {
+  color: var(--accent-700);
+  font-weight: var(--weight-semibold);
+}
+.adoc-dato-horas {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-portal-tag {
+  padding: var(--space-0) var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-default);
+  background: var(--color-bg-canvas);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-tertiary);
+}
+
+/* --- Justificativo en cita --- */
+.adoc-justif {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.adoc-justif-quote {
+  margin: var(--space-0);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: var(--color-bg-canvas);
+  font-size: var(--text-caption-size);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.adoc-justif-quote--danger {
+  border-left-color: var(--color-status-danger-fg);
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+/* --- Documentación adjunta --- */
+.adoc-adjuntos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.adoc-adjuntos-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.adoc-adjuntos-count {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-tertiary);
+}
+.adoc-adjuntos-list {
+  list-style: none;
+  margin: var(--space-0);
+  padding: var(--space-0);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: var(--space-2);
+}
+.adoc-adjunto {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  box-sizing: border-box;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  min-width: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  text-align: left;
+  font: inherit;
+}
+.adoc-adjunto--disponible {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.adoc-adjunto--disponible:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-bg-canvas);
+}
+.adoc-adjunto--disponible:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.adoc-adjunto--disponible:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.adoc-adjunto--legacy {
+  background: var(--color-bg-canvas);
+  color: var(--color-text-secondary);
+}
+.adoc-adjunto-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+  color: var(--color-accent);
+}
+.adoc-adjunto-icon svg {
+  width: 21px;
+  height: 21px;
+}
+.adoc-adjunto-extension {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  max-width: 34px;
+  overflow: hidden;
+  padding: 1px 3px;
+  border: 1px solid var(--color-bg-raised);
+  border-radius: 3px;
+  background: var(--color-accent);
+  color: var(--color-accent-on);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+}
+.adoc-adjunto-info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.adoc-adjunto-nombre {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adoc-adjunto-meta {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adoc-adjunto-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: var(--text-micro-size);
+  white-space: nowrap;
+}
+.adoc-adjunto-action svg {
+  width: 17px;
+  height: 17px;
+}
+.adoc-adjunto-estado {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+.adoc-adjuntos-error {
+  margin: var(--space-0);
+  color: var(--color-text-danger);
+  font-size: var(--text-caption-size);
+}
+
+/* --- Historial (columna izquierda) --- */
+.adoc-det-hist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-hist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.adoc-hist-title {
+  margin: var(--space-0);
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-hist-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* --- Panel de acciones (rail derecho) --- */
+.adoc-acc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+.adoc-acc-title {
+  margin: var(--space-0);
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-acc-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.adoc-acc-lblrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.adoc-acc-lblrow label {
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+.adoc-acc-help {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+.adoc-acc-error {
+  margin: var(--space-0);
+  font-size: var(--text-micro-size);
+  color: var(--color-text-danger);
+}
+.adoc-acc-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+.adoc-scopehint {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+  font-size: var(--text-micro-size);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+.adoc-scopehint-ico {
+  flex: 0 0 auto;
+  color: var(--accent-700);
+}
+.adoc-scopehint-ico svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+/* --- Meta panel "Datos del trámite" (rail derecho) --- */
+.adoc-meta {
+  display: flex;
+  flex-direction: column;
+}
+.adoc-meta-head {
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+.adoc-meta-title {
+  margin: var(--space-0);
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.adoc-meta-body {
+  display: flex;
+  flex-direction: column;
+}
+.adoc-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.adoc-meta-k {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.adoc-meta-v {
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  text-align: right;
+}
+.adoc-meta-prio {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+}
+.adoc-meta-prio svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* ============================================================
+   Modal de confirmación de acciones de revisión
+   (ModalConfirmacionAccion) — 1:1 con screens.pen
+   (modalAprobar / modalRechazar / modalDevolver / modalPriorizar).
+   ============================================================ */
+.adoc-macc.adoc-modal {
+  max-width: 480px;
+}
+
+/* Header: ícono en círculo + título + subtítulo (dentro del <h4> de la lib). */
+.adoc-macc header h4 {
+  flex: 1;
+  font-weight: var(--weight-regular);
+  letter-spacing: normal;
+}
+.adoc-macc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.adoc-macc-ico {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+}
+.adoc-macc-ico svg {
+  width: 18px;
+  height: 18px;
+}
+.adoc-macc-ico--accent {
+  background: var(--accent-100);
+  color: var(--accent-700);
+}
+.adoc-macc-ico--danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+.adoc-macc-ico--warning {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.adoc-macc-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.adoc-macc-title {
+  font-size: 17px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+.adoc-macc-sub {
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
+}
+
+/* Body. */
+.adoc-macc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.adoc-macc-text {
+  margin: var(--space-0);
+  font-size: var(--text-body-sm-size);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* Caja de aviso (info accent para aceptar / warning para rechazar y devolver). */
+.adoc-macc-aviso {
+  display: flex;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-micro-size);
+  line-height: 1.45;
+}
+.adoc-macc-aviso-ico {
+  flex: 0 0 auto;
+}
+.adoc-macc-aviso-ico svg {
+  width: 15px;
+  height: 15px;
+}
+.adoc-macc-aviso--accent {
+  background: var(--accent-100);
+  color: var(--accent-700);
+}
+.adoc-macc-aviso--warning {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+  border-left: 3px solid var(--warning-500);
+}
+
+/* Campo de comentario / justificativo. */
+.adoc-macc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adoc-macc-lblrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.adoc-macc-lblrow label {
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+.adoc-macc-req {
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-danger);
+}
+.adoc-macc-opt {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* Ícono dentro del botón de confirmar (la lib ya aplica gap 8px). */
+.adoc-macc-btnico {
+  display: inline-flex;
+}
+.adoc-macc-btnico svg {
+  width: 16px;
+  height: 16px;
+}

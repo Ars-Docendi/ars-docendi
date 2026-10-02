@@ -1,8 +1,10 @@
 # Traefik — reverse proxy interno
 
-Traefik rutea el tráfico del túnel hacia el contenedor correcto de cada ambiente
-(`prod`, `staging`, `pr-N`) leyendo **labels de los contenedores** vía el Docker
-provider. Cloudflare termina TLS; Traefik habla HTTP interno (D4).
+Cada host ejecuta su propio Traefik, conectado únicamente a su túnel y su
+Docker local. La PC Debian rutea sólo `prod` en el dominio raíz; la VM Proxmox
+rutea sólo `staging` y `pr-N` en sus subdominios. Traefik descubre los
+ambientes por **labels de los contenedores**. Cloudflare termina TLS; Traefik habla HTTP interno (D4).
+Los nombres de router pueden repetirse entre hosts porque no comparten Docker.
 
 ## Archivos
 
@@ -28,6 +30,12 @@ traefik.http.routers.<AMBIENTE>-backend.priority = 10
 traefik.http.services.<AMBIENTE>-backend.loadbalancer.server.port = 8080
 ```
 
+Valores de `HOST_PUBLICO`: `prod` → `<DOMINIO>` en Debian; `staging` →
+`staging.<DOMINIO>` y `pr-N` → `pr-N.<DOMINIO>` en Proxmox. El proyecto
+Compose `prod`, la base `arsdocendi_prod` y el GitHub Environment `prod` no
+se renombran. El rechazo de `prod.<DOMINIO>` se configura en el ingress de
+Proxmox antes del wildcard, no mediante una redirección de Traefik.
+
 Convenciones:
 
 - **Nombre de router único por ambiente**: prefijo `<AMBIENTE>-` (`prod-`, `staging-`, `pr-123-`). Evita colisiones entre ambientes.
@@ -49,6 +57,9 @@ ssh -L 8080:127.0.0.1:8080 <usuario>@<app-host>
 
 ## Lo que Traefik NO hace
 
-- **No gestiona TLS/ACME**: Cloudflare emite y termina los certificados del wildcard.
+- **No gestiona TLS/ACME**: Cloudflare termina TLS para los hostnames exactos
+  del dominio raíz productivo, `staging` y el wildcard de previews.
+- **No balancea entre hosts ni hace failover**: cada ambiente tiene un único
+  destino; una caída de Debian deja producción indisponible.
 - **No se expone directo a internet**: su único upstream es `cloudflared` en la red interna; por eso confía los forwarded headers de ese rango (`forwardedHeaders.trustedIPs` en `traefik.yml`).
 - **No expone el socket de Docker ni Postgres** por el túnel (ver runbook, fronteras de red).

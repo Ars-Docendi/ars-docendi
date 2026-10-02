@@ -17,7 +17,7 @@
 /* ---- Left marquee (dark institutional panel) ---- */
 .login-marquee {
   background: var(--neutral-900);
-  color: #fff;
+  color: var(--color-bg-raised);
   padding: 48px 56px 40px;
   display: flex;
   flex-direction: column;
@@ -44,7 +44,7 @@
   align-items: center;
   gap: 14px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -53,13 +53,13 @@
   width: 48px;
   height: 48px;
   border: 1.5px solid rgba(255, 255, 255, 0.85);
-  color: #fff;
+  color: var(--color-bg-raised);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-mono);
-  font-weight: 500;
-  font-size: 14px;
+  font-weight: var(--weight-medium);
+  font-size: var(--text-body-sm-size);
   letter-spacing: 0.02em;
   line-height: 1;
 }
@@ -78,7 +78,7 @@
 .login-marquee h1 {
   font-family: var(--font-sans);
   font-size: 48px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   line-height: 1.05;
   margin: 0 0 14px;
   letter-spacing: -0.025em;
@@ -91,7 +91,7 @@
   font-size: 15px;
   line-height: 1.55;
   color: rgba(255, 255, 255, 0.75);
-  margin: 0;
+  margin: var(--space-0);
 }
 .login-marquee .foot {
   position: relative;
@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px;
+  padding: var(--space-12);
 }
 .login-card {
   width: 100%;
@@ -120,15 +120,15 @@
   gap: 28px;
 }
 .login-card .head h2 {
-  margin: 0 0 8px;
+  margin: var(--space-0) var(--space-0) var(--space-2);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
   letter-spacing: -0.01em;
 }
 .login-card .head p {
-  margin: 0;
-  font-size: 14px;
+  margin: var(--space-0);
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-secondary);
   line-height: 1.55;
 }
@@ -136,7 +136,7 @@
   width: 100%;
 }
 .login-card .helper {
-  font-size: 13px;
+  font-size: var(--text-caption-size);
   color: var(--color-text-tertiary);
   line-height: 1.55;
 }
@@ -146,7 +146,7 @@
 .login-card .divider {
   height: 1px;
   background: var(--color-border-subtle);
-  margin: 4px 0;
+  margin: var(--space-1) var(--space-0);
 }
 .login-card .footnote-tiny {
   font-family: var(--font-mono);

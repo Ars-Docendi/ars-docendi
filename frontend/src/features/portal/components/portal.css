@@ -1,0 +1,425 @@
+/* ============================================================
+   Mi Portal — secciones del perfil.
+   Lectura por defecto, edición por sección. Una sección vacía
+   ocupa una fila; con contenido se expande a tarjeta.
+   ============================================================ */
+
+.portal-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 860px;
+}
+
+/* Accesible para lectores de pantalla, sin ocupar lugar en la página. */
+.portal-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* --- Identidad: encabeza la página, no es una sección más --- */
+.portal-identidad {
+  border: 1px solid var(--color-border-subtle);
+  border-top: 2px solid var(--color-accent);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+  margin-bottom: var(--space-2);
+}
+.portal-identidad-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-identidad-datos {
+  padding: var(--space-4);
+}
+
+/* --- Sección con contenido --- */
+.portal-seccion {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+}
+.portal-seccion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-seccion-titulo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--text-subhead-size);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+/* Marca de acento a la izquierda del título: da color sin decorar. */
+.portal-seccion .portal-seccion-titulo::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+.portal-seccion-body {
+  padding: var(--space-4);
+}
+
+/* --- Sección vacía: la misma tarjeta, más baja ---
+   Con las tarjetas en blanco, dejarla transparente la hacía leer como un
+   agujero entre secciones. Mismo fondo y mismo borde; lo que la distingue es
+   el alto y el peso del título. --- */
+.portal-fila-vacia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-raised);
+}
+.portal-fila-vacia .portal-seccion-titulo {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+/* Sin marca de acento: el acento distingue lo que ya tiene contenido. */
+.portal-fila-vacia .portal-seccion-titulo::before {
+  content: none;
+}
+
+/* --- Ítems de una sección de lista --- */
+.portal-items {
+  display: flex;
+  flex-direction: column;
+}
+.portal-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.portal-item:first-child {
+  padding-top: 0;
+}
+.portal-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.portal-item-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.portal-item-titulo {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+.portal-item-detalle {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.portal-item-nota {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+.portal-item-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 2px;
+}
+.portal-item-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+.portal-item-enlace svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+/* --- Formularios dentro de una sección (edición inline) --- */
+.portal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.portal-form-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.portal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+/* Los ítems de grid traen min-width:auto y no achican por debajo de su
+   contenido: sin esto los campos se desbordan del modal. */
+.portal-form-grid > * {
+  min-width: 0;
+}
+
+/* --- Tags de habilidades e intereses --- */
+.portal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.portal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  background: var(--color-bg-canvas);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-primary);
+}
+.portal-tag-quitar {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.portal-tag-quitar:hover {
+  color: var(--color-text-danger);
+}
+
+/* --- Aviso de guardado (Toast) --- */
+.portal-aviso {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: 60;
+  max-width: 360px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .portal-aviso {
+    animation: portal-aviso-entra 200ms var(--ease-enter);
+  }
+}
+@keyframes portal-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Cronología: Experiencia y Educación se leen como línea de tiempo --- */
+.portal-cronologia {
+  position: relative;
+  padding-left: var(--space-6);
+}
+/* Riel vertical que une los hitos. */
+.portal-cronologia::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 4px;
+  width: 1px;
+  background: var(--color-border-default);
+}
+.portal-cronologia .portal-item {
+  position: relative;
+}
+/* Hito de cada ítem sobre el riel. */
+.portal-cronologia .portal-item::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: calc(var(--space-6) * -1 + 1px);
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-raised);
+  border: 1.5px solid var(--color-border-strong);
+}
+/* Lo vigente se distingue: es lo que el docente está haciendo hoy. */
+.portal-cronologia .portal-item-vigente::before {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* --- Filas de dato: el valor es el titular, la etiqueta la bajada --- */
+.portal-filas {
+  display: flex;
+  flex-direction: column;
+}
+.portal-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+/* Divisor interno: arranca después del ícono, no de punta a punta. */
+.portal-fila + .portal-fila {
+  border-top: 1px solid var(--color-border-subtle);
+}
+.portal-fila-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-tertiary);
+}
+.portal-fila-icono svg {
+  width: 18px;
+  height: 18px;
+}
+.portal-fila-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.portal-fila-valor {
+  font-size: var(--text-body-sm-size);
+  line-height: 1.35;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.portal-fila-valor.portal-fila-vacio {
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+.portal-fila-etiqueta {
+  font-size: var(--text-caption-size);
+  line-height: 1.3;
+  color: var(--color-text-tertiary);
+}
+.portal-fila-chevron {
+  display: flex;
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+}
+.portal-fila-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* La fila editable es el control: se comporta como tal. */
+.portal-fila-accion {
+  cursor: pointer;
+}
+.portal-fila-accion:hover {
+  background: var(--color-bg-sunken);
+}
+.portal-fila-accion:focus-visible {
+  outline: var(--border-focus) solid var(--color-border-focus);
+  outline-offset: -2px;
+}
+
+/* Secciones cuyo cuerpo son filas a sangre, sin padding propio. */
+.portal-seccion-body-filas {
+  padding: 0;
+}
+
+/* --- Encabezado de identidad --- */
+.portal-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--accent-700);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+}
+.portal-identidad-nombre {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.portal-identidad-titulo {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-heading-size);
+  line-height: 1.2;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+.portal-identidad-rol {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+/* Campo compuesto: etiqueta propia porque lleva dos controles. */
+.portal-campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.portal-campo-label {
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+.portal-campo-label span {
+  color: var(--color-text-danger);
+}
+.portal-campo-error {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-danger);
+}
+
+/* Mes + año dentro de un mismo campo de fecha. */
+.portal-fecha {
+  display: grid;
+  grid-template-columns: minmax(72px, 90px) minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+.portal-fecha > * {
+  min-width: 0;
+}

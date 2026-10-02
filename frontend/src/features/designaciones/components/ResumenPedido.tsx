@@ -1,0 +1,178 @@
+import type { ReactNode } from "react";
+import type { Cargo, Dedicacion, Novedad, PedidoDesignacion } from "../types";
+import { iniciales } from "./detalleAdapters";
+import { motivoRechazo } from "./tableroRevisionModelo";
+import { DocumentacionAdjuntaPedido } from "./DocumentacionAdjuntaPedido";
+
+/** Tono del chip de novedad (clases del design system). */
+const TONO_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "neutral",
+  Alta: "success",
+  Baja: "danger",
+  "Cambio de cargo o dedicación": "warning",
+};
+
+const ETIQUETA_NOVEDAD: Record<Novedad, string> = {
+  "Sin novedad": "Sin novedad",
+  Alta: "Alta",
+  Baja: "Baja",
+  "Cambio de cargo o dedicación": "Cambio",
+};
+
+/** Celda etiqueta + valor del grid de datos. */
+function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+  return (
+    <div className="adoc-dato">
+      <span className="adoc-eyebrow">{etiqueta}</span>
+      <span className="adoc-dato-val">{children}</span>
+    </div>
+  );
+}
+
+/** Valor con transición actual → solicitado (cuando hay cambio). */
+function Transicion({
+  desde,
+  hacia,
+}: {
+  desde: Cargo | Dedicacion | null;
+  hacia?: Cargo | Dedicacion;
+}) {
+  if (hacia && desde && hacia !== desde) {
+    return (
+      <span className="adoc-dato-trans">
+        <span className="adoc-dato-from">{desde}</span>
+        <svg
+          className="adoc-dato-arrow"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          aria-hidden="true"
+        >
+          <path d="M3 8h9M9 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="adoc-dato-to">{hacia}</span>
+      </span>
+    );
+  }
+  return <>{hacia ?? desde ?? "—"}</>;
+}
+
+function HorasPedido({ actual, solicitadas }: { actual?: number | null; solicitadas: number }) {
+  if (actual === undefined || actual === solicitadas) return <>{solicitadas}h</>;
+  return (
+    <Transicion
+      desde={actual === null ? "—" : String(actual) + "h"}
+      hacia={String(solicitadas) + "h"}
+    />
+  );
+}
+
+/**
+ * Tarjeta "Datos del pedido": cabecera del docente (avatar + identidad + chip de
+ * novedad), grilla de datos (cátedra/carrera/cargo/dedicación/horas), el
+ * justificativo del Jefe de Cátedra en cita y la documentación adjunta. Sólo
+ * datos reales del `PedidoDesignacion` (sin campos inventados — invariante #7).
+ */
+interface ResumenPedidoProps {
+  pedido: PedidoDesignacion;
+  /** Nombre legible del período, resuelto desde `periodoId` en la página. */
+  periodoNombre?: string;
+}
+
+export function ResumenPedido({ pedido, periodoNombre }: ResumenPedidoProps) {
+  const { docente } = pedido;
+  const tieneAdjuntos = pedido.adjuntos.length > 0;
+  const motivo = pedido.estado === "rechazado" ? motivoRechazo(pedido) : undefined;
+
+  return (
+    <section className="adoc-card adoc-det-card">
+      <header className="adoc-det-head">
+        <div className="adoc-det-id">
+          <span className="adoc-det-avatar" aria-hidden="true">
+            {iniciales(docente.nombre)}
+          </span>
+          <div className="adoc-det-namecol">
+            <div className="adoc-det-namerow">
+              <span className="adoc-det-name">{docente.nombre}</span>
+              {pedido.cargoActual && (
+                <span className="adoc-det-rolechip">{pedido.cargoActual}</span>
+              )}
+            </div>
+            <span className="adoc-det-meta">
+              DNI {docente.dni} · {docente.antiguedad} años de antigüedad
+            </span>
+          </div>
+        </div>
+        <span className={`adoc-det-tipo ${TONO_NOVEDAD[pedido.novedad]}`}>
+          {ETIQUETA_NOVEDAD[pedido.novedad]}
+        </span>
+      </header>
+
+      <div className="adoc-divider" />
+
+      <p className="adoc-eyebrow">Datos del pedido</p>
+      <div className="adoc-datos-grid">
+        <Dato etiqueta="Cátedra">{pedido.catedra}</Dato>
+        <Dato etiqueta="Carrera">{pedido.carrera}</Dato>
+        <Dato etiqueta="Período">{periodoNombre ?? "—"}</Dato>
+        <Dato etiqueta="Cargo">
+          <Transicion desde={pedido.cargoActual} hacia={pedido.cargoSolicitado} />
+        </Dato>
+        <Dato etiqueta="Dedicación">
+          <Transicion desde={pedido.dedicacionActual} hacia={pedido.dedicacionSolicitada} />
+        </Dato>
+        <Dato etiqueta="Materias">
+          {pedido.catedra} (<HorasPedido actual={pedido.horasActuales} solicitadas={pedido.horas} />
+          )
+        </Dato>
+        <Dato etiqueta="Horas de investigación">
+          <span className="adoc-dato-horas">
+            <HorasPedido
+              actual={pedido.horasInvestigacionActuales}
+              solicitadas={pedido.horasInvestigacion}
+            />{" "}
+            semanales
+            <span className="adoc-portal-tag">Portal</span>
+          </span>
+        </Dato>
+        <Dato etiqueta="Horas externas">
+          <HorasPedido actual={pedido.horasExternasActuales} solicitadas={pedido.horasExternas} />{" "}
+          semanales
+        </Dato>
+        <Dato etiqueta="Agente externo">
+          {pedido.esAgenteExterno ? (pedido.departamentoAgenteExterno ?? "Sí") : "No"}
+        </Dato>
+      </div>
+
+      {motivo && (
+        <>
+          <div className="adoc-divider" />
+          <div className="adoc-justif">
+            <p className="adoc-eyebrow">Motivo de rechazo</p>
+            <blockquote className="adoc-justif-quote adoc-justif-quote--danger">
+              {`“${motivo}”`}
+            </blockquote>
+          </div>
+        </>
+      )}
+
+      {pedido.justificacion && (
+        <>
+          <div className="adoc-divider" />
+          <div className="adoc-justif">
+            <p className="adoc-eyebrow">Justificativo del Jefe de Cátedra</p>
+            <blockquote className="adoc-justif-quote">{pedido.justificacion}</blockquote>
+          </div>
+        </>
+      )}
+
+      {tieneAdjuntos && (
+        <>
+          <div className="adoc-divider" />
+          <DocumentacionAdjuntaPedido pedidoId={pedido.id} adjuntos={pedido.adjuntos} />
+        </>
+      )}
+    </section>
+  );
+}

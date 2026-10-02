@@ -37,7 +37,7 @@
 
 ## Reglas de negocio
 
-Ver [`docs/business-rules/tareas.md`](../../business-rules/tareas.md) (a crear).
+Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.
 
 ## Dependencias
 

@@ -107,7 +107,7 @@ Ver [open-pr.md](../../../docs/workflows/open-pr.md) para el procedimiento canó
 - **Sin saltear `/evaluate`** sin acuerdo explícito del equipo.
 - **Archivar post-merge** con `/opsx:archive <id>` (nunca antes del merge).
 - Usar `git`/`gh` directo; no clientes custom de GitHub API.
-- Cumplir las invariantes del [CLAUDE.md](../../../CLAUDE.md) durante toda la implementación.
+- Cumplir las reglas de [AGENTS.md](../../../AGENTS.md) durante toda la implementación.
 
 ## Comandos clave
 

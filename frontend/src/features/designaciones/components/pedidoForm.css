@@ -1,0 +1,324 @@
+/* ============================================================
+   Formulario de pedido de designación (SCRUM-7) — layout en
+   tarjeta con secciones por novedad. Replica los frames
+   n1zz2M (Alta) / JOHDw (Baja) / tZANr (Cambio · devuelto) de
+   screens.pen con tokens del design system (@ars-docendi/ui).
+   Sin colores hardcodeados.
+   ============================================================ */
+
+.adoc-pf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* --- Encabezado de página (eyebrow + título + subtítulo) --- */
+.adoc-pf-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.adoc-pf-eyebrow {
+  margin: var(--space-0);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-title {
+  margin: var(--space-0);
+  font-size: 24px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.24px;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+.adoc-pf-subtitle {
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+/* --- Tarjeta del formulario --- */
+.adoc-pf-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6, 24px);
+  width: 100%;
+  max-width: 860px;
+  padding: 28px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+}
+
+/* --- Sección (eyebrow + contenido) --- */
+.adoc-pf-sec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-pf-sec-h {
+  margin: var(--space-0);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-note {
+  margin: var(--space-0);
+  font-size: var(--text-caption-size);
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* --- Filas de campos --- */
+.adoc-pf-radios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) 28px;
+}
+.adoc-pf-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.adoc-pf-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (max-width: 640px) {
+  .adoc-pf-row,
+  .adoc-pf-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+.adoc-pf-dz-single {
+  max-width: 360px;
+}
+
+/* --- Panel de datos actuales (solo lectura) --- */
+.adoc-pf-datos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 14px 18px;
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+}
+.adoc-pf-datos-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+.adoc-pf-datos-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.adoc-pf-datos-k {
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-v {
+  font-size: 15px;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+.adoc-pf-datos-div {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 34px;
+  background: var(--color-border-default);
+}
+.adoc-pf-datos-trans {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.adoc-pf-datos-from {
+  color: var(--color-text-tertiary);
+  font-weight: var(--weight-regular);
+}
+.adoc-pf-datos-arrow {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-to {
+  color: var(--accent-700);
+  font-weight: var(--weight-semibold);
+}
+@media (max-width: 640px) {
+  .adoc-pf-datos-strip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .adoc-pf-datos-div {
+    display: none;
+  }
+}
+
+/* --- Sub-secciones de resumen de cambios (Cambio: materias / horas) --- */
+.adoc-pf-datos-sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.adoc-pf-datos-sub-h {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-sub-filas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+/* Materias: listado — una materia debajo de la otra, no en línea. */
+.adoc-pf-datos-sub-lista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+/* Fila = "etiqueta · valor" compacto (no space-between: van pegados a
+   propósito, para que se lea como una sola unidad). Cuando hay cambio, el
+   valor usa la misma transición viejo-tenue → nuevo-en-negrita que Cargo y
+   Dedicación (ver .adoc-pf-datos-trans) — mismo lenguaje visual en todo el
+   panel, sin un tratamiento de "warning" aparte. */
+.adoc-pf-datos-sub-fila {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 4px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-caption-size);
+  line-height: 1.3;
+}
+.adoc-pf-datos-sub-etiqueta {
+  color: var(--color-text-secondary);
+}
+.adoc-pf-datos-sub-etiqueta::after {
+  content: "·";
+  margin-left: 5px;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-datos-sub-valor {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.adoc-pf-datos-sub-fila.quitada {
+  padding: 3px 8px;
+}
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-etiqueta,
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-etiqueta::after,
+.adoc-pf-datos-sub-fila.quitada .adoc-pf-datos-sub-valor {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+  font-weight: var(--weight-regular);
+}
+
+.adoc-pf-datos-sub-fila.agregada {
+  background: var(--accent-100);
+  padding: 3px 8px;
+}
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-etiqueta,
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-etiqueta::after,
+.adoc-pf-datos-sub-fila.agregada .adoc-pf-datos-sub-valor {
+  color: var(--accent-700);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Lista de materias y horas (Alta/Cambio editable, Baja de solo lectura) --- */
+.adoc-pf-materias {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.adoc-pf-materias-h {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+.adoc-pf-materias-fila {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.adoc-pf-materias-fila > *:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-pf-materias-horas {
+  flex: 0 0 160px;
+}
+.adoc-pf-materias-ro {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: var(--space-0) var(--space-3);
+  background: var(--color-bg-canvas);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-primary);
+  font-size: var(--text-body-sm-size);
+}
+.adoc-pf-materias-quitar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: var(--space-0);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.adoc-pf-materias-quitar:hover {
+  color: var(--color-text-danger);
+  border-color: var(--color-border-danger);
+}
+.adoc-pf-materias-quitar svg {
+  width: 16px;
+  height: 16px;
+}
+.adoc-pf-materias-error {
+  margin: var(--space-0);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-danger);
+}
+
+/* --- Botonera --- */
+.adoc-pf-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}

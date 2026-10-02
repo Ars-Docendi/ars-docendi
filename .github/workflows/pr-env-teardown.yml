@@ -17,16 +17,19 @@ jobs:
   teardown:
     # Pool persistente (confiable): el teardown corre código de la rama BASE con
     # credenciales admin, no código del PR. No necesita runner efímero.
-    runs-on: [self-hosted, arsdocendi, confiable]
+    # El teardown debe correr donde existen la base y el bucket del PR.
+    runs-on: [self-hosted, arsdocendi, confiable, secundaria]
     env:
       AMBIENTE: pr-${{ github.event.pull_request.number }}
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      SEAWEEDFS_ROOT_ACCESS_KEY: ${{ secrets.SEAWEEDFS_ROOT_ACCESS_KEY }}
+      SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
     steps:
       # Checkout de la rama BASE (código confiable), NO el del PR.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           ref: ${{ github.event.pull_request.base.ref }}
 
