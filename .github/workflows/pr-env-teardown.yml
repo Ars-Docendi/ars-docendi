@@ -17,7 +17,8 @@ jobs:
   teardown:
     # Pool persistente (confiable): el teardown corre código de la rama BASE con
     # credenciales admin, no código del PR. No necesita runner efímero.
-    runs-on: [self-hosted, arsdocendi, confiable]
+    # El teardown debe correr donde existen la base y el bucket del PR.
+    runs-on: [self-hosted, arsdocendi, confiable, secundaria]
     env:
       AMBIENTE: pr-${{ github.event.pull_request.number }}
       PGHOST: ${{ secrets.PGHOST }}
