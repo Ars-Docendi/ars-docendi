@@ -1,6 +1,6 @@
 ## Purpose
 
-Plataforma de ambientes efímeros para la aplicación web (frontend + backend): modela tres clases de ambiente (prod, staging, pr-N), su routing por labels de contenedor vía Traefik, su ingreso público vía Cloudflare Tunnel wildcard, el aislamiento de datos por ambiente sobre una instancia Postgres compartida, el templating de Compose, el reaper de ambientes huérfanos y el tooling de operación manual. Define las fronteras de red que mantienen datos y administración fuera del alcance público.
+Plataforma de ambientes efímeros para la aplicación web (frontend + backend): modela tres clases de ambiente (prod, staging, pr-N), su routing por labels de contenedor vía Traefik, su ingreso público vía Cloudflare Tunnel wildcard, el aislamiento de datos por ambiente sobre una instancia Postgres compartida, el templating de Compose y el tooling de operación manual. Define las fronteras de red que mantienen datos y administración fuera del alcance público.
 
 ## Requirements
 
@@ -103,22 +103,6 @@ La definición de los servicios SHALL expresarse como una **base de Compose** pa
 - **WHEN** se materializa el ambiente `pr-150` con tag de imagen `sha-abc123` y hostname `pr-150.example.net`
 - **THEN** se usa la misma definición base de servicios que prod y staging
 - **AND** solo difieren hostname, tag de imagen, nombre de ambiente y connection string
-
-### Requirement: Reaper de ambientes huérfanos
-
-La plataforma SHALL incluir un reaper (script invocado por un systemd timer o cron) que elimine los ambientes `pr-N` cuya antigüedad supere un umbral configurable de N días, incluyendo sus contenedores y su base/schema. El reaper MUST NOT tocar los ambientes `prod` ni `staging`. Su objetivo es garantizar que un webhook de cierre de PR perdido no deje ambientes colgados indefinidamente.
-
-#### Scenario: Reaper borra ambiente vencido
-
-- **WHEN** un ambiente `pr-77` lleva más de N días activo y el reaper corre
-- **THEN** el reaper destruye los contenedores de `pr-77` y elimina su base/schema
-- **AND** registra la acción en logs estructurados
-
-#### Scenario: Reaper preserva prod y staging
-
-- **WHEN** el reaper corre con `prod` y `staging` activos desde hace más de N días
-- **THEN** no toca ni `prod` ni `staging`
-- **AND** solo considera ambientes con prefijo `pr-`
 
 ### Requirement: Tooling de operación manual
 
