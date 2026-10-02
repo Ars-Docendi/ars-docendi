@@ -4,21 +4,21 @@
 
 - [x] 1.1 Adaptar `spin-up.sh` para `HOST_PUBLICO=<DOMINIO>` sólo en prod y conservar subdominios para staging/pr-N; agregar pruebas de las tres variantes y verificar que proyecto, base, bucket y Environment prod no se renombraron.
 - [x] 1.2 Eliminar matrices duales de `deploy-prod.yml` y `deploy-staging.yml`, dirigiéndolos exclusivamente a principal y secundaria respectivamente; verificar con actionlint y pruebas de routing que cada ambiente tiene un único destino, SHA y scopes GitHub correctos.
-- [ ] 1.3 Conservar previews y teardown sólo en Proxmox con gates originales; verificar labels y scripts confiables con pruebas/actionlint y observar un PR de ensayo con teardown sin afectar producción.
+- [x] 1.3 Conservar previews y teardown sólo en Proxmox con gates originales; verificar labels y scripts confiables con pruebas/actionlint y observar un PR de ensayo con teardown sin afectar producción.
 - [x] 1.4 Actualizar `docs/operations/github-pr-deploy.md` y ejemplos de runners para el nuevo reparto; verificar consistencia de todas las etiquetas y scopes con los workflows revisados.
 
 ## 2. Túneles y DNS sin conmutación
 
 - [x] 2.1 Adaptar `config-principal.yml` al dominio raíz únicamente y `config.yml` a staging/wildcard con rechazo exacto de `prod.<DOMINIO>` antes del wildcard; verificar reglas de raíz, staging, preview y antiguo prod con `cloudflared ingress rule` o pruebas equivalentes.
 - [x] 2.2 Actualizar `infra/cloudflared/README.md`, `infra/README.md` y `infra/traefik/README.md`: apex a Debian, wildcard/staging a Proxmox, reutilización del túnel actual y gestión local/remota; verificar ausencia de instrucciones de LB/Worker/failover requeridos y coherencia con las nuevas plantillas.
-- [ ] 2.3 Operador configura túnel/DNS raíz de Debian, conserva staging/previews en Proxmox y verifica política Access pertinente; registrar evidencia de resolución/ingress y peticiones frontend/API por hostname, sin secretos. No afirmar configuración externa por validar plantillas.
+- [x] 2.3 Operador configura túnel/DNS raíz de Debian, conserva staging/previews en Proxmox y verifica política Access pertinente; registrar evidencia de resolución/ingress y peticiones frontend/API por hostname, sin secretos. No afirmar configuración externa por validar plantillas.
 
 ## 3. Corte productivo seguro
 
-- [ ] 3.1 Documentar y verificar checklist de servicios por host, puertos privados, secretos de GitHub y callbacks SSO aplicables; probar login, escrituras y carga/descarga de adjuntos en Debian sin imprimir credenciales, y staging/previews sólo en Proxmox.
-- [ ] 3.2 Antes del corte, obtener decisión explícita sobre transferencia o descarte de datos del prod anterior; si hay transferencia, verificar backup/restore conjunto de PostgreSQL y objetos. No ejecutar borrados ni asumir producción vacía.
-- [ ] 3.3 Operador registra runners por ubicación y valida persistencia del label secundaria tras nuevo registro efímero; comprobar runners online en ambas máquinas y un deploy real por ambiente con su SHA.
-- [ ] 3.4 Tras aceptar producción en dominio raíz, retirar exposición/runtime prod de Proxmox preservando datos hasta autorización; verificar que `prod.<DOMINIO>` no sirve la app por wildcard y que staging/previews siguen operativos. Documentar rollback sin pérdida implícita de escrituras.
+- [x] 3.1 Documentar y verificar checklist de servicios por host, puertos privados, secretos de GitHub y callbacks SSO aplicables; probar login, escrituras y carga/descarga de adjuntos en Debian sin imprimir credenciales, y staging/previews sólo en Proxmox.
+- [x] 3.2 Antes del corte, obtener decisión explícita sobre transferencia o descarte de datos del prod anterior; si hay transferencia, verificar backup/restore conjunto de PostgreSQL y objetos. No ejecutar borrados ni asumir producción vacía.
+- [x] 3.3 Operador registra runners por ubicación y valida persistencia del label secundaria tras nuevo registro efímero; comprobar runners online en ambas máquinas y un deploy real por ambiente con su SHA.
+- [x] 3.4 Tras aceptar producción en dominio raíz, retirar exposición/runtime prod de Proxmox preservando datos hasta autorización; verificar que `prod.<DOMINIO>` no sirve la app por wildcard y que staging/previews siguen operativos. Documentar rollback sin pérdida implícita de escrituras.
 
 ## 4. Documentación, validación y retiro posterior
 
@@ -40,6 +40,10 @@ Las tareas cerradas se verificaron para el alcance revisado. Las comprobaciones 
 - `actionlint v1.7.12` en todos los workflows, `bash -n` de scripts afectados, `pnpm format:check`, `git diff --check` y OpenSpec estricto: correctos.
 - `cloudflared tunnel ingress rule` sobre las plantillas comprobó las cuatro variantes por host: Debian sirve sólo raíz; Proxmox sirve staging/previews y selecciona 404 para raíz y antiguo prod. Es validación de reglas, no tráfico externo.
 - CI ejecuta la suite de infraestructura junto al formato. No se dispararon deployments remotos ni se modificaron runners, DNS, túneles activos o datos.
+
+## Confirmación de cierre
+
+El usuario confirmó la sincronización y el archivo, aceptando las 15 tareas marcadas del checklist como confirmación del operador para las verificaciones externas. El asistente volvió a ejecutar las 13 pruebas locales de infraestructura, formato, validación estricta global y comprobación del diff; no repitió pruebas en los hosts ni comprobaciones del panel Cloudflare, runners, datos o tráfico real. El archivo registra ese cierre aprobado y no constituye una certificación remota independiente.
 
 ## Responsables y gates
 
