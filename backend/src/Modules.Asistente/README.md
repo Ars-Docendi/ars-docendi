@@ -224,15 +224,25 @@ Tres cosas se verifican solas al agregarlo:
 - la huella del catálogo cambia, y con ella el sellado de los reportes de
   evaluación.
 
-Y tres que «ejecuta» no ve (`EjemplosEjecutablesTests`), porque un ejemplo puede
+Y dos que «ejecuta» no ve (`EjemplosEjecutablesTests`), porque un ejemplo puede
 correr sin error y enseñar algo equivocado:
 
 - no lee el texto histórico `dedicacion` / `dedicacion_solicitada`: la forma vigente
   es `dedicacion_id` contra `designaciones.dedicaciones`;
-- no compara con `=` un nombre que la persona tipea (materia, apellido, nombre): va
-  `public.unaccent(col) ILIKE public.unaccent('%…%')`, como pide la regla 8 del prompt;
 - el literal con que filtra un catálogo cerrado **existe** en ese catálogo — un
   `count(*)` sobre un valor inexistente devuelve cero y parece un dato.
+
+**Los ejemplos de materias comparan el nombre con `=`, y es a propósito**, aunque la
+regla 8 del prompt pida `public.unaccent(col) ILIKE public.unaccent('%…%')`. Se
+probó pasarlos a esa forma y, contra Qwen3-8B, «docentes de Bases de Datos» dejó de
+resolverse por la materia y pasó a buscar la habilidad: el modelo copia la forma
+del ejemplo más simple que nombra esas palabras. Antes de cambiarlos, medirlo con
+el evaluador.
+
+**Agregar ejemplos tampoco es gratis.** El selector elige por parecido de palabras,
+así que un ejemplo nuevo cambia lo que reciben muchas otras preguntas: con ocho
+ejemplos más cambió la selección de 22 de los 34 ítems de capacidad y se perdieron
+tres aciertos. Todo ejemplo nuevo se mide antes de quedar.
 
 **Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
 son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce

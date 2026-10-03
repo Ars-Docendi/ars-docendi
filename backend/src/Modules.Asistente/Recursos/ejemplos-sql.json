@@ -5,7 +5,7 @@
     {
       "pregunta": "¿Qué docentes están designados en Algoritmos y Estructuras de Datos?",
       "categoria": "cruce_de_tablas",
-      "sql": "SELECT p.apellido, p.nombre, c.nombre AS cargo, d.horas FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE public.unaccent(m.name) ILIKE public.unaccent('%Algoritmos%') AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
+      "sql": "SELECT p.apellido, p.nombre, c.nombre AS cargo, d.horas FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE m.name = 'Algoritmos y Estructuras de Datos' AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
     },
     {
       "pregunta": "¿Cuántos profesores titulares hay en la carrera de Ingeniería Informática?",
@@ -40,7 +40,7 @@
     {
       "pregunta": "¿Quién es el jefe de cátedra de Bases de Datos?",
       "categoria": "cruce_de_tablas",
-      "sql": "SELECT u.display_name, m.name AS materia FROM identity.user_roles ur JOIN identity.users u ON u.id = ur.user_id JOIN identity.roles r ON r.id = ur.role_id JOIN identity.materias m ON m.id = ur.materia_id WHERE r.code = 'jefe_catedra' AND public.unaccent(m.name) ILIKE public.unaccent('%Bases de Datos%') AND ur.deleted_at IS NULL ORDER BY u.display_name"
+      "sql": "SELECT u.display_name, m.name AS materia FROM identity.user_roles ur JOIN identity.users u ON u.id = ur.user_id JOIN identity.roles r ON r.id = ur.role_id JOIN identity.materias m ON m.id = ur.materia_id WHERE r.code = 'jefe_catedra' AND m.name = 'Bases de Datos' AND ur.deleted_at IS NULL ORDER BY u.display_name"
     },
     {
       "pregunta": "¿Cuántas horas semanales tiene asignadas cada docente?",
@@ -75,7 +75,7 @@
     {
       "pregunta": "¿Qué dedicación y cuántas horas tiene cada designación de la materia Paradigmas de Programación?",
       "categoria": "cruce_de_tablas",
-      "sql": "SELECT p.apellido, p.nombre, de.nombre AS dedicacion, d.horas, c.abreviatura AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE public.unaccent(m.name) ILIKE public.unaccent('%Paradigmas%') AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
+      "sql": "SELECT p.apellido, p.nombre, de.nombre AS dedicacion, d.horas, c.abreviatura AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN designaciones.cargos c ON c.id = d.cargo_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE m.name = 'Paradigmas de Programación' AND d.vigente_hasta IS NULL ORDER BY c.orden, p.apellido"
     },
     {
       "pregunta": "¿Cuántas materias tiene cada carrera?",

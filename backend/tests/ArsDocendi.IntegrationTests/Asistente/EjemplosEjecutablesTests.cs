@@ -95,8 +95,7 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
     // ------------------------------------------------------------------
     // What "executes" does not catch. An example can run without error and
     // still teach the model something wrong: a column that is no longer the
-    // current one, a literal that matches no row, or a comparison the
-    // generation instructions forbid.
+    // current one, or a literal that matches no row.
     // ------------------------------------------------------------------
 
     [Fact]
@@ -116,38 +115,6 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
             viejos.Count == 0,
             "Examples reading the legacy dedication text instead of dedicacion_id: "
             + string.Join(" · ", viejos));
-    }
-
-    [Fact]
-    public void No_example_compares_a_typed_name_with_equality()
-    {
-        // Rule 8 of the generation instructions: a name the user typed is compared
-        // with public.unaccent(col) ILIKE public.unaccent('%…%'), never with `=`.
-        // An example using `=` teaches the opposite of what the prompt asks.
-        var nombresTipeados = new HashSet<(string, string, string)>
-        {
-            ("identity", "materias", "name"),
-            ("identity", "personas", "apellido"),
-            ("identity", "personas", "nombre"),
-            ("identity", "users", "display_name"),
-        };
-
-        var conIgualdad = new List<string>();
-        foreach (var ejemplo in new SelectorDeEjemplos().Catalogo)
-        {
-            foreach (var (esquema, tabla, columna, literal) in IgualdadesConLiteral(ejemplo.Sql))
-            {
-                if (nombresTipeados.Contains((esquema, tabla, columna)))
-                {
-                    conIgualdad.Add($"«{ejemplo.Pregunta}»: {tabla}.{columna} = '{literal}'");
-                }
-            }
-        }
-
-        Assert.True(
-            conIgualdad.Count == 0,
-            "Examples comparing a typed name with `=` instead of public.unaccent … ILIKE:"
-            + Environment.NewLine + string.Join(Environment.NewLine, conIgualdad));
     }
 
     [Fact]
