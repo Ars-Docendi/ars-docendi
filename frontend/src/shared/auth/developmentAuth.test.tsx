@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -7,6 +8,11 @@ vi.mock("./developmentAuth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./developmentAuth")>()),
   developmentAuthEnabled: true,
 }));
+// Independiente del .env.local de quien corre los tests: acá el botón principal abre el selector.
+vi.mock("./sesionMicrosoft", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./sesionMicrosoft")>()),
+  microsoftLoginEnabled: false,
+}));
 vi.mock("./dev/DevLoginModal", () => ({
   DevLoginModal: ({ open }: { open: boolean }) =>
     open ? <div role="dialog">Selector de identidades</div> : null,
@@ -14,7 +20,6 @@ vi.mock("./dev/DevLoginModal", () => ({
 
 import { apiClient } from "../api/client";
 import { LoginPage } from "./LoginPage";
-import { isAuthenticated } from "./auth";
 import { obtenerSesionDesarrollo, seleccionarSesionDesarrollo } from "./dev/session";
 import { resolverDevelopmentAuthEnabled } from "./developmentAuth";
 
@@ -31,9 +36,11 @@ describe("autenticación sembrada configurable", () => {
 
   it("abre el selector al pulsar ingresar en un bundle optimizado habilitado", async () => {
     render(
-      <MemoryRouter>
-        <LoginPage />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter>
+          <LoginPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await userEvent.click(
@@ -45,7 +52,6 @@ describe("autenticación sembrada configurable", () => {
 
   it("conserva la sesión seleccionada cuando el opt-in está habilitado", () => {
     seleccionarSesionDesarrollo("usuario-1", "jefe_catedra");
-    expect(isAuthenticated()).toBe(true);
     expect(obtenerSesionDesarrollo()).toEqual({
       usuarioId: "usuario-1",
       rolCodigo: "jefe_catedra",

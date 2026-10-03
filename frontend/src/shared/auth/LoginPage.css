@@ -132,6 +132,11 @@
   color: var(--color-text-secondary);
   line-height: 1.55;
 }
+.login-card .cta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
 .login-card .cta .adoc-btn {
   width: 100%;
 }

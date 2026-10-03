@@ -2,13 +2,11 @@ import axios from "axios";
 import { developmentAuthEnabled } from "../auth/developmentAuth";
 import { obtenerSesionDesarrollo } from "../auth/dev/session";
 
-// En desarrollo Vite y la API usan puertos distintos. En bundles desplegados,
-// Traefik publica la API bajo /api en el mismo host que el frontend.
-const baseURL =
-  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:5000" : undefined);
-
+// La API vive bajo /api del mismo host que el frontend: en los despliegues lo
+// publica Traefik y en local lo proxea Vite. VITE_API_URL sólo hace falta para
+// apuntar a otra API a propósito.
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: import.meta.env.VITE_API_URL || undefined,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -22,3 +20,18 @@ if (developmentAuthEnabled) {
     return config;
   });
 }
+
+const manejadoresNoAutorizado = new Set<(url: string | undefined) => void>();
+
+/** Avisa cuando la API responde 401; devuelve la función para dejar de escuchar. */
+export function alRecibirNoAutorizado(manejador: (url: string | undefined) => void): () => void {
+  manejadoresNoAutorizado.add(manejador);
+  return () => manejadoresNoAutorizado.delete(manejador);
+}
+
+apiClient.interceptors.response.use(undefined, (error) => {
+  if (axios.isAxiosError(error) && error.response?.status === 401) {
+    manejadoresNoAutorizado.forEach((manejador) => manejador(error.config?.url));
+  }
+  return Promise.reject(error);
+});

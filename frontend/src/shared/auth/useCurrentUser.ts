@@ -1,7 +1,9 @@
 import { useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { developmentAuthEnabled } from "./developmentAuth";
 import { obtenerSesionDesarrollo, suscribirSesionDesarrollo } from "./dev/session";
 import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
+import { microsoftLoginEnabled, obtenerSesion, sesionKeys } from "./sesionMicrosoft";
 
 export type Role = string;
 
@@ -21,13 +23,38 @@ export interface CurrentUserState {
   retry: () => void;
 }
 
-function useCurrentUserDesarrollo(): CurrentUserState {
+/**
+ * Sesión vigente. Una selección del selector de desarrollo manda sobre la cookie;
+ * sin selección, la sesión es la cookie del ingreso con Microsoft.
+ */
+export function useCurrentUser(): CurrentUserState {
+  const sesionDesarrollo = useSyncExternalStore(
+    suscribirSesionDesarrollo,
+    obtenerSesionDesarrollo,
+    () => null,
+  );
+  const usarDesarrollo =
+    developmentAuthEnabled && (sesionDesarrollo !== null || !microsoftLoginEnabled);
+  const desarrollo = useCurrentUserDesarrollo(usarDesarrollo);
+  const microsoft = useCurrentUserMicrosoft(microsoftLoginEnabled && !usarDesarrollo);
+
+  if (usarDesarrollo) return desarrollo;
+  if (microsoftLoginEnabled) return microsoft;
+  return {
+    user: null,
+    isLoading: false,
+    error: new Error("El ingreso con Microsoft no está habilitado en este ambiente."),
+    retry: () => undefined,
+  };
+}
+
+function useCurrentUserDesarrollo(habilitado: boolean): CurrentUserState {
   const sesion = useSyncExternalStore(
     suscribirSesionDesarrollo,
     obtenerSesionDesarrollo,
     () => null,
   );
-  const consulta = useIdentidadesDesarrollo();
+  const consulta = useIdentidadesDesarrollo(habilitado && sesion !== null);
   const identidad = consulta.data?.find((item) => item.usuarioId === sesion?.usuarioId);
   const rol = identidad?.roles.find((item) => item.codigo === sesion?.rolCodigo);
   const user =
@@ -54,18 +81,32 @@ function useCurrentUserDesarrollo(): CurrentUserState {
   };
 }
 
-function useCurrentUserProduccion(): CurrentUserState {
+function useCurrentUserMicrosoft(habilitado: boolean): CurrentUserState {
+  const consulta = useQuery({
+    queryKey: sesionKeys.actual,
+    queryFn: obtenerSesion,
+    enabled: habilitado,
+    staleTime: 60_000,
+  });
+  const sesion = consulta.data;
   return {
-    user: null,
-    isLoading: false,
-    error: new Error("La integración de identidad institucional todavía no está configurada."),
-    retry: () => undefined,
+    user: sesion
+      ? {
+          name: sesion.nombreParaMostrar,
+          initials: iniciales(sesion.nombreParaMostrar),
+          upn: sesion.upn,
+          role: sesion.rolNombre,
+          roleCode: sesion.rolCodigo,
+          permissions: sesion.permisos,
+        }
+      : null,
+    isLoading: consulta.isLoading,
+    error: consulta.error,
+    retry: () => {
+      void consulta.refetch();
+    },
   };
 }
-
-export const useCurrentUser = developmentAuthEnabled
-  ? useCurrentUserDesarrollo
-  : useCurrentUserProduccion;
 
 function iniciales(nombre: string): string {
   return nombre

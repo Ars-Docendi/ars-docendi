@@ -2,9 +2,10 @@ import { lazy, Suspense, useState } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button, InlineAlert } from "@ars-docendi/ui";
 
-import { isAuthenticated } from "./auth";
 import { developmentAuthEnabled } from "./developmentAuth";
 import { seleccionarSesionDesarrollo } from "./dev/session";
+import { microsoftLoginEnabled, urlIngresoMicrosoft } from "./sesionMicrosoft";
+import { useCurrentUser } from "./useCurrentUser";
 import "./LoginPage.css";
 
 const DevLoginModal = developmentAuthEnabled
@@ -66,9 +67,10 @@ export function LoginPage() {
   const [devModalOpen, setDevModalOpen] = useState(false);
   const navigate = useNavigate();
   const target = usePostLoginTarget();
+  const { user } = useCurrentUser();
 
   // Already signed in? Don't show the login screen — go straight to the app.
-  if (isAuthenticated()) {
+  if (user) {
     return <Navigate to={target} replace />;
   }
 
@@ -79,14 +81,13 @@ export function LoginPage() {
   const state: LoginState = redirecting ? "redirecting" : baseState;
 
   function handleLogin() {
-    // TODO: real Azure AD redirect. When a real entry URL is configured, hand off to it.
-    const loginUrl = import.meta.env.VITE_AUTH_LOGIN_URL;
-    if (loginUrl) {
+    // El backend hace el ingreso con Microsoft y vuelve a `target` con la cookie de sesión.
+    if (microsoftLoginEnabled) {
       setRedirecting(true);
-      window.location.assign(loginUrl);
+      window.location.assign(urlIngresoMicrosoft(target));
       return;
     }
-    // Azure AD todavía no está conectado. El selector sembrado sólo se compila en desarrollo.
+    // Sin ingreso con Microsoft, el botón abre el selector sembrado (sólo no productivo).
     if (DevLoginModal) setDevModalOpen(true);
   }
 
@@ -146,6 +147,11 @@ export function LoginPage() {
             ) : (
               <Button variant="primary" size="lg" leadingIcon={<MsGlyph />} onClick={handleLogin}>
                 Iniciar sesión con cuenta institucional
+              </Button>
+            )}
+            {microsoftLoginEnabled && DevLoginModal && state !== "redirecting" && (
+              <Button variant="ghost" size="sm" onClick={() => setDevModalOpen(true)}>
+                Ingresar con una identidad de desarrollo
               </Button>
             )}
           </div>

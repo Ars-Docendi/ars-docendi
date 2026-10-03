@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Identity.Desarrollo;
+using ArsDocendi.Shared.Identity.Ingreso;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +45,9 @@ public static class DependencyInjection
         services.AddScoped<IAdministracionIdentity, ServicioPersonas>();
         services.AddScoped<IUnidadDeTrabajoAdministracion, UnidadDeTrabajoAdministracion>();
         services.AddScoped<ServicioIdentidadesDesarrollo>();
+        services.AddScoped<RepositorioIngreso>();
+        services.AddScoped<ServicioSesion>();
+        services.AddScoped<ServicioIngreso>();
 
         return services;
     }
