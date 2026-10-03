@@ -28,6 +28,10 @@ El ingreso real es con cuentas Microsoft (personales o de cualquier organizació
 
 Con el ingreso deshabilitado estas rutas no existen.
 
+La sesión vence a los `AutenticacionMicrosoft:MinutosInactividad` (60) sin solicitudes y a las `HorasMaximas` (10) desde el ingreso, aunque haya actividad. Desde el primer ingreso la cuenta queda vinculada por `oid` y tenant: los ingresos siguientes no dependen del mail, y otra cuenta con el mismo mail se rechaza.
+
+**Anti-falsificación (CSRF).** Toda solicitud `POST`, `PUT`, `PATCH` o `DELETE` autenticada por la cookie de sesión debe traer el header `X-XSRF-TOKEN`; sin él, o con uno inválido, responde `400` sin aplicar cambios. Cada `GET` autenticado por cookie entrega el token en la cookie `XSRF-TOKEN` (legible por JavaScript), que axios devuelve solo en las solicitudes al mismo origen. Las identidades de desarrollo viajan en headers y no lo necesitan.
+
 En desarrollo, y sólo con `DevelopmentAuthentication:Enabled=true`, el cliente puede enviar `X-Dev-User-Id` y `X-Dev-Role-Code`. El Host valida ambos valores contra una identidad sintética activa; si llegan, mandan sobre la cookie. En Production no se registran el esquema, los headers ni `/api/desarrollo/identidades`. Ambos caminos producen el mismo `ICurrentUser`, sin cambiar contratos de negocio.
 
 ## Forma de error estándar

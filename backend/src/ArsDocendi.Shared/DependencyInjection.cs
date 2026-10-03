@@ -36,7 +36,6 @@ public static class DependencyInjection
 
         services.AddScoped<IMigradorModulo, MigradorIdentity>();
         services.AddScoped<IConsultasIdentity, ConsultasIdentity>();
-        services.AddScoped<IVinculadorPrimerLogin, VinculadorPrimerLogin>();
         services.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
         services.AddScoped<ServicioUsuarios>();
         services.AddScoped<IRepositorioRoles, RepositorioRoles>();

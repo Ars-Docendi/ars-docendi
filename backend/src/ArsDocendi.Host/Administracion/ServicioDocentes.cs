@@ -271,7 +271,6 @@ public sealed class ServicioDocentes(
     private static Usuario NuevoUsuario(Persona persona, string upn) => new()
     {
         Id = Guid.NewGuid(),
-        AzureOid = Guid.NewGuid(),
         Upn = upn,
         NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}",
         Activo = true,

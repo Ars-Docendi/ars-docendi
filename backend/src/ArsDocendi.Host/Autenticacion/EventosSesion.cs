@@ -6,6 +6,7 @@ using ArsDocendi.Shared.Identity.Ingreso;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.Options;
 
 namespace ArsDocendi.Host.Autenticacion;
 
@@ -36,13 +37,19 @@ public static partial class EventosSesion
             return;
         }
 
+        var ahora = servicios.GetRequiredService<TimeProvider>().GetUtcNow();
         var identidad = new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.NameIdentifier, resultado.UsuarioId!.Value.ToString()),
-                new Claim(ClaimInicio, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)),
+                new Claim(ClaimInicio, ahora.ToString("O", CultureInfo.InvariantCulture)),
             ],
             RegistroAutenticacion.EsquemaSesion);
         contexto.Principal = new ClaimsPrincipal(identidad);
+
+        // El vínculo y el último ingreso se auditan con el propio usuario como actor.
+        contexto.HttpContext.User = contexto.Principal;
+        await servicios.GetRequiredService<ServicioIngreso>()
+            .RegistrarIngresoAsync(resultado.UsuarioId.Value, cuenta!, contexto.HttpContext.RequestAborted);
     }
 
     /// <summary>Microsoft devolvió un error o la persona canceló el ingreso.</summary>
@@ -62,16 +69,17 @@ public static partial class EventosSesion
     }
 
     /// <summary>
-    /// En cada solicitud con cookie: rechaza la sesión de un usuario inactivo o sin rol
-    /// y, si sigue vigente, reemplaza el principal por rol y permisos actuales. El
-    /// reemplazo no se persiste en la cookie.
+    /// En cada solicitud con cookie: rechaza la sesión que superó su duración máxima o
+    /// la de un usuario inactivo o sin rol y, si sigue vigente, reemplaza el principal
+    /// por rol y permisos actuales. El reemplazo no se persiste en la cookie. La
+    /// inactividad la vence el propio handler de cookies (expiración deslizante).
     /// </summary>
     public static async Task ValidarAsync(CookieValidatePrincipalContext contexto)
     {
         var usuarioTexto = contexto.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
         var inicio = contexto.Principal?.FindFirstValue(ClaimInicio);
         IdentidadSesion? sesion = null;
-        if (Guid.TryParse(usuarioTexto, out var usuarioId) && inicio is not null)
+        if (Guid.TryParse(usuarioTexto, out var usuarioId) && DentroDeLaDuracionMaxima(contexto, inicio))
         {
             sesion = await contexto.HttpContext.RequestServices
                 .GetRequiredService<ServicioSesion>()
@@ -97,6 +105,18 @@ public static partial class EventosSesion
         claims.AddRange(sesion.Permisos.Select(p => new Claim(Permisos.Claim, p)));
         contexto.ReplacePrincipal(new ClaimsPrincipal(
             new ClaimsIdentity(claims, RegistroAutenticacion.EsquemaSesion)));
+    }
+
+    private static bool DentroDeLaDuracionMaxima(CookieValidatePrincipalContext contexto, string? inicio)
+    {
+        if (!DateTimeOffset.TryParse(inicio, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var desde))
+        {
+            return false;
+        }
+
+        var horasMaximas = contexto.HttpContext.RequestServices
+            .GetRequiredService<IOptions<AutenticacionMicrosoftOptions>>().Value.HorasMaximas;
+        return contexto.Options.TimeProvider!.GetUtcNow() < desde.AddHours(horasMaximas);
     }
 
     private static DatosCuentaMicrosoft? LeerCuenta(ClaimsPrincipal? principal)

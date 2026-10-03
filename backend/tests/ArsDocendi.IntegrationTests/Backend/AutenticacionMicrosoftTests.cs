@@ -30,6 +30,7 @@ namespace ArsDocendi.IntegrationTests.Backend;
 public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_ms")
 {
+    private readonly RelojAjustable _reloj = new(DateTimeOffset.UtcNow);
     private const string AutorizacionFalsa = "https://login.example.test/authorize";
     private const string RutaIngresoPruebas = "/__pruebas/ingresar";
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
@@ -143,12 +144,118 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         using var host = CrearHost(microsoft: true, desarrollo: false);
         using var cliente = CrearCliente(host);
         await IngresarAsync(cliente, usuario, ct);
+        var token = await ObtenerTokenAsync(cliente, ct);
 
-        using var logout = await cliente.PostAsync("/api/auth/logout", null, ct);
+        using var logout = await PostConTokenAsync(cliente, "/api/auth/logout", token, ct);
         using var sesion = await cliente.GetAsync("/api/auth/sesion", ct);
 
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, sesion.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sesion_por_http_local_entrega_el_token_sin_fallar()
+    {
+        // En local se corre por http://localhost y el navegador igual envía la cookie Secure.
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var https = CrearCliente(host);
+        using var ingreso = await https.PostAsync($"{RutaIngresoPruebas}/{usuario}", null, ct);
+        var cookie = ingreso.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith(RegistroAutenticacion.NombreCookie, StringComparison.Ordinal))
+            .Split(';')[0];
+        using var http = host.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            HandleCookies = false,
+        });
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/auth/sesion");
+        solicitud.Headers.Add("Cookie", cookie);
+        using var respuesta = await http.SendAsync(solicitud, ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Contains(respuesta.Headers.GetValues("Set-Cookie"),
+            c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Mutacion_por_cookie_sin_token_se_rechaza_sin_aplicar_cambios()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var cliente = CrearCliente(host);
+        await IngresarAsync(cliente, usuario, ct);
+        await ObtenerTokenAsync(cliente, ct);
+
+        using var sinToken = await cliente.PostAsync("/api/auth/logout", null, ct);
+        using var tokenInvalido = await PostConTokenAsync(cliente, "/api/auth/logout", "inventado", ct);
+        using var sesion = await cliente.GetAsync("/api/auth/sesion", ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, sinToken.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tokenInvalido.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, sesion.StatusCode);
+    }
+
+    [Fact]
+    public async Task Mutacion_con_headers_de_desarrollo_no_requiere_token()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: true);
+        using var cliente = CrearCliente(host);
+        await IngresarAsync(cliente, usuario, ct);
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, JefeSembrado.ToString());
+        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+
+        Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task La_sesion_vence_tras_el_periodo_de_inactividad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var cliente = CrearCliente(host);
+        await IngresarAsync(cliente, usuario, ct);
+
+        _reloj.Avanzar(TimeSpan.FromMinutes(59));
+        using var antes = await cliente.GetAsync("/api/auth/sesion", ct);
+        _reloj.Avanzar(TimeSpan.FromMinutes(61));
+        using var despues = await cliente.GetAsync("/api/auth/sesion", ct);
+
+        Assert.Equal(HttpStatusCode.OK, antes.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, despues.StatusCode);
+    }
+
+    [Fact]
+    public async Task La_sesion_vence_en_la_duracion_maxima_aunque_haya_actividad()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var cliente = CrearCliente(host);
+        await IngresarAsync(cliente, usuario, ct);
+
+        // Una solicitud cada 40 minutos renueva la cookie por inactividad durante 9 h 20.
+        for (var i = 0; i < 14; i++)
+        {
+            _reloj.Avanzar(TimeSpan.FromMinutes(40));
+            using var activa = await cliente.GetAsync("/api/auth/sesion", ct);
+            Assert.Equal(HttpStatusCode.OK, activa.StatusCode);
+        }
+
+        _reloj.Avanzar(TimeSpan.FromMinutes(41));
+        using var vencida = await cliente.GetAsync("/api/auth/sesion", ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, vencida.StatusCode);
     }
 
     [Theory]
@@ -196,6 +303,7 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
                         Issuer = "https://login.example.test/v2.0",
                     });
                 servicios.AddSingleton<IStartupFilter, FiltroIngresoPruebas>();
+                servicios.AddSingleton<TimeProvider>(_reloj);
             });
         });
 
@@ -213,6 +321,23 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
     }
 
+    /// <summary>Un GET autenticado por cookie entrega el token que el frontend devuelve en el header.</summary>
+    private static async Task<string> ObtenerTokenAsync(HttpClient cliente, CancellationToken ct)
+    {
+        using var respuesta = await cliente.GetAsync("/api/auth/sesion", ct);
+        var cookie = respuesta.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
+        return Uri.UnescapeDataString(cookie.Split(';')[0][(AntifalsificacionSesion.CookieToken.Length + 1)..]);
+    }
+
+    private static Task<HttpResponseMessage> PostConTokenAsync(
+        HttpClient cliente, string ruta, string token, CancellationToken ct)
+    {
+        var solicitud = new HttpRequestMessage(HttpMethod.Post, ruta);
+        solicitud.Headers.Add(AntifalsificacionSesion.HeaderToken, token);
+        return cliente.SendAsync(solicitud, ct);
+    }
+
     private async Task<Guid> CrearUsuarioAsync(Guid rol, CancellationToken ct)
     {
         await using var db = PostgresFixture.CrearIdentity(Cadena);
@@ -228,7 +353,6 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         var usuario = new Usuario
         {
             Id = Guid.NewGuid(),
-            AzureOid = Guid.NewGuid(),
             Upn = $"{Guid.NewGuid():N}@dominio.edu.ar",
             NombreParaMostrar = "Ada Lovelace",
             Activo = true,
@@ -285,7 +409,8 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
                         new Claim(ClaimTypes.NameIdentifier, resto.Value!.Trim('/')),
                         new Claim(
                             EventosSesion.ClaimInicio,
-                            DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)),
+                            contexto.RequestServices.GetRequiredService<TimeProvider>()
+                                .GetUtcNow().ToString("O", CultureInfo.InvariantCulture)),
                     ],
                     RegistroAutenticacion.EsquemaSesion);
                 await contexto.SignInAsync(RegistroAutenticacion.EsquemaSesion, new ClaimsPrincipal(identidad));
@@ -293,5 +418,14 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
             });
             siguiente(app);
         };
+    }
+
+    private sealed class RelojAjustable(DateTimeOffset inicio) : TimeProvider
+    {
+        private DateTimeOffset _ahora = inicio;
+
+        public void Avanzar(TimeSpan lapso) => _ahora += lapso;
+
+        public override DateTimeOffset GetUtcNow() => _ahora;
     }
 }

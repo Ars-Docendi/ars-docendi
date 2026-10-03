@@ -17,6 +17,8 @@ public enum MotivoRechazoIngreso
     NoRegistrado,
     Inactivo,
     SinRol,
+    /// <summary>El mail corresponde a un usuario ya vinculado a otra cuenta Microsoft.</summary>
+    CuentaDistinta,
 }
 
 /// <summary>Resultado de la regla de ingreso: un usuario aceptado o un motivo de rechazo.</summary>

@@ -52,7 +52,7 @@
 
 ## 2. Fase 2 — Vínculo por `oid`, vencimientos y anti-falsificación
 
-- [ ] 2.1 Escribir primero las pruebas:
+- [x] 2.1 Escribir primero las pruebas:
   - el primer ingreso vincula `oid` y `tid` y actualiza el último ingreso, con el usuario como actor en `audit.change_log`;
   - el ingreso posterior se reconoce por el vínculo aunque cambien el mail o el UPN;
   - otra cuenta con el mismo mail se rechaza sin modificar el vínculo;
@@ -60,23 +60,23 @@
 
   Verificar que fallan antes de implementar.
 
-- [ ] 2.2 Crear `database/identity/013_identity_users_cuenta_microsoft.sql`, su migración EF y el snapshot actualizado: `azure_oid` nullable y vaciado, y `azure_tid` con `CHECK` de "ambos o ninguno". El `Down` repone oids aleatorios antes de restaurar `NOT NULL`. Verificar `--migrate` sobre una base limpia y sobre una con datos, y que la prueba de idempotencia de migraciones sigue en verde.
-- [ ] 2.3 Actualizar `Usuario`, `IdentityDbContext`, `ServicioUsuarios`, `ServicioDocentes` e `infra/scripts/seed-data/sintetico.sql`, y ocultar `azure_tid` en `ServicioAuditoria`. Retirar `VinculadorPrimerLogin` y su registro en DI, y adaptar `IdentityPersistenciaTests` y `PedidosApiTests`. Verificar `dotnet test` en verde, incluido `SeedSinteticoTests`.
-- [ ] 2.4 Implementar el vínculo en la regla de ingreso, asignando el principal propio al contexto antes de escribir. Verificar que las pruebas de 2.1 pasan.
-- [ ] 2.5 Implementar el vencimiento por `MinutosInactividad` (sliding) y por `HorasMaximas` (desde el inicio de sesión). Verificar con pruebas sobre un `TimeProvider` controlado que la sesión vence por inactividad y por duración máxima aunque haya actividad.
-- [ ] 2.6 Agregar anti-falsificación con `IAntiforgery`, la cookie `XSRF-TOKEN` y el header `X-XSRF-TOKEN` en las mutaciones autenticadas por cookie, sin afectar al esquema de desarrollo. Verificar con pruebas de integración:
+- [x] 2.2 Crear `database/identity/013_identity_users_cuenta_microsoft.sql`, su migración EF y el snapshot actualizado: `azure_oid` nullable y vaciado, y `azure_tid` con `CHECK` de "ambos o ninguno". El `Down` repone oids aleatorios antes de restaurar `NOT NULL`. Verificar `--migrate` sobre una base limpia y sobre una con datos, y que la prueba de idempotencia de migraciones sigue en verde.
+- [x] 2.3 Actualizar `Usuario`, `IdentityDbContext`, `ServicioUsuarios`, `ServicioDocentes` e `infra/scripts/seed-data/sintetico.sql`, y ocultar `azure_tid` en `ServicioAuditoria`. Retirar `VinculadorPrimerLogin` y su registro en DI, y adaptar `IdentityPersistenciaTests` y `PedidosApiTests`. Verificar `dotnet test` en verde, incluido `SeedSinteticoTests`.
+- [x] 2.4 Implementar el vínculo en la regla de ingreso, asignando el principal propio al contexto antes de escribir. Verificar que las pruebas de 2.1 pasan.
+- [x] 2.5 Implementar el vencimiento por `MinutosInactividad` (sliding) y por `HorasMaximas` (desde el inicio de sesión). Verificar con pruebas sobre un `TimeProvider` controlado que la sesión vence por inactividad y por duración máxima aunque haya actividad.
+- [x] 2.6 Agregar anti-falsificación con `IAntiforgery`, la cookie `XSRF-TOKEN` y el header `X-XSRF-TOKEN` en las mutaciones autenticadas por cookie, sin afectar al esquema de desarrollo. Verificar con pruebas de integración:
   - sin token se rechaza y no hay cambios;
   - con token se procesa;
   - con headers de desarrollo se procesa.
 
   Verificar también en Vitest que axios envía el header.
 
-- [ ] 2.7 Documentar la fase 2: `data-model.md` (`azure_oid` nullable, `azure_tid` y vínculo en el primer ingreso) y `api-contracts.md` (anti-falsificación). Verificar con `pnpm format:check`.
-- [ ] 2.8 Correr la verificación completa de la fase (los mismos comandos que en 1.11).
+- [x] 2.7 Documentar la fase 2: `data-model.md` (`azure_oid` nullable, `azure_tid` y vínculo en el primer ingreso) y `api-contracts.md` (anti-falsificación). Verificar con `pnpm format:check`.
+- [x] 2.8 Correr la verificación completa de la fase (los mismos comandos que en 1.11).
 
 ## 3. Fase 3 — Staging y producción
 
-- [ ] 3.1 Configurar `ForwardedHeaders` para que confíe sólo en la red interna. Verificar con pruebas de integración que `X-Forwarded-Proto: https` desde la red confiable produce un `redirect_uri` con `https://`, y que desde una IP no confiable se ignora.
+- [ ] 3.1 Configurar `ForwardedHeaders` para que confíe sólo en la red interna. Verificar con pruebas de integración que `X-Forwarded-Proto: https` desde la red confiable produce un `redirect_uri` con `https://` y cookies anti-falsificación `Secure`, y que desde una IP no confiable se ignora.
 - [ ] 3.2 Persistir Data Protection con `PersistKeysToFileSystem` y `SetApplicationName`, más un volumen nombrado en `compose.base.yml` para producción y staging. Verificar en staging que una sesión sobrevive a reiniciar el backend.
 - [ ] 3.3 Agregar el guard de arranque en Production, sin exigirlo en `--migrate`. Verificar con pruebas que un host Production sin configuración falla con un mensaje que no expone secretos y que `--migrate` termina con exit 0.
 - [ ] 3.4 Implementar `AdministradorInicial`, aplicado por `--migrate` de forma idempotente a través de la administración de identidad. Verificar con pruebas que:

@@ -2,6 +2,7 @@ using ArsDocendi.Host.Desarrollo;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Validators;
 
 namespace ArsDocendi.Host.Autenticacion;
@@ -51,6 +52,10 @@ public static class RegistroAutenticacion
             return accesos;
         }
 
+        builder.Services.TryAddSingleton(TimeProvider.System);
+        builder.Services.AddAntifalsificacionSesion();
+        builder.Services.Configure<AutenticacionMicrosoftOptions>(
+            builder.Configuration.GetSection(AutenticacionMicrosoftOptions.Seccion));
         var autenticacion = builder.Services
             .AddAuthentication(opciones =>
             {

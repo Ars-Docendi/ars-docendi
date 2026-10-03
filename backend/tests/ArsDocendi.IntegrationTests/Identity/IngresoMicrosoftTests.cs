@@ -1,6 +1,9 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared.Auditing;
+using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Ingreso;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
@@ -137,6 +140,67 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         Assert.Null(await CrearSesion().ObtenerAsync(usuario, ct));
     }
 
+    [Fact]
+    public async Task Primer_ingreso_vincula_la_cuenta_y_registra_el_ingreso_con_el_usuario_como_actor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync("ada@dominio.edu.ar", activo: true, [RolSecretaria], ct);
+        var cuenta = CuentaOrganizacional("ada@dominio.edu.ar");
+        var personas = await ContarPersonasAsync(ct);
+
+        var resultado = await ResolverAsync(cuenta, ct);
+        await RegistrarAsync(usuario, cuenta, ct);
+
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        var vinculado = await db.Usuarios.AsNoTracking().SingleAsync(u => u.Id == usuario, ct);
+        Assert.Equal(usuario, resultado.UsuarioId);
+        Assert.Equal(cuenta.ObjectId, vinculado.AzureOid);
+        Assert.Equal(cuenta.TenantId, vinculado.AzureTid);
+        Assert.NotNull(vinculado.UltimoLoginEn);
+        Assert.Equal(personas, await ContarPersonasAsync(ct));
+        var cambio = await db.RegistrosDeCambio.AsNoTracking()
+            .Where(r => r.NombreTabla == "users" && r.ClaveFila.Contains(usuario.ToString()))
+            .OrderByDescending(r => r.Id)
+            .FirstAsync(ct);
+        Assert.Equal(usuario, cambio.CambiadoPor);
+    }
+
+    [Fact]
+    public async Task Ingreso_posterior_se_reconoce_por_el_vinculo_aunque_cambien_mail_y_upn()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var objeto = Guid.NewGuid();
+        var usuario = await CrearUsuarioAsync(
+            "upn-viejo@dominio.edu.ar", activo: true, [RolSecretaria], ct,
+            cuenta: (TenantOrganizacion, objeto));
+
+        var conMailNuevo = await ResolverAsync(
+            new DatosCuentaMicrosoft(TenantOrganizacion, objeto, "mail-nuevo@dominio.edu.ar", true), ct);
+        var sinMail = await ResolverAsync(
+            new DatosCuentaMicrosoft(TenantOrganizacion, objeto, null, null), ct);
+
+        Assert.Equal(usuario, conMailNuevo.UsuarioId);
+        Assert.Equal(usuario, sinMail.UsuarioId);
+    }
+
+    [Fact]
+    public async Task Otra_cuenta_con_el_mismo_mail_se_rechaza_sin_tocar_el_vinculo()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var objeto = Guid.NewGuid();
+        var usuario = await CrearUsuarioAsync(
+            "ada@dominio.edu.ar", activo: true, [RolSecretaria], ct,
+            cuenta: (TenantOrganizacion, objeto));
+        var antes = await ContarEscriturasAsync(ct);
+
+        var resultado = await ResolverAsync(CuentaOrganizacional("ada@dominio.edu.ar"), ct);
+
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        Assert.Equal(MotivoRechazoIngreso.CuentaDistinta, resultado.Motivo);
+        Assert.Equal(objeto, (await db.Usuarios.AsNoTracking().SingleAsync(u => u.Id == usuario, ct)).AzureOid);
+        Assert.Equal(antes, await ContarEscriturasAsync(ct));
+    }
+
     private static DatosCuentaMicrosoft CuentaOrganizacional(string? email) =>
         new(TenantOrganizacion, Guid.NewGuid(), email, true);
 
@@ -151,6 +215,33 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         return await servicio.ResolverAsync(cuenta, ct);
     }
 
+    private async Task RegistrarAsync(Guid usuario, DatosCuentaMicrosoft cuenta, CancellationToken ct)
+    {
+        // Como en el Host: el ingreso se registra con el propio usuario como actor de la auditoría.
+        var opciones = new DbContextOptionsBuilder<IdentityDbContext>()
+            .UseNpgsql(Cadena)
+            .AddInterceptors(new AuditDbConnectionInterceptor(new UsuarioActual(usuario), new HttpContextAccessor()))
+            .Options;
+        await using var db = new IdentityDbContext(opciones);
+        var repositorio = new RepositorioIngreso(db);
+        await new ServicioIngreso(repositorio, new ServicioSesion(repositorio), NullLogger<ServicioIngreso>.Instance)
+            .RegistrarIngresoAsync(usuario, cuenta, ct);
+    }
+
+    private async Task<int> ContarPersonasAsync(CancellationToken ct)
+    {
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+        return await db.Personas.CountAsync(ct);
+    }
+
+    private sealed class UsuarioActual(Guid id) : ICurrentUser
+    {
+        public string? UserId => id.ToString();
+        public string? Email => null;
+        public IReadOnlyList<string> Roles => [];
+        public bool IsAuthenticated => true;
+    }
+
     private ServicioSesion CrearSesion() =>
         new(new RepositorioIngreso(PostgresFixture.CrearIdentity(Cadena)));
 
@@ -159,7 +250,8 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         bool activo,
         Guid[] roles,
         CancellationToken ct,
-        bool revocado = false)
+        bool revocado = false,
+        (Guid Tenant, Guid Objeto)? cuenta = null)
     {
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var ahora = DateTimeOffset.UtcNow;
@@ -193,7 +285,8 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         var usuario = new Usuario
         {
             Id = Guid.NewGuid(),
-            AzureOid = Guid.NewGuid(),
+            AzureOid = cuenta?.Objeto,
+            AzureTid = cuenta?.Tenant,
             Upn = upn,
             NombreParaMostrar = "Nombre Apellido",
             Activo = activo,

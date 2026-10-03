@@ -87,6 +87,10 @@ if (accesos.Alguno)
 {
     app.UseAuthentication();
 }
+if (accesos.Microsoft)
+{
+    app.UseAntifalsificacionSesion();
+}
 app.UseAuthorization();
 app.MapControllers();
 if (accesos.Desarrollo)

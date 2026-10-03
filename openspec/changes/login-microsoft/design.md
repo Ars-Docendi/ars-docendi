@@ -126,6 +126,7 @@ aceptado(usuarioId) --> cookie con usuarioId e inicio de sesión
 ### 10. Anti-falsificación (fase 2)
 
 - **Mecanismo:** `IAntiforgery` con una cookie `XSRF-TOKEN` legible por JS y el header `X-XSRF-TOKEN`, que axios ya envía en solicitudes al mismo origen.
+- **Cookies:** son `Secure` según el request, porque en local se corre por `http://localhost` (exigirlo rompía el desarrollo local). En los despliegues el request se ve como https gracias a los headers de proxy de la fase 3.
 - **Alcance:** se valida en `POST`, `PUT`, `PATCH` y `DELETE` autenticados por cookie. El esquema de desarrollo autentica por headers, no es vulnerable a CSRF y queda afuera.
 - **Por qué no alcanza `SameSite`:** `pr-N`, staging y producción comparten _site_, y cada `pr-N` ejecuta el código de una rama. Desde un sitio hermano se pueden disparar formularios `POST` sin cuerpo que llegan con la cookie de producción. `__Host-` evita que la cookie viaje a los subdominios, pero no que se envíe en solicitudes que salen de ellos.
 

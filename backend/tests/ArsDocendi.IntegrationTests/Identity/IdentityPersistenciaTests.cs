@@ -82,56 +82,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Primer_login_vincula_la_cuenta_sin_duplicar_la_persona()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30222333");
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-
-        var vinculador = new VinculadorPrimerLogin(db);
-        var oid = Guid.NewGuid();
-        var usuario = await vinculador.VincularAsync(new DatosPrimerLogin(
-            oid, "docente@unlam.edu.ar", "Docente Ejemplo", persona.Documento), ct);
-        await vinculador.VincularAsync(new DatosPrimerLogin(
-            oid, "docente@unlam.edu.ar", "Docente Actualizado", persona.Documento), ct);
-
-        Assert.Equal(persona.Id, usuario.PersonaId);
-        Assert.Equal(1, await db.Personas.CountAsync(p => p.Documento == persona.Documento, ct));
-        Assert.Equal(1, await db.Usuarios.CountAsync(u => u.PersonaId == persona.Id, ct));
-        Assert.Equal("Docente Actualizado", usuario.NombreParaMostrar);
-    }
-
-    [Fact]
-    public async Task Primer_login_no_reactiva_una_cuenta_desactivada()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30222999");
-        var usuario = new Usuario
-        {
-            Id = Guid.NewGuid(),
-            AzureOid = Guid.NewGuid(),
-            Upn = "desactivado@unlam.edu.ar",
-            NombreParaMostrar = "Docente desactivado",
-            Activo = false,
-            PersonaId = persona.Id,
-            CreadoEn = DateTimeOffset.UtcNow,
-        };
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-        usuario.PersonaId = persona.Id;
-        db.Usuarios.Add(usuario);
-        await db.SaveChangesAsync(ct);
-
-        await new VinculadorPrimerLogin(db).VincularAsync(new DatosPrimerLogin(
-            usuario.AzureOid, usuario.Upn, usuario.NombreParaMostrar, persona.Documento), ct);
-
-        Assert.False(usuario.Activo);
-    }
-
-    [Fact]
     public async Task Documento_duplicado_es_rechazado()
     {
         await using var conexion = await AbrirConexionAsync();
@@ -300,7 +250,7 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         {
             await EjecutarAsync(conexion, """
                 INSERT INTO identity.users (id, azure_oid, upn, display_name)
-                VALUES (@id, @oid, 'auditor@unlam.edu.ar', 'Auditor')
+                VALUES (@id, NULL, 'auditor@unlam.edu.ar', 'Auditor')
                 """, new NpgsqlParameter("id", usuarioId), new NpgsqlParameter("oid", Guid.NewGuid()));
         }
 
@@ -341,7 +291,7 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         var id = Guid.NewGuid();
         await EjecutarAsync(conexion, """
             INSERT INTO identity.users (id, azure_oid, upn, display_name)
-            VALUES (@id, @oid, @upn, 'Usuario de prueba')
+            VALUES (@id, NULL, @upn, 'Usuario de prueba')
             """, new NpgsqlParameter("id", id), new NpgsqlParameter("oid", Guid.NewGuid()), new NpgsqlParameter("upn", $"{id:N}@unlam.edu.ar"));
         return id;
     }

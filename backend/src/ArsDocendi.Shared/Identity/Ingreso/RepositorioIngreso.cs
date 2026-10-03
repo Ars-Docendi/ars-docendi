@@ -3,11 +3,20 @@ using Microsoft.EntityFrameworkCore;
 namespace ArsDocendi.Shared.Identity.Ingreso;
 
 /// <summary>
-/// Lecturas de identity para el ingreso y la sesión. Sólo consultas en la fase 1:
-/// rechazar un ingreso nunca escribe.
+/// Acceso a identity para el ingreso y la sesión. La única escritura es el registro
+/// de un ingreso aceptado (vínculo de la cuenta y último ingreso): rechazar nunca escribe.
 /// </summary>
 public sealed class RepositorioIngreso(IdentityDbContext db)
 {
+    public Task<Usuario?> BuscarPorCuentaAsync(Guid tenantId, Guid objectId, CancellationToken ct) =>
+        db.Usuarios.AsNoTracking()
+            .SingleOrDefaultAsync(u => u.AzureTid == tenantId && u.AzureOid == objectId, ct);
+
+    public Task<Usuario> ObtenerParaActualizarAsync(Guid usuarioId, CancellationToken ct) =>
+        db.Usuarios.SingleAsync(u => u.Id == usuarioId, ct);
+
+    public Task GuardarAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
+
     public Task<Usuario?> BuscarPorUpnAsync(string upnNormalizado, CancellationToken ct) =>
         db.Usuarios.AsNoTracking()
             .SingleOrDefaultAsync(u => u.Upn.ToLower() == upnNormalizado, ct);
