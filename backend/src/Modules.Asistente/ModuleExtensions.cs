@@ -435,6 +435,13 @@ public static class ModuleExtensions
                 Random.Shared);
         });
 
+        // States at startup whether redaction masks sensible-valor. It reads the
+        // options without validating them: see AnuncioDeLaRedaccion.
+        services.AddHostedService(sp => new AnuncioDeLaRedaccion(
+            configuration.GetSection(OpcionesAsistente.Seccion).Get<OpcionesAsistente>()
+                ?? new OpcionesAsistente(),
+            sp.GetRequiredService<ILogger<AnuncioDeLaRedaccion>>()));
+
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);
 

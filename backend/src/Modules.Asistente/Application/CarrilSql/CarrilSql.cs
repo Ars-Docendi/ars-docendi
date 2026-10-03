@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
@@ -25,6 +26,7 @@ public sealed class CarrilSql(
     IBuscadorDeMenciones buscadorDeMenciones,
     ContadorDeLlamadasDelTurno contador,
     ICatalogoDeCapacidades capacidades,
+    IOptions<OpcionesAsistente> opciones,
     ILogger<CarrilSql> log)
 {
     /// <summary>Responde una pregunta acotada al actor.</summary>
@@ -562,7 +564,14 @@ public sealed class CarrilSql(
         // lo que vuelve al llamador son las filas reales. Cambiar el orden de estas
         // dos líneas, o pasarle `resultado` al redactor, manda datos personales al
         // proveedor sin que nada falle.
-        var paraElModelo = Enmascarador.Enmascarar(resultado);
+        //
+        // With RedaccionSinEnmascarar in effect (own model, no cassettes) the
+        // sensible-valor values travel as they are; sensible-texto is always suppressed.
+        var paraElModelo = Enmascarador.Enmascarar(
+            resultado,
+            opciones.Value.RedaccionSinEnmascararVigente
+                ? ModoDeEnmascarado.SoloTextoLibre
+                : ModoDeEnmascarado.Todo);
         var texto = await redactor.RedactarAsync(
             mensaje, paraElModelo, alcanzaTodo, cobertura, ct);
 

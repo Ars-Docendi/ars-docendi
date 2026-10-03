@@ -542,6 +542,36 @@ public sealed class OpcionesAsistente
     public bool RedaccionConPlantillas { get; set; }
 
     /// <summary>
+    /// Lets the redaction prompt carry the real values of <c>sensible-valor</c>
+    /// columns instead of markers such as «documento 1»
+    /// (asistente-redaccion-sin-enmascarado-local).
+    /// </summary>
+    /// <remarks>
+    /// <b>Setting it is not enough</b>: it only applies when
+    /// <see cref="RedaccionSinEnmascararVigente"/> is true. With another provider,
+    /// or with a cassette directory, masking stays on and startup says so.
+    /// <c>sensible-texto</c> columns are always suppressed. It is not an
+    /// optimization —it measures slower—; it is redaction quality for an
+    /// on-premises deployment.
+    /// </remarks>
+    public bool RedaccionSinEnmascarar { get; set; }
+
+    /// <summary>
+    /// Whether redaction runs without masking <c>sensible-valor</c>: the option
+    /// on, the local provider, and no cassette directory.
+    /// </summary>
+    /// <remarks>
+    /// This is the only place that decides it. The local provider is the only one
+    /// that can be expected to run on own hardware, and a cassette directory would
+    /// record responses with real values into files meant to be versioned. Any
+    /// other combination masks.
+    /// </remarks>
+    public bool RedaccionSinEnmascararVigente =>
+        RedaccionSinEnmascarar
+        && string.Equals(Proveedor, Infrastructure.ProveedorLocal.Clave, StringComparison.Ordinal)
+        && string.IsNullOrWhiteSpace(DirectorioDeCassettes);
+
+    /// <summary>
     /// Cuántos minutos se reutiliza la consulta generada para la misma pregunta
     /// sin contexto, la misma variante de rol y la misma fecha (D6). Cero —el
     /// default— la apaga. Nunca se reutilizan filas: la consulta se vuelve a

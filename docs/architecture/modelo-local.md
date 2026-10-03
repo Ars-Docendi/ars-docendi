@@ -159,6 +159,23 @@ Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Lo
 | Streaming SSE de la redacción                | `StreamingDeRedaccion`              | Las primeras palabras apenas termina el prefill de la redacción, en vez de esperar la respuesta entera |
 | Telemetría del servidor en el panel          | —                                   | Tarjeta «Servidor del modelo»: en curso, en espera, KV cache, aciertos de prefijo y la compuerta       |
 
+### Aplicado en `asistente-redaccion-sin-enmascarado-local`
+
+Opt-in (`RedaccionSinEnmascarar`, default `false`): con proveedor `local` y sin directorio de cassettes, el prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del marcador. Con cualquier otro proveedor, o con cassettes, se sigue enmascarando y el arranque advierte. `sensible-texto` se suprime siempre. La exposición —los valores entran en la caché KV y en el camino de las solicitudes del servidor— exige hardware del Departamento y, con llama-server, `--cache-ram 0`; está en el [README del módulo](../../backend/src/Modules.Asistente/README.md#la-frontera-de-salida).
+
+Medido el 2026-10-03 contra Qwen3-8B (llama-server, RTX 3070) con el fixture sintético, 3 preguntas × 2 variantes × 3 repeticiones:
+
+| Métrica                          | Enmascarado | Sin enmascarar |
+| -------------------------------- | ----------- | -------------- |
+| Redacción con una fila           | 0,45 s      | 0,57 s         |
+| Redacción con tres filas         | 0,42 s      | 0,70 s         |
+| Prompt con 24 filas              | base        | +28 %          |
+| Valores inventados en 9 llamadas | —           | 0              |
+
+**No es una mejora de rendimiento.** Es más lenta, y ningún puntaje del evaluador puede moverse: la generación de SQL nunca ve filas y ningún ítem del dataset toca una columna sensible. Lo que cambia es la calidad de la narración: enmascarada no lleva ningún valor útil; sin enmascarar dice los valores, sobre datos sintéticos muy regulares (evidencia débil). La tabla sigue siendo la fuente de verdad de las filas.
+
+Verificado además por el carril real (generación, ejecución con el rol de datos personales y redacción contra el modelo), con la opción apagada y prendida sobre las mismas preguntas: en las dos que el modelo tradujo, la narración sin enmascarar coincidió con las filas («20000000, 20000137 y 20000274»; «20-20000548-4»). Enmascarada, una dijo «documento 1, documento 2 y documento 3» y la otra «El CUIL de Hugo Fernández es 1»: el modelo recortó el marcador y la oración quedó falsa. La tercera pregunta falló en la generación de SQL con las dos variantes, sin relación con la opción.
+
 ### Evaluado y dejado para después
 
 | Técnica                                                  | Por qué no                                                                                                                                                                                                                                                                             |

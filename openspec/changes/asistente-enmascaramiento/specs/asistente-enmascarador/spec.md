@@ -4,7 +4,7 @@
 
 El sistema SHALL reemplazar por un marcador todo valor de una columna clasificada `sensible-valor` antes de armar el prompt de redacción.
 
-El prompt de redacción MUST NOT contener ningún valor real de esas columnas.
+El prompt de redacción MUST NOT contener ningún valor real de esas columnas, salvo cuando rige la opción `Asistente__RedaccionSinEnmascarar` (`asistente-redaccion-sin-enmascarado-local`): sólo con proveedor `local` y sin directorio de cassettes configurado. Ésa es la única excepción; en cualquier otra configuración el requisito rige sin matices.
 
 #### Scenario: El documento no aparece en el prompt
 

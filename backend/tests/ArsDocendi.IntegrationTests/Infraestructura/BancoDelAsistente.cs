@@ -306,5 +306,6 @@ internal sealed class BancoDelAsistente
                 new CuotaDeActorFalsa(0, TimeProvider.System),
                 new ConsultasIdentityFalsa(),
                 NullLogger<CatalogoDeCapacidades>.Instance),
+            opcionesDelRedactor ?? Options.Create(new OpcionesAsistente()),
             log ?? NullLogger<CarrilSql>.Instance);
 }

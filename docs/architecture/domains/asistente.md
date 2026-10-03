@@ -510,6 +510,15 @@ renderiza la interfaz.
 proveedor a través de la generación: si alguien tipea un documento en la pregunta,
 llega al modelo igual. Protege el camino de vuelta, no el de ida.
 
+**Excepción opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
+proveedor `local` y sin directorio de cassettes, las columnas `sensible-valor` llegan
+al prompt de redacción con su valor real. Es la única excepción a la frontera: con
+cualquier otra combinación se sigue enmascarando y el arranque lo advierte;
+`sensible-texto` se suprime siempre, y el control de acceso no cambia (lo decide el
+rol de PostgreSQL). El operador acepta que los valores entren en la caché KV y en el
+camino de las solicitudes del servidor del modelo, que debe correr en hardware del
+Departamento. Detalle y medición en [modelo-local.md §6](../modelo-local.md).
+
 ## El carril determinista: catálogo de intenciones
 
 Las preguntas que la API del sistema **ya sabe responder** no necesitan que un modelo reconstruya su consulta. El carril determinista las reconoce contra un catálogo cerrado y las enruta a la API. Hoy está construida **la primera mitad**: el catálogo y la resolución de slots. El enrutador que los consume, y los edges hacia los `Contracts` de los módulos consumidos, son el cambio siguiente.

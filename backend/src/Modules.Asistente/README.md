@@ -188,6 +188,22 @@ consulta generada, y un `SELECT p.documento AS codigo` lo dejaría pasar entero.
 El marcador es un contador por orden de aparición, no un hash del valor: un hash de
 un documento se invierte por fuerza bruta en segundos.
 
+**Excepción, opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
+proveedor `local` y sin `Asistente__DirectorioDeCassettes`, el prompt de redacción
+lleva el valor real de las columnas `sensible-valor` en vez del marcador. Si falta
+cualquiera de las tres condiciones se sigue enmascarando, el proceso arranca igual y
+el arranque registra una advertencia; el arranque también registra una línea que
+dice cuál de los dos modos corre. Las columnas `sensible-texto` se suprimen siempre,
+y quién puede leer datos personales no cambia: lo decide el rol de PostgreSQL.
+
+**La exposición que el operador acepta al prenderla**: los valores entran en la
+caché KV y en el camino de las solicitudes del servidor del modelo. Por eso el
+servidor tiene que correr en hardware del Departamento y, con llama-server, con
+`--cache-ram 0` (llama.cpp#27148). El código no puede comprobar que
+`UrlDelProveedorLocal` apunte a una máquina propia: es una precondición del
+operador. No es una mejora de rendimiento (ver
+[modelo-local.md §6](../../../docs/architecture/modelo-local.md)).
+
 **Es asimétrico**: la pregunta cruda del usuario viaja al proveedor a través de la
 generación. Protege el camino de vuelta, no el de ida.
 
@@ -836,6 +852,14 @@ tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la 
 | `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS             |
 | `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                      |
 | `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                     |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes         |
+
+**`RedaccionSinEnmascarar` no es una optimización.** Se mide más lenta (la redacción pasa
+de 0,45 a 0,57 s con una fila y de 0,42 a 0,70 s con tres, y el prompt crece un 28 % con 24
+filas) y no mueve ninguna métrica del evaluador. Es una opción de calidad de redacción para
+un despliegue propio: con ella la narración dice «el documento es 28341567» en vez de
+«documento 1». Su condición de vigencia y la exposición que implica están en
+[La frontera de salida](#la-frontera-de-salida).
 
 **El streaming no cambia lo que vale.** El adaptador local pide `stream: true` sólo
 para la redacción y sólo si alguien escucha (`CanalDeRedaccion`, que llena el
