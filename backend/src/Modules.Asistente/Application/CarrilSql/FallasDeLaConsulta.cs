@@ -34,9 +34,21 @@ internal sealed class ConsultaSinPrivilegio(Exception causa)
 /// Igual que su hermana, sólo expone el SQLSTATE. Es lo único del rechazo que se
 /// puede loguear sin arrastrar nombres del esquema.
 /// </remarks>
-internal sealed class ConsultaRechazadaPorElMotor(string? estado, Exception causa)
+internal sealed class ConsultaRechazadaPorElMotor(
+    string? estado, Exception causa, string? detalleDelMotor = null)
     : FallaDeLaConsulta($"El motor rechazó la consulta ({estado ?? "sin estado"}).", causa)
 {
     /// <summary>El SQLSTATE que devolvió PostgreSQL.</summary>
     public string? Estado { get; } = estado;
+
+    /// <summary>
+    /// El mensaje y la pista del motor, CRUDOS (asistente-optimizaciones-modelo-
+    /// local, D4).
+    /// </summary>
+    /// <remarks>
+    /// Existe sólo para la ronda de reparación, y nunca sale de acá sin pasar por
+    /// <see cref="ErrorDelMotorSaneado"/>: puede citar un valor de una fila. No se
+    /// loguea ni se devuelve.
+    /// </remarks>
+    public string? DetalleDelMotor { get; } = detalleDelMotor;
 }

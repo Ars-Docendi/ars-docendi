@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using ArsDocendi.Shared.Persistencia;
+using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -23,7 +24,13 @@ namespace Modules.Asistente.Infrastructure;
 /// evaluación, así que una corrida contra un esquema viejo queda registrada como
 /// tal en lugar de pasar desapercibida.
 /// </remarks>
-internal sealed class ProveedorDeEsquema(AperturaDeLectura apertura) : IProveedorDeEsquema
+/// <param name="opciones">
+/// Opcional: sólo decide <see cref="OpcionesAsistente.EsquemaCompacto"/>. Sin
+/// opciones —como lo construyen los tests de cassettes— el prefijo es el de
+/// siempre.
+/// </param>
+internal sealed class ProveedorDeEsquema(
+    AperturaDeLectura apertura, IOptions<OpcionesAsistente>? opciones = null) : IProveedorDeEsquema
 {
     private readonly ValorPerezosoPorRol<EsquemaParaPrompt> _porRol = new();
 
@@ -46,7 +53,8 @@ internal sealed class ProveedorDeEsquema(AperturaDeLectura apertura) : IProveedo
         // modelo tiene que adivinar cómo está escrito «Ingeniería en Informática».
         var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct);
 
-        var prefijo = RenderizadorDeEsquema.Renderizar(columnas, referencias, vocabularios);
+        var prefijo = RenderizadorDeEsquema.Renderizar(
+            columnas, referencias, vocabularios, opciones?.Value.EsquemaCompacto ?? false);
         return new EsquemaParaPrompt(prefijo, Huella(prefijo));
     }
 

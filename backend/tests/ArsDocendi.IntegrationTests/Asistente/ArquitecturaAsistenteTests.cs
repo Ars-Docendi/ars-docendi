@@ -717,7 +717,14 @@ public sealed partial class ArquitecturaAsistenteTests
     /// <c>PresupuestosAdministrablesReal</c> SQL reads themselves— stayed
     /// `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 92;
+    /// <remarks>
+    /// Raised to 93 for asistente-optimizaciones-modelo-local (D6):
+    /// <c>CacheDeConsultasGeneradas</c> is a constructor parameter of the
+    /// already-public <c>GeneradorDeSql</c>, and the compiler rejects a
+    /// less-accessible type there — same rule as every other entry in this list.
+    /// Its own surface stays minimal: the lookup and the store are `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 93;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

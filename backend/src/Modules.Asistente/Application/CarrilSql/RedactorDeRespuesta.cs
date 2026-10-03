@@ -52,6 +52,16 @@ public sealed class RedactorDeRespuesta(
         IReadOnlyList<CoberturaDeUnDato> cobertura,
         CancellationToken ct)
     {
+        // RESULTADO TRIVIAL, SIN MODELO (asistente-optimizaciones-modelo-local,
+        // D5): una columna con pocos valores, alcance completo, sin recorte ni
+        // cobertura autodeclarada. Fuera de eso, las reglas de abajo necesitan
+        // prosa.
+        if (opciones.Value.RedaccionConPlantillas
+            && PlantillaDeRedaccion.Intentar(resultado, alcanzaTodo, cobertura) is { } deterministica)
+        {
+            return deterministica;
+        }
+
         var respuesta = await modelo.CompletarAsync(
             new SolicitudAlModelo
             {

@@ -500,6 +500,70 @@ public sealed class OpcionesAsistente
     /// </remarks>
     public bool ReintentarConsultaVacia { get; set; } = true;
 
+    // ------------------------------------------------------------------
+    // asistente-optimizaciones-modelo-local. TODAS arrancan apagadas (D1): el
+    // prompt de Claude está medido —cassettes, línea de base del evaluador— y
+    // con estas opciones en su default no cambia en un byte. Los perfiles
+    // locales (infra/compose/compose.asistente-local*.yml) las prenden.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Renderiza el esquema del prefijo en su forma compacta (D2): tipos
+    /// abreviados, nulabilidad como <c>?</c> y claves foráneas en línea. Mismo
+    /// contenido —comentarios y descripciones enteros—, ~11% menos texto.
+    /// </summary>
+    public bool EsquemaCompacto { get; set; }
+
+    /// <summary>
+    /// Pone TODOS los ejemplos verificados al final del prefijo cacheable, en vez
+    /// de elegir hasta cuatro por pregunta en el mensaje (D3). Con caché de
+    /// prefijo su costo marginal es casi nulo; sin caché son ~2,5k tokens más
+    /// por llamada.
+    /// </summary>
+    public bool EjemplosEnElPrefijo { get; set; }
+
+    /// <summary>
+    /// El reintento por consulta vacía le dice al modelo qué consulta no trajo
+    /// filas, en vez de repetir el prompt idéntico (D4). Sólo aplica con
+    /// <see cref="ReintentarConsultaVacia"/> prendido.
+    /// </summary>
+    public bool ReintentoConContexto { get; set; }
+
+    /// <summary>
+    /// Si PostgreSQL rechaza la consulta generada —salvo por privilegio o por
+    /// timeout—, una sola ronda de corrección con el error saneado (D4).
+    /// </summary>
+    public bool RepararConsultaFallida { get; set; }
+
+    /// <summary>
+    /// Redacta sin modelo un resultado trivial —una columna, de una a cinco
+    /// filas, alcance completo, sin recorte ni cobertura autodeclarada— (D5).
+    /// </summary>
+    public bool RedaccionConPlantillas { get; set; }
+
+    /// <summary>
+    /// Cuántos minutos se reutiliza la consulta generada para la misma pregunta
+    /// sin contexto, la misma variante de rol y la misma fecha (D6). Cero —el
+    /// default— la apaga. Nunca se reutilizan filas: la consulta se vuelve a
+    /// ejecutar bajo el alcance de quien pregunta.
+    /// </summary>
+    public int VigenciaDeCacheDeConsultasMinutos { get; set; }
+
+    /// <summary>
+    /// En un seguimiento, no llama al reescritor: la generación recibe las
+    /// preguntas anteriores y devuelve la pregunta resuelta junto con la
+    /// consulta (D7). Una llamada al modelo menos por seguimiento.
+    /// </summary>
+    public bool ReescrituraEnLaGeneracion { get; set; }
+
+    /// <summary>
+    /// Ofrece la redacción por fragmentos en <c>POST /api/asistente/consultas/flujo</c>
+    /// y lo anuncia en <c>GET /capacidades</c> (D9). Sólo el adaptador local
+    /// emite fragmentos; con otro proveedor el flujo termina con el resultado
+    /// completo, igual que el endpoint de siempre.
+    /// </summary>
+    public bool StreamingDeRedaccion { get; set; }
+
     /// <summary>
     /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.
     /// </summary>

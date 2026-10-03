@@ -277,6 +277,10 @@ public static class ModuleExtensions
         services.AddScoped<IConsultorDeCobertura, ConsultorDeCobertura>();
         services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
         services.AddScoped<IBuscadorDeMenciones, BuscadorDeMenciones>();
+        // La caché de consultas generadas (asistente-optimizaciones-modelo-local,
+        // D6) es SINGLETON: sirve entre turnos y entre actores. El generador la
+        // consulta sólo con VigenciaDeCacheDeConsultasMinutos mayor que cero.
+        services.AddSingleton<CacheDeConsultasGeneradas>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
 

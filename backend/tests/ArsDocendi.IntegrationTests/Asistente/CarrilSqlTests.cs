@@ -388,8 +388,110 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             Assert.IsType<string>(proveedor.Recibidas[0].EsquemaDeSalidaJson)).RootElement;
         var claves = esquema.GetProperty("properties").EnumerateObject().Select(p => p.Name).ToList();
 
+        // `pregunta_interpretada` va primera y es opcional: con la reescritura
+        // dentro de la generación (asistente-optimizaciones-modelo-local, D7) el
+        // modelo resuelve la anáfora antes de escribir la consulta.
         Assert.Equal(
-            ["es_contestable", "sql", "razonamiento", "categoria", "motivo", "termino"], claves);
+            ["pregunta_interpretada", "es_contestable", "sql", "razonamiento", "categoria", "motivo", "termino"],
+            claves);
+    }
+
+    // ------------------------------------ asistente-optimizaciones-modelo-local
+
+    [Fact]
+    public async Task Con_contexto_el_reintento_por_vacio_le_dice_al_modelo_que_consulta_no_trajo_filas()
+    {
+        // D4: el prompt idéntico, a temperatura 0, devolvía la misma consulta.
+        await SembrarAsync();
+        const string Vacia = "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'";
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(Vacia));
+
+        await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente { ReintentoConContexto = true })
+            .ResponderAsync(Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, proveedor.Llamadas);
+        Assert.Contains(
+            $"SQL: {Vacia}\nQué pasó: {CarrilSql.ProblemaDeConsultaVacia}",
+            proveedor.Recibidas[1].Mensaje,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("Intento anterior", proveedor.Recibidas[0].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Una_consulta_que_el_motor_rechaza_tiene_una_ronda_de_reparacion()
+    {
+        // D4: la columna no existe, el motor la rechaza, y la segunda generación
+        // —con el error— corrige. El turno responde como si la primera hubiera
+        // estado bien.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
+            ProveedorGuionado.Generacion(ContarPedidos),
+            "Hay pedidos.");
+
+        var turno = await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente { RepararConsultaFallida = true })
+            .ResponderAsync(Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Equal(ContarPedidos, turno.SqlEjecutado);
+        Assert.Contains("SQLSTATE 42703", proveedor.Recibidas[1].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Sin_la_opcion_una_consulta_rechazada_no_se_repara()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, proveedor.Llamadas);
+        Assert.Equal(PoliticaDeAbstencion.TextoErrorAlConsultar, turno.Respuesta);
+    }
+
+    [Fact]
+    public async Task La_misma_pregunta_sin_contexto_reutiliza_la_consulta_y_la_vuelve_a_ejecutar()
+    {
+        // D6: la segunda vez no hay llamada de generación —sólo la de redacción—, y
+        // la consulta se ejecuta de nuevo: las filas son las de ESTE actor.
+        await SembrarAsync();
+        var cache = new CacheDeConsultasGeneradas(TimeProvider.System);
+        var opciones = new OpcionesAsistente { VigenciaDeCacheDeConsultasMinutos = 10 };
+        var primera = new ProveedorGuionado(ProveedorGuionado.Generacion(ContarPedidos), "Hay pedidos.");
+        var segunda = new ProveedorGuionado("Hay pedidos.");
+
+        await CarrilCon(primera, opcionesDelGenerador: opciones, cache: cache)
+            .ResponderAsync(Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+        var turno = await CarrilCon(segunda, opcionesDelGenerador: opciones, cache: cache)
+            .ResponderAsync(Secretaria, "¿cuántos pedidos hay", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Equal(ContarPedidos, turno.SqlEjecutado);
+        Assert.Single(segunda.Recibidas);
+        Assert.Null(segunda.Recibidas[0].EsquemaDeSalidaJson); // la única llamada es la redacción
+    }
+
+    [Fact]
+    public async Task Una_pregunta_con_consultas_anteriores_no_usa_la_cache()
+    {
+        await SembrarAsync();
+        var cache = new CacheDeConsultasGeneradas(TimeProvider.System);
+        var opciones = new OpcionesAsistente { VigenciaDeCacheDeConsultasMinutos = 10 };
+
+        await CarrilCon(
+                new ProveedorGuionado(ProveedorGuionado.Generacion(ContarPedidos), "Hay pedidos."),
+                opcionesDelGenerador: opciones, cache: cache)
+            .ResponderAsync(Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        var conContexto = new ProveedorGuionado(ProveedorGuionado.Generacion(ContarPedidos), "Hay pedidos.");
+        await CarrilCon(conContexto, opcionesDelGenerador: opciones, cache: cache)
+            .ResponderAsync(
+                Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken,
+                consultasAnteriores: ["SELECT 1"]);
+
+        Assert.Equal(2, conContexto.Llamadas);
     }
 
     [Fact]
@@ -908,7 +1010,8 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         int tope = 200,
         ContadorDeLlamadasDelTurno? contador = null,
         ICatalogoDeCapacidades? capacidades = null,
-        OpcionesAsistente? opcionesDelGenerador = null)
+        OpcionesAsistente? opcionesDelGenerador = null,
+        CacheDeConsultasGeneradas? cache = null)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente { TopeDeFilas = tope });
@@ -929,7 +1032,9 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
             contadorDelTurno,
             Options.Create(opcionesDelGenerador ?? new OpcionesAsistente()),
             capacidades: capacidades,
-            log: NullLogger<CarrilSql>.Instance);
+            log: NullLogger<CarrilSql>.Instance,
+            cache: cache,
+            opcionesDelRedactor: Options.Create(opcionesDelGenerador ?? new OpcionesAsistente()));
     }
 
 }
