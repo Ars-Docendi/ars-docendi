@@ -49,9 +49,9 @@ import "../asistente.css";
  * nada se guarda en el navegador.
  */
 export function LanzadorAsistente() {
-  const { tieneAcceso } = useAccesoAlAsistente();
+  const { tieneAcceso, capacidades } = useAccesoAlAsistente();
   const [abierto, setAbierto] = useState(false);
-  const asistente = useAsistente();
+  const asistente = useAsistente({ redaccionEnFlujo: capacidades?.redaccionEnFlujo === true });
   // Sólo mientras el modal está abierto: cerrado, no hay rail que mostrar y no
   // vale la pena pedir la lista (tasks.md 1.3).
   const historial = useHistorialAsistente(asistente, abierto);

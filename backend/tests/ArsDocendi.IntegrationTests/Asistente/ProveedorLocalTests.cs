@@ -291,6 +291,89 @@ public sealed class ProveedorLocalTests
         Assert.Single(servidor.Pedidos);
     }
 
+    // ------------------------------------------- por fragmentos (D9 de optimizaciones)
+
+    [Fact]
+    public async Task Sin_quien_escuche_no_pide_flujo()
+    {
+        var servidor = ServidorFalso.QueResponde();
+
+        await Armar(servidor).CompletarAsync(Solicitud, Ct);
+
+        var cuerpo = servidor.Cuerpo(0);
+        Assert.False(cuerpo.GetProperty("stream").GetBoolean());
+        Assert.False(cuerpo.TryGetProperty("stream_options", out _));
+    }
+
+    [Fact]
+    public async Task Con_quien_escuche_pide_flujo_y_entrega_los_fragmentos_y_el_texto_completo()
+    {
+        var servidor = new ServidorFalso(_ => Flujo(
+            Delta("Hay "),
+            Delta("4 docentes"),
+            Delta(" designados."),
+            """{"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}""",
+            """{"choices":[],"usage":{"prompt_tokens":300,"completion_tokens":9,"prompt_tokens_details":{"cached_tokens":256}}}"""));
+        var fragmentos = new List<string>();
+
+        var respuesta = await Armar(servidor).CompletarAsync(
+            Solicitud with { AlRecibirTexto = Anotar(fragmentos) }, Ct);
+
+        var cuerpo = servidor.Cuerpo(0);
+        Assert.True(cuerpo.GetProperty("stream").GetBoolean());
+        Assert.True(cuerpo.GetProperty("stream_options").GetProperty("include_usage").GetBoolean());
+
+        Assert.Equal(["Hay ", "4 docentes", " designados."], fragmentos);
+        Assert.Equal("Hay 4 docentes designados.", respuesta.Texto);
+        Assert.Equal(300, respuesta.TokensDeEntrada);
+        Assert.Equal(9, respuesta.TokensDeSalida);
+        Assert.Equal(256, respuesta.TokensDeCache);
+        Assert.False(respuesta.SeQuedoSinTokens);
+    }
+
+    [Fact]
+    public async Task En_flujo_el_razonamiento_no_se_muestra_ni_a_medias()
+    {
+        var servidor = new ServidorFalso(_ => Flujo(
+            Delta("<thi"),
+            Delta("nk>borrador"),
+            Delta("</think>"),
+            Delta("\\nRespuesta."),
+            """{"choices":[{"index":0,"delta":{},"finish_reason":"length"}],"timings":{"cache_n":40},"usage":{"prompt_tokens":100,"completion_tokens":5}}"""));
+        var fragmentos = new List<string>();
+
+        var respuesta = await Armar(servidor).CompletarAsync(
+            Solicitud with { AlRecibirTexto = Anotar(fragmentos) }, Ct);
+
+        Assert.Equal("Respuesta.", string.Concat(fragmentos));
+        Assert.Equal("Respuesta.", respuesta.Texto);
+        Assert.True(respuesta.SeQuedoSinTokens);
+        Assert.Equal(40, respuesta.TokensDeCache);
+    }
+
+    [Theory]
+    [InlineData("Hola <", "Hola ")]
+    [InlineData("Hola <thin", "Hola ")]
+    [InlineData("Hola <b", "Hola <b")]
+    [InlineData("  <think>x", "")]
+    [InlineData("a <think>x</think> b", "a  b")]
+    public void Lo_visible_retiene_un_razonamiento_que_llega_a_medias(string texto, string visible)
+    {
+        Assert.Equal(visible, ProveedorLocal.VisibleHastaAhora(texto));
+    }
+
+    [Fact]
+    public async Task En_flujo_un_rechazo_del_servidor_se_traduce_igual()
+    {
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        var fragmentos = new List<string>();
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => Armar(servidor).CompletarAsync(
+            Solicitud with { AlRecibirTexto = Anotar(fragmentos) }, Ct));
+
+        Assert.Empty(fragmentos);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -300,6 +383,26 @@ public sealed class ProveedorLocalTests
 
     private static HttpResponseMessage Json(string cuerpo) =>
         new(HttpStatusCode.OK) { Content = new StringContent(cuerpo, Encoding.UTF8, "application/json") };
+
+    /// <summary>Una respuesta <c>text/event-stream</c> con estos eventos y <c>[DONE]</c>.</summary>
+    private static HttpResponseMessage Flujo(params string[] eventos) =>
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                string.Concat(eventos.Select(evento => $"data: {evento}\n\n")) + "data: [DONE]\n\n",
+                Encoding.UTF8,
+                "text/event-stream"),
+        };
+
+    private static string Delta(string texto) =>
+        $$"""{"choices":[{"index":0,"delta":{"content":"{{texto}}"},"finish_reason":null}]}""";
+
+    private static Func<string, CancellationToken, Task> Anotar(List<string> fragmentos) =>
+        (fragmento, _) =>
+        {
+            fragmentos.Add(fragmento);
+            return Task.CompletedTask;
+        };
 
     private static ServiceCollection Componer(
         string? url, ServidorFalso? servidor = null, int? intentos = null, int? concurrentes = null)

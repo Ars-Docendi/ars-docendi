@@ -27,7 +27,8 @@ namespace Modules.Asistente.Application;
 /// </remarks>
 public sealed class RedactorDeRespuesta(
     [FromKeyedServices(ModuleExtensions.ProveedorDeRedaccion)] IProveedorDeModelo modelo,
-    IOptions<OpcionesAsistente> opciones)
+    IOptions<OpcionesAsistente> opciones,
+    CanalDeRedaccion? canal = null)
 {
     /// <summary>
     /// Temperatura baja pero no cero: cero produce redacciones rígidas y
@@ -75,6 +76,9 @@ public sealed class RedactorDeRespuesta(
                     opciones.Value.EsfuerzoDeRedaccion,
                     nameof(OpcionesAsistente.EsfuerzoDeRedaccion)),
                 MaximoDeTokens = opciones.Value.MaximoDeTokensDeRedaccion,
+                // Por fragmentos sólo si la opción está prendida y alguien escucha
+                // (D9). El texto que vale es el de la respuesta completa.
+                AlRecibirTexto = opciones.Value.StreamingDeRedaccion ? canal?.AlRecibirTexto : null,
             },
             ct);
 

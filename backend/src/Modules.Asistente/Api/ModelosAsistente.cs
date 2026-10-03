@@ -537,6 +537,12 @@ public sealed record CapacidadesDto
     /// <summary>El cupo diario de este actor (asistente-cupo-visible).</summary>
     public required CupoDto Cupo { get; init; }
 
+    /// <summary>
+    /// Si conviene pedir el turno a <c>POST /consultas/flujo</c> para ver la
+    /// redacción mientras se escribe (asistente-optimizaciones-modelo-local, D9).
+    /// </summary>
+    public bool RedaccionEnFlujo { get; init; }
+
     /// <summary>Arma el DTO a partir del catálogo.</summary>
     internal static CapacidadesDto De(CapacidadesDelActor capacidades)
     {

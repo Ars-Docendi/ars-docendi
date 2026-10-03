@@ -79,10 +79,17 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
             pedido.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _clave);
         }
 
+        // Por fragmentos, la respuesta se lee a medida que llega: con el default
+        // (`ResponseContentRead`) el cliente HTTP esperaría el cuerpo entero.
+        var enFlujo = solicitud.AlRecibirTexto is not null;
+
         HttpResponseMessage respuesta;
         try
         {
-            respuesta = await _transporte.SendAsync(pedido, ct);
+            respuesta = await _transporte.SendAsync(
+                pedido,
+                enFlujo ? HttpCompletionOption.ResponseHeadersRead : HttpCompletionOption.ResponseContentRead,
+                ct);
         }
         catch (OperationCanceledException)
         {
@@ -97,14 +104,17 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
 
         using (respuesta)
         {
-            var texto = await respuesta.Content.ReadAsStringAsync(ct);
-
             if (!respuesta.IsSuccessStatusCode)
             {
-                throw Rechazo(respuesta.StatusCode, texto);
+                throw Rechazo(respuesta.StatusCode, await respuesta.Content.ReadAsStringAsync(ct));
             }
 
-            return Traducir(texto, solicitud);
+            if (enFlujo)
+            {
+                return await LeerFlujoAsync(respuesta, solicitud, ct);
+            }
+
+            return Traducir(await respuesta.Content.ReadAsStringAsync(ct), solicitud);
         }
     }
 
@@ -127,7 +137,7 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
             // La temperatura SÍ viaja: el puerto la conservó para esto.
             ["temperature"] = (double)solicitud.Temperatura,
             ["max_tokens"] = solicitud.MaximoDeTokens,
-            ["stream"] = false,
+            ["stream"] = solicitud.AlRecibirTexto is not null,
 
             // EL RAZONAMIENTO SE APAGA SALVO QUE SE LO PIDA EXPLÍCITAMENTE (D2).
             // En un modelo local pensar multiplica la salida 5–20×, y en una GPU
@@ -139,6 +149,13 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
                 ["enable_thinking"] = solicitud.Esfuerzo is EsfuerzoDelModelo.Alto or EsfuerzoDelModelo.Maximo,
             },
         };
+
+        if (solicitud.AlRecibirTexto is not null)
+        {
+            // Sin esto vLLM no informa tokens en un flujo, y el registro operativo
+            // anotaría cero.
+            cuerpo["stream_options"] = new JsonObject { ["include_usage"] = true };
+        }
 
         if (solicitud.EsquemaDeSalidaJson is { } esquema)
         {
@@ -179,11 +196,140 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
                 "El servidor del modelo local devolvió algo que no es JSON.", excepcion);
         }
 
-        var eleccion = raiz?["choices"]?[0];
-        var contenido = Cadena(eleccion?["message"]?["content"]) ?? string.Empty;
-        var motivoDeFin = Cadena(eleccion?["finish_reason"]);
-        var uso = raiz?["usage"];
+        var eleccion = PrimeraEleccion(raiz);
 
+        return Armar(
+            Cadena(eleccion?["message"]?["content"]) ?? string.Empty,
+            Cadena(eleccion?["finish_reason"]),
+            raiz?["usage"],
+            raiz?["timings"],
+            solicitud);
+    }
+
+    /// <summary>
+    /// Lee una respuesta <c>text/event-stream</c> y le pasa a
+    /// <see cref="SolicitudAlModelo.AlRecibirTexto"/> el texto visible a medida
+    /// que llega (asistente-optimizaciones-modelo-local, design.md D9).
+    /// </summary>
+    /// <remarks>
+    /// Devuelve lo mismo que la respuesta entera: el texto completo sin
+    /// razonamiento y los tokens del último evento que los traiga. Un corte a
+    /// mitad del flujo es una falla de transporte, igual que sin flujo. Lo que
+    /// lance quien escucha no se traduce: no es una falla del servidor y no le
+    /// corresponde al breaker contarla.
+    /// </remarks>
+    private async Task<RespuestaDelModelo> LeerFlujoAsync(
+        HttpResponseMessage respuesta, SolicitudAlModelo solicitud, CancellationToken ct)
+    {
+        var alRecibir = solicitud.AlRecibirTexto!;
+        var acumulado = new StringBuilder();
+        var emitidos = 0;
+        string? motivoDeFin = null;
+        JsonNode? uso = null;
+        JsonNode? tiempos = null;
+
+        await using var flujo = await respuesta.Content.ReadAsStreamAsync(ct);
+        using var lector = new StreamReader(flujo, Encoding.UTF8);
+
+        while (true)
+        {
+            string? linea;
+            try
+            {
+                linea = await lector.ReadLineAsync(ct);
+            }
+            catch (IOException excepcion)
+            {
+                throw new HttpRequestException(
+                    "El servidor del modelo local cortó la respuesta a mitad.", excepcion);
+            }
+
+            if (linea is null)
+            {
+                break;
+            }
+
+            if (!linea.StartsWith("data:", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var dato = linea["data:".Length..].Trim();
+            if (dato == "[DONE]")
+            {
+                break;
+            }
+
+            JsonNode? evento;
+            try
+            {
+                evento = JsonNode.Parse(dato);
+            }
+            catch (JsonException excepcion)
+            {
+                throw new HttpRequestException(
+                    "El servidor del modelo local devolvió un evento que no es JSON.", excepcion);
+            }
+
+            var eleccion = PrimeraEleccion(evento);
+            motivoDeFin = Cadena(eleccion?["finish_reason"]) ?? motivoDeFin;
+            uso = evento?["usage"] is JsonObject conUso ? conUso : uso;
+            tiempos = evento?["timings"] is JsonObject conTiempos ? conTiempos : tiempos;
+
+            if (Cadena(eleccion?["delta"]?["content"]) is not { Length: > 0 } fragmento)
+            {
+                continue;
+            }
+
+            acumulado.Append(fragmento);
+            var visible = VisibleHastaAhora(acumulado.ToString());
+            if (visible.Length > emitidos)
+            {
+                await alRecibir(visible[emitidos..], ct);
+                emitidos = visible.Length;
+            }
+        }
+
+        return Armar(acumulado.ToString(), motivoDeFin, uso, tiempos, solicitud);
+    }
+
+    /// <summary>
+    /// Lo que se puede mostrar de una respuesta que todavía está llegando.
+    /// </summary>
+    /// <remarks>
+    /// Saca los bloques de razonamiento cerrados, corta en uno abierto y retiene
+    /// un <c>&lt;think&gt;</c> que llegó a medias, para no mostrar «&lt;thi» y
+    /// tener que desdecirse. Lo que devuelve sólo crece, así que el llamador
+    /// emite la diferencia.
+    /// </remarks>
+    internal static string VisibleHastaAhora(string texto)
+    {
+        const string Apertura = "<think>";
+
+        var sinBloques = BloqueDeRazonamiento().Replace(texto, string.Empty);
+        var abierto = sinBloques.IndexOf(Apertura, StringComparison.Ordinal);
+        var visible = abierto >= 0 ? sinBloques[..abierto] : sinBloques;
+
+        for (var largo = Math.Min(Apertura.Length - 1, visible.Length); largo > 0; largo--)
+        {
+            if (Apertura.StartsWith(visible[^largo..], StringComparison.Ordinal))
+            {
+                visible = visible[..^largo];
+                break;
+            }
+        }
+
+        return visible.TrimStart();
+    }
+
+    /// <summary>Arma la respuesta del puerto, venga entera o por fragmentos.</summary>
+    private RespuestaDelModelo Armar(
+        string contenido,
+        string? motivoDeFin,
+        JsonNode? uso,
+        JsonNode? tiempos,
+        SolicitudAlModelo solicitud)
+    {
         var seQuedoSinTokens = motivoDeFin == "length";
         if (seQuedoSinTokens)
         {
@@ -203,7 +349,7 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
         var informados = Entero(uso?["prompt_tokens_details"]?["cached_tokens"]);
         if (informados == 0)
         {
-            informados = Entero(raiz?["timings"]?["cache_n"]);
+            informados = Entero(tiempos?["cache_n"]);
         }
 
         var deCache = Math.Min(entrada, informados);
@@ -297,6 +443,13 @@ internal sealed partial class ProveedorLocal : IProveedorDeModelo
     /// <summary>Lo justo del cuerpo de error para diagnosticar, sin el prompt.</summary>
     private static string Recortar(string cuerpo) =>
         cuerpo.Length <= 200 ? cuerpo : cuerpo[..200] + "…";
+
+    /// <summary>
+    /// <c>choices[0]</c>, o nulo si no hay: el último evento de un flujo con
+    /// <c>include_usage</c> trae <c>"choices": []</c> y sólo el uso.
+    /// </summary>
+    private static JsonNode? PrimeraEleccion(JsonNode? raiz) =>
+        raiz?["choices"] is JsonArray { Count: > 0 } elecciones ? elecciones[0] : null;
 
     /// <summary>Una cadena del JSON, o nulo si falta o es de otro tipo.</summary>
     private static string? Cadena(JsonNode? nodo) =>

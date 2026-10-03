@@ -289,6 +289,8 @@ public static class ModuleExtensions
         services.AddSingleton<CacheDeConsultasGeneradas>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
+        // Lo llena el endpoint de flujo en el mismo request (D9).
+        services.AddScoped<CanalDeRedaccion>();
 
         services.AddScoped<CarrilSql>();
 

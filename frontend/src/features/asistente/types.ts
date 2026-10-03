@@ -153,6 +153,12 @@ export interface CapacidadesDelAsistente {
   presentacion: string;
   mantenimiento: MantenimientoDelAsistente;
   cupo: CupoDelActor;
+  /**
+   * Si el turno se pide a `POST /consultas/flujo` para ver la redacción
+   * mientras se escribe (asistente-optimizaciones-modelo-local, D9). Ausente
+   * equivale a `false`.
+   */
+  redaccionEnFlujo?: boolean;
 }
 
 // ============================================================
@@ -361,6 +367,12 @@ export interface TurnoDeLaConversacion {
   menciones?: MencionEnPregunta[];
   /** Ausente mientras el turno está en vuelo. */
   respuesta?: RespuestaDelAsistente;
+  /**
+   * Lo que llegó de la redacción mientras el turno sigue en vuelo, con la
+   * redacción por fragmentos (asistente-optimizaciones-modelo-local, D9). Es una
+   * vista previa: la `respuesta` que llega al final la reemplaza.
+   */
+  redaccionParcial?: string;
   /** Mensaje comprensible cuando el pedido falló por transporte. */
   error?: string;
   /** El usuario dejó de esperarlo: el request se soltó de este lado. No es un error. */

@@ -474,6 +474,7 @@ va por ambiente (`Asistente:Proveedor`):
 | ----------- | -------------------- | ----------------------------------------------------- |
 | `simulado`  | `ProveedorSimulado`  | Default de todos los ambientes. Determinista, sin red |
 | `anthropic` | `ProveedorAnthropic` | Requiere `Asistente:ClaveDelProveedor`                |
+| `local`     | `ProveedorLocal`     | Requiere `Asistente:UrlDelProveedorLocal`             |
 
 Sumar uno nuevo —otro proveedor, o un modelo propio corriendo en la nube— es una
 clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline que
@@ -816,6 +817,38 @@ terminan y liberan lugar.
 `ReintentarConsultaVacia` (default `true`) apaga el reintento por consulta vacía, que
 repite el prompt byte a byte: con un modelo local a temperatura 0 devuelve la misma
 consulta.
+
+### Optimizaciones para un modelo propio
+
+Ocho opciones del change `asistente-optimizaciones-modelo-local`. **Todas arrancan
+apagadas**: con los defaults el prompt de Claude no cambia en un byte y los cassettes
+siguen valiendo. Cada una es una hipótesis para un modelo chico que el evaluador
+tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la RTX 3070
+([modelo-local.md §8](../../../docs/architecture/modelo-local.md)) las prenden.
+
+| Opción                              | Default | Qué hace                                                                                                                         |
+| ----------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                       |
+| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos |
+| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                       |
+| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo            |
+| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                 |
+| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS             |
+| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                      |
+| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                     |
+
+**El streaming no cambia lo que vale.** El adaptador local pide `stream: true` sólo
+para la redacción y sólo si alguien escucha (`CanalDeRedaccion`, que llena el
+endpoint de flujo). Los fragmentos son una vista previa: el evento `resultado` trae
+la respuesta completa, que es la que el cliente muestra al final, la que se guarda
+bajo la `Idempotency-Key` y la que cuenta el registro. Si el cliente se desconecta,
+la escritura se marca rota y el turno termina igual; un error de escritura nunca
+llega al breaker.
+
+**La tarjeta «Servidor del modelo» del panel de uso** (`GET /administracion/servidor-local`)
+lee el `/metrics` del servidor —vLLM o llama-server, con `--metrics`— con un timeout
+de 3 s, y el estado de la compuerta del proceso. El panel la refresca cada 15 s. Sólo aparece con proveedor
+`local`; una métrica que el servidor no publica se muestra «—», nunca cero.
 
 **La cuota no está en esta cadena.** La cobra `CapaConversacional` en un `finally`,
 con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor, y

@@ -159,7 +159,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Subió de 94 a 95 con asistente-optimizaciones-modelo-local (D8):
         // `GET /api/asistente/administracion/servidor-local`.
-        Assert.Equal(95, operaciones.Length);
+        //
+        // Subió de 95 a 96 con asistente-optimizaciones-modelo-local (D9):
+        // `POST /api/asistente/consultas/flujo`.
+        Assert.Equal(96, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

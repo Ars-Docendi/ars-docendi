@@ -724,7 +724,13 @@ public sealed partial class ArquitecturaAsistenteTests
     /// less-accessible type there — same rule as every other entry in this list.
     /// Its own surface stays minimal: the lookup and the store are `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 93;
+    /// <remarks>
+    /// Raised to 94 for asistente-optimizaciones-modelo-local (D9):
+    /// <c>CanalDeRedaccion</c> is a constructor parameter of the already-public
+    /// <c>RedactorDeRespuesta</c>, filled by the streaming endpoint in the same
+    /// request. One settable callback, nothing else.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 94;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

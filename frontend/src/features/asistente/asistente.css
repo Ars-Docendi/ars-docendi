@@ -946,6 +946,16 @@
   gap: var(--space-3);
 }
 
+/* La redacción mientras llega (asistente-optimizaciones-modelo-local, D9): el
+   mismo texto que la respuesta, con el latido de los puntos como cursor para que
+   se lea como algo que todavía se está escribiendo. */
+.adoc-asistente-respuesta--parcial .adoc-asistente-texto::after {
+  content: "▍";
+  margin-left: 1px;
+  color: var(--color-text-secondary);
+  animation: adoc-asistente-latido 1.2s infinite ease-in-out;
+}
+
 /* El texto sí tiene ancho de lectura; la tabla, que va aparte, usa el turno
    entero. */
 .adoc-asistente-texto {
@@ -2229,7 +2239,8 @@
 /* ───────────────────────────────── menos movimiento ────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
-  .adoc-asistente-puntos > span {
+  .adoc-asistente-puntos > span,
+  .adoc-asistente-respuesta--parcial .adoc-asistente-texto::after {
     animation: none;
     opacity: 1;
   }
