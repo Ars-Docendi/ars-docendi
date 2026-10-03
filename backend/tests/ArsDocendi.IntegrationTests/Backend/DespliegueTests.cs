@@ -40,7 +40,7 @@ public sealed class DespliegueTests(PostgresFixture postgres)
     }
 
     private WebApplicationFactory<Program> CrearHost(string clientSecret, bool habilitada) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        new HostPruebas(builder =>
         {
             builder.UseEnvironment("Production");
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
@@ -48,4 +48,9 @@ public sealed class DespliegueTests(PostgresFixture postgres)
             builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
             builder.UseSetting("AutenticacionMicrosoft:ClientSecret", clientSecret);
         });
+
+    private sealed class HostPruebas(Action<IWebHostBuilder> configurar) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder) => configurar(builder);
+    }
 }

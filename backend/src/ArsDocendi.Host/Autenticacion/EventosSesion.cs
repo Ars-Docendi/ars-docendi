@@ -30,7 +30,7 @@ public static partial class EventosSesion
             : await servicios.GetRequiredService<ServicioIngreso>()
                 .ResolverAsync(cuenta, contexto.HttpContext.RequestAborted);
 
-        if (!resultado.Aceptado)
+        if (resultado.UsuarioId is not Guid usuarioId || cuenta is null)
         {
             contexto.HandleResponse();
             contexto.Response.Redirect("/login?error=forbidden");
@@ -40,7 +40,7 @@ public static partial class EventosSesion
         var ahora = servicios.GetRequiredService<TimeProvider>().GetUtcNow();
         var identidad = new ClaimsIdentity(
             [
-                new Claim(ClaimTypes.NameIdentifier, resultado.UsuarioId!.Value.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, usuarioId.ToString()),
                 new Claim(ClaimInicio, ahora.ToString("O", CultureInfo.InvariantCulture)),
             ],
             RegistroAutenticacion.EsquemaSesion);
@@ -49,7 +49,7 @@ public static partial class EventosSesion
         // El vínculo y el último ingreso se auditan con el propio usuario como actor.
         contexto.HttpContext.User = contexto.Principal;
         await servicios.GetRequiredService<ServicioIngreso>()
-            .RegistrarIngresoAsync(resultado.UsuarioId.Value, cuenta!, contexto.HttpContext.RequestAborted);
+            .RegistrarIngresoAsync(usuarioId, cuenta, contexto.HttpContext.RequestAborted);
     }
 
     /// <summary>Microsoft devolvió un error o la persona canceló el ingreso.</summary>
@@ -121,13 +121,14 @@ public static partial class EventosSesion
 
     private static DatosCuentaMicrosoft? LeerCuenta(ClaimsPrincipal? principal)
     {
-        if (!Guid.TryParse(principal?.FindFirstValue("tid"), out var tenant)
-            || !Guid.TryParse(principal?.FindFirstValue("oid"), out var objeto))
+        if (principal is null
+            || !Guid.TryParse(principal.FindFirstValue("tid"), out var tenant)
+            || !Guid.TryParse(principal.FindFirstValue("oid"), out var objeto))
         {
             return null;
         }
 
-        var verificado = principal!.FindFirstValue("xms_edov");
+        var verificado = principal.FindFirstValue("xms_edov");
         return new DatosCuentaMicrosoft(
             tenant,
             objeto,

@@ -7,9 +7,10 @@ namespace ArsDocendi.Host.Autenticacion;
 /// alcanza: pr-N, staging y producción comparten sitio, así que una página de un
 /// ambiente hermano puede disparar solicitudes que viajan con la cookie.
 /// <para>
-/// En cada GET autenticado por cookie se entrega <c>XSRF-TOKEN</c>, legible por el
-/// frontend; axios lo devuelve en <c>X-XSRF-TOKEN</c> en las solicitudes al mismo
-/// origen. Las mutaciones autenticadas por cookie sin ese token se rechazan. Las
+/// En cada solicitud segura autenticada por cookie se entrega el token en el header
+/// <c>X-XSRF-TOKEN</c> y en la cookie <c>XSRF-TOKEN</c>, que es HttpOnly. El cliente
+/// conserva el header en memoria y lo devuelve sólo en mutaciones al mismo origen.
+/// Las mutaciones autenticadas por cookie sin ese token se rechazan. Las
 /// identidades de desarrollo viajan en headers y no son vulnerables a CSRF.
 /// </para>
 /// </summary>
@@ -48,11 +49,13 @@ public static class AntifalsificacionSesion
                 var tokens = antiforgery.GetAndStoreTokens(contexto);
                 contexto.Response.Cookies.Append(CookieToken, tokens.RequestToken!, new CookieOptions
                 {
-                    HttpOnly = false,
+                    HttpOnly = true,
                     Secure = contexto.Request.IsHttps,
                     SameSite = SameSiteMode.Strict,
                     Path = "/",
                 });
+                contexto.Response.Headers[HeaderToken] = tokens.RequestToken;
+                contexto.Response.Headers.CacheControl = "no-store";
                 await siguiente();
                 return;
             }

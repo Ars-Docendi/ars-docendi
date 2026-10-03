@@ -52,7 +52,7 @@ function Marquee() {
         </p>
       </div>
       <div className="foot">
-        <span>v0.1</span>
+        <span>v0.1.1</span>
       </div>
     </aside>
   );
@@ -109,10 +109,7 @@ export function LoginPage() {
         <div className="login-card">
           <div className="head">
             <h2>Iniciá sesión</h2>
-            <p>
-              Usá tu cuenta institucional para acceder. No hay registro: tu acceso se gestiona desde
-              UNLaM.
-            </p>
+            <p>Usá tu cuenta institucional para acceder.</p>
           </div>
 
           {state === "error" && (

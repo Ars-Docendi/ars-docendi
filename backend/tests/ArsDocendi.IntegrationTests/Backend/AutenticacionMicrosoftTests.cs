@@ -27,7 +27,7 @@ namespace ArsDocendi.IntegrationTests.Backend;
 /// solicitud. Microsoft se reemplaza por una configuración OIDC estática y la cookie se
 /// emite con un sign-in que sólo existe en el host de pruebas.
 /// </summary>
-public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
+public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "auth_ms")
 {
     private readonly RelojAjustable _reloj = new(DateTimeOffset.UtcNow);
@@ -177,8 +177,14 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         using var respuesta = await http.SendAsync(solicitud, ct);
 
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-        Assert.Contains(respuesta.Headers.GetValues("Set-Cookie"),
-            c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
+        var token = respuesta.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
+        Assert.Contains("httponly", token, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("samesite=strict", token, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            Uri.UnescapeDataString(token.Split(';')[0][(AntifalsificacionSesion.CookieToken.Length + 1)..]),
+            respuesta.Headers.GetValues(AntifalsificacionSesion.HeaderToken).Single());
+        Assert.Contains("no-store", respuesta.Headers.CacheControl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -267,6 +273,10 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         var token = respuesta.Headers.GetValues("Set-Cookie")
             .Single(c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
         Assert.Contains("secure", token, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("httponly", token, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(
+            Uri.UnescapeDataString(token.Split(';')[0][(AntifalsificacionSesion.CookieToken.Length + 1)..]),
+            respuesta.Headers.GetValues(AntifalsificacionSesion.HeaderToken).Single());
     }
 
     [Fact]
@@ -278,7 +288,7 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         try
         {
             string cookie;
-            using (var antes = ConClaves(CrearHost(microsoft: true, desarrollo: false), claves.FullName))
+            using (var antes = CrearHost(microsoft: true, desarrollo: false, directorioClaves: claves.FullName))
             using (var cliente = CrearCliente(antes))
             {
                 using var ingreso = await cliente.PostAsync($"{RutaIngresoPruebas}/{usuario}", null, ct);
@@ -287,7 +297,7 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
                     .Split(';')[0];
             }
 
-            using var despues = ConClaves(CrearHost(microsoft: true, desarrollo: false), claves.FullName);
+            using var despues = CrearHost(microsoft: true, desarrollo: false, directorioClaves: claves.FullName);
             using var nuevo = despues.CreateClient(new WebApplicationFactoryClientOptions
             {
                 BaseAddress = new Uri("https://localhost"),
@@ -374,8 +384,8 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         Assert.Equal(esperado, propiedades?.RedirectUri);
     }
 
-    private WebApplicationFactory<Program> CrearHost(bool microsoft, bool desarrollo) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> CrearHost(bool microsoft, bool desarrollo, string? directorioClaves = null) =>
+        new HostPruebas(builder =>
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
@@ -383,6 +393,10 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
             builder.UseSetting($"{AutenticacionMicrosoftOptions.Seccion}:Habilitada", microsoft.ToString());
             builder.UseSetting($"{AutenticacionMicrosoftOptions.Seccion}:ClientId", "cliente-pruebas");
             builder.UseSetting($"{AutenticacionMicrosoftOptions.Seccion}:ClientSecret", "secreto-pruebas");
+            if (directorioClaves is not null)
+            {
+                builder.UseSetting("DataProtection:DirectorioClaves", directorioClaves);
+            }
             builder.ConfigureTestServices(servicios =>
             {
                 servicios.Configure<OpenIdConnectOptions>(RegistroAutenticacion.EsquemaMicrosoft, o =>
@@ -397,8 +411,10 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
             });
         });
 
-    private static WebApplicationFactory<Program> ConClaves(WebApplicationFactory<Program> host, string directorio) =>
-        host.WithWebHostBuilder(builder => builder.UseSetting("DataProtection:DirectorioClaves", directorio));
+    private sealed class HostPruebas(Action<IWebHostBuilder> configurar) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder) => configurar(builder);
+    }
 
     private static HttpClient CrearCliente(WebApplicationFactory<Program> host) =>
         host.CreateClient(new WebApplicationFactoryClientOptions
@@ -418,17 +434,16 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
     private static async Task<string> ObtenerTokenAsync(HttpClient cliente, CancellationToken ct)
     {
         using var respuesta = await cliente.GetAsync("/api/auth/sesion", ct);
-        var cookie = respuesta.Headers.GetValues("Set-Cookie")
-            .Single(c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
-        return Uri.UnescapeDataString(cookie.Split(';')[0][(AntifalsificacionSesion.CookieToken.Length + 1)..]);
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        return respuesta.Headers.GetValues(AntifalsificacionSesion.HeaderToken).Single();
     }
 
-    private static Task<HttpResponseMessage> PostConTokenAsync(
+    private static async Task<HttpResponseMessage> PostConTokenAsync(
         HttpClient cliente, string ruta, string token, CancellationToken ct)
     {
-        var solicitud = new HttpRequestMessage(HttpMethod.Post, ruta);
+        using var solicitud = new HttpRequestMessage(HttpMethod.Post, ruta);
         solicitud.Headers.Add(AntifalsificacionSesion.HeaderToken, token);
-        return cliente.SendAsync(solicitud, ct);
+        return await cliente.SendAsync(solicitud, ct);
     }
 
     private async Task<Guid> CrearUsuarioAsync(Guid rol, CancellationToken ct)
@@ -463,13 +478,19 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
     private async Task EjecutarSeedAsync(CancellationToken ct)
     {
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null && !File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
+        while (directorio is not null && !new FileInfo(Path.Join(directorio.FullName, "AGENTS.md")).Exists)
         {
             directorio = directorio.Parent;
         }
 
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(directorio!.FullName, "infra", "scripts", "seed-data", "sintetico.sql"), ct);
+        if (directorio is null)
+        {
+            throw new DirectoryNotFoundException("No se encontró la raíz del repositorio para cargar el seed.");
+        }
+
+        // Los segmentos son literales relativos: Join conserva la raíz encontrada.
+        var archivo = new FileInfo(Path.Join(directorio.FullName, "infra", "scripts", "seed-data", "sintetico.sql"));
+        var sql = await File.ReadAllTextAsync(archivo.FullName, ct);
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);

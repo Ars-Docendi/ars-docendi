@@ -151,7 +151,7 @@ La sesión SHALL vencer tras un período de inactividad y al alcanzar una duraci
 
 ### Requirement: Protección contra solicitudes cruzadas
 
-Las solicitudes que modifican estado y se autentican con la cookie de sesión MUST incluir una prueba anti-falsificación emitida por el sistema; sin ella, el sistema SHALL rechazarlas sin aplicar cambios.
+Las solicitudes que modifican estado y se autentican con la cookie de sesión MUST incluir una prueba anti-falsificación emitida por el sistema; sin ella, el sistema SHALL rechazarlas sin aplicar cambios. El sistema SHALL entregar el token en el header de respuesta `X-XSRF-TOKEN` de las solicitudes seguras autenticadas y conservar `XSRF-TOKEN` como cookie `HttpOnly`, `SameSite=Strict`, `Path=/` y `Secure` sobre HTTPS. Las respuestas con token MUST usar `Cache-Control: no-store`. El frontend MUST conservar el token del header sólo en memoria y enviarlo sólo en mutaciones al mismo origen; MUST NOT leerlo de cookies ni aceptar o enviar tokens de otros orígenes.
 
 #### Scenario: Mutación sin prueba anti-falsificación
 
@@ -164,6 +164,25 @@ Las solicitudes que modifican estado y se autentican con la cookie de sesión MU
 - **GIVEN** una sesión válida en el frontend
 - **WHEN** el usuario confirma una operación que modifica datos
 - **THEN** la solicitud incluye la prueba anti-falsificación y se procesa normalmente
+
+#### Scenario: Recuperación tras recargar el frontend
+
+- **GIVEN** una cookie de sesión válida y el frontend recién recargado, sin token en memoria
+- **WHEN** consulta `GET /api/auth/sesion`
+- **THEN** conserva el token del header de respuesta y lo devuelve en las siguientes mutaciones al mismo origen
+- **AND** una nueva respuesta con token actualiza el valor en memoria
+
+#### Scenario: Solicitud a otro origen
+
+- **GIVEN** un token anti-falsificación en memoria
+- **WHEN** el cliente realiza una solicitud con URL absoluta, relativa al protocolo o `baseURL` de otro origen
+- **THEN** no envía `X-XSRF-TOKEN` ni reemplaza el token local por headers de ese origen
+
+#### Scenario: Descarte al cerrar o perder la sesión
+
+- **GIVEN** un token anti-falsificación en memoria y consultas en vuelo
+- **WHEN** un logout al mismo origen termina exitosamente o una solicitud al mismo origen responde `401`
+- **THEN** el frontend descarta el token y las respuestas de consultas anteriores no pueden reponerlo
 
 ### Requirement: Rol de la sesión
 
