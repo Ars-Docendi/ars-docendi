@@ -15,7 +15,7 @@
 #   GH_PAT          PAT fine-grained con permiso "Administration: Read and write"
 #                   sobre el repo (o token de instalación de una GitHub App).
 #   RUNNER_DIR      directorio del paquete del runner para ESTA instancia
-#   RUNNER_LABELS   (opcional) default "arsdocendi,efimero"
+#   RUNNER_LABELS   (opcional) default "arsdocendi,efimero,secundaria"
 #
 # Requiere: curl, jq, y el paquete del runner ya extraído en RUNNER_DIR.
 
@@ -25,7 +25,7 @@ set -euo pipefail
 : "${GH_REPO:?falta GH_REPO}"
 : "${GH_PAT:?falta GH_PAT}"
 : "${RUNNER_DIR:?falta RUNNER_DIR}"
-labels="${RUNNER_LABELS:-arsdocendi,efimero}"
+labels="${RUNNER_LABELS:-arsdocendi,efimero,secundaria}"
 
 api="https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/actions/runners/registration-token"
 

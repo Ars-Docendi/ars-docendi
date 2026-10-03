@@ -1,0 +1,12 @@
+# Ingress del túnel de la PC Debian principal.
+# Materializar el ID y el dominio fuera del repositorio; cloudflared no interpola
+# variables de entorno en este archivo. Nunca guardar credenciales en Git.
+tunnel: REEMPLAZAR_CON_TUNNEL_ID_PRINCIPAL
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # Producción sólo en el dominio raíz; prod sigue siendo su identidad interna.
+  - hostname: example.net
+    service: http://traefik:80
+  # Staging y previews se sirven únicamente desde Proxmox.
+  - service: http_status:404

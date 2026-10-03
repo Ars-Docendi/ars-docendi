@@ -26,6 +26,11 @@
       "motivo": "change_log.old_row y change_log.new_row guardan la fila entera en JSON. Cualquier dato personal escrito en cualquier tabla auditada reaparece ahí, y un JSONB no admite GRANT por columna sobre su contenido. Se deniega el schema completo con REVOKE USAGE, no tabla por tabla, para que un intento de acceso falle con permission denied for schema audit."
     },
     {
+      "nombre": "storage",
+      "estado": "denegado",
+      "motivo": "storage.archivos guarda el registro de los archivos subidos al sistema: nombre original, propósito (CV, DNI, justificativos), propietario, bucket y clave del objeto, hash y estado de la revisión antivirus. Es el inventario de documentos de identidad y de currículums de las personas, y ninguna pregunta del catálogo lo necesita: el asistente no entrega ni consulta archivos, esa tarea es de la interfaz. Se deniega el schema completo y no se concede ninguna tabla, para que un intento de acceso falle con permission denied for schema storage. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
       "nombre": "asistente",
       "estado": "denegado",
       "motivo": "Los dos registros del propio asistente. registro_analitico guarda el texto de las preguntas de TODOS los usuarios: un asistente que pudiera leerlo respondería «qué le preguntó fulano» a cualquiera con el permiso de consulta. registro_operativo guarda actor y timestamp preciso, y poder leerlo desde el carril SQL reconstruiría por dentro el cruce que separar las dos tablas existe para impedir. Se deniega el schema completo con REVOKE ALL ON SCHEMA, declarado en 002_asistente_registros.sql junto al CREATE SCHEMA porque un REVOKE sobre un schema inexistente falla."
@@ -327,6 +332,10 @@
         {
           "columna": "uri",
           "motivo": "Ubicación del archivo adjunto. Es una referencia a un recurso, no un dato de consulta: exponerla convertiría al asistente en un directorio de archivos y habilitaría intentar el acceso por fuera del sistema. El asistente puede decir que existe un adjunto y de qué tipo es; entregarlo es trabajo de la interfaz."
+        },
+        {
+          "columna": "archivo_id",
+          "motivo": "Referencia al archivo guardado en el schema storage (storage.archivos), que reemplaza a uri como forma de apuntar al adjunto. Misma razón que uri: es una referencia a un recurso, no un dato de consulta, y exponerla convertiría al asistente en un directorio de archivos. El asistente puede decir que existe un adjunto y de qué tipo es; entregarlo es trabajo de la interfaz."
         }
       ]
     },

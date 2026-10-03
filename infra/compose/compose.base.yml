@@ -57,6 +57,15 @@ services:
       # `anthropic` sin clave — un proveedor real sin credencial fallaría recién
       # cuando alguien pregunte, que es el peor momento para enterarse.
       Asistente__ClaveDelProveedor: ${ASISTENTE_CLAVE:-}
+      Almacenamiento__Endpoint: ${ALMACENAMIENTO_ENDPOINT:-seaweedfs:8333}
+      Almacenamiento__UseSsl: ${ALMACENAMIENTO_USE_SSL:-false}
+      Almacenamiento__AccessKey: ${ALMACENAMIENTO_ACCESS_KEY}
+      Almacenamiento__SecretKey: ${ALMACENAMIENTO_SECRET_KEY}
+      Almacenamiento__Bucket: ${ALMACENAMIENTO_BUCKET}
+      Almacenamiento__Ambiente: ${AMBIENTE}
+      Almacenamiento__RechazarSiAntivirusNoDisponible: ${ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE:-true}
+      Almacenamiento__ClamAvHost: ${ALMACENAMIENTO_CLAMAV_HOST:-clamav}
+      Almacenamiento__ClamAvPort: ${ALMACENAMIENTO_CLAMAV_PORT:-3310}
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida

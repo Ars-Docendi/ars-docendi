@@ -1,11 +1,15 @@
 # Infra — plataforma de ambientes efímeros
 
-Plataforma de deploy estilo Bunnyshell sobre **un único nodo Proxmox**. Produce
-tres clases de ambiente público: **prod** (desde `main`), **staging** (desde
-`develop`) y **pr-N** efímeros (uno por PR, destruidos al cerrarlo).
+Plataforma temporal de dos hosts aislados: la PC Debian **principal** y una VM
+Proxmox **secundaria**. `prod` (desde `main`) corre **sólo en Debian**, en
+`https://<DOMINIO>`; `staging` (desde `develop`) y `pr-N` (uno por PR) corren
+**sólo en Proxmox**, en `staging.<DOMINIO>` y `pr-N.<DOMINIO>`. Cada host tiene
+su propio PostgreSQL, SeaweedFS, ClamAV y redes Docker. No hay LB, deploy dual,
+replicación ni failover: una caída de Debian deja producción indisponible.
+El proyecto Compose `prod`, la base `arsdocendi_prod` y el Environment `prod`
+conservan sus nombres. Esta es la topología objetivo, no evidencia de activación.
 
-Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Reemplaza el modelo viejo
-(nginx + certbot + systemd + Kestrel), ya retirado. Topología completa en
+Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Topología completa en
 [docs/architecture/infrastructure.md](../docs/architecture/infrastructure.md).
 
 ## Layout
@@ -14,13 +18,16 @@ Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Reemplaza el modelo vie
 infra/
 ├── compose/
 │   ├── compose.base.yml      # definición de servicios (frontend+backend), parametrizada
-│   └── .env.example          # variables de UN ambiente
+│   ├── compose.storage.yml   # SeaweedFS prod o pool compartido no-prod
+│   ├── compose.antivirus.yml # ClamAV compartido por los ambientes de cada host
+│   └── .env.example          # variables de un ambiente
 ├── traefik/
 │   ├── traefik.yml           # config estática (entrypoints, docker provider, sin ACME)
 │   ├── dynamic/headers-seguridad.yml
 │   └── README.md             # convención de labels de routing
 ├── cloudflared/
-│   ├── config.yml            # ingress wildcard único
+│   ├── config.yml            # ingress de Proxmox (rechazo prod, staging y previews)
+│   ├── config-principal.yml  # ingress de Debian (sólo dominio raíz productivo)
 │   └── README.md             # crear túnel + credenciales
 ├── scripts/
 │   ├── _comun.sh             # helpers (logging, validación, nombres de base y rol)
@@ -30,11 +37,9 @@ infra/
 │   ├── verificar-roles-asistente.sh  # test de humo read-only de los roles del asistente
 │   ├── spin-up.sh <env>      # reconstruye descartables, provisiona, migra, siembra y levanta
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
+│   ├── backup-storage.sh <env> <dir> # backup PostgreSQL + objetos S3 verificable
+│   ├── restore-storage.sh <env> <dir> # restore descartable con hashes
 │   └── seed-data/sintetico.sql
-├── reaper/
-│   ├── reap-pr-envs.sh       # destruye pr-N > N días
-│   ├── reap-pr-envs.service
-│   └── reap-pr-envs.timer
 ├── runners/
 │   ├── respawn-efimero.sh                  # registra+corre 1 runner efímero (token auto)
 │   └── arsdocendi-runner-efimero@.service  # unit template systemd (N instancias)
@@ -44,6 +49,9 @@ infra/
 
 CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 `pr-env-deploy`, `pr-env-teardown`.
+
+La matriz de variables, secrets y gates de GitHub está en
+[`docs/operations/github-pr-deploy.md`](../docs/operations/github-pr-deploy.md).
 
 ## Operación manual
 
@@ -60,42 +68,52 @@ make down AMBIENTE=pr-123
 
 # Runbook — provisioning del host (una sola vez)
 
-Pasos **manuales** que dejan el nodo listo para que la CI (o `make up`) deploye
-ambientes. Se hacen una vez, en orden. Decisiones registradas en el change
-`ephemeral-environments` (design.md).
+Pasos **manuales** para dejar cada host listo para que CI despliegue. Se hacen
+una vez por host, en orden; los pasos de previews se hacen sólo en Proxmox.
+La configuración de Cloudflare DNS/túneles y el registro de runners son
+responsabilidad exclusiva del operador, fuera del repositorio. El cambio temporal está descrito en
+`openspec/changes/deploy-dual-con-failover-temporal/`.
 
-Orden de dependencias: redes → Postgres → Traefik → cloudflared → runners →
-reaper. Traefik debe estar arriba **antes** que cualquier ambiente (los rutea); y
+Orden de dependencias: redes → Postgres → Traefik → cloudflared → runners.
+Traefik debe estar arriba **antes** que cualquier ambiente (los rutea); y
 cloudflared **después** de Traefik (lo tiene como upstream).
 
-## 1. App host: VM en Proxmox (D1)
+## 1. Hosts de aplicación
 
-Docker corre en una **VM dedicada** (no LXC: el nesting de Docker-in-LXC es frágil).
+La PC principal usa Debian nativo; la secundaria corre en una **VM Proxmox**
+(no LXC). Debian requiere recursos para producción (PostgreSQL, SeaweedFS
+prod y ClamAV); Proxmox para staging/previews (PostgreSQL, SeaweedFS no-prod
+y ClamAV). No aprovisionar staging/previews en Debian ni prod nuevo en la VM.
 
-1. Crear la VM (Debian/Ubuntu LTS), CPU/RAM acorde a los pr-N esperados.
-2. Instalar Docker Engine + Compose plugin.
-3. Crear las redes externas compartidas (las consumen todos los servicios):
+1. Preparar ambos hosts con CPU/RAM y Docker Engine + Compose plugin; dimensionar
+   Proxmox también para los `pr-N` esperados.
+2. Crear **en cada host** las redes locales que comparten sus contenedores:
    ```bash
    docker network create traefik
    docker network create arsdocendi-datos
    ```
-4. Clonar el repo en `/opt/ars-docendi/repo` en la rama **`main`** (línea estable).
-   De este checkout salen los configs montados (Traefik, cloudflared), los units
-   de systemd (reaper/runners) y el script del reaper, que corre `DROP DATABASE`
-   con credenciales admin → debe ser código revisado de `main`, nunca una rama de
-   trabajo. La CI **no** usa este checkout (cada job hace su propio `checkout`).
+3. Clonar el repo en `/opt/ars-docendi/repo` en la rama **`main`** (línea estable)
+   en ambos hosts.
+   De este checkout salen los configs montados de Traefik, las plantillas de
+   cloudflared (materializadas fuera de Git) y las unidades de los runners → debe ser código revisado de `main`, nunca
+   una rama de trabajo. La CI **no** usa este checkout (cada job hace su propio
+   `checkout`).
 
    Re-sincronizar tras cambios de infra:
 
    ```bash
    git -C /opt/ars-docendi/repo pull --ff-only origin main
-   sudo systemctl daemon-reload   # si cambiaron units de reaper/runners
    ```
 
-## 2. Postgres compartido
+   Si cambian las unidades de runners, el operador recarga/reinicia los servicios
+   conforme a su política de administración; no ejecutar tareas privilegiadas
+   desde esta aplicación del cambio.
 
-Una sola instancia para prod/staging/pr-N, en la red `arsdocendi-datos`, nombre
-`arsdocendi-postgres` (= `PGHOST`), volumen persistente. El usuario **admin**
+## 2. PostgreSQL por host
+
+En **cada host**, una instancia local para sus ambientes, en la red
+`arsdocendi-datos`, nombre `arsdocendi-postgres` (= `PGHOST`) y volumen
+persistente **local**. Sólo Proxmox aloja las bases `pr-N`. El usuario **admin**
 (`CREATE/DROP DATABASE`) es distinto del de la app; su password es secret.
 
 > **Frontera de red**: NO se publica 5432 (sin `-p`). Postgres solo es alcanzable
@@ -120,10 +138,20 @@ docker inspect -f '{{.State.Health.Status}}' arsdocendi-postgres   # -> healthy
 docker port arsdocendi-postgres                                    # -> (vacío)
 ```
 
+Si `docker port arsdocendi-postgres` muestra `0.0.0.0:5432` o `[::]:5432`, el
+host **no** cumple la frontera de red: corregir la publicación del contenedor
+en una ventana de mantenimiento, preservando el volumen y verificando antes
+un backup/restauración. No confundir un firewall externo con la ausencia de un
+puerto Docker publicado ni recrear PostgreSQL sin plan de recuperación.
+
 Credenciales admin para scripts/CI: `PGHOST=arsdocendi-postgres`, `PGPORT=5432`,
-`PGUSER=postgres`, `PGPASSWORD=<el de arriba>` (secret de CI). Aislamiento: **una
-base por ambiente** (D7), `arsdocendi_<env>`; las crea/borra `provision-db.sh` /
-`drop-db.sh`.
+`PGUSER=postgres`, `PGPASSWORD=<el de arriba>` (secret de GitHub). Aislamiento:
+**una base por ambiente y por host** (D7), `arsdocendi_<env>`; las crea/borra
+`provision-db.sh` / `drop-db.sh`. La misma contraseña de GitHub debe ser válida
+en ambas instancias independientes antes de activar cada destino. Debian usa
+SeaweedFS `prod`; Proxmox usa `nonprod`. Sus volúmenes son locales: **no
+montarlos mediante una ruta al otro host**. Conservar el storage productivo
+anterior de la VM hasta la aceptación del corte y autorización de su tratamiento.
 
 > **psql vía contenedor**: como 5432 no se publica y `arsdocendi-postgres` solo
 > resuelve dentro de `arsdocendi-datos`, los scripts NO usan un `psql` del host —
@@ -241,46 +269,67 @@ Verificar: `docker logs traefik` sin errores y el contenedor `healthy`/`Up`.
 
 ## 4. Cloudflare Tunnel + cloudflared
 
-Único ingreso público: un túnel con **un ingress wildcard** sirve prod/staging/pr-N.
-Detalle en [cloudflared/README.md](cloudflared/README.md).
+Un túnel por host: `principal` sólo admite el dominio raíz de producción;
+`secundaria` admite staging y wildcard de previews, con rechazo exacto
+`prod.<DOMINIO> -> http_status:404` **antes del wildcard**. Apex CNAME `@`
+apunta al UUID de Debian; `*` y, opcionalmente, `staging` al UUID de Proxmox,
+con proxy y flattening del apex. No crear LB ni Worker DNS. Detalle, secuencia
+de corte y rollback en [cloudflared/README.md](cloudflared/README.md).
 
-1. Crear el túnel y el DNS (una vez):
-   ```bash
-   cloudflared tunnel login
-   cloudflared tunnel create arsdocendi          # genera ~/.cloudflared/<ID>.json
-   cloudflared tunnel route dns arsdocendi "*.<dominio>"
-   ```
-2. En `cloudflared/config.yml`: poner el `<TUNNEL_ID>` en `tunnel:` y reemplazar el
-   placeholder `example.net` por el dominio real (no se versiona).
-3. Levantar cloudflared en la red `traefik` (para alcanzar a Traefik por nombre),
-   inyectando las credenciales del túnel (nunca al repo):
+1. Identificar el UUID del túnel que ya sirve Proxmox y **reutilizarlo como
+   secundario** si está operativo. Crear un UUID distinto para Debian; no
+   cambiar el DNS público hasta validar ambos orígenes. En Debian partir de
+   `config-principal.yml`; en Proxmox, de `config.yml`. Reemplazar `example.net`
+   y cada UUID en copias protegidas **fuera del repositorio**, materializadas
+   como `/etc/cloudflared/config.yml` en cada host, si los túneles son locales.
+   No montar el YAML de Git con placeholders. Su `credentials-file` debe ser
+   `/etc/cloudflared/credentials.json`, coincidiendo con el montaje siguiente.
+   Si el existente es gestionado remotamente con token, configurar las mismas
+   rutas en el panel: los YAML son referencia, no se cargan allí.
+2. Levantar `cloudflared` en la red `traefik` de **cada host**, con sus
+   credenciales de servicio respectivas (ejemplo para un host nuevo; adaptar
+   la instalación existente de Proxmox sin reemplazarla a ciegas, **sólo para
+   un túnel local con JSON de credenciales**):
    ```bash
    docker run -d \
      --name cloudflared \
      --network traefik \
      --restart unless-stopped \
-     -v /opt/ars-docendi/repo/infra/cloudflared/config.yml:/etc/cloudflared/config.yml:ro \
+     -v /etc/cloudflared/config.yml:/etc/cloudflared/config.yml:ro \
      -v /etc/cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro \
      cloudflare/cloudflared:latest tunnel --config /etc/cloudflared/config.yml run
    ```
-   Alternativa por token: `... cloudflare/cloudflared:latest tunnel run --token <TOKEN>`
-   (token desde secret del host, sin montar config/credenciales).
-4. (Recomendado) **Cloudflare Access** para staging/pr-N restringido al equipo
-   (panel Zero Trust, sin cambios en el repo).
+   Este runbook usa ingress **local**: no sustituir el archivo de configuración
+   por un simple `tunnel run --token` salvo que las rutas estén gestionadas y
+   comprobadas en el panel de Cloudflare.
+3. Verificar si **Cloudflare Access** ya protege staging y `pr-N`; si no, definir
+   la restricción al equipo según la política institucional (panel Zero Trust).
+   Los smoke checks deben usar acceso autorizado, sin abrir staging/previews
+   para sortear la política institucional.
 
-Verificar: `cloudflared` conectado (`docker logs cloudflared` → "Registered tunnel
-connection") y `curl -I https://staging.<dominio>` responde vía Traefik.
+Verificar rutas y conectividad de cada túnel, DNS público y el hostname de
+cada ambiente. La respuesta HTTP por sí sola no demuestra el destino físico:
+correlacionarla con logs y contenedores del host previsto. Debian debe rechazar
+staging/previews; Proxmox debe rechazar raíz y, tras el corte, `prod.<DOMINIO>`.
+No hay simulacro de failover ni conmutación automática.
 
 ## 5. Runners self-hosted
 
 Los jobs de deploy corren comandos locales (`docker compose`, `spin-up.sh`, el
-Postgres interno), así que la propia VM actúa de runner. Dos pools separados por
-label (GitHub matchea por **todas** las labels pedidas):
+Postgres interno), así que cada host tiene un runner confiable. GitHub debe
+seleccionar **todas** las etiquetas de la fila correspondiente:
 
-| Pool                        | Labels                               | Workflows                                          |
-| --------------------------- | ------------------------------------ | -------------------------------------------------- |
-| **Persistente** (confiable) | `self-hosted, arsdocendi, confiable` | `deploy-prod`, `deploy-staging`, `pr-env-teardown` |
-| **Efímero** (código de PR)  | `self-hosted, arsdocendi, efimero`   | `pr-env-deploy`                                    |
+| Host / pool         | Labels requeridas                                | Workflows                         |
+| ------------------- | ------------------------------------------------ | --------------------------------- |
+| Debian / confiable  | `self-hosted, arsdocendi, confiable, principal`  | deploy `prod`                     |
+| Proxmox / confiable | `self-hosted, arsdocendi, confiable, secundaria` | deploy `staging`, teardown `pr-N` |
+| Proxmox / efímero   | `self-hosted, arsdocendi, efimero, secundaria`   | build y deploy `pr-N`             |
+
+El build/push de `prod` y `staging` corre **una sola vez por SHA** en un runner
+GitHub-hosted. Cada workflow permanente tiene un único deploy local: prod
+en principal, staging en secundaria, sin matriz de ubicaciones. Las imágenes
+por SHA y los scopes de secretos GitHub existentes se conservan. No dejar un
+runner viejo con sólo etiquetas genéricas como destino accidental del teardown.
 
 El efímero usa `--ephemeral` (1 job y se desregistra): obligatorio porque
 `pr-env-deploy` corre código de PR con secrets, sin reutilizar workspace ni
@@ -297,14 +346,27 @@ curl -fsS -X POST \
   | jq -r .token
 ```
 
-### 5a. Pool persistente (una vez)
+### 5a. Runners confiables por host (una vez)
 
 ```bash
+# Ejecutar sobre la PC Debian:
 cd /opt/actions-runner-confiable     # paquete ya descomprimido
 ./config.sh --url https://github.com/<org>/<repo> --token <RUNNER_TOKEN> \
-            --name arsdocendi-confiable --labels arsdocendi,confiable --unattended
-sudo ./svc.sh install && sudo ./svc.sh start
+            --name arsdocendi-confiable-principal \
+            --labels arsdocendi,confiable,principal --unattended
+# El operador instala/inicia el servicio según su política de administración.
+
+# En la VM Proxmox, usar su propia instalación del runner:
+./config.sh --url https://github.com/<org>/<repo> --token <RUNNER_TOKEN> \
+            --name arsdocendi-confiable-secundaria \
+            --labels arsdocendi,confiable,secundaria --unattended
+# El operador instala/inicia el servicio según su política de administración.
 ```
+
+Si un runner ya está registrado, actualizarlo según el procedimiento oficial
+de GitHub (no ejecutar `config.sh` dos veces en la misma instalación). Verificar
+en **Settings → Actions → Runners** cuál es cada host antes de cambiar las
+etiquetas. No inferirlo únicamente del nombre anterior.
 
 ### 5b. Pool efímero (auto-respawn, sin tocar nada por PR)
 
@@ -314,29 +376,22 @@ con `--ephemeral`, corre 1 job y sale; el unit template
 (`Restart=always`) lo relanza. El `@` permite N instancias en paralelo
 (`@1`, `@2`, …) → la concurrencia de pr-N es cuántas instancias activás.
 
-```bash
-# 1. Secret del host (600, fuera del repo):
-sudo install -m 600 /dev/null /etc/ars-docendi/runner.env
-sudo $EDITOR /etc/ars-docendi/runner.env
-#   GH_OWNER=Ars-Docendi  GH_REPO=<repo>  GH_PAT=<PAT Administration RW>
-#   RUNNER_LABELS=arsdocendi,efimero
+Configuración **a cargo del operador, sólo en Proxmox**:
 
-# 2. Extraer el paquete en un dir por instancia (p. ej. 3 concurrentes):
-for i in 1 2 3; do
-  sudo mkdir -p /opt/actions-runners/efimero-$i
-  sudo tar xzf actions-runner-linux-x64-*.tar.gz -C /opt/actions-runners/efimero-$i
-  sudo chown -R arsdocendi-runner: /opt/actions-runners/efimero-$i
-done
+1. Provisionar `/etc/ars-docendi/runner.env` protegido (modo 600, fuera del
+   repo), con `GH_OWNER`, `GH_REPO`, `GH_PAT` y
+   `RUNNER_LABELS=arsdocendi,efimero,secundaria`; no imprimir sus valores.
+2. Preparar un directorio del paquete por instancia, por ejemplo
+   `/opt/actions-runners/efimero-1`, con permisos para `arsdocendi-runner`.
+3. Instalar la unidad revisada y activar la cantidad de instancias aprobada
+   mediante el procedimiento de administración del host. Verificar estado
+   del servicio y runners online sin ejecutar trabajos privilegiados aquí.
+4. Después de un job, verificar que el runner nuevo conserva `secundaria`: una
+   etiqueta aplicada sólo al ID anterior no garantiza persistencia.
 
-# 3. Instalar el unit y levantar las instancias:
-sudo cp /opt/ars-docendi/repo/infra/runners/arsdocendi-runner-efimero@.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now arsdocendi-runner-efimero@{1,2,3}
-sudo systemctl status 'arsdocendi-runner-efimero@*'   # verificar
-```
-
-> **Aislamiento**: estos runners corren código de PRs en la misma VM que prod. Lo
-> efímero evita el _state-bleed_ entre jobs pero no aísla a nivel host; si el riesgo
+> **Aislamiento**: estos runners corren código de PRs en la misma VM que staging,
+> no que producción tras aceptar el corte y retirar el runtime antiguo. Lo
+> efímero evita el estado residual entre jobs pero no aísla a nivel host; si el riesgo
 > lo amerita, mover el pool efímero a una VM aparte.
 
 ### 5c. Gates de seguridad pr-N (en GitHub, no en el host)
@@ -345,37 +400,55 @@ sudo systemctl status 'arsdocendi-runner-efimero@*'   # verificar
 - Environment `pr-preview` con **required reviewers** — segundo gate (aprobación manual).
 - Nunca `pull_request_target` (evita filtrar secrets a código de forks).
 
-## 6. Reaper (red de seguridad: destruye pr-N huérfanos)
+El cierre del PR dispara `pr-env-teardown` **sólo en Proxmox**. Si el evento
+de cierre se pierde, un operador debe ejecutar `infra/scripts/teardown.sh pr-N`
+en esa VM tras comprobar el estado del PR; no existe limpieza periódica.
+
+## 6. Verificación end-to-end
+
+Con todo preparado, verificar un deploy productivo autorizado **sólo en Debian**,
+y staging más un ciclo `pr-N`/teardown **sólo en Proxmox**. Esto requiere evidencia
+del operador; una validación local no lo certifica. Comprobar por host:
 
 ```bash
-sudo cp /opt/ars-docendi/repo/infra/reaper/reap-pr-envs.{service,timer} /etc/systemd/system/
-sudo install -m 600 /dev/null /etc/ars-docendi/reaper.env
-sudo $EDITOR /etc/ars-docendi/reaper.env   # PGHOST PGPORT PGUSER PGPASSWORD REAPER_MAX_DIAS=7
-sudo systemctl daemon-reload
-sudo systemctl enable --now reap-pr-envs.timer
-sudo systemctl list-timers reap-pr-envs.timer   # verificar
+docker network inspect traefik arsdocendi-datos >/dev/null
+docker inspect -f '{{.State.Health.Status}}' arsdocendi-postgres
+docker port arsdocendi-postgres # sin puertos publicados
+docker compose ls --all        # Debian sólo prod; Proxmox staging/pr-N tras el corte
 ```
 
-Logs: `journalctl -u reap-pr-envs`. **Alternativa cron** (host sin systemd):
-
-```cron
-# /etc/cron.d/arsdocendi-reaper — diario 04:00
-0 4 * * * root . /etc/ars-docendi/reaper.env; /opt/ars-docendi/repo/infra/reaper/reap-pr-envs.sh >> /var/log/arsdocendi-reaper.log 2>&1
-```
-
-## 7. Verificación end-to-end
-
-Con todo arriba, deployar un ambiente descartable y comprobar el camino completo:
+Luego comprobar el camino HTTP, respetando Access:
 
 ```bash
-make up AMBIENTE=staging        # o disparar deploy-staging desde CI
-curl -I https://staging.<dominio>     # 200 vía Cloudflare → Traefik → frontend
-curl -I https://staging.<dominio>/api/<modulo>/ping   # 200 (ruteo /api al backend)
+# Sólo en Proxmox, o disparar deploy-staging desde CI:
+make up AMBIENTE=staging
+curl -I https://staging.<dominio>                    # frontend vía túnel
+curl -fsS https://staging.<dominio>/api/designaciones/ping # GET del backend (200)
 ```
 
 > Seed: `spin-up.sh` siembra automáticamente con `seed.sh`
 > (`scripts/seed-data/sintetico.sql`) en todo ambiente **no-prod**. Regla dura:
 > `seed.sh` aborta si se le pide copiar la base de prod a un ambiente no-prod.
+
+### Corte productivo reversible (operador)
+
+Antes de cambiar DNS, registrar decisión explícita de **transferir base y
+objetos con backup/restore verificable** o **iniciar vacío con aprobación**.
+Acordar ventana de mantenimiento, controlar escrituras del origen y revisar
+callbacks SSO/allowed origins/enlaces reales, sin inventar callbacks. Verificar
+frontend, API, login, escrituras y adjuntos de Debian antes de aceptar el corte.
+
+Aceptado el corte, bloquear `prod.<DOMINIO>` antes del wildcard de Proxmox y
+retirar su runtime, **preservando base, volúmenes, objetos y backups hasta
+autorización**. No usar teardown/reset de previews para retirar producción.
+Rollback: restaurar DNS/ingress y workflow anteriores de forma coordinada;
+si Debian recibió escrituras, resolver su recuperación antes de reabrir el
+prod anterior. No hay sincronización ni failover que resuelva ese problema.
+El procedimiento está en el [runbook de storage](../docs/operations/storage-runbook.md#corte-de-producción-de-proxmox-a-debian).
+
+El retiro futuro de Proxmox requiere decidir el destino de staging/previews
+y tratar sus datos antes de apagar wildcard/túnel/runners/VM. No se trasladan
+implícitamente a Debian ni afectan la independencia de producción.
 
 ### Reconstrucción y recuperación
 
@@ -398,6 +471,17 @@ versión conjunta anterior de backend y frontend. `spin-up.sh prod` no ejecuta
 `down`, `drop-db.sh` ni `seed.sh`: sólo aprovisiona de forma idempotente,
 migra y publica.
 
+### Backup y restore de storage
+
+El backup institucional se ejecuta con `infra/scripts/backup-storage.sh` y
+produce `postgres.dump`, `objects/`, `manifest.json` y `checksums.sha256` en un
+directorio cifrado. El restore de prueba se ejecuta con
+`infra/scripts/restore-storage.sh <staging|pr-N> <backup>`; verifica los hashes,
+recrea la base descartable, restaura PostgreSQL y repone los objetos mediante
+S3 verificando tamaño y SHA-256. El script rechaza `prod`. El procedimiento
+completo y el mapeo de secretos están en
+[docs/operations/storage-runbook.md](../docs/operations/storage-runbook.md).
+
 ### Operar y reejecutar el dataset sintético
 
 El SQL declara la versión `2026.09.1` en `public.seed_metadata` y usa UUIDs reservados, una transacción y un advisory lock. Puede ejecutarse nuevamente para restaurar las filas de ejemplo sin duplicarlas ni borrar registros ajenos:
@@ -408,7 +492,7 @@ infra/scripts/seed.sh staging
 ```
 
 Para verificar dos despliegues consecutivos sin tocar producción, se puede
-usar `staging` y una base vecina `pr-123`:
+usar `staging` y una base vecina `pr-123` **sólo en Proxmox**:
 
 ```bash
 infra/scripts/spin-up.sh staging

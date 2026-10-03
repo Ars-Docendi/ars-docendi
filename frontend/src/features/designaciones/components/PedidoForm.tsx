@@ -260,7 +260,7 @@ export function PedidoForm({
       ...prev,
       adjuntos: [
         ...prev.adjuntos.filter((adjunto) => adjunto.tipo !== tipo),
-        { id: crypto.randomUUID(), nombre: archivo.name, tipo },
+        { id: crypto.randomUUID(), nombre: archivo.name, tipo, archivo },
       ],
     }));
   }

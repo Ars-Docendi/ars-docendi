@@ -12,6 +12,10 @@
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
 #   ASISTENTE_RO_PASSWORD             password del rol de lectura del asistente
 #   ASISTENTE_RO_PII_PASSWORD         password del rol de lectura con datos personales
+#   SEAWEEDFS_ROOT_ACCESS_KEY SEAWEEDFS_ROOT_SECRET_KEY credenciales administrativas del servicio privado
+#   En prod y staging, las credenciales de aplicación se derivan de la raíz.
+#   En pr-N se inyectan SEAWEEDFS_APP_ACCESS_KEY_PR_<N> /
+#   SEAWEEDFS_APP_SECRET_KEY_PR_<N>.
 # Variables opcionales:
 #   ASISTENTE_PROVEEDOR               proveedor del modelo; default "simulado"
 #   ASISTENTE_CLAVE                   credencial del proveedor real; sin ella se
@@ -41,6 +45,26 @@ validar_ambiente "$ambiente"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
 : "${ASISTENTE_RO_PASSWORD:?msg=\"falta ASISTENTE_RO_PASSWORD\"}"
 : "${ASISTENTE_RO_PII_PASSWORD:?msg=\"falta ASISTENTE_RO_PII_PASSWORD\"}"
+: "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
+: "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY\"}"
+variable_ambiente="${ambiente^^}"
+variable_ambiente="${variable_ambiente//-/_}"
+access_variable="SEAWEEDFS_APP_ACCESS_KEY_${variable_ambiente}"
+secret_variable="SEAWEEDFS_APP_SECRET_KEY_${variable_ambiente}"
+seaweedfs_app_access_key="${!access_variable:-${SEAWEEDFS_APP_ACCESS_KEY:-}}"
+seaweedfs_app_secret_key="${!secret_variable:-${SEAWEEDFS_APP_SECRET_KEY:-}}"
+if [[ -z "$seaweedfs_app_access_key" || -z "$seaweedfs_app_secret_key" ]]; then
+  if [[ "$ambiente" == "prod" || "$ambiente" == "staging" ]]; then
+    seaweedfs_app_access_key="$(seaweedfs_app_access_for "$ambiente")"
+    seaweedfs_app_secret_key="$(seaweedfs_app_secret_for "$ambiente" "$SEAWEEDFS_ROOT_SECRET_KEY")"
+  else
+    fatal "msg=\"faltan credenciales SeaweedFS de aplicación\" variable=\"$access_variable/$secret_variable\""
+  fi
+fi
+export SEAWEEDFS_APP_ACCESS_KEY="$seaweedfs_app_access_key"
+export SEAWEEDFS_APP_SECRET_KEY="$seaweedfs_app_secret_key"
+seaweedfs_host="$(seaweedfs_host_for "$ambiente")"
+clamav_host="$(clamav_host_for "$ambiente")"
 
 scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
@@ -48,7 +72,7 @@ compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 base="$(nombre_base "$ambiente")"
 rol_ro="$(rol_asistente "$ambiente" basico)"
 rol_ro_pii="$(rol_asistente "$ambiente" pii)"
-host_publico="${ambiente}.${DOMINIO}"
+host_publico="$(hostname_publico "$ambiente" "$DOMINIO")"
 
 # Npgsql admite valores entre comillas dobles; una comilla interna se duplica.
 # URL_BASE_DATOS se exporta al proceso de Compose para no serializar la clave en
@@ -63,7 +87,7 @@ log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="
 
 # Serializa reconstrucciones del mismo ambiente en el host. La CI también tiene
 # concurrency por ambiente, pero este lock cubre reintentos/manuales simultáneos.
-# ponytail: lock local por ambiente; si se distribuye el host, moverlo a un lock manager.
+# Cada ambiente tiene un único host de deploy; el lock es local a ese destino.
 lock_file="${TMPDIR:-/tmp}/arsdocendi-spin-up-${ambiente//-/_}.lock"
 exec 9>"$lock_file"
 flock 9
@@ -109,6 +133,12 @@ ASISTENTE_CLAVE=${ASISTENTE_CLAVE:-}
 ASISTENTE_URL_LOCAL=${ASISTENTE_URL_LOCAL:-http://arsdocendi-llm:8000/v1}
 ASISTENTE_MODELO_LOCAL=${ASISTENTE_MODELO_LOCAL:-qwen3-8b}
 ASISTENTE_MAX_LLAMADAS_CONCURRENTES=${ASISTENTE_MAX_LLAMADAS_CONCURRENTES:-8}
+ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-${seaweedfs_host}:8333}
+ALMACENAMIENTO_BUCKET=${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}
+ALMACENAMIENTO_ACCESS_KEY=${seaweedfs_app_access_key}
+ALMACENAMIENTO_SECRET_KEY=${seaweedfs_app_secret_key}
+ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE=${ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE:-true}
+ALMACENAMIENTO_CLAMAV_HOST=${ALMACENAMIENTO_CLAMAV_HOST:-$clamav_host}
 EOF
 
 # 1. Los ambientes descartables parten de cero. Se detienen antes de dropear la
@@ -117,7 +147,11 @@ if [[ "$ambiente" != "prod" ]]; then
   docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
     down -v --remove-orphans
   "$scripts_dir/drop-db.sh" "$ambiente"
+  "$scripts_dir/purge-storage.sh" "$ambiente"
 fi
+
+# El servicio común queda arriba antes de migraciones y seed.
+"$scripts_dir/provision-storage.sh" "$ambiente"
 
 # 2. Base aislada del ambiente + roles que deben existir antes que las tablas.
 "$scripts_dir/provision-db.sh" "$ambiente"

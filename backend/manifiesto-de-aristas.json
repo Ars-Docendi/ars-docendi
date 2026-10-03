@@ -15,6 +15,14 @@
       "estado": "activo"
     },
     {
+      "nombre": "ArsDocendi.Storage",
+      "estado": "activo"
+    },
+    {
+      "nombre": "ArsDocendi.Storage.Contracts",
+      "estado": "activo"
+    },
+    {
       "nombre": "ArsDocendi.Evaluacion.Nucleo",
       "estado": "activo"
     },
@@ -80,6 +88,12 @@
     },
     {
       "origen": "ArsDocendi.Host",
+      "destino": "ArsDocendi.Storage",
+      "via": "project-reference",
+      "motivo": "Composición del root y endpoints de archivos: registra el almacenamiento privado de adjuntos y expone ArchivosController."
+    },
+    {
+      "origen": "ArsDocendi.Host",
       "destino": "Modules.Aulas",
       "via": "project-reference",
       "motivo": "Hosting: el composition root registra el módulo y expone sus controllers."
@@ -122,9 +136,27 @@
     },
     {
       "origen": "Modules.Designaciones",
+      "destino": "ArsDocendi.Storage.Contracts",
+      "via": "project-reference",
+      "motivo": "Validación de asociaciones por archivoId: el pedido referencia un archivo almacenado sin tocar los internals de Storage."
+    },
+    {
+      "origen": "Modules.Designaciones",
       "destino": "Modules.Portal.Contracts",
       "via": "project-reference",
       "motivo": "La exportación de lote lee por IPortalQueries el correo de las altas; cruza por el contract y no toca PortalDbContext ni entidades internas de Portal."
+    },
+    {
+      "origen": "ArsDocendi.Storage",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Utilidades transversales, la autorización y el manejo de errores del Host."
+    },
+    {
+      "origen": "ArsDocendi.Storage",
+      "destino": "ArsDocendi.Storage.Contracts",
+      "via": "project-reference",
+      "motivo": "Propio contract público: la implementación del proveedor privado de archivos cumple esas interfaces."
     },
     {
       "origen": "Modules.Aulas",
@@ -149,6 +181,12 @@
       "destino": "Modules.Portal.Contracts",
       "via": "project-reference",
       "motivo": "Su propio contract público: el módulo implementa las interfaces que expone."
+    },
+    {
+      "origen": "Modules.Portal",
+      "destino": "ArsDocendi.Storage.Contracts",
+      "via": "project-reference",
+      "motivo": "CV y documentos de proyectos: el perfil guarda el archivoId y valida la referencia sin tocar los internals de Storage."
     },
     {
       "origen": "Modules.Tareas",
