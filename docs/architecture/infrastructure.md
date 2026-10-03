@@ -68,7 +68,15 @@ del change `asistente-proveedor-local`.
 La compuerta de concurrencia es por proceso: con varios ambientes contra la misma
 GPU, el límite real es la suma de sus `ASISTENTE_MAX_LLAMADAS_CONCURRENTES`, y tiene
 que igualar el `--max-num-seqs` del servidor. Dimensionamiento, modelo y piloto en
-[modelo-local.md](modelo-local.md).
+[modelo-local.md](modelo-local.md). El perfil también prende las optimizaciones de
+`asistente-optimizaciones-modelo-local` (esquema compacto, reparación, plantillas,
+caché de consultas, streaming de la redacción, etc.); para medir una con el
+evaluador se la apaga ahí.
+
+`infra/compose/compose.llm-3070.yml` **no es infraestructura de ambientes**: es un
+`llama-server` suelto, publicado sólo en `127.0.0.1:8000`, para probar el asistente
+desde una PC de desarrollo con una RTX 3070 y el backend en `dotnet run`. La guía está
+en [modelo-local.md §8](modelo-local.md#8-probar-en-una-rtx-3070).
 
 ## Routing (Traefik por labels)
 

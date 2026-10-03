@@ -1,8 +1,8 @@
-# Modelo propio del asistente: RTX 5070, 2 a 30 usuarios
+# Modelo propio del asistente: RTX 5070, 2 a 30 usuarios (y prueba en RTX 3070)
 
 Investigación y dimensionamiento para correr el asistente contra un modelo propio en **una NVIDIA GeForce RTX 5070** (12 GB GDDR7, ~672 GB/s, Blackwell de consumo `sm_120`, tensor cores FP8/FP4) con un **Intel Core i9**, atendiendo **entre 2 y 30 usuarios**.
 
-Las decisiones están en el change [`asistente-proveedor-local`](../../openspec/changes/asistente-proveedor-local/design.md). Este documento junta la evidencia que las sostiene y lo que se dejó para después.
+Las decisiones están en los changes [`asistente-proveedor-local`](../../openspec/changes/asistente-proveedor-local/design.md) y [`asistente-optimizaciones-modelo-local`](../../openspec/changes/asistente-optimizaciones-modelo-local/design.md). Este documento junta la evidencia que las sostiene, lo que se dejó para después y cómo probarlo en una RTX 3070 (§8).
 
 > **Cómo leer los números.** La investigación se hizo el 2026-10-02 desde un entorno cuyo proxy bloqueaba HuggingFace, arXiv, la documentación de vLLM y la mayoría de los blogs. Por eso solo se leyeron completas las fuentes de GitHub (issues, PRs, READMEs). El resto proviene de extractos de búsqueda.
 >
@@ -143,19 +143,28 @@ Los techos de tokens importan más en local que en la nube. El servidor reserva 
 | Techos de tokens y timeouts del perfil    | `compose.asistente-local.yml`                                           | Menos KV reservado. El presupuesto del turno (90 s) queda debajo del corte de 100 s de Cloudflare                                                |
 | Servidor compartido                       | `compose.llm.yml`                                                       | vLLM con AWQ, KV FP8, prefix caching y chunked prefill. Alternativa `llama-server` con la caché de slots ociosos apagada por privacidad (#27148) |
 
+### Aplicado en `asistente-optimizaciones-modelo-local`
+
+Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Los perfiles de `infra/compose/` y la guía de la §8 las prenden; las opciones están en el [README del módulo](../../backend/src/Modules.Asistente/README.md#optimizaciones-para-un-modelo-propio).
+
+| Técnica                                      | Opción                              | Efecto esperado                                                                                        |
+| -------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Esquema compacto                             | `EsquemaCompacto`                   | ~10 % menos prefijo con la misma información: tipos abreviados, `?` para nulables, FK en línea         |
+| Ejemplos verificados en el prefijo           | `EjemplosEnElPrefijo`               | Prompt estable y cacheable. Conviene con vLLM; con llama-server cada slot paga la copia                |
+| Reintento por vacío con contexto             | `ReintentoConContexto`              | El reintento ya no repite el prompt idéntico: dice qué consulta no trajo filas                         |
+| Una ronda de reparación con el error saneado | `RepararConsultaFallida`            | +3–10 puntos en modelos de 7B según la literatura. Ningún literal ajeno a la consulta llega al modelo  |
+| Plantillas para resultados triviales         | `RedaccionConPlantillas`            | Una llamada menos cuando el resultado es un valor o una lista corta sin matices                        |
+| Caché de SQL por pregunta + rol + día        | `VigenciaDeCacheDeConsultasMinutos` | Cachea la consulta y no las filas: se re-ejecuta siempre bajo RLS                                      |
+| Reescritura dentro de la generación          | `ReescrituraEnLaGeneracion`         | Una llamada menos por seguimiento. El modelo devuelve `pregunta_interpretada` junto con la SQL         |
+| Streaming SSE de la redacción                | `StreamingDeRedaccion`              | Las primeras palabras apenas termina el prefill de la redacción, en vez de esperar la respuesta entera |
+| Telemetría del servidor en el panel          | —                                   | Tarjeta «Servidor del modelo»: en curso, en espera, KV cache, aciertos de prefijo y la compuerta       |
+
 ### Evaluado y dejado para después
 
-| Técnica                                                                          | Por qué no ahora                                                                                                                                                                                                                                                                     |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Achicar el esquema (podado por pregunta, M-Schema, menos valores de vocabulario) | Es el mayor ahorro de prefill y KV, pero cambia el prefijo, invalida el corpus de cassettes y **la literatura es mixta**: en esquemas de tamaño institucional, el schema linking empeoró a modelos de 7–32B (nl2sql-onprem-bench). Necesita su propio change medido con el evaluador |
-| Los 20 ejemplos verificados en el prefijo (en vez de 4 elegidos por Jaccard)     | Con caché, su costo marginal es casi nulo y estabiliza el prompt. Cambia el prefijo y los cassettes: mismo motivo                                                                                                                                                                    |
-| Fusionar reescritura + SQL en una llamada                                        | Una llamada menos en seguimientos y mejor calidad multi-turno según la literatura, pero el enrutador de dominio depende hoy de la pregunta reescrita                                                                                                                                 |
-| Plantillas en lugar del redactor para 0 filas / un escalar                       | Una llamada menos en muchos turnos. Cambia la voz de las respuestas: decisión de producto                                                                                                                                                                                            |
-| Una ronda de reparación con `EXPLAIN` o el error de PostgreSQL saneado           | +3–10 puntos de exactitud en modelos de 7B según la literatura. Toca la política de abstención                                                                                                                                                                                       |
-| Streaming SSE de la redacción                                                    | Las primeras palabras en <1 s. Cambia el contrato HTTP y el frontend                                                                                                                                                                                                                 |
-| Caché de SQL por pregunta normalizada + alcance                                  | Cachear SQL y no filas, re-ejecutado bajo RLS. Necesita diseño de invalidación                                                                                                                                                                                                       |
-| Self-consistency / votación                                                      | +0,13 puntos con p95 de 10,6 a 50 s en el benchmark on-prem. **No**                                                                                                                                                                                                                  |
-| Telemetría del servidor en el panel                                              | `vllm:prefix_cache_hits`, `kv_cache_usage_perc`, `num_requests_waiting`. Pendiente desde `sistema-seccion-unificada`                                                                                                                                                                 |
+| Técnica                                                  | Por qué no                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Podar el esquema por pregunta (schema linking, M-Schema) | Es el mayor ahorro de prefill y KV, pero **la literatura es mixta**: en esquemas de tamaño institucional, el schema linking empeoró a modelos de 7–32B (nl2sql-onprem-bench). Además rompe el prefijo estable que la caché necesita. Necesita su propio change medido con el evaluador |
+| Self-consistency / votación                              | +0,13 puntos con p95 de 10,6 a 50 s en el benchmark on-prem. **No**                                                                                                                                                                                                                    |
 
 ## 7. Piloto antes de pasar un ambiente a `local`
 
@@ -175,6 +184,67 @@ Los techos de tokens importan más en local que en la nube. El servidor reserva 
 
 4. **Si con KV FP8 aparece texto incoherente** (bug de FlashInfer en `sm_120`, #41651), probar `--attention-backend TRITON_ATTN` o KV en BF16, con menos concurrencia.
 5. **Recién entonces** cambiar `ASISTENTE_PROVEEDOR=local` en el ambiente. **Rollback:** volver a `anthropic`.
+
+## 8. Probar en una RTX 3070
+
+Para probar el asistente contra un modelo propio en una PC de desarrollo con **RTX 3070** (8 GB GDDR6, ~448 GB/s, Ampere `sm_86`). No es un perfil de producción: es una sola persona probando, y la 3070 tiene dos tercios de la memoria de la 5070.
+
+### Qué cambia respecto de la 5070
+
+| Decisión               | 5070 (ambientes)                      | 3070 (prueba local)                                                          |
+| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
+| Servidor               | vLLM, Qwen3-8B-AWQ, KV FP8            | **llama-server**, Qwen3-8B Q4_K_M, KV `q8_0`. vLLM deja muy poco KV con 8 GB |
+| Turnos en vuelo        | 8                                     | **2** slots de 13.312 tokens (`--ctx-size 26624 --parallel 2`)               |
+| Ejemplos en el prefijo | Sí (vLLM comparte el prefijo)         | **No**: llama-server copia el prefijo por slot y no hay lugar                |
+| Techos de tokens       | 800 / 400 / 200                       | **600 / 300 / 150**                                                          |
+| Presupuesto del turno  | 90 s (debajo del corte de Cloudflare) | 120 s (no hay Cloudflare en el medio)                                        |
+
+**VRAM [estimado]:** pesos ~4,7 GiB + KV de 2 slots ~1,9 GiB (13.312 × 2 × ~76,5 KiB) + buffers ~0,6 GiB ≈ **7,3 GiB de 8**. Con el monitor conectado a la misma GPU el escritorio come 0,3–1 GB, así que puede no entrar.
+
+### Pasos
+
+1. **Servidor.** Docker Desktop con WSL2 (Windows) o `nvidia-container-toolkit` (Linux), y driver NVIDIA reciente:
+
+   ```bash
+   docker compose -p llm-3070 -f infra/compose/compose.llm-3070.yml up -d
+   docker compose -p llm-3070 -f infra/compose/compose.llm-3070.yml logs -f   # la primera vez baja ~5 GB
+   curl -s http://localhost:8000/health
+   curl -s http://localhost:8000/v1/models -H "Authorization: Bearer local-3070"
+   ```
+
+   Sin Docker, el mismo servidor nativo (binario de [releases de llama.cpp](https://github.com/ggml-org/llama.cpp/releases) con CUDA):
+
+   ```bash
+   llama-server --hf-repo Qwen/Qwen3-8B-GGUF --hf-file Qwen3-8B-Q4_K_M.gguf --alias qwen3-8b \
+     --n-gpu-layers 99 --ctx-size 26624 --parallel 2 --flash-attn on \
+     --cache-type-k q8_0 --cache-type-v q8_0 --jinja --reasoning-budget 0 \
+     --metrics --cache-ram 0 --api-key local-3070 --host 127.0.0.1 --port 8000
+   ```
+
+2. **Backend.** En el `.env` de la raíz, descomentar el bloque «Modelo propio en una RTX 3070» de `.env.example` (reemplaza `Asistente__Proveedor` y `Asistente__ClaveDelProveedor`). El Host lo lee sólo en Development. Después, el resto como siempre (README del módulo, «Levantar el asistente entero en local»):
+
+   ```bash
+   dotnet run --project backend/src/ArsDocendi.Host
+   pnpm --filter frontend dev
+   ```
+
+3. **Verificar.**
+   - En Sistema → Asistente aparece la tarjeta **«Servidor del modelo · llama.cpp»** con los slots en curso y el uso de KV. Si dice que no responde, revisar `UrlDelProveedorLocal` (debe terminar en `/v1`) y la clave.
+   - Una pregunta simple («¿cuántos docentes hay?») responde y la redacción aparece mientras se escribe.
+   - En los logs de llama-server, la segunda pregunta del mismo rol debe reusar el prefijo (`n_past` alto, prompt procesado chico). La primera paga ~11k tokens de prefill **[estimado: 3–5 s en una 3070]**.
+   - En el registro operativo, `tokens_de_cache` de la generación debe ser casi todo el prompt a partir del segundo turno.
+
+### Si algo falla
+
+| Síntoma                                                                      | Causa probable                                         | Qué hacer                                                                                                           |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| El servidor no arranca: `out of memory` / `failed to allocate`               | No entran pesos + KV                                   | `LLAMA_SLOTS=1 LLAMA_CTX=16384` (y `Asistente__MaximoDeLlamadasConcurrentes=1`), o desconectar el monitor de la GPU |
+| El turno degrada y el log del servidor dice que el pedido excede el contexto | El prefijo no entra en un slot de 13.312               | Mismo respaldo: un slot de 16k. Confirmar `Asistente__EsquemaCompacto=true` y `EjemplosEnElPrefijo=false`           |
+| Respuestas pobres o abstenciones de más                                      | Un 8B en 4 bits es más débil que Claude                | Esperado. Medir con el evaluador (§7) antes de sacar conclusiones, y probar las opciones de a una                   |
+| Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                              |
+| `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                          |
+
+**Respaldo de modelo:** Qwen3-4B-Instruct-2507 en Q6_K (~3,3 GB) deja lugar para 2 slots de 16k con holgura, a costa de calidad. Se cambia con `LLAMA_HF_REPO` y `LLAMA_GGUF`, y `Asistente__Modelo` no necesita cambiar si se mantiene el `--alias`.
 
 ## Fuentes
 

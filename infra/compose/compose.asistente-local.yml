@@ -30,5 +30,22 @@ services:
       Asistente__MaximoDeIntentosDeTransporte: "2"
       # Debajo de los 100 s en que Cloudflare corta el origen (error 524).
       Asistente__PresupuestoDelTurnoSegundos: "90"
-      # A temperatura 0 el reintento por consulta vacía repite la misma SQL.
-      Asistente__ReintentarConsultaVacia: "false"
+      # El reintento por consulta vacía vuelve, pero diciéndole al modelo qué
+      # consulta no trajo filas: repetir el prompt idéntico a temperatura 0
+      # devolvía la misma SQL (asistente-optimizaciones-modelo-local, D4).
+      Asistente__ReintentarConsultaVacia: "true"
+      Asistente__ReintentoConContexto: "true"
+      # Optimizaciones para un modelo chico (asistente-optimizaciones-modelo-local).
+      # Cada una es una hipótesis que el evaluador confirma de a una: para
+      # medirla, apagarla acá y comparar corridas.
+      Asistente__EsquemaCompacto: "true"
+      # vLLM comparte el prefijo entre turnos: los 20 ejemplos en el prefijo
+      # cuestan casi nada y estabilizan el prompt.
+      Asistente__EjemplosEnElPrefijo: "true"
+      Asistente__RepararConsultaFallida: "true"
+      Asistente__RedaccionConPlantillas: "true"
+      Asistente__VigenciaDeCacheDeConsultasMinutos: "10"
+      Asistente__ReescrituraEnLaGeneracion: "true"
+      # Requiere que el proxy no bufferee text/event-stream (Traefik no lo hace
+      # salvo con el middleware de compresión).
+      Asistente__StreamingDeRedaccion: "true"

@@ -16,11 +16,11 @@
 
 ## 3. Streaming (D9)
 
-- [ ] 3.1 `AlRecibirTexto` en el puerto y streaming en `ProveedorLocal`
-- [ ] 3.2 `CanalDeRedaccion` y `POST /consultas/flujo`
-- [ ] 3.3 `redaccionEnFlujo` en capacidades y consumo en el frontend
+- [x] 3.1 `AlRecibirTexto` en el puerto y streaming en `ProveedorLocal`
+- [x] 3.2 `CanalDeRedaccion` y `POST /consultas/flujo`
+- [x] 3.3 `redaccionEnFlujo` en capacidades y consumo en el frontend
 
 ## 4. Perfil y documentación
 
-- [ ] 4.1 Perfil RTX 3070 (servidor y backend) y guía de prueba local
-- [ ] 4.2 `api-contracts.md`, `modelo-local.md`, README del módulo
+- [x] 4.1 Perfil RTX 3070 (servidor y backend) y guía de prueba local
+- [x] 4.2 `api-contracts.md`, `modelo-local.md`, README del módulo
