@@ -81,6 +81,11 @@ export const navIcons = {
       <path d="M6 9l2 2 4-4" />
     </svg>
   ),
+  proyectos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M2.5 5.5h4l1.5 1.5h7.5v7.5h-13Z" />
+    </svg>
+  ),
   portal: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <circle cx="9" cy="6.5" r="2.5" />

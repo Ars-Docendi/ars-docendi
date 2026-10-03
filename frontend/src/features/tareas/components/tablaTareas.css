@@ -1,0 +1,24 @@
+/* ============================================================
+   Listado de tareas (`TablaTareas.tsx`) — la tabla en sí es el
+   componente `Table` del design system (mismo que la Tabla de revisión de
+   Designaciones); acá solo vive el semáforo de vencimiento, que no tiene
+   equivalente en la librería: colorea el fondo de toda la fila, no una
+   celda. Verde (a tiempo) es el caso normal y no se resalta.
+   ============================================================ */
+
+.adoc-tt-row--clicable {
+  cursor: pointer;
+}
+
+.adoc-tt-row--por-vencer {
+  background: var(--color-status-warning-bg);
+}
+.adoc-tt-row--por-vencer:hover {
+  background: var(--warning-100);
+}
+.adoc-tt-row--vencida {
+  background: var(--color-status-danger-bg);
+}
+.adoc-tt-row--vencida:hover {
+  background: var(--danger-100);
+}

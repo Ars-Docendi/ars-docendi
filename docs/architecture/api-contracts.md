@@ -112,10 +112,25 @@ Details estable y nunca puede asociarse a Portal o Designaciones.
 
 ### Tareas (`/api/tareas/`)
 
-| Método | Path    | Rol mínimo | Descripción                           |
-| ------ | ------- | ---------- | ------------------------------------- |
-| GET    | `/ping` | (anónimo)  | Health check del módulo               |
-| ...    | ...     | ...        | _(a documentar en specs por feature)_ |
+Acceso por permiso del rol vigente (no por nombre de rol). `tareas.ver` lo tienen todos los roles de sistema; `tareas.gestionar`, Decanato, Secretaría Académica y Administrativo; `proyectos.gestionar`, Decanato y Secretaría Académica. Las reglas finas (autoridad creadora, Responsable, jerarquía de asignación) las aplica el servicio: violación de permiso → 403, de regla → 422, dato inválido → 400.
+
+| Método      | Path                                            | Permiso               | Descripción                                                                                                                    |
+| ----------- | ----------------------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| GET         | `/ping`                                         | (anónimo)             | Health check del módulo                                                                                                        |
+| GET         | `/`                                             | `tareas.ver`          | Listado de tareas (comentarios e historial vacíos)                                                                             |
+| GET         | `/{id}`                                         | `tareas.ver`          | Detalle: comentarios, historial y tareas relacionadas                                                                          |
+| POST        | `/`                                             | `tareas.gestionar`    | Crear tarea; con `tareaPadreId` es hija y hereda el Proyecto                                                                   |
+| PUT         | `/{id}`                                         | `tareas.gestionar`    | Editar campos (solo la autoridad creadora)                                                                                     |
+| POST        | `/{id}/estado`                                  | `tareas.ver`          | Cambiar estado (Responsable o autoridad creadora; Pausa exige comentario, Resuelta exige Solución)                             |
+| PATCH       | `/{id}/avance`                                  | `tareas.ver`          | % de avance 0-100 (Responsable o autoridad creadora)                                                                           |
+| POST        | `/{id}/comentarios`                             | `tareas.ver`          | Comentario interno                                                                                                             |
+| POST/DELETE | `/{id}/relaciones`, `/{id}/relaciones/{otraId}` | `tareas.ver`          | Relación simple bidireccional                                                                                                  |
+| GET         | `/candidatos[?para=proyecto&q=texto]`           | `tareas.gestionar`    | Usuarios asignables como Responsable según la jerarquía; `q` busca por nombre, apellido, usuario, legajo o documento (máx. 50) |
+| GET         | `/proyectos/estados`                            | `tareas.ver`          | Catálogo de estados de proyecto (código, nombre, verbo, inicial, admite tareas)                                                |
+| GET         | `/proyectos`, `/proyectos/{id}`                 | `tareas.ver`          | Proyectos de cualquier estado                                                                                                  |
+| POST        | `/proyectos`                                    | `proyectos.gestionar` | Crear proyecto (Responsable: Decanato o Secretaría Académica)                                                                  |
+| PUT         | `/proyectos/{id}`                               | `proyectos.gestionar` | Editar nombre, descripción, fechas y Responsable (el estado se cambia aparte); el Responsable se revalida solo si cambia       |
+| POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                               |
 
 ## Idempotencia
 

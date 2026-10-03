@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using ArsDocendi.Storage.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
+using Modules.Tareas.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -55,6 +56,11 @@ public sealed class PostgresFixture : IAsyncLifetime
             await portal.Database.MigrateAsync();
         }
 
+        await using (var tareas = CrearTareas(cadena))
+        {
+            await tareas.Database.MigrateAsync();
+        }
+
         await using (var designaciones = CrearDesignaciones(cadena))
         {
             await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
@@ -90,6 +96,14 @@ public sealed class PostgresFixture : IAsyncLifetime
             .UseNpgsql(cadena)
             .Options;
         return new DesignacionesDbContext(opciones);
+    }
+
+    public static TareasDbContext CrearTareas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<TareasDbContext>()
+            .UseNpgsql(cadena)
+            .Options;
+        return new TareasDbContext(opciones);
     }
 
     public static PortalDbContext CrearPortal(string cadena)

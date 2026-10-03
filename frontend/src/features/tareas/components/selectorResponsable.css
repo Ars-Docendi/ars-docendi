@@ -1,0 +1,40 @@
+/* Selector de Responsable: un campo de solo lectura que muestra a la persona elegida más el
+   botón que abre el buscador emergente (`PopupBuscarResponsable`). */
+.adoc-selector-responsable {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adoc-selector-responsable > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-buscador-responsable-form {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.adoc-buscador-responsable-form select {
+  flex: 0 0 auto;
+  max-width: 14rem;
+}
+.adoc-buscador-responsable-texto {
+  flex: 1;
+  min-width: 0;
+}
+
+.adoc-buscador-responsable-resultados {
+  max-height: 50vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.adoc-buscador-responsable-resultados table {
+  width: 100%;
+  table-layout: auto;
+}
+.adoc-buscador-responsable-resultados td,
+.adoc-buscador-responsable-resultados th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
