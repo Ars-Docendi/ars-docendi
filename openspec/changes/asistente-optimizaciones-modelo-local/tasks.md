@@ -10,9 +10,9 @@
 
 ## 2. Telemetría (D8)
 
-- [ ] 2.1 Lector de métricas de vLLM y llama-server
-- [ ] 2.2 `GET /administracion/servidor-local`
-- [ ] 2.3 Tarjeta en el panel de uso
+- [x] 2.1 Lector de métricas de vLLM y llama-server
+- [x] 2.2 `GET /administracion/servidor-local`
+- [x] 2.3 Tarjeta en el panel de uso
 
 ## 3. Streaming (D9)
 

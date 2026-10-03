@@ -2838,3 +2838,41 @@
 .adoc-asistente-admin-cupo-fila--deshabilitada .adoc-asistente-admin-cupo-valor {
   color: var(--color-text-tertiary);
 }
+
+/* La tarjeta del servidor del modelo propio (asistente-optimizaciones-modelo-local,
+   D8): cuatro métricas en grilla, y la compuerta del backend debajo. */
+.adoc-asistente-admin-servidor {
+  grid-column: 1 / -1;
+}
+
+.adoc-asistente-admin-servidor-metricas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.adoc-asistente-admin-servidor-metricas dt {
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-admin-servidor-metricas dd {
+  margin: 0;
+  font-size: var(--text-body-size);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.adoc-asistente-admin-servidor-aviso,
+.adoc-asistente-admin-servidor-compuerta {
+  margin: 0;
+  font-size: var(--text-micro-size);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .adoc-asistente-admin-servidor-metricas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

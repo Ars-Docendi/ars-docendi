@@ -156,7 +156,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // AdministracionAsistenteController (`DELETE …/presupuestos/usuarios/{actorId}`
         // para restablecer el cupo al del rol, y `PUT …/presupuestos/roles/{rol}/acceso`
         // y `PUT …/presupuestos/usuarios/{actorId}/acceso`).
-        Assert.Equal(94, operaciones.Length);
+        //
+        // Subió de 94 a 95 con asistente-optimizaciones-modelo-local (D8):
+        // `GET /api/asistente/administracion/servidor-local`.
+        Assert.Equal(95, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

@@ -204,6 +204,12 @@ public static class ModuleExtensions
         services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
         services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
 
+        // Telemetría del servidor del modelo propio (asistente-optimizaciones-
+        // modelo-local, D8): un cliente aparte, con timeout corto y SIN el
+        // reintento del proveedor — es un panel, no un turno.
+        services.AddHttpClient(TelemetriaDelServidorLocal.Cliente, cliente => cliente.Timeout = TimeSpan.FromSeconds(3));
+        services.AddScoped<TelemetriaDelServidorLocal>();
+
         // El primer contrato público del módulo (sistema-seccion-unificada,
         // design.md D1): el Host los resuelve para el feed unificado de
         // auditoría y el estado del sistema, sin SQL directo ni referenciar

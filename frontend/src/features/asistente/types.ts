@@ -232,6 +232,25 @@ export interface CupoDeRolPersistido {
   accesoHabilitado: boolean;
 }
 
+/**
+ * La carga del servidor del modelo propio y de la compuerta del backend
+ * (`GET /api/asistente/administracion/servidor-local`,
+ * asistente-optimizaciones-modelo-local D8). Una métrica que el servidor no
+ * publica llega `null`, nunca `0`.
+ */
+export interface ServidorLocal {
+  configurado: boolean;
+  alcanzable: boolean;
+  motor: "vllm" | "llama.cpp" | null;
+  enCurso: number | null;
+  enEspera: number | null;
+  /** De 0 a 1. */
+  usoDeKvCache: number | null;
+  /** De 0 a 1, acumulado desde que arrancó el servidor. Sólo vLLM la publica. */
+  aciertosDeCacheDePrefijo: number | null;
+  compuerta: { capacidad: number; enCurso: number; enEspera: number } | null;
+}
+
 /** El override de cupo diario de un usuario puntual, tal como está persistido. */
 export interface OverrideDeUsuarioPersistido {
   actorId: string;
