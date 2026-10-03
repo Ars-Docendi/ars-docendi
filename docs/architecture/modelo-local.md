@@ -71,6 +71,42 @@ Con 12k tokens de prefijo, esa diferencia define cuántos turnos entran en 12 GB
 
 **Recomendación:** **Qwen3-8B-AWQ** con thinking apagado. **Qwen3.5-9B** queda como candidato A/B, a medir con el evaluador cuando el prefix caching de los híbridos se estabilice. Para fine-tuning a mediano plazo hay evidencia de que ~800 ejemplos propios verificados llevan a Qwen3-8B a 69 % en BIRD (LIMIT, sep-2026).
 
+### Medido con el evaluador en la RTX 3070 (ARS-162)
+
+Medido el 2026-10-03 con `backend/eval` contra llama-server (build 11371): un slot de 16.384 tokens, todas las capas en GPU y KV `q8_0`. El perfil A lleva las optimizaciones apagadas; el B es el bloque de la 3070 de `.env.example`. La tabla muestra aciertos por eje.
+
+| Modelo y cuantización  | Perfil | Capacidad (34) | Robustez (15) | Diálogo (11) | Social (20) | Falsas en capacidad | Turno p50 | VRAM máx. |
+| ---------------------- | ------ | -------------- | ------------- | ------------ | ----------- | ------------------- | --------- | --------- |
+| Qwen3-8B Q4_K_M        | A      | 24             | 11            | 9            | 20          | 8                   | 5,1 s     | 7.431 MiB |
+| **Qwen3-8B Q4_K_M**    | **B**  | **26**         | **12**        | **10**       | **18**      | **7**               | **2,9 s** | 7.391 MiB |
+| Qwen3-8B Q5_K_M        | —      | no entra       | —             | —            | —           | —                   | —         | —         |
+| XiYan-7B 2504 Q4_K_M   | A      | 17             | 10            | 9            | 20          | 8                   | 5,2 s     | 6.425 MiB |
+| XiYan-7B 2504 Q4_K_M   | B      | 14             | 7             | 7            | 17          | 9                   | 3,4 s     | 6.398 MiB |
+| XiYan-7B 2504 Q5_K_M   | A      | 20             | 10            | 9            | 20          | 6                   | 5,4 s     | 7.100 MiB |
+| XiYan-7B 2504 Q5_K_M   | B      | 18             | 9             | 7            | 17          | 10                  | 4,9 s     | 7.082 MiB |
+| Arctic-R1 7B Q4_K_M    | A      | 14             | 10            | 7            | 20          | 13                  | 6,5 s     | 6.361 MiB |
+| Arctic-R1 7B Q4_K_M    | B      | 23             | 10            | 6            | 17          | 5                   | 3,7 s     | 6.367 MiB |
+| Arctic-R1 7B Q5_K_M    | A      | 15             | 9             | 7            | 20          | 14                  | 6,6 s     | 7.287 MiB |
+| Arctic-R1 7B Q5_K_M    | B      | 22             | 11            | 9            | 17          | 8                   | 4,8 s     | 7.290 MiB |
+| Qwen3-4B-Instruct Q6_K | A      | 24             | 13            | 6            | 20          | 6                   | 4,7 s     | 6.303 MiB |
+| Qwen3-4B-Instruct Q6_K | B      | 23             | 12            | 9            | 17          | 9                   | 3,5 s     | 6.299 MiB |
+
+«Falsas en capacidad» suma la traducción incorrecta y la respuesta a lo infactible: las dos formas de afirmar algo falso. La VRAM es el uso total de la placa, con el escritorio ocupando ~1,3 GiB. La baja de social en el perfil B es un artefacto de la medición (caché de consultas y plantillas responden con cero tokens), no una pérdida de calidad.
+
+**Decisión para la 3070: Qwen3-8B en Q4_K_M, con el perfil B.** Es la línea de base local de los tickets siguientes: 26 · 12 · 10 · 18.
+
+- **Los especialistas no mejoran como reemplazo directo.** Reciben el mismo prompt en español y el mismo esquema, con la salida restringida al JSON de la generación, no su plantilla de entrenamiento. Así medidos, ninguno alcanza a Qwen3-8B en capacidad, robustez ni diálogo.
+- **XiYan se abstiene de más.** Deja sin responder entre 6 y 11 preguntas contestables de capacidad, contra 1 o 2 de Qwen3-8B, y el perfil B lo empeora en los cuatro ejes.
+- **Arctic-R1 depende del perfil B.** Sin él afirma 13 o 14 cosas falsas en capacidad. Con él, en Q4 es el que menos afirma en falso (5): con penalización 2,0 queda apenas arriba de Qwen3-8B en capacidad (38,2 % contra 35,3 %) y muy abajo en robustez (13,3 % contra 53,3 %) y en diálogo (36,4 % contra 72,7 %). Acierta cuatro ítems de capacidad que Qwen3-8B falla y pierde siete que Qwen3-8B acierta.
+- **Responder lo que había que abstener** —el riesgo de un modelo que no fue entrenado para declarar `es_contestable`— sólo aparece en Arctic-R1 Q5: responde 4 de los 8 ítems infactibles, contra 1 o 2 en el resto.
+- **Q5 no paga en esta placa.** Qwen3-8B Q5 no entra: falla al reservar el KV con 16.384 de contexto y también con 12.288. En XiYan suma 3 o 4 aciertos de capacidad sin alcanzar a Qwen3-8B; en Arctic-R1 no cambia la capacidad y responde más ítems infactibles.
+- **Qwen3-4B Q6 es un piso alto.** En el perfil A iguala al 8B en capacidad y lo supera en robustez, pero cae en diálogo (6 contra 9). En el B queda igual o debajo en los cuatro ejes, con más respuestas falsas (9 contra 7). Usa 6,3 GiB contra 7,4: sigue siendo el respaldo cuando el 8B no entra.
+- **La corrida es determinista.** El perfil B de Qwen3-8B Q4 se repitió tres veces, reiniciando el servidor entre corridas, y ningún ítem cambió de veredicto. En este montaje —temperatura 0, un slot, la misma imagen— un ítem que cambia entre dos corridas es efecto de lo que se cambió, no ruido.
+
+**Decisión para la 5070 [estimado]:** sin cambios, Qwen3-8B en 4 bits (AWQ con vLLM). No se midió en esa placa. Lo que esta medición aporta es que los especialistas no justifican cambiar de modelo y que Q5 no mostró una mejora consistente en los dos modelos donde se pudo comparar. En 12 GB un Q5_K_M sí entra con llama-server (5,45 GiB de pesos): conviene medirlo ahí antes de adoptarlo.
+
+**Lo que esta medición no dice.** Es una corrida por configuración sobre 80 ítems: sirve para ordenar modelos, no para afirmar un porcentaje. Y los especialistas no se midieron con su plantilla nativa (M-Schema en XiYan, razonamiento previo al SQL en Arctic-R1): eso exige otro prompt para la generación y es el alcance de ARS-167.
+
 ### Calidad esperada frente a Claude
 
 - **En BIRD**, un generalista de 7–9B queda **15–25 puntos debajo** de Claude Sonnet 4.5, que obtiene 65 % sin reflexión.
@@ -277,7 +313,7 @@ Medido el 2026-10-03 con el evaluador contra Qwen3-8B (llama-server, 1 slot de 1
 | Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                                        |
 | `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                                    |
 
-**Respaldo de modelo:** Qwen3-4B-Instruct-2507 en Q6_K (~3,3 GB) deja lugar para 2 slots de 16k con holgura, a costa de calidad. Se cambia con `LLAMA_HF_REPO` y `LLAMA_GGUF`, y `Asistente__Modelo` no necesita cambiar si se mantiene el `--alias`.
+**Respaldo de modelo:** Qwen3-4B-Instruct-2507 en Q6_K (~3,1 GiB de pesos; 6,3 GiB de placa con un slot de 16k y el escritorio) deja más lugar para el KV, a costa de calidad: con el perfil optimizado acierta 23 · 12 · 9 · 17 contra 26 · 12 · 10 · 18 del 8B (§3, «Medido con el evaluador en la RTX 3070»). Se cambia con `LLAMA_HF_REPO` y `LLAMA_GGUF`, y `Asistente__Modelo` no necesita cambiar si se mantiene el `--alias`.
 
 ## Fuentes
 
