@@ -52,6 +52,10 @@ CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 La matriz de variables, secrets y gates de GitHub está en
 [`docs/operations/github-pr-deploy.md`](../docs/operations/github-pr-deploy.md).
 
+La instancia Docker independiente de Ollama se instala siguiendo
+[`docs/operations/ollama-compartido.md`](../docs/operations/ollama-compartido.md),
+sin modificar los despliegues de las aplicaciones.
+
 ## Operación manual
 
 ```bash

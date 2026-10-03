@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-10-02
+goal: Preparar exclusivamente infraestructura Docker y documentación operativa para
+  Ollama con GPU en pc-prod, accesible privadamente por Tailscale desde prod y
+  desde la subred de vm-dev mediante su VM router existente, sin cambios de
+  backend, frontend o CI/CD y sin crear tests.
