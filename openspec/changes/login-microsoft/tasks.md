@@ -76,30 +76,31 @@
 
 ## 3. Fase 3 — Staging y producción
 
-- [ ] 3.1 Configurar `ForwardedHeaders` para que confíe sólo en la red interna. Verificar con pruebas de integración que `X-Forwarded-Proto: https` desde la red confiable produce un `redirect_uri` con `https://` y cookies anti-falsificación `Secure`, y que desde una IP no confiable se ignora.
-- [ ] 3.2 Persistir Data Protection con `PersistKeysToFileSystem` y `SetApplicationName`, más un volumen nombrado en `compose.base.yml` para producción y staging. Verificar en staging que una sesión sobrevive a reiniciar el backend.
-- [ ] 3.3 Agregar el guard de arranque en Production, sin exigirlo en `--migrate`. Verificar con pruebas que un host Production sin configuración falla con un mensaje que no expone secretos y que `--migrate` termina con exit 0.
-- [ ] 3.4 Implementar `AdministradorInicial`, aplicado por `--migrate` de forma idempotente a través de la administración de identidad. Verificar con pruebas que:
+- [x] 3.1 Configurar `ForwardedHeaders` para que confíe sólo en la red interna. Verificar con pruebas de integración que `X-Forwarded-Proto: https` desde la red confiable produce un `redirect_uri` con `https://` y cookies anti-falsificación `Secure`, y que desde una IP no confiable se ignora.
+- [x] 3.2 Persistir Data Protection con `PersistKeysToFileSystem` y `SetApplicationName`, más un volumen nombrado en `compose.base.yml` para producción y staging. Verificar en staging que una sesión sobrevive a reiniciar el backend.
+- [x] 3.3 Agregar el guard de arranque en Production, sin exigirlo en `--migrate`. Verificar con pruebas que un host Production sin configuración falla con un mensaje que no expone secretos y que `--migrate` termina con exit 0.
+- [x] 3.4 Implementar `AdministradorInicial`, aplicado por `--migrate` de forma idempotente a través de la administración de identidad. Verificar con pruebas que:
   - si falta, crea persona, usuario activo y `sys_admin`;
   - si ya existe (incluso desactivado), no lo modifica;
   - sin configuración, no crea nada.
-- [ ] 3.5 Cargar variables y secretos:
+- [x] 3.5 Cargar variables y secretos:
   - `AutenticacionMicrosoft__*` y `AdministradorInicial__*` en `compose.base.yml` (deshabilitado por defecto), `.env.example` e `infra/compose/.env.example`;
   - `ClientId` como variable y secretos por ambiente en `deploy-staging.yml` y `deploy-prod.yml`;
   - el build arg `VITE_MICROSOFT_LOGIN_ENABLED` en `frontend/Dockerfile` y en los workflows, con `pr-env-deploy.yml` en `false`.
 
   Verificar con `infra/tests` y con un ambiente `pr-N` que no ofrece Microsoft.
 
-- [ ] 3.6 Fuera del repo, lo hace un integrante con acceso a Microsoft Entra. Crear las registraciones de staging y producción con:
+- [x] 3.9 Agregar el switch por label `login-microsoft` para habilitar el ingreso en un `pr-N` puntual con la registración de staging. Verificar con `infra/tests` que sólo se activa con la label y que los previews nunca reciben credenciales de producción.
+- [x] 3.6 Fuera del repo, lo hace un integrante con acceso a Microsoft Entra. Crear las registraciones de staging y producción con:
   - redirect `https://staging.<DOMINIO>/api/auth/signin-oidc` y `https://<DOMINIO>/api/auth/signin-oidc`;
   - un secret por registración;
   - los claims `email` y `xms_edov`;
   - sin `User.Read`;
-  - `removeUnverifiedEmailClaim = true`.
+  - `removeUnverifiedEmailClaim = true` (opcional: se omitió porque el backend ya exige `xms_edov` y es el default de apps nuevas; queda documentado en `infrastructure.md`).
 
-  Verificar leyendo `authenticationBehaviors` vía Microsoft Graph.
+  Verificar con `gh variable list` y `gh secret list --env <ambiente>` que los client ID, los secrets y `ADMIN_INICIAL_*` estén cargados en su nivel.
 
-- [ ] 3.7 Documentar la fase 3 en `infrastructure.md`: variables, secretos y sus vencimientos, volumen de claves, headers de proxy, registraciones por ambiente y administrador inicial. Verificar con `pnpm format:check`.
+- [x] 3.7 Documentar la fase 3 en `infrastructure.md`: variables, secretos y sus vencimientos, volumen de claves, headers de proxy, registraciones por ambiente y administrador inicial. Verificar con `pnpm format:check`.
 - [ ] 3.8 Validar en staging:
   - ingreso real con una cuenta registrada;
   - rechazo de una no registrada;

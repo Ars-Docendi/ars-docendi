@@ -35,6 +35,11 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 
+# Directorio de las claves de Data Protection (cookie de sesión y anti-falsificación).
+# Compose monta ahí un volumen por ambiente; un volumen nombrado nuevo hereda este
+# dueño, así el usuario no-root puede escribirlas.
+RUN mkdir -p /claves && chown "$APP_UID" /claves
+
 # Usuario no-root provisto por la imagen base de .NET (APP_UID).
 USER $APP_UID
 

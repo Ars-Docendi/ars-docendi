@@ -311,6 +311,13 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             builder.UseSetting(
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",
                 habilitada.ToString());
+            if (ambiente == "Production")
+            {
+                // En Production el ingreso con Microsoft es obligatorio para arrancar.
+                builder.UseSetting("AutenticacionMicrosoft:Habilitada", bool.TrueString);
+                builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+                builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
+            }
         });
 
     private async Task<(Guid PersonaMixta, Guid PersonaAjena)> AgregarDocentesConAmbitoMixtoAsync(

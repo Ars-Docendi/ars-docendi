@@ -33,6 +33,7 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
     private readonly RelojAjustable _reloj = new(DateTimeOffset.UtcNow);
     private const string AutorizacionFalsa = "https://login.example.test/authorize";
     private const string RutaIngresoPruebas = "/__pruebas/ingresar";
+    private const string HeaderIpPruebas = "X-Ip-Pruebas";
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
     private static readonly Guid JefeSembrado = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid RolDecanato = Guid.Parse("a1000000-0000-4000-8000-000000000005");
@@ -217,6 +218,94 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
     }
 
+    [Theory]
+    [InlineData("172.18.0.5", "https://")]
+    [InlineData("203.0.113.9", "http://")]
+    public async Task Detras_del_proxy_solo_la_red_interna_puede_indicar_https(string ip, string esquema)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var cliente = host.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            AllowAutoRedirect = false,
+        });
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/auth/login");
+        solicitud.Headers.Add(HeaderIpPruebas, ip);
+        solicitud.Headers.Add("X-Forwarded-Proto", "https");
+        solicitud.Headers.Add("X-Forwarded-For", "198.51.100.7");
+        using var respuesta = await cliente.SendAsync(solicitud, ct);
+
+        var redirect = HttpUtility.ParseQueryString(respuesta.Headers.Location!.Query)["redirect_uri"];
+        Assert.StartsWith($"{esquema}localhost{RegistroAutenticacion.RutaCallback}", redirect);
+    }
+
+    [Fact]
+    public async Task Detras_del_proxy_el_token_antifalsificacion_sale_secure()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        using var host = CrearHost(microsoft: true, desarrollo: false);
+        using var https = CrearCliente(host);
+        using var ingreso = await https.PostAsync($"{RutaIngresoPruebas}/{usuario}", null, ct);
+        var cookie = ingreso.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith(RegistroAutenticacion.NombreCookie, StringComparison.Ordinal))
+            .Split(';')[0];
+        using var http = host.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            HandleCookies = false,
+        });
+
+        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/auth/sesion");
+        solicitud.Headers.Add("Cookie", cookie);
+        solicitud.Headers.Add(HeaderIpPruebas, "172.18.0.5");
+        solicitud.Headers.Add("X-Forwarded-Proto", "https");
+        using var respuesta = await http.SendAsync(solicitud, ct);
+
+        var token = respuesta.Headers.GetValues("Set-Cookie")
+            .Single(c => c.StartsWith($"{AntifalsificacionSesion.CookieToken}=", StringComparison.Ordinal));
+        Assert.Contains("secure", token, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task La_sesion_sobrevive_a_reiniciar_el_backend_con_las_claves_persistidas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var usuario = await CrearUsuarioAsync(RolSecretaria, ct);
+        var claves = Directory.CreateTempSubdirectory("ars-claves-");
+        try
+        {
+            string cookie;
+            using (var antes = ConClaves(CrearHost(microsoft: true, desarrollo: false), claves.FullName))
+            using (var cliente = CrearCliente(antes))
+            {
+                using var ingreso = await cliente.PostAsync($"{RutaIngresoPruebas}/{usuario}", null, ct);
+                cookie = ingreso.Headers.GetValues("Set-Cookie")
+                    .Single(c => c.StartsWith(RegistroAutenticacion.NombreCookie, StringComparison.Ordinal))
+                    .Split(';')[0];
+            }
+
+            using var despues = ConClaves(CrearHost(microsoft: true, desarrollo: false), claves.FullName);
+            using var nuevo = despues.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost"),
+                HandleCookies = false,
+            });
+            using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/auth/sesion");
+            solicitud.Headers.Add("Cookie", cookie);
+            using var respuesta = await nuevo.SendAsync(solicitud, ct);
+
+            Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+            Assert.NotEmpty(claves.GetFiles("*.xml"));
+        }
+        finally
+        {
+            claves.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public async Task La_sesion_vence_tras_el_periodo_de_inactividad()
     {
@@ -303,9 +392,13 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
                         Issuer = "https://login.example.test/v2.0",
                     });
                 servicios.AddSingleton<IStartupFilter, FiltroIngresoPruebas>();
+                servicios.AddSingleton<IStartupFilter, FiltroIpRemotaPruebas>();
                 servicios.AddSingleton<TimeProvider>(_reloj);
             });
         });
+
+    private static WebApplicationFactory<Program> ConClaves(WebApplicationFactory<Program> host, string directorio) =>
+        host.WithWebHostBuilder(builder => builder.UseSetting("DataProtection:DirectorioClaves", directorio));
 
     private static HttpClient CrearCliente(WebApplicationFactory<Program> host) =>
         host.CreateClient(new WebApplicationFactoryClientOptions
@@ -427,5 +520,23 @@ public sealed class AutenticacionMicrosoftTests(PostgresFixture postgres)
         public void Avanzar(TimeSpan lapso) => _ahora += lapso;
 
         public override DateTimeOffset GetUtcNow() => _ahora;
+    }
+
+    /// <summary>TestServer no tiene IP remota: la fija desde un header para simular quién llama.</summary>
+    private sealed class FiltroIpRemotaPruebas : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> siguiente) => app =>
+        {
+            app.Use(async (contexto, proximo) =>
+            {
+                if (contexto.Request.Headers.TryGetValue(HeaderIpPruebas, out var ip))
+                {
+                    contexto.Connection.RemoteIpAddress = System.Net.IPAddress.Parse(ip.ToString());
+                }
+
+                await proximo();
+            });
+            siguiente(app);
+        };
     }
 }

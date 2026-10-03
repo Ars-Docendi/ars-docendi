@@ -108,6 +108,25 @@ La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente a
 
 Los defaults del Dockerfile, Compose y `spin-up.sh` son `false`. Además, el Host conserva la guarda independiente `!IsProduction()`: configurar el opt-in accidentalmente en Production no registra la superficie.
 
+### Ingreso con Microsoft por ambiente
+
+El ingreso real usa una registración de Microsoft Entra por ambiente, cada una con su redirect exacto (Microsoft no admite comodines en apps que aceptan cuentas personales):
+
+| Ambiente   | Registración             | Redirect URI (Web)                                      | Cómo se habilita                                                                |
+| ---------- | ------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Local      | Ars Docendi (desarrollo) | `http://localhost/api/auth/signin-oidc` (puerto libre)  | `dotnet user-secrets` + `VITE_MICROSOFT_LOGIN_ENABLED` en `frontend/.env.local` |
+| Staging    | Ars Docendi (staging)    | `https://staging.<DOMINIO>/api/auth/signin-oidc`        | Automático cuando `MICROSOFT_CLIENT_ID_STAGING` y su secret existen en GitHub   |
+| Preview    | Ars Docendi (staging)    | `https://pr-<N>.<DOMINIO>/api/auth/signin-oidc`, a mano | Label `login-microsoft` en el PR; quitar la URI de la registración al terminar  |
+| Producción | Ars Docendi              | `https://<DOMINIO>/api/auth/signin-oidc`                | Siempre: sin `ClientId`/`ClientSecret` el backend no arranca                    |
+
+- **Configuración:** el workflow pasa `MICROSOFT_LOGIN_ENABLED`, `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET` por el entorno del proceso; `compose.base.yml` los mapea a `AutenticacionMicrosoft__*`. El secret nunca se escribe en el `.env` efímero ni en la imagen. El frontend recibe el build arg `VITE_MICROSOFT_LOGIN_ENABLED`.
+- **Detrás del proxy:** el backend confía en `X-Forwarded-Proto`/`X-Forwarded-For` sólo desde la red interna de Docker (`172.16.0.0/12`, el mismo rango que confía Traefik). Así arma el redirect con `https://` y emite las cookies anti-falsificación con `Secure`.
+- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). En prod persisten entre deploys; staging y `pr-N` las pierden al reconstruirse, lo que sólo obliga a volver a ingresar.
+- **Administrador inicial (sólo prod):** si `ADMIN_INICIAL_UPN`, `_NOMBRE`, `_APELLIDO` y `_DOCUMENTO` están cargados, el arranque `--migrate` crea esa persona, su usuario activo y el rol `sys_admin`, sólo si no existe un usuario con ese UPN. El resto se da de alta desde la pantalla de usuarios.
+- **Staging se reconstruye en cada deploy:** los usuarios dados de alta ahí con su mail real se pierden y hay que volver a crearlos con el selector como `sys_admin`.
+- **Vencimiento de secrets:** cada registración admite dos secrets a la vez. Antes del vencimiento se crea el nuevo, se reemplaza en GitHub, se despliega y se borra el viejo. Registrar acá la fecha de vencimiento de cada uno.
+- **Opcional:** fijar `removeUnverifiedEmailClaim = true` en cada registración (`az rest --method PATCH --url https://graph.microsoft.com/v1.0/applications/<object-id> --body '{"authenticationBehaviors":{"removeUnverifiedEmailClaim":true}}'` desde Cloud Shell). Es redundante: el backend ya exige el claim `xms_edov` y es el default para apps multi-tenant nuevas.
+
 ## Proceso de despliegue (CI/CD)
 
 GitHub Actions construye las imágenes permanentes una vez por SHA en un runner
@@ -154,7 +173,13 @@ Compose project, base y storage únicamente en la VM.
 - **Deploy/CI**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y credenciales
   administrativas SeaweedFS provienen de GitHub repository secrets; las claves
   de app de `prod`, `staging` y `pr-preview` provienen de sus respectivos
-  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
+  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
+  credenciales de Microsoft siguen ese patrón: `MICROSOFT_CLIENT_ID_STAGING`/`_PROD`
+  son repository variables (no son secretos). `MICROSOFT_CLIENT_SECRET_STAGING` va
+  en los Environments `staging` y `pr-preview` (los previews con la label
+  `login-microsoft` usan la registración de staging); `MICROSOFT_CLIENT_SECRET_PROD`
+  y `ADMIN_INICIAL_*` van en el Environment `prod`. Al rotar el secret de staging hay
+  que actualizar ambos Environments. Los jobs
   inyectan secrets en runtime; nunca se versionan ni se hornean en imágenes.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de

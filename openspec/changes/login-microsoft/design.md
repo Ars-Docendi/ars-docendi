@@ -23,7 +23,7 @@ Estado actual que condiciona el diseño:
 
 - Elegir el rol al ingresar u operar con varios roles a la vez.
 - Unificar el selector de desarrollo con la cookie: sigue autenticando por headers.
-- Ingreso con Microsoft en los ambientes `pr-N`.
+- Ingreso con Microsoft en todos los ambientes `pr-N`: sólo en un PR puntual con la label `login-microsoft` (decisión 13).
 - Cerrar la sesión de Microsoft (single sign-out) o front-channel logout.
 - Cambiar la pantalla de acceso denegado del login.
 - Llamar a Microsoft Graph u otras APIs, o guardar tokens de Microsoft.
@@ -151,6 +151,12 @@ Probado en local con la registración de desarrollo (2026-10-02):
 - **Cuenta personal de Microsoft:** sin alta, rechazada como `NoRegistrado`; dada de alta, ingresa. No se registró si llegó `xms_edov`, así que se mantiene la excepción por `tid` de cuentas personales (Microsoft verifica su mail al crearlas).
 - **Cuenta @unlam.edu.ar:** dada de alta, ingresa. UNLaM no exige aprobación de un administrador para la app, y el mail llega con `xms_edov = true`; si no, la regla la habría rechazado.
 - **Cierre de sesión y desactivación con la sesión abierta:** el cierre vuelve al login; al desactivar al usuario, la solicitud siguiente lo devuelve al login.
+
+### 13. Ingreso con Microsoft en un PR puntual
+
+- **Mecanismo:** con la label `login-microsoft`, el workflow de previews pasa el client ID y el secret de la registración de staging y construye el frontend con el botón. La URL del PR (`https://pr-<N>.<DOMINIO>/api/auth/signin-oidc`) se agrega a mano en esa registración y se quita al terminar.
+- **Por qué la registración de staging:** sus credenciales ya están en GitHub a nivel repositorio; no hace falta otro secret.
+- **Alcance de confianza:** los previews ya reciben otras credenciales de deploy y pasan por el gate de maintainer (`deploy-preview` + environment `pr-preview`); el secret de staging no da acceso a datos productivos.
 
 ## Risks / Trade-offs
 

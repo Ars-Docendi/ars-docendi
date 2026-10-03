@@ -30,7 +30,14 @@ public static class RegistroAutenticacion
     public const string NombreCookie = "__Host-ars-sesion";
     public const string RutaCallback = "/api/auth/signin-oidc";
 
-    public static AccesosHabilitados AddAutenticacionArsDocendi(this WebApplicationBuilder builder)
+    /// <param name="exigirMicrosoft">
+    /// En Production el ingreso con Microsoft es la única forma de entrar: si no está
+    /// habilitado y configurado, el host no arranca. El arranque <c>--migrate</c> no
+    /// atiende solicitudes y no lo exige.
+    /// </param>
+    public static AccesosHabilitados AddAutenticacionArsDocendi(
+        this WebApplicationBuilder builder,
+        bool exigirMicrosoft)
     {
         var desarrollo = !builder.Environment.IsProduction()
             && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
@@ -38,6 +45,14 @@ public static class RegistroAutenticacion
             .GetSection(AutenticacionMicrosoftOptions.Seccion)
             .Get<AutenticacionMicrosoftOptions>() ?? new AutenticacionMicrosoftOptions();
         var accesos = new AccesosHabilitados(microsoft.Habilitada, desarrollo);
+        if (exigirMicrosoft
+            && (!microsoft.Habilitada
+                || string.IsNullOrWhiteSpace(microsoft.ClientId)
+                || string.IsNullOrWhiteSpace(microsoft.ClientSecret)))
+        {
+            throw new InvalidOperationException(
+                $"En Production el ingreso con Microsoft es obligatorio: configurá {AutenticacionMicrosoftOptions.Seccion}:Habilitada, ClientId y ClientSecret.");
+        }
 
         if (!accesos.Microsoft)
         {

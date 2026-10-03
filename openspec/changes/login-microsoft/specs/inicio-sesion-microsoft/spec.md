@@ -204,7 +204,7 @@ Para que un ambiente sin administradores sea operable, el despliegue SHALL poder
 
 ### Requirement: Habilitación por ambiente
 
-El ingreso con Microsoft SHALL habilitarse por configuración. En producción MUST estar habilitado y configurado; si no lo está, el backend MUST NOT empezar a atender solicitudes. En los ambientes `pr-N` SHALL permanecer deshabilitado; en staging SHALL convivir con el selector de identidades de desarrollo, y en desarrollo local SHALL ser opcional. Cuando está deshabilitado, sus rutas MUST NOT estar registradas y la pantalla de login MUST NOT ofrecerlo.
+El ingreso con Microsoft SHALL habilitarse por configuración. En producción MUST estar habilitado y configurado; si no lo está, el backend MUST NOT empezar a atender solicitudes. En los ambientes `pr-N` SHALL permanecer deshabilitado salvo que un PR puntual lo habilite explícitamente con la label `login-microsoft`, usando la registración de staging; en staging SHALL convivir con el selector de identidades de desarrollo, y en desarrollo local SHALL ser opcional. Cuando está deshabilitado, sus rutas MUST NOT estar registradas y la pantalla de login MUST NOT ofrecerlo.
 
 #### Scenario: Producción sin configuración
 
@@ -214,9 +214,15 @@ El ingreso con Microsoft SHALL habilitarse por configuración. En producción MU
 
 #### Scenario: Ambiente de pull request
 
-- **GIVEN** un ambiente `pr-N`
+- **GIVEN** un ambiente `pr-N` sin la label `login-microsoft`
 - **WHEN** el usuario abre la pantalla de login
 - **THEN** no se ofrece el ingreso con Microsoft y sus rutas no existen en el backend
+
+#### Scenario: Pull request habilitado para probar el ingreso
+
+- **GIVEN** un PR con la label `login-microsoft` y su URL registrada en la registración de staging
+- **WHEN** se despliega su ambiente `pr-N`
+- **THEN** el ingreso con Microsoft funciona en ese ambiente con las credenciales de staging, y ningún otro `pr-N` lo habilita
 
 #### Scenario: Staging con ambos accesos
 
