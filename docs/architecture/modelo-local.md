@@ -147,17 +147,17 @@ Los techos de tokens importan más en local que en la nube. El servidor reserva 
 
 Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Los perfiles de `infra/compose/` y la guía de la §8 las prenden; las opciones están en el [README del módulo](../../backend/src/Modules.Asistente/README.md#optimizaciones-para-un-modelo-propio).
 
-| Técnica                                      | Opción                              | Efecto esperado                                                                                        |
-| -------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Esquema compacto                             | `EsquemaCompacto`                   | ~10 % menos prefijo con la misma información: tipos abreviados, `?` para nulables, FK en línea         |
-| Ejemplos verificados en el prefijo           | `EjemplosEnElPrefijo`               | Prompt estable y cacheable. Conviene con vLLM; con llama-server cada slot paga la copia                |
-| Reintento por vacío con contexto             | `ReintentoConContexto`              | El reintento ya no repite el prompt idéntico: dice qué consulta no trajo filas                         |
-| Una ronda de reparación con el error saneado | `RepararConsultaFallida`            | +3–10 puntos en modelos de 7B según la literatura. Ningún literal ajeno a la consulta llega al modelo  |
-| Plantillas para resultados triviales         | `RedaccionConPlantillas`            | Una llamada menos cuando el resultado es un valor o una lista corta sin matices                        |
-| Caché de SQL por pregunta + rol + día        | `VigenciaDeCacheDeConsultasMinutos` | Cachea la consulta y no las filas: se re-ejecuta siempre bajo RLS                                      |
-| Reescritura dentro de la generación          | `ReescrituraEnLaGeneracion`         | Una llamada menos por seguimiento. El modelo devuelve `pregunta_interpretada` junto con la SQL         |
-| Streaming SSE de la redacción                | `StreamingDeRedaccion`              | Las primeras palabras apenas termina el prefill de la redacción, en vez de esperar la respuesta entera |
-| Telemetría del servidor en el panel          | —                                   | Tarjeta «Servidor del modelo»: en curso, en espera, KV cache, aciertos de prefijo y la compuerta       |
+| Técnica                                      | Opción                              | Efecto esperado                                                                                                                    |
+| -------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Esquema compacto                             | `EsquemaCompacto`                   | ~10 % menos prefijo con la misma información: tipos abreviados, `?` para nulables, FK en línea                                     |
+| Ejemplos verificados en el prefijo           | `EjemplosEnElPrefijo`               | Prompt estable y cacheable. Con vLLM se comparte entre turnos; con llama-server cada slot paga la copia, y aun así mide mejor (§8) |
+| Reintento por vacío con contexto             | `ReintentoConContexto`              | El reintento ya no repite el prompt idéntico: dice qué consulta no trajo filas                                                     |
+| Una ronda de reparación con el error saneado | `RepararConsultaFallida`            | +3–10 puntos en modelos de 7B según la literatura. Ningún literal ajeno a la consulta llega al modelo                              |
+| Plantillas para resultados triviales         | `RedaccionConPlantillas`            | Una llamada menos cuando el resultado es un valor o una lista corta sin matices                                                    |
+| Caché de SQL por pregunta + rol + día        | `VigenciaDeCacheDeConsultasMinutos` | Cachea la consulta y no las filas: se re-ejecuta siempre bajo RLS                                                                  |
+| Reescritura dentro de la generación          | `ReescrituraEnLaGeneracion`         | Una llamada menos por seguimiento. El modelo devuelve `pregunta_interpretada` junto con la SQL                                     |
+| Streaming SSE de la redacción                | `StreamingDeRedaccion`              | Las primeras palabras apenas termina el prefill de la redacción, en vez de esperar la respuesta entera                             |
+| Telemetría del servidor en el panel          | —                                   | Tarjeta «Servidor del modelo»: en curso, en espera, KV cache, aciertos de prefijo y la compuerta                                   |
 
 ### Aplicado en `asistente-redaccion-sin-enmascarado-local`
 
@@ -212,11 +212,11 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
 | ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
 | Servidor               | vLLM, Qwen3-8B-AWQ, KV FP8            | **llama-server**, Qwen3-8B Q4_K_M, KV `q8_0`. vLLM deja muy poco KV con 8 GB |
 | Turnos en vuelo        | 8                                     | **2** slots de 13.312 tokens (`--ctx-size 26624 --parallel 2`)               |
-| Ejemplos en el prefijo | Sí (vLLM comparte el prefijo)         | **No**: llama-server copia el prefijo por slot y no hay lugar                |
+| Ejemplos en el prefijo | Sí (vLLM comparte el prefijo)         | **Sí**: medido, acierta más que eligiendo cuatro por pregunta (ver abajo)    |
 | Techos de tokens       | 800 / 400 / 200                       | **600 / 300 / 150**                                                          |
 | Presupuesto del turno  | 90 s (debajo del corte de Cloudflare) | 120 s (no hay Cloudflare en el medio)                                        |
 
-**VRAM [estimado]:** pesos ~4,7 GiB + KV de 2 slots ~1,9 GiB (13.312 × 2 × ~76,5 KiB) + buffers ~0,6 GiB ≈ **7,3 GiB de 8**. Con el monitor conectado a la misma GPU el escritorio come 0,3–1 GB, así que puede no entrar.
+**VRAM [estimado]:** pesos ~4,7 GiB + KV de 2 slots ~1,9 GiB (13.312 × 2 × ~76,5 KiB) + buffers ~0,6 GiB ≈ **7,3 GiB de 8**. Con el monitor conectado a la misma GPU el escritorio come 0,3–1 GB, así que puede no entrar. **Medido el 2026-10-03** en una 3070 con el escritorio usando ~1,3 GB: los 2 slots no entraron (falló al reservar 1.989 MiB de KV) y con el respaldo de 1 slot de 16.384 la placa llegó a 7,3 GiB en total.
 
 ### Pasos
 
@@ -251,15 +251,31 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
    - En los logs de llama-server, la segunda pregunta del mismo rol debe reusar el prefijo (`n_past` alto, prompt procesado chico). La primera paga ~11k tokens de prefill **[estimado: 3–5 s en una 3070]**.
    - En el registro operativo, `tokens_de_cache` de la generación debe ser casi todo el prompt a partir del segundo turno.
 
+### Ejemplos: todos en el prefijo, no cuatro por pregunta
+
+Medido el 2026-10-03 con el evaluador contra Qwen3-8B (llama-server, 1 slot de 16.384, el resto del perfil igual). Aciertos por eje:
+
+| Ejemplos                         | Capacidad (34) | Robustez (15) | Diálogo (11) | Social (20) |
+| -------------------------------- | -------------- | ------------- | ------------ | ----------- |
+| 20, cuatro elegidos por pregunta | 24             | 11            | 10           | 17          |
+| 20, todos en el prefijo          | 26             | 12            | 10           | 18          |
+| 28, cuatro elegidos por pregunta | 21             | 10            | 10           | 17          |
+| 28, todos en el prefijo          | 28             | 12            | 9            | 17          |
+
+- **Por qué el perfil lleva `EjemplosEnElPrefijo=true`.** El selector elige por parecido de palabras, y a este modelo lo que recibe lo mueve mucho: con los mismos 20 ejemplos, mandarlos siempre acierta más que elegirlos. El punto de social es ruido: `soc-016` cambia con el estado de la caché de consultas.
+- **Costo.** La corrida tarda ~18 % más (341 s contra 290 s) y el servidor evalúa ~32 % más tokens de prompt. El pedido más largo usa 9,8k tokens: entra en el slot de 16.384 y también en el de 13.312.
+- **Agregar ejemplos sólo ayuda en este modo**, y no gratis: con 8 más, capacidad sube 2 y diálogo baja 1. Dos de esas mejoras vienen de un ejemplo escrito sabiendo qué ítems fallaban, así que el número es optimista. Los candidatos no están en el catálogo.
+- **Una corrida por configuración**, sobre pocas decenas de ítems: sirve para elegir entre dos modos, no para afirmar un porcentaje.
+
 ### Si algo falla
 
-| Síntoma                                                                      | Causa probable                                         | Qué hacer                                                                                                           |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| El servidor no arranca: `out of memory` / `failed to allocate`               | No entran pesos + KV                                   | `LLAMA_SLOTS=1 LLAMA_CTX=16384` (y `Asistente__MaximoDeLlamadasConcurrentes=1`), o desconectar el monitor de la GPU |
-| El turno degrada y el log del servidor dice que el pedido excede el contexto | El prefijo no entra en un slot de 13.312               | Mismo respaldo: un slot de 16k. Confirmar `Asistente__EsquemaCompacto=true` y `EjemplosEnElPrefijo=false`           |
-| Respuestas pobres o abstenciones de más                                      | Un 8B en 4 bits es más débil que Claude                | Esperado. Medir con el evaluador (§7) antes de sacar conclusiones, y probar las opciones de a una                   |
-| Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                              |
-| `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                          |
+| Síntoma                                                                      | Causa probable                                         | Qué hacer                                                                                                                     |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| El servidor no arranca: `out of memory` / `failed to allocate`               | No entran pesos + KV                                   | `LLAMA_SLOTS=1 LLAMA_CTX=16384` (y `Asistente__MaximoDeLlamadasConcurrentes=1`), o desconectar el monitor de la GPU           |
+| El turno degrada y el log del servidor dice que el pedido excede el contexto | El prefijo no entra en un slot de 13.312               | Mismo respaldo: un slot de 16k. Confirmar `Asistente__EsquemaCompacto=true`; si aun así no entra, `EjemplosEnElPrefijo=false` |
+| Respuestas pobres o abstenciones de más                                      | Un 8B en 4 bits es más débil que Claude                | Esperado. Medir con el evaluador (§7) antes de sacar conclusiones, y probar las opciones de a una                             |
+| Todo anda pero la redacción aparece de golpe                                 | Un proxy en el medio bufferea `text/event-stream`      | Con el proxy de Vite no pasa; revisar que no haya otro                                                                        |
+| `401` en la tarjeta o en el turno                                            | `Asistente__ClaveDelProveedor` distinta de `--api-key` | Igualarlas                                                                                                                    |
 
 **Respaldo de modelo:** Qwen3-4B-Instruct-2507 en Q6_K (~3,3 GB) deja lugar para 2 slots de 16k con holgura, a costa de calidad. Se cambia con `LLAMA_HF_REPO` y `LLAMA_GGUF`, y `Asistente__Modelo` no necesita cambiar si se mantiene el `--alias`.
 

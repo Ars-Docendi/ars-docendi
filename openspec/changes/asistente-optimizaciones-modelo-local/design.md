@@ -139,7 +139,7 @@ El panel «Uso del asistente» suma una tarjeta que sólo aparece con proveedor 
 - **Respaldo:** `-np 1`, o Qwen3-4B-Instruct-2507 Q6_K.
 - **Perfil del backend:**
   - esquema compacto prendido;
-  - ejemplos en el prefijo apagados;
+  - ejemplos en el prefijo prendidos — se entregó apagado por falta de lugar en el slot, pero medido el 2026-10-03 el pedido más largo usa 9,8k de los 13.312 tokens y el modelo acierta más con todos los ejemplos que con cuatro elegidos por pregunta (`docs/architecture/modelo-local.md` §8);
   - compuerta en 2;
   - techos de 600 / 300 / 150 tokens.
 

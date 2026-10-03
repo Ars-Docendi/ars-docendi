@@ -242,7 +242,10 @@ el evaluador.
 **Agregar ejemplos tampoco es gratis.** El selector elige por parecido de palabras,
 así que un ejemplo nuevo cambia lo que reciben muchas otras preguntas: con ocho
 ejemplos más cambió la selección de 22 de los 34 ítems de capacidad y se perdieron
-tres aciertos. Todo ejemplo nuevo se mide antes de quedar.
+tres aciertos. Con `EjemplosEnElPrefijo` —todos van siempre— los mismos ocho
+sumaron dos aciertos en capacidad y costaron uno en diálogo. Todo ejemplo nuevo se
+mide antes de quedar; los números están en
+[modelo-local.md §8](../../../docs/architecture/modelo-local.md).
 
 **Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
 son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
@@ -862,17 +865,17 @@ siguen valiendo. Cada una es una hipótesis para un modelo chico que el evaluado
 tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la RTX 3070
 ([modelo-local.md §8](../../../docs/architecture/modelo-local.md)) las prenden.
 
-| Opción                              | Default | Qué hace                                                                                                                         |
-| ----------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                       |
-| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos |
-| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                       |
-| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo            |
-| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                 |
-| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS             |
-| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                      |
-| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                     |
-| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes         |
+| Opción                              | Default | Qué hace                                                                                                                                                               |
+| ----------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                                                             |
+| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos; con llama-server también midió mejor |
+| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                                                             |
+| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo                                                  |
+| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                                                       |
+| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                   |
+| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                            |
+| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                           |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                               |
 
 **`RedaccionSinEnmascarar` no es una optimización.** Se mide más lenta (la redacción pasa
 de 0,45 a 0,57 s con una fila y de 0,42 a 0,70 s con tres, y el prompt crece un 28 % con 24

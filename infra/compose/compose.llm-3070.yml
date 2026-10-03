@@ -53,9 +53,9 @@ services:
       - "${LLM_NOMBRE_SERVIDO:-qwen3-8b}"
       - --n-gpu-layers
       - "99"
-      # Contexto total repartido entre los slots: 2 × 13.312. El prefijo de la
-      # generación con el esquema compacto ronda los 11k tokens; queda lugar
-      # para el mensaje (≤1,5k) y la salida (600).
+      # Contexto total repartido entre los slots: 2 × 13.312. Con el esquema
+      # compacto y los ejemplos en el prefijo, el pedido más largo medido usa
+      # 9,8k tokens; queda lugar para el mensaje y la salida (600).
       # RESPALDO si no entra en VRAM o el servidor dice que el pedido excede el
       # contexto: LLAMA_SLOTS=1 y LLAMA_CTX=16384 (un turno a la vez), o
       # LLAMA_GGUF=Qwen3-4B-Instruct-2507-Q6_K.gguf con su repo.
