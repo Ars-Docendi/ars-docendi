@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, RoleBadge } from "@ars-docendi/ui";
 
-import { clearToken } from "../../shared/auth/auth";
+import { useCerrarSesion } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 import { bellIcon, /*collapseIcon,*/ helpIcon, searchIcon } from "./icons";
 
@@ -33,9 +33,14 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
     };
   }, [menuOpen]);
 
-  function handleLogout() {
-    clearToken();
-    navigate("/login", { replace: true });
+  const cerrarSesion = useCerrarSesion();
+
+  async function handleLogout() {
+    try {
+      await cerrarSesion();
+    } finally {
+      navigate("/login", { replace: true });
+    }
   }
 
   return (
@@ -101,7 +106,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
           {menuOpen && (
             <div className="adoc-user-menu-pop" role="menu">
               <div className="adoc-user-menu-foot">
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
                   Cerrar sesión
                 </Button>
               </div>

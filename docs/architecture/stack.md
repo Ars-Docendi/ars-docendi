@@ -2,12 +2,12 @@
 
 ## Apps y packages
 
-| Capa          | Tecnología                                                  | Path                            |
-| ------------- | ----------------------------------------------------------- | ------------------------------- |
-| Backend       | C# — .NET 10 (ASP.NET Core Web API)                         | `backend/`                      |
-| Frontend      | React 19 + TypeScript + Vite 8                              | `frontend/`                     |
-| Base de datos | PostgreSQL 18                                               | (via docker-compose o VM)       |
-| Autenticación | SSO Microsoft Azure AD (credenciales institucionales UNLaM) | integrado en backend + frontend |
+| Capa          | Tecnología                                                            | Path                                      |
+| ------------- | --------------------------------------------------------------------- | ----------------------------------------- |
+| Backend       | C# — .NET 10 (ASP.NET Core Web API)                                   | `backend/`                                |
+| Frontend      | React 19 + TypeScript + Vite 8                                        | `frontend/`                               |
+| Base de datos | PostgreSQL 18                                                         | (via docker-compose o VM)                 |
+| Autenticación | Microsoft Entra ID (OpenID Connect) con sesión por cookie del backend | backend (cliente confidencial) + frontend |
 
 ## Backend (.NET 10)
 
@@ -50,7 +50,7 @@ Migraciones: Entity Framework Core por módulo (a definir convención específic
 
 ## Autenticación
 
-SSO con Microsoft Azure AD. El backend valida tokens JWT emitidos por Azure AD. El frontend hace login redirigido al tenant institucional UNLaM. Los roles (Jefe de Cátedra, Coordinador, Secretaría Académica, Decanato, Administrativos, Docente) se mapean desde claims del token o desde tablas internas del módulo `Portal`.
+Ingreso con cuentas Microsoft (Microsoft Entra ID) resuelto por el backend: el Host hace el intercambio OpenID Connect como cliente confidencial (código + PKCE) y emite una cookie de sesión propia; el frontend nunca maneja tokens de Microsoft. El ingreso sólo verifica usuarios dados de alta por la administración. El rol y los permisos no vienen del token: se leen de `identity` en cada solicitud. La registración de la app es configuración (`AutenticacionMicrosoft`), así que puede reemplazarse por una institucional de UNLaM sin cambiar código. Ver [`api-contracts.md`](./api-contracts.md#autenticación-y-autorización).
 
 ## Decisiones registradas
 

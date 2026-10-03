@@ -49,6 +49,10 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
         Assert.True(await identity.Personas.AnyAsync(p => p.Id == creado.PersonaId, ct));
         Assert.True(await modulo.Designaciones.AnyAsync(d =>
             d.PersonaId == creado.PersonaId && d.VigenteHasta == null, ct));
+        // La cuenta Microsoft se vincula en el primer ingreso, no en el alta.
+        var usuario = await identity.Usuarios.SingleAsync(u => u.PersonaId == creado.PersonaId, ct);
+        Assert.Null(usuario.AzureOid);
+        Assert.Null(usuario.AzureTid);
     }
 
     [Fact]

@@ -509,7 +509,6 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             usuario = new Usuario
             {
                 Id = Propietario,
-                AzureOid = Guid.NewGuid(),
                 Upn = "docente@test.invalid",
                 NombreParaMostrar = "Docente Prueba",
                 Activo = true,

@@ -58,6 +58,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.AzureOid).HasColumnName("azure_oid");
+            e.Property(x => x.AzureTid).HasColumnName("azure_tid");
             e.Property(x => x.Upn).HasColumnName("upn");
             e.Property(x => x.NombreParaMostrar).HasColumnName("display_name");
             e.Property(x => x.Activo).HasColumnName("is_active");

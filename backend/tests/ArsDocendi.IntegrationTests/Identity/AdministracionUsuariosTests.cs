@@ -52,6 +52,10 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         Assert.True(recuperado.Activo);
         Assert.Equal("Ada", recuperado.Nombre);
         Assert.Single(recuperado.Roles, r => r.Codigo == "secretaria");
+        // La cuenta Microsoft se vincula en el primer ingreso, no en el alta.
+        var usuario = await db.Usuarios.AsNoTracking().SingleAsync(u => u.Id == creado.Id, ct);
+        Assert.Null(usuario.AzureOid);
+        Assert.Null(usuario.AzureTid);
     }
 
     [Fact]

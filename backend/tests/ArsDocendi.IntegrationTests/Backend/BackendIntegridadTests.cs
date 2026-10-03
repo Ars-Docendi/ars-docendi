@@ -64,7 +64,7 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
                 INSERT INTO identity.materias (id, code, name, carrera_id)
                     VALUES (@materia, @codigo_materia, 'Materia test', @id);
                 INSERT INTO identity.users (id, azure_oid, upn, display_name)
-                    VALUES (@usuario, @oid, @upn, 'Revisor custom');
+                    VALUES (@usuario, NULL, @upn, 'Revisor custom');
                 INSERT INTO identity.roles (id, code, name, scope, es_sistema)
                     VALUES (@rol, 'coordinador_custom', 'Coordinador custom', 'carrera', FALSE);
                 INSERT INTO identity.user_roles (user_id, role_id, carrera_id)

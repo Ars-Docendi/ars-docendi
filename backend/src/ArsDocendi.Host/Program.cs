@@ -1,13 +1,15 @@
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Autenticacion;
 using ArsDocendi.Host.Desarrollo;
+using ArsDocendi.Host.Despliegue;
 using ArsDocendi.Shared;
+using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Authentication;
+using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
-using ArsDocendi.Storage;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -30,15 +32,11 @@ builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>(
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
 builder.Services.AddScoped<ServicioAuditoria>();
-var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
-    && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
-if (autenticacionDesarrolloHabilitada)
-{
-    builder.Services
-        .AddAuthentication(AutenticacionDesarrolloHandler.Esquema)
-        .AddScheme<AuthenticationSchemeOptions, AutenticacionDesarrolloHandler>(
-            AutenticacionDesarrolloHandler.Esquema, _ => { });
-}
+var modoMigracion = args.Contains("--migrate");
+var accesos = builder.AddAutenticacionArsDocendi(
+    exigirMicrosoft: builder.Environment.IsProduction() && !modoMigracion);
+builder.Services.AddProxyInverso();
+builder.Services.AddClavesDataProtection(builder.Configuration);
 builder.Services.AddAuthorization(opciones =>
 {
     foreach (var permiso in ArsDocendi.Shared.Auth.Permisos.Todos)
@@ -68,7 +66,7 @@ var app = builder.Build();
 // termina con exit 0, sin levantar el web server. Lo invoca la infra de deploy
 // (spin-up.sh -> `dotnet ArsDocendi.Host.dll --migrate`). El Host resuelve cada
 // módulo solo a través de IMigradorModulo; nunca toca los DbContext internos.
-if (args.Contains("--migrate"))
+if (modoMigracion)
 {
     using var scope = app.Services.CreateScope();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -78,10 +76,16 @@ if (args.Contains("--migrate"))
         await migrador.MigrarAsync(CancellationToken.None);
     }
 
+    // Un ambiente nuevo necesita quien dé de alta al resto: sólo si el despliegue lo declara.
+    await scope.ServiceProvider.GetRequiredService<ServicioAdministradorInicial>().AsegurarAsync(
+        app.Configuration.GetSection(DatosAdministradorInicial.Seccion).Get<DatosAdministradorInicial>(),
+        CancellationToken.None);
+
     logger.LogInformation("Migraciones aplicadas; el proceso termina sin abrir el listener");
     return;
 }
 
+app.UseForwardedHeaders();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 
@@ -91,15 +95,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Alguno)
 {
     app.UseAuthentication();
 }
+if (accesos.Microsoft)
+{
+    app.UseAntifalsificacionSesion();
+}
 app.UseAuthorization();
 app.MapControllers();
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Desarrollo)
 {
     app.MapIdentidadesDesarrollo();
+}
+if (accesos.Microsoft)
+{
+    app.MapAutenticacionMicrosoft();
 }
 
 app.Run();

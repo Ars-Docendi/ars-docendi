@@ -85,16 +85,16 @@ ON CONFLICT (id) DO UPDATE SET
 
 INSERT INTO identity.users
     (id, azure_oid, upn, display_name, is_active, persona_id) VALUES
-    ('a0000000-0000-4000-8000-000000000001', 'a9000000-0000-4000-8000-000000000001', 'carla.lopez@unlam.edu.ar', 'Carla López', TRUE, 'd0000000-0000-4000-8000-000000000001'),
-    ('a0000000-0000-4000-8000-000000000002', 'a9000000-0000-4000-8000-000000000002', 'gustavo.ruiz@unlam.edu.ar', 'Gustavo Ruiz', TRUE, 'd0000000-0000-4000-8000-000000000002'),
-    ('a0000000-0000-4000-8000-000000000003', 'a9000000-0000-4000-8000-000000000003', 'marina.diaz@unlam.edu.ar', 'Marina Díaz', TRUE, 'd0000000-0000-4000-8000-000000000003'),
-    ('a0000000-0000-4000-8000-000000000004', 'a9000000-0000-4000-8000-000000000004', 'secretaria.academica@unlam.edu.ar', 'Lucía Fernández', TRUE, 'd0000000-0000-4000-8000-000000000004'),
-    ('a0000000-0000-4000-8000-000000000005', 'a9000000-0000-4000-8000-000000000005', 'decanato@unlam.edu.ar', 'Roberto Sosa', TRUE, 'd0000000-0000-4000-8000-000000000005'),
-    ('a0000000-0000-4000-8000-000000000006', 'a9000000-0000-4000-8000-000000000006', 'administracion@unlam.edu.ar', 'Paula Gómez', TRUE, 'd0000000-0000-4000-8000-000000000006'),
-    ('a0000000-0000-4000-8000-000000000007', 'a9000000-0000-4000-8000-000000000007', 'sistemas@unlam.edu.ar', 'Ernesto Vidal', TRUE, 'd0000000-0000-4000-8000-000000000007'),
-    ('a0000000-0000-4000-8000-000000000008', 'a9000000-0000-4000-8000-000000000008', 'sofia.peralta@unlam.edu.ar', 'Sofía Peralta', FALSE, 'd0000000-0000-4000-8000-000000000008')
+    ('a0000000-0000-4000-8000-000000000001', NULL, 'carla.lopez@unlam.edu.ar', 'Carla López', TRUE, 'd0000000-0000-4000-8000-000000000001'),
+    ('a0000000-0000-4000-8000-000000000002', NULL, 'gustavo.ruiz@unlam.edu.ar', 'Gustavo Ruiz', TRUE, 'd0000000-0000-4000-8000-000000000002'),
+    ('a0000000-0000-4000-8000-000000000003', NULL, 'marina.diaz@unlam.edu.ar', 'Marina Díaz', TRUE, 'd0000000-0000-4000-8000-000000000003'),
+    ('a0000000-0000-4000-8000-000000000004', NULL, 'secretaria.academica@unlam.edu.ar', 'Lucía Fernández', TRUE, 'd0000000-0000-4000-8000-000000000004'),
+    ('a0000000-0000-4000-8000-000000000005', NULL, 'decanato@unlam.edu.ar', 'Roberto Sosa', TRUE, 'd0000000-0000-4000-8000-000000000005'),
+    ('a0000000-0000-4000-8000-000000000006', NULL, 'administracion@unlam.edu.ar', 'Paula Gómez', TRUE, 'd0000000-0000-4000-8000-000000000006'),
+    ('a0000000-0000-4000-8000-000000000007', NULL, 'sistemas@unlam.edu.ar', 'Ernesto Vidal', TRUE, 'd0000000-0000-4000-8000-000000000007'),
+    ('a0000000-0000-4000-8000-000000000008', NULL, 'sofia.peralta@unlam.edu.ar', 'Sofía Peralta', FALSE, 'd0000000-0000-4000-8000-000000000008')
 ON CONFLICT (id) DO UPDATE SET
-    azure_oid = EXCLUDED.azure_oid, upn = EXCLUDED.upn,
+    azure_oid = NULL, azure_tid = NULL, upn = EXCLUDED.upn,
     display_name = EXCLUDED.display_name, is_active = EXCLUDED.is_active,
     persona_id = EXCLUDED.persona_id;
 
