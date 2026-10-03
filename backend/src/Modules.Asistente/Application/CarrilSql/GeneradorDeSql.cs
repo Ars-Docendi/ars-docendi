@@ -182,6 +182,13 @@ public sealed class GeneradorDeSql(
     /// La consulta anterior de ESTE turno y qué pasó con ella —vacía, o rechazada
     /// por el motor con el error saneado— (D4). Nulo en la primera generación.
     /// </param>
+    /// <param name="esSegundaGeneracion">
+    /// Verdadero en el reintento tras una consulta vacía y en la reparación tras un
+    /// rechazo del motor. No se infiere de <paramref name="intentoAnterior"/>: el
+    /// reintento sin contexto no lo trae. Con
+    /// <see cref="OpcionesAsistente.RazonamientoEnSegundaGeneracion"/> prendida pide
+    /// esfuerzo alto y el techo de <see cref="OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion"/>.
+    /// </param>
     public async Task<GeneracionDeSql> GenerarAsync(
         string pregunta,
         bool conDatosPersonales,
@@ -189,11 +196,13 @@ public sealed class GeneradorDeSql(
         IReadOnlyList<string>? consultasAnteriores = null,
         IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null,
         IReadOnlyList<string>? preguntasAnteriores = null,
-        (string Sql, string Problema)? intentoAnterior = null)
+        (string Sql, string Problema)? intentoAnterior = null,
+        bool esSegundaGeneracion = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
         var valores = opciones.Value;
+        var conRazonamiento = esSegundaGeneracion && valores.RazonamientoEnSegundaGeneracion;
         var prefijo = await esquema.ObtenerAsync(conDatosPersonales, ct);
 
         // EJEMPLOS EN EL PREFIJO (D3): todos al final del prefijo cacheable, y
@@ -215,10 +224,16 @@ public sealed class GeneradorDeSql(
                 // La llamada que MÁS se beneficia de deliberar: elegir el join
                 // correcto entre catorce tablas es el trabajo que mejora pensando, y
                 // es donde equivocarse produce una respuesta falsa.
-                Esfuerzo = EsfuerzoConfigurado.Interpretar(
-                    opciones.Value.EsfuerzoDeGeneracion,
-                    nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
-                MaximoDeTokens = opciones.Value.MaximoDeTokensDeGeneracion,
+                // En la segunda generación del turno, con la opción prendida, se paga
+                // deliberar: esfuerzo alto y su propio techo (cero usa el de siempre).
+                Esfuerzo = conRazonamiento
+                    ? EsfuerzoDelModelo.Alto
+                    : EsfuerzoConfigurado.Interpretar(
+                        valores.EsfuerzoDeGeneracion,
+                        nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
+                MaximoDeTokens = conRazonamiento && valores.MaximoDeTokensDeSegundaGeneracion > 0
+                    ? valores.MaximoDeTokensDeSegundaGeneracion
+                    : valores.MaximoDeTokensDeGeneracion,
                 EsquemaDeSalidaJson = EsquemaDeSalida,
             },
             ct);

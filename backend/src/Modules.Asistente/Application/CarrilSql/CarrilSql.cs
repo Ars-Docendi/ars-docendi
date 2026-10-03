@@ -445,7 +445,7 @@ public sealed class CarrilSql(
 
         var segunda = await generador.GenerarAsync(
             pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones,
-            preguntasAnteriores, intentoAnterior);
+            preguntasAnteriores, intentoAnterior, esSegundaGeneracion: true);
 
         if (!segunda.EsContestable
             || segunda.Sql is null
@@ -497,7 +497,7 @@ public sealed class CarrilSql(
         var problema = ErrorDelMotorSaneado.Problema(original.Sql!, rechazo.Estado, rechazo.DetalleDelMotor);
         var corregida = await generador.GenerarAsync(
             pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones,
-            preguntasAnteriores, (original.Sql!, problema));
+            preguntasAnteriores, (original.Sql!, problema), esSegundaGeneracion: true);
 
         if (!corregida.EsContestable
             || corregida.Sql is null

@@ -109,6 +109,25 @@ public sealed class ValidacionDeOpcionesTests
         Assert.False(Validar(o => o.EsperaBaseMs = -1).Succeeded);
     }
 
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(2000, true)]
+    [InlineData(-1, false)]
+    public void El_techo_de_la_segunda_generacion_admite_cero_pero_no_negativo(int valor, bool valido)
+    {
+        // Cero es «usar el techo de la generación»; un negativo no significa nada.
+        var resultado = EnPerilla(nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), valor);
+
+        Assert.Equal(valido, resultado.Succeeded);
+
+        if (!valido)
+        {
+            Assert.Contains(
+                resultado.Failures!,
+                f => f.Contains(nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), StringComparison.Ordinal));
+        }
+    }
+
     // ------------------------------------------------------- las relaciones
 
     [Fact]

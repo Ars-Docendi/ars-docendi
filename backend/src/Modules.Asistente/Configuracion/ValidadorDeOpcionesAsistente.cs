@@ -58,6 +58,7 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.MaximoDeLlamadasConcurrentes), o => o.MaximoDeLlamadasConcurrentes),
         // Sin caché de consultas generadas (asistente-optimizaciones-modelo-local, D6).
         (nameof(OpcionesAsistente.VigenciaDeCacheDeConsultasMinutos), o => o.VigenciaDeCacheDeConsultasMinutos),
+        (nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), o => o.MaximoDeTokensDeSegundaGeneracion),
     ];
 
     /// <summary>Las que en cero o en negativo dejan al pipeline sin poder trabajar.</summary>

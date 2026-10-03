@@ -865,17 +865,19 @@ siguen valiendo. Cada una es una hipótesis para un modelo chico que el evaluado
 tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la RTX 3070
 ([modelo-local.md §8](../../../docs/architecture/modelo-local.md)) las prenden.
 
-| Opción                              | Default | Qué hace                                                                                                                                                               |
-| ----------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                                                             |
-| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos; con llama-server también midió mejor |
-| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                                                             |
-| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo                                                  |
-| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                                                       |
-| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                   |
-| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                            |
-| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                           |
-| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                               |
+| Opción                              | Default | Qué hace                                                                                                                                                                                   |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                                                                                 |
+| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos; con llama-server también midió mejor                     |
+| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                                                                                 |
+| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo                                                                      |
+| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                                                                           |
+| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                                       |
+| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                                                |
+| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                                               |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                                                   |
+| `RazonamientoEnSegundaGeneracion`   | `false` | La segunda generación del turno (reintento por vacío o reparación) se pide con esfuerzo alto, o sea con razonamiento si el servidor lo permite. Con `--reasoning-budget 0` no tiene efecto |
+| `MaximoDeTokensDeSegundaGeneracion` | 0       | Techo de tokens de esa segunda generación, que razona antes de escribir la consulta. Cero usa `MaximoDeTokensDeGeneracion`; sin la opción anterior no rige                                 |
 
 **`RedaccionSinEnmascarar` no es una optimización.** Se mide más lenta (la redacción pasa
 de 0,45 a 0,57 s con una fila y de 0,42 a 0,70 s con tres, y el prompt crece un 28 % con 24
@@ -883,6 +885,17 @@ filas) y no mueve ninguna métrica del evaluador. Es una opción de calidad de r
 un despliegue propio: con ella la narración dice «el documento es 28341567» en vez de
 «documento 1». Su condición de vigencia y la exposición que implica están en
 [La frontera de salida](#la-frontera-de-salida).
+
+**`RazonamientoEnSegundaGeneracion` está medida y queda apagada** (change
+`asistente-razonamiento-en-segunda-generacion`, ARS-163). Pide con esfuerzo alto sólo la
+segunda generación de un turno —el reintento por consulta vacía y la reparación de un
+rechazo del motor—; la primera generación, la reescritura y la redacción no cambian.
+Tiene una precondición del servidor: con llama-server arrancado con `--reasoning-budget 0`
+—como el perfil de la RTX 3070— un pedido no puede prender el razonamiento y la opción no
+hace nada. Medida con el servidor en `--reasoning-budget -1`, no sumó ningún acierto: un
+ítem de capacidad pasó de respuesta falsa a abstención, a cambio de una corrida 26 % más
+larga. Los números y cómo habilitarla están en
+[modelo-local.md §6](../../../docs/architecture/modelo-local.md).
 
 **El streaming no cambia lo que vale.** El adaptador local pide `stream: true` sólo
 para la redacción y sólo si alguien escucha (`CanalDeRedaccion`, que llena el

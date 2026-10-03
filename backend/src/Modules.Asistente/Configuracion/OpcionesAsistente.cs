@@ -536,6 +536,32 @@ public sealed class OpcionesAsistente
     public bool RepararConsultaFallida { get; set; }
 
     /// <summary>
+    /// La segunda generación de un turno —el reintento tras una consulta vacía, con
+    /// o sin contexto, y la reparación tras un rechazo del motor— se pide con
+    /// esfuerzo alto, o sea con razonamiento donde el servidor lo permita. La
+    /// primera generación y la redacción no cambian: se paga deliberar sólo en el
+    /// turno que ya falló una vez.
+    /// </summary>
+    /// <remarks>
+    /// Con un servidor que mantiene el razonamiento apagado (llama-server con
+    /// <c>--reasoning-budget 0</c>) la opción no tiene efecto. Apagada, la solicitud
+    /// es idéntica a la de antes de que existiera, para cualquier proveedor.
+    /// </remarks>
+    public bool RazonamientoEnSegundaGeneracion { get; set; }
+
+    /// <summary>
+    /// Techo de tokens de la segunda generación cuando
+    /// <see cref="RazonamientoEnSegundaGeneracion"/> está prendida: razonar gasta
+    /// tokens de salida antes de escribir la consulta. Cero usa
+    /// <see cref="MaximoDeTokensDeGeneracion"/>.
+    /// </summary>
+    /// <remarks>
+    /// Con la opción apagada no rige, aunque tenga un valor: un resto de
+    /// configuración no puede cambiar ninguna solicitud. No puede ser negativo.
+    /// </remarks>
+    public int MaximoDeTokensDeSegundaGeneracion { get; set; }
+
+    /// <summary>
     /// Redacta sin modelo un resultado trivial —una columna, de una a cinco
     /// filas, alcance completo, sin recorte ni cobertura autodeclarada— (D5).
     /// </summary>

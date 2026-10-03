@@ -281,6 +281,77 @@ public sealed class OptimizacionesModeloLocalPurasTests
         Assert.Equal("¿cuántos docentes están designados en Sistemas?", generacion.PreguntaInterpretada);
     }
 
+    // ------------------------ asistente-razonamiento-en-segunda-generacion
+
+    [Fact]
+    public async Task Con_el_razonamiento_la_segunda_generacion_pide_esfuerzo_alto_y_la_primera_no()
+    {
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
+        var generador = Generador(proveedor, new OpcionesAsistente { RazonamientoEnSegundaGeneracion = true });
+
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct);
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct, esSegundaGeneracion: true);
+
+        Assert.Equal(EsfuerzoDelModelo.Medio, proveedor.Recibidas[0].Esfuerzo);
+        Assert.Equal(EsfuerzoDelModelo.Alto, proveedor.Recibidas[1].Esfuerzo);
+    }
+
+    [Fact]
+    public async Task Sin_el_razonamiento_ninguna_generacion_cambia_de_esfuerzo()
+    {
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
+        var generador = Generador(proveedor);
+
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct);
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct, esSegundaGeneracion: true);
+
+        Assert.All(proveedor.Recibidas, solicitud => Assert.Equal(EsfuerzoDelModelo.Medio, solicitud.Esfuerzo));
+    }
+
+    [Theory]
+    [InlineData(true, 2000, 600, 2000)]
+    [InlineData(true, 0, 600, 600)]
+    [InlineData(false, 2000, 600, 600)]
+    public async Task El_techo_de_la_segunda_generacion_rige_solo_con_la_opcion_prendida_y_mayor_que_cero(
+        bool razonamiento, int techoDeLaSegunda, int techoDeLaGeneracion, int esperadoEnLaSegunda)
+    {
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
+        var generador = Generador(proveedor, new OpcionesAsistente
+        {
+            RazonamientoEnSegundaGeneracion = razonamiento,
+            MaximoDeTokensDeSegundaGeneracion = techoDeLaSegunda,
+            MaximoDeTokensDeGeneracion = techoDeLaGeneracion,
+        });
+
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct);
+        await generador.GenerarAsync("¿cuántos pedidos hay?", false, Ct, esSegundaGeneracion: true);
+
+        Assert.Equal(techoDeLaGeneracion, proveedor.Recibidas[0].MaximoDeTokens);
+        Assert.Equal(esperadoEnLaSegunda, proveedor.Recibidas[1].MaximoDeTokens);
+    }
+
+    [Fact]
+    public async Task Con_la_opcion_apagada_la_solicitud_de_la_segunda_generacion_es_identica_a_la_de_siempre()
+    {
+        // D4: la clave de los cassettes incluye el esfuerzo, así que un cambio acá
+        // los invalidaría. Aun con un techo sobrante y con el proveedor anthropic,
+        // la solicitud es la misma que sin el parámetro.
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion("SELECT 1"));
+        var generador = Generador(proveedor, new OpcionesAsistente
+        {
+            Proveedor = "anthropic",
+            MaximoDeTokensDeSegundaGeneracion = 2000,
+        });
+
+        await generador.GenerarAsync(
+            "¿cuántos pedidos hay?", false, Ct, intentoAnterior: ("SELECT 1", "no devolvió filas"));
+        await generador.GenerarAsync(
+            "¿cuántos pedidos hay?", false, Ct, intentoAnterior: ("SELECT 1", "no devolvió filas"),
+            esSegundaGeneracion: true);
+
+        Assert.Equal(proveedor.Recibidas[0], proveedor.Recibidas[1]);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

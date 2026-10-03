@@ -212,6 +212,35 @@ Medido el 2026-10-03 contra Qwen3-8B (llama-server, RTX 3070) con el fixture sin
 
 Verificado además por el carril real (generación, ejecución con el rol de datos personales y redacción contra el modelo), con la opción apagada y prendida sobre las mismas preguntas: en las dos que el modelo tradujo, la narración sin enmascarar coincidió con las filas («20000000, 20000137 y 20000274»; «20-20000548-4»). Enmascarada, una dijo «documento 1, documento 2 y documento 3» y la otra «El CUIL de Hugo Fernández es 1»: el modelo recortó el marcador y la oración quedó falsa. La tercera pregunta falló en la generación de SQL con las dos variantes, sin relación con la opción.
 
+### Disponible y apagado: `asistente-razonamiento-en-segunda-generacion`
+
+Opt-in (`RazonamientoEnSegundaGeneracion`, default `false`, con su techo `MaximoDeTokensDeSegundaGeneracion`): la segunda generación de un turno —el reintento por consulta vacía y la reparación de un rechazo del motor— se pide con esfuerzo alto, que en el proveedor local prende el razonamiento. La primera generación, la reescritura y la redacción no cambian. **No está en ningún perfil.**
+
+**Precondición del servidor.** Medido contra llama-server (build 11371) con Qwen3-8B Q4_K_M:
+
+| Flags del servidor                                                         | Pedido sin parámetros | `enable_thinking: false` | `enable_thinking: true`               |
+| -------------------------------------------------------------------------- | --------------------- | ------------------------ | ------------------------------------- |
+| `--reasoning-budget 0` (perfil de la 3070 y alternativa llama-server)      | no razona             | no razona                | **no razona**: la opción no hace nada |
+| `--reasoning-budget -1`                                                    | razona                | no razona                | razona                                |
+| `--reasoning-budget -1 --chat-template-kwargs '{"enable_thinking":false}'` | no razona             | no razona                | razona                                |
+
+El razonamiento convive con la salida restringida (`response_format: json_schema`): el servidor lo devuelve aparte, en `reasoning_content`, y el JSON llega solo. Con un techo de tokens corto la respuesta vuelve vacía con `finish_reason: length`, que el generador registra como `truncado_en_generacion`. En vLLM no se probó.
+
+**Medición.** 2026-10-03, evaluador contra Qwen3-8B Q4_K_M con el perfil de la 3070 (un slot de 16.384) y el servidor con la tercera fila de la tabla. La línea de base local es la de ARS-162: 26 · 12 · 10 · 18.
+
+| Corrida                                             | Capacidad (34) | Robustez (15) | Diálogo (11) | Social (20) | Capacidad @1,0 | Capacidad @2,0 | Truncados | Duración |
+| --------------------------------------------------- | -------------- | ------------- | ------------ | ----------- | -------------- | -------------- | --------- | -------- |
+| Línea de base (`--reasoning-budget 0`)              | 26             | 12            | 10           | 18          | 55,9 %         | 35,3 %         | 0         | 317 s    |
+| Servidor con razonamiento permitido, opción apagada | 26             | 12            | 10           | 18          | 55,9 %         | 35,3 %         | 0         | 316 s    |
+| Opción prendida, techo de 2.000                     | 26             | 12            | 10           | 18          | 58,8 %         | 41,2 %         | 0         | 398 s    |
+
+- **El cambio de flags del servidor es inocuo**: con la opción apagada ningún ítem cambió de veredicto.
+- **No sumó aciertos.** Cambió un solo ítem, `cap-008`: de traducción incorrecta a abstención. El puntaje sube porque abstenerse no resta, no porque la consulta salga bien. Cinco segundas generaciones razonaron (693 a 1.231 tokens de salida) y cuatro no cambiaron nada.
+- **El techo no fue el límite**: ninguna llamada llegó a los 2.000 tokens y no hubo truncados.
+- **Costo**: la corrida tardó 26 % más, la llamada más lenta pasó de 10,3 s a 23,3 s y el p95 del turno de 7,8 s a 9,6 s.
+
+**Decisión: queda apagada.** Cumple el criterio de no empeorar ningún eje, pero el efecto es un ítem y no es el que se buscaba (que razonar corrigiera la consulta). Para probarla de nuevo —con otro modelo, o cuando exista la reparación del rechazo del validador (ARS-75)— hace falta arrancar el servidor con la tercera fila de la tabla y poner `Asistente__RazonamientoEnSegundaGeneracion=true` y `Asistente__MaximoDeTokensDeSegundaGeneracion=2000`.
+
 ### Evaluado y dejado para después
 
 | Técnica                                                  | Por qué no                                                                                                                                                                                                                                                                             |

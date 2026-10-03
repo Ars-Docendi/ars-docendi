@@ -451,6 +451,116 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Equal(PoliticaDeAbstencion.TextoErrorAlConsultar, turno.Respuesta);
     }
 
+    // ------------------------ asistente-razonamiento-en-segunda-generacion
+
+    private const string ConsultaVacia = "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'";
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Con_el_razonamiento_el_reintento_por_vacio_pide_esfuerzo_alto_con_o_sin_contexto(
+        bool conContexto)
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(ConsultaVacia));
+
+        await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
+            {
+                ReintentoConContexto = conContexto,
+                RazonamientoEnSegundaGeneracion = true,
+            })
+            .ResponderAsync(Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EsfuerzoDelModelo.Medio, proveedor.Recibidas[0].Esfuerzo);
+        Assert.Equal(EsfuerzoDelModelo.Alto, proveedor.Recibidas[1].Esfuerzo);
+    }
+
+    [Fact]
+    public async Task Con_el_razonamiento_la_reparacion_pide_esfuerzo_alto_y_la_primera_generacion_no()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
+            ProveedorGuionado.Generacion(ContarPedidos),
+            "Hay pedidos.");
+
+        await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
+            {
+                RepararConsultaFallida = true,
+                RazonamientoEnSegundaGeneracion = true,
+            })
+            .ResponderAsync(Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EsfuerzoDelModelo.Medio, proveedor.Recibidas[0].Esfuerzo);
+        Assert.Equal(EsfuerzoDelModelo.Alto, proveedor.Recibidas[1].Esfuerzo);
+    }
+
+    [Fact]
+    public async Task Sin_el_razonamiento_el_reintento_es_igual_a_la_primera_generacion_en_esfuerzo_y_techo()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(ConsultaVacia));
+
+        await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
+            {
+                MaximoDeTokensDeSegundaGeneracion = 2000,
+            })
+            .ResponderAsync(Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, proveedor.Llamadas);
+        Assert.Equal(proveedor.Recibidas[0].Esfuerzo, proveedor.Recibidas[1].Esfuerzo);
+        Assert.Equal(proveedor.Recibidas[0].MaximoDeTokens, proveedor.Recibidas[1].MaximoDeTokens);
+    }
+
+    [Fact]
+    public async Task Un_reintento_truncado_con_el_razonamiento_deja_el_resultado_original()
+    {
+        // El razonamiento se comió el techo antes de cerrar el objeto. La primera
+        // respuesta llegó entera, así que `SeQuedaSinTokens` no la descarta.
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ConsultaVacia),
+            """{"es_contestable":true,"sql":"SELECT numero FROM designaciones.ped""")
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var turno = await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
+            {
+                ReintentoConContexto = true,
+                RazonamientoEnSegundaGeneracion = true,
+                MaximoDeTokensDeSegundaGeneracion = 2000,
+            })
+            .ResponderAsync(Secretaria, "¿Existe el trámite no-existe?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EsfuerzoDelModelo.Alto, proveedor.Recibidas[1].Esfuerzo);
+        Assert.Empty(turno.Filas);
+        Assert.Equal(2, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Una_reparacion_truncada_con_el_razonamiento_relanza_el_rechazo_original()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion("SELECT columna_inexistente FROM designaciones.pedidos"),
+            """{"es_contestable":true,"sql":"SELECT count(*) FROM designaciones.ped""")
+        {
+            SeQuedaSinTokens = true,
+        };
+
+        var turno = await CarrilCon(proveedor, opcionesDelGenerador: new OpcionesAsistente
+            {
+                RepararConsultaFallida = true,
+                RazonamientoEnSegundaGeneracion = true,
+                MaximoDeTokensDeSegundaGeneracion = 2000,
+            })
+            .ResponderAsync(Secretaria, "¿Cuántos pedidos hay?", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EsfuerzoDelModelo.Alto, proveedor.Recibidas[1].Esfuerzo);
+        Assert.Equal(PoliticaDeAbstencion.TextoErrorAlConsultar, turno.Respuesta);
+    }
+
     [Fact]
     public async Task La_misma_pregunta_sin_contexto_reutiliza_la_consulta_y_la_vuelve_a_ejecutar()
     {
