@@ -24,7 +24,7 @@ log_warn msg="teardown iniciado" ambiente="$ambiente"
 #    la identidad del ambiente descartable.
 docker compose -p "$ambiente" \
   -f "$compose_file" \
-  --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\n' "$ambiente") \
+  --env-file <(printf 'AMBIENTE=%s\nHOST_PUBLICO=x\nREGISTRO=x\nTAG_FRONTEND=x\nTAG_BACKEND=x\nURL_BASE_DATOS=x\nASISTENTE_ROL_BASICO=x\nASISTENTE_ROL_PII=x\nASISTENTE_RO_PASSWORD=x\nASISTENTE_RO_PII_PASSWORD=x\nASISTENTE_PROVEEDOR=x\n' "$ambiente") \
   down -v --remove-orphans || log_warn msg="compose down no encontró el project (ok, idempotente)" ambiente="$ambiente"
 
 # 2. Bucket e identidad del ambiente en SeaweedFS. Los proyectos/volúmenes

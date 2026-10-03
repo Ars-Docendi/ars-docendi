@@ -14,6 +14,11 @@ namespace ArsDocendi.Shared.Persistencia;
 /// Se resuelve por sufijo del nombre lógico del recurso —y no por nombre completo— para
 /// no acoplar el código a cómo MSBuild derive ese nombre del <c>Link</c> del csproj.
 /// </para>
+/// <para>
+/// Sirve para cualquier archivo embebido desde <c>database/</c>, no solo <c>.sql</c>:
+/// los manifiestos del asistente viven ahí y se leen por la misma vía, para no tener
+/// dos resoluciones distintas del mismo problema.
+/// </para>
 /// </summary>
 public static class RecursosSql
 {

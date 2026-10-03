@@ -35,7 +35,9 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     [Fact]
     public async Task Migracion_desde_schema_anterior_preserva_categoria_cero_y_snapshot()
     {
-        var cadena = await Postgres.CrearBaseMigradaAsync("dedicaciones_anteriores", "20260819000000_IdempotenciaComandos");
+        var baseDePrueba = await Postgres.CrearBaseMigradaAsync(
+            "dedicaciones_anteriores", "20260819000000_IdempotenciaComandos");
+        var cadena = baseDePrueba.Cadena;
         try
         {
             await using var conexion = new NpgsqlConnection(cadena);
@@ -79,7 +81,7 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         }
         finally
         {
-            await Postgres.EliminarBaseAsync(cadena);
+            await Postgres.EliminarBaseAsync(baseDePrueba);
         }
     }
 

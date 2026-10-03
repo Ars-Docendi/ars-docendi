@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { PeriodoDesignacion } from "../types";
 import "./estado-acciones.css";
 import { IconoEllipsisVertical, IconoSquarePen, IconoTrash2 } from "./lucide";
+import { useDescartarAlClicAfuera } from "../../../shared/hooks/useDescartarAlClicAfuera";
 
 interface MenuAccionesPeriodoProps {
   periodo: PeriodoDesignacion;
@@ -14,21 +15,7 @@ export function MenuAccionesPeriodo({ periodo, onEditar, onEliminar }: MenuAccio
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!abierto) return;
-    function onPointer(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAbierto(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [abierto]);
+  useDescartarAlClicAfuera(abierto, ref, () => setAbierto(false));
 
   function ejecutar(accion: (periodo: PeriodoDesignacion) => void) {
     setAbierto(false);
