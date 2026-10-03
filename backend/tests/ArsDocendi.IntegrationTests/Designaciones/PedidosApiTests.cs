@@ -1,8 +1,10 @@
+using System.Text;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
+using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -108,6 +110,73 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             new DatosPrimerLogin(Guid.NewGuid(), "ada@unlam.edu.ar", "Ada Lovelace", documento), ct);
         Assert.Equal(persona.Id, usuario.PersonaId);
         Assert.Equal(1, await identityDb.Personas.CountAsync(p => p.Documento == documento, ct));
+    }
+
+    [Fact]
+    public async Task Alta_asocia_solo_archivos_disponibles_del_proposito_correcto()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var cv = Guid.Parse("e0000000-0000-4000-8000-000000000001");
+        var dniFrente = Guid.Parse("e0000000-0000-4000-8000-000000000002");
+        var dniDorso = Guid.Parse("e0000000-0000-4000-8000-000000000003");
+        var almacenamiento = new AlmacenamientoFalso(Jefe, [
+            Archivo(cv, PropositosArchivo.Cv, "cv.pdf"),
+            Archivo(dniFrente, PropositosArchivo.DniFrente, "dni-frente.png"),
+            Archivo(dniDorso, PropositosArchivo.DniDorso, "dni-dorso.png"),
+        ]);
+        var controller = new PedidosController(CrearServicio(Jefe, identityDb, db, almacenamiento));
+
+        var respuesta = await controller.Crear(Datos(
+            Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+        {
+            Adjuntos =
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, cv),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, dniFrente),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, dniDorso),
+            ],
+        }, ct);
+
+        var creado = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>(respuesta.Result).Value);
+        Assert.Equal(
+            [cv, dniDorso, dniFrente],
+            creado.Adjuntos.OrderBy(x => x.Tipo).Select(x => x.ArchivoId));
+        Assert.All(creado.Adjuntos, adjunto => Assert.Equal("disponible", adjunto.EstadoArchivo));
+
+        var descarga = await controller.DescargarAdjunto(creado.Id, cv, ct);
+        var archivoDescargado = Assert.IsType<FileStreamResult>(descarga);
+        Assert.Equal("cv.pdf", archivoDescargado.FileDownloadName);
+        await archivoDescargado.FileStream.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Falla_de_asociacion_no_deja_pedido_ni_historial_parcial()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var almacenamiento = new AlmacenamientoFalso(Jefe, []);
+        var controller = new PedidosController(CrearServicio(Jefe, identityDb, db, almacenamiento));
+        var pedidosAntes = await db.Pedidos.CountAsync(ct);
+        var historialAntes = await db.PedidoHistorial.CountAsync(ct);
+
+        await Assert.ThrowsAsync<ErrorDominioPedido>(() => controller.Crear(Datos(
+            Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+        {
+            Adjuntos =
+            [
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.Cv, Guid.Parse("e1000000-0000-4000-8000-000000000001")),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, Guid.Parse("e1000000-0000-4000-8000-000000000002")),
+                new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, Guid.Parse("e1000000-0000-4000-8000-000000000003")),
+            ],
+        }, ct));
+
+        Assert.Equal(pedidosAntes, await db.Pedidos.CountAsync(ct));
+        Assert.Equal(historialAntes, await db.PedidoHistorial.CountAsync(ct));
     }
 
     [Fact]
@@ -365,7 +434,8 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     private static IServicioPedidosApi CrearServicio(
         Guid usuarioId,
         IdentityDbContext identityDb,
-        DesignacionesDbContext db)
+        DesignacionesDbContext db,
+        IAlmacenamientoArchivos? almacenamiento = null)
     {
         var currentUser = new UsuarioActualFalso(usuarioId);
         var identity = new ConsultasIdentity(identityDb);
@@ -380,10 +450,62 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             identity,
             new UnidadDeTrabajo(db),
             NullLogger<ServicioPedidos>.Instance,
-            new ServicioPersonas(new RepositorioDocentes(identityDb)));
+            new ServicioPersonas(new RepositorioDocentes(identityDb)),
+            almacenamiento);
         return new ServicioPedidosApi(
             core, pedidos, resolutor, identity,
-            new RepositorioIdempotencia(db), new UnidadDeTrabajo(db));
+            new RepositorioIdempotencia(db), new UnidadDeTrabajo(db), almacenamiento);
+    }
+
+    private static ArchivoDto Archivo(Guid id, string proposito, string nombre) => new(
+        id, proposito, nombre, proposito is PropositosArchivo.Cv or PropositosArchivo.Justificativo
+            or PropositosArchivo.DocumentoProyecto ? "application/pdf" : "image/png",
+        null, 128, null, EstadosArchivo.Disponible, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+
+    private sealed class AlmacenamientoFalso(Guid propietario, IReadOnlyList<ArchivoDto> disponibles)
+        : IAlmacenamientoArchivos
+    {
+        private readonly IReadOnlyDictionary<Guid, ArchivoDto> archivos = disponibles.ToDictionary(x => x.Id);
+
+        public Task<SesionCargaArchivoDto> IniciarCargaAsync(IniciarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<ArchivoDto> ConfirmarCargaAsync(ConfirmarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task SubirAsync(Guid archivoId, Guid propietarioId, Stream contenido, string? mimeDeclarado, long? tamanoDeclarado, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<ArchivoDto?> ObtenerAsync(Guid archivoId, CancellationToken ct) =>
+            Task.FromResult(archivos.GetValueOrDefault(archivoId));
+
+        public Task<bool> EsPropietarioAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) =>
+            Task.FromResult(propietarioId == propietario && archivos.ContainsKey(archivoId));
+
+        public Task<ArchivoDto> RequerirDisponibleDePropietarioAsync(Guid archivoId, string proposito, Guid propietarioId, CancellationToken ct)
+        {
+            if (propietarioId != propietario || !archivos.TryGetValue(archivoId, out var archivo))
+                throw new ExcepcionAplicacion(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "Archivo ajeno.");
+            if (archivo.Proposito != proposito)
+                throw new ExcepcionAplicacion(TipoErrorAplicacion.Validacion, "archivo-not-available", "Propósito incorrecto.");
+            return Task.FromResult(archivo);
+        }
+
+        public Task<DescargaArchivo?> AbrirDescargaAsync(Guid archivoId, CancellationToken ct)
+        {
+            if (!archivos.TryGetValue(archivoId, out var archivo))
+                return Task.FromResult<DescargaArchivo?>(null);
+            var bytes = Encoding.UTF8.GetBytes($"fixture:{archivo.NombreOriginal}");
+            return Task.FromResult<DescargaArchivo?>(new DescargaArchivo(
+                CrearContenidoTransferido(bytes), archivo.NombreOriginal,
+                archivo.MimeDetectado ?? archivo.MimeDeclarado, bytes.Length));
+        }
+
+        private static Stream CrearContenidoTransferido(byte[] bytes) => new MemoryStream(bytes);
+
+        public Task EliminarAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) => Task.CompletedTask;
+
+        public Task<int> LimpiarAsync(DateTimeOffset ahora, CancellationToken ct) => Task.FromResult(0);
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(

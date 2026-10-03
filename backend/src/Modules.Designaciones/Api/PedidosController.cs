@@ -21,6 +21,14 @@ public sealed class PedidosController(IServicioPedidosApi servicio) : Controller
     [Authorize(Policy = Permisos.DesignacionesVer)]
     public Task<PedidoDto> Obtener(Guid id, CancellationToken ct) => servicio.ObtenerAsync(id, ct);
 
+    [HttpGet("{id:guid}/adjuntos/{archivoId:guid}")]
+    [Authorize(Policy = Permisos.DesignacionesVer)]
+    public async Task<IActionResult> DescargarAdjunto(Guid id, Guid archivoId, CancellationToken ct)
+    {
+        var descarga = await servicio.DescargarAdjuntoAsync(id, archivoId, ct);
+        return descarga is null ? NotFound() : File(descarga.Contenido, descarga.Mime, descarga.Nombre, enableRangeProcessing: true);
+    }
+
     [HttpPost]
     [Authorize(Policy = Permisos.DesignacionesGestionar)]
     public async Task<ActionResult<PedidoDto>> Crear(GuardarPedidoDto datos, CancellationToken ct)

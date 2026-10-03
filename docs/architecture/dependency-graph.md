@@ -27,6 +27,7 @@ flowchart TD
     Shared["ArsDocendi.Shared<br/>+ schemas identity y audit"]
   end
   subgraph contracts [Contracts públicos]
+    StorageContracts["ArsDocendi.Storage.Contracts"]
     DesignacionesContracts["Modules.Designaciones.Contracts"]
     AulasContracts["Modules.Aulas.Contracts"]
     PortalContracts["Modules.Portal.Contracts"]
@@ -34,6 +35,7 @@ flowchart TD
     AsistenteContracts["Modules.Asistente.Contracts"]
   end
   subgraph modules [Modules internos]
+    Storage["ArsDocendi.Storage"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
@@ -46,6 +48,7 @@ flowchart TD
 
   Host --> Shared
   Host --> Designaciones
+  Host --> Storage
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
@@ -54,6 +57,7 @@ flowchart TD
   Host -->|"auditoría de administración + estado de mantenimiento"| AsistenteContracts
 
   Designaciones --> Shared
+  Storage --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
@@ -61,8 +65,11 @@ flowchart TD
   Asistente --> AsistenteContracts
 
   Designaciones --> DesignacionesContracts
+  Storage --> StorageContracts
+  Designaciones --> StorageContracts
   Aulas --> AulasContracts
   Portal --> PortalContracts
+  Portal --> StorageContracts
   Tareas --> TareasContracts
 
   EvaluacionNucleo -->|"excepción al invariante #1 (ARS-63)"| Asistente

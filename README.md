@@ -96,7 +96,7 @@ pnpm --filter frontend lint
 pnpm --filter frontend build
 ```
 
-Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente--cheat-sheet).
+Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-cheat-sheet).
 
 ## Estructura
 
@@ -115,7 +115,7 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-uso-recurrente-
 │   └── src/{app,shared,features}/
 ├── openspec/                 # Planning: specs vigentes + changes activos (fuente de verdad)
 ├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
-├── infra/                    # Skeleton para deploy (nginx + systemd samples)
+├── infra/                    # Compose + Traefik + Cloudflare Tunnel (producción en Debian; pruebas en Proxmox)
 ├── scripts/                  # setup local
 ├── .claude/skills/           # Skills Claude Code project-scoped
 ├── .github/workflows/        # ci.yml (path filtering + openspec validate)
@@ -141,3 +141,11 @@ Detalle completo en [AGENTS.md](AGENTS.md) y [docs/quality/golden-principles.md]
 - ¿Empezás a trabajar? → [ONBOARDING.md](ONBOARDING.md)
 - ¿Vas a abrir un PR? → [CONTRIBUTING.md](CONTRIBUTING.md)
 - ¿Contexto del proyecto y reglas no negociables? → [AGENTS.md](AGENTS.md)
+- ¿Vas a preparar los dos hosts? → [Provisioning](infra/README.md),
+  [runners y secretos en GitHub](docs/operations/github-pr-deploy.md) y
+  [túneles y DNS Cloudflare](infra/cloudflared/README.md). La
+  [topología objetivo](docs/architecture/infrastructure.md) separa producción
+  exclusivamente en Debian (`https://<DOMINIO>`) de staging y `pr-N` en
+  Proxmox. No incluye LB, deploy dual ni failover; el operador configura
+  Cloudflare/runners y acepta el corte con decisión explícita sobre los datos
+  productivos anteriores.

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
 using Modules.Asistente;
+using ArsDocendi.Storage.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
 using Npgsql;
@@ -133,10 +134,10 @@ public sealed class PostgresFixture : IAsyncLifetime
             Pooling = false,
         }.ConnectionString;
 
-    /// <summary>Corre las tres migraciones, en el orden del Host.</summary>
+    /// <summary>Corre las migraciones de identity, storage, designaciones y portal, en el orden del Host.</summary>
     /// <remarks>
     /// EL ORDEN ES EL DEL HOST, y no es indiferente. <c>Program</c> compone
-    /// identity → designaciones → aulas → portal → tareas → asistente, y la RLS de
+    /// identity → storage → designaciones → aulas → portal → tareas → asistente, y la RLS de
     /// portal invoca una función que referencia <c>designaciones.designaciones</c>:
     /// con portal primero, el CREATE FUNCTION falla con «relation does not exist».
     ///
@@ -150,6 +151,11 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using (var identity = CrearIdentity(cadena))
         {
             await identity.Database.MigrateAsync();
+        }
+
+        await using (var almacenamiento = CrearAlmacenamiento(cadena))
+        {
+            await almacenamiento.Database.MigrateAsync();
         }
 
         await using (var designaciones = CrearDesignaciones(cadena))
@@ -296,6 +302,15 @@ public sealed class PostgresFixture : IAsyncLifetime
             .UseNpgsql(cadena)
             .Options;
         return new PortalDbContext(opciones);
+    }
+
+    public static AlmacenamientoDbContext CrearAlmacenamiento(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<AlmacenamientoDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AlmacenamientoDbContext.Schema))
+            .Options;
+        return new AlmacenamientoDbContext(opciones);
     }
 }
 
