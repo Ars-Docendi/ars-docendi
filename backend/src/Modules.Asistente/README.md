@@ -224,6 +224,16 @@ Tres cosas se verifican solas al agregarlo:
 - la huella del catálogo cambia, y con ella el sellado de los reportes de
   evaluación.
 
+Y tres que «ejecuta» no ve (`EjemplosEjecutablesTests`), porque un ejemplo puede
+correr sin error y enseñar algo equivocado:
+
+- no lee el texto histórico `dedicacion` / `dedicacion_solicitada`: la forma vigente
+  es `dedicacion_id` contra `designaciones.dedicaciones`;
+- no compara con `=` un nombre que la persona tipea (materia, apellido, nombre): va
+  `public.unaccent(col) ILIKE public.unaccent('%…%')`, como pide la regla 8 del prompt;
+- el literal con que filtra un catálogo cerrado **existe** en ese catálogo — un
+  `count(*)` sobre un valor inexistente devuelve cero y parece un dato.
+
 **Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
 son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
 ejemplos que ya vio — y como el catálogo de capacidades deriva sus sugerencias de
