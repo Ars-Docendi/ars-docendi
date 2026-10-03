@@ -116,7 +116,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Alta_asocia_solo_archivos_disponibles_del_proposito_correcto()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var cv = Guid.Parse("e0000000-0000-4000-8000-000000000001");
@@ -156,7 +156,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Falla_de_asociacion_no_deja_pedido_ni_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var almacenamiento = new AlmacenamientoFalso(Jefe, []);

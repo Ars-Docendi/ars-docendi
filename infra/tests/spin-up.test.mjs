@@ -32,6 +32,7 @@ for (const [ambiente, hostname] of [
         "purge-storage.sh",
         "provision-storage.sh",
         "provision-db.sh",
+        "verificar-roles-asistente.sh",
         "seed.sh",
       ]) {
         writeFileSync(
@@ -60,6 +61,8 @@ for (const [ambiente, hostname] of [
           PGPASSWORD: "credencial-sintetica-no-real",
           APP_DB_USER: "app_test",
           APP_DB_PASSWORD: "credencial-sintetica-no-real",
+          ASISTENTE_RO_PASSWORD: "credencial-sintetica-no-real",
+          ASISTENTE_RO_PII_PASSWORD: "credencial-sintetica-no-real",
           SEAWEEDFS_ROOT_ACCESS_KEY: "prueba",
           SEAWEEDFS_ROOT_SECRET_KEY: "credencial-sintetica-no-real",
           SEAWEEDFS_APP_ACCESS_KEY: "prueba_app",
@@ -75,6 +78,9 @@ for (const [ambiente, hostname] of [
       assert.ok(env.includes(`HOST_PUBLICO=${hostname}\n`));
       assert.ok(env.includes(`AMBIENTE=${ambiente}\n`));
       assert.ok(env.includes(`ALMACENAMIENTO_BUCKET=arsdocendi-${ambiente}\n`));
+      assert.ok(env.includes("ASISTENTE_PROVEEDOR=simulado\n"));
+      assert.match(env, /^ASISTENTE_ROL_BASICO=\S+$/m);
+      assert.ok(operaciones.includes(`verificar-roles-asistente.sh ${ambiente}`));
       assert.ok(operaciones.includes(`docker compose -p ${ambiente} `));
       assert.ok(
         readFileSync(join(dir, "captura-conn"), "utf8").includes(

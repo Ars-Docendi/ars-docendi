@@ -65,6 +65,7 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
         .WithPortBinding(8333, true)
         .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("S3 Endpoint"))
         .Build();
+    private BaseDePrueba? baseDePrueba;
     private string cadena = string.Empty;
     private string endpoint = string.Empty;
     private IAmazonS3? cliente;
@@ -73,7 +74,9 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
     public async ValueTask InitializeAsync()
     {
         await seaweedFs.StartAsync();
-        cadena = await postgres.CrearBaseMigradaAsync("storage_seaweedfs");
+        baseDePrueba = await postgres.CrearBaseMigradaAsync("storage_seaweedfs");
+        cadena = baseDePrueba.Cadena;
+        await SembrarPersonaPropietariaAsync();
         endpoint = $"http://{seaweedFs.Hostname}:{seaweedFs.GetMappedPublicPort(8333)}";
         using (var administrador = CrearCliente(AdminAccessKey, AdminSecretKey))
         {
@@ -88,8 +91,24 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
     {
         cliente?.Dispose();
         clienteStaging?.Dispose();
-        if (cadena.Length > 0) await postgres.EliminarBaseAsync(cadena);
+        if (baseDePrueba is not null) await postgres.EliminarBaseAsync(baseDePrueba);
         await seaweedFs.DisposeAsync();
+    }
+
+    // portal.perfiles tiene FK a identity.personas (perfiles_persona_fk): el propietario
+    // de los archivos necesita su persona antes de que el portal le guarde un perfil.
+    private async Task SembrarPersonaPropietariaAsync()
+    {
+        await using var conexion = new NpgsqlConnection(cadena);
+        await conexion.OpenAsync(TestContext.Current.CancellationToken);
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO identity.personas (id, documento, nombre, apellido)
+            VALUES (@id, '50000001', 'Docente', 'Prueba')
+            ON CONFLICT (id) DO NOTHING
+            """, conexion);
+        comando.Parameters.AddWithValue("id", Propietario);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     private IAmazonS3 CrearCliente(string accessKey, string secretKey) =>

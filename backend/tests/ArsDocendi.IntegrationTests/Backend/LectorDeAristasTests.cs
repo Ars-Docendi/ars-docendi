@@ -12,10 +12,11 @@ public sealed class LectorDeAristasTests
     {
         var grafo = LectorDeAristas.LeerBackendSrc();
 
-        // Trece hoy: el Host, Shared, el núcleo del evaluador, los cinco módulos y
-        // sus cinco Contracts. El número está escrito a propósito: si mañana el glob
+        // Quince hoy: el Host, Shared, el núcleo del evaluador, los cinco módulos y
+        // sus cinco Contracts, más Storage y Storage.Contracts (almacenamiento de
+        // adjuntos, que no es un módulo de negocio). El número está escrito a propósito: si mañana el glob
         // deja de alcanzar una carpeta, esto se pone en rojo en vez de mirar de menos.
-        Assert.Equal(13, grafo.Proyectos.Count);
+        Assert.Equal(15, grafo.Proyectos.Count);
         Assert.Contains("ArsDocendi.Evaluacion.Nucleo", grafo.Proyectos);
         Assert.Contains("Modules.Asistente.Contracts", grafo.Proyectos);
     }
