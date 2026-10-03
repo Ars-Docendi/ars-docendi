@@ -42,33 +42,52 @@ services:
     volumes:
       - arsdocendi-llm-3070-gguf:/modelos
     command:
-      - --hf-repo=${LLAMA_HF_REPO:-Qwen/Qwen3-8B-GGUF}
-      - --hf-file=${LLAMA_GGUF:-Qwen3-8B-Q4_K_M.gguf}
-      - --alias=${LLM_NOMBRE_SERVIDO:-qwen3-8b}
-      - --n-gpu-layers=99
+      # Opción y valor van en ítems SEPARADOS: el llama-server de la imagen
+      # `server-cuda` rechaza `--opcion=valor` con «invalid argument» y el
+      # contenedor queda reiniciando.
+      - --hf-repo
+      - "${LLAMA_HF_REPO:-Qwen/Qwen3-8B-GGUF}"
+      - --hf-file
+      - "${LLAMA_GGUF:-Qwen3-8B-Q4_K_M.gguf}"
+      - --alias
+      - "${LLM_NOMBRE_SERVIDO:-qwen3-8b}"
+      - --n-gpu-layers
+      - "99"
       # Contexto total repartido entre los slots: 2 × 13.312. El prefijo de la
       # generación con el esquema compacto ronda los 11k tokens; queda lugar
       # para el mensaje (≤1,5k) y la salida (600).
       # RESPALDO si no entra en VRAM o el servidor dice que el pedido excede el
       # contexto: LLAMA_SLOTS=1 y LLAMA_CTX=16384 (un turno a la vez), o
       # LLAMA_GGUF=Qwen3-4B-Instruct-2507-Q6_K.gguf con su repo.
-      - --ctx-size=${LLAMA_CTX:-26624}
-      - --parallel=${LLAMA_SLOTS:-2}
-      - --flash-attn=on
-      - --cache-type-k=q8_0
-      - --cache-type-v=q8_0
-      - --batch-size=2048
-      - --ubatch-size=512
+      - --ctx-size
+      - "${LLAMA_CTX:-26624}"
+      - --parallel
+      - "${LLAMA_SLOTS:-2}"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --batch-size
+      - "2048"
+      - --ubatch-size
+      - "512"
       - --jinja
-      - --reasoning-budget=0
+      - --reasoning-budget
+      - "0"
       # Lo lee la tarjeta «Servidor del modelo» del panel de uso.
       - --metrics
       # PRIVACIDAD: llama.cpp#27148 (abierto): con la caché de slots ociosos,
       # bajo carga un slot puede restaurar el KV de OTRA conversación.
-      - --cache-ram=0
-      - --api-key=${LLM_API_KEY:-local-3070}
-      - --host=0.0.0.0
-      - --port=8000
+      - --cache-ram
+      - "0"
+      - --api-key
+      - "${LLM_API_KEY:-local-3070}"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 15s
