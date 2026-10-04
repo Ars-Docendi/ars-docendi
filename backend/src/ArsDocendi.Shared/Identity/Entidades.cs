@@ -100,7 +100,9 @@ public sealed class UsuarioRol
     public Guid Id { get; set; }
     public Guid UsuarioId { get; set; }
     public Guid RolId { get; set; }
+    /// <summary>Materia canónica. La usa el Jefe de Cátedra (en todos sus planes) y el Docente (junto a <see cref="CarreraId"/>).</summary>
     public Guid? MateriaId { get; set; }
+    /// <summary>Carrera. La usa el Coordinador de Carrera solo, y el Docente junto a <see cref="MateriaId"/>.</summary>
     public Guid? CarreraId { get; set; }
     public DateTimeOffset OtorgadoEn { get; set; }
     public Guid? OtorgadoPor { get; set; }
@@ -122,23 +124,52 @@ public sealed class Carrera
     public bool Activo { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 
-    public ICollection<Materia> Materias { get; set; } = [];
+    public ICollection<Plan> Planes { get; set; } = [];
+}
+
+/// <summary>Plan de estudios de una carrera, con vigencia.</summary>
+public sealed class Plan
+{
+    public Guid Id { get; set; }
+    public Guid CarreraId { get; set; }
+    public required string Codigo { get; set; }
+    public required string Nombre { get; set; }
+    public bool Vigente { get; set; }
+    /// <summary>Tiene alumnos y se dicta, aunque no sea vigente. Es lo que habilita los catálogos.</summary>
+    public bool Activo { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
+
+    public Carrera? Carrera { get; set; }
+    public ICollection<MateriaPlan> Materias { get; set; } = [];
 }
 
 /// <summary>
-/// Materia. Es también la unidad de "cátedra": el rol <c>jefe_catedra</c> tiene
-/// ámbito de materia, y un pedido de designación cubre exactamente una.
+/// Materia canónica: una fila por código, compartida entre carreras y planes. Es también
+/// la unidad de "cátedra": el rol <c>jefe_catedra</c> tiene ámbito de materia.
 /// </summary>
 public sealed class Materia
 {
     public Guid Id { get; set; }
     public required string Codigo { get; set; }
     public required string Nombre { get; set; }
-    public Guid CarreraId { get; set; }
+    public bool Activo { get; set; }
+    public DateTimeOffset CreadoEn { get; set; }
+}
+
+/// <summary>
+/// Materia dentro de un plan. Es la unidad que usan los pedidos de designación y las
+/// membresías de docente: fija la carrera a través del plan.
+/// </summary>
+public sealed class MateriaPlan
+{
+    public Guid Id { get; set; }
+    public Guid PlanId { get; set; }
+    public Guid MateriaId { get; set; }
     public bool Activo { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 
-    public Carrera? Carrera { get; set; }
+    public Plan? Plan { get; set; }
+    public Materia? Materia { get; set; }
 }
 
 /// <summary>
