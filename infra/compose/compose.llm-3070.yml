@@ -76,6 +76,18 @@ services:
       - --jinja
       - --reasoning-budget
       - "0"
+      # Decodificación especulativa por n-gramas (ARS-166): propone tokens copiando
+      # secuencias que ya aparecieron en el pedido —las consultas se parecen a los
+      # ejemplos del prefijo— y el modelo los verifica en lote. No carga un modelo
+      # borrador ni usa VRAM extra. Con 6/24 midió +16 % de velocidad de salida y
+      # los mismos veredictos del evaluador; con los valores por defecto (12/48)
+      # cambió un veredicto: no subirlos sin volver a medir.
+      - --spec-type
+      - ngram-simple
+      - --spec-ngram-simple-size-n
+      - "6"
+      - --spec-ngram-simple-size-m
+      - "24"
       # Lo lee la tarjeta «Servidor del modelo» del panel de uso.
       - --metrics
       # PRIVACIDAD: llama.cpp#27148 (abierto): con la caché de slots ociosos,

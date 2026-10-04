@@ -54,7 +54,7 @@ Con 12k tokens de prefijo, esa diferencia define cuántos turnos entran en 12 GB
 2. **KV cache en FP8** (`--kv-cache-dtype fp8`): duplica la capacidad con pérdida despreciable (blog de vLLM, abr-2026: >98 % de recuperación en Qwen3).
 3. **`max-num-seqs` dimensionado y una cola acotada**, que en este sistema es la compuerta del backend.
 4. **CUDA graphs encendidos.** `--enforce-eager` es ~8× más lento (#37242).
-5. **Speculative decoding: secundario.** EAGLE-3 rinde con batch 1 y pierde la ganancia al crecer el batch. El _n-gram / prompt lookup_ puede servir para SQL porque copia identificadores del esquema. Vale probarlo después del piloto.
+5. **Speculative decoding: secundario.** EAGLE-3 rinde con batch 1 y pierde la ganancia al crecer el batch. El _n-gram / prompt lookup_ sirve para SQL porque copia secuencias que ya están en el pedido: medido en la 3070 con llama-server, +16 % de velocidad de salida sin VRAM extra (§8). En vLLM no se probó.
 
 ## 3. Modelo
 
@@ -300,6 +300,7 @@ Para probar el asistente contra un modelo propio en una PC de desarrollo con **R
    llama-server --hf-repo Qwen/Qwen3-8B-GGUF --hf-file Qwen3-8B-Q4_K_M.gguf --alias qwen3-8b \
      --n-gpu-layers 99 --ctx-size 26624 --parallel 2 --flash-attn on \
      --cache-type-k q8_0 --cache-type-v q8_0 --jinja --reasoning-budget 0 \
+     --spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 24 \
      --metrics --cache-ram 0 --api-key local-3070 --host 127.0.0.1 --port 8000
    ```
 
@@ -331,6 +332,23 @@ Medido el 2026-10-03 con el evaluador contra Qwen3-8B (llama-server, 1 slot de 1
 - **Costo.** La corrida tarda ~18 % más (341 s contra 290 s) y el servidor evalúa ~32 % más tokens de prompt. El pedido más largo usa 9,8k tokens: entra en el slot de 16.384 y también en el de 13.312.
 - **Agregar ejemplos sólo ayuda en este modo**, y no gratis: con 8 más, capacidad sube 2 y diálogo baja 1. Dos de esas mejoras vienen de un ejemplo escrito sabiendo qué ítems fallaban, así que el número es optimista. Los candidatos no están en el catálogo.
 - **Una corrida por configuración**, sobre pocas decenas de ítems: sirve para elegir entre dos modos, no para afirmar un porcentaje.
+
+### Decodificación especulativa: por n-gramas, sin modelo borrador
+
+Medido el 2026-10-03 (ARS-166) con el evaluador contra Qwen3-8B Q4_K_M, perfil optimizado, un slot de 16.384, llama-server build 11371:
+
+| Variante                                       | Veredictos frente a la base | Salida     | Turno p50 / p95 | Corrida | VRAM máx.   |
+| ---------------------------------------------- | --------------------------- | ---------- | --------------- | ------- | ----------- |
+| Sin especulación (base)                        | —                           | 58,3 tok/s | 2,9 s / 7,5 s   | 307 s   | 7.413 MiB   |
+| `ngram-simple`, valores por defecto (12 / 48)  | **cambió 1 ítem**           | 64,2 tok/s | 2,7 s / 7,1 s   | 282 s   | 7.416 MiB   |
+| **`ngram-simple` con 6 / 24**                  | **iguales, en 3 corridas**  | 67,6 tok/s | 2,4 s / 6,6 s   | 278 s   | 7.416 MiB   |
+| Borrador Qwen3-0.6B Q4_K_M, contexto de 16.384 | no arranca                  | —          | —               | —       | sin memoria |
+| Borrador Qwen3-0.6B Q4_K_M, contexto de 12.288 | no arranca                  | —          | —               | —       | sin memoria |
+
+- **El modelo borrador no entra en la 3070.** Con Qwen3-8B Q4_K_M cargado, el servidor falla al reservar el KV con los dos contextos. Bajar más el contexto no sirve: el pedido más largo ya usa 9,8k tokens.
+- **Los n-gramas no cargan otro modelo.** Proponen tokens copiando secuencias que ya aparecieron en el pedido, y el modelo principal los verifica en lote. Rinde porque las consultas se parecen a los ejemplos del prefijo. Con 6 / 24 se aceptó el 24 % de lo propuesto, que cubre el 20 % de los tokens de salida.
+- **Los tamaños importan.** Con los valores por defecto de la imagen cambió un veredicto (`cap-023`, de abstención a traducción incorrecta), así que la especulación no es inocua por definición. Con 6 / 24 los veredictos fueron los de la línea de base en tres corridas, y la velocidad se repitió (67,5 a 67,7 tok/s). Cambiar esos tamaños exige volver a medir.
+- **Decisión.** El perfil de la 3070 (`compose.llm-3070.yml`) lleva `--spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 24`: 16 % más de velocidad de salida y 9 % menos de tiempo de corrida, sin VRAM extra. No se midió en `compose.llm.yml` (vLLM ni su alternativa llama-server), que queda sin cambios.
 
 ### Si algo falla
 
