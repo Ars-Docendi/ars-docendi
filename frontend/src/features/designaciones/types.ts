@@ -56,6 +56,8 @@ export type DepartamentoAgenteExterno =
  */
 export interface AsignacionMateria {
   materiaId: string;
+  /** Carrera de la designación vigente: el pedido de Baja/Cambio la reenvía tal cual. */
+  carreraId?: string;
   materia: string;
   horas: number;
   cargoActual?: Cargo | null;
@@ -190,6 +192,8 @@ export interface PedidoDesignacion {
   version?: number;
   personaId?: string;
   materiaId?: string;
+  /** Carrera elegida: una materia dictada en más de una carrera exige elegir una. */
+  carreraId?: string;
   cargoSolicitadoId?: string;
   dedicacionSolicitadaId?: string;
 }
@@ -224,6 +228,8 @@ export interface DatosEditablesPedido {
   adjuntos: Adjunto[];
   personaId?: string;
   materiaId?: string;
+  /** Carrera elegida: una materia dictada en más de una carrera exige elegir una. */
+  carreraId?: string;
   cargoSolicitadoId?: string;
   dedicacionSolicitadaId?: string;
   periodoId?: string;

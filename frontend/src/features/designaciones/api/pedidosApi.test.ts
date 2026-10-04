@@ -22,7 +22,7 @@ const dto = {
   periodo: { id: "periodo-1", nombre: "2C 2026" },
   persona: { id: "persona-1", nombre: "Ana", apellido: "Pérez", documento: "123", legajo: "7" },
   materia: {
-    id: "materia-1",
+    materiaId: "materia-1",
     codigo: "03500",
     nombre: "Software",
     carreraId: "carrera-1",
@@ -58,7 +58,15 @@ const catalogos = {
     activo: true,
   },
   periodos: [],
-  materias: [{ id: "materia-1", codigo: "03500", nombre: "Software", carreraId: "carrera-1" }],
+  materias: [
+    {
+      id: "materia-1",
+      codigo: "03500",
+      nombre: "Software",
+      carreraId: "carrera-1",
+      carreraNombre: "Informática",
+    },
+  ],
   personas: [
     {
       id: "persona-1",
@@ -175,6 +183,7 @@ describe("pedidosApi HTTP", () => {
         },
         catedra: "Software",
         materiaId: "materia-1",
+        carreraId: "carrera-1",
         horas: 10,
         cargoActual: null,
         dedicacionActual: null,
@@ -192,6 +201,7 @@ describe("pedidosApi HTTP", () => {
       expect.objectContaining({
         periodoId: "periodo-1",
         materiaId: "materia-1",
+        carreraId: "carrera-1",
         persona: { documento: "123", nombre: "Ana", apellido: "Pérez" },
         cargoSolicitadoId: "cargo-1",
         dedicacionSolicitadaId: "dedicacion-2",

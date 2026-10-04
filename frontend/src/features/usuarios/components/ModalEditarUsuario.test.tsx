@@ -25,6 +25,7 @@ const USUARIO: UsuarioMock = {
 const CATALOGOS: CatalogosUsuarios = {
   roles: [],
   materias: [],
+  materiasPlan: [],
   carreras: [],
 };
 

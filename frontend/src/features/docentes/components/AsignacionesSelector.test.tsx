@@ -7,7 +7,8 @@ it("ofrece seis dedicaciones canónicas y conserva la histórica hasta cambiarla
   function Formulario() {
     const [rows, onChange] = useState<AsignacionRow[]>([
       {
-        materia: "03500",
+        materiaId: "m1",
+        carreraId: "c1",
         cargo: "Adjunto",
         horas: "12",
         dedicacionId: "",
@@ -19,6 +20,15 @@ it("ofrece seis dedicaciones canónicas y conserva la histórica hasta cambiarla
         rows={rows}
         onChange={onChange}
         materias={[{ id: "m1", codigo: "03500", nombre: "Software" }]}
+        materiasPlan={[
+          {
+            id: "m1",
+            codigo: "03500",
+            nombre: "Software",
+            carreraId: "c1",
+            carreraNombre: "Informática",
+          },
+        ]}
         cargos={["Adjunto"]}
         dedicaciones={Array.from({ length: 6 }, (_, i) => ({
           id: `d${i + 1}`,

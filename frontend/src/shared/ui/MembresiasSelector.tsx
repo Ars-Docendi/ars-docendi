@@ -1,30 +1,27 @@
 import { Button, Field, Select } from "@ars-docendi/ui";
+import type { MembresiaFila, RolMembresiaOpcion } from "./membresias";
 
-export interface RolMembresiaOpcion {
-  id: string;
-  codigo: string;
-  nombre: string;
-  ambito: string;
-}
-
-export interface MembresiaFila {
-  rolId: string;
-  materiaId: string;
-  carreraId: string;
-}
+export type { MembresiaFila, RolMembresiaOpcion } from "./membresias";
 
 interface OpcionCatalogo {
   id: string;
   codigo: string;
   nombre: string;
   carreraId?: string | null;
+  carreraNombre?: string | null;
 }
 
 interface MembresiasSelectorProps {
   filas: MembresiaFila[];
   onChange: (filas: MembresiaFila[]) => void;
   roles: RolMembresiaOpcion[];
+  /** Materias canónicas: membresía de Jefe de Cátedra y de Docente. */
   materias: OpcionCatalogo[];
+  /**
+   * Pares materia–carrera informativos (catálogo materia–plan deduplicado): acota las
+   * carreras ofrecidas al Docente a las que de verdad dictan la materia elegida.
+   */
+  materiasPlan?: OpcionCatalogo[];
   carreras?: OpcionCatalogo[];
   error?: string;
 }
@@ -34,6 +31,7 @@ export function MembresiasSelector({
   onChange,
   roles,
   materias,
+  materiasPlan = [],
   carreras = [],
   error,
 }: MembresiasSelectorProps) {
@@ -45,18 +43,26 @@ export function MembresiasSelector({
     actualizar(i, { rolId, materiaId: "", carreraId: "" });
   }
 
-  function cambiarMateria(i: number, materiaId: string) {
-    actualizar(i, {
-      materiaId,
-      carreraId: materias.find((materia) => materia.id === materiaId)?.carreraId ?? "",
-    });
-  }
-
   return (
     <Field label="Membresías de rol (rol y ámbito)" required error={error}>
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {filas.map((fila, i) => {
           const rol = roles.find((opcion) => opcion.id === fila.rolId);
+          const esDocente = rol?.codigo === "docente";
+          // Para Docente, las carreras ofrecidas son las que de verdad dictan la materia
+          // elegida (catálogo informativo materia–plan); para Coordinador, todas.
+          const opcionesCarrera =
+            rol?.ambito === "carrera"
+              ? carreras
+              : esDocente
+                ? materiasPlan
+                    .filter((mp) => mp.id === fila.materiaId && mp.carreraId)
+                    .map((mp) => ({
+                      id: mp.carreraId!,
+                      codigo: "",
+                      nombre: mp.carreraNombre ?? "",
+                    }))
+                : [];
           return (
             <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <Select
@@ -76,7 +82,12 @@ export function MembresiasSelector({
               {rol?.ambito === "materia" && (
                 <Select
                   value={fila.materiaId}
-                  onChange={(e) => cambiarMateria(i, e.target.value)}
+                  onChange={(e) =>
+                    actualizar(i, {
+                      materiaId: e.target.value,
+                      ...(esDocente ? { carreraId: "" } : {}),
+                    })
+                  }
                   aria-label={`Materia de membresía ${i + 1}`}
                   style={{ flex: "1.4" }}
                 >
@@ -89,7 +100,7 @@ export function MembresiasSelector({
                 </Select>
               )}
 
-              {rol?.ambito === "carrera" && (
+              {(rol?.ambito === "carrera" || esDocente) && (
                 <Select
                   value={fila.carreraId}
                   onChange={(e) => actualizar(i, { carreraId: e.target.value })}
@@ -97,9 +108,10 @@ export function MembresiasSelector({
                   style={{ flex: "1.4" }}
                 >
                   <option value="">Carrera…</option>
-                  {carreras.map((carrera) => (
+                  {opcionesCarrera.map((carrera) => (
                     <option key={carrera.id} value={carrera.id}>
-                      {carrera.codigo} – {carrera.nombre}
+                      {carrera.codigo ? `${carrera.codigo} – ` : ""}
+                      {carrera.nombre}
                     </option>
                   ))}
                 </Select>

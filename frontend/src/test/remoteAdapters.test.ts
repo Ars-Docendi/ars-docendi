@@ -162,6 +162,7 @@ describe("adapters HTTP administrativos", () => {
           materiaId: "m1",
           materiaCodigo: "03500",
           materiaNombre: "Software",
+          carreraId: "c1",
           cargoId: "c1",
           cargoNombre: "Adjunto",
           cargoAbreviatura: "Adj.",
@@ -172,7 +173,7 @@ describe("adapters HTTP administrativos", () => {
       ],
     };
     vi.mocked(apiClient.get).mockResolvedValue({ data: [dto] });
-    expect((await listarDocentes())[0].asignaciones[0].materia.codigo).toBe("03500");
+    expect((await listarDocentes())[0].asignaciones[0].materiaCodigo).toBe("03500");
     vi.mocked(apiClient.post).mockResolvedValue({ data: dto });
     await crearDocente(
       {
@@ -200,7 +201,10 @@ describe("adapters HTTP administrativos", () => {
         ],
         asignaciones: [
           {
-            materia: { id: "m1", codigo: "03500", nombre: "Software" },
+            materiaId: "m1",
+            materiaCodigo: "03500",
+            materiaNombre: "Software",
+            carreraId: "c1",
             cargo: "Adjunto",
             dedicacionId: "ded-2",
             horas: 10,
@@ -210,6 +214,7 @@ describe("adapters HTTP administrativos", () => {
       {
         roles: [{ id: "r1", codigo: "docente", nombre: "Docente", ambito: "materia" }],
         materias: [{ id: "m1", codigo: "03500", nombre: "Software" }],
+        materiasPlan: [{ id: "m1", codigo: "03500", nombre: "Software", carreraId: "c1" }],
         cargos: [{ id: "c1", codigo: "adjunto", nombre: "Adjunto", abreviatura: "Adj." }],
         personasElegibles: [],
         dedicaciones: [{ id: "ded-2", nombre: "Categoría 2", activo: true }],
@@ -219,7 +224,12 @@ describe("adapters HTTP administrativos", () => {
       "/api/administracion/docentes",
       expect.objectContaining({
         designaciones: [
-          expect.objectContaining({ materiaId: "m1", cargoId: "c1", dedicacionId: "ded-2" }),
+          expect.objectContaining({
+            materiaId: "m1",
+            carreraId: "c1",
+            cargoId: "c1",
+            dedicacionId: "ded-2",
+          }),
         ],
       }),
     );
