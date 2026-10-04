@@ -14,7 +14,7 @@ PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,
                      horasInvestigacion?, horasExternas?, justificacion?, tipoBaja?,
                      tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?,
                      adjuntos[], historial[], accionesPermitidas[] }
-GuardarPedidoDto = { periodoId, personaId?, materiaId, novedad, cargoSolicitadoId?,
+GuardarPedidoDto = { periodoId, personaId?, materiaId, carreraId, novedad, cargoSolicitadoId?,
                      dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
                      justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona? }
 AccionPedidoDto  = { comentario? }
@@ -28,9 +28,10 @@ En `Alta`, `persona` contiene `documento`, `nombre` y `apellido`; `personaId` se
 omite y el backend crea la persona canónica sin crear una cuenta en `identity.users`.
 También puede recibirse un `personaId` ya resuelto por compatibilidad. En `Baja` y
 `Cambio de cargo o dedicación`, `personaId` es obligatorio y `persona` está prohibido.
-`materiaId` es siempre explícito: no se resuelve por nombre ni se acepta una materia
-fuera del ámbito persistido del actor. El primer login existente vincula la cuenta
-por documento a la persona ya creada.
+`materiaId` y `carreraId` son siempre explícitos: no se resuelven por nombre ni se acepta una
+materia o carrera fuera del ámbito persistido del actor. Una materia dictada en más de una
+carrera exige elegir una. El primer login existente vincula la cuenta por documento a la persona
+ya creada.
 
 ## Períodos y catálogos
 

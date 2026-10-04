@@ -52,16 +52,18 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 
 ### Identity (`schema: identity`) — dueño: `ArsDocendi.Shared`
 
-| Tabla          | Descripción                                                                                                                                                                                | PII                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| `personas`     | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018) | **Sí** — documento, CUIL, teléfono, fecha nac. |
-| `users`        | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                        | Parcial — UPN, display name                    |
-| `roles`        | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica              | No                                             |
-| `permisos`     | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                        | No                                             |
-| `rol_permisos` | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                    | No                                             |
-| `user_roles`   | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                 | No                                             |
-| `carreras`     | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                           | No                                             |
-| `materias`     | Catálogo. Es también la unidad de "cátedra"                                                                                                                                                | No                                             |
+| Tabla           | Descripción                                                                                                                                                                                                                                                                                            | PII                                            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `personas`      | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018)                                                                                                             | **Sí** — documento, CUIL, teléfono, fecha nac. |
+| `users`         | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                                                                                                                                    | Parcial — UPN, display name                    |
+| `roles`         | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica                                                                                                                          | No                                             |
+| `permisos`      | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                                                                                                                                    | No                                             |
+| `rol_permisos`  | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                                                                                                                                | No                                             |
+| `user_roles`    | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                                                                                                                             | No                                             |
+| `carreras`      | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                                                                                                                                       | No                                             |
+| `planes`        | Plan de estudios de una carrera: `carrera_id`, `codigo` único por carrera, `vigente`/`activo`. Catálogo **informativo**: ninguna FK de negocio depende de esta tabla                                                                                                                                   |
+| `materias_plan` | Pertenencia de una materia a un plan: `plan_id`, `materia_id`, `activo`. Única por par `(plan_id, materia_id)`. Catálogo **informativo** — qué materias dicta cada carrera y con qué vigencia; `user_roles`/`pedidos`/`designaciones` llevan `materia_id` + `carrera_id` directos, no una FK hacia acá |
+| `materias`      | Catálogo canónico: una fila por código de 5 dígitos (único global). Es la unidad de "cátedra" para el Jefe de Cátedra                                                                                                                                                                                  | No                                             |
 
 `identity.roles.is_active` es el estado operativo del rol. Las consultas de catálogo, creación,
 edición, roles base, asignaciones nuevas y resolución de permisos sólo consideran roles activos.
@@ -98,11 +100,19 @@ valor vigente es desconocido. Las designaciones resultantes de un pedido
 aprobado recuperan esas dos cargas cuando el origen está identificado;
 continuidades y cargas administrativas pueden conservarlas en `NULL`.
 
-Cada pedido conserva una sola `materia_id`. Para Alta, las opciones salen de las
-materias activas del ámbito `jefe_catedra`; para Baja y Cambio, el frontend muestra
-la intersección entre ese ámbito y las designaciones vigentes del docente. El
-backend vuelve a validar el UUID y, para Baja/Cambio, exige la designación vigente
-de la misma pareja `(persona_id, materia_id)` antes de crear, editar o enviar.
+Cada pedido lleva `materia_id` (canónica) y `carrera_id` directos, elegidos juntos por quien lo
+carga: una materia dictada en dos carreras exige elegir una, y genera pedidos distintos según la
+carrera elegida. Esa combinación se valida contra el catálogo informativo `identity.materias_plan`
+(que la materia se dicte, vigente, en esa carrera), pero ninguna FK de negocio depende de él. La
+cátedra del Jefe de Cátedra se valida contra la materia canónica. Para Alta, las opciones salen de
+las materias a cargo del `jefe_catedra`; para Baja y Cambio, la intersección con las designaciones
+vigentes del docente. El backend vuelve a validar el id y, para Baja/Cambio, exige la designación
+vigente de la misma pareja `(persona_id, materia_id)` (materia canónica) antes de crear, editar o enviar.
+
+Las designaciones guardan `materia_id` (canónica) y `carrera_id` directos, con FK simples a
+`identity.materias` e `identity.carreras` respectivamente. Una persona tiene a lo sumo una
+designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` sobre
+`(persona_id, materia_id)`).
 
 | Tabla              | Descripción                                                                                                                     | PII |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | --- |
@@ -215,11 +225,13 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | From                             | To                  | Justificación                                                                                                    |
 | -------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `designaciones.pedidos`          | `identity.personas` | Un pedido apuntando a una persona inexistente es un registro legal roto: el costo de la inconsistencia es máximo |
-| `designaciones.pedidos`          | `identity.materias` | La materia determina la cátedra y, por derivación, el Coordinador competente (BR-designaciones-009)              |
+| `designaciones.pedidos`          | `identity.materias` | La materia canónica determina la cátedra del Jefe de Cátedra                                                     |
+| `designaciones.pedidos`          | `identity.carreras` | La carrera determina el Coordinador competente (BR-designaciones-009)                                            |
 | `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
 | `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
 | `designaciones.designaciones`    | `identity.materias` | Ídem que pedidos                                                                                                 |
+| `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.

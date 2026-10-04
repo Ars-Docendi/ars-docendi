@@ -24,13 +24,17 @@ Los nombres JSON son `camelCase`. IDs y fechas se representan como UUID y `YYYY-
 ```text
 RolResumenDto          = { id, codigo, nombre }
 AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carreraId? }
+                         Docente → `materiaId` + `carreraId` juntos (una materia compartida entre
+                         carreras exige elegir una); Jefe de Cátedra → `materiaId` (canónica) solo;
+                         Coordinador → `carreraId` solo.
 PerfilDocenteDto       = { esDocente, cantidadMaterias }
 UsuarioResumenDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
                            fechaNacimiento?, telefono?, upn, activo, roles[], membresias[],
                            perfilDocente }
 GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
                            telefono?, upn, membresias[{ rolId, materiaId?, carreraId? }], version? }
-DesignacionVigenteDto  = { id, materia{id,codigo,nombre}, cargo{id,codigo,nombre,abreviatura},
+DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
+                           cargo{id,codigo,nombre,abreviatura},
                            dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
 DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
                            roles[], membresias[], designaciones[] }
@@ -49,7 +53,11 @@ EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiad
 PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
-                           carreras[], materias[{ id, codigo, nombre, carreraId? }], personasElegibles[] }
+                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre }], personasElegibles[] }
+                           `materias` son canónicas (jefe y, junto con `carreraId`, docente);
+                           `materiasPlan` es el catálogo informativo materia–carrera (pares
+                           deduplicados) que acota qué carreras ofrecer para una materia de
+                           Docente — ninguna FK de negocio depende de él.
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
@@ -151,4 +159,4 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
