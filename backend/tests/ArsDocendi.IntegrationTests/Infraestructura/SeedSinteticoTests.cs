@@ -125,7 +125,8 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             WHERE p.novedad = 'Alta'
               AND EXISTS (
                   SELECT 1 FROM designaciones.designaciones d
-                  WHERE d.persona_id = p.persona_id AND d.materia_id = p.materia_id
+                  WHERE d.persona_id = p.persona_id
+                    AND d.materia_id = p.materia_id
               )
             """));
     }
