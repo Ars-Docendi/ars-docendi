@@ -153,6 +153,12 @@ export interface CapacidadesDelAsistente {
   presentacion: string;
   mantenimiento: MantenimientoDelAsistente;
   cupo: CupoDelActor;
+  /**
+   * Si el turno se pide a `POST /consultas/flujo` para ver la redacción
+   * mientras se escribe (asistente-optimizaciones-modelo-local, D9). Ausente
+   * equivale a `false`.
+   */
+  redaccionEnFlujo?: boolean;
 }
 
 // ============================================================
@@ -230,6 +236,25 @@ export interface CupoDeRolPersistido {
   cupoDiarioTurnos: number;
   /** El acceso operativo del rol al asistente (asistente-acceso-granular). */
   accesoHabilitado: boolean;
+}
+
+/**
+ * La carga del servidor del modelo propio y de la compuerta del backend
+ * (`GET /api/asistente/administracion/servidor-local`,
+ * asistente-optimizaciones-modelo-local D8). Una métrica que el servidor no
+ * publica llega `null`, nunca `0`.
+ */
+export interface ServidorLocal {
+  configurado: boolean;
+  alcanzable: boolean;
+  motor: "vllm" | "llama.cpp" | null;
+  enCurso: number | null;
+  enEspera: number | null;
+  /** De 0 a 1. */
+  usoDeKvCache: number | null;
+  /** De 0 a 1, acumulado desde que arrancó el servidor. Sólo vLLM la publica. */
+  aciertosDeCacheDePrefijo: number | null;
+  compuerta: { capacidad: number; enCurso: number; enEspera: number } | null;
 }
 
 /** El override de cupo diario de un usuario puntual, tal como está persistido. */
@@ -342,6 +367,12 @@ export interface TurnoDeLaConversacion {
   menciones?: MencionEnPregunta[];
   /** Ausente mientras el turno está en vuelo. */
   respuesta?: RespuestaDelAsistente;
+  /**
+   * Lo que llegó de la redacción mientras el turno sigue en vuelo, con la
+   * redacción por fragmentos (asistente-optimizaciones-modelo-local, D9). Es una
+   * vista previa: la `respuesta` que llega al final la reemplaza.
+   */
+  redaccionParcial?: string;
   /** Mensaje comprensible cuando el pedido falló por transporte. */
   error?: string;
   /** El usuario dejó de esperarlo: el request se soltó de este lado. No es un error. */

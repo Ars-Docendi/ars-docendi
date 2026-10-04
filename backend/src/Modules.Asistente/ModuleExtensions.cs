@@ -168,6 +168,14 @@ public static class ModuleExtensions
         // request. Uno por turno no acumularía ningún fallo y nunca abriría.
         services.AddSingleton<BreakerDelProveedor>();
 
+        // La compuerta de concurrencia (asistente-proveedor-local, D4) es SINGLETON
+        // por el mismo motivo que el breaker: la GPU es una sola para todo el
+        // proceso. Sólo se resuelve si `MaximoDeLlamadasConcurrentes` es mayor que
+        // cero — con cero, `Encadenar` ni la pide y la cadena queda como antes.
+        services.AddSingleton(sp => new CompuertaDelModelo(
+            Math.Max(1, sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.MaximoDeLlamadasConcurrentes),
+            sp.GetRequiredService<TimeProvider>()));
+
         // SCOPED desde asistente-administracion-de-uso, y no por elección: la cuota
         // ahora vive en Postgres (CuotaPersistente) y resuelve el rol del actor a
         // través de IConsultasIdentity, que el Host registra scoped — capturarlo
@@ -195,6 +203,12 @@ public static class ModuleExtensions
         services.AddScoped<IAuditoriaDeAdministracion, AuditoriaDeAdministracionReal>();
         services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
         services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
+
+        // Telemetría del servidor del modelo propio (asistente-optimizaciones-
+        // modelo-local, D8): un cliente aparte, con timeout corto y SIN el
+        // reintento del proveedor — es un panel, no un turno.
+        services.AddHttpClient(TelemetriaDelServidorLocal.Cliente, cliente => cliente.Timeout = TimeSpan.FromSeconds(3));
+        services.AddScoped<TelemetriaDelServidorLocal>();
 
         // El primer contrato público del módulo (sistema-seccion-unificada,
         // design.md D1): el Host los resuelve para el feed unificado de
@@ -269,8 +283,14 @@ public static class ModuleExtensions
         services.AddScoped<IConsultorDeCobertura, ConsultorDeCobertura>();
         services.AddScoped<IEjecutorDeConsulta, EjecutorDeConsulta>();
         services.AddScoped<IBuscadorDeMenciones, BuscadorDeMenciones>();
+        // La caché de consultas generadas (asistente-optimizaciones-modelo-local,
+        // D6) es SINGLETON: sirve entre turnos y entre actores. El generador la
+        // consulta sólo con VigenciaDeCacheDeConsultasMinutos mayor que cero.
+        services.AddSingleton<CacheDeConsultasGeneradas>();
         services.AddScoped<GeneradorDeSql>();
         services.AddScoped<RedactorDeRespuesta>();
+        // Lo llena el endpoint de flujo en el mismo request (D9).
+        services.AddScoped<CanalDeRedaccion>();
 
         services.AddScoped<CarrilSql>();
 
@@ -415,6 +435,13 @@ public static class ModuleExtensions
                 Random.Shared);
         });
 
+        // States at startup whether redaction masks sensible-valor. It reads the
+        // options without validating them: see AnuncioDeLaRedaccion.
+        services.AddHostedService(sp => new AnuncioDeLaRedaccion(
+            configuration.GetSection(OpcionesAsistente.Seccion).Get<OpcionesAsistente>()
+                ?? new OpcionesAsistente(),
+            sp.GetRequiredService<ILogger<AnuncioDeLaRedaccion>>()));
+
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);
 
@@ -439,9 +466,10 @@ public static class ModuleExtensions
         {
             ProveedorSimulado.Clave => new ProveedorSimulado(),
             ProveedorAnthropic.Clave => ArmarAnthropic(sp, modelo),
+            ProveedorLocal.Clave => ArmarLocal(sp, valores, modelo),
             _ => throw new InvalidOperationException(
                 $"Proveedor de modelo '{valores.Proveedor}' desconocido. Los disponibles son "
-                + $"'{ProveedorSimulado.Clave}' y '{ProveedorAnthropic.Clave}'."),
+                + $"'{ProveedorSimulado.Clave}', '{ProveedorAnthropic.Clave}' y '{ProveedorLocal.Clave}'."),
         };
 
     /// <summary>Clave del proveedor que redacta, en el contenedor.</summary>
@@ -465,20 +493,38 @@ public static class ModuleExtensions
     /// </summary>
     /// <remarks>
     /// El orden va de afuera hacia adentro de más barato a más caro:
-    /// techo del turno → corte + timeout → proveedor real. Invertir los dos
-    /// primeros haría que el corte registrara intentos que el techo iba a rechazar
-    /// igual, y un solo turno desbocado abriría el corte para todos.
+    /// techo del turno → compuerta → corte + timeout → proveedor real. Invertir
+    /// techo y corte haría que el corte registrara intentos que el techo iba a
+    /// rechazar igual, y un solo turno desbocado abriría el corte para todos.
+    ///
+    /// La compuerta (asistente-proveedor-local, D4) va ENTRE el techo y el corte:
+    /// después del techo para que una llamada que el turno no puede hacer no
+    /// ocupe lugar en la cola, y antes del corte para que la espera en la cola no
+    /// consuma el timeout de la llamada ni cuente como fallo del proveedor. Con
+    /// <c>MaximoDeLlamadasConcurrentes</c> en cero no se agrega.
     /// </remarks>
-    private static IProveedorDeModelo Encadenar(IServiceProvider sp, IProveedorDeModelo interno) =>
-        new ProveedorConTechoDeLlamadas(
-            new ProveedorConBreaker(
-                interno,
-                sp.GetRequiredService<BreakerDelProveedor>(),
-                TimeSpan.FromSeconds(
-                    sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value
-                        .TimeoutDeLlamadaSegundos),
-                sp.GetRequiredService<TimeProvider>()),
-            sp.GetRequiredService<ContadorDeLlamadasDelTurno>());
+    private static IProveedorDeModelo Encadenar(IServiceProvider sp, IProveedorDeModelo interno)
+    {
+        var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
+        var contador = sp.GetRequiredService<ContadorDeLlamadasDelTurno>();
+
+        IProveedorDeModelo conCorte = new ProveedorConBreaker(
+            interno,
+            sp.GetRequiredService<BreakerDelProveedor>(),
+            TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
+            sp.GetRequiredService<TimeProvider>());
+
+        if (valores.MaximoDeLlamadasConcurrentes > 0)
+        {
+            conCorte = new ProveedorConCompuerta(
+                conCorte,
+                sp.GetRequiredService<CompuertaDelModelo>(),
+                TimeSpan.FromSeconds(valores.EsperaMaximaEnColaSegundos),
+                contador);
+        }
+
+        return new ProveedorConTechoDeLlamadas(conCorte, contador);
+    }
 
     /// <summary>
     /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
@@ -512,4 +558,22 @@ public static class ModuleExtensions
                 : modelo,
             sp.GetRequiredService<ILogger<ProveedorAnthropic>>());
 
+    /// <summary>
+    /// Arma el adaptador del modelo propio con el cliente HTTP que ya trae el
+    /// reintento (asistente-proveedor-local, D2).
+    /// </summary>
+    /// <remarks>
+    /// Mismo transporte que <see cref="ArmarAnthropic"/>, por el mismo motivo: un
+    /// solo lugar reintenta. La clave es opcional con este proveedor.
+    /// </remarks>
+    private static ProveedorLocal ArmarLocal(
+        IServiceProvider sp, OpcionesAsistente valores, string modelo) =>
+        new(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
+            Requerido(sp, o => o.UrlDelProveedorLocal, nameof(OpcionesAsistente.UrlDelProveedorLocal)),
+            valores.ClaveDelProveedor,
+            string.IsNullOrWhiteSpace(modelo)
+                ? Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo))
+                : modelo,
+            sp.GetRequiredService<ILogger<ProveedorLocal>>());
 }

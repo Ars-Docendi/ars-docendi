@@ -286,9 +286,111 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         Assert.True(global.Columnas > acotado.Columnas);
         Assert.NotEqual(global.Alcance, acotado.Alcance);
         Assert.NotEmpty(acotado.Ejemplos);
+        // Sin la opción, la redacción por fragmentos no se ofrece (D9).
+        Assert.False(global.RedaccionEnFlujo);
 
         // Cero tokens: el catálogo sale de la base, no del modelo.
         Assert.Equal(0, proveedor.Llamadas);
+    }
+
+    // ------------------------------- la redacción por fragmentos (D9 de optimizaciones)
+
+    private const string RutaDelFlujo = "/api/asistente/consultas/flujo";
+
+    [Fact]
+    public async Task Con_la_opcion_capacidades_ofrece_el_flujo()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _, enFlujo: true);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var capacidades = await cliente.GetFromJsonAsync<CapacidadesDto>(
+            "/api/asistente/capacidades", TestContext.Current.CancellationToken);
+
+        Assert.True(capacidades!.RedaccionEnFlujo);
+    }
+
+    [Fact]
+    public async Task El_flujo_manda_la_redaccion_por_fragmentos_y_termina_con_el_resultado()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _, enFlujo: true);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(cliente, "¿cuántos docentes hay?", ruta: RutaDelFlujo);
+        var eventos = await LeerEventosAsync(respuesta);
+
+        Assert.Equal("text/event-stream", respuesta.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("no-cache", respuesta.Headers.CacheControl?.ToString());
+
+        var fragmentos = eventos.Where(e => e.Evento == "redaccion").ToList();
+        Assert.True(fragmentos.Count > 1);
+        Assert.Equal(
+            "Hay 4 docentes designados.",
+            string.Concat(fragmentos.Select(f => f.Datos.GetProperty("texto").GetString())));
+
+        // El último es siempre el resultado, y es el que vale.
+        var (ultimo, datos) = eventos[^1];
+        Assert.Equal("resultado", ultimo);
+        Assert.Equal("Hay 4 docentes designados.", datos.GetProperty("respuesta").GetString());
+        Assert.Equal("respondida", datos.GetProperty("estado").GetString());
+    }
+
+    [Fact]
+    public async Task Sin_la_opcion_el_flujo_trae_solo_el_resultado()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out _);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(cliente, "¿cuántos docentes hay?", ruta: RutaDelFlujo);
+        var eventos = await LeerEventosAsync(respuesta);
+
+        var (evento, datos) = Assert.Single(eventos);
+        Assert.Equal("resultado", evento);
+        Assert.Equal("Hay 4 docentes designados.", datos.GetProperty("respuesta").GetString());
+    }
+
+    [Fact]
+    public async Task El_flujo_rechaza_antes_de_empezar_con_el_status_de_siempre()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor, enFlujo: true);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        using var respuesta = await Preguntar(
+            cliente, "¿cuántos docentes hay?", clave: null, ruta: RutaDelFlujo);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal("application/problem+json", respuesta.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(0, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task El_flujo_respeta_la_idempotencia_del_turno()
+    {
+        await SembrarAsync();
+        using var host = CrearHost(out var proveedor, enFlujo: true);
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var clave = Guid.NewGuid().ToString();
+        using var primera = await Preguntar(cliente, "¿cuántos docentes hay?", clave, ruta: RutaDelFlujo);
+        var primeros = await LeerEventosAsync(primera);
+        var gastadas = proveedor.Llamadas;
+
+        using var segunda = await Preguntar(cliente, "¿cuántos docentes hay?", clave, ruta: RutaDelFlujo);
+        var (evento, datos) = Assert.Single(await LeerEventosAsync(segunda));
+
+        Assert.Equal("resultado", evento);
+        Assert.Equal(
+            primeros[^1].Datos.GetProperty("respuesta").GetString(),
+            datos.GetProperty("respuesta").GetString());
+        Assert.Equal(gastadas, proveedor.Llamadas);
     }
 
     // -------------------------------------------------- la conversación (D13)
@@ -799,9 +901,10 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         string? clave = "clave-de-prueba",
         Guid? hilo = null,
         string? reemplaza = null,
-        IReadOnlyList<ReferenciaDto>? referencias = null)
+        IReadOnlyList<ReferenciaDto>? referencias = null,
+        string ruta = Ruta)
     {
-        using var pedido = new HttpRequestMessage(HttpMethod.Post, Ruta)
+        using var pedido = new HttpRequestMessage(HttpMethod.Post, ruta)
         {
             Content = JsonContent.Create(new ConsultaDelAsistente(mensaje, hilo, reemplaza, referencias)),
         };
@@ -825,8 +928,32 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         return (await respuesta.Content.ReadFromJsonAsync<RespuestaDelAsistente>(ct))!;
     }
 
+    /// <summary>Los eventos de una respuesta <c>text/event-stream</c>, en orden.</summary>
+    private static async Task<List<(string Evento, System.Text.Json.JsonElement Datos)>> LeerEventosAsync(
+        HttpResponseMessage respuesta)
+    {
+        var cuerpo = await respuesta.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.True(respuesta.IsSuccessStatusCode, cuerpo);
+
+        return
+        [
+            .. cuerpo.Split("\n\n", StringSplitOptions.RemoveEmptyEntries).Select(bloque =>
+            {
+                var lineas = bloque.Split('\n');
+                return (
+                    lineas.Single(l => l.StartsWith("event: ", StringComparison.Ordinal))["event: ".Length..],
+                    System.Text.Json.JsonDocument.Parse(
+                        lineas.Single(l => l.StartsWith("data: ", StringComparison.Ordinal))["data: ".Length..])
+                        .RootElement);
+            }),
+        ];
+    }
+
     private WebApplicationFactory<Program> CrearHost(
-        out ProveedorGuionado proveedor, bool historialQueNuncaEscribe = false, string[]? guionPropio = null)
+        out ProveedorGuionado proveedor,
+        bool historialQueNuncaEscribe = false,
+        string[]? guionPropio = null,
+        bool enFlujo = false)
     {
         // Guion largo: cada turno del carril consume generación + redacción, y el
         // proveedor guionado repite su última respuesta al agotarse. Un guion corto
@@ -859,7 +986,9 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
             builder.UseSetting(
                 $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.PasswordSoloLecturaPii)}",
                 PostgresFixture.PasswordDeRol);
-
+            builder.UseSetting(
+                $"{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.StreamingDeRedaccion)}",
+                enFlujo ? "true" : "false");
 
             // El proveedor guionado reemplaza al simulado: contar sus llamadas es lo
             // único que prueba de verdad que la idempotencia no volvió a gastar.

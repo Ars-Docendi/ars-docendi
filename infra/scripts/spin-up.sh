@@ -19,7 +19,13 @@
 # Variables opcionales:
 #   ASISTENTE_PROVEEDOR               proveedor del modelo; default "simulado"
 #   ASISTENTE_CLAVE                   credencial del proveedor real; sin ella se
-#                                     degrada a "simulado"
+#                                     degrada a "simulado". Con "local" es el
+#                                     --api-key del servidor de compose.llm.yml
+#   ASISTENTE_URL_LOCAL               servidor del modelo propio; default
+#                                     http://arsdocendi-llm:8000/v1
+#   ASISTENTE_MODELO_LOCAL            --served-model-name; default qwen3-8b
+#   ASISTENTE_MAX_LLAMADAS_CONCURRENTES
+#                                     compuerta del backend; = --max-num-seqs
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
@@ -99,6 +105,14 @@ if [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
   proveedor_asistente=simulado
 fi
 
+# Modelo propio (asistente-proveedor-local): suma el perfil del backend que
+# apunta al servidor compartido de compose.llm.yml. La clave es el --api-key de
+# ese servidor, así que la regla de arriba aplica igual.
+archivos_compose=(-f "$compose_file")
+if [[ "$proveedor_asistente" == "local" ]]; then
+  archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-local.yml")
+fi
+
 # Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"' EXIT
@@ -116,6 +130,9 @@ ASISTENTE_RO_PASSWORD=${ASISTENTE_RO_PASSWORD}
 ASISTENTE_RO_PII_PASSWORD=${ASISTENTE_RO_PII_PASSWORD}
 ASISTENTE_PROVEEDOR=${proveedor_asistente}
 ASISTENTE_CLAVE=${ASISTENTE_CLAVE:-}
+ASISTENTE_URL_LOCAL=${ASISTENTE_URL_LOCAL:-http://arsdocendi-llm:8000/v1}
+ASISTENTE_MODELO_LOCAL=${ASISTENTE_MODELO_LOCAL:-qwen3-8b}
+ASISTENTE_MAX_LLAMADAS_CONCURRENTES=${ASISTENTE_MAX_LLAMADAS_CONCURRENTES:-8}
 ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-${seaweedfs_host}:8333}
 ALMACENAMIENTO_BUCKET=${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}
 ALMACENAMIENTO_ACCESS_KEY=${seaweedfs_app_access_key}
@@ -146,7 +163,7 @@ fi
 # 3. Migraciones EF antes de publicar el backend. Una falla detiene seed/up por
 # set -euo pipefail.
 log_info msg="corriendo migraciones" ambiente="$ambiente"
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
+docker compose -p "$ambiente" --env-file "$env_file" "${archivos_compose[@]}" \
   run --rm backend ${COMANDO_MIGRACIONES:-dotnet ArsDocendi.Host.dll --migrate}
 
 # 3b. Mismo test de humo, ahora con las tablas creadas: ninguna migración le
@@ -161,6 +178,6 @@ else
 fi
 
 # 5. Publicar servicios únicamente después de completar migración y seed.
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
+docker compose -p "$ambiente" --env-file "$env_file" "${archivos_compose[@]}" up -d
 
 log_info msg="spin-up OK" ambiente="$ambiente" host="$host_publico"

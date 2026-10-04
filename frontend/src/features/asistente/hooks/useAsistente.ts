@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { consultar } from "../api/asistenteApi";
+import { consultar, consultarEnFlujo } from "../api/asistenteApi";
 import { reejecutarTurno } from "../api/historialApi";
 import { esCancelacion, esHiloPerdido, mensajeDeError } from "../errores";
 import type { MencionEnPregunta, TurnoDeHistorial, TurnoDeLaConversacion } from "../types";
@@ -47,6 +47,15 @@ export interface Asistente {
   reejecutar: (id: string) => Promise<void>;
 }
 
+export interface OpcionesDelAsistente {
+  /**
+   * Pedir los turnos a `POST /consultas/flujo` y mostrar la redacción mientras
+   * se escribe (asistente-optimizaciones-modelo-local, D9). Lo decide
+   * `GET /capacidades`; sin él, el turno se pide entero como siempre.
+   */
+  redaccionEnFlujo?: boolean;
+}
+
 /** El turno en vuelo: su id y su request, para soltarlo desde afuera de su promesa. */
 interface TurnoEnCurso {
   id: string;
@@ -65,8 +74,14 @@ interface TurnoEnCurso {
  * ahí; el lanzador vive con la barra, así que al reabrir el hilo sigue donde
  * estaba.
  */
-export function useAsistente(): Asistente {
+export function useAsistente({ redaccionEnFlujo = false }: OpcionesDelAsistente = {}): Asistente {
   const [turnos, setTurnos] = useState<TurnoDeLaConversacion[]>([]);
+  // En un ref por el mismo motivo que `enCurso`: `enviar` se memoiza una vez, y
+  // las capacidades pueden llegar después del primer render.
+  const enFlujo = useRef(redaccionEnFlujo);
+  useEffect(() => {
+    enFlujo.current = redaccionEnFlujo;
+  }, [redaccionEnFlujo]);
   const [enVuelo, setEnVuelo] = useState(false);
   const hilo = useRef<string | null>(null);
   // Es también el guard de «un turno a la vez»: las funciones de abajo se memoizan
@@ -112,11 +127,20 @@ export function useAsistente(): Asistente {
       }));
 
       try {
-        const respuesta = await consultar(
-          { mensaje: texto, hilo: hilo.current, reemplaza, referencias },
-          id,
-          { signal: aborto.signal },
-        );
+        const pedido = { mensaje: texto, hilo: hilo.current, reemplaza, referencias };
+        const respuesta = enFlujo.current
+          ? await consultarEnFlujo(pedido, id, {
+              signal: aborto.signal,
+              // Vista previa: la reemplaza la respuesta completa al final. Lo que
+              // llegue de un turno que ya no se espera no se pinta.
+              alRecibirRedaccion: (parcial) => {
+                if (aborto.signal.aborted || !montado.current) return;
+                setTurnos((previos) =>
+                  previos.map((t) => (t.id === id ? { ...t, redaccionParcial: parcial } : t)),
+                );
+              },
+            })
+          : await consultar(pedido, id, { signal: aborto.signal });
         // Si mientras tanto se dejó de esperar o se reinició la conversación, lo que
         // llegue ya no es de nadie: tampoco el hilo, que resucitaría una
         // conversación que el usuario dio por cerrada.
@@ -143,7 +167,9 @@ export function useAsistente(): Asistente {
         }
 
         if (!montado.current) return;
-        setTurnos((previos) => previos.map((t) => (t.id === id ? { ...t, respuesta } : t)));
+        setTurnos((previos) =>
+          previos.map((t) => (t.id === id ? { ...t, respuesta, redaccionParcial: undefined } : t)),
+        );
       } catch (error) {
         // Un aborto no es un error: lo pidió este lado. El turno queda como está.
         if (esCancelacion(error)) return;
@@ -152,7 +178,9 @@ export function useAsistente(): Asistente {
         if (esHiloPerdido(error)) hilo.current = null;
         if (!montado.current) return;
         setTurnos((previos) =>
-          previos.map((t) => (t.id === id ? { ...t, error: mensajeDeError(error) } : t)),
+          previos.map((t) =>
+            t.id === id ? { ...t, error: mensajeDeError(error), redaccionParcial: undefined } : t,
+          ),
         );
       } finally {
         // Sólo si este turno sigue siendo el actual: uno que se dejó de esperar
@@ -261,7 +289,11 @@ export function useAsistente(): Asistente {
     enCurso.current = null;
     actual.aborto.abort();
     setEnVuelo(false);
-    setTurnos((previos) => previos.map((t) => (t.id === actual.id ? { ...t, detenido: true } : t)));
+    setTurnos((previos) =>
+      previos.map((t) =>
+        t.id === actual.id ? { ...t, detenido: true, redaccionParcial: undefined } : t,
+      ),
+    );
   }, []);
 
   const reiniciar = useCallback(() => {

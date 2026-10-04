@@ -70,6 +70,74 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Si_la_reescritura_falla_el_seguimiento_sigue_con_la_pregunta_cruda()
+    {
+        // asistente-proveedor-local, D5: la llamada del reescritor está fuera del
+        // try del carril, y una falla del proveedor ahí —saturado, timeout,
+        // transporte— terminaba el turno en «excepción no prevista». Ahora se
+        // resuelve igual que sin modelo: la pregunta sigue cruda.
+        await SembrarAsync();
+        var llamadas = 0;
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 2 docentes.")
+        {
+            // La tercera llamada es la reescritura del seguimiento.
+            Antes = () =>
+            {
+                if (++llamadas == 3)
+                {
+                    throw new HttpRequestException("El servidor del modelo local no sirvió la llamada.");
+                }
+            },
+        };
+        var banco = BancoCon(new OpcionesAsistente(), null, proveedor);
+        var ct = TestContext.Current.CancellationToken;
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿cuántos docentes están designados?", ct);
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿y en Sistemas?", ct);
+
+        Assert.Equal(EstadoDelTurno.Respondida, segundo.Estado);
+
+        // La generación del seguimiento recibió la pregunta tal como la escribió
+        // el usuario, no una reescritura que nunca llegó.
+        Assert.Contains("¿y en Sistemas?", proveedor.Recibidas[3].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Con_la_reescritura_en_la_generacion_un_seguimiento_no_llama_al_reescritor()
+    {
+        // asistente-optimizaciones-modelo-local, D7: el seguimiento hace DOS
+        // llamadas —generación y redacción— en vez de tres. La generación recibe
+        // la pregunta anterior y devuelve la resuelta, que queda como «así lo
+        // interpreté» y como la pregunta del hilo.
+        await SembrarAsync();
+        const string Resuelta = "¿cuántos docentes están designados en Sistemas?";
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(ContarDocentes),
+            "Hay 4 docentes.",
+            $$"""{"pregunta_interpretada":"{{Resuelta}}","es_contestable":true,"sql":"{{ContarDocentes}}","razonamiento":"Cuento.","categoria":"agregacion"}""",
+            "Hay 2 docentes.");
+        var banco = BancoCon(new OpcionesAsistente { ReescrituraEnLaGeneracion = true }, null, proveedor);
+        var ct = TestContext.Current.CancellationToken;
+
+        var primero = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿cuántos docentes están designados?", ct);
+        var segundo = await banco.Capa().ResponderAsync(
+            Secretaria, primero.Hilo, "¿y en Sistemas?", ct);
+
+        Assert.Equal(4, proveedor.Llamadas);
+        Assert.Equal(EstadoDelTurno.Respondida, segundo.Estado);
+        Assert.Equal(Resuelta, segundo.PreguntaInterpretada);
+        Assert.Contains(
+            "- ¿cuántos docentes están designados?", proveedor.Recibidas[2].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Un_saludo_no_consume_cupo()
     {
         await SembrarAsync();

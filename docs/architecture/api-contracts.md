@@ -123,6 +123,7 @@ Details estable y nunca puede asociarse a Portal o Designaciones.
 | ------ | -------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
 | GET    | `/ping`                                                  | (anónimo)                        | Health check del módulo                                               |
 | POST   | `/consultas`                                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
+| POST   | `/consultas/flujo`                                       | `asistente.consultar`            | El mismo turno, con la redacción por fragmentos (`text/event-stream`) |
 | GET    | `/menciones`                                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#» |
 | GET    | `/capacidades`                                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
 | POST   | `/retroalimentacion`                                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                         |
@@ -147,6 +148,7 @@ Details estable y nunca puede asociarse a Portal o Designaciones.
 | PUT    | `/administracion/presupuestos/roles/{rol}/acceso`        | `asistente.administrar`          | Prende/apaga el acceso de un rol al asistente                         |
 | PUT    | `/administracion/presupuestos/usuarios/{actorId}/acceso` | `asistente.administrar`          | Quita o restablece el acceso de un usuario (nunca lo da)              |
 | PUT    | `/administracion/tope-organizacional`                    | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
+| GET    | `/administracion/servidor-local`                         | `asistente.administrar`          | Carga del servidor del modelo propio y de la compuerta del backend    |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
@@ -240,9 +242,25 @@ Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas la
 
 **`409 Conflict`**: únicamente cuando `reemplaza` no nombra el último turno vigente del hilo del actor (target de reemplazo inválido o hilo vencido). No cambia nada — ni el hilo, ni el historial, ni el cupo —, así que un reintento con un objetivo válido es seguro.
 
+#### `POST /api/asistente/consultas/flujo`
+
+El mismo pedido, la misma `Idempotency-Key` y la misma lógica que `POST /consultas` (asistente-optimizaciones-modelo-local, design.md D9). El cliente lo usa sólo si `GET /capacidades` trae `redaccionEnFlujo: true`.
+
+Todo lo que falla **antes de escribir nada** —clave faltante, mención no disponible, hilo ajeno, reemplazo inválido— responde con el mismo status y el mismo `ProblemDetails` de `/consultas`. Después responde `200 text/event-stream` (con `Cache-Control: no-cache` y `X-Accel-Buffering: no`) y estos eventos:
+
+| Evento      | `data`                                           | Cuándo                                                        |
+| ----------- | ------------------------------------------------ | ------------------------------------------------------------- |
+| `redaccion` | `{ "texto": "<fragmento>" }`                     | Cada fragmento de la redacción, en orden                      |
+| `resultado` | La misma `RespuestaDelAsistente` de `/consultas` | Al final, siempre que el turno termine                        |
+| `error`     | `{ "status": 500 }`                              | Si algo falla después de empezar; no llega ningún `resultado` |
+
+Los fragmentos son una **vista previa**: lo que vale es `resultado`, que puede no coincidir carácter a carácter con su concatenación (se recorta y se descarta razonamiento). Un turno que no redacta con el modelo —sin filas, plantilla, abstención, degradado, idempotencia recordada— manda sólo `resultado`. Sólo el proveedor `local` emite fragmentos; con otro, el flujo trae sólo `resultado`. Si el cliente se desconecta el turno termina igual y queda guardado bajo su clave.
+
 #### `GET /api/asistente/capacidades`
 
 Devuelve `cubre[]` con sus conteos, `tablas`, `columnas`, `ejemplos[]`, `noPuede[]`, `alcance`, `presentacion`, `mantenimiento` y `cupo` (asistente-modo-mantenimiento / asistente-cupo-visible).
+
+`redaccionEnFlujo` (booleano) dice si conviene pedir el turno a `POST /consultas/flujo`; refleja la opción `StreamingDeRedaccion` del despliegue, no al actor.
 
 `mantenimiento: { activo, razon }` refleja el estado GLOBAL del kill switch, sin bypass — así el banner es consistente para todo el mundo aunque un admin no esté bloqueado por él.
 
@@ -340,7 +358,7 @@ Exige `asistente.administrar`. Cierra el gap de "sólo `PUT`, nunca `GET`" que d
 
 `gastoEstimadoDelMes` es el costo estimado del mes **calendario** en curso, con el mismo límite UTC que ya usa el acumulador que aplica el tope (design.md D2 de `asistente-administracion-de-uso`) — no América/Argentina/Buenos_Aires: introducir una segunda noción de "mes" para este único campo hubiera sido una inconsistencia nueva, no una mejora. Se calcula llamando al mismo `IConsultasDeUso` que `GET …/uso` usa, con el rango `[inicio del mes, ahora)`, así que por construcción coincide con lo que ese otro endpoint reportaría para el mismo rango — nunca la factura real del proveedor (`esEstimado: true`, mismo campo que `UsoAgregadoDto`).
 
-**Deliberadamente fuera de alcance** (ver el reporte de apply del cambio `sistema-seccion-unificada`, tarea 12.8): la serie diaria de uso para un gráfico de tendencia y la telemetría de proveedor cloud/local (GPU, KV cache, slots del servidor local). El acceso por rol (`accesoHabilitado`) y las revocaciones por usuario (`accesosRevocados`) se suman con `asistente-acceso-granular`.
+**Deliberadamente fuera de alcance** (ver el reporte de apply del cambio `sistema-seccion-unificada`, tarea 12.8): la serie diaria de uso para un gráfico de tendencia y la telemetría de proveedor cloud/local (GPU, KV cache, slots del servidor local). La del servidor local llegó después, con `GET …/servidor-local`. El acceso por rol (`accesoHabilitado`) y las revocaciones por usuario (`accesosRevocados`) se suman con `asistente-acceso-granular`.
 
 #### `PUT /api/asistente/administracion/presupuestos/roles/{rol}` y `/presupuestos/usuarios/{actorId}`
 
@@ -357,6 +375,27 @@ Pedido: `{ habilitado }`. Exigen `asistente.administrar`. El acceso operativo es
 #### `PUT /api/asistente/administracion/tope-organizacional`
 
 Pedido: `{ topeMensualUsd }` (`0` desactiva). Exige `asistente.administrar`. Igual disciplina de auditoría que los dos anteriores.
+
+#### `GET /api/asistente/administracion/servidor-local`
+
+Exige `asistente.administrar`. La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local, design.md D8):
+
+```json
+{
+  "configurado": true,
+  "alcanzable": true,
+  "motor": "vllm",
+  "enCurso": 3,
+  "enEspera": 0,
+  "usoDeKvCache": 0.42,
+  "aciertosDeCacheDePrefijo": 0.87,
+  "compuerta": { "capacidad": 8, "enCurso": 3, "enEspera": 0 }
+}
+```
+
+`configurado` es `false` con un proveedor que no es `local`, y entonces todo lo demás viene vacío. `alcanzable` es `false` si `/metrics` no respondió en 3 s o no tiene métricas conocidas. `motor` es `vllm` o `llama.cpp`, según qué métricas publica. Cada métrica es `null` si el servidor no la publica —llama-server no informa aciertos de prefijo—, nunca `0`. `usoDeKvCache` y `aciertosDeCacheDePrefijo` van de 0 a 1; el segundo es acumulado desde que arrancó el servidor. `compuerta` es `null` sin `MaximoDeLlamadasConcurrentes`.
+
+La URL de métricas es la del proveedor sin `/v1`, con la misma clave como `Bearer`. La clave nunca aparece en la respuesta ni en el log.
 
 ## Versioning
 

@@ -157,6 +157,14 @@ export function Mensaje({
     !turno.detenido &&
     !turno.historico;
 
+  // LA REDACCIÓN MIENTRAS SE ESCRIBE (asistente-optimizaciones-modelo-local,
+  // D9): ocupa el lugar de los puntos apenas llega el primer fragmento, sin
+  // esperar el umbral. También `aria-hidden`, por el mismo motivo que los
+  // puntos: un lector de pantalla anunciaría cada fragmento, y lo que se anuncia
+  // es la respuesta completa que la reemplaza.
+  const parcial =
+    !respuesta && !turno.error && !turno.detenido ? turno.redaccionParcial : undefined;
+
   return (
     <li
       className={
@@ -236,15 +244,24 @@ export function Mensaje({
         </p>
       )}
 
-      {pendiente && (
-        <div className="adoc-asistente-pendiente" aria-hidden="true">
-          <span className="adoc-asistente-puntos">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span>Consultando…</span>
+      {parcial ? (
+        <div
+          className="adoc-asistente-respuesta adoc-asistente-respuesta--parcial"
+          aria-hidden="true"
+        >
+          <p className="adoc-asistente-texto">{parcial}</p>
         </div>
+      ) : (
+        pendiente && (
+          <div className="adoc-asistente-pendiente" aria-hidden="true">
+            <span className="adoc-asistente-puntos">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>Consultando…</span>
+          </div>
+        )
       )}
 
       {turno.historico && (

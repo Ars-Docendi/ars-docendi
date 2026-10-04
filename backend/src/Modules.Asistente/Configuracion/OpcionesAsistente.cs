@@ -268,6 +268,36 @@ public sealed class OpcionesAsistente
     public int EsperaDelBreakerSegundos { get; set; } = 30;
 
     /// <summary>
+    /// Cuántas llamadas al modelo pueden estar en curso a la vez, en todo el
+    /// proceso. Cero —el default— no pone límite (asistente-proveedor-local, D4).
+    /// </summary>
+    /// <remarks>
+    /// Contra un proveedor en la nube no hace falta: el límite es de la cuenta y
+    /// llega como 429, que el reintento ya maneja. Contra un modelo propio en UNA
+    /// GPU es lo que impide que treinta usuarios a la vez la saturen: el valor
+    /// correcto es el <c>--max-num-seqs</c> del servidor, así el servidor nunca
+    /// encola y la cola real es la del backend, que tiene espera máxima y se
+    /// cancela si el usuario se va.
+    ///
+    /// La espera en esta cola NO cuenta contra <see cref="TimeoutDeLlamadaSegundos"/>
+    /// ni contra el breaker: una GPU ocupada no es una GPU caída.
+    /// </remarks>
+    public int MaximoDeLlamadasConcurrentes { get; set; }
+
+    /// <summary>
+    /// Cuánto espera como mucho una llamada por un lugar en la compuerta, en
+    /// segundos. Sólo aplica con <see cref="MaximoDeLlamadasConcurrentes"/> mayor
+    /// que cero.
+    /// </summary>
+    /// <remarks>
+    /// Vencida, el turno degrada con el texto de saturación —«hay muchas consultas
+    /// en curso»— y no con el de proveedor caído. Tiene que quedar holgadamente
+    /// por debajo de <see cref="PresupuestoDelTurnoSegundos"/>: la espera se come
+    /// el presupuesto del turno.
+    /// </remarks>
+    public int EsperaMaximaEnColaSegundos { get; set; } = 30;
+
+    /// <summary>
     /// Cuánto se conservan los registros del asistente, en días (RNF-19).
     /// </summary>
     /// <remarks>
@@ -445,6 +475,159 @@ public sealed class OpcionesAsistente
     /// una respuesta, no la competencia del modelo. Eso lo mide el evaluador.
     /// </remarks>
     public string DirectorioDeCassettes { get; set; } = string.Empty;
+
+    /// <summary>
+    /// URL base del servidor OpenAI-compatible del modelo propio, terminada en
+    /// <c>/v1</c> (por ejemplo <c>http://llm:8000/v1</c>). Sólo la usa el
+    /// proveedor <c>local</c> (asistente-proveedor-local).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ClaveDelProveedor"/> es opcional con este proveedor: si está
+    /// puesta viaja como <c>Authorization: Bearer</c> —lo que pide vLLM con
+    /// <c>--api-key</c>—, y si no, el request sale sin credencial.
+    /// </remarks>
+    public string UrlDelProveedorLocal { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Si una consulta que volvió vacía se vuelve a generar una vez. Default
+    /// <c>true</c> (asistente-proveedor-local, D6).
+    /// </summary>
+    /// <remarks>
+    /// El reintento repite el prompt <b>byte a byte</b>. Con un proveedor que
+    /// varía entre llamadas a veces encuentra otra consulta; con un modelo local a
+    /// temperatura 0 devuelve la misma, y la llamada se tira. El perfil local lo
+    /// apaga.
+    /// </remarks>
+    public bool ReintentarConsultaVacia { get; set; } = true;
+
+    // ------------------------------------------------------------------
+    // asistente-optimizaciones-modelo-local. TODAS arrancan apagadas (D1): el
+    // prompt de Claude está medido —cassettes, línea de base del evaluador— y
+    // con estas opciones en su default no cambia en un byte. Los perfiles
+    // locales (infra/compose/compose.asistente-local*.yml) las prenden.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Renderiza el esquema del prefijo en su forma compacta (D2): tipos
+    /// abreviados, nulabilidad como <c>?</c> y claves foráneas en línea. Mismo
+    /// contenido —comentarios y descripciones enteros—, ~11% menos texto.
+    /// </summary>
+    public bool EsquemaCompacto { get; set; }
+
+    /// <summary>
+    /// Pone TODOS los ejemplos verificados al final del prefijo cacheable, en vez
+    /// de elegir hasta cuatro por pregunta en el mensaje (D3). Con caché de
+    /// prefijo su costo marginal es casi nulo; sin caché son ~2,5k tokens más
+    /// por llamada.
+    /// </summary>
+    public bool EjemplosEnElPrefijo { get; set; }
+
+    /// <summary>
+    /// Pone el glosario institucional —el vocabulario del Departamento y el valor
+    /// exacto que le corresponde en el esquema— en el prefijo cacheable, después
+    /// del esquema y antes de los ejemplos, y suma al bloque «VALORES POSIBLES» el
+    /// catálogo de dedicaciones (asistente-glosario-institucional, D1 y D2). Con el
+    /// default el prefijo es BYTE A BYTE el de siempre.
+    /// </summary>
+    public bool GlosarioEnElPrefijo { get; set; }
+
+    /// <summary>
+    /// El reintento por consulta vacía le dice al modelo qué consulta no trajo
+    /// filas, en vez de repetir el prompt idéntico (D4). Sólo aplica con
+    /// <see cref="ReintentarConsultaVacia"/> prendido.
+    /// </summary>
+    public bool ReintentoConContexto { get; set; }
+
+    /// <summary>
+    /// Si PostgreSQL rechaza la consulta generada —salvo por privilegio o por
+    /// timeout—, una sola ronda de corrección con el error saneado (D4).
+    /// </summary>
+    public bool RepararConsultaFallida { get; set; }
+
+    /// <summary>
+    /// La segunda generación de un turno —el reintento tras una consulta vacía, con
+    /// o sin contexto, y la reparación tras un rechazo del motor— se pide con
+    /// esfuerzo alto, o sea con razonamiento donde el servidor lo permita. La
+    /// primera generación y la redacción no cambian: se paga deliberar sólo en el
+    /// turno que ya falló una vez.
+    /// </summary>
+    /// <remarks>
+    /// Con un servidor que mantiene el razonamiento apagado (llama-server con
+    /// <c>--reasoning-budget 0</c>) la opción no tiene efecto. Apagada, la solicitud
+    /// es idéntica a la de antes de que existiera, para cualquier proveedor.
+    /// </remarks>
+    public bool RazonamientoEnSegundaGeneracion { get; set; }
+
+    /// <summary>
+    /// Techo de tokens de la segunda generación cuando
+    /// <see cref="RazonamientoEnSegundaGeneracion"/> está prendida: razonar gasta
+    /// tokens de salida antes de escribir la consulta. Cero usa
+    /// <see cref="MaximoDeTokensDeGeneracion"/>.
+    /// </summary>
+    /// <remarks>
+    /// Con la opción apagada no rige, aunque tenga un valor: un resto de
+    /// configuración no puede cambiar ninguna solicitud. No puede ser negativo.
+    /// </remarks>
+    public int MaximoDeTokensDeSegundaGeneracion { get; set; }
+
+    /// <summary>
+    /// Redacta sin modelo un resultado trivial —una columna, de una a cinco
+    /// filas, alcance completo, sin recorte ni cobertura autodeclarada— (D5).
+    /// </summary>
+    public bool RedaccionConPlantillas { get; set; }
+
+    /// <summary>
+    /// Lets the redaction prompt carry the real values of <c>sensible-valor</c>
+    /// columns instead of markers such as «documento 1»
+    /// (asistente-redaccion-sin-enmascarado-local).
+    /// </summary>
+    /// <remarks>
+    /// <b>Setting it is not enough</b>: it only applies when
+    /// <see cref="RedaccionSinEnmascararVigente"/> is true. With another provider,
+    /// or with a cassette directory, masking stays on and startup says so.
+    /// <c>sensible-texto</c> columns are always suppressed. It is not an
+    /// optimization —it measures slower—; it is redaction quality for an
+    /// on-premises deployment.
+    /// </remarks>
+    public bool RedaccionSinEnmascarar { get; set; }
+
+    /// <summary>
+    /// Whether redaction runs without masking <c>sensible-valor</c>: the option
+    /// on, the local provider, and no cassette directory.
+    /// </summary>
+    /// <remarks>
+    /// This is the only place that decides it. The local provider is the only one
+    /// that can be expected to run on own hardware, and a cassette directory would
+    /// record responses with real values into files meant to be versioned. Any
+    /// other combination masks.
+    /// </remarks>
+    public bool RedaccionSinEnmascararVigente =>
+        RedaccionSinEnmascarar
+        && string.Equals(Proveedor, Infrastructure.ProveedorLocal.Clave, StringComparison.Ordinal)
+        && string.IsNullOrWhiteSpace(DirectorioDeCassettes);
+
+    /// <summary>
+    /// Cuántos minutos se reutiliza la consulta generada para la misma pregunta
+    /// sin contexto, la misma variante de rol y la misma fecha (D6). Cero —el
+    /// default— la apaga. Nunca se reutilizan filas: la consulta se vuelve a
+    /// ejecutar bajo el alcance de quien pregunta.
+    /// </summary>
+    public int VigenciaDeCacheDeConsultasMinutos { get; set; }
+
+    /// <summary>
+    /// En un seguimiento, no llama al reescritor: la generación recibe las
+    /// preguntas anteriores y devuelve la pregunta resuelta junto con la
+    /// consulta (D7). Una llamada al modelo menos por seguimiento.
+    /// </summary>
+    public bool ReescrituraEnLaGeneracion { get; set; }
+
+    /// <summary>
+    /// Ofrece la redacción por fragmentos en <c>POST /api/asistente/consultas/flujo</c>
+    /// y lo anuncia en <c>GET /capacidades</c> (D9). Sólo el adaptador local
+    /// emite fragmentos; con otro proveedor el flujo termina con el resultado
+    /// completo, igual que el endpoint de siempre.
+    /// </summary>
+    public bool StreamingDeRedaccion { get; set; }
 
     /// <summary>
     /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.

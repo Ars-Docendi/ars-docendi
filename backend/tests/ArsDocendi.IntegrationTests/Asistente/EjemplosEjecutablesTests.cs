@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Modules.Asistente.Infrastructure;
 using Npgsql;
@@ -91,4 +92,99 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
             + string.Join(" · ", vacios));
     }
 
+    // ------------------------------------------------------------------
+    // What "executes" does not catch. An example can run without error and
+    // still teach the model something wrong: a column that is no longer the
+    // current one, or a literal that matches no row.
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void No_example_reads_the_legacy_dedication_text()
+    {
+        // `dedicacion` and `dedicacion_solicitada` keep the text of rows older than
+        // the catalog; the current form is `dedicacion_id` against
+        // `designaciones.dedicaciones`. An example on the text column still runs and
+        // returns NULL for every current row.
+        var viejos = new SelectorDeEjemplos().Catalogo
+            .Where(e => Regex.IsMatch(
+                e.Sql, @"\.dedicacion(_solicitada)?\b(?!_)", RegexOptions.IgnoreCase))
+            .Select(e => e.Pregunta)
+            .ToList();
+
+        Assert.True(
+            viejos.Count == 0,
+            "Examples reading the legacy dedication text instead of dedicacion_id: "
+            + string.Join(" · ", viejos));
+    }
+
+    [Fact]
+    public async Task Literals_on_closed_catalog_columns_exist_in_the_seed()
+    {
+        // The prompt lists the values of the closed catalogs so the model uses the
+        // exact one. An example whose literal is not in the catalog shows the model
+        // a filter that matches nothing — and count(*) hides it behind a zero.
+        await SembrarAsync();
+
+        var cerrados = LectorDeValoresDeCatalogo.CatalogosCerrados.ToHashSet();
+        var inexistentes = new List<string>();
+
+        foreach (var ejemplo in new SelectorDeEjemplos().Catalogo)
+        {
+            foreach (var (esquema, tabla, columna, literal) in IgualdadesConLiteral(ejemplo.Sql))
+            {
+                if (!cerrados.Contains((esquema, tabla, columna)))
+                {
+                    continue;
+                }
+
+                await using var conexion = await AbrirConexionAsync();
+                await using var comando = new NpgsqlCommand(
+                    $"SELECT EXISTS (SELECT 1 FROM {esquema}.{tabla} WHERE {columna} = @literal)", conexion);
+                comando.Parameters.AddWithValue("literal", literal);
+
+                if (await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken) is not true)
+                {
+                    inexistentes.Add($"«{ejemplo.Pregunta}»: {tabla}.{columna} = '{literal}'");
+                }
+            }
+        }
+
+        Assert.True(
+            inexistentes.Count == 0,
+            "Examples filtering a closed catalog by a value that does not exist:"
+            + Environment.NewLine + string.Join(Environment.NewLine, inexistentes));
+    }
+
+    /// <summary>
+    /// Every <c>alias.column = 'literal'</c> of a query, with the alias resolved to
+    /// its table through the FROM/JOIN clauses.
+    /// </summary>
+    private static IEnumerable<(string Esquema, string Tabla, string Columna, string Literal)>
+        IgualdadesConLiteral(string sql)
+    {
+        var tablas = new Dictionary<string, (string Esquema, string Tabla)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match origen in Regex.Matches(
+                     sql, @"\b(?:FROM|JOIN)\s+([a-z_]+)\.([a-z_]+)(?:\s+(?:AS\s+)?([a-z_]+))?", RegexOptions.IgnoreCase))
+        {
+            var tabla = (origen.Groups[1].Value.ToLowerInvariant(), origen.Groups[2].Value.ToLowerInvariant());
+            tablas[origen.Groups[2].Value] = tabla;
+            if (origen.Groups[3].Success)
+            {
+                tablas[origen.Groups[3].Value] = tabla;
+            }
+        }
+
+        foreach (Match igualdad in Regex.Matches(sql, @"\b([a-z_]+)\.([a-z_]+)\s*=\s*'((?:[^']|'')*)'", RegexOptions.IgnoreCase))
+        {
+            if (tablas.TryGetValue(igualdad.Groups[1].Value, out var tabla))
+            {
+                yield return (
+                    tabla.Esquema,
+                    tabla.Tabla,
+                    igualdad.Groups[2].Value.ToLowerInvariant(),
+                    igualdad.Groups[3].Value.Replace("''", "'", StringComparison.Ordinal));
+            }
+        }
+    }
 }

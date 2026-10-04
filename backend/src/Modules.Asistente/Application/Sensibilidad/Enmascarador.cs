@@ -3,6 +3,21 @@ using System.Globalization;
 namespace Modules.Asistente.Application;
 
 /// <summary>
+/// What gets hidden from the result before redaction.
+/// </summary>
+internal enum ModoDeEnmascarado
+{
+    /// <summary>Markers for <c>sensible-valor</c>, and <c>sensible-texto</c> is suppressed.</summary>
+    Todo,
+
+    /// <summary>
+    /// Only <c>sensible-texto</c> is suppressed; <c>sensible-valor</c> values pass
+    /// through. Chosen by <see cref="OpcionesAsistente.RedaccionSinEnmascararVigente"/>.
+    /// </summary>
+    SoloTextoLibre,
+}
+
+/// <summary>
 /// Frontera de salida: qué del resultado puede viajar al proveedor del modelo.
 /// </summary>
 /// <remarks>
@@ -32,9 +47,11 @@ internal static class Enmascarador
     /// Las columnas <see cref="ClasificacionDeSensibilidad.SensibleTexto"/>
     /// desaparecen enteras —nombre incluido— y las
     /// <see cref="ClasificacionDeSensibilidad.SensibleValor"/> conservan su columna
-    /// con los valores reemplazados por marcadores.
+    /// con los valores reemplazados por marcadores. With
+    /// <see cref="ModoDeEnmascarado.SoloTextoLibre"/> the values are not replaced.
     /// </remarks>
-    public static ResultadoDeConsulta Enmascarar(ResultadoDeConsulta resultado)
+    public static ResultadoDeConsulta Enmascarar(
+        ResultadoDeConsulta resultado, ModoDeEnmascarado modo = ModoDeEnmascarado.Todo)
     {
         ArgumentNullException.ThrowIfNull(resultado);
 
@@ -47,7 +64,7 @@ internal static class Enmascarador
             .ToArray();
 
         if (sobrevivientes.Length == resultado.Columnas.Count
-            && !resultado.TieneColumnasTapadas)
+            && (modo == ModoDeEnmascarado.SoloTextoLibre || !resultado.TieneColumnasTapadas))
         {
             // Nada que enmascarar: se devuelve la misma instancia para no pagar
             // una copia en el caso corriente, que es la mayoría de los turnos.
@@ -61,7 +78,8 @@ internal static class Enmascarador
                 .Select(indice => Enmascarar(
                     indice < fila.Count ? fila[indice] : null,
                     Sensibilidad(sensibilidad, indice),
-                    marcadores))
+                    marcadores,
+                    modo))
                 .ToArray())
             .ToArray();
 
@@ -73,9 +91,13 @@ internal static class Enmascarador
     }
 
     private static object? Enmascarar(
-        object? valor, SensibilidadDeColumna sensibilidad, Marcadores marcadores)
+        object? valor,
+        SensibilidadDeColumna sensibilidad,
+        Marcadores marcadores,
+        ModoDeEnmascarado modo)
     {
-        if (sensibilidad.Clasificacion != ClasificacionDeSensibilidad.SensibleValor)
+        if (modo == ModoDeEnmascarado.SoloTextoLibre
+            || sensibilidad.Clasificacion != ClasificacionDeSensibilidad.SensibleValor)
         {
             return valor;
         }

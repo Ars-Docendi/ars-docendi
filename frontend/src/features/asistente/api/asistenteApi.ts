@@ -1,3 +1,5 @@
+import { AxiosError, type AxiosResponse } from "axios";
+
 import { apiClient } from "../../../shared/api/client";
 import type {
   CapacidadesDelAsistente,
@@ -75,6 +77,130 @@ export async function consultar(
     },
   );
   return data;
+}
+
+export interface OpcionesDeConsultaEnFlujo extends OpcionesDeConsulta {
+  /** Recibe la redacción acumulada hasta ahora, cada vez que crece. */
+  alRecibirRedaccion: (parcial: string) => void;
+}
+
+/** Lo que trae, hasta ahora, una respuesta `text/event-stream` del turno. */
+export interface EventosDelFlujo {
+  /** Los fragmentos de `redaccion` concatenados. */
+  redaccion: string;
+  /** El `data` crudo del evento `resultado`, si ya llegó. */
+  resultado?: string;
+  /** El status del evento `error`, si llegó. */
+  errorStatus?: number;
+}
+
+/**
+ * Lee los eventos COMPLETOS de un `text/event-stream`: el último bloque, si
+ * todavía no terminó en línea en blanco, se deja para la próxima lectura.
+ * Sólo parsea los fragmentos; el resultado se devuelve crudo para no parsear
+ * las filas en cada progreso.
+ */
+export function leerEventosDelFlujo(texto: string): EventosDelFlujo {
+  const eventos: EventosDelFlujo = { redaccion: "" };
+  const bloques = texto.split("\n\n");
+  // El último es lo que vino después del último separador: incompleto o vacío.
+  bloques.pop();
+
+  for (const bloque of bloques) {
+    let nombre = "message";
+    const datos: string[] = [];
+    for (const linea of bloque.split("\n")) {
+      if (linea.startsWith("event:")) nombre = linea.slice(6).trim();
+      else if (linea.startsWith("data:")) datos.push(linea.slice(5).trimStart());
+    }
+    const dato = datos.join("\n");
+
+    if (nombre === "redaccion") {
+      const { texto: fragmento } = JSON.parse(dato) as { texto: string };
+      eventos.redaccion += fragmento;
+    } else if (nombre === "resultado") {
+      eventos.resultado = dato;
+    } else if (nombre === "error") {
+      eventos.errorStatus = (JSON.parse(dato) as { status: number }).status;
+    }
+  }
+
+  return eventos;
+}
+
+/**
+ * Un turno por `POST /consultas/flujo`: el mismo pedido, la misma clave y la
+ * misma respuesta que {@link consultar}, con la redacción llegando por partes
+ * mientras se escribe (asistente-optimizaciones-modelo-local, D9).
+ *
+ * VA POR AXIOS Y NO POR `fetch` a propósito: así comparte cabeceras de sesión,
+ * cancelación, timeout y la forma de los errores con el resto del turno, y
+ * `mensajeDeError` no necesita un segundo vocabulario. El adaptador es XHR
+ * porque es el que expone el texto parcial en cada progreso; axios los limita a
+ * unos tres por segundo, que alcanza para leer y es lo que se pinta.
+ *
+ * Un rechazo antes de empezar (400, 404, 409) llega como cualquier error HTTP;
+ * un `error` dentro del flujo se convierte en uno con ese status.
+ */
+export async function consultarEnFlujo(
+  consulta: ConsultaDelAsistente,
+  claveDeIdempotencia: string,
+  { signal, alRecibirRedaccion }: OpcionesDeConsultaEnFlujo,
+): Promise<RespuestaDelAsistente> {
+  let mostrada = 0;
+
+  const respuesta = await apiClient.post<string>("/api/asistente/consultas/flujo", consulta, {
+    headers: { "Idempotency-Key": claveDeIdempotencia, Accept: "text/event-stream" },
+    signal,
+    timeout: PRESUPUESTO_DEL_TURNO_MS,
+    adapter: "xhr",
+    responseType: "text",
+    // Un rechazo trae `ProblemDetails` en JSON y el resto de la feature lo lee
+    // como objeto (`esMencionNoDisponible`); el flujo se deja como texto.
+    transformResponse: [
+      (datos: unknown, cabeceras) => {
+        const tipo = String(cabeceras?.["content-type"] ?? "");
+        if (typeof datos !== "string" || !tipo.includes("json")) return datos;
+        try {
+          return JSON.parse(datos) as unknown;
+        } catch {
+          return datos;
+        }
+      },
+    ],
+    onDownloadProgress: (progreso) => {
+      const xhr = (progreso.event as ProgressEvent | undefined)?.target as
+        XMLHttpRequest | undefined;
+      if (!xhr?.responseText) return;
+      const { redaccion } = leerEventosDelFlujo(xhr.responseText);
+      if (redaccion.length > mostrada) {
+        mostrada = redaccion.length;
+        alRecibirRedaccion(redaccion);
+      }
+    },
+  });
+
+  const eventos = leerEventosDelFlujo(respuesta.data);
+  if (eventos.resultado !== undefined) {
+    return JSON.parse(eventos.resultado) as RespuestaDelAsistente;
+  }
+
+  // Sin resultado: o el servidor avisó qué pasó, o el flujo se cortó.
+  throw new AxiosError(
+    "El turno no terminó.",
+    eventos.errorStatus === undefined ? AxiosError.ERR_NETWORK : AxiosError.ERR_BAD_RESPONSE,
+    respuesta.config,
+    respuesta.request,
+    eventos.errorStatus === undefined
+      ? undefined
+      : ({
+          data: null,
+          status: eventos.errorStatus,
+          statusText: "",
+          headers: {},
+          config: respuesta.config,
+        } as AxiosResponse),
+  );
 }
 
 /**

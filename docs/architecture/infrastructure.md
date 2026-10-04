@@ -46,6 +46,29 @@ VM Proxmox:     cloudflared → Traefik → staging + pr-N
                Redes, bases y objetos estrictamente locales a cada host.
 ```
 
+### Modelo propio del asistente (opcional)
+
+Con `ASISTENTE_PROVEEDOR=local`, el backend habla con un servidor OpenAI-compatible
+**compartido por los ambientes**, igual que PostgreSQL: su propio Compose project
+(`infra/compose/compose.llm.yml`, contenedor `arsdocendi-llm`) en la red
+`arsdocendi-datos`, **sin puerto publicado** y con `--api-key`. El host necesita la GPU
+(RTX 5070, 12 GB), driver NVIDIA ≥ 580 y `nvidia-container-toolkit`. `spin-up.sh` suma
+`compose.asistente-local.yml` al ambiente para apuntarlo ahí con el perfil de valores
+del change `asistente-proveedor-local`.
+
+La compuerta de concurrencia es por proceso: con varios ambientes contra la misma
+GPU, el límite real es la suma de sus `ASISTENTE_MAX_LLAMADAS_CONCURRENTES`, y tiene
+que igualar el `--max-num-seqs` del servidor. Dimensionamiento, modelo y piloto en
+[modelo-local.md](modelo-local.md). El perfil también prende las optimizaciones de
+`asistente-optimizaciones-modelo-local` (esquema compacto, reparación, plantillas,
+caché de consultas, streaming de la redacción, etc.); para medir una con el
+evaluador se la apaga ahí.
+
+`infra/compose/compose.llm-3070.yml` **no es infraestructura de ambientes**: es un
+`llama-server` suelto, publicado sólo en `127.0.0.1:8000`, para probar el asistente
+desde una PC de desarrollo con una RTX 3070 y el backend en `dotnet run`. La guía está
+en [modelo-local.md §8](modelo-local.md#8-probar-en-una-rtx-3070).
+
 ## Enrutamiento (Traefik por labels)
 
 Traefik descubre contenedores por el Docker provider leyendo labels. Dar de alta

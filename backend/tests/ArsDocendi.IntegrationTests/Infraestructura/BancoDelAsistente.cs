@@ -269,7 +269,9 @@ internal sealed class BancoDelAsistente
         ContadorDeLlamadasDelTurno contador,
         IOptions<OpcionesAsistente> opcionesDelGenerador,
         ICatalogoDeCapacidades? capacidades = null,
-        ILogger<CarrilSql>? log = null) =>
+        ILogger<CarrilSql>? log = null,
+        CacheDeConsultasGeneradas? cache = null,
+        IOptions<OpcionesAsistente>? opcionesDelRedactor = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -277,10 +279,11 @@ internal sealed class BancoDelAsistente
                 conTecho,
                 new FechaDeReferenciaFija(FechaDeReferencia),
                 opcionesDelGenerador,
-                NullLogger<GeneradorDeSql>.Instance),
+                NullLogger<GeneradorDeSql>.Instance,
+                cache),
             ejecutor,
             new ConsultorDeAlcance(apertura),
-            new RedactorDeRespuesta(conTecho, Options.Create(new OpcionesAsistente())),
+            new RedactorDeRespuesta(conTecho, opcionesDelRedactor ?? Options.Create(new OpcionesAsistente())),
             new ConsultorDeCobertura(apertura),
             new BuscadorDeMenciones(apertura),
             contador,
@@ -303,5 +306,6 @@ internal sealed class BancoDelAsistente
                 new CuotaDeActorFalsa(0, TimeProvider.System),
                 new ConsultasIdentityFalsa(),
                 NullLogger<CatalogoDeCapacidades>.Instance),
+            opcionesDelRedactor ?? Options.Create(new OpcionesAsistente()),
             log ?? NullLogger<CarrilSql>.Instance);
 }

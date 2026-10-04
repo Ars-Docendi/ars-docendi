@@ -613,8 +613,15 @@ public sealed class CapaConversacional(
         // paso de acá que se saltea sin modelo. Sin él la pregunta sigue cruda: un
         // seguimiento con anáfora va a resolver peor, pero un turno autocontenido
         // —que es la mayoría— no pierde nada.
-        var interpretada = hayModelo
-            ? await reescritor.ReescribirAsync(pregunta, historial, ct)
+        //
+        // CON LA REESCRITURA DENTRO DE LA GENERACIÓN (asistente-optimizaciones-
+        // modelo-local, D7) no se llama al reescritor: la generación recibe las
+        // preguntas anteriores y devuelve la pregunta resuelta junto con la
+        // consulta. Una llamada menos por seguimiento, a cambio de que el
+        // enrutador en sombra y el detector de ambigüedad vean la pregunta cruda.
+        var reescribeLaGeneracion = valores.ReescrituraEnLaGeneracion;
+        var interpretada = hayModelo && !reescribeLaGeneracion
+            ? await ReescribirOCrudaAsync(pregunta, historial, ct)
             : pregunta;
 
         // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después
@@ -698,9 +705,21 @@ public sealed class CapaConversacional(
         // el pedido sólo trae el id del hilo, y cualquier conteo en el cuerpo
         // sería forjable y le dejaría al cliente fijar la primera variante
         // para siempre.
+        IReadOnlyList<string>? preguntasAnteriores = reescribeLaGeneracion && historial.Count > 0
+            ? [.. historial.Select(turno => turno.Pregunta)]
+            : null;
+
         var resultado = await carril.ResponderAsync(
             actor, mensaje, aMostrar, ct, consultasAnteriores, mencionesNuevas, referenciasHeredadas,
-            conversacion.RechazosPrevios());
+            conversacion.RechazosPrevios(), preguntasAnteriores);
+
+        // Lo que queda en el hilo es la pregunta RESUELTA: con la reescritura en la
+        // generación es la que devolvió el modelo, y es la que el próximo
+        // seguimiento tiene que continuar.
+        if (reescribeLaGeneracion && resultado.PreguntaInterpretada is { } resuelta)
+        {
+            interpretada = resuelta;
+        }
 
         // La consulta que respondió, no la que se generó: con reintento el carril ya
         // dejó en SqlEjecutado la segunda. Un turno sin filas la trae nula, y ahí se
@@ -799,4 +818,33 @@ public sealed class CapaConversacional(
             _ => PoliticaDeAbstencion.TextoServicioDegradado,
         };
 
+    /// <summary>
+    /// La reescritura, o la pregunta tal cual si el proveedor falla
+    /// (asistente-proveedor-local, design.md D5).
+    /// </summary>
+    /// <remarks>
+    /// La llamada del reescritor queda fuera del <c>try</c> del carril SQL, así
+    /// que una falla del proveedor acá —saturado, corte abierto, timeout,
+    /// transporte— terminaba el turno en «excepción no prevista». Se resuelve
+    /// igual que cuando no hay modelo: sin reescritura la pregunta sigue cruda, y
+    /// el carril decide después si puede o no llamar al modelo para generar.
+    /// Las cancelaciones del request y del presupuesto del turno se propagan.
+    /// </remarks>
+    private async Task<string> ReescribirOCrudaAsync(
+        string pregunta, IReadOnlyList<TurnoDelHilo> turnosAnteriores, CancellationToken ct)
+    {
+        try
+        {
+            return await reescritor.ReescribirAsync(pregunta, turnosAnteriores, ct);
+        }
+        catch (Exception excepcion) when (excepcion is ProveedorSaturado
+            or ProveedorNoDisponible
+            or TimeoutDelProveedor
+            or HttpRequestException)
+        {
+            log.LogWarning(
+                excepcion, "No se pudo reescribir el seguimiento; se sigue con la pregunta tal cual.");
+            return pregunta;
+        }
+    }
 }
