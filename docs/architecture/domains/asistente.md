@@ -314,6 +314,10 @@ Dos llamadas al modelo por turno; todo lo del medio, determinista.
 | `PoliticaDeAbstencion` | Guard de vacío y decisión de reintento                              | 0      |
 | `RedactorDeRespuesta`  | **Llamada 2**: temperatura 0,3, sin caché                           | 1      |
 
+### El orden de la parte fija del prompt
+
+El prefijo estable es, en este orden: las instrucciones, «VALORES POSIBLES» (las cuatro columnas de catálogo y, con `GlosarioEnElPrefijo`, las dedicaciones), el esquema, el «GLOSARIO INSTITUCIONAL» (sólo con esa opción) y los ejemplos (sólo con `EjemplosEnElPrefijo`). Lo opcional va al final para que prender una opción invalide la caché desde ese punto y no desde el comienzo. `GlosarioEnElPrefijo` está **apagada por defecto**: la medición contra el modelo local empeoró capacidad y social ([modelo-local.md §6](../modelo-local.md)).
+
 ### Cuatro capas de defensa, independientes entre sí
 
 1. **El rol** no tiene ningún privilegio de mutación (`42501`).

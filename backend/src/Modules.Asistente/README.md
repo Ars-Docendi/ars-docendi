@@ -252,6 +252,44 @@ son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
 ejemplos que ya vio — y como el catálogo de capacidades deriva sus sugerencias de
 acá, el asistente estaría proponiendo las preguntas con las que se lo evalúa.
 
+### Cómo se agrega un término al glosario
+
+`Recursos/glosario.json`, embebido como recurso del assembly. Cada término lleva
+`termino`, `sinonimos`, `explicacion` y al menos una `referencias`: una columna
+`schema.tabla.columna` con los valores que le corresponden.
+
+Se verifican solas (`CatalogoDeGlosarioTests`, `GlosarioInstitucionalTests` y
+`RenderizadoDelGlosarioTests`):
+
+- el archivo es válido: campos obligatorios, términos únicos sin contar mayúsculas ni
+  acentos, y un mensaje que nombra el término cuando algo falla;
+- cada columna **existe** en la base migrada, es legible con el rol básico y no es
+  `sensible-texto`;
+- cada valor **existe** donde se lo declara: en el `CHECK` de la columna o, si no hay
+  `CHECK`, en el catálogo contra el que dice verificarse;
+- toda columna con nombre propio que cite la explicación existe;
+- el bloque se renderiza byte a byte igual entre llamadas y entre los dos roles, en el
+  orden del archivo.
+
+**Un valor que no se puede verificar no puede estar en el archivo.** Si una migración
+mueve un estado fuera de su `CHECK`, el test falla nombrando el término: ese fallo es
+el punto.
+
+**Un sinónimo necesita fuente**: la interfaz, una PR o un comentario de columna. Un
+sinónimo supuesto es una apuesta sobre cómo habla el Departamento, y puede llevar al
+modelo hacia la columna equivocada.
+
+**Todo término nuevo se mide antes de quedar.** El glosario entero, con 24 términos
+revisados, empeoró dos ejes; un término más cambia lo que reciben muchas preguntas.
+
+**Invariante que hay que sostener a mano**: el glosario y los datasets de evaluación
+son disjuntos. Un término no se agrega en respuesta a un ítem que falla: la métrica
+pasaría a medir cuánto del dataset se copió.
+
+**De dónde salió el vocabulario.** Se armó del repositorio, de las PRs #27, #32 y #38
+y de la rama `feature/reserva-aulas`. **No se validó con el Departamento** (ARS-65 sigue
+abierta) y no se derivó de los datasets de evaluación.
+
 ### Cuándo se recalcula el prefijo
 
 **Al reiniciar el proceso, y solo entonces.** El prefijo se construye la primera
@@ -869,6 +907,7 @@ tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la 
 | ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                                                                                 |
 | `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos; con llama-server también midió mejor                     |
+| `GlosarioEnElPrefijo`               | `false` | El vocabulario del Departamento (`Recursos/glosario.json`) y las dedicaciones van en el prefijo, entre el esquema y los ejemplos                                                           |
 | `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                                                                                 |
 | `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo                                                                      |
 | `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                                                                           |
@@ -878,6 +917,15 @@ tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la 
 | `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                                                   |
 | `RazonamientoEnSegundaGeneracion`   | `false` | La segunda generación del turno (reintento por vacío o reparación) se pide con esfuerzo alto, o sea con razonamiento si el servidor lo permite. Con `--reasoning-budget 0` no tiene efecto |
 | `MaximoDeTokensDeSegundaGeneracion` | 0       | Techo de tokens de esa segunda generación, que razona antes de escribir la consulta. Cero usa `MaximoDeTokensDeGeneracion`; sin la opción anterior no rige                                 |
+
+**`GlosarioEnElPrefijo` está medida y se queda apagada.** Con la opción prendida el
+prefijo suma dos bloques, los dos sólo con ella: el glosario institucional
+(`Recursos/glosario.json`, el vocabulario del Departamento con el valor exacto que le
+corresponde en el esquema) y las dedicaciones como catálogo cerrado, «Categoría 1» a
+«Categoría 6» con su código. Van después del esquema y antes de los ejemplos. Contra
+Qwen3-8B empeoró capacidad (26/34 a 25/34) y social (18/20 a 17/20), así que ningún
+perfil la prende. La medición, los ítems que cambiaron y la hipótesis sin verificar están
+en [modelo-local.md §6](../../../docs/architecture/modelo-local.md).
 
 **`RedaccionSinEnmascarar` no es una optimización.** Se mide más lenta (la redacción pasa
 de 0,45 a 0,57 s con una fila y de 0,42 a 0,70 s con tres, y el prompt crece un 28 % con 24

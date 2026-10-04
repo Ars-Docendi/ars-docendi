@@ -523,6 +523,15 @@ public sealed class OpcionesAsistente
     public bool EjemplosEnElPrefijo { get; set; }
 
     /// <summary>
+    /// Pone el glosario institucional —el vocabulario del Departamento y el valor
+    /// exacto que le corresponde en el esquema— en el prefijo cacheable, después
+    /// del esquema y antes de los ejemplos, y suma al bloque «VALORES POSIBLES» el
+    /// catálogo de dedicaciones (asistente-glosario-institucional, D1 y D2). Con el
+    /// default el prefijo es BYTE A BYTE el de siempre.
+    /// </summary>
+    public bool GlosarioEnElPrefijo { get; set; }
+
+    /// <summary>
     /// El reintento por consulta vacía le dice al modelo qué consulta no trajo
     /// filas, en vez de repetir el prompt idéntico (D4). Sólo aplica con
     /// <see cref="ReintentarConsultaVacia"/> prendido.

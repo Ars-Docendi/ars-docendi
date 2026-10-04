@@ -241,6 +241,42 @@ El razonamiento convive con la salida restringida (`response_format: json_schema
 
 **Decisión: queda apagada.** Cumple el criterio de no empeorar ningún eje, pero el efecto es un ítem y no es el que se buscaba (que razonar corrigiera la consulta). Para probarla de nuevo —con otro modelo, o cuando exista la reparación del rechazo del validador (ARS-75)— hace falta arrancar el servidor con la tercera fila de la tabla y poner `Asistente__RazonamientoEnSegundaGeneracion=true` y `Asistente__MaximoDeTokensDeSegundaGeneracion=2000`.
 
+### Disponible y apagado: `asistente-glosario-institucional`
+
+Opt-in (`GlosarioEnElPrefijo`, default `false`): agrega al prefijo el glosario institucional (24 términos del Departamento con el valor exacto que les corresponde en el esquema, `Recursos/glosario.json`) y las dedicaciones como catálogo cerrado, «Categoría 1» a «Categoría 6» con su código. Va después del esquema y antes de los ejemplos. Cada columna y cada valor del glosario se verifican contra la base migrada.
+
+**Consecuencia para los cassettes.** Con la opción apagada el prefijo es el de siempre, byte a byte: los cassettes siguen valiendo y no se regrabó nada. Prendida, el prefijo difiere de todos los cassettes y el replay falla sin tocar la red. La regrabación paga con Claude y la evaluación del lado de Claude quedan diferidas y acopladas a ARS-161 (una sola regrabación para las dos).
+
+Medido el 2026-10-03 con el evaluador contra Qwen3-8B Q4_K_M en una RTX 3070 (llama-server build 11371, un slot de 16.384 tokens), perfil optimizado (el bloque RTX 3070 de `.env.example`). La corrida es determinista: tres corridas idénticas no cambiaron ningún ítem. Los reportes están en `eval-local/ARS-164/control/` y `eval-local/ARS-164/glosario/` (sin versionar).
+
+**Tamaño del prompt.** El bloque del glosario mide 4.836 caracteres; el prefijo completo con él, 31.018 (esquema compacto). La solicitud más larga crece 1.237 tokens, de 9.797 a 11.034: entra en el slot de 16.384 y en el de 13.312 que documenta §8.
+
+| Corrida                  | Capacidad (aciertos) | Capacidad normalizada @0,5 / @1,0 / @2,0 | Robustez | Diálogo | Social (aciertos) | Truncadas | Prompt más largo | Duración | Turno p50 / p95 |
+| ------------------------ | -------------------- | ---------------------------------------- | -------- | ------- | ----------------- | --------- | ---------------- | -------- | --------------- |
+| Control (opción apagada) | 26/34                | 66,2 % / 55,9 % / 35,3 %                 | 12/15    | 10/11   | 18/20 (80,0 %)    | 0         | 9.797 tokens     | 307 s    | 2,9 s / 7,5 s   |
+| `GlosarioEnElPrefijo`    | 25/34                | 61,8 % / 50,0 % / 26,5 %                 | 12/15    | 10/11   | 17/20 (70,0 %)    | 1         | 11.034 tokens    | 319 s    | 3,5 s / 7,2 s   |
+
+El control reproduce la línea de base local (ARS-162: 26/34, 12/15, 10/11, 18/20) sin cambiar ningún ítem: el entorno es la línea de base y el hash del prefijo es el de ella. Con la opción prendida el hash cambia, y con él el sello del evaluador, como corresponde.
+
+**Ítems que cambiaron (capacidad).**
+
+| Ítem      | Pregunta                                                        | Control    | Con glosario                     |
+| --------- | --------------------------------------------------------------- | ---------- | -------------------------------- |
+| `cap-014` | «¿Cuántas solicitudes de baja se presentaron?»                  | incorrecto | correcto                         |
+| `cap-023` | «¿Qué solicitudes de la asignatura que dirijo puedo consultar?» | se abstuvo | correcto                         |
+| `cap-013` | «¿Qué nombramientos ya se cerraron?»                            | correcto   | incorrecto                       |
+| `cap-016` | «¿Qué solicitudes están marcadas como urgentes?»                | correcto   | incorrecto                       |
+| `cap-026` | «¿Quiénes tienen un posgrado terminado?»                        | correcto   | incorrecto (0 filas en vez de 3) |
+| `cap-008` | «¿Qué solicitudes puedo ver de mi carrera?»                     | incorrecto | truncado por el techo de tokens  |
+
+En social cambió `soc-016`: de correcto a «el enrutador capturó una pregunta legítima». En robustez y diálogo no cambió ningún ítem. Neto en capacidad: 2 ganados, 3 perdidos, una respuesta falsa más y una truncación que antes no existía.
+
+**Decisión: no se promueve** (regla de promoción, design D10: capacidad y robustez mejoran, diálogo y social no empeoran). Capacidad y social empeoran, así que la opción sigue apagada; `.env.example` e `infra/` no se tocan.
+
+**Hipótesis, sin verificar.** Los reportes no guardan la SQL generada, así que la causa no está comprobada. Dos de las tres pérdidas usan «cerraron» y «terminado»; el glosario declara «cerrado» y «terminado» como sinónimos de «finalizado», un estado de pedido, y pudo arrastrar preguntas sobre designaciones y formación hacia el estado del pedido. Esos dos sinónimos entraron en el borrador sin una fuente en el repositorio; los que salen de la interfaz o de las PRs sí la tienen.
+
+**Seguimiento posible, no hecho.** Una segunda versión que conserve sólo los sinónimos con fuente. Tiene un riesgo que hay que declarar: se corregiría mirando justo los ítems del dataset donde falló, y eso rompe la disyunción entre glosario y evaluación. Si se hace, la segunda versión se mide sobre el dataset completo y no sólo sobre esos ítems.
+
 ### Evaluado y dejado para después
 
 | Técnica                                                  | Por qué no                                                                                                                                                                                                                                                                             |

@@ -20,11 +20,21 @@ internal static class RenderizadorDeEsquema
     /// contenido en menos texto. <c>false</c> —el default— produce BYTE A BYTE
     /// el prefijo de siempre, que es el que sellan los cassettes.
     /// </param>
+    /// <param name="bloqueDeGlosario">
+    /// El bloque «GLOSARIO INSTITUCIONAL» (asistente-glosario-institucional, D6),
+    /// que va al FINAL del prefijo, después del esquema, en las dos formas.
+    /// <c>null</c> —el default— no agrega nada: el prefijo es BYTE A BYTE el de
+    /// siempre. Va acá y no en <c>GeneradorDeSql</c> para quedar dentro de
+    /// <c>EsquemaParaPrompt.Huella</c>: así el sello del evaluador cambia cuando la
+    /// opción cambia, y una corrida con glosario no se compara con una sin él como
+    /// si fueran el mismo prompt.
+    /// </param>
     public static string Renderizar(
         IReadOnlyList<ColumnaLegible> columnas,
         IReadOnlyList<ReferenciaLegible> referencias,
         IReadOnlyList<VocabularioDeUnaColumna> vocabularios,
-        bool compacto = false)
+        bool compacto = false,
+        string? bloqueDeGlosario = null)
     {
         var texto = new StringBuilder(InstruccionesDeGeneracion.Instrucciones);
         texto.Append('\n');
@@ -37,7 +47,7 @@ internal static class RenderizadorDeEsquema
         if (compacto)
         {
             EscribirCompacto(texto, columnas, referencias);
-            return texto.ToString();
+            return texto.Append(bloqueDeGlosario).ToString();
         }
 
         var porTabla = columnas
@@ -52,7 +62,7 @@ internal static class RenderizadorDeEsquema
 
         EscribirReferencias(texto, referencias);
 
-        return texto.ToString();
+        return texto.Append(bloqueDeGlosario).ToString();
     }
 
     private static void EscribirVocabulario(

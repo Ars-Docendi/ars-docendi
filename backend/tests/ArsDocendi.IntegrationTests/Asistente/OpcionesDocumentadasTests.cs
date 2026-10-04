@@ -46,6 +46,16 @@ public sealed partial class OpcionesDocumentadasTests
         @"^\|\s*`Asistente__(?<opcion>\w+)`\s*\|\s*vacío\s*\|", RegexOptions.Multiline)]
     private static partial Regex FilaVacia();
 
+    /// <summary>
+    /// Filas cuyo default es un booleano, escrito <c>`true`</c> o <c>`false`</c>.
+    /// </summary>
+    /// <remarks>
+    /// Una opción booleana documentada «apagada» que en el código está prendida es
+    /// la forma más cara de mentir: quien la lee confía en que el prompt no cambia.
+    /// </remarks>
+    [GeneratedRegex(@"^\|\s*`(?<opcion>\w+)`\s*\|\s*`(?<default>true|false)`\s*\|", RegexOptions.Multiline)]
+    private static partial Regex FilaBooleana();
+
     [Fact]
     public void Cada_default_documentado_coincide_con_el_del_codigo()
     {
@@ -88,6 +98,61 @@ public sealed partial class OpcionesDocumentadasTests
             "La tabla de configuración del README no coincide con los defaults del código:"
             + Environment.NewLine
             + string.Join(Environment.NewLine, derivas));
+    }
+
+    [Fact]
+    public void Cada_default_booleano_documentado_coincide_con_el_del_codigo()
+    {
+        var documentadas = FilaBooleana()
+            .Matches(Readme())
+            .Select(fila => (
+                Opcion: fila.Groups["opcion"].Value,
+                Documentado: bool.Parse(fila.Groups["default"].Value)))
+            .ToList();
+
+        Assert.NotEmpty(documentadas);
+
+        var reales = new OpcionesAsistente();
+        var derivas = new List<string>();
+
+        foreach (var (opcion, documentado) in documentadas)
+        {
+            var propiedad = typeof(OpcionesAsistente).GetProperty(
+                opcion, BindingFlags.Public | BindingFlags.Instance);
+
+            if (propiedad is null || propiedad.PropertyType != typeof(bool))
+            {
+                derivas.Add($"{opcion}: el README la documenta y no es una opción booleana del código.");
+                continue;
+            }
+
+            var real = (bool)propiedad.GetValue(reales)!;
+
+            if (real != documentado)
+            {
+                derivas.Add($"{opcion}: el código dice {real} y el README dice {documentado}.");
+            }
+        }
+
+        Assert.True(
+            derivas.Count == 0,
+            "Hay defaults booleanos del README que no coinciden con los del código:"
+            + Environment.NewLine
+            + string.Join(Environment.NewLine, derivas));
+    }
+
+    [Fact]
+    public void El_glosario_esta_documentado_apagado()
+    {
+        // La garantía del change asistente-glosario-institucional: con el default el
+        // prefijo no cambia. Se busca por nombre porque el test de arriba sólo valida
+        // las filas que existen; no exige que ésta exista.
+        var fila = FilaBooleana()
+            .Matches(Readme())
+            .SingleOrDefault(f => f.Groups["opcion"].Value == "GlosarioEnElPrefijo");
+
+        Assert.NotNull(fila);
+        Assert.Equal("false", fila.Groups["default"].Value);
     }
 
     [Fact]

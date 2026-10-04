@@ -49,6 +49,7 @@
   -->
   <ItemGroup>
     <EmbeddedResource Include="Recursos\ejemplos-sql.json" />
+    <EmbeddedResource Include="Recursos\glosario.json" />
     <EmbeddedResource Include="Recursos\intenciones.json" />
   </ItemGroup>
 

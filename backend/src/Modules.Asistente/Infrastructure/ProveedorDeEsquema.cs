@@ -25,9 +25,9 @@ namespace Modules.Asistente.Infrastructure;
 /// tal en lugar de pasar desapercibida.
 /// </remarks>
 /// <param name="opciones">
-/// Opcional: sólo decide <see cref="OpcionesAsistente.EsquemaCompacto"/>. Sin
-/// opciones —como lo construyen los tests de cassettes— el prefijo es el de
-/// siempre.
+/// Opcional: sólo decide <see cref="OpcionesAsistente.EsquemaCompacto"/> y
+/// <see cref="OpcionesAsistente.GlosarioEnElPrefijo"/>. Sin opciones —como lo
+/// construyen los tests de cassettes— el prefijo es el de siempre.
 /// </param>
 internal sealed class ProveedorDeEsquema(
     AperturaDeLectura apertura, IOptions<OpcionesAsistente>? opciones = null) : IProveedorDeEsquema
@@ -51,10 +51,18 @@ internal sealed class ProveedorDeEsquema(
         // Los valores de los catálogos cerrados viajan con el esquema y se cachean
         // igual: son tan estables como los nombres de las columnas, y sin ellos el
         // modelo tiene que adivinar cómo está escrito «Ingeniería en Informática».
-        var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct);
+        var conGlosario = opciones?.Value.GlosarioEnElPrefijo ?? false;
+        var vocabularios = await LectorDeValoresDeCatalogo.LeerAsync(conexion, ct, conGlosario);
+
+        // EL GLOSARIO SE LEE SÓLO CON LA OPCIÓN PRENDIDA: un archivo mal formado no
+        // puede tumbar un despliegue con el default. Va dentro del prefijo y por eso
+        // dentro de la huella: el sello del evaluador distingue con glosario de sin él.
+        var bloqueDeGlosario = conGlosario
+            ? RenderizadorDeGlosario.Renderizar(CatalogoDeGlosario.Vigente.Terminos)
+            : null;
 
         var prefijo = RenderizadorDeEsquema.Renderizar(
-            columnas, referencias, vocabularios, opciones?.Value.EsquemaCompacto ?? false);
+            columnas, referencias, vocabularios, opciones?.Value.EsquemaCompacto ?? false, bloqueDeGlosario);
         return new EsquemaParaPrompt(prefijo, Huella(prefijo));
     }
 
