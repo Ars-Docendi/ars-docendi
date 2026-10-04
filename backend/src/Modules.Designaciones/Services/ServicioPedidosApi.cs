@@ -141,8 +141,8 @@ internal sealed class ServicioPedidosApi(
             ?? throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.NoEncontrado, "resource-not-found", "No se encontró el pedido solicitado.");
         var actor = await resolutorActor.ResolverAsync(ct);
-        var carrera = await repositorio.ObtenerCarreraDelPedidoAsync(id, ct);
-        if (!MaquinaEstadosPedido.AlcanzaAmbito(pedido, carrera, actor))
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
+        if (!MaquinaEstadosPedido.AlcanzaAmbito(alcance, actor))
         {
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.Prohibido,
@@ -159,6 +159,10 @@ internal sealed class ServicioPedidosApi(
         var actor = await resolutorActor.ResolverAsync(ct);
         var personas = (await identity.ListarPersonasAsync(ct)).ToDictionary(p => p.Id);
         var materias = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
+        // Nombre de carrera: catálogo informativo materia–plan, sin FK desde pedidos.
+        var carrerasPorMateria = (await identity.ListarMateriasPlanAsync(ct))
+            .GroupBy(mp => (mp.MateriaId, CarreraId: mp.Plan!.CarreraId))
+            .ToDictionary(g => g.Key, g => g.First().Plan!.Carrera!.Nombre);
         var usuarios = (await identity.ListarUsuariosAsync(ct)).ToDictionary(u => u.Id);
         var resultado = new List<PedidoDto>();
         foreach (var pedido in pedidos)
@@ -168,7 +172,7 @@ internal sealed class ServicioPedidosApi(
             {
                 continue;
             }
-            var carrera = materia.CarreraId;
+            var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
             resultado.Add(new PedidoDto(
                 pedido.Id,
                 pedido.Numero,
@@ -178,8 +182,8 @@ internal sealed class ServicioPedidosApi(
                 new PersonaPedidoDto(
                     persona.Id, persona.Nombre, persona.Apellido, persona.Documento, persona.Legajo),
                 new MateriaPedidoDto(
-                    materia.Id, materia.Codigo, materia.Nombre, materia.CarreraId,
-                    materia.Carrera?.Nombre ?? string.Empty),
+                    materia.Id, materia.Codigo, materia.Nombre, pedido.CarreraId,
+                    carrerasPorMateria.GetValueOrDefault((pedido.MateriaId, pedido.CarreraId), string.Empty)),
                 pedido.Novedad,
                 pedido.Estado,
                 pedido.Prioritario,
@@ -212,7 +216,7 @@ internal sealed class ServicioPedidosApi(
                     h.Etapa,
                     h.Comentario,
                     h.CreadoEn)).ToArray(),
-                AccionesPermitidas(pedido, carrera, actor),
+                AccionesPermitidas(pedido, alcance, actor),
                 pedido.DedicacionSolicitadaId));
         }
         return resultado;
@@ -220,7 +224,7 @@ internal sealed class ServicioPedidosApi(
 
     private static IReadOnlyList<string> AccionesPermitidas(
         Pedido pedido,
-        Guid carrera,
+        AlcancePedido alcance,
         ActorContexto actor)
     {
         var acciones = new List<string>();
@@ -239,7 +243,7 @@ internal sealed class ServicioPedidosApi(
         {
             try
             {
-                MaquinaEstadosPedido.AplicarAccion(pedido, carrera, accion, actor);
+                MaquinaEstadosPedido.AplicarAccion(pedido, alcance, accion, actor);
                 acciones.Add(nombre);
             }
             catch (ErrorDominioPedido)
