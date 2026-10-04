@@ -21,6 +21,14 @@ builder.Host.UseSerilog((ctx, lc) => lc
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+
+// Orígenes del front (Vite en desarrollo). Sin configuración no se habilita ninguno.
+var origenesPermitidos = builder.Configuration.GetSection("Cors:OrigenesPermitidos").Get<string[]>() ?? [];
+if (origenesPermitidos.Length > 0)
+{
+    builder.Services.AddCors(opciones => opciones.AddDefaultPolicy(politica =>
+        politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod()));
+}
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
 builder.Services.AddScoped<ServicioDocentes>();
 builder.Services.AddScoped<ServicioUsuariosAdministracion>();
@@ -82,6 +90,11 @@ if (args.Contains("--migrate"))
 
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+
+if (origenesPermitidos.Length > 0)
+{
+    app.UseCors();
+}
 
 if (app.Environment.IsDevelopment())
 {

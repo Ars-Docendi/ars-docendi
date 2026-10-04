@@ -125,7 +125,9 @@ if [ "$YA_SEMBRADO" = "t" ]; then
     warn "Para resetear al dataset original: docker compose down -v && ./scripts/setup.sh"
 else
     log "Sembrando datos de desarrollo (sintético + SGA)..."
-    for seed in infra/scripts/seed-data/sintetico.sql infra/scripts/seed-data/sga.sql; do
+    # sga.sql no está en el repo (datos reales): se obtiene por canal privado y se apunta con
+    # SEED_SGA_FILE, o se deja en su ruta por defecto. Si no existe, se salta con warning.
+    for seed in infra/scripts/seed-data/sintetico.sql "${SEED_SGA_FILE:-infra/scripts/seed-data/sga.sql}"; do
         if [ -f "$seed" ]; then
             docker compose exec -T postgres psql \
                 -U "${POSTGRES_USER:-arsdocendi}" -d "${POSTGRES_DB:-arsdocendi}" \
