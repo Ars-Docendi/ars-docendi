@@ -91,5 +91,6 @@ pgdata/
 
 # ---------- CodeGraph ----------
 .codegraph/
+
 # ---------- Datos reales (PII) — NO versionar; se comparten por canal privado ----------
 infra/scripts/seed-data/sga.sql

@@ -97,6 +97,9 @@ public static class TiposAdjunto
     public const string DniFrente = "dni_frente";
     public const string DniDorso = "dni_dorso";
     public const string Justificativo = "justificativo";
+
+    public static readonly IReadOnlySet<string> Todos =
+        new HashSet<string> { Cv, DniFrente, DniDorso, Justificativo };
 }
 
 /// <summary>Acciones registrables en el historial del trámite.</summary>

@@ -1,4 +1,4 @@
-using Modules.Designaciones.Domain;
+using System.Text.Json.Serialization;
 
 namespace Modules.Designaciones.Api;
 
@@ -18,8 +18,31 @@ public sealed record MateriaPedidoDto(
     Guid CarreraId,
     string CarreraNombre);
 
-public sealed record AdjuntoPedidoDto(Guid Id, string Tipo, string Nombre, string? Uri);
-public sealed record GuardarAdjuntoPedidoDto(string Tipo, string Nombre, string? Uri = null);
+public sealed record AdjuntoPedidoDto(Guid Id, string Tipo, string Nombre, Guid? ArchivoId, string EstadoArchivo);
+
+public sealed record GuardarAdjuntoPedidoDto
+{
+    public string Tipo { get; init; } = string.Empty;
+    public Guid? ArchivoId { get; init; }
+    // Compatibilidad de compilación para consumidores internos anteriores. La API HTTP
+    // solo acepta archivoId y el servicio rechaza esta forma cuando Storage está activo.
+    public string? Nombre { get; init; }
+    public string? Uri { get; init; }
+
+    [JsonConstructor]
+    public GuardarAdjuntoPedidoDto(string tipo, Guid? archivoId)
+    {
+        Tipo = tipo;
+        ArchivoId = archivoId;
+    }
+
+    public GuardarAdjuntoPedidoDto(string tipo, string nombre)
+    {
+        Tipo = tipo;
+        Nombre = nombre;
+    }
+}
+
 public sealed record GuardarPersonaPedidoDto(string Documento, string Nombre, string Apellido);
 
 public sealed record HistorialPedidoDto(
