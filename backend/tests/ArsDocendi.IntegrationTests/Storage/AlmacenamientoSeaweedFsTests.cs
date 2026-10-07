@@ -550,6 +550,9 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
         public Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Materia>>([]);
 
+        public Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<MateriaPlan>>([]);
+
         public Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Persona>>([persona]);
 

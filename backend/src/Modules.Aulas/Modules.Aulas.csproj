@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\Modules.Aulas.Contracts\Modules.Aulas.Contracts.csproj" />
+    <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
   </ItemGroup>
 
 </Project>

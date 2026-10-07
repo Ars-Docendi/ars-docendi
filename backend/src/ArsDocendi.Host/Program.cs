@@ -2,6 +2,7 @@ using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.Shared;
+using ArsDocendi.Migraciones;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,12 +14,25 @@ using Modules.Portal;
 using Modules.Tareas;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+SolicitudMigracion solicitud;
+try { solicitud = SolicitudMigracion.Parsear(args); }
+catch (ArgumentException)
+{
+    Console.Error.WriteLine("Argumentos de migraciones inválidos; elegir un modo único y una ruta segura.");
+    Environment.ExitCode = 2;
+    return;
+}
+var builder = WebApplication.CreateBuilder(solicitud.Modo == ModoMigracion.Ninguno ? args : []);
 
-builder.Host.UseSerilog((ctx, lc) => lc
-    .ReadFrom.Configuration(ctx.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console());
+builder.Host.UseSerilog((ctx, lc) =>
+{
+    if (solicitud.Modo != ModoMigracion.Ninguno)
+        lc.MinimumLevel.Fatal().WriteTo.Console(standardErrorFromLevel: Serilog.Events.LogEventLevel.Verbose);
+    else
+        lc.ReadFrom.Configuration(ctx.Configuration)
+            .Enrich.FromLogContext()
+            .WriteTo.Console();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
@@ -64,6 +78,7 @@ builder.Services.AddSwaggerGen(o =>
 
 builder.Services
     .AddArsDocendiShared(builder.Configuration)
+    .AddMigracionesIdentity()
     .AddAlmacenamientoModule(builder.Configuration)
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
@@ -72,21 +87,16 @@ builder.Services
 
 var app = builder.Build();
 
-// Arranque one-shot de migraciones: aplica las migraciones de cada módulo y
-// termina con exit 0, sin levantar el web server. Lo invoca la infra de deploy
-// (spin-up.sh -> `dotnet ArsDocendi.Host.dll --migrate`). El Host resuelve cada
-// módulo solo a través de IMigradorModulo; nunca toca los DbContext internos.
-if (args.Contains("--migrate"))
+// Todos los modos CLI terminan sin listener; el Host sólo consume contratos públicos.
+if (solicitud.Modo != ModoMigracion.Ninguno)
 {
     using var scope = app.Services.CreateScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    foreach (var migrador in scope.ServiceProvider.GetServices<IMigradorModulo>())
-    {
-        logger.LogInformation("Aplicando migraciones de {Migrador}", migrador.GetType().Name);
-        await migrador.MigrarAsync(CancellationToken.None);
-    }
-
-    logger.LogInformation("Migraciones aplicadas; el proceso termina sin abrir el listener");
+    Environment.ExitCode = await RunnerMigraciones.EjecutarAsync(solicitud,
+        scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray(),
+        builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,
+        Environment.GetEnvironmentVariable("RELEASE_SHA")
+            ?? Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local",
+        CancellationToken.None);
     return;
 }
 

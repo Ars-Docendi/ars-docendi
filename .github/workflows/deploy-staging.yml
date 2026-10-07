@@ -69,6 +69,8 @@ jobs:
       TAG_BACKEND: sha-${{ github.sha }}
       REGISTRO: ${{ vars.REGISTRO }}
       DOMINIO: ${{ vars.DOMINIO }}
+      BACKUP_VOLUME_PREFIX: ${{ vars.BACKUP_VOLUME_PREFIX }}
+      BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS }}
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}

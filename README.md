@@ -56,17 +56,24 @@ Husky se activa automáticamente con `pnpm install` y configura el pre-commit (d
 cd backend
 dotnet restore
 dotnet build
+dotnet run --project src/ArsDocendi.Host -- --estado-migraciones # consulta segura
 dotnet run --project src/ArsDocendi.Host -- --migrate   # aplica migraciones y termina
 cd ..
-docker compose exec -T postgres psql -U arsdocendi -d arsdocendi -v ON_ERROR_STOP=1 \
-  < infra/scripts/seed-data/sintetico.sql
-docker compose exec -T postgres psql -U arsdocendi -d arsdocendi -v ON_ERROR_STOP=1 \
-  < infra/scripts/seed-data/sga.sql
+# Primera inicialización local: ejecuta ambos datasets en una transacción,
+# registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
+bash infra/scripts/seed-local.sh
 ```
 
 Los dos datasets van siempre juntos: `sintetico.sql` (fixtures de prueba) y `sga.sql`
 (carreras, materias y docentes reales del SGA — tiene PII real, por eso **sólo corre en
-dev local**; nunca en staging/prod, que usan `infra/scripts/seed.sh`).
+dev local**; nunca en staging/prod). Staging/PR usan `infra/scripts/seed.sh` sólo al
+inicializar y preservan datos/adjuntos entre despliegues. El reset es una operación
+explícita distinta del deploy; producción nunca recibe fixtures.
+
+El baseline consolidado requiere bases nuevas. Si existe historial alpha anterior,
+el runner aborta sin modificarlo: no existe conversión ni reset automático. Ver
+`database/README.md` y `docs/operations/migrations-persistence.md` para scaffolding,
+preview SQL, integridad, backups y recuperación.
 
 #### 4. Backend
 

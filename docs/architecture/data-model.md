@@ -34,7 +34,7 @@ dotnet ef migrations has-pending-model-changes \
 
 ## Conexión
 
-Single connection string compartida (mismo Postgres), pero cada DbContext usa `MigrationsHistoryTable("__EFMigrationsHistory", schema: "<modulo>")` para no mezclar historial de migraciones.
+Single connection string compartida (mismo Postgres), pero cada DbContext usa `MigrationsHistoryTable("__EFMigrationsHistory", schema: "<modulo>")` para no mezclar historial de migraciones. En el corte de alpha, Designaciones/Portal/Aulas/Tareas dejan de usar el historial compartido de `public`; Identity y Storage mantienen el suyo. Este cambio es sólo para instalaciones nuevas, sin conversión ni marcado de histories anteriores.
 
 ```csharp
 optionsBuilder.UseNpgsql(connectionString, npgsql =>
@@ -45,7 +45,7 @@ La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocend
 
 ## Migraciones en deploy
 
-El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica las migraciones pendientes de los 4 módulos y termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
+El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica Identity/Audit, Storage, Designaciones y Portal en ese orden, manteniendo la integración de Aulas/Tareas sin inventarles baselines. Termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
 
 Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
 
@@ -58,7 +58,7 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 | `personas`      | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018)                                                                                                             | **Sí** — documento, CUIL, teléfono, fecha nac. |
 | `users`         | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                                                                                                                                    | Parcial — UPN, display name                    |
 | `roles`         | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica                                                                                                                          | No                                             |
-| `permisos`      | Catálogo **cerrado** de 22. Cada `code` lo lee un check del backend                                                                                                                                                                                                                                    | No                                             |
+| `permisos`      | Catálogo **cerrado** de 24. Cada `code` lo lee un check del backend                                                                                                                                                                                                                                    | No                                             |
 | `rol_permisos`  | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                                                                                                                                | No                                             |
 | `user_roles`    | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                                                                                                                             | No                                             |
 | `carreras`      | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                                                                                                                                       | No                                             |
@@ -83,12 +83,12 @@ recién entonces vincula la cuenta.
 
 ### Designaciones (`schema: designaciones`)
 
-La migración `20260907000000_CatalogoDedicaciones` incorpora el catálogo auditado
+El baseline incluye el catálogo auditado
 `dedicaciones`: UUID, código único 1–6, nombre, orden único, activo y `created_at`.
 `pedidos.dedicacion_solicitada_id` y `designaciones.dedicacion_id` lo referencian
-mediante FK nullable. La migración vincula únicamente los textos exactos Categoría
-1 a 6; conserva Categoría 0 y los snapshots históricos sin recategorizarlos.
-La migración `20260907000100_SeleccionDedicaciones` impide insertar texto libre
+mediante FK nullable. Los textos históricos Categoría 0 y los snapshots se
+conservan como parte del modelo, sin backfills de alpha en instalaciones nuevas.
+Los triggers de selección impiden insertar texto libre
 o cambiar los textos legados. Nuevas designaciones y solicitudes Alta/Cambio
 requieren una referencia activa; una actualización sin cambio de dedicación
 conserva el valor histórico, incluso si su categoría fue desactivada.
@@ -110,8 +110,12 @@ las materias a cargo del `jefe_catedra`; para Baja y Cambio, la intersección co
 vigentes del docente. El backend vuelve a validar el id y, para Baja/Cambio, exige la designación
 vigente de la misma pareja `(persona_id, materia_id)` (materia canónica) antes de crear, editar o enviar.
 
-Las designaciones guardan `materia_id` (canónica) y `carrera_id` directos, con FK simples a
-`identity.materias` e `identity.carreras` respectivamente. Una persona tiene a lo sumo una
+Las designaciones guardan `materia_id` (canónica) y `carrera_id` directos. La
+captura real del estado final anterior confirmó una FK simple a `identity.carreras`,
+pero no una FK simple para `designaciones.designaciones.materia_id`: alpha retiró
+la FK compuesta sin reemplazarla. El baseline preserva ese estado, no agrega una
+constraint silenciosamente; pedidos sí conserva su FK simple a `identity.materias`.
+Una persona tiene a lo sumo una
 designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` sobre
 `(persona_id, materia_id)`).
 
@@ -249,13 +253,13 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
 | `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
-| `designaciones.designaciones`    | `identity.materias` | Ídem que pedidos                                                                                                 |
+| `designaciones.designaciones`    | `identity.materias` | Referencia lógica validada por aplicación; la captura final alpha no contiene FK simple                          |
 | `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 
 Todas apuntan a `identity`, y eso no es casual: `identity` **no es un módulo de negocio** sino infraestructura transversal alojada en `ArsDocendi.Shared`. Una FK hacia ahí no cruza una frontera de módulo, así que la política de arriba —pensada para relaciones módulo ↔ módulo— no aplica en su espíritu.
 
-Nota de orden: `audit.change_log` referencia `identity.users`, pero `identity.users` necesita `audit.attach()` para engancharse al log. El ciclo se rompe creando `identity.users` sin enganche, después el schema `audit` completo, y difiriendo el `attach` a `database/identity/009_identity_audit_attach.sql`.
+Nota de orden: `audit.change_log` referencia `identity.users`, pero `identity.users` necesita `audit.attach()` para engancharse al log. El ciclo se rompe creando `identity.users` sin enganche, después el schema `audit` completo, y difiriendo el `attach` a `database/identity/007_identity_audit_attach.sql`.
 
 ## Migraciones
 
@@ -273,7 +277,9 @@ El motivo es que buena parte del schema EF Core no lo sabe generar:
 
 ### Cómo se aplican
 
-Los `.sql` se embeben como **recursos del assembly** (`<EmbeddedResource>` en el `.csproj`, apuntando a `database/` con `Link`), y la migración los ejecuta con `migrationBuilder.Sql(...)` leyéndolos con `ArsDocendi.Shared.Persistencia.RecursosSql`. Nunca se leen del filesystem en runtime: la imagen no necesita el directorio `database/`.
+Los `.sql` se embeben como **recursos del assembly** (`<EmbeddedResource>` en el `.csproj`, apuntando a `database/` con `Link`). Cada migración declara `[RecursosMigracionSql(...)]` y `Up` llama `migrationBuilder.AplicarRecursosSql(typeof(...))`, que los lee con `ArsDocendi.Shared.Persistencia.RecursosSql`. Nunca se leen del filesystem en runtime: la imagen no necesita el directorio `database/`.
+
+El corte instala `20261005000000_BaselineIdentityYAudit`, `20261005000100_BaselineStorage`, `20261005000200_BaselineDesignaciones` y `20261005000300_BaselinePortal`. Sus recursos contienen directamente el schema final y catálogos, sin transiciones ni backfills alpha. Ver [database/README.md](../../database/README.md) para el orden y la evidencia de comparación en PostgreSQL 18. Los snapshots reflejan el modelo EF vigente, incluido Portal.
 
 El **orden** lo fija la migración que los invoca, no el nombre del archivo — hay dependencias entre schemas que el orden alfabético no respeta.
 
@@ -293,7 +299,7 @@ Al agregar un `.sql` nuevo no hace falta tocar nada del contexto — el glob por
 
 1. Escribir el `.sql` bajo `database/<schema>/`, con `created_at` y cerrando con `SELECT audit.attach(...)`.
 2. Agregar la entidad al `DbContext` con `ToTable(..., t => t.ExcludeFromMigrations())`.
-3. Sumar el archivo al array `ArchivosEnOrden` de la migración correspondiente (o crear una migración nueva).
+3. Crear una migración incremental nueva y declarar sus recursos ordenados en `[RecursosMigracionSql(...)]`; nunca editar un baseline o recurso ya aplicado.
 4. Verificar que no queden cambios pendientes de modelo:
 
 ```bash
@@ -316,11 +322,11 @@ Es idempotente (`Database.Migrate()`), así que re-ejecutarlo sobre una base ya 
 
 El dataset de ejemplo no productivo vive en [`infra/scripts/seed-data/sintetico.sql`](../../infra/scripts/seed-data/sintetico.sql). Es una fuente transversal explícita, no una migración EF ni un inicializador de módulo. `infra/scripts/seed.sh <ambiente>` lo aplica sólo después de migrar la base.
 
-- `public.seed_metadata` registra `dataset_version` (`2026.09.1`), origen y última ejecución.
+- `public.seed_metadata` registra dataset, versión/origen e inicialización completada junto con los datos en la misma transacción; un marcador incompleto o una base poblada sin marca no autoriza sobrescribirla.
 - `public.seed_identities` marca exactamente qué cuentas pueden usarse con la autenticación de desarrollo.
 - UUIDs reservados relacionan personas, cuentas, roles y ámbitos con carreras, materias, cargos, períodos, pedidos, historial y designaciones vigentes.
-- Una transacción y un advisory lock vuelven atómica la ejecución y serializan reintentos concurrentes.
-- Los upserts restauran sólo las filas propiedad del dataset; no hay `TRUNCATE` ni eliminación de filas ajenas.
-- Reejecutar la misma versión es seguro. Cambiar datos declarados restaura las fixtures y conserva registros creados fuera del rango reservado.
+- Una transacción y un advisory lock vuelven atómica la inicialización y serializan reintentos autorizados.
+- El deploy ordinario no reejecuta el dataset: conserva modificaciones y adjuntos, incluso si cambia su versión. Los upserts del dataset no son autorización de reseed.
+- Resetear fixtures requiere una operación explícita protegida no productiva, separada del deploy. SGA nunca se usa fuera de dev local.
 
 Los módulos de negocio leen identidad mediante `IConsultasIdentity`. Sólo los servicios administrativos de `ArsDocendi.Shared.Identity.Administracion` escriben personas, cuentas, roles, permisos y ámbitos. Designaciones conserva la propiedad exclusiva de `designaciones.designaciones`; la administración docente la modifica únicamente mediante `IAdministracionDesignaciones`.

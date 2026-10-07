@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Levanta un ambiente completo: reset descartable + base + migraciones + seed + servicios.
-# staging y pr-N se reconstruyen desde cero; prod conserva su base y nunca recibe seed.
+# Actualiza un ambiente persistente: preflight/preview, backup, migraciones y smoke.
+# Nunca reset/drop/purge en deploy ordinario; prod nunca recibe seed.
 #
 # Uso:
 #   spin-up.sh <ambiente>          # ambiente: prod | staging | pr-<N>
@@ -17,9 +17,8 @@
 # Variables opcionales:
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
-#   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
-#                                     (default: "dotnet ArsDocendi.Host.dll --migrate";
-#                                      la app debe soportar este arg — trabajo adyacente)
+#   BACKUP_VOLUME_PREFIX              default arsdocendi-backups
+#   BACKUP_RETENTION_DAYS             default 7, entero positivo
 
 source "$(dirname "$0")/_comun.sh"
 
@@ -30,6 +29,8 @@ validar_ambiente "$ambiente"
 : "${REGISTRO:?msg=\"falta REGISTRO\"}"
 : "${TAG_FRONTEND:?msg=\"falta TAG_FRONTEND\"}"
 : "${TAG_BACKEND:?msg=\"falta TAG_BACKEND\"}"
+[[ "$TAG_BACKEND" =~ ^sha-[a-f0-9]{40}$ && "$TAG_FRONTEND" == "$TAG_BACKEND" ]] || fatal 'msg="se requieren imágenes de la misma release por SHA completo"'
+export RELEASE_SHA="${TAG_BACKEND#sha-}"
 : "${APP_DB_USER:?msg=\"falta APP_DB_USER\"}"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
 : "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
@@ -70,16 +71,15 @@ export URL_BASE_DATOS="Host=$(valor_npgsql "$PGHOST");Port=$(valor_npgsql "${PGP
 
 log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="$base"
 
-# Serializa reconstrucciones del mismo ambiente en el host. La CI también tiene
+# Serializa deploy, backup y teardown del mismo ambiente en el daemon. La CI tiene
 # concurrency por ambiente, pero este lock cubre reintentos/manuales simultáneos.
 # Cada ambiente tiene un único host de deploy; el lock es local a ese destino.
-lock_file="${TMPDIR:-/tmp}/arsdocendi-spin-up-${ambiente//-/_}.lock"
-exec 9>"$lock_file"
-flock 9
+adquirir_lock_ambiente "$ambiente"
+trap liberar_lock_ambiente EXIT
 
 # Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
-trap 'rm -f "$env_file"' EXIT
+trap 'rm -f "$env_file"; liberar_lock_ambiente' EXIT
 cat >"$env_file" <<EOF
 AMBIENTE=${ambiente}
 HOST_PUBLICO=${host_publico}
@@ -96,35 +96,95 @@ ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE=${ALMACENAMIENTO_RECHAZAR_SI_
 ALMACENAMIENTO_CLAMAV_HOST=${ALMACENAMIENTO_CLAMAV_HOST:-$clamav_host}
 EOF
 
-# 1. Los ambientes descartables parten de cero. Se detienen antes de dropear la
-# base para no dejar contenedores publicados apuntando a una base reconstruida.
-if [[ "$ambiente" != "prod" ]]; then
-  docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
-    down -v --remove-orphans
-  "$scripts_dir/drop-db.sh" "$ambiente"
-  "$scripts_dir/purge-storage.sh" "$ambiente"
+compose() { docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" "$@"; }
+# Validar el ciclo de vida bajo el mismo lock que teardown, también en reintentos.
+if [[ "$ambiente" == pr-* && -n "${GITHUB_API_URL:-}" ]]; then
+  : "${GH_TOKEN:?falta token para revalidar PR}"
+  pr_estado="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+    "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/${ambiente#pr-}")"
+  [[ "$(printf '%s' "$pr_estado" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')" == open ]] ||
+    fatal 'msg="PR cerrado: publicación omitida"'
 fi
-
-# El servicio común queda arriba antes de migraciones y seed.
-"$scripts_dir/provision-storage.sh" "$ambiente"
-
-# 2. Base aislada del ambiente.
+exigir_configuracion_backups
+base_nueva=false
+if ! existe_base "$base"; then base_nueva=true; fi
 "$scripts_dir/provision-db.sh" "$ambiente"
-
-# 3. Migraciones EF antes de publicar el backend. Una falla detiene seed/up por
-# set -euo pipefail.
-log_info msg="corriendo migraciones" ambiente="$ambiente"
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
-  run --rm backend ${COMANDO_MIGRACIONES:-dotnet ArsDocendi.Host.dll --migrate}
-
-# 4. Seed SOLO en ambientes no-prod (datos sintéticos / anonimizados).
-if [[ "$ambiente" != "prod" ]]; then
-  "$scripts_dir/seed.sh" "$ambiente"
-else
-  log_info msg="ambiente prod: no se siembra seed sintético" ambiente="prod"
+# Consultas y preview de la misma imagen candidata, sin listener ni binds.
+trabajo="$(mktemp -d)"
+backup_id=""
+critica=false
+finalizado=false
+limpiar() {
+  codigo=$?
+  if [[ "$finalizado" != true && "$critica" == true ]]; then
+    compose stop backend >&2 || true
+    log_error msg="deploy abortado; backend detenido; recuperación manual" ambiente="$ambiente" backup="$backup_id"
+  fi
+  rm -f "$env_file"
+  rm -rf "$trabajo"
+  liberar_lock_ambiente
+  exit "$codigo"
+}
+trap limpiar EXIT
+compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --estado-migraciones > "$trabajo/estado.json"
+pendientes="$(python3 "$scripts_dir/estado-migraciones.py" "$trabajo/estado.json" "$base")"
+compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --script-migraciones - > "$trabajo/preview.tar"
+# El tar es del CLI candidato; no permitir traversal, links ni dispositivos.
+python3 - "$trabajo" <<'PY'
+import hashlib, json, os, pathlib, sys, tarfile
+p = pathlib.Path(sys.argv[1])
+with tarfile.open(p / 'preview.tar') as t:
+    for m in t.getmembers():
+        if m.name.startswith('/') or '..' in pathlib.PurePosixPath(m.name).parts or not (m.isfile() or m.isdir()):
+            raise SystemExit('preview inseguro')
+    t.extractall(p / 'preview', filter='data')
+if not (p / 'preview/manifiesto.json').is_file():
+    raise SystemExit('preview sin manifiesto')
+manifest = json.loads((p / 'preview/manifiesto.json').read_text())
+observado = json.loads((p / 'estado.json').read_text())
+if manifest.get('formato') != 'arsdocendi-migraciones/v1' or manifest.get('sha') != os.environ['RELEASE_SHA'] or manifest.get('contextos') != observado['contextos']:
+    raise SystemExit('preview no corresponde a release/estado observado')
+for script in manifest.get('scripts', []):
+    nombre = script['archivo']
+    if pathlib.PurePosixPath(nombre).name != nombre or not nombre.endswith('.sql'):
+        raise SystemExit('ruta SQL insegura')
+    if hashlib.sha256((p / 'preview' / nombre).read_bytes()).hexdigest() != script['sha256']:
+        raise SystemExit('hash SQL de preview incorrecto')
+PY
+release_preview="${TAG_BACKEND#sha-}-$(openssl rand -hex 8)"
+tar -C "$trabajo" -cf - estado.json preview | "$scripts_dir/backup-volume.sh" "$ambiente" preview "$release_preview"
+# Credenciales PR rotan por ejecución: parar antes de reconfigurar, nunca purgar.
+if (( pendientes > 0 )) || [[ "$ambiente" == pr-* ]]; then
+  critica=true
+  compose stop backend
 fi
-
-# 5. Publicar servicios únicamente después de completar migración y seed.
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
-
-log_info msg="spin-up OK" ambiente="$ambiente" host="$host_publico"
+if (( pendientes > 0 )) && [[ "$base_nueva" != true ]]; then
+  backup_id="$("$scripts_dir/backup-storage.sh" "$ambiente")"
+elif [[ "$base_nueva" == true ]]; then
+  log_info msg="base nueva; no existe estado previo para backup" ambiente="$ambiente"
+fi
+"$scripts_dir/provision-storage.sh" "$ambiente"
+compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --estado-migraciones > "$trabajo/revalidado.json"
+python3 "$scripts_dir/estado-migraciones.py" "$trabajo/estado.json" "$base" "$trabajo/revalidado.json" >/dev/null
+if (( pendientes > 0 )); then
+  critica=true
+  compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --migrate
+fi
+if [[ "$ambiente" != prod ]]; then
+  SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
+fi
+critica=true
+compose up -d
+"$scripts_dir/smoke.sh" "$ambiente"
+compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --estado-migraciones > "$trabajo/final.json"
+[[ "$(python3 "$scripts_dir/estado-migraciones.py" "$trabajo/final.json" "$base")" == 0 ]] || fatal 'msg="persisten migraciones pendientes"'
+# Recibo privado incluye SHA, historia y vínculo al backup; sólo después del smoke.
+python3 - "$trabajo/final.json" "$ambiente" "$TAG_BACKEND" "$backup_id" <<'PY' | "$scripts_dir/backup-volume.sh" "$ambiente" receipt
+import json, sys
+with open(sys.argv[1]) as f:
+    print(json.dumps({'ambiente': sys.argv[2], 'release': sys.argv[3], 'backup': sys.argv[4] or None, 'estado': json.load(f)}))
+PY
+if [[ -n "$backup_id" ]]; then "$scripts_dir/backup-volume.sh" "$ambiente" success "$backup_id"; fi
+"$scripts_dir/backup-volume.sh" "$ambiente" retain
+finalizado=true
+log_info msg="spin-up OK" ambiente="$ambiente" host="$host_publico" release="$TAG_BACKEND" backup="$backup_id"

@@ -14,7 +14,8 @@ public static class ModuleExtensions
     public static IServiceCollection AddPortalModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<PortalDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorPortal>();

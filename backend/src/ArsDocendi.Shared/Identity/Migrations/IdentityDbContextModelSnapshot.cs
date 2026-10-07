@@ -18,7 +18,7 @@ namespace ArsDocendi.Shared.Identity.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -59,6 +59,30 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.IdentidadSembrada", b =>
+                {
+                    b.Property<Guid>("UsuarioId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("VersionDataset")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("dataset_version");
+
+                    b.HasKey("UsuarioId");
+
+                    b.ToTable("seed_identities", "public", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("ArsDocendi.Shared.Identity.Materia", b =>
                 {
                     b.Property<Guid>("Id")
@@ -69,10 +93,6 @@ namespace ArsDocendi.Shared.Identity.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
-
-                    b.Property<Guid>("CarreraId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("carrera_id");
 
                     b.Property<string>("Codigo")
                         .IsRequired()
@@ -90,10 +110,45 @@ namespace ArsDocendi.Shared.Identity.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CarreraId", "Codigo")
+                    b.HasIndex("Codigo")
                         .IsUnique();
 
                     b.ToTable("materias", "identity", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.MateriaPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activo");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("MateriaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("materia_id");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MateriaId");
+
+                    b.HasIndex("PlanId");
+
+                    b.ToTable("materias_plan", "identity", t =>
                         {
                             t.ExcludeFromMigrations();
                         });
@@ -184,6 +239,49 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         .IsUnique();
 
                     b.ToTable("personas", "identity", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.Plan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activo");
+
+                    b.Property<Guid>("CarreraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("carrera_id");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("codigo");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("nombre");
+
+                    b.Property<bool>("Vigente")
+                        .HasColumnType("boolean")
+                        .HasColumnName("vigente");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CarreraId");
+
+                    b.ToTable("planes", "identity", t =>
                         {
                             t.ExcludeFromMigrations();
                         });
@@ -288,6 +386,12 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Codigo")
@@ -360,6 +464,12 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         .HasColumnType("text")
                         .HasColumnName("upn");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PersonaId")
@@ -426,10 +536,29 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ArsDocendi.Shared.Identity.Materia", b =>
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.MateriaPlan", b =>
+                {
+                    b.HasOne("ArsDocendi.Shared.Identity.Materia", "Materia")
+                        .WithMany()
+                        .HasForeignKey("MateriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ArsDocendi.Shared.Identity.Plan", "Plan")
+                        .WithMany("Materias")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Materia");
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.Plan", b =>
                 {
                     b.HasOne("ArsDocendi.Shared.Identity.Carrera", "Carrera")
-                        .WithMany("Materias")
+                        .WithMany("Planes")
                         .HasForeignKey("CarreraId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -498,12 +627,17 @@ namespace ArsDocendi.Shared.Identity.Migrations
 
             modelBuilder.Entity("ArsDocendi.Shared.Identity.Carrera", b =>
                 {
-                    b.Navigation("Materias");
+                    b.Navigation("Planes");
                 });
 
             modelBuilder.Entity("ArsDocendi.Shared.Identity.Persona", b =>
                 {
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ArsDocendi.Shared.Identity.Plan", b =>
+                {
+                    b.Navigation("Materias");
                 });
 
             modelBuilder.Entity("ArsDocendi.Shared.Identity.Rol", b =>

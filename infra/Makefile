@@ -20,13 +20,25 @@ ifndef AMBIENTE
 $(error Falta AMBIENTE. Uso: make <target> AMBIENTE=pr-123)
 endif
 
-.PHONY: up down logs ps
+.PHONY: up down reset backup backups restore logs ps
 
 up:
 	@$(SCRIPTS)/spin-up.sh $(AMBIENTE)
 
 down:
 	@$(SCRIPTS)/teardown.sh $(AMBIENTE)
+
+reset:
+	@$(SCRIPTS)/reset.sh $(AMBIENTE)
+
+backup:
+	@$(SCRIPTS)/backup-storage.sh $(AMBIENTE)
+
+backups:
+	@$(SCRIPTS)/backup-volume.sh $(AMBIENTE) list
+
+restore:
+	@$(SCRIPTS)/restore-storage.sh $(AMBIENTE) "$(BACKUP)"
 
 logs:
 	@docker compose -p $(AMBIENTE) -f $(COMPOSE) logs -f --tail=100

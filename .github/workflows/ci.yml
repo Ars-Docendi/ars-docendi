@@ -27,6 +27,9 @@ jobs:
               - 'database/**'
               - '!database/**/*.md'
               - 'global.json'
+              - 'scripts/migrations/**'
+              - 'scripts/tests/migrations.test.mjs'
+              - '.github/workflows/ci.yml'
             frontend:
               - 'frontend/**'
               - 'package.json'
@@ -78,6 +81,34 @@ jobs:
       - name: Validate changes and specs
         run: pnpm exec openspec validate --all --strict
 
+  migrations:
+    name: Integridad de migraciones SQL
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+      - name: Tests de autoría e integridad
+        run: node --test scripts/tests/migrations.test.mjs
+      - name: Comparar inventario con commit confiable
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CORTE_REVISADO: ${{ vars.CORTE_MIGRACIONES_REVISADO }}
+        run: |
+          argumentos=(--base-ref "$BASE_REF")
+          if [[ -n "$CORTE_REVISADO" ]]; then
+            argumentos+=(--corte-revisado "$CORTE_REVISADO")
+          fi
+          node scripts/migrations/validate.mjs "${argumentos[@]}"
+
   backend:
     name: Backend (.NET 10)
     needs: changes
@@ -108,6 +139,9 @@ jobs:
 
       - name: Build
         run: dotnet build ArsDocendi.slnx --no-restore -c Release
+
+      - name: Verificar recursos SQL en assemblies compilados (sin DB)
+        run: dotnet run --project src/ArsDocendi.Host --no-build -c Release -- --validar-recursos
 
       - name: Test
         run: dotnet test ArsDocendi.slnx --no-build -c Release --verbosity normal

@@ -33,72 +33,64 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Migracion_desde_schema_anterior_preserva_categoria_cero_y_snapshot()
+    public async Task Actualizaciones_y_migracion_noop_preservan_categoria_historica_snapshot_y_horas()
     {
-        var cadena = await Postgres.CrearBaseMigradaAsync("dedicaciones_anteriores", "20260819000000_IdempotenciaComandos");
+        await using var conexion = await AbrirConexionAsync();
+        var datos = await PrepararDatosAsync(conexion);
+        var pedidoId = await InsertarPedidoAsync(conexion, "TEST-HISTORICO", datos, datos.Materia1, "borrador");
+        // Sólo la preparación simula una fila histórica: el baseline ya no ofrece una
+        // transición alpha. Se deshabilitan exclusivamente los validadores de selección,
+        // no constraints, FKs ni auditoría, y se restauran antes de las assertions.
+        await EjecutarAsync(conexion, """
+            ALTER TABLE designaciones.pedidos DISABLE TRIGGER validar_dedicacion_pedido;
+            ALTER TABLE designaciones.designaciones DISABLE TRIGGER validar_dedicacion_vigente;
+            """);
         try
         {
-            await using var conexion = new NpgsqlConnection(cadena);
-            await conexion.OpenAsync(TestContext.Current.CancellationToken);
-            var datos = await PrepararDatosAsync(conexion);
-            // El schema de designaciones queda pinneado a una migración anterior a 014/015: acá
-            // "materia_id" todavía es la FK directa a la materia canónica (el modelo previo a la
-            // pertenencia de plan). La migración de más abajo lo convierte al esquema actual.
-            var pedidoId = Guid.NewGuid();
-            await EjecutarAsync(conexion, """
-                INSERT INTO designaciones.pedidos
-                    (id, numero, periodo_id, persona_id, materia_id, novedad, estado)
-                VALUES (@id, 'TEST-LEGADO', @periodo, @persona, @materia, 'Sin novedad', 'borrador')
-                """, new NpgsqlParameter("id", pedidoId), new NpgsqlParameter("periodo", datos.Periodo),
-                new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", datos.Materia1));
-            await EjecutarAsync(conexion, """
-                INSERT INTO designaciones.designaciones
-                    (persona_id, materia_id, cargo_id, horas, vigente_desde, vigente_hasta, origen_pedido_id)
-                VALUES (@persona, @materia, 'c3000000-0000-4000-8000-000000000004', 10, DATE '2026-01-01', NULL, @origen)
-                """, new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", datos.Materia1),
-                new NpgsqlParameter("origen", pedidoId));
-            await EjecutarAsync(conexion, """
-                INSERT INTO designaciones.designaciones
-                    (persona_id, materia_id, cargo_id, horas, vigente_desde, vigente_hasta)
-                VALUES (@persona, @materia, 'c3000000-0000-4000-8000-000000000004', 10, DATE '2026-01-01', NULL)
-                """, new NpgsqlParameter("persona", datos.Persona), new NpgsqlParameter("materia", datos.Materia2));
+            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, datos.Carrera,
+                pedidoId, new DateOnly(2026, 1, 1), null);
+            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia2, datos.Carrera,
+                null, new DateOnly(2026, 1, 1), null, legado: true);
             await EjecutarAsync(conexion, """
                 UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Categoría 0',
                     horas_investigacion = 7, horas_externas = 5,
                     snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb;
-                UPDATE designaciones.designaciones SET dedicacion = 'Categoría 6';
+                UPDATE designaciones.designaciones SET dedicacion = 'Categoría 6',
+                    dedicacion_id = 'd6000000-0000-4000-8000-000000000006',
+                    horas_investigacion = 7, horas_externas = 5
+                    WHERE origen_pedido_id IS NOT NULL;
                 """);
-            await using var contexto = PostgresFixture.CrearDesignaciones(cadena);
-            await contexto.Database.MigrateAsync(TestContext.Current.CancellationToken);
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.pedidos
-                WHERE dedicacion_solicitada = 'Categoría 0' AND dedicacion_solicitada_id IS NULL
-                  AND snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb
-                """));
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.designaciones v
-                JOIN designaciones.dedicaciones d ON d.id = v.dedicacion_id
-                WHERE d.codigo = 6 AND v.dedicacion = 'Categoría 6' AND v.origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(7, await EscalarAsync<int>(conexion, """
-                SELECT horas_investigacion FROM designaciones.designaciones WHERE origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(5, await EscalarAsync<int>(conexion, """
-                SELECT horas_externas FROM designaciones.designaciones WHERE origen_pedido_id = @pedido
-                """, new NpgsqlParameter("pedido", pedidoId)));
-            Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-                SELECT count(*) FROM designaciones.designaciones
-                 WHERE materia_id = @materia AND horas_investigacion IS NULL AND horas_externas IS NULL
-                """, new NpgsqlParameter("materia", datos.Materia2)));
-            await EjecutarAsync(conexion, "UPDATE designaciones.pedidos SET prioritario = true");
-            var cambiarLegado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-                "UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Texto arbitrario'"));
-            Assert.Equal(PostgresErrorCodes.CheckViolation, cambiarLegado.SqlState);
         }
         finally
         {
-            await Postgres.EliminarBaseAsync(cadena);
+            await EjecutarAsync(conexion, """
+                ALTER TABLE designaciones.pedidos ENABLE TRIGGER validar_dedicacion_pedido;
+                ALTER TABLE designaciones.designaciones ENABLE TRIGGER validar_dedicacion_vigente;
+                """);
         }
+        await using var contexto = PostgresFixture.CrearDesignaciones(Cadena);
+        await contexto.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        await EjecutarAsync(conexion, "UPDATE designaciones.pedidos SET prioritario = true");
+        await EjecutarAsync(conexion, "UPDATE designaciones.designaciones SET horas = horas + 1");
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
+            SELECT count(*) FROM designaciones.pedidos
+            WHERE dedicacion_solicitada = 'Categoría 0' AND dedicacion_solicitada_id IS NULL
+              AND snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb
+              AND horas_investigacion = 7 AND horas_externas = 5
+            """));
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
+            SELECT count(*) FROM designaciones.designaciones v
+            JOIN designaciones.dedicaciones d ON d.id = v.dedicacion_id
+            WHERE d.codigo = 6 AND v.dedicacion = 'Categoría 6' AND v.origen_pedido_id = @pedido
+              AND v.horas_investigacion = 7 AND v.horas_externas = 5
+            """, new NpgsqlParameter("pedido", pedidoId)));
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
+            SELECT count(*) FROM designaciones.designaciones
+             WHERE materia_id = @materia AND horas_investigacion IS NULL AND horas_externas IS NULL
+            """, new NpgsqlParameter("materia", datos.Materia2)));
+        var cambiarLegado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
+            "UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Texto arbitrario'"));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, cambiarLegado.SqlState);
     }
 
     [Fact]

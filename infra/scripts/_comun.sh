@@ -8,6 +8,7 @@
 #   - El ambiente se identifica por su nombre determinístico: prod | staging | pr-<N>.
 
 set -euo pipefail
+declare -a LOCKS_ADQUIRIDOS=()
 
 # --- Logging estructurado (clave=valor, parseable) ---
 _log() {
@@ -19,6 +20,46 @@ log_info()  { _log INFO  "$@"; }
 log_warn()  { _log WARN  "$@"; }
 log_error() { _log ERROR "$@"; }
 fatal()     { log_error "$@"; exit 1; }
+
+# Configuración no secreta, validada antes de aprovisionar o parar servicios.
+exigir_configuracion_backups() {
+  BACKUP_VOLUME_PREFIX="${BACKUP_VOLUME_PREFIX:-arsdocendi-backups}"
+  BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
+  [[ "$BACKUP_VOLUME_PREFIX" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fatal 'msg="BACKUP_VOLUME_PREFIX inválido"'
+  [[ "$BACKUP_RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || fatal 'msg="BACKUP_RETENTION_DAYS debe ser entero positivo"'
+  export BACKUP_VOLUME_PREFIX BACKUP_RETENTION_DAYS
+}
+
+# Reserva atómica en el daemon, no en /tmp del runner efímero. Una interrupción
+# externa deja el lock cerrado: el operador verifica escritores y lo libera.
+adquirir_lock_ambiente() {
+  local ambiente="$1"
+  [[ "$ambiente" =~ ^recovery-[a-z0-9][a-z0-9-]{0,30}$ ]] || validar_ambiente "$ambiente"
+  local prefijo="${LOCK_PREFIX:-arsdocendi-lock}"
+  [[ "$prefijo" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fatal 'msg="prefijo de lock inválido"'
+  local nombre="$prefijo-$ambiente"
+  if [[ "${ARS_LOCK_AMBIENTE:-}" == "$ambiente" && -n "${ARS_LOCK_TOKEN:-}" ]]; then
+    local propietario
+    propietario="$(docker inspect --format '{{ index .Config.Labels "arsdocendi.lock-owner" }}' "$nombre")"
+    [[ "$propietario" == "$ARS_LOCK_TOKEN" ]] || fatal 'msg="lock heredado inválido"'
+    return
+  fi
+  local token
+  token="$(openssl rand -hex 16)"
+  while ! docker create --name "$nombre" --label "arsdocendi.lock=$ambiente" \
+    --label "arsdocendi.lock-owner=$token" "$IMAGEN_PSQL" true >/dev/null 2>&1; do
+    docker inspect "$nombre" >/dev/null 2>&1 || fatal 'msg="no se pudo adquirir lock Docker"'
+    sleep 2
+  done
+  LOCKS_ADQUIRIDOS+=("$nombre")
+  LOCK_AMBIENTE="$nombre"
+  export ARS_LOCK_AMBIENTE="$ambiente" ARS_LOCK_TOKEN="$token"
+}
+liberar_lock_ambiente() {
+  local nombre
+  for nombre in "${LOCKS_ADQUIRIDOS[@]}"; do docker rm "$nombre" >/dev/null; done
+  LOCKS_ADQUIRIDOS=()
+}
 
 # Nombre de la base aislada del ambiente: arsdocendi_<ambiente con '-' -> '_'>.
 # pr-123 -> arsdocendi_pr_123 ; staging -> arsdocendi_staging ; prod -> arsdocendi_prod

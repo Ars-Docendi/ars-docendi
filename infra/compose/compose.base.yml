@@ -34,6 +34,7 @@ services:
     environment:
       # Símbolos del framework (.NET / ASP.NET): se usan tal como los define la librería.
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      RELEASE_SHA: ${RELEASE_SHA:-local}
       ASPNETCORE_URLS: http://+:8080
       DevelopmentAuthentication__Enabled: ${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
       # Connection string que liga el ambiente a SU base aislada (D7).
