@@ -364,6 +364,143 @@ Antes del código van dos changes OpenSpec: `asistente-herramientas-certificadas
 
 El costo estimado de Claude es de **US$400–1.200**: ~25.000–35.000 turnos a US$0,01–0,03, el doble con Opus. El corpus completo de cassettes ronda los ~220 MB, así que va a Git LFS, con 300–500 curados en el repo. Las corridas locales no tienen costo marginal. Batch API (−50 %) sirve solo para los brazos de una llamada y no es ZDR; el fixture es sintético. La producción no cambia con el merge: `Asistente__Estrategia=texto_a_sql` y `Asistente__Mcp__Habilitado=false`.
 
+## Preguntas compuestas: el modelo arma un plan, el código lo ejecuta
+
+> **Corrección de alcance (después del informe).** La API de Claude se admite como **alternativa posible**, no como camino por defecto. El modelo local **no** necesita intervenir en todos los turnos: lo que cuenta es la mayor precisión. Esta sección trata el caso más difícil, el de las **preguntas compuestas**, y reemplaza la política de respaldo de B\* para ese tipo de preguntas. Las propuestas son de diseño **[inferencia]**, y las cifras de evidencia ya están citadas en las secciones anteriores.
+
+Una pregunta compuesta combina una población, varias condiciones y una operación. Por ejemplo:
+
+> **"¿Qué porcentaje de titulares tiene más de 20 años de antigüedad y además dicta en dos carreras?"**
+
+Contiene cuatro decisiones, y en cada una puede esconderse una respuesta falsa:
+
+| Pieza | Qué hay que decidir | Dónde está el riesgo en Ars Docendi |
+|---|---|---|
+| Población | "titulares": ¿cargo titular con designación **vigente**? | La vigencia depende de `vigente_desde`/`vigente_hasta` y del período |
+| Condición 1 | "más de 20 años de antigüedad" | **No hay un dato de antigüedad.** Hay al menos dos lecturas posibles: desde la primera designación registrada (`vigente_desde` más antiguo) o desde la experiencia declarada en el portal (`experiencias.desde`). Un SQL libre elige una en silencio |
+| Condición 2 | "dicta en dos carreras": ¿exactamente dos o al menos dos? ¿carreras distintas de sus designaciones vigentes? | Una materia puede estar en varios planes y carreras |
+| Operación | Porcentaje: numerador / denominador | Si el denominador está mal (todos los docentes en vez de los titulares), el número es plausible y falso |
+
+### Tres maneras de resolverla, ordenadas por precisión
+
+| Técnica | Qué hace el modelo | Qué hace el código | Evidencia | Precisión esperada |
+|---|---|---|---|---|
+| **C1. Plan estructurado compilado** (capa semántica como herramienta) | Traduce la pregunta a un **plan tipado**: medida, población, filtros y operación, con vocabulario cerrado | Valida el plan, resuelve entidades, lo **compila a SQL certificado** y ejecuta con RLS | Capa semántica: 98–100 % dentro de cobertura contra 84–90 % del SQL libre (dbt) [vendor]; +17–23 pts (Cube) [vendor]; grafo de conocimiento 16,7 → 54,2 % (Sequeda 2023) | **La más alta**. El modelo no escribe joins, fechas ni agregaciones |
+| C2. Composición de herramientas por el modelo (agente) | Encadena llamadas (titulares → antigüedad de cada uno → carreras de cada uno) y combina los resultados | Ejecuta cada llamada | Qwen3-14B: 92 % con 1 llamada, 84 % con 2, **16 % al ramificar** (AgentFloor) [resumen]; Opus 5: 85,8 % en tareas de 3–6 llamadas (MCP-Atlas) [resumen] | Media con Claude, **baja en local** |
+| C3. SQL libre | Escribe la consulta completa | Valida y ejecuta | Qwen3-8B: 7 falsas en 34 (medido); Claude: 0 en 78 (medido, dataset fácil) | Baja en local, alta con Claude en preguntas fáciles |
+
+La diferencia de fondo es la siguiente. En C1 el modelo solo decide **qué** se pregunta, y el código decide **cómo** se calcula. En C2 y C3 el modelo decide las dos cosas.
+
+### Cómo funcionaría C1 con el ejemplo
+
+**1. Catálogo semántico.** Es el contrato que hoy no existe y que hay que escribir. Define, una sola vez y con test y regla `BR-asistente-NNN`, cada pieza que se puede combinar:
+
+```text
+poblaciones:  docentes_vigentes, titulares_vigentes, pedidos, …
+dimensiones:  carrera, materia, cargo, categoría, período, estado, …
+condiciones:  cantidad_carreras_vigentes (n), antiguedad_designacion_anios (n),
+              antiguedad_declarada_anios (n), tiene_certificacion (x), …
+medidas:      conteo, porcentaje, suma_horas, promedio, listado
+```
+
+Cada condición tiene una definición única y certificada. Por ejemplo, `antiguedad_designacion_anios` = años desde el `vigente_desde` más antiguo de la persona. Si un concepto no está en el catálogo, **no se puede expresar**: es abstención estructural.
+
+**2. El modelo genera el plan.** Lo hace con decodificación restringida por gramática (xgrammar o GBNF en local, `strict` en Claude), así que solo puede emitir planes válidos:
+
+```json
+{
+  "medida": "porcentaje",
+  "poblacion": "titulares_vigentes",
+  "condiciones": [
+    { "campo": "antiguedad", "op": ">", "valor": 20 },
+    { "campo": "cantidad_carreras_vigentes", "op": ">=", "valor": 2 }
+  ]
+}
+```
+
+**3. Validación determinista antes de ejecutar:**
+
+- **Cierre:** cada fragmento de la pregunta se traza a una pieza del plan ("titulares" → población, "más de 20 años de antigüedad" → condición 1, "dos carreras" → condición 2, "porcentaje" → medida). Si sobra algo, no se ejecuta.
+- **Conceptos ambiguos:** `antiguedad` tiene **dos** definiciones en el catálogo, así que el plan queda incompleto y se pregunta:
+
+  > Para "antigüedad" tengo dos datos: **desde la primera designación en la UNLaM** o **la experiencia declarada en el portal**. ¿Cuál usamos?
+
+- **"Dos carreras":** el catálogo fija por regla que "en dos carreras" se interpreta como `>= 2` y se muestra en el eco. Si el equipo prefiere `= 2`, se cambia la regla, no el prompt.
+
+**4. Compilación y ejecución.** El backend arma el SQL a partir de fragmentos certificados de cada pieza, sin que el modelo escriba SQL. Lo ejecuta con el rol de solo lectura, RLS y la máscara, y aplica controles de consistencia: el numerador no puede superar al denominador, y el denominador debe coincidir con `consultar_designaciones{medida: conteo, cargo: titular}`.
+
+**5. Respuesta por plantilla** (cifras ilustrativas), con numerador, denominador y eco del plan:
+
+> El **18 %** de los titulares vigentes (**14 de 78**) tiene más de 20 años desde su primera designación y dicta en 2 o más carreras.
+> *Interpreté: titulares con designación vigente · antigüedad = años desde la primera designación · carreras distintas de sus designaciones vigentes ≥ 2. Dentro de tu ámbito.*
+
+El plan también resuelve los seguimientos. "¿Y solo en Ingeniería?" agrega una condición al plan anterior, y "¿y con más de 10 años?" cambia un valor.
+
+### Cómo se decide si se responde (señales de confianza)
+
+Para preguntas compuestas, el plan estructurado tiene una ventaja sobre el SQL: **se pueden comparar planes de forma exacta**. Dos SQL distintos pueden ser equivalentes y no hay forma barata de saberlo; dos planes normalizados son iguales o no lo son. Eso habilita señales de confianza mejores que las que hoy existen para SQL (AUROC 0,61–0,68 para self-consistency de SQL) **[inferencia, a medir]**:
+
+| Señal | Cómo funciona | Costo |
+|---|---|---|
+| Cierre + catálogo | Nada del texto queda sin traducir y todo concepto está definido | 0 tokens |
+| Acuerdo local k-de-k | El modelo local genera el plan k veces (k = 3, temperatura 0,3–0,7) y se exige el mismo plan normalizado | k llamadas locales cortas (el plan tiene ~50–100 tokens) |
+| Acuerdo local + API | Si se habilita la API, Claude genera el plan **por separado** y debe coincidir con el local | 1 llamada a la API, **sin filas**: solo la pregunta seudonimizada y el catálogo |
+| Consistencia numérica | Numerador ≤ denominador; el denominador coincide con la herramienta simple | 1 consulta extra |
+
+### Política de máxima precisión para preguntas compuestas
+
+```text
+Pregunta compuesta
+  │
+  ├─ ¿Todos los conceptos están en el catálogo?
+  │     no → aclarar ("¿antigüedad desde la designación o la declarada?")
+  │          o abstenerse ("no tengo un dato de X")
+  │
+  ├─ Modelo local genera el plan × k (gramática restringida)
+  │     ├─ k planes iguales + cierre OK + consistencia OK → ejecutar y responder (certificada)
+  │     └─ planes distintos ───────────────┐
+  │                                        ▼
+  ├─ ¿API habilitada?
+  │     sí → Claude genera el plan
+  │           ├─ coincide con algún plan local → ejecutar y responder (certificada)
+  │           └─ no coincide → mostrar las interpretaciones y pedir que el usuario elija
+  │     no → mostrar las interpretaciones en conflicto y pedir que el usuario elija
+  │
+  └─ ¿La pregunta no se puede expresar como plan? (fuera del catálogo)
+        → SQL libre rotulado "no certificada" solo si su clase supera el umbral p/(1+p):
+            · con API: Opus 5.5 + juez Sonnet 5.5
+            · solo local: SQL con protecciones, habilitado por clase según el experimento
+          si no supera el umbral → abstenerse y explicar qué falta en el catálogo
+```
+
+Cuando hay desacuerdo, ningún modelo "gana" por defecto: se le muestran al usuario las interpretaciones en conflicto. Una aclaración de un segundo cuesta menos que una respuesta falsa.
+
+### Quién genera el plan en cada nivel
+
+| Nivel | Modo recomendado | Por qué |
+|---|---|---|
+| RTX 3070 (Qwen3-8B Q4) | Plan local × 3 con acuerdo; si no hay acuerdo, aclarar (o escalar a la API si está habilitada) | Un plan de ~100 tokens es una sola decisión estructurada, no una cadena de llamadas. Es la tarea que mejor rinde en modelos chicos |
+| RTX 5070 (Qwen3-8B-AWQ o Qwen3-14B) | Igual, con k = 3 en paralelo gracias a los slots de vLLM | Más concurrencia; las 3 muestras corren a la vez y la latencia casi no sube |
+| API de Claude como alternativa | (a) **Segunda opinión** del plan local, o (b) generador del plan para las compuestas | La API nunca ve filas: solo la pregunta seudonimizada y el catálogo. Opus 5.5 y Sonnet 5.5 son elegibles para ZDR |
+| Máxima precisión posible | Local × 3 **y** Claude, los cuatro iguales | Dos familias de modelos independientes tienen que coincidir. Es la señal más fuerte disponible sin un humano |
+
+### Qué cambia en la comparación A frente a B
+
+- **Para el agente MCP (A)**, la pregunta compuesta es su caso más débil en local: cada condición es una llamada más y la combinación queda en manos del modelo (C2). Con Claude es competitivo, pero sigue combinando resultados en su contexto.
+- **El plan compilado (C1) es también una herramienta** y se puede exponer por MCP como `consultar(plan)`. Hay una tensión en la evidencia: en MCP-GRANITE, una única herramienta **genérica** fue la peor opción (−12,9 %). La diferencia es que acá la herramienta no es genérica: su entrada está restringida por gramática a un catálogo cerrado y validada por cierre. Esa diferencia **hay que medirla**; no está demostrada.
+- **B\* se amplía**, no se reemplaza. Las preguntas simples siguen por la capa 0 o por una herramienta de familia (una llamada). Las compuestas pasan por el plan C1, y el SQL libre queda solo para lo que el catálogo no puede expresar.
+
+### Ajustes al experimento
+
+| Brazo nuevo | Qué mide |
+|---|---|
+| **B-plan** | B\* con el plan compilado C1 para las compuestas (local, k = 1) |
+| **B-plan-acuerdo** | Igual, con acuerdo local k = 3 y aclaración ante desacuerdo |
+| **B-plan-API** | Igual, con Claude como segunda opinión del plan |
+| **A-compuesto** | Agente MCP componiendo herramientas para las mismas preguntas (C2) |
+
+Hace falta además una **partición de preguntas compuestas** en el conjunto ciego D1, con al menos 100 preguntas de 2 a 4 condiciones, y métricas separadas para ellas: respuestas falsas, aclaraciones correctas y abstenciones.
+
 ## Las cifras son en su mayoría resúmenes y el repo tiene contradicciones
 
 **Advertencias sobre las fuentes.**
