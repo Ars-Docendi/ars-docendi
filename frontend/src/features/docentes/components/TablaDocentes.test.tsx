@@ -18,7 +18,10 @@ const DOCENTE: DocenteMock = {
   tieneCuenta: true,
   asignaciones: [
     {
-      materia: { id: "materia-1", codigo: "03500", nombre: "Ingeniería de Software" },
+      materiaId: "materia-1",
+      materiaCodigo: "03500",
+      materiaNombre: "Ingeniería de Software",
+      carreraId: "carrera-1",
       cargo: "Profesor Adjunto",
       cargoAbreviatura: "Adjunto",
       horas: 10,

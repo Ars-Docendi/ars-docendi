@@ -56,7 +56,10 @@ describe("filtrosDocentes", () => {
         ],
         asignaciones: [
           {
-            materia: { id: "m", codigo: "03500", nombre: "Software" },
+            materiaId: "m",
+            materiaCodigo: "03500",
+            materiaNombre: "Software",
+            carreraId: "c",
             cargo: "Profesor Adjunto",
             cargoAbreviatura: "JTP",
             horas: 1,

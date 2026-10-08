@@ -12,7 +12,8 @@ public static class ModuleExtensions
     public static IServiceCollection AddTareasModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<TareasDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", TareasDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorTareas>();

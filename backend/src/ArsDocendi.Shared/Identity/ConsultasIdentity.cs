@@ -69,6 +69,8 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Distinct()
                 .ToListAsync(ct);
 
+    // Materia canónica: la usan el Jefe de Cátedra (en todos sus planes) y el Docente
+    // (junto a la carrera que devuelve ObtenerCarrerasDeRolAsync).
     public async Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct) =>
         await db.UsuarioRoles
@@ -97,17 +99,17 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Distinct()
                 .ToListAsync(ct);
 
-    public async Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct) =>
-        await db.Materias
-                .AsNoTracking()
-                .Where(m => m.Id == materiaId)
-                .Select(m => (Guid?)m.CarreraId)
-                .FirstOrDefaultAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct) =>
         await db.Materias.AsNoTracking()
-            .Include(m => m.Carrera)
             .OrderBy(m => m.Nombre)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct) =>
+        await db.MateriasPlan.AsNoTracking()
+            .Include(mp => mp.Materia)
+            .Include(mp => mp.Plan).ThenInclude(p => p!.Carrera)
+            .OrderBy(mp => mp.Materia!.Nombre)
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct) =>

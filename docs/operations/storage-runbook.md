@@ -23,8 +23,8 @@ durante el corte hasta aceptación y autorización expresa de su tratamiento.
   `teardown` sólo pueden eliminar el bucket/identidad del ambiente descartable.
 - Las credenciales se inyectan en runtime. No escribirlas en este documento,
   archivos `.env` versionados, comandos persistidos en tickets ni imágenes.
-- `staging` y `pr-N` son descartables y contienen datos sintéticos; no se
-  respaldan como ambientes de recuperación institucional.
+- `staging` y `pr-N` conservan datos sintéticos entre redeploys y también tienen
+  backups pre-migración privados. Nunca reciben datos institucionales de prod.
 - Nunca ejecutar `purge-storage.sh`, `teardown.sh` ni `restore-storage.sh`
   contra producción. El último script rechaza `prod` por diseño.
 - La credencial administrativa de SeaweedFS sólo se usa para provisionamiento,
@@ -45,8 +45,12 @@ SEAWEEDFS_APP_ACCESS_KEY / SECRET_KEY      # credencial del backend, no del back
 SEAWEEDFS_BUCKET_PREFIX                    # opcional; default: arsdocendi
 STORAGE_SCOPE                              # prod o shared_nonprod, calculado por scripts
 PGHOST PGPORT PGUSER PGPASSWORD            # admin PostgreSQL
-PGDATABASE                                 # opcional; default: arsdocendi_<ambiente>
-APP_DB_USER APP_DB_PASSWORD                # restore descartable
+PGDATABASE                                 # si se configura, debe coincidir con el ambiente
+APP_DB_USER APP_DB_PASSWORD                # identidad app existente del destino
+BACKUP_VOLUME_PREFIX                       # default arsdocendi-backups, var no secreta
+BACKUP_RETENTION_DAYS                      # default 7, entero positivo, var no secreta
+RECOVERY_AUTHORIZED                        # igual al destino aislado autorizado
+RECOVERY_HOST_ROLE                         # principal, obligatorio para fuente prod
 ```
 
 ### Migración de secretos GitHub
@@ -102,33 +106,43 @@ provisionamiento del ambiente.
 
 ## Backup verificable
 
-El procedimiento versionado es `infra/scripts/backup-storage.sh`. Genera un
-directorio autocontenido con:
+El procedimiento versionado es `infra/scripts/backup-storage.sh <ambiente>`.
+Produce un snapshot privado en el volumen Docker
+`${BACKUP_VOLUME_PREFIX:-arsdocendi-backups}-<ambiente>` del host de la base,
+no en el workspace del runner. Dump y objetos se transmiten directamente por
+stdio, sin binds. El formato conjunto existente conserva:
 
 - `postgres.dump`: dump custom de la base del ambiente;
 - `objects/`: bytes descargados desde SeaweedFS;
-- `manifest.json`: bucket, base, claves de objeto, tamaño, ETag, content type,
-  metadata S3 y SHA-256 por objeto;
-- `checksums.sha256`: SHA-256 de todos los artefactos.
+- `manifest.json`: base/bucket, claves, tamaño, ETag, content type, metadata y hash;
+- `checksums.sha256`: integridad del conjunto;
+- `status`: `incomplete` hasta verificar todo, después `complete` inmutable.
 
-Ejemplo para producción **en Debian**. Antes del corte, respaldar también el
-prod anterior de Proxmox con una ruta separada identificada como `secundaria`
-y conservarlo; no significa mantener dos instalaciones productivas activas:
+Detener escritores antes del snapshot (el script rechaza backend activo del
+ambiente). El deploy lo hace automáticamente con pendientes en base existente.
+Sin pendientes/base nueva no se fabrica un backup. Ejemplo **en Debian** con
+credenciales inyectadas desde el canal seguro:
 
 ```bash
-export AMBIENTE=prod
-export PGDATABASE=arsdocendi_prod
-infra/scripts/backup-storage.sh prod \
-  "/secure/backups/arsdocendi/principal/prod/$(date -u +%Y%m%dT%H%M%SZ)"
+snapshot="$(infra/scripts/backup-storage.sh prod)"
+infra/scripts/backup-volume.sh prod list
+infra/scripts/backup-volume.sh prod verify "$snapshot"
 ```
 
-El destino debe estar cifrado antes de salir del nodo y conservarse según la
-política aprobada por UNLaM: 7 respaldos diarios, 4 semanales y 6 mensuales. El
-backup no se considera completo si sólo incluye PostgreSQL o sólo objetos.
+Stdout devuelve sólo ID; diagnósticos no incluyen claves de objetos o secretos.
+No subir dumps/metadata/bytes como artifacts públicos ni a comentarios de PR.
+El volumen requiere acceso administrativo restringido; no implementa cifrado
+por sí solo ni aislamiento frente a administradores Docker. Cifrar cualquier
+exportación externa según política aprobada; la exportación a directorio del
+script está limitada a datos no productivos.
 
-El job debe registrar únicamente ambiente, instante UTC, cantidad de objetos,
-tamaño total, SHA-256 del dump/manifiesto y ubicación cifrada. No registrar
-claves de objetos si pueden contener información sensible.
+Retención default 7 días positivos (`BACKUP_RETENTION_DAYS`) sólo para snapshots
+completos de **deploys exitosos** vencidos del ambiente solicitado. Un snapshot
+completo sin marca de deploy exitoso y cualquier snapshot incompleto quedan
+retenidos para limpieza manual autorizada. Teardown/reset no borran respaldos.
+Una copia fuera del host, SLA y frecuencia de drills requieren decisión
+institucional aparte; no confundir retención local con garantía ante pérdida
+física. Conservar el backup del prod anterior hasta aceptar y autorizar el corte.
 
 ## Corte de producción de Proxmox a Debian
 
@@ -161,50 +175,41 @@ no se trasladan implícitamente a Debian.
 
 ## Restore y prueba de recuperación
 
-`infra/scripts/restore-storage.sh` sólo permite `staging` y `pr-N`. Destruye y
-recrea la base destino descartable, exige un bucket vacío, verifica primero
-`checksums.sha256`, restaura PostgreSQL y después repone cada objeto mediante
-S3. Para cada objeto comprueba SHA-256 y tamaño; también repone content type y
-metadata S3 presentes en el manifiesto.
+`restore-storage.sh` exige autorización explícita del destino y nunca restaura
+sobre `prod`, DROPpea ni recrea un destino poblado. Antes de escribir verifica
+hashes y rechaza base poblada, bucket no vacío o runtime activo. Restaura
+PostgreSQL/objetos por stdio y verifica SHA-256, tamaños, content type y metadata.
+Una falla conserva destino parcial para diagnóstico; no publica ni resetea.
 
-Ejemplo de drill mensual en un ambiente aislado y descartable. Un backup
-productivo contiene datos institucionales: no restaurarlo en staging ni en un
-preview público con datos sintéticos. La VM compartida con PRs no es un destino
-de recuperación autorizado por defecto. Usar un host de prueba segregado,
-sin publicación por wildcard y con acceso restringido, conservando la protección
-que limita el script a identificadores descartables como `pr-123`:
+Ejemplo sintético y aislado en el host no productivo (identidad app existente,
+credenciales seguras inyectadas, destino nuevo sin ingress):
 
 ```bash
-export RED_DATOS=arsdocendi-datos
-export PGHOST=arsdocendi-postgres
-export PGPORT=5432
-export PGUSER=postgres
-export PGPASSWORD='[inyectar desde el gestor seguro]'
-export APP_DB_USER=app_pr_123
-export APP_DB_PASSWORD='[inyectar desde el gestor seguro]'
-export SEAWEEDFS_ROOT_ACCESS_KEY='[inyectar desde el gestor seguro]'
-export SEAWEEDFS_ROOT_SECRET_KEY='[inyectar desde el gestor seguro]'
-
-infra/scripts/provision-db.sh pr-123
-infra/scripts/provision-storage.sh pr-123
-infra/scripts/restore-storage.sh pr-123 \
-  /secure/backups/arsdocendi/principal/prod/<timestamp>
+RECOVERY_AUTHORIZED=recovery-drill \
+  infra/scripts/restore-storage.sh recovery-drill "volume:staging:$snapshot"
 ```
 
-Después del restore:
+Para datos prod: únicamente desde `volume:prod:ID` a `recovery-<id>` aislado del
+**mismo principal**, con `RECOVERY_AUTHORIZED` coincidente y
+`RECOVERY_HOST_ROLE=principal`. No se permite un dump prod desde directorio ni
+copiarlo a Proxmox, staging o PR públicos. La variable de rol no acredita por sí
+sola el host físico: el operador verifica ubicación y autorización. No publicar
+el destino por wildcard/Traefik ni habilitar fixtures/autenticación de desarrollo.
 
-1. ejecutar migraciones compatibles si el despliegue lo requiere;
-2. consultar una fila de `storage.archivos` en estado `disponible`;
-3. descargar una muestra de PDF e imagen mediante la API autenticada;
-4. comparar el SHA-256 descargado con `storage.archivos.sha256`;
-5. confirmar que `Content-Type` y metadata S3 coincidan con el manifiesto;
-6. verificar que una fila legacy sin `archivo_id` no genere una descarga falsa;
-7. registrar duración, objetos restaurados, filas restauradas y discrepancias;
-8. destruir el ambiente descartable con `teardown.sh` cuando termine el drill.
+Tras el restore, validar historia y versión compatible, filas de
+`storage.archivos`, hash de muestras descargadas, content type y metadata.
+El script preserva referencias originales en PostgreSQL; no cambia silenciosamente
+buckets/ambientes ni genera credenciales de recovery. Preparar esa configuración
+restringida y la adaptación explícita de referencias en el plan de corte
+aprobado. No reabrir una base que aceptó nuevas escrituras suponiendo que el
+snapshot las contiene. Mantener escritores detenidos y obtener backup de
+cualquier estado posterior antes de decidir un corte.
 
-No restaurar directamente sobre producción como primera prueba. Una
-restauración productiva requiere ventana aprobada, backup previo y plan de
-rollback explícito.
+Los ensayos automatizados usan PostgreSQL 18/SeaweedFS reales y datos sintéticos,
+nunca secretos/datasets reales. Comando, aislamiento y cobertura en
+[migrations-persistence.md](migrations-persistence.md#ensayos-reproducibles).
+El corte productivo y un drill institucional requieren aprobación/evidencia
+independiente; este cambio no los ejecuta.
 
 ## Capacidad y retención
 

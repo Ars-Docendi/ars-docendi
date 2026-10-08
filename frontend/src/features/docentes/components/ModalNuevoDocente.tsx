@@ -32,6 +32,8 @@ interface ModalNuevoDocenteProps {
   onCrear: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
   onCerrar: () => void;
   materias: MateriaMock[];
+  /** Pertenencias materia–plan: designaciones y membresía docente. */
+  materiasPlan: MateriaMock[];
   cargos: string[];
   dedicaciones: { id: string; nombre: string }[];
   personas: PersonaSistema[];
@@ -40,19 +42,22 @@ interface ModalNuevoDocenteProps {
 }
 
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
-  const completas = rows.filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0);
+  const completas = rows.filter(
+    (r) => r.materiaId && r.carreraId && r.cargo && r.horas && Number(r.horas) > 0,
+  );
   if (completas.length === 0) return "Agregá al menos una asignación";
   if (
     rows.some(
       (r) =>
-        !r.materia ||
+        !r.materiaId ||
+        !r.carreraId ||
         !r.cargo ||
         !r.horas ||
         Number(r.horas) <= 0 ||
         (!r.dedicacionId && !r.dedicacionLegada),
     )
   ) {
-    return "Completá o quitá las filas incompletas (materia, cargo, dedicación y horas > 0)";
+    return "Completá o quitá las filas incompletas (materia, carrera, cargo, dedicación y horas > 0)";
   }
   return undefined;
 }
@@ -65,7 +70,7 @@ function validarMembresias(filas: MembresiaFila[]): string | undefined {
   ) {
     return "No se puede repetir la misma membresía";
   }
-  if (filas.some((fila) => !fila.rolId || !fila.materiaId || !fila.carreraId)) {
+  if (filas.some((fila) => !fila.rolId || !fila.materiaId)) {
     return "Completá las filas de membresía";
   }
   return undefined;
@@ -77,6 +82,7 @@ export function ModalNuevoDocente({
   onCrear,
   onCerrar,
   materias,
+  materiasPlan,
   cargos,
   dedicaciones,
   personas,
@@ -90,7 +96,7 @@ export function ModalNuevoDocente({
     { rolId: "", materiaId: "", carreraId: "" },
   ]);
   const [asignacionRows, setAsignacionRows] = useState<AsignacionRow[]>([
-    { materia: "", cargo: "", horas: "", dedicacionId: "" },
+    { materiaId: "", carreraId: "", cargo: "", horas: "", dedicacionId: "" },
   ]);
   const [enviado, setEnviado] = useState(false);
 
@@ -99,7 +105,7 @@ export function ModalNuevoDocente({
     setPersonaId("");
     setCampos(CAMPOS_PERSONA_VACIOS);
     setMembresias([{ rolId: "", materiaId: "", carreraId: "" }]);
-    setAsignacionRows([{ materia: "", cargo: "", horas: "", dedicacionId: "" }]);
+    setAsignacionRows([{ materiaId: "", carreraId: "", cargo: "", horas: "", dedicacionId: "" }]);
     setEnviado(false);
     onCerrar();
   }
@@ -155,13 +161,19 @@ export function ModalNuevoDocente({
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
 
     const asignaciones: AsignacionMateria[] = asignacionRows
-      .filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0)
-      .map((r) => ({
-        materia: materias.find((m) => m.codigo === r.materia)!,
-        cargo: r.cargo as CargoDocente,
-        horas: Number(r.horas),
-        dedicacionId: r.dedicacionId || null,
-      }));
+      .filter((r) => r.materiaId && r.carreraId && r.cargo && r.horas && Number(r.horas) > 0)
+      .map((r) => {
+        const materia = materias.find((m) => m.id === r.materiaId)!;
+        return {
+          materiaId: materia.id,
+          materiaCodigo: materia.codigo,
+          materiaNombre: materia.nombre,
+          carreraId: r.carreraId,
+          cargo: r.cargo as CargoDocente,
+          horas: Number(r.horas),
+          dedicacionId: r.dedicacionId || null,
+        };
+      });
 
     onCrear({
       ...campos,
@@ -319,6 +331,7 @@ export function ModalNuevoDocente({
           onChange={setMembresias}
           roles={rolesDisponibles}
           materias={materias}
+          materiasPlan={materiasPlan}
           error={errorMembresias}
         />
 
@@ -327,6 +340,7 @@ export function ModalNuevoDocente({
           onChange={setAsignacionRows}
           error={errorAsignaciones}
           materias={materias}
+          materiasPlan={materiasPlan}
           cargos={cargos}
           dedicaciones={dedicaciones}
         />

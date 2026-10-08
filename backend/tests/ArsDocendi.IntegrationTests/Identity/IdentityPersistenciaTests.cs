@@ -355,9 +355,9 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
             INSERT INTO identity.carreras (id, code, name) VALUES (@id, @code, 'Carrera test')
             """, new NpgsqlParameter("id", carrera), new NpgsqlParameter("code", $"C-{carrera:N}"));
         await EjecutarAsync(conexion, """
-            INSERT INTO identity.materias (id, code, name, carrera_id)
-            VALUES (@id, @code, 'Materia test', @carrera)
-            """, new NpgsqlParameter("id", materia), new NpgsqlParameter("code", $"M-{materia:N}"), new NpgsqlParameter("carrera", carrera));
+            INSERT INTO identity.materias (id, code, name)
+            VALUES (@id, '00001', 'Materia test')
+            """, new NpgsqlParameter("id", materia));
         return (carrera, materia);
     }
 

@@ -15,7 +15,8 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();

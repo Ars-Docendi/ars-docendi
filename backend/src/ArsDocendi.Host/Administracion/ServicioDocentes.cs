@@ -39,8 +39,7 @@ public sealed class ServicioDocentes(
 
         var resultado = personas
             .Where(p => porPersona.ContainsKey(p.Id) || RolesDocentes(p.Usuario).Count > 0)
-            .Select(p => Mapear(
-                p, porPersona.GetValueOrDefault(p.Id) ?? [], materias, materiasVisibles))
+            .Select(p => Mapear(p, porPersona.GetValueOrDefault(p.Id) ?? [], materias, materiasVisibles))
             .Where(d => materiasVisibles is null
                 || d.Asignaciones.Any(a => materiasVisibles.Contains(a.MateriaId)))
             .Where(d => materiaId is null || d.Asignaciones.Any(a => a.MateriaId == materiaId))
@@ -87,6 +86,9 @@ public sealed class ServicioDocentes(
         var personas = await repositorio.ListarPersonasAsync(ct);
         var docentes = (await designaciones.ListarVigentesAsync(ct)).Select(d => d.PersonaId).ToHashSet();
         var materias = await repositorio.ListarMateriasAsync(ct);
+        // Pares materia–carrera informativos: ayudan a ofrecer combinaciones válidas en el
+        // selector, pero ninguna FK depende de ellos.
+        var pares = await repositorio.ListarMateriasPlanAsync(ct);
         var roles = await repositorio.ListarRolesDocentesAsync(ct);
         var cargos = await designaciones.ListarCargosAsync(ct);
         var elegibles = personas
@@ -101,7 +103,12 @@ public sealed class ServicioDocentes(
             roles.OrderBy(r => r.Nombre)
                 .Select(r => new RolCatalogoDto(r.Id, r.Codigo, r.Nombre, r.Ambito, r.EsSistema)).ToArray(),
             materias.Where(m => materiasVisibles is null || materiasVisibles.Contains(m.Id))
-                .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre, m.CarreraId)).ToArray(),
+                .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre)).ToArray(),
+            pares.Where(mp => mp.Plan!.Activo && (materiasVisibles is null || materiasVisibles.Contains(mp.MateriaId)))
+                .Select(mp => new OpcionCatalogoDto(
+                    mp.MateriaId, mp.Materia!.Codigo, mp.Materia.Nombre, mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre))
+                .Distinct()
+                .ToArray(),
             cargos.Where(c => c.Activo).ToArray(),
             elegibles,
             (await designaciones.ListarDedicacionesAsync(ct)).Where(d => d.Activo).ToArray());
@@ -133,14 +140,6 @@ public sealed class ServicioDocentes(
         var roles = (await repositorio.ObtenerRolesDocentesAsync(
             datos.Membresias.Select(m => m.RolId).Distinct().ToArray(), ct))
             .ToDictionary(r => r.Id);
-        var materias = (await repositorio.ObtenerMateriasAsync(
-            datos.Membresias.Select(m => m.MateriaId)
-                .Concat(datos.Designaciones.Select(d => (Guid?)d.MateriaId))
-                .Where(id => id.HasValue)
-                .Select(id => id!.Value)
-                .Distinct().ToArray(), ct))
-            .ToDictionary(m => m.Id);
-
         var id = await unidadDeTrabajo.EjecutarAsync(async token =>
         {
             var persona = existente ?? NuevaPersona(datos, documento);
@@ -170,14 +169,13 @@ public sealed class ServicioDocentes(
             foreach (var membresia in datos.Membresias)
             {
                 var rol = roles[membresia.RolId];
-                var materia = materias[membresia.MateriaId!.Value];
                 var asignacion = new UsuarioRol
                 {
                     Id = Guid.NewGuid(),
                     UsuarioId = usuario.Id,
                     RolId = rol.Id,
-                    MateriaId = materia.Id,
-                    CarreraId = materia.CarreraId,
+                    MateriaId = membresia.MateriaId,
+                    CarreraId = membresia.CarreraId,
                     OtorgadoEn = ahora,
                     CreadoEn = ahora,
                     Rol = rol,
@@ -238,26 +236,49 @@ public sealed class ServicioDocentes(
         }
         var rolesPorId = roles.ToDictionary(r => r.Id);
         var materias = (await repositorio.ObtenerMateriasAsync(
-            datos.Membresias.Select(m => m.MateriaId).Where(id => id.HasValue).Select(id => id!.Value)
+            datos.Membresias.Where(m => m.MateriaId is not null).Select(m => m.MateriaId!.Value)
+                .Concat(datos.Designaciones.Select(d => d.MateriaId))
                 .Distinct().ToArray(), ct)).ToDictionary(m => m.Id);
-        if (datos.Membresias.Any(m => m.MateriaId is null
-                || m.CarreraId is null
-                || !rolesPorId.TryGetValue(m.RolId, out var rol)
-                || rol.Ambito != "materia"
-                || !materias.TryGetValue(m.MateriaId.Value, out var materia)
-                || materia.CarreraId != m.CarreraId))
+        // Catálogo informativo materia–carrera: valida que la materia se dicte, vigente, en la
+        // carrera elegida. Ninguna FK depende de esto.
+        var paresActivos = (await repositorio.ListarMateriasPlanAsync(ct))
+            .Where(mp => mp.Activo && mp.Materia!.Activo && mp.Plan!.Activo)
+            .Select(mp => (mp.MateriaId, CarreraId: mp.Plan!.CarreraId))
+            .ToHashSet();
+        if (datos.Membresias.Any(m => !MembresiaValida(m, rolesPorId, materias, paresActivos)))
         {
             throw new ExcepcionAplicacion(
                 TipoErrorAplicacion.ReglaDeNegocio,
                 "identity-role-scope-conflict",
-                "Cada membresía docente debe vincular un rol con una materia de su carrera.");
+                "Cada membresía debe vincular el rol con su ámbito: el docente con materia y carrera, y el jefe de cátedra con una materia.");
         }
-        var materiaIds = datos.Designaciones.Select(d => d.MateriaId).Distinct().ToArray();
-        if ((await repositorio.ObtenerMateriasAsync(materiaIds, ct)).Count != materiaIds.Length)
+        if (datos.Designaciones.Any(d =>
+            !materias.ContainsKey(d.MateriaId) || !paresActivos.Contains((d.MateriaId, d.CarreraId))))
         {
-            throw ErrorValidacion("designaciones", "Una de las materias no existe o está inactiva.");
+            throw ErrorValidacion(
+                "designaciones", "Una de las materias no existe, está inactiva o no se dicta en la carrera indicada.");
         }
     }
+
+    /// <summary>
+    /// Docente: materia y carrera juntas, ambas vigentes en el catálogo informativo
+    /// materia–carrera. Jefe de Cátedra: materia canónica y nada más.
+    /// </summary>
+    private static bool MembresiaValida(
+        GuardarAsignacionRolDto membresia,
+        IReadOnlyDictionary<Guid, Rol> roles,
+        IReadOnlyDictionary<Guid, Materia> materias,
+        IReadOnlySet<(Guid MateriaId, Guid CarreraId)> paresActivos) =>
+        roles.TryGetValue(membresia.RolId, out var rol) && rol.Codigo switch
+        {
+            "docente" => membresia.MateriaId is { } materiaId
+                && membresia.CarreraId is { } carreraId
+                && paresActivos.Contains((materiaId, carreraId)),
+            "jefe_catedra" => membresia.MateriaId is { } mid
+                && membresia.CarreraId is null
+                && materias.ContainsKey(mid),
+            _ => false,
+        };
 
     private static Persona NuevaPersona(GuardarDocenteDto datos, string documento) => new()
     {
@@ -368,6 +389,7 @@ public sealed class ServicioDocentes(
                 d.MateriaId,
                 materias.GetValueOrDefault(d.MateriaId)?.Codigo ?? string.Empty,
                 materias.GetValueOrDefault(d.MateriaId)?.Nombre ?? string.Empty,
+                d.CarreraId,
                 d.CargoId,
                 d.CargoNombre,
                 d.CargoAbreviatura,

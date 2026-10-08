@@ -16,10 +16,10 @@ public static class DependencyInjection
     /// <summary>
     /// Registra las utilidades transversales y la persistencia de identidad/auditoría.
     /// <para>
-    /// DEBE invocarse ANTES que los <c>Add&lt;Modulo&gt;Module()</c> en el Host: el
-    /// contenedor devuelve las implementaciones de <see cref="IMigradorModulo"/> en
-    /// orden de registración, y el schema <c>audit</c> + las tablas de <c>identity</c>
-    /// tienen que existir antes de que cualquier módulo aplique su DDL.
+    /// DEBE invocarse antes de AddMigracionesIdentity y de los módulos en el Host.
+    /// El adaptador de migraciones vive en ArsDocendi.Migraciones para no agregar
+    /// I/O de otros contextos a Shared; Identity/Audit se aplica antes de Storage
+    /// y de las tablas de negocio que dependen de ambas infraestructuras.
     /// </para>
     /// </summary>
     public static IServiceCollection AddArsDocendiShared(this IServiceCollection services, IConfiguration configuration)
@@ -33,7 +33,6 @@ public static class DependencyInjection
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", IdentityDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
-        services.AddScoped<IMigradorModulo, MigradorIdentity>();
         services.AddScoped<IConsultasIdentity, ConsultasIdentity>();
         services.AddScoped<IVinculadorPrimerLogin, VinculadorPrimerLogin>();
         services.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();

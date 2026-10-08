@@ -12,6 +12,13 @@ public sealed class ErrorDominioPedido(string mensaje) : Exception(mensaje);
 public sealed class ErrorPedidoDuplicado(string mensaje) : Exception(mensaje);
 
 /// <summary>
+/// Cátedra y carrera de la pertenencia materia–plan de un pedido, resueltas desde identity.
+/// La carrera sale del plan [BR-designaciones-009]; la materia canónica es la que el Jefe de
+/// Cátedra tiene a cargo, válida en todos sus planes.
+/// </summary>
+public sealed record AlcancePedido(Guid MateriaId, Guid CarreraId);
+
+/// <summary>
 /// Ámbito del actor, resuelto UNA vez desde identity antes de invocar la máquina.
 /// <para>
 /// Resolverlo de antemano es lo que permite que la máquina de estados sea una

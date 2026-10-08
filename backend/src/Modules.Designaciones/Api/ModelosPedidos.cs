@@ -12,7 +12,7 @@ public sealed record PersonaPedidoDto(
     string? Legajo);
 
 public sealed record MateriaPedidoDto(
-    Guid Id,
+    Guid MateriaId,
     string Codigo,
     string Nombre,
     Guid CarreraId,
@@ -82,10 +82,15 @@ public sealed record PedidoDto(
     IReadOnlyList<string> AccionesPermitidas,
     Guid? DedicacionSolicitadaId = null);
 
+/// <param name="CarreraId">
+/// Carrera elegida para el pedido. Una materia dictada en más de una carrera exige elegir una
+/// (BR-designaciones-009): el frontend la ofrece junto a la materia en el selector.
+/// </param>
 public sealed record GuardarPedidoDto(
     Guid PeriodoId,
     Guid? PersonaId,
     Guid MateriaId,
+    Guid CarreraId,
     string Novedad,
     Guid? CargoSolicitadoId,
     Guid? DedicacionSolicitadaId,

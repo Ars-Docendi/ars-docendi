@@ -77,7 +77,7 @@ test("previews y teardown permanecen en Proxmox con ambos gates", () => {
     /if: contains\(github\.event\.pull_request\.labels\.\*\.name, 'deploy-preview'\)/,
   );
   assert.match(teardown, /runs-on: \[self-hosted, arsdocendi, confiable, secundaria\]/);
-  assert.match(teardown, /ref: \$\{\{ github\.event\.pull_request\.base\.ref \}\}/);
+  assert.match(teardown, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
   assert.match(teardown, /infra\/scripts\/teardown\.sh/);
   assert.doesNotMatch(deploy, /^  pull_request_target:/m);
 });

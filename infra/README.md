@@ -1,4 +1,4 @@
-# Infra — plataforma de ambientes efímeros
+# Infra — ambientes persistentes y previews con teardown explícito
 
 Plataforma temporal de dos hosts aislados: la PC Debian **principal** y una VM
 Proxmox **secundaria**. `prod` (desde `main`) corre **sólo en Debian**, en
@@ -34,10 +34,10 @@ infra/
 │   ├── provision-db.sh       # crea base + rol del ambiente (idempotente)
 │   ├── seed.sh               # siembra datos sintéticos (aborta si datos de prod)
 │   ├── drop-db.sh            # DROP DATABASE (solo staging/pr-N, nunca prod)
-│   ├── spin-up.sh <env>      # reconstruye descartables, migra, siembra y levanta
+│   ├── spin-up.sh <env>      # actualiza persistentemente con preflight/backup/smoke
 │   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
-│   ├── backup-storage.sh <env> <dir> # backup PostgreSQL + objetos S3 verificable
-│   ├── restore-storage.sh <env> <dir> # restore descartable con hashes
+│   ├── backup-storage.sh <env> # snapshot privado en volumen Docker
+│   ├── restore-storage.sh <dest> <backup> # recovery aislado autorizado
 │   └── seed-data/sintetico.sql
 ├── runners/
 │   ├── respawn-efimero.sh                  # registra+corre 1 runner efímero (token auto)
@@ -341,9 +341,9 @@ curl -I https://staging.<dominio>                    # frontend vía túnel
 curl -fsS https://staging.<dominio>/api/designaciones/ping # GET del backend (200)
 ```
 
-> Seed: `spin-up.sh` siembra automáticamente con `seed.sh`
-> (`scripts/seed-data/sintetico.sql`) en todo ambiente **no-prod**. Regla dura:
-> `seed.sh` aborta si se le pide copiar la base de prod a un ambiente no-prod.
+> Seed: `spin-up.sh` evalúa `seed.sh` sólo en ambientes **no-prod**. Inicializa
+> una vez mediante bootstrap reconocido y marcador transaccional; redeploy no
+> pisa ediciones. Nunca copia prod ni SGA a staging/pr-N.
 
 ### Corte productivo reversible (operador)
 
@@ -365,78 +365,44 @@ El retiro futuro de Proxmox requiere decidir el destino de staging/previews
 y tratar sus datos antes de apagar wildcard/túnel/runners/VM. No se trasladan
 implícitamente a Debian ni afectan la independencia de producción.
 
-### Reconstrucción y recuperación
+### Persistencia, backup y recuperación
 
-`spin-up.sh` ejecuta el siguiente orden en `staging` y `pr-N`: toma el lock del
-ambiente, detiene el Compose project, ejecuta `drop-db.sh`, aprovisiona una base
-nueva, corre `docker compose ... run --rm backend ... --migrate`, aplica
-`seed.sh` y recién entonces publica con `docker compose ... up -d`. Una falla
-interrumpe el script por `set -euo pipefail`, por lo que no se publica una
-versión cuya migración o seed no terminó.
-
-```bash
-infra/scripts/spin-up.sh staging
-docker compose -p staging -f infra/compose/compose.base.yml ps
-```
-
-Para recuperar un ambiente descartable después de una falla se corrige la
-imagen o migración y se repite el mismo comando; la base se vuelve a crear
-desde cero. El rollback de `prod` requiere restaurar el backup y desplegar la
-versión conjunta anterior de backend y frontend. `spin-up.sh prod` no ejecuta
-`down`, `drop-db.sh` ni `seed.sh`: sólo aprovisiona de forma idempotente,
-migra y publica.
-
-### Backup y restore de storage
-
-El backup institucional se ejecuta con `infra/scripts/backup-storage.sh` y
-produce `postgres.dump`, `objects/`, `manifest.json` y `checksums.sha256` en un
-directorio cifrado. El restore de prueba se ejecuta con
-`infra/scripts/restore-storage.sh <staging|pr-N> <backup>`; verifica los hashes,
-recrea la base descartable, restaura PostgreSQL y repone los objetos mediante
-S3 verificando tamaño y SHA-256. El script rechaza `prod`. El procedimiento
-completo y el mapeo de secretos están en
-[docs/operations/storage-runbook.md](../docs/operations/storage-runbook.md).
-
-### Operar y reejecutar el dataset sintético
-
-El SQL declara la versión `2026.09.1` en `public.seed_metadata` y usa UUIDs reservados, una transacción y un advisory lock. Puede ejecutarse nuevamente para restaurar las filas de ejemplo sin duplicarlas ni borrar registros ajenos:
+El deploy ordinario conserva filas, auditoría, buckets y adjuntos. No ejecuta
+`drop-db.sh`, `purge-storage.sh` ni `down -v`. El lock atómico del daemon se
+comparte con teardown/backup/seed/reset y no depende del filesystem del runner.
+Con pendientes sobre base existente, primero detiene backend y obtiene backup
+conjunto verificable; luego revalida estado/preview, migra, inicializa seed sólo
+si corresponde y exige smoke de SHA, pings, DB read-only y cero pendientes.
+Una falla no restaura ni reconstruye automáticamente; se preserva recuperación.
 
 ```bash
-infra/scripts/seed.sh staging
-# o, dentro del flujo normal: infra/scripts/spin-up.sh staging
+# Redeploy persistente (credenciales inyectadas, imágenes por SHA completo).
+infra/scripts/spin-up.sh staging
+# Reset explícito, destructivo, sólo no-prod; backups se conservan.
+RESET_AUTHORIZED=pr-123 infra/scripts/reset.sh pr-123
+# Backup privado, con escritores detenidos.
+infra/scripts/backup-storage.sh staging
+infra/scripts/backup-volume.sh staging list
+# Recovery en destino nuevo y sin ingress, mismo host.
+RECOVERY_AUTHORIZED=recovery-ensayo infra/scripts/restore-storage.sh \
+  recovery-ensayo volume:staging:<snapshot>
 ```
 
-Para verificar dos despliegues consecutivos sin tocar producción, se puede
-usar `staging` y una base vecina `pr-123` **sólo en Proxmox**:
+El seed declara su versión pero una versión nueva no provoca reseed. Una base
+poblada sin autorización o con marca inconsistente falla cerrado. El setup
+local mantiene sintético+SGA privados juntos y exige marca completa, nunca sólo
+existencia de una tabla. No leer/versionar SGA ni usarlo fuera de dev local.
 
-```bash
-infra/scripts/spin-up.sh staging
-infra/scripts/spin-up.sh pr-123
-docker run --rm --network arsdocendi-datos \
-  -e PGPASSWORD="$PGPASSWORD" postgres:18-alpine psql \
-  -h "$PGHOST" -U "$PGUSER" -d arsdocendi_staging \
-  -c "INSERT INTO identity.personas (id, documento, nombre, apellido) VALUES ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'TEST-RESET', 'Fila', 'Temporal')"
-infra/scripts/spin-up.sh staging
-docker run --rm --network arsdocendi-datos \
-  -e PGPASSWORD="$PGPASSWORD" postgres:18-alpine psql \
-  -h "$PGHOST" -U "$PGUSER" -d arsdocendi_staging \
-  -c "SELECT count(*) FROM identity.personas WHERE id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'"
-```
+Los backups van por stdio a `arsdocendi-backups-<env>`; ningún bind de workspace.
+Retención default 7 días positivos sólo para snapshots completos de deploys
+exitosos; fallidos/incompletos requieren limpieza manual. Teardown no borra
+backups y no existe reaper. Recovery directo de prod está prohibido; datos prod
+sólo pueden ir a `recovery-*` autorizado en principal, no a previews públicos.
 
-Resultado esperado: la consulta devuelve `0`, la versión `2026.09.1` y la
-numeración sintética vuelven a su estado inicial, mientras la base `pr-123`
-mantiene sus propias fixtures. `spin-up.sh` rechaza `prod` en los caminos de
-reset y seed.
-
-`SEED_SQL=/ruta/version.sql` selecciona explícitamente otro archivo. Nunca se debe invocar con `prod`; el script lo rechaza antes de abrir `psql`. Para usar las identidades sembradas en un Host local no productivo hay que optar además por `DevelopmentAuthentication__Enabled=true` (equivale a `DevelopmentAuthentication:Enabled` en configuración). En Compose se configura mediante `DEVELOPMENT_AUTHENTICATION_ENABLED=true`. Los bundles optimizados de staging/preview requieren también `--build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true`; los workflows no productivos fijan ambos valores. Production conserva ambos opt-ins en `false`, ignora los headers de desarrollo y no publica `/api/desarrollo/identidades`.
-
-Smoke check después de desplegar staging o un preview:
-
-1. Abrir `/login` y pulsar **Iniciar sesión con cuenta institucional**; debe abrirse el selector sembrado.
-2. Confirmar que `GET /api/desarrollo/identidades` responde `200` y lista sólo identidades elegibles.
-3. Elegir una identidad y verificar que una llamada protegida envía `X-Dev-User-Id` y `X-Dev-Role-Code` y responde `200`.
-4. Cambiar de rol y verificar que la solicitud siguiente usa el nuevo código.
-5. En producción, confirmar que `/api/desarrollo/identidades` responde `404` y que el selector no está disponible.
+Runbooks: [migraciones/persistencia](../docs/operations/migrations-persistence.md),
+[storage](../docs/operations/storage-runbook.md),
+[scopes y gates](../docs/operations/github-pr-deploy.md).
+Las garantías, límites y comandos de ensayo están detallados allí.
 
 ## Empaquetado de la app (resuelto en el change `containerizar-app`)
 
@@ -445,8 +411,10 @@ El empaquetado que esta plataforma consume vive en el repo:
 - `backend/Dockerfile` (+ `.dockerignore`) → imagen `arsdocendi-backend`, escucha en `8080`.
 - `frontend/Dockerfile` (+ `.dockerignore` + `nginx.conf`) → imagen `arsdocendi-frontend`, sirve el SPA en `80`.
 - El backend soporta el comando de migraciones one-shot que invoca `spin-up.sh`
-  (`COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`): aplica
-  las migraciones de los 4 módulos y termina sin levantar el web server.
+  (`dotnet ArsDocendi.Host.dll --migrate`), estado JSON (`--estado-migraciones`)
+  y preview SQL/manifiesto/tar (`--script-migraciones -`). Terminan sin listener,
+  incluyen Identity/Audit y Storage antes de consumidores y rechazan historia
+  incompatible. El arranque normal no migra.
 
 Detalle del contrato app↔infra (clave de connection string `ArsDocendi`, mecanismo
 `--migrate`) en [docs/architecture/data-model.md](../docs/architecture/data-model.md).

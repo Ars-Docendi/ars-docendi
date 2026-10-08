@@ -23,7 +23,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Cargo", b =>
+            modelBuilder.Entity("Cargo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -68,7 +68,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.ComandoIdempotente", b =>
+            modelBuilder.Entity("ComandoIdempotente", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -121,7 +121,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Dedicacion", b =>
+            modelBuilder.Entity("Dedicacion", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -160,16 +160,8 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Designacion", b =>
+            modelBuilder.Entity("Designacion", b =>
                 {
-                    b.Property<int?>("HorasInvestigacion")
-                        .HasColumnType("integer")
-                        .HasColumnName("horas_investigacion");
-
-                    b.Property<int?>("HorasExternas")
-                        .HasColumnType("integer")
-                        .HasColumnName("horas_externas");
-
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -178,6 +170,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<Guid>("CargoId")
                         .HasColumnType("uuid")
                         .HasColumnName("cargo_id");
+
+                    b.Property<Guid>("CarreraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("carrera_id");
 
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone")
@@ -194,6 +190,14 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<int>("Horas")
                         .HasColumnType("integer")
                         .HasColumnName("horas");
+
+                    b.Property<int?>("HorasExternas")
+                        .HasColumnType("integer")
+                        .HasColumnName("horas_externas");
+
+                    b.Property<int?>("HorasInvestigacion")
+                        .HasColumnType("integer")
+                        .HasColumnName("horas_investigacion");
 
                     b.Property<Guid>("MateriaId")
                         .HasColumnType("uuid")
@@ -227,7 +231,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Pedido", b =>
+            modelBuilder.Entity("Pedido", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -237,6 +241,10 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Property<Guid?>("CargoSolicitadoId")
                         .HasColumnType("uuid")
                         .HasColumnName("cargo_solicitado_id");
+
+                    b.Property<Guid>("CarreraId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("carrera_id");
 
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone")
@@ -340,7 +348,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoAdjunto", b =>
+            modelBuilder.Entity("PedidoAdjunto", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -383,7 +391,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoHistorial", b =>
+            modelBuilder.Entity("PedidoHistorial", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -430,7 +438,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Periodo", b =>
+            modelBuilder.Entity("Periodo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -480,15 +488,15 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Designacion", b =>
+            modelBuilder.Entity("Designacion", b =>
                 {
-                    b.HasOne("Modules.Designaciones.Domain.Cargo", "Cargo")
+                    b.HasOne("Cargo", "Cargo")
                         .WithMany()
                         .HasForeignKey("CargoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Modules.Designaciones.Domain.Dedicacion", "DedicacionCatalogo")
+                    b.HasOne("Dedicacion", "DedicacionCatalogo")
                         .WithMany()
                         .HasForeignKey("DedicacionId");
 
@@ -497,17 +505,17 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Navigation("DedicacionCatalogo");
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Pedido", b =>
+            modelBuilder.Entity("Pedido", b =>
                 {
-                    b.HasOne("Modules.Designaciones.Domain.Cargo", "CargoSolicitado")
+                    b.HasOne("Cargo", "CargoSolicitado")
                         .WithMany()
                         .HasForeignKey("CargoSolicitadoId");
 
-                    b.HasOne("Modules.Designaciones.Domain.Dedicacion", "DedicacionSolicitadaCatalogo")
+                    b.HasOne("Dedicacion", "DedicacionSolicitadaCatalogo")
                         .WithMany()
                         .HasForeignKey("DedicacionSolicitadaId");
 
-                    b.HasOne("Modules.Designaciones.Domain.Periodo", "Periodo")
+                    b.HasOne("Periodo", "Periodo")
                         .WithMany()
                         .HasForeignKey("PeriodoId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -520,9 +528,9 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Navigation("Periodo");
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoAdjunto", b =>
+            modelBuilder.Entity("PedidoAdjunto", b =>
                 {
-                    b.HasOne("Modules.Designaciones.Domain.Pedido", "Pedido")
+                    b.HasOne("Pedido", "Pedido")
                         .WithMany("Adjuntos")
                         .HasForeignKey("PedidoId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -531,9 +539,9 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Navigation("Pedido");
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.PedidoHistorial", b =>
+            modelBuilder.Entity("PedidoHistorial", b =>
                 {
-                    b.HasOne("Modules.Designaciones.Domain.Pedido", "Pedido")
+                    b.HasOne("Pedido", "Pedido")
                         .WithMany("Historial")
                         .HasForeignKey("PedidoId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -542,7 +550,7 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                     b.Navigation("Pedido");
                 });
 
-            modelBuilder.Entity("Modules.Designaciones.Domain.Pedido", b =>
+            modelBuilder.Entity("Pedido", b =>
                 {
                     b.Navigation("Adjuntos");
 

@@ -28,7 +28,9 @@ Monolito modular en monorepo:
 ./scripts/setup.sh
 ```
 
-Este script: crea `.env` desde `.env.example`, levanta Postgres en docker, instala deps Node (raíz + frontend), y restaura/buildea backend. Al terminar te lista las URLs.
+Este script: crea `.env` desde `.env.example`, levanta Postgres en docker, instala deps Node (raíz + frontend), restaura/buildea backend, aplica migraciones y siembra datos de desarrollo. Al terminar te lista las URLs.
+
+El seed solo corre la primera vez (base vacía) — si ya sembraste, correrlo de nuevo no pisa lo que edites desde la app. Para volver al dataset original: `docker compose down -v && ./scripts/setup.sh`.
 
 ### Manual (paso a paso)
 
@@ -48,20 +50,42 @@ pnpm install                 # instala husky/lint-staged/prettier + deps del fro
 
 Husky se activa automáticamente con `pnpm install` y configura el pre-commit (dotnet format + eslint + prettier).
 
-#### 3. Backend
+#### 3. Migraciones y seed
 
 ```bash
 cd backend
 dotnet restore
 dotnet build
-dotnet run --project src/ArsDocendi.Host
+dotnet run --project src/ArsDocendi.Host -- --estado-migraciones # consulta segura
+dotnet run --project src/ArsDocendi.Host -- --migrate   # aplica migraciones y termina
+cd ..
+# Primera inicialización local: ejecuta ambos datasets en una transacción,
+# registra la marca completa y no vuelve a sembrar sobre ediciones existentes.
+bash infra/scripts/seed-local.sh
+```
+
+Los dos datasets van siempre juntos: `sintetico.sql` (fixtures de prueba) y `sga.sql`
+(carreras, materias y docentes reales del SGA — tiene PII real, por eso **sólo corre en
+dev local**; nunca en staging/prod). Staging/PR usan `infra/scripts/seed.sh` sólo al
+inicializar y preservan datos/adjuntos entre despliegues. El reset es una operación
+explícita distinta del deploy; producción nunca recibe fixtures.
+
+El baseline consolidado requiere bases nuevas. Si existe historial alpha anterior,
+el runner aborta sin modificarlo: no existe conversión ni reset automático. Ver
+`database/README.md` y `docs/operations/migrations-persistence.md` para scaffolding,
+preview SQL, integridad, backups y recuperación.
+
+#### 4. Backend
+
+```bash
+dotnet run --project backend/src/ArsDocendi.Host
 ```
 
 - API: `http://localhost:5000`
 - Swagger: `http://localhost:5000/swagger`
 - Ping por módulo: `http://localhost:5000/api/{designaciones|aulas|portal|tareas}/ping`
 
-#### 4. Frontend
+#### 5. Frontend
 
 ```bash
 pnpm --filter frontend dev

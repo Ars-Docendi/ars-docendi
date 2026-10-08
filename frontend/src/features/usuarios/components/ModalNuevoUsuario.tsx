@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Button, DatePicker, Field, Input, InlineAlert, Modal } from "@ars-docendi/ui";
 import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/MembresiasSelector";
+import { membresiaAGuardar } from "../../../shared/ui/membresias";
 import type { CatalogosUsuarios } from "../api/usuariosApi";
-import type { UsuarioFormulario } from "../models";
+import type { UsuarioGuardar } from "../models";
 
 interface ModalNuevoUsuarioProps {
   open: boolean;
   upnsExistentes: string[];
-  onCrear: (datos: UsuarioFormulario) => void;
+  onCrear: (datos: UsuarioGuardar) => void;
   onCerrar: () => void;
   error?: string;
   catalogos: CatalogosUsuarios;
@@ -39,10 +40,11 @@ function validarMembresias(
   if (
     filas.some((fila) => {
       const rol = catalogos.roles.find((opcion) => opcion.id === fila.rolId);
+      const esDocente = rol?.codigo === "docente";
       return (
         !rol ||
-        (rol.ambito === "materia" && (!fila.materiaId || !fila.carreraId)) ||
-        (rol.ambito === "carrera" && !fila.carreraId) ||
+        (rol.ambito === "materia" && !fila.materiaId) ||
+        ((rol.ambito === "carrera" || esDocente) && !fila.carreraId) ||
         (rol.ambito === "global" && (fila.materiaId || fila.carreraId))
       );
     })
@@ -87,11 +89,7 @@ export function ModalNuevoUsuario({
     onCrear({
       ...campos,
       upn: campos.upn.toLowerCase(),
-      membresias: campos.membresias.map((fila) => ({
-        rolId: fila.rolId,
-        materiaId: fila.materiaId || null,
-        carreraId: fila.carreraId || null,
-      })),
+      membresias: campos.membresias.map((fila) => membresiaAGuardar(fila, catalogos.roles)),
     });
     setCampos(VACIO);
     setEnviado(false);
@@ -244,6 +242,7 @@ export function ModalNuevoUsuario({
           onChange={(membresias) => set("membresias", membresias)}
           roles={catalogos.roles}
           materias={catalogos.materias}
+          materiasPlan={catalogos.materiasPlan}
           carreras={catalogos.carreras}
           error={errorMembresias}
         />

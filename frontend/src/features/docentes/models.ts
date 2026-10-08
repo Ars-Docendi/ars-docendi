@@ -3,6 +3,7 @@ export interface MateriaMock {
   codigo: string;
   nombre: string;
   carreraId?: string | null;
+  carreraNombre?: string | null;
 }
 export interface MembresiaRolDocente {
   id: string;
@@ -35,7 +36,10 @@ export type RolDocente = string;
 export type CargoDocente = string;
 export interface AsignacionMateria {
   id?: string;
-  materia: MateriaMock;
+  materiaId: string;
+  materiaCodigo: string;
+  materiaNombre: string;
+  carreraId: string;
   cargo: CargoDocente;
   cargoId?: string;
   cargoAbreviatura?: string;

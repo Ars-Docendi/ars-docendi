@@ -50,24 +50,29 @@ public interface IConsultasIdentity
     Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct);
 
     /// <summary>
-    /// Materias sobre las que el usuario tiene vigente el rol de sistema indicado.
-    /// Es el ámbito del Jefe de Cátedra: las cátedras que tiene a cargo.
+    /// Materias canónicas sobre las que el usuario tiene vigente el rol de sistema indicado.
+    /// Es el ámbito del Jefe de Cátedra (vale en todos sus planes) y, junto con
+    /// <see cref="ObtenerCarrerasDeRolAsync"/>, el del Docente.
     /// </summary>
     Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct);
 
     /// <summary>
-    /// Carreras sobre las que el usuario tiene vigente el rol de sistema indicado.
-    /// Es el ámbito del Coordinador.
+    /// Carreras sobre las que el usuario tiene vigente el rol de sistema indicado. Es el
+    /// ámbito del Coordinador y, junto con <see cref="ObtenerMateriasDeRolAsync"/>, el del Docente.
     /// </summary>
     Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct);
 
-    /// <summary>Carrera a la que pertenece la materia, o <c>null</c> si la materia no existe.</summary>
-    Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct);
-
-    /// <summary>Catálogo de materias, incluidas las inactivas referenciadas por historiales.</summary>
+    /// <summary>Catálogo de materias canónicas, incluidas las inactivas referenciadas por historiales.</summary>
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Pertenencias materia–plan, informativas: qué materias dicta cada carrera y si su plan
+    /// está vigente/activo. Ninguna FK depende de esto; una materia dictada en dos carreras, o
+    /// bajo dos planes de la misma carrera, aparece una vez por plan.
+    /// </summary>
+    Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct);
 
     /// <summary>Personas canónicas elegibles para operaciones de negocio.</summary>
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);

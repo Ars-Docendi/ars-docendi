@@ -23,7 +23,13 @@ interface PedidoDto {
     documento: string;
     legajo: string | null;
   };
-  materia: { id: string; codigo: string; nombre: string; carreraId: string; carreraNombre: string };
+  materia: {
+    materiaId: string;
+    codigo: string;
+    nombre: string;
+    carreraId: string;
+    carreraNombre: string;
+  };
   novedad: Novedad;
   estado: EstadoPedido;
   prioritario: boolean;
@@ -153,6 +159,7 @@ async function payload(datos: DatosEditablesPedido, catalogos: CatalogosDesignac
     ...(datos.personaId ? { personaId: datos.personaId } : {}),
     ...(personaNueva ? { persona: personaNueva } : {}),
     materiaId: datos.materiaId,
+    carreraId: datos.carreraId,
     novedad: datos.novedad,
     cargoSolicitadoId,
     dedicacionSolicitadaId:
@@ -177,7 +184,8 @@ function mapear(dto: PedidoDto): PedidoDesignacion {
     periodoId: dto.periodo.id,
     periodoNombre: dto.periodo.nombre,
     personaId: dto.persona.id,
-    materiaId: dto.materia.id,
+    materiaId: dto.materia.materiaId,
+    carreraId: dto.materia.carreraId,
     catedra: dto.snapshot?.materia ?? dto.materia.nombre,
     carrera: dto.materia.carreraNombre,
     docente: {

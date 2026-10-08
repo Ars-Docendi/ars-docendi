@@ -15,7 +15,15 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
     private static readonly Guid PersonaConPedidoVivo = Guid.Parse("d0000000-0000-4000-8000-000000000001");
     private static readonly Guid PersonaConPedidoRechazado = Guid.Parse("d0000000-0000-4000-8000-000000000015");
     private static readonly Guid MateriaVisible = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid CarreraVisible = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid MateriaAjena = Guid.Parse("70000000-0000-4000-8000-000000000201");
+    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
+    private static readonly Guid[] MateriasDelJefe =
+    [
+        Guid.Parse("70000000-0000-4000-8000-000000000101"),
+        Guid.Parse("70000000-0000-4000-8000-000000000102"),
+        Guid.Parse("70000000-0000-4000-8000-000000000103"),
+    ];
     private static readonly Guid Cargo = Guid.Parse("c3000000-0000-4000-8000-000000000003");
     private static readonly Guid Dedicacion = Guid.Parse("d6000000-0000-4000-8000-000000000002");
 
@@ -37,17 +45,16 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             Guid.Parse("a0000000-0000-4000-8000-000000000004"), identityDb, designacionesDb)
             .ObtenerAsync(ct);
 
-        Assert.Equal(3, jefe.Materias.Count);
-        Assert.All(jefe.Materias, m => Assert.True(new[]
-        {
-            Guid.Parse("70000000-0000-4000-8000-000000000101"),
-            Guid.Parse("70000000-0000-4000-8000-000000000102"),
-            Guid.Parse("70000000-0000-4000-8000-000000000103"),
-        }.Contains(m.Id)));
+        // El Jefe tiene a cargo la materia canónica 102, que se dicta en dos carreras (INF e IND):
+        // el catálogo materia–carrera la lista una vez por carrera, así que son 4 pares, no 3.
+        Assert.Equal(4, jefe.Materias.Count);
+        Assert.All(jefe.Materias, m => Assert.Contains(m.MateriaId, MateriasDelJefe));
+        Assert.Equal(4, jefe.Materias.Select(m => (m.MateriaId, m.CarreraId)).Distinct().Count());
         Assert.Equal(4, coordinador.Materias.Count);
         Assert.All(coordinador.Materias, m => Assert.Equal(
             Guid.Parse("c0000000-0000-4000-8000-000000000201"), m.CarreraId));
-        Assert.Equal(6, secretaria.Materias.Count);
+        // Secretaría ve el departamento completo: los 7 pares materia–carrera del sintético.
+        Assert.Equal(7, secretaria.Materias.Count);
     }
 
     [Fact]
@@ -79,9 +86,9 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             });
         await identityDb.SaveChangesAsync(ct);
         designacionesDb.Designaciones.AddRange(
-            CrearDesignacion(personaMixta, MateriaVisible),
-            CrearDesignacion(personaMixta, MateriaAjena),
-            CrearDesignacion(personaAjena, MateriaAjena));
+            CrearDesignacion(personaMixta, MateriaVisible, CarreraVisible),
+            CrearDesignacion(personaMixta, MateriaAjena, CarreraAjena),
+            CrearDesignacion(personaAjena, MateriaAjena, CarreraAjena));
         await designacionesDb.SaveChangesAsync(ct);
 
         var catalogos = await CrearServicio(
@@ -135,11 +142,12 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             new ResolutorActor(new UsuarioActualFalso(usuarioId), identity));
     }
 
-    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId) => new()
+    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId, Guid carreraId) => new()
     {
         Id = Guid.NewGuid(),
         PersonaId = personaId,
         MateriaId = materiaId,
+        CarreraId = carreraId,
         CargoId = Cargo,
         DedicacionId = Dedicacion,
         Horas = 10,

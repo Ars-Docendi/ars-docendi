@@ -1,3 +1,5 @@
+import type { MembresiaFila, MembresiaGuardar } from "../../shared/ui/membresias";
+
 export type RolSistema = string;
 
 export interface AsignacionRolUsuario {
@@ -17,6 +19,11 @@ export interface RolCatalogoUsuario {
   ambito: string;
 }
 
+/** Datos que envía el formulario a la API: cada membresía ya resuelta por rol. */
+export interface UsuarioGuardar extends Omit<UsuarioFormulario, "membresias"> {
+  membresias: MembresiaGuardar[];
+}
+
 export interface UsuarioFormulario {
   nombre: string;
   apellido: string;
@@ -26,7 +33,8 @@ export interface UsuarioFormulario {
   fecha_nacimiento: string;
   telefono: string;
   upn: string;
-  membresias: Omit<AsignacionRolUsuario, "id" | "codigo" | "nombre" | "ambito">[];
+  membresias: MembresiaFila[];
+
   version?: number;
 }
 

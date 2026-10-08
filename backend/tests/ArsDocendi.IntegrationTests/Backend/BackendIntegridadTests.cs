@@ -29,6 +29,7 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
                 PeriodoId = datos.Periodo,
                 PersonaId = datos.Persona,
                 MateriaId = datos.Materia,
+                CarreraId = datos.Carrera,
                 Novedad = Novedades.CambioDeCargoODedicacion,
                 Estado = EstadosPedido.EnLote,
                 CargoSolicitadoId = Guid.NewGuid(),
@@ -61,8 +62,8 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
         {
             await EjecutarAsync(conexion, """
                 INSERT INTO identity.carreras (id, code, name) VALUES (@id, @code, 'Carrera test');
-                INSERT INTO identity.materias (id, code, name, carrera_id)
-                    VALUES (@materia, @codigo_materia, 'Materia test', @id);
+                INSERT INTO identity.materias (id, code, name)
+                    VALUES (@materia, @codigo_materia, 'Materia test');
                 INSERT INTO identity.users (id, azure_oid, upn, display_name)
                     VALUES (@usuario, @oid, @upn, 'Revisor custom');
                 INSERT INTO identity.roles (id, code, name, scope, es_sistema)
@@ -71,7 +72,8 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
                     VALUES (@usuario, @rol, @id);
                 """,
                 new NpgsqlParameter("id", carrera), new NpgsqlParameter("code", $"C-{carrera:N}"), new NpgsqlParameter("materia", materia),
-                new NpgsqlParameter("codigo_materia", $"M-{materia:N}"), new NpgsqlParameter("usuario", usuario),
+                new NpgsqlParameter("codigo_materia", "00001"),
+                new NpgsqlParameter("usuario", usuario),
                 new NpgsqlParameter("oid", Guid.NewGuid()), new NpgsqlParameter("upn", $"{usuario:N}@unlam.edu.ar"),
                 new NpgsqlParameter("rol", Guid.NewGuid()));
         }
@@ -87,6 +89,7 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
             PeriodoId = Guid.NewGuid(),
             PersonaId = Guid.NewGuid(),
             MateriaId = materia,
+            CarreraId = carrera,
             Novedad = Novedades.Alta,
             Estado = EstadosPedido.EnRevisionCoordinador,
         };
@@ -101,7 +104,7 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
         foreach (var accion in acciones)
         {
             Assert.Throws<ErrorDominioPedido>(() =>
-                MaquinaEstadosPedido.AplicarAccion(pedido, carrera, accion, actor));
+                MaquinaEstadosPedido.AplicarAccion(pedido, new AlcancePedido(materia, carrera), accion, actor));
         }
     }
 
@@ -116,8 +119,8 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await EjecutarAsync(conexion, """
             INSERT INTO identity.carreras (id, code, name) VALUES (@carrera, @codigo_carrera, 'Carrera test');
-            INSERT INTO identity.materias (id, code, name, carrera_id)
-                VALUES (@materia, @codigo_materia, 'Materia test', @carrera);
+            INSERT INTO identity.materias (id, code, name)
+                VALUES (@materia, @codigo_materia, 'Materia test');
             INSERT INTO identity.personas (id, documento, nombre, apellido)
                 VALUES (@persona, @documento, 'Barbara', 'Liskov');
             INSERT INTO designaciones.periodos
@@ -125,22 +128,22 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
                 VALUES (@periodo, 'Periodo test', DATE '2026-01-01', DATE '2026-02-01',
                         DATE '2026-03-01', DATE '2026-12-31');
             INSERT INTO designaciones.pedidos
-                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, cargo_solicitado_id,
-                 dedicacion_solicitada_id, horas)
-                VALUES (@pedido, 'TEST-CAMBIO-ROLLBACK', @periodo, @persona, @materia,
+                (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado,
+                 cargo_solicitado_id, dedicacion_solicitada_id, horas)
+                VALUES (@pedido, 'TEST-CAMBIO-ROLLBACK', @periodo, @persona, @materia, @carrera,
                         'Cambio de cargo o dedicación', 'en_lote',
                         'c3000000-0000-4000-8000-000000000003',
                         'd6000000-0000-4000-8000-000000000001', 20);
             INSERT INTO designaciones.designaciones
-                (id, persona_id, materia_id, cargo_id, dedicacion_id, horas, vigente_desde)
-                VALUES (@designacion, @persona, @materia,
+                (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas, vigente_desde)
+                VALUES (@designacion, @persona, @materia, @carrera,
                         'c3000000-0000-4000-8000-000000000004',
                         'd6000000-0000-4000-8000-000000000001', 10, DATE '2025-01-01');
             """, new NpgsqlParameter("carrera", carrera), new NpgsqlParameter("codigo_carrera", $"C-{carrera:N}"),
-            new NpgsqlParameter("materia", materia), new NpgsqlParameter("codigo_materia", $"M-{materia:N}"),
+            new NpgsqlParameter("materia", materia), new NpgsqlParameter("codigo_materia", "00001"),
             new NpgsqlParameter("persona", persona), new NpgsqlParameter("documento", $"D-{persona:N}"),
             new NpgsqlParameter("periodo", periodo), new NpgsqlParameter("pedido", pedido), new NpgsqlParameter("designacion", designacion));
-        return new DatosCambio(persona, materia, periodo, pedido, designacion);
+        return new DatosCambio(persona, materia, carrera, periodo, pedido, designacion);
     }
 
     private static async Task EjecutarAsync(
@@ -154,6 +157,7 @@ public sealed class BackendIntegridadTests(PostgresFixture postgres)
     private sealed record DatosCambio(
         Guid Persona,
         Guid Materia,
+        Guid Carrera,
         Guid Periodo,
         Guid Pedido,
         Guid Designacion);

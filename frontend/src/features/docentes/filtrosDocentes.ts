@@ -59,8 +59,8 @@ export function aplicarFiltrosDocentes(
       asignacionBuscada &&
       !docente.asignaciones.some((asignacion) =>
         [
-          asignacion.materia.codigo,
-          asignacion.materia.nombre,
+          asignacion.materiaCodigo,
+          asignacion.materiaNombre,
           asignacion.cargo,
           asignacion.cargoAbreviatura ?? "",
         ].some((valor) => normalizarTexto(valor).includes(asignacionBuscada)),

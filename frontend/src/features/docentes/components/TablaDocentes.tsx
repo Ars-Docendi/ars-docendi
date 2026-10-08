@@ -255,11 +255,11 @@ export function TablaDocentes({
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                     {docente.asignaciones.map((asignacion) => (
                       <span
-                        key={asignacion.materia.codigo}
+                        key={asignacion.materiaCodigo}
                         className="adoc-badge s-pendiente"
                         style={{ fontSize: "11px", height: "20px", padding: "0 8px" }}
                       >
-                        {asignacion.materia.codigo} –{" "}
+                        {asignacion.materiaCodigo} –{" "}
                         {asignacion.cargoAbreviatura ?? asignacion.cargo}
                       </span>
                     ))}

@@ -1,5 +1,5 @@
 import { apiClient } from "../../../shared/api/client";
-import type { RolCatalogoUsuario, RolSistema, UsuarioFormulario, UsuarioMock } from "../models";
+import type { RolCatalogoUsuario, RolSistema, UsuarioGuardar, UsuarioMock } from "../models";
 
 interface AsignacionDto {
   id: string;
@@ -31,6 +31,13 @@ export interface CatalogosUsuarios {
   roles: RolCatalogoUsuario[];
   carreras: { id: string; codigo: string; nombre: string }[];
   materias: { id: string; codigo: string; nombre: string; carreraId?: string | null }[];
+  materiasPlan: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    carreraId?: string | null;
+    carreraNombre?: string | null;
+  }[];
 }
 
 export async function listarUsuarios(): Promise<UsuarioMock[]> {
@@ -40,11 +47,11 @@ export async function listarUsuarios(): Promise<UsuarioMock[]> {
 export async function obtenerCatalogosUsuarios(): Promise<CatalogosUsuarios> {
   return (await apiClient.get<CatalogosUsuarios>("/api/administracion/catalogos")).data;
 }
-export async function crearUsuario(datos: UsuarioFormulario): Promise<UsuarioMock> {
+export async function crearUsuario(datos: UsuarioGuardar): Promise<UsuarioMock> {
   const { data } = await apiClient.post<UsuarioDto>("/api/administracion/usuarios", payload(datos));
   return mapearUsuario(data);
 }
-export async function editarUsuario(id: string, datos: UsuarioFormulario): Promise<UsuarioMock> {
+export async function editarUsuario(id: string, datos: UsuarioGuardar): Promise<UsuarioMock> {
   const { data } = await apiClient.put<UsuarioDto>(
     `/api/administracion/usuarios/${id}`,
     payload(datos),
@@ -63,7 +70,7 @@ export async function cambiarEstadoUsuario(
   return mapearUsuario(data);
 }
 
-function payload(datos: UsuarioFormulario) {
+function payload(datos: UsuarioGuardar) {
   return {
     nombre: datos.nombre,
     apellido: datos.apellido,
@@ -93,7 +100,7 @@ function mapearUsuario(dto: UsuarioDto): UsuarioMock {
     is_active: dto.activo,
     roles: dto.roles.map((r) => r.nombre as RolSistema),
     version: dto.version,
-    membresias: dto.membresias,
+    membresias: dto.membresias.map((membresia) => ({ ...membresia })),
     perfilDocente: dto.perfilDocente,
   };
 }

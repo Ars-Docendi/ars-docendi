@@ -16,20 +16,13 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
                 .Where(d => d.PersonaId == personaId && d.VigenteHasta == null)
                 .ToListAsync(ct);
 
+    /// <summary>Designación vigente de la persona en la materia canónica, sin importar el plan.</summary>
     public Task<Designacion?> ObtenerVigenteAsync(Guid personaId, Guid materiaId, CancellationToken ct) =>
         db.Designaciones
           .Include(d => d.Cargo)
                 .Include(d => d.DedicacionCatalogo)
           .FirstOrDefaultAsync(
               d => d.PersonaId == personaId && d.MateriaId == materiaId && d.VigenteHasta == null, ct);
-
-    public async Task<IReadOnlyList<Designacion>> ListarVigentesDeMateriaAsync(
-        Guid materiaId, CancellationToken ct) =>
-        await db.Designaciones
-                .Include(d => d.Cargo)
-                .Include(d => d.DedicacionCatalogo)
-                .Where(d => d.MateriaId == materiaId && d.VigenteHasta == null)
-                .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Designacion>> ListarTodasVigentesSinTrackingAsync(CancellationToken ct) =>
         await db.Designaciones

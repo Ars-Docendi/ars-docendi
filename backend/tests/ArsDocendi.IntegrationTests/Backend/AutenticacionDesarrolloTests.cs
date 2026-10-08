@@ -22,8 +22,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid Inactivo = Guid.Parse("a0000000-0000-4000-8000-000000000008");
     private static readonly Guid MateriaAjena = Guid.Parse("70000000-0000-4000-8000-000000000201");
-    private static readonly Guid CarreraVisible = Guid.Parse("c0000000-0000-4000-8000-000000000201");
-    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
     private static readonly Guid RolDocente = Guid.Parse("a1000000-0000-4000-8000-000000000001");
     private static readonly Guid CargoAdjunto = Guid.Parse("c3000000-0000-4000-8000-000000000003");
     private static readonly Guid Dedicacion = Guid.Parse("d6000000-0000-4000-8000-000000000002");
@@ -33,6 +31,8 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Guid.Parse("70000000-0000-4000-8000-000000000102"),
         Guid.Parse("70000000-0000-4000-8000-000000000103"),
     ];
+    private static readonly Guid CarreraDelJefe = Guid.Parse("c0000000-0000-4000-8000-000000000201");
+    private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
 
     [Fact]
     public async Task Catalogo_y_handler_aceptan_usuario_activo_con_rol_asignado()
@@ -243,10 +243,9 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             VALUES (@id, @documento, 'Fuera', 'Del seed');
             INSERT INTO identity.users (id, azure_oid, upn, display_name, is_active, persona_id)
             VALUES (@id, @oid, @upn, 'Fuera del seed', TRUE, @id);
-            INSERT INTO identity.user_roles (id, user_id, role_id, materia_id, carrera_id)
+            INSERT INTO identity.user_roles (id, user_id, role_id, materia_id)
             VALUES (@asignacion, @id, 'a1000000-0000-4000-8000-000000000002',
-                    '70000000-0000-4000-8000-000000000101',
-                    'c0000000-0000-4000-8000-000000000201');
+                    '70000000-0000-4000-8000-000000000101');
             """, conexion))
         {
             comando.Parameters.AddWithValue("id", usuario);
@@ -358,7 +357,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                     UsuarioId = usuarioMixto,
                     RolId = RolDocente,
                     MateriaId = MateriasDelJefe[0],
-                    CarreraId = CarreraVisible,
+                    CarreraId = CarreraDelJefe,
                     OtorgadoEn = ahora,
                     CreadoEn = ahora,
                 },
@@ -377,18 +376,19 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
 
         await using var designaciones = PostgresFixture.CrearDesignaciones(Cadena);
         designaciones.Designaciones.AddRange(
-            CrearDesignacion(personaMixta, MateriasDelJefe[0]),
-            CrearDesignacion(personaMixta, MateriaAjena),
-            CrearDesignacion(personaAjena, MateriaAjena));
+            CrearDesignacion(personaMixta, MateriasDelJefe[0], CarreraDelJefe),
+            CrearDesignacion(personaMixta, MateriaAjena, CarreraAjena),
+            CrearDesignacion(personaAjena, MateriaAjena, CarreraAjena));
         await designaciones.SaveChangesAsync(ct);
         return (personaMixta, personaAjena);
     }
 
-    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId) => new()
+    private static Designacion CrearDesignacion(Guid personaId, Guid materiaId, Guid carreraId) => new()
     {
         Id = Guid.NewGuid(),
         PersonaId = personaId,
         MateriaId = materiaId,
+        CarreraId = carreraId,
         CargoId = CargoAdjunto,
         DedicacionId = Dedicacion,
         Horas = 10,

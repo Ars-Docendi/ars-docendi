@@ -22,6 +22,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
@@ -82,6 +83,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             Periodo,
             null,
             Materia,
+            Carrera,
             Novedades.Alta,
             Guid.Parse("c3000000-0000-4000-8000-000000000001"),
             Guid.Parse("d6000000-0000-4000-8000-000000000001"),
@@ -276,6 +278,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
             {
                 MateriaId = Guid.Parse("70000000-0000-4000-8000-000000000201"),
+                CarreraId = Guid.Parse("c0000000-0000-4000-8000-000000000202"),
             }, ct));
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
             Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
@@ -351,7 +354,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var pedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
 
         Assert.Contains(await servicio.ListarAsync(Periodo, ct), p => p.Id == pedidoId);
-        Assert.Equal(Materia, (await servicio.ObtenerAsync(pedidoId, ct)).Materia.Id);
+        Assert.Equal(Materia, (await servicio.ObtenerAsync(pedidoId, ct)).Materia.MateriaId);
     }
 
     [Fact]
@@ -509,7 +512,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(
-        Periodo, personaId, Materia, Novedades.Alta,
+        Periodo, personaId, Materia, Carrera, Novedades.Alta,
         Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         Guid.Parse("d6000000-0000-4000-8000-000000000001"),
         10,

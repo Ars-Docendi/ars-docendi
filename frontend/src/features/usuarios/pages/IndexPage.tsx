@@ -15,11 +15,16 @@ import {
   FILTROS_USUARIOS_VACIOS,
   type OrdenUsuarios,
 } from "../filtrosUsuarios";
-import type { UsuarioFormulario, UsuarioMock } from "../models";
+import type { UsuarioGuardar, UsuarioMock } from "../models";
 import type { CatalogosUsuarios } from "../api/usuariosApi";
 
 const SIN_USUARIOS: UsuarioMock[] = [];
-const CATALOGOS_VACIOS: CatalogosUsuarios = { roles: [], carreras: [], materias: [] };
+const CATALOGOS_VACIOS: CatalogosUsuarios = {
+  roles: [],
+  carreras: [],
+  materias: [],
+  materiasPlan: [],
+};
 
 export function IndexPage() {
   const remoto = useUsuarios();
@@ -47,11 +52,11 @@ export function IndexPage() {
     [usuarios, filtros, orden],
   );
 
-  function handleCrear(datos: UsuarioFormulario) {
+  function handleCrear(datos: UsuarioGuardar) {
     remoto.crear.mutate(datos, { onSuccess: () => setModalNuevo(false) });
   }
 
-  function handleEditar(datos: UsuarioFormulario) {
+  function handleEditar(datos: UsuarioGuardar) {
     if (!usuarioEnEdicion) return;
     remoto.editar.mutate(
       { id: usuarioEnEdicion.id, datos: { ...datos, version: usuarioEnEdicion.version } },

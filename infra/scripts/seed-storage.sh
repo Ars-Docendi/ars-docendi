@@ -62,5 +62,9 @@ sql="$(printf '%s\n' \
   "ON CONFLICT (id) DO UPDATE SET bucket = EXCLUDED.bucket, clave_objeto = EXCLUDED.clave_objeto, estado = EXCLUDED.estado, sha256 = EXCLUDED.sha256;" \
   "UPDATE portal.cvs SET archivo_id = '$cv_id', uri = NULL WHERE id = 'f0200000-0000-4000-8000-000000000001';" \
   "UPDATE portal.proyecto_documentos SET archivo_id = '$doc_id', uri = NULL WHERE id = 'f0700000-0000-4000-8000-000000000001';")"
-psql_en_docker -e "PGDATABASE=$base" "$IMAGEN_PSQL" psql -v ON_ERROR_STOP=1 -c "$sql"
+if [[ "${SEED_STORAGE_SQL_ONLY:-false}" == true ]]; then
+  printf '%s\n' "$sql"
+else
+  psql_en_docker -e "PGDATABASE=$base" "$IMAGEN_PSQL" psql -v ON_ERROR_STOP=1 -c "$sql"
+fi
 log_info msg="fixtures de storage sembradas" ambiente="$ambiente" bucket="$bucket"

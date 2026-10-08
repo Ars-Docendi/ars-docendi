@@ -204,18 +204,15 @@ public sealed class ServicioUsuarios(
         foreach (var dato in datos)
         {
             var rol = roles[dato.RolId];
-            var valido = rol.Ambito switch
-            {
-                "global" => dato.MateriaId is null && dato.CarreraId is null,
-                "carrera" => dato.MateriaId is null && dato.CarreraId is not null,
-                "materia" => dato.MateriaId is not null
-                    && dato.CarreraId is not null
-                    && materias[dato.MateriaId.Value].CarreraId == dato.CarreraId,
-                _ => false,
-            };
+            var valido = AmbitoValido(rol, dato);
             if (!valido)
             {
                 throw ErrorRoles($"El ámbito indicado no corresponde al rol {rol.Nombre}.");
+            }
+            if (rol.Codigo == "docente"
+                && !await repositorio.ExistePertenenciaActivaAsync(dato.MateriaId!.Value, dato.CarreraId!.Value, ct))
+            {
+                throw ErrorRoles("La materia no se dicta, vigente, en la carrera indicada.");
             }
             resultado.Add(new UsuarioRol
             {
@@ -230,6 +227,22 @@ public sealed class ServicioUsuarios(
         }
         return resultado;
     }
+
+    // El docente referencia materia y carrera directamente; el jefe de cátedra, sólo la
+    // materia canónica; el coordinador, sólo la carrera. Los roles creados por el operador
+    // se validan por su ámbito declarado: materia (materia canónica) o carrera.
+    private static bool AmbitoValido(Rol rol, GuardarAsignacionRolDto dato) => rol.Codigo switch
+    {
+        "docente" => dato.MateriaId is not null && dato.CarreraId is not null,
+        "jefe_catedra" => dato.MateriaId is not null && dato.CarreraId is null,
+        _ => rol.Ambito switch
+        {
+            "global" => dato.MateriaId is null && dato.CarreraId is null,
+            "materia" => dato.MateriaId is not null && dato.CarreraId is null,
+            "carrera" => dato.CarreraId is not null && dato.MateriaId is null,
+            _ => false,
+        },
+    };
 
     private static ExcepcionAplicacion ErrorRoles(string mensaje) => new(
         TipoErrorAplicacion.ReglaDeNegocio,

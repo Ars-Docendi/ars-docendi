@@ -63,6 +63,7 @@ internal sealed class ServicioPedidos(
             PeriodoId = datos.PeriodoId,
             PersonaId = datosResueltos.PersonaId.Value,
             MateriaId = datos.MateriaId,
+            CarreraId = datos.CarreraId,
             Novedad = datos.Novedad,
             Estado = EstadosPedido.Borrador,
             CreadoEn = DateTimeOffset.UtcNow,
@@ -93,9 +94,9 @@ internal sealed class ServicioPedidos(
         var actor = await resolutorActor.ResolverAsync(ct);
         var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
-        var carrera = await pedidos.ObtenerCarreraDelPedidoAsync(pedidoId, ct);
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
         if (!MaquinaEstadosPedido.PuedeEditar(pedido, actor)
-            || !MaquinaEstadosPedido.AlcanzaAmbito(pedido, carrera, actor))
+            || !MaquinaEstadosPedido.AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
@@ -113,6 +114,7 @@ internal sealed class ServicioPedidos(
             pedido.PeriodoId = datos.PeriodoId;
             pedido.PersonaId = datos.PersonaId.Value;
             pedido.MateriaId = datos.MateriaId;
+            pedido.CarreraId = datos.CarreraId;
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
             pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
@@ -137,8 +139,8 @@ internal sealed class ServicioPedidos(
         var pedido = await pedidos.ObtenerLivianoAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
 
-        var carrera = await pedidos.ObtenerCarreraDelPedidoAsync(pedidoId, ct);
-        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, carrera, accion, actor);
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
+        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, alcance, accion, actor);
 
         // El snapshot se congela AL ENVIAR, no al crear: mientras el pedido está en
         // borrador vale el estado vigente del docente. Una vez enviado, el trámite
@@ -319,14 +321,17 @@ internal sealed class ServicioPedidos(
             : null;
         if (datos.PersonaId is not null && persona is null)
             throw new ErrorDominioPedido("La persona seleccionada no existe.");
-        var materia = (await identity.ListarMateriasAsync(ct)).SingleOrDefault(m => m.Id == datos.MateriaId);
-        if (materia is null || !materia.Activo)
-            throw new ErrorDominioPedido("La materia seleccionada no existe o está inactiva.");
+        // La pertenencia materia–plan es sólo informativa acá: confirma que la materia
+        // efectivamente se dicta en la carrera elegida, sin fijar un plan puntual.
+        var seDictaEnLaCarrera = (await identity.ListarMateriasPlanAsync(ct)).Any(mp =>
+            mp.MateriaId == datos.MateriaId && mp.Plan!.CarreraId == datos.CarreraId
+            && mp.Activo && mp.Materia!.Activo && mp.Plan.Activo);
+        if (!seDictaEnLaCarrera)
+            throw new ErrorDominioPedido(
+                "La materia seleccionada no existe, está inactiva o no se dicta en esa carrera.");
         if (!actor.EsDeptoWide
-            && !(actor.Tiene(RolesCircuito.CoordinadorCarrera)
-                && actor.CarrerasACargo.Contains(materia.CarreraId))
-            && !(actor.Tiene(RolesCircuito.JefeCatedra)
-                && actor.MateriasACargo.Contains(materia.Id)))
+            && !(actor.Tiene(RolesCircuito.CoordinadorCarrera) && actor.CarrerasACargo.Contains(datos.CarreraId))
+            && !(actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(datos.MateriaId)))
             throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
         if (datos.CargoSolicitadoId is { } cargoId
             && !await pedidos.ExisteCargoActivoAsync(cargoId, ct))

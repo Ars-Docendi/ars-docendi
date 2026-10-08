@@ -70,6 +70,7 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
         {
             PersonaId = pedido.PersonaId,
             MateriaId = pedido.MateriaId,
+            CarreraId = pedido.CarreraId,
             CargoId = pedido.CargoSolicitadoId.Value,
             DedicacionId = pedido.DedicacionSolicitadaId,
             Horas = pedido.Horas.Value,

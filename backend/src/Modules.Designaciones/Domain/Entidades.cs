@@ -61,12 +61,12 @@ public sealed record SnapshotPedido(
 
 /// <summary>
 /// El trámite. Cubre EXACTAMENTE UNA materia — la cátedra sobre la que opera el
-/// Jefe de Cátedra —, de modo que la carrera se deriva de la materia y resuelve un
-/// único Coordinador competente (BR-designaciones-009).
+/// Jefe de Cátedra —, con su carrera explícita (una materia compartida por varias
+/// carreras exige elegir una al cargar el pedido; ver BR-designaciones-009).
 /// <para>
-/// <see cref="PersonaId"/> y <see cref="MateriaId"/> apuntan a <c>identity</c> con FK
-/// real en la base, pero sin navegación en este contexto: identity lo modela
-/// <c>IdentityDbContext</c>, y mezclar entidades de dos contextos acopla los módulos.
+/// <see cref="PersonaId"/>, <see cref="MateriaId"/> y <see cref="CarreraId"/> apuntan a
+/// <c>identity</c> con FK real en la base, pero sin navegación en este contexto: identity
+/// lo modela <c>IdentityDbContext</c>, y mezclar entidades de dos contextos acopla los módulos.
 /// </para>
 /// </summary>
 public sealed class Pedido
@@ -76,8 +76,10 @@ public sealed class Pedido
     public required string Numero { get; set; }
     public Guid PeriodoId { get; set; }
     public Guid PersonaId { get; set; }
-    /// <summary>La cátedra del pedido. Determina la carrera y el ámbito del revisor.</summary>
+    /// <summary>La cátedra del pedido (materia canónica).</summary>
     public Guid MateriaId { get; set; }
+    /// <summary>Determina el ámbito del revisor (BR-designaciones-009).</summary>
+    public Guid CarreraId { get; set; }
 
     public required string Novedad { get; set; }
     public required string Estado { get; set; }
@@ -164,7 +166,9 @@ public sealed class Designacion
 {
     public Guid Id { get; set; }
     public Guid PersonaId { get; set; }
+    /// <summary>Materia canónica: una persona tiene a lo sumo una designación vigente por materia.</summary>
     public Guid MateriaId { get; set; }
+    public Guid CarreraId { get; set; }
     public Guid CargoId { get; set; }
     public string? Dedicacion { get; set; }
     public Guid? DedicacionId { get; set; }

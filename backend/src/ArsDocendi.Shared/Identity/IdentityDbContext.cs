@@ -28,7 +28,9 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<RolPermiso> RolPermisos => Set<RolPermiso>();
     public DbSet<UsuarioRol> UsuarioRoles => Set<UsuarioRol>();
     public DbSet<Carrera> Carreras => Set<Carrera>();
+    public DbSet<Plan> Planes => Set<Plan>();
     public DbSet<Materia> Materias => Set<Materia>();
+    public DbSet<MateriaPlan> MateriasPlan => Set<MateriaPlan>();
     public DbSet<RegistroCambio> RegistrosDeCambio => Set<RegistroCambio>();
     public DbSet<IdentidadSembrada> IdentidadesSembradas => Set<IdentidadSembrada>();
 
@@ -138,6 +140,20 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.Activo).HasColumnName("is_active");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.HasIndex(x => x.Codigo).IsUnique();
+            e.HasMany(x => x.Planes).WithOne(p => p.Carrera).HasForeignKey(p => p.CarreraId);
+        });
+
+        modelBuilder.Entity<Plan>(e =>
+        {
+            e.ToTable("planes", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.CarreraId).HasColumnName("carrera_id");
+            e.Property(x => x.Codigo).HasColumnName("codigo");
+            e.Property(x => x.Nombre).HasColumnName("nombre");
+            e.Property(x => x.Vigente).HasColumnName("vigente");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
         });
 
         modelBuilder.Entity<Materia>(e =>
@@ -147,11 +163,22 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.Codigo).HasColumnName("code");
             e.Property(x => x.Nombre).HasColumnName("name");
-            e.Property(x => x.CarreraId).HasColumnName("carrera_id");
             e.Property(x => x.Activo).HasColumnName("is_active");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
-            e.HasOne(x => x.Carrera).WithMany(c => c!.Materias).HasForeignKey(x => x.CarreraId);
-            e.HasIndex(x => new { x.CarreraId, x.Codigo }).IsUnique();
+            e.HasIndex(x => x.Codigo).IsUnique();
+        });
+
+        modelBuilder.Entity<MateriaPlan>(e =>
+        {
+            e.ToTable("materias_plan", Schema, t => t.ExcludeFromMigrations());
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.PlanId).HasColumnName("plan_id");
+            e.Property(x => x.MateriaId).HasColumnName("materia_id");
+            e.Property(x => x.Activo).HasColumnName("activo");
+            e.Property(x => x.CreadoEn).HasColumnName("created_at");
+            e.HasOne(x => x.Plan).WithMany(p => p!.Materias).HasForeignKey(x => x.PlanId);
+            e.HasOne(x => x.Materia).WithMany().HasForeignKey(x => x.MateriaId);
         });
 
         modelBuilder.Entity<RegistroCambio>(e =>

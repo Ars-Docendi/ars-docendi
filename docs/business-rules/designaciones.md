@@ -89,6 +89,12 @@
 
 ### BR-`designaciones`-009 Acción y visibilidad acotadas al ámbito del rol
 
+> **Fuente de la carrera (change `rediseno-modelo-academico`).** El pedido lleva `materia_id`
+> (canónica) y `carrera_id` directos, elegidos juntos al cargarlo — no se derivan de un plan.
+> `identity.materias_plan`/`planes` son catálogo informativo (qué materias se dictan en qué
+> carreras), sin FK de negocio. Una materia compartida por dos carreras genera pedidos distintos
+> según la carrera elegida.
+
 - **Statement:** El Coordinador solo ve y actúa sobre pedidos de su carrera; Secretaría, Decanato y Administración tienen alcance de todo el departamento. Una acción sobre un pedido fuera del ámbito del actor MUST denegarse.
 - **Rationale:** El circuito refleja la estructura institucional: un Coordinador de una carrera no decide sobre designaciones de otra.
 - **Provenance:** `from_spec`

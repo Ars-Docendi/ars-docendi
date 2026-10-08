@@ -14,7 +14,7 @@ source "$(dirname "$0")/_comun.sh"
 
 ambiente="${1:-}"
 backup_dir_input="${2:-}"
-[[ $# -eq 2 ]] || fatal "msg=\"uso: backup-storage.sh <ambiente> <directorio-backup>\""
+[[ $# -ge 1 && $# -le 2 ]] || fatal 'msg="uso: backup-storage.sh <ambiente> [directorio-exportación-no-prod]"'
 validar_ambiente "$ambiente"
 : "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
 : "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY\"}"
@@ -22,19 +22,28 @@ validar_ambiente "$ambiente"
 : "${PGUSER:?msg=\"falta PGUSER\"}"
 : "${PGPASSWORD:?msg=\"falta PGPASSWORD\"}"
 
-backup_dir="$(mkdir -p "$backup_dir_input" && cd "$backup_dir_input" && pwd)"
-mkdir -p "$backup_dir/objects"
-chmod 700 "$backup_dir" "$backup_dir/objects"
+exigir_configuracion_backups
+[[ -z "$backup_dir_input" || "$ambiente" != prod ]] || fatal 'msg="prod sólo admite volumen privado"'
+snapshot="$(date -u +%Y%m%dT%H%M%S)-$(openssl rand -hex 8)"
+vol_script="$(dirname "$0")/backup-volume.sh"
+"$vol_script" "$ambiente" init "$snapshot"
+backup_write() { "$vol_script" "$ambiente" write "$snapshot" "$1"; }
+backup_hash() { "$vol_script" "$ambiente" hash "$snapshot" "$1"; }
 
 network="${RED_DATOS:-arsdocendi-datos}"
 bucket="${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
 storage_host="$(seaweedfs_host_for "$ambiente")"
 base="$(nombre_base "$ambiente")"
-pgdatabase="${PGDATABASE:-$base}"
+pgdatabase="$base"
+[[ -z "${PGDATABASE:-}" || "$PGDATABASE" == "$base" ]] || fatal 'msg="PGDATABASE no corresponde al ambiente"'
 export PGPORT="${PGPORT:-5432}"
 
+adquirir_lock_ambiente "$ambiente"
 work_dir="$(mktemp -d)"
-trap 'rm -rf "$work_dir"' EXIT
+trap 'rm -rf "$work_dir"; liberar_lock_ambiente' EXIT
+# El snapshot conjunto requiere que el backend conocido esté detenido.
+[[ -z "$(docker ps -q --filter "label=com.docker.compose.project=$ambiente" --filter "network=$RED_DATOS" --filter "label=com.docker.compose.service=backend")" ]] || fatal 'msg="detener escritores antes del backup"'
+log_info msg="backup iniciado; incompleto hasta verificar" ambiente="$ambiente" snapshot="$snapshot"
 list_json="$work_dir/list.json"
 entries_ndjson="$work_dir/entries.ndjson"
 : > "$entries_ndjson"
@@ -45,9 +54,9 @@ seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KE
 # El dump se ejecuta dentro de la red Docker y se transmite por stdout; así no
 # depende de que el daemon Docker comparta el filesystem del runner.
 psql_en_docker -e PGDATABASE="$pgdatabase" "$IMAGEN_PSQL" \
-  pg_dump --format=custom --no-owner "$pgdatabase" >"$backup_dir/postgres.dump"
+  pg_dump --format=custom --no-owner "$pgdatabase" | backup_write postgres.dump
 
-postgres_sha256="$(sha256sum "$backup_dir/postgres.dump" | cut -d' ' -f1)"
+postgres_sha256="$(backup_hash postgres.dump)"
 
 seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
   s3api list-objects-v2 --bucket "$bucket" --output json > "$list_json"
@@ -67,15 +76,18 @@ index=0
 for key in "${keys[@]}"; do
   index=$((index + 1))
   relative_path="objects/$(printf '%08d.bin' "$index")"
-  object_path="$backup_dir/$relative_path"
+  object_path="$relative_path"
   head_json="$work_dir/head-$index.json"
 
   seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
     s3api head-object --bucket "$bucket" --key "$key" --output json > "$head_json"
   seaweedfs_aws "$network" "$SEAWEEDFS_ROOT_ACCESS_KEY" "$SEAWEEDFS_ROOT_SECRET_KEY" "$storage_host" \
-    s3 cp "s3://$bucket/$key" - --only-show-errors >"$object_path"
+    s3 cp "s3://$bucket/$key" - --only-show-errors | backup_write "$object_path"
 
-  object_sha256="$(sha256sum "$object_path" | cut -d' ' -f1)"
+  object_sha256="$(backup_hash "$object_path")"
+  actual_size="$("$vol_script" "$ambiente" size "$snapshot" "$object_path")"
+  expected_size="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["ContentLength"])' "$head_json")"
+  [[ "$actual_size" == "$expected_size" ]] || fatal 'msg="objeto truncado en backup"'
   python3 - "$head_json" "$key" "$relative_path" "$object_sha256" >> "$entries_ndjson" <<'PY'
 import json
 import sys
@@ -97,7 +109,7 @@ PY
 done
 
 created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-python3 - "$entries_ndjson" "$backup_dir/manifest.json" "$ambiente" "$bucket" "$pgdatabase" "$postgres_sha256" "$created_at" <<'PY'
+python3 - "$entries_ndjson" "$work_dir/manifest.json" "$ambiente" "$bucket" "$pgdatabase" "$postgres_sha256" "$created_at" "${RELEASE_SHA:-manual}" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -113,6 +125,7 @@ manifest = {
     "environment": sys.argv[3],
     "bucket": sys.argv[4],
     "created_at_utc": sys.argv[7],
+    "candidate_release": sys.argv[8],
     "database": {
         "name": sys.argv[5],
         "file": "postgres.dump",
@@ -128,23 +141,22 @@ Path(sys.argv[2]).write_text(
 )
 PY
 
-(
-  cd "$backup_dir"
-  find . -type f ! -name checksums.sha256 -print0 \
-    | sort -z \
-    | xargs -0 sha256sum
-) > "$backup_dir/checksums.sha256"
-chmod 600 "$backup_dir"/manifest.json "$backup_dir"/postgres.dump "$backup_dir"/checksums.sha256
-chmod 600 "$backup_dir"/objects/* 2>/dev/null || true
+backup_write manifest.json < "$work_dir/manifest.json"
+"$vol_script" "$ambiente" complete "$snapshot"
+"$vol_script" "$ambiente" verify "$snapshot"
+if [[ -n "$backup_dir_input" ]]; then
+  mkdir -m 700 "$backup_dir_input"
+  "$vol_script" "$ambiente" export "$snapshot" | tar -xf - -C "$backup_dir_input"
+fi
 
-object_count="$(python3 - "$backup_dir/manifest.json" <<'PY'
+object_count="$(python3 - "$work_dir/manifest.json" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     print(json.load(stream)["object_count"])
 PY
 )"
-total_bytes="$(python3 - "$backup_dir/manifest.json" <<'PY'
+total_bytes="$(python3 - "$work_dir/manifest.json" <<'PY'
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
@@ -152,4 +164,5 @@ with open(sys.argv[1], encoding="utf-8") as stream:
 PY
 )"
 
-log_info msg="backup completado" ambiente="$ambiente" bucket="$bucket" database="$pgdatabase" objects="$object_count" bytes="$total_bytes" backup_dir="$backup_dir" postgres_sha256="$postgres_sha256"
+log_info msg="backup completado" ambiente="$ambiente" bucket="$bucket" database="$pgdatabase" objects="$object_count" bytes="$total_bytes" snapshot="$snapshot" postgres_sha256="$postgres_sha256"
+printf '%s\n' "$snapshot"

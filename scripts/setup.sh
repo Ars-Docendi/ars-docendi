@@ -96,10 +96,18 @@ if [ "$SKIP_BUILD" = false ]; then
     ok "Backend buildeado"
 fi
 
-# === Migrations (TBD: cuando estén definidas) ===
-# log "Aplicando migrations..."
-# dotnet ef database update --project backend/src/Modules.Designaciones --startup-project backend/src/ArsDocendi.Host --context DesignacionesDbContext
-# (repetir por cada módulo cuando existan)
+# Autorizar primer uso antes de crear tablas mediante migraciones.
+infra/scripts/seed-local.sh --authorize-empty
+
+# === Migrations ===
+log "Aplicando migraciones..."
+dotnet run --project backend/src/ArsDocendi.Host -- --migrate
+ok "Migraciones aplicadas"
+
+# === Seed de desarrollo local ===
+# Ambos datasets se confirman con el marcador completo en la misma transacción.
+# SGA queda exclusivamente local/privado; nunca se carga en staging/pr-N.
+infra/scripts/seed-local.sh
 
 echo
 ok "Setup completo."

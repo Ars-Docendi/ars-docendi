@@ -125,7 +125,8 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             WHERE p.novedad = 'Alta'
               AND EXISTS (
                   SELECT 1 FROM designaciones.designaciones d
-                  WHERE d.persona_id = p.persona_id AND d.materia_id = p.materia_id
+                  WHERE d.persona_id = p.persona_id
+                    AND d.materia_id = p.materia_id
               )
             """));
     }
@@ -217,7 +218,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Spin_up_reconstruye_descartables_en_orden_y_no_resetea_prod()
+    public async Task Spin_up_preserva_datos_y_migra_antes_de_publicar()
     {
         var ct = TestContext.Current.CancellationToken;
         var raiz = BuscarRaizRepositorio();
@@ -236,14 +237,17 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
 
         Assert.True(proceso.ExitCode == 0, error);
         var script = await File.ReadAllTextAsync(ruta, ct);
-        var reset = script.IndexOf("drop-db.sh", StringComparison.Ordinal);
+        Assert.DoesNotContain("drop-db.sh", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("purge-storage.sh", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("down -v", script, StringComparison.Ordinal);
         var provision = script.IndexOf("provision-db.sh", StringComparison.Ordinal);
-        var migraciones = script.IndexOf("run --rm backend", StringComparison.Ordinal);
+        var preflight = script.IndexOf("--estado-migraciones", StringComparison.Ordinal);
+        var migraciones = script.IndexOf("--migrate", StringComparison.Ordinal);
         var seed = script.IndexOf("seed.sh", StringComparison.Ordinal);
-        var servicio = script.IndexOf("up -d", StringComparison.Ordinal);
-        Assert.True(reset >= 0 && reset < provision && provision < migraciones && migraciones < seed && seed < servicio);
-        Assert.Contains("if [[ \"$ambiente\" != \"prod\" ]]", script, StringComparison.Ordinal);
-        Assert.Contains("flock 9", script, StringComparison.Ordinal);
+        var servicio = script.IndexOf("compose up -d", StringComparison.Ordinal);
+        Assert.True(provision >= 0 && provision < preflight && preflight < migraciones && migraciones < seed && seed < servicio);
+        Assert.Contains("if [[ \"$ambiente\" != prod ]]", script, StringComparison.Ordinal);
+        Assert.Contains("adquirir_lock_ambiente", script, StringComparison.Ordinal);
     }
 
     [Fact]
