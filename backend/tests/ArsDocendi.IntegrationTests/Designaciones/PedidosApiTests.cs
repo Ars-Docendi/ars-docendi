@@ -30,7 +30,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Controller_crea_obtiene_edita_envia_reenvia_y_elimina()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
@@ -72,7 +72,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Alta_con_datos_nuevos_crea_persona_sin_cuenta_y_pedido()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
@@ -116,7 +116,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Alta_asocia_solo_archivos_disponibles_del_proposito_correcto()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var cv = Guid.Parse("e0000000-0000-4000-8000-000000000001");
@@ -156,7 +156,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Falla_de_asociacion_no_deja_pedido_ni_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var almacenamiento = new AlmacenamientoFalso(Jefe, []);
@@ -183,7 +183,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Historial_ordenado_por_instante_y_desempate_estable()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         await using var conexion = await AbrirConexionAsync();
@@ -215,7 +215,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Actor_sin_jefatura_no_puede_crear_y_un_error_no_deja_historial_parcial()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var docente = CrearServicio(
@@ -233,7 +233,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Backend_exige_documentacion_justificacion_y_legajo_segun_novedad()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -266,7 +266,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Backend_rechaza_materia_ajena_y_baja_sin_designacion_en_la_materia()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -299,7 +299,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Sin_novedad_no_se_crea_ni_se_edita_y_un_legado_se_lee_sin_poder_aceptarse()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using (var conexion = await AbrirConexionAsync())
         await using (var comando = new NpgsqlCommand("UPDATE designaciones.pedidos SET novedad = 'Sin novedad' WHERE id = 'd5000000-0000-4000-8000-000000000002'", conexion))
         {
@@ -341,7 +341,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Un_pedido_historico_con_materia_inactiva_sigue_visible()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var materia = await identityDb.Materias.SingleAsync(m => m.Id == Materia, ct);
@@ -358,7 +358,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Edicion_invalida_conserva_pedido_y_adjuntos_confirmados()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var servicio = CrearServicio(Jefe, identityDb, db);
@@ -391,7 +391,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     public async Task Envio_concurrente_con_la_misma_clave_se_ejecuta_una_sola_vez()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         Guid pedidoId;
         Guid otroPedidoId;
         await using (var identityInicial = PostgresFixture.CrearIdentity(Cadena))
@@ -523,26 +523,6 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
         ]);
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

@@ -60,14 +60,24 @@ describe("Sidebar — sector Designaciones", () => {
     }
   });
 
-  it.each([
-    ["sistema.estado.ver", "Dashboard del sistema", "/sistema", "Registros de auditoría"],
-    ["auditoria.ver", "Registros de auditoría", "/auditoria", "Dashboard del sistema"],
-  ])("muestra %s sólo con su permiso", (permiso, etiqueta, ruta, oculto) => {
-    renderSidebar([permiso]);
+  it.each([["sistema.estado.ver"], ["asistente.administrar"], ["auditoria.ver"]])(
+    "muestra un único enlace «Sistema» con cualquiera de sus tres permisos (%s)",
+    (permiso) => {
+      renderSidebar([permiso]);
 
-    expect(screen.getByRole("link", { name: etiqueta })).toHaveAttribute("href", ruta);
-    expect(screen.queryByRole("link", { name: oculto })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Sistema" })).toHaveAttribute("href", "/sistema");
+      expect(screen.queryByRole("link", { name: "Dashboard del sistema" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: "Registros de auditoría" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Uso del asistente" })).not.toBeInTheDocument();
+    },
+  );
+
+  it("no muestra «Sistema» sin ninguno de los tres permisos", () => {
+    renderSidebar(["portal.ver"], { route: "/portal" });
+
+    expect(screen.queryByRole("link", { name: "Sistema" })).not.toBeInTheDocument();
   });
 
   it("Docente: no tiene sector Designaciones", () => {

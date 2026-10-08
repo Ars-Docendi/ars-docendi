@@ -20,7 +20,8 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
     public async Task Todos_los_endpoints_ejecutan_el_crud_completo()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
+        await BorrarContactoSembradoAsync(ct);
         using var host = CrearHost();
         using var cliente = host.CreateClient();
         await VerificarSuperficieHttpAsync(cliente, ct);
@@ -127,6 +128,57 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         var operaciones = swagger!["paths"]!.AsObject()
             .SelectMany(ruta => ruta.Value!.AsObject().Select(metodo => (ruta.Key, metodo.Key)))
             .ToArray();
+        // El número cuenta TODA la superficie del Host, no sólo la de Portal: se mueve
+        // cada vez que cualquier módulo suma o saca un endpoint. Los cuatro del módulo
+        // Asistente —ping, capacidades, consultas y retroalimentacion— están adentro
+        // de esta cuenta.
+        //
+        // Subió de 70 a 79 con asistente-historial-conversaciones: siete en
+        // HistorialController (listar, obtener, renombrar, eliminar uno,
+        // eliminar todo, reanudar, reejecutar) y dos en SoporteHistorialController
+        // (listar y leer el historial ajeno).
+        //
+        // Subió de 79 a 84 con asistente-administracion-de-uso: cinco en
+        // AdministracionAsistenteController (mantenimiento, uso, presupuestos
+        // de rol, presupuestos de usuario, tope organizacional).
+        //
+        // Subió de 84 a 87 con asistente-rediseno-v3 (§2/§3, ARS-143/144):
+        // tres en HistorialController — archivar, desarchivar y deshacer un
+        // lote de borrado (`POST /historial/{id}/archivar`,
+        // `/desarchivar`, `/historial/borrados/{lote}/deshacer`).
+        //
+        // Subió de 87 a 88 con asistente-rediseno-v3 (§7, ARS-148): uno en
+        // AsistenteController (`GET /api/asistente/menciones`, el buscador de
+        // materias/docentes para el popover «@»/«#»).
+        //
+        // Subió de 88 a 90 con dashboard-sistema-y-audit-logs (develop): dos en
+        // el Host (`GET /api/administracion/sistema/estado` y
+        // `GET /api/administracion/auditoria`).
+        //
+        // Subió de 90 a 91 con la tarea 12.8 de sistema-seccion-unificada:
+        // uno en AdministracionAsistenteController
+        // (`GET /api/asistente/administracion/presupuestos` — el tope
+        // organizacional, los cupos por rol/usuario y el gasto estimado del
+        // mes, hasta ahora sólo editables por `PUT`, nunca legibles).
+        //
+        // Subió de 91 a 94 con asistente-acceso-granular: tres en
+        // AdministracionAsistenteController (`DELETE …/presupuestos/usuarios/{actorId}`
+        // para restablecer el cupo al del rol, y `PUT …/presupuestos/roles/{rol}/acceso`
+        // y `PUT …/presupuestos/usuarios/{actorId}/acceso`).
+        //
+        // Subió de 94 a 95 con asistente-optimizaciones-modelo-local (D8):
+        // `GET /api/asistente/administracion/servidor-local`.
+        //
+        // Subió de 95 a 96 con asistente-optimizaciones-modelo-local (D9):
+        // `POST /api/asistente/consultas/flujo`.
+        //
+        // Subió de 96 a 105 con almacenamiento-adjuntos (develop): seis en
+        // ArchivosController (iniciar carga, subir el objeto, confirmar la carga,
+        // leer metadatos, descargar y eliminar), uno en PedidosController
+        // (`GET …/adjuntos/{archivoId}`) y dos en PortalController
+        // (`GET /api/portal/perfil/cv/descarga` y
+        // `GET /api/portal/perfil/proyectos/{id}/documento`).
+        Assert.Equal(105, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 
@@ -140,19 +192,6 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
             Assert.Equal(publica ? HttpStatusCode.OK : HttpStatusCode.Unauthorized,
                 respuesta.StatusCode);
         }
-    }
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(
-            sql + "\nDELETE FROM portal.contactos " +
-            "WHERE perfil_id = 'f0000000-0000-4000-8000-000000000002';",
-            conexion)
-        { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
     }
 
     private static async Task<T> PostAsync<T>(HttpClient cliente, string ruta, object datos, CancellationToken ct)
@@ -176,14 +215,21 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         Assert.Equal(esperado, respuesta.StatusCode);
     }
 
-    private static string BuscarRaizRepositorio()
+    /// <summary>
+    /// Deja al docente de la prueba sin contacto cargado.
+    /// </summary>
+    /// <remarks>
+    /// El test ejercita el alta del contacto por HTTP, y el seed sintético ya le
+    /// carga uno. Es un ajuste DE ESTE test sobre el estado sembrado, no una
+    /// variante del seed: por eso va en un paso propio y no dentro de
+    /// <c>SembrarAsync</c>.
+    /// </remarks>
+    private async Task BorrarContactoSembradoAsync(CancellationToken ct)
     {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "DELETE FROM portal.contactos WHERE perfil_id = 'f0000000-0000-4000-8000-000000000002'",
+            conexion);
+        await comando.ExecuteNonQueryAsync(ct);
     }
 }

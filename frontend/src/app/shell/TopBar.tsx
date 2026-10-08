@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, RoleBadge } from "@ars-docendi/ui";
 
 import { clearToken } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
-import { bellIcon, /*collapseIcon,*/ helpIcon, searchIcon } from "./icons";
+import { bellIcon, /*collapseIcon,*/ searchIcon } from "./icons";
+import { LanzadorAsistente } from "../../features/asistente";
+import { useDescartarAlClicAfuera } from "../../shared/hooks/useDescartarAlClicAfuera";
 
 interface TopBarProps {
   collapsed: boolean;
@@ -17,21 +19,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", closeOnOutsideClick);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutsideClick);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [menuOpen]);
+  useDescartarAlClicAfuera(menuOpen, menuRef, () => setMenuOpen(false));
 
   function handleLogout() {
     clearToken();
@@ -79,15 +67,11 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
         >
           <span className="ico">{bellIcon}</span>
         </button>
-        <button
-          type="button"
-          className="adoc-icon-btn"
-          aria-label="Ayuda"
-          title="Próximamente"
-          disabled
-        >
-          <span className="ico">{helpIcon}</span>
-        </button>
+        {/* Acá vivía un botón «Ayuda» disabled con title="Próximamente", que es
+            exactamente el fake UI que el invariante #7 prohíbe. El lanzador del
+            asistente lo reemplaza: activarlo ELIMINA superficie falsa en vez de
+            agregar superficie nueva. Quien no tiene el permiso no ve nada. */}
+        <LanzadorAsistente />
 
         <div className="adoc-user-menu" ref={menuRef}>
           <RoleBadge

@@ -10,11 +10,22 @@
 #   REGISTRO TAG_FRONTEND TAG_BACKEND referencia de imágenes
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales ADMIN de Postgres (libpq)
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
+#   ASISTENTE_RO_PASSWORD             password del rol de lectura del asistente
+#   ASISTENTE_RO_PII_PASSWORD         password del rol de lectura con datos personales
 #   SEAWEEDFS_ROOT_ACCESS_KEY SEAWEEDFS_ROOT_SECRET_KEY credenciales administrativas del servicio privado
 #   En prod y staging, las credenciales de aplicación se derivan de la raíz.
 #   En pr-N se inyectan SEAWEEDFS_APP_ACCESS_KEY_PR_<N> /
 #   SEAWEEDFS_APP_SECRET_KEY_PR_<N>.
 # Variables opcionales:
+#   ASISTENTE_PROVEEDOR               proveedor del modelo; default "simulado"
+#   ASISTENTE_CLAVE                   credencial del proveedor real; sin ella se
+#                                     degrada a "simulado". Con "local" es el
+#                                     --api-key del servidor de compose.llm.yml
+#   ASISTENTE_URL_LOCAL               servidor del modelo propio; default
+#                                     http://arsdocendi-llm:8000/v1
+#   ASISTENTE_MODELO_LOCAL            --served-model-name; default qwen3-8b
+#   ASISTENTE_MAX_LLAMADAS_CONCURRENTES
+#                                     compuerta del backend; = --max-num-seqs
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
@@ -32,6 +43,8 @@ validar_ambiente "$ambiente"
 : "${TAG_BACKEND:?msg=\"falta TAG_BACKEND\"}"
 : "${APP_DB_USER:?msg=\"falta APP_DB_USER\"}"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
+: "${ASISTENTE_RO_PASSWORD:?msg=\"falta ASISTENTE_RO_PASSWORD\"}"
+: "${ASISTENTE_RO_PII_PASSWORD:?msg=\"falta ASISTENTE_RO_PII_PASSWORD\"}"
 : "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
 : "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY\"}"
 variable_ambiente="${ambiente^^}"
@@ -57,6 +70,8 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 base="$(nombre_base "$ambiente")"
+rol_ro="$(rol_asistente "$ambiente" basico)"
+rol_ro_pii="$(rol_asistente "$ambiente" pii)"
 host_publico="$(hostname_publico "$ambiente" "$DOMINIO")"
 
 # Npgsql admite valores entre comillas dobles; una comilla interna se duplica.
@@ -77,6 +92,27 @@ lock_file="${TMPDIR:-/tmp}/arsdocendi-spin-up-${ambiente//-/_}.lock"
 exec 9>"$lock_file"
 flock 9
 
+# Proveedor del modelo: real SOLO si además vino la clave.
+#
+# Pedir `anthropic` sin credencial no falla al levantar: falla la primera vez que
+# alguien pregunta, con un 500 que no dice que falta configuración. Degradar acá al
+# simulado deja el ambiente en pie y el asistente contestando lo que el simulado
+# contesta, que es visiblemente distinto de una respuesta real.
+proveedor_asistente=${ASISTENTE_PROVEEDOR:-simulado}
+if [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
+  log_info msg="proveedor real pedido sin clave: se degrada a simulado" \
+    ambiente="$ambiente" proveedor="$proveedor_asistente"
+  proveedor_asistente=simulado
+fi
+
+# Modelo propio (asistente-proveedor-local): suma el perfil del backend que
+# apunta al servidor compartido de compose.llm.yml. La clave es el --api-key de
+# ese servidor, así que la regla de arriba aplica igual.
+archivos_compose=(-f "$compose_file")
+if [[ "$proveedor_asistente" == "local" ]]; then
+  archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-local.yml")
+fi
+
 # Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"' EXIT
@@ -88,6 +124,15 @@ TAG_FRONTEND=${TAG_FRONTEND}
 TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
 DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
+ASISTENTE_ROL_BASICO=${rol_ro}
+ASISTENTE_ROL_PII=${rol_ro_pii}
+ASISTENTE_RO_PASSWORD=${ASISTENTE_RO_PASSWORD}
+ASISTENTE_RO_PII_PASSWORD=${ASISTENTE_RO_PII_PASSWORD}
+ASISTENTE_PROVEEDOR=${proveedor_asistente}
+ASISTENTE_CLAVE=${ASISTENTE_CLAVE:-}
+ASISTENTE_URL_LOCAL=${ASISTENTE_URL_LOCAL:-http://arsdocendi-llm:8000/v1}
+ASISTENTE_MODELO_LOCAL=${ASISTENTE_MODELO_LOCAL:-qwen3-8b}
+ASISTENTE_MAX_LLAMADAS_CONCURRENTES=${ASISTENTE_MAX_LLAMADAS_CONCURRENTES:-8}
 ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-${seaweedfs_host}:8333}
 ALMACENAMIENTO_BUCKET=${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}
 ALMACENAMIENTO_ACCESS_KEY=${seaweedfs_app_access_key}
@@ -108,14 +153,22 @@ fi
 # El servicio común queda arriba antes de migraciones y seed.
 "$scripts_dir/provision-storage.sh" "$ambiente"
 
-# 2. Base aislada del ambiente.
+# 2. Base aislada del ambiente + roles que deben existir antes que las tablas.
 "$scripts_dir/provision-db.sh" "$ambiente"
+
+# 2b. Test de humo: los roles del asistente existen y nacieron sin privilegios
+#     de escritura, ANTES de que corra ninguna migración.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 
 # 3. Migraciones EF antes de publicar el backend. Una falla detiene seed/up por
 # set -euo pipefail.
 log_info msg="corriendo migraciones" ambiente="$ambiente"
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" \
+docker compose -p "$ambiente" --env-file "$env_file" "${archivos_compose[@]}" \
   run --rm backend ${COMANDO_MIGRACIONES:-dotnet ArsDocendi.Host.dll --migrate}
+
+# 3b. Mismo test de humo, ahora con las tablas creadas: ninguna migración le
+#     dio al asistente un privilegio de mutación.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 
 # 4. Seed SOLO en ambientes no-prod (datos sintéticos / anonimizados).
 if [[ "$ambiente" != "prod" ]]; then
@@ -125,6 +178,6 @@ else
 fi
 
 # 5. Publicar servicios únicamente después de completar migración y seed.
-docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" up -d
+docker compose -p "$ambiente" --env-file "$env_file" "${archivos_compose[@]}" up -d
 
 log_info msg="spin-up OK" ambiente="$ambiente" host="$host_publico"

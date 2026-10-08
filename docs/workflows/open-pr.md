@@ -69,7 +69,7 @@ Ejemplos:
 
 ## Documentación tocada
 
-- [ ] `docs/architecture/dependency-graph.md` actualizado si hubo cambio de edges
+- [ ] `backend/manifiesto-de-aristas.json` actualizado si hubo cambio de aristas de proyecto (el test lo verifica; `docs/architecture/dependency-graph.md` solo si cambió la prosa o el diagrama)
 - [ ] `docs/architecture/api-contracts.md` actualizado si hubo cambio de endpoints
 - [ ] `docs/business-rules/<modulo>.md` actualizado si introduce/modifica BR
 - [ ] Change OpenSpec en `openspec/changes/<id>/` con tasks actualizadas si aplica
