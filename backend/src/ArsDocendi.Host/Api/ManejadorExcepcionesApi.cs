@@ -47,6 +47,7 @@ public sealed class ManejadorExcepcionesApi(ILogger<ManejadorExcepcionesApi> log
             Instance = contexto.Request.Path,
         };
         problema.Extensions["traceId"] = contexto.TraceIdentifier;
+        problema.Extensions["code"] = error.Codigo;
         if (error.Errores is not null)
         {
             problema.Extensions["errors"] = error.Errores;

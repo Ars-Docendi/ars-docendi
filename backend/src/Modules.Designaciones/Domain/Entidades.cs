@@ -1,4 +1,5 @@
-namespace Modules.Designaciones.Domain;
+using Modules.Designaciones.Domain;
+using ArsDocendi.Storage.Contracts;
 
 /// <summary>Catálogo único de cargos docentes. <c>Orden</c> registra la jerarquía (1 = mayor).</summary>
 public sealed class Cargo
@@ -122,6 +123,7 @@ public sealed class PedidoAdjunto
     public required string Tipo { get; set; }
     public required string Nombre { get; set; }
     public string? Uri { get; set; }
+    public Guid? ArchivoId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
 
     public Pedido? Pedido { get; set; }

@@ -121,7 +121,11 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
             }
             onFilesAdded={(archivos) => {
               const archivo = archivos[0];
-              if (archivo) setDatos({ ...datos, documento: { nombre: archivo.name } });
+              if (archivo)
+                setDatos({
+                  ...datos,
+                  documento: { archivoId: "", nombre: archivo.name, archivo },
+                });
             }}
             onRemove={() => setDatos({ ...datos, documento: null })}
           />
