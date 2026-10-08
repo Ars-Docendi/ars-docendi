@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using ArsDocendi.Evaluacion.Nucleo.Dataset;
 using ArsDocendi.Evaluacion.Nucleo.Fixture;
 using ArsDocendi.Evaluacion.Nucleo.Runner;
@@ -201,8 +203,16 @@ public static class Program
             var medidorDelTurno = medidor ?? throw new InvalidOperationException(
                 "El módulo no aplicó el envoltorio del proveedor.");
 
+            // Las trazas se juntan en una lista que cada eje vacía al empezar y al
+            // escribirse. Los ejes corren de a uno, así que lo que hay al terminar un eje
+            // es de ese eje; los que no pasan por `RunnerDeCapacidad` la dejan vacía.
+            var trazas = new List<TrazaDelTurno>();
+
             var capacidadRunner = new RunnerDeCapacidad(
-                PorTurno<CarrilSql>, ejecutor, actores, proveedor);
+                PorTurno<CarrilSql>, ejecutor, actores, proveedor)
+            {
+                AlResolverTurno = trazas.Add,
+            };
 
             // Los cuatro ejes, con su sello propio: cada uno se sella con la huella
             // de SU dataset, porque el gate de regresión compara reporte contra
@@ -236,6 +246,7 @@ public static class Program
             foreach (var (nombre, correr) in corridas)
             {
                 Console.WriteLine($"\n▸ Eje {nombre}…");
+                trazas.Clear();
                 var resultado = await correr();
 
                 if (!resultado.HayReporte)
@@ -249,6 +260,14 @@ public static class Program
                 await File.WriteAllTextAsync(ruta, resultado.Reporte!.Renderizar());
 
                 Console.WriteLine($"  {resultado.Reporte.Total} ítems · reporte en {ruta}");
+
+                if (trazas.Count > 0)
+                {
+                    var rutaDeTurnos = Path.Combine(reportes, $"{nombre}.turnos.jsonl");
+                    await File.WriteAllTextAsync(rutaDeTurnos, SerializarTrazas(trazas));
+                    Console.WriteLine($"  {trazas.Count} turnos en {rutaDeTurnos}");
+                    trazas.Clear();
+                }
 
                 var rutaDeLinea = Path.Combine(lineasDeBase, $"{nombre}.json");
 
@@ -338,6 +357,27 @@ public static class Program
             }));
     }
 
+    private static readonly JsonSerializerOptions OpcionesDeTraza = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    /// <summary>Una línea JSON por turno, con claves en snake_case y sin escapar el no ASCII.</summary>
+    private static string SerializarTrazas(IEnumerable<TrazaDelTurno> trazas) =>
+        string.Concat(trazas.Select(t => JsonSerializer.Serialize(
+            new Dictionary<string, object?>
+            {
+                ["id"] = t.Id,
+                ["estado"] = t.Estado,
+                ["categoria"] = t.Categoria,
+                ["llamadas"] = t.Llamadas,
+                ["latencia_ms"] = t.LatenciaMs,
+                ["respuesta"] = t.Respuesta,
+                ["opciones"] = t.Opciones,
+                ["sql"] = t.Sql,
+            },
+            OpcionesDeTraza) + "\n"));
+
     private static void Ayuda() => Console.WriteLine(
         """
         Evaluador del asistente conversacional.
@@ -358,7 +398,9 @@ public static class Program
           dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --compuestas
 
         Se corren dos veces con el mismo modelo, Asistente__PlanCompilado=false
-        (control) y true, y se comparan los reportes ítem por ítem.
+        (control) y true, y se comparan los reportes ítem por ítem. Cada eje de
+        capacidad escribe además reportes/<eje>.turnos.jsonl, una línea por turno
+        con estado, categoría, llamadas, latencia, respuesta, opciones y SQL.
 
         Sin --congelar, cada eje que tenga línea de base se compara contra ella
         ítem por ítem, y una regresión devuelve 4. Congelar es a mano y a

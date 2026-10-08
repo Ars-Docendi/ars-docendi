@@ -225,6 +225,15 @@ pisa. La comparación es **ítem por ítem** entre las dos corridas con el mismo
 las respuestas falsas (`traduccion_incorrecta` e `intento_sobre_lo_infactible`), las
 aclaraciones y las abstenciones. No hay línea de base congelada: es un prototipo.
 
+Cada corrida escribe también `reportes/<eje>.turnos.jsonl` (acá, `compuestas.turnos.jsonl`),
+con una línea por ítem y las claves `id`, `estado`, `categoria`, `llamadas`, `latencia_ms`,
+`respuesta`, `opciones` y `sql`. Existe porque el reporte junta la aclaración y la abstención
+en un mismo desenlace y no lleva la categoría del turno (`plan_compilado`,
+`plan_compilado_aclaracion`, `plan_compilado_abstencion`, las del carril SQL), ni las llamadas
+al modelo, ni la latencia, ni las opciones que se le ofrecieron al usuario. Es observabilidad
+aparte: no entra a la puntuación ni al gate. Se copia entre corridas igual que el `.md`, porque
+la segunda lo pisa.
+
 `PlanCompiladoTests` comprueba, sin modelo, que cada `plan_referencia` compilado devuelve lo
 mismo que su `sql_referencia` contra el fixture con suplemento, y `PlanCompiladoPurosTests`
 que cada plan de referencia pasa la puerta y el anclaje con su propia pregunta.

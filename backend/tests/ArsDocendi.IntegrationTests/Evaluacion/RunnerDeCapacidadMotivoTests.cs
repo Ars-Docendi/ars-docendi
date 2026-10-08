@@ -40,6 +40,39 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task El_sumidero_recibe_una_traza_por_item_con_estado_categoria_y_llamadas()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.NoContestable());
+        var factible = new ItemDeCapacidad(
+            "cap-traza-1", "¿cuántos docentes hay?", CategoriaDeItem.ConsultaSimple, ActorDeItem.Global,
+            SqlReferencia: "SELECT 1", OrdenImporta: false);
+        var infactible = new ItemDeCapacidad(
+            "cap-traza-2", "¿alguna pregunta rara?", CategoriaDeItem.NoContestable, ActorDeItem.Global,
+            SqlReferencia: null, OrdenImporta: false);
+        var trazas = new List<TrazaDelTurno>();
+
+        var resultadoFactible = await EvaluarAsync(factible, proveedor, trazas.Add);
+        var resultadoInfactible = await EvaluarAsync(infactible, proveedor, trazas.Add);
+
+        // Una traza por ítem, con lo que el reporte no conserva: el estado exacto del
+        // turno (un NecesitaAclaracion se distingue de un NoContestable acá, aunque el
+        // desenlace del reporte sea el mismo), su categoría y las llamadas al modelo.
+        Assert.Equal(DesenlaceDeItem.AbstencionSobreloFactible, resultadoFactible.Desenlace);
+        Assert.Equal(DesenlaceDeItem.AbstencionCorrecta, resultadoInfactible.Desenlace);
+        Assert.Equal(["cap-traza-1", "cap-traza-2"], trazas.Select(t => t.Id));
+        Assert.All(trazas, t =>
+        {
+            Assert.Equal(nameof(EstadoDelTurno.NoContestable), t.Estado);
+            Assert.Equal(GeneracionDeSql.CategoriaNoContestable, t.Categoria);
+            Assert.Empty(t.Opciones);
+            Assert.True(t.LatenciaMs >= 0);
+        });
+        Assert.Equal(proveedor.Llamadas, trazas.Sum(t => t.Llamadas));
+        Assert.True(proveedor.Llamadas > 0);
+    }
+
+    [Fact]
     public async Task Un_motivo_declarado_coincidente_queda_de_acuerdo()
     {
         await SembrarAsync();
@@ -108,7 +141,8 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------------ apoyo
 
-    private async Task<ResultadoDeItem> EvaluarAsync(ItemDeCapacidad item, ProveedorGuionado proveedor)
+    private async Task<ResultadoDeItem> EvaluarAsync(
+        ItemDeCapacidad item, ProveedorGuionado proveedor, Action<TrazaDelTurno>? sumidero = null)
     {
         var (basica, conDatosPersonales) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente());
@@ -150,7 +184,10 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
             opciones,
             NullLogger<CarrilSql>.Instance);
 
-        var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresFijos(), proveedor);
+        var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresFijos(), proveedor)
+        {
+            AlResolverTurno = sumidero,
+        };
 
         return await runner.EvaluarAsync(item, TestContext.Current.CancellationToken);
     }

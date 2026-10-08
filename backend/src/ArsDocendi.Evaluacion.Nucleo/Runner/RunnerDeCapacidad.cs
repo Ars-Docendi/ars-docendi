@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using ArsDocendi.Evaluacion.Nucleo.Dataset;
 using ArsDocendi.Evaluacion.Nucleo.Fixture;
@@ -15,6 +16,32 @@ public sealed record ResultadoDeCorrida(int Codigo, Reporte? Reporte, string? Mo
     /// <summary>Si la corrida produjo un reporte que se puede escribir.</summary>
     public bool HayReporte => Reporte is not null;
 }
+
+/// <summary>
+/// Lo que el reporte no conserva de un turno: una línea por ítem, para leer después.
+/// </summary>
+/// <remarks>
+/// El reporte colapsa la aclaración y la abstención en un mismo desenlace y no lleva
+/// ni la categoría, ni las llamadas, ni la latencia. Esta traza sí. Es observabilidad
+/// pura: no entra al reporte, al gate ni a la puntuación.
+/// </remarks>
+/// <param name="Id">El ítem del dataset.</param>
+/// <param name="Estado">Nombre del <see cref="EstadoDelTurno"/>, o <c>Excepcion</c> si el turno lanzó.</param>
+/// <param name="Categoria">Categoría del turno, o el tipo de la excepción si lanzó.</param>
+/// <param name="Llamadas">Llamadas al modelo que gastó el turno.</param>
+/// <param name="LatenciaMs">Milisegundos de <c>ResponderAsync</c>, sin la evaluación posterior.</param>
+/// <param name="Respuesta">El texto que vio el usuario.</param>
+/// <param name="Opciones">Las etiquetas de las opciones de aclaración que se le mostraron.</param>
+/// <param name="Sql">La consulta que generó el modelo, si hubo.</param>
+public sealed record TrazaDelTurno(
+    string Id,
+    string Estado,
+    string Categoria,
+    int Llamadas,
+    long LatenciaMs,
+    string Respuesta,
+    IReadOnlyList<string> Opciones,
+    string? Sql);
 
 /// <summary>
 /// Resuelve el identificador del actor de un ítem.
@@ -53,8 +80,19 @@ public sealed class RunnerDeCapacidad(
     // fallo casi total sin que nada explicara por qué.
     //
     // El modo de falla es especialmente malo porque NO da error: da un número.
+
     /// <summary>Código de salida cuando el preflight rechaza la corrida.</summary>
     public const int CodigoDePreflightFallido = 2;
+
+    /// <summary>
+    /// Recibe la traza de cada turno, si alguien la quiere.
+    /// </summary>
+    /// <remarks>
+    /// Se invoca una vez por ítem apenas el turno resuelve —también si está degradado o
+    /// truncado, y también si lanzó—, antes de decidir el desenlace. Sin sumidero no
+    /// cambia nada.
+    /// </remarks>
+    public Action<TrazaDelTurno>? AlResolverTurno { get; set; }
 
     /// <summary>
     /// Corre el eje.
@@ -106,15 +144,31 @@ public sealed class RunnerDeCapacidad(
         var menciones = ResolverMenciones(item);
 
         ResultadoDelTurno turno;
+        var reloj = Stopwatch.StartNew();
         try
         {
             turno = await carrilPorItem().ResponderAsync(
                 actor, item.Pregunta, null, ct, mencionesNuevas: menciones);
+            reloj.Stop();
         }
         catch (Exception excepcion) when (excepcion is not OperationCanceledException)
         {
+            reloj.Stop();
+            AlResolverTurno?.Invoke(new TrazaDelTurno(
+                item.Id, "Excepcion", excepcion.GetType().Name, 0, reloj.ElapsedMilliseconds,
+                string.Empty, [], null));
             return Fallo(item, $"El turno lanzó `{excepcion.GetType().Name}`.");
         }
+
+        AlResolverTurno?.Invoke(new TrazaDelTurno(
+            item.Id,
+            turno.Estado.ToString(),
+            turno.Categoria,
+            turno.LlamadasAlModelo,
+            reloj.ElapsedMilliseconds,
+            turno.Respuesta,
+            (turno.Opciones ?? []).Select(o => o.Etiqueta).ToList(),
+            turno.Sql));
 
         // Un turno degradado NO es una abstención. Es la trampa entera del eje:
         // sin crédito, todos los ítems infactibles devolverían «no contestable»
