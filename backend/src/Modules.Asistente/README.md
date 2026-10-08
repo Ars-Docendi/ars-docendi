@@ -1016,6 +1016,60 @@ cassettes del proveedor Anthropic las muestras coinciden por construcción —la
 no incluye la temperatura—, así que el acuerdo solo se mide con el modelo local. La evaluación
 está en [`backend/eval/README.md`](../../eval/README.md#las-preguntas-compuestas-del-plan-compilado).
 
+#### Medición en la RTX 3070
+
+Medido el 2026-10-08 (tarea 6.3 de `asistente-plan-compilado`) con el evaluador contra Qwen3-8B
+Q4_K_M, llama-server build 11371, un slot de 16.384 y el perfil de la 3070 con
+`MaximoDeLlamadasConcurrentes = 1`. Son las 37 preguntas de `compuestas.json` sobre el fixture
+con suplemento: una corrida de control (`PlanCompilado = false`, idéntica ítem por ítem en
+cuatro repeticiones) y tres con el plan, porque las muestras 2 y 3 van a 0,6.
+
+| Brazo                               | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Llamadas por turno | Corrida   |
+| ----------------------------------- | ------------ | ----------------- | ------------------------- | --------------- | ------------------ | --------- |
+| Control (Text-to-SQL)               | 12           | **15**            | 8                         | 4,1 s / 10,4 s  | 1,41               | 178 s     |
+| Plan, antes del arreglo (`79570f0`) | 22 · 23 · 23 | **0 · 0 · 0**     | 11 · 10 · 10              | 1,6 s / 7,1 s   | 2,19               | 76 a 78 s |
+| **Plan, con el arreglo**            | 30 · 30 · 31 | **0 · 0 · 0**     | 3 · 3 · 2                 | 1,7 s / 7,1 s   | 2,57               | 84 a 87 s |
+
+«Respuestas falsas» suma las traducciones incorrectas y los intentos sobre lo infactible. «Sin
+responder lo factible» suma abstenciones y aclaraciones ante una pregunta que tenía respuesta.
+La VRAM no cambia (7,3 a 7,7 GiB con el escritorio en la placa): las muestras son secuenciales.
+
+- **Cero falsas respondiendo por plantilla.** De 26 o 27 turnos respondidos por el plan en cada
+  corrida, ninguno dio un resultado distinto del de referencia. Los cuatro ítems fuera del
+  catálogo siguieron por SQL con cero llamadas del plan.
+- **El arreglo.** Antes, 28 de las 31 muestras inválidas tenían la misma causa: en conteos y
+  listados el modelo reparte las condiciones entre `filtros` y `condiciones`, y el validador las
+  rechazaba por la forma. Ahora se pliegan en `filtros`. Los nueve ítems que se perdían por eso
+  pasan a responderse bien.
+- **Una lectura incorrecta que el dataset no detecta.** En `cmp-016` («designación de categoría
+  5») el modelo lee `>= 5`, y sin señal de comparación el anclaje admite «=» y «>=». Cuenta como
+  acierto porque en el fixture nadie tiene categoría 6. En cuatro de las seis corridas las tres
+  muestras coincidieron en `>=` y el turno respondió «al menos 5».
+- **El acuerdo entre muestras filtra poco con este modelo.** De 174 muestras a 0,6, dos fueron
+  otra lectura (las dos en `cmp-016`). Lo que frena errores es el anclaje.
+- **Regresión en los ejes existentes.** Con el plan apagado, los cuatro ejes reproducen la
+  línea de base de la 3070 ítem por ítem (26 · 12 · 10 · 18). Con el plan encendido quedan en
+  26 · 11 · 7 · 19:
+  - Cuatro ítems correctos pasan a abstención (`cap-015`, `rob-003`, `dia-004#1`, `dia-005#1`)
+    porque la puerta toma preguntas que piden materias y no personas («¿Qué asignaturas se
+    dictan en Ingeniería Industrial?»). El modelo arma un listado de docentes, el validador lo
+    rechaza y el turno se abstiene en vez de seguir por SQL.
+  - `dia-004#2` cae por arrastre del turno anterior.
+  - `cap-020` pasa de falsa a aclaración correcta, y `rob-005` de falsa a abstención.
+  - `soc-011` cambia por un artefacto del eje social con la caché de consultas, no por el plan.
+- **Decisión.** Seguir, con ajustes antes de encender la opción. El plan elimina las
+  respuestas falsas del dataset y, con el arreglo, se abstiene menos que el control. Falta:
+  1. que la puerta no tome preguntas cuyo objeto no son personas, o que una primera muestra
+     inválida siga por SQL en vez de abstenerse;
+  2. decidir «= o >=» sin señal, al menos para la categoría;
+  3. un caso en el fixture que distinga `= 5` de `>= 5`.
+- **Limitaciones.** Son 37 ítems, un modelo y un fixture sintético: sirve para encontrar bugs,
+  no para afirmar porcentajes. El dataset se escribió junto con el prototipo, así que su
+  vocabulario coincide con el del catálogo. La latencia es la de `ResponderAsync` tomada de
+  `reportes/<eje>.turnos.jsonl`, y no es comparable con el «turno p50» de
+  [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se midió Qwen3.5-9B ni la
+  edición del plan en seguimientos.
+
 ### Qué sigue funcionando sin proveedor
 
 Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de modelo **no
