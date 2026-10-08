@@ -27,12 +27,6 @@ export function mesDe(fecha: string): string {
   return fecha.length > 4 ? fecha.slice(5, 7) : "";
 }
 
-export function componerFecha(anio: string, mes: string): string {
-  const a = anio.trim();
-  if (!a) return "";
-  return mes ? `${a}-${mes}` : a;
-}
-
 /** "2014" o "mar 2014" según tenga mes. */
 export function formatearFecha(fecha: string): string {
   if (!fecha) return "";

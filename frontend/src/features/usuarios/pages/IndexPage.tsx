@@ -79,7 +79,7 @@ export function IndexPage() {
     <>
       <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Usuarios" }]} />
       <PageHeader
-        title="Administración de Usuarios"
+        title="Administración de usuarios"
         meta={`${usuariosFiltrados.length} usuarios · ${usuariosFiltrados.filter((u) => u.is_active).length} activos`}
         actions={
           <Button variant="primary" onClick={() => setModalNuevo(true)}>

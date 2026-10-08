@@ -3,6 +3,7 @@ import { Button, Field, FileUpload, Input, Modal, Textarea } from "@ars-docendi/
 
 import type { DatosProyecto, Proyecto } from "../types";
 import { CampoPeriodo } from "./CampoPeriodo";
+import { MENSAJE_FALTA_ANIO, SIN_MES_SIN_ANIO, type MesSinAnio } from "./mesSinAnio";
 import "./portal.css";
 
 const VACIO: DatosProyecto = {
@@ -31,12 +32,15 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
   const [datos, setDatos] = useState<DatosProyecto>(() => (proyecto ? { ...proyecto } : VACIO));
   const [actual, setActual] = useState(() => proyecto?.hasta === null);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [mesSinAnio, setMesSinAnio] = useState<MesSinAnio>(SIN_MES_SIN_ANIO);
 
   function guardar() {
     const nuevos: Record<string, string> = {};
     if (!datos.nombre.trim()) nuevos.nombre = "Ingresá el nombre del proyecto.";
     if (!datos.rol.trim()) nuevos.rol = "Ingresá tu rol.";
-    if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.desde) nuevos.desde = MENSAJE_FALTA_ANIO;
+    else if (!datos.desde.trim()) nuevos.desde = "Ingresá desde cuándo.";
+    if (mesSinAnio.hasta && !actual) nuevos.hasta = MENSAJE_FALTA_ANIO;
     if (!datos.descripcion.trim()) nuevos.descripcion = "Contá de qué se trata.";
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
@@ -84,8 +88,12 @@ export function ModalProyecto({ proyecto, onCerrar, onGuardar }: ModalProyectoPr
           enCurso={actual}
           etiquetaEnCurso="Sigue en curso"
           errorDesde={errores.desde}
+          errorHasta={errores.hasta}
           onDesde={(desde) => setDatos({ ...datos, desde })}
           onHasta={(hasta) => setDatos({ ...datos, hasta })}
+          onMesSinAnio={(campo, falta) =>
+            setMesSinAnio((previo) => ({ ...previo, [campo]: falta }))
+          }
           onEnCurso={setActual}
         />
         <Field label="De qué se trata" required error={errores.descripcion}>
