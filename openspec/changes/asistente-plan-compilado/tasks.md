@@ -29,5 +29,5 @@
 ## 6. Documentación y verificación
 
 - [x] 6.1 Sección del plan compilado en `backend/src/Modules.Asistente/README.md` y en `backend/eval/README.md`.
-- [ ] 6.2 `dotnet test backend/ArsDocendi.slnx` en verde y `openspec validate --all --strict` (o constancia de lo que el entorno no permita).
+- [x] 6.2 `dotnet test backend/ArsDocendi.slnx` en verde y `openspec validate --all --strict` (o constancia de lo que el entorno no permita).
 - [ ] 6.3 Corrida en la RTX 3070 (a cargo del equipo): `--compuestas` con la opción apagada (control) y encendida, comparación ítem por ítem de respuestas falsas, aclaraciones y abstenciones.

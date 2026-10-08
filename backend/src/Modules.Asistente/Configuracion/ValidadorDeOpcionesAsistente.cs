@@ -162,8 +162,10 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         }
 
         // El plan compilado (asistente-plan-compilado, D5): sus muestras son
-        // llamadas del mismo turno, así que no pueden superar su techo.
-        if (options.MuestrasDelPlan > options.MaximoDeLlamadasPorTurno)
+        // llamadas del mismo turno, así que no pueden superar su techo. Solo rige
+        // con la opción encendida: un techo bajo sin el plan es una configuración
+        // válida, y el default de las muestras no puede volverla inválida.
+        if (options.PlanCompilado && options.MuestrasDelPlan > options.MaximoDeLlamadasPorTurno)
         {
             fallas.Add(
                 $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.MuestrasDelPlan)}' "
