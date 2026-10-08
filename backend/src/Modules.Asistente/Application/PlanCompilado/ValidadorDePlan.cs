@@ -64,18 +64,23 @@ internal static class ValidadorDePlan
         }
 
         var esPorcentaje = plan.Medida == CatalogoDelPlan.Porcentaje;
-        if (esPorcentaje != plan.Condiciones.Count > 0)
+        if (esPorcentaje && plan.Condiciones.Count == 0)
         {
-            return VeredictoDelPlan.Invalido(
-                "Solo un porcentaje lleva condiciones, y un porcentaje necesita al menos una.");
+            return VeredictoDelPlan.Invalido("Un porcentaje necesita al menos una condición.");
         }
 
         var filtros = new List<CondicionValidada>();
         var condiciones = new List<CondicionValidada>();
         var indice = 0;
 
+        // En conteo y listado las dos listas son la misma conjunción: la muestra que
+        // reparte sus condiciones entre ambas dice lo mismo que la que las pone todas en
+        // `filtros`, así que se pliegan ahí. Solo el porcentaje separa el denominador
+        // del numerador. Rechazarla era abstenerse por la forma y no por el contenido.
+        var destinoDeCondiciones = esPorcentaje ? condiciones : filtros;
+
         foreach (var (cruda, destino) in plan.Filtros.Select(c => (c, filtros))
-                     .Concat(plan.Condiciones.Select(c => (c, condiciones))))
+                     .Concat(plan.Condiciones.Select(c => (c, destinoDeCondiciones))))
         {
             var (validada, motivo) = ValidarCondicion(cruda, indice++, texto);
             if (validada is null)

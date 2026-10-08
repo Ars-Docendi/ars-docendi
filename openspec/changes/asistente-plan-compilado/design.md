@@ -50,7 +50,7 @@ Cada condición del catálogo es un fragmento de SQL certificado con su test. Po
 }
 ```
 
-`filtros` define la población (el denominador de un porcentaje); `condiciones` solo existe para `porcentaje` y define el numerador. El valor viaja como texto y el validador lo interpreta según el tipo del campo, para que la gramática quede chica y sirva igual en llama-server (GBNF), vLLM (xgrammar) y cualquier proveedor que no la respete.
+`filtros` define la población (el denominador de un porcentaje); `condiciones` solo existe para `porcentaje` y define el numerador. Una muestra de conteo o de listado que igual reparte sus condiciones entre las dos listas no se rechaza: en esas medidas son la misma conjunción y el validador las pliega en `filtros`. Un porcentaje sin `condiciones` sí es inválido. El valor viaja como texto y el validador lo interpreta según el tipo del campo, para que la gramática quede chica y sirva igual en llama-server (GBNF), vLLM (xgrammar) y cualquier proveedor que no la respete.
 
 ### D4 — Una puerta determinista antes de llamar al modelo
 

@@ -990,6 +990,8 @@ El recorrido de un turno con la opción encendida:
 3. **Validación determinista** (`ValidadorDePlan`): cada condición anclada en el texto (término,
    valor y señal de comparación) y, al revés, todo término del catálogo que nombra la pregunta
    presente en el plan.
+   En conteo y listado las `condiciones` de la muestra se pliegan en `filtros`, porque ahí son la
+   misma conjunción; solo el porcentaje separa denominador y numerador.
 4. **Muestras restantes** y **acuerdo exacto** de la forma canónica. Desacuerdo → aclaración con
    una opción por lectura; nunca se elige una.
 5. **Entidades en el servidor** (`ResolutorDeEntidadesDelPlan`): materias con el buscador de

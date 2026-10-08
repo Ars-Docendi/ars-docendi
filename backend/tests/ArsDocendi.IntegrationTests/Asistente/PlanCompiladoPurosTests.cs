@@ -56,6 +56,33 @@ public sealed class PlanCompiladoPurosTests
     }
 
     [Fact]
+    public void Un_conteo_que_reparte_sus_condiciones_coincide_con_el_que_las_junta()
+    {
+        // Medición en la RTX 3070 (2026-10-08): Qwen3-8B reparte así las condiciones de
+        // conteos y listados, y el validador las rechazaba por la forma.
+        var texto = new TextoDeLaPregunta("¿Cuántos titulares dictan en al menos dos carreras?");
+
+        var juntas = Validar(texto, "conteo", [("cargo", "=", "titular"), ("cantidad_carreras", ">=", "2")]);
+        var repartidas = ValidadorDePlan.Validar(
+            Plan("conteo", [("cargo", "=", "titular")], [("cantidad_carreras", ">=", "2")]), texto);
+
+        Assert.True(repartidas.EsValido, repartidas.Motivo);
+        Assert.Empty(repartidas.Plan!.Condiciones);
+        Assert.Equal(juntas.Canonico(), repartidas.Plan.Canonico());
+    }
+
+    [Fact]
+    public void Un_porcentaje_sin_condiciones_es_invalido()
+    {
+        var texto = new TextoDeLaPregunta("¿Qué porcentaje de los docentes dicta en más de una carrera?");
+
+        var veredicto = ValidadorDePlan.Validar(
+            Plan("porcentaje", [("cantidad_carreras", ">", "1")]), texto);
+
+        Assert.False(veredicto.EsValido);
+    }
+
+    [Fact]
     public void Un_operador_distinto_es_otra_lectura()
     {
         var texto = new TextoDeLaPregunta("¿Cuántos titulares dictan en dos carreras?");
