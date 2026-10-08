@@ -39,6 +39,9 @@ public static class PreviewMigraciones
 
     public static async Task ExportarAsync(IReadOnlyDictionary<string, string> archivos, string directorio, CancellationToken ct)
     {
+        foreach (var nombre in archivos.Keys)
+            if (nombre.Length == 0 || nombre is "." or ".." || nombre.IndexOfAny(['/', '\\']) >= 0 || Path.IsPathRooted(nombre))
+                throw new ArgumentException("El preview sólo admite nombres de archivo, no rutas.", nameof(archivos));
         if (directorio == "-")
         {
             await using var writer = new TarWriter(Console.OpenStandardOutput(), TarEntryFormat.Pax, leaveOpen: true);
@@ -57,7 +60,7 @@ public static class PreviewMigraciones
             throw new ArgumentException("El directorio de preview debe estar vacío; no se sobrescriben archivos.");
         Directory.CreateDirectory(destino);
         foreach (var (nombre, texto) in archivos)
-            await File.WriteAllTextAsync(Path.Combine(destino, nombre), texto, new UTF8Encoding(false), ct);
+            await File.WriteAllTextAsync(Path.Join(destino, nombre), texto, new UTF8Encoding(false), ct);
     }
 
     private static string Hash(string texto) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(texto)));

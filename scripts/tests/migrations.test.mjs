@@ -309,6 +309,37 @@ test("Git protege adiciones publicadas aunque no se actualice el manifiesto glob
   falla(validador, raiz, ["--base-ref", publicada], /protegido modificado/);
 });
 
+test("generador reemplaza el manifiesto sin seguir un symlink insertado antes de escribir", (t) => {
+  const { raiz } = crear(t);
+  ejecutar(generador, raiz);
+  const destino = join(raiz, "database/migraciones-protegidas.json");
+  const victima = join(raiz, "victima.txt");
+  writeFileSync(victima, "no sobrescribir");
+  const interceptor = join(raiz, "interceptor.cjs");
+  writeFileSync(
+    interceptor,
+    `
+const fs = require("node:fs");
+const { syncBuiltinESMExports } = require("node:module");
+const escritura = fs.writeFileSync;
+fs.writeFileSync = (ruta, ...args) => {
+  if (ruta === process.env.DESTINO) {
+    fs.unlinkSync(ruta);
+    fs.symlinkSync(process.env.VICTIMA, ruta);
+  }
+  return escritura(ruta, ...args);
+};
+syncBuiltinESMExports();
+`,
+  );
+  execFileSync(process.execPath, ["--require", interceptor, generador, "--root", raiz], {
+    env: { ...process.env, DESTINO: destino, VICTIMA: victima },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  assert.equal(readFileSync(victima, "utf8"), "no sobrescribir");
+  assert.equal(JSON.parse(readFileSync(destino, "utf8")).version, 1);
+});
+
 test("generador no rehasha historia alterada y dry-run no escribe manifiesto", (t) => {
   const { raiz, plan } = crear(t);
   ejecutar(generador, raiz, ["--dry-run"]);

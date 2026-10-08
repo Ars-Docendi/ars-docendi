@@ -42,16 +42,34 @@ public sealed class PreviewMigracionesTests
     [Fact]
     public async Task Exportacion_no_sobrescribe_directorio_ocupado()
     {
-        var ruta = Path.Combine(AppContext.BaseDirectory, "preview_" + Guid.NewGuid().ToString("N"));
+        var ruta = Path.Join(AppContext.BaseDirectory, "preview_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(ruta);
         try
         {
-            await File.WriteAllTextAsync(Path.Combine(ruta, "existente"), "conservar", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(Path.Join(ruta, "existente"), "conservar", TestContext.Current.CancellationToken);
             await Assert.ThrowsAsync<ArgumentException>(() => PreviewMigraciones.ExportarAsync(
                 new Dictionary<string, string> { ["manifiesto.json"] = "{}" }, ruta, TestContext.Current.CancellationToken));
-            Assert.Equal("conservar", await File.ReadAllTextAsync(Path.Combine(ruta, "existente"), TestContext.Current.CancellationToken));
+            Assert.Equal("conservar", await File.ReadAllTextAsync(Path.Join(ruta, "existente"), TestContext.Current.CancellationToken));
         }
         finally { Directory.Delete(ruta, true); }
+    }
+
+    [Theory]
+    [InlineData("../fuera.sql")]
+    [InlineData("/tmp/fuera.sql")]
+    [InlineData("subdirectorio/fuera.sql")]
+    [InlineData("..\\fuera.sql")]
+    public async Task Exportacion_rechaza_nombres_fuera_del_directorio(string nombre)
+    {
+        var ruta = Path.Join(AppContext.BaseDirectory, "preview_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() => PreviewMigraciones.ExportarAsync(
+                new Dictionary<string, string> { [nombre] = "SELECT 1;" }, ruta,
+                TestContext.Current.CancellationToken));
+            Assert.False(Directory.Exists(ruta));
+        }
+        finally { if (Directory.Exists(ruta)) Directory.Delete(ruta, true); }
     }
 
     private sealed class MigradorDePrueba(string contexto, bool pendiente) : IMigradorModulo

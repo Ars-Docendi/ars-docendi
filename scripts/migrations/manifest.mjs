@@ -1,4 +1,5 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { argumentos, leer, manifiestoRuta, principal, verificarRuta } from "./comun.mjs";
 import { inventariar } from "./inventario.mjs";
 import { comprobarArchivos, hashes, leerManifiesto, validarManifiesto } from "./proteccion.mjs";
@@ -36,6 +37,16 @@ principal(() => {
         throw new Error(`No se puede reescribir clasificación histórica: ${ruta}`);
   }
   const contenido = JSON.stringify(manifiesto, null, 2) + "\n";
-  if (!opciones["--dry-run"]) writeFileSync(destino, contenido);
+  if (!opciones["--dry-run"]) {
+    // El rename atómico reemplaza el nombre, sin seguir un symlink insertado
+    // entre la validación de la ruta y la escritura.
+    const temporal = mkdtempSync(join(dirname(destino), ".manifiesto-"));
+    try {
+      writeFileSync(join(temporal, "inventario.json"), contenido, { flag: "wx" });
+      renameSync(join(temporal, "inventario.json"), destino);
+    } finally {
+      rmSync(temporal, { recursive: true, force: true });
+    }
+  }
   console.log(contenido.trimEnd());
 });

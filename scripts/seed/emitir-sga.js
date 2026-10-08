@@ -36,10 +36,14 @@ for (const persona of d.personas) {
   if (sinLegajo.has(String(persona.legajo))) persona.legajo = null;
 }
 
-// UUID determinístico a partir de una clave natural.
+// UUID determinístico v8 a partir de SHA-256 de una clave natural.
+// Su valor difiere del generador anterior (MD5): no regenerar sobre una base sembrada.
 function uuidDe(texto) {
-  const h = crypto.createHash("md5").update(texto).digest("hex");
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  const bytes = crypto.createHash("sha256").update(texto).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x80;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const h = bytes.toString("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 const planId = (carreraId, codigo) => uuidDe(`plan:${carreraId}:${codigo}`);
 const canonicaId = (codigo) => uuidDe(`materia:${codigo}`);
