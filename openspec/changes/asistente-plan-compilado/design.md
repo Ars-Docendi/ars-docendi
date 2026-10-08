@@ -42,9 +42,11 @@ Cada condición del catálogo es un fragmento de SQL certificado con su test. Po
 {
   "expresable": true,
   "medida": "porcentaje",
-  "filtros":     [ { "campo": "cargo", "operador": "=", "valor": "titular" } ],
-  "condiciones": [ { "campo": "antiguedad_designacion", "operador": ">", "valor": "20" },
-                   { "campo": "cantidad_carreras", "operador": ">=", "valor": "2" } ]
+  "filtros": [{ "campo": "cargo", "operador": "=", "valor": "titular" }],
+  "condiciones": [
+    { "campo": "antiguedad_designacion", "operador": ">", "valor": "20" },
+    { "campo": "cantidad_carreras", "operador": ">=", "valor": "2" }
+  ]
 }
 ```
 
@@ -77,20 +79,20 @@ Cada condición del plan tiene que estar anclada en el texto normalizado de la p
 
 ### D7 — Las entidades se resuelven en el servidor y viajan como marcadores
 
-- **Materias:** con `IBuscadorDeMenciones.BuscarAsync(actor, Materia, …)`, que ya respeta `identity.asistente_materias_visibles()`, y coincidencia exacta del nombre normalizado. Un nombre compartido por varias carreras («Análisis Matemático») resuelve a todas sus materias.
+- **Materias:** con `IBuscadorDeMenciones.BuscarAsync(actor, Materia, …)`, que ya respeta `identity.asistente_materias_visibles()`, y coincidencia exacta del nombre normalizado. Un nombre compartido por varias carreras («Análisis Matemático») es ambiguo —la misma política que el detector de ambigüedad de la capa conversacional— salvo que la misma lista del plan nombre la carrera; la aclaración ofrece una opción por carrera.
 - **Carreras:** con una lectura de `identity.carreras` a través del ejecutor y coincidencia exacta normalizada, o por contención única.
 
 Los ids resueltos se ligan como `$refN`, lo único que el ejecutor sabe ligar. El resto de los literales sale de listas cerradas (códigos de cargo) o son enteros validados, y se escriben en el SQL por el compilador, nunca por el modelo. Una entidad que no resuelve produce una abstención explícita («no encontré la carrera X»); una ambigua, una aclaración.
 
 ### D8 — Compilación a SQL certificado
 
-El compilador arma una CTE `vigentes` (designaciones con `vigente_hasta IS NULL`, con su materia, carrera, cargo y categoría), una población `docentes` (personas distintas de `vigentes`) y un predicado por condición, evaluado por persona con `EXISTS` o con subconsultas de conteo. La antigüedad se calcula con `age()` contra la fecha de referencia del turno (`IFechaDeReferencia`), nunca contra el reloj. Las medidas son:
+El compilador arma una CTE `vigentes` (designaciones con `vigente_hasta IS NULL`, con su materia, carrera, cargo y categoría) y una población `docentes` (personas distintas de `vigentes`). Las condiciones afirmativas de cargo, carrera, materia y categoría de una misma lista se evalúan juntas, en un solo `EXISTS`, sobre **una misma designación**: «titulares de Ingeniería Industrial» son quienes son titulares EN Industrial, no quienes son titulares en otra carrera y adjuntos en Industrial. Las negadas van cada una en su `NOT EXISTS`, y las de la persona (cantidades y antigüedades) cada una con su subconsulta. La antigüedad se calcula con `age()` contra la fecha de referencia del turno (`IFechaDeReferencia`), nunca contra el reloj. Las medidas son:
 
-| Medida | Columnas |
-|---|---|
-| `conteo` | `total` |
-| `porcentaje` | `cumplen`, `total` |
-| `listado` | `apellido`, `nombre` |
+| Medida       | Columnas             |
+| ------------ | -------------------- |
+| `conteo`     | `total`              |
+| `porcentaje` | `cumplen`, `total`   |
+| `listado`    | `apellido`, `nombre` |
 
 El SQL compilado pasa igual por `ValidadorDeSql` como defensa en profundidad, y se ejecuta con el rol **básico** aunque el actor vea datos personales: el plan nunca necesita columnas sensibles.
 

@@ -271,7 +271,8 @@ internal sealed class BancoDelAsistente
         ICatalogoDeCapacidades? capacidades = null,
         ILogger<CarrilSql>? log = null,
         CacheDeConsultasGeneradas? cache = null,
-        IOptions<OpcionesAsistente>? opcionesDelRedactor = null) =>
+        IOptions<OpcionesAsistente>? opcionesDelRedactor = null,
+        CarrilDelPlan? plan = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -307,5 +308,6 @@ internal sealed class BancoDelAsistente
                 new ConsultasIdentityFalsa(),
                 NullLogger<CatalogoDeCapacidades>.Instance),
             opcionesDelRedactor ?? Options.Create(new OpcionesAsistente()),
-            log ?? NullLogger<CarrilSql>.Instance);
+            log ?? NullLogger<CarrilSql>.Instance,
+            plan);
 }

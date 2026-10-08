@@ -100,6 +100,12 @@ El sistema SHALL resolver cada materia y carrera del plan contra las entidades q
 - **WHEN** se resuelven las entidades
 - **THEN** el turno se abstiene indicando que no encontró esa carrera
 
+#### Scenario: Materia compartida por varias carreras
+
+- **GIVEN** un plan que filtra por «Análisis Matemático», que existe en tres carreras, sin una carrera en la misma lista
+- **WHEN** se resuelven las entidades
+- **THEN** el turno termina en `NecesitaAclaracion` con una opción por carrera, y cada opción nombra su carrera
+
 ### Requirement: La consulta compilada respeta las barreras del carril SQL
 
 El sistema SHALL compilar el plan a una única consulta de lectura que pase `ValidadorDeSql`, que no use el reloj del servidor, que se ejecute con el rol básico del asistente y que quede acotada por RLS al ámbito del actor.

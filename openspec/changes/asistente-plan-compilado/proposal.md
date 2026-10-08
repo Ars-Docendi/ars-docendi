@@ -16,11 +16,11 @@ La investigación de `reports/MCP frente a híbrido por precisión.md` propone, 
 
 Opciones nuevas (todas con default que no cambia el comportamiento):
 
-| Opción | Default |
-|---|---|
-| `PlanCompilado` | `false` |
-| `MuestrasDelPlan` | `3` |
-| `TemperaturaDeMuestrasDelPlan` | `0.6` |
+| Opción                         | Default |
+| ------------------------------ | ------- |
+| `PlanCompilado`                | `false` |
+| `MuestrasDelPlan`              | `3`     |
+| `TemperaturaDeMuestrasDelPlan` | `0.6`   |
 
 ## Capabilities
 

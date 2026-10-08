@@ -179,7 +179,14 @@ public sealed class GeneradorDeFixture
     /// Cuántas personas generar. Es parámetro para poder demostrar en un test que
     /// cambiarlo NO corre los valores de las secciones siguientes.
     /// </param>
-    public GeneradorDeFixture(int personas = 24)
+    /// <param name="personas">Cuántas personas genera el padrón.</param>
+    /// <param name="conSuplementoCompuesto">
+    /// Agrega el suplemento de las preguntas compuestas (change
+    /// <c>asistente-plan-compilado</c>, D10): más de una designación vigente por
+    /// persona, designaciones históricas antiguas y experiencias declaradas.
+    /// Apagado por omisión, así que el fixture de siempre —y su huella— no cambia.
+    /// </param>
+    public GeneradorDeFixture(int personas = 24, bool conSuplementoCompuesto = false)
     {
         if (personas < 12)
         {
@@ -202,7 +209,10 @@ public sealed class GeneradorDeFixture
         }
 
         _personas = personas;
+        _conSuplementoCompuesto = conSuplementoCompuesto;
     }
+
+    private readonly bool _conSuplementoCompuesto;
 
     /// <summary>Genera el SQL del fixture.</summary>
     public string Generar()
@@ -218,6 +228,11 @@ public sealed class GeneradorDeFixture
         EscribirDesignaciones(sql);
         EscribirPedidos(sql);
         EscribirPortal(sql);
+
+        if (_conSuplementoCompuesto)
+        {
+            SuplementoCompuesto.Escribir(sql);
+        }
 
         return sql.ToString();
     }
@@ -539,7 +554,7 @@ public sealed class GeneradorDeFixture
 
     private static string Escapar(string valor) => valor.Replace("'", "''", StringComparison.Ordinal);
 
-    private static string Identificador(char prefijo, int indice) =>
+    internal static string Identificador(char prefijo, int indice) =>
         string.Create(CultureInfo.InvariantCulture, $"{prefijo}0000000-0000-4000-8000-{indice:D12}");
 
     /// <summary>
@@ -730,7 +745,7 @@ public sealed class GeneradorDeFixture
     /// <summary>Identificador de período, derivado del índice.</summary>
     public static string IdDePeriodo(int indice) => Identificador('b', indice);
 
-    private static string IdDeDesignacion(int indice) => Identificador('f', indice);
+    internal static string IdDeDesignacion(int indice) => Identificador('f', indice);
 
     private static string IdDePedido(int indice) => Identificador('8', indice);
 
@@ -743,14 +758,14 @@ public sealed class GeneradorDeFixture
 
     private static string IdDeCertificacion(int indice) => Identificador('4', indice);
 
-    private static string IdDeExperiencia(int indice) => Identificador('5', indice);
+    internal static string IdDeExperiencia(int indice) => Identificador('5', indice);
 
     /// <summary>
     /// Identificador del cargo. Los cargos ya vienen sembrados por la migración de
     /// <c>designaciones</c>, así que el fixture usa sus identificadores fijos en
     /// lugar de crear otros.
     /// </summary>
-    private static string IdDeCargo(int indice) =>
+    internal static string IdDeCargo(int indice) =>
         $"c3000000-0000-4000-8000-{indice + 1:D12}";
 
     /// <summary>

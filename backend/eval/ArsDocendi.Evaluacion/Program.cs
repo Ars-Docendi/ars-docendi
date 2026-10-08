@@ -46,6 +46,11 @@ public static class Program
         // misma corrida no informaría nada.
         var congelar = argumentos.Contains("--congelar", StringComparer.Ordinal);
 
+        // EL EJE DE LAS COMPUESTAS VA SOLO Y CONTRA OTRO FIXTURE (asistente-plan-compilado,
+        // D10): el suplemento cambia las respuestas de los ítems de siempre, así que
+        // mezclarlo con los cuatro ejes los compararía contra otra base.
+        var compuestas = argumentos.Contains("--compuestas", StringComparer.Ordinal);
+
         // El fixture se EMITE, no se aplica. El evaluador no tiene —ni debería
         // tener— la cadena del dueño: corre con los roles de solo lectura del
         // asistente, que es lo que hace que lo que mide sea lo que el asistente
@@ -55,7 +60,7 @@ public static class Program
         // El README lo pedía aplicado y no daba forma de aplicarlo.
         if (argumentos.Contains("--fixture", StringComparer.Ordinal))
         {
-            Console.Write(new GeneradorDeFixture().Generar());
+            Console.Write(new GeneradorDeFixture(conSuplementoCompuesto: compuestas).Generar());
             return 0;
         }
 
@@ -79,7 +84,10 @@ public static class Program
         var robustez = DatasetDeRobustez.Cargar(Path.Combine(datasets, "robustez.json"), cargado);
         var dialogo = DatasetDeDialogo.Cargar(Path.Combine(datasets, "dialogo.json"));
         var social = DatasetSocial.Cargar(Path.Combine(datasets, "social.json"));
-        var fixture = new GeneradorDeFixture();
+        var fixture = new GeneradorDeFixture(conSuplementoCompuesto: compuestas);
+        var datasetDeCompuestas = compuestas
+            ? DatasetDeCapacidad.Cargar(Path.Combine(datasets, "compuestas.json"))
+            : null;
 
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"Capacidad: {cargado.Items.Count} ítems · huella {cargado.Huella[..12]}"));
@@ -202,7 +210,13 @@ public static class Program
             SelloDeIdentidad Sello(string huellaDelDataset) =>
                 new(esquema.Huella, huellaDelDataset, fixture.Huella());
 
-            var corridas = new (string Nombre, Func<Task<ResultadoDeCorrida>> Correr)[]
+            var corridas = datasetDeCompuestas is not null
+                ? new (string Nombre, Func<Task<ResultadoDeCorrida>> Correr)[]
+                {
+                    ("compuestas", () => capacidadRunner.CorrerAsync(
+                        datasetDeCompuestas, Sello(datasetDeCompuestas.Huella), CancellationToken.None)),
+                }
+                : new (string Nombre, Func<Task<ResultadoDeCorrida>> Correr)[]
             {
                 ("capacidad", () => capacidadRunner.CorrerAsync(
                     cargado, Sello(cargado.Huella), CancellationToken.None)),
@@ -337,6 +351,14 @@ public static class Program
         Congelar la corrida como línea de base del gate de regresión:
 
           dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --congelar
+
+        Las preguntas compuestas del plan compilado van solas y contra el fixture
+        con suplemento (emitirlo con --fixture --compuestas antes de correr):
+
+          dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --compuestas
+
+        Se corren dos veces con el mismo modelo, Asistente__PlanCompilado=false
+        (control) y true, y se comparan los reportes ítem por ítem.
 
         Sin --congelar, cada eje que tenga línea de base se compara contra ella
         ítem por ítem, y una regresión devuelve 4. Congelar es a mano y a

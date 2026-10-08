@@ -201,6 +201,34 @@ mismos marcadores al ejecutar tanto la consulta generada como la de referencia.
 fixture, así que un ítem con una mención rota que no ejecutara se vería igual que
 cualquier otra referencia rota.
 
+## Las preguntas compuestas del plan compilado
+
+`datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 37 preguntas sobre
+el plantel docente: conteos, porcentajes y listados con dos a cuatro condiciones, actores
+acotados, ambigüedades de antigüedad, una carrera inexistente y preguntas fuera del
+catálogo que deben seguir por el carril SQL. Usa el formato de `capacidad.json` y agrega
+`plan_referencia` (el plan correcto, o `null`) y `nota`.
+
+**Corre contra el fixture con suplemento**, que agrega designaciones en varias carreras,
+designaciones históricas antiguas y experiencias declaradas que no coinciden con ellas. Sin
+el suplemento ninguna pregunta compuesta discrimina nada. El fixture de siempre y su huella
+no cambian.
+
+```bash
+dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --fixture --compuestas | psql "$CADENA_DEL_DUENO"
+Asistente__PlanCompilado=false dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --compuestas  # control
+Asistente__PlanCompilado=true  dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --compuestas  # plan
+```
+
+Cada corrida escribe `reportes/compuestas.md`: copialo entre corridas, porque la segunda lo
+pisa. La comparación es **ítem por ítem** entre las dos corridas con el mismo modelo, mirando
+las respuestas falsas (`traduccion_incorrecta` e `intento_sobre_lo_infactible`), las
+aclaraciones y las abstenciones. No hay línea de base congelada: es un prototipo.
+
+`PlanCompiladoTests` comprueba, sin modelo, que cada `plan_referencia` compilado devuelve lo
+mismo que su `sql_referencia` contra el fixture con suplemento, y `PlanCompiladoPurosTests`
+que cada plan de referencia pasa la puerta y el anclaje con su propia pregunta.
+
 ## La puntuación
 
 | Situación                              | Vale                          |

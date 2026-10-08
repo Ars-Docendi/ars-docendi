@@ -293,6 +293,18 @@ public static class ModuleExtensions
         services.AddScoped<CanalDeRedaccion>();
 
         services.AddScoped<CarrilSql>();
+        // El plan compilado (asistente-plan-compilado): registrado siempre, usado
+        // sólo con la opción encendida. `CarrilSql` lo recibe como opcional.
+        services.AddScoped<GeneradorDePlan>();
+        services.AddScoped<ResolutorDeEntidadesDelPlan>();
+        services.AddScoped(proveedor => new CarrilDelPlan(
+            proveedor.GetRequiredService<GeneradorDePlan>(),
+            proveedor.GetRequiredService<ResolutorDeEntidadesDelPlan>(),
+            proveedor.GetRequiredService<IEjecutorDeConsulta>(),
+            proveedor.GetRequiredService<IFechaDeReferencia>(),
+            proveedor.GetRequiredService<ContadorDeLlamadasDelTurno>(),
+            proveedor.GetRequiredService<IOptions<OpcionesAsistente>>(),
+            proveedor.GetRequiredService<ILogger<CarrilDelPlan>>()));
 
         // ---------------------------------------------- capa conversacional
 

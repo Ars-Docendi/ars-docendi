@@ -963,6 +963,57 @@ con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor
 meterla acá exigiría un objeto de request mutable con el actor adentro, leído por
 capas que no lo declaran.
 
+### Plan compilado (prototipo)
+
+Change `asistente-plan-compilado`. Para las preguntas sobre docentes con designación
+vigente —simples o compuestas— el modelo no escribe SQL: traduce la pregunta a un
+**plan tipado** sobre un catálogo cerrado (`Application/PlanCompilado/CatalogoDelPlan.cs`),
+y el código lo valida, lo compila a SQL certificado, lo ejecuta con el rol básico bajo
+RLS y redacta la respuesta por plantilla. **Apagado por omisión**: con la opción en
+`false` ninguna solicitud ni respuesta cambia.
+
+| Opción                         | Default | Qué hace                                                                                                            |
+| ------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PlanCompilado`                | `false` | Intenta el plan antes de la generación de SQL, solo para preguntas sin contexto cuyo vocabulario cae en el catálogo |
+| `MuestrasDelPlan`              | 3       | Muestras que tienen que coincidir para ejecutar el plan. No puede superar `MaximoDeLlamadasPorTurno`                |
+| `TemperaturaDeMuestrasDelPlan` | 0.6     | Temperatura de las muestras que siguen a la primera, que va siempre a 0                                             |
+
+El recorrido de un turno con la opción encendida:
+
+1. **Puerta léxica, sin modelo** (`PuertaDelPlan`). Vocabulario fuera del catálogo (pedidos,
+   períodos, horas, portal salvo la experiencia, agrupar «por»…) o una pregunta que no nombra
+   docentes ni cargos → sigue el carril SQL con cero llamadas gastadas. «Antigüedad» sin decir
+   cuál → aclaración con dos opciones, también sin modelo.
+2. **Primera muestra a temperatura 0** con el esquema JSON del catálogo como salida
+   estructurada (`GeneradorDePlan`). `expresable: false` → sigue el carril SQL. Inválida →
+   abstención: la pregunta parecía expresable y no se le pasa al carril menos preciso.
+3. **Validación determinista** (`ValidadorDePlan`): cada condición anclada en el texto (término,
+   valor y señal de comparación) y, al revés, todo término del catálogo que nombra la pregunta
+   presente en el plan.
+4. **Muestras restantes** y **acuerdo exacto** de la forma canónica. Desacuerdo → aclaración con
+   una opción por lectura; nunca se elige una.
+5. **Entidades en el servidor** (`ResolutorDeEntidadesDelPlan`): materias con el buscador de
+   menciones, dentro del alcance del actor; carreras con una lectura de `identity.carreras`. Los
+   ids viajan como `$refN`. Una que no existe se dice; una ambigua se aclara. Una materia
+   de varias carreras («Análisis Matemático») es ambigua, como en el detector de
+   ambigüedad, salvo que la pregunta nombre también la carrera.
+6. **Compilación** (`CompiladorDePlan`) y `ValidadorDeSql` como defensa. Las condiciones de
+   cargo, carrera, materia y categoría de una misma lista se cumplen en **una misma
+   designación**; cantidades y antigüedades son de la persona.
+7. **Plantilla** (`RedaccionDelPlan`): conteo, porcentaje con numerador y denominador, o
+   listado, siempre con la interpretación y con «dentro de lo que podés ver» si el actor no
+   alcanza todo. `SqlEjecutado` queda nulo: un seguimiento no edita el plan.
+
+**Definiciones operativas, a ratificar:** vigente es `vigente_hasta IS NULL`; la antigüedad
+desde la designación cuenta años desde el `vigente_desde` más antiguo de la persona (vigente
+o no); la declarada, desde la experiencia más antigua cargada en el portal. Las dos se
+calculan contra la fecha de referencia del turno, nunca contra el reloj.
+
+Con `MuestrasDelPlan = 3` el turno gasta como mucho tres llamadas y ninguna de redacción. Con
+cassettes del proveedor Anthropic las muestras coinciden por construcción —la clave de cassette
+no incluye la temperatura—, así que el acuerdo solo se mide con el modelo local. La evaluación
+está en [`backend/eval/README.md`](../../eval/README.md#las-preguntas-compuestas-del-plan-compilado).
+
 ### Qué sigue funcionando sin proveedor
 
 Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de modelo **no
