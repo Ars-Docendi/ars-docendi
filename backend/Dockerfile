@@ -35,6 +35,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 
+# libpq/Npgsql carga GSSAPI dinámicamente al abrir la conexión PostgreSQL.
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Usuario no-root provisto por la imagen base de .NET (APP_UID).
 USER $APP_UID
 

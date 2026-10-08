@@ -106,6 +106,29 @@ host: `arsdocendi-backups-prod`, `arsdocendi-backups-staging`,
 0/negativo/texto se rechazan antes de parar o aprovisionar. No son secrets.
 Cambiar el prefix no migra respaldos existentes: inventariar ambos volúmenes.
 
+### Capacidad del SeaweedFS compartido
+
+Cada colección de bucket necesita un volumen escribible. En `weed mini`, el máximo
+`-volume.max=0` se calcula con el espacio libre: al agotarlo, un bucket puede
+crearse y el `PutObject` posterior fallar con `InternalError`. En el pool
+staging/PR se configuran por defecto `SEAWEEDFS_VOLUME_MAX=8` y
+`SEAWEEDFS_VOLUME_SIZE_LIMIT_MB=128`; prod conserva auto (`0`) y `1024 MB`.
+`provision-storage.sh` y `purge-storage.sh` deben pasar **los mismos** valores
+para no recrear accidentalmente el servicio compartido con otra configuración.
+Se admiten overrides explícitos no secretos para dimensionar según la capacidad
+real del host. El límite de volúmenes no agrega espacio de disco: controlar
+`df -h` y ampliar capacidad antes de llenarlo; nunca liberar espacio con
+`docker volume prune` indiscriminado.
+
+Aplicar este cambio a un pool existente recrea SeaweedFS (no el volumen de
+datos) y provoca una interrupción breve a staging y todas las PR del host.
+Antes del corte, verificar un backup recuperable, volumen correcto y capacidad;
+coordinar una ventana. Después, comprobar lectura de objetos existentes y
+escritura en un bucket de prueba aislado. El ensayo Docker
+`infra/tests/storage-capacity.integration.mjs` reproduce cuatro colecciones,
+recrea el contenedor con el mismo volumen y verifica la quinta y los bytes
+anteriores. No reemplaza una validación real del host compartido.
+
 `APP_DB_USER` se deriva por ambiente y `APP_DB_PASSWORD` se inyecta desde su
 secret existente. Credenciales app SeaweedFS prod/staging se derivan de raíz;
 las PR se generan en runtime, se enmascaran y rotan en mantenimiento sin purge.

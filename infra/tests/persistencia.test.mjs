@@ -41,6 +41,47 @@ test("setup local usa marca completa y transacción conjunta, no mera existencia
   assert.doesNotMatch(s, /SELECT to_regclass\('public.seed_metadata'\) IS NOT NULL/);
   assert.match(s, /seed-local.sh/);
 });
+test("SeaweedFS separa capacidad no-prod y prod en provision y teardown", () => {
+  const comun = leer("infra/scripts/_comun.sh");
+  assert.match(comun, /seaweedfs_volume_max_for/);
+  assert.match(comun, /seaweedfs_volume_size_limit_for/);
+  for (const nombre of ["provision-storage", "purge-storage"]) {
+    const sh = leer(`infra/scripts/${nombre}.sh`);
+    assert.match(sh, /SEAWEEDFS_VOLUME_MAX=/);
+    assert.match(sh, /SEAWEEDFS_VOLUME_SIZE_LIMIT_MB=/);
+  }
+});
+test("SeaweedFS limita el pool no-prod sin alterar la capacidad de prod", () => {
+  for (const [ambiente, esperado] of [
+    ["pr-39", "8:128"],
+    ["prod", "0:1024"],
+  ]) {
+    const proceso = spawnSync(
+      "bash",
+      [
+        "-c",
+        `source infra/scripts/_comun.sh
+configurar_capacidad_seaweedfs "$1"
+printf '%s:%s' "$SEAWEEDFS_VOLUME_MAX" "$SEAWEEDFS_VOLUME_SIZE_LIMIT_MB"`,
+        "bash",
+        ambiente,
+      ],
+      {
+        cwd: repo,
+        encoding: "utf8",
+        env: { PATH: process.env.PATH },
+      },
+    );
+    assert.equal(proceso.status, 0, proceso.stderr);
+    assert.equal(proceso.stdout, esperado);
+  }
+});
+
+test("la imagen backend incluye la biblioteca GSS requerida por Npgsql", () => {
+  const dockerfile = leer("backend/Dockerfile");
+  assert.match(dockerfile.split("AS runtime")[1], /libgssapi-krb5-2/);
+});
+
 test("estado rechaza destino incorrecto e inventario discontinuo", () => {
   const dir = mkdtempSync(join(tmpdir(), "estado-test-"));
   try {

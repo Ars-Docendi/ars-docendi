@@ -122,6 +122,22 @@ storage_scope_suffix_for() {
   printf '%s' "$(storage_scope_for "$1")" | tr '-' '_'
 }
 
+# En el host no-prod cada bucket de staging/PR usa su propia colección/volumen.
+# El máximo automático basado en disco libre bloqueaba nuevas PR al llegar a 4.
+seaweedfs_volume_max_for() {
+  if [[ "$1" == prod ]]; then printf '0'; else printf '8'; fi
+}
+seaweedfs_volume_size_limit_for() {
+  if [[ "$1" == prod ]]; then printf '1024'; else printf '128'; fi
+}
+configurar_capacidad_seaweedfs() {
+  local ambiente="$1"
+  SEAWEEDFS_VOLUME_MAX="${SEAWEEDFS_VOLUME_MAX:-$(seaweedfs_volume_max_for "$ambiente")}"
+  SEAWEEDFS_VOLUME_SIZE_LIMIT_MB="${SEAWEEDFS_VOLUME_SIZE_LIMIT_MB:-$(seaweedfs_volume_size_limit_for "$ambiente")}"
+  [[ "$SEAWEEDFS_VOLUME_MAX" =~ ^(0|[1-9][0-9]*)$ ]] || fatal 'msg="SEAWEEDFS_VOLUME_MAX inválido"'
+  [[ "$SEAWEEDFS_VOLUME_SIZE_LIMIT_MB" =~ ^[1-9][0-9]*$ ]] || fatal 'msg="SEAWEEDFS_VOLUME_SIZE_LIMIT_MB inválido"'
+}
+
 storage_project_for() {
   local ambiente="$1"
   if [[ "$ambiente" == "prod" ]]; then
