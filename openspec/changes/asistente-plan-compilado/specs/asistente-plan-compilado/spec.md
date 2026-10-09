@@ -82,7 +82,7 @@ El sistema SHALL pedir la primera muestra del plan a temperatura 0 y con el esqu
 
 ### Requirement: Cada condición del plan está anclada en la pregunta
 
-El sistema MUST rechazar una muestra si alguna de sus condiciones no tiene en el texto de la pregunta su término, su valor y, para los operadores de comparación, una señal compatible; o si algún término del catálogo presente en la pregunta no aparece en el plan. Una condición de categoría cuyo número no tiene señal de comparación MUST leerse como igualdad.
+El sistema MUST rechazar una muestra si alguna de sus condiciones no tiene en el texto de la pregunta su término, su valor y, para los operadores de comparación, una señal compatible; o si algún término del catálogo presente en la pregunta no aparece en el plan. Una condición de categoría, de cantidad de carreras o de cantidad de materias cuyo número no tiene señal de comparación MUST leerse como igualdad.
 
 #### Scenario: Condición inventada
 
@@ -101,6 +101,12 @@ El sistema MUST rechazar una muestra si alguna de sus condiciones no tiene en el
 - **GIVEN** la pregunta «¿cuántos docentes tienen alguna designación de categoría 5?»
 - **WHEN** la muestra compara la categoría con «mayor o igual a 5»
 - **THEN** la condición se lee como «igual a 5» y la muestra coincide con la que escribió la igualdad
+
+#### Scenario: Cantidad sin señal de comparación
+
+- **GIVEN** la pregunta «¿cuántos titulares dictan en dos carreras?»
+- **WHEN** la muestra compara la cantidad de carreras con «mayor o igual a 2»
+- **THEN** la condición se lee como «igual a 2» y el turno responde por exactamente dos carreras
 
 ### Requirement: Las entidades se resuelven en el servidor dentro del alcance del actor
 

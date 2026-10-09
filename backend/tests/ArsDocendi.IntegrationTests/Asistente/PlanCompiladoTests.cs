@@ -125,10 +125,17 @@ public sealed class PlanCompiladoTests(PostgresFixture postgres)
     public async Task Con_muestras_distintas_aclara_con_una_opcion_por_lectura_y_no_ejecuta()
     {
         await AplicarFixtureAsync();
-        var otraLectura = PlanDelInforme.Replace("\">=\"", "\"=\"", StringComparison.Ordinal);
-        var (carril, _) = Carril(PlanDelInforme, otraLectura, PlanDelInforme);
+        // La otra lectura cambia el denominador: «de los titulares con más de 20 años» en
+        // vez de «de los titulares». Las dos están ancladas en la pregunta.
+        const string OtraLectura =
+            """
+            {"expresable":true,"medida":"porcentaje","filtros":[{"campo":"cargo","operador":"=","valor":"titular"},
+             {"campo":"antiguedad_designacion","operador":">","valor":"20"}],
+             "condiciones":[{"campo":"cantidad_carreras","operador":">=","valor":"2"}]}
+            """;
+        var (carril, _) = Carril(PlanDelInforme, OtraLectura, PlanDelInforme);
 
-        var resultado = await ResponderAsync(carril, PreguntaDelInforme.Replace("dos o más", "dos", StringComparison.Ordinal));
+        var resultado = await ResponderAsync(carril, PreguntaDelInforme);
 
         Assert.NotNull(resultado);
         Assert.Equal(EstadoDelTurno.NecesitaAclaracion, resultado.Estado);

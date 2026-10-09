@@ -76,7 +76,7 @@ Con `MuestrasDelPlan = 3`, el peor caso son 3 llamadas sin redacción, dentro de
 
 ### D6 — Anclaje y cierre deterministas
 
-Cada condición del plan tiene que estar anclada en el texto normalizado de la pregunta: su término (un cargo, «carrera», «materia», «categoría», «antigüedad»), su valor (el nombre de la entidad o el número, en cifras o en palabras) y, para los operadores de comparación, una señal compatible («más de», «al menos», «menos de», «como máximo»). Un número sin señal admite `=` o `>=`, salvo en la categoría: es una etiqueta y no una cantidad, así que «categoría 5» sin señal es exactamente 5 y el validador corrige a `=` la muestra que escribió `>=`. En sentido inverso, todo término del catálogo presente en la pregunta tiene que aparecer en el plan. Una condición sin ancla o un término sin consumir invalida la muestra.
+Cada condición del plan tiene que estar anclada en el texto normalizado de la pregunta: su término (un cargo, «carrera», «materia», «categoría», «antigüedad»), su valor (el nombre de la entidad o el número, en cifras o en palabras) y, para los operadores de comparación, una señal compatible («más de», «al menos», «menos de», «como máximo»). Un número sin señal es exactamente ese número en la categoría y en las cantidades de carreras y de materias: «categoría 5» es una etiqueta, y «en dos carreras» quedó fijado en «exactamente dos». El validador corrige a `=` la muestra que escribió `>=`. En la antigüedad un número sin señal sigue admitiendo `=` o `>=`. En sentido inverso, todo término del catálogo presente en la pregunta tiene que aparecer en el plan. Una condición sin ancla o un término sin consumir invalida la muestra.
 
 ### D7 — Las entidades se resuelven en el servidor y viajan como marcadores
 
@@ -118,5 +118,5 @@ La respuesta se arma con el resultado y el plan: número, porcentaje con numerad
 
 ## Open Questions
 
-- ¿Un número sin señal («dicta en dos carreras») significa exactamente dos o dos o más? El prototipo admite las dos lecturas y deja que decida el acuerdo entre muestras; el equipo debe fijarlo. La medición en la RTX 3070 mostró que el acuerdo no alcanza: las tres muestras pueden coincidir en `>=`. Para la categoría ya quedó fijado en `=`; para las cantidades de carreras y de materias sigue abierto.
+- ¿Un número sin señal («dicta en dos carreras») significa exactamente dos o dos o más? El prototipo admite las dos lecturas y deja que decida el acuerdo entre muestras; el equipo debe fijarlo. La medición en la RTX 3070 mostró que el acuerdo no alcanza: las tres muestras pueden coincidir en `>=`. Quedó fijado en «exactamente» el 2026-10-08, para la categoría y para las cantidades de carreras y de materias. Sigue abierto solo para la antigüedad («con 20 años de antigüedad»).
 - ¿Qué definición de antigüedad es la institucional?

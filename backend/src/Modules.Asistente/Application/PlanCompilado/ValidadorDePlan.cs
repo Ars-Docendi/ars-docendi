@@ -47,6 +47,9 @@ internal static class ValidadorDePlan
         ["quienes", "quien", "cuales", "lista", "listado", "listame", "nombres", "nombrame"];
     private static readonly string[] SenalesDeConteo = ["cuantos", "cuantas", "numero de"];
 
+    private static readonly string[] ExactosSinSenal =
+        [CatalogoDelPlan.Dedicacion, CatalogoDelPlan.CantidadDeCarreras, CatalogoDelPlan.CantidadDeMaterias];
+
     public static VeredictoDelPlan Validar(
         PlanDeConsulta plan, TextoDeLaPregunta texto, IReadOnlyList<string>? carreras = null)
     {
@@ -198,12 +201,13 @@ internal static class ValidadorDePlan
 
         var operador = cruda.Operador;
 
-        // Una categoría es una etiqueta, no una cantidad: «categoría 5» sin señal de
-        // comparación es exactamente 5, nunca «5 o más». El modelo local igual escribe
-        // «>=», y con las tres muestras de acuerdo el turno respondía «al menos 5». Se
-        // corrige el operador en vez de rechazar la muestra, que sería abstenerse de una
-        // pregunta que tiene una sola lectura.
-        if (campo.Nombre == CatalogoDelPlan.Dedicacion
+        // Sin señal de comparación junto al número, la categoría y las cantidades son
+        // exactamente ese número: «categoría 5» es una etiqueta, y «en dos carreras» quedó
+        // fijado en «exactamente dos» (decisión del 2026-10-08). El modelo local igual
+        // escribe «>=», y con las tres muestras de acuerdo el turno respondía «al menos».
+        // Se corrige el operador en vez de rechazar la muestra, que sería abstenerse de
+        // una pregunta que tiene una sola lectura. La antigüedad sigue admitiendo las dos.
+        if (ExactosSinSenal.Contains(campo.Nombre, StringComparer.Ordinal)
             && operador == ">="
             && ventanas.All(ventana => Senalados(ventana).Count == 0))
         {
@@ -215,7 +219,10 @@ internal static class ValidadorDePlan
             : (null, $"El operador '{operador}' no corresponde a cómo la pregunta compara {numero}.");
     }
 
-    /// <summary>Los operadores que admite el entorno de un número. Sin señal, «=» o «&gt;=».</summary>
+    /// <summary>
+    /// Los operadores que admite el entorno de un número. Sin señal, «=» o «&gt;=»; en la
+    /// categoría y las cantidades ese «&gt;=» ya llegó corregido a «=».
+    /// </summary>
     private static IReadOnlySet<string> OperadoresSenalados(string ventana)
     {
         var senalados = Senalados(ventana);
