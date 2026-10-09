@@ -47,7 +47,10 @@ internal static class SuplementoCompuesto
         (12, 1, Titular, 5, "2024-03-01", null),           // titular INF en dos materias → 1 carrera
         (1, 5, AyudanteDePrimera, 1, "2024-03-01", null),  // asociado INF + ayudante 1.º ELE → 2 carreras
         (7, 13, Asociado, 3, "2024-03-01", null),          // asociado INF + asociado IND → 2 carreras
-        (3, 11, Jtp, 3, "2024-03-01", null),               // JTP IND en dos materias → 1 carrera
+        // Categoría 6 a propósito: es la única, y la persona no tiene ninguna de categoría 5,
+        // así que «categoría 5» y «categoría 5 o más» dan resultados distintos (`cmp-016`).
+        // Agregada el 2026-10-08 mirando esa falla: sin ella las dos lecturas coincidían.
+        (3, 11, Jtp, 6, "2024-03-01", null),               // JTP IND en dos materias → 1 carrera
 
         // Históricas cerradas: fijan la antigüedad desde la primera designación.
         (0, 2, Adjunto, 3, "1998-03-01", "2005-12-31"),    // 28 años

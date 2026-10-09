@@ -212,7 +212,9 @@ catálogo que deben seguir por el carril SQL. Usa el formato de `capacidad.json`
 **Corre contra el fixture con suplemento**, que agrega designaciones en varias carreras,
 designaciones históricas antiguas y experiencias declaradas que no coinciden con ellas. Sin
 el suplemento ninguna pregunta compuesta discrimina nada. El fixture de siempre y su huella
-no cambian.
+no cambian. Una de sus designaciones tiene categoría 6 para que «categoría 5» y «categoría 5 o
+más» den resultados distintos; se agregó mirando la falla de `cmp-016` en la medición de la
+RTX 3070, así que ese ítem no cuenta como evidencia independiente.
 
 ```bash
 dotnet run --project backend/eval/ArsDocendi.Evaluacion -- --fixture --compuestas | psql "$CADENA_DEL_DUENO"
