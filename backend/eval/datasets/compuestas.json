@@ -812,6 +812,24 @@
       "orden_importa": false,
       "plan_referencia": null,
       "nota": "materia compartida por tres carreras: aclarar, como el detector de ambigüedad"
+    },
+    {
+      "id": "cmp-038",
+      "pregunta": "¿Cuántos titulares dictan en dos carreras?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT m.carrera_id) = 2) x",
+      "orden_importa": false,
+      "plan_referencia": {
+        "expresable": true,
+        "medida": "conteo",
+        "filtros": [
+          { "campo": "cargo", "operador": "=", "valor": "titular" },
+          { "campo": "cantidad_carreras", "operador": "=", "valor": "2" }
+        ],
+        "condiciones": []
+      },
+      "nota": "número sin señal de comparación: exactamente dos. Agregado el 2026-10-08, después de la medición en la RTX 3070 y al fijar esa lectura: no es evidencia independiente"
     }
   ]
 }
