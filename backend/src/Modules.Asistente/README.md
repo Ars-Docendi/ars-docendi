@@ -1082,10 +1082,12 @@ Con 38 ítems:
   el plan en cada corrida, ninguno dio un resultado distinto del de referencia. Los cuatro
   ítems fuera del catálogo siguieron por SQL con cero llamadas del plan.
 - **Decisión.** Seguir. El plan elimina las respuestas falsas del dataset, se abstiene menos
-  que el control y no rompe los ejes existentes. No queda ningún bug conocido. Lo único que
-  todavía admite dos lecturas es un número sin señal en la antigüedad («con 20 años de
-  antigüedad»).
-- **Limitaciones.** Son 37 ítems (38 con `cmp-038`), un modelo y un fixture sintético: sirve
+  que el control y no rompe los ejes existentes. No queda ningún bug conocido.
+- **Pendiente de medir.** La regla «número sin señal = exactamente» se extendió después a la
+  antigüedad (`85e85ee`), con `cmp-039` («25 años de antigüedad») para ejercitarla. Sin la regla
+  el plan respondía «al menos 25 años» en las tres corridas (4 docentes, contra 1 con la lectura
+  fijada). La corrida con la regla todavía no se hizo: los tests del plan pasan, la medición no.
+- **Limitaciones.** Son 37 ítems (39 con `cmp-038` y `cmp-039`), un modelo y un fixture sintético: sirve
   para encontrar bugs, no para afirmar porcentajes. El dataset se escribió junto con el
   prototipo, así que su vocabulario coincide con el del catálogo. La regla de la puerta, la fila
   de categoría 6 y `cmp-038` se escribieron mirando los ítems que fallaban o la decisión que se
