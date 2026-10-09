@@ -630,6 +630,36 @@ public sealed class OpcionesAsistente
     public bool StreamingDeRedaccion { get; set; }
 
     /// <summary>
+    /// Responde las preguntas sobre docentes con designación vigente con un
+    /// plan tipado que el código compila a SQL, en vez de dejar que el modelo
+    /// escriba la consulta (change <c>asistente-plan-compilado</c>, prototipo).
+    /// </summary>
+    /// <remarks>
+    /// Apagada, ninguna solicitud ni respuesta cambia. Encendida, sólo las
+    /// preguntas cuyo vocabulario cae entero dentro del catálogo del plan lo
+    /// intentan; el resto sigue por el carril SQL sin gastar ninguna llamada.
+    /// </remarks>
+    public bool PlanCompilado { get; set; }
+
+    /// <summary>
+    /// Cuántas muestras del plan tienen que coincidir para ejecutarlo (D5 de
+    /// <c>asistente-plan-compilado</c>). La primera va a temperatura 0; las demás
+    /// sólo se piden si la primera es válida.
+    /// </summary>
+    /// <remarks>
+    /// No puede superar <see cref="MaximoDeLlamadasPorTurno"/>: un plan que
+    /// necesita más llamadas de las que el turno tiene no termina nunca.
+    /// </remarks>
+    public int MuestrasDelPlan { get; set; } = 3;
+
+    /// <summary>
+    /// Temperatura de las muestras del plan que siguen a la primera. Un valor
+    /// demasiado bajo hace que el acuerdo no pruebe nada; uno demasiado alto,
+    /// que casi nunca haya acuerdo.
+    /// </summary>
+    public decimal TemperaturaDeMuestrasDelPlan { get; set; } = 0.6m;
+
+    /// <summary>
     /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.
     /// </summary>
     /// <remarks>

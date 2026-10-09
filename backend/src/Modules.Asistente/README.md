@@ -963,6 +963,141 @@ con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor
 meterla acá exigiría un objeto de request mutable con el actor adentro, leído por
 capas que no lo declaran.
 
+### Plan compilado (prototipo)
+
+Change `asistente-plan-compilado`. Para las preguntas sobre docentes con designación
+vigente —simples o compuestas— el modelo no escribe SQL: traduce la pregunta a un
+**plan tipado** sobre un catálogo cerrado (`Application/PlanCompilado/CatalogoDelPlan.cs`),
+y el código lo valida, lo compila a SQL certificado, lo ejecuta con el rol básico bajo
+RLS y redacta la respuesta por plantilla. **Apagado por omisión**: con la opción en
+`false` ninguna solicitud ni respuesta cambia.
+
+| Opción                         | Default | Qué hace                                                                                                            |
+| ------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `PlanCompilado`                | `false` | Intenta el plan antes de la generación de SQL, solo para preguntas sin contexto cuyo vocabulario cae en el catálogo |
+| `MuestrasDelPlan`              | 3       | Muestras que tienen que coincidir para ejecutar el plan. No puede superar `MaximoDeLlamadasPorTurno`                |
+| `TemperaturaDeMuestrasDelPlan` | 0.6     | Temperatura de las muestras que siguen a la primera, que va siempre a 0                                             |
+
+El recorrido de un turno con la opción encendida:
+
+1. **Puerta léxica, sin modelo** (`PuertaDelPlan`). Vocabulario fuera del catálogo (pedidos,
+   períodos, horas, portal salvo la experiencia, agrupar «por»…) o una pregunta que no nombra
+   docentes ni cargos → sigue el carril SQL con cero llamadas gastadas. Lo mismo si lo que pide
+   no son personas («¿qué asignaturas se dictan en Ingeniería Industrial?»): se mira la palabra
+   que sigue a cada interrogativo. «Antigüedad» sin decir cuál → aclaración con dos opciones,
+   también sin modelo.
+2. **Primera muestra a temperatura 0** con el esquema JSON del catálogo como salida
+   estructurada (`GeneradorDePlan`). `expresable: false` → sigue el carril SQL. Inválida →
+   abstención: la pregunta parecía expresable y no se le pasa al carril menos preciso.
+3. **Validación determinista** (`ValidadorDePlan`): cada condición anclada en el texto (término,
+   valor y señal de comparación) y, al revés, todo término del catálogo que nombra la pregunta
+   presente en el plan.
+   En conteo y listado las `condiciones` de la muestra se pliegan en `filtros`, porque ahí son la
+   misma conjunción; solo el porcentaje separa denominador y numerador.
+   Un número sin señal de comparación es exactamente ese número («categoría 5», «en dos
+   carreras», «25 años de antigüedad»): un `>=` de la muestra se corrige a `=`.
+4. **Muestras restantes** y **acuerdo exacto** de la forma canónica. Desacuerdo → aclaración con
+   una opción por lectura; nunca se elige una.
+5. **Entidades en el servidor** (`ResolutorDeEntidadesDelPlan`): materias con el buscador de
+   menciones, dentro del alcance del actor; carreras con una lectura de `identity.carreras`. Los
+   ids viajan como `$refN`. Una que no existe se dice; una ambigua se aclara. Una materia
+   de varias carreras («Análisis Matemático») es ambigua, como en el detector de
+   ambigüedad, salvo que la pregunta nombre también la carrera.
+6. **Compilación** (`CompiladorDePlan`) y `ValidadorDeSql` como defensa. Las condiciones de
+   cargo, carrera, materia y categoría de una misma lista se cumplen en **una misma
+   designación**; cantidades y antigüedades son de la persona.
+7. **Plantilla** (`RedaccionDelPlan`): conteo, porcentaje con numerador y denominador, o
+   listado, siempre con la interpretación y con «dentro de lo que podés ver» si el actor no
+   alcanza todo. `SqlEjecutado` queda nulo: un seguimiento no edita el plan.
+
+**Definiciones operativas, a ratificar:** vigente es `vigente_hasta IS NULL`; la antigüedad
+desde la designación cuenta años desde el `vigente_desde` más antiguo de la persona (vigente
+o no); la declarada, desde la experiencia más antigua cargada en el portal. Las dos se
+calculan contra la fecha de referencia del turno, nunca contra el reloj.
+
+Con `MuestrasDelPlan = 3` el turno gasta como mucho tres llamadas y ninguna de redacción. Con
+cassettes del proveedor Anthropic las muestras coinciden por construcción —la clave de cassette
+no incluye la temperatura—, así que el acuerdo solo se mide con el modelo local. La evaluación
+está en [`backend/eval/README.md`](../../eval/README.md#las-preguntas-compuestas-del-plan-compilado).
+
+#### Medición en la RTX 3070
+
+Medido el 2026-10-08 (tarea 6.3 de `asistente-plan-compilado`) con el evaluador contra Qwen3-8B
+Q4_K_M, llama-server build 11371, un slot de 16.384 y el perfil de la 3070 con
+`MaximoDeLlamadasConcurrentes = 1`. Son las 37 preguntas de `compuestas.json` sobre el fixture
+con suplemento: una corrida de control (`PlanCompilado = false`, idéntica ítem por ítem en
+siete repeticiones) y tres con el plan por versión, porque las muestras 2 y 3 van a 0,6. La
+última columna son los aciertos de los cuatro ejes de siempre (capacidad, robustez, diálogo,
+social) con esa misma configuración.
+
+| Brazo                                                  | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Llamadas por turno | Cuatro ejes       |
+| ------------------------------------------------------ | ------------ | ----------------- | ------------------------- | --------------- | ------------------ | ----------------- |
+| Control (Text-to-SQL)                                  | 12           | **15**            | 8                         | 3,8 s / 10,3 s  | 1,41               | 26 · 12 · 10 · 18 |
+| Plan como estaba (`79570f0`)                           | 22 · 23 · 23 | 0 · 0 · 0 (\*)    | 11 · 10 · 10              | 1,6 s / 7,1 s   | 2,19               | 26 · 11 · 7 · 19  |
+| Con el arreglo del validador (`dfcaaca`)               | 30 · 30 · 31 | 0 · 0 · 0 (\*)    | 3 · 3 · 2                 | 1,7 s / 7,1 s   | 2,57               | 26 · 11 · 7 · 19  |
+| Con el arreglo de la puerta (`5c79af6`)                | 30 · 31 · 30 | 0 · 0 · 0 (\*)    | 3 · 2 · 3                 | 1,7 s / 6,6 s   | 2,57               | 27 · 12 · 10 · 18 |
+| Lo mismo, con la categoría 6 en el fixture (`c1c82d3`) | 30 · 30 · 30 | 1 · 1 · 1         | 2 · 2 · 2                 | 1,7 s / 7,1 s   | 2,57               | —                 |
+| **Con el arreglo de la categoría (`4f49656`)**         | 31 · 31 · 31 | **0 · 0 · 0**     | 2 · 2 · 2                 | 1,7 s / 7,2 s   | 2,57               | 27 · 12 · 10 · 18 |
+
+«Respuestas falsas» suma las traducciones incorrectas y los intentos sobre lo infactible. «Sin
+responder lo factible» suma abstenciones y aclaraciones ante una pregunta que tenía respuesta.
+(\*) Esos ceros se midieron sobre un fixture que no distinguía «categoría 5» de «5 o más»: ver
+el tercer punto. La VRAM no cambia (7.310 a 7.842 MiB con el escritorio en la placa): las muestras
+son secuenciales.
+
+Después de esa medición se fijó que un número sin señal de comparación es **exactamente** ese
+número, y se agregaron dos ítems para ejercitarlo: `cmp-038` («¿Cuántos titulares dictan en dos
+carreras?») y `cmp-039` («¿Cuántos docentes tienen 25 años de antigüedad desde su primera
+designación?»). Con 39 ítems:
+
+| Brazo                                                        | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Cuatro ejes       |
+| ------------------------------------------------------------ | ------------ | ----------------- | ------------------------- | --------------- | ----------------- |
+| Control (Text-to-SQL)                                        | 12           | **16**            | 9                         | 3,6 s / 10,7 s  | 26 · 12 · 10 · 18 |
+| Plan con la regla solo en categoría y cantidades (`72df888`) | 32 · 32 · 32 | 1 · 1 · 1         | 2 · 2 · 2                 | 1,8 s / 7,4 s   | —                 |
+| **Plan con «exactamente» en todos los campos (`85e85ee`)**   | 33 · 33 · 33 | **0 · 0 · 0**     | 2 · 2 · 2                 | 1,8 s / 7,4 s   | 27 · 12 · 10 · 18 |
+
+Antes de extender la regla a las cantidades, con 38 ítems, la falsa era `cmp-038` en las tres
+corridas (`7b49291`); con la regla (`d182172`) dio 32 aciertos y ninguna falsa.
+
+- **El arreglo del validador.** 28 de las 31 muestras inválidas tenían la misma causa: en
+  conteos y listados el modelo reparte las condiciones entre `filtros` y `condiciones`, y el
+  validador las rechazaba por la forma. Ahora se pliegan en `filtros`. Los nueve ítems que se
+  perdían por eso pasan a responderse bien.
+- **El arreglo de la puerta.** Con el plan encendido, cinco ítems de los ejes existentes
+  pasaban de correctos a abstención (`cap-015`, `rob-003`, `dia-004#1`, `dia-004#2`,
+  `dia-005#1`): la puerta tomaba preguntas que piden materias y no personas («¿Qué asignaturas
+  se dictan en Ingeniería Industrial?»), el modelo armaba un listado de docentes, el validador
+  lo rechazaba y el turno se abstenía en vez de seguir por SQL. Ahora la puerta mira qué se
+  pide. Los cinco vuelven a estar correctos y ningún ítem de los cuatro ejes empeora:
+  `cap-020` pasa de falsa a aclaración correcta, y `rob-005` de falsa a abstención.
+- **El arreglo de la categoría.** En `cmp-016` («designación de categoría 5») el modelo escribe
+  `>= 5`, y sin señal de comparación el anclaje admitía «=» y «>=». El turno respondía «al menos
+  5» y contaba como acierto porque en el fixture nadie tenía categoría 6. Con una designación de
+  categoría 6 en el suplemento, la respuesta fue falsa en las tres corridas. Ahora una categoría
+  sin señal es exactamente ese número y el `>=` de la muestra se corrige a `=`.
+- **Un número sin señal es exactamente ese número.** Sin esa regla las tres muestras escribían
+  `>=` y el turno respondía «en al menos 2 carreras» (2 docentes, contra 1 con la lectura
+  fijada) y «con al menos 25 años de antigüedad» (4 contra 1). Ahora la corrección de operador
+  de la categoría vale para todos los campos numéricos. En las 37 preguntas originales no
+  cambia ningún ítem.
+- **El acuerdo entre muestras filtra poco con este modelo.** De 174 muestras a 0,6 de una
+  versión, dos fueron otra lectura, y en `cmp-016` las tres coincidían en la lectura
+  equivocada. Lo que frena errores es el anclaje.
+- **Cero falsas respondiendo por plantilla, con el código final.** De 29 turnos respondidos por
+  el plan en cada corrida, ninguno dio un resultado distinto del de referencia. Los cuatro
+  ítems fuera del catálogo siguieron por SQL con cero llamadas del plan.
+- **Decisión.** Seguir. El plan elimina las respuestas falsas del dataset, se abstiene menos
+  que el control y no rompe los ejes existentes. No queda ningún bug conocido.
+- **Limitaciones.** Son 37 ítems (39 con `cmp-038` y `cmp-039`, escritos para las reglas), un
+  modelo y un fixture sintético: sirve para encontrar bugs, no para afirmar porcentajes. El
+  dataset se escribió junto con el prototipo, así que su vocabulario coincide con el del
+  catálogo. La regla de la puerta, la fila de categoría 6, `cmp-038` y `cmp-039` se escribieron
+  mirando los ítems que fallaban o la decisión que se tomaba, así que su recuperación no prueba
+  que generalicen, y puede haber otros ítems donde dos lecturas coincidan por casualidad. La
+  latencia es la de `ResponderAsync` tomada de `reportes/<eje>.turnos.jsonl`, y no es comparable
+  con el «turno p50» de [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se
+  midió Qwen3.5-9B ni la edición del plan en seguimientos.
+
 ### Qué sigue funcionando sin proveedor
 
 Cinco de los ocho pasos del pipeline no lo necesitan, así que la falta de modelo **no
