@@ -83,6 +83,30 @@ public sealed class PlanCompiladoPurosTests
     }
 
     [Fact]
+    public void Una_categoria_sin_senal_de_comparacion_es_exacta()
+    {
+        // Medición en la RTX 3070 (2026-10-08, `cmp-016`): Qwen3-8B escribe «>=» para
+        // «categoría 5» y el turno respondía «al menos 5». Una categoría es una etiqueta.
+        var texto = new TextoDeLaPregunta("¿Cuántos docentes tienen alguna designación de categoría 5?");
+
+        var conMayorOIgual = Validar(texto, "conteo", [("dedicacion", ">=", "5")]);
+        var exacta = Validar(texto, "conteo", [("dedicacion", "=", "5")]);
+
+        Assert.Equal("=", conMayorOIgual.Filtros.Single().Operador);
+        Assert.Equal(exacta.Canonico(), conMayorOIgual.Canonico());
+    }
+
+    [Fact]
+    public void Una_categoria_con_senal_de_comparacion_conserva_su_operador()
+    {
+        var texto = new TextoDeLaPregunta("¿Cuántos adjuntos tienen categoría 3 o más?");
+
+        var plan = Validar(texto, "conteo", [("cargo", "=", "adjunto"), ("dedicacion", ">=", "3")]);
+
+        Assert.Equal(">=", plan.Filtros.Single(f => f.Campo.Nombre == CatalogoDelPlan.Dedicacion).Operador);
+    }
+
+    [Fact]
     public void Un_operador_distinto_es_otra_lectura()
     {
         var texto = new TextoDeLaPregunta("¿Cuántos titulares dictan en dos carreras?");

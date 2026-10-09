@@ -196,21 +196,39 @@ internal static class ValidadorDePlan
             return (null, $"El número {numero} no aparece en la pregunta.");
         }
 
-        return ventanas.Any(ventana => OperadoresSenalados(ventana).Contains(cruda.Operador))
-            ? (new CondicionValidada(indice, campo, cruda.Operador, null, numero, null, null), null)
-            : (null, $"El operador '{cruda.Operador}' no corresponde a cómo la pregunta compara {numero}.");
+        var operador = cruda.Operador;
+
+        // Una categoría es una etiqueta, no una cantidad: «categoría 5» sin señal de
+        // comparación es exactamente 5, nunca «5 o más». El modelo local igual escribe
+        // «>=», y con las tres muestras de acuerdo el turno respondía «al menos 5». Se
+        // corrige el operador en vez de rechazar la muestra, que sería abstenerse de una
+        // pregunta que tiene una sola lectura.
+        if (campo.Nombre == CatalogoDelPlan.Dedicacion
+            && operador == ">="
+            && ventanas.All(ventana => Senalados(ventana).Count == 0))
+        {
+            operador = "=";
+        }
+
+        return ventanas.Any(ventana => OperadoresSenalados(ventana).Contains(operador))
+            ? (new CondicionValidada(indice, campo, operador, null, numero, null, null), null)
+            : (null, $"El operador '{operador}' no corresponde a cómo la pregunta compara {numero}.");
     }
 
     /// <summary>Los operadores que admite el entorno de un número. Sin señal, «=» o «&gt;=».</summary>
     private static IReadOnlySet<string> OperadoresSenalados(string ventana)
     {
-        var senalados = SenalesDeComparacion
-            .Where(par => par.Senales.Any(senal => ventana.Contains($" {senal} ", StringComparison.Ordinal)))
-            .Select(par => par.Operador)
-            .ToHashSet(StringComparer.Ordinal);
+        var senalados = Senalados(ventana);
 
         return senalados.Count > 0 ? senalados : new HashSet<string>(["=", ">="], StringComparer.Ordinal);
     }
+
+    /// <summary>Los operadores que la pregunta señala con palabras junto al número; vacío si no hay señal.</summary>
+    private static HashSet<string> Senalados(string ventana) =>
+        SenalesDeComparacion
+            .Where(par => par.Senales.Any(senal => ventana.Contains($" {senal} ", StringComparison.Ordinal)))
+            .Select(par => par.Operador)
+            .ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
     /// Si la entidad está nombrada en la pregunta: todas sus palabras distintivas, o
