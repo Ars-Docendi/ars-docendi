@@ -82,7 +82,7 @@ El sistema SHALL pedir la primera muestra del plan a temperatura 0 y con el esqu
 
 ### Requirement: Cada condición del plan está anclada en la pregunta
 
-El sistema MUST rechazar una muestra si alguna de sus condiciones no tiene en el texto de la pregunta su término, su valor y, para los operadores de comparación, una señal compatible; o si algún término del catálogo presente en la pregunta no aparece en el plan. Una condición de categoría, de cantidad de carreras o de cantidad de materias cuyo número no tiene señal de comparación MUST leerse como igualdad.
+El sistema MUST rechazar una muestra si alguna de sus condiciones no tiene en el texto de la pregunta su término, su valor y, para los operadores de comparación, una señal compatible; o si algún término del catálogo presente en la pregunta no aparece en el plan. Una condición numérica cuyo número no tiene señal de comparación MUST leerse como igualdad.
 
 #### Scenario: Condición inventada
 

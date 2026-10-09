@@ -107,16 +107,19 @@ public sealed class PlanCompiladoPurosTests
     }
 
     [Theory]
-    [InlineData("¿Cuántos titulares dictan en dos carreras?", "cantidad_carreras")]
-    [InlineData("¿Cuántos titulares dictan dos materias?", "cantidad_materias")]
-    public void Una_cantidad_sin_senal_de_comparacion_es_exacta(string pregunta, string campo)
+    [InlineData("¿Cuántos titulares dictan en dos carreras?", "cantidad_carreras", "2")]
+    [InlineData("¿Cuántos titulares dictan dos materias?", "cantidad_materias", "2")]
+    [InlineData("¿Cuántos titulares tienen 25 años de antigüedad desde su primera designación?",
+        "antiguedad_designacion", "25")]
+    public void Un_numero_sin_senal_de_comparacion_es_exacto(string pregunta, string campo, string valor)
     {
-        // Decisión del 2026-10-08: «en dos carreras» es exactamente dos. Antes valían
-        // las dos lecturas y decidía el acuerdo entre muestras, que no alcanza.
+        // Decisión del 2026-10-08: «en dos carreras» es exactamente dos, y lo mismo vale
+        // para la antigüedad. Antes valían las dos lecturas y decidía el acuerdo entre
+        // muestras, que no alcanza: el modelo local escribe «>=» en las tres.
         var texto = new TextoDeLaPregunta(pregunta);
 
-        var conMayorOIgual = Validar(texto, "conteo", [("cargo", "=", "titular"), (campo, ">=", "2")]);
-        var exacta = Validar(texto, "conteo", [("cargo", "=", "titular"), (campo, "=", "2")]);
+        var conMayorOIgual = Validar(texto, "conteo", [("cargo", "=", "titular"), (campo, ">=", valor)]);
+        var exacta = Validar(texto, "conteo", [("cargo", "=", "titular"), (campo, "=", valor)]);
 
         Assert.Equal("=", conMayorOIgual.Filtros.Single(f => f.Campo.Nombre == campo).Operador);
         Assert.Equal(exacta.Canonico(), conMayorOIgual.Canonico());
@@ -133,16 +136,27 @@ public sealed class PlanCompiladoPurosTests
     }
 
     [Fact]
+    public void Un_numero_sin_senal_no_admite_otro_operador()
+    {
+        var texto = new TextoDeLaPregunta("¿Cuántos titulares dictan en dos carreras?");
+
+        var veredicto = ValidadorDePlan.Validar(
+            Plan("conteo", [("cargo", "=", "titular"), ("cantidad_carreras", ">", "2")]), texto);
+
+        Assert.False(veredicto.EsValido);
+    }
+
+    [Fact]
     public void Un_operador_distinto_es_otra_lectura()
     {
-        // La antigüedad sin señal sigue admitiendo «=» y «>=»: ahí son dos lecturas.
-        var texto = new TextoDeLaPregunta(
-            "¿Cuántos docentes tienen 20 años de antigüedad desde su primera designación?");
+        var masDe = Validar(
+            new TextoDeLaPregunta("¿Cuántos titulares dictan en más de dos carreras?"),
+            "conteo", [("cargo", "=", "titular"), ("cantidad_carreras", ">", "2")]);
+        var alMenos = Validar(
+            new TextoDeLaPregunta("¿Cuántos titulares dictan en al menos dos carreras?"),
+            "conteo", [("cargo", "=", "titular"), ("cantidad_carreras", ">=", "2")]);
 
-        var exactamente = Validar(texto, "conteo", [("antiguedad_designacion", "=", "20")]);
-        var alMenos = Validar(texto, "conteo", [("antiguedad_designacion", ">=", "20")]);
-
-        Assert.NotEqual(exactamente.Canonico(), alMenos.Canonico());
+        Assert.NotEqual(masDe.Canonico(), alMenos.Canonico());
     }
 
     // -------------------------------------------------------------------- puerta

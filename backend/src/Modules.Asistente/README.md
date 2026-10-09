@@ -994,9 +994,8 @@ El recorrido de un turno con la opción encendida:
    presente en el plan.
    En conteo y listado las `condiciones` de la muestra se pliegan en `filtros`, porque ahí son la
    misma conjunción; solo el porcentaje separa denominador y numerador.
-   Un número sin señal de comparación es exactamente ese número en la categoría y en las
-   cantidades («categoría 5», «en dos carreras»): un `>=` de la muestra se corrige a `=`. En la
-   antigüedad sigue admitiendo «=» o «>=».
+   Un número sin señal de comparación es exactamente ese número («categoría 5», «en dos
+   carreras», «25 años de antigüedad»): un `>=` de la muestra se corrige a `=`.
 4. **Muestras restantes** y **acuerdo exacto** de la forma canónica. Desacuerdo → aclaración con
    una opción por lectura; nunca se elige una.
 5. **Entidades en el servidor** (`ResolutorDeEntidadesDelPlan`): materias con el buscador de
