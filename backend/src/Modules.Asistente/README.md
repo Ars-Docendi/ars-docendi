@@ -1026,24 +1026,25 @@ Medido el 2026-10-08 (tarea 6.3 de `asistente-plan-compilado`) con el evaluador 
 Q4_K_M, llama-server build 11371, un slot de 16.384 y el perfil de la 3070 con
 `MaximoDeLlamadasConcurrentes = 1`. Son las 37 preguntas de `compuestas.json` sobre el fixture
 con suplemento: una corrida de control (`PlanCompilado = false`, idéntica ítem por ítem en
-cinco repeticiones) y tres con el plan por versión, porque las muestras 2 y 3 van a 0,6. La
+siete repeticiones) y tres con el plan por versión, porque las muestras 2 y 3 van a 0,6. La
 última columna son los aciertos de los cuatro ejes de siempre (capacidad, robustez, diálogo,
 social) con esa misma configuración.
 
-| Brazo                                            | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Llamadas por turno | Cuatro ejes       |
-| ------------------------------------------------ | ------------ | ----------------- | ------------------------- | --------------- | ------------------ | ----------------- |
-| Control (Text-to-SQL)                            | 12           | **15**            | 8                         | 4,0 s / 9,7 s   | 1,41               | 26 · 12 · 10 · 18 |
-| Plan como estaba (`79570f0`)                     | 22 · 23 · 23 | **0 · 0 · 0**     | 11 · 10 · 10              | 1,6 s / 7,1 s   | 2,19               | 26 · 11 · 7 · 19  |
-| Plan con el arreglo del validador (`dfcaaca`)    | 30 · 30 · 31 | **0 · 0 · 0**     | 3 · 3 · 2                 | 1,7 s / 7,1 s   | 2,57               | 26 · 11 · 7 · 19  |
-| **Plan con el arreglo de la puerta (`5c79af6`)** | 30 · 31 · 30 | **0 · 0 · 0**     | 3 · 2 · 3                 | 1,7 s / 6,6 s   | 2,57               | 27 · 12 · 10 · 18 |
+| Brazo                                                  | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Llamadas por turno | Cuatro ejes       |
+| ------------------------------------------------------ | ------------ | ----------------- | ------------------------- | --------------- | ------------------ | ----------------- |
+| Control (Text-to-SQL)                                  | 12           | **15**            | 8                         | 3,8 s / 10,3 s  | 1,41               | 26 · 12 · 10 · 18 |
+| Plan como estaba (`79570f0`)                           | 22 · 23 · 23 | 0 · 0 · 0 (\*)    | 11 · 10 · 10              | 1,6 s / 7,1 s   | 2,19               | 26 · 11 · 7 · 19  |
+| Con el arreglo del validador (`dfcaaca`)               | 30 · 30 · 31 | 0 · 0 · 0 (\*)    | 3 · 3 · 2                 | 1,7 s / 7,1 s   | 2,57               | 26 · 11 · 7 · 19  |
+| Con el arreglo de la puerta (`5c79af6`)                | 30 · 31 · 30 | 0 · 0 · 0 (\*)    | 3 · 2 · 3                 | 1,7 s / 6,6 s   | 2,57               | 27 · 12 · 10 · 18 |
+| Lo mismo, con la categoría 6 en el fixture (`c1c82d3`) | 30 · 30 · 30 | 1 · 1 · 1         | 2 · 2 · 2                 | 1,7 s / 7,1 s   | 2,57               | —                 |
+| **Con el arreglo de la categoría (`4f49656`)**         | 31 · 31 · 31 | **0 · 0 · 0**     | 2 · 2 · 2                 | 1,7 s / 7,2 s   | 2,57               | 27 · 12 · 10 · 18 |
 
 «Respuestas falsas» suma las traducciones incorrectas y los intentos sobre lo infactible. «Sin
 responder lo factible» suma abstenciones y aclaraciones ante una pregunta que tenía respuesta.
-La VRAM no cambia (7,3 a 7,7 GiB con el escritorio en la placa): las muestras son secuenciales.
+(\*) Esos ceros se midieron sobre un fixture que no distinguía «categoría 5» de «5 o más»: ver
+el tercer punto. La VRAM no cambia (7.310 a 7.789 MiB con el escritorio en la placa): las muestras
+son secuenciales.
 
-- **Cero falsas respondiendo por plantilla.** De 26 o 27 turnos respondidos por el plan en cada
-  corrida, ninguno dio un resultado distinto del de referencia. Los cuatro ítems fuera del
-  catálogo siguieron por SQL con cero llamadas del plan.
 - **El arreglo del validador.** 28 de las 31 muestras inválidas tenían la misma causa: en
   conteos y listados el modelo reparte las condiciones entre `filtros` y `condiciones`, y el
   validador las rechazaba por la forma. Ahora se pliegan en `filtros`. Los nueve ítems que se
@@ -1055,23 +1056,29 @@ La VRAM no cambia (7,3 a 7,7 GiB con el escritorio en la placa): las muestras so
   lo rechazaba y el turno se abstenía en vez de seguir por SQL. Ahora la puerta mira qué se
   pide. Los cinco vuelven a estar correctos y ningún ítem de los cuatro ejes empeora:
   `cap-020` pasa de falsa a aclaración correcta, y `rob-005` de falsa a abstención.
-- **Una lectura incorrecta que el dataset no detecta.** En `cmp-016` («designación de categoría
-  5») el modelo lee `>= 5`, y sin señal de comparación el anclaje admite «=» y «>=». Cuenta como
-  acierto porque en el fixture nadie tiene categoría 6. En cinco de las nueve corridas las tres
-  muestras coincidieron en `>=` y el turno respondió «al menos 5».
+- **El arreglo de la categoría.** En `cmp-016` («designación de categoría 5») el modelo escribe
+  `>= 5`, y sin señal de comparación el anclaje admitía «=» y «>=». El turno respondía «al menos
+  5» y contaba como acierto porque en el fixture nadie tenía categoría 6. Con una designación de
+  categoría 6 en el suplemento, la respuesta fue falsa en las tres corridas. Ahora una categoría
+  sin señal es exactamente ese número y el `>=` de la muestra se corrige a `=`.
 - **El acuerdo entre muestras filtra poco con este modelo.** De 174 muestras a 0,6 de una
-  versión, dos fueron otra lectura (las dos en `cmp-016`). Lo que frena errores es el anclaje.
+  versión, dos fueron otra lectura, y en `cmp-016` las tres coincidían en la lectura
+  equivocada. Lo que frena errores es el anclaje.
+- **Cero falsas respondiendo por plantilla, con el código final.** De 27 turnos respondidos por
+  el plan en cada corrida, ninguno dio un resultado distinto del de referencia. Los cuatro
+  ítems fuera del catálogo siguieron por SQL con cero llamadas del plan.
 - **Decisión.** Seguir. El plan elimina las respuestas falsas del dataset, se abstiene menos
-  que el control y ya no rompe los ejes existentes. Antes de encender la opción falta:
-  1. decidir «= o >=» sin señal, al menos para la categoría;
-  2. un caso en el fixture que distinga `= 5` de `>= 5`.
+  que el control y no rompe los ejes existentes. Antes de encender la opción falta decidir qué
+  significa un número sin señal en las cantidades («en dos carreras»): hoy valen «exactamente»
+  y «al menos», y el acuerdo entre muestras no alcanza para elegir.
 - **Limitaciones.** Son 37 ítems, un modelo y un fixture sintético: sirve para encontrar bugs,
   no para afirmar porcentajes. El dataset se escribió junto con el prototipo, así que su
-  vocabulario coincide con el del catálogo. La regla nueva de la puerta se escribió mirando los
-  ítems que fallaban, así que su recuperación no prueba que generalice. La latencia es la de
-  `ResponderAsync` tomada de `reportes/<eje>.turnos.jsonl`, y no es comparable con el «turno
-  p50» de [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se midió
-  Qwen3.5-9B ni la edición del plan en seguimientos.
+  vocabulario coincide con el del catálogo. La regla de la puerta y la fila de categoría 6 se
+  escribieron mirando los ítems que fallaban, así que su recuperación no prueba que
+  generalicen, y puede haber otros ítems donde dos lecturas coincidan por casualidad. La
+  latencia es la de `ResponderAsync` tomada de `reportes/<eje>.turnos.jsonl`, y no es comparable
+  con el «turno p50» de [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se
+  midió Qwen3.5-9B ni la edición del plan en seguimientos.
 
 ### Qué sigue funcionando sin proveedor
 
