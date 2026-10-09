@@ -830,6 +830,21 @@
         "condiciones": []
       },
       "nota": "número sin señal de comparación: exactamente dos. Agregado el 2026-10-08, después de la medición en la RTX 3070 y al fijar esa lectura: no es evidencia independiente"
+    },
+    {
+      "id": "cmp-039",
+      "pregunta": "¿Cuántos docentes tienen 25 años de antigüedad desde su primera designación?",
+      "categoria": "agregacion",
+      "actor": "global",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) = 25",
+      "orden_importa": false,
+      "plan_referencia": {
+        "expresable": true,
+        "medida": "conteo",
+        "filtros": [{ "campo": "antiguedad_designacion", "operador": "=", "valor": "25" }],
+        "condiciones": []
+      },
+      "nota": "número sin señal de comparación: exactamente 25. Agregado el 2026-10-08, después de la medición en la RTX 3070 y al fijar esa lectura: no es evidencia independiente"
     }
   ]
 }

@@ -203,13 +203,14 @@ cualquier otra referencia rota.
 
 ## Las preguntas compuestas del plan compilado
 
-`datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 38 preguntas sobre
+`datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 39 preguntas sobre
 el plantel docente: conteos, porcentajes y listados con dos a cuatro condiciones, actores
 acotados, ambigüedades de antigüedad, una carrera inexistente y preguntas fuera del
 catálogo que deben seguir por el carril SQL. Usa el formato de `capacidad.json` y agrega
 `plan_referencia` (el plan correcto, o `null`) y `nota`. Las 37 primeras son las de la
-medición en la RTX 3070; `cmp-038` («en dos carreras», sin señal de comparación) se agregó
-después, al fijar que esa lectura es «exactamente», y su nota lo dice.
+medición en la RTX 3070; `cmp-038` («en dos carreras») y `cmp-039` («25 años de antigüedad»),
+las dos sin señal de comparación, se agregaron después, al fijar que esa lectura es
+«exactamente», y su nota lo dice.
 
 **Corre contra el fixture con suplemento**, que agrega designaciones en varias carreras,
 designaciones históricas antiguas y experiencias declaradas que no coinciden con ellas. Sin
