@@ -1042,18 +1042,22 @@ social) con esa misma configuración.
 «Respuestas falsas» suma las traducciones incorrectas y los intentos sobre lo infactible. «Sin
 responder lo factible» suma abstenciones y aclaraciones ante una pregunta que tenía respuesta.
 (\*) Esos ceros se midieron sobre un fixture que no distinguía «categoría 5» de «5 o más»: ver
-el tercer punto. La VRAM no cambia (7.310 a 7.789 MiB con el escritorio en la placa): las muestras
+el tercer punto. La VRAM no cambia (7.310 a 7.842 MiB con el escritorio en la placa): las muestras
 son secuenciales.
 
 Después de esa medición se fijó que un número sin señal de comparación es **exactamente** ese
-número, y se agregó `cmp-038` («¿Cuántos titulares dictan en dos carreras?») para ejercitarlo.
-Con 38 ítems:
+número, y se agregaron dos ítems para ejercitarlo: `cmp-038` («¿Cuántos titulares dictan en dos
+carreras?») y `cmp-039` («¿Cuántos docentes tienen 25 años de antigüedad desde su primera
+designación?»). Con 39 ítems:
 
-| Brazo                                  | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Cuatro ejes       |
-| -------------------------------------- | ------------ | ----------------- | ------------------------- | --------------- | ----------------- |
-| Control (Text-to-SQL)                  | 12           | **16**            | 8                         | 3,3 s / 9,4 s   | 26 · 12 · 10 · 18 |
-| Plan sin esa regla (`7b49291`)         | 31 · 31 · 31 | 1 · 1 · 1         | 2 · 2 · 2                 | 1,7 s / 7,0 s   | —                 |
-| **Plan con «exactamente» (`d182172`)** | 32 · 32 · 32 | **0 · 0 · 0**     | 2 · 2 · 2                 | 1,6 s / 6,4 s   | 27 · 12 · 10 · 18 |
+| Brazo                                                        | Aciertos     | Respuestas falsas | Sin responder lo factible | Turno p50 / p95 | Cuatro ejes       |
+| ------------------------------------------------------------ | ------------ | ----------------- | ------------------------- | --------------- | ----------------- |
+| Control (Text-to-SQL)                                        | 12           | **16**            | 9                         | 3,6 s / 10,7 s  | 26 · 12 · 10 · 18 |
+| Plan con la regla solo en categoría y cantidades (`72df888`) | 32 · 32 · 32 | 1 · 1 · 1         | 2 · 2 · 2                 | 1,8 s / 7,4 s   | —                 |
+| **Plan con «exactamente» en todos los campos (`85e85ee`)**   | 33 · 33 · 33 | **0 · 0 · 0**     | 2 · 2 · 2                 | 1,8 s / 7,4 s   | 27 · 12 · 10 · 18 |
+
+Antes de extender la regla a las cantidades, con 38 ítems, la falsa era `cmp-038` en las tres
+corridas (`7b49291`); con la regla (`d182172`) dio 32 aciertos y ninguna falsa.
 
 - **El arreglo del validador.** 28 de las 31 muestras inválidas tenían la misma causa: en
   conteos y listados el modelo reparte las condiciones entre `filtros` y `condiciones`, y el
@@ -1071,31 +1075,28 @@ Con 38 ítems:
   5» y contaba como acierto porque en el fixture nadie tenía categoría 6. Con una designación de
   categoría 6 en el suplemento, la respuesta fue falsa en las tres corridas. Ahora una categoría
   sin señal es exactamente ese número y el `>=` de la muestra se corrige a `=`.
-- **«En dos carreras» es exactamente dos.** Sin esa regla las tres muestras escribían `>=` y el
-  turno respondía «en al menos 2 carreras» (2 docentes, contra 1 con la lectura fijada). Ahora
-  la corrección de operador de la categoría vale también para las cantidades de carreras y de
-  materias. En las 37 preguntas originales no cambia ningún ítem.
+- **Un número sin señal es exactamente ese número.** Sin esa regla las tres muestras escribían
+  `>=` y el turno respondía «en al menos 2 carreras» (2 docentes, contra 1 con la lectura
+  fijada) y «con al menos 25 años de antigüedad» (4 contra 1). Ahora la corrección de operador
+  de la categoría vale para todos los campos numéricos. En las 37 preguntas originales no
+  cambia ningún ítem.
 - **El acuerdo entre muestras filtra poco con este modelo.** De 174 muestras a 0,6 de una
   versión, dos fueron otra lectura, y en `cmp-016` las tres coincidían en la lectura
   equivocada. Lo que frena errores es el anclaje.
-- **Cero falsas respondiendo por plantilla, con el código final.** De 28 turnos respondidos por
+- **Cero falsas respondiendo por plantilla, con el código final.** De 29 turnos respondidos por
   el plan en cada corrida, ninguno dio un resultado distinto del de referencia. Los cuatro
   ítems fuera del catálogo siguieron por SQL con cero llamadas del plan.
 - **Decisión.** Seguir. El plan elimina las respuestas falsas del dataset, se abstiene menos
   que el control y no rompe los ejes existentes. No queda ningún bug conocido.
-- **Pendiente de medir.** La regla «número sin señal = exactamente» se extendió después a la
-  antigüedad (`85e85ee`), con `cmp-039` («25 años de antigüedad») para ejercitarla. Sin la regla
-  el plan respondía «al menos 25 años» en las tres corridas (4 docentes, contra 1 con la lectura
-  fijada). La corrida con la regla todavía no se hizo: los tests del plan pasan, la medición no.
-- **Limitaciones.** Son 37 ítems (39 con `cmp-038` y `cmp-039`), un modelo y un fixture sintético: sirve
-  para encontrar bugs, no para afirmar porcentajes. El dataset se escribió junto con el
-  prototipo, así que su vocabulario coincide con el del catálogo. La regla de la puerta, la fila
-  de categoría 6 y `cmp-038` se escribieron mirando los ítems que fallaban o la decisión que se
-  tomaba, así que su recuperación no prueba que generalicen, y puede haber otros ítems donde dos
-  lecturas coincidan por casualidad. La latencia es la de `ResponderAsync` tomada de
-  `reportes/<eje>.turnos.jsonl`, y no es comparable con el «turno p50» de
-  [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se midió Qwen3.5-9B ni la
-  edición del plan en seguimientos.
+- **Limitaciones.** Son 37 ítems (39 con `cmp-038` y `cmp-039`, escritos para las reglas), un
+  modelo y un fixture sintético: sirve para encontrar bugs, no para afirmar porcentajes. El
+  dataset se escribió junto con el prototipo, así que su vocabulario coincide con el del
+  catálogo. La regla de la puerta, la fila de categoría 6, `cmp-038` y `cmp-039` se escribieron
+  mirando los ítems que fallaban o la decisión que se tomaba, así que su recuperación no prueba
+  que generalicen, y puede haber otros ítems donde dos lecturas coincidan por casualidad. La
+  latencia es la de `ResponderAsync` tomada de `reportes/<eje>.turnos.jsonl`, y no es comparable
+  con el «turno p50» de [`modelo-local.md`](../../../docs/architecture/modelo-local.md). No se
+  midió Qwen3.5-9B ni la edición del plan en seguimientos.
 
 ### Qué sigue funcionando sin proveedor
 
