@@ -58,6 +58,7 @@ Antes de gastar una llamada, la pregunta pasa por una puerta léxica:
 
 - Si menciona vocabulario de dominio **fuera del catálogo** (pedidos, períodos, horas, habilidades, certificaciones, bajas, licencias…), el plan no corre y el turno sigue por el carril SQL con cero llamadas gastadas.
 - Si no menciona a la población (docentes, profesores, titulares, cargos…), tampoco corre.
+- Si lo que pide no son personas («¿qué asignaturas se dictan en Ingeniería Industrial?», «¿en qué carreras dictan los titulares?»), tampoco corre, aunque nombre a la población: las tres medidas cuentan o listan docentes. Se decide por la palabra que sigue a cada interrogativo (materia, carrera, categoría, cargo o designación).
 - Si menciona «antigüedad» sin calificarla (desde la designación o declarada en el portal), el turno **aclara** sin llamar al modelo, con una opción por definición.
 
 ### D5 — Muestreo k-de-k con acuerdo exacto

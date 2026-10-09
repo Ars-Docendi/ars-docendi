@@ -16,12 +16,18 @@ Con `PlanCompilado` ausente o en `false`, el sistema SHALL resolver cada turno e
 
 ### Requirement: Solo las preguntas dentro del catálogo intentan un plan
 
-Con la opción encendida, el sistema SHALL intentar un plan únicamente si la pregunta menciona a la población de docentes y no contiene vocabulario de dominio fuera del catálogo. Una pregunta que no cumple MUST seguir por el carril SQL sin gastar ninguna llamada al modelo en el plan.
+Con la opción encendida, el sistema SHALL intentar un plan únicamente si la pregunta menciona a la población de docentes, lo que pide son personas y no contiene vocabulario de dominio fuera del catálogo. Una pregunta que no cumple MUST seguir por el carril SQL sin gastar ninguna llamada al modelo en el plan.
 
 #### Scenario: Pregunta sobre pedidos
 
 - **GIVEN** la opción encendida
 - **WHEN** el actor pregunta «¿cuántos pedidos rechazados hay?»
+- **THEN** el turno sigue por el carril SQL y no se pide ningún plan
+
+#### Scenario: Pregunta que pide materias y nombra a la población
+
+- **GIVEN** la opción encendida
+- **WHEN** el actor pregunta «¿qué materias de Ingeniería Electrónica tienen algún profesor titular designado?»
 - **THEN** el turno sigue por el carril SQL y no se pide ningún plan
 
 #### Scenario: Pregunta compuesta sobre docentes

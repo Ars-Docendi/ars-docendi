@@ -111,6 +111,29 @@ public sealed class PlanCompiladoPurosTests
         Assert.Equal(
             Enum.Parse<DecisionDeLaPuerta>(esperada), PuertaDelPlan.Evaluar(new TextoDeLaPregunta(pregunta)));
 
+    // Medición en la RTX 3070 (2026-10-08): las tres primeras rompían `cap-015`, `rob-003`
+    // y `dia-005`. Nombran una carrera o un cargo y usan «dictan», pero piden materias.
+    [Theory]
+    [InlineData("¿Qué asignaturas se dictan en Ingeniería Industrial?")]
+    [InlineData("Que asignaturas se dictan en Ingenieria Industrial?")]
+    [InlineData("¿Qué materias de Ingeniería Electrónica tienen algún profesor titular designado?")]
+    [InlineData("¿En qué carreras dictan los titulares?")]
+    [InlineData("¿Cuáles son las materias que dictan los adjuntos?")]
+    [InlineData("¿Qué porcentaje de las materias tiene un profesor titular?")]
+    [InlineData("¿Cuántas designaciones tienen los titulares?")]
+    [InlineData("¿Qué cargos dictan en Ingeniería Industrial?")]
+    public void La_puerta_no_toma_una_pregunta_que_no_pide_personas(string pregunta) =>
+        Assert.Equal(DecisionDeLaPuerta.NoAplica, PuertaDelPlan.Evaluar(new TextoDeLaPregunta(pregunta)));
+
+    [Theory]
+    [InlineData("¿En la carrera de Ingeniería Industrial cuántos titulares hay?")]
+    [InlineData("¿Qué porcentaje de los titulares dicta en más de una carrera?")]
+    [InlineData("¿Qué docentes dictan más de una materia?")]
+    [InlineData("¿Cuáles son los docentes que dictan en dos carreras?")]
+    [InlineData("¿Quiénes dictan Bases de Datos?")]
+    public void La_puerta_sigue_tomando_la_que_pide_personas_y_nombra_otra_entidad(string pregunta) =>
+        Assert.Equal(DecisionDeLaPuerta.Candidata, PuertaDelPlan.Evaluar(new TextoDeLaPregunta(pregunta)));
+
     [Fact]
     public void Cada_opcion_de_antiguedad_pasa_la_puerta()
     {

@@ -982,8 +982,10 @@ El recorrido de un turno con la opción encendida:
 
 1. **Puerta léxica, sin modelo** (`PuertaDelPlan`). Vocabulario fuera del catálogo (pedidos,
    períodos, horas, portal salvo la experiencia, agrupar «por»…) o una pregunta que no nombra
-   docentes ni cargos → sigue el carril SQL con cero llamadas gastadas. «Antigüedad» sin decir
-   cuál → aclaración con dos opciones, también sin modelo.
+   docentes ni cargos → sigue el carril SQL con cero llamadas gastadas. Lo mismo si lo que pide
+   no son personas («¿qué asignaturas se dictan en Ingeniería Industrial?»): se mira la palabra
+   que sigue a cada interrogativo. «Antigüedad» sin decir cuál → aclaración con dos opciones,
+   también sin modelo.
 2. **Primera muestra a temperatura 0** con el esquema JSON del catálogo como salida
    estructurada (`GeneradorDePlan`). `expresable: false` → sigue el carril SQL. Inválida →
    abstención: la pregunta parecía expresable y no se le pasa al carril menos preciso.

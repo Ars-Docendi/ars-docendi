@@ -27,11 +27,19 @@ internal static class PuertaDelPlan
         ["ayudante de primera", "ayudantes de primera", "ayudante de segunda", "ayudantes de segunda",
          "ayudante 1", "ayudantes 1", "ayudante 2", "ayudantes 2"];
 
+    private static readonly string[] PalabrasQuePiden =
+        ["que", "cual", "cuales", "cuantos", "cuantas", "lista", "listado", "listame", "listar",
+         "nombres", "nombrame", "mostrame", "decime", "dame"];
+
+    private static readonly string[] PalabrasDePaso =
+        ["es", "son", "el", "la", "los", "las", "de", "del", "porcentaje", "proporcion",
+         "cantidad", "numero", "total", "parte", "fraccion"];
+
     public static DecisionDeLaPuerta Evaluar(TextoDeLaPregunta texto)
     {
         ArgumentNullException.ThrowIfNull(texto);
 
-        if (TieneVocabularioFueraDelCatalogo(texto) || !NombraLaPoblacion(texto))
+        if (TieneVocabularioFueraDelCatalogo(texto) || !NombraLaPoblacion(texto) || PideOtraEntidad(texto))
         {
             return DecisionDeLaPuerta.NoAplica;
         }
@@ -51,6 +59,39 @@ internal static class PuertaDelPlan
     private static bool NombraLaPoblacion(TextoDeLaPregunta texto) =>
         texto.ContieneAlguna(CatalogoDelPlan.PalabrasDePoblacion)
         || CatalogoDelPlan.Cargos.Any(cargo => texto.ContieneAlguna(cargo.Sinonimos));
+
+    // «¿Qué asignaturas se dictan en Ingeniería Industrial?» nombra una carrera y usa un
+    // verbo de la población, pero pide materias. Sin esto el modelo arma un listado de
+    // docentes, el validador lo rechaza y el turno se abstiene de algo que el carril SQL
+    // responde. Se mira la palabra que sigue a cada interrogativo, salteando artículos y
+    // «porcentaje de»: si es una entidad que no son personas, la pregunta no es del plan.
+    private static bool PideOtraEntidad(TextoDeLaPregunta texto)
+    {
+        var palabras = texto.Palabras;
+
+        for (var i = 0; i < palabras.Count; i++)
+        {
+            if (!PalabrasQuePiden.Contains(palabras[i], StringComparer.Ordinal))
+            {
+                continue;
+            }
+
+            var siguiente = i + 1;
+            while (siguiente < palabras.Count
+                   && PalabrasDePaso.Contains(palabras[siguiente], StringComparer.Ordinal))
+            {
+                siguiente++;
+            }
+
+            if (siguiente < palabras.Count
+                && CatalogoDelPlan.PalabrasDeOtraEntidad.Contains(palabras[siguiente], StringComparer.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool NombraLaAntiguedadSinCalificar(TextoDeLaPregunta texto)
     {

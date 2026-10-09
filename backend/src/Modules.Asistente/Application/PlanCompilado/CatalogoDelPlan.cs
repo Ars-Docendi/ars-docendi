@@ -133,6 +133,15 @@ internal static class CatalogoDelPlan
          "designado", "designados", "designada", "designadas", "plantel", "dictan", "dicta"];
 
     /// <summary>
+    /// Las entidades del catálogo que no son personas. Las tres medidas cuentan o listan
+    /// docentes: una pregunta que pide una de estas («¿qué materias…?») no es del plan
+    /// aunque nombre a la población.
+    /// </summary>
+    public static readonly IReadOnlyList<string> PalabrasDeOtraEntidad =
+        [.. PalabrasDeMateria, .. PalabrasDeCarrera, .. PalabrasDeDedicacion,
+         "cargo", "cargos", "designacion", "designaciones"];
+
+    /// <summary>
     /// Prefijos de vocabulario de dominio que el catálogo NO expresa. Una pregunta que
     /// los usa sigue por el carril SQL sin gastar una llamada en el plan (D4).
     /// </summary>
