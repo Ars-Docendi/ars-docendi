@@ -97,9 +97,9 @@ public sealed class DirectorioPersonas(IConsultasIdentity identity, ICurrentUser
     {
         var descompuesto = texto.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(descompuesto.Length);
-        foreach (var c in descompuesto)
+        foreach (var c in descompuesto.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark))
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
+            sb.Append(c);
         }
 
         return sb.ToString().Normalize(NormalizationForm.FormC);

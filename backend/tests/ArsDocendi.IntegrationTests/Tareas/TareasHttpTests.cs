@@ -367,13 +367,17 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
     private static NuevaTareaJson EdicionDe(Guid responsable, string titulo = "Editada") =>
         new(titulo, "Descripción", "2026-10-01", "2026-10-31", "alta", "posgrado", responsable);
 
-    private WebApplicationFactory<Program> CrearHost() =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> CrearHost() => new FabricaTareas(Cadena);
+
+    private sealed class FabricaTareas(string cadena) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Development");
-            builder.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
+            builder.UseSetting("ConnectionStrings:ArsDocendi", cadena);
             builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", bool.TrueString);
-        });
+        }
+    }
 
     private static HttpClient Cliente(WebApplicationFactory<Program> host, Guid usuario, string rol)
     {
@@ -412,7 +416,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
     private async Task SembrarAsync(CancellationToken ct)
     {
         var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
+            Path.Join(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
@@ -423,7 +427,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
         while (directorio is not null)
         {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
+            if (File.Exists(Path.Join(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
             directorio = directorio.Parent;
         }
 
