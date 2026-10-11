@@ -64,7 +64,6 @@ export function DetalleProyectoPage() {
       {proyecto && (
         <>
           <PageHeader
-            pretitle="Tareas · Proyecto"
             title={proyecto.nombre}
             meta={`Responsable ${proyecto.responsable.nombre} · ${proyecto.responsable.rol}`}
             actions={

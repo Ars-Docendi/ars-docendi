@@ -4,8 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
 import { TopBar } from "./TopBar";
+import type { CurrentUser } from "../../shared/auth/useCurrentUser";
 
-const usuario = {
+const usuario: CurrentUser = {
+  id: "00000000-0000-4000-8000-000000000001",
   name: "Vidal, Ernesto",
   initials: "EV",
   upn: "sistemas@unlam.edu.ar",

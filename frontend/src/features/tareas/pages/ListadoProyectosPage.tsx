@@ -38,7 +38,6 @@ export function ListadoProyectosPage() {
       />
 
       <PageHeader
-        pretitle="Tareas"
         title="Proyectos"
         meta={isLoading ? "Cargando…" : `${proyectos?.length ?? 0} proyecto(s)`}
         actions={

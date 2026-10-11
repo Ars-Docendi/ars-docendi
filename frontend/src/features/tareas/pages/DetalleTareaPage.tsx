@@ -195,7 +195,6 @@ function DetalleCargado({
   return (
     <>
       <PageHeader
-        pretitle={`Tareas · Tarea N° ${tarea.numero}`}
         title={tarea.titulo}
         meta={`Prioridad ${ETIQUETA_PRIORIDAD[tarea.prioridad]} · Responsable ${tarea.responsable.nombre}`}
         actions={
