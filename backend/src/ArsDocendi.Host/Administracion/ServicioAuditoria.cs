@@ -17,7 +17,7 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
     private static readonly HashSet<string> CamposPersonalesOSecretos = new(StringComparer.OrdinalIgnoreCase)
     {
         "documento", "cuil", "legajo", "nombre", "apellido", "fecha_nacimiento", "telefono",
-        "upn", "display_name", "azure_oid", "email", "mail", "correo", "client_ip",
+        "upn", "display_name", "azure_oid", "azure_tid", "email", "mail", "correo", "client_ip",
         "password", "token", "access_token", "refresh_token", "secret", "uri",
     };
     private static readonly Dictionary<string, string> EtiquetasModulos = new(StringComparer.OrdinalIgnoreCase)

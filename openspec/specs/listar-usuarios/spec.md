@@ -51,7 +51,7 @@ La página `/usuarios` SHALL mostrar una tabla con todos los usuarios del sistem
 
 ### Requirement: Columnas y datos de la tabla
 
-La tabla SHALL mostrar por fila: Apellido y Nombre, Documento, Legajo, UPN/email, roles resumidos sin repetir, indicador de perfil docente, estado visual y acciones. SHALL conservar scroll horizontal cuando el contenido supere el ancho del viewport.
+La tabla SHALL mostrar por fila: Apellido y Nombre, Documento, Legajo, UPN/email, roles resumidos sin repetir, indicador de perfil docente, estado visual, estado de la cuenta Microsoft y acciones. SHALL conservar scroll horizontal cuando el contenido supere el ancho del viewport.
 
 #### Scenario: Formato del nombre
 
@@ -83,9 +83,19 @@ La tabla SHALL mostrar por fila: Apellido y Nombre, Documento, Legajo, UPN/email
 - **WHEN** un usuario tiene `is_active = false`
 - **THEN** su fila muestra un `StatusBadge` rojo con label "Inactivo"
 
+#### Scenario: Cuenta Microsoft vinculada
+
+- **WHEN** un usuario ya ingresó con su cuenta Microsoft
+- **THEN** la columna "Cuenta Microsoft" indica "Vinculada" junto con la fecha de su último ingreso
+
+#### Scenario: Cuenta Microsoft pendiente
+
+- **WHEN** un usuario todavía no ingresó
+- **THEN** la columna "Cuenta Microsoft" indica "Pendiente de primer ingreso"
+
 ### Requirement: Acciones en la tabla con botones ghost
 
-Cada fila SHALL tener botones ghost: "Editar" (siempre) y "Desactivar" o "Activar" (según estado).
+Cada fila SHALL tener botones ghost: "Editar" (siempre), "Desactivar" o "Activar" (según estado) y "Desvincular cuenta" sólo cuando la cuenta Microsoft está vinculada y el operador tiene permiso de administración de usuarios.
 
 #### Scenario: Fila de usuario activo
 
@@ -96,6 +106,17 @@ Cada fila SHALL tener botones ghost: "Editar" (siempre) y "Desactivar" o "Activa
 
 - **WHEN** el usuario está inactivo
 - **THEN** aparecen "Editar" (ghost) y "Activar" (ghost)
+
+#### Scenario: Fila de usuario con cuenta vinculada
+
+- **GIVEN** un operador con permiso de administración de usuarios
+- **WHEN** el usuario tiene la cuenta Microsoft vinculada
+- **THEN** además aparece "Desvincular cuenta" (ghost), que abre un modal de confirmación con el nombre del usuario y el efecto de la acción
+
+#### Scenario: Fila de usuario pendiente de primer ingreso
+
+- **WHEN** el usuario no tiene la cuenta Microsoft vinculada
+- **THEN** no aparece "Desvincular cuenta"
 
 ### Requirement: Filtros por encabezado en la tabla de usuarios
 

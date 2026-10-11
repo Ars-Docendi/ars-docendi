@@ -509,7 +509,6 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             usuario = new Usuario
             {
                 Id = Propietario,
-                AzureOid = Guid.NewGuid(),
                 Upn = "docente@test.invalid",
                 NombreParaMostrar = "Docente Prueba",
                 Activo = true,
@@ -534,6 +533,11 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
 
         public Task<IReadOnlyList<string>> ObtenerCodigosDeRolesDeSistemaAsync(Guid usuarioId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
+            IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>>(
+                new Dictionary<Guid, IReadOnlyList<RolDeSistema>>());
 
         public Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<string>>([]);

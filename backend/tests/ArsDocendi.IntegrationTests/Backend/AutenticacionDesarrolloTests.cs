@@ -242,15 +242,14 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             INSERT INTO identity.personas (id, documento, nombre, apellido)
             VALUES (@id, @documento, 'Fuera', 'Del seed');
             INSERT INTO identity.users (id, azure_oid, upn, display_name, is_active, persona_id)
-            VALUES (@id, @oid, @upn, 'Fuera del seed', TRUE, @id);
-            INSERT INTO identity.user_roles (id, user_id, role_id, materia_id)
+            VALUES (@id, NULL, @upn, 'Fuera del seed', TRUE, @id);
+            INSERT INTO identity.user_roles (id, user_id, role_id, materia_id, carrera_id)
             VALUES (@asignacion, @id, 'a1000000-0000-4000-8000-000000000002',
-                    '70000000-0000-4000-8000-000000000101');
+                    '70000000-0000-4000-8000-000000000101', NULL);
             """, conexion))
         {
             comando.Parameters.AddWithValue("id", usuario);
             comando.Parameters.AddWithValue("documento", $"T-{usuario:N}");
-            comando.Parameters.AddWithValue("oid", Guid.NewGuid());
             comando.Parameters.AddWithValue("upn", $"{usuario:N}@example.test");
             comando.Parameters.AddWithValue("asignacion", Guid.NewGuid());
             await comando.ExecuteNonQueryAsync(ct);
@@ -310,6 +309,13 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             builder.UseSetting(
                 $"{AutenticacionDesarrolloOptions.Seccion}:Enabled",
                 habilitada.ToString());
+            if (ambiente == "Production")
+            {
+                // En Production el ingreso con Microsoft es obligatorio para arrancar.
+                builder.UseSetting("AutenticacionMicrosoft:Habilitada", bool.TrueString);
+                builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+                builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
+            }
         });
 
     private async Task<(Guid PersonaMixta, Guid PersonaAjena)> AgregarDocentesConAmbitoMixtoAsync(
@@ -343,7 +349,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             identity.Usuarios.Add(new Usuario
             {
                 Id = usuarioMixto,
-                AzureOid = Guid.NewGuid(),
                 Upn = $"mixto-{usuarioMixto:N}@example.test",
                 NombreParaMostrar = "Docente Mixto",
                 Activo = true,

@@ -21,13 +21,16 @@ public sealed class Persona
 }
 
 /// <summary>
-/// Cuenta de Azure AD. Sólo autenticación: los datos personales viven en
-/// <see cref="Persona"/>. <see cref="PersonaId"/> se resuelve en el primer login.
+/// Cuenta de acceso dada de alta por la administración. Sólo autenticación: los
+/// datos personales viven en <see cref="Persona"/>. <see cref="AzureOid"/> y
+/// <see cref="AzureTid"/> quedan vacíos hasta el primer ingreso con Microsoft, que
+/// vincula la cuenta; desde entonces el usuario se reconoce por ese vínculo.
 /// </summary>
 public sealed class Usuario
 {
     public Guid Id { get; set; }
-    public Guid AzureOid { get; set; }
+    public Guid? AzureOid { get; set; }
+    public Guid? AzureTid { get; set; }
     public required string Upn { get; set; }
     public required string NombreParaMostrar { get; set; }
     public bool Activo { get; set; }

@@ -10,7 +10,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `DesignacionesDbContext` → schema `designaciones`
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
-- `TareasDbContext` → schema `tareas`
+- `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`, con clave numérica `id` que las tablas de negocio referencian por FK (`estado_id`, `prioridad_id`, `tipo_id`); DDL en `database/tareas/`; las personas se guardan como `usuario_id` sin FK a `identity`)
 - `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
@@ -56,7 +56,7 @@ Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina d
 | Tabla           | Descripción                                                                                                                                                                                                                                                                                            | PII                                            |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | `personas`      | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018)                                                                                                             | **Sí** — documento, CUIL, teléfono, fecha nac. |
-| `users`         | Cuenta de Azure AD. Sólo autenticación; `persona_id` se resuelve en el primer login                                                                                                                                                                                                                    | Parcial — UPN, display name                    |
+| `users`         | Cuenta de acceso dada de alta por la administración. `azure_oid` y `azure_tid` identifican la cuenta Microsoft: vacíos hasta el primer ingreso, que los vincula (`CHECK` ambos o ninguno); desde entonces el usuario se reconoce por ellos y no por el mail. El ingreso nunca crea usuarios            | Parcial — UPN, display name                    |
 | `roles`         | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica                                                                                                                          | No                                             |
 | `permisos`      | Catálogo **cerrado** de 24. Cada `code` lo lee un check del backend                                                                                                                                                                                                                                    | No                                             |
 | `rol_permisos`  | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                                                                                                                                | No                                             |
@@ -78,8 +78,9 @@ Un Alta puede insertar una fila en `identity.personas` sin fila asociada en
 `identity.users` ni legajo. La operación pública `IAdministracionIdentity` de
 `ArsDocendi.Shared.Identity.Administracion` delega esa escritura en
 `ServicioPersonas`; la unicidad de `documento` y el trigger de auditoría siguen
-siendo autoridad. `VinculadorPrimerLogin` reutiliza esa persona por documento y
-recién entonces vincula la cuenta.
+siendo autoridad. La administración vincula la cuenta con `persona_id` antes del
+ingreso; `ServicioIngreso` sólo reconoce usuarios existentes y vincula su identidad
+Microsoft (`azure_oid` y `azure_tid`) en el primer ingreso, sin crear personas ni usuarios.
 
 ### Designaciones (`schema: designaciones`)
 

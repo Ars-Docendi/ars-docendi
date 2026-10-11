@@ -1,4 +1,4 @@
-import { Input, Table } from "@ars-docendi/ui";
+import { Button, Input, Table } from "@ars-docendi/ui";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FiltroEncabezado } from "../../../shared/ui/FiltroEncabezado";
@@ -14,7 +14,16 @@ import {
   type FiltrosPeriodos,
   type OrdenPeriodos,
 } from "./filtrosPeriodos";
-import { MenuAccionesPeriodo } from "./MenuAccionesPeriodo";
+import { BotonEliminarFila } from "../../../shared/ui/BotonEliminarFila";
+import { propsFilaClickeable } from "../../../shared/ui/filaClickeable";
+import { TextoRecortado } from "../../../shared/ui/TextoRecortado";
+import "./tablaPeriodos.css";
+
+/** Alto de la grilla: la página no scrollea, scrollea la tabla con el encabezado fijo. */
+const ALTO_TABLA = "calc(100vh - 324px)";
+
+/** Ancho mínimo del nombre: usa el espacio que haya y recorta con "…" si no alcanza. */
+const ANCHO_NOMBRE = 120;
 
 interface TablaPeriodosProps {
   periodos: PeriodoDesignacion[];
@@ -46,7 +55,7 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
 
   return (
     <Table className="adoc-periodos-table">
-      <Table.Root>
+      <Table.Root maxHeight={ALTO_TABLA}>
         <Table.Head>
           <Table.Row>
             <Encabezado
@@ -154,19 +163,25 @@ export function TablaPeriodos({ periodos, onEditar, onEliminar }: TablaPeriodosP
             </Table.Row>
           ) : (
             visibles.map((periodo) => (
-              <Table.Row key={periodo.id}>
-                <Table.Cell>{periodo.nombre}</Table.Cell>
+              <Table.Row key={periodo.id} {...propsFilaClickeable(() => onEditar(periodo))}>
+                <Table.Cell>
+                  <TextoRecortado texto={periodo.nombre} anchoMinimo={ANCHO_NOMBRE} />
+                </Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaDesde)}</Table.Cell>
                 <Table.Cell>{formatearFecha(periodo.cargaHasta)}</Table.Cell>
                 <Table.Cell>{formatearMesAnio(periodo.impactoDesde)}</Table.Cell>
                 <Table.Cell>{formatearMesAnio(periodo.impactoHasta)}</Table.Cell>
                 <Table.Cell>{periodo.activo ? "Activo" : "Inactivo"}</Table.Cell>
                 <Table.Cell>
-                  <MenuAccionesPeriodo
-                    periodo={periodo}
-                    onEditar={onEditar}
-                    onEliminar={onEliminar}
-                  />
+                  <div className="adoc-periodos-acc adoc-acciones-fila">
+                    <Button variant="ghost" size="sm" onClick={() => onEditar(periodo)}>
+                      Editar
+                    </Button>
+                    <BotonEliminarFila
+                      aria-label={`Eliminar período ${periodo.nombre}`}
+                      onClick={() => onEliminar(periodo)}
+                    />
+                  </div>
                 </Table.Cell>
               </Table.Row>
             ))

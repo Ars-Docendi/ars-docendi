@@ -19,6 +19,12 @@
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   BACKUP_VOLUME_PREFIX              default arsdocendi-backups
 #   BACKUP_RETENTION_DAYS             default 7, entero positivo
+#   MICROSOFT_LOGIN_ENABLED MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET
+#                                     ingreso con Microsoft (default apagado; en prod obligatorio)
+#   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
+#                                     sólo prod: administrador inicial que crea --migrate
+#   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
+#   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate.
 
 source "$(dirname "$0")/_comun.sh"
 

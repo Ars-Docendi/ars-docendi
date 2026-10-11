@@ -241,8 +241,10 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         Assert.DoesNotContain("purge-storage.sh", script, StringComparison.Ordinal);
         Assert.DoesNotContain("down -v", script, StringComparison.Ordinal);
         var provision = script.IndexOf("provision-db.sh", StringComparison.Ordinal);
-        var preflight = script.IndexOf("--estado-migraciones", StringComparison.Ordinal);
-        var migraciones = script.IndexOf("--migrate", StringComparison.Ordinal);
+        // Buscar invocaciones, no menciones de los flags en comentarios de configuración.
+        const string comandoBackend = "compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll ";
+        var preflight = script.IndexOf(comandoBackend + "--estado-migraciones", StringComparison.Ordinal);
+        var migraciones = script.IndexOf(comandoBackend + "--migrate", StringComparison.Ordinal);
         var seed = script.IndexOf("seed.sh", StringComparison.Ordinal);
         var servicio = script.IndexOf("compose up -d", StringComparison.Ordinal);
         Assert.True(provision >= 0 && provision < preflight && preflight < migraciones && migraciones < seed && seed < servicio);

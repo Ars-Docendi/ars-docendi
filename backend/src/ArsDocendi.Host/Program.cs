@@ -1,14 +1,16 @@
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Autenticacion;
 using ArsDocendi.Host.Desarrollo;
+using ArsDocendi.Host.Despliegue;
 using ArsDocendi.Shared;
 using ArsDocendi.Migraciones;
+using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Authentication;
+using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
-using ArsDocendi.Storage;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -52,15 +54,11 @@ builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>(
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
 builder.Services.AddScoped<ServicioAuditoria>();
-var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
-    && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
-if (autenticacionDesarrolloHabilitada)
-{
-    builder.Services
-        .AddAuthentication(AutenticacionDesarrolloHandler.Esquema)
-        .AddScheme<AuthenticationSchemeOptions, AutenticacionDesarrolloHandler>(
-            AutenticacionDesarrolloHandler.Esquema, _ => { });
-}
+var modoMigracion = solicitud.Modo != ModoMigracion.Ninguno;
+var accesos = builder.AddAutenticacionArsDocendi(
+    exigirMicrosoft: builder.Environment.IsProduction() && !modoMigracion);
+builder.Services.AddProxyInverso();
+builder.Services.AddClavesDataProtection(builder.Configuration);
 builder.Services.AddAuthorization(opciones =>
 {
     foreach (var permiso in ArsDocendi.Shared.Auth.Permisos.Todos)
@@ -97,9 +95,19 @@ if (solicitud.Modo != ModoMigracion.Ninguno)
         Environment.GetEnvironmentVariable("RELEASE_SHA")
             ?? Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local",
         CancellationToken.None);
+
+    // El bootstrap escribe datos: sólo después de aplicar correctamente las migraciones,
+    // nunca durante estado, preview de scripts ni verificación de recursos sin DB.
+    if (solicitud.Modo == ModoMigracion.Migrar && Environment.ExitCode == 0)
+    {
+        await scope.ServiceProvider.GetRequiredService<ServicioAdministradorInicial>().AsegurarAsync(
+            app.Configuration.GetSection(DatosAdministradorInicial.Seccion).Get<DatosAdministradorInicial>(),
+            CancellationToken.None);
+    }
     return;
 }
 
+app.UseForwardedHeaders();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
 
@@ -114,15 +122,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Alguno)
 {
     app.UseAuthentication();
 }
+if (accesos.Microsoft)
+{
+    app.UseAntifalsificacionSesion();
+}
 app.UseAuthorization();
 app.MapControllers();
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Desarrollo)
 {
     app.MapIdentidadesDesarrollo();
+}
+if (accesos.Microsoft)
+{
+    app.MapAutenticacionMicrosoft();
 }
 
 app.Run();

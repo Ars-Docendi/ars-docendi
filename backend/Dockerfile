@@ -39,6 +39,11 @@ COPY --from=build /app ./
 RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
 
+# Directorio de las claves de Data Protection (cookie de sesión y anti-falsificación).
+# Compose monta ahí un volumen por ambiente; un volumen nombrado nuevo hereda este
+# dueño, así el usuario no-root puede escribirlas.
+RUN mkdir -p /claves && chown "$APP_UID" /claves
+
 # Usuario no-root provisto por la imagen base de .NET (APP_UID).
 USER $APP_UID
 

@@ -1,8 +1,11 @@
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using ArsDocendi.Storage.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
+using Modules.Tareas.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -22,7 +25,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_contenedor.DisposeAsync().AsTask());
 
-    public async Task<string> CrearBaseMigradaAsync(string prefijo)
+    public async Task<string> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
         var nombre = $"{prefijo}_{Guid.NewGuid():N}";
         await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
@@ -48,14 +51,19 @@ public sealed class PostgresFixture : IAsyncLifetime
             await almacenamiento.Database.MigrateAsync();
         }
 
-        await using (var designaciones = CrearDesignaciones(cadena))
-        {
-            await designaciones.Database.MigrateAsync();
-        }
-
         await using (var portal = CrearPortal(cadena))
         {
             await portal.Database.MigrateAsync();
+        }
+
+        await using (var tareas = CrearTareas(cadena))
+        {
+            await tareas.Database.MigrateAsync();
+        }
+
+        await using (var designaciones = CrearDesignaciones(cadena))
+        {
+            await designaciones.GetService<IMigrator>().MigrateAsync(migracionDesignaciones);
         }
 
         return cadena;
@@ -89,6 +97,15 @@ public sealed class PostgresFixture : IAsyncLifetime
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
             .Options;
         return new DesignacionesDbContext(opciones);
+    }
+
+    public static TareasDbContext CrearTareas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<TareasDbContext>()
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", TareasDbContext.Schema))
+            .Options;
+        return new TareasDbContext(opciones);
     }
 
     public static PortalDbContext CrearPortal(string cadena)

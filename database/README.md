@@ -13,13 +13,49 @@ en cada assembly y no se leen del filesystem en runtime.
 | 3     | Designaciones  | `20261005000200_BaselineDesignaciones`  | `designaciones.__EFMigrationsHistory` |
 | 4     | Portal         | `20261005000300_BaselinePortal`         | `portal.__EFMigrationsHistory`        |
 
-Aulas/Tareas siguen integrados, sin tablas ni baselines artificiales. Su historial
-se configura en su schema propio cuando tengan migraciones. Antes del corte,
+Aulas sigue integrado sin tablas ni baseline artificial. Tareas incorpora sus
+migraciones SQL en `tareas.__EFMigrationsHistory` y se ejecuta después de Identity,
+Storage, Designaciones, Aulas y Portal; sus timestamps se ordenan dentro de su
+propio contexto, no globalmente. Antes del corte,
 Designaciones/Portal/Aulas/Tareas usaban el historial compartido de `public`;
 el cambio de ubicación es deliberado y **no convierte bases anteriores**.
 El preflight debe rechazar historia alpha, IDs desconocidos/discontinuos y schemas
 gestionados sin historial reconocido antes de cualquier escritura. No hacer
 `stamp`, `DROP` ni resets automáticos sobre esos destinos.
+
+## Integración de incrementales Identity y Tareas
+
+Las dos migraciones Identity incorporadas desde la rama anterior tenían IDs
+anteriores al baseline. Se renumeran sus wrappers (incluido el nombre de archivo),
+sin tocar los SQL entrantes ni los SQL/wrappers publicados del baseline:
+
+| ID anterior                              | ID integrado                             |
+| ---------------------------------------- | ---------------------------------------- |
+| `20260924000000_PermisosTareas`          | `20261005000400_PermisosTareas`          |
+| `20261003000000_CuentaMicrosoftUsuarios` | `20261005000500_CuentaMicrosoftUsuarios` |
+
+EF aplica primero `20261005000000_BaselineIdentityYAudit` y luego ambos
+incrementales. El baseline ya contiene `tareas.ver` y `tareas.gestionar` y sus
+asignaciones para Secretaría, Administrativo y sys_admin. El SQL incremental
+conserva su `ON CONFLICT`: agrega `proyectos.gestionar` y amplía las asignaciones
+sin duplicar permisos. El baseline no contiene `azure_tid`; el incremental de
+cuentas agrega esa columna, permite una cuenta aún no vinculada y retira los
+`azure_oid` provisionales, tal como declara su SQL original. No adoptar ni
+renombrar historial existente de la rama alpha: el preflight sigue rechazándolo.
+
+Los cinco wrappers entrantes declaran `[RecursosMigracionSql(...)]` y consumen
+esa metadata mediante `AplicarRecursosSql`, la API existente del repositorio
+(no existe `RecursosSql.LeerDeMigracion`). Tareas conserva sus tres IDs y su
+orden propio: schema, catálogos, IDs de catálogos.
+
+`MigracionesRuntimeTests` verifica instalación nueva, preview sin escrituras,
+upgrade desde el baseline con datos, inventario de permisos sin duplicados y
+reejecución sin nuevas filas de auditoría. `IngresoMicrosoftTests` usa materias
+canónicas con códigos numéricos de cinco dígitos y carrera en el ámbito del rol,
+no en la entidad Materia. La validación Git contra el SHA completo de HEAD,
+el build Release y `--validar-recursos` complementan las pruebas reales con
+PostgreSQL desechable. Si `dotnet test` descubre cero tests, ejecutar el assembly
+Release con `dotnet vstest` y verificar los totales del TRX.
 
 ## Orden de recursos
 
