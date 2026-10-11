@@ -94,6 +94,7 @@ function useCurrentUserMicrosoft(habilitado: boolean): CurrentUserState {
   return {
     user: sesion
       ? {
+          id: sesion.usuarioId,
           name: sesion.nombreParaMostrar,
           initials: iniciales(sesion.nombreParaMostrar),
           upn: sesion.upn,

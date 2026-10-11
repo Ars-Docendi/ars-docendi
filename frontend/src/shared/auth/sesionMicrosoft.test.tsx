@@ -56,7 +56,7 @@ async function renderizarProtegida() {
     const { user } = useCurrentUser();
     return (
       <p>
-        {user?.name} · {user?.role} · {user?.roleCode} · {user?.permissions.join(",")}
+        {user?.id} · {user?.name} · {user?.role} · {user?.roleCode} · {user?.permissions.join(",")}
       </p>
     );
   }
@@ -118,13 +118,15 @@ describe("sesión por cookie del ingreso con Microsoft", () => {
     expect(await screen.findByText("Pantalla de login")).toBeInTheDocument();
   });
 
-  it("construye el usuario con el rol y los permisos de la sesión", async () => {
+  it("construye el usuario con el identificador, el rol y los permisos de la sesión", async () => {
     sesionApi.obtenerSesion.mockResolvedValue(sesion);
 
     await renderizarProtegida();
 
     expect(
-      await screen.findByText("Ada Lovelace · Secretaría Académica · secretaria · usuarios.ver"),
+      await screen.findByText(
+        "u-1 · Ada Lovelace · Secretaría Académica · secretaria · usuarios.ver",
+      ),
     ).toBeInTheDocument();
   });
 
