@@ -23,6 +23,12 @@ export const NAVEGACION: NavGroup[] = [
     items: [
       { to: "/aulas", icon: "aulas", label: "Reserva de aulas", permiso: "aulas.ver" },
       { to: "/tareas", icon: "tareas", label: "Tareas", permiso: "tareas.ver" },
+      {
+        to: "/tareas/proyectos",
+        icon: "proyectos",
+        label: "Proyectos",
+        permiso: "tareas.gestionar",
+      },
     ],
   },
   {

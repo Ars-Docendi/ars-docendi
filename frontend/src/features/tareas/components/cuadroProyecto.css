@@ -1,0 +1,33 @@
+/* ============================================================
+   Cuadro de proyecto (`CuadroProyecto.tsx`) — pantalla inicial de
+   Tareas organizada en cuadros, uno por Proyecto Abierto + "Sin
+   proyecto". La tabla en sí es `TablaTareas`, sin cambios; acá solo
+   vive el título del cuadro.
+   ============================================================ */
+.adoc-cuadro-proyecto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.adoc-cuadro-proyecto-titulo {
+  margin: 0;
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.adoc-cuadro-proyecto-titulo--link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  width: fit-content;
+}
+.adoc-cuadro-proyecto-titulo--link:hover {
+  text-decoration: underline;
+  color: var(--accent-600);
+}

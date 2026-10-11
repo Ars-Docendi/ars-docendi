@@ -6,6 +6,7 @@ import { useIdentidadesDesarrollo } from "./dev/useIdentidadesDesarrollo";
 export type Role = string;
 
 export interface CurrentUser {
+  id: string;
   name: string;
   initials: string;
   upn: string;
@@ -33,6 +34,7 @@ function useCurrentUserDesarrollo(): CurrentUserState {
   const user =
     identidad && rol
       ? {
+          id: identidad.usuarioId,
           name: identidad.nombreParaMostrar,
           initials: iniciales(identidad.nombreParaMostrar),
           upn: identidad.upn,
