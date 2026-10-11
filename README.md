@@ -68,6 +68,31 @@ pnpm --filter frontend dev
 ```
 
 - App: `http://localhost:5173`
+- Vite proxea `/api` a `http://localhost:5000`: el frontend y la API quedan en el mismo origen, como en los despliegues. No hace falta `VITE_API_URL`.
+
+#### 5. Ingreso con Microsoft (opcional)
+
+En local se entra con el selector de identidades sembradas, que hay que habilitar en el backend una sola vez:
+
+```bash
+dotnet user-secrets set "DevelopmentAuthentication:Enabled" "true" --project backend/src/ArsDocendi.Host
+```
+
+Para probar el ingreso real con la registración de desarrollo ("Ars Docendi (desarrollo)", redirect `http://localhost/api/auth/signin-oidc`), cargá la configuración en tus user-secrets; el secret nunca va al repo:
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:ClientId" "32d10bbf-3c8a-4526-ba10-3d7a0ceee9d1" --project backend/src/ArsDocendi.Host
+```
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:ClientSecret" "<secret>" --project backend/src/ArsDocendi.Host
+```
+
+```bash
+dotnet user-secrets set "AutenticacionMicrosoft:Habilitada" "true" --project backend/src/ArsDocendi.Host
+```
+
+Y en `frontend/.env.local` (no se versiona) agregá `VITE_MICROSOFT_LOGIN_ENABLED=true`. El botón principal pasa a ser el ingreso con Microsoft y el selector queda como acceso secundario. Sólo entran cuentas cuyo mail coincida con el UPN de un usuario activo con rol: dalo de alta antes desde la pantalla de usuarios. Probalo en Chrome, Edge o Firefox; algunos Safari no envían las cookies `Secure` del retorno sobre `http://localhost`.
 
 ## Comandos útiles
 

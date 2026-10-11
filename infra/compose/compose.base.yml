@@ -36,6 +36,17 @@ services:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://+:8080
       DevelopmentAuthentication__Enabled: ${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
+      # Ingreso con Microsoft. El secret y los datos del administrador inicial llegan
+      # del entorno del proceso (secretos de CI), nunca del .env efímero ni del repo.
+      AutenticacionMicrosoft__Habilitada: ${MICROSOFT_LOGIN_ENABLED:-false}
+      AutenticacionMicrosoft__ClientId: ${MICROSOFT_CLIENT_ID:-}
+      AutenticacionMicrosoft__ClientSecret: ${MICROSOFT_CLIENT_SECRET:-}
+      AdministradorInicial__Upn: ${ADMIN_INICIAL_UPN:-}
+      AdministradorInicial__Nombre: ${ADMIN_INICIAL_NOMBRE:-}
+      AdministradorInicial__Apellido: ${ADMIN_INICIAL_APELLIDO:-}
+      AdministradorInicial__Documento: ${ADMIN_INICIAL_DOCUMENTO:-}
+      # Claves que cifran la cookie de sesión: persisten entre redeploys del ambiente.
+      DataProtection__DirectorioClaves: /claves
       # Connection string que liga el ambiente a SU base aislada (D7).
       ConnectionStrings__ArsDocendi: ${URL_BASE_DATOS}
       Almacenamiento__Endpoint: ${ALMACENAMIENTO_ENDPOINT:-seaweedfs:8333}
@@ -47,6 +58,8 @@ services:
       Almacenamiento__RechazarSiAntivirusNoDisponible: ${ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE:-true}
       Almacenamiento__ClamAvHost: ${ALMACENAMIENTO_CLAMAV_HOST:-clamav}
       Almacenamiento__ClamAvPort: ${ALMACENAMIENTO_CLAMAV_PORT:-3310}
+    volumes:
+      - claves:/claves
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida
@@ -58,6 +71,11 @@ services:
       - "traefik.http.routers.${AMBIENTE}-backend.entrypoints=web"
       - "traefik.http.routers.${AMBIENTE}-backend.priority=10"
       - "traefik.http.services.${AMBIENTE}-backend.loadbalancer.server.port=8080"
+
+# Un volumen por Compose project (prod, staging, pr-N). prod lo conserva entre
+# deploys; staging y pr-N lo borran con `down -v` al reconstruirse desde cero.
+volumes:
+  claves:
 
 # Redes externas compartidas: se crean una sola vez en el host (ver runbook),
 # no las gestiona este compose. Así Traefik (otro project) y la instancia

@@ -48,7 +48,7 @@ jobs:
 
       - name: Build y push de imágenes inmutables
         run: |
-          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=false -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
+          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=false --build-arg VITE_MICROSOFT_LOGIN_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
           # El backend embebe el DDL de database/; el contexto es la raíz.
           docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
           docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
@@ -79,6 +79,15 @@ jobs:
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PROD }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
+      # En prod el ingreso con Microsoft es obligatorio: sin estos valores el backend no arranca.
+      MICROSOFT_LOGIN_ENABLED: "true"
+      MICROSOFT_CLIENT_ID: ${{ vars.MICROSOFT_CLIENT_ID_PROD }}
+      MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET_PROD }}
+      # Sólo se usa si todavía no existe un usuario con ese UPN (arranque --migrate).
+      ADMIN_INICIAL_UPN: ${{ secrets.ADMIN_INICIAL_UPN }}
+      ADMIN_INICIAL_NOMBRE: ${{ secrets.ADMIN_INICIAL_NOMBRE }}
+      ADMIN_INICIAL_APELLIDO: ${{ secrets.ADMIN_INICIAL_APELLIDO }}
+      ADMIN_INICIAL_DOCUMENTO: ${{ secrets.ADMIN_INICIAL_DOCUMENTO }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
         with:

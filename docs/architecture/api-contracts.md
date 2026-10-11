@@ -17,7 +17,22 @@ Contratos detallados:
 
 Las rutas de negocio requieren una identidad autenticada. La autorización se evalúa con permisos (`usuarios.ver`, `roles.administrar`, `designaciones.gestionar`, etc.) y los ámbitos persistidos en `identity.user_roles`; rol, materia o carrera enviados por el cliente nunca son autoridad.
 
-En desarrollo, y sólo con `DevelopmentAuthentication:Enabled=true`, el cliente puede enviar `X-Dev-User-Id` y `X-Dev-Role-Code`. El Host valida ambos valores contra una identidad sintética activa. En Production no se registran el esquema, los headers ni `/api/desarrollo/identidades`. La futura integración Azure AD deberá producir el mismo `ICurrentUser` sin cambiar contratos de negocio.
+El ingreso real es con cuentas Microsoft (personales o de cualquier organización) y se habilita con `AutenticacionMicrosoft:Habilitada=true`. El backend hace el intercambio OpenID Connect como cliente confidencial y emite su propia cookie de sesión (`__Host-ars-sesion`, `HttpOnly`, `Secure`, `SameSite=Lax`); los tokens de Microsoft nunca llegan al navegador. La cookie sólo identifica al usuario: en cada solicitud el Host verifica que siga activo y resuelve su rol y permisos desde `identity`, así que desactivarlo o cambiarle el rol aplica en la solicitud siguiente. El ingreso no crea usuarios: sólo acepta un mail verificado por Microsoft que coincida con el UPN de un usuario activo con rol vigente. Sin sesión válida la API responde `401`, nunca una redirección.
+
+| Ruta                                | Acceso           | Uso                                                                                 |
+| ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `GET /api/auth/login?returnUrl=...` | anónimo          | Inicia el ingreso con Microsoft; un `returnUrl` no local se reemplaza por `/portal` |
+| `/api/auth/signin-oidc`             | Microsoft        | Retorno del ingreso; un rechazo redirige a `/login?error=forbidden`                 |
+| `GET /api/auth/sesion`              | cookie de sesión | `{ usuarioId, nombreParaMostrar, upn, rolCodigo, rolNombre, permisos }` o `401`     |
+| `POST /api/auth/logout`             | anónimo          | Borra la cookie (`204`); no cierra la sesión de Microsoft                           |
+
+Con el ingreso deshabilitado estas rutas no existen.
+
+La sesión vence a los `AutenticacionMicrosoft:MinutosInactividad` (60) sin solicitudes y a las `HorasMaximas` (10) desde el ingreso, aunque haya actividad. Desde el primer ingreso la cuenta queda vinculada por `oid` y tenant: los ingresos siguientes no dependen del mail, y otra cuenta con el mismo mail se rechaza.
+
+**Anti-falsificación (CSRF).** Toda solicitud `POST`, `PUT`, `PATCH` o `DELETE` autenticada por la cookie de sesión debe traer el header `X-XSRF-TOKEN`; sin él, o con uno inválido, responde `400` sin aplicar cambios. Cada solicitud segura autenticada por cookie (incluido `GET /api/auth/sesion`) entrega el token en el header de respuesta `X-XSRF-TOKEN` y en la cookie `XSRF-TOKEN` (`HttpOnly`, `SameSite=Strict`, `Path=/`, `Secure` sobre HTTPS). Estas respuestas usan `Cache-Control: no-store`. El cliente conserva únicamente en memoria el token recibido por header y lo devuelve sólo en mutaciones al mismo origen; no lee cookies ni envía o acepta tokens de otros orígenes, aunque se configure `VITE_API_URL`. Tras recargar la página, la consulta de sesión recupera el token; cada nueva respuesta con token lo actualiza. Un logout exitoso o un `401` del mismo origen lo elimina e invalida los tokens de consultas que seguían en vuelo. Las identidades de desarrollo viajan en headers y no lo necesitan.
+
+En desarrollo, y sólo con `DevelopmentAuthentication:Enabled=true`, el cliente puede enviar `X-Dev-User-Id` y `X-Dev-Role-Code`. El Host valida ambos valores contra una identidad sintética activa; si llegan, mandan sobre la cookie. En Production no se registran el esquema, los headers ni `/api/desarrollo/identidades`. Ambos caminos producen el mismo `ICurrentUser`, sin cambiar contratos de negocio.
 
 ## Forma de error estándar
 
@@ -39,8 +54,8 @@ Todos los endpoints retornan errores en formato consistente:
 Sigue la convención RFC 7807 (Problem Details). Status codes habituales:
 
 - `400 Bad Request` — validación de DTO fallida
-- `401 Unauthorized` — falta token o inválido
-- `403 Forbidden` — token válido pero rol no autorizado
+- `401 Unauthorized` — sin sesión válida (cookie ausente, vencida o usuario desactivado)
+- `403 Forbidden` — sesión válida sin el permiso requerido
 - `404 Not Found` — recurso inexistente
 - `409 Conflict` — colisión de estado (ej. designación ya aprobada)
 - `422 Unprocessable Entity` — viola una BR-\* de negocio
@@ -63,6 +78,7 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
 | Archivos            | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                    | autenticado; archivo propio para mutaciones                         |
 | Sesión dev          | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
+| Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/logout`                            | con `AutenticacionMicrosoft:Habilitada`                             |
 
 Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados. En pedidos, el Alta envía `persona { documento, nombre, apellido }` sin `personaId`; Baja y Cambio envían `personaId` y siempre `materiaId` explícito.
 

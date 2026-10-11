@@ -17,6 +17,11 @@
 # Variables opcionales:
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
+#   MICROSOFT_LOGIN_ENABLED MICROSOFT_CLIENT_ID MICROSOFT_CLIENT_SECRET
+#                                     ingreso con Microsoft (default apagado; en prod obligatorio)
+#   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
+#                                     sólo prod: administrador inicial que crea --migrate
+#   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
 #   COMANDO_MIGRACIONES               cómo el backend corre migraciones EF
 #                                     (default: "dotnet ArsDocendi.Host.dll --migrate";
 #                                      la app debe soportar este arg — trabajo adyacente)

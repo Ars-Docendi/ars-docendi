@@ -91,6 +91,13 @@ Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyec
 | `Microsoft.EntityFrameworkCore.Relational` | `AuditDbConnectionInterceptor`                     |
 | `Npgsql.EntityFrameworkCore.PostgreSQL`    | Provider de PostgreSQL para ese contexto           |
 
+Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edges del grafo):
+
+| Paquete                                             | Razón                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------- |
+| `Microsoft.AspNetCore.Authentication.OpenIdConnect` | Intercambio OpenID Connect con Microsoft Entra ID                         |
+| `Microsoft.IdentityModel.Validators`                | Validación del issuer multi-tenant (`common`): cada tenant firma distinto |
+
 ## Frontera de lectura sobre `identity`
 
 Los 4 módulos referencian `ArsDocendi.Shared`, y desde este change eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.

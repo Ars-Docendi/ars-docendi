@@ -334,9 +334,13 @@ namespace ArsDocendi.Shared.Identity.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
-                    b.Property<Guid>("AzureOid")
+                    b.Property<Guid?>("AzureOid")
                         .HasColumnType("uuid")
                         .HasColumnName("azure_oid");
+
+                    b.Property<Guid?>("AzureTid")
+                        .HasColumnType("uuid")
+                        .HasColumnName("azure_tid");
 
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone")
