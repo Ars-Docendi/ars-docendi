@@ -8,6 +8,7 @@ import { microsoftLoginEnabled, obtenerSesion, sesionKeys } from "./sesionMicros
 export type Role = string;
 
 export interface CurrentUser {
+  id: string;
   name: string;
   initials: string;
   upn: string;
@@ -60,6 +61,7 @@ function useCurrentUserDesarrollo(habilitado: boolean): CurrentUserState {
   const user =
     identidad && rol
       ? {
+          id: identidad.usuarioId,
           name: identidad.nombreParaMostrar,
           initials: iniciales(identidad.nombreParaMostrar),
           upn: identidad.upn,
