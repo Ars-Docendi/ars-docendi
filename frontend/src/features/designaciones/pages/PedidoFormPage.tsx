@@ -79,7 +79,6 @@ export function PedidoFormPage() {
     pedidoInicial?.periodoId ?? catalogos.data?.periodoActivo?.id ?? "",
     catalogos.data?.periodos ?? [],
   );
-  const crumbEdicion = pedidoInicial?.numero ? `Editar · ${pedidoInicial.numero}` : "Editar";
 
   return (
     <>
@@ -87,9 +86,8 @@ export function PedidoFormPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones" },
           { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
-          { label: esEdicion ? crumbEdicion : "Nuevo pedido" },
+          { label: esEdicion ? "Editar pedido" : "Nuevo pedido" },
         ]}
       />
 

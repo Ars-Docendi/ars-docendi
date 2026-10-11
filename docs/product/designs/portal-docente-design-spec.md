@@ -35,7 +35,7 @@ Se diseña **"Mi Portal"** (`/portal`), la pantalla donde el docente mantiene su
 
 ## Layout / IA
 
-Una **sola página scrolleable, sin pestañas**. `Breadcrumbs` (Inicio › Mi Portal) + `PageHeader` con eyebrow mono `PORTAL DOCENTE` y título "Mi Portal", y debajo las ocho secciones en este orden:
+Una **sola página scrolleable, sin pestañas**. `Breadcrumbs` (Inicio › Mi portal) + `PageHeader` con título "Mi portal" (sin pretitle: la ubicación la da el breadcrumb, ver la convención de encabezados en `proyecto-docente-design-spec.md`), y debajo las ocho secciones en este orden:
 
 | #   | Sección                         | Modo           | Contenido                                                                        |
 | --- | ------------------------------- | -------------- | -------------------------------------------------------------------------------- |
@@ -59,7 +59,7 @@ El orden va de lo más estable e identitario a lo más discrecional, con lo que 
 ```
 
 - **Encabezado**: nombre + control de acción a la derecha (`Editar` en Contacto y tags, `+ Agregar` en las listas, `Reemplazar` en CV). El bloque Perfil **no tiene ninguno** — así se comunica que es de solo lectura, sin una línea de texto que lo explique.
-- **Sección de lista**: cada fila muestra el ítem resumido en una línea y termina en un menú kebab ⋮ con Editar y Eliminar, siguiendo el patrón transversal ya usado en Designaciones.
+- **Sección de lista**: cada fila muestra el ítem resumido en una línea y termina en un menú kebab ⋮ con Editar y Eliminar (`shared/ui/MenuAcciones`). Las tablas de Designaciones y Configuración, en cambio, usan botones directos en la fila.
 - **Ancho**: el mismo que la tarjeta del formulario de pedido (máx. 860 px), para no romper la cohesión con el resto del sistema.
 
 ### Sección vacía
@@ -77,9 +77,8 @@ La excepción es **CV**, que vacío se presenta como zona de arrastre (`FileUplo
 ### Perfil vacío (primer ingreso)
 
 ```
-Inicio › Mi Portal
-PORTAL DOCENTE
-Mi Portal
+Inicio › Mi portal
+Mi portal
 
 ┌ Perfil ─────────────────────────────────┐
 │ Nombre               Marina Díaz        │
@@ -104,7 +103,8 @@ Mi Portal
 
 - **Contacto**: edición **inline** dentro de la tarjeta (dos campos; es lo que más se edita). `Field` + `Input`, con Guardar y Cancelar.
 - **Listas**: alta y edición en `Modal`, siguiendo `ModalNuevoDocente` / `ModalEditarDocente`.
-- **Borrado**: `Modal` de confirmación con el patrón de `ModalEliminarPeriodo` — qué se borra, aviso de que no se puede deshacer, sin justificativo.
+- **Borrado**: `ModalConfirmarEliminar` (`shared/ui`), el mismo diálogo que Períodos y pedidos: qué se borra, aviso de que no se puede deshacer, sin justificativo, y estado de carga mientras borra.
+- **Períodos de un ítem** (Experiencia, Educación, Proyectos): `MonthYearPicker` de la librería, con mes opcional + año. El mes y el año se eligen en cualquier orden; un mes sin año muestra "Completá el año." en el campo y no deja guardar el ítem.
 - **Tags**: selector compuesto a nivel feature (no existe en la librería), con `Select` del vocabulario, lista de tags con "×" y opción de sugerir un término nuevo.
 
 ## Estados a diseñar
@@ -121,7 +121,7 @@ Mi Portal
 ## Decisiones de diseño
 
 - **Perfil vivo, no formulario.** Lectura por defecto y edición **por sección**, cada una con su guardado. Sin "Guardar" global al pie. El resto del sistema es transaccional (el pedido de designación se completa, se envía y entra a un circuito); el Portal se visita muchas veces para tocar una sola cosa. Con guardado global, quien entra a corregir su teléfono recorre siete secciones para llegar al botón, y apretarlo se siente como enviar el perfil entero.
-- **Nada es obligatorio y nada bloquea.** La única validación es el formato del mail de contacto, y solo frena esa sección.
+- **Nada es obligatorio y nada bloquea.** A nivel sección, la única validación es el formato del mail de contacto, y solo frena esa sección. Dentro del diálogo de un ítem sí se piden sus campos identificatorios, y un período con mes pero sin año no se guarda.
 - **Sin copy explicativo.** No hay textos de ayuda por sección, ni avisos de "todavía no cargaste X", ni notas explicando por qué un campo no se edita. Lo read-only se comunica por **ausencia de afordancia**; las etiquetas desambiguan solas ("Mail institucional" en Perfil vs "Mail" en Contacto).
 - **Sin indicador de completitud.** ¿Cuántas certificaciones son "completo"? Solo Contacto y CV tienen un final definible; un porcentaje sería precisión falsa. El largo de la página ya comunica el avance.
 - **Sin pestañas.** Reducirían el scroll pero esconderían justo lo que se necesita ver —los huecos—, y el problema del Departamento es que los docentes no cargan nada.
@@ -141,16 +141,16 @@ Mi Portal
 
 ## Mapeo a componentes
 
-| Bloque                  | Componentes de `@ars-docendi/ui`                               |
-| ----------------------- | -------------------------------------------------------------- |
-| Encabezado de página    | `Breadcrumbs` · `PageHeader` (de `shared/ui`)                  |
-| Perfil (solo lectura)   | `DataList`                                                     |
-| Contacto en edición     | `Field` · `Input` · `Button`                                   |
-| Formularios de ítem     | `Field` · `Input` · `Select` · `DatePicker` · `Textarea`       |
-| CV y adjuntos           | `FileUpload`                                                   |
-| Alta, edición y borrado | `Modal`                                                        |
-| Avisos y confirmaciones | `InlineAlert` · `Toast`                                        |
-| Tags                    | **No existe.** Se compone a nivel feature con `Select` + lista |
+| Bloque                  | Componentes de `@ars-docendi/ui`                                             |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| Encabezado de página    | `Breadcrumbs` · `PageHeader` (de `shared/ui`)                                |
+| Perfil (solo lectura)   | `DataList`                                                                   |
+| Contacto en edición     | `Field` · `Input` · `Button`                                                 |
+| Formularios de ítem     | `Field` · `Input` · `Select` · `MonthYearPicker` · `DatePicker` · `Textarea` |
+| CV y adjuntos           | `FileUpload`                                                                 |
+| Alta, edición y borrado | `Modal` · `ModalConfirmarEliminar` (de `shared/ui`)                          |
+| Avisos y confirmaciones | `InlineAlert` · `Toast`                                                      |
+| Tags                    | **No existe.** Se compone a nivel feature con `Select` + lista               |
 
 La librería no tiene `Tag`, `Chip`, `Combobox` ni `MultiSelect`. El selector de tags se arma dentro de la feature siguiendo el precedente de `MateriasSelector` y `AsignacionesSelector` en `features/docentes`. Si más adelante Secretaría busca docentes por habilidad, va a necesitar el mismo widget y ahí conviene subirlo a `ui-lib` — queda anotado en `docs/quality/tech-debt.md`.
 

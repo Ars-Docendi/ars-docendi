@@ -41,7 +41,6 @@ export function IndexPage() {
     <>
       <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Tareas" }]} />
       <PageHeader
-        pretitle="Cuatrimestre 2026 · 1C"
         title="Tareas"
         meta={
           isLoading ? (
