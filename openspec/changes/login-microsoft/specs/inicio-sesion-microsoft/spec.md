@@ -25,6 +25,12 @@ El sistema SHALL permitir el ingreso con cuentas Microsoft personales y de cualq
 - **WHEN** el ingreso se completa
 - **THEN** el sistema redirige a la ruta inicial de Ars Docendi y nunca al sitio externo
 
+#### Scenario: Elegir con qué cuenta ingresar
+
+- **GIVEN** una persona con una sesión de Microsoft abierta en el navegador
+- **WHEN** inicia el ingreso
+- **THEN** Microsoft le pide elegir la cuenta, de modo que tras un rechazo puede reintentar con otra cuenta en lugar de volver a entrar con la misma
+
 #### Scenario: Error o cancelación en Microsoft
 
 - **GIVEN** que Microsoft devuelve un error o la persona cancela el ingreso
@@ -52,6 +58,11 @@ El ingreso MUST NOT crear usuarios, personas ni asignaciones de rol. El sistema 
 - **GIVEN** un usuario activo sin asignaciones de rol vigentes
 - **WHEN** completa el ingreso
 - **THEN** el sistema deniega el acceso de la misma forma
+
+#### Scenario: El acceso denegado no revela el motivo
+
+- **WHEN** el sistema deniega un ingreso por cualquier motivo
+- **THEN** la pantalla de login informa que no se pudo iniciar sesión y que debe comunicarse con Secretaría Académica, sin indicar si la cuenta existe, está desactivada o no tiene rol, y permite reintentar el ingreso
 
 #### Scenario: Rechazo registrado sin datos personales
 

@@ -377,6 +377,8 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
         var consulta = HttpUtility.ParseQueryString(destino.Query);
         Assert.Equal("code", consulta["response_type"]);
         Assert.Equal("S256", consulta["code_challenge_method"]);
+        // Siempre se elige la cuenta: con la equivocada no se queda en un loop de rechazos.
+        Assert.Equal("select_account", consulta["prompt"]);
         Assert.EndsWith(RegistroAutenticacion.RutaCallback, consulta["redirect_uri"]);
         var opciones = host.Services.GetRequiredService<IOptionsMonitor<OpenIdConnectOptions>>()
             .Get(RegistroAutenticacion.EsquemaMicrosoft);

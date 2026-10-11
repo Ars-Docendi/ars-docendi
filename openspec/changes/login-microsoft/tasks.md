@@ -101,6 +101,7 @@
   Verificar con `gh variable list` y `gh secret list --env <ambiente>` que los client ID, los secrets y `ADMIN_INICIAL_*` estén cargados en su nivel.
 
 - [x] 3.7 Documentar la fase 3 en `infrastructure.md`: variables, secretos y sus vencimientos, volumen de claves, headers de proxy, registraciones por ambiente y administrador inicial. Verificar con `pnpm format:check`.
+- [x] 3.10 Hacer que Microsoft siempre pida elegir la cuenta (`prompt=select_account`) y que la pantalla de acceso denegado muestre un mensaje genérico ("No pudimos iniciar tu sesión. Comunicate con Secretaría Académica."), sin link y con el botón de ingreso activo; y que el error de Microsoft no muestre el código fijo `AADSTS50058` (el código real queda en el log). Verificar con la prueba del desafío OIDC y con Vitest sobre `?error=forbidden` y `?error=auth`.
 - [ ] 3.8 Validar en staging:
   - ingreso real con una cuenta registrada;
   - rechazo de una no registrada;

@@ -116,19 +116,13 @@ export function LoginPage() {
             <InlineAlert severity="danger" title="No pudimos confirmar tu identidad.">
               Microsoft devolvió un error de autenticación. Probá nuevamente; si persiste, contactá
               a Soporte.
-              <div className="alert-code">AADSTS50058 · sesión no encontrada</div>
             </InlineAlert>
           )}
 
+          {/* No revela si la cuenta existe, está desactivada o no tiene rol. */}
           {state === "forbidden" && (
-            <InlineAlert
-              severity="warning"
-              title="Tu cuenta existe, pero todavía no tenés acceso a Ars Docendi."
-            >
-              Pedile al responsable de tu sector que solicite el alta a Secretaría Académica.
-              <div style={{ marginTop: "10px" }}>
-                <a href="#">Ver instrucciones para solicitar acceso →</a>
-              </div>
+            <InlineAlert severity="warning" title="No pudimos iniciar tu sesión.">
+              Comunicate con Secretaría Académica.
             </InlineAlert>
           )}
 
@@ -136,10 +130,6 @@ export function LoginPage() {
             {state === "redirecting" ? (
               <Button variant="primary" size="lg" loading disabled>
                 Redirigiendo a Microsoft…
-              </Button>
-            ) : state === "forbidden" ? (
-              <Button variant="secondary" size="lg" leadingIcon={<MsGlyph />} disabled>
-                Cerrar sesión
               </Button>
             ) : (
               <Button variant="primary" size="lg" leadingIcon={<MsGlyph />} onClick={handleLogin}>

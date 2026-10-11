@@ -158,13 +158,6 @@
   color: var(--color-text-tertiary);
   line-height: 1.55;
 }
-.login-card .alert-code {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  margin-top: 8px;
-  opacity: 0.7;
-}
-
 /* MS-style logo glyph for the SSO button.
    `grid` (not inline-grid) so it fills the button's 16x16 icon slot with no
    baseline gap — the button's flex `align-items: center` then centers it. */

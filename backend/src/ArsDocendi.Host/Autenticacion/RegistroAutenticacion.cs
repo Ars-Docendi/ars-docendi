@@ -152,6 +152,13 @@ public static class RegistroAutenticacion
 
         opciones.Events = new OpenIdConnectEvents
         {
+            // Siempre se elige la cuenta: si la persona entró con una cuenta no habilitada,
+            // reintentar no la vuelve a mandar con la misma por la sesión de Microsoft.
+            OnRedirectToIdentityProvider = contexto =>
+            {
+                contexto.ProtocolMessage.Prompt = "select_account";
+                return Task.CompletedTask;
+            },
             OnTokenValidated = EventosSesion.AceptarIngresoAsync,
             OnRemoteFailure = EventosSesion.InformarFalloRemotoAsync,
         };

@@ -160,6 +160,40 @@ describe("sesión por cookie del ingreso con Microsoft", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("ante un acceso denegado no revela si la cuenta existe y permite reintentar", async () => {
+    sesionApi.obtenerSesion.mockResolvedValue(null);
+    const { LoginPage } = await import("./LoginPage");
+    render(
+      <Proveedores ruta="/login?error=forbidden">
+        <LoginPage />
+      </Proveedores>,
+    );
+
+    const aviso = await screen.findByText("No pudimos iniciar tu sesión.");
+    expect(aviso.closest("[role]") ?? document.body).toHaveTextContent(
+      "Comunicate con Secretaría Académica",
+    );
+    expect(screen.queryByText(/tu cuenta existe/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /instrucciones/i })).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Iniciar sesión con cuenta institucional" }),
+    );
+    expect(asignar).toHaveBeenCalledWith("/api/auth/login?returnUrl=%2Fportal");
+  });
+
+  it("ante un error de Microsoft no muestra un código fijo que no corresponde al error real", async () => {
+    sesionApi.obtenerSesion.mockResolvedValue(null);
+    const { LoginPage } = await import("./LoginPage");
+    render(
+      <Proveedores ruta="/login?error=auth">
+        <LoginPage />
+      </Proveedores>,
+    );
+
+    expect(await screen.findByText("No pudimos confirmar tu identidad.")).toBeInTheDocument();
+    expect(screen.queryByText(/AADSTS/)).not.toBeInTheDocument();
+  });
+
   it("ofrece el selector como acceso secundario cuando ambos están habilitados", async () => {
     banderas.desarrollo = true;
     sesionApi.obtenerSesion.mockResolvedValue(null);
