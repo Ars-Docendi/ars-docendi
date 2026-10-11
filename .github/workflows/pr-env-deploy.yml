@@ -51,7 +51,8 @@ jobs:
   # Gate 2 (Environment pr-preview con required reviewers) + deploy.
   deploy:
     needs: gate
-    runs-on: [self-hosted, arsdocendi, efimero]
+    # Los previews existen únicamente en la VM Proxmox secundaria.
+    runs-on: [self-hosted, arsdocendi, efimero, secundaria]
     environment: pr-preview
     env:
       AMBIENTE: pr-${{ github.event.pull_request.number }}

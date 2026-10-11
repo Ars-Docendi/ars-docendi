@@ -1,26 +1,16 @@
-# Cloudflare Tunnel — UN solo ingress wildcard (D6).
-#
-# Todo el tráfico público entra por este túnel y se entrega a Traefik, que hace
-# el routing fino por Host. Resultado: dar de alta prod/staging/pr-N NO requiere
-# crear un public hostname por ambiente (explícitamente prohibido).
-#
-# `cloudflared` corre como su propio Compose project en el app host, unido a la
-# red externa `traefik` para alcanzar al reverse proxy por nombre de servicio.
-#
-# Parametrización: cloudflared NO interpola variables de entorno en este archivo.
-# El dominio real (decisión: se mantiene parametrizado fuera del repo) reemplaza
-# a `example.net` ABAJO al desplegar; el runbook documenta el reemplazo. El ID
-# del túnel y las credenciales se inyectan en runtime, nunca se commitean.
-
-# ID o nombre del túnel. Se setea al crear el túnel (ver README.md).
-tunnel: REEMPLAZAR_CON_TUNNEL_ID
-# Credenciales del túnel inyectadas en runtime (montadas como secret), nunca al repo.
+# Ingress del túnel de la VM Proxmox secundaria.
+# Materializar el ID y el dominio fuera del repositorio; cloudflared no interpola
+# variables de entorno en este archivo. Nunca guardar credenciales en Git.
+tunnel: REEMPLAZAR_CON_TUNNEL_ID_SECUNDARIA
 credentials-file: /etc/cloudflared/credentials.json
 
-# Un único wildcard cubre prod (prod.<dominio>), staging (staging.<dominio>) y
-# todos los pr-N (pr-<N>.<dominio>). Traefik resuelve cuál contenedor por Host.
 ingress:
-  - hostname: "*.example.net" # REEMPLAZAR example.net por el dominio real
+  # Tras el corte a Debian, impedir que el wildcard vuelva a publicar prod.
+  - hostname: prod.example.net
+    service: http_status:404
+  - hostname: staging.example.net
     service: http://traefik:80
-  # Catch-all obligatorio: cualquier host no manejado devuelve 404.
+  # Los previews se sirven directamente por el DNS wildcard de este túnel.
+  - hostname: "*.example.net"
+    service: http://traefik:80
   - service: http_status:404

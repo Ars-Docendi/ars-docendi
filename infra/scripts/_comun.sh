@@ -36,6 +36,17 @@ validar_ambiente() {
   fi
 }
 
+# Hostname público: prod conserva su identidad interna, pero usa el dominio raíz.
+hostname_publico() {
+  local ambiente="$1" dominio="$2"
+  validar_ambiente "$ambiente"
+  if [[ "$ambiente" == "prod" ]]; then
+    printf '%s' "$dominio"
+  else
+    printf '%s.%s' "$ambiente" "$dominio"
+  fi
+}
+
 # Solo permite operaciones DESTRUCTIVAS sobre ambientes descartables.
 # prod NUNCA es destruible por estos scripts; solo staging y pr-N.
 exigir_ambiente_destruible() {

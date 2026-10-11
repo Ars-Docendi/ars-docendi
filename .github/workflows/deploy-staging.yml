@@ -1,12 +1,10 @@
-# Deploy de STAGING desde la rama develop (rama confiable → corre con secrets).
-# Igual que prod pero ambiente staging (con seed sintético). No toca prod.
+# Deploy de STAGING desde develop, únicamente en Proxmox.
 name: deploy-staging
 
 on:
   push:
     branches: [develop]
-    # Solo redeploya cuando cambia el artefacto desplegable; cambios doc-only
-    # (docs/**, openspec/**, *.md) no disparan deploy.
+    # Los cambios exclusivamente documentales no construyen ni despliegan.
     paths:
       - "backend/**"
       - "!backend/**/*.md"
@@ -25,14 +23,46 @@ concurrency:
   group: deploy-staging
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  packages: write # push de imágenes a ghcr.io con GITHUB_TOKEN
+permissions: {}
 
 jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRO: ${{ vars.REGISTRO }}
+      TAG_FRONTEND: sha-${{ github.sha }}
+      TAG_BACKEND: sha-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          persist-credentials: false
+
+      - name: Login al registro de imágenes
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Build y push de imágenes inmutables
+        run: |
+          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
+          # El backend embebe el DDL de database/; el contexto es la raíz.
+          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
+          docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
+          docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
+
   deploy:
-    runs-on: [self-hosted, arsdocendi, confiable]
+    needs: build
+    name: staging / secundaria
+    runs-on: [self-hosted, arsdocendi, confiable, secundaria]
     environment: staging
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
     env:
       AMBIENTE: staging
       TAG_FRONTEND: sha-${{ github.sha }}
@@ -50,19 +80,39 @@ jobs:
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v4
+        with:
+          persist-credentials: false
 
-      - name: Login al registro de imágenes
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
-
-      - name: Build & push imágenes
+      - name: Obtener el mismo SHA en este host
+        env:
+          GHCR_TOKEN: ${{ github.token }}
         run: |
-          docker build --build-arg VITE_DEVELOPMENT_AUTH_ENABLED=true -t "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}" -f frontend/Dockerfile .
-          # Contexto en la raíz: el backend embebe el DDL de database/ como
-          # recurso del assembly, así que es un input de compilación.
-          docker build -t "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}" -f backend/Dockerfile .
-          docker push "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
-          docker push "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
+          export DOCKER_CONFIG="$(mktemp -d)"
+          trap 'rm -rf -- "$DOCKER_CONFIG"' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login "${REGISTRO%%/*}" -u "${{ github.actor }}" --password-stdin
+          docker pull "${REGISTRO}/arsdocendi-frontend:${TAG_FRONTEND}"
+          docker pull "${REGISTRO}/arsdocendi-backend:${TAG_BACKEND}"
 
-      - name: Spin-up staging
+      - name: Spin-up staging en secundaria
         run: infra/scripts/spin-up.sh staging
+
+      - name: Verificar contenedores e imágenes del SHA en este host
+        run: |
+          for servicio in frontend backend; do
+            id="$(docker ps -q --filter "label=com.docker.compose.project=${AMBIENTE}" --filter "label=com.docker.compose.service=${servicio}")"
+            if [[ -z "$id" ]]; then
+              printf 'No hay contenedor %s en %s\n' "$servicio" "$AMBIENTE" >&2
+              exit 1
+            fi
+            imagen="$(docker inspect --format '{{.Config.Image}}' "$id")"
+            esperado="${REGISTRO}/arsdocendi-${servicio}:sha-${GITHUB_SHA}"
+            if [[ "$imagen" != "$esperado" ]]; then
+              printf 'Imagen inesperada para %s: %s\n' "$servicio" "$imagen" >&2
+              exit 1
+            fi
+          done
+
+      - name: Registrar destino y versión desplegada
+        run: |
+          printf 'Despliegue terminado: ambiente=%s destino=secundaria sha=%s\n' "$AMBIENTE" "$GITHUB_SHA"

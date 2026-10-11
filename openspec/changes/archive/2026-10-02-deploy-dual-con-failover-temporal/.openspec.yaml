@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-09-30
+goal: Publicar producción exclusivamente en el dominio raíz mediante el túnel
+  de la PC Debian; mantener staging y pr-preview sólo en Proxmox con su túnel
+  actual y wildcard; conservar secretos GitHub y retirar prod público anterior,
+  sin despliegues duplicados, balanceadores ni failover automático.

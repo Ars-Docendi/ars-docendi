@@ -55,6 +55,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
+      - name: Verificar hostname y destinos de infraestructura
+        run: node --test infra/tests/*.test.mjs
 
   # Valida las specs y changes de OpenSpec (fuente de verdad del planning).
   openspec:

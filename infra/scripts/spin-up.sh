@@ -57,7 +57,7 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 base="$(nombre_base "$ambiente")"
-host_publico="${ambiente}.${DOMINIO}"
+host_publico="$(hostname_publico "$ambiente" "$DOMINIO")"
 
 # Npgsql admite valores entre comillas dobles; una comilla interna se duplica.
 # URL_BASE_DATOS se exporta al proceso de Compose para no serializar la clave en
@@ -72,7 +72,7 @@ log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="
 
 # Serializa reconstrucciones del mismo ambiente en el host. La CI también tiene
 # concurrency por ambiente, pero este lock cubre reintentos/manuales simultáneos.
-# ponytail: lock local por ambiente; si se distribuye el host, moverlo a un lock manager.
+# Cada ambiente tiene un único host de deploy; el lock es local a ese destino.
 lock_file="${TMPDIR:-/tmp}/arsdocendi-spin-up-${ambiente//-/_}.lock"
 exec 9>"$lock_file"
 flock 9

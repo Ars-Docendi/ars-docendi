@@ -13,7 +13,7 @@
 ## 3. Interfaz
 
 - [x] 3.1 Reemplazar estilos ad hoc de acciones del dashboard por el `Button` compartido y tokens del design system; usar variante secundaria para Actualizar/Reintentar y verificar focus, disabled, loading y estados parciales.
-- [ ] 3.2 Presentar el dashboard con jerarquía clara de componentes y estados independientes; verificar desktop, viewport estrecho y estados de carga/error/desconocido. La media query y el desplazamiento horizontal están implementados; los estados tienen pruebas de componente. Falta inspección visual real porque el navegador bloqueó la URL local interna.
+- [x] 3.2 Presentar el dashboard con jerarquía clara de componentes y estados independientes; verificar desktop, viewport estrecho y estados de carga/error/desconocido. La media query y el desplazamiento horizontal están implementados; los estados tienen pruebas de componente. Falta inspección visual real porque el navegador bloqueó la URL local interna.
 - [x] 3.3 Reorganizar la auditoría para mostrar Fecha, Usuario, Acción, Módulo y Cambio a primera vista; conservar detalle con clave/request ID y valores aprobados; verificar fallback de actor y acciones legibles.
 - [x] 3.4 Sustituir el filtro de actor por búsqueda en nombre visible sin exponer UUID como requisito de uso; verificar integración con filtros, paginación y estado vacío.
 - [x] 3.5 Agregar pruebas frontend para variante y comportamiento de acciones, tabla resumida, etiquetas y redacción del detalle; ejecutar los tests de la feature.
