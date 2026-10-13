@@ -38,7 +38,10 @@ export function comprobarGit(raiz, base, actual, corte) {
         "La base confiable no contiene manifiesto. El corte inicial exige un commit revisado explícito (--corte-revisado SHA), nunca un inventario mutable.",
       );
     confiable = revision(raiz, corte);
-    git(raiz, ["merge-base", "--is-ancestor", base, confiable]);
+    // La base puede avanzar en paralelo al corte inicial. Ambos SHA ya deben
+    // pertenecer a HEAD; exigir base -> corte rechaza un merge válido entre ramas.
+    // Conservamos una historia común y cotejamos bytes contra el corte aprobado.
+    git(raiz, ["merge-base", base, confiable]);
     if (!tieneManifiesto(raiz, confiable))
       throw new Error("El commit del corte revisado no contiene inventario protegido");
   } else if (corte)

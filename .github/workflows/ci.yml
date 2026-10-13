@@ -104,7 +104,9 @@ jobs:
           CORTE_REVISADO: ${{ vars.CORTE_MIGRACIONES_REVISADO }}
         run: |
           argumentos=(--base-ref "$BASE_REF")
-          if [[ -n "$CORTE_REVISADO" ]]; then
+          # El corte sólo autoriza la transición inicial; una variable residual
+          # nunca reemplaza la protección del SHA base cuando ya tiene manifiesto.
+          if [[ -n "$CORTE_REVISADO" ]] && ! git cat-file -e "$BASE_REF:database/migraciones-protegidas.json" 2>/dev/null; then
             argumentos+=(--corte-revisado "$CORTE_REVISADO")
           fi
           node scripts/migrations/validate.mjs "${argumentos[@]}"

@@ -378,6 +378,90 @@ test("corte inicial sólo acepta inventario de commit explícito y no se puede r
   falla(validador, raiz, ["--force"], /Opción desconocida/);
 });
 
+test("corte revisado acepta base divergente integrada y conserva protección histórica", async (t) => {
+  const raiz = temporal(t);
+  escribir(raiz, "database/identity/alpha.sql", "-- historia alpha");
+  const alpha = congelar(raiz);
+  git(raiz, "checkout", "-qb", "corte");
+  rmSync(join(raiz, "database/identity/alpha.sql"));
+  const plan = JSON.parse(ejecutar(cli, raiz, ["Identity", "Baseline"]));
+  ejecutar(generador, raiz);
+  const corte = congelar(raiz);
+  const inventarioCorte = JSON.parse(
+    readFileSync(join(raiz, "database/migraciones-protegidas.json")),
+  );
+  git(raiz, "checkout", "-qb", "base", alpha);
+  escribir(raiz, "README.md", "La rama base avanzó sin incorporar el corte.\n");
+  const base = congelar(raiz);
+  // Conocer el SHA revisado no basta: el candidato debe haber integrado el corte.
+  const { comprobarGit } = await import("../migrations/git-confiable.mjs");
+  assert.throws(() => comprobarGit(raiz, base, inventarioCorte, corte), /merge-base --is-ancestor/);
+  git(
+    raiz,
+    "-c",
+    "user.name=Prueba",
+    "-c",
+    "user.email=prueba@example.invalid",
+    "merge",
+    "--no-edit",
+    "corte",
+  );
+  assert.throws(() => git(raiz, "merge-base", "--is-ancestor", base, corte));
+  const args = ["--base-ref", base, "--corte-revisado", corte];
+  const resultado = JSON.parse(ejecutar(validador, raiz, args));
+  assert.equal(resultado.proteccionGit, true);
+  assert.equal(resultado.revisionConfiable, corte);
+
+  // Ni el corte explícito ni el manifiesto mutable autorizan reescribir SQL aprobado.
+  escribir(raiz, plan.archivos[0].ruta, "-- SQL adulterado\n");
+  const manifiesto = JSON.parse(readFileSync(join(raiz, "database/migraciones-protegidas.json")));
+  const { hash } = await import("../migrations/proteccion.mjs");
+  manifiesto.archivos[plan.archivos[0].ruta] = hash(
+    readFileSync(join(raiz, plan.archivos[0].ruta)),
+  );
+  escribir(raiz, "database/migraciones-protegidas.json", JSON.stringify(manifiesto));
+  falla(validador, raiz, args, /protegido modificado/);
+});
+
+test("CI omite corte residual cuando la base ya contiene manifiesto", (t) => {
+  const { raiz } = crear(t);
+  ejecutar(generador, raiz);
+  const base = congelar(raiz);
+  const workflow = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const bloque = workflow.match(
+    /- name: Comparar inventario con commit confiable[\s\S]*?        run: \|\n([\s\S]*?)(?=\n  backend:)/,
+  )[1];
+  const script = bloque
+    .split("\n")
+    .map((linea) => linea.replace(/^ {10}/, ""))
+    .join("\n");
+  const resultado = execFileSync(
+    "bash",
+    [
+      "-e",
+      "-c",
+      `
+    node() { command "$NODE_EXEC" "$VALIDADOR" --root "$RAIZ" "\${@:2}"; }
+    ${script}
+  `,
+    ],
+    {
+      cwd: raiz,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        NODE_EXEC: process.execPath,
+        VALIDADOR: validador,
+        RAIZ: raiz,
+        BASE_REF: base,
+        CORTE_REVISADO: base,
+      },
+    },
+  );
+  assert.equal(JSON.parse(resultado).revisionConfiable, base);
+});
+
 test("CI selecciona tooling, conserva historia Git y verifica recursos compilados", () => {
   const workflow = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.match(workflow, /- 'scripts\/migrations\/\*\*'/);

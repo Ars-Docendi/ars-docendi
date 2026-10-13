@@ -194,15 +194,23 @@ Para el primer PR, cuya base alpha todavía no contiene manifiesto, una persona
 revisora debe fijar el **SHA completo del commit que ya contiene el inventario
 final aprobado** en la variable de repositorio `CORTE_MIGRACIONES_REVISADO`.
 No usar el HEAD mutable del PR, un branch/tag o un SHA calculado en el workflow.
-El check requiere que ese commit esté en la historia del candidato y descienda
-de la base; valida sus archivos contra su inventario y después contra el PR:
+El check requiere que **la base y el corte aprobado sean ancestros del candidato**
+y compartan historia Git. Pueden estar en ramas divergentes: la base puede haber
+avanzado después de crear el corte, antes de integrarlo. No se exige que el corte
+descienda del SHA base actual. Se validan los bytes del corte contra su inventario
+y después contra el PR; siguen rechazándose modificaciones o eliminaciones de
+los archivos protegidos, incluso si el PR altera sus hashes:
 
 ```bash
 node scripts/migrations/validate.mjs --base-ref "$BASE_REF" --corte-revisado "$SHA_CORTE_APROBADO"
 ```
 
-Retirar la variable después de integrar el corte. En cuanto la base confiable
-contiene manifiesto, `--corte-revisado` se rechaza: no se puede repetir el squash.
+Retirar la variable después de integrar el corte. El workflow sólo la pasa si
+el SHA base todavía no contiene `database/migraciones-protegidas.json`; si la
+variable permanece configurada, se omite automáticamente cuando la base ya está
+protegida y se compara contra ese SHA base, no contra el corte antiguo.
+El CLI sigue rechazando `--corte-revisado` explícito cuando la base contiene
+manifiesto: no se puede repetir el squash.
 Si falta el commit/inventario aprobado o la historia Git, CI falla cerrada. Esto
 no migra una instancia alpha ni habilita edición de historia ya aplicada.
 
