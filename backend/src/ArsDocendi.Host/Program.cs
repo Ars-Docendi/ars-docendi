@@ -94,7 +94,9 @@ if (solicitud.Modo != ModoMigracion.Ninguno)
         builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,
         Environment.GetEnvironmentVariable("RELEASE_SHA")
             ?? Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local",
-        CancellationToken.None);
+        CancellationToken.None,
+        scope.ServiceProvider.GetServices<IDiagnosticoIntegridadModulo>().ToArray(),
+        builder.Environment.EnvironmentName);
 
     // El bootstrap escribe datos: sólo después de aplicar correctamente las migraciones,
     // nunca durante estado, preview de scripts ni verificación de recursos sin DB.

@@ -6,7 +6,7 @@ using Modules.Designaciones.Infrastructure;
 namespace Modules.Designaciones.Repositories;
 
 /// <summary>Persistencia del estado vigente de las designaciones.</summary>
-internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
+internal sealed partial class RepositorioDesignaciones(DesignacionesDbContext db)
 {
     public async Task<IReadOnlyList<Designacion>> ListarVigentesDePersonaAsync(
         Guid personaId, CancellationToken ct) =>
@@ -33,6 +33,13 @@ internal sealed class RepositorioDesignaciones(DesignacionesDbContext db)
             .OrderBy(d => d.PersonaId)
             .ThenBy(d => d.MateriaId)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Designacion>> ListarVigentesDePersonaSinTrackingAsync(
+        Guid personaId, CancellationToken ct) =>
+        await db.Designaciones.AsNoTracking()
+            .Include(d => d.Cargo).Include(d => d.DedicacionCatalogo)
+            .Where(d => d.PersonaId == personaId && d.VigenteHasta == null)
+            .OrderBy(d => d.MateriaId).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Cargo>> ListarCargosAsync(CancellationToken ct) =>
         await db.Cargos.AsNoTracking().OrderBy(c => c.Orden).ToListAsync(ct);

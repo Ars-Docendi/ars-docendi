@@ -19,6 +19,7 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorTareas>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoTareas>();
         services.AddScoped<RepositorioTareas>();
         services.AddScoped<DirectorioPersonas>();
         services.AddScoped<ServicioTareas>();

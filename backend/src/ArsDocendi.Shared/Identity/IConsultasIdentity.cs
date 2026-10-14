@@ -16,6 +16,14 @@ namespace ArsDocendi.Shared.Identity;
 /// </summary>
 public interface IConsultasIdentity
 {
+    /// <summary>Cuenta y persona por ID; incluye usuarios inactivos para resolver historia.</summary>
+    Task<Usuario?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken ct);
+    /// <summary>Lote selectivo de cuentas y sus personas, incluidas las inactivas.</summary>
+    Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct);
+    /// <summary>Lote selectivo de personas canónicas, sin una consulta por persona.</summary>
+    Task<IReadOnlyList<Persona>> ObtenerPersonasAsync(IReadOnlyCollection<Guid> personaIds, CancellationToken ct);
+    /// <summary>Actividad, roles, palabras y jerarquía antes del límite y materialización.</summary>
+    Task<IReadOnlyList<Usuario>> BuscarCandidatosAsync(FiltroCandidatosIdentity filtro, CancellationToken ct);
     /// <summary>Devuelve la persona, o <c>null</c> si no existe.</summary>
     Task<Persona?> ObtenerPersonaAsync(Guid personaId, CancellationToken ct);
 

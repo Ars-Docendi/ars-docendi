@@ -8,7 +8,8 @@ namespace ArsDocendi.Migraciones;
 public static class RunnerMigraciones
 {
     public static async Task<int> EjecutarAsync(SolicitudMigracion solicitud,
-        IReadOnlyList<IMigradorModulo> migradores, string cadena, string sha, CancellationToken ct)
+        IReadOnlyList<IMigradorModulo> migradores, string cadena, string sha, CancellationToken ct,
+        IReadOnlyList<IDiagnosticoIntegridadModulo>? diagnosticos = null, string ambiente = "no-declarado")
     {
         try
         {
@@ -21,6 +22,18 @@ public static class RunnerMigraciones
             var estados = new List<EstadoMigracionesModulo>();
             // Preflight completo antes de la primera escritura de cualquier contexto.
             foreach (var migrador in migradores) estados.Add(await migrador.ConsultarAsync(ct));
+            if (solicitud.Modo == ModoMigracion.DiagnosticarIntegridad)
+            {
+                var hallazgos = await DiagnosticoIntegridad.LeerAsync(diagnosticos ?? [], ct);
+                Console.WriteLine(JsonSerializer.Serialize(new
+                {
+                    compatible = hallazgos.Count == 0,
+                    baseDatos = new NpgsqlConnectionStringBuilder(cadena).Database,
+                    ambiente, sha, contextos = estados, hallazgos,
+                    alcance = "Integridad observada en lecturas locales; no certifica ausencia de drift ni escritores externos.",
+                }, PreviewMigraciones.Json));
+                return hallazgos.Count == 0 ? 0 : 1;
+            }
             if (solicitud.Modo == ModoMigracion.Script)
             {
                 var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, sha, ct);

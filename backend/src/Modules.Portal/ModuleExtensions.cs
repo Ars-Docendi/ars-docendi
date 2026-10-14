@@ -19,6 +19,10 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorPortal>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoPortal>();
+        services.AddScoped<ReferenciasArchivosPortal>();
+        services.AddScoped<ArsDocendi.Storage.Contracts.IConsultasReferenciasArchivos>(sp => sp.GetRequiredService<ReferenciasArchivosPortal>());
+        services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp => sp.GetRequiredService<ReferenciasArchivosPortal>());
         services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());

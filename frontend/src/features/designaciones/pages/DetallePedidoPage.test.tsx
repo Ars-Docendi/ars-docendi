@@ -8,6 +8,7 @@ import type { PedidoDesignacion } from "../types";
 const estado = vi.hoisted(() => ({
   permisos: [] as string[],
   pedido: undefined as unknown,
+  errorAceptar: null as unknown,
 }));
 
 vi.mock("../../../shared/auth/useCurrentUser", () => ({
@@ -37,7 +38,12 @@ vi.mock("../hooks/usePedidos", () => ({
 vi.mock("../hooks/useAccionesPedido", () => {
   const mutacion = () => ({ mutate: vi.fn(), isPending: false, isError: false, error: null });
   return {
-    useAceptarPedido: mutacion,
+    useAceptarPedido: () => ({
+      mutate: vi.fn(),
+      isPending: false,
+      isError: estado.errorAceptar !== null,
+      error: estado.errorAceptar,
+    }),
     useRechazarPedido: mutacion,
     useDevolverPedido: mutacion,
     usePriorizarPedido: mutacion,
@@ -90,6 +96,7 @@ describe("DetallePedidoPage — breadcrumb según el origen", () => {
   beforeEach(() => {
     estado.permisos = [];
     estado.pedido = PEDIDO;
+    estado.errorAceptar = null;
   });
 
   it("desde Mis pedidos muestra Mis pedidos", () => {
@@ -157,5 +164,26 @@ describe("DetallePedidoPage — encabezado", () => {
       screen.getByText("Segundo cuatrimestre 2026", { selector: ".meta" }),
     ).toBeInTheDocument();
     expect(screen.queryByText(/2026-9005/)).not.toBeInTheDocument();
+  });
+
+  it("muestra por campo la validación del backend al aprobar un legado incompleto", () => {
+    estado.permisos = ["designaciones.revisar"];
+    estado.errorAceptar = {
+      response: {
+        data: {
+          errors: {
+            cargoSolicitadoId: ["Seleccioná un cargo activo."],
+            horas: ["Las horas de materia deben ser mayores a cero."],
+          },
+        },
+      },
+    };
+    renderDetalle("revision");
+
+    const alerta = screen.getByRole("alert");
+    expect(alerta).toHaveTextContent("Cargo solicitado");
+    expect(alerta).toHaveTextContent("Seleccioná un cargo activo.");
+    expect(alerta).toHaveTextContent("Horas");
+    expect(alerta).toHaveTextContent("Las horas de materia deben ser mayores a cero.");
   });
 });

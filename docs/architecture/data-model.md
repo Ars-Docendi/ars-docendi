@@ -10,7 +10,7 @@ Modelo de datos del sistema. **Un schema PostgreSQL por módulo** para aislar bo
 - `DesignacionesDbContext` → schema `designaciones`
 - `AulasDbContext` → schema `aulas`
 - `PortalDbContext` → schema `portal`
-- `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`, con clave numérica `id` que las tablas de negocio referencian por FK (`estado_id`, `prioridad_id`, `tipo_id`); DDL en `database/tareas/`; las personas se guardan como `usuario_id` sin FK a `identity`)
+- `TareasDbContext` → schema `tareas` (`proyectos`, `tareas`, `tarea_relaciones`, `tarea_comentarios`, `tarea_historial` y los catálogos `estados_proyecto`, `estados_tarea`, `prioridades` y `tipos_tarea`); DDL versionado en `database/tareas/`. Estados, prioridades y tipos se referencian por IDs numéricos; los números visibles de proyectos/tareas usan secuencias. Las cinco tablas de negocio tienen triggers `audit.attach`; sus snapshots nuevos usan la allowlist por tabla de `audit.safe_snapshot` y excluyen título, descripción, solución, texto y detalle libres.
 - `AlmacenamientoDbContext` → schema `storage`
 
 ### Dueño de `identity` y `audit`
@@ -48,6 +48,25 @@ La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocend
 El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica Identity/Audit, Storage, Designaciones y Portal en ese orden, manteniendo la integración de Aulas/Tareas sin inventarles baselines. Termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
 
 Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
+
+## Diagnóstico de integridad de datos
+
+El modo one-shot `dotnet ArsDocendi.Host.dll --diagnosticar-integridad` compone
+lecturas locales mediante `IDiagnosticoIntegridadModulo`. Cada módulo consulta
+su propio schema; Identity aporta destinos canónicos. El Host compone referencias,
+no accede a DbContexts de módulos ajenos. Las consultas usan transacciones
+`REPEATABLE READ READ ONLY`, sin saneamiento ni eventos de negocio.
+
+La salida identifica ambiente, release, historial observado y categorías/conteos
+con hasta diez IDs técnicos por categoría; no muestra UPN, nombres, contenido o
+credenciales. Un consumidor faltante, lectura fallida o incompatibilidad produce
+exit no cero. Las lecturas locales no constituyen una fotografía transaccional
+global entre módulos: ejecutar con escritores conocidos detenidos para preflight.
+No certifica ausencia de drift ni protege frente a un DBA o escritor externo que
+omita el protocolo. Desactivación conserva identidades históricas; borrado físico
+no debe dejar referencias huérfanas. Saneamiento de datos reales requiere una
+operación manual aprobada, respaldo y verificación posterior, nunca auto-merge,
+reseed o reasignación para superar una garantía.
 
 ## Entidades por schema
 
@@ -111,11 +130,10 @@ las materias a cargo del `jefe_catedra`; para Baja y Cambio, la intersección co
 vigentes del docente. El backend vuelve a validar el id y, para Baja/Cambio, exige la designación
 vigente de la misma pareja `(persona_id, materia_id)` (materia canónica) antes de crear, editar o enviar.
 
-Las designaciones guardan `materia_id` (canónica) y `carrera_id` directos. La
-captura real del estado final anterior confirmó una FK simple a `identity.carreras`,
-pero no una FK simple para `designaciones.designaciones.materia_id`: alpha retiró
-la FK compuesta sin reemplazarla. El baseline preserva ese estado, no agrega una
-constraint silenciosamente; pedidos sí conserva su FK simple a `identity.materias`.
+Las designaciones guardan `materia_id` (canónica) y `carrera_id` directos. El baseline
+auditado no tenía FK simple de materia; el incremental
+`20261013170855_IntegridadMateriaDesignaciones` la agrega con preflight de huérfanos,
+sin tocar los bytes históricos ni imponer una relación con planes/carreras informativas.
 Una persona tiene a lo sumo una
 designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` sobre
 `(persona_id, materia_id)`).
@@ -130,6 +148,21 @@ designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` s
 | `pedido_historial` | Historial del trámite. Dato de dominio, **no** derivado de `audit.change_log` (ver abajo)                                       | No  |
 | `designaciones`    | **El estado vigente** `(persona, materia, cargo, dedicación, tres horas)` con vigencia; `origen_pedido_id` NULL = carga directa | No  |
 
+Pedido y Designación usan `xmin` como token EF; no requieren agregar una columna
+ordinaria. Administración y circuito comparten exclusión transaccional por persona,
+y el circuito identifica además el par persona–materia. Snapshot y materialización
+leen la vigente dentro del guard; las lecturas anteriores se rechazan o revalidan
+antes de confirmar estado, vigencias e historial. Un Cambio en su fecha de inicio
+conserva ID/inicio y actualiza cargo, dedicación, tres horas y origen; un Cambio
+posterior cierra/abre atómicamente sin retirar EXCLUDE. El criterio de vigente sigue
+siendo `vigente_hasta IS NULL`.
+
+Listado y detalle son consultas distintas: grilla sin documentos y con un resumen
+de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
+orden `(created_at,id)`. Relectura administrativa por persona y resolución de
+personas/actores por lote evitan materialización global innecesaria.
+Ver [evidencia Designaciones 3.6–3.8](../evidence/designaciones-3.6-3.8.md).
+
 ### Portal (`schema: portal`)
 
 `perfiles` vincula una persona canónica con `contactos`, `cvs`, `experiencias`,
@@ -139,6 +172,32 @@ designación vigente por materia canónica, sin importar la carrera (`EXCLUDE` s
 referencia lógica `archivo_id` a `storage.archivos`; las URI históricas se
 conservan solo como metadata de transición y nunca se convierten en destinos
 descargables. Todas las tablas tienen `created_at` y `audit.attach`.
+
+Los accesos por `perfil_id` a experiencias, educaciones, certificaciones y proyectos
+usan índices SQL incrementales, no propiedades EF generadoras de DDL. La evidencia
+reproducible de planes, buffers y escrituras con dataset sintético está en
+[Portal post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md).
+
+### Tareas (`schema: tareas`)
+
+Estados, prioridades y tipos se guardan como IDs numéricos con FK al catálogo; la
+regla de Solución consulta el código `resuelta`, y los triggers impiden renombrar
+un código de estado ya referenciado. `responsable_id`, `creado_por_id` y los
+actores de comentarios/historial son referencias lógicas a `identity.users`, sin
+FK interschema: sus destinos se validan coordinadamente en la transacción de
+escritura, manteniendo la identidad histórica de usuarios inactivos.
+
+Toda hija conserva el `proyecto_id` de su padre, incluido `NULL`; una raíz puede
+no pertenecer a proyecto. Trasladar la raíz propaga el proyecto a los descendientes
+en una transacción, preservando estado, avance y responsables. Triggers diferidos
+rechazan ciclos y proyectos incoherentes, incluso escrituras SQL concurrentes.
+Tareas y proyectos exponen `xmin` como token de versión: mutaciones sin versión se
+validan, obsoletas responden conflicto y el historial se confirma con la mutación.
+Relaciones usan un par canónico e idempotencia para altas/bajas repetidas.
+
+Ver [dominio y API de Tareas](domains/tareas.md), [contratos API](api-contracts.md)
+y [evidencia post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md)
+para pruebas HTTP/SQL y cobertura de consultas selectivas.
 
 ### Storage (`schema: storage`)
 
@@ -154,7 +213,10 @@ descargables. Todas las tablas tienen `created_at` y `audit.attach`.
 
 El cliente solo conoce `archivoId`. `designaciones.pedido_adjuntos`, `portal.cvs`
 y `portal.proyecto_documentos` mantienen referencias lógicas, sin FK cross-schema.
-Los bytes no viven en PostgreSQL.
+Los bytes no viven en PostgreSQL. La reserva, retención y coordinación de sus consumidores
+se describen en [dominio de almacenamiento](domains/almacenamiento.md) y
+[runbook](../operations/storage-runbook.md). El baseline conserva claves y metadata
+legadas; incrementales no reescriben objetos ni fabrican bytes.
 
 ### Por qué el historial no sale de `audit.change_log`
 
@@ -171,7 +233,7 @@ Igual hace `audit.attach`: que alguien edite el historial a mano tiene que dejar
 
 Toda tabla de negocio queda auditada via **un único trigger AFTER** definido en el schema `audit` ([`database/audit/001_audit_schema.sql`](../../database/audit/001_audit_schema.sql)):
 
-- `audit.log_change` (AFTER INSERT/UPDATE/DELETE) escribe una fila por evento en `audit.change_log` con `old_row`/`new_row` (JSONB), `changed_columns`, `changed_by`, `changed_at` y `request_id`. UPDATEs no-op (donde nada cambió) no se loggean.
+- `audit.log_change` (AFTER INSERT/UPDATE/DELETE) escribe una fila por evento en `audit.change_log`. `old_row`/`new_row` pasan por `audit.safe_snapshot`, con allowlist explícita por tabla; una tabla/campo no clasificado queda fuera del snapshot. `changed_columns` se calcula sobre la fila completa y registra nombres de columnas, junto con `changed_by`, `changed_at` y `request_id`. UPDATEs no-op (donde nada cambió) no se loggean.
 
 El log es la **fuente única de verdad** para metadata de auditoría. Las tablas NO denormalizan `created_by` / `updated_at` / `updated_by` / `deleted_by` — esos campos se obtienen de `audit.change_log` via `audit.row_history(...)`.
 

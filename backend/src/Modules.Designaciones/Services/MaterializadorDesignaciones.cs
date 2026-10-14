@@ -16,11 +16,11 @@ namespace Modules.Designaciones.Services;
 /// tiene que revertirse o el docente queda sin designación vigente.
 /// </para>
 /// </summary>
-internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repositorio)
+internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repositorio, TimeProvider? reloj = null)
 {
-    public async Task MaterializarAsync(Pedido pedido, CancellationToken ct)
+    public async Task<string?> MaterializarAsync(Pedido pedido, CancellationToken ct)
     {
-        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        var hoy = DateOnly.FromDateTime((reloj ?? TimeProvider.System).GetUtcNow().UtcDateTime);
 
         switch (pedido.Novedad)
         {
@@ -33,8 +33,33 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
                 break;
 
             case Novedades.CambioDeCargoODedicacion:
-                await CerrarVigenteAsync(pedido, hoy, ct);
-                Abrir(pedido, hoy);
+                var vigente = await repositorio.ObtenerVigenteAsync(pedido.PersonaId, pedido.MateriaId, ct)
+                    ?? throw new ErrorDominioPedido("El Cambio no tiene una designación vigente.");
+                if (vigente.VigenteDesde > hoy)
+                    throw new ErrorDominioPedido("La vigencia comienza en una fecha posterior a la fecha efectiva del Cambio.");
+                if (vigente.VigenteDesde == hoy)
+                {
+                    var anterior = new { vigente.CargoId, vigente.DedicacionId, vigente.Horas,
+                        vigente.HorasInvestigacion, vigente.HorasExternas, vigente.OrigenPedidoId, vigente.VigenteDesde };
+                    vigente.CargoId = pedido.CargoSolicitadoId
+                        ?? throw new ErrorDominioPedido("El Cambio requiere cargo solicitado.");
+                    vigente.DedicacionId = pedido.DedicacionSolicitadaId;
+                    vigente.Dedicacion = null;
+                    vigente.Horas = pedido.Horas
+                        ?? throw new ErrorDominioPedido("El Cambio requiere horas.");
+                    vigente.HorasInvestigacion = pedido.HorasInvestigacion;
+                    vigente.HorasExternas = pedido.HorasExternas;
+                    vigente.OrigenPedidoId = pedido.Id;
+                    var nuevo = new { vigente.CargoId, vigente.DedicacionId, vigente.Horas,
+                        vigente.HorasInvestigacion, vigente.HorasExternas, vigente.OrigenPedidoId, vigente.VigenteDesde };
+                    return "Cambio intradía: " + System.Text.Json.JsonSerializer.Serialize(new { anterior, nuevo });
+                }
+                else
+                {
+                    await CerrarVigenteAsync(pedido, hoy, ct);
+                    await repositorio.GuardarAsync(ct);
+                    Abrir(pedido, hoy);
+                }
                 break;
 
             case Novedades.SinNovedad:
@@ -45,6 +70,7 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
             default:
                 throw new ErrorDominioPedido($"Novedad no reconocida: \"{pedido.Novedad}\".");
         }
+        return null;
     }
 
     /// <summary>

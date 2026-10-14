@@ -211,6 +211,31 @@ nunca secretos/datasets reales. Comando, aislamiento y cobertura en
 El corte productivo y un drill institucional requieren aprobación/evidencia
 independiente; este cambio no los ejecuta.
 
+## Coordinación de referencias y borrado remoto
+
+Las asociaciones de Portal y Designaciones se escriben mediante participantes
+locales dentro de la transacción PostgreSQL del consumidor. Se ordenan IDs antes
+de adquirir exclusión por archivo. Lector faltante, duplicado o fallido significa
+retención no verificable y bloquea borrado; nunca se interpreta como cero. DELETE
+directo referenciado devuelve `409 archivo-referenced`. Reemplazar/quitar CV o
+documentos desvincula primero; si un pedido u otro consumidor conserva la
+referencia, el objeto y la descarga autorizada permanecen.
+
+Para un archivo sin referencias, Storage marca primero `cuarentena` y fase
+`eliminando`; así no es descargable antes del I/O remoto. La llamada S3 ocurre
+fuera de transacción PostgreSQL. Si falla, queda reservada como no disponible y se
+puede reintentar (`409 archivo-delete-pending`); no reactivar ni borrar objetos
+ajenos manualmente. Tras éxito remoto se registra `eliminado`. `LimpiarAsync`
+revalida referencias, expiración, reservas activas y claves de intento. No existe
+atomicidad distribuida PostgreSQL–SeaweedFS ni protección ante escritores/DBA que
+omitan el protocolo.
+
+Pruebas de consumidores y proveedor real: `backend/tests/ArsDocendi.IntegrationTests/Storage/`
+y `Portal/ReferenciasPortalTests.cs`. La matriz y ejecución está en
+[portal-storage-tareas-post-auditoria](../evidence/portal-storage-tareas-post-auditoria.md);
+los ensayos de backup/restore se documentan en este runbook y en
+[migrations-persistence](migrations-persistence.md#ensayos-reproducibles).
+
 ## Capacidad y retención
 
 Revisar semanalmente:

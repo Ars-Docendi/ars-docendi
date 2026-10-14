@@ -270,6 +270,40 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Baja_valida_se_envia_sin_cargo_dedicacion_ni_horas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(Jefe, identityDb, db);
+
+        var baja = await servicio.CrearAsync(
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+            {
+                Novedad = Novedades.Baja,
+                CargoSolicitadoId = null,
+                DedicacionSolicitadaId = null,
+                Horas = null,
+                HorasInvestigacion = null,
+                HorasExternas = null,
+                TipoBaja = TiposBaja.Renuncia,
+                Adjuntos = [new GuardarAdjuntoPedidoDto(TiposAdjunto.Justificativo, "baja.pdf")],
+            }, ct);
+
+        var enviada = await servicio.AplicarAccionAsync(baja.Id, new AccionPedido.Enviar(), ct);
+
+        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviada.Estado);
+        Assert.Null(enviada.CargoSolicitado);
+        Assert.Null(enviada.DedicacionSolicitada);
+        Assert.Null(enviada.Horas);
+        Assert.Null(enviada.HorasInvestigacion);
+        Assert.Null(enviada.HorasExternas);
+        Assert.Equal(TiposBaja.Renuncia, enviada.TipoBaja);
+        Assert.Contains(enviada.Adjuntos, adjunto => adjunto.Tipo == TiposAdjunto.Justificativo);
+    }
+
+    [Fact]
     public async Task Backend_rechaza_materia_ajena_y_baja_sin_designacion_en_la_materia()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -471,7 +505,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         null, 128, null, EstadosArchivo.Disponible, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
     private sealed class AlmacenamientoFalso(Guid propietario, IReadOnlyList<ArchivoDto> disponibles)
-        : IAlmacenamientoArchivos
+        : IAlmacenamientoArchivos, IProteccionArchivos
     {
         private readonly IReadOnlyDictionary<Guid, ArchivoDto> archivos = disponibles.ToDictionary(x => x.Id);
 
@@ -512,6 +546,10 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         private static Stream CrearContenidoTransferido(byte[] bytes) => new MemoryStream(bytes);
 
         public Task EliminarAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) => Task.CompletedTask;
+
+        // Doble del contrato para validación funcional; las carreras se prueban con PostgreSQL real.
+        public Task<T> EjecutarAsync<T>(IReadOnlyCollection<Guid> ids,
+            Func<CancellationToken, Task<T>> operacion, CancellationToken ct) => operacion(ct);
 
         public Task<int> LimpiarAsync(DateTimeOffset ahora, CancellationToken ct) => Task.FromResult(0);
     }

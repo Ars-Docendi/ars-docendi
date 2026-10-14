@@ -12,11 +12,11 @@ GuardarPersonaPedidoDto = { documento, nombre, apellido }
 PedidoDto        = { id, numero, periodo{id,nombre}, persona, materia{id,codigo,nombre,carrera},
                      novedad, estado, prioritario, cargoSolicitado?, dedicacionSolicitada?, horas?,
                      horasInvestigacion?, horasExternas?, justificacion?, tipoBaja?,
-                     tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?,
+                     tipoBajaDetalle?, etapaRetorno?, propietarioActual?, snapshot?, version,
                      adjuntos[], historial[], accionesPermitidas[] }
 GuardarPedidoDto = { periodoId, personaId?, materiaId, carreraId, novedad, cargoSolicitadoId?,
                      dedicacionSolicitadaId?, horas?, horasInvestigacion?, horasExternas?,
-                     justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona? }
+                     justificacion?, tipoBaja?, tipoBajaDetalle?, adjuntos[], persona?, version? }
 AccionPedidoDto  = { comentario? }
 CatalogosDto     = { periodoActivo?, periodos[], personas[], materias[], cargos[],
                      dedicaciones[], tiposBaja[], novedades[] }
@@ -24,14 +24,18 @@ CatalogosDto     = { periodoActivo?, periodos[], personas[], materias[], cargos[
 
 Los valores cerrados pueden viajar en `CatalogosDto` para un contrato uniforme, aunque permanezcan reglas de dominio y no filas configurables.
 
+`PedidoDto.version` representa el `xmin` observado. La edición exige ese token en
+`GuardarPedidoDto.version`; la creación no exige una versión de una fila inexistente.
+
 En `Alta`, `persona` contiene `documento`, `nombre` y `apellido`; `personaId` se
 omite y el backend crea la persona canónica sin crear una cuenta en `identity.users`.
 También puede recibirse un `personaId` ya resuelto por compatibilidad. En `Baja` y
 `Cambio de cargo o dedicación`, `personaId` es obligatorio y `persona` está prohibido.
 `materiaId` y `carreraId` son siempre explícitos: no se resuelven por nombre ni se acepta una
 materia o carrera fuera del ámbito persistido del actor. Una materia dictada en más de una
-carrera exige elegir una. El primer login existente vincula la cuenta por documento a la persona
-ya creada.
+carrera exige elegir una. El primer login sólo vincula una cuenta Microsoft a un usuario
+previamente creado por administración según la política vigente; nunca crea una cuenta
+por haber registrado la persona en un Alta.
 
 ## Períodos y catálogos
 
@@ -91,6 +95,23 @@ estar activo. Identity aporta persona, CUIL, fecha de nacimiento y teléfono;
 
 Permiso de etapa significa `designaciones.aprobar_coordinacion`, `designaciones.aprobar_secretaria` o `designaciones.aprobar_decanato`; la política también deja pasar a Administración para rechazar o devolver, y el dominio le impide aceptar. En edición, reenvío y prioridad, `designaciones.ver` abre el endpoint y la máquina de estados valida rol, estado y ámbito.
 
+### Lectura de grilla versus detalle
+
+`GET /pedidos` entrega todas las filas visibles sin paginación. `adjuntos` está vacío;
+`historial` es un resumen de hasta cuatro eventos reales: primero, creación, primer
+envío y último, sin duplicados, ordenados por fecha e ID y con `comentario = null`.
+No es una historia completa ni la fuente para mostrar el detalle. Preserva nombres
+de actores históricos, fecha de envío/creación, última actualización y acciones.
+`GET /pedidos/{id}` y las respuestas de mutaciones conservan el historial completo,
+snapshot y adjuntos autorizados. La selección de personas/actores se hace por IDs
+visibles en lote, no mediante un directorio global.
+
+Enviar obtiene snapshot bajo el mismo guard persona–materia que administración y
+aprobación. Reenviar/aprobar no lo recalculan. Una observación administrativa de
+vigencia obsoleta produce `409 concurrency-conflict`; el circuito puede esperar y
+revalidar explícitamente el estado vigente antes de confirmar. No se repite una
+intención obsoleta en automático.
+
 ## Idempotencia
 
 `Idempotency-Key: <uuid>` es obligatorio en enviar, reenviar, aceptar, rechazar, devolver, priorizar y despriorizar. La clave se identifica junto con actor, ruta y pedido durante 24 horas:
@@ -103,15 +124,17 @@ Crear, editar y eliminar usan constraints y control de concurrencia, pero no el 
 
 ## Códigos de error adicionales
 
-| Código                       | HTTP | Uso                                   |
-| ---------------------------- | ---- | ------------------------------------- |
-| `pedido-transition-invalid`  | 422  | acción no admitida por estado o actor |
-| `pedido-scope-forbidden`     | 403  | pedido fuera del ámbito persistido    |
-| `pedido-duplicate-live`      | 409  | pedido vivo para persona/período      |
-| `periodo-active-conflict`    | 409  | segundo período activo                |
-| `periodo-in-use`             | 409  | eliminación con pedidos asociados     |
-| `idempotency-key-required`   | 400  | falta header en una transición        |
-| `idempotency-key-reused`     | 409  | clave reutilizada para otra operación |
-| `identity-document-conflict` | 409  | documento ya asociado a otra persona  |
+| Código                          | HTTP | Uso                                                                  |
+| ------------------------------- | ---- | -------------------------------------------------------------------- |
+| `pedido-transition-invalid`     | 422  | acción no admitida por estado o actor                                |
+| `pedido-scope-forbidden`        | 403  | pedido fuera del ámbito persistido                                   |
+| `pedido-duplicate-live`         | 409  | pedido vivo para persona/período                                     |
+| `periodo-active-conflict`       | 409  | segundo período activo                                               |
+| `periodo-in-use`                | 409  | eliminación con pedidos asociados                                    |
+| `idempotency-key-required`      | 400  | falta header en una transición                                       |
+| `idempotency-key-reused`        | 409  | clave reutilizada para otra operación                                |
+| `identity-document-conflict`    | 409  | documento ya asociado a otra persona                                 |
+| `identity-destination-conflict` | 409  | nuevo destino inexistente o actor desactivado durante la mutación    |
+| `concurrency-conflict`          | 409  | pedido/vigencia cambió respecto de la observación usada para guardar |
 
 El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las seis categorías activas 1–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura conserva `dedicacionSolicitada` como nombre histórico y agrega el ID opcional.

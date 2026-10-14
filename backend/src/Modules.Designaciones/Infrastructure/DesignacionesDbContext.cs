@@ -167,6 +167,7 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.OrigenPedidoId).HasColumnName("origen_pedido_id");
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.Ignore(x => x.EstaVigente);
+            e.Property(x => x.Version).IsRowVersion();
             e.HasOne(x => x.Cargo).WithMany().HasForeignKey(x => x.CargoId);
         });
 

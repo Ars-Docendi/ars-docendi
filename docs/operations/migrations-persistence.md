@@ -59,6 +59,7 @@ dotnet ArsDocendi.Host.dll --estado-migraciones
 dotnet ArsDocendi.Host.dll --script-migraciones -
 dotnet ArsDocendi.Host.dll --script-migraciones <directorio>
 dotnet ArsDocendi.Host.dll --migrate
+dotnet ArsDocendi.Host.dll --diagnosticar-integridad
 ```
 
 Estado stdout es exclusivamente JSON:
@@ -87,6 +88,35 @@ stderr. Esa variante evita binds cuando daemon/runner no comparten filesystem.
 El directorio existe como interfaz de operador; el deploy consume el tar.
 Preview representa intervalos pendientes del historial, no schema diff ni
 prueba de ausencia de drift manual. Se revalida justo antes de aplicar.
+
+### Preflight de integridad y saneamiento autorizado
+
+`--diagnosticar-integridad` es de solo lectura y termina sin listener. Requiere
+una instalación reconocida con schemas disponibles y permisos de lectura para
+todos los consumidores. La salida segura identifica ambiente, SHA, histories y
+categorías/conteos/IDs técnicos; exit no cero ante datos incompatibles, composición
+incompleta o lectura fallida. No imprime valores de filas ni errores SQL crudos.
+
+Detener escritores conocidos y conservar backup BD+objetos antes de usarlo como
+gate de release. Cada lectura local usa snapshot de solo lectura, pero no hay un
+snapshot global entre módulos. Un escritor administrativo externo o DBA puede
+omitir la coordinación: el diagnóstico detecta inconsistencias observadas, no
+certifica ausencia de drift ni aislamiento frente al owner.
+
+Si hay hallazgos, detener publicación y registrar una decisión de saneamiento
+manual específica por categoría e IDs técnicos; verificar respaldo, ejecutar
+solo el procedimiento aprobado y repetir diagnóstico. No auto-merge, auto-delete,
+relleno de campos, reseed ni reset. El apply no autoriza tratar PII histórica o
+intervenir datos reales. Los permisos y constraints nuevos se verifican de nuevo
+dentro de los incrementales para impedir que el preflight sustituya su garantía.
+
+### Auditoría histórica y costos de consulta
+
+`audit.change_log` puede conservar snapshots legados con nombres, documentos, contacto o identificadores Microsoft. La API aplica redacción por tabla, pero eso **no purga** los valores en PostgreSQL ni en backups. El runtime actual es owner de la base: vistas y `REVOKE` no aíslan los snapshots frente a ese owner/DBA. No existe en este cambio una política institucional de retención ni autorización para purga, anonimización o reescritura retrospectiva.
+
+Cualquier tratamiento posterior requiere política institucional y autorización operativa explícita, inventario read-only de categorías/conteos/IDs técnicos, writers detenidos, backup verificable, ensayo aislado, aprobación de alcance sobre historial y respaldos, y comparación posterior. La corrección del log de auditoría no habilita modificar el historial de trámites ni copiar datos productivos a staging/PR. Ver la clasificación, límites y procedimiento detallado en [evidencia de Auditoría, §7.4](../evidence/auditoria-implementacion.md#74-clasificación-acceso-y-tratamiento-histórico).
+
+La consulta administrativa de auditoría pagina hasta 50 filas por defecto y ejecuta el `COUNT` por separado. `AuditoriaRendimientoTests` captura SQL y parámetros reales de EF, verifica orden `(changed_at,id)`, límites y timeout, y compara página/COUNT con filtros de fecha, tabla y fila sobre 200.000 eventos sintéticos en PostgreSQL desechable. En la re-medición del 14-oct-2026, INSERT de 10.000 eventos tuvo mediana 163,890 ms / 3.612.549 bytes WAL sin candidato y 295,970 ms / 4.588.885 bytes WAL con índice fecha+ID (tamaño 8.019.968 bytes); son medidas de esta máquina, incluyen triggers y no constituyen SLA ni costo marginal aislado. Por esa evidencia se conserva BRIN y se crea sólo el índice temporal; las variantes de filtro, planes, COUNT y costo completo están en [evidencia de Auditoría, §7.5](../evidence/auditoria-implementacion.md#75-medición-reproducible-de-página-y-count). El benchmark usa transacciones revertidas y no toca bases ni eventos de negocio compartidos.
 
 ## Variables y scopes (sin secretos nuevos)
 

@@ -20,6 +20,12 @@ public static class ModuleExtensions
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoDesignaciones>();
+        services.AddScoped<ReferenciasArchivosDesignaciones>();
+        services.AddScoped<ArsDocendi.Storage.Contracts.IConsultasReferenciasArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
+        services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
 
         services.AddScoped<UnidadDeTrabajo>();
         services.AddScoped<RepositorioPedidos>();

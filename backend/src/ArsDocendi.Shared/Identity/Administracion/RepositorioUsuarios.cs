@@ -38,7 +38,7 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         ConsultaCompleta(false).SingleOrDefaultAsync(u => u.Id == id, ct);
 
     public Task<bool> ExisteUpnAsync(string upn, Guid? exceptoId, CancellationToken ct) =>
-        db.Usuarios.AsNoTracking().AnyAsync(u => u.Upn == upn && u.Id != exceptoId, ct);
+        db.Usuarios.AsNoTracking().AnyAsync(u => u.Upn.Trim().ToLower() == upn.Trim().ToLower() && u.Id != exceptoId, ct);
 
     public Task<bool> ExisteDocumentoAsync(
         string documento,
@@ -52,7 +52,8 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         CancellationToken ct) =>
         // Estas entidades se vinculan a nuevas asignaciones. Mantenerlas bajo
         // tracking evita que EF interprete los roles existentes como inserts.
-        await db.Roles.Where(r => ids.Contains(r.Id) && r.Activo).ToListAsync(ct);
+        await db.Roles.FromSqlInterpolated($"SELECT r.*, r.xmin FROM identity.roles r WHERE id = ANY({ids.ToArray()}) ORDER BY id FOR SHARE")
+            .Where(r => r.Activo).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(
         IReadOnlyCollection<Guid> ids,
@@ -111,7 +112,7 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         {
             var traducido = pg.ConstraintName switch
             {
-                "users_upn_key" => new ExcepcionAplicacion(
+                "users_upn_key" or "users_upn_normalizado_key" when pg.SqlState == PostgresErrorCodes.UniqueViolation => new ExcepcionAplicacion(
                     TipoErrorAplicacion.Conflicto,
                     "identity-upn-conflict",
                     "Ya existe otro usuario con esa UPN."),
@@ -127,6 +128,10 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
                     TipoErrorAplicacion.ReglaDeNegocio,
                     "identity-role-scope-conflict",
                     "No se puede repetir la misma asignación de rol y ámbito."),
+                "user_roles_scope_coherente" when pg.SqlState == PostgresErrorCodes.CheckViolation => new ExcepcionAplicacion(
+                    TipoErrorAplicacion.Conflicto,
+                    "identity-role-scope-conflict",
+                    "El ámbito del rol cambió. Actualizá los datos antes de asignarlo."),
                 _ => null,
             };
             if (traducido is not null) throw traducido;

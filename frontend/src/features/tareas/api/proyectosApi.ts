@@ -41,16 +41,24 @@ export function crearProyecto(datos: DatosEditablesProyecto): Promise<Proyecto> 
   );
 }
 
-export function editarProyecto(id: string, datos: DatosEditablesProyecto): Promise<Proyecto> {
+export function editarProyecto(
+  id: string,
+  datos: DatosEditablesProyecto,
+  version: number,
+): Promise<Proyecto> {
   return pedir(
-    apiClient.put<Proyecto>(`/api/tareas/proyectos/${id}`, datos),
+    apiClient.put<Proyecto>(`/api/tareas/proyectos/${id}`, { ...datos, version }),
     "No se pudo guardar el proyecto.",
   );
 }
 
-export function cambiarEstadoProyecto(id: string, estado: EstadoProyecto): Promise<Proyecto> {
+export function cambiarEstadoProyecto(
+  id: string,
+  estado: EstadoProyecto,
+  version: number,
+): Promise<Proyecto> {
   return pedir(
-    apiClient.post<Proyecto>(`/api/tareas/proyectos/${id}/estado`, { estado }),
+    apiClient.post<Proyecto>(`/api/tareas/proyectos/${id}/estado`, { estado, version }),
     "No se pudo cambiar el estado del proyecto.",
   );
 }

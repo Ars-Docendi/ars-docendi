@@ -211,6 +211,12 @@ namespace Modules.Designaciones.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("persona_id");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<DateOnly>("VigenteDesde")
                         .HasColumnType("date")
                         .HasColumnName("vigente_desde");

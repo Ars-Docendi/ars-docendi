@@ -22,6 +22,7 @@ public sealed class ServicioUsuarios(
         CancellationToken ct)
     {
         ValidarDatos(datos);
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         var upn = NormalizarUpn(datos.Upn);
         var documento = datos.Documento.Trim();
         await ValidarUnicidadAsync(upn, documento, null, null, ct);
@@ -56,7 +57,6 @@ public sealed class ServicioUsuarios(
             usuario.Roles.Add(asignacion);
         }
 
-        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         repositorio.Agregar(persona, usuario);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
@@ -85,6 +85,7 @@ public sealed class ServicioUsuarios(
             try
             {
                 db.ChangeTracker.Clear();
+                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
                 var usuario = await ObtenerRequeridoAsync(id, ct);
                 repositorio.EsperarVersion(usuario, datos.Version.Value);
                 var persona = usuario.Persona!;
@@ -93,7 +94,6 @@ public sealed class ServicioUsuarios(
                 await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
                 var nuevas = await ConstruirAsignacionesAsync(datos.Membresias, ct);
 
-                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
                 persona.Documento = documento;
                 persona.Cuil = NormalizarOpcional(datos.Cuil);
                 persona.Legajo = NormalizarOpcional(datos.Legajo);

@@ -15,7 +15,7 @@ namespace Modules.Designaciones.Services;
 /// transición con su evento de historial y dispara la materialización cuando el
 /// pedido termina de recorrer el circuito.
 /// </summary>
-internal sealed class ServicioPedidos(
+internal sealed partial class ServicioPedidos(
     RepositorioPedidos pedidos,
     RepositorioDesignaciones designaciones,
     MaterializadorDesignaciones materializador,
@@ -24,7 +24,8 @@ internal sealed class ServicioPedidos(
     UnidadDeTrabajo unidadDeTrabajo,
     ILogger<ServicioPedidos> logger,
     IAdministracionIdentity? administracionIdentity = null,
-    IAlmacenamientoArchivos? almacenamiento = null)
+    IAlmacenamientoArchivos? almacenamiento = null,
+    IProteccionArchivos? proteccionArchivos = null)
 {
     /// <summary>
     /// Crea un pedido en borrador.
@@ -35,7 +36,15 @@ internal sealed class ServicioPedidos(
     /// al mismo error de dominio.
     /// </para>
     /// </summary>
-    public async Task<Pedido> CrearAsync(DatosPedido datos, CancellationToken ct)
+    private async Task<Pedido> CrearProtegidoAsync(DatosPedido datos, CancellationToken ct)
+    {
+        Pedido resultado = null!;
+        await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
+            resultado = await CrearEnTransaccionAsync(datos, token), ct);
+        return resultado;
+    }
+
+    private async Task<Pedido> CrearEnTransaccionAsync(DatosPedido datos, CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
@@ -47,6 +56,7 @@ internal sealed class ServicioPedidos(
 
         var archivos = await ValidarDatosAsync(datos, actor, ct);
         var datosResueltos = await ResolverPersonaAsync(datos, ct);
+        await designaciones.ValidarDestinosAsync([actor.UsuarioId], [datosResueltos.PersonaId!.Value], ct);
 
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datosResueltos.PeriodoId, datosResueltos.PersonaId!.Value, null, ct))
@@ -83,7 +93,7 @@ internal sealed class ServicioPedidos(
         return pedido;
     }
 
-    public async Task<Pedido> EditarAsync(Guid pedidoId, DatosPedido datos, CancellationToken ct)
+    private async Task<Pedido> EditarProtegidoAsync(Guid pedidoId, DatosPedido datos, CancellationToken ct)
     {
         if (datos.Version is null)
         {
@@ -110,6 +120,8 @@ internal sealed class ServicioPedidos(
 
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
+            await designaciones.ValidarDestinosAsync([actor.UsuarioId],
+                pedido.PersonaId == datos.PersonaId.Value ? [] : [datos.PersonaId.Value], token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
             pedido.PeriodoId = datos.PeriodoId;
             pedido.PersonaId = datos.PersonaId.Value;
@@ -136,34 +148,36 @@ internal sealed class ServicioPedidos(
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
-        var pedido = await pedidos.ObtenerLivianoAsync(pedidoId, ct)
+        var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
 
         var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
         var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, alcance, accion, actor);
 
-        // El snapshot se congela AL ENVIAR, no al crear: mientras el pedido está en
-        // borrador vale el estado vigente del docente. Una vez enviado, el trámite
-        // conserva su verdad histórica aunque la designación cambie después.
-        if (transicion.AccionHistorial == AccionesHistorial.Enviar)
-        {
-            await ValidarDesignacionVigenteAsync(pedido, ct);
-            pedido.Snapshot = await ArmarSnapshotAsync(pedido, ct);
-        }
-
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
+            await designaciones.ValidarDestinosAsync([actor.UsuarioId], [pedido.PersonaId], token);
+            await designaciones.BloquearAsync(pedido.PersonaId, pedido.MateriaId, token);
+            if (accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
+            {
+                await ValidarCompletitudCircuitoAsync(pedido, token);
+                await ValidarDesignacionVigenteAsync(pedido, token);
+            }
+            // La fotografía se obtiene después de esperar administración y antes de commit.
+            // Reenviar/aprobar nunca recalculan la verdad histórica del primer envío.
+            if (transicion.AccionHistorial == AccionesHistorial.Enviar)
+                pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
             AplicarTransicion(pedido, transicion);
-            RegistrarEnHistorial(
-                pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, transicion.Comentario);
+            var comentario = transicion.Comentario;
 
-            // El circuito terminó: el trámite se vuelve realidad sobre el estado
-            // vigente. Va dentro de la misma transacción que la transición para que un
-            // fallo parcial no deje un pedido aprobado sin designación.
+            // Vigencias e historial se confirman en la misma transacción.
             if (transicion.EstadoResultante == EstadosPedido.EnLote)
             {
-                await materializador.MaterializarAsync(pedido, token);
+                var detalle = await materializador.MaterializarAsync(pedido, token);
+                if (detalle is not null)
+                    comentario = string.IsNullOrWhiteSpace(comentario) ? detalle : comentario + "\n" + detalle;
             }
+            RegistrarEnHistorial(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario);
 
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -180,7 +194,7 @@ internal sealed class ServicioPedidos(
     /// eliminar no deja evento en el historial: el pedido deja de existir. Un devuelto
     /// no se puede eliminar aunque sea editable — ya tiene una revisión asociada.
     /// </summary>
-    public async Task EliminarBorradorAsync(Guid pedidoId, CancellationToken ct)
+    private async Task EliminarBorradorProtegidoAsync(Guid pedidoId, CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 

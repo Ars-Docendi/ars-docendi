@@ -106,6 +106,10 @@ namespace ArsDocendi.Storage.Infrastructure.Migrations
                         .HasColumnName("tamano_bytes");
 
                     b.HasKey("Id");
+                    b.Property<Guid?>("IntentoId").HasColumnType("uuid").HasColumnName("intento_id");
+                    b.Property<Guid?>("ReservaId").HasColumnType("uuid").HasColumnName("reserva_id");
+                    b.Property<DateTimeOffset?>("ReservaHasta").HasColumnType("timestamp with time zone").HasColumnName("reserva_hasta");
+                    b.Property<string>("FaseCarga").HasColumnType("text").HasColumnName("fase_carga");
 
                     b.HasIndex("Ambiente", "ClaveObjeto")
                         .IsUnique();

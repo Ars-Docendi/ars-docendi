@@ -94,6 +94,26 @@ estado final anterior (se retiró su FK compuesta en alpha). Este squash no
 inventa ni elimina constraints para corregir esa discrepancia: conserva el
 schema comprobado. Agregar una FK exige otro cambio/migración con su validación.
 
+## Diagnóstico previo a garantías nuevas
+
+```bash
+dotnet ArsDocendi.Host.dll --diagnosticar-integridad
+```
+
+Ejecutar con la conexión del destino inyectada por el canal seguro y escritores
+conocidos detenidos. Este modo no levanta listener ni aplica migraciones. Devuelve
+JSON con ambiente, release, histories observados y hallazgos de referencias,
+normalización y jerarquía, limitados a categorías/conteos/IDs técnicos. Exit 1
+ante incompatibilidad o falta de acceso; jamás interpretar un lector faltante
+como cero referencias. Las lecturas locales son transacciones de solo lectura,
+no una única fotografía global de todos los módulos ni una detección de drift.
+
+Ante incompatibilidad: detener publicación, conservar evidencia y backup,
+solicitar saneamiento manual específico y volver a diagnosticar. No fusionar
+cuentas, inventar horas, reasignar huérfanos, purgar eventos ni resetear destinos
+como parte del upgrade. La migración incremental debe validar también sus
+invariantes al aplicar, para no convertir este diagnóstico en garantía TOCTOU.
+
 ## Autoría posterior
 
 Nunca editar un SQL o wrapper ya aplicado. Crear una **migración incremental

@@ -187,7 +187,32 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
             VALUES (@usuario, @rol, @carrera, @materia)
             """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("carrera", carrera), new NpgsqlParameter("materia", materia)));
 
-        Assert.Equal(PostgresErrorCodes.RaiseException, error.SqlState);
+        Assert.Equal(PostgresErrorCodes.CheckViolation, error.SqlState);
+        Assert.Equal("user_roles_scope_coherente", error.ConstraintName);
+    }
+
+    [Fact]
+    public async Task Rol_materia_personalizado_se_asigna_sin_carrera()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        var usuario = await InsertarUsuarioAsync(conexion);
+        var (_, materia) = await InsertarCarreraMateriaAsync(conexion);
+        var rol = Guid.NewGuid();
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.roles (id, code, name, scope)
+            VALUES (@rol, 'revisor_materia_custom', 'Revisor materia', 'materia')
+            """, new NpgsqlParameter("rol", rol));
+
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.user_roles (user_id, role_id, materia_id)
+            VALUES (@usuario, @rol, @materia)
+            """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("materia", materia));
+
+        var carreraNula = await EscalarAsync<bool>(conexion, """
+            SELECT carrera_id IS NULL FROM identity.user_roles
+            WHERE user_id = @usuario AND role_id = @rol AND materia_id = @materia
+            """, new NpgsqlParameter("usuario", usuario), new NpgsqlParameter("rol", rol), new NpgsqlParameter("materia", materia));
+        Assert.True(carreraNula);
     }
 
     [Fact]

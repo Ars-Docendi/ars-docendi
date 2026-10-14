@@ -9,6 +9,7 @@ const ADMINISTRADOR: ActorTarea = { nombre: "Ernesto Vidal", rol: "Administrador
 
 function tarea(overrides: Partial<Tarea> = {}): Tarea {
   return {
+    version: 1,
     id: "t1",
     numero: 1,
     titulo: "Revisar aulas del turno noche",

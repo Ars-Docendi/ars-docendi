@@ -50,7 +50,9 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         var ct = TestContext.Current.CancellationToken;
         var estados = new List<EstadoMigracionesModulo>();
         foreach (var migrador in migradores) estados.Add(await migrador.ConsultarAsync(ct));
-        Assert.Equal(9, estados.Sum(x => x.Pendientes.Count));
+        Assert.All(estados, estado => Assert.Empty(estado.Aplicadas));
+        Assert.True(estados.Sum(x => x.Disponibles.Count) >= 9);
+        Assert.Equal(estados.Sum(x => x.Disponibles.Count), estados.Sum(x => x.Pendientes.Count));
         var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, "runtime-test", ct);
         Assert.Equal(5, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
         Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas')"));
@@ -84,9 +86,10 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
     {
         var ct = TestContext.Current.CancellationToken;
         foreach (var migrador in migradores) await migrador.MigrarAsync(ct);
+        var cantidadAnterior = await Escalar("SELECT count(*) FROM identity.\"__EFMigrationsHistory\"");
         await Ejecutar("INSERT INTO identity.\"__EFMigrationsHistory\" VALUES ('historia-alpha-retirada', '10.0.11')");
         await Assert.ThrowsAsync<InvalidOperationException>(() => migradores[0].MigrarAsync(ct));
-        Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.\"__EFMigrationsHistory\""));
+        Assert.Equal(cantidadAnterior + 1, await Escalar("SELECT count(*) FROM identity.\"__EFMigrationsHistory\""));
         Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.roles"));
     }
 
@@ -108,7 +111,8 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal([
             "20261005000400_PermisosTareas",
             "20261005000500_CuentaMicrosoftUsuarios",
-        ], estado.Pendientes);
+        ], estado.Pendientes.Take(2));
+        Assert.Equal(estado.Disponibles.Count - estado.Aplicadas.Count, estado.Pendientes.Count);
         await identityMigrador.MigrarAsync(ct);
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
@@ -117,7 +121,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.ver'"));
         Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.gestionar'"));
         Assert.Equal(3L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='proyectos.gestionar'"));
-        Assert.Equal(3L, await Escalar("SELECT count(*) FROM identity.\"__EFMigrationsHistory\""));
+        Assert.Equal((long)estado.Disponibles.Count, await Escalar("SELECT count(*) FROM identity.\"__EFMigrationsHistory\""));
         var auditoria = await Escalar("SELECT count(*) FROM audit.change_log");
         await identityMigrador.MigrarAsync(ct);
         Assert.Empty((await identityMigrador.ConsultarAsync(ct)).Pendientes);

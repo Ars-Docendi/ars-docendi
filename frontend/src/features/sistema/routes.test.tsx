@@ -7,6 +7,9 @@ import type { CurrentUserState } from "../../shared/auth/useCurrentUser";
 import { routes } from "./routes";
 
 vi.mock("../../shared/auth/useCurrentUser", () => ({ useCurrentUser: vi.fn() }));
+// Este test verifica el guard real y las rutas, no las dependencias de las páginas lazy.
+vi.mock("./pages/DashboardPage", () => ({ DashboardPage: () => <p>Sistema</p> }));
+vi.mock("./pages/AuditoriaPage", () => ({ AuditoriaPage: () => <p>Auditoría</p> }));
 
 const usuario: CurrentUserState = {
   user: {
@@ -26,6 +29,22 @@ const usuario: CurrentUserState = {
 beforeEach(() => vi.mocked(useCurrentUser).mockReturnValue(usuario));
 
 describe("rutas del sistema protegidas por permiso", () => {
+  it.each([
+    ["/sistema", "sistema.estado.ver", "Sistema"],
+    ["/auditoria", "auditoria.ver", "Auditoría"],
+  ])("permite %s con el permiso %s", async (ruta, permiso, pagina) => {
+    vi.mocked(useCurrentUser).mockReturnValue({
+      ...usuario,
+      user: { ...usuario.user!, permissions: [permiso] },
+    });
+    const router = createMemoryRouter([{ path: "/", element: <p>Inicio</p> }, ...routes], {
+      initialEntries: [ruta],
+    });
+    render(<RouterProvider router={router} />);
+    expect(await screen.findByText(pagina)).toBeInTheDocument();
+    expect(screen.queryByText("Inicio")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["/sistema", "auditoria.ver"],
     ["/auditoria", "sistema.estado.ver"],

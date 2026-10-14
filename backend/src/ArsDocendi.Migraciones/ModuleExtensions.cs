@@ -9,6 +9,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddMigracionesIdentity(this IServiceCollection services)
     {
         services.AddScoped<IMigradorModulo, MigradorIdentity>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoIdentity>();
         return services;
     }
 }

@@ -54,6 +54,11 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         Guid personaId,
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct)
+        => await repositorio.EjecutarCoordinadoAsync(personaId,
+            token => ReemplazarProtegidoAsync(personaId, designaciones, token), ct);
+
+    private async Task<IReadOnlyList<DesignacionVigenteDto>> ReemplazarProtegidoAsync(
+        Guid personaId, IReadOnlyList<GuardarDesignacionVigenteDto> designaciones, CancellationToken ct)
     {
         await ValidarReemplazoAsync(personaId, designaciones, ct);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(personaId, ct);
@@ -100,8 +105,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         }
 
         await repositorio.GuardarAsync(ct);
-        return (await repositorio.ListarTodasVigentesSinTrackingAsync(ct))
-            .Where(d => d.PersonaId == personaId)
+        return (await repositorio.ListarVigentesDePersonaSinTrackingAsync(personaId, ct))
             .Select(Mapear)
             .OrderBy(d => d.MateriaId)
             .ToArray();

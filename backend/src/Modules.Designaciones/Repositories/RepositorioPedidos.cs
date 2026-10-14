@@ -5,7 +5,7 @@ using Npgsql;
 
 namespace Modules.Designaciones.Repositories;
 
-internal sealed class RepositorioPedidos(DesignacionesDbContext db)
+internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
 {
     /// <summary>
     /// Nombre del índice único parcial que impone BR-designaciones-001. Debe coincidir
@@ -52,9 +52,6 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
-                .Include(p => p.Adjuntos)
-                .Include(p => p.Historial)
-                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId && materiaIds.Contains(p.MateriaId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -67,9 +64,6 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
-                .Include(p => p.Adjuntos)
-                .Include(p => p.Historial)
-                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId && carreraIds.Contains(p.CarreraId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
@@ -81,9 +75,6 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
-                .Include(p => p.Adjuntos)
-                .Include(p => p.Historial)
-                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId)
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)

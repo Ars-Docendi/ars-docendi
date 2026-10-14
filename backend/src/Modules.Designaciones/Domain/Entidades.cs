@@ -185,6 +185,8 @@ public sealed class Designacion
     public Cargo? Cargo { get; set; }
 
     public bool EstaVigente => VigenteHasta is null;
+    /// <summary>Token PostgreSQL xmin: una escritura no pisa una vigencia cargada antes de otro commit.</summary>
+    public uint Version { get; set; }
 }
 
 /// <summary>Respuesta confirmada de un comando con clave de idempotencia.</summary>

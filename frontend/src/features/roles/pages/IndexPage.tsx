@@ -8,6 +8,7 @@ import { ModalEditarRol } from "../components/ModalEditarRol";
 import { ModalNuevoRol } from "../components/ModalNuevoRol";
 import { PanelPermisos } from "../components/PanelPermisos";
 import { useMembresiaRol, useRoles } from "../hooks/useRoles";
+import { mensajeConflictoRol } from "../erroresRol";
 import {
   normalizarTexto,
   type DatosRolEditables,
@@ -49,7 +50,12 @@ export function IndexPage() {
   function handleCrear(datos: DatosRolNuevo, rolBaseId: string | null) {
     remoto.crear.mutate(
       { datos, rolBaseId },
-      { onSuccess: (creado) => setRolSeleccionadoId(creado.id) },
+      {
+        onSuccess: (creado) => {
+          setRolSeleccionadoId(creado.id);
+          setModalNuevo(false);
+        },
+      },
     );
   }
 
@@ -76,7 +82,13 @@ export function IndexPage() {
         meta={`${roles.length} roles`}
         actions={
           puedeAdministrar ? (
-            <Button variant="primary" onClick={() => setModalNuevo(true)}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                remoto.crear.reset();
+                setModalNuevo(true);
+              }}
+            >
               Nuevo rol
             </Button>
           ) : undefined
@@ -91,7 +103,7 @@ export function IndexPage() {
       )}
       {(remoto.crear.isError || remoto.editar.isError || remoto.eliminar.isError) && (
         <p role="alert">
-          No se pudo guardar el cambio del rol. Revisá los datos e intentá nuevamente.
+          {mensajeConflictoRol(remoto.crear.error ?? remoto.editar.error ?? remoto.eliminar.error)}
         </p>
       )}
       {membresia.catalogo.isError || membresia.asignados.isError || membresia.guardar.isError ? (
@@ -109,7 +121,10 @@ export function IndexPage() {
             setRolSeleccionadoId(rol.id);
           }}
           puedeAdministrar={puedeAdministrar}
-          onEditar={setRolAEditar}
+          onEditar={(rol) => {
+            remoto.editar.reset();
+            setRolAEditar(rol);
+          }}
           onEliminar={setRolAEliminar}
         />
         {rolSeleccionado && (membresia.catalogo.isLoading || membresia.asignados.isLoading) ? (
@@ -141,10 +156,13 @@ export function IndexPage() {
       </div>
 
       <ModalNuevoRol
+        key={String(modalNuevo)}
         open={modalNuevo}
         rolesExistentes={roles}
         nombresExistentes={roles.map((rol) => rol.nombre)}
         onCrear={handleCrear}
+        guardando={remoto.crear.isPending}
+        error={remoto.crear.isError ? mensajeConflictoRol(remoto.crear.error) : undefined}
         onCerrar={() => setModalNuevo(false)}
       />
       <ModalEditarRol
@@ -153,6 +171,8 @@ export function IndexPage() {
           .filter((rol) => rol.id !== rolAEditar?.id)
           .map((rol) => rol.nombre)}
         onGuardar={handleEditar}
+        guardando={remoto.editar.isPending}
+        error={remoto.editar.isError ? mensajeConflictoRol(remoto.editar.error) : undefined}
         onCerrar={() => setRolAEditar(null)}
       />
       <Modal

@@ -167,6 +167,26 @@
 
 Todo BR-\* debe tener al menos un test verificando la regla.
 
+### Cobertura técnica post-auditoría (no nuevas BR normativas)
+
+La política intradía y los guards de concurrencia/lectura son decisiones técnicas
+aprobadas del change `corregir-integridad-y-rendimiento-post-auditoria`; no agregan
+normativa, plazos o autoridad de aprobación. Conservan las fuentes pendientes
+anteriores y refuerzan su ejecución:
+
+| Cobertura                                                                                        | Tests persistentes                                                                   | Relación con reglas existentes                                                  |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Administración vs envío/aprobación, relectura protegida y conflicto de observación obsoleta      | `CoordinacionAdministracionTests.cs`, `ConcurrenciaVigenciasTests.cs`                | BR-008/009/013; estado, snapshot y eventos no parciales                         |
+| Actor desactivado tras prevalidación, nueva persona inexistente y transacción local/ambiente     | `DestinosLogicosDesignacionesTests.cs`, `DestinosPedidosTests.cs`                    | BR-009; referencia canónica/elegibilidad actual, sin reemplazar autor histórico |
+| Grilla completa, actor/fechas/acciones, historia 200→2.000 sin expansión y relectura por persona | `ListadoPedidosTests.cs`, `LecturasSelectivasDesignacionesTests.cs`                  | BR-009/013/014; mismas acciones y ámbitos, detalle no truncado                  |
+| Intradía: mismo ID/inicio y tres cargas/orígenes; rollback y snapshot inmutable                  | `VigenciasPedidosTests.cs`, `VigenciasPedidosCasosTests.cs`                          | BR-004/008/018; no inventa cargo/horas/legajo                                   |
+| Identidad sin cuenta y exportación sin mutación                                                  | `PedidosApiTests.cs`, `ExportacionLoteTests.cs`, `Identity/IngresoMicrosoftTests.cs` | BR-002/009; login no provisiona usuarios                                        |
+
+Los nombres sin prefijo están bajo
+`backend/tests/ArsDocendi.IntegrationTests/Designaciones/`; `Identity/IngresoMicrosoftTests.cs`
+parte de `backend/tests/ArsDocendi.IntegrationTests/`.
+Resultados y límites: [evidencia 3.6–3.8](../evidence/designaciones-3.6-3.8.md).
+
 ## Pendientes (SCRUM-8)
 
 ✅ **Completado.** Las reglas del circuito de aprobación (BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017) quedaron registradas arriba **con sus tests** en el change `flujo-aprobacion-designaciones`. No quedan BR pendientes de SCRUM-8.

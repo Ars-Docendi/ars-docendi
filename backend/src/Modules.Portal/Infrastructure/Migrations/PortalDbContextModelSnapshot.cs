@@ -25,6 +25,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Certificacion", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -68,6 +74,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Contacto", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -102,6 +114,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Cv", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -216,6 +234,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Educacion", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -264,6 +288,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Experiencia", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -356,6 +386,13 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Perfil", b =>
                 {
+                    b.Property<long>("VersionHabilidades")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version_habilidades");
+                    b.Property<long>("VersionIntereses")
+                        .HasColumnType("bigint")
+                        .HasColumnName("version_intereses");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
@@ -382,6 +419,12 @@ namespace Modules.Portal.Infrastructure.Migrations
 
             modelBuilder.Entity("Modules.Portal.Domain.Proyecto", b =>
                 {
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")

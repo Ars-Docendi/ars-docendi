@@ -86,6 +86,14 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 
 ### Designaciones (`/api/designaciones/`)
 
+La grilla conserva todas las filas y acciones, sin documentos ni historia completa;
+entrega un resumen acotado de eventos para fechas/actor/orden. El detalle conserva
+historial y snapshot completos. Administración y circuito coordinan la vigencia por
+persona–materia: snapshot protegido al enviar, revalidación o `409 concurrency-conflict`
+antes de commit. Las nuevas referencias validan destinos en la misma transacción;
+`409 identity-destination-conflict` no agrega eventos parciales. Ver el
+[contrato detallado](./api-contracts-designaciones.md#lectura-de-grilla-versus-detalle).
+
 | Método | Path    | Rol mínimo | Descripción                           |
 | ------ | ------- | ---------- | ------------------------------------- |
 | GET    | `/ping` | (anónimo)  | Health check del módulo               |
@@ -108,6 +116,21 @@ Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respues
 | POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
 | PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
 
+La lectura completa usa seis consultas EF split dentro de un snapshot
+`REPEATABLE READ`: preserva las secciones completas sin multiplicar colecciones
+hermanas. La identidad se resuelve por cuenta concreta y la metadata documental
+mediante un lote de IDs, no mediante directorios globales ni un lookup por adjunto.
+
+Las respuestas de contacto, CV e ítems de trayectoria/proyectos contienen `version`.
+PUT y DELETE de secciones existentes requieren la versión observada; DELETE la
+recibe como parámetro de query. Habilidades e intereses usan tokens independientes
+`versionHabilidades`/`versionIntereses`, enviados como `version` al reemplazar esa
+sección. Una creación no exige un token de fila inexistente. Un conflicto devuelve
+`409 concurrency-conflict`; el cliente muestra el conflicto, invalida la lectura
+y solicita recargar, sin repetir ciegamente el guardado. El perfil incidental y
+los términos normalizados se crean mediante UPSERT sin convertir ediciones
+incompatibles en operaciones idempotentes.
+
 Los cambios de CV y documentos reciben `archivoId`; no aceptan URI, bucket,
 clave ni estado enviado por el cliente. Las descargas pasan por el backend:
 `GET /api/portal/perfil/cv/descarga` y
@@ -125,6 +148,22 @@ clave ni estado enviado por el cliente. Las descargas pasan por el backend:
 
 Una carga pendiente, rechazada, expirada o de otro propósito produce Problem
 Details estable y nunca puede asociarse a Portal o Designaciones.
+
+Cada upload reserva un intento persistido con clave inmutable. La confirmación
+publica mediante CAS únicamente los bytes verificados de ese intento; un PUT
+tardío no puede reemplazar la clave publicada. Una confirmación ya publicada es
+idempotente. Reserva, recuperación y limpieza usan tokens de intento y vencimiento;
+ninguna transacción PostgreSQL permanece abierta durante stream o antivirus.
+
+Asociar/desvincular y reservar eliminación comparten exclusión transaccional por
+archivo, en orden estable de IDs, y participantes locales enlistados en una única
+conexión/transacción. Portal y Designaciones consultan sus referencias mediante
+contratos puros; un consumidor faltante/fallido impide el borrado. DELETE directo
+de un archivo referenciado devuelve conflicto sin quitar su descarga. Reemplazar
+CV/documento primero confirma la desvinculación y luego evalúa retención; otra
+referencia conserva los bytes. Un fallo remoto tras reservar eliminación mantiene
+indisponibilidad y permite reintentar, nunca vuelve a publicar por una revisión
+tardía.
 
 ### Tareas (`/api/tareas/`)
 
@@ -147,6 +186,12 @@ Acceso por permiso del rol vigente (no por nombre de rol). `tareas.ver` lo tiene
 | POST        | `/proyectos`                                    | `proyectos.gestionar` | Crear proyecto (Responsable: Decanato o Secretaría Académica)                                                                  |
 | PUT         | `/proyectos/{id}`                               | `proyectos.gestionar` | Editar nombre, descripción, fechas y Responsable (el estado se cambia aparte); el Responsable se revalida solo si cambia       |
 | POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                               |
+
+Una solicitud valida el Proyecto efectivo de la tarea hija bajo los mismos locks que serializan el cierre del proyecto; nuevas altas no entran en un estado que no admita tareas. Si la edición conserva el Proyecto actual, un estado cerrado no convierte esa edición en una reasignación. El cambio de Proyecto de una raíz propaga el nuevo valor a los descendientes existentes, incluidos `NULL` heredados, dentro de la misma transacción.
+
+Tarea y Proyecto exponen `version` (`xmin`). PUT y cambios de estado/avance requieren la versión observada; ausencia/obsolescencia responde `409 concurrency-conflict` antes de persistir historial parcial. El frontend invalida/recarga y deja la resolución al usuario, sin reintento ciego. La relación bidireccional es idempotente para pares canónicos; borrar una relación ausente también responde éxito.
+
+Los filtros de visibilidad y jerarquía se aplican antes de materializar/límite; nombres e historial se resuelven para IDs visibles, manteniendo identidades inactivas sólo para lectura histórica. El proyecto requerido por hijas y la solución de tareas resueltas se validan además mediante constraints SQL incrementales, usando IDs de catálogos numéricos; no se exige Proyecto a tareas raíz ni se expone reparenting.
 
 ## Idempotencia
 

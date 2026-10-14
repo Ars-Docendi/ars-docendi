@@ -30,6 +30,7 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
         modelBuilder.Entity<Proyecto>(e =>
         {
             e.ToTable("proyectos", Schema, t => t.ExcludeFromMigrations());
+            e.Property(x => x.Version).IsRowVersion();
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property(x => x.Numero).HasColumnName("numero")
@@ -46,6 +47,7 @@ public sealed class TareasDbContext(DbContextOptions<TareasDbContext> options) :
         modelBuilder.Entity<Tarea>(e =>
         {
             e.ToTable("tareas", Schema, t => t.ExcludeFromMigrations());
+            e.Property(x => x.Version).IsRowVersion();
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
             e.Property(x => x.Numero).HasColumnName("numero")
