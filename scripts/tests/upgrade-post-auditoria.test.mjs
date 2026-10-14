@@ -7,13 +7,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  anterior,
-  crearHarness,
-  esperar,
-  hash,
-  repo,
-} from "./fixtures/upgrade-post-auditoria/harness.mjs";
+import { crearHarness, esperar, hash, repo } from "./fixtures/upgrade-post-auditoria/harness.mjs";
 
 import { verificarCandidato } from "./fixtures/upgrade-post-auditoria/candidato.mjs";
 

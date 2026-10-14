@@ -1,6 +1,5 @@
 // Reproducciones del DDL anterior, no pruebas de corrección del candidato.
 const persona = "'10000000-0000-4000-8000-000000000001'";
-const usuario = "'10000000-0000-4000-8000-000000000002'";
 const carrera = "'10000000-0000-4000-8000-000000000003'";
 const materia = "'10000000-0000-4000-8000-000000000004'";
 const rol = "'10000000-0000-4000-8000-000000000005'";

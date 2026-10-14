@@ -99,8 +99,10 @@ internal sealed partial class ServicioPedidos(
         {
             throw new ErrorDominioPedido("La edición requiere la versión vigente del pedido.");
         }
-        if (datos.PersonaId is null || datos.Persona is not null)
+        if (datos.Persona is not null)
             throw new ErrorDominioPedido("La edición debe referir a una persona canónica existente.");
+        var personaId = datos.PersonaId
+            ?? throw new ErrorDominioPedido("La edición debe referir a una persona canónica existente.");
         var actor = await resolutorActor.ResolverAsync(ct);
         var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
@@ -121,10 +123,10 @@ internal sealed partial class ServicioPedidos(
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
             await designaciones.ValidarDestinosAsync([actor.UsuarioId],
-                pedido.PersonaId == datos.PersonaId.Value ? [] : [datos.PersonaId.Value], token);
+                pedido.PersonaId == personaId ? [] : [personaId], token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
             pedido.PeriodoId = datos.PeriodoId;
-            pedido.PersonaId = datos.PersonaId.Value;
+            pedido.PersonaId = personaId;
             pedido.MateriaId = datos.MateriaId;
             pedido.CarreraId = datos.CarreraId;
             pedido.Novedad = datos.Novedad;

@@ -229,7 +229,8 @@ public sealed partial class ServicioPortal(
 
     private async Task<PerfilDocenteDto> MapearAsync(Persona p, Perfil? x, CancellationToken ct)
     {
-        var ids = (x?.Proyectos.Select(p => p.Documento?.ArchivoId) ?? [])
+        var proyectosPerfil = x?.Proyectos ?? [];
+        var ids = proyectosPerfil.Select(p => p.Documento?.ArchivoId)
             .Append(x?.Cv?.ArchivoId).OfType<Guid>().Distinct().ToArray();
         IReadOnlyDictionary<Guid, ArchivoDto> archivos = ids.Length == 0
             ? new Dictionary<Guid, ArchivoDto>()
@@ -237,7 +238,7 @@ public sealed partial class ServicioPortal(
                 ?? throw new InvalidOperationException("Falta la consulta por lote de Storage."))
                 .ObtenerPorIdsAsync(ids, ct);
         var cvArchivo = x?.Cv?.ArchivoId is { } cvId ? archivos.GetValueOrDefault(cvId) : null;
-        var proyectos = (x?.Proyectos ?? []).Select(p => MapearProyecto(p,
+        var proyectos = proyectosPerfil.Select(p => MapearProyecto(p,
             p.Documento?.ArchivoId is { } id ? archivos.GetValueOrDefault(id) : null)).ToArray();
         return new(
             new(p.Nombre, p.Apellido, p.Usuario?.Upn ?? string.Empty, p.Documento, p.Legajo ?? string.Empty, p.Cuil ?? string.Empty),
