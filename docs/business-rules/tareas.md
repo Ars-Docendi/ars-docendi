@@ -2,7 +2,7 @@
 
 ## Contexto
 
-- **Módulo / superficie:** `frontend/src/features/tareas/` (frontend-first; sin `Modules.Tareas` backend todavía, más allá del `GET /api/tareas/ping`).
+- **Módulo / superficie:** backend `Modules.Tareas` (`/api/tareas`) y frontend `frontend/src/features/tareas/`; reglas de negocio validadas en servicio y persistencia SQL.
 - **Owner / stakeholders:** Secretaría Académica, Decanato, Administrativos (autoridades que crean y gestionan tareas).
 - **Change/Spec OpenSpec relacionado:** `openspec/changes/sistema-tareas/` → `openspec/changes/sistema-tareas/specs/{tareas,tablero-tareas,flujo-estado-tareas,proyectos}/`.
 - **Normativa de referencia:** ninguna. El módulo Tareas es coordinación administrativa interna del departamento, no un trámite regulado por el estatuto o el régimen académico.
@@ -13,7 +13,7 @@ Sin `BR-tareas-NNN` en esta sección. Ninguna regla de este change proviene de n
 
 ## Mapping a tests
 
-_(no aplica — sin `BR-*` en este módulo. La cobertura de los requisitos de producto vive en `frontend/src/features/tareas/api/maquinaEstadosTarea.test.ts`, `frontend/src/features/tareas/api/maquinaEstadosProyecto.test.ts` y `frontend/src/features/tareas/components/semaforoTarea.test.ts`.)_
+No se agregan `BR-tareas-*`: estas son garantías técnicas/reglas de producto, no normativa institucional. La cobertura persistente está en `backend/tests/ArsDocendi.IntegrationTests/Tareas/{CierreTareasHttpTests,ConcurrenciaTareasHttpTests,IntegridadTareasHttpTests,IntegridadTareasSqlTests,TareasHttpTests}.cs` y `frontend/src/features/tareas/`; evidencia de ejecución integrada: [post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md). Las suites prueban jerarquía/proyecto heredado, guards de versión y 409, relaciones idempotentes, filtro de candidatos, constraints SQL con códigos de catálogo, secuencias de numeración y auditoría sin snapshots de campos libres; el ping público se prueba por HTTP.
 
 ## Assumptions (a confirmar)
 

@@ -40,6 +40,11 @@ _(Backend real en `Modules.Tareas` (schema `tareas`, migración `SchemaTareas`);
 | GET    | `/api/tareas/ping` | (anónimo) | Health check                                |
 | ...    | `/api/tareas/**`   | permisos  | Ver [contratos de API](../api-contracts.md) |
 
+- **Dependencias:** lectura de identidad vía `IConsultasIdentity`; referencias de archivos sólo si el caso las incorpora mediante contratos explícitos. Sin dependencia hacia módulos de negocio ajenos.
+- **Jerarquía y consistencia de estado:** cambiar el Proyecto de una raíz propaga el valor efectivo a todos sus descendientes en una operación transaccional; `NULL` en la raíz se propaga como `NULL`. No hay endpoint público de reparenting. Las hijas sólo se crean con el Proyecto efectivo admitido por el catálogo. Cierre-vs-alta se serializa; editar conservando un Proyecto ya cerrado no se bloquea por no ser una nueva asociación.
+- **Concurrencia e historial:** Tarea y Proyecto exponen versión `xmin`; mutaciones protegidas requieren token vigente. Falta de versión/versión obsoleta devuelve 409 sin evento parcial; cliente invalida y recarga, sin retry automático. Relaciones bidireccionales normalizan el par, se autorizan bajo guard y alta/remove repetidos son idempotentes.
+- **Consultas:** listados/candidatos limitan identidades y relaciones a recursos visibles; los filtros de autoridad y búsqueda se aplican antes del límite. Personas inactivas pueden seguir resolviéndose en datos históricos, no son asignables para nuevas operaciones.
+
 ## Reglas de negocio
 
 Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.

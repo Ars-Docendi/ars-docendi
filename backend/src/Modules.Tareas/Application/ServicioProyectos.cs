@@ -20,7 +20,7 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
     {
         var proyectos = await repositorio.ListarProyectosAsync(ct);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
-        var personas = await directorio.CargarAsync(ct);
+        var personas = await directorio.CargarAsync(proyectos.Select(p => p.ResponsableId).Distinct().ToArray(), ct);
         return proyectos.Select(p => Mapear(p, catalogos, personas)).ToList();
     }
 
@@ -28,15 +28,17 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
     {
         var proyecto = await repositorio.ObtenerProyectoAsync(id, ct)
             ?? throw ServicioTareas.NoEncontrada("El proyecto no existe.");
-        return Mapear(proyecto, await repositorio.ObtenerCatalogosAsync(ct), await directorio.CargarAsync(ct));
+        return Mapear(proyecto, await repositorio.ObtenerCatalogosAsync(ct), await directorio.CargarAsync([proyecto.ResponsableId], ct));
     }
 
     public async Task<ProyectoTareasDto> CrearAsync(CrearProyectoRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
         var actor = await directorio.ResolverActorAsync(ct);
-        var personas = await directorio.CargarAsync(ct);
+        var personas = await directorio.CargarAsync([datos.ResponsableId], ct);
         ValidarDatos(datos.Nombre, datos.FechaInicio, datos.FechaFin);
         ValidarResponsable(actor, personas, datos.ResponsableId);
+        await repositorio.ProtegerUsuariosAsync([datos.ResponsableId], ct);
 
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         var proyecto = new Proyecto
@@ -52,22 +54,28 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
         };
         repositorio.Agregar(proyecto);
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return Mapear(proyecto, catalogos, personas);
     }
 
     public async Task<ProyectoTareasDto> EditarAsync(Guid id, EditarProyectoRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearProyectoAsync(id, ct);
         var actor = await directorio.ResolverActorAsync(ct);
         var proyecto = await repositorio.ObtenerProyectoAsync(id, ct)
             ?? throw ServicioTareas.NoEncontrada("El proyecto no existe.");
-        var personas = await directorio.CargarAsync(ct);
+        var personas = await directorio.CargarAsync([datos.ResponsableId], ct);
         ValidarDatos(datos.Nombre, datos.FechaInicio, datos.FechaFin);
+
+        ServicioTareas.RequerirVersion(proyecto.Version, datos.Version);
 
         // Conservar al mismo Responsable no reevalúa el rol ni la jerarquía, para no bloquear
         // la edición de un proyecto si el rol de esa persona cambió después.
         if (datos.ResponsableId != proyecto.ResponsableId)
         {
             ValidarResponsable(actor, personas, datos.ResponsableId);
+            await repositorio.ProtegerUsuariosAsync([datos.ResponsableId], ct);
         }
 
         proyecto.Nombre = datos.Nombre.Trim();
@@ -76,17 +84,22 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
         proyecto.FechaFin = datos.FechaFin;
         proyecto.ResponsableId = datos.ResponsableId;
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return Mapear(proyecto, await repositorio.ObtenerCatalogosAsync(ct), personas);
     }
 
     public async Task<ProyectoTareasDto> CambiarEstadoAsync(Guid id, CambiarEstadoProyectoRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearProyectoAsync(id, ct);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         var destino = catalogos.EstadoProyecto(datos.Estado)
             ?? throw ServicioTareas.Validacion("estado", "El estado del proyecto no es válido.");
 
         var proyecto = await repositorio.ObtenerProyectoAsync(id, ct)
             ?? throw ServicioTareas.NoEncontrada("El proyecto no existe.");
+
+        ServicioTareas.RequerirVersion(proyecto.Version, datos.Version);
 
         // Un proyecto cancelado no se da por finalizado: tendría que reabrirse primero.
         if (catalogos.EstadoProyecto(proyecto.EstadoId)?.Codigo == EstadosProyecto.Cancelado
@@ -100,7 +113,8 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
 
         proyecto.EstadoId = destino.Id;
         await repositorio.GuardarAsync(ct);
-        return Mapear(proyecto, catalogos, await directorio.CargarAsync(ct));
+        await transaccion.CommitAsync(ct);
+        return Mapear(proyecto, catalogos, await directorio.CargarAsync([proyecto.ResponsableId], ct));
     }
 
     private static void ValidarDatos(string nombre, DateOnly fechaInicio, DateOnly fechaFin)
@@ -138,6 +152,6 @@ public sealed class ServicioProyectos(RepositorioTareas repositorio, DirectorioP
         return new ProyectoTareasDto(
             p.Id, p.Numero, p.Nombre, p.Descripcion, p.FechaInicio, p.FechaFin,
             estado?.Codigo ?? string.Empty, estado?.Nombre ?? string.Empty, estado?.AdmiteTareas ?? false,
-            ServicioTareas.Persona(personas, p.ResponsableId));
+            ServicioTareas.Persona(personas, p.ResponsableId), p.Version);
     }
 }

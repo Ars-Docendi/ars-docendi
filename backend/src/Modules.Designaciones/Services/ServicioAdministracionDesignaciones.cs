@@ -22,6 +22,8 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct)
     {
+        // Una persona tiene a lo sumo una designación por materia canónica, sin importar la
+        // carrera: la materia ya identifica la designación única.
         if (designaciones.Select(d => d.MateriaId).Distinct().Count() != designaciones.Count)
         {
             throw new ErrorDominioPedido("No se puede repetir una materia en las designaciones vigentes.");
@@ -52,6 +54,11 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         Guid personaId,
         IReadOnlyList<GuardarDesignacionVigenteDto> designaciones,
         CancellationToken ct)
+        => await repositorio.EjecutarCoordinadoAsync(personaId,
+            token => ReemplazarProtegidoAsync(personaId, designaciones, token), ct);
+
+    private async Task<IReadOnlyList<DesignacionVigenteDto>> ReemplazarProtegidoAsync(
+        Guid personaId, IReadOnlyList<GuardarDesignacionVigenteDto> designaciones, CancellationToken ct)
     {
         await ValidarReemplazoAsync(personaId, designaciones, ct);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(personaId, ct);
@@ -68,6 +75,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
                 continue;
             }
 
+            actual.CarreraId = deseada.CarreraId;
             actual.CargoId = deseada.CargoId;
             if (actual.DedicacionId != deseada.DedicacionId)
             {
@@ -87,6 +95,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
                 Id = Guid.NewGuid(),
                 PersonaId = personaId,
                 MateriaId = deseada.MateriaId,
+                CarreraId = deseada.CarreraId,
                 CargoId = deseada.CargoId,
                 DedicacionId = deseada.DedicacionId,
                 Horas = deseada.Horas,
@@ -96,8 +105,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         }
 
         await repositorio.GuardarAsync(ct);
-        return (await repositorio.ListarTodasVigentesSinTrackingAsync(ct))
-            .Where(d => d.PersonaId == personaId)
+        return (await repositorio.ListarVigentesDePersonaSinTrackingAsync(personaId, ct))
             .Select(Mapear)
             .OrderBy(d => d.MateriaId)
             .ToArray();
@@ -107,6 +115,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         d.Id,
         d.PersonaId,
         d.MateriaId,
+        d.CarreraId,
         d.CargoId,
         d.Cargo?.Nombre ?? string.Empty,
         d.Cargo?.Abreviatura ?? string.Empty,

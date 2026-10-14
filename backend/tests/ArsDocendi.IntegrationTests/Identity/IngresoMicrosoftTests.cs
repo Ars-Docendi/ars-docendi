@@ -263,12 +263,12 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
             Activo = true,
             CreadoEn = ahora,
         };
-        var materias = roles.Select(_ => new Materia
+        var cantidadMaterias = await db.Materias.CountAsync(ct);
+        var materias = roles.Select((_, indice) => new Materia
         {
             Id = Guid.NewGuid(),
-            Codigo = $"M-{Guid.NewGuid():N}"[..12],
+            Codigo = (cantidadMaterias + indice + 1).ToString("D5", System.Globalization.CultureInfo.InvariantCulture),
             Nombre = "Materia",
-            CarreraId = carrera.Id,
             Activo = true,
             CreadoEn = ahora,
         }).ToArray();
@@ -304,7 +304,7 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
                 UsuarioId = usuario.Id,
                 RolId = roles[i],
                 MateriaId = esDocente ? materias[i].Id : null,
-                CarreraId = esDocente ? materias[i].CarreraId : null,
+                CarreraId = esDocente ? carrera.Id : null,
                 OtorgadoEn = ahora,
                 CreadoEn = ahora,
                 EliminadoEn = revocado ? ahora : null,

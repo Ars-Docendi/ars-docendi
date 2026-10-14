@@ -1,10 +1,32 @@
 import { apiClient } from "../../../shared/api/client";
 import type { Dedicacion, DocenteExistente, PeriodoDesignacion } from "../types";
 
+interface MateriaCatalogoDto {
+  materiaId: string;
+  codigo: string;
+  nombre: string;
+  carreraId: string;
+  carreraNombre: string;
+}
+
+interface CatalogosDesignacionesDto extends Omit<CatalogosDesignaciones, "materias"> {
+  materias: MateriaCatalogoDto[];
+}
+
 export interface CatalogosDesignaciones {
   periodoActivo: PeriodoDesignacion | null;
   periodos: PeriodoDesignacion[];
-  materias: { id: string; codigo: string; nombre: string; carreraId: string }[];
+  /**
+   * Pares materia–carrera: `id` es la materia canónica. Una materia dictada en más de una
+   * carrera aparece una vez por carrera (el pedido manda ambos ids juntos).
+   */
+  materias: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    carreraId: string;
+    carreraNombre: string;
+  }[];
   personas: {
     id: string;
     nombre: string;
@@ -14,6 +36,7 @@ export interface CatalogosDesignaciones {
     designacionesVigentes: {
       materiaId: string;
       materiaNombre: string;
+      carreraId: string;
       cargoId: string;
       cargoNombre: string;
       dedicacion: string | null;
@@ -29,7 +52,17 @@ export interface CatalogosDesignaciones {
 }
 
 export async function obtenerCatalogosDesignaciones(): Promise<CatalogosDesignaciones> {
-  return (await apiClient.get<CatalogosDesignaciones>("/api/designaciones/catalogos")).data;
+  const dto = (await apiClient.get<CatalogosDesignacionesDto>("/api/designaciones/catalogos")).data;
+  return {
+    ...dto,
+    materias: dto.materias.map((m) => ({
+      id: m.materiaId,
+      codigo: m.codigo,
+      nombre: m.nombre,
+      carreraId: m.carreraId,
+      carreraNombre: m.carreraNombre,
+    })),
+  };
 }
 
 export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): DocenteExistente[] {
@@ -47,6 +80,7 @@ export function docentesDesdeCatalogo(catalogos: CatalogosDesignaciones): Docent
         dedicacionActual: (primera.dedicacion ?? "") as Dedicacion,
         materiasActuales: persona.designacionesVigentes.map((d) => ({
           materiaId: d.materiaId,
+          carreraId: d.carreraId,
           materia: d.materiaNombre,
           horas: d.horas,
           cargoActual: d.cargoNombre,

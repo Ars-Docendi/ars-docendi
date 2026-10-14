@@ -66,6 +66,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     adjuntos: pedido?.adjuntos ?? [],
     personaId: pedido?.personaId,
     materiaId: pedido?.materiaId,
+    carreraId: pedido?.carreraId,
     periodoId: pedido?.periodoId,
     version: pedido?.version,
   };
@@ -156,7 +157,9 @@ export function PedidoForm({
       if (!materiasDelActor.has(asignacion.materiaId)) return [];
       if (ids.has(asignacion.materiaId)) return [];
       ids.add(asignacion.materiaId);
-      return [{ id: asignacion.materiaId, nombre: asignacion.materia }];
+      return [
+        { id: asignacion.materiaId, nombre: asignacion.materia, carreraId: asignacion.carreraId },
+      ];
     });
   }, [docenteSeleccionado, esAlta, materiasBase]);
   const materiaIdSeleccionada = materiasDisponibles.some(
@@ -200,6 +203,7 @@ export function PedidoForm({
         horasExternas: 0,
         personaId: undefined,
         materiaId: undefined,
+        carreraId: undefined,
       }));
       return;
     }
@@ -223,6 +227,7 @@ export function PedidoForm({
       horasExternas: asignacion?.horasExternas ?? 0,
       personaId: docente.personaId,
       materiaId: asignacion?.materiaId,
+      carreraId: asignacion?.carreraId,
       catedra: asignacion?.materia ?? "",
     }));
   }
@@ -245,6 +250,7 @@ export function PedidoForm({
     setDatos((prev) => ({
       ...prev,
       materiaId: materia?.id,
+      carreraId: materia?.carreraId ?? asignacion?.carreraId,
       catedra: materia?.nombre ?? "",
       cargoActual: asignacion?.cargoActual ?? (esAlta ? null : prev.cargoActual),
       dedicacionActual: asignacion?.dedicacionActual ?? (esAlta ? null : prev.dedicacionActual),
@@ -282,6 +288,7 @@ export function PedidoForm({
     const datosParaGuardar = {
       ...datos,
       materiaId: materiaIdSeleccionada,
+      carreraId: materiaSeleccionada?.carreraId ?? datos.carreraId,
       catedra: materiaSeleccionada?.nombre ?? "",
     };
     const resultado = validarPedido(datosParaGuardar, {

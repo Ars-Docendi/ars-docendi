@@ -12,6 +12,7 @@ public interface IRepositorioDocentes
     Task<IReadOnlyList<Rol>> ListarRolesDocentesAsync(CancellationToken ct);
     Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
+    Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct);
     Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct);
     Task<bool> ExisteDocumentoAsync(string documento, Guid? exceptoPersonaId, CancellationToken ct);
     void AgregarPersona(Persona persona);
@@ -73,6 +74,14 @@ internal sealed class RepositorioDocentes(IdentityDbContext db) : IRepositorioDo
         await db.Materias.AsNoTracking()
             .Where(m => m.Activo)
             .OrderBy(m => m.Nombre)
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct) =>
+        await db.MateriasPlan.AsNoTracking()
+            .Include(mp => mp.Materia)
+            .Include(mp => mp.Plan).ThenInclude(p => p!.Carrera)
+            .Where(mp => mp.Activo && mp.Materia!.Activo)
+            .OrderBy(mp => mp.Materia!.Nombre)
             .ToListAsync(ct);
 
     public Task<bool> ExisteUpnAsync(string upn, Guid? exceptoUsuarioId, CancellationToken ct) =>

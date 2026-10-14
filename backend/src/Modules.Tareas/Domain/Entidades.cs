@@ -2,6 +2,7 @@ namespace Modules.Tareas.Domain;
 
 public sealed class Proyecto
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public int Numero { get; set; }
     public required string Nombre { get; set; }
@@ -15,6 +16,7 @@ public sealed class Proyecto
 
 public sealed class Tarea
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public int Numero { get; set; }
     public required string Titulo { get; set; }

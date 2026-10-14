@@ -2,6 +2,8 @@ namespace Modules.Portal.Domain;
 
 public sealed class Perfil
 {
+    public long VersionHabilidades { get; set; }
+    public long VersionIntereses { get; set; }
     public Guid Id { get; set; }
     public Guid PersonaId { get; set; }
     public DateTimeOffset CreadoEn { get; set; }
@@ -16,6 +18,7 @@ public sealed class Perfil
 
 public sealed class Contacto
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public Guid PerfilId { get; set; }
     public string? Telefono { get; set; }
@@ -25,6 +28,7 @@ public sealed class Contacto
 
 public sealed class Cv
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public Guid PerfilId { get; set; }
     public required string Nombre { get; set; }
@@ -36,6 +40,7 @@ public sealed class Cv
 
 public abstract class ItemPerfil
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public Guid PerfilId { get; set; }
     public DateOnly Desde { get; set; }
@@ -59,6 +64,7 @@ public sealed class Educacion : ItemPerfil
 
 public sealed class Certificacion
 {
+    public uint Version { get; set; }
     public Guid Id { get; set; }
     public Guid PerfilId { get; set; }
     public required string Nombre { get; set; }

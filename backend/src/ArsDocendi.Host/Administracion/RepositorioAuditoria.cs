@@ -7,7 +7,17 @@ public sealed record RegistroAuditoria(
     RegistroCambio Registro,
     string? NombreCuenta,
     string? NombrePersona,
-    string? ApellidoPersona);
+    string? ApellidoPersona,
+    string FormatoClave = "legacy",
+    string? ClaveCompleta = null);
+
+// Proyección de metadata aditiva sin cambiar el modelo Identity compartido.
+public sealed class MetadatosClaveAuditoria
+{
+    public long Id { get; set; }
+    public string FormatoClave { get; set; } = "legacy";
+    public string? ClaveCompleta { get; set; }
+}
 
 public sealed record ResultadoPaginaAuditoria(IReadOnlyList<RegistroAuditoria> Registros, long Total);
 
@@ -24,8 +34,18 @@ public sealed class RepositorioAuditoria(IdentityDbContext db) : IRepositorioAud
     {
         db.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));
 
+        var clavePrecisa = filtros.RowPk?.TrimStart().StartsWith('{') == true;
+        var eventos = clavePrecisa
+            ? db.RegistrosDeCambio.FromSqlInterpolated($"""
+                SELECT r.* FROM audit.change_log r
+                WHERE r.row_pk=CAST({filtros.RowPk} AS jsonb)::text
+                    OR (r.row_pk_format='legacy' AND audit.resolved_key(
+                        r.schema_name,r.table_name,r.old_row,r.new_row,r.row_key)=CAST({filtros.RowPk} AS jsonb))
+                """).AsNoTracking()
+            : db.RegistrosDeCambio.AsNoTracking();
+
         var consulta =
-            from registro in db.RegistrosDeCambio.AsNoTracking()
+            from registro in eventos
             join cuentaBase in db.Usuarios.AsNoTracking()
                 on registro.CambiadoPor equals (Guid?)cuentaBase.Id into cuentas
             from cuenta in cuentas.DefaultIfEmpty()
@@ -52,7 +72,7 @@ public sealed class RepositorioAuditoria(IdentityDbContext db) : IRepositorioAud
             consulta = consulta.Where(r => r.Registro.NombreTabla == tabla);
         if (filtros.CambiadoPor is { } actorId)
             consulta = consulta.Where(r => r.Registro.CambiadoPor == actorId);
-        if (filtros.RowPk is { Length: > 0 } rowPk)
+        if (!clavePrecisa && filtros.RowPk is { Length: > 0 } rowPk)
             consulta = consulta.Where(r => r.Registro.ClaveFila == rowPk);
         if (filtros.Actor is { Length: > 0 } actor)
         {
@@ -78,6 +98,24 @@ public sealed class RepositorioAuditoria(IdentityDbContext db) : IRepositorioAud
                 r.ApellidoPersona))
             .ToListAsync(ct);
 
+        if (registros.Count > 0)
+        {
+            var ids = registros.Select(r => r.Registro.Id).ToArray();
+            var metadatos = await db.Database.SqlQuery<MetadatosClaveAuditoria>($"""
+                SELECT id AS "Id",
+                    CASE WHEN row_pk_format<>'legacy' THEN row_pk_format
+                        WHEN audit.resolved_key(schema_name,table_name,old_row,new_row,row_key) IS NOT NULL THEN 'legacy-recovered'
+                        WHEN (schema_name,table_name) IN (('identity','rol_permisos'),('portal','docente_habilidades'),('tareas','tarea_relaciones')) THEN 'legacy-group'
+                        ELSE 'legacy' END AS "FormatoClave",
+                    audit.resolved_key(schema_name,table_name,old_row,new_row,row_key)::text AS "ClaveCompleta"
+                FROM audit.change_log WHERE id=ANY({ids})
+                """).ToDictionaryAsync(x => x.Id, ct);
+            registros = registros.Select(r => r with
+            {
+                FormatoClave = metadatos[r.Registro.Id].FormatoClave,
+                ClaveCompleta = metadatos[r.Registro.Id].ClaveCompleta,
+            }).ToList();
+        }
         return new ResultadoPaginaAuditoria(registros, total);
     }
 }

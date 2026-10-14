@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "archivos": {
+    "backend/src/ArsDocendi.Shared/Identity/Migrations/20261005000000_BaselineIdentityYAudit.cs": "9daf1085170154f7522bd4bfed9dd3cb0b8de3153bcb86c598033c5be50c275d",
+    "backend/src/ArsDocendi.Storage/Infrastructure/Migrations/20261005000100_BaselineStorage.cs": "2fd7b21d22a3b017ec5d30e5d9db3e326fd14f0f4b8ad5062a5e7bf50c69069b",
+    "backend/src/Modules.Designaciones/Infrastructure/Migrations/20261005000200_BaselineDesignaciones.cs": "c1de65992989b395dd386508bf4ef59a30458c9e85871175e5cfdbc7f1425e0b",
+    "backend/src/Modules.Portal/Infrastructure/Migrations/20261005000300_BaselinePortal.cs": "a0317a917420c524d9d0ab31c133d65b5815796c759e40c9c6b204ee4919b5da",
+    "database/audit/001_audit_schema.sql": "c77d6582c1417c38e4ba04b43179d7bc5424791a5d490d080d4f69cef9f5b241",
+    "database/designaciones/001_designaciones_catalogos.sql": "650b2d97c8f36e3ae94662c415a5b9f74598b8d4ae029fd50a8eab807a804db6",
+    "database/designaciones/002_designaciones_pedidos.sql": "87d692c2162688913ee3586136b3a7a983efbd437641342a1149b6e3d70acd7c",
+    "database/designaciones/003_designaciones_documentacion_historial.sql": "713f6a510cf424d78025062bc7ca144235b74ee21fbaa835138949941eb1deba",
+    "database/designaciones/004_designaciones_vigencias.sql": "d5f229f51795d55298a65ae27bd947a2bd58e1559bf7c5fcee3e5d0e6fac045c",
+    "database/designaciones/005_designaciones_idempotencia.sql": "0ad65505fb5c1c2cbc0ac33c3aa19ac1905f4149aae95f3d976fe056a23a6bff",
+    "database/designaciones/006_designaciones_integridad.sql": "8cc785862d57377049ac86f952bdd646b6ff9fab077e447c83f0f6d81809d72f",
+    "database/designaciones/007_designaciones_catalogos.sql": "865c4e63e2e286b0e5c6924fa4104da4ce7e457bbb3313444865c16f605a3bdf",
+    "database/designaciones/008_designaciones_audit_attach.sql": "5bfde2e7f18e1031b47e2fa9d51a0fdaec90667f5963dcbe65d97de13c9da0ab",
+    "database/identity/001_identity_users.sql": "4b6a1d96ffc6941cad7c331b2945f468530a21aed07267148fa8d5aac0e3af66",
+    "database/identity/002_identity_autorizacion.sql": "276434558cb7ae4caca2dea3e7f3414ccb011d4fe80b167a546afba2b6680a7f",
+    "database/identity/003_identity_catalogo_academico.sql": "4fd2fef26163beb240c45d759d46aa2206c58e67c1e2e9540d63d9eafe6d9516",
+    "database/identity/004_identity_personas_ambitos.sql": "5378f4e0313057e8fd224da73045f9da466545b170c75ad1d0245d8f9544fe82",
+    "database/identity/005_identity_integridad.sql": "949b0a2720b96460bcc5096f86b096b03ec19210dcf925c55185f4c18754a752",
+    "database/identity/006_identity_catalogos.sql": "41e76bce2a83f9b7121b176170e4bd266a08639d73f6562c79533d8ff8cd2401",
+    "database/identity/007_identity_audit_attach.sql": "28f1e22e5c61b59e04d7387ca2138724d8829016bda732256fa43841982e79c8",
+    "database/portal/001_portal_perfil.sql": "042d34317d0f6e42a784d8802f2da68c09f93bfadb80915f59ecad10555b5315",
+    "database/portal/002_portal_trayectoria.sql": "900b738b8b51b757e3f86db926a2ebbff7e75891768e9171f212666b66592b91",
+    "database/portal/003_portal_proyectos_habilidades.sql": "5d9aa0497b8ba77f2c5b7cd54956a55a328d17e43c0e75d75e0ec5ba0f380d05",
+    "database/portal/004_portal_integridad.sql": "02e27d4063f16d7a0f0b05332e658f8d0d6dbd0584f709bba29740318453e6aa",
+    "database/portal/005_portal_audit_attach.sql": "d5915daca3ac17499ccd2a5870bda47ce9fae4dbd4a46f891f06a82735a77c34",
+    "database/storage/001_storage_archivos.sql": "7947721ee37ceda224cecab2e7577ce0a11aea2cab2d833ef43a4247c5f546e9",
+    "database/storage/002_storage_audit_attach.sql": "8b3cb4e8ac90b974256486c653628f04b9aaae25795b887298277e334888e69e"
+  },
+  "clasificados": {}
+}

@@ -15,10 +15,17 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"))
+            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoDesignaciones>();
+        services.AddScoped<ReferenciasArchivosDesignaciones>();
+        services.AddScoped<ArsDocendi.Storage.Contracts.IConsultasReferenciasArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
+        services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
 
         services.AddScoped<UnidadDeTrabajo>();
         services.AddScoped<RepositorioPedidos>();

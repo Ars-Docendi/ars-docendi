@@ -14,6 +14,7 @@ out/
 x64/
 x86/
 artifacts/
+.artifacts/
 publish/
 .vs/
 .vshistory/
@@ -93,3 +94,6 @@ findings.md
 
 # ---------- CodeGraph ----------
 .codegraph/
+
+# ---------- Datos reales (PII) — NO versionar; se comparten por canal privado ----------
+infra/scripts/seed-data/sga.sql

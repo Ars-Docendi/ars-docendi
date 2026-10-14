@@ -20,6 +20,7 @@ export interface PerfilInstitucional {
 
 /** Contacto que el docente mantiene. Ambos campos son opcionales. */
 export interface DatosContacto {
+  version?: number | null;
   telefono: string | null;
   /** Mail de contacto, distinto del institucional. */
   mail: string | null;
@@ -30,6 +31,7 @@ export interface DatosContacto {
  * persistencia real del archivo es backend.
  */
 export interface ArchivoCv {
+  version?: number | null;
   archivoId?: string;
   nombre: string;
   /** Fecha de carga en ISO (YYYY-MM-DD). */
@@ -45,6 +47,7 @@ export interface Periodo {
 }
 
 export interface Experiencia extends Periodo {
+  version?: number | null;
   id: string;
   puesto: string;
   organizacion: string;
@@ -56,6 +59,7 @@ export const NIVELES_EDUCACION = ["Grado", "Especialización", "Maestría", "Doc
 export type NivelEducacion = (typeof NIVELES_EDUCACION)[number];
 
 export interface Educacion extends Periodo {
+  version?: number | null;
   id: string;
   nivel: NivelEducacion;
   /** Carrera o título obtenido. */
@@ -64,6 +68,7 @@ export interface Educacion extends Periodo {
 }
 
 export interface Certificacion {
+  version?: number | null;
   id: string;
   nombre: string;
   emisor: string;
@@ -88,6 +93,7 @@ export interface DocumentoAdjunto {
  * viven acá: no hay una sección aparte de producción científica.
  */
 export interface Proyecto extends Periodo {
+  version?: number | null;
   id: string;
   nombre: string;
   rol: string;
@@ -109,6 +115,8 @@ export interface Tag {
 
 /** El perfil completo del docente autenticado. */
 export interface PerfilDocente {
+  versionHabilidades?: number | null;
+  versionIntereses?: number | null;
   institucional: PerfilInstitucional;
   contacto: DatosContacto;
   cv: ArchivoCv | null;
