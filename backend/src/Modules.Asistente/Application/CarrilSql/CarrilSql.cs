@@ -27,7 +27,8 @@ public sealed class CarrilSql(
     ContadorDeLlamadasDelTurno contador,
     ICatalogoDeCapacidades capacidades,
     IOptions<OpcionesAsistente> opciones,
-    ILogger<CarrilSql> log)
+    ILogger<CarrilSql> log,
+    CarrilDelPlan? plan = null)
 {
     /// <summary>Responde una pregunta acotada al actor.</summary>
     /// <param name="actor">
@@ -224,6 +225,19 @@ public sealed class CarrilSql(
             && preguntasAnteriores is not { Count: > 0 }
             && menciones.Count == 0
             && heredadasVigentes.Count == 0;
+
+        // EL PLAN COMPILADO (asistente-plan-compilado, D1), sólo para una pregunta
+        // sin contexto: el prototipo no edita un plan en un seguimiento. Nulo es
+        // «no es mío» y el turno sigue por acá como siempre; cualquier otra cosa
+        // —respuesta, aclaración o abstención— lo termina.
+        if (plan is not null && opciones.Value.PlanCompilado && sinContexto)
+        {
+            var delPlan = await plan.ResponderAsync(actor, pregunta, perfil, ct);
+            if (delPlan is not null)
+            {
+                return delPlan;
+            }
+        }
 
         var deCache = sinContexto ? generador.BuscarEnCache(pregunta, perfil.VeDatosPersonales) : null;
         if (deCache is not null)

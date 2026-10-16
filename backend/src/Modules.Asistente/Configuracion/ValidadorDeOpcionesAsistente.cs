@@ -88,6 +88,7 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.MaximoDeTokensDeRedaccion), o => o.MaximoDeTokensDeRedaccion),
         (nameof(OpcionesAsistente.MaximoDeTokensDeReescritura), o => o.MaximoDeTokensDeReescritura),
         (nameof(OpcionesAsistente.EsperaMaximaEnColaSegundos), o => o.EsperaMaximaEnColaSegundos),
+        (nameof(OpcionesAsistente.MuestrasDelPlan), o => o.MuestrasDelPlan),
     ];
 
     /// <summary>
@@ -158,6 +159,26 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
                 + $"'{nameof(OpcionesAsistente.TimeoutDeSentenciaMs)}' "
                 + $"({options.TimeoutDeSentenciaMs} ms). Tienen que estar en ese orden para que, cuando "
                 + "los dos apliquen, corte primero el del servidor —que además libera el backend—.");
+        }
+
+        // El plan compilado (asistente-plan-compilado, D5): sus muestras son
+        // llamadas del mismo turno, así que no pueden superar su techo. Solo rige
+        // con la opción encendida: un techo bajo sin el plan es una configuración
+        // válida, y el default de las muestras no puede volverla inválida.
+        if (options.PlanCompilado && options.MuestrasDelPlan > options.MaximoDeLlamadasPorTurno)
+        {
+            fallas.Add(
+                $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.MuestrasDelPlan)}' "
+                + $"({options.MuestrasDelPlan}) supera "
+                + $"'{nameof(OpcionesAsistente.MaximoDeLlamadasPorTurno)}' "
+                + $"({options.MaximoDeLlamadasPorTurno}): el plan no podría terminar dentro del turno.");
+        }
+
+        if (options.TemperaturaDeMuestrasDelPlan is < 0m or > 2m)
+        {
+            fallas.Add(
+                $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.TemperaturaDeMuestrasDelPlan)}' "
+                + $"es {options.TemperaturaDeMuestrasDelPlan} y tiene que estar entre 0 y 2.");
         }
 
         return fallas.Count == 0

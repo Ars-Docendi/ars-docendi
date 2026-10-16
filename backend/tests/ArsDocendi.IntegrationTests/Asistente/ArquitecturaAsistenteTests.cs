@@ -730,7 +730,13 @@ public sealed partial class ArquitecturaAsistenteTests
     /// <c>RedactorDeRespuesta</c>, filled by the streaming endpoint in the same
     /// request. One settable callback, nothing else.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 94;
+    /// <remarks>
+    /// Subido a 95 por asistente-plan-compilado (D1): <c>CarrilDelPlan</c> es un
+    /// parámetro opcional del constructor de <c>CarrilSql</c>, que ya es público, y
+    /// el compilador rechaza ahí un tipo menos accesible. Su constructor y su único
+    /// método son `internal`; el contenedor lo arma con una fábrica.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 95;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

@@ -735,6 +735,15 @@ public sealed class CapaConversacional(
             referencias: resultado.ReferenciasEjecutadas,
             estado: resultado.Estado);
 
+        // EL PLAN COMPILADO PUEDE TERMINAR EN UNA ACLARACIÓN CON OPCIONES
+        // (asistente-plan-compilado, D5): queda pendiente igual que la del
+        // detector, para que la respuesta del usuario se reconozca como elección.
+        // El carril SQL nunca devuelve una, así que sin el plan esto no corre.
+        if (resultado is { Estado: EstadoDelTurno.NecesitaAclaracion, Opciones.Count: > 0 })
+        {
+            conversacion.Pendiente(new Aclaracion("la pregunta", interpretada, resultado.Opciones));
+        }
+
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema
         // anterior, y sin ella el usuario no tiene forma de saberlo.
