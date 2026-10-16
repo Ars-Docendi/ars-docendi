@@ -1,0 +1,112 @@
+# Servidor del modelo propio para PROBAR EN UNA PC con RTX 3070
+# (asistente-optimizaciones-modelo-local, design.md D10).
+#
+# No es el servidor de los ambientes (ése es compose.llm.yml, en la red
+# `arsdocendi-datos`): es un llama-server suelto para el backend que corre con
+# `dotnet run` en la misma máquina. Publica el puerto SÓLO en 127.0.0.1.
+#
+#   docker compose -p llm-3070 -f infra/compose/compose.llm-3070.yml up -d
+#   docker compose -p llm-3070 -f infra/compose/compose.llm-3070.yml logs -f
+#
+# La primera vez baja el GGUF de HuggingFace (~5 GB) al volumen; las siguientes
+# arranca en segundos. La guía completa, con los valores del backend, está en
+# docs/architecture/modelo-local.md §8.
+#
+# Hardware: RTX 3070 (8 GB GDDR6, Ampere sm_86). En Windows hace falta Docker
+# Desktop con WSL2 y un driver NVIDIA reciente; en Linux, nvidia-container-toolkit.
+#
+# Por qué llama-server y no vLLM: con ~4,7 GiB de pesos de un 8B en 4 bits,
+# vLLM —que reserva memoria para CUDA graphs y activaciones— deja muy poco KV.
+#
+# Presupuesto de VRAM [estimado]: pesos Q4_K_M ~4,7 GiB + KV q8_0 de 2 slots de
+# 13.312 tokens (~76,5 KiB/token) ~1,9 GiB + buffers ~0,6 GiB ≈ 7,3 GiB.
+# El escritorio también usa la GPU: si no entra, ver los respaldos abajo.
+
+services:
+  llama:
+    image: ghcr.io/ggml-org/llama.cpp:${LLAMA_IMAGEN_TAG:-server-cuda}
+    container_name: arsdocendi-llm-3070
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LLM_PUERTO:-8000}:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      # Dónde guarda llama.cpp lo que baja con --hf-repo.
+      LLAMA_CACHE: /modelos
+    volumes:
+      - arsdocendi-llm-3070-gguf:/modelos
+    command:
+      # Opción y valor van en ítems SEPARADOS: el llama-server de la imagen
+      # `server-cuda` rechaza `--opcion=valor` con «invalid argument» y el
+      # contenedor queda reiniciando.
+      - --hf-repo
+      - "${LLAMA_HF_REPO:-Qwen/Qwen3-8B-GGUF}"
+      - --hf-file
+      - "${LLAMA_GGUF:-Qwen3-8B-Q4_K_M.gguf}"
+      - --alias
+      - "${LLM_NOMBRE_SERVIDO:-qwen3-8b}"
+      - --n-gpu-layers
+      - "99"
+      # Contexto total repartido entre los slots: 2 × 13.312. Con el esquema
+      # compacto y los ejemplos en el prefijo, el pedido más largo medido usa
+      # 9,8k tokens; queda lugar para el mensaje y la salida (600).
+      # RESPALDO si no entra en VRAM o el servidor dice que el pedido excede el
+      # contexto: LLAMA_SLOTS=1 y LLAMA_CTX=16384 (un turno a la vez), o
+      # LLAMA_GGUF=Qwen3-4B-Instruct-2507-Q6_K.gguf con su repo.
+      - --ctx-size
+      - "${LLAMA_CTX:-26624}"
+      - --parallel
+      - "${LLAMA_SLOTS:-2}"
+      - --flash-attn
+      - "on"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --batch-size
+      - "2048"
+      - --ubatch-size
+      - "512"
+      - --jinja
+      - --reasoning-budget
+      - "0"
+      # Decodificación especulativa por n-gramas (ARS-166): propone tokens copiando
+      # secuencias que ya aparecieron en el pedido —las consultas se parecen a los
+      # ejemplos del prefijo— y el modelo los verifica en lote. No carga un modelo
+      # borrador ni usa VRAM extra. Con 6/24 midió +16 % de velocidad de salida y
+      # los mismos veredictos del evaluador; con los valores por defecto (12/48)
+      # cambió un veredicto: no subirlos sin volver a medir.
+      - --spec-type
+      - ngram-simple
+      - --spec-ngram-simple-size-n
+      - "6"
+      - --spec-ngram-simple-size-m
+      - "24"
+      # Lo lee la tarjeta «Servidor del modelo» del panel de uso.
+      - --metrics
+      # PRIVACIDAD: llama.cpp#27148 (abierto): con la caché de slots ociosos,
+      # bajo carga un slot puede restaurar el KV de OTRA conversación.
+      - --cache-ram
+      - "0"
+      - --api-key
+      - "${LLM_API_KEY:-local-3070}"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # La primera vez incluye la descarga del GGUF.
+      start_period: 900s
+
+volumes:
+  arsdocendi-llm-3070-gguf:

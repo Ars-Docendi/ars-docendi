@@ -5,6 +5,7 @@ import { Button } from "@ars-docendi/ui";
 import { BannerDeMantenimiento } from "./BannerDeMantenimiento";
 import { KpisDeUso } from "./KpisDeUso";
 import { PanelDeUso } from "./PanelDeUso";
+import { ServidorDelModeloCard } from "./ServidorDelModeloCard";
 import { TopeOrganizacionalCard } from "./TopeOrganizacionalCard";
 import {
   editarAccesoDeRol,
@@ -15,6 +16,7 @@ import {
   editarMantenimiento,
   editarTopeOrganizacional,
   obtenerPresupuestos,
+  obtenerServidorLocal,
   obtenerUso,
 } from "../api/administracionAsistenteApi";
 import { obtenerCapacidades } from "../api/asistenteApi";
@@ -79,6 +81,16 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
   const presupuestos = useQuery({
     queryKey: ["asistente", "administracion", "presupuestos"],
     queryFn: obtenerPresupuestos,
+  });
+
+  // La carga del servidor del modelo propio (asistente-optimizaciones-modelo-local,
+  // D8). Se refresca sola cada 15 s porque es lo que el admin mira cuando
+  // alguien avisa que «el asistente anda lento»; con proveedor en la nube el
+  // endpoint contesta `configurado: false` y la tarjeta no aparece.
+  const servidorLocal = useQuery({
+    queryKey: ["asistente", "administracion", "servidor-local"],
+    queryFn: obtenerServidorLocal,
+    refetchInterval: 15_000,
   });
 
   const capacidades = useQuery({
@@ -221,6 +233,7 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
           onGuardar={guardarTope}
           onGuardado={setAnuncio}
         />
+        <ServidorDelModeloCard servidor={servidorLocal.data} />
       </section>
 
       <section aria-label="Panel de uso">

@@ -314,6 +314,10 @@ Dos llamadas al modelo por turno; todo lo del medio, determinista.
 | `PoliticaDeAbstencion` | Guard de vacío y decisión de reintento                              | 0      |
 | `RedactorDeRespuesta`  | **Llamada 2**: temperatura 0,3, sin caché                           | 1      |
 
+### El orden de la parte fija del prompt
+
+El prefijo estable es, en este orden: las instrucciones, «VALORES POSIBLES» (las cuatro columnas de catálogo y, con `GlosarioEnElPrefijo`, las dedicaciones), el esquema, el «GLOSARIO INSTITUCIONAL» (sólo con esa opción) y los ejemplos (sólo con `EjemplosEnElPrefijo`). Lo opcional va al final para que prender una opción invalide la caché desde ese punto y no desde el comienzo. `GlosarioEnElPrefijo` está **apagada por defecto**: la medición contra el modelo local empeoró capacidad y social ([modelo-local.md §6](../modelo-local.md)).
+
 ### Cuatro capas de defensa, independientes entre sí
 
 1. **El rol** no tiene ningún privilegio de mutación (`42501`).
@@ -509,6 +513,15 @@ renderiza la interfaz.
 **El enmascaramiento es asimétrico.** La pregunta cruda del usuario viaja al
 proveedor a través de la generación: si alguien tipea un documento en la pregunta,
 llega al modelo igual. Protege el camino de vuelta, no el de ida.
+
+**Excepción opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
+proveedor `local` y sin directorio de cassettes, las columnas `sensible-valor` llegan
+al prompt de redacción con su valor real. Es la única excepción a la frontera: con
+cualquier otra combinación se sigue enmascarando y el arranque lo advierte;
+`sensible-texto` se suprime siempre, y el control de acceso no cambia (lo decide el
+rol de PostgreSQL). El operador acepta que los valores entren en la caché KV y en el
+camino de las solicitudes del servidor del modelo, que debe correr en hardware del
+Departamento. Detalle y medición en [modelo-local.md §6](../modelo-local.md).
 
 ## El carril determinista: catálogo de intenciones
 

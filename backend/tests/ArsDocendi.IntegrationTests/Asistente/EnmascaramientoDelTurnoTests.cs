@@ -233,6 +233,146 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
         Assert.DoesNotContain("López", registro.Todo(), StringComparison.Ordinal);
     }
 
+    // ------------------- redaction without masking (asistente-redaccion-sin-enmascarado-local)
+
+    private static OpcionesAsistente SinEnmascarar(
+        string provider = "local", string cassetteDirectory = "", bool templates = false) =>
+        new()
+        {
+            RedaccionSinEnmascarar = true,
+            Proveedor = provider,
+            DirectorioDeCassettes = cassetteDirectory,
+            RedaccionConPlantillas = templates,
+        };
+
+    private const string SqlDeDocumentos =
+        "SELECT apellido, documento FROM identity.personas ORDER BY legajo";
+
+    [Fact]
+    public async Task Unmasked_option_in_effect_puts_the_document_in_the_redaction_prompt()
+    {
+        await SembrarAsync();
+
+        var (turno, proveedor) = await PreguntarAsync(
+            Secretaria, "¿Cuál es el documento de los docentes?", SqlDeDocumentos, SinEnmascarar());
+
+        var redaccion = proveedor.Recibidas[^1].Mensaje;
+
+        Assert.Contains(DocumentoSembrado, redaccion, StringComparison.Ordinal);
+        Assert.DoesNotContain("«documento", redaccion, StringComparison.Ordinal);
+
+        // The caller still gets the real rows.
+        Assert.Contains(turno.Filas, fila => fila.Any(valor => Equals(valor, DocumentoSembrado)));
+    }
+
+    [Fact]
+    public async Task Unmasked_option_with_a_remote_provider_keeps_the_document_out_of_the_prompt()
+    {
+        await SembrarAsync();
+
+        var (_, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Cuál es el documento de los docentes?",
+            SqlDeDocumentos,
+            SinEnmascarar(provider: "anthropic"));
+
+        Assert.DoesNotContain(
+            DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Unmasked_option_with_a_cassette_directory_keeps_the_document_out_of_the_prompt()
+    {
+        await SembrarAsync();
+
+        var (_, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Cuál es el documento de los docentes?",
+            SqlDeDocumentos,
+            SinEnmascarar(cassetteDirectory: "cassettes"));
+
+        Assert.DoesNotContain(
+            DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Unmasked_option_in_effect_still_suppresses_the_history_comment()
+    {
+        await SembrarAsync();
+
+        var (turno, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Qué pasó con los pedidos?",
+            "SELECT h.accion, h.comentario FROM designaciones.pedido_historial h ORDER BY h.created_at",
+            SinEnmascarar());
+
+        var redaccion = proveedor.Recibidas[^1].Mensaje;
+
+        Assert.DoesNotContain("Documentación completa", redaccion, StringComparison.Ordinal);
+        Assert.DoesNotContain("Cobertura urgente", redaccion, StringComparison.Ordinal);
+        Assert.DoesNotContain("comentario", LineaDeColumnas(redaccion), StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("comentario", turno.Columnas);
+    }
+
+    [Fact]
+    public async Task A_scoped_actor_asking_for_phones_gets_none_with_the_option_in_effect()
+    {
+        await SembrarAsync();
+
+        var (turno, proveedor) = await PreguntarAsync(
+            Coordinador,
+            "¿Cuáles son los teléfonos de los docentes?",
+            "SELECT apellido, telefono FROM identity.personas ORDER BY legajo",
+            SinEnmascarar());
+
+        Assert.NotEqual(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.DoesNotContain(TelefonoSembrado, turno.Respuesta, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            TelefonoSembrado,
+            string.Join("\n", proveedor.Recibidas.Select(r => r.Mensaje)),
+            StringComparison.Ordinal);
+        Assert.Empty(turno.Filas);
+    }
+
+    [Fact]
+    public async Task The_turn_log_carries_no_row_value_with_the_option_in_effect()
+    {
+        await SembrarAsync();
+
+        var registro = new RegistroDeCapturas();
+        var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(SqlDeDocumentos));
+
+        await CarrilCon(proveedor, registro, SinEnmascarar()).ResponderAsync(
+            Secretaria, "¿Cuál es el documento?", null, TestContext.Current.CancellationToken);
+
+        // The value does reach the prompt, but never a log line.
+        Assert.Contains(
+            DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
+        Assert.DoesNotContain(DocumentoSembrado, registro.Todo(), StringComparison.Ordinal);
+        Assert.DoesNotContain("López", registro.Todo(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("local", true)]
+    [InlineData("anthropic", false)]
+    public async Task A_one_column_template_states_the_real_value_only_when_the_option_is_in_effect(
+        string provider, bool statesTheValue)
+    {
+        await SembrarAsync();
+
+        var (turno, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Cuál es el documento del docente?",
+            $"SELECT documento FROM identity.personas WHERE documento = '{DocumentoSembrado}'",
+            SinEnmascarar(provider: provider, templates: true));
+
+        // The template answers without a model call, so only the generation was sent.
+        Assert.Equal(1, proveedor.Recibidas.Count);
+        Assert.Equal(statesTheValue, turno.Respuesta.Contains(DocumentoSembrado, StringComparison.Ordinal));
+        Assert.Equal(!statesTheValue, turno.Respuesta.Contains("«documento", StringComparison.Ordinal));
+    }
+
     // ------------------------------------------ selección de conexión (ARS-37)
 
     [Fact]
@@ -334,17 +474,20 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     }
 
     private async Task<(ResultadoDelTurno Turno, ProveedorGuionado Proveedor)> PreguntarAsync(
-        Guid actor, string pregunta, string sql)
+        Guid actor, string pregunta, string sql, OpcionesAsistente? opciones = null)
     {
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(sql));
 
-        var turno = await CarrilCon(proveedor).ResponderAsync(
+        var turno = await CarrilCon(proveedor, opcionesDelRedactor: opciones).ResponderAsync(
             actor, pregunta, null, TestContext.Current.CancellationToken);
 
         return (turno, proveedor);
     }
 
-    private CarrilSql CarrilCon(ProveedorGuionado proveedor, RegistroDeCapturas? registro = null)
+    private CarrilSql CarrilCon(
+        ProveedorGuionado proveedor,
+        RegistroDeCapturas? registro = null,
+        OpcionesAsistente? opcionesDelRedactor = null)
     {
         var (basica, pii) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente());
@@ -360,7 +503,8 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             conTecho,
             contador,
             opciones,
-            log: registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>());
+            log: registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>(),
+            opcionesDelRedactor: opcionesDelRedactor is null ? null : Options.Create(opcionesDelRedactor));
     }
 
 }

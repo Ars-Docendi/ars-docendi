@@ -469,6 +469,41 @@ public sealed record PresupuestosDto(
         estado.AccesosRevocados);
 }
 
+/// <summary>
+/// La carga del servidor del modelo propio y de la compuerta
+/// (<c>GET /api/asistente/administracion/servidor-local</c>, asistente-optimizaciones-
+/// modelo-local D8). Cada métrica que el servidor no publica viaja nula, nunca en cero.
+/// </summary>
+/// <param name="Configurado">Si el proveedor es <c>local</c> con URL.</param>
+/// <param name="Alcanzable">Si su <c>/metrics</c> respondió.</param>
+/// <param name="Motor"><c>vllm</c>, <c>llama.cpp</c> o nulo.</param>
+/// <param name="UsoDeKvCache">De 0 a 1.</param>
+/// <param name="AciertosDeCacheDePrefijo">De 0 a 1, acumulado desde que arrancó el servidor.</param>
+/// <param name="Compuerta">Nula si el backend no limita la concurrencia.</param>
+public sealed record ServidorLocalDto(
+    bool Configurado,
+    bool Alcanzable,
+    string? Motor,
+    int? EnCurso,
+    int? EnEspera,
+    double? UsoDeKvCache,
+    double? AciertosDeCacheDePrefijo,
+    CompuertaDto? Compuerta)
+{
+    internal static ServidorLocalDto De(Infrastructure.EstadoDelServidorLocal estado) => new(
+        estado.Configurado,
+        estado.Alcanzable,
+        estado.Motor,
+        estado.EnCurso,
+        estado.EnEspera,
+        estado.UsoDeKvCache,
+        estado.AciertosDeCacheDePrefijo,
+        estado.Compuerta is { } c ? new CompuertaDto(c.Capacidad, c.EnCurso, c.EnEspera) : null);
+}
+
+/// <summary>La compuerta de concurrencia del backend hacia el modelo.</summary>
+public sealed record CompuertaDto(int Capacidad, int EnCurso, int EnEspera);
+
 /// <summary>Un área que el actor puede consultar.</summary>
 public sealed record AreaDto(string Nombre, string? Descripcion, int Columnas);
 
@@ -501,6 +536,12 @@ public sealed record CapacidadesDto
 
     /// <summary>El cupo diario de este actor (asistente-cupo-visible).</summary>
     public required CupoDto Cupo { get; init; }
+
+    /// <summary>
+    /// Si conviene pedir el turno a <c>POST /consultas/flujo</c> para ver la
+    /// redacción mientras se escribe (asistente-optimizaciones-modelo-local, D9).
+    /// </summary>
+    public bool RedaccionEnFlujo { get; init; }
 
     /// <summary>Arma el DTO a partir del catálogo.</summary>
     internal static CapacidadesDto De(CapacidadesDelActor capacidades)

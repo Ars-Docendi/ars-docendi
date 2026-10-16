@@ -117,6 +117,21 @@ internal static class InstruccionesDeGeneracion
         no existe para vos.
         """;
 
+    /// <summary>
+    /// Encabezado del esquema en su forma compacta (asistente-optimizaciones-
+    /// modelo-local, D2): la leyenda explica la notación que reemplaza a la
+    /// prosa de la forma completa.
+    /// </summary>
+    internal const string EncabezadoDelEsquemaCompacto = """
+
+        ESQUEMA DISPONIBLE
+
+        Estas son todas las tablas y columnas que podés consultar. Cualquier otra
+        no existe para vos. Formato de cada columna: `nombre tipo` —con `?` si
+        admite nulo—, `→ esquema.tabla.columna` si es una clave foránea, y su
+        descripción después de los dos puntos.
+        """;
+
     /// <summary>Encabezado de los valores de catálogo cerrado.</summary>
     /// <remarks>
     /// Dice «todos» sin matices a propósito: el lector devuelve la columna entera

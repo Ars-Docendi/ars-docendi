@@ -109,6 +109,25 @@ public sealed class ValidacionDeOpcionesTests
         Assert.False(Validar(o => o.EsperaBaseMs = -1).Succeeded);
     }
 
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(2000, true)]
+    [InlineData(-1, false)]
+    public void El_techo_de_la_segunda_generacion_admite_cero_pero_no_negativo(int valor, bool valido)
+    {
+        // Cero es «usar el techo de la generación»; un negativo no significa nada.
+        var resultado = EnPerilla(nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), valor);
+
+        Assert.Equal(valido, resultado.Succeeded);
+
+        if (!valido)
+        {
+            Assert.Contains(
+                resultado.Failures!,
+                f => f.Contains(nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), StringComparison.Ordinal));
+        }
+    }
+
     // ------------------------------------------------------- las relaciones
 
     [Fact]
@@ -142,6 +161,58 @@ public sealed class ValidacionDeOpcionesTests
         Assert.Contains(
             resultado.Failures!,
             f => f.Contains(nameof(OpcionesAsistente.TimeoutDeComandoSegundos), StringComparison.Ordinal));
+    }
+
+    // ------------------------------------ redaction without masking: in effect
+
+    [Theory]
+    [InlineData(true, "local", "", true)]
+    [InlineData(false, "local", "", false)]
+    [InlineData(true, "anthropic", "", false)]
+    [InlineData(true, "simulado", "", false)]
+    [InlineData(true, "local", "cassettes", false)]
+    [InlineData(true, "local", "   ", true)]
+    [InlineData(true, "Local", "", false)]
+    public void Unmasked_redaction_is_in_effect_only_with_the_local_provider_and_no_cassettes(
+        bool requested, string provider, string cassetteDirectory, bool expected)
+    {
+        var options = new OpcionesAsistente
+        {
+            RedaccionSinEnmascarar = requested,
+            Proveedor = provider,
+            DirectorioDeCassettes = cassetteDirectory,
+        };
+
+        Assert.Equal(expected, options.RedaccionSinEnmascararVigente);
+    }
+
+    [Fact]
+    public void Unmasked_redaction_is_off_by_default()
+    {
+        var options = new OpcionesAsistente();
+
+        Assert.False(options.RedaccionSinEnmascarar);
+        Assert.False(options.RedaccionSinEnmascararVigente);
+    }
+
+    [Theory]
+    [InlineData("anthropic", "")]
+    [InlineData("local", "cassettes")]
+    public void Requesting_unmasked_redaction_where_it_is_not_in_effect_does_not_fail_validation(
+        string provider, string cassetteDirectory)
+    {
+        // Mask and warn, never fail startup: a leftover flag must not block rolling
+        // the provider back.
+        var result = Validar(o =>
+        {
+            o.RedaccionSinEnmascarar = true;
+            o.Proveedor = provider;
+            o.DirectorioDeCassettes = cassetteDirectory;
+            o.UrlDelProveedorLocal = "http://localhost:8080";
+            o.ClaveDelProveedor = "clave";
+        });
+
+        Assert.True(result.Succeeded, string.Join(" | ", result.Failures ?? []));
     }
 
     // --------------------------------------------- ninguna perilla sin clasificar

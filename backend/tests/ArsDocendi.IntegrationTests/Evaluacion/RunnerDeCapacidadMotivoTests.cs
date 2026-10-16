@@ -147,6 +147,7 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
                 new CuotaDeActorFalsa(0, TimeProvider.System),
                 new ConsultasIdentityFalsa(),
                 NullLogger<CatalogoDeCapacidades>.Instance),
+            opciones,
             NullLogger<CarrilSql>.Instance);
 
         var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresFijos(), proveedor);

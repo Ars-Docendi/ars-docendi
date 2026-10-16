@@ -188,6 +188,22 @@ consulta generada, y un `SELECT p.documento AS codigo` lo dejaría pasar entero.
 El marcador es un contador por orden de aparición, no un hash del valor: un hash de
 un documento se invierte por fuerza bruta en segundos.
 
+**Excepción, opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
+proveedor `local` y sin `Asistente__DirectorioDeCassettes`, el prompt de redacción
+lleva el valor real de las columnas `sensible-valor` en vez del marcador. Si falta
+cualquiera de las tres condiciones se sigue enmascarando, el proceso arranca igual y
+el arranque registra una advertencia; el arranque también registra una línea que
+dice cuál de los dos modos corre. Las columnas `sensible-texto` se suprimen siempre,
+y quién puede leer datos personales no cambia: lo decide el rol de PostgreSQL.
+
+**La exposición que el operador acepta al prenderla**: los valores entran en la
+caché KV y en el camino de las solicitudes del servidor del modelo. Por eso el
+servidor tiene que correr en hardware del Departamento y, con llama-server, con
+`--cache-ram 0` (llama.cpp#27148). El código no puede comprobar que
+`UrlDelProveedorLocal` apunte a una máquina propia: es una precondición del
+operador. No es una mejora de rendimiento (ver
+[modelo-local.md §6](../../../docs/architecture/modelo-local.md)).
+
 **Es asimétrico**: la pregunta cruda del usuario viaja al proveedor a través de la
 generación. Protege el camino de vuelta, no el de ida.
 
@@ -208,10 +224,71 @@ Tres cosas se verifican solas al agregarlo:
 - la huella del catálogo cambia, y con ella el sellado de los reportes de
   evaluación.
 
+Y dos que «ejecuta» no ve (`EjemplosEjecutablesTests`), porque un ejemplo puede
+correr sin error y enseñar algo equivocado:
+
+- no lee el texto histórico `dedicacion` / `dedicacion_solicitada`: la forma vigente
+  es `dedicacion_id` contra `designaciones.dedicaciones`;
+- el literal con que filtra un catálogo cerrado **existe** en ese catálogo — un
+  `count(*)` sobre un valor inexistente devuelve cero y parece un dato.
+
+**Los ejemplos de materias comparan el nombre con `=`, y es a propósito**, aunque la
+regla 8 del prompt pida `public.unaccent(col) ILIKE public.unaccent('%…%')`. Se
+probó pasarlos a esa forma y, contra Qwen3-8B, «docentes de Bases de Datos» dejó de
+resolverse por la materia y pasó a buscar la habilidad: el modelo copia la forma
+del ejemplo más simple que nombra esas palabras. Antes de cambiarlos, medirlo con
+el evaluador.
+
+**Agregar ejemplos tampoco es gratis.** El selector elige por parecido de palabras,
+así que un ejemplo nuevo cambia lo que reciben muchas otras preguntas: con ocho
+ejemplos más cambió la selección de 22 de los 34 ítems de capacidad y se perdieron
+tres aciertos. Con `EjemplosEnElPrefijo` —todos van siempre— los mismos ocho
+sumaron dos aciertos en capacidad y costaron uno en diálogo. Todo ejemplo nuevo se
+mide antes de quedar; los números están en
+[modelo-local.md §8](../../../docs/architecture/modelo-local.md).
+
 **Invariante que hay que sostener a mano**: el catálogo y el dataset de capacidad
 son disjuntos. Si se solapan, la métrica mide cuán bien el sistema reproduce
 ejemplos que ya vio — y como el catálogo de capacidades deriva sus sugerencias de
 acá, el asistente estaría proponiendo las preguntas con las que se lo evalúa.
+
+### Cómo se agrega un término al glosario
+
+`Recursos/glosario.json`, embebido como recurso del assembly. Cada término lleva
+`termino`, `sinonimos`, `explicacion` y al menos una `referencias`: una columna
+`schema.tabla.columna` con los valores que le corresponden.
+
+Se verifican solas (`CatalogoDeGlosarioTests`, `GlosarioInstitucionalTests` y
+`RenderizadoDelGlosarioTests`):
+
+- el archivo es válido: campos obligatorios, términos únicos sin contar mayúsculas ni
+  acentos, y un mensaje que nombra el término cuando algo falla;
+- cada columna **existe** en la base migrada, es legible con el rol básico y no es
+  `sensible-texto`;
+- cada valor **existe** donde se lo declara: en el `CHECK` de la columna o, si no hay
+  `CHECK`, en el catálogo contra el que dice verificarse;
+- toda columna con nombre propio que cite la explicación existe;
+- el bloque se renderiza byte a byte igual entre llamadas y entre los dos roles, en el
+  orden del archivo.
+
+**Un valor que no se puede verificar no puede estar en el archivo.** Si una migración
+mueve un estado fuera de su `CHECK`, el test falla nombrando el término: ese fallo es
+el punto.
+
+**Un sinónimo necesita fuente**: la interfaz, una PR o un comentario de columna. Un
+sinónimo supuesto es una apuesta sobre cómo habla el Departamento, y puede llevar al
+modelo hacia la columna equivocada.
+
+**Todo término nuevo se mide antes de quedar.** El glosario entero, con 24 términos
+revisados, empeoró dos ejes; un término más cambia lo que reciben muchas preguntas.
+
+**Invariante que hay que sostener a mano**: el glosario y los datasets de evaluación
+son disjuntos. Un término no se agrega en respuesta a un ítem que falla: la métrica
+pasaría a medir cuánto del dataset se copió.
+
+**De dónde salió el vocabulario.** Se armó del repositorio, de las PRs #27, #32 y #38
+y de la rama `feature/reserva-aulas`. **No se validó con el Departamento** (ARS-65 sigue
+abierta) y no se derivó de los datasets de evaluación.
 
 ### Cuándo se recalcula el prefijo
 
@@ -474,6 +551,7 @@ va por ambiente (`Asistente:Proveedor`):
 | ----------- | -------------------- | ----------------------------------------------------- |
 | `simulado`  | `ProveedorSimulado`  | Default de todos los ambientes. Determinista, sin red |
 | `anthropic` | `ProveedorAnthropic` | Requiere `Asistente:ClaveDelProveedor`                |
+| `local`     | `ProveedorLocal`     | Requiere `Asistente:UrlDelProveedorLocal`             |
 
 Sumar uno nuevo —otro proveedor, o un modelo propio corriendo en la nube— es una
 clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline que
@@ -491,14 +569,24 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                           | Default           | Qué decide                                    |
-| ---------------------------------- | ----------------- | --------------------------------------------- |
-| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                   |
-| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado |
-| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                    |
-| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta           |
-| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español           |
-| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento     |
+| Variable                           | Default           | Qué decide                                     |
+| ---------------------------------- | ----------------- | ---------------------------------------------- |
+| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                    |
+| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado  |
+| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                     |
+| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta            |
+| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español            |
+| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento      |
+| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1` |
+
+**El proveedor `local`** (asistente-proveedor-local) habla con cualquier servidor
+OpenAI-compatible —vLLM, `llama-server`, SGLang— en `{UrlDelProveedorLocal}/chat/completions`.
+La clave es opcional: si está puesta viaja como `Authorization: Bearer`. Con este
+proveedor el esfuerzo decide el razonamiento: sólo `alto`/`maximo` lo prenden
+(`enable_thinking`), porque en una GPU compartida pensar es latencia para todos. El
+servidor, el modelo elegido y el dimensionamiento para una RTX 5070 están en
+[docs/architecture/modelo-local.md](../../../docs/architecture/modelo-local.md); el
+perfil de valores, en `infra/compose/compose.asistente-local.yml`.
 
 **Los esfuerzos son tres y no uno, y el motivo es de latencia.** Con un valor
 global, la redacción deliberaba antes de escribir la primera palabra: para quien
@@ -744,6 +832,8 @@ turno: para eso tiene su propio máximo de intentos.
 | `TimeoutDeLlamadaSegundos`                 | 60      | Una llamada al proveedor                                                         |
 | `FallosParaAbrirElBreaker`                 | 5       | Fallos seguidos que cortan el paso. Cero desactiva el breaker                    |
 | `EsperaDelBreakerSegundos`                 | 30      | Cuánto espera antes de probar de nuevo                                           |
+| `MaximoDeLlamadasConcurrentes`             | 0       | Llamadas al modelo en curso a la vez, en el proceso. Cero no pone límite         |
+| `EsperaMaximaEnColaSegundos`               | 30      | Cuánto espera una llamada por un lugar en la compuerta antes de degradar         |
 | `RetencionDeRegistrosDias`                 | 90      | Cuánto viven las filas de los dos registros                                      |
 | `RetencionDeHistorialDias`                 | 180     | Cuánto vive una conversación propia, desde su última actividad                   |
 | `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
@@ -781,14 +871,92 @@ y no cuesta nada.
 ### El orden de los decoradores
 
 ```
-ProveedorConTechoDeLlamadas   ← techo del turno
-  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
-       └─ proveedor real
+ProveedorConTechoDeLlamadas      ← techo del turno
+  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo con MaximoDeLlamadasConcurrentes > 0)
+       └─ ProveedorConBreaker    ← estado del proveedor + timeout por llamada
+            └─ proveedor real
 ```
 
-De afuera hacia adentro, de más barato a más caro. Invertir los dos primeros haría
+De afuera hacia adentro, de más barato a más caro. Invertir techo y breaker haría
 que el breaker registrara intentos que el techo iba a rechazar igual, y un solo turno
 desbocado terminaría abriendo el corte para todos los demás.
+
+**La compuerta va por fuera del breaker, y ese es el punto** (asistente-proveedor-local,
+D4). La espera en la cola no consume el timeout de la llamada ni cuenta como fallo:
+contra un modelo propio en una GPU, treinta usuarios a la vez acumulaban timeouts en
+la cola del servidor, abrían el breaker y apagaban el asistente para todos aunque el
+servidor estuviera sano. Una llamada que no consigue lugar a tiempo degrada con el
+texto de saturación («probá de nuevo en unos segundos»), no con el de proveedor caído.
+Y una llamada de un turno que ya llamó al modelo —la redacción después de la
+generación— entra antes que la primera de un turno nuevo: los turnos empezados
+terminan y liberan lugar.
+
+`ReintentarConsultaVacia` (default `true`) apaga el reintento por consulta vacía, que
+repite el prompt byte a byte: con un modelo local a temperatura 0 devuelve la misma
+consulta.
+
+### Optimizaciones para un modelo propio
+
+Ocho opciones del change `asistente-optimizaciones-modelo-local`. **Todas arrancan
+apagadas**: con los defaults el prompt de Claude no cambia en un byte y los cassettes
+siguen valiendo. Cada una es una hipótesis para un modelo chico que el evaluador
+tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la RTX 3070
+([modelo-local.md §8](../../../docs/architecture/modelo-local.md)) las prenden.
+
+| Opción                              | Default | Qué hace                                                                                                                                                                                   |
+| ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EsquemaCompacto`                   | `false` | Tipos abreviados, nulabilidad como `?` y claves foráneas en línea. Mismos comentarios, ~10 % menos prefijo                                                                                 |
+| `EjemplosEnElPrefijo`               | `false` | Los ejemplos verificados van en el prefijo cacheable y no en el mensaje. Conviene con vLLM, que comparte el prefijo entre turnos; con llama-server también midió mejor                     |
+| `GlosarioEnElPrefijo`               | `false` | El vocabulario del Departamento (`Recursos/glosario.json`) y las dedicaciones van en el prefijo, entre el esquema y los ejemplos                                                           |
+| `ReintentoConContexto`              | `false` | El reintento por consulta vacía le dice al modelo qué consulta no trajo filas, en vez de repetir el prompt                                                                                 |
+| `RepararConsultaFallida`            | `false` | Una ronda de corrección con el error de PostgreSQL saneado: ningún literal que no esté en la consulta llega al modelo                                                                      |
+| `RedaccionConPlantillas`            | `false` | Un valor o una lista corta se redactan sin modelo cuando no hay cobertura ni recorte que matizar                                                                                           |
+| `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                                       |
+| `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                                                |
+| `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                                               |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                                                   |
+| `RazonamientoEnSegundaGeneracion`   | `false` | La segunda generación del turno (reintento por vacío o reparación) se pide con esfuerzo alto, o sea con razonamiento si el servidor lo permite. Con `--reasoning-budget 0` no tiene efecto |
+| `MaximoDeTokensDeSegundaGeneracion` | 0       | Techo de tokens de esa segunda generación, que razona antes de escribir la consulta. Cero usa `MaximoDeTokensDeGeneracion`; sin la opción anterior no rige                                 |
+
+**`GlosarioEnElPrefijo` está medida y se queda apagada.** Con la opción prendida el
+prefijo suma dos bloques, los dos sólo con ella: el glosario institucional
+(`Recursos/glosario.json`, el vocabulario del Departamento con el valor exacto que le
+corresponde en el esquema) y las dedicaciones como catálogo cerrado, «Categoría 1» a
+«Categoría 6» con su código. Van después del esquema y antes de los ejemplos. Contra
+Qwen3-8B empeoró capacidad (26/34 a 25/34) y social (18/20 a 17/20), así que ningún
+perfil la prende. La medición, los ítems que cambiaron y la hipótesis sin verificar están
+en [modelo-local.md §6](../../../docs/architecture/modelo-local.md).
+
+**`RedaccionSinEnmascarar` no es una optimización.** Se mide más lenta (la redacción pasa
+de 0,45 a 0,57 s con una fila y de 0,42 a 0,70 s con tres, y el prompt crece un 28 % con 24
+filas) y no mueve ninguna métrica del evaluador. Es una opción de calidad de redacción para
+un despliegue propio: con ella la narración dice «el documento es 28341567» en vez de
+«documento 1». Su condición de vigencia y la exposición que implica están en
+[La frontera de salida](#la-frontera-de-salida).
+
+**`RazonamientoEnSegundaGeneracion` está medida y queda apagada** (change
+`asistente-razonamiento-en-segunda-generacion`, ARS-163). Pide con esfuerzo alto sólo la
+segunda generación de un turno —el reintento por consulta vacía y la reparación de un
+rechazo del motor—; la primera generación, la reescritura y la redacción no cambian.
+Tiene una precondición del servidor: con llama-server arrancado con `--reasoning-budget 0`
+—como el perfil de la RTX 3070— un pedido no puede prender el razonamiento y la opción no
+hace nada. Medida con el servidor en `--reasoning-budget -1`, no sumó ningún acierto: un
+ítem de capacidad pasó de respuesta falsa a abstención, a cambio de una corrida 26 % más
+larga. Los números y cómo habilitarla están en
+[modelo-local.md §6](../../../docs/architecture/modelo-local.md).
+
+**El streaming no cambia lo que vale.** El adaptador local pide `stream: true` sólo
+para la redacción y sólo si alguien escucha (`CanalDeRedaccion`, que llena el
+endpoint de flujo). Los fragmentos son una vista previa: el evento `resultado` trae
+la respuesta completa, que es la que el cliente muestra al final, la que se guarda
+bajo la `Idempotency-Key` y la que cuenta el registro. Si el cliente se desconecta,
+la escritura se marca rota y el turno termina igual; un error de escritura nunca
+llega al breaker.
+
+**La tarjeta «Servidor del modelo» del panel de uso** (`GET /administracion/servidor-local`)
+lee el `/metrics` del servidor —vLLM o llama-server, con `--metrics`— con un timeout
+de 3 s, y el estado de la compuerta del proceso. El panel la refresca cada 15 s. Sólo aparece con proveedor
+`local`; una métrica que el servidor no publica se muestra «—», nunca cero.
 
 **La cuota no está en esta cadena.** La cobra `CapaConversacional` en un `finally`,
 con lo que contó `ContadorDeLlamadasDelTurno`: es lo único que conoce al actor, y

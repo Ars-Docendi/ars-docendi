@@ -407,6 +407,39 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         Assert.Equal(usoDelMes.Organizacion.CostoEstimado, presupuestos.GastoEstimadoDelMes);
     }
 
+    // ------------------------------------ asistente-optimizaciones-modelo-local
+
+    [Fact]
+    public async Task Sin_proveedor_local_la_telemetria_dice_que_no_esta_configurado()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+
+        var estado = await LeerAsync<ServidorLocalDto>(await cliente.GetAsync(
+            "/api/asistente/administracion/servidor-local", TestContext.Current.CancellationToken));
+
+        Assert.False(estado.Configurado);
+        Assert.Null(estado.EnCurso);
+        // Sin MaximoDeLlamadasConcurrentes no hay compuerta que informar.
+        Assert.Null(estado.Compuerta);
+    }
+
+    [Fact]
+    public async Task Sin_el_permiso_la_telemetria_se_rechaza()
+    {
+        await SembrarAsync();
+        using var host = CrearHost();
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Secretaria, "secretaria");
+
+        var respuesta = await cliente.GetAsync(
+            "/api/asistente/administracion/servidor-local", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, respuesta.StatusCode);
+    }
+
     // ------------------------------------------------ asistente-acceso-granular
 
     [Fact]

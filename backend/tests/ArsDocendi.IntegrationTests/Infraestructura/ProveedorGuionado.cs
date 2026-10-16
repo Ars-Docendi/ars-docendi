@@ -86,8 +86,29 @@ public sealed class ProveedorGuionado(params string[] respuestas) : IProveedorDe
 
         _entregadas++;
 
-        return Task.FromResult(new RespuestaDelModelo(
-            texto, 100, 50, EsSimulada: EsSimulado, SeQuedoSinTokens: SeQuedaSinTokens));
+        var respuesta = new RespuestaDelModelo(
+            texto, 100, 50, EsSimulada: EsSimulado, SeQuedoSinTokens: SeQuedaSinTokens);
+
+        // Quien pide la respuesta por fragmentos la recibe palabra por palabra,
+        // como la daría el servidor local (asistente-optimizaciones-modelo-local, D9).
+        return solicitud.AlRecibirTexto is { } alRecibir
+            ? EnFragmentosAsync(texto, alRecibir, respuesta, ct)
+            : Task.FromResult(respuesta);
+    }
+
+    private static async Task<RespuestaDelModelo> EnFragmentosAsync(
+        string texto,
+        Func<string, CancellationToken, Task> alRecibir,
+        RespuestaDelModelo respuesta,
+        CancellationToken ct)
+    {
+        var palabras = texto.Split(' ');
+        for (var indice = 0; indice < palabras.Length; indice++)
+        {
+            await alRecibir(indice == 0 ? palabras[indice] : " " + palabras[indice], ct);
+        }
+
+        return respuesta;
     }
 
     /// <summary>Arma la respuesta JSON de una generación contestable.</summary>

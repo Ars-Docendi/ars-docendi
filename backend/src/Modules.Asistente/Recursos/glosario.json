@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "descripcion": "Glosario institucional: el vocabulario del Departamento y el valor exacto que le corresponde en el esquema. Cada columna y cada valor se verifican contra la base migrada (GlosarioInstitucionalTests). Se arma del repositorio, de las PRs #27, #32 y #38 y de la rama feature/reserva-aulas; NO se validó con el Departamento (ARS-65) y NO se derivó de los datasets de evaluación. INVARIANTE: este glosario y los datasets de la evaluación son disjuntos; un término no se agrega en respuesta a un ítem que falla.",
+  "terminos": [
+    {
+      "termino": "en Coordinación",
+      "sinonimos": ["lo tiene el coordinador"],
+      "explicacion": "pedido en la etapa de revisión del coordinador de carrera",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["en_revision_coordinador"]
+        }
+      ]
+    },
+    {
+      "termino": "en Secretaría",
+      "sinonimos": [],
+      "explicacion": "pedido en la etapa de revisión de la Secretaría Académica",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["en_revision_secretaria"]
+        }
+      ]
+    },
+    {
+      "termino": "en Decanato",
+      "sinonimos": [],
+      "explicacion": "pedido en la etapa de revisión del decanato",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["en_revision_decanato"]
+        }
+      ]
+    },
+    {
+      "termino": "aprobado",
+      "sinonimos": ["aceptado", "salió"],
+      "explicacion": "pedido aprobado: se guarda como estado en_lote, no existe un estado «aprobado»",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["en_lote"]
+        }
+      ]
+    },
+    {
+      "termino": "finalizado",
+      "sinonimos": ["cerrado", "terminado"],
+      "explicacion": "pedido que ya no sigue en el circuito: aprobado, rechazado o cancelado",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["en_lote", "rechazado", "cancelado"]
+        }
+      ]
+    },
+    {
+      "termino": "en Cátedra",
+      "sinonimos": ["volvió a la cátedra"],
+      "explicacion": "pedido devuelto que tiene el jefe de cátedra (un estado del pedido, no la materia); no incluye borradores",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.estado",
+          "valores": ["devuelto"]
+        },
+        {
+          "columna": "designaciones.pedidos.propietario_actual",
+          "valores": ["jefe_catedra"],
+          "verificaContra": "identity.roles.code"
+        }
+      ]
+    },
+    {
+      "termino": "tipo de pedido",
+      "sinonimos": ["novedad"],
+      "explicacion": "clase de cambio que pide un pedido (no el tipo de un archivo adjunto)",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.novedad",
+          "valores": ["Alta", "Baja", "Cambio de cargo o dedicación", "Sin novedad"]
+        }
+      ]
+    },
+    {
+      "termino": "cambio (de cargo, de dedicación)",
+      "sinonimos": [],
+      "explicacion": "pedido que cambia el cargo o la dedicación: un solo valor de novedad para los dos",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.novedad",
+          "valores": ["Cambio de cargo o dedicación"]
+        }
+      ]
+    },
+    {
+      "termino": "quién lo aprobó",
+      "sinonimos": ["quién lo aceptó"],
+      "explicacion": "acción de aprobar un pedido en su historial: se guarda como aceptar",
+      "referencias": [
+        {
+          "columna": "designaciones.pedido_historial.accion",
+          "valores": ["aceptar"]
+        }
+      ]
+    },
+    {
+      "termino": "en qué bandeja está",
+      "sinonimos": ["quién lo tiene"],
+      "explicacion": "rol que tiene hoy el pedido, guardado como código de rol",
+      "referencias": [
+        {
+          "columna": "designaciones.pedidos.propietario_actual",
+          "valores": [
+            "jefe_catedra",
+            "coordinador_carrera",
+            "secretaria",
+            "decanato",
+            "administrativo"
+          ],
+          "verificaContra": "identity.roles.code"
+        }
+      ]
+    },
+    {
+      "termino": "dedicación",
+      "sinonimos": ["categoría", "categoría de dedicación"],
+      "explicacion": "categoría de dedicación docente: se une `dedicaciones` por `dedicacion_id` (designación) o `dedicacion_solicitada_id` (pedido), nunca por el texto `dedicacion`",
+      "referencias": [
+        {
+          "columna": "designaciones.dedicaciones.id"
+        },
+        {
+          "columna": "designaciones.designaciones.dedicacion_id"
+        },
+        {
+          "columna": "designaciones.pedidos.dedicacion_solicitada_id"
+        }
+      ]
+    },
+    {
+      "termino": "jefe de cátedra",
+      "sinonimos": [],
+      "explicacion": "rol de acceso, no un cargo: quien lo tiene figura en `user_roles` y está vigente con `deleted_at` nulo",
+      "referencias": [
+        {
+          "columna": "identity.roles.code",
+          "valores": ["jefe_catedra"]
+        },
+        {
+          "columna": "identity.user_roles.role_id"
+        },
+        {
+          "columna": "identity.user_roles.deleted_at"
+        }
+      ]
+    },
+    {
+      "termino": "coordinador",
+      "sinonimos": ["coordinador de carrera", "coordinación"],
+      "explicacion": "rol de acceso, no un cargo: quien lo tiene figura en `user_roles` y está vigente con `deleted_at` nulo",
+      "referencias": [
+        {
+          "columna": "identity.roles.code",
+          "valores": ["coordinador_carrera"]
+        },
+        {
+          "columna": "identity.user_roles.role_id"
+        },
+        {
+          "columna": "identity.user_roles.deleted_at"
+        }
+      ]
+    },
+    {
+      "termino": "secretaría",
+      "sinonimos": ["Secretaría Académica"],
+      "explicacion": "rol de acceso, no un cargo: quien lo tiene figura en `user_roles` y está vigente con `deleted_at` nulo",
+      "referencias": [
+        {
+          "columna": "identity.roles.code",
+          "valores": ["secretaria"]
+        },
+        {
+          "columna": "identity.user_roles.role_id"
+        },
+        {
+          "columna": "identity.user_roles.deleted_at"
+        }
+      ]
+    },
+    {
+      "termino": "decanato",
+      "sinonimos": [],
+      "explicacion": "rol de acceso, no un cargo: quien lo tiene figura en `user_roles` y está vigente con `deleted_at` nulo",
+      "referencias": [
+        {
+          "columna": "identity.roles.code",
+          "valores": ["decanato"]
+        },
+        {
+          "columna": "identity.user_roles.role_id"
+        },
+        {
+          "columna": "identity.user_roles.deleted_at"
+        }
+      ]
+    },
+    {
+      "termino": "administrativo",
+      "sinonimos": ["administración"],
+      "explicacion": "rol de acceso, no un cargo: quien lo tiene figura en `user_roles` y está vigente con `deleted_at` nulo",
+      "referencias": [
+        {
+          "columna": "identity.roles.code",
+          "valores": ["administrativo"]
+        },
+        {
+          "columna": "identity.user_roles.role_id"
+        },
+        {
+          "columna": "identity.user_roles.deleted_at"
+        }
+      ]
+    },
+    {
+      "termino": "titular",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Profesor Titular»",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["titular"]
+        }
+      ]
+    },
+    {
+      "termino": "asociado",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Profesor Asociado»",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["asociado"]
+        }
+      ]
+    },
+    {
+      "termino": "adjunto",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Profesor Adjunto», no un archivo adjunto de un pedido",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["adjunto"]
+        }
+      ]
+    },
+    {
+      "termino": "JTP",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Jefe de Trabajos Prácticos»",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["jtp"]
+        }
+      ]
+    },
+    {
+      "termino": "ayudante de primera",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Ayudante de Primera»",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["ayudante1"]
+        }
+      ]
+    },
+    {
+      "termino": "ayudante de segunda",
+      "sinonimos": [],
+      "explicacion": "cargo docente «Ayudante de Segunda»",
+      "referencias": [
+        {
+          "columna": "designaciones.cargos.codigo",
+          "valores": ["ayudante2"]
+        }
+      ]
+    },
+    {
+      "termino": "carga horaria",
+      "sinonimos": ["horas", "horas semanales", "horas de dictado"],
+      "explicacion": "horas semanales de la designación; no existe una columna llamada «carga horaria»",
+      "referencias": [
+        {
+          "columna": "designaciones.designaciones.horas"
+        }
+      ]
+    },
+    {
+      "termino": "carga horaria total",
+      "sinonimos": ["total de horas"],
+      "explicacion": "suma de las horas de dictado, de investigación y externas de la designación; cada una puede ser nula",
+      "referencias": [
+        {
+          "columna": "designaciones.designaciones.horas"
+        },
+        {
+          "columna": "designaciones.designaciones.horas_investigacion"
+        },
+        {
+          "columna": "designaciones.designaciones.horas_externas"
+        }
+      ],
+      "sql": "COALESCE(horas,0) + COALESCE(horas_investigacion,0) + COALESCE(horas_externas,0)"
+    }
+  ]
+}

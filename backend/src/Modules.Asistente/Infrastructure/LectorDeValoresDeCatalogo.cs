@@ -74,6 +74,37 @@ internal static class LectorDeValoresDeCatalogo
         ];
 
     /// <summary>
+    /// Las columnas que se suman a <see cref="CatalogosCerrados"/> sólo con
+    /// <c>GlosarioEnElPrefijo</c> prendida (asistente-glosario-institucional, D5).
+    /// </summary>
+    /// <remarks>
+    /// Va aparte, y no al final de la lista de siempre con un filtro en tiempo de
+    /// lectura, para que «con el default la lista es la de siempre» sea una
+    /// declaración que se ve en el diff y no una condición que hay que seguir
+    /// leyendo. Si estas columnas se enumeraran siempre, el prefijo de todos los
+    /// proveedores cambiaría y los cassettes grabados dejarían de valer.
+    ///
+    /// <b>Las dedicaciones califican</b> como catálogo cerrado: seis filas que fija
+    /// la normativa, sin datos personales y con toda columna concedida <c>publica</c>.
+    /// <c>codigo</c> es <c>SMALLINT</c> y se lee como texto: el prefijo lista
+    /// <c>'1'</c> a <c>'6'</c>, y <c>codigo = '3'</c> ejecuta.
+    /// </remarks>
+    internal static readonly IReadOnlyList<(string Esquema, string Tabla, string Columna)>
+        CatalogosDelGlosario =
+        [
+            ("designaciones", "dedicaciones", "nombre"),
+            ("designaciones", "dedicaciones", "codigo"),
+        ];
+
+    /// <summary>
+    /// Las columnas que se leen: las de siempre y, con el glosario, las del glosario
+    /// a continuación, para que los valores de siempre conserven su posición.
+    /// </summary>
+    internal static IReadOnlyList<(string Esquema, string Tabla, string Columna)> Declaradas(
+        bool conGlosario) =>
+        conGlosario ? [.. CatalogosCerrados, .. CatalogosDelGlosario] : CatalogosCerrados;
+
+    /// <summary>
     /// Lee los valores que la conexión actual puede leer.
     /// </summary>
     /// <remarks>
@@ -83,11 +114,11 @@ internal static class LectorDeValoresDeCatalogo
     /// estén presentes lo verifica un test contra la base real.
     /// </remarks>
     internal static async Task<IReadOnlyList<VocabularioDeUnaColumna>> LeerAsync(
-        NpgsqlConnection conexion, CancellationToken ct)
+        NpgsqlConnection conexion, CancellationToken ct, bool conGlosario = false)
     {
         var vocabularios = new List<VocabularioDeUnaColumna>();
 
-        foreach (var (esquema, tabla, columna) in CatalogosCerrados)
+        foreach (var (esquema, tabla, columna) in Declaradas(conGlosario))
         {
             var valores = await LeerColumnaAsync(conexion, esquema, tabla, columna, ct);
 

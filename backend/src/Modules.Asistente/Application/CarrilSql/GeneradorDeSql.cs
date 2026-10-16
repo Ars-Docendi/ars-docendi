@@ -37,7 +37,8 @@ public sealed record GeneracionDeSql(
     string Razonamiento,
     string Categoria,
     MotivoDeRechazo? Motivo = null,
-    string? TerminoCandidato = null)
+    string? TerminoCandidato = null,
+    string? PreguntaInterpretada = null)
 {
     /// <summary>Generación que declara la pregunta fuera de alcance.</summary>
     public static GeneracionDeSql NoContestable(
@@ -79,8 +80,78 @@ public sealed class GeneradorDeSql(
     IProveedorDeModelo modelo,
     IFechaDeReferencia fecha,
     IOptions<OpcionesAsistente> opciones,
-    ILogger<GeneradorDeSql> log)
+    ILogger<GeneradorDeSql> log,
+    CacheDeConsultasGeneradas? cache = null)
 {
+    /// <summary>
+    /// La forma JSON de la respuesta, declarada para que un proveedor que puede
+    /// imponerla la imponga (asistente-proveedor-local, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// Mismas claves y MISMO ORDEN que pide <c>InstruccionesDeGeneracion</c>: con
+    /// decodificación restringida el modelo escribe las propiedades en el orden del
+    /// esquema, y uno distinto del de las instrucciones lo haría pelear contra su
+    /// propio prompt. <c>motivo</c> y <c>termino</c> son opcionales y aceptan nulo,
+    /// igual que el intérprete, que los tolera ausentes o de otro tipo.
+    ///
+    /// El esquema garantiza la FORMA. Que la consulta sea segura y respete el
+    /// alcance lo sigue decidiendo <c>ValidadorDeSql</c>.
+    /// </remarks>
+    internal const string EsquemaDeSalida = """
+        {
+          "type": "object",
+          "properties": {
+            "pregunta_interpretada": { "type": ["string", "null"] },
+            "es_contestable": { "type": "boolean" },
+            "sql": { "type": ["string", "null"] },
+            "razonamiento": { "type": "string" },
+            "categoria": {
+              "type": "string",
+              "enum": ["consulta_simple", "filtro_temporal", "cruce_de_tablas", "agregacion", "no_contestable", "ambigua"]
+            },
+            "motivo": { "type": ["string", "null"] },
+            "termino": { "type": ["string", "null"] }
+          },
+          "required": ["es_contestable", "sql", "razonamiento", "categoria"],
+          "additionalProperties": false
+        }
+        """;
+
+    /// <summary>
+    /// Si una consulta que volvió vacía se vuelve a generar
+    /// (<see cref="OpcionesAsistente.ReintentarConsultaVacia"/>, D6).
+    /// </summary>
+    /// <remarks>
+    /// Lo expone el generador porque es el dueño de la llamada que se repetiría y
+    /// el que ya recibe las opciones: el carril pregunta, no configura.
+    /// </remarks>
+    internal bool ReintentaConsultaVacia => opciones.Value.ReintentarConsultaVacia;
+
+    /// <summary>Si el reintento por vacío lleva la consulta anterior (D4).</summary>
+    internal bool ReintentaConContexto => opciones.Value.ReintentoConContexto;
+
+    /// <summary>Si un rechazo del motor tiene una ronda de reparación (D4).</summary>
+    internal bool ReparaConsultaFallida => opciones.Value.RepararConsultaFallida;
+
+    /// <summary>
+    /// Una generación ya hecha para la misma pregunta sin contexto, si la caché
+    /// está prendida y la tiene (asistente-optimizaciones-modelo-local, D6).
+    /// </summary>
+    internal GeneracionDeSql? BuscarEnCache(string pregunta, bool conDatosPersonales) =>
+        cache is null || opciones.Value.VigenciaDeCacheDeConsultasMinutos <= 0
+            ? null
+            : cache.Buscar(pregunta, conDatosPersonales, fecha.Hoy());
+
+    /// <summary>Recuerda una generación que validó y trajo filas (D6).</summary>
+    internal void Recordar(string pregunta, bool conDatosPersonales, GeneracionDeSql generacion)
+    {
+        var vigencia = opciones.Value.VigenciaDeCacheDeConsultasMinutos;
+        if (cache is not null && vigencia > 0)
+        {
+            cache.Guardar(pregunta, conDatosPersonales, fecha.Hoy(), generacion, TimeSpan.FromMinutes(vigencia));
+        }
+    }
+
 
     /// <summary>
     /// Razonamiento con que se resuelve una respuesta que no se pudo interpretar.
@@ -100,31 +171,70 @@ public sealed class GeneradorDeSql(
     /// antes de que existieran (design.md D11): el bloque «Menciones» sólo se
     /// agrega cuando hay algo que agregar.
     /// </param>
+    /// <param name="preguntasAnteriores">
+    /// Las preguntas anteriores del segmento vigente, sólo con
+    /// <see cref="OpcionesAsistente.ReescrituraEnLaGeneracion"/>
+    /// (asistente-optimizaciones-modelo-local, D7): la generación resuelve la
+    /// anáfora y devuelve la pregunta interpretada, en vez de una llamada aparte
+    /// al reescritor.
+    /// </param>
+    /// <param name="intentoAnterior">
+    /// La consulta anterior de ESTE turno y qué pasó con ella —vacía, o rechazada
+    /// por el motor con el error saneado— (D4). Nulo en la primera generación.
+    /// </param>
+    /// <param name="esSegundaGeneracion">
+    /// Verdadero en el reintento tras una consulta vacía y en la reparación tras un
+    /// rechazo del motor. No se infiere de <paramref name="intentoAnterior"/>: el
+    /// reintento sin contexto no lo trae. Con
+    /// <see cref="OpcionesAsistente.RazonamientoEnSegundaGeneracion"/> prendida pide
+    /// esfuerzo alto y el techo de <see cref="OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion"/>.
+    /// </param>
     public async Task<GeneracionDeSql> GenerarAsync(
         string pregunta,
         bool conDatosPersonales,
         CancellationToken ct,
         IReadOnlyList<string>? consultasAnteriores = null,
-        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null)
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null,
+        IReadOnlyList<string>? preguntasAnteriores = null,
+        (string Sql, string Problema)? intentoAnterior = null,
+        bool esSegundaGeneracion = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pregunta);
 
+        var valores = opciones.Value;
+        var conRazonamiento = esSegundaGeneracion && valores.RazonamientoEnSegundaGeneracion;
         var prefijo = await esquema.ObtenerAsync(conDatosPersonales, ct);
-        var elegidos = ejemplos.Elegir(pregunta);
+
+        // EJEMPLOS EN EL PREFIJO (D3): todos al final del prefijo cacheable, y
+        // ninguno en el mensaje. Sin la opción, el prefijo y el mensaje son BYTE A
+        // BYTE los de siempre.
+        var prefijoEstable = valores.EjemplosEnElPrefijo
+            ? prefijo.Prefijo + BloqueDeEjemplos()
+            : prefijo.Prefijo;
+        var elegidos = valores.EjemplosEnElPrefijo ? [] : ejemplos.Elegir(pregunta);
 
         var respuesta = await modelo.CompletarAsync(
             new SolicitudAlModelo
             {
-                PrefijoEstable = prefijo.Prefijo,
-                Mensaje = ArmarMensaje(pregunta, elegidos, fecha.Hoy(), consultasAnteriores, menciones),
+                PrefijoEstable = prefijoEstable,
+                Mensaje = ArmarMensaje(
+                    pregunta, elegidos, fecha.Hoy(), consultasAnteriores, menciones,
+                    preguntasAnteriores, intentoAnterior),
                 Temperatura = 0.0m,
                 // La llamada que MÁS se beneficia de deliberar: elegir el join
                 // correcto entre catorce tablas es el trabajo que mejora pensando, y
                 // es donde equivocarse produce una respuesta falsa.
-                Esfuerzo = EsfuerzoConfigurado.Interpretar(
-                    opciones.Value.EsfuerzoDeGeneracion,
-                    nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
-                MaximoDeTokens = opciones.Value.MaximoDeTokensDeGeneracion,
+                // En la segunda generación del turno, con la opción prendida, se paga
+                // deliberar: esfuerzo alto y su propio techo (cero usa el de siempre).
+                Esfuerzo = conRazonamiento
+                    ? EsfuerzoDelModelo.Alto
+                    : EsfuerzoConfigurado.Interpretar(
+                        valores.EsfuerzoDeGeneracion,
+                        nameof(OpcionesAsistente.EsfuerzoDeGeneracion)),
+                MaximoDeTokens = conRazonamiento && valores.MaximoDeTokensDeSegundaGeneracion > 0
+                    ? valores.MaximoDeTokensDeSegundaGeneracion
+                    : valores.MaximoDeTokensDeGeneracion,
+                EsquemaDeSalidaJson = EsquemaDeSalida,
             },
             ct);
 
@@ -174,7 +284,9 @@ public sealed class GeneradorDeSql(
         IReadOnlyList<EjemploSql> elegidos,
         DateOnly hoy,
         IReadOnlyList<string>? consultasAnteriores = null,
-        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null)
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones = null,
+        IReadOnlyList<string>? preguntasAnteriores = null,
+        (string Sql, string Problema)? intentoAnterior = null)
     {
         var mensaje = new StringBuilder();
 
@@ -212,7 +324,30 @@ public sealed class GeneradorDeSql(
             }
         }
 
+        // PREGUNTAS ANTERIORES (D7): sólo con la reescritura dentro de la
+        // generación. Van antes de la pregunta por lo mismo que las consultas
+        // anteriores: son el estado de esta conversación.
+        if (preguntasAnteriores is { Count: > 0 })
+        {
+            mensaje.Append(
+                "\nPreguntas anteriores de esta conversación, de la más vieja a la más reciente:\n");
+
+            foreach (var anterior in preguntasAnteriores)
+            {
+                mensaje.Append(CultureInfo.InvariantCulture, $"- {anterior}\n");
+            }
+        }
+
         mensaje.Append(CultureInfo.InvariantCulture, $"\nPregunta del usuario:\n{pregunta}\n");
+
+        if (preguntasAnteriores is { Count: > 0 })
+        {
+            mensaje.Append(
+                "\nSi la pregunta continúa alguna de las anteriores —«¿y en Sistemas?», «de esos, "
+                + "¿cuántos…?»—, agregá al objeto la clave `pregunta_interpretada` con la pregunta "
+                + "completa y autocontenida, en español, y escribí la consulta para ESA pregunta. "
+                + "Si la pregunta ya se entiende sola, omití la clave.\n");
+        }
 
         // SÓLO SI HAY MENCIONES NUEVAS: con un turno sin ellas —el caso
         // mayoritario, y el único que existía antes de D11— este método devuelve
@@ -237,7 +372,48 @@ public sealed class GeneradorDeSql(
             }
         }
 
+        // EL INTENTO ANTERIOR VA AL FINAL (D4): es lo último que pasó en este
+        // turno y lo que la nueva consulta tiene que corregir.
+        if (intentoAnterior is { } intento)
+        {
+            mensaje.Append(CultureInfo.InvariantCulture,
+                $"\nIntento anterior para esta misma pregunta:\nSQL: {intento.Sql}\nQué pasó: {intento.Problema}\n");
+            mensaje.Append(
+                "Escribí una consulta corregida que responda la pregunta. Si con este esquema no "
+                + "se puede responder, devolvé `es_contestable` en false.\n");
+        }
+
         return mensaje.ToString();
+    }
+
+    /// <summary>
+    /// Todos los ejemplos verificados, en el orden del catálogo, para el final
+    /// del prefijo (asistente-optimizaciones-modelo-local, D3).
+    /// </summary>
+    /// <remarks>
+    /// Determinista y memorizado: el catálogo es un recurso embebido y no cambia
+    /// mientras el proceso vive, así que el prefijo resultante es byte a byte
+    /// igual en cada turno — que es lo que la caché de prefijo necesita.
+    /// </remarks>
+    private string BloqueDeEjemplos() => _bloqueDeEjemplos ??= ArmarBloqueDeEjemplos(ejemplos.Catalogo);
+
+    private string? _bloqueDeEjemplos;
+
+    internal static string ArmarBloqueDeEjemplos(IReadOnlyList<EjemploSql> catalogo)
+    {
+        var bloque = new StringBuilder();
+        bloque.Append("\nEJEMPLOS VERIFICADOS\n\n");
+        bloque.Append(
+            "Preguntas ya resueltas sobre este esquema. Imitá su forma; no copies sus "
+            + "valores si la pregunta nombra otros.\n");
+
+        foreach (var ejemplo in catalogo)
+        {
+            bloque.Append(CultureInfo.InvariantCulture,
+                $"\nPregunta: {ejemplo.Pregunta}\nSQL: {ejemplo.Sql}\n");
+        }
+
+        return bloque.ToString();
     }
 
     /// <summary>
@@ -313,7 +489,14 @@ public sealed class GeneradorDeSql(
             ? "consulta_simple"
             : interpretada.Categoria.Trim();
 
-        return new GeneracionDeSql(true, interpretada.Sql.Trim(), razonamiento, categoria);
+        return new GeneracionDeSql(
+            true,
+            interpretada.Sql.Trim(),
+            razonamiento,
+            categoria,
+            PreguntaInterpretada: string.IsNullOrWhiteSpace(interpretada.PreguntaInterpretada)
+                ? null
+                : interpretada.PreguntaInterpretada.Trim());
     }
 
     /// <summary>
@@ -349,6 +532,11 @@ public sealed class GeneradorDeSql(
 
     private sealed class RespuestaDeGeneracion
     {
+        // Sólo con la reescritura dentro de la generación (D7); ausente en el
+        // resto, y el intérprete la ignora si no es una cadena útil.
+        [JsonPropertyName("pregunta_interpretada")]
+        public string? PreguntaInterpretada { get; init; }
+
         [JsonPropertyName("es_contestable")]
         public bool EsContestable { get; init; }
 

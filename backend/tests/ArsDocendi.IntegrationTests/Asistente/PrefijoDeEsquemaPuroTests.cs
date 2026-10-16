@@ -26,11 +26,46 @@ public sealed class PrefijoDeEsquemaPuroTests
         // publicaría el padrón sin que nada falle. La lista de tablas admitidas se
         // escribe acá y no se deriva de la otra, a propósito: derivarla haría que
         // ampliar una ampliara la otra sola.
-        string[] admitidas = ["identity.carreras", "designaciones.cargos"];
+        //
+        // `designaciones.dedicaciones` se suma A PROPÓSITO (asistente-glosario-
+        // institucional, D5) y califica por tres motivos: son seis filas fijadas por
+        // la normativa (`CHECK (codigo BETWEEN 1 AND 6)` en la migración 009), no
+        // tiene datos personales y toda columna concedida es `publica`. Sólo se
+        // enumera con `GlosarioEnElPrefijo` prendida.
+        string[] admitidas = ["identity.carreras", "designaciones.cargos", "designaciones.dedicaciones"];
 
         Assert.All(
-            LectorDeValoresDeCatalogo.CatalogosCerrados,
+            LectorDeValoresDeCatalogo.CatalogosCerrados.Concat(LectorDeValoresDeCatalogo.CatalogosDelGlosario),
             c => Assert.Contains($"{c.Esquema}.{c.Tabla}", admitidas));
+    }
+
+    [Fact]
+    public void Sin_el_glosario_la_lista_declarada_es_exactamente_la_de_siempre()
+    {
+        // EL DEFAULT NO PUEDE DERIVAR. La lista de siempre se escribe acá, a mano:
+        // derivarla de la constante haría que editar la segunda lista cambiara el
+        // prefijo de todos los proveedores y rompiera los cassettes sin que nada falle.
+        (string, string, string)[] deSiempre =
+        [
+            ("identity", "carreras", "code"),
+            ("identity", "carreras", "name"),
+            ("designaciones", "cargos", "codigo"),
+            ("designaciones", "cargos", "nombre"),
+        ];
+
+        Assert.Equal(deSiempre, LectorDeValoresDeCatalogo.Declaradas(conGlosario: false));
+    }
+
+    [Fact]
+    public void Con_el_glosario_se_suman_las_dedicaciones_al_final()
+    {
+        var declaradas = LectorDeValoresDeCatalogo.Declaradas(conGlosario: true);
+
+        // Al final, para que los cuatro valores de siempre conserven su posición.
+        Assert.Equal(LectorDeValoresDeCatalogo.Declaradas(conGlosario: false), declaradas.Take(4));
+        Assert.Equal(
+            [("designaciones", "dedicaciones", "nombre"), ("designaciones", "dedicaciones", "codigo")],
+            declaradas.Skip(4));
     }
 
     [Fact]
@@ -40,7 +75,7 @@ public sealed class PrefijoDeEsquemaPuroTests
         // parámetros. Salen de una constante del ensamblado y nunca de una pregunta,
         // pero eso lo garantiza la lectura del código y esto lo garantiza la suite.
         Assert.All(
-            LectorDeValoresDeCatalogo.CatalogosCerrados,
+            LectorDeValoresDeCatalogo.Declaradas(conGlosario: true),
             c => Assert.All(
                 new[] { c.Esquema, c.Tabla, c.Columna },
                 identificador => Assert.Matches("^[a-z_][a-z0-9_]*$", identificador)));

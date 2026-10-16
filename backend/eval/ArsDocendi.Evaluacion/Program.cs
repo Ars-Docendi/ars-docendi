@@ -2,7 +2,7 @@ using System.Globalization;
 using ArsDocendi.Evaluacion.Nucleo.Dataset;
 using ArsDocendi.Evaluacion.Nucleo.Fixture;
 using ArsDocendi.Evaluacion.Nucleo.Runner;
-using ArsDocendi.Shared.Persistencia;
+using ArsDocendi.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -115,7 +115,9 @@ public static class Program
         // La cadena del dueño la registra normalmente el Host, no el módulo. Acá el
         // Host no existe, así que se registra igual que allá: desde la
         // configuración, con la misma clave y la misma validación.
-        servicios.AddSingleton(CadenaDuena.Desde(configuracion));
+        // Same shared composition as the Host: the module resolves IConsultasIdentity
+        // (quotas) from it, and a hand-picked subset silently fails every turn.
+        servicios.AddArsDocendiShared(configuracion);
         // El medidor va DENTRO de la cadena y no al lado. El eje social pregunta si
         // un turno alcanzó al modelo, y contarlo desde afuera contaría lo que el
         // evaluador pidió y no lo que el pipeline dejó pasar: el techo por turno y

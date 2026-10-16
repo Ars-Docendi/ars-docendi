@@ -212,6 +212,72 @@ public sealed class EnmascaradorTests
         Assert.Same(sinClasificar, Enmascarador.Enmascarar(sinClasificar));
     }
 
+    // --------------------------------------- mode: suppress free text only
+
+    [Fact]
+    public void Free_text_only_mode_lets_a_sensitive_value_through()
+    {
+        var result = Enmascarador.Enmascarar(
+            Resultado(
+                ["apellido", "documento"],
+                [Publica, DocumentoSensible],
+                [["Gómez", Documento]]),
+            ModoDeEnmascarado.SoloTextoLibre);
+
+        Assert.Equal(["apellido", "documento"], result.Columnas);
+        Assert.Equal(["Gómez", Documento], result.Filas[0]);
+        Assert.Contains(Documento, Texto(result), StringComparison.Ordinal);
+        Assert.DoesNotContain("«", Texto(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Free_text_only_mode_drops_a_free_text_column_with_its_name()
+    {
+        var result = Enmascarador.Enmascarar(
+            Resultado(
+                ["accion", "comentario", "documento"],
+                [Publica, TextoLibre, DocumentoSensible],
+                [["alta", "texto escrito por otro usuario", Documento]]),
+            ModoDeEnmascarado.SoloTextoLibre);
+
+        Assert.Equal(["accion", "documento"], result.Columnas);
+        Assert.Equal(["alta", Documento], result.Filas[0]);
+        Assert.Equal(
+            [ClasificacionDeSensibilidad.Publica, ClasificacionDeSensibilidad.SensibleValor],
+            result.Sensibilidad!.Select(columna => columna.Clasificacion));
+        Assert.DoesNotContain("comentario", Texto(result), StringComparison.Ordinal);
+        Assert.DoesNotContain("texto escrito", Texto(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Free_text_only_mode_returns_the_same_instance_when_nothing_changes()
+    {
+        var publicOnly = Resultado(["a", "b"], [Publica, Publica], [["uno", "dos"]]);
+        var withSensitiveValue = Resultado(
+            ["apellido", "documento"], [Publica, DocumentoSensible], [["Gómez", Documento]]);
+
+        Assert.Same(publicOnly, Enmascarador.Enmascarar(publicOnly, ModoDeEnmascarado.SoloTextoLibre));
+        Assert.Same(
+            withSensitiveValue,
+            Enmascarador.Enmascarar(withSensitiveValue, ModoDeEnmascarado.SoloTextoLibre));
+    }
+
+    [Fact]
+    public void Default_mode_still_masks_everything()
+    {
+        var input = Resultado(
+            ["comentario", "documento"],
+            [TextoLibre, DocumentoSensible],
+            [["texto", Documento]]);
+
+        var implicitMode = Enmascarador.Enmascarar(input);
+        var explicitMode = Enmascarador.Enmascarar(input, ModoDeEnmascarado.Todo);
+
+        Assert.Equal(implicitMode.Columnas, explicitMode.Columnas);
+        Assert.Equal(["documento"], implicitMode.Columnas);
+        Assert.DoesNotContain(Documento, Texto(implicitMode), StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ResultadoDeConsulta Resultado(

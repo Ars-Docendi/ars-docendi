@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Asistente.Application;
 
@@ -25,6 +26,7 @@ public sealed class CarrilSql(
     IBuscadorDeMenciones buscadorDeMenciones,
     ContadorDeLlamadasDelTurno contador,
     ICatalogoDeCapacidades capacidades,
+    IOptions<OpcionesAsistente> opciones,
     ILogger<CarrilSql> log)
 {
     /// <summary>Responde una pregunta acotada al actor.</summary>
@@ -71,7 +73,8 @@ public sealed class CarrilSql(
         IReadOnlyList<string>? consultasAnteriores = null,
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
         IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null,
-        int rechazosPrevios = 0)
+        int rechazosPrevios = 0,
+        IReadOnlyList<string>? preguntasAnteriores = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(mensaje);
 
@@ -88,7 +91,7 @@ public sealed class CarrilSql(
             var perfil = await perfiles.ObtenerAsync(actor, ct);
             return await ResolverAsync(
                 actor, mensaje, pregunta, aMostrar, perfil, consultasAnteriores, ct,
-                mencionesNuevas, referenciasHeredadas, rechazosPrevios);
+                mencionesNuevas, referenciasHeredadas, rechazosPrevios, preguntasAnteriores);
         }
         catch (ConsultaSinPrivilegio)
         {
@@ -127,6 +130,16 @@ public sealed class CarrilSql(
             log.LogInformation("El corte al proveedor del modelo sigue abierto.");
             return Degradado(aMostrar);
         }
+        catch (ProveedorSaturado excepcion)
+        {
+            // La compuerta no dio lugar a tiempo (asistente-proveedor-local, D4).
+            // Information y no Warning: el sistema está ocupado, no roto, y el
+            // texto le dice al usuario que pruebe en unos segundos — no «más tarde».
+            log.LogInformation(
+                "No hubo lugar para llamar al modelo en {Segundos}s: hay demasiadas consultas en curso.",
+                excepcion.Espera.TotalSeconds);
+            return Degradado(aMostrar, PoliticaDeAbstencion.TextoProveedorSaturado);
+        }
         catch (TimeoutDelProveedor excepcion)
         {
             log.LogWarning(excepcion, "El proveedor del modelo agotó el tiempo de la llamada.");
@@ -156,7 +169,8 @@ public sealed class CarrilSql(
         CancellationToken ct,
         IReadOnlyList<(TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? mencionesNuevas = null,
         IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referenciasHeredadas = null,
-        int rechazosPrevios = 0)
+        int rechazosPrevios = 0,
+        IReadOnlyList<string>? preguntasAnteriores = null)
     {
         // NUMERADAS UNA SOLA VEZ, ACÁ: la misma asignación se usa para generar,
         // validar, ejecutar y —en el reintento— volver a generar. Numerarlas de
@@ -200,8 +214,34 @@ public sealed class CarrilSql(
         var bindingsDeEjecucion = todasLasReferencias.ToDictionary(
             par => par.Key, par => par.Value.Id, StringComparer.Ordinal);
 
-        var generacion = await generador.GenerarAsync(
-            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones);
+        // CACHÉ DE CONSULTAS GENERADAS (asistente-optimizaciones-modelo-local, D6):
+        // sólo para una pregunta SIN CONTEXTO —sin consultas ni preguntas
+        // anteriores, sin menciones nuevas ni heredadas—, que es la única cuya
+        // consulta depende nada más que de la pregunta, el rol y el día. Un
+        // acierto igual se valida y se ejecuta abajo, bajo el alcance de este
+        // actor: lo que se reutiliza es la traducción, nunca una fila.
+        var sinContexto = consultasAnteriores is not { Count: > 0 }
+            && preguntasAnteriores is not { Count: > 0 }
+            && menciones.Count == 0
+            && heredadasVigentes.Count == 0;
+
+        var deCache = sinContexto ? generador.BuscarEnCache(pregunta, perfil.VeDatosPersonales) : null;
+        if (deCache is not null)
+        {
+            log.LogInformation("La consulta de esta pregunta salió de la caché de consultas generadas.");
+        }
+
+        var generacion = deCache ?? await generador.GenerarAsync(
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones, preguntasAnteriores);
+
+        // LA PREGUNTA QUE RESOLVIÓ LA GENERACIÓN (D7): con la reescritura dentro
+        // de la generación, «así lo interpreté» sale de acá y no del reescritor.
+        if (aMostrar is null
+            && generacion.PreguntaInterpretada is { } resueltaPorLaGeneracion
+            && !string.Equals(resueltaPorLaGeneracion, mensaje, StringComparison.Ordinal))
+        {
+            aMostrar = resueltaPorLaGeneracion;
+        }
 
         if (!generacion.EsContestable || generacion.Sql is null)
         {
@@ -249,8 +289,30 @@ public sealed class CarrilSql(
                 GeneracionDeSql.CategoriaNoContestable);
         }
 
-        var resultado = await ejecutor.EjecutarAsync(
-            generacion.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
+        ResultadoDeConsulta resultado;
+        try
+        {
+            resultado = await ejecutor.EjecutarAsync(
+                generacion.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
+        }
+        catch (ConsultaRechazadaPorElMotor rechazo)
+            when (generador.ReparaConsultaFallida && ErrorDelMotorSaneado.EsReparable(rechazo.Estado))
+        {
+            // UNA RONDA DE REPARACIÓN (D4). Si la corrección no es contestable,
+            // no valida o vuelve a fallar, el turno sigue por el camino de
+            // siempre: el rechazo original —o el nuevo— llega al catch de arriba
+            // con su texto de error al consultar.
+            var reparacion = await RepararAsync(
+                actor, pregunta, generacion, rechazo, perfil, consultasAnteriores, ct,
+                menciones, declarados, requeridos, bindingsDeEjecucion, preguntasAnteriores);
+
+            if (reparacion is null)
+            {
+                throw;
+            }
+
+            (generacion, resultado) = reparacion.Value;
+        }
 
         // EL ALCANCE ES DEL TURNO, NO DEL ACTOR, y por eso se calcula acá: recién
         // con la consulta generada se sabe qué dominios tocó. La detección de portal
@@ -260,11 +322,13 @@ public sealed class CarrilSql(
         var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(
             perfil, CoberturaDelPortal.TablasQueToca(generacion.Sql).Count > 0);
 
-        if (resultado.EstaVacio && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
+        if (resultado.EstaVacio
+            && generador.ReintentaConsultaVacia
+            && PoliticaDeAbstencion.ConvieneReintentar(resultado, alcanzaTodo))
         {
             (generacion, resultado) = await ReintentarAsync(
                 actor, pregunta, generacion, resultado, perfil, consultasAnteriores, ct,
-                menciones, declarados, requeridos, bindingsDeEjecucion);
+                menciones, declarados, requeridos, bindingsDeEjecucion, preguntasAnteriores);
 
             // El reintento pudo cambiar la consulta, y con ella los dominios que
             // toca: una segunda generación que agrega portal cambia el alcance del
@@ -281,6 +345,14 @@ public sealed class CarrilSql(
             // consulta que un seguimiento pueda editar o anidar.
             return Vacio(
                 generacion, aMostrar, perfil, alcanzaTodo, await CoberturaAsync(generacion, actor, ct));
+        }
+
+        // Validó y trajo filas: recién ahora la traducción vale como para que
+        // otro la reutilice (D6). Una que vino vacía puede ser una mala lectura de
+        // la pregunta, y una caché no tiene por qué repetirla.
+        if (sinContexto && deCache is null)
+        {
+            generador.Recordar(pregunta, perfil.VeDatosPersonales, generacion);
         }
 
         // Lo que de verdad viaja al turno es el ÚNICO diccionario que se
@@ -360,12 +432,20 @@ public sealed class CarrilSql(
         IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)> menciones,
         IReadOnlySet<string> declarados,
         IReadOnlySet<string> requeridos,
-        IReadOnlyDictionary<string, Guid> bindingsDeEjecucion)
+        IReadOnlyDictionary<string, Guid> bindingsDeEjecucion,
+        IReadOnlyList<string>? preguntasAnteriores = null)
     {
         contador.MarcarReintento();
 
+        // CON CONTEXTO (D4): decirle qué consulta no trajo filas en vez de
+        // repetir el prompt idéntico, que a temperatura 0 devuelve la misma.
+        (string, string)? intentoAnterior = generador.ReintentaConContexto && original.Sql is { } anterior
+            ? (anterior, ProblemaDeConsultaVacia)
+            : null;
+
         var segunda = await generador.GenerarAsync(
-            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones);
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones,
+            preguntasAnteriores, intentoAnterior, esSegundaGeneracion: true);
 
         if (!segunda.EsContestable
             || segunda.Sql is null
@@ -378,6 +458,61 @@ public sealed class CarrilSql(
             segunda.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
 
         return resultado.EstaVacio ? (original, resultadoOriginal) : (segunda, resultado);
+    }
+
+    /// <summary>Lo que se le cuenta al modelo de una consulta que vino vacía (D4).</summary>
+    internal const string ProblemaDeConsultaVacia =
+        "Se ejecutó sin errores pero no devolvió ninguna fila. Puede que un filtro sea demasiado "
+        + "estricto, que compare por igualdad un texto que el usuario escribió distinto, o que "
+        + "use la tabla o la columna equivocada.";
+
+    /// <summary>
+    /// La ronda de reparación de una consulta que el motor rechazó (D4), o nulo
+    /// si la corrección no sirve.
+    /// </summary>
+    /// <remarks>
+    /// El error viaja SANEADO (<see cref="ErrorDelMotorSaneado"/>): un literal
+    /// citado que no está en la consulta puede venir de una fila, y no pasó por el
+    /// enmascarador. Cuenta como reintento en el registro, igual que el de vacío.
+    /// </remarks>
+    private async Task<(GeneracionDeSql, ResultadoDeConsulta)?> RepararAsync(
+        Guid actor,
+        string pregunta,
+        GeneracionDeSql original,
+        ConsultaRechazadaPorElMotor rechazo,
+        PerfilDelActor perfil,
+        IReadOnlyList<string>? consultasAnteriores,
+        CancellationToken ct,
+        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)> menciones,
+        IReadOnlySet<string> declarados,
+        IReadOnlySet<string> requeridos,
+        IReadOnlyDictionary<string, Guid> bindingsDeEjecucion,
+        IReadOnlyList<string>? preguntasAnteriores)
+    {
+        contador.MarcarReintento();
+
+        log.LogInformation(
+            "El motor rechazó la consulta generada ({Estado}); se pide una corrección.", rechazo.Estado);
+
+        var problema = ErrorDelMotorSaneado.Problema(original.Sql!, rechazo.Estado, rechazo.DetalleDelMotor);
+        var corregida = await generador.GenerarAsync(
+            pregunta, perfil.VeDatosPersonales, ct, consultasAnteriores, menciones,
+            preguntasAnteriores, (original.Sql!, problema), esSegundaGeneracion: true);
+
+        if (!corregida.EsContestable
+            || corregida.Sql is null
+            || !ValidadorDeSql.Validar(corregida.Sql, declarados, requeridos).EsValida)
+        {
+            return null;
+        }
+
+        // Si la corrección también falla, esa excepción sigue su camino: no hay
+        // segunda ronda.
+        var resultado = await ejecutor.EjecutarAsync(
+            corregida.Sql, actor, perfil.VeDatosPersonales, ct, bindingsDeEjecucion);
+
+        return (corregida with { PreguntaInterpretada = corregida.PreguntaInterpretada ?? original.PreguntaInterpretada },
+            resultado);
     }
 
     /// <summary>
@@ -429,7 +564,14 @@ public sealed class CarrilSql(
         // lo que vuelve al llamador son las filas reales. Cambiar el orden de estas
         // dos líneas, o pasarle `resultado` al redactor, manda datos personales al
         // proveedor sin que nada falle.
-        var paraElModelo = Enmascarador.Enmascarar(resultado);
+        //
+        // With RedaccionSinEnmascarar in effect (own model, no cassettes) the
+        // sensible-valor values travel as they are; sensible-texto is always suppressed.
+        var paraElModelo = Enmascarador.Enmascarar(
+            resultado,
+            opciones.Value.RedaccionSinEnmascararVigente
+                ? ModoDeEnmascarado.SoloTextoLibre
+                : ModoDeEnmascarado.Todo);
         var texto = await redactor.RedactarAsync(
             mensaje, paraElModelo, alcanzaTodo, cobertura, ct);
 
@@ -575,9 +717,10 @@ public sealed class CarrilSql(
     /// malo, así que proponerle otra al usuario le sugeriría que el problema es
     /// suyo.
     /// </summary>
-    private ResultadoDelTurno Degradado(string? aMostrar) =>
+    private ResultadoDelTurno Degradado(
+        string? aMostrar, string texto = PoliticaDeAbstencion.TextoServicioDegradado) =>
         new(EstadoDelTurno.ServicioDegradado,
-            PoliticaDeAbstencion.TextoServicioDegradado,
+            texto,
             Razonamiento: string.Empty,
             aMostrar,
             [],

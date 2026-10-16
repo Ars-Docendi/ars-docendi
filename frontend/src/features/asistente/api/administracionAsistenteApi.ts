@@ -3,6 +3,7 @@ import type {
   MantenimientoDelAsistente,
   PeriodoDeUso,
   PresupuestosDelAsistente,
+  ServidorLocal,
   UsoDelAsistente,
 } from "../types";
 
@@ -83,6 +84,18 @@ export async function editarMantenimiento(
   const { data } = await apiClient.patch<MantenimientoDelAsistente>(
     "/api/asistente/administracion/mantenimiento",
     { activo, razon },
+  );
+  return data;
+}
+
+/**
+ * La carga del servidor del modelo propio y de la compuerta del backend
+ * (asistente-optimizaciones-modelo-local, D8). Con un proveedor que no es
+ * `local` responde `configurado: false`.
+ */
+export async function obtenerServidorLocal(): Promise<ServidorLocal> {
+  const { data } = await apiClient.get<ServidorLocal>(
+    "/api/asistente/administracion/servidor-local",
   );
   return data;
 }

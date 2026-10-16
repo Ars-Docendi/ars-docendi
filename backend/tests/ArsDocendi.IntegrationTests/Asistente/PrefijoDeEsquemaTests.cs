@@ -1,4 +1,6 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using Microsoft.Extensions.Options;
+using Modules.Asistente;
 using Modules.Asistente.Infrastructure;
 using Npgsql;
 
@@ -372,17 +374,139 @@ public sealed class PrefijoDeEsquemaTests(PostgresFixture postgres)
         Assert.All(vocabularios, v => Assert.InRange(v.Valores.Count, 1, LectorDeValoresDeCatalogo.MaximoDeValores));
     }
 
+    [Fact]
+    public async Task Ninguna_columna_del_glosario_pasa_el_tope_de_valores()
+    {
+        // La misma definición de «catálogo cerrado», aplicada a la lista que sólo se
+        // lee con GlosarioEnElPrefijo: seis dedicaciones, y si un día son más de 40
+        // dejaron de ser un catálogo cerrado.
+        await SembrarAsync();
+
+        var vocabularios = await ValoresAsync(conGlosario: true);
+
+        Assert.Equal(LectorDeValoresDeCatalogo.Declaradas(conGlosario: true).Count, vocabularios.Count);
+        Assert.All(vocabularios, v => Assert.InRange(v.Valores.Count, 1, LectorDeValoresDeCatalogo.MaximoDeValores));
+    }
+
+    [Fact]
+    public async Task Con_el_glosario_el_prefijo_enumera_las_dedicaciones_y_sin_el_no()
+    {
+        var sin = await PrefijoAsync(conDatosPersonales: false);
+        var con = await PrefijoConGlosarioAsync(conDatosPersonales: false);
+
+        Assert.DoesNotContain("Categoría 1", sin.Prefijo, StringComparison.Ordinal);
+        Assert.DoesNotContain("designaciones.dedicaciones.codigo", sin.Prefijo, StringComparison.Ordinal);
+
+        Assert.Contains(
+            "- designaciones.dedicaciones.nombre: "
+            + "'Categoría 1', 'Categoría 2', 'Categoría 3', 'Categoría 4', 'Categoría 5', 'Categoría 6'",
+            con.Prefijo, StringComparison.Ordinal);
+        Assert.Contains(
+            "- designaciones.dedicaciones.codigo: '1', '2', '3', '4', '5', '6'",
+            con.Prefijo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_bloque_del_glosario_es_el_mismo_en_el_prefijo_basico_y_en_el_de_datos_personales()
+    {
+        // El glosario sólo puede nombrar columnas del rol básico, así que no hay nada
+        // que distinga un prefijo del otro en su bloque. Los prefijos SÍ difieren en
+        // las columnas personales: por eso se compara el bloque y no el prefijo.
+        var basico = await PrefijoConGlosarioAsync(conDatosPersonales: false);
+        var personal = await PrefijoConGlosarioAsync(conDatosPersonales: true);
+
+        Assert.NotEqual(basico.Prefijo, personal.Prefijo);
+        Assert.Equal(BloqueDelGlosario(basico.Prefijo), BloqueDelGlosario(personal.Prefijo));
+        Assert.Equal(
+            RenderizadorDeGlosario.Renderizar(CatalogoDeGlosario.Vigente.Terminos),
+            BloqueDelGlosario(basico.Prefijo));
+    }
+
+    [Fact]
+    public async Task Con_el_glosario_apagado_el_prefijo_es_el_de_siempre_para_los_dos_roles()
+    {
+        // EL DEFAULT. Sin opciones —como lo construyen los tests de cassettes— y con
+        // las opciones en su default tienen que dar el mismo prefijo, y ninguno
+        // puede mencionar el glosario ni las dedicaciones.
+        var conOpciones = new ProveedorDeEsquema(Apertura, Options.Create(new OpcionesAsistente()));
+
+        foreach (var conDatosPersonales in new[] { false, true })
+        {
+            var sinOpciones = await ProveedorNuevo().ObtenerAsync(conDatosPersonales, TestContext.Current.CancellationToken);
+            var porDefault = await conOpciones.ObtenerAsync(conDatosPersonales, TestContext.Current.CancellationToken);
+
+            Assert.Equal(sinOpciones.Prefijo, porDefault.Prefijo);
+            Assert.DoesNotContain("GLOSARIO INSTITUCIONAL", porDefault.Prefijo, StringComparison.Ordinal);
+            Assert.DoesNotContain("- designaciones.dedicaciones.codigo:", porDefault.Prefijo, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task El_sello_del_evaluador_cambia_con_el_glosario()
+    {
+        // `EsquemaParaPrompt.Huella` es lo que sella los reportes de evaluación: si
+        // no cambiara con la opción, el gate de regresión compararía una corrida con
+        // glosario contra una línea de base sin él como si fueran el mismo prompt.
+        var sin = await PrefijoAsync(conDatosPersonales: false);
+        var con = await PrefijoConGlosarioAsync(conDatosPersonales: false);
+
+        Assert.NotEqual(sin.Huella, con.Huella);
+    }
+
+    [Fact]
+    public async Task Los_cuatro_valores_de_siempre_conservan_su_posicion_con_el_glosario()
+    {
+        await SembrarAsync();
+
+        var sin = await ValoresAsync();
+        var con = await ValoresAsync(conGlosario: true);
+
+        // Se compara el contenido: el record guarda la lista por referencia.
+        Assert.Equal(
+            sin.Select(v => (v.Cualificado, Valores: string.Join("|", v.Valores))),
+            con.Take(sin.Count).Select(v => (v.Cualificado, Valores: string.Join("|", v.Valores))));
+    }
+
+    [Fact]
+    public async Task El_codigo_que_el_prefijo_ensena_a_escribir_se_ejecuta()
+    {
+        // `codigo` es SMALLINT y el prefijo lo lista como texto: '3'. PostgreSQL
+        // resuelve el literal sin tipo contra la columna, y esto lo prueba contra la
+        // base real con el rol del asistente, para que un modelo que copie la forma
+        // no aprenda un filtro que falla.
+        var esquema = await PrefijoConGlosarioAsync(conDatosPersonales: false);
+        Assert.Contains("'3'", esquema.Prefijo, StringComparison.Ordinal);
+
+        await using var conexion = await AbrirConexionComoAsistenteAsync(conDatosPersonales: false);
+        await using var comando = new NpgsqlCommand(
+            "SELECT nombre FROM designaciones.dedicaciones WHERE codigo = '3'", conexion);
+
+        Assert.Equal(
+            "Categoría 3",
+            await comando.ExecuteScalarAsync(TestContext.Current.CancellationToken));
+    }
+
     // ------------------------------------------------------------------ apoyo
 
-    private async Task<IReadOnlyList<VocabularioDeUnaColumna>> ValoresAsync()
+    private async Task<IReadOnlyList<VocabularioDeUnaColumna>> ValoresAsync(bool conGlosario = false)
     {
         var (basica, _) = CadenasDeLectura();
         await using var conexion = new NpgsqlConnection(basica.Valor);
         await conexion.OpenAsync(TestContext.Current.CancellationToken);
 
         return await LectorDeValoresDeCatalogo.LeerAsync(
-            conexion, TestContext.Current.CancellationToken);
+            conexion, TestContext.Current.CancellationToken, conGlosario);
     }
+
+    /// <summary>Desde el encabezado del glosario hasta el final del prefijo.</summary>
+    private static string BloqueDelGlosario(string prefijo) =>
+        prefijo[prefijo.IndexOf("\nGLOSARIO INSTITUCIONAL", StringComparison.Ordinal)..];
+
+    private Task<Modules.Asistente.Application.EsquemaParaPrompt> PrefijoConGlosarioAsync(bool conDatosPersonales) =>
+        new ProveedorDeEsquema(
+                Apertura,
+                Options.Create(new OpcionesAsistente { GlosarioEnElPrefijo = true }))
+            .ObtenerAsync(conDatosPersonales, TestContext.Current.CancellationToken);
 
     private ProveedorDeEsquema ProveedorNuevo()
     {

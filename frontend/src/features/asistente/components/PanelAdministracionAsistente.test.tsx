@@ -8,7 +8,12 @@ import * as adminApi from "../api/administracionAsistenteApi";
 import * as api from "../api/asistenteApi";
 import * as descargas from "../utils/descargas";
 import { CAPACIDADES } from "../test/soporte";
-import type { PresupuestosDelAsistente, UsoAgregado, UsoDelAsistente } from "../types";
+import type {
+  PresupuestosDelAsistente,
+  ServidorLocal,
+  UsoAgregado,
+  UsoDelAsistente,
+} from "../types";
 
 // ============================================================
 // El panel administrativo del asistente (asistente-administracion-de-uso,
@@ -34,11 +39,23 @@ const PRESUPUESTOS_VACIOS: PresupuestosDelAsistente = {
   accesosRevocados: [],
 };
 
+const SERVIDOR_NO_CONFIGURADO: ServidorLocal = {
+  configurado: false,
+  alcanzable: false,
+  motor: null,
+  enCurso: null,
+  enEspera: null,
+  usoDeKvCache: null,
+  aciertosDeCacheDePrefijo: null,
+  compuerta: null,
+};
+
 // `GET …/presupuestos` (tarea 12.8) se pide en TODAS las variantes del panel:
 // un default vacío evita que cada test que no lo ejercita tenga que
 // mockearlo aparte. Los tests de la propia tarjeta/tabla lo pisan.
 beforeEach(() => {
   vi.spyOn(adminApi, "obtenerPresupuestos").mockResolvedValue(PRESUPUESTOS_VACIOS);
+  vi.spyOn(adminApi, "obtenerServidorLocal").mockResolvedValue(SERVIDOR_NO_CONFIGURADO);
 });
 
 afterEach(() => {

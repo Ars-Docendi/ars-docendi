@@ -113,6 +113,38 @@ public sealed record SolicitudAlModelo
 
     /// <summary>Techo de tokens de la respuesta.</summary>
     public required int MaximoDeTokens { get; init; }
+
+    /// <summary>
+    /// JSON Schema de la respuesta esperada, o nulo si la respuesta es texto libre
+    /// (asistente-proveedor-local, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// Es una <b>declaración</b> del pipeline, no una orden a ningún proveedor: la
+    /// forma de la salida la decide quien la interpreta. Un adaptador que puede
+    /// imponerla —un servidor local con decodificación restringida— la usa; uno
+    /// que no —<c>ProveedorAnthropic</c>— la ignora y su request no cambia en un
+    /// byte, así que las claves de cassette tampoco.
+    ///
+    /// No reemplaza a ninguna validación: una salida con la forma correcta todavía
+    /// pasa por el intérprete del generador y por el validador de SQL.
+    /// </remarks>
+    public string? EsquemaDeSalidaJson { get; init; }
+
+    /// <summary>
+    /// Recibe el texto de la respuesta a medida que llega, o nulo si alcanza con la
+    /// respuesta completa (asistente-optimizaciones-modelo-local, design.md D9).
+    /// </summary>
+    /// <remarks>
+    /// Es un <b>ofrecimiento</b>, igual que el esquema de salida: un adaptador que
+    /// puede pedir la respuesta por fragmentos —el local— la usa, y uno que no la
+    /// ignora. La respuesta que devuelve <c>CompletarAsync</c> sigue siendo el texto
+    /// completo y es la única que vale: los fragmentos son una vista previa.
+    ///
+    /// Quien la provee no debe lanzar por un problema propio —un cliente que se
+    /// desconectó—: el adaptador lo contaría como una falla del proveedor.
+    /// No entra en la huella de los cassettes.
+    /// </remarks>
+    public Func<string, CancellationToken, Task>? AlRecibirTexto { get; init; }
 }
 
 /// <summary>

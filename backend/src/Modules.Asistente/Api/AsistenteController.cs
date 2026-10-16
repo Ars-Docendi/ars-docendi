@@ -2,6 +2,10 @@ using ArsDocendi.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Api;
@@ -38,22 +42,108 @@ public sealed class AsistenteController(
         [FromHeader(Name = CabeceraDeIdempotencia)] string? claveDeIdempotencia,
         CancellationToken ct)
     {
+        var (rechazo, turno) = await ResolverTurnoAsync(consulta, claveDeIdempotencia, ct);
+
+        return rechazo ?? Ok(RespuestaDelAsistente.De(turno!));
+    }
+
+    /// <summary>
+    /// El mismo turno que <see cref="Consultar"/>, con la redacción por
+    /// fragmentos en <c>text/event-stream</c> (asistente-optimizaciones-modelo-local,
+    /// design.md D9).
+    /// </summary>
+    /// <remarks>
+    /// Mismo pedido, misma <c>Idempotency-Key</c> y misma lógica. Lo que falla
+    /// antes de escribir nada —clave, mención, hilo, reemplazo— responde con el
+    /// mismo status de siempre. Después manda <c>redaccion</c> con cada fragmento,
+    /// <c>resultado</c> con la respuesta completa —siempre, y es la que vale— o
+    /// <c>error</c> con el status que hubiera tenido.
+    ///
+    /// <b>Escribir no es parte del turno.</b> Si el cliente se va, los fragmentos
+    /// se dejan de mandar y el turno termina igual: queda guardado bajo su clave,
+    /// y un reintento con la misma lo recibe sin volver a cobrarlo.
+    /// </remarks>
+    [Authorize(Policy = Permisos.AsistenteConsultar)]
+    [HttpPost("consultas/flujo")]
+    public async Task<IActionResult> ConsultarEnFlujo(
+        ConsultaDelAsistente consulta,
+        [FromHeader(Name = CabeceraDeIdempotencia)] string? claveDeIdempotencia,
+        CancellationToken ct)
+    {
+        var servicios = HttpContext.RequestServices;
+        var flujo = new FlujoDeEventos(
+            Response, servicios.GetRequiredService<IOptions<JsonOptions>>().Value.JsonSerializerOptions);
+
+        servicios.GetRequiredService<CanalDeRedaccion>().AlRecibirTexto =
+            (texto, token) => flujo.EnviarAsync("redaccion", new { texto }, token);
+
+        ActionResult? rechazo;
+        ResultadoDelTurno? turno;
+        try
+        {
+            (rechazo, turno) = await ResolverTurnoAsync(consulta, claveDeIdempotencia, ct);
+        }
+        catch (Exception excepcion) when (flujo.Empezo && excepcion is not OperationCanceledException)
+        {
+            // Con el 200 ya mandado no hay status que cambiar: se avisa en el flujo
+            // y se loguea lo que el middleware de errores ya no puede ver.
+            servicios.GetRequiredService<ILogger<AsistenteController>>().LogError(
+                excepcion, "El turno falló después de empezar a mandar la redacción.");
+            await flujo.EnviarAsync(
+                "error", new { status = StatusCodes.Status500InternalServerError }, ct);
+            return new EmptyResult();
+        }
+
+        if (rechazo is not null)
+        {
+            if (!flujo.Empezo)
+            {
+                return rechazo;
+            }
+
+            await flujo.EnviarAsync(
+                "error",
+                new
+                {
+                    status = (rechazo as IStatusCodeActionResult)?.StatusCode
+                        ?? StatusCodes.Status500InternalServerError,
+                },
+                ct);
+            return new EmptyResult();
+        }
+
+        await flujo.EnviarAsync("resultado", RespuestaDelAsistente.De(turno!), ct);
+        return new EmptyResult();
+    }
+
+    /// <summary>
+    /// Valida el pedido y corre el turno: lo que comparten <see cref="Consultar"/>
+    /// y <see cref="ConsultarEnFlujo"/>.
+    /// </summary>
+    /// <returns>
+    /// El rechazo, si el pedido no llega a ser un turno; si no, el turno.
+    /// </returns>
+    private async Task<(ActionResult? Rechazo, ResultadoDelTurno? Turno)> ResolverTurnoAsync(
+        ConsultaDelAsistente consulta,
+        string? claveDeIdempotencia,
+        CancellationToken ct)
+    {
         ArgumentNullException.ThrowIfNull(consulta);
 
         if (string.IsNullOrWhiteSpace(claveDeIdempotencia))
         {
-            return BadRequest(new ProblemDetails
+            return (BadRequest(new ProblemDetails
             {
                 Title = "Falta la clave de idempotencia",
                 Detail = $"El pedido tiene que traer la cabecera '{CabeceraDeIdempotencia}'. "
                     + "Sin ella, un doble envío del mismo turno se cobra dos veces.",
                 Status = StatusCodes.Status400BadRequest,
-            });
+            }), null);
         }
 
         if (!ActorDeLaSesion(out var actor))
         {
-            return Unauthorized();
+            return (Unauthorized(), null);
         }
 
         // REVALIDACIÓN DE LAS MENCIONES, ANTES DEL CANDADO Y DE TODO LO DEMÁS
@@ -76,12 +166,12 @@ public sealed class AsistenteController(
 
                 if (resuelta is null)
                 {
-                    return BadRequest(new ProblemDetails
+                    return (BadRequest(new ProblemDetails
                     {
                         Title = "Mención no disponible",
                         Detail = "Una de las menciones ya no está disponible. Volvé a elegirla.",
                         Status = StatusCodes.Status400BadRequest,
-                    });
+                    }), null);
                 }
 
                 resueltas.Add((tipo!.Value, resuelta));
@@ -93,7 +183,7 @@ public sealed class AsistenteController(
         var recordado = idempotencia.Recordar(actor, claveDeIdempotencia);
         if (recordado is not null)
         {
-            return Ok(RespuestaDelAsistente.De(recordado));
+            return (null, recordado);
         }
 
         ResultadoDelTurno turno;
@@ -107,29 +197,29 @@ public sealed class AsistenteController(
         {
             // El hilo existe pero es de otro. Se responde 404 y no 403 a propósito:
             // un 403 confirmaría que ese identificador de hilo existe.
-            return NotFound(new ProblemDetails
+            return (NotFound(new ProblemDetails
             {
                 Title = "El hilo no existe",
                 Detail = "Empezá una conversación nueva.",
                 Status = StatusCodes.Status404NotFound,
-            });
+            }), null);
         }
         catch (ReemplazoInvalido)
         {
             // `Reemplaza` no nombra el último turno vigente del hilo —o el hilo
             // venció— (design.md D9 de asistente-rediseno-v3). `409` y nada
             // cambió: ni el hilo, ni el historial, ni el cupo.
-            return Conflict(new ProblemDetails
+            return (Conflict(new ProblemDetails
             {
                 Title = "Ese turno ya no se puede reemplazar",
                 Detail = "Sólo se puede reemplazar la última pregunta vigente de la conversación.",
                 Status = StatusCodes.Status409Conflict,
-            });
+            }), null);
         }
 
         idempotencia.Guardar(actor, claveDeIdempotencia, turno);
 
-        return Ok(RespuestaDelAsistente.De(turno));
+        return (null, turno);
     }
 
     /// <summary>
@@ -152,7 +242,15 @@ public sealed class AsistenteController(
             return Unauthorized();
         }
 
-        return Ok(CapacidadesDto.De(await capacidades.ObtenerAsync(actor, ct)));
+        // La redacción por fragmentos (D9) es una opción del despliegue, no del
+        // actor: va acá y no en el catálogo, que se deriva de los GRANT.
+        var enFlujo = HttpContext.RequestServices
+            .GetRequiredService<IOptions<OpcionesAsistente>>().Value.StreamingDeRedaccion;
+
+        return Ok(CapacidadesDto.De(await capacidades.ObtenerAsync(actor, ct)) with
+        {
+            RedaccionEnFlujo = enFlujo,
+        });
     }
 
     /// <summary>

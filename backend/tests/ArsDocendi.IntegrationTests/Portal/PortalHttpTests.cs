@@ -166,16 +166,22 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // para restablecer el cupo al del rol, y `PUT …/presupuestos/roles/{rol}/acceso`
         // y `PUT …/presupuestos/usuarios/{actorId}/acceso`).
         //
-        // Subió de 94 a 103 con almacenamiento-adjuntos (develop): seis en
+        // Subió de 94 a 95 con asistente-optimizaciones-modelo-local (D8):
+        // `GET /api/asistente/administracion/servidor-local`.
+        //
+        // Subió de 95 a 96 con asistente-optimizaciones-modelo-local (D9):
+        // `POST /api/asistente/consultas/flujo`.
+        //
+        // Subió de 96 a 105 con almacenamiento-adjuntos (develop): seis en
         // ArchivosController (iniciar carga, subir el objeto, confirmar la carga,
         // leer metadatos, descargar y eliminar), uno en PedidosController
         // (`GET …/adjuntos/{archivoId}`) y dos en PortalController
         // (`GET /api/portal/perfil/cv/descarga` y
         // `GET /api/portal/perfil/proyectos/{id}/documento`).
         //
-        // Subió de 103 a 119 con el sistema de tareas (develop): dieciséis entre
+        // Subió de 105 a 121 con el sistema de tareas (develop): dieciséis entre
         // TareasController y ProyectosTareasController.
-        Assert.Equal(119, operaciones.Length);
+        Assert.Equal(121, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

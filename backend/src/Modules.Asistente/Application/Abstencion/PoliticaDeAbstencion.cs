@@ -271,6 +271,19 @@ internal static class PoliticaDeAbstencion
         "El asistente no está disponible en este momento. Volvé a intentar más tarde.";
 
     /// <summary>
+    /// Texto de un turno que no consiguió lugar para llamar al modelo
+    /// (asistente-proveedor-local, design.md D4).
+    /// </summary>
+    /// <remarks>
+    /// Distinto de <see cref="TextoServicioDegradado"/> por lo mismo que el de la
+    /// cuota agotada: la causa es otra y lo que conviene hacer también. El
+    /// servicio NO está caído, está ocupado; «más tarde» manda a esperar de más, y
+    /// el lugar se libera en segundos.
+    /// </remarks>
+    public const string TextoProveedorSaturado =
+        "El asistente está atendiendo muchas consultas en este momento. Probá de nuevo en unos segundos.";
+
+    /// <summary>
     /// Texto de cuota agotada (caso 6, la otra mitad).
     /// </summary>
     /// <remarks>

@@ -15,16 +15,40 @@ namespace Modules.Asistente.Infrastructure;
 /// </remarks>
 internal static class RenderizadorDeEsquema
 {
+    /// <param name="compacto">
+    /// La forma compacta (asistente-optimizaciones-modelo-local, D2): mismo
+    /// contenido en menos texto. <c>false</c> —el default— produce BYTE A BYTE
+    /// el prefijo de siempre, que es el que sellan los cassettes.
+    /// </param>
+    /// <param name="bloqueDeGlosario">
+    /// El bloque «GLOSARIO INSTITUCIONAL» (asistente-glosario-institucional, D6),
+    /// que va al FINAL del prefijo, después del esquema, en las dos formas.
+    /// <c>null</c> —el default— no agrega nada: el prefijo es BYTE A BYTE el de
+    /// siempre. Va acá y no en <c>GeneradorDeSql</c> para quedar dentro de
+    /// <c>EsquemaParaPrompt.Huella</c>: así el sello del evaluador cambia cuando la
+    /// opción cambia, y una corrida con glosario no se compara con una sin él como
+    /// si fueran el mismo prompt.
+    /// </param>
     public static string Renderizar(
         IReadOnlyList<ColumnaLegible> columnas,
         IReadOnlyList<ReferenciaLegible> referencias,
-        IReadOnlyList<VocabularioDeUnaColumna> vocabularios)
+        IReadOnlyList<VocabularioDeUnaColumna> vocabularios,
+        bool compacto = false,
+        string? bloqueDeGlosario = null)
     {
         var texto = new StringBuilder(InstruccionesDeGeneracion.Instrucciones);
         texto.Append('\n');
         EscribirVocabulario(texto, vocabularios);
-        texto.Append(InstruccionesDeGeneracion.EncabezadoDelEsquema);
+        texto.Append(compacto
+            ? InstruccionesDeGeneracion.EncabezadoDelEsquemaCompacto
+            : InstruccionesDeGeneracion.EncabezadoDelEsquema);
         texto.Append('\n');
+
+        if (compacto)
+        {
+            EscribirCompacto(texto, columnas, referencias);
+            return texto.Append(bloqueDeGlosario).ToString();
+        }
 
         var porTabla = columnas
             .GroupBy(c => (c.Esquema, c.Tabla))
@@ -38,7 +62,7 @@ internal static class RenderizadorDeEsquema
 
         EscribirReferencias(texto, referencias);
 
-        return texto.ToString();
+        return texto.Append(bloqueDeGlosario).ToString();
     }
 
     private static void EscribirVocabulario(
@@ -91,6 +115,85 @@ internal static class RenderizadorDeEsquema
             texto.Append('\n');
         }
     }
+
+    /// <summary>
+    /// Las tablas en forma compacta, con cada clave foránea en la línea de su
+    /// columna (D2).
+    /// </summary>
+    /// <remarks>
+    /// Lo único que se omite es el comentario de una columna <c>id</c> que sólo
+    /// dice «Identificador de …»: el nombre ya lo dice. Todo otro comentario y
+    /// toda descripción de tabla viajan enteros, porque ahí están las reglas del
+    /// dominio —«vigente_hasta NULO es vigencia abierta»— que un modelo chico
+    /// necesita más que uno grande.
+    /// </remarks>
+    private static void EscribirCompacto(
+        StringBuilder texto,
+        IReadOnlyList<ColumnaLegible> columnas,
+        IReadOnlyList<ReferenciaLegible> referencias)
+    {
+        var referidas = referencias
+            .GroupBy(r => (r.Esquema, r.Tabla, r.Columna))
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(r => r.EsquemaReferido, StringComparer.Ordinal)
+                    .ThenBy(r => r.TablaReferida, StringComparer.Ordinal)
+                    .First());
+
+        var porTabla = columnas
+            .GroupBy(c => (c.Esquema, c.Tabla))
+            .OrderBy(g => g.Key.Esquema, StringComparer.Ordinal)
+            .ThenBy(g => g.Key.Tabla, StringComparer.Ordinal);
+
+        foreach (var tabla in porTabla)
+        {
+            var lista = tabla.ToList();
+            texto.Append(CultureInfo.InvariantCulture, $"\n## {tabla.Key.Esquema}.{tabla.Key.Tabla}\n");
+
+            if (!string.IsNullOrWhiteSpace(lista[0].ComentarioDeTabla))
+            {
+                texto.Append(lista[0].ComentarioDeTabla!.Trim()).Append('\n');
+            }
+
+            foreach (var columna in lista)
+            {
+                texto.Append(CultureInfo.InvariantCulture,
+                    $"- {columna.Columna} {TipoCompacto(columna.Tipo)}{(columna.Obligatoria ? string.Empty : "?")}");
+
+                if (referidas.TryGetValue((columna.Esquema, columna.Tabla, columna.Columna), out var referida))
+                {
+                    texto.Append(CultureInfo.InvariantCulture,
+                        $" → {referida.EsquemaReferido}.{referida.TablaReferida}.{referida.ColumnaReferida}");
+                }
+
+                var comentario = columna.ComentarioDeColumna?.Trim();
+                var redundante = columna.Columna == "id"
+                    && comentario?.StartsWith("Identificador", StringComparison.Ordinal) == true;
+
+                if (!string.IsNullOrEmpty(comentario) && !redundante)
+                {
+                    texto.Append(": ").Append(comentario);
+                }
+
+                texto.Append('\n');
+            }
+        }
+    }
+
+    /// <summary>Los nombres largos de tipos de PostgreSQL, en su forma corta.</summary>
+    internal static string TipoCompacto(string tipo) => tipo switch
+    {
+        "timestamp with time zone" => "timestamptz",
+        "timestamp without time zone" => "timestamp",
+        "time without time zone" => "time",
+        "character varying" => "varchar",
+        "integer" => "int",
+        "bigint" => "int8",
+        "smallint" => "int2",
+        "boolean" => "bool",
+        "double precision" => "float8",
+        _ => tipo,
+    };
 
     private static void EscribirReferencias(
         StringBuilder texto, IReadOnlyList<ReferenciaLegible> referencias)

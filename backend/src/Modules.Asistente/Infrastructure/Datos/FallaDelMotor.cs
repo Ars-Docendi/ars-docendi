@@ -19,5 +19,10 @@ internal static class FallaDelMotor
     public static Exception Traducir(PostgresException excepcion) =>
         excepcion.SqlState == PrivilegioDenegado
             ? new ConsultaSinPrivilegio(excepcion)
-            : new ConsultaRechazadaPorElMotor(excepcion.SqlState, excepcion);
+            : new ConsultaRechazadaPorElMotor(
+                excepcion.SqlState,
+                excepcion,
+                string.IsNullOrWhiteSpace(excepcion.Hint)
+                    ? excepcion.MessageText
+                    : $"{excepcion.MessageText} {excepcion.Hint}");
 }

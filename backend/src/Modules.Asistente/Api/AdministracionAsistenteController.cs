@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Api;
@@ -100,6 +101,22 @@ public sealed class AdministracionAsistenteController(
         var panelDelMes = await consultasDeUso.ObtenerAsync(new RangoDePeriodo(inicioDelMes, ahora), ct);
 
         return Ok(PresupuestosDto.De(estado, panelDelMes.Organizacion.CostoEstimado));
+    }
+
+    /// <summary>
+    /// La carga del servidor del modelo propio y de la compuerta del backend
+    /// (asistente-optimizaciones-modelo-local, D8).
+    /// </summary>
+    /// <remarks>
+    /// Se resuelve del contenedor del request y no por constructor: el lector
+    /// es un tipo interno de <c>Infrastructure</c> y no hay motivo para que sea
+    /// público sólo para este endpoint.
+    /// </remarks>
+    [HttpGet("servidor-local")]
+    public async Task<ActionResult<ServidorLocalDto>> ServidorLocal(CancellationToken ct)
+    {
+        var telemetria = HttpContext.RequestServices.GetRequiredService<Infrastructure.TelemetriaDelServidorLocal>();
+        return Ok(ServidorLocalDto.De(await telemetria.ConsultarAsync(ct)));
     }
 
     /// <summary>Edita el cupo diario default de un rol. Audita (tarea 9.5).</summary>

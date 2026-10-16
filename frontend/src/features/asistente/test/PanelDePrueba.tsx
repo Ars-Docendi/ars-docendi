@@ -4,7 +4,10 @@ import { PanelAsistente } from "../components/PanelAsistente";
 import { useAsistente } from "../hooks/useAsistente";
 import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
 
-type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente" | "historial">;
+type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente" | "historial"> & {
+  /** Lo que en el lanzador viene de `GET /capacidades` (D9 de optimizaciones). */
+  redaccionEnFlujo?: boolean;
+};
 
 /**
  * El panel con una conversación propia, como lo monta el lanzador —único
@@ -21,8 +24,8 @@ type Props = Omit<ComponentProps<typeof PanelAsistente>, "asistente" | "historia
  * `AyudaDelAsistente`, `AbrirHistorial` ni `NuevaConversacion` por su cuenta
  * para reproducir la composición real.
  */
-export function PanelDePrueba(props: Props) {
-  const asistente = useAsistente();
+export function PanelDePrueba({ redaccionEnFlujo, ...props }: Props) {
+  const asistente = useAsistente({ redaccionEnFlujo });
   // Habilitado siempre: este banco no simula un modal cerrado.
   const historial = useHistorialAsistente(asistente, true);
 
