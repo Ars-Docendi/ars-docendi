@@ -12,6 +12,7 @@ import type {
   TipoAdjunto,
   TipoBaja,
 } from "../types";
+import { PageHeader } from "../../../shared/ui/PageHeader";
 import { asignacionVigenteEnMateria } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
@@ -23,9 +24,9 @@ const NOVEDADES: NovedadAdmitida[] = ["Alta", "Baja", "Cambio de cargo o dedicac
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
-  en_revision_coordinador: "En revisión Coordinador",
-  en_revision_secretaria: "En revisión Secretaría",
-  en_revision_decanato: "En revisión Decanato",
+  en_revision_coordinador: "de Coordinación",
+  en_revision_secretaria: "de Secretaría",
+  en_revision_decanato: "de Decanato",
 };
 
 interface PedidoFormProps {
@@ -301,7 +302,7 @@ export function PedidoForm({
   const muestraSolicitud = esAlta || esCambio;
 
   const numero = pedidoInicial?.numero ?? "";
-  const titulo = esEdicion ? "Editar pedido de designación" : "Nuevo pedido de designación";
+  const titulo = esEdicion ? "Editar pedido" : "Nuevo pedido";
   const subtitulo = construirSubtitulo(novedad, esEdicion, pedidoInicial, numero, periodoLabel);
   const devolucion = pedidoInicial?.estado === "devuelto" ? ultimaDevolucion(pedidoInicial) : null;
 
@@ -313,13 +314,7 @@ export function PedidoForm({
         handleGuardar();
       }}
     >
-      <header className="adoc-pf-head">
-        <p className="adoc-pf-eyebrow">
-          DESIGNACIONES · {novedad ? novedad.toUpperCase() : "NOVEDAD"}
-        </p>
-        <h1 className="adoc-pf-title">{titulo}</h1>
-        <p className="adoc-pf-subtitle">{subtitulo}</p>
-      </header>
+      <PageHeader title={titulo} meta={subtitulo} />
 
       {devolucion && (
         <InlineAlert severity="warning" title={`Devuelto por el ${devolucion.porRol}`}>

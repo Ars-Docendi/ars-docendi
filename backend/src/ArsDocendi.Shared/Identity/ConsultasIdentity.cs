@@ -57,6 +57,26 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
                 .Distinct()
                 .ToListAsync(ct);
 
+    public async Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
+        IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct)
+    {
+        var filas = await db.UsuarioRoles
+            .AsNoTracking()
+            .Where(ur => usuarioIds.Contains(ur.UsuarioId)
+                      && ur.Usuario!.Activo
+                      && ur.Rol!.EsSistema
+                      && ur.Rol.Activo)
+            .Select(ur => new { ur.UsuarioId, ur.Rol!.Codigo, ur.Rol.Nombre })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return filas
+            .GroupBy(f => f.UsuarioId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<RolDeSistema>)g.Select(f => new RolDeSistema(f.Codigo, f.Nombre)).ToList());
+    }
+
     // Los permisos SÍ consideran los roles creados por el operador: agrupar permisos
     // es exactamente para lo que sirven. Lo que no habilitan es el circuito de
     // aprobación, y eso lo resuelve ObtenerCodigosDeRolesDeSistemaAsync.

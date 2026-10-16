@@ -665,10 +665,9 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand("""
             INSERT INTO identity.users (id, azure_oid, upn, display_name, persona_id)
-            VALUES (@id, @azureOid, @upn, @displayName, @personaId);
+            VALUES (@id, NULL, @upn, @displayName, @personaId);
             """, conexion);
         comando.Parameters.AddWithValue("id", id);
-        comando.Parameters.AddWithValue("azureOid", Guid.NewGuid());
         comando.Parameters.AddWithValue("upn", $"{id:N}@prueba.invalid");
         comando.Parameters.AddWithValue("displayName", displayName);
         comando.Parameters.AddWithValue("personaId", personaId);
@@ -680,7 +679,7 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand("""
             INSERT INTO identity.users (id, azure_oid, upn, display_name, persona_id)
-            VALUES (@id, @azureOid, @upn, 'Cuenta de respaldo', NULL);
+            VALUES (@id, NULL, @upn, 'Cuenta de respaldo', NULL);
             """, conexion);
         comando.Parameters.AddWithValue("id", id);
         comando.Parameters.AddWithValue("azureOid", Guid.NewGuid());

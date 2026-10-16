@@ -122,6 +122,10 @@ public sealed class PermisoConsultarTests(PostgresFixture postgres)
         using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
+            // En Production el Host exige el ingreso con Microsoft configurado.
+            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
+            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
             builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", Cadena);
         });
 

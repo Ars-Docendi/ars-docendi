@@ -17,6 +17,7 @@ function PanelAsistenteDePrueba() {
 
 const usuario: CurrentUserState = {
   user: {
+    id: "a0000000-0000-4000-8000-000000000099",
     name: "Administración",
     initials: "AD",
     upn: "admin@example.test",

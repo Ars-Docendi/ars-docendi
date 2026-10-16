@@ -278,22 +278,6 @@ En la vista Tabla, la columna **Estado** MUST mostrar en una sola celda el estad
 - **WHEN** se renderizan sus filas
 - **THEN** la columna Estado muestra "Devuelto" y "Rechazado" respectivamente, sin mini-stepper
 
-### Requirement: Columna Prioritario por ícono
-
-En la vista Tabla, la columna **Prioritario** MUST mostrar un ícono de bandera únicamente en los pedidos marcados como prioritarios, y permanecer vacía en los demás. No MUST mostrar texto adicional en esa columna.
-
-#### Scenario: Pedido prioritario muestra la bandera
-
-- **GIVEN** un pedido marcado como prioritario
-- **WHEN** se renderiza su fila
-- **THEN** la columna Prioritario muestra el ícono de bandera
-
-#### Scenario: Pedido no prioritario deja la columna vacía
-
-- **GIVEN** un pedido no prioritario
-- **WHEN** se renderiza su fila
-- **THEN** la columna Prioritario queda vacía (sin ícono ni texto)
-
 ### Requirement: Filtro de carrera en la Tabla de revisión
 
 El sistema SHALL ofrecer, en la superficie de revisión (`/designaciones/revision`), un filtro opcional
@@ -452,3 +436,20 @@ Las pestañas del tablero SHALL usar un verde más claro que el primario durante
 - **GIVEN** el tablero abierto
 - **WHEN** se recorre la barra de pestañas mediante teclado
 - **THEN** MUST distinguirse el foco y la selección sin depender del hover
+
+### Requirement: Prioridad junto al nombre del docente
+
+En la Tabla de revisión, un pedido prioritario SHALL mostrar un chip "Prioritario" en color de atención (ámbar), en la misma línea del nombre del docente. La celda Estado MUST mostrar solo el estado del pedido. El chip MUST NOT ensanchar la columna Docente: en las filas prioritarias, el nombre cede ese espacio y se recorta con "…" si no entra. Los pedidos no prioritarios MUST NOT mostrar chip.
+
+#### Scenario: Pedido prioritario
+
+- **GIVEN** un pedido prioritario en revisión
+- **WHEN** se renderiza su fila
+- **THEN** la celda Docente muestra el nombre y el chip "Prioritario"
+- **AND** la celda Estado muestra solo el estado, sin "Prioritario"
+
+#### Scenario: Pedido no prioritario
+
+- **GIVEN** un pedido no prioritario
+- **WHEN** se renderiza su fila
+- **THEN** la celda Docente muestra solo el nombre

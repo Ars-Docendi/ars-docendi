@@ -5,3 +5,4 @@
 | [asistente](./asistente.md) |
 | [designaciones](./designaciones.md) |
 | [portal](./portal.md) |
+| [tareas](./tareas.md) |

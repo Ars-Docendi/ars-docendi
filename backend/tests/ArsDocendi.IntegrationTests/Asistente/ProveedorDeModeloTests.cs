@@ -152,6 +152,10 @@ public sealed partial class ProveedorDeModeloTests
         using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
+            // En Production el Host exige el ingreso con Microsoft configurado.
+            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
+            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
             builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", CadenaDelDueno);
         });
         using var cliente = host.CreateClient();

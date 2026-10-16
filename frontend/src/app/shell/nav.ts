@@ -21,17 +21,23 @@ export interface NavGroup {
 export const NAVEGACION: NavGroup[] = [
   {
     label: "Personal",
-    items: [{ to: "/portal", icon: "portal", label: "Mi Portal", permiso: "portal.ver" }],
+    items: [{ to: "/portal", icon: "portal", label: "Mi portal", permiso: "portal.ver" }],
   },
   {
     label: "Trabajo",
     items: [
       { to: "/aulas", icon: "aulas", label: "Reserva de aulas", permiso: "aulas.ver" },
       { to: "/tareas", icon: "tareas", label: "Tareas", permiso: "tareas.ver" },
+      {
+        to: "/tareas/proyectos",
+        icon: "proyectos",
+        label: "Proyectos",
+        permiso: "tareas.gestionar",
+      },
     ],
   },
   {
-    label: "DESIGNACIONES",
+    label: "Designaciones",
     items: [
       {
         to: "/designaciones/mis-pedidos",
