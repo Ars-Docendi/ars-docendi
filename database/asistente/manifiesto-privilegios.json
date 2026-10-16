@@ -41,6 +41,11 @@
       "motivo": "Seis de las diez tablas se conceden: las que responden el catálogo de preguntas de perfil profesional. `contactos` queda denegada entera y `cvs`, `proyectos` y `proyecto_documentos` no se conceden porque ninguna pregunta las pide. Conceder esto NO abre el padrón: el predicado de RLS es «mi propio perfil OR tengo portal.ver_trayectoria_ajena», y ese permiso está concedido a nadie."
     },
     {
+      "nombre": "tareas",
+      "estado": "denegado",
+      "motivo": "El sistema de tareas y proyectos: títulos, descripciones, soluciones, comentarios en texto libre e historial con actor y rol. Ninguna pregunta del catálogo lo necesita y el texto libre no admite enmascarado por columna. El asistente nunca recibió GRANT sobre este schema; este asiento deja escrito que es una decisión y no un olvido."
+    },
+    {
       "nombre": "public",
       "estado": "denegado",
       "motivo": "No es un schema de dominio: tiene el historial de migraciones de EF y las dos tablas de metadatos del seed sintético (seed_metadata, seed_identities). Nada de eso responde una pregunta de nadie, y seed_identities enumera qué usuarios son sembrados, que es información sobre el sistema y no sobre el Departamento."
@@ -119,6 +124,10 @@
         {
           "columna": "azure_oid",
           "motivo": "Identificador opaco del proveedor de identidad externo. No tiene ningún valor de consulta y exponerlo filtra la correspondencia entre una persona y su identidad en el directorio institucional."
+        },
+        {
+          "columna": "azure_tid",
+          "motivo": "Tenant de Microsoft de la cuenta vinculada (ingreso con cuentas Microsoft). Va siempre junto a azure_oid y se deniega por el mismo motivo: no responde ninguna pregunta y describe la identidad en el directorio, no al Departamento."
         }
       ],
       "nota": "upn es el correo institucional, o sea dato de contacto: se concede solo al rol con acceso a datos personales, igual que teléfono."

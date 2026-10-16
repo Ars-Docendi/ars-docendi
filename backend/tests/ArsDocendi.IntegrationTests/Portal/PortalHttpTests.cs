@@ -178,7 +178,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // (`GET …/adjuntos/{archivoId}`) y dos en PortalController
         // (`GET /api/portal/perfil/cv/descarga` y
         // `GET /api/portal/perfil/proyectos/{id}/documento`).
-        Assert.Equal(105, operaciones.Length);
+        //
+        // Subió de 105 a 121 con el sistema de tareas (develop): dieciséis entre
+        // TareasController y ProyectosTareasController.
+        Assert.Equal(121, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

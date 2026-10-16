@@ -90,6 +90,7 @@ describe("Un vínculo viejo a /asistente/administracion (sistema-seccion-unifica
   it("redirige a /sistema#asistente conservando el gate por permiso", async () => {
     vi.spyOn(useCurrentUserMod, "useCurrentUser").mockReturnValue({
       user: {
+        id: "00000000-0000-4000-8000-000000000001",
         name: "x",
         initials: "X",
         upn: "x@unlam.edu.ar",

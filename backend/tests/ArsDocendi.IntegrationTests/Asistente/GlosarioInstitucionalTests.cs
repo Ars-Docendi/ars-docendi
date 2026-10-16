@@ -148,9 +148,10 @@ public sealed partial class GlosarioInstitucionalTests(PostgresFixture postgres)
     {
         // Una fuente de verdad ilegible para el rol básico no puede serlo del
         // glosario: el valor se verificaría contra algo que el asistente no ve.
+        // `tareas` es un schema real y denegado en el manifiesto de privilegios.
         var roto = Termino("fuente ilegible", columna: Propietario, valores: ["decanato"], verificaContra: "tareas.estados_tarea.codigo");
 
-        await AssertFallaAsync(roto, "fuente ilegible", "tareas.estados_tarea.codigo", "no existe");
+        await AssertFallaAsync(roto, "fuente ilegible", "tareas.estados_tarea.codigo", "no está concedida al rol básico");
     }
 
     // ------------------------------------------------------------- valores

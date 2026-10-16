@@ -81,3 +81,31 @@ test("previews y teardown permanecen en Proxmox con ambos gates", () => {
   assert.match(teardown, /infra\/scripts\/teardown\.sh/);
   assert.doesNotMatch(deploy, /^  pull_request_target:/m);
 });
+
+test("ingreso con Microsoft: obligatorio en prod, opcional en staging y sólo con label en previews", () => {
+  const prod = leer(".github/workflows/deploy-prod.yml");
+  const staging = leer(".github/workflows/deploy-staging.yml");
+  const preview = leer(".github/workflows/pr-env-deploy.yml");
+  const compose = leer("infra/compose/compose.base.yml");
+
+  assert.ok(prod.includes("--build-arg VITE_MICROSOFT_LOGIN_ENABLED=true"));
+  assert.match(prod, /MICROSOFT_LOGIN_ENABLED: "true"/);
+  for (const secret of [
+    "MICROSOFT_CLIENT_SECRET_PROD",
+    "ADMIN_INICIAL_UPN",
+    "ADMIN_INICIAL_DOCUMENTO",
+  ]) {
+    assert.ok(prod.includes(`secrets.${secret}`));
+  }
+  assert.ok(staging.includes("vars.MICROSOFT_CLIENT_ID_STAGING != ''"));
+  assert.ok(staging.includes("secrets.MICROSOFT_CLIENT_SECRET_STAGING"));
+  assert.doesNotMatch(staging, /ADMIN_INICIAL/);
+  const label = "contains(github.event.pull_request.labels.*.name, 'login-microsoft')";
+  assert.ok(preview.includes(`VITE_MICROSOFT_LOGIN_ENABLED=\${{ ${label} }}`));
+  assert.ok(preview.includes(`${label} && secrets.MICROSOFT_CLIENT_SECRET_STAGING || ''`));
+  assert.doesNotMatch(preview, /MICROSOFT_CLIENT_SECRET_PROD|ADMIN_INICIAL/);
+  // Los secretos llegan por el entorno del proceso, con default vacío y el ingreso apagado.
+  assert.match(compose, /AutenticacionMicrosoft__Habilitada: \$\{MICROSOFT_LOGIN_ENABLED:-false\}/);
+  assert.match(compose, /AutenticacionMicrosoft__ClientSecret: \$\{MICROSOFT_CLIENT_SECRET:-\}/);
+  assert.match(compose, /- claves:\/claves/);
+});

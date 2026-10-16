@@ -6,10 +6,12 @@
 
 ## Roles que interactúan
 
-- **Administrativos** — Usuarios principales del tablero.
-- **Secretaría Académica** — Vista global, asignación de tareas.
-- **Coordinador de Carrera** / **Jefe de Cátedra** — Pueden recibir asignaciones de tareas relacionadas.
-- **Decanato** — Vista global.
+- **Administrativos** — Usuarios principales del tablero. Pueden crear tareas, pero no Proyectos.
+- **Secretaría Académica** — Vista global, asignación de tareas. Junto con Decanato, únicos roles que crean y gestionan Proyectos.
+- **Coordinador de Carrera** / **Jefe de Cátedra** — Pueden recibir asignaciones de tareas.
+- **Decanato** — Vista global. Máxima autoridad en la jerarquía de asignación (ver "Decisiones registradas").
+
+Jerarquía de autoridad, de mayor a menor: Decanato → Secretaría Académica → Administrativos → Coordinador de Carrera → Jefe de Cátedra → Docente. Quien asigna un Responsable (siempre uno de los tres primeros roles, los únicos que crean tareas) solo puede elegir a alguien de su mismo nivel o de un nivel inferior, nunca superior.
 
 ## Bounded context
 
@@ -18,9 +20,12 @@
 
 ## Entidades principales
 
-| Entidad                                  | Descripción | Schema/Tabla |
-| ---------------------------------------- | ----------- | ------------ |
-| _(a definir en spec inicial del módulo)_ | ...         | `tareas.*`   |
+| Entidad    | Descripción                                                                                                                                                                                                                                                                                                                                                                                       | Schema/Tabla |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `Tarea`    | Nro correlativo, Título, Descripción, Fecha Inicio, Fecha Fin, Prioridad (alta/media/baja), Tipo (Extensión/Administrativa/Posgrado/Investigación/Académicas/Decanato), Estado, % de avance (0-100), Solución (al resolverse), Responsable, Autor (creador), comentarios internos, historial de auditoría, Proyecto asociado (opcional), tarea padre (si es una hija), tareas relacionadas (ids). | `tareas.*`   |
+| `Proyecto` | Nro correlativo, Nombre, Descripción, Fecha Inicio, Fecha Fin, Estado (Abierto/Finalizado/Cancelado), Responsable (Secretaría Académica o Decanato). Agrupa un subconjunto de tareas.                                                                                                                                                                                                             | `tareas.*`   |
+
+_(Backend real en `Modules.Tareas` (schema `tareas`, migración `SchemaTareas`); el frontend consume la API — ver `openspec/changes/sistema-tareas/`.)_
 
 ## API pública (contract)
 
@@ -30,10 +35,10 @@
 
 ## Endpoints HTTP
 
-| Método                    | Path               | Rol       | Descripción  |
-| ------------------------- | ------------------ | --------- | ------------ |
-| GET                       | `/api/tareas/ping` | (anónimo) | Health check |
-| _(a documentar en specs)_ | ...                | ...       | ...          |
+| Método | Path               | Rol       | Descripción                                 |
+| ------ | ------------------ | --------- | ------------------------------------------- |
+| GET    | `/api/tareas/ping` | (anónimo) | Health check                                |
+| ...    | `/api/tareas/**`   | permisos  | Ver [contratos de API](../api-contracts.md) |
 
 ## Reglas de negocio
 
@@ -41,11 +46,19 @@ Este módulo todavía no tiene reglas provenientes de normativa institucional re
 
 ## Dependencias
 
-- **Hacia adentro**: `Modules.Portal.Contracts` (conocer al docente asignado).
+- **Hacia adentro**: lectura de identity vía `IConsultasIdentity` (nombre y roles de las personas; `ObtenerRolesDeSistemaAsync`). Sin dependencia hacia `Modules.Portal`.
 - **Hacia afuera**: por ahora ninguna.
 - **Externas**: ninguna conocida.
 
 ## Decisiones registradas
 
 - **Inspirado en Trello, no es Jira**: el alcance es coordinación interna ligera. Sin flujos complejos de aprobación dentro del módulo (eso está en `Designaciones`).
-- **Semáforo de vencimiento** como feature visual obligatoria: verde si vence en > N días, amarillo si vence en < N días, rojo si está vencida. N parametrizable por Secretaría.
+- **Pantalla inicial organizada en cuadros por Proyecto**: un cuadro fijo "Generales" (siempre primero, tareas sin Proyecto asociado) y uno por cada Proyecto en estado Abierto que tenga tareas, ordenados por Fecha de Fin del Proyecto más reciente. Cada cuadro tiene la misma tabla que antes (columnas, filtros por header, orden de 3 estados, semáforo). Ver `openspec/changes/sistema-tareas/specs/tablero-tareas/spec.md`.
+- **Ciclo de estados**: Pendiente / En curso / Pausa / Resuelta / Cancelada. El Responsable mueve la tarea libremente entre los primeros cuatro; Cancelar (y editar Título/Descripción/fechas/Prioridad/Tipo/Responsable/Proyecto) es exclusivo de la autoridad creadora (Secretaría Académica, Decanato o Administrativo — únicos roles con `tareas.gestionar`). Pasar a Pausa exige un comentario con el motivo; pasar a Resuelta exige completar el campo Solución. Ver `openspec/changes/sistema-tareas/specs/flujo-estado-tareas/spec.md`.
+- **Semáforo de vencimiento** como feature visual obligatoria, calculado por **% del plazo transcurrido** (no días fijos): verde por debajo del 50%, amarillo entre 50-80%, rojo desde el 80% (incluida vencida). Solo se muestra en estados no terminales. El umbral no es parametrizable todavía (fuera de alcance del primer change).
+- **% de avance** (0-100), lo completa el Responsable, independiente del Estado (no se sincronizan automáticamente). Se mantiene así también para tareas con hijas: no hay rollup automático de avance/estado desde las hijas hacia el padre, es una decisión explícita.
+- **Jerarquía de asignación de Responsable**: Decanato → Secretaría Académica → Administrativos → Coordinador de Carrera → Jefe de Cátedra → Docente. Quien asigna solo puede elegir a alguien de su mismo nivel o inferior, nunca superior — el buscador de Responsable filtra las opciones en consecuencia (no permite elegir y después rechaza). Aplica también al Responsable de Proyecto, acotado además a {Decanato, Secretaría Académica}.
+- **Proyecto**: entidad separada de Tarea (tabla propia del schema `tareas`), creada y gestionada exclusivamente por Decanato y Secretaría Académica. Una tarea puede asociarse a un Proyecto opcionalmente; una tarea hija hereda el Proyecto de su padre de forma obligatoria (no editable aparte). Los Proyectos Finalizados/Cancelados no generan cuadro en la pantalla inicial — se acceden desde la pestaña Proyectos (`/tareas/proyectos`, ítem propio del menú lateral para quien tiene `tareas.gestionar`), que además permite crear (`Nuevo Proyecto`) y, desde el detalle, editar un proyecto.
+- **Relación simple entre tareas**: vínculo bidireccional de acceso rápido entre dos tareas, sin jerarquía ni efecto en Estado/% de avance.
+- **Tareas hijas (jerarquía padre/hijas)**: agrupamiento organizacional para descomponer una tarea compleja, multinivel (una hija puede tener sus propias hijas). Cada tarea (padre o hija) es independiente y completa: su propio Responsable, fechas, Estado y % de avance.
+- **Acceso por permisos, no por rol**: `tareas.ver` (todos los roles de sistema) habilita ver y participar; `tareas.gestionar` crear tareas y editar campos propios; `proyectos.gestionar` (Decanato y Secretaría Académica) crear y cerrar proyectos. El frontend deriva la visibilidad de `user.permissions` y el servidor vuelve a validar todo, incluida la jerarquía de asignación.

@@ -20,4 +20,14 @@
     <ProjectReference Include="..\Modules.Tareas.Contracts\Modules.Tareas.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <SqlTareas Include="$(MSBuildThisFileDirectory)..\..\..\database\tareas\*.sql" />
+    <EmbeddedResource Include="@(SqlTareas)" Link="Sql\tareas\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
+    <Error Condition="'@(SqlTareas)' == ''"
+           Text="No se encontró ningún .sql en database/tareas/." />
+  </Target>
+
 </Project>

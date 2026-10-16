@@ -16,9 +16,9 @@ const KIND_POR_ESTADO: Record<EstadoPedido, StatusKind> = {
 
 const ETIQUETA_POR_ESTADO: Record<EstadoPedido, string> = {
   borrador: "Borrador",
-  en_revision_coordinador: "En revisión · Coordinador",
-  en_revision_secretaria: "En revisión · Secretaría",
-  en_revision_decanato: "En revisión · Decanato",
+  en_revision_coordinador: "En Coordinación",
+  en_revision_secretaria: "En Secretaría",
+  en_revision_decanato: "En Decanato",
   devuelto: "Devuelto",
   en_lote: "En lote",
   rechazado: "Rechazado",

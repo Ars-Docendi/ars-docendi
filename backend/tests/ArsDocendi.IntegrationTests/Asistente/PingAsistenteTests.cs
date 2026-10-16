@@ -71,6 +71,10 @@ public sealed class PingAsistenteTests
         new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
+            // En Production el Host exige el ingreso con Microsoft configurado.
+            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
+            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
             builder.UseSetting("ConnectionStrings:ArsDocendi", CadenaInalcanzable);
             if (servicios is not null)
             {

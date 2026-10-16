@@ -63,7 +63,45 @@ describe("TablaUsuarios", () => {
     expect(within(acciones).queryByRole("button")).not.toBeInTheDocument();
     expect(acciones).not.toHaveAttribute("aria-sort");
 
-    await user.click(screen.getByRole("button", { name: "Filtrar Apellido y Nombre" }));
+    await user.click(screen.getByRole("button", { name: "Filtrar Nombre" }));
     expect(onOrdenChange).not.toHaveBeenCalled();
+  });
+
+  it("el click en la fila abre Editar; el link a docente no lo dispara", async () => {
+    const user = userEvent.setup();
+    const onEditarUsuario = vi.fn();
+    render(
+      <TablaUsuarios
+        usuarios={[USUARIO]}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditarUsuario={onEditarUsuario}
+      />,
+    );
+
+    await user.click(screen.getByText("carla.lopez@unlam.edu.ar"));
+    expect(onEditarUsuario).toHaveBeenCalledWith(USUARIO);
+
+    const link = screen.getByRole("link", { name: /Ver docente/ });
+    link.addEventListener("click", (evento) => evento.preventDefault());
+    await user.click(link);
+    expect(onEditarUsuario).toHaveBeenCalledOnce();
+  });
+
+  it("titula Nombre y Email, recorta textos largos y enlaza al docente sin contar materias", () => {
+    render(
+      <TablaUsuarios
+        usuarios={[USUARIO]}
+        onDesactivar={vi.fn()}
+        onActivar={vi.fn()}
+        onEditarUsuario={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("columnheader", { name: "Nombre" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByText("López, Carla")).toHaveClass("adoc-texto-recortado");
+    expect(screen.getByText("carla.lopez@unlam.edu.ar")).toHaveClass("adoc-texto-recortado");
+    expect(screen.getByRole("link", { name: "Ver docente" })).toHaveTextContent(/^Ver docente$/);
   });
 });

@@ -337,10 +337,12 @@ public sealed class GeneradorDeFixture
     private void EscribirUsuarios(StringBuilder sql)
     {
         sql.Append(
-            "\nINSERT INTO identity.users (id, azure_oid, upn, display_name, is_active, persona_id) VALUES\n");
+            "\nINSERT INTO identity.users (id, azure_oid, azure_tid, upn, display_name, is_active, persona_id) VALUES\n");
 
+        // azure_oid y azure_tid van juntos: identity.users exige los dos o ninguno
+        // (users_cuenta_microsoft_completa). Un único tenant para todo el padrón.
         var filas = Enumerable.Range(0, _personas).Select(indice =>
-            $"    ('{IdDeUsuario(indice)}', '{IdDeAzure(indice)}', "
+            $"    ('{IdDeUsuario(indice)}', '{IdDeAzure(indice)}', '{TenantDeAzure}', "
             + $"'usuario{indice:D3}@evaluacion.invalido', 'Usuario {indice:D3}', TRUE, "
             + $"'{IdDePersona(indice)}')");
 
@@ -724,6 +726,9 @@ public sealed class GeneradorDeFixture
     public static string IdDeUsuario(int indice) => Identificador('a', indice);
 
     private static string IdDeAzure(int indice) => Identificador('9', indice);
+
+    /// <summary>El tenant de Azure de todas las cuentas del fixture.</summary>
+    private static readonly string TenantDeAzure = Identificador('8', 0);
 
     private static string IdDeAsignacion(int indice) => Identificador('e', indice);
 

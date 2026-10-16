@@ -4,6 +4,7 @@ using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
+using ArsDocendi.Shared.Identity.Ingreso;
 using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -106,9 +107,13 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             .Select(p => p.PersonaId).SingleAsync(ct));
         Assert.False(await identityDb.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
 
-        var usuario = await new VinculadorPrimerLogin(identityDb).VincularAsync(
-            new DatosPrimerLogin(Guid.NewGuid(), "ada@unlam.edu.ar", "Ada Lovelace", documento), ct);
-        Assert.Equal(persona.Id, usuario.PersonaId);
+        // El ingreso con Microsoft no crea la cuenta de una persona registrada por un Alta.
+        var repositorio = new RepositorioIngreso(identityDb);
+        var ingreso = await new ServicioIngreso(
+                repositorio, new ServicioSesion(repositorio), NullLogger<ServicioIngreso>.Instance)
+            .ResolverAsync(new DatosCuentaMicrosoft(Guid.NewGuid(), Guid.NewGuid(), "ada@unlam.edu.ar", true), ct);
+        Assert.Equal(MotivoRechazoIngreso.NoRegistrado, ingreso.Motivo);
+        Assert.False(await identityDb.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
         Assert.Equal(1, await identityDb.Personas.CountAsync(p => p.Documento == documento, ct));
     }
 

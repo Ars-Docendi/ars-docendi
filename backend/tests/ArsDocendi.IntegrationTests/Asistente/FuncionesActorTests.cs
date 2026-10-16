@@ -358,7 +358,7 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
         await EjecutarAsync(
             """
             INSERT INTO identity.users (id, azure_oid, upn, display_name)
-                VALUES (@usuario, @oid, @upn, 'Rol nuevo de prueba');
+                VALUES (@usuario, NULL, @upn, 'Rol nuevo de prueba');
             INSERT INTO identity.roles (id, code, name, scope, es_sistema)
                 VALUES (@rol, @codigo, 'Rol creado por administración', 'global', FALSE);
             INSERT INTO identity.user_roles (user_id, role_id)

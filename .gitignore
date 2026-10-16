@@ -70,6 +70,8 @@ pgdata/
 # ---------- Extras ----------
 .DS_Store
 .pnpm-store/
+.artifacts/
+findings.md
 
 # ---------- Claude Code ----------
 # Versionamos las skills, agents, commands, hooks y settings compartidos del proyecto.
