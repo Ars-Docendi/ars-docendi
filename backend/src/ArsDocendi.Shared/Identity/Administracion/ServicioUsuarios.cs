@@ -42,9 +42,7 @@ public sealed class ServicioUsuarios(
         var usuario = new Usuario
         {
             Id = Guid.NewGuid(),
-            // OID provisional: el vinculador de primer login lo reemplaza al
-            // encontrar esta cuenta por UPN.
-            AzureOid = Guid.NewGuid(),
+            // Sin cuenta Microsoft: se vincula en el primer ingreso, encontrándola por UPN.
             Upn = upn,
             NombreParaMostrar = $"{persona.Nombre} {persona.Apellido}",
             Activo = true,

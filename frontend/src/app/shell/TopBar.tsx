@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, RoleBadge } from "@ars-docendi/ui";
 
-import { clearToken } from "../../shared/auth/auth";
+import { useCerrarSesion } from "../../shared/auth/auth";
 import type { CurrentUser } from "../../shared/auth/useCurrentUser";
-import { bellIcon, /*collapseIcon,*/ searchIcon } from "./icons";
+// import { collapseIcon } from "./icons";
 import { LanzadorAsistente } from "../../features/asistente";
 import { useDescartarAlClicAfuera } from "../../shared/hooks/useDescartarAlClicAfuera";
 
@@ -21,9 +21,14 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
 
   useDescartarAlClicAfuera(menuOpen, menuRef, () => setMenuOpen(false));
 
-  function handleLogout() {
-    clearToken();
-    navigate("/login", { replace: true });
+  const cerrarSesion = useCerrarSesion();
+
+  async function handleLogout() {
+    try {
+      await cerrarSesion();
+    } finally {
+      navigate("/login", { replace: true });
+    }
   }
 
   return (
@@ -46,27 +51,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
         */}
       </div>
 
-      <div className="adoc-topbar-search">
-        <span className="ico">{searchIcon}</span>
-        {/* No global-search backend yet — disabled so it doesn't pretend to work. */}
-        <input
-          type="search"
-          placeholder="Búsqueda global · próximamente"
-          disabled
-          aria-label="Búsqueda global (próximamente)"
-        />
-      </div>
-
       <div className="adoc-topbar-right">
-        <button
-          type="button"
-          className="adoc-icon-btn"
-          aria-label="Notificaciones"
-          title="Próximamente"
-          disabled
-        >
-          <span className="ico">{bellIcon}</span>
-        </button>
         {/* Acá vivía un botón «Ayuda» disabled con title="Próximamente", que es
             exactamente el fake UI que el invariante #7 prohíbe. El lanzador del
             asistente lo reemplaza: activarlo ELIMINA superficie falsa en vez de
@@ -85,7 +70,7 @@ export function TopBar({ /*collapsed, onToggleCollapse,*/ user }: TopBarProps) {
           {menuOpen && (
             <div className="adoc-user-menu-pop" role="menu">
               <div className="adoc-user-menu-foot">
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <Button variant="ghost" size="sm" onClick={() => void handleLogout()}>
                   Cerrar sesión
                 </Button>
               </div>

@@ -7,17 +7,11 @@
 import type { ReactNode } from "react";
 
 /* Topbar + chrome */
+/* Los usa el asistente: el buscador del rail de conversaciones y su ayuda. */
 export const searchIcon: ReactNode = (
   <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
     <circle cx="8" cy="8" r="5" />
     <path d="M11.5 11.5l3 3" />
-  </svg>
-);
-
-export const bellIcon: ReactNode = (
-  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-    <path d="M4 8a5 5 0 0110 0v3l2 2H2l2-2V8z" />
-    <path d="M7 15a2 2 0 004 0" />
   </svg>
 );
 
@@ -104,6 +98,11 @@ export const navIcons = {
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <rect x="3" y="3" width="12" height="12" />
       <path d="M6 9l2 2 4-4" />
+    </svg>
+  ),
+  proyectos: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M2.5 5.5h4l1.5 1.5h7.5v7.5h-13Z" />
     </svg>
   ),
   portal: (

@@ -11,7 +11,7 @@
 /* ====================== APP SHELL =========================== */
 .adoc-app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 200px 1fr;
   grid-template-rows: 56px 1fr;
   grid-template-areas:
     "topbar topbar"
@@ -90,68 +90,12 @@
   transform: scaleX(-1);
 }
 
-.adoc-topbar-search {
-  flex: 1;
-  max-width: 480px;
-  position: relative;
-}
-.adoc-topbar-search input {
-  width: 100%;
-  height: 32px;
-  background: var(--color-bg-canvas);
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-xs);
-  padding: var(--space-0) var(--space-3) var(--space-0) var(--space-8);
-  font-size: var(--text-micro-size);
-  font-family: var(--font-sans);
-  color: var(--color-text-primary);
-  outline: none;
-}
-.adoc-topbar-search input:disabled {
-  cursor: not-allowed;
-  color: var(--color-text-tertiary);
-}
-.adoc-topbar-search .ico {
-  position: absolute;
-  left: 10px;
-  top: 45%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: var(--color-text-tertiary);
-  pointer-events: none;
-}
-
 .adoc-topbar-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
-.adoc-icon-btn {
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-xs);
-  position: relative;
-}
-.adoc-icon-btn:hover:not(:disabled) {
-  background: var(--neutral-200);
-}
-.adoc-icon-btn:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-.adoc-icon-btn .ico {
-  width: 18px;
-  height: 18px;
-}
-
 /* User-menu popover anchored to the RoleBadge */
 .adoc-user-menu {
   position: relative;
@@ -340,14 +284,6 @@
   justify-content: space-between;
   gap: var(--space-6);
   margin-bottom: 20px;
-}
-.adoc-page-head .title-area .pretitle {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro-size);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-  margin-bottom: 6px;
 }
 .adoc-page-head h1 {
   font-family: var(--font-sans);

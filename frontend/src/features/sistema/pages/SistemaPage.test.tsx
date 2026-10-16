@@ -14,6 +14,7 @@ vi.mock("../../../shared/auth/useCurrentUser", () => ({ useCurrentUser: vi.fn() 
 
 const usuarioBase: CurrentUserState = {
   user: {
+    id: "00000000-0000-4000-8000-000000000001",
     name: "x",
     initials: "X",
     upn: "x@unlam.edu.ar",

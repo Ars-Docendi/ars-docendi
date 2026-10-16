@@ -72,7 +72,7 @@ export function IndexPage() {
     <>
       <Breadcrumbs separator="›" items={[{ label: "Inicio", href: "/" }, { label: "Roles" }]} />
       <PageHeader
-        title="Administración de Roles"
+        title="Administración de roles"
         meta={`${roles.length} roles`}
         actions={
           puedeAdministrar ? (

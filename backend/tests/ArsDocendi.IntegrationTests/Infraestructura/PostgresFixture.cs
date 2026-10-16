@@ -1,15 +1,16 @@
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Persistencia;
+using ArsDocendi.Storage.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Asistente.Infrastructure;
-using Modules.Asistente;
-using ArsDocendi.Storage.Infrastructure;
 using Modules.Designaciones.Infrastructure;
 using Modules.Portal.Infrastructure;
+using Modules.Tareas.Infrastructure;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -174,6 +175,11 @@ public sealed class PostgresFixture : IAsyncLifetime
         {
             await portal.Database.MigrateAsync();
         }
+
+        await using (var tareas = CrearTareas(cadena))
+        {
+            await tareas.Database.MigrateAsync();
+        }
     }
 
     /// <param name="migracionDesignaciones">
@@ -294,6 +300,14 @@ public sealed class PostgresFixture : IAsyncLifetime
             .UseNpgsql(cadena)
             .Options;
         return new DesignacionesDbContext(opciones);
+    }
+
+    public static TareasDbContext CrearTareas(string cadena)
+    {
+        var opciones = new DbContextOptionsBuilder<TareasDbContext>()
+            .UseNpgsql(cadena)
+            .Options;
+        return new TareasDbContext(opciones);
     }
 
     public static PortalDbContext CrearPortal(string cadena)
