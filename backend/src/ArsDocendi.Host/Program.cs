@@ -1,5 +1,6 @@
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Asistente;
 using ArsDocendi.Host.Autenticacion;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.Host.Despliegue;
@@ -9,6 +10,8 @@ using ArsDocendi.Shared.Persistencia;
 using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Modules.Asistente;
+using Modules.Asistente.Application;
 using Modules.Aulas;
 using Modules.Designaciones;
 using Modules.Portal;
@@ -16,6 +19,12 @@ using Modules.Tareas;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Va ANTES de leer nada de la configuración: el archivo es una fuente más, y
+// tiene que estar puesta antes de que alguien consulte una clave. Sólo hace algo
+// en Development; ver ArchivoDeEntorno.
+var archivoDeEntorno = ArchivoDeEntorno.Sumar(
+    builder.Environment, builder.Configuration, builder.Environment.ContentRootPath);
 
 builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
@@ -31,6 +40,7 @@ builder.Services.AddScoped<ResolutorAlcanceDocentes>();
 builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>();
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
+builder.Services.AddScoped<FuenteAuditoriaAsistente>();
 builder.Services.AddScoped<ServicioAuditoria>();
 var modoMigracion = args.Contains("--migrate");
 var accesos = builder.AddAutenticacionArsDocendi(
@@ -58,9 +68,27 @@ builder.Services
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)
-    .AddTareasModule(builder.Configuration);
+    .AddTareasModule(builder.Configuration)
+    .AddAsistenteModule(builder.Configuration);
+
+// VA DESPUÉS DE AddAsistenteModule, y el orden es el mecanismo: el módulo del
+// asistente registra una implementación que no resuelve nada —no conoce a ningún
+// otro módulo— y ésta la reemplaza. Es el único proyecto que ve a los dos, así que
+// es el único que puede componerlos sin agregar una arista entre módulos.
+builder.Services.AddScoped<IResolutorDeVinculos, VinculosDeDesignaciones>();
 
 var app = builder.Build();
+
+// Recién acá hay logger. Se registra la RUTA y la CANTIDAD, nunca las claves ni
+// los valores: el archivo existe justamente para tener una credencial adentro.
+if (archivoDeEntorno is not null)
+{
+    app.Logger.LogInformation(
+        "Configuración de desarrollo tomada de {Ruta} ({Claves} claves; "
+        + "las variables de ambiente reales le ganan)",
+        archivoDeEntorno.Ruta,
+        archivoDeEntorno.Claves);
+}
 
 // Arranque one-shot de migraciones: aplica las migraciones de cada módulo y
 // termina con exit 0, sin levantar el web server. Lo invoca la infra de deploy

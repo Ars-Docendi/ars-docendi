@@ -41,12 +41,15 @@ CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
 EditarRolDto           = { nombre, descripcion?, ambito, version }
 EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
-EstadoBaseDatosDto     = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs }
+EstadoSistemaDto       = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs,
+                           mantenimientoAsistente: "activo" | "inactivo" | "desconocido" }
 CambioAuditoriaDto     = { campo, etiquetaCampo, valorAnterior?, valorNuevo?, oculto }
-EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiadoPor?, requestId?,
-                           columnasCambiadas[], cambios: CambioAuditoriaDto[], actor, accionEtiqueta,
-                           modulo, objeto, resumen }
-PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
+EventoAuditoriaDto     = { id: string, origen: "cambios" | "asistente", schema, tabla, rowPk, accion,
+                           cambiadoEn, cambiadoPor?, requestId?, columnasCambiadas[],
+                           cambios: CambioAuditoriaDto[], actor, tipoActor: "persona" | "proceso" |
+                           "no_identificado", accionEtiqueta, modulo, objeto, resumen }
+PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total,
+                           parcial: boolean, fuentesNoDisponibles: string[] }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
                            carreras[], materias[{ id, codigo, nombre, carreraId? }], personasElegibles[] }
@@ -110,14 +113,156 @@ Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaI
 
 ## Estado del sistema y auditoría
 
+> Rediseñado por `sistema-seccion-unificada` (ARS-154/155/157): la vista de salud, el uso
+> del asistente y la auditoría se unifican en la sección «Sistema» de un único frontend
+> con tabs permission-gated; ver el design spec del producto para la UI. Esta sección
+> describe únicamente el contrato HTTP.
+
 | Método | Ruta                                 | Permiso              | Entrada / salida               |
 | ------ | ------------------------------------ | -------------------- | ------------------------------ |
-| GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoBaseDatosDto`           |
+| GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoSistemaDto`             |
 | GET    | `/api/administracion/auditoria`      | `auditoria.ver`      | filtros → `PaginaAuditoriaDto` |
 
-El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos. La respuesta sólo contiene `estado`, `comprobadoEn` y `duracionMs`; una falla retorna `no_disponible` sin revelar excepción, host ni configuración. El dashboard combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones y Portal; cada sonda se muestra independientemente.
+### Estado del sistema
 
-La consulta de auditoría acepta `desde`, `hasta`, `accion` (`INSERT`, `UPDATE`, `DELETE`), `schema`, `tabla`, `cambiadoPor` (UUID, conservado para compatibilidad), `actor` (fragmento del nombre visible, sin distinguir mayúsculas), `rowPk`, `pagina` (predeterminada 1) y `tamanoPagina` (predeterminado 50, máximo 100). La búsqueda por actor usa el nombre visible presentado en la tabla y se aplica junto con los filtros antes del conteo y la paginación; el orden permanece estable por fecha descendente e ID descendente. El actor se resuelve mediante joins izquierdos opcionales a `identity.users` y `identity.personas`: se prioriza `Apellido, Nombre`, luego `display_name` y, si no hay cuenta, `Actor no identificado`. Los módulos conocidos `identity`, `designaciones` y `portal` se muestran como **Identidad**, **Designaciones** y **Portal**; otros schemas usan una etiqueta legible de fallback. Cada consulta tiene timeout de 5 segundos. Fechas invertidas, acción inválida, actor de más de 100 caracteres o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET. La acción se presenta como Alta, Actualización o Eliminación física; un `UPDATE` no se convierte en baja por inferencia. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila y `requestId` quedan en el detalle. No se exponen UPN/correo, `client_ip` ni snapshots crudos. Los valores del detalle sólo se incluyen para campos aprobados; PII, secretos y campos no clasificados se devuelven con `oculto: true` y valores nulos.
+El estado de PostgreSQL se comprueba mediante `SELECT 1` con timeout de 3 segundos, igual que
+antes. `mantenimientoAsistente` es nuevo (design.md D7): corre **concurrente** con la
+comprobación de PostgreSQL, con su **propio** techo de 3 segundos, leído a través de
+`Modules.Asistente.Contracts.IConsultaDeMantenimiento` — el Host nunca abre una conexión al
+schema `asistente` para esto. Vale `"activo"` o `"inactivo"` según el interruptor de
+mantenimiento del asistente, o `"desconocido"` ante cualquier falla o vencimiento de ese techo
+propio (logueado como warning, nunca como error 500: una falla del asistente no puede tirar
+abajo la comprobación de PostgreSQL). La respuesta nunca incluye la razón del mantenimiento ni
+quién lo activó — esos datos siguen exclusivamente detrás de `asistente.consultar`
+(`GET /api/asistente/capacidades`); `sistema.estado.ver` sólo ve el interruptor. El dashboard
+combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones, Portal y
+—desde este cambio— el ping anónimo del asistente (`GET /api/asistente/ping`); cada sonda se
+muestra independientemente.
+
+### Auditoría: feed unificado de dos fuentes
+
+`GET /api/administracion/auditoria` deja de ser una consulta de sólo `audit.change_log`: fusiona
+esa tabla con el rastro de administración del asistente
+(`asistente.auditoria_administracion`, leído exclusivamente a través del contrato
+`Modules.Asistente.Contracts.IConsultasDeAuditoriaDeAdministracion` — el Host jamás hace SQL
+directo contra el schema `asistente`, ni siquiera de sólo lectura) en un único feed ordenado y
+paginado. El orden total es `cambiadoEn` descendente; en un empate exacto de instante,
+`origen: "cambios"` va antes que `origen: "asistente"`; y por último `id` numérico descendente
+dentro de cada fuente. `total` suma el conteo de las dos fuentes. El rastro del asistente tiene
+un cupo de lectura de 2000 filas por consulta (retención 365 días a ritmo humano de edición, así
+que en la práctica nunca se alcanza); si se alcanza, o si esa fuente falla por cualquier otro
+motivo, la página se sirve igual con `parcial: true` y `fuentesNoDisponibles: ["asistente"]`,
+usando sólo `audit.change_log` — nunca falla la request completa por una falla del asistente.
+
+**Parámetros**: `desde`, `hasta`, `accion` (`INSERT` | `UPDATE` | `DELETE`), `modulo` (`identity`
+| `designaciones` | `portal` | `asistente`, o cualquier nombre de schema ≤ 63 caracteres como
+fallback para módulos futuros), `tabla` (`schema.tabla` calificada o el nombre de tabla desnudo, ≤
+127 caracteres), `rowPk` (≤ 200 caracteres), `cambiadoPor` (UUID, conservado por compatibilidad),
+`q` (≤ 100 caracteres — **reemplaza** a `actor`, ver abajo), `pagina` (predeterminada 1),
+`tamanoPagina` (predeterminado 50, máximo 100). `schema` y `actor` ya **no existen**: el frontend
+es el único consumidor y el cambio va en el mismo diff. Cuando `modulo` selecciona una sola
+fuente (`"asistente"`, o cualquier otro valor — que sólo puede vivir en `audit.change_log`), la
+otra fuente ni se consulta: es a la vez una optimización de costo y un aislamiento de fallas
+(si `modulo=portal`, una caída del asistente no afecta la respuesta en absoluto).
+
+**Búsqueda (`q`)**: reemplaza a `actor` con alcance más amplio, pero es **estrictamente sobre
+etiquetas, nunca sobre valores**. `q` se normaliza (recortado, minúsculas, sin acentos) y se
+compara contra: la etiqueta de módulo (`identity`→«Identidad», etc.), la etiqueta de objeto
+(`schema.tabla`→«Persona», «Rol», …), las etiquetas de los campos cambiados (para un `UPDATE`) o
+de las claves del snapshot (para un `INSERT`/`DELETE`), el nombre `schema.tabla` y la clave de
+fila mismos, y el actor tal como se muestra (incluyendo los literales «Proceso automático» /
+«Actor no identificado»). Ninguna rama lee `old_row`/`new_row`/un valor mapeado, así que `q`
+nunca es un oráculo para un dato enmascarado o sin clasificar — hay un test que sembra un valor
+enmascarado y uno seguro y verifica que ninguno de los dos aparece en los resultados de una
+búsqueda por ese valor. La comparación usa la extensión PostgreSQL `unaccent` más `ILIKE`
+(`database/audit/002_audit_busqueda.sql`, aplicada por una migración de `IdentityDbContext` —
+el Host no depende del orden de migración del asistente, que ya la requiere por su cuenta).
+
+**`q` también encuentra por el sujeto humanizado (fix, 2026-09-27)**: como el objeto de
+`identity.users`/`identity.personas`/`identity.user_roles` puede nombrar al sujeto afectado
+(«Cuenta de usuario de {nombre}», «Persona {nombre}», «Roles de {nombre}»), `q` resuelve —en UNA
+consulta aparte, nunca por fila— qué cuentas/personas tienen HOY un nombre que matchea, y agrega
+tres ramas por sus **ids** (`identity.users`/`identity.personas` por su propio `rowPk`,
+`identity.user_roles` por el `user_id` del snapshot, extraído con `->>` y casteado, nunca
+comparado contra el texto de `q`). Repite la misma exclusión que ya usa la etiqueta: un evento
+que cambió `display_name` (para `users`) o `nombre`/`apellido` (para `personas`) nunca es un hit
+por nombre, aunque el nombre actual ya matchee — un renombre no se filtra por búsqueda tampoco.
+
+**Actor y evidencia (`tipoActor`)**: person names se muestran en orden natural, «Nombre Apellido»
+(no «Apellido, Nombre»), para el actor y para un eventual usuario afectado (design.md D6). Cuatro
+casos, cada uno con su propio `tipoActor`:
+
+| `changed_by` | `request_id` | Se muestra como         | `tipoActor`       |
+| ------------ | ------------ | ----------------------- | ----------------- |
+| resuelve     | cualquiera   | persona / display name  | `persona`         |
+| no resuelve  | cualquiera   | «Actor no identificado» | `no_identificado` |
+| nulo         | presente     | «Actor no identificado» | `no_identificado` |
+| nulo         | nulo         | «Proceso automático»    | `proceso`         |
+
+«Proceso automático» exige la **ausencia total** de contexto de solicitud (ni actor ni
+`request_id`): sólo una migración, un seed o un proceso de fondo escriben así, nunca un request
+HTTP con un usuario anónimo. Ese último caso —hubo un request pero su actor no se pudo
+identificar— es indistinguible de un `changed_by` estampado sin cuenta que lo resuelva, y los
+dos se muestran «Actor no identificado». Una sesión SQL directa sin las GUC de sesión (fuera de
+la aplicación, ya prohibido por AGENTS.md) también cae en «Proceso automático»: es el único otro
+escritor sin contexto de request, y queda documentado acá en vez de tratarse como un caso a
+prevenir en código.
+
+**Acción y resumen (`accionEtiqueta`, `resumen`)**: la acción se presenta como **Alta**, **Cambio**
+o **Eliminación** — nunca «Actualización» ni «Eliminación física»; un `UPDATE` nunca puede leer
+«Eliminación» porque sólo un `DELETE` físico la produce. El resumen sólo muestra valores en un
+caso preciso: una `UPDATE` de **exactamente un** campo de valor seguro lee
+`"{Objeto} #{rowPk}: {Campo} {antes} → {después}"` (el `#rowPk` sólo cuando `rowPk` es numérico,
+para que una clave UUID no inunde la línea). Todo lo demás —un `INSERT`, un `DELETE`, más de un
+campo cambiado, o cualquier campo enmascarado o sin clasificar— se queda en la forma genérica
+`"{accionEtiqueta} de {objeto} · {campos}"`, sin valores. Los eventos del asistente siguen la
+misma regla de enmascarado (`cupo`, `tope_mensual_usd` y `activo` son seguros; `razon` queda sin
+clasificar y por lo tanto enmascarada) con sus propios resúmenes por tipo de acción
+(`presupuesto.rol`, `presupuesto.usuario` — Alta si el cupo previo era nulo, si no Cambio —,
+`tope_organizacional`, `mantenimiento.activar`/`desactivar`; un código de acción futuro no
+mapeado cae en un «Cambio» genérico humanizado, nunca en un error).
+
+**Eventos de identidad humanizados (design.md D5, «Humanized identity events»)**: un valor
+booleano de un campo seguro (`activo`, `is_active`, `es_sistema`, …) se presenta como **«Sí»**/
+**«No»**, nunca `true`/`false` — tanto en `resumen` como en cada `CambioAuditoriaDto.valorAnterior`/
+`valorNuevo` del panel de detalle. Para `identity.users`, `identity.personas` e
+`identity.user_roles`, `objeto` nombra al sujeto humano: «Cuenta de usuario de {nombre}»,
+«Persona {nombre}» y, para una asignación de rol, «Roles de {nombre}». El nombre se resuelve de
+las filas de identidad **actuales** — la misma resolución que ya usa el actor —, nunca del
+snapshot del evento; si el propio evento cambió `nombre`, `apellido` o `display_name`, o la
+búsqueda no encuentra a la persona, `objeto` se queda en su forma genérica sin nombre (`«Cuenta de
+usuario»`, `«Persona»`, `«Asignación de rol»`) para que un cambio de nombre nunca se exponga como
+diff. Un alta o baja de `identity.user_roles` además reemplaza el `resumen` genérico por «Rol
+{rol} asignado a {nombre}» / «Rol {rol} quitado a {nombre}», con `{rol}` resuelto por `role_id`
+contra `identity.roles` — **la misma regla cubre una `UPDATE` de `identity.user_roles` cuyas
+columnas cambiadas incluyan `deleted_at`** (nulo → con valor lee «quitado a»; con valor → nulo
+lee «asignado a»), porque la revocación real (`ServicioUsuarios.ReemplazarAsignaciones`) es un
+soft-delete por `UPDATE`, nunca un `DELETE` físico; la acción mostrada (`accionEtiqueta`) sigue
+siendo la real (`Cambio` para esa `UPDATE`), sólo el `resumen` cambia. El `user_id`/`role_id` del
+snapshot son ids internos usados sólo para esa
+búsqueda, nunca valores mostrados. La resolución de nombres de sujeto es **una sola consulta
+batched por página** (los ids se juntan de toda la página antes de consultar), no una por fila.
+
+**Formato de valores en `cambios` (fix del panel de detalle, 2026-09-27)**: un `null` de JSON
+llega como `valorAnterior`/`valorNuevo` **`null`** (nunca el texto `"null"`); el panel lo muestra
+como «—». Un campo TIMESTAMPTZ de valor seguro (`created_at`, `deleted_at`) se presenta en hora de
+`America/Argentina/Buenos_Aires` como `d/m/aaaa HH:mm:ss`; un campo DATE de valor seguro
+(`vigente_desde`, `vigente_hasta`) como `d/m/aaaa` — nunca el ISO/UTC crudo del snapshot; el mismo
+valor ya formateado es el que reusa un resumen con valores. Un campo cuyo `valorAnterior` Y
+`valorNuevo` son ambos `null`/ausentes en el snapshot crudo **no aparece** en `cambios` — ni
+siquiera enmascarado — porque no aporta información (evaluado antes de enmascarar: el DTO de un
+campo enmascarado siempre lleva `null`/`null` aunque el valor real no lo sea).
+
+Cada consulta a `audit.change_log` tiene timeout de 5 segundos; el rastro del asistente no
+declara uno propio explícito (lee como máximo 2000 filas pequeñas de una tabla propia). Fechas
+invertidas, acción inválida, `q`/`tabla`/`modulo` fuera de longitud o límites de página fuera de
+rango responden `400 validation`. La API es exclusivamente GET; no muta ni borra eventos de
+ninguna fuente. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila
+y `requestId` quedan en el detalle (`requestId` siempre `null`/«—» para un evento del asistente:
+ese rastro no registra ningún id de solicitud). No se exponen UPN/correo, `client_ip` ni
+snapshots crudos de ninguna fuente. Los valores del detalle sólo se incluyen para campos
+aprobados; PII, secretos y campos no clasificados se devuelven con `oculto: true` y valores
+nulos.
 
 ## Desarrollo
 

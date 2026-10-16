@@ -19,7 +19,7 @@ Bootstrap único que llena `docs/architecture/*` con info real. Corre **después
 | ---------------------------------------- | ----------------------------------------------- |
 | `docs/architecture/stack.md`             | Tabla de apps + packages, decisiones, rationale |
 | `docs/architecture/module-anatomy.md`    | Layout de módulo .NET, layer rules              |
-| `docs/architecture/dependency-graph.md`  | Mermaid DAG + edge registry                     |
+| `docs/architecture/dependency-graph.md`  | Mermaid DAG (no normativo) + prosa del grafo    |
 | `docs/architecture/api-contracts.md`     | Base URL, auth, error shape, endpoint table     |
 | `docs/architecture/data-model.md`        | ORM, entidades, ER, índices, PII/retención      |
 | `docs/architecture/infrastructure.md`    | Ambientes, deploy, health, logs, monitoring     |
@@ -48,7 +48,7 @@ Llenar los 7 archivos + un `domains/<dominio>.md` por bounded context. Reglas:
 
 - Sin placeholder donde haya respuesta del usuario.
 - Donde no haya respuesta, marcar `_(needs owner input: <qué>)_`.
-- `dependency-graph.md`: regenerar el Mermaid + edge registry desde los dominios propuestos. Cada edge debe corresponder a una interacción mencionada en la descripción.
+- `dependency-graph.md`: regenerar el Mermaid —dibujo de orientación, no normativo— y la prosa del grafo desde los dominios propuestos. Cada arista debe corresponder a una interacción mencionada en la descripción. La lista de aristas NO va en el documento: va en `backend/manifiesto-de-aristas.json`, y sólo cuando el `ProjectReference` existe.
 - `infrastructure.md`: preservar secciones de hardening checklist y backup strategy (son boilerplate útil), reemplazar lo específico.
 
 ### 4. Aprobar y commitear
@@ -62,7 +62,7 @@ Llenar los 7 archivos + un `domains/<dominio>.md` por bounded context. Reglas:
 - **Solo** editar `docs/architecture/`. Cualquier otro path está fuera de scope.
 - **Sin código**, sin migrations, sin `docs/product/`, `docs/plans/`, `docs/business-rules/`.
 - **Una vez por proyecto**. Si `stack.md` ya tiene contenido no-template, confirmar antes de sobreescribir.
-- Cada edge en `dependency-graph.md` debe estar justificado por la descripción.
+- Cada arista del diagrama debe estar justificada por la descripción.
 
 ## Handoff
 

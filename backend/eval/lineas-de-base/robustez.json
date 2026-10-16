@@ -1,0 +1,25 @@
+{
+  "Eje": "robustez de fraseo",
+  "Sello": {
+    "Prefijo": "b95d56de8343e6219ac2c7eb90b0c3786b826315c9115e4ae382507364ae565f",
+    "Dataset": "536b2973e19cc4e1b4c7c9fd2ebaf55fce6582cb7d4767ddf478179f4082bf3a",
+    "Fixture": "98de10e72a62fdcf3598e983a92d0de094e742ddf0c7a9cc9e50bc1dd013aaf2"
+  },
+  "Items": {
+    "rob-001": "traduccion_correcta",
+    "rob-002": "traduccion_correcta",
+    "rob-003": "traduccion_correcta",
+    "rob-004": "traduccion_correcta",
+    "rob-005": "traduccion_correcta",
+    "rob-006": "traduccion_correcta",
+    "rob-007": "traduccion_correcta",
+    "rob-008": "traduccion_correcta",
+    "rob-009": "traduccion_correcta",
+    "rob-010": "traduccion_correcta",
+    "rob-011": "abstencion_sobrelo_factible",
+    "rob-012": "traduccion_correcta",
+    "rob-013": "traduccion_correcta",
+    "rob-014": "traduccion_correcta",
+    "rob-015": "traduccion_correcta"
+  }
+}

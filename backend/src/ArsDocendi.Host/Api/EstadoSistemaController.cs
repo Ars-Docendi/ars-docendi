@@ -11,7 +11,7 @@ public sealed class EstadoSistemaController(Host.Administracion.ServicioEstadoSi
 {
     [HttpGet("estado")]
     [Authorize(Policy = Permisos.SistemaEstadoVer)]
-    [ProducesResponseType<Host.Administracion.EstadoBaseDatosDto>(StatusCodes.Status200OK)]
-    public Task<Host.Administracion.EstadoBaseDatosDto> ObtenerEstado(CancellationToken ct) =>
+    [ProducesResponseType<Host.Administracion.EstadoSistemaDto>(StatusCodes.Status200OK)]
+    public Task<Host.Administracion.EstadoSistemaDto> ObtenerEstado(CancellationToken ct) =>
         servicio.ObtenerEstadoAsync(ct);
 }
