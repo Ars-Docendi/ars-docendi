@@ -75,18 +75,28 @@ produce regresiones falsas con lock por ítem. Mientras el gate reproduzca casse
 es un problema; el día que se corra en vivo, hay que decidir si se lo marca como
 tolerante o se lo reformula.
 
-## Las cuatro vigentes son de después de portal
+## Las cuatro vigentes son de después de los rechazos dinámicos
 
-Se regeneraron con la corrida financiada que regrabó los cassettes contra el
-prefijo nuevo (`0147ac99…` y sucesores, 20 tablas). Las de antes están en
-[`antes-de-portal/`](./antes-de-portal/README.md), que explica qué costó el cambio.
+Se regeneraron con la corrida financiada que regrabó los cassettes contra el prefijo
+que pide `motivo` y `termino` (ARS-139, unidad B; `7e06fddb…` y sucesores). Capacidad
+suma cap-035..039, un ítem o más por motivo de rechazo. La corrida costó unos
+0,47 USD con `claude-sonnet-5`; las cuatro se congelaron reproduciendo esos cassettes
+y dieron el mismo veredicto ítem por ítem que la corrida en vivo.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 32    | 31       | 96,9 %      |
-| Robustez  | 15    | 13       | 86,7 %      |
-| Diálogo   | 9     | 8        | 88,9 %      |
+| Capacidad | 39    | 37       | 94,9 %      |
+| Robustez  | 15    | 15       | 100,0 %     |
+| Diálogo   | 11    | 11       | 100,0 %     |
 | Social    | 20    | 20       | 100,0 %     |
+
+Los dos que no aciertan en capacidad son `cap-008`, que se abstiene ante algo
+contestable, y `cap-033`, que traduce mal. El acuerdo de motivos —informativo, fuera
+del puntaje— dio 10 de 11: `cap-018` (notas de Guaraní) declaró `no_cubierto` en vez
+de `otro_sistema`.
+
+Las de antes de portal están en [`antes-de-portal/`](./antes-de-portal/README.md),
+que explica qué costó ese cambio.
 
 ## Por qué el sello es lo primero que mira el gate
 
