@@ -46,4 +46,4 @@
 
 - [x] 7.1 Regrabar el corpus de cassettes: la regla nueva cambia el prefijo.
 - [x] 7.2 Corrida financiada y comparación contra la línea de base. **Requiere autorización de gasto explícita.**
-- [ ] 7.3 Actualizar `docs/quality/scorecard.md` con los cuatro ejes.
+- [x] 7.3 Actualizar `docs/quality/scorecard.md` con los cuatro ejes.
