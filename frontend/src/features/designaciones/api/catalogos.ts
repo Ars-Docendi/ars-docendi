@@ -99,11 +99,20 @@ export function formatearDni(dni: string): string {
   const limpio = dni.replace(/\D/g, "");
   return limpio ? limpio.replace(/\B(?=(\d{3})+(?!\d))/g, ".") : dni;
 }
+/** Clave de una opción de materia: una materia compartida entre carreras es una opción por carrera. */
+export function claveMateria(materia: { id?: string; carreraId?: string }): string {
+  return materia.carreraId ? `${materia.id}|${materia.carreraId}` : (materia.id ?? "");
+}
+
 export function asignacionVigenteEnMateria(
   docente: DocenteExistente | undefined,
   materiaId: string | undefined,
+  carreraId?: string,
 ) {
   return materiaId
-    ? docente?.materiasActuales.find((asignacion) => asignacion.materiaId === materiaId)
+    ? docente?.materiasActuales.find(
+        (asignacion) =>
+          asignacion.materiaId === materiaId && (!carreraId || asignacion.carreraId === carreraId),
+      )
     : undefined;
 }

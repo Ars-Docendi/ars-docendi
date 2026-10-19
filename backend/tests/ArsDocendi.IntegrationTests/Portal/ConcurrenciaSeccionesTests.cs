@@ -35,7 +35,7 @@ public sealed class ConcurrenciaSeccionesTests(PostgresFixture postgres) : Clase
         var resultados = await Task.WhenAll(
             IntentarAsync(() => sa.GuardarContactoAsync(new("Primero", null, version), ct)),
             IntentarAsync(() => sb.GuardarContactoAsync(new("Segundo", null, version), ct)));
-        Assert.Single(resultados.Where(x => x is null));
+        Assert.Single(resultados, x => x is null);
         Assert.Equal("concurrency-conflict", Assert.Single(resultados.OfType<ExcepcionAplicacion>()).Codigo);
         await using var leer = PostgresFixture.CrearPortal(Cadena);
         var guardado = Assert.Single(await leer.Contactos.ToListAsync(ct));
@@ -61,7 +61,7 @@ public sealed class ConcurrenciaSeccionesTests(PostgresFixture postgres) : Clase
         var resultados = await Task.WhenAll(
             IntentarAsync(() => Servicio(a, persona).EditarAsync(id, new GuardarExperienciaDto("Primero", "Org", "Desc", new(2020, 1, 1), null) { Version = version }, ct)),
             IntentarAsync(() => Servicio(b, persona).EditarAsync(id, new GuardarExperienciaDto("Segundo", "Org", "Desc", new(2020, 1, 1), null) { Version = version }, ct)));
-        Assert.Single(resultados.Where(x => x is null));
+        Assert.Single(resultados, x => x is null);
         Assert.Equal("concurrency-conflict", Assert.Single(resultados.OfType<ExcepcionAplicacion>()).Codigo);
         Assert.All(barrera.Sql, sql => { Assert.DoesNotContain("portal.educaciones", sql); Assert.DoesNotContain("portal.proyectos", sql); });
         await using var leer = PostgresFixture.CrearPortal(Cadena);

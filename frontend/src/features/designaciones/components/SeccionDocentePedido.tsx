@@ -7,7 +7,7 @@ import type {
   MateriaPedido,
   Novedad,
 } from "../types";
-import { formatearDni } from "../api/catalogos";
+import { claveMateria, formatearDni } from "../api/catalogos";
 import { DatosActualesPanel } from "./DatosActualesPanel";
 import { SeccionMateriaHoras } from "./SeccionMateriaHoras";
 
@@ -18,6 +18,7 @@ interface SeccionDocentePedidoProps {
   opcionesDocente: DocenteExistente[];
   materias: MateriaPedido[];
   materiaId?: string;
+  carreraId?: string;
   errorMateria?: string;
   cargoActual: Cargo | null;
   cargoSolicitado?: Cargo;
@@ -32,7 +33,8 @@ interface SeccionDocentePedidoProps {
   horasExternasSolicitadas?: number;
   onSeleccionarDocente: (dni: string) => void;
   onCambiarPersona: (campo: "dni" | "nombrePersona" | "apellido", valor: string) => void;
-  onSeleccionarMateria: (materiaId: string) => void;
+  /** Recibe la clave de la opción (materia + carrera), no sólo el id de la materia. */
+  onSeleccionarMateria: (clave: string) => void;
 }
 
 function notaDocente(novedad: Novedad): string {
@@ -55,6 +57,7 @@ export function SeccionDocentePedido({
   opcionesDocente,
   materias,
   materiaId,
+  carreraId,
   errorMateria,
   cargoActual,
   cargoSolicitado,
@@ -74,6 +77,11 @@ export function SeccionDocentePedido({
   const esAlta = novedad === "Alta";
   const esBaja = novedad === "Baja";
   const muestraMateria = esAlta ? true : Boolean(docente.dni);
+  // Sólo una materia dictada en varias carreras necesita la carrera para distinguir la opción.
+  const esCompartida = (item: { id: string }) =>
+    materias.filter((otra) => otra.id === item.id).length > 1;
+  const valorOpcion = (item: { id: string; carreraId?: string }) =>
+    esCompartida(item) ? claveMateria(item) : item.id;
   const muestraDatosActuales = Boolean(docente.dni && materiaId && cargoActual && dedicacionActual);
 
   return (
@@ -117,11 +125,16 @@ export function SeccionDocentePedido({
           {materias.length === 1 ? (
             <output className="adoc-pf-readonly">{materias[0].nombre}</output>
           ) : (
-            <Select value={materiaId ?? ""} onChange={(e) => onSeleccionarMateria(e.target.value)}>
+            <Select
+              value={materiaId ? valorOpcion({ id: materiaId, carreraId }) : ""}
+              onChange={(e) => onSeleccionarMateria(e.target.value)}
+            >
               <option value="">Seleccioná una materia…</option>
               {materias.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.nombre}
+                <option key={claveMateria(item)} value={valorOpcion(item)}>
+                  {esCompartida(item) && item.carreraNombre
+                    ? `${item.nombre} · ${item.carreraNombre}`
+                    : item.nombre}
                 </option>
               ))}
             </Select>

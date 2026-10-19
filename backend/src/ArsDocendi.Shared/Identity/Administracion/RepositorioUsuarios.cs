@@ -52,7 +52,9 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         CancellationToken ct) =>
         // Estas entidades se vinculan a nuevas asignaciones. Mantenerlas bajo
         // tracking evita que EF interprete los roles existentes como inserts.
-        await db.Roles.FromSqlInterpolated($"SELECT r.*, r.xmin FROM identity.roles r WHERE id = ANY({ids.ToArray()}) ORDER BY id FOR SHARE")
+        await db.Roles.FromSqlRaw(
+                "SELECT r.*, r.xmin FROM identity.roles r WHERE id = ANY(@ids) ORDER BY id FOR SHARE",
+                new NpgsqlParameter("ids", ids.ToArray()))
             .Where(r => r.Activo).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(

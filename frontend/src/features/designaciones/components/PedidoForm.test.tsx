@@ -160,6 +160,38 @@ describe("PedidoForm", () => {
       expect(screen.getByLabelText("Horas")).toBeInTheDocument();
     });
 
+    it("en Alta con una materia compartida exige elegir la carrera y la envía en el pedido", async () => {
+      const onGuardar = vi.fn();
+      const user = userEvent.setup();
+      render(
+        <PedidoForm
+          catedra="Algoritmos"
+          materias={[
+            {
+              id: "m-algo",
+              nombre: "Algoritmos",
+              carreraId: "c-inf",
+              carreraNombre: "Informática",
+            },
+            { id: "m-algo", nombre: "Algoritmos", carreraId: "c-ind", carreraNombre: "Industrial" },
+          ]}
+          pedidosExistentes={[]}
+          onGuardar={onGuardar}
+          onCancelar={vi.fn()}
+          docentes={[]}
+          cargos={CATALOGOS.cargos}
+          dedicaciones={CATALOGOS.dedicaciones}
+          tiposBaja={CATALOGOS.tiposBaja}
+        />,
+      );
+      await user.click(screen.getByLabelText("Alta"));
+      expect(screen.getByLabelText("Materia")).toHaveValue("");
+      expect(screen.getByRole("option", { name: "Algoritmos · Industrial" })).toBeInTheDocument();
+
+      await user.selectOptions(screen.getByLabelText("Materia"), "Algoritmos · Industrial");
+      expect(screen.getByLabelText("Materia")).toHaveValue("m-algo|c-ind");
+    });
+
     it("en Alta muestra una única materia sin selector adicional", async () => {
       const user = userEvent.setup();
       // El catálogo de una sola materia representa una única membresía del Jefe.

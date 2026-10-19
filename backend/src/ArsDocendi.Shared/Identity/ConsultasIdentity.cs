@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace ArsDocendi.Shared.Identity;
 
@@ -30,26 +31,32 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
         var incluidos = filtro.UsuarioIdsIncluidos?.ToArray() ?? [];
         var busqueda = filtro.Busqueda?.Trim() ?? string.Empty;
         // Todos los filtros quedan en SQL. strpos trata %/_ como caracteres, no comodines.
-        return await db.Usuarios.FromSqlInterpolated($"""
+        return await db.Usuarios.FromSqlRaw("""
             SELECT u.*, u.xmin FROM identity.users u
             LEFT JOIN identity.personas p ON p.id = u.persona_id
             WHERE u.is_active
               AND EXISTS (SELECT 1 FROM identity.user_roles a JOIN identity.roles r ON r.id=a.role_id
                   WHERE a.user_id=u.id AND a.deleted_at IS NULL AND r.is_active AND r.es_sistema)
-              AND (u.id = ANY({incluidos}) OR (
-                  ({todosLosRoles} OR EXISTS (
+              AND (u.id = ANY(@incluidos) OR (
+                  (@todosLosRoles OR EXISTS (
                       SELECT 1 FROM identity.user_roles a JOIN identity.roles r ON r.id=a.role_id
                       WHERE a.user_id=u.id AND a.deleted_at IS NULL AND r.is_active AND r.es_sistema
-                        AND r.code = ANY({admitidos})))
+                        AND r.code = ANY(@admitidos)))
                   AND NOT EXISTS (
                       SELECT 1 FROM identity.user_roles a JOIN identity.roles r ON r.id=a.role_id
                       WHERE a.user_id=u.id AND a.deleted_at IS NULL AND r.is_active AND r.es_sistema
-                        AND r.code = ANY({excluidos}))))
+                        AND r.code = ANY(@excluidos))))
               AND NOT EXISTS (
-                  SELECT 1 FROM regexp_split_to_table(identity.normalizar_busqueda({busqueda}), '\\s+') palabra
+                  SELECT 1 FROM regexp_split_to_table(identity.normalizar_busqueda(@busqueda), '\\s+') palabra
                   WHERE palabra <> '' AND strpos(identity.normalizar_busqueda(concat_ws(' ',
                       u.display_name,p.nombre,p.apellido,u.upn,p.legajo,p.documento)), palabra) = 0)
-            """).AsNoTracking().Include(u => u.Persona)
+            """,
+            new NpgsqlParameter("incluidos", incluidos),
+            new NpgsqlParameter("todosLosRoles", todosLosRoles),
+            new NpgsqlParameter("admitidos", admitidos),
+            new NpgsqlParameter("excluidos", excluidos),
+            new NpgsqlParameter("busqueda", busqueda))
+            .AsNoTracking().Include(u => u.Persona)
             .OrderBy(u => u.NombreParaMostrar).ThenBy(u => u.Id).Take(filtro.Limite).ToListAsync(ct);
     }
 

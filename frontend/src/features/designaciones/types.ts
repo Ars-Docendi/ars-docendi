@@ -38,6 +38,7 @@ export interface MateriaPedido {
   codigo?: string;
   nombre: string;
   carreraId?: string;
+  carreraNombre?: string;
 }
 
 export type DepartamentoAgenteExterno =

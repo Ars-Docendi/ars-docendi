@@ -5,11 +5,18 @@ on:
     branches: [main, develop]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   # Detecta qué partes del repo cambiaron para correr solo los jobs relevantes.
   changes:
     name: Detect changes
     runs-on: ubuntu-24.04
+    # paths-filter lista los archivos del PR por API.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
