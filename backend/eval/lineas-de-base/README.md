@@ -85,13 +85,17 @@ y dieron el mismo veredicto ítem por ítem que la corrida en vivo.
 
 | Eje       | Ítems | Aciertos | Normalizado |
 | --------- | ----- | -------- | ----------- |
-| Capacidad | 39    | 37       | 94,9 %      |
+| Capacidad | 39    | 38       | 97,4 %      |
 | Robustez  | 15    | 15       | 100,0 %     |
 | Diálogo   | 11    | 11       | 100,0 %     |
 | Social    | 20    | 20       | 100,0 %     |
 
-Los dos que no aciertan en capacidad son `cap-008`, que se abstiene ante algo
-contestable, y `cap-033`, que traduce mal. El acuerdo de motivos —informativo, fuera
+El que no acierta en capacidad es `cap-008` («¿Qué solicitudes puedo ver de mi
+carrera?»): el modelo se abstiene creyendo que «de mi carrera» exige filtrar por la
+identidad del usuario, cuando la RLS ya acota las filas. Viene de antes de este cambio.
+`cap-033` y `cap-034` dejaron de exigir `orden_importa`: sus preguntas no piden un
+orden, y `cap-033` fallaba sólo por ordenar por jerarquía del cargo en vez de por
+apellido, con las mismas filas. El acuerdo de motivos —informativo, fuera
 del puntaje— dio 10 de 11: `cap-018` (notas de Guaraní) declaró `no_cubierto` en vez
 de `otro_sistema`.
 

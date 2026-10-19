@@ -239,7 +239,6 @@
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT p.apellido, p.nombre, c.nombre AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.materia_id = $ref1 AND d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre",
-      "orden_importa": true,
       "referencias": [
         {
           "marcador": "$ref1",
@@ -256,7 +255,6 @@
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT m.name FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id WHERE d.persona_id = $ref1 AND d.vigente_hasta IS NULL ORDER BY m.name",
-      "orden_importa": true,
       "referencias": [
         {
           "marcador": "$ref1",

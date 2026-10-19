@@ -2,7 +2,7 @@
   "Eje": "capacidad",
   "Sello": {
     "Prefijo": "1d2ba01c2e54f28676ea5e959a5d3aef32792626af4053e17c4219fd0f383091",
-    "Dataset": "9bcc2c2d0de6b52f33927ded31e277e53df474f0d1fde19fb2ccb99ce7ad74a0",
+    "Dataset": "7a2d5e38897f58a989ac4a6cad40c5f85be1f085f853e7fa06b15209e1f28a0a",
     "Fixture": "98de10e72a62fdcf3598e983a92d0de094e742ddf0c7a9cc9e50bc1dd013aaf2"
   },
   "Items": {
@@ -38,7 +38,7 @@
     "cap-030": "abstencion_correcta",
     "cap-031": "abstencion_correcta",
     "cap-032": "abstencion_correcta",
-    "cap-033": "traduccion_incorrecta",
+    "cap-033": "traduccion_correcta",
     "cap-034": "traduccion_correcta",
     "cap-035": "abstencion_correcta",
     "cap-036": "abstencion_correcta",
