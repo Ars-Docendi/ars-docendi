@@ -24,5 +24,5 @@
 
 ## 4. Medición
 
-- [ ] 4.1 Revisar las referencias del eje de capacidad: cambia qué filas ve cada actor.
-- [ ] 4.2 Corrida financiada. **Requiere autorización de gasto explícita.**
+- [x] 4.1 Revisar las referencias del eje de capacidad: cambia qué filas ve cada actor.
+- [x] 4.2 Corrida financiada. **Requiere autorización de gasto explícita.**
