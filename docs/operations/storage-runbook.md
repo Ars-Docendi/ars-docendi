@@ -250,8 +250,8 @@ docker compose -p "$(antivirus_project)" ps
 
 Alertar antes de alcanzar 70% de uso del volumen; planificar expansión o
 retención antes de 80%; detener cargas nuevas y escalar el incidente por encima
-de 90%. No borrar objetos manualmente para recuperar espacio: usar la política
-de retención y `LimpiarAsync`, preservando todo archivo asociado.
+de 90%. No borrar objetos manualmente para recuperar espacio: la API ejecuta
+`LimpiarAsync` cada hora (`LimpiezaArchivos`) y preserva todo archivo asociado.
 
 ## Recuperación ante incidente
 

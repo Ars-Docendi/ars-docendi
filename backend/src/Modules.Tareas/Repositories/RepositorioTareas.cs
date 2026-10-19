@@ -40,9 +40,6 @@ public sealed class RepositorioTareas(TareasDbContext db)
 
     // Relaciones --------------------------------------------------------
 
-    public Task<List<RelacionTarea>> ListarRelacionesAsync(CancellationToken ct) =>
-        db.Relaciones.AsNoTracking().ToListAsync(ct);
-
     public Task<List<RelacionTarea>> ListarRelacionesDeAsync(Guid tareaId, CancellationToken ct) =>
         db.Relaciones.AsNoTracking()
             .Where(r => r.TareaId == tareaId || r.RelacionadaId == tareaId)
@@ -67,9 +64,6 @@ public sealed class RepositorioTareas(TareasDbContext db)
         await ArsDocendi.Shared.Identity.ProteccionDestinosIdentity.ValidarAsync(
             db.Database.GetDbConnection(), Microsoft.EntityFrameworkCore.Storage.DbContextTransactionExtensions.GetDbTransaction(tx), ids, [], ct);
     }
-
-    public Task<RelacionTarea?> ObtenerRelacionAsync(Guid menorId, Guid mayorId, CancellationToken ct) =>
-        db.Relaciones.FirstOrDefaultAsync(r => r.TareaId == menorId && r.RelacionadaId == mayorId, ct);
 
     public void Agregar(RelacionTarea relacion) => db.Relaciones.Add(relacion);
 

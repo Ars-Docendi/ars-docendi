@@ -1,5 +1,7 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.EntityFrameworkCore;
+using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Repositories;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
@@ -30,6 +32,28 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
             "UPDATE designaciones.designaciones SET dedicacion_id = @id", new NpgsqlParameter("id", Guid.NewGuid())));
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorPedido.SqlState);
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorDesignacion.SqlState);
+    }
+
+    [Fact]
+    public async Task Limpieza_de_idempotencia_retira_solo_las_claves_vencidas()
+    {
+        await using var conexion = await AbrirConexionAsync();
+        var datos = await PrepararDatosAsync(conexion);
+        var pedido = await InsertarPedidoAsync(conexion, "TEST-IDEMPOTENCIA", datos, datos.Materia1, "borrador");
+        var actor = Guid.NewGuid();
+        await EjecutarAsync(conexion, """
+            INSERT INTO identity.users (id, upn, display_name, is_active)
+            VALUES (@id, @upn, 'Actor de prueba', true)
+            """, new NpgsqlParameter("id", actor), new NpgsqlParameter("upn", $"{actor:N}@prueba.local"));
+        await InsertarComandoIdempotenteAsync(conexion, actor, pedido, DateTimeOffset.UtcNow.AddHours(-25));
+        await InsertarComandoIdempotenteAsync(conexion, actor, pedido, DateTimeOffset.UtcNow.AddHours(-1));
+
+        await using var db = new DesignacionesDbContext(new DbContextOptionsBuilder<DesignacionesDbContext>()
+            .UseNpgsql(Cadena).Options);
+        var retirados = await new RepositorioIdempotencia(db).LimpiarVencidosAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, retirados);
+        Assert.Equal(1L, await EscalarAsync<long>(conexion, "SELECT count(*) FROM designaciones.idempotencia_comandos"));
     }
 
     [Fact]
@@ -335,6 +359,17 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
             new NpgsqlParameter("carrera", datos.Carrera), new NpgsqlParameter("estado", estado));
         return id;
     }
+
+    private static async Task InsertarComandoIdempotenteAsync(
+        NpgsqlConnection conexion,
+        Guid actor,
+        Guid pedido,
+        DateTimeOffset creado) => await EjecutarAsync(conexion, """
+        INSERT INTO designaciones.idempotencia_comandos
+            (id, clave, actor_id, ruta, pedido_id, request_hash, status_code, response_body, created_at)
+        VALUES (@id, @clave, @actor, 'aceptar', @pedido, 'huella', 200, '{}'::jsonb, @creado)
+        """, new NpgsqlParameter("id", Guid.NewGuid()), new NpgsqlParameter("clave", Guid.NewGuid()),
+        new NpgsqlParameter("actor", actor), new NpgsqlParameter("pedido", pedido), new NpgsqlParameter("creado", creado));
 
     private static async Task InsertarDesignacionAsync(
         NpgsqlConnection conexion,

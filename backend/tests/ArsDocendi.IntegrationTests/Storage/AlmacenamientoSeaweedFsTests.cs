@@ -231,6 +231,30 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
     }
 
     [Fact]
+    public async Task Antivirus_no_disponible_deja_el_archivo_pendiente_para_reintentar()
+    {
+        await using var db = PostgresFixture.CrearAlmacenamiento(cadena);
+        var servicioCaido = CrearServicio(db, new AntivirusNoDisponible());
+        var contenido = Encoding.UTF8.GetBytes("%PDF-1.7\narchivo limpio\n");
+        var sesion = await servicioCaido.IniciarCargaAsync(
+            new IniciarCargaArchivoDto(PropositosArchivo.Cv, "cv.pdf", "application/pdf", contenido.Length),
+            Propietario,
+            TestContext.Current.CancellationToken);
+        await SubirContenidoAsync(servicioCaido, sesion, contenido);
+
+        var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicioCaido.ConfirmarCargaAsync(
+            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken));
+        Assert.Equal("archivo-antivirus-unavailable", error.Codigo);
+        var pendiente = await servicioCaido.ObtenerAsync(sesion.ArchivoId, TestContext.Current.CancellationToken);
+        Assert.Equal(EstadosArchivo.Pendiente, pendiente!.Estado);
+
+        await using var dbSano = PostgresFixture.CrearAlmacenamiento(cadena);
+        var confirmado = await CrearServicio(dbSano).ConfirmarCargaAsync(
+            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
+        Assert.Equal(EstadosArchivo.Disponible, confirmado.Estado);
+    }
+
+    [Fact]
     public async Task Objeto_ausente_y_sesion_expirada_no_se_publican()
     {
         await using var db = PostgresFixture.CrearAlmacenamiento(cadena);
@@ -486,6 +510,12 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
     {
         public Task<ResultadoAntivirus> AnalizarAsync(Stream contenido, CancellationToken ct) =>
             Task.FromResult(new ResultadoAntivirus(false, false, "infected-test"));
+    }
+
+    private sealed class AntivirusNoDisponible : IAntivirusArchivos
+    {
+        public Task<ResultadoAntivirus> AnalizarAsync(Stream contenido, CancellationToken ct) =>
+            Task.FromResult(new ResultadoAntivirus(false, false, "El análisis antivirus no está disponible."));
     }
 
     private sealed class UsuarioActual(Guid id) : ICurrentUser

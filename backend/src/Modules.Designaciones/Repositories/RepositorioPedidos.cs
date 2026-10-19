@@ -24,9 +24,6 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
           .AsSplitQuery()
           .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
 
-    public Task<Pedido?> ObtenerLivianoAsync(Guid pedidoId, CancellationToken ct) =>
-        db.Pedidos.FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
-
     public Task<bool> ExisteVivoParaPersonaEnPeriodoAsync(
         Guid periodoId, Guid personaId, Guid? exceptoPedidoId, CancellationToken ct) =>
         db.Pedidos

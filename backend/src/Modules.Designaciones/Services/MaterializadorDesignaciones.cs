@@ -20,7 +20,7 @@ internal sealed class MaterializadorDesignaciones(RepositorioDesignaciones repos
 {
     public async Task<string?> MaterializarAsync(Pedido pedido, CancellationToken ct)
     {
-        var hoy = DateOnly.FromDateTime((reloj ?? TimeProvider.System).GetUtcNow().UtcDateTime);
+        var hoy = FechaOperativa.Hoy(reloj ?? TimeProvider.System);
 
         switch (pedido.Novedad)
         {

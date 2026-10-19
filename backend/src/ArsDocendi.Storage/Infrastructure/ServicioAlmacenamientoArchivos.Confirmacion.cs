@@ -8,6 +8,8 @@ namespace ArsDocendi.Storage.Infrastructure;
 
 public sealed partial class ServicioAlmacenamientoArchivos
 {
+    private const string CodigoAntivirusNoDisponible = "archivo-antivirus-unavailable";
+
     public async Task<ArchivoDto> ConfirmarCargaAsync(ConfirmarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct)
     {
         var archivo = await RequerirPropioAsync(datos.ArchivoId, propietarioId, ct);
@@ -42,21 +44,19 @@ public sealed partial class ServicioAlmacenamientoArchivos
         {
             var objeto = await objetos.ObtenerAsync(archivo.Bucket, archivo.ClaveObjeto, ct)
                 ?? throw Error(TipoErrorAplicacion.Validacion, "archivo-object-missing", "No se encontró el objeto subido.");
-            using var contenido = objeto.Contenido;
-            using var memoria = new MemoryStream();
-            await contenido.CopyToAsync(memoria, ct);
-            var bytes = memoria.ToArray();
-            if (bytes.LongLength != archivo.TamanoBytes || objeto.TamanoBytes != bytes.LongLength) throw TamanoInvalido();
+            using var memoria = objeto.Contenido;
+            var bytes = memoria.GetBuffer().AsSpan(0, (int)memoria.Length);
+            if (memoria.Length != archivo.TamanoBytes || objeto.TamanoBytes != memoria.Length) throw TamanoInvalido();
             mime = ReglasArchivos.DetectarMime(bytes);
             hash = ReglasArchivos.CalcularSha256(bytes);
-            ReglasArchivos.ValidarContenido(archivo.Proposito, mime, bytes.LongLength, config);
-            ValidarConfirmacion(datos, hash, bytes.LongLength);
+            ReglasArchivos.ValidarContenido(archivo.Proposito, mime, memoria.Length, config);
+            ValidarConfirmacion(datos, hash, memoria.Length);
             memoria.Position = 0;
             var escaneo = await antivirus.AnalizarAsync(memoria, ct);
             if (!escaneo.Disponible)
                 throw Error(TipoErrorAplicacion.Validacion,
                     escaneo.Motivo?.Contains("no está disponible", StringComparison.OrdinalIgnoreCase) == true
-                        ? "archivo-antivirus-unavailable" : "archivo-antivirus-rejected", "El análisis antivirus no habilitó el archivo.");
+                        ? CodigoAntivirusNoDisponible : "archivo-antivirus-rejected", "El análisis antivirus no habilitó el archivo.");
             var actualizado = await db.Archivos.Where(x => x.Id == archivo.Id && x.Estado == EstadosArchivo.Cuarentena
                 && x.FaseCarga == "revisando" && x.ReservaId == reserva && x.ReservaHasta > DateTimeOffset.UtcNow)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, EstadosArchivo.Disponible).SetProperty(x => x.MimeDetectado, mime)
@@ -66,7 +66,7 @@ public sealed partial class ServicioAlmacenamientoArchivos
             if (actualizado != 1) throw Conflicto();
             return Mapear(await RequerirPropioAsync(archivo.Id, propietarioId, ct));
         }
-        catch (ExcepcionAplicacion ex) when (ex.Tipo == TipoErrorAplicacion.Validacion)
+        catch (ExcepcionAplicacion ex) when (ex.Tipo == TipoErrorAplicacion.Validacion && ex.Codigo != CodigoAntivirusNoDisponible)
         {
             await db.Archivos.Where(x => x.Id == archivo.Id && x.ReservaId == reserva && x.FaseCarga == "revisando")
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.Estado, EstadosArchivo.Rechazado)

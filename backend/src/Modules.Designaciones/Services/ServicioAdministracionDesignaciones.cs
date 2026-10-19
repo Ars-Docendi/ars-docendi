@@ -4,7 +4,7 @@ using Modules.Designaciones.Repositories;
 
 namespace Modules.Designaciones.Services;
 
-internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignaciones repositorio)
+internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignaciones repositorio, TimeProvider? reloj = null)
     : IAdministracionDesignaciones
 {
     public async Task<IReadOnlyList<DesignacionVigenteDto>> ListarVigentesAsync(CancellationToken ct) =>
@@ -63,7 +63,7 @@ internal sealed class ServicioAdministracionDesignaciones(RepositorioDesignacion
         await ValidarReemplazoAsync(personaId, designaciones, ct);
         var actuales = await repositorio.ListarVigentesDePersonaAsync(personaId, ct);
         var deseadas = designaciones.ToDictionary(d => d.MateriaId);
-        var hoy = DateOnly.FromDateTime(DateTime.UtcNow);
+        var hoy = FechaOperativa.Hoy(reloj ?? TimeProvider.System);
 
         foreach (var actual in actuales)
         {

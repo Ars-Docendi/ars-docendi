@@ -115,11 +115,6 @@ public static class MaquinaEstadosPedido
             || actor.Tiene(RolesCircuito.Administrativo);
     }
 
-    /// <summary>¿Puede avanzar la cadena? Administrativo revisa pero nunca aprueba [BR-designaciones-015].</summary>
-    public static bool PuedeAceptar(Pedido pedido, AlcancePedido alcance, ActorContexto actor) =>
-        PuedeRevisar(pedido, alcance, actor)
-        && actor.Tiene(RolesCircuito.RolPorEtapa[pedido.Estado]);
-
     /// <summary>
     /// ¿El actor puede editar? Sólo un borrador siendo Jefe de Cátedra, o un devuelto
     /// del que es propietario actual [BR-designaciones-008].
