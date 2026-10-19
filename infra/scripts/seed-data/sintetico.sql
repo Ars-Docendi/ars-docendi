@@ -466,4 +466,75 @@ INSERT INTO tareas.tarea_historial (id, tarea_id, accion, actor_id, actor_rol, e
     ('f5000000-0000-4000-8000-000000000009', 'f3000000-0000-4000-8000-000000000009', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL)
 ON CONFLICT (id) DO NOTHING;
 
+-- Comisiones sintéticas "importadas" desde Guaraní, para ver la pantalla sin la API
+-- (dev, staging y efímeros no llegan a la red de Guaraní). Período e ids con prefijo
+-- propio para no chocar con una importación real. Docentes ficticios: dos vinculados
+-- a personas del seed y uno sin vincular a propósito.
+-- Condicional: los tests de upgrade siembran sobre un schema detenido en los baselines,
+-- anterior a la migración que crea `comisiones`; ahí el bloque no hace nada.
+DO $$
+BEGIN
+    IF to_regclass('comisiones.sga_comisiones') IS NOT NULL THEN
+        INSERT INTO comisiones.sga_importaciones
+            (id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre, usuario_id,
+             iniciada_at, finalizada_at, estado, cantidad, docentes_sin_vincular, carreras_sin_vincular) VALUES
+            ('f6000000-0000-4000-8000-000000000001', 2026, 'sintetico-2026-2', '2do Cuatrimestre (ejemplo)',
+             'a0000000-0000-4000-8000-000000000004', TIMESTAMPTZ '2026-08-03 12:00:00+00',
+             TIMESTAMPTZ '2026-08-03 12:00:05+00', 'exitosa', 4, 1, 0)
+        ON CONFLICT (id) DO UPDATE SET
+            anio_academico = EXCLUDED.anio_academico,
+            periodo_lectivo_guarani_id = EXCLUDED.periodo_lectivo_guarani_id,
+            periodo_lectivo_nombre = EXCLUDED.periodo_lectivo_nombre, usuario_id = EXCLUDED.usuario_id,
+            iniciada_at = EXCLUDED.iniciada_at, finalizada_at = EXCLUDED.finalizada_at,
+            estado = EXCLUDED.estado, cantidad = EXCLUDED.cantidad, causa = NULL,
+            docentes_sin_vincular = EXCLUDED.docentes_sin_vincular,
+            carreras_sin_vincular = EXCLUDED.carreras_sin_vincular;
+
+        INSERT INTO comisiones.sga_comisiones
+            (comision_guarani_id, importacion_id, anio_academico, periodo_lectivo_guarani_id, periodo_lectivo_nombre,
+             nombre, materia_codigo, materia_nombre, materia_id, modalidad_codigo, modalidad, ubicacion) VALUES
+            ('SINT-0001', 'f6000000-0000-4000-8000-000000000001', 2026, 'sintetico-2026-2', '2do Cuatrimestre (ejemplo)',
+             '01-0001', '03500', 'Ingeniería de Software', '70000000-0000-4000-8000-000000000101', 'A', 'Presencial', 'San Justo'),
+            ('SINT-0002', 'f6000000-0000-4000-8000-000000000001', 2026, 'sintetico-2026-2', '2do Cuatrimestre (ejemplo)',
+             '01-0002', '03620', 'Algoritmos y Estructuras de Datos', '70000000-0000-4000-8000-000000000102', 'B1', 'Semi Presencial Sincronica', 'San Justo'),
+            ('SINT-0003', 'f6000000-0000-4000-8000-000000000001', 2026, 'sintetico-2026-2', '2do Cuatrimestre (ejemplo)',
+             '01-0003', '03710', 'Bases de Datos', '70000000-0000-4000-8000-000000000103', 'E', 'Virtual - Sincrónico', 'San Justo'),
+            ('SINT-0004', 'f6000000-0000-4000-8000-000000000001', 2026, 'sintetico-2026-2', '2do Cuatrimestre (ejemplo)',
+             'SA-0004', '03500', 'Ingeniería de Software', '70000000-0000-4000-8000-000000000101', 'A', 'Presencial', 'San Justo')
+        ON CONFLICT (comision_guarani_id) DO UPDATE SET
+            importacion_id = EXCLUDED.importacion_id, anio_academico = EXCLUDED.anio_academico,
+            periodo_lectivo_guarani_id = EXCLUDED.periodo_lectivo_guarani_id,
+            periodo_lectivo_nombre = EXCLUDED.periodo_lectivo_nombre, nombre = EXCLUDED.nombre,
+            materia_codigo = EXCLUDED.materia_codigo, materia_nombre = EXCLUDED.materia_nombre,
+            materia_id = EXCLUDED.materia_id, modalidad_codigo = EXCLUDED.modalidad_codigo,
+            modalidad = EXCLUDED.modalidad, ubicacion = EXCLUDED.ubicacion;
+
+        INSERT INTO comisiones.sga_comision_carreras (comision_guarani_id, carrera_codigo, carrera_nombre, carrera_id) VALUES
+            ('SINT-0001', 'INF', 'Ingeniería en Informática', 'c0000000-0000-4000-8000-000000000201'),
+            ('SINT-0001', 'IND', 'Ingeniería Industrial', 'c0000000-0000-4000-8000-000000000202'),
+            ('SINT-0002', 'INF', 'Ingeniería en Informática', 'c0000000-0000-4000-8000-000000000201'),
+            ('SINT-0003', 'INF', 'Ingeniería en Informática', 'c0000000-0000-4000-8000-000000000201'),
+            ('SINT-0004', 'IND', 'Ingeniería Industrial', 'c0000000-0000-4000-8000-000000000202')
+        ON CONFLICT (comision_guarani_id, carrera_codigo) DO UPDATE SET
+            carrera_nombre = EXCLUDED.carrera_nombre, carrera_id = EXCLUDED.carrera_id;
+
+        INSERT INTO comisiones.sga_comision_docentes (comision_guarani_id, orden, nombre, responsabilidad, persona_id) VALUES
+            ('SINT-0001', 1, 'LOPEZ CARLA', 'Titular', 'd0000000-0000-4000-8000-000000000001'),
+            ('SINT-0001', 2, 'RUIZ GUSTAVO', 'Ingenieria', 'd0000000-0000-4000-8000-000000000002'),
+            ('SINT-0002', 1, 'RUIZ GUSTAVO', 'Ingenieria', 'd0000000-0000-4000-8000-000000000002'),
+            ('SINT-0003', 1, 'DOCENTE DE EJEMPLO SIN ALTA', 'Ingenieria', NULL)
+        ON CONFLICT (comision_guarani_id, orden) DO UPDATE SET
+            nombre = EXCLUDED.nombre, responsabilidad = EXCLUDED.responsabilidad, persona_id = EXCLUDED.persona_id;
+
+        INSERT INTO comisiones.sga_comision_horarios (comision_guarani_id, asignacion_guarani_id, dia, desde, hasta, aula) VALUES
+            ('SINT-0001', 'SINT-A1', 1, TIME '08:00', TIME '12:00', 'Aula 214'),
+            ('SINT-0001', 'SINT-A2', 4, TIME '08:00', TIME '10:00', 'Laboratorio 3'),
+            ('SINT-0002', 'SINT-A3', 3, TIME '19:00', TIME '23:00', NULL),
+            ('SINT-0003', 'SINT-A4', 2, TIME '14:00', TIME '18:00', 'Aula 101'),
+            ('SINT-0004', 'SINT-A1', 1, TIME '08:00', TIME '12:00', 'Aula 214')
+        ON CONFLICT (comision_guarani_id, asignacion_guarani_id) DO UPDATE SET
+            dia = EXCLUDED.dia, desde = EXCLUDED.desde, hasta = EXCLUDED.hasta, aula = EXCLUDED.aula;
+    END IF;
+END $$;
+
 COMMIT;

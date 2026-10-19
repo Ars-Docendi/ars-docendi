@@ -42,6 +42,12 @@ export const navIcons = {
       <path d="M3 7.5h12M6 2.5v3M12 2.5v3" />
     </svg>
   ),
+  comisiones: (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="2.5" y="3.5" width="13" height="11" rx="1" />
+      <path d="M2.5 7h13M7 7v7.5M11 7v7.5" />
+    </svg>
+  ),
   designaciones: (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <circle cx="9" cy="6" r="3" />

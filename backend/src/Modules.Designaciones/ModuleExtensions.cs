@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Modules.Designaciones.Contracts.Administracion;
 using Modules.Designaciones.Infrastructure;
+using Modules.Designaciones.Infrastructure.Guarani;
 using Modules.Designaciones.Repositories;
 using Modules.Designaciones.Services;
 
@@ -43,6 +44,18 @@ public static class ModuleExtensions
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
         services.AddHostedService<LimpiezaComandosIdempotentes>();
+
+        // Guaraní: sin configuración completa la integración queda deshabilitada (503) y el Host arranca igual.
+        services.Configure<OpcionesGuarani>(configuration.GetSection(OpcionesGuarani.Seccion));
+        services.AddHttpClient<ClienteGuarani>((sp, http) =>
+        {
+            var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpcionesGuarani>>().Value;
+            if (Uri.TryCreate(opciones.UrlBase, UriKind.Absolute, out var url))
+                http.BaseAddress = new Uri(url.ToString().TrimEnd('/') + "/");
+            http.Timeout = TimeSpan.FromSeconds(Math.Max(1, opciones.TimeoutSegundos));
+        });
+        services.AddScoped<RepositorioComisiones>();
+        services.AddScoped<ServicioComisiones>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

@@ -184,7 +184,7 @@ public sealed class DiagnosticoIntegridadTests(PostgresFixture postgres)
         var tablas = new List<(string Schema, string Nombre)>();
         await using (var catalogo = new NpgsqlCommand("""
             SELECT schemaname, tablename FROM pg_tables
-            WHERE schemaname IN ('identity', 'audit', 'storage', 'designaciones', 'portal', 'tareas')
+            WHERE schemaname IN ('identity', 'audit', 'storage', 'designaciones', 'comisiones', 'portal', 'tareas')
             ORDER BY schemaname, tablename
             """, conexion))
         await using (var lector = await catalogo.ExecuteReaderAsync(TestContext.Current.CancellationToken))

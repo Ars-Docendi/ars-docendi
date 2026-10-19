@@ -121,6 +121,7 @@ La disciplina, corolario del invariante #4 enmendado:
 
 - Los módulos **leen** `identity` para autorizar, y lo hacen a través de `IConsultasIdentity` — una interfaz sólo de lectura, que existe precisamente para que escribir sea incómodo aunque el `DbContext` esté al alcance.
 - Escribir `personas`, `roles`, `permisos` o `rol_permisos` es **exclusivo de la superficie de administración**.
+- Designaciones usa además `BuscarPersonasPorDocumentosAsync` y `ListarCarrerasAsync` para vincular las comisiones importadas desde Guaraní con personas, carreras y materias; sólo lee y no agrega aristas de proyecto.
 
 ## Administración de estado y auditoría
 

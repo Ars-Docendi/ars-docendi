@@ -194,6 +194,15 @@ Compose project, base y storage únicamente en la VM.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
+- **Guaraní**: la API sólo responde dentro de la red de UNLaM, así que la sección
+  `Guarani` (`UrlBase`, `Usuario`, `Contrasena`, `RutaPeriodosLectivos`,
+  `RutaComisiones`, `TimeoutSegundos`) sólo se configura en producción y en el
+  entorno local conectado a esa red (`dotnet user-secrets` en local). En prod,
+  `GUARANI_USUARIO` y `GUARANI_CONTRASENA` son secrets del Environment `prod` y
+  `GUARANI_URL_BASE`, `GUARANI_RUTA_PERIODOS_LECTIVOS` y `GUARANI_RUTA_COMISIONES`
+  repository variables; `compose.base.yml` los mapea a `Guarani__*`. Staging, previews y CI la dejan vacía:
+  el backend arranca igual, la pantalla de Comisiones muestra el dataset
+  sintético y la importación responde `503 guarani-no-configurado`.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

@@ -60,6 +60,9 @@ Sigue la convención RFC 7807 (Problem Details). Status codes habituales:
 - `409 Conflict` — colisión de estado (ej. designación ya aprobada)
 - `422 Unprocessable Entity` — viola una BR-\* de negocio
 - `500 Internal Server Error` — fallo no manejado (el detalle se loggea, no se expone)
+- `502 Bad Gateway` — un servicio externo (p. ej. Guaraní) respondió con error, rechazó las credenciales o devolvió datos inutilizables
+- `503 Service Unavailable` — la integración con un servicio externo no está configurada en ese ambiente
+- `504 Gateway Timeout` — un servicio externo no respondió dentro del tiempo de espera
 
 Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepciones inesperadas se registran con Serilog junto con `traceId`, pero la respuesta nunca publica stack traces ni datos sensibles.
 

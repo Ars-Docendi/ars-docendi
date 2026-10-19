@@ -23,7 +23,7 @@ export const contextos = {
     db: "DesignacionesDbContext",
     espacio: "Modules.Designaciones.Infrastructure.Migrations",
     directorio: "backend/src/Modules.Designaciones/Infrastructure/Migrations",
-    schemas: ["designaciones"],
+    schemas: ["designaciones", "comisiones"],
   },
   Portal: {
     schema: "portal",

@@ -85,6 +85,12 @@ jobs:
       MICROSOFT_LOGIN_ENABLED: "true"
       MICROSOFT_CLIENT_ID: ${{ vars.MICROSOFT_CLIENT_ID_PROD }}
       MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET_PROD }}
+      # Guaraní sólo es alcanzable desde la red de UNLaM: el único ambiente que lo configura.
+      GUARANI_URL_BASE: ${{ vars.GUARANI_URL_BASE }}
+      GUARANI_RUTA_PERIODOS_LECTIVOS: ${{ vars.GUARANI_RUTA_PERIODOS_LECTIVOS }}
+      GUARANI_RUTA_COMISIONES: ${{ vars.GUARANI_RUTA_COMISIONES }}
+      GUARANI_USUARIO: ${{ secrets.GUARANI_USUARIO }}
+      GUARANI_CONTRASENA: ${{ secrets.GUARANI_CONTRASENA }}
       # Sólo se usa si todavía no existe un usuario con ese UPN (arranque --migrate).
       ADMIN_INICIAL_UPN: ${{ secrets.ADMIN_INICIAL_UPN }}
       ADMIN_INICIAL_NOMBRE: ${{ secrets.ADMIN_INICIAL_NOMBRE }}

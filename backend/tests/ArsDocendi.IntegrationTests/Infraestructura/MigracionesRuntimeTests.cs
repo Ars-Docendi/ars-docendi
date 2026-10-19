@@ -55,7 +55,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
         Assert.Equal(estados.Sum(x => x.Disponibles.Count), estados.Sum(x => x.Pendientes.Count));
         var archivos = await PreviewMigraciones.GenerarAsync(migradores, estados, "runtime-test", ct);
         Assert.Equal(5, archivos.Keys.Count(x => x.EndsWith(".sql", StringComparison.Ordinal)));
-        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','portal','aulas','tareas')"));
+        Assert.Equal(0L, await Escalar("SELECT count(*) FROM pg_namespace WHERE nspname IN ('identity','audit','storage','designaciones','comisiones','portal','aulas','tareas')"));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        Assert.Equal(25L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        Assert.Equal(27L, await Escalar("SELECT count(*) FROM identity.permisos"));
         Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.ver'"));
         Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.gestionar'"));
         Assert.Equal(3L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='proyectos.gestionar'"));

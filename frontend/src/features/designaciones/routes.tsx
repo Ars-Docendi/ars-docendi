@@ -18,6 +18,18 @@ export const routes: RouteObject = {
       ],
     },
     {
+      element: <RequirePermission permission="comisiones.ver" />,
+      children: [
+        {
+          path: "comisiones",
+          lazy: () =>
+            import("./pages/ComisionesPage").then(({ ComisionesPage }) => ({
+              Component: ComisionesPage,
+            })),
+        },
+      ],
+    },
+    {
       element: <RequirePermission permission="designaciones.gestionar" />,
       children: [
         {

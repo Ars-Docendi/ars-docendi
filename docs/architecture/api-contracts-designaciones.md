@@ -47,6 +47,33 @@ por haber registrado la persona en un Alta.
 | DELETE | `/api/designaciones/periodos/{id}` | `periodos.administrar`                          | `204`                                  |
 | GET    | `/api/designaciones/catalogos`     | `designaciones.ver` o `designaciones.gestionar` | `CatalogosDto` acotado al actor        |
 
+## Comisiones importadas desde Guaraní
+
+| Método | Ruta                                                      | Autorización          | Contrato                                            |
+| ------ | --------------------------------------------------------- | --------------------- | --------------------------------------------------- |
+| GET    | `/api/designaciones/comisiones/periodos`                  | `comisiones.ver`      | `PeriodoImportadoDto[]` (más reciente primero)      |
+| GET    | `/api/designaciones/comisiones?periodoLectivoId=…`        | `comisiones.ver`      | `ComisionDto[]` (período completo, sin paginación)  |
+| GET    | `/api/designaciones/comisiones/guarani/periodos-lectivos` | `comisiones.importar` | `PeriodoLectivoGuaraniDto[]` (consulta Guaraní)     |
+| POST   | `/api/designaciones/comisiones/importaciones`             | `comisiones.importar` | `ImportarComisionesDto` → `ResultadoImportacionDto` |
+
+```text
+PeriodoLectivoGuaraniDto = { id, nombre, anio }
+ImportarComisionesDto    = { periodoLectivoId }
+ResultadoImportacionDto  = { id, anioAcademico, periodoLectivoId, periodoLectivoNombre,
+                             cantidad, docentesSinVincular, carrerasSinVincular }
+PeriodoImportadoDto      = { anioAcademico, id, nombre, ultimaExitosa?, ultimoIntento? }
+ImportacionResumenDto    = { fecha, estado: exitosa|fallida, causa?, usuario? }
+ComisionDto              = { id, nombre, materia{codigo,nombre,id?}, carreras[{codigo,nombre,id?}],
+                             docentes[{nombre,responsabilidad?,personaId?}],
+                             horarios[{asignacionId,dia(1=lunes…7=domingo),desde,hasta,aula?}],
+                             modalidadCodigo?, modalidad?, ubicacion? }
+```
+
+Los dos `GET` de consulta leen sólo el snapshot local y nunca contactan a Guaraní. La
+importación reemplaza en una transacción las comisiones del período elegido; si Guaraní
+falla, se conservan las anteriores y el intento queda registrado como fallido. Los IDs
+`id?`/`personaId?` son `null` cuando el dato de Guaraní no existe en el sistema.
+
 ## Exportación del lote
 
 | Método | Ruta                                         | Permiso y ámbito                                                          | Salida |
@@ -124,17 +151,24 @@ Crear, editar y eliminar usan constraints y control de concurrencia, pero no el 
 
 ## Códigos de error adicionales
 
-| Código                          | HTTP | Uso                                                                  |
-| ------------------------------- | ---- | -------------------------------------------------------------------- |
-| `pedido-transition-invalid`     | 422  | acción no admitida por estado o actor                                |
-| `pedido-scope-forbidden`        | 403  | pedido fuera del ámbito persistido                                   |
-| `pedido-duplicate-live`         | 409  | pedido vivo para persona/período                                     |
-| `periodo-active-conflict`       | 409  | segundo período activo                                               |
-| `periodo-in-use`                | 409  | eliminación con pedidos asociados                                    |
-| `idempotency-key-required`      | 400  | falta header en una transición                                       |
-| `idempotency-key-reused`        | 409  | clave reutilizada para otra operación                                |
-| `identity-document-conflict`    | 409  | documento ya asociado a otra persona                                 |
-| `identity-destination-conflict` | 409  | nuevo destino inexistente o actor desactivado durante la mutación    |
-| `concurrency-conflict`          | 409  | pedido/vigencia cambió respecto de la observación usada para guardar |
+| Código                            | HTTP | Uso                                                                        |
+| --------------------------------- | ---- | -------------------------------------------------------------------------- |
+| `pedido-transition-invalid`       | 422  | acción no admitida por estado o actor                                      |
+| `pedido-scope-forbidden`          | 403  | pedido fuera del ámbito persistido                                         |
+| `pedido-duplicate-live`           | 409  | pedido vivo para persona/período                                           |
+| `periodo-active-conflict`         | 409  | segundo período activo                                                     |
+| `periodo-in-use`                  | 409  | eliminación con pedidos asociados                                          |
+| `idempotency-key-required`        | 400  | falta header en una transición                                             |
+| `idempotency-key-reused`          | 409  | clave reutilizada para otra operación                                      |
+| `identity-document-conflict`      | 409  | documento ya asociado a otra persona                                       |
+| `identity-destination-conflict`   | 409  | nuevo destino inexistente o actor desactivado durante la mutación          |
+| `concurrency-conflict`            | 409  | pedido/vigencia cambió respecto de la observación usada para guardar       |
+| `comisiones-importacion-en-curso` | 409  | ya hay una importación en curso del mismo período lectivo                  |
+| `guarani-no-configurado`          | 503  | la integración con Guaraní no está configurada en el ambiente              |
+| `guarani-autenticacion`           | 502  | Guaraní rechazó las credenciales de la integración                         |
+| `guarani-no-disponible`           | 502  | Guaraní respondió con error o no se pudo contactar                         |
+| `guarani-respuesta-invalida`      | 502  | datos de Guaraní inconsistentes; no se reemplaza nada                      |
+| `guarani-timeout`                 | 504  | Guaraní no respondió dentro del tiempo de espera                           |
+| `guarani-sin-comisiones`          | 422  | Guaraní no informó comisiones para el período; se conservan las anteriores |
 
 El catálogo `dedicaciones` devuelve `{ id, codigo, nombre, orden }` para las seis categorías activas 1–6. Las mutaciones envían `dedicacionSolicitadaId` (UUID); la lectura conserva `dedicacionSolicitada` como nombre histórico y agrega el ID opcional.

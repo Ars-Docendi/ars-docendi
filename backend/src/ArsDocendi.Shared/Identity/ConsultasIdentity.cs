@@ -180,6 +180,25 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
             .OrderBy(mp => mp.Materia!.Nombre)
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyDictionary<string, Guid>> BuscarPersonasPorDocumentosAsync(
+        IReadOnlyCollection<string> documentos, CancellationToken ct)
+    {
+        var buscados = documentos.Distinct(StringComparer.Ordinal).ToArray();
+        if (buscados.Length == 0) return new Dictionary<string, Guid>();
+        var encontrados = await db.Database.SqlQuery<PersonaPorDocumento>($"""
+            SELECT upper(regexp_replace(documento, '[^0-9A-Za-z]', '', 'g')) AS "Documento", id AS "Id"
+            FROM identity.personas
+            WHERE upper(regexp_replace(documento, '[^0-9A-Za-z]', '', 'g')) = ANY({buscados})
+            """).ToListAsync(ct);
+        // Dos personas con el mismo documento normalizado son ambiguas: no se vincula ninguna.
+        return encontrados.GroupBy(p => p.Documento, StringComparer.Ordinal)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single().Id, StringComparer.Ordinal);
+    }
+
+    public async Task<IReadOnlyList<Carrera>> ListarCarrerasAsync(CancellationToken ct) =>
+        await db.Carreras.AsNoTracking().OrderBy(c => c.Codigo).ToListAsync(ct);
+
     public async Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct) =>
         await db.Personas.AsNoTracking()
             .OrderBy(p => p.Apellido)
@@ -192,3 +211,5 @@ internal sealed class ConsultasIdentity(IdentityDbContext db) : IConsultasIdenti
             .OrderBy(u => u.NombreParaMostrar)
             .ToListAsync(ct);
 }
+
+internal sealed record PersonaPorDocumento(string Documento, Guid Id);

@@ -90,6 +90,17 @@ public interface IConsultasIdentity
     /// </summary>
     Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Resuelve personas por documento en una sola consulta. Compara documentos normalizados
+    /// (sólo letras y dígitos ASCII, en mayúsculas), así "30.111.222" y "30111222" coinciden.
+    /// Devuelve documento normalizado → persona; los que no existen no figuran.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, Guid>> BuscarPersonasPorDocumentosAsync(
+        IReadOnlyCollection<string> documentos, CancellationToken ct);
+
+    /// <summary>Catálogo de carreras, incluidas las inactivas.</summary>
+    Task<IReadOnlyList<Carrera>> ListarCarrerasAsync(CancellationToken ct);
+
     /// <summary>Personas canónicas elegibles para operaciones de negocio.</summary>
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
 

@@ -27,6 +27,7 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 | `PedidoAdjunto`   | Documentación respaldatoria (CV, DNI, justificativo)                                        | `designaciones.pedido_adjuntos`  |
 | `PedidoHistorial` | Línea de tiempo del trámite, con el rol con el que se actuó y el comentario                 | `designaciones.pedido_historial` |
 | `Designacion`     | **El estado vigente** `(persona, materia, cargo, dedicación y tres horas)` con vigencia     | `designaciones.designaciones`    |
+| `ComisionGuarani` | Snapshot de sólo lectura de una comisión de Guaraní, con carreras, docentes y bandas        | `comisiones.sga_*`               |
 
 ### Pedido vs Designación
 
@@ -118,13 +119,15 @@ ni a repositorios de Identity.
 
 ## Endpoints HTTP
 
-| Recurso            | Path                                         | Autoridad                                                           |
-| ------------------ | -------------------------------------------- | ------------------------------------------------------------------- |
-| Períodos           | `/api/designaciones/periodos`                | permiso `periodos.administrar`                                      |
-| Catálogos acotados | `/api/designaciones/catalogos`               | identidad y ámbitos persistidos                                     |
-| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`          | permisos y visibilidad resueltos por backend                        |
-| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`   | máquina de estados, permiso de etapa e idempotencia                 |
-| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx` | Secretaría, Decanato o Administración departamental; período activo |
+| Recurso            | Path                                                                         | Autoridad                                                           |
+| ------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Períodos           | `/api/designaciones/periodos`                                                | permiso `periodos.administrar`                                      |
+| Catálogos acotados | `/api/designaciones/catalogos`                                               | identidad y ámbitos persistidos                                     |
+| Pedidos y detalle  | `/api/designaciones/pedidos[/{id}]`                                          | permisos y visibilidad resueltos por backend                        |
+| Transiciones       | `/api/designaciones/pedidos/{id}/{accion}`                                   | máquina de estados, permiso de etapa e idempotencia                 |
+| Lote XLSX          | `/api/designaciones/periodos/{id}/lote.xlsx`                                 | Secretaría, Decanato o Administración departamental; período activo |
+| Comisiones         | `/api/designaciones/comisiones[/periodos]`                                   | permiso `comisiones.ver`; sólo lee el snapshot local                |
+| Importación SGA    | `/api/designaciones/comisiones/importaciones` y `/guarani/periodos-lectivos` | permiso `comisiones.importar`; contacta a Guaraní                   |
 
 El contrato completo está en [api-contracts-designaciones.md](../api-contracts-designaciones.md).
 
@@ -140,7 +143,7 @@ BR-designaciones-001 es la única con implementación en la base: índice único
 - **Exportación**: el lote lee el período, el período anterior por `ImpactoDesde`, pedidos y designaciones vigentes dentro de una lectura `RepeatableRead`; completa persona y materias mediante `IConsultasIdentity` y el correo de altas mediante `Modules.Portal.Contracts.Queries.IPortalQueries`. La proyección genera `PROPUESTA COMPLETA`, `ALTAS` y `BAJAS` —incluida la Alta aún no materializada— sin modificar el estado de negocio.
 - **Hacia adentro**: `Modules.Portal.Contracts` (correo del perfil para la hoja `ALTAS`).
 - **Hacia afuera**: ninguna por ahora.
-- **Externas**: **API Guaraní** (lectura de asignaciones existentes — detalle de integración TBD).
+- **Externas**: **API Guaraní** — `ClienteGuarani` (HTTP Basic con cuenta técnica, timeout configurable) consulta períodos lectivos y comisiones por período. Es el único punto que conoce el contrato externo; sólo es alcanzable desde la red de UNLaM, por eso únicamente prod la configura.
 
 ## Specs activas
 
@@ -148,4 +151,4 @@ _(autogenerable a futuro)_
 
 ## Decisiones registradas
 
-- **Solo lectura de Guaraní**: las asignaciones reales viven en Guaraní; Ars Docendi solo las consulta para mostrarlas en contexto. NO replicar esa data en nuestra DB.
+- **Solo lectura de Guaraní, con snapshot de comisiones** (revisada en `importar-comisiones-guarani`): las asignaciones reales viven en Guaraní y Ars Docendi no las edita ni escribe en Guaraní. Se admite un snapshot local de comisiones (`sga_*`) para no consultar Guaraní en cada visita y para que el asistente pueda cruzarlas por SQL, con límites: sólo lectura, regenerable por período, importación manual que reemplaza el período completo, vínculos derivados en cada importación (nunca manuales) y sin documento de los docentes.

@@ -15,7 +15,7 @@ namespace Modules.Designaciones.Infrastructure;
 /// expresar.
 /// </para>
 /// </summary>
-public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
+public sealed partial class DesignacionesDbContext(DbContextOptions<DesignacionesDbContext> options) : DbContext(options)
 {
     public const string Schema = "designaciones";
 
@@ -27,6 +27,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
     public DbSet<PedidoHistorial> PedidoHistorial => Set<PedidoHistorial>();
     public DbSet<Designacion> Designaciones => Set<Designacion>();
     public DbSet<ComandoIdempotente> ComandosIdempotentes => Set<ComandoIdempotente>();
+    public DbSet<ImportacionComisiones> ImportacionesComisiones => Set<ImportacionComisiones>();
+    public DbSet<ComisionGuarani> ComisionesGuarani => Set<ComisionGuarani>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -186,6 +188,8 @@ public sealed class DesignacionesDbContext(DbContextOptions<DesignacionesDbConte
             e.Property(x => x.CreadoEn).HasColumnName("created_at");
             e.HasIndex(x => new { x.ActorId, x.Ruta, x.Clave }).IsUnique();
         });
+
+        MapearComisionesGuarani(modelBuilder);
 
         base.OnModelCreating(modelBuilder);
     }

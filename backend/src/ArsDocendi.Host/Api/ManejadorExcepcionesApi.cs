@@ -101,6 +101,9 @@ public sealed class ManejadorExcepcionesApi(ILogger<ManejadorExcepcionesApi> log
             TipoErrorAplicacion.NoEncontrado => StatusCodes.Status404NotFound,
             TipoErrorAplicacion.Conflicto => StatusCodes.Status409Conflict,
             TipoErrorAplicacion.ReglaDeNegocio => StatusCodes.Status422UnprocessableEntity,
+            TipoErrorAplicacion.ServicioExternoFallido => StatusCodes.Status502BadGateway,
+            TipoErrorAplicacion.ServicioExternoSinRespuesta => StatusCodes.Status504GatewayTimeout,
+            TipoErrorAplicacion.ServicioExternoNoConfigurado => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status500InternalServerError,
         };
 

@@ -52,6 +52,12 @@ export const NAVEGACION: NavGroup[] = [
         label: "Períodos",
         permiso: "periodos.administrar",
       },
+      {
+        to: "/designaciones/comisiones",
+        icon: "comisiones",
+        label: "Comisiones",
+        permiso: "comisiones.ver",
+      },
     ],
   },
   {

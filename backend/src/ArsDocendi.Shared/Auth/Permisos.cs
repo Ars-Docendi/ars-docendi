@@ -21,6 +21,8 @@ public static class Permisos
     public const string TareasVer = "tareas.ver";
     public const string TareasGestionar = "tareas.gestionar";
     public const string ProyectosGestionar = "proyectos.gestionar";
+    public const string ComisionesVer = "comisiones.ver";
+    public const string ComisionesImportar = "comisiones.importar";
 
     public static readonly string[] Todos =
     [
@@ -42,5 +44,7 @@ public static class Permisos
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,
+        ComisionesVer,
+        ComisionesImportar,
     ];
 }

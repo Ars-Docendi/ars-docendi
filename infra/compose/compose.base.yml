@@ -42,6 +42,13 @@ services:
       AutenticacionMicrosoft__Habilitada: ${MICROSOFT_LOGIN_ENABLED:-false}
       AutenticacionMicrosoft__ClientId: ${MICROSOFT_CLIENT_ID:-}
       AutenticacionMicrosoft__ClientSecret: ${MICROSOFT_CLIENT_SECRET:-}
+      # Integración Guaraní: sólo responde dentro de la red de UNLaM, así que únicamente
+      # prod la configura. Vacía, el backend arranca y la importación responde 503.
+      Guarani__UrlBase: ${GUARANI_URL_BASE:-}
+      Guarani__Usuario: ${GUARANI_USUARIO:-}
+      Guarani__Contrasena: ${GUARANI_CONTRASENA:-}
+      Guarani__RutaPeriodosLectivos: ${GUARANI_RUTA_PERIODOS_LECTIVOS:-}
+      Guarani__RutaComisiones: ${GUARANI_RUTA_COMISIONES:-}
       AdministradorInicial__Upn: ${ADMIN_INICIAL_UPN:-}
       AdministradorInicial__Nombre: ${ADMIN_INICIAL_NOMBRE:-}
       AdministradorInicial__Apellido: ${ADMIN_INICIAL_APELLIDO:-}
