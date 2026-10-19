@@ -1094,6 +1094,98 @@ public sealed class CarrilSqlTests(PostgresFixture postgres)
         Assert.Empty(segundo.Filas);
     }
 
+    // ------------------------------------------------- copia de un ejemplo
+
+    private static readonly IReadOnlyList<EjemploSql> CatalogoDeEjemplos = new SelectorDeEjemplos().Catalogo;
+
+    private static string SqlDelEjemplo(string pregunta) =>
+        CatalogoDeEjemplos.Single(e => e.Pregunta == pregunta).Sql;
+
+    private const string PreguntaConLiteral = "¿Qué docentes están designados en Algoritmos y Estructuras de Datos?";
+    private const string PreguntaSinLiteral = "¿Qué carreras están vigentes?";
+
+    private static readonly OpcionesAsistente ConReescrituraEnLaGeneracion =
+        new() { ReescrituraEnLaGeneracion = true };
+
+    [Fact]
+    public async Task Un_seguimiento_que_copia_un_ejemplo_del_catalogo_sin_que_nadie_lo_pida_no_se_ejecuta()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(SqlDelEjemplo(PreguntaConLiteral)));
+
+        var turno = await CarrilCon(proveedor, opcionesDelGenerador: ConReescrituraEnLaGeneracion)
+            .ResponderAsync(
+                Secretaria, "status", null, TestContext.Current.CancellationToken,
+                preguntasAnteriores: ["status"]);
+
+        // Una sola llamada: no hay consulta que ejecutar ni respuesta que redactar.
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+        Assert.Equal(1, proveedor.Llamadas);
+        Assert.Empty(turno.Filas);
+    }
+
+    [Theory]
+    [InlineData(PreguntaConLiteral)]
+    [InlineData("¿Quiénes son los docentes de «Algoritmos y Estructuras de Datos»?")]
+    public async Task Un_ejemplo_del_catalogo_cuya_pregunta_hizo_el_usuario_se_ejecuta(string mensaje)
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(SqlDelEjemplo(PreguntaConLiteral)), "Listado.");
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, mensaje, null, TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(EstadoDelTurno.NoContestable, turno.Estado);
+    }
+
+    [Fact]
+    public async Task El_literal_del_ejemplo_puede_venir_de_la_pregunta_interpretada()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            """
+            {"pregunta_interpretada": "¿Qué docentes hay en Algoritmos y Estructuras de Datos?",
+             "es_contestable": true, "sql": %SQL%, "razonamiento": "Seguimiento.", "categoria": "cruce_de_tablas"}
+            """.Replace("%SQL%", System.Text.Json.JsonSerializer.Serialize(SqlDelEjemplo(PreguntaConLiteral))),
+            "Listado.");
+
+        var turno = await CarrilCon(proveedor, opcionesDelGenerador: ConReescrituraEnLaGeneracion)
+            .ResponderAsync(
+                Secretaria, "¿y los docentes?", null, TestContext.Current.CancellationToken,
+                preguntasAnteriores: ["¿Qué materias hay en Algoritmos y Estructuras de Datos?"]);
+
+        Assert.NotEqual(EstadoDelTurno.NoContestable, turno.Estado);
+    }
+
+    [Fact]
+    public async Task Un_ejemplo_sin_literales_copiado_para_una_pregunta_ajena_no_se_ejecuta()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(SqlDelEjemplo(PreguntaSinLiteral)));
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "status", null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.NoContestable, turno.Estado);
+        Assert.Equal(1, proveedor.Llamadas);
+    }
+
+    [Fact]
+    public async Task Un_ejemplo_sin_literales_copiado_para_una_pregunta_parecida_se_ejecuta()
+    {
+        await SembrarAsync();
+        var proveedor = new ProveedorGuionado(
+            ProveedorGuionado.Generacion(SqlDelEjemplo(PreguntaSinLiteral)), "Listado.");
+
+        var turno = await CarrilCon(proveedor).ResponderAsync(
+            Secretaria, "¿Qué carreras hay vigentes?", null, TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(EstadoDelTurno.NoContestable, turno.Estado);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private static ProveedorGuionado Guion(string? sql = null) =>
