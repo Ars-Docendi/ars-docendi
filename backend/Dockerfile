@@ -35,6 +35,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 
+# libpq/Npgsql carga GSSAPI dinámicamente al abrir la conexión PostgreSQL.
+RUN apt-get update && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Directorio de las claves de Data Protection (cookie de sesión y anti-falsificación).
 # Compose monta ahí un volumen por ambiente; un volumen nombrado nuevo hereda este
 # dueño, así el usuario no-root puede escribirlas.

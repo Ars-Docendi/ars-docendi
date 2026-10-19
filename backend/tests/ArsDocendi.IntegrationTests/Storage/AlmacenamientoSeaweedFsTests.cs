@@ -24,7 +24,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Storage;
 
-public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAsyncLifetime
+public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private const string SeaweedFsImage = "chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882";
     private const string AdminAccessKey = "test-admin-access";
@@ -231,6 +231,30 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
     }
 
     [Fact]
+    public async Task Antivirus_no_disponible_deja_el_archivo_pendiente_para_reintentar()
+    {
+        await using var db = PostgresFixture.CrearAlmacenamiento(cadena);
+        var servicioCaido = CrearServicio(db, new AntivirusNoDisponible());
+        var contenido = Encoding.UTF8.GetBytes("%PDF-1.7\narchivo limpio\n");
+        var sesion = await servicioCaido.IniciarCargaAsync(
+            new IniciarCargaArchivoDto(PropositosArchivo.Cv, "cv.pdf", "application/pdf", contenido.Length),
+            Propietario,
+            TestContext.Current.CancellationToken);
+        await SubirContenidoAsync(servicioCaido, sesion, contenido);
+
+        var error = await Assert.ThrowsAsync<ArsDocendi.Shared.Aplicacion.ExcepcionAplicacion>(() => servicioCaido.ConfirmarCargaAsync(
+            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken));
+        Assert.Equal("archivo-antivirus-unavailable", error.Codigo);
+        var pendiente = await servicioCaido.ObtenerAsync(sesion.ArchivoId, TestContext.Current.CancellationToken);
+        Assert.Equal(EstadosArchivo.Pendiente, pendiente!.Estado);
+
+        await using var dbSano = PostgresFixture.CrearAlmacenamiento(cadena);
+        var confirmado = await CrearServicio(dbSano).ConfirmarCargaAsync(
+            new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
+        Assert.Equal(EstadosArchivo.Disponible, confirmado.Estado);
+    }
+
+    [Fact]
     public async Task Objeto_ausente_y_sesion_expirada_no_se_publican()
     {
         await using var db = PostgresFixture.CrearAlmacenamiento(cadena);
@@ -322,7 +346,7 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             new ConfirmarCargaArchivoDto(sesion.ArchivoId), Propietario, TestContext.Current.CancellationToken);
 
         var proveedorStaging = new ProveedorSeaweedFs(clienteStaging!);
-        var clave = $"archivos/{sesion.ArchivoId:N}";
+        var clave = (await db.Archivos.AsNoTracking().SingleAsync(x => x.Id == sesion.ArchivoId, TestContext.Current.CancellationToken)).ClaveObjeto;
         Assert.NotNull(await proveedorStaging.ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<AmazonS3Exception>(() =>
             new ProveedorSeaweedFs(cliente!).ObtenerAsync(StagingBucket, clave, TestContext.Current.CancellationToken));
@@ -334,17 +358,16 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
     {
         await using var db = PostgresFixture.CrearAlmacenamiento(cadena);
         await using var portalDb = PostgresFixture.CrearPortal(cadena);
-        var almacenamiento = CrearServicio(db);
-        var identidad = new IdentityDePrueba();
-        var portal = new ServicioPortal(
-            new RepositorioPortal(portalDb), identidad, new UsuarioActual(Propietario), almacenamiento);
+        await using var designacionesDb = PostgresFixture.CrearDesignaciones(cadena);
+        await SembrarPersonaPortalAsync(TestContext.Current.CancellationToken);
+        var (almacenamiento, portal) = CrearPortalProtegido(db, portalDb, designacionesDb);
 
         var primero = await SubirPdfAsync(almacenamiento, "cv-primero.pdf");
         var cv = await portal.GuardarCvAsync(new GuardarCvDto(primero), TestContext.Current.CancellationToken);
         Assert.Equal(primero, cv.ArchivoId);
 
         var segundo = await SubirPdfAsync(almacenamiento, "cv-segundo.pdf");
-        cv = await portal.GuardarCvAsync(new GuardarCvDto(segundo), TestContext.Current.CancellationToken);
+        cv = await portal.GuardarCvAsync(new GuardarCvDto(segundo) { Version = cv.Version }, TestContext.Current.CancellationToken);
         Assert.Equal(segundo, cv.ArchivoId);
 
         var persistido = await portalDb.Cvs.SingleAsync(TestContext.Current.CancellationToken);
@@ -364,7 +387,7 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             almacenamiento, "proyecto-segundo.pdf", PropositosArchivo.DocumentoProyecto);
         proyecto = await portal.EditarAsync(
             proyecto.Id,
-            new GuardarProyectoDto("Proyecto actualizado", "Directora", "Documento reemplazado", new DateOnly(2024, 1, 1), null, null, documentoSegundo), TestContext.Current.CancellationToken);
+            new GuardarProyectoDto("Proyecto actualizado", "Directora", "Documento reemplazado", new DateOnly(2024, 1, 1), null, null, documentoSegundo) { Version = proyecto.Version }, TestContext.Current.CancellationToken);
         Assert.Equal(documentoSegundo, proyecto.Documento?.ArchivoId);
         Assert.Equal(EstadosArchivo.Eliminado,
             (await almacenamiento.ObtenerAsync(documentoPrimero, TestContext.Current.CancellationToken))!.Estado);
@@ -372,7 +395,7 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
         var descarga = await portal.DescargarDocumentoAsync(proyecto.Id, TestContext.Current.CancellationToken);
         Assert.NotNull(descarga);
         await descarga!.Contenido.DisposeAsync();
-        await portal.EliminarAsync<Modules.Portal.Domain.Proyecto>(proyecto.Id, TestContext.Current.CancellationToken);
+        await portal.EliminarAsync<Modules.Portal.Domain.Proyecto>(proyecto.Id, TestContext.Current.CancellationToken, proyecto.Version);
         Assert.Equal(EstadosArchivo.Eliminado,
             (await almacenamiento.ObtenerAsync(documentoSegundo, TestContext.Current.CancellationToken))!.Estado);
     }
@@ -418,7 +441,7 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             Propietario,
             TestContext.Current.CancellationToken);
         var asociado = await SubirPdfAsync(servicio, "asociado.pdf");
-        const string claveHuerfana = "archivos/huerfano-de-prueba";
+        var claveHuerfana = $"archivos/{asociado:N}/intentos/{Guid.NewGuid():N}";
         var huérfano = Encoding.UTF8.GetBytes("objeto huérfano");
         using var contenidoHuerfano = new MemoryStream(huérfano);
         await cliente!.PutObjectAsync(new PutObjectRequest
@@ -447,7 +470,11 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
         AlmacenamientoDbContext db,
         IAntivirusArchivos? antivirus = null,
         string? bucket = null,
-        string? ambiente = null)
+        string? ambiente = null,
+        bool registrarConsumidores = true,
+        IProveedorObjetos? proveedorAlternativo = null,
+        IProteccionArchivos? proteccion = null,
+        IEnumerable<IConsultasReferenciasArchivos>? referencias = null)
     {
         var opciones = Options.Create(new AlmacenamientoOptions
         {
@@ -465,10 +492,12 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             : new ProveedorSeaweedFs(cliente!);
         return new ServicioAlmacenamientoArchivos(
             db,
-            proveedor,
+            proveedorAlternativo ?? proveedor,
             antivirus ?? new AntivirusLimpio(),
             opciones,
-            NullLogger<ServicioAlmacenamientoArchivos>.Instance);
+            NullLogger<ServicioAlmacenamientoArchivos>.Instance,
+            referencias ?? (registrarConsumidores ? [new ReferenciasSql(db, "Portal"), new ReferenciasSql(db, "Designaciones")] : []),
+            proteccion);
     }
 
     private sealed class AntivirusLimpio : IAntivirusArchivos
@@ -481,6 +510,12 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
     {
         public Task<ResultadoAntivirus> AnalizarAsync(Stream contenido, CancellationToken ct) =>
             Task.FromResult(new ResultadoAntivirus(false, false, "infected-test"));
+    }
+
+    private sealed class AntivirusNoDisponible : IAntivirusArchivos
+    {
+        public Task<ResultadoAntivirus> AnalizarAsync(Stream contenido, CancellationToken ct) =>
+            Task.FromResult(new ResultadoAntivirus(false, false, "El análisis antivirus no está disponible."));
     }
 
     private sealed class UsuarioActual(Guid id) : ICurrentUser
@@ -519,6 +554,11 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
             persona.Usuario = usuario;
         }
 
+        public Task<Usuario?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken ct) => Task.FromResult(usuarioId == Propietario ? usuario : null);
+        public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => Task.FromResult<IReadOnlyList<Usuario>>(ids.Contains(Propietario) ? [usuario] : []);
+        public Task<IReadOnlyList<Persona>> ObtenerPersonasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) => Task.FromResult<IReadOnlyList<Persona>>(ids.Contains(Propietario) ? [persona] : []);
+        public Task<IReadOnlyList<Usuario>> BuscarCandidatosAsync(FiltroCandidatosIdentity filtro, CancellationToken ct) => Task.FromResult<IReadOnlyList<Usuario>>([]);
+
         public Task<Persona?> ObtenerPersonaAsync(Guid personaId, CancellationToken ct) =>
             Task.FromResult(personaId == Propietario ? persona : null);
 
@@ -553,6 +593,9 @@ public sealed class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAs
 
         public Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Materia>>([]);
+
+        public Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<MateriaPlan>>([]);
 
         public Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Persona>>([persona]);

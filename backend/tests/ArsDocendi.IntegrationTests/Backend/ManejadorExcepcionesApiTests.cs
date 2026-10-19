@@ -47,6 +47,21 @@ public sealed class ManejadorExcepcionesApiTests
     }
 
     [Fact]
+    public async Task Error_esperado_de_storage_conserva_conflicto_y_codigo_en_lugar_de_500_generico()
+    {
+        var respuesta = await EjecutarAsync(new ExcepcionAplicacion(
+            TipoErrorAplicacion.Conflicto,
+            "archivo-delete-pending",
+            "La eliminación remota está pendiente; puede reintentarse."));
+
+        Assert.Equal(409, respuesta.Status);
+        Assert.Equal("https://ars-docendi.unlam.edu.ar/errors/archivo-delete-pending",
+            respuesta.Json.GetProperty("type").GetString());
+        Assert.Equal("archivo-delete-pending", respuesta.Json.GetProperty("code").GetString());
+        Assert.NotEqual("internal-error", respuesta.Json.GetProperty("code").GetString());
+    }
+
+    [Fact]
     public async Task Error_inesperado_no_expone_excepcion()
     {
         var respuesta = await EjecutarAsync(new InvalidOperationException("secreto interno"));

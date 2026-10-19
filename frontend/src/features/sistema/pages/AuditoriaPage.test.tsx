@@ -63,6 +63,19 @@ beforeEach(() => {
 });
 
 describe("Registros de auditoría", () => {
+  it("explica clave compuesta y agrupación legada sin alterar el filtro JSON", async () => {
+    const user = userEvent.setup();
+    renderPagina();
+    const clave = '{"rol_id":"rol-sintetico","permiso_id":"permiso-sintetico"}';
+    const campo = screen.getByRole("textbox", { name: "Clave de fila" });
+    expect(campo).toHaveAccessibleDescription(/JSON completo.*agrupación histórica/i);
+    await user.click(campo);
+    await user.paste(clave);
+    await user.click(screen.getByRole("button", { name: "Buscar" }));
+    await waitFor(() =>
+      expect(listarAuditoria).toHaveBeenLastCalledWith(expect.objectContaining({ rowPk: clave })),
+    );
+  });
   it("presenta el resumen legible y conserva el detalle redactado", async () => {
     const user = userEvent.setup();
     renderPagina();

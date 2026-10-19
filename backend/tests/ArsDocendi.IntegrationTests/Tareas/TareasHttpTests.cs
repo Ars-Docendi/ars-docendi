@@ -9,7 +9,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Tareas;
 
-public sealed class TareasHttpTests(PostgresFixture postgres)
+public sealed partial class TareasHttpTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "tareas_http")
 {
     private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
@@ -51,7 +51,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         })
         {
             using var cliente = Cliente(host, usuario, rol);
-            await Esperar(cliente.PostAsJsonAsync("/api/tareas", NuevaTarea(JefeCatedra), ct), HttpStatusCode.Forbidden);
+            await Esperar(cliente.PostVersionadoAsync("/api/tareas", NuevaTarea(JefeCatedra), ct), HttpStatusCode.Forbidden);
             await Esperar(cliente.GetAsync("/api/tareas/candidatos", ct), HttpStatusCode.Forbidden);
         }
 
@@ -61,7 +61,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         })
         {
             using var cliente = Cliente(host, usuario, rol);
-            await Esperar(cliente.PostAsJsonAsync("/api/tareas", NuevaTarea(Docente), ct), HttpStatusCode.Created);
+            await Esperar(cliente.PostVersionadoAsync("/api/tareas", NuevaTarea(Docente), ct), HttpStatusCode.Created);
         }
     }
 
@@ -85,14 +85,14 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         var candidatosProyecto = await decanato.GetFromJsonAsync<PersonaTareaDto[]>("/api/tareas/candidatos?para=proyecto", ct);
         Assert.All(candidatosProyecto!, c => Assert.Contains(c.Rol, new[] { "Decanato", "Secretaría Académica" }));
 
-        await Esperar(secretaria.PostAsJsonAsync("/api/tareas", NuevaTarea(Decanato), ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(secretaria.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.Created);
-        await Esperar(administrativo.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.Created);
+        await Esperar(secretaria.PostVersionadoAsync("/api/tareas", NuevaTarea(Decanato), ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(secretaria.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.Created);
+        await Esperar(administrativo.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria), ct), HttpStatusCode.Created);
 
         // Reasignar hacia arriba también se rechaza (tarea sembrada, creada por Secretaría).
         var edicion = EdicionDe(Decanato);
-        await Esperar(secretaria.PutAsJsonAsync($"/api/tareas/{TareaSemilla}", edicion, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(secretaria.PutVersionadoAsync($"/api/tareas/{TareaSemilla}", edicion, ct), HttpStatusCode.UnprocessableEntity);
     }
 
     [Fact]
@@ -115,39 +115,39 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         var ruta = $"/api/tareas/{creada.Id}";
 
         // Quien no gestiona y no es el Responsable ni siquiera ve la tarea: responde como si no existiera.
-        await Esperar(ajeno.PostAsJsonAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.NotFound);
-        await Esperar(ajeno.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 10 }, ct), HttpStatusCode.NotFound);
+        await Esperar(ajeno.PostVersionadoAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.NotFound);
+        await Esperar(ajeno.PatchVersionadoAsync($"{ruta}/avance", new { porcentajeAvance = 10 }, ct), HttpStatusCode.NotFound);
 
         Assert.Equal("en_curso", (await Cambiar(responsable, ruta, new { estado = "en_curso" }, ct)).Estado);
 
-        await Esperar(responsable.PostAsJsonAsync($"{ruta}/estado", new { estado = "pausa" }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(responsable.PostVersionadoAsync($"{ruta}/estado", new { estado = "pausa" }, ct), HttpStatusCode.UnprocessableEntity);
         var enPausa = await Cambiar(responsable, ruta, new { estado = "pausa", comentario = "Necesito una consulta" }, ct);
         Assert.Equal("pausa", enPausa.Estado);
         Assert.Contains(enPausa.Comentarios, c => c.Texto == "Necesito una consulta" && c.RolAutor == "Jefe de Cátedra");
 
-        await Esperar(responsable.PostAsJsonAsync($"{ruta}/estado", new { estado = "resuelta" }, ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(responsable.PostAsJsonAsync($"{ruta}/estado", new { estado = "cancelada" }, ct), HttpStatusCode.Forbidden);
-        await Esperar(responsable.PutAsJsonAsync(ruta, EdicionDe(JefeCatedra), ct), HttpStatusCode.Forbidden);
+        await Esperar(responsable.PostVersionadoAsync($"{ruta}/estado", new { estado = "resuelta" }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(responsable.PostVersionadoAsync($"{ruta}/estado", new { estado = "cancelada" }, ct), HttpStatusCode.Forbidden);
+        await Esperar(responsable.PutVersionadoAsync(ruta, EdicionDe(JefeCatedra), ct), HttpStatusCode.Forbidden);
 
-        await Esperar(responsable.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 120 }, ct), HttpStatusCode.BadRequest);
-        var conAvance = await ReadAsync<TareaDto>(await responsable.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 60 }, ct), ct);
+        await Esperar(responsable.PatchVersionadoAsync($"{ruta}/avance", new { porcentajeAvance = 120 }, ct), HttpStatusCode.BadRequest);
+        var conAvance = await ReadAsync<TareaDto>(await responsable.PatchVersionadoAsync($"{ruta}/avance", new { porcentajeAvance = 60 }, ct), ct);
         Assert.Equal(60, conAvance.PorcentajeAvance);
 
         var resuelta = await Cambiar(responsable, ruta, new { estado = "resuelta", solucion = "Se resolvió" }, ct);
         Assert.Equal("Se resolvió", resuelta.Solucion);
         Assert.Equal(60, resuelta.PorcentajeAvance);
 
-        await Esperar(responsable.PostAsJsonAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.Forbidden);
-        await Esperar(secretaria.PostAsJsonAsync($"{ruta}/estado", new { estado = "cancelada" }, ct), HttpStatusCode.Forbidden);
+        await Esperar(responsable.PostVersionadoAsync($"{ruta}/estado", new { estado = "en_curso" }, ct), HttpStatusCode.Forbidden);
+        await Esperar(secretaria.PostVersionadoAsync($"{ruta}/estado", new { estado = "cancelada" }, ct), HttpStatusCode.Forbidden);
         Assert.Equal("en_curso", (await Cambiar(secretaria, ruta, new { estado = "en_curso" }, ct)).Estado);
         Assert.Equal("cancelada", (await Cambiar(secretaria, ruta, new { estado = "cancelada" }, ct)).Estado);
 
-        var editada = await ReadAsync<TareaDto>(await secretaria.PutAsJsonAsync(ruta, EdicionDe(JefeCatedra, "Título nuevo"), ct), ct);
+        var editada = await ReadAsync<TareaDto>(await secretaria.PutVersionadoAsync(ruta, EdicionDe(JefeCatedra, "Título nuevo"), ct), ct);
         Assert.Equal("Título nuevo", editada.Titulo);
 
-        var comentada = await ReadAsync<TareaDto>(await responsable.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "Hola" }, ct), ct);
+        var comentada = await ReadAsync<TareaDto>(await responsable.PostVersionadoAsync($"{ruta}/comentarios", new { texto = "Hola" }, ct), ct);
         Assert.Contains(comentada.Comentarios, c => c.Texto == "Hola");
-        await Esperar(responsable.PostAsJsonAsync($"{ruta}/comentarios", new { texto = "  " }, ct), HttpStatusCode.BadRequest);
+        await Esperar(responsable.PostVersionadoAsync($"{ruta}/comentarios", new { texto = "  " }, ct), HttpStatusCode.BadRequest);
 
         var detalle = await secretaria.GetFromJsonAsync<TareaDto>(ruta, ct);
         Assert.Contains(detalle!.Historial, e => e.Accion == "editar_avance" && e.Detalle == "60%");
@@ -173,11 +173,11 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
             nombre = "Proyecto nuevo", descripcion = "d",
             fechaInicio = "2026-01-01", fechaFin = "2026-12-31", responsableId = responsable,
         };
-        await Esperar(administrativo.PostAsJsonAsync("/api/tareas/proyectos", datosProyecto(Secretaria), ct), HttpStatusCode.Forbidden);
-        await Esperar(secretaria.PostAsJsonAsync("/api/tareas/proyectos", datosProyecto(Decanato), ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas/proyectos", datosProyecto(Administrativo), ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(administrativo.PostVersionadoAsync("/api/tareas/proyectos", datosProyecto(Secretaria), ct), HttpStatusCode.Forbidden);
+        await Esperar(secretaria.PostVersionadoAsync("/api/tareas/proyectos", datosProyecto(Decanato), ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas/proyectos", datosProyecto(Administrativo), ct), HttpStatusCode.UnprocessableEntity);
         var proyecto = await ReadAsync<ProyectoTareasDto>(
-            await decanato.PostAsJsonAsync("/api/tareas/proyectos", datosProyecto(Secretaria), ct), ct);
+            await decanato.PostVersionadoAsync("/api/tareas/proyectos", datosProyecto(Secretaria), ct), ct);
         Assert.Equal("abierto", proyecto.Estado);
         Assert.Equal("Secretaría Académica", proyecto.Responsable.Rol);
         Assert.True(proyecto.Numero > proyectos.Max(p => p.Numero));
@@ -188,24 +188,24 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
             nombre = "Proyecto renombrado", descripcion = "nueva",
             fechaInicio = "2026-02-01", fechaFin = "2026-11-30", responsableId = Secretaria,
         };
-        await Esperar(administrativo.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), HttpStatusCode.Forbidden);
-        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{Guid.NewGuid()}", edicion, ct), HttpStatusCode.NotFound);
-        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { nombre = " " }, ct), HttpStatusCode.BadRequest);
-        await Esperar(decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { responsableId = Administrativo }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(administrativo.PutVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), HttpStatusCode.Forbidden);
+        await Esperar(decanato.PutVersionadoAsync($"/api/tareas/proyectos/{Guid.NewGuid()}", edicion, ct), HttpStatusCode.NotFound);
+        await Esperar(decanato.PutVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { nombre = " " }, ct), HttpStatusCode.BadRequest);
+        await Esperar(decanato.PutVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion with { responsableId = Administrativo }, ct), HttpStatusCode.UnprocessableEntity);
         var editado = await ReadAsync<ProyectoTareasDto>(
-            await decanato.PutAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), ct);
+            await decanato.PutVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}", edicion, ct), ct);
         Assert.Equal("Proyecto renombrado", editado.Nombre);
         Assert.Equal(new DateOnly(2026, 11, 30), editado.FechaFin);
         Assert.Equal("abierto", editado.Estado);
 
         // Un proyecto cancelado no puede pasar a finalizado (sí reabrirse).
-        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "cancelado" }, ct), HttpStatusCode.OK);
-        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "abierto" }, ct), HttpStatusCode.OK);
+        await Esperar(decanato.PostVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "cancelado" }, ct), HttpStatusCode.OK);
+        await Esperar(decanato.PostVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "abierto" }, ct), HttpStatusCode.OK);
 
-        await Esperar(administrativo.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.Forbidden);
+        await Esperar(administrativo.PostVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.Forbidden);
         var finalizado = await ReadAsync<ProyectoTareasDto>(
-            await secretaria.PostAsJsonAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), ct);
+            await secretaria.PostVersionadoAsync($"/api/tareas/proyectos/{proyecto.Id}/estado", new { estado = "finalizado" }, ct), ct);
         Assert.Equal("finalizado", finalizado.Estado);
 
         // Hijas: heredan el Proyecto del padre, sin importar lo que envíe el cliente.
@@ -218,9 +218,9 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
 
         // Editar una hija no la desasocia del Proyecto del padre.
         var editada = await ReadAsync<TareaDto>(
-            await decanato.PutAsJsonAsync($"/api/tareas/{hija.Id}", EdicionDe(Secretaria) with { ProyectoId = null }, ct), ct);
+            await decanato.PutVersionadoAsync($"/api/tareas/{hija.Id}", EdicionDe(Secretaria) with { ProyectoId = null }, ct), ct);
         Assert.Equal(ProyectoTesting, editada.ProyectoId);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas",
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas",
             NuevaTarea(Secretaria) with { TareaPadreId = Guid.NewGuid() }, ct), HttpStatusCode.NotFound);
 
         // La numeración es correlativa.
@@ -228,10 +228,10 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
 
         // Relaciones: idempotentes y visibles desde ambos lados; sin efecto en estado ni avance.
         var rutaRelaciones = $"/api/tareas/{padre.Id}/relaciones";
-        await Esperar(decanato.PostAsJsonAsync(rutaRelaciones, new { otraTareaId = padre.Id }, ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(decanato.PostAsJsonAsync(rutaRelaciones, new { otraTareaId = Guid.NewGuid() }, ct), HttpStatusCode.NotFound);
-        await Esperar(decanato.PostAsJsonAsync(rutaRelaciones, new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NoContent);
-        await Esperar(decanato.PostAsJsonAsync(rutaRelaciones, new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NoContent);
+        await Esperar(decanato.PostVersionadoAsync(rutaRelaciones, new { otraTareaId = padre.Id }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync(rutaRelaciones, new { otraTareaId = Guid.NewGuid() }, ct), HttpStatusCode.NotFound);
+        await Esperar(decanato.PostVersionadoAsync(rutaRelaciones, new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NoContent);
+        await Esperar(decanato.PostVersionadoAsync(rutaRelaciones, new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NoContent);
         var desdePadre = await decanato.GetFromJsonAsync<TareaDto>($"/api/tareas/{padre.Id}", ct);
         var desdeSemilla = await decanato.GetFromJsonAsync<TareaDto>($"/api/tareas/{TareaSemilla}", ct);
         Assert.Equal([TareaSemilla], desdePadre!.TareasRelacionadasIds);
@@ -254,7 +254,7 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         // Nadie puede asignarle tareas: es la máxima jerarquía.
         var candidatosDecanato = await decanato.GetFromJsonAsync<PersonaTareaDto[]>("/api/tareas/candidatos", ct);
         Assert.DoesNotContain(candidatosDecanato!, c => c.Id == Administrador);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Administrador), ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas", NuevaTarea(Administrador), ct), HttpStatusCode.UnprocessableEntity);
 
         // Él puede asignar a cualquiera, incluido Decanato.
         var candidatosAdministrador = await administrador.GetFromJsonAsync<PersonaTareaDto[]>("/api/tareas/candidatos", ct);
@@ -263,13 +263,13 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
 
         // Tarea ajena (creada por Secretaría, Responsable Jefe de Cátedra): edita, avanza, cancela y reabre.
         var ruta = $"/api/tareas/{TareaSemilla}";
-        await Esperar(administrador.PutAsJsonAsync(ruta, EdicionDe(JefeCatedra, "Editada por el administrador"), ct), HttpStatusCode.OK);
-        await Esperar(administrador.PatchAsJsonAsync($"{ruta}/avance", new { porcentajeAvance = 30 }, ct), HttpStatusCode.OK);
+        await Esperar(administrador.PutVersionadoAsync(ruta, EdicionDe(JefeCatedra, "Editada por el administrador"), ct), HttpStatusCode.OK);
+        await Esperar(administrador.PatchVersionadoAsync($"{ruta}/avance", new { porcentajeAvance = 30 }, ct), HttpStatusCode.OK);
         Assert.Equal("cancelada", (await Cambiar(administrador, ruta, new { estado = "cancelada" }, ct)).Estado);
         Assert.Equal("en_curso", (await Cambiar(administrador, ruta, new { estado = "en_curso" }, ct)).Estado);
 
         // Y puede crear proyectos.
-        await Esperar(administrador.PostAsJsonAsync("/api/tareas/proyectos", new
+        await Esperar(administrador.PostVersionadoAsync("/api/tareas/proyectos", new
         {
             nombre = "Proyecto del administrador", descripcion = "d",
             fechaInicio = "2026-01-01", fechaFin = "2026-12-31", responsableId = Decanato,
@@ -294,8 +294,8 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         await Esperar(docente.GetAsync($"/api/tareas/{TareaDelDocente}", ct), HttpStatusCode.OK);
         // Una tarea ajena responde como si no existiera, para cualquier operación.
         await Esperar(docente.GetAsync($"/api/tareas/{TareaSemilla}", ct), HttpStatusCode.NotFound);
-        await Esperar(docente.PostAsJsonAsync($"/api/tareas/{TareaSemilla}/comentarios", new { texto = "hola" }, ct), HttpStatusCode.NotFound);
-        await Esperar(docente.PostAsJsonAsync($"/api/tareas/{TareaDelDocente}/relaciones", new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NotFound);
+        await Esperar(docente.PostVersionadoAsync($"/api/tareas/{TareaSemilla}/comentarios", new { texto = "hola" }, ct), HttpStatusCode.NotFound);
+        await Esperar(docente.PostVersionadoAsync($"/api/tareas/{TareaDelDocente}/relaciones", new { otraTareaId = TareaSemilla }, ct), HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -339,16 +339,16 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
         Assert.False(proyectos!.Single(p => p.Id == ProyectoFinalizado).AdmiteTareas);
         Assert.Equal("Finalizado", proyectos!.Single(p => p.Id == ProyectoFinalizado).EstadoNombre);
 
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoFinalizado }, ct), HttpStatusCode.UnprocessableEntity);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoCancelado }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoFinalizado }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoCancelado }, ct), HttpStatusCode.UnprocessableEntity);
         await Crear(decanato, NuevaTarea(Secretaria) with { ProyectoId = ProyectoTesting }, ct);
 
         // Al cerrar un proyecto deja de admitir tareas nuevas; un estado inexistente se rechaza.
-        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "inexistente" }, ct), HttpStatusCode.BadRequest);
-        await Esperar(decanato.PostAsJsonAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.OK);
-        await Esperar(decanato.PostAsJsonAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoTesting }, ct), HttpStatusCode.UnprocessableEntity);
+        await Esperar(decanato.PostVersionadoAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "inexistente" }, ct), HttpStatusCode.BadRequest);
+        await Esperar(decanato.PostVersionadoAsync($"/api/tareas/proyectos/{ProyectoTesting}/estado", new { estado = "finalizado" }, ct), HttpStatusCode.OK);
+        await Esperar(decanato.PostVersionadoAsync("/api/tareas", NuevaTarea(Secretaria) with { ProyectoId = ProyectoTesting }, ct), HttpStatusCode.UnprocessableEntity);
 
-        var nuevo = await ReadAsync<ProyectoTareasDto>(await decanato.PostAsJsonAsync("/api/tareas/proyectos", new
+        var nuevo = await ReadAsync<ProyectoTareasDto>(await decanato.PostVersionadoAsync("/api/tareas/proyectos", new
         {
             nombre = "Otro", descripcion = "d", fechaInicio = "2026-01-01", fechaFin = "2026-12-31", responsableId = Secretaria,
         }, ct), ct);
@@ -389,13 +389,13 @@ public sealed class TareasHttpTests(PostgresFixture postgres)
 
     private static async Task<TareaDto> Crear(HttpClient cliente, NuevaTareaJson datos, CancellationToken ct)
     {
-        using var respuesta = await cliente.PostAsJsonAsync("/api/tareas", datos, ct);
+        using var respuesta = await cliente.PostVersionadoAsync("/api/tareas", datos, ct);
         Assert.True(respuesta.StatusCode == HttpStatusCode.Created, await respuesta.Content.ReadAsStringAsync(ct));
         return (await respuesta.Content.ReadFromJsonAsync<TareaDto>(ct))!;
     }
 
     private static async Task<TareaDto> Cambiar(HttpClient cliente, string ruta, object cuerpo, CancellationToken ct) =>
-        await ReadAsync<TareaDto>(await cliente.PostAsJsonAsync($"{ruta}/estado", cuerpo, ct), ct);
+        await ReadAsync<TareaDto>(await cliente.PostVersionadoAsync($"{ruta}/estado", cuerpo, ct), ct);
 
     private static async Task<T> ReadAsync<T>(HttpResponseMessage respuesta, CancellationToken ct)
     {

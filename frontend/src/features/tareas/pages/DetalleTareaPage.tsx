@@ -101,16 +101,24 @@ export function DetalleTareaPage() {
           errorEstado={cambiarEstado.isError ? cambiarEstado.error.message : undefined}
           onVolver={() => navegar(-1)}
           onCambiarEstado={(estadoDestino, opciones) =>
-            cambiarEstado.mutate({ id: tarea.id, estadoDestino, ...opciones })
+            cambiarEstado.mutate({
+              id: tarea.id,
+              version: tarea.version,
+              estadoDestino,
+              ...opciones,
+            })
           }
           onCancelar={(onSuccess) =>
-            cambiarEstado.mutate({ id: tarea.id, estadoDestino: "cancelada" }, { onSuccess })
+            cambiarEstado.mutate(
+              { id: tarea.id, version: tarea.version, estadoDestino: "cancelada" },
+              { onSuccess },
+            )
           }
           onEditarAvance={(porcentajeAvance) =>
-            editarAvance.mutate({ id: tarea.id, porcentajeAvance })
+            editarAvance.mutate({ id: tarea.id, version: tarea.version, porcentajeAvance })
           }
-          onEditar={(datos, onSuccess) =>
-            editarTarea.mutate({ id: tarea.id, datos }, { onSuccess })
+          onEditar={(datos, onSuccess, version) =>
+            editarTarea.mutate({ id: tarea.id, version, datos }, { onSuccess })
           }
           editando={editarTarea.isPending}
           errorEditar={editarTarea.isError ? editarTarea.error.message : undefined}
@@ -144,7 +152,7 @@ interface DetalleCargadoProps {
   ) => void;
   onEditarAvance: (porcentajeAvance: number) => void;
   onCancelar: (onSuccess: () => void) => void;
-  onEditar: (datos: DatosEditablesTarea, onSuccess: () => void) => void;
+  onEditar: (datos: DatosEditablesTarea, onSuccess: () => void, version: number) => void;
   editando: boolean;
   errorEditar?: string;
   onAgregarComentario: (texto: string) => void;
@@ -182,6 +190,7 @@ function DetalleCargado({
 }: DetalleCargadoProps) {
   const navegar = useNavigate();
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
+  const [versionEditar, setVersionEditar] = useState(tarea.version);
   const [modalCancelarAbierto, setModalCancelarAbierto] = useState(false);
   const [modalHijaAbierto, setModalHijaAbierto] = useState(false);
 
@@ -206,7 +215,10 @@ function DetalleCargado({
               <Button
                 variant="secondary"
                 leadingIcon={<IconoSquarePen />}
-                onClick={() => setModalEditarAbierto(true)}
+                onClick={() => {
+                  setVersionEditar(tarea.version);
+                  setModalEditarAbierto(true);
+                }}
               >
                 Editar
               </Button>
@@ -358,7 +370,7 @@ function DetalleCargado({
         tarea={tarea}
         proyectos={proyectos}
         onCerrar={() => setModalEditarAbierto(false)}
-        onGuardar={(datos) => onEditar(datos, () => setModalEditarAbierto(false))}
+        onGuardar={(datos) => onEditar(datos, () => setModalEditarAbierto(false), versionEditar)}
         guardando={editando}
         error={errorEditar}
       />

@@ -1,0 +1,430 @@
+{
+  "anterior": "f10e0a5ba2a20e14a83be0dea3355b1bf1d4601b",
+  "inicio": "2026-10-13T16:53:31.465Z",
+  "clasificacion": "SQL",
+  "comandos": [
+    "git show <SHA>:<wrapper/recurso>",
+    "docker run -d --name <aleatorio> --network none --tmpfs /var/lib/postgresql -e POSTGRES_HOST_AUTH_METHOD=trust postgres:18.4",
+    "docker exec -i <aleatorio> psql -X -q -A -t -v ON_ERROR_STOP=1 -U postgres -d postgres",
+    "docker rm -f -v <aleatorio>",
+    "docker inspect <aleatorio> (debe fallar: No such object)"
+  ],
+  "resultados": [
+    {
+      "id": "numeracion",
+      "hallazgos": ["A03"],
+      "clasificacion": "SQL",
+      "limite": "Función real; no alta HTTP, concurrencia ni gaps tras rollback.",
+      "sqlSha256": "1fedf8892ba99ba6bc93c5fee49a8f03889fcc2708e7638b24e28e0d5f2ffd42",
+      "esperado": {
+        "sufijos": ["1000", "9999", "1000", "1000"],
+        "distintos": 2
+      },
+      "psqlExit": 0,
+      "observado": {
+        "sufijos": ["1000", "9999", "1000", "1000"],
+        "distintos": 2
+      },
+      "reproducido": true
+    },
+    {
+      "id": "materia-huerfana",
+      "hallazgos": ["A09"],
+      "clasificacion": "SQL",
+      "limite": "SQL directo; administración sí valida materia. No demuestra bypass de API.",
+      "sqlSha256": "c01d82bc9134ca94707632ca47a35ba72db09fa6482853eba48b012ea7ab895a",
+      "esperado": {
+        "huerfanas": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "huerfanas": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "persona-perfil-huerfana",
+      "hallazgos": ["A09"],
+      "clasificacion": "SQL",
+      "limite": "Referencia lógica deliberada; no alta arbitraria por API demostrada.",
+      "sqlSha256": "3e67802f2439fb18e9d4f00f594fc5019229938bfcaace9d52b24676db44e268",
+      "esperado": {
+        "huerfanos": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "huerfanos": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "upn-equivalente",
+      "hallazgos": ["A07"],
+      "clasificacion": "SQL",
+      "limite": "SQL case y espacios; alta administrativa normaliza. Sin carrera de login/alta.",
+      "sqlSha256": "7ed65281e4f9f2b52adb34e5808eceded9bca270123d42f9dfcda29a4d8621a6",
+      "esperado": {
+        "lower": 2,
+        "normalizados": 3
+      },
+      "psqlExit": 0,
+      "observado": {
+        "lower": 2,
+        "normalizados": 3
+      },
+      "reproducido": true
+    },
+    {
+      "id": "scope-asignacion-viva",
+      "hallazgos": ["A10"],
+      "clasificacion": "SQL",
+      "limite": "Cambio SQL del rol; no edición HTTP ni intercalación grant-vs-scope.",
+      "sqlSha256": "c6cb9b619b90ed015f90a823f9646e1243eda519465cc3d7d3390ddd402b13cb",
+      "esperado": {
+        "incoherentes": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "incoherentes": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "usuario-tarea-huerfano",
+      "hallazgos": ["A09"],
+      "clasificacion": "SQL",
+      "limite": "Referencia lógica deliberada; servicio valida responsable. No API ni borrado concurrente.",
+      "sqlSha256": "0eca5d2fb3325a7e9f249139e20d86d15c5962b90ac653401eac5b392eabc2f0",
+      "esperado": {
+        "huerfanos": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "huerfanos": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "resuelta-sin-solucion",
+      "hallazgos": ["A13"],
+      "clasificacion": "SQL",
+      "limite": "DDL con catálogo numérico; API exige solución. No transición HTTP.",
+      "sqlSha256": "ce72273131a5ac97f15b1a5c0f6357e0f733e274e3e21ba0b8cd58704ea75089",
+      "esperado": {
+        "invalidas": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "invalidas": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "ciclo-y-null-heredado",
+      "hallazgos": ["A05"],
+      "clasificacion": "SQL",
+      "limite": "API no expone reparenting. NULL heredado es válido, no un hallazgo.",
+      "sqlSha256": "a37602603b2570ff4b7a79cca544c0d6fa0d77da9579f3722209226cbe6c9c79",
+      "esperado": {
+        "ciclo": 2,
+        "nullHeredadoValido": true
+      },
+      "psqlExit": 0,
+      "observado": {
+        "ciclo": 2,
+        "nullHeredadoValido": true
+      },
+      "reproducido": true
+    },
+    {
+      "id": "clave-parcial-permisos",
+      "hallazgos": ["A14"],
+      "clasificacion": "SQL",
+      "limite": "Historia legacy de grupo; no API de auditoría ni corrección de formato nuevo.",
+      "sqlSha256": "c95f1bec58e587d96f4f3d49919a1dea4bc48da93e23710315b368e40c73a72c",
+      "esperado": {
+        "relaciones": 2,
+        "eventos": 2,
+        "claves": 1,
+        "permisos": 2
+      },
+      "psqlExit": 0,
+      "observado": {
+        "relaciones": 2,
+        "eventos": 2,
+        "claves": 1,
+        "permisos": 2
+      },
+      "reproducido": true
+    },
+    {
+      "id": "exclude-cambio-intradia",
+      "hallazgos": ["A04"],
+      "clasificacion": "SQL",
+      "limite": "Escrituras equivalentes al materializador; no circuito C# ni aprobación HTTP.",
+      "sqlSha256": "696aa555a0ec86de88d61c55e97132b9e1a9a35217a9449ffb847d63261c7045",
+      "esperado": {
+        "sqlstate": "23P01",
+        "constraint": "designaciones_sin_solapamiento",
+        "vigentePreservada": true,
+        "auditoriaParcial": 0
+      },
+      "psqlExit": 0,
+      "observado": {
+        "sqlstate": "23P01",
+        "constraint": "designaciones_sin_solapamiento",
+        "vigentePreservada": true,
+        "auditoriaParcial": 0
+      },
+      "reproducido": true
+    },
+    {
+      "id": "alta-incompleta-en-revision",
+      "hallazgos": ["A08"],
+      "clasificacion": "SQL",
+      "limite": "DDL admite cargo/horas NULL con dedicación válida; no envío/aprobación HTTP.",
+      "sqlSha256": "243222a6ddb9bffa385d421b9290fd126545c2a9f6b73b765da02e553b309b80",
+      "esperado": {
+        "incompletas": 1
+      },
+      "psqlExit": 0,
+      "observado": {
+        "incompletas": 1
+      },
+      "reproducido": true
+    },
+    {
+      "id": "clave-parcial-habilidad-interes",
+      "hallazgos": ["A14"],
+      "clasificacion": "SQL",
+      "limite": "Extensión sintética del probe de PK parcial a Portal; no consulta HTTP.",
+      "sqlSha256": "d168af96da7cd0b7cf0f1ba1cfdafd247622bedcc98fb84c359166a09b9a4b8c",
+      "esperado": {
+        "relaciones": 2,
+        "eventos": 2,
+        "claves": 1,
+        "tipos": 2
+      },
+      "psqlExit": 0,
+      "observado": {
+        "relaciones": 2,
+        "eventos": 2,
+        "claves": 1,
+        "tipos": 2
+      },
+      "reproducido": true
+    },
+    {
+      "id": "perfil-multicoleccion-sql-analogo",
+      "hallazgos": ["P01"],
+      "clasificacion": "SQL",
+      "limite": "JOIN SQL sintético equivalente en cardinalidad; NO SQL capturado de EF ni tiempo productivo.",
+      "sqlSha256": "619434ae11c5102e3a374679be0df73b9811023e68b45eb4e633d12af05ddb37",
+      "esperado": {
+        "hijos": 15,
+        "combinaciones": 216
+      },
+      "psqlExit": 0,
+      "observado": {
+        "hijos": 15,
+        "combinaciones": 216
+      },
+      "reproducido": true
+    }
+  ],
+  "coberturaNoEjecutada": [
+    "API/HTTP y circuito C#; runner EF, histories y recursos compilados",
+    "Carreras A01/A02/A05/A06/A11/A12 y proveedor SeaweedFS real",
+    "SQL realmente emitido por EF para P01 (solo JOIN análogo)",
+    "Planes/repeticiones/costo de escritura P02/P03/P04 y catálogo global de auditoría",
+    "Correcciones GREEN, upgrade/no-op y diagnóstico operativo del candidato"
+  ],
+  "migraciones": [
+    {
+      "id": "20261005000000_BaselineIdentityYAudit",
+      "wrapper": "backend/src/ArsDocendi.Shared/Identity/Migrations/20261005000000_BaselineIdentityYAudit.cs",
+      "wrapperSha256": "9daf1085170154f7522bd4bfed9dd3cb0b8de3153bcb86c598033c5be50c275d",
+      "recursos": [
+        {
+          "ruta": "identity/001_identity_users.sql",
+          "sha256": "4b6a1d96ffc6941cad7c331b2945f468530a21aed07267148fa8d5aac0e3af66"
+        },
+        {
+          "ruta": "audit/001_audit_schema.sql",
+          "sha256": "c77d6582c1417c38e4ba04b43179d7bc5424791a5d490d080d4f69cef9f5b241"
+        },
+        {
+          "ruta": "identity/002_identity_autorizacion.sql",
+          "sha256": "276434558cb7ae4caca2dea3e7f3414ccb011d4fe80b167a546afba2b6680a7f"
+        },
+        {
+          "ruta": "identity/003_identity_catalogo_academico.sql",
+          "sha256": "4fd2fef26163beb240c45d759d46aa2206c58e67c1e2e9540d63d9eafe6d9516"
+        },
+        {
+          "ruta": "identity/004_identity_personas_ambitos.sql",
+          "sha256": "5378f4e0313057e8fd224da73045f9da466545b170c75ad1d0245d8f9544fe82"
+        },
+        {
+          "ruta": "identity/005_identity_integridad.sql",
+          "sha256": "949b0a2720b96460bcc5096f86b096b03ec19210dcf925c55185f4c18754a752"
+        },
+        {
+          "ruta": "identity/006_identity_catalogos.sql",
+          "sha256": "41e76bce2a83f9b7121b176170e4bd266a08639d73f6562c79533d8ff8cd2401"
+        },
+        {
+          "ruta": "identity/007_identity_audit_attach.sql",
+          "sha256": "28f1e22e5c61b59e04d7387ca2138724d8829016bda732256fa43841982e79c8"
+        }
+      ]
+    },
+    {
+      "id": "20261005000400_PermisosTareas",
+      "wrapper": "backend/src/ArsDocendi.Shared/Identity/Migrations/20261005000400_PermisosTareas.cs",
+      "wrapperSha256": "b6d56954b45df2bf6fe93137f4b1c627a162b2ab14881cb731398d9ed04acacb",
+      "recursos": [
+        {
+          "ruta": "identity/012_identity_permisos_tareas.sql",
+          "sha256": "3f32befa9d865ae70fc404679461ea4c17394570434114dd30b5c730f13ae595"
+        }
+      ]
+    },
+    {
+      "id": "20261005000500_CuentaMicrosoftUsuarios",
+      "wrapper": "backend/src/ArsDocendi.Shared/Identity/Migrations/20261005000500_CuentaMicrosoftUsuarios.cs",
+      "wrapperSha256": "38fe50aa884d05459697b0fab2a5903c42e2988759b044cbce8a0fed25074f9b",
+      "recursos": [
+        {
+          "ruta": "identity/013_identity_users_cuenta_microsoft.sql",
+          "sha256": "644ce445a96d69893c4bb26db9de074abd26a5bb9d7c3cc648d71ac77b0f4a8c"
+        }
+      ]
+    },
+    {
+      "id": "20261005000100_BaselineStorage",
+      "wrapper": "backend/src/ArsDocendi.Storage/Infrastructure/Migrations/20261005000100_BaselineStorage.cs",
+      "wrapperSha256": "2fd7b21d22a3b017ec5d30e5d9db3e326fd14f0f4b8ad5062a5e7bf50c69069b",
+      "recursos": [
+        {
+          "ruta": "storage/001_storage_archivos.sql",
+          "sha256": "7947721ee37ceda224cecab2e7577ce0a11aea2cab2d833ef43a4247c5f546e9"
+        },
+        {
+          "ruta": "storage/002_storage_audit_attach.sql",
+          "sha256": "8b3cb4e8ac90b974256486c653628f04b9aaae25795b887298277e334888e69e"
+        }
+      ]
+    },
+    {
+      "id": "20261005000200_BaselineDesignaciones",
+      "wrapper": "backend/src/Modules.Designaciones/Infrastructure/Migrations/20261005000200_BaselineDesignaciones.cs",
+      "wrapperSha256": "c1de65992989b395dd386508bf4ef59a30458c9e85871175e5cfdbc7f1425e0b",
+      "recursos": [
+        {
+          "ruta": "designaciones/001_designaciones_catalogos.sql",
+          "sha256": "650b2d97c8f36e3ae94662c415a5b9f74598b8d4ae029fd50a8eab807a804db6"
+        },
+        {
+          "ruta": "designaciones/002_designaciones_pedidos.sql",
+          "sha256": "87d692c2162688913ee3586136b3a7a983efbd437641342a1149b6e3d70acd7c"
+        },
+        {
+          "ruta": "designaciones/003_designaciones_documentacion_historial.sql",
+          "sha256": "713f6a510cf424d78025062bc7ca144235b74ee21fbaa835138949941eb1deba"
+        },
+        {
+          "ruta": "designaciones/004_designaciones_vigencias.sql",
+          "sha256": "d5f229f51795d55298a65ae27bd947a2bd58e1559bf7c5fcee3e5d0e6fac045c"
+        },
+        {
+          "ruta": "designaciones/005_designaciones_idempotencia.sql",
+          "sha256": "0ad65505fb5c1c2cbc0ac33c3aa19ac1905f4149aae95f3d976fe056a23a6bff"
+        },
+        {
+          "ruta": "designaciones/006_designaciones_integridad.sql",
+          "sha256": "8cc785862d57377049ac86f952bdd646b6ff9fab077e447c83f0f6d81809d72f"
+        },
+        {
+          "ruta": "designaciones/007_designaciones_catalogos.sql",
+          "sha256": "865c4e63e2e286b0e5c6924fa4104da4ce7e457bbb3313444865c16f605a3bdf"
+        },
+        {
+          "ruta": "designaciones/008_designaciones_audit_attach.sql",
+          "sha256": "5bfde2e7f18e1031b47e2fa9d51a0fdaec90667f5963dcbe65d97de13c9da0ab"
+        }
+      ]
+    },
+    {
+      "id": "20261005000300_BaselinePortal",
+      "wrapper": "backend/src/Modules.Portal/Infrastructure/Migrations/20261005000300_BaselinePortal.cs",
+      "wrapperSha256": "a0317a917420c524d9d0ab31c133d65b5815796c759e40c9c6b204ee4919b5da",
+      "recursos": [
+        {
+          "ruta": "portal/001_portal_perfil.sql",
+          "sha256": "042d34317d0f6e42a784d8802f2da68c09f93bfadb80915f59ecad10555b5315"
+        },
+        {
+          "ruta": "portal/002_portal_trayectoria.sql",
+          "sha256": "900b738b8b51b757e3f86db926a2ebbff7e75891768e9171f212666b66592b91"
+        },
+        {
+          "ruta": "portal/003_portal_proyectos_habilidades.sql",
+          "sha256": "5d9aa0497b8ba77f2c5b7cd54956a55a328d17e43c0e75d75e0ec5ba0f380d05"
+        },
+        {
+          "ruta": "portal/004_portal_integridad.sql",
+          "sha256": "02e27d4063f16d7a0f0b05332e658f8d0d6dbd0584f709bba29740318453e6aa"
+        },
+        {
+          "ruta": "portal/005_portal_audit_attach.sql",
+          "sha256": "d5915daca3ac17499ccd2a5870bda47ce9fae4dbd4a46f891f06a82735a77c34"
+        }
+      ]
+    },
+    {
+      "id": "20260924000100_SchemaTareas",
+      "wrapper": "backend/src/Modules.Tareas/Infrastructure/Migrations/20260924000100_SchemaTareas.cs",
+      "wrapperSha256": "83566161bf5a26e873ff2d8d4b806eda2fd7ddcb974021dc0a608b773038052f",
+      "recursos": [
+        {
+          "ruta": "tareas/001_tareas.sql",
+          "sha256": "cc0025f1a39c1cab853f4f5ffc988e08d3626355ab3f0b8a91911b092d002547"
+        }
+      ]
+    },
+    {
+      "id": "20260925000000_CatalogosTareas",
+      "wrapper": "backend/src/Modules.Tareas/Infrastructure/Migrations/20260925000000_CatalogosTareas.cs",
+      "wrapperSha256": "a4b13ea69cd7368cb88b0fcbc8b2f6e6c280eee7ad4d8ca8ef687479463f14a9",
+      "recursos": [
+        {
+          "ruta": "tareas/002_tareas_catalogos.sql",
+          "sha256": "295a289ac413107cc00d6382e1b5d3ace22b9a594cee92f02e566bf932c1b519"
+        }
+      ]
+    },
+    {
+      "id": "20260926000000_CatalogosTareasId",
+      "wrapper": "backend/src/Modules.Tareas/Infrastructure/Migrations/20260926000000_CatalogosTareasId.cs",
+      "wrapperSha256": "cb59cb9c4319fae5e6291f860bd055b3266bba11b28c7a2acf02a6d052dfb0cd",
+      "recursos": [
+        {
+          "ruta": "tareas/003_tareas_catalogos_id.sql",
+          "sha256": "88064e0061f3788e0866247cf552bf40da315f0977a8167f76bb6f2ef20d0e3a"
+        }
+      ]
+    }
+  ],
+  "servidor": "18.4 (Debian 18.4-1.pgdg13+1)",
+  "imagen": "sha256:a02db8cac496f15b094798a38254f14d6e00741f709360e5e00bb6668ea31636",
+  "preparacionSha256": "0a775d872e85b3b6d72ac3a3386b66368695b53c0bbd269672904f6f21da9707",
+  "cleanup": {
+    "contenedor": "auditoria-integridad-ed822f0e-2e4c-4e2d-8bc2-a8aab36c0311",
+    "exit": 1,
+    "ausente": true
+  },
+  "fin": "2026-10-13T16:53:48.443Z",
+  "total": 13,
+  "reproducidos": 13
+}

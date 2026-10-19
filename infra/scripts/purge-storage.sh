@@ -13,6 +13,7 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$scripts_dir/../compose/compose.storage.yml"
 storage_project="$(storage_project_for "$ambiente")"
 storage_scope="$(storage_scope_suffix_for "$ambiente")"
+configurar_capacidad_seaweedfs "$ambiente"
 bucket="${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}"
 network="${RED_DATOS:-arsdocendi-datos}"
 storage_host="$(seaweedfs_host_for "$ambiente")"
@@ -29,6 +30,8 @@ printf '%s\n' \
   "SEAWEEDFS_ROOT_ACCESS_KEY=$SEAWEEDFS_ROOT_ACCESS_KEY" \
   "SEAWEEDFS_ROOT_SECRET_KEY=$SEAWEEDFS_ROOT_SECRET_KEY" \
   "SEAWEEDFS_HOSTNAME=$storage_host" \
+  "SEAWEEDFS_VOLUME_MAX=$SEAWEEDFS_VOLUME_MAX" \
+  "SEAWEEDFS_VOLUME_SIZE_LIMIT_MB=$SEAWEEDFS_VOLUME_SIZE_LIMIT_MB" \
   "STORAGE_SCOPE=$storage_scope" \
   "RED_DATOS=$network" >"$storage_env_file"
 

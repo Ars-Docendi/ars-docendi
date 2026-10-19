@@ -74,9 +74,9 @@ public sealed class ServicioIngreso(
     public static bool EsCuentaPersonal(DatosCuentaMicrosoft cuenta) =>
         cuenta.TenantId == TenantCuentasPersonales;
 
-    // xms_edov cubre los dominios verificados por la organización. Para cuentas
-    // personales Microsoft verifica el mail al crearlas, pero no está garantizado
-    // que emita el claim: la PoC confirma si esta excepción hace falta.
+    // shortcut: las cuentas personales se aceptan sin xms_edov; quien crea primero una cuenta
+    // outlook/hotmail/live con el mail de un usuario sin vincular entra con sus roles.
+    // Subir cuando la PoC confirme que Microsoft emite xms_edov en cuentas personales. Pendiente, otra PR.
     private static bool MailVerificado(DatosCuentaMicrosoft cuenta) =>
         !string.IsNullOrWhiteSpace(cuenta.Email)
         && (cuenta.EmailDominioVerificado == true || EsCuentaPersonal(cuenta));

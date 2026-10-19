@@ -75,6 +75,8 @@ public sealed partial class ServicioRoles(
         CancellationToken ct)
     {
         Validar(datos.Nombre, datos.Ambito);
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM identity.roles WHERE id = {id} FOR UPDATE", ct);
         var rol = await ObtenerRequeridoAsync(id, true, ct);
         if (rol.EsSistema && (rol.Nombre != datos.Nombre.Trim()
             || rol.Descripcion != NormalizarOpcional(datos.Descripcion)
@@ -86,11 +88,17 @@ public sealed partial class ServicioRoles(
         {
             throw ConflictoNombre();
         }
+        if (rol.Ambito != datos.Ambito && await db.UsuarioRoles.AnyAsync(a => a.RolId == id, ct))
+        {
+            throw new ExcepcionAplicacion(TipoErrorAplicacion.Conflicto,
+                "identity-role-scope-conflict", "No se puede cambiar el ámbito de un rol con asignaciones vigentes.");
+        }
         repositorio.EsperarVersion(rol, datos.Version);
         rol.Nombre = datos.Nombre.Trim();
         rol.Descripcion = NormalizarOpcional(datos.Descripcion);
         if (!rol.EsSistema) rol.Ambito = datos.Ambito;
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return Mapear(rol);
     }
 

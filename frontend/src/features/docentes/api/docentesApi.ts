@@ -1,5 +1,6 @@
 import { apiClient } from "../../../shared/api/client";
 import type { DocenteMock, RolCatalogoDocente, RolDocente } from "../models";
+import { membresiaAGuardar } from "../../../shared/ui/membresias";
 
 interface DocenteDto {
   personaId: string;
@@ -29,6 +30,7 @@ interface DocenteDto {
     materiaId: string;
     materiaCodigo: string;
     materiaNombre: string;
+    carreraId: string;
     cargoId: string;
     cargoNombre: string;
     cargoAbreviatura: string;
@@ -41,6 +43,13 @@ export interface CatalogosDocentes {
   dedicaciones: { id: string; nombre: string; activo: boolean }[];
   roles: RolCatalogoDocente[];
   materias: { id: string; codigo: string; nombre: string; carreraId?: string | null }[];
+  materiasPlan: {
+    id: string;
+    codigo: string;
+    nombre: string;
+    carreraId?: string | null;
+    carreraNombre?: string | null;
+  }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string }[];
   personasElegibles: {
     id: string;
@@ -105,13 +114,10 @@ function payload(datos: Omit<DocenteMock, "id" | "is_active">, catalogos: Catalo
     fechaNacimiento: datos.fecha_nacimiento || null,
     telefono: datos.telefono || null,
     upn: datos.upn,
-    membresias: datos.membresias.map((membresia) => ({
-      rolId: membresia.rolId,
-      materiaId: membresia.materiaId || null,
-      carreraId: membresia.carreraId || null,
-    })),
+    membresias: datos.membresias.map((membresia) => membresiaAGuardar(membresia, catalogos.roles)),
     designaciones: datos.asignaciones.map((a) => ({
-      materiaId: catalogos.materias.find((m) => m.codigo === a.materia.codigo)?.id,
+      materiaId: a.materiaId,
+      carreraId: a.carreraId,
       cargoId: catalogos.cargos.find((c) => c.nombre === a.cargo)?.id,
       dedicacionId: a.dedicacionId ?? null,
       horas: a.horas,
@@ -137,10 +143,13 @@ function mapear(dto: DocenteDto): DocenteMock {
     roles: dto.roles.map((r) =>
       r.codigo === "jefe_catedra" ? "Jefe de Cátedra" : r.nombre,
     ) as RolDocente[],
-    membresias: dto.membresias,
+    membresias: dto.membresias.map((membresia) => ({ ...membresia })),
     asignaciones: dto.asignaciones.map((a) => ({
       id: a.id,
-      materia: { id: a.materiaId, codigo: a.materiaCodigo, nombre: a.materiaNombre },
+      materiaId: a.materiaId,
+      materiaCodigo: a.materiaCodigo,
+      materiaNombre: a.materiaNombre,
+      carreraId: a.carreraId,
       cargo: a.cargoNombre,
       cargoId: a.cargoId,
       cargoAbreviatura: a.cargoAbreviatura,

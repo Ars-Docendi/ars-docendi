@@ -93,7 +93,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static DesignacionesDbContext CrearDesignaciones(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<DesignacionesDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
             .Options;
         return new DesignacionesDbContext(opciones);
     }
@@ -101,7 +102,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static TareasDbContext CrearTareas(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<TareasDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", TareasDbContext.Schema))
             .Options;
         return new TareasDbContext(opciones);
     }
@@ -109,7 +111,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static PortalDbContext CrearPortal(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<PortalDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
             .Options;
         return new PortalDbContext(opciones);
     }

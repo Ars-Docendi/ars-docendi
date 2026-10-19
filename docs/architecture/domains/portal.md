@@ -38,6 +38,34 @@
 | PUT             | `/api/portal/perfil/contacto`, `/cv`, `/habilidades`, `/intereses`     | autenticado | Actualización independiente |
 | POST/PUT/DELETE | `/api/portal/perfil/{experiencia,educacion,certificaciones,proyectos}` | autenticado | CRUD de colecciones         |
 
+## Lecturas, versiones y referencias documentales
+
+El perfil completo se obtiene mediante seis SELECT split de EF bajo una
+transacción `REPEATABLE READ`, limitada a PostgreSQL. La metadata de archivos se
+resuelve fuera de ese snapshot en un lote de IDs mediante Storage.Contracts. No
+se promete una transacción distribuida sobre bytes. El actor se resuelve por
+cuenta concreta; las mutaciones obtienen la sección o el ítem pertinente, no el
+perfil con todas sus colecciones.
+
+Contacto, CV, experiencias, educaciones, certificaciones y proyectos exponen
+`version` basada en `xmin`; las mutaciones de filas existentes exigen ese token.
+Habilidades e intereses tienen contadores independientes en el perfil. Una
+intención obsoleta responde `409 concurrency-conflict` y el frontend invalida la
+lectura sin retry ciego. Las altas incidentales de perfil y términos usan UPSERT;
+la unicidad incidental no permite pisar una sección concurrente.
+
+La asociación de un archivo confirmado comparte la exclusión por archivo y la
+transacción con Storage mediante el participante local. Reemplazar o eliminar
+CV/documento confirma primero la desvinculación: si un pedido conserva una
+referencia, conserva también los bytes y su descarga autorizada. Los fallos de
+consulta de referencias impiden borrar. No se agrega una FK intermodular ni se
+inventan bytes para una URI legacy.
+
+Índices SQL incrementales por `perfil_id` cubren experiencias, educaciones,
+certificaciones y proyectos. Las pruebas de rendimiento mantienen contenido y
+cardinalidad, comparan planes/buffers y costos de escritura; sus tiempos no son
+un SLA productivo.
+
 ## Reglas de negocio
 
 Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.

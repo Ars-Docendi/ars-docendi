@@ -3,14 +3,14 @@ using System.Text.Json.Serialization;
 namespace Modules.Portal.Contracts.Dtos;
 
 public sealed record PerfilInstitucionalDto(string Nombre, string Apellido, string Upn, string Documento, string Legajo, string Cuil);
-public sealed record ContactoDto(string? Telefono, string? Mail);
-public sealed record CvDto(Guid ArchivoId, string Nombre, DateOnly FechaCarga, long TamanoBytes, string Estado);
+public sealed record ContactoDto(string? Telefono, string? Mail, uint? Version = null);
+public sealed record CvDto(Guid ArchivoId, string Nombre, DateOnly FechaCarga, long TamanoBytes, string Estado, uint? Version = null);
 public sealed record PeriodoDto(DateOnly Desde, DateOnly? Hasta);
-public sealed record ExperienciaDto(Guid Id, string Puesto, string Organizacion, string Descripcion, DateOnly Desde, DateOnly? Hasta);
-public sealed record EducacionDto(Guid Id, string Nivel, string Carrera, string Institucion, DateOnly Desde, DateOnly? Hasta);
-public sealed record CertificacionDto(Guid Id, string Nombre, string Emisor, DateOnly Fecha, DateOnly? Vencimiento);
+public sealed record ExperienciaDto(Guid Id, string Puesto, string Organizacion, string Descripcion, DateOnly Desde, DateOnly? Hasta, uint? Version = null);
+public sealed record EducacionDto(Guid Id, string Nivel, string Carrera, string Institucion, DateOnly Desde, DateOnly? Hasta, uint? Version = null);
+public sealed record CertificacionDto(Guid Id, string Nombre, string Emisor, DateOnly Fecha, DateOnly? Vencimiento, uint? Version = null);
 public sealed record DocumentoProyectoDto(Guid ArchivoId, string Nombre, DateOnly FechaCarga, long TamanoBytes, string Estado);
-public sealed record ProyectoDto(Guid Id, string Nombre, string Rol, string Descripcion, DateOnly Desde, DateOnly? Hasta, DocumentoProyectoDto? Documento, string? Doi);
+public sealed record ProyectoDto(Guid Id, string Nombre, string Rol, string Descripcion, DateOnly Desde, DateOnly? Hasta, DocumentoProyectoDto? Documento, string? Doi, uint? Version = null);
 public sealed record TagDto(string Termino, bool Sugerido);
 
 public sealed record PerfilDocenteDto(
@@ -22,13 +22,16 @@ public sealed record PerfilDocenteDto(
     IReadOnlyList<CertificacionDto> Certificaciones,
     IReadOnlyList<ProyectoDto> Proyectos,
     IReadOnlyList<TagDto> Habilidades,
-    IReadOnlyList<TagDto> Intereses);
+    IReadOnlyList<TagDto> Intereses,
+    long? VersionHabilidades = null,
+    long? VersionIntereses = null);
 
-public sealed record GuardarContactoDto(string? Telefono, string? Mail);
+public sealed record GuardarContactoDto(string? Telefono, string? Mail, uint? Version = null);
 
 public sealed record GuardarCvDto
 {
     public Guid ArchivoId { get; init; }
+    public uint? Version { get; init; }
     // Constructor de compatibilidad para código interno previo al flujo de archivos.
     // No forma parte del contrato HTTP nuevo y el servicio no lo acepta como carga real.
     public string? LegacyNombre { get; init; }
@@ -45,12 +48,13 @@ public sealed record GuardarCvDto
     }
 }
 
-public sealed record GuardarExperienciaDto(string Puesto, string Organizacion, string Descripcion, DateOnly Desde, DateOnly? Hasta);
-public sealed record GuardarEducacionDto(string Nivel, string Carrera, string Institucion, DateOnly Desde, DateOnly? Hasta);
-public sealed record GuardarCertificacionDto(string Nombre, string Emisor, DateOnly Fecha, DateOnly? Vencimiento);
+public sealed record GuardarExperienciaDto(string Puesto, string Organizacion, string Descripcion, DateOnly Desde, DateOnly? Hasta, uint? Version = null);
+public sealed record GuardarEducacionDto(string Nivel, string Carrera, string Institucion, DateOnly Desde, DateOnly? Hasta, uint? Version = null);
+public sealed record GuardarCertificacionDto(string Nombre, string Emisor, DateOnly Fecha, DateOnly? Vencimiento, uint? Version = null);
 
 public sealed record GuardarProyectoDto
 {
+    public uint? Version { get; init; }
     public string Nombre { get; init; } = string.Empty;
     public string Rol { get; init; } = string.Empty;
     public string Descripcion { get; init; } = string.Empty;
@@ -82,4 +86,4 @@ public sealed record GuardarProyectoDto
     }
 }
 
-public sealed record GuardarTagsDto(IReadOnlyList<string> Terminos);
+public sealed record GuardarTagsDto(IReadOnlyList<string> Terminos, long? Version = null);

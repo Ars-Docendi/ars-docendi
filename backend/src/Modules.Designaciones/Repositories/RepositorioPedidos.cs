@@ -5,7 +5,7 @@ using Npgsql;
 
 namespace Modules.Designaciones.Repositories;
 
-internal sealed class RepositorioPedidos(DesignacionesDbContext db)
+internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
 {
     /// <summary>
     /// Nombre del índice único parcial que impone BR-designaciones-001. Debe coincidir
@@ -23,9 +23,6 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
           .Include(p => p.Periodo)
           .AsSplitQuery()
           .FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
-
-    public Task<Pedido?> ObtenerLivianoAsync(Guid pedidoId, CancellationToken ct) =>
-        db.Pedidos.FirstOrDefaultAsync(p => p.Id == pedidoId, ct);
 
     public Task<bool> ExisteVivoParaPersonaEnPeriodoAsync(
         Guid periodoId, Guid personaId, Guid? exceptoPedidoId, CancellationToken ct) =>
@@ -52,27 +49,22 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
-                .Include(p => p.Adjuntos)
-                .Include(p => p.Historial)
-                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId && materiaIds.Contains(p.MateriaId))
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
                 .ToListAsync(ct);
 
-    // La carrera del pedido se deriva de identity.materias. Se resuelve con una
-    // subconsulta en vez de desnormalizar carrera_id en pedidos: data-model.md sólo
-    // tolera created_at como denormalización.
     public async Task<IReadOnlyList<Pedido>> ListarPorCarrerasAsync(
-        Guid periodoId, IReadOnlyCollection<Guid> carreraIds, CancellationToken ct)
-    {
-        var materiasDeLasCarreras = db.Database
-            .SqlQuery<Guid>($"SELECT id FROM identity.materias WHERE carrera_id = ANY({carreraIds.ToArray()})");
-
-        var materiaIds = await materiasDeLasCarreras.ToListAsync(ct);
-
-        return await ListarPorMateriasAsync(periodoId, materiaIds, ct);
-    }
+        Guid periodoId, IReadOnlyCollection<Guid> carreraIds, CancellationToken ct) =>
+        await db.Pedidos
+                .AsNoTracking()
+                .Include(p => p.Periodo)
+                .Include(p => p.CargoSolicitado)
+          .Include(p => p.DedicacionSolicitadaCatalogo)
+                .Where(p => p.PeriodoId == periodoId && carreraIds.Contains(p.CarreraId))
+                .OrderByDescending(p => p.Prioritario)
+                .ThenByDescending(p => p.CreadoEn)
+                .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Pedido>> ListarDelPeriodoAsync(Guid periodoId, CancellationToken ct) =>
         await db.Pedidos
@@ -80,29 +72,10 @@ internal sealed class RepositorioPedidos(DesignacionesDbContext db)
                 .Include(p => p.Periodo)
                 .Include(p => p.CargoSolicitado)
           .Include(p => p.DedicacionSolicitadaCatalogo)
-                .Include(p => p.Adjuntos)
-                .Include(p => p.Historial)
-                .AsSplitQuery()
                 .Where(p => p.PeriodoId == periodoId)
                 .OrderByDescending(p => p.Prioritario)
                 .ThenByDescending(p => p.CreadoEn)
                 .ToListAsync(ct);
-
-    public async Task<Guid> ObtenerCarreraDelPedidoAsync(Guid pedidoId, CancellationToken ct)
-    {
-        var carreras = await db.Database
-            .SqlQuery<Guid>($"""
-                SELECT m.carrera_id
-                  FROM designaciones.pedidos p
-                  JOIN identity.materias m ON m.id = p.materia_id
-                 WHERE p.id = {pedidoId}
-                """)
-            .ToListAsync(ct);
-
-        return carreras.Count == 1
-            ? carreras[0]
-            : throw new ErrorDominioPedido($"No se pudo resolver la carrera del pedido {pedidoId}.");
-    }
 
     public async Task<string> SiguienteNumeroAsync(CancellationToken ct)
     {
