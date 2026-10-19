@@ -114,7 +114,7 @@ internal sealed partial class ServicioPedidos(
         }
         var archivos = await ValidarDatosAsync(datos, actor, ct);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
-            datos.PeriodoId, datos.PersonaId.Value, pedidoId, ct))
+            datos.PeriodoId, personaId, pedidoId, ct))
         {
             throw new ErrorPedidoDuplicado(
                 "Ya existe un pedido en curso para ese docente en el período [BR-designaciones-001].");

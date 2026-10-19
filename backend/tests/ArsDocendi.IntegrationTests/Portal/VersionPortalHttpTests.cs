@@ -18,7 +18,8 @@ public sealed class VersionPortalHttpTests(PostgresFixture postgres) : ClasePost
         await using var conexion = await AbrirConexionAsync();
         await using var seed = new NpgsqlCommand(await File.ReadAllTextAsync(Path.Combine(Raiz(), "infra/scripts/seed-data/sintetico.sql"), ct), conexion);
         await seed.ExecuteNonQueryAsync(ct);
-        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        using var fabrica = new WebApplicationFactory<Program>();
+        using var host = fabrica.WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Development"); b.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             b.UseSetting("DevelopmentAuthentication:Enabled", "true");
@@ -44,7 +45,8 @@ public sealed class VersionPortalHttpTests(PostgresFixture postgres) : ClasePost
         await using var conexion = await AbrirConexionAsync();
         await using var seed = new NpgsqlCommand(await File.ReadAllTextAsync(Path.Combine(Raiz(), "infra/scripts/seed-data/sintetico.sql"), ct), conexion);
         await seed.ExecuteNonQueryAsync(ct);
-        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
+        using var fabrica = new WebApplicationFactory<Program>();
+        using var host = fabrica.WithWebHostBuilder(b =>
         {
             b.UseEnvironment("Development"); b.UseSetting("ConnectionStrings:ArsDocendi", Cadena);
             b.UseSetting("DevelopmentAuthentication:Enabled", "true");

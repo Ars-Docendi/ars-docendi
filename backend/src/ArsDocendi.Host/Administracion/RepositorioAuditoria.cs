@@ -1,5 +1,6 @@
 using ArsDocendi.Shared.Identity;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace ArsDocendi.Host.Administracion;
 
@@ -101,15 +102,15 @@ public sealed class RepositorioAuditoria(IdentityDbContext db) : IRepositorioAud
         if (registros.Count > 0)
         {
             var ids = registros.Select(r => r.Registro.Id).ToArray();
-            var metadatos = await db.Database.SqlQuery<MetadatosClaveAuditoria>($"""
+            var metadatos = await db.Database.SqlQueryRaw<MetadatosClaveAuditoria>("""
                 SELECT id AS "Id",
                     CASE WHEN row_pk_format<>'legacy' THEN row_pk_format
                         WHEN audit.resolved_key(schema_name,table_name,old_row,new_row,row_key) IS NOT NULL THEN 'legacy-recovered'
                         WHEN (schema_name,table_name) IN (('identity','rol_permisos'),('portal','docente_habilidades'),('tareas','tarea_relaciones')) THEN 'legacy-group'
                         ELSE 'legacy' END AS "FormatoClave",
                     audit.resolved_key(schema_name,table_name,old_row,new_row,row_key)::text AS "ClaveCompleta"
-                FROM audit.change_log WHERE id=ANY({ids})
-                """).ToDictionaryAsync(x => x.Id, ct);
+                FROM audit.change_log WHERE id=ANY(@ids)
+                """, new NpgsqlParameter("ids", ids)).ToDictionaryAsync(x => x.Id, ct);
             registros = registros.Select(r => r with
             {
                 FormatoClave = metadatos[r.Registro.Id].FormatoClave,
