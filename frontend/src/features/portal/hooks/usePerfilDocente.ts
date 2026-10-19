@@ -45,7 +45,9 @@ export function usePerfilDocente() {
       setGuardado(false);
       setError(null);
       void Promise.all([
-        siguiente.contacto !== anterior.contacto ? guardarContacto(siguiente.contacto) : undefined,
+        siguiente.contacto !== anterior.contacto
+          ? guardarContacto({ ...siguiente.contacto, version: anterior.contacto.version })
+          : undefined,
         undefined,
         sincronizar(
           anterior.experiencia,
@@ -79,12 +81,14 @@ export function usePerfilDocente() {
           ? reemplazarTags(
               "habilidades",
               siguiente.habilidades.map((x) => x.termino),
+              anterior.versionHabilidades,
             )
           : undefined,
         siguiente.intereses !== anterior.intereses
           ? reemplazarTags(
               "intereses",
               siguiente.intereses.map((x) => x.termino),
+              anterior.versionIntereses,
             )
           : undefined,
       ])
@@ -94,6 +98,7 @@ export function usePerfilDocente() {
         })
         .catch((causa) => {
           cliente.setQueryData([...perfilKey, upn], anterior);
+          void cliente.invalidateQueries({ queryKey: perfilKey });
           setError(mensajeProblema(causa, "No se pudieron guardar los cambios."));
         });
     },
@@ -118,11 +123,12 @@ export function usePerfilDocente() {
       cliente.setQueryData([...perfilKey, upn], { ...anterior, cv: pendiente });
       try {
         setError(null);
-        await guardarCv(archivo);
+        await guardarCv(archivo, anterior.cv?.version);
         await cliente.invalidateQueries({ queryKey: perfilKey });
         setGuardado(true);
       } catch (causa) {
         cliente.setQueryData([...perfilKey, upn], anterior);
+        void cliente.invalidateQueries({ queryKey: perfilKey });
         setError(mensajeProblema(causa, "No se pudo confirmar el CV."));
       }
     },
@@ -131,13 +137,14 @@ export function usePerfilDocente() {
   const borrarCv = useCallback(async () => {
     try {
       setError(null);
-      await eliminarCv();
+      await eliminarCv(consulta.data?.cv?.version);
       await cliente.invalidateQueries({ queryKey: perfilKey });
       setGuardado(true);
     } catch (causa) {
+      void cliente.invalidateQueries({ queryKey: perfilKey });
       setError(mensajeProblema(causa, "No se pudo eliminar el CV."));
     }
-  }, [cliente]);
+  }, [cliente, consulta.data]);
   return {
     estado,
     perfil: consulta.data ?? null,
@@ -150,21 +157,23 @@ export function usePerfilDocente() {
   };
 }
 
-async function sincronizar<T extends { id: string }>(
+async function sincronizar<T extends { id: string; version?: number | null }>(
   anterior: T[],
   siguiente: T[],
   crear: (datos: Omit<T, "id">) => Promise<unknown>,
   editar: (id: string, datos: Omit<T, "id">) => Promise<unknown>,
-  eliminar: (id: string) => Promise<void>,
+  eliminar: (id: string, version?: number | null) => Promise<void>,
 ) {
   await Promise.all([
     ...siguiente
       .filter((item) => anterior.find((x) => x.id === item.id) !== item)
       .map(({ id, ...datos }) =>
-        anterior.some((x) => x.id === id) ? editar(id, datos) : crear(datos),
+        anterior.some((x) => x.id === id)
+          ? editar(id, { ...datos, version: anterior.find((x) => x.id === id)?.version })
+          : crear(datos),
       ),
     ...anterior
       .filter((item) => !siguiente.some((x) => x.id === item.id))
-      .map((item) => eliminar(item.id)),
+      .map((item) => eliminar(item.id, item.version)),
   ]);
 }

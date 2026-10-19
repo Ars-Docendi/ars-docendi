@@ -1,6 +1,8 @@
 # Dependency graph
 
-**Reglas**: grafo dirigido acíclico (DAG). Los módulos solo dependen de `ArsDocendi.Shared` y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
+**Reglas**: grafo dirigido acíclico (DAG). Los módulos dependen de infraestructura transversal (`ArsDocendi.Shared`, `ArsDocendi.Migraciones`) y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
+
+`ArsDocendi.Migraciones` contiene el adaptador EF reutilizable y la salida CLI. Depende de Shared; Host, Storage y los módulos lo consumen. Shared conserva DTOs/contratos puros y utilidades de recursos, sin I/O adicional hacia los contextos de módulos. La registración de Identity/Audit se realiza con `AddMigracionesIdentity` después de `AddArsDocendiShared`.
 
 `ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4 enmendado), así que suma dependencias de **paquete** — EF Core y Npgsql — pero ninguna de proyecto: el grafo entre proyectos no cambia. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
 
@@ -29,6 +31,13 @@ flowchart TD
     Tareas["Modules.Tareas"]
   end
 
+  Host --> Migraciones["ArsDocendi.Migraciones"]
+  Migraciones --> Shared
+  Storage --> Migraciones
+  Designaciones --> Migraciones
+  Aulas --> Migraciones
+  Portal --> Migraciones
+  Tareas --> Migraciones
   Host --> Designaciones
   Host --> Storage
   Host --> Aulas
@@ -61,6 +70,12 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 
 ## Edge registry
 
+| From                               | To                       | Vía               | Notas                                                  |
+| ---------------------------------- | ------------------------ | ----------------- | ------------------------------------------------------ |
+| `ArsDocendi.Host`                  | `ArsDocendi.Migraciones` | project reference | CLI y registración del migrador Identity               |
+| `ArsDocendi.Migraciones`           | `ArsDocendi.Shared`      | project reference | Contratos, recursos y contexto Identity                |
+| `ArsDocendi.Storage` y `Modules.*` | `ArsDocendi.Migraciones` | project reference | Adaptador EF reutilizable, sin acceder a otros módulos |
+
 | From                    | To                                      | Vía               | Notas                                                                                              |
 | ----------------------- | --------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | `ArsDocendi.Host`       | `Modules.Designaciones`                 | project reference | Hosting + composition root                                                                         |
@@ -90,6 +105,13 @@ Dependencias de paquete de `ArsDocendi.Shared` (no son edges del grafo de proyec
 | `Microsoft.EntityFrameworkCore`            | `IdentityDbContext` — schemas `identity` y `audit` |
 | `Microsoft.EntityFrameworkCore.Relational` | `AuditDbConnectionInterceptor`                     |
 | `Npgsql.EntityFrameworkCore.PostgreSQL`    | Provider de PostgreSQL para ese contexto           |
+
+Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edges del grafo):
+
+| Paquete                                             | Razón                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------- |
+| `Microsoft.AspNetCore.Authentication.OpenIdConnect` | Intercambio OpenID Connect con Microsoft Entra ID                         |
+| `Microsoft.IdentityModel.Validators`                | Validación del issuer multi-tenant (`common`): cada tenant firma distinto |
 
 ## Frontera de lectura sobre `identity`
 

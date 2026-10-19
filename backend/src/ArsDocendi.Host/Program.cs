@@ -1,27 +1,51 @@
 using ArsDocendi.Host.Administracion;
 using ArsDocendi.Host.Api;
+using ArsDocendi.Host.Autenticacion;
 using ArsDocendi.Host.Desarrollo;
+using ArsDocendi.Host.Despliegue;
 using ArsDocendi.Shared;
+using ArsDocendi.Migraciones;
+using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Persistencia;
-using Microsoft.AspNetCore.Authentication;
+using ArsDocendi.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
-using ArsDocendi.Storage;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+SolicitudMigracion solicitud;
+try { solicitud = SolicitudMigracion.Parsear(args); }
+catch (ArgumentException)
+{
+    Console.Error.WriteLine("Argumentos de migraciones inválidos; elegir un modo único y una ruta segura.");
+    Environment.ExitCode = 2;
+    return;
+}
+var builder = WebApplication.CreateBuilder(solicitud.Modo == ModoMigracion.Ninguno ? args : []);
 
-builder.Host.UseSerilog((ctx, lc) => lc
-    .ReadFrom.Configuration(ctx.Configuration)
-    .Enrich.FromLogContext()
-    .WriteTo.Console());
+builder.Host.UseSerilog((ctx, lc) =>
+{
+    if (solicitud.Modo != ModoMigracion.Ninguno)
+        lc.MinimumLevel.Fatal().WriteTo.Console(standardErrorFromLevel: Serilog.Events.LogEventLevel.Verbose);
+    else
+        lc.ReadFrom.Configuration(ctx.Configuration)
+            .Enrich.FromLogContext()
+            .WriteTo.Console();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
+
+// Orígenes del front (Vite en desarrollo). Sin configuración no se habilita ninguno.
+var origenesPermitidos = builder.Configuration.GetSection("Cors:OrigenesPermitidos").Get<string[]>() ?? [];
+if (origenesPermitidos.Length > 0)
+{
+    builder.Services.AddCors(opciones => opciones.AddDefaultPolicy(politica =>
+        politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod()));
+}
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
 builder.Services.AddScoped<ServicioDocentes>();
 builder.Services.AddScoped<ServicioUsuariosAdministracion>();
@@ -30,15 +54,11 @@ builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>(
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();
 builder.Services.AddScoped<ServicioAuditoria>();
-var autenticacionDesarrolloHabilitada = !builder.Environment.IsProduction()
-    && builder.Configuration.GetValue<bool>($"{AutenticacionDesarrolloOptions.Seccion}:Enabled");
-if (autenticacionDesarrolloHabilitada)
-{
-    builder.Services
-        .AddAuthentication(AutenticacionDesarrolloHandler.Esquema)
-        .AddScheme<AuthenticationSchemeOptions, AutenticacionDesarrolloHandler>(
-            AutenticacionDesarrolloHandler.Esquema, _ => { });
-}
+var modoMigracion = solicitud.Modo != ModoMigracion.Ninguno;
+var accesos = builder.AddAutenticacionArsDocendi(
+    exigirMicrosoft: builder.Environment.IsProduction() && !modoMigracion);
+builder.Services.AddProxyInverso();
+builder.Services.AddClavesDataProtection(builder.Configuration);
 builder.Services.AddAuthorization(opciones =>
 {
     foreach (var permiso in ArsDocendi.Shared.Auth.Permisos.Todos)
@@ -56,6 +76,7 @@ builder.Services.AddSwaggerGen(o =>
 
 builder.Services
     .AddArsDocendiShared(builder.Configuration)
+    .AddMigracionesIdentity()
     .AddAlmacenamientoModule(builder.Configuration)
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
@@ -64,26 +85,38 @@ builder.Services
 
 var app = builder.Build();
 
-// Arranque one-shot de migraciones: aplica las migraciones de cada módulo y
-// termina con exit 0, sin levantar el web server. Lo invoca la infra de deploy
-// (spin-up.sh -> `dotnet ArsDocendi.Host.dll --migrate`). El Host resuelve cada
-// módulo solo a través de IMigradorModulo; nunca toca los DbContext internos.
-if (args.Contains("--migrate"))
+// Todos los modos CLI terminan sin listener; el Host sólo consume contratos públicos.
+if (solicitud.Modo != ModoMigracion.Ninguno)
 {
     using var scope = app.Services.CreateScope();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    foreach (var migrador in scope.ServiceProvider.GetServices<IMigradorModulo>())
-    {
-        logger.LogInformation("Aplicando migraciones de {Migrador}", migrador.GetType().Name);
-        await migrador.MigrarAsync(CancellationToken.None);
-    }
+    Environment.ExitCode = await RunnerMigraciones.EjecutarAsync(solicitud,
+        scope.ServiceProvider.GetServices<IMigradorModulo>().ToArray(),
+        builder.Configuration.GetConnectionString("ArsDocendi") ?? string.Empty,
+        Environment.GetEnvironmentVariable("RELEASE_SHA")
+            ?? Environment.GetEnvironmentVariable("GITHUB_SHA") ?? "local",
+        CancellationToken.None,
+        scope.ServiceProvider.GetServices<IDiagnosticoIntegridadModulo>().ToArray(),
+        builder.Environment.EnvironmentName);
 
-    logger.LogInformation("Migraciones aplicadas; el proceso termina sin abrir el listener");
+    // El bootstrap escribe datos: sólo después de aplicar correctamente las migraciones,
+    // nunca durante estado, preview de scripts ni verificación de recursos sin DB.
+    if (solicitud.Modo == ModoMigracion.Migrar && Environment.ExitCode == 0)
+    {
+        await scope.ServiceProvider.GetRequiredService<ServicioAdministradorInicial>().AsegurarAsync(
+            app.Configuration.GetSection(DatosAdministradorInicial.Seccion).Get<DatosAdministradorInicial>(),
+            CancellationToken.None);
+    }
     return;
 }
 
+app.UseForwardedHeaders();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();
+
+if (origenesPermitidos.Length > 0)
+{
+    app.UseCors();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -91,15 +124,23 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Alguno)
 {
     app.UseAuthentication();
 }
+if (accesos.Microsoft)
+{
+    app.UseAntifalsificacionSesion();
+}
 app.UseAuthorization();
 app.MapControllers();
-if (autenticacionDesarrolloHabilitada)
+if (accesos.Desarrollo)
 {
     app.MapIdentidadesDesarrollo();
+}
+if (accesos.Microsoft)
+{
+    app.MapAutenticacionMicrosoft();
 }
 
 app.Run();

@@ -59,7 +59,7 @@ public sealed class ProveedorSeaweedFs(IAmazonS3 cliente) : IProveedorObjetos
                 Prefix = prefijo,
                 ContinuationToken = token,
             }, ct);
-            foreach (var objeto in respuesta.S3Objects)
+            foreach (var objeto in respuesta.S3Objects ?? [])
             {
                 var modificado = objeto.LastModified ?? DateTime.UtcNow;
                 resultado.Add(new ObjetoListado(objeto.Key, new DateTimeOffset(modificado.ToUniversalTime())));

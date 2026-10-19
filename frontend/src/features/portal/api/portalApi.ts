@@ -20,25 +20,31 @@ export async function guardarContacto(datos: DatosContacto) {
   return (await apiClient.put("/api/portal/perfil/contacto", datos)).data;
 }
 
-export async function guardarCv(archivo: File | { nombre: string }) {
+export async function guardarCv(archivo: File | { nombre: string }, version?: number | null) {
   if (!("arrayBuffer" in archivo)) {
-    return (await apiClient.put("/api/portal/perfil/cv", { nombre: archivo.nombre, uri: null }))
-      .data;
+    return (
+      await apiClient.put("/api/portal/perfil/cv", { nombre: archivo.nombre, uri: null, version })
+    ).data;
   }
   const confirmado = await subirArchivo("cv", archivo);
   return (
     await apiClient.put("/api/portal/perfil/cv", {
       archivoId: confirmado.id,
+      version,
     })
   ).data;
 }
 
-export async function eliminarCv() {
-  await apiClient.delete("/api/portal/perfil/cv");
+export async function eliminarCv(version?: number | null) {
+  await apiClient.delete("/api/portal/perfil/cv", { params: { version } });
 }
 
-export async function reemplazarTags(tipo: "habilidades" | "intereses", terminos: string[]) {
-  await apiClient.put(`/api/portal/perfil/${tipo}`, { terminos });
+export async function reemplazarTags(
+  tipo: "habilidades" | "intereses",
+  terminos: string[],
+  version?: number | null,
+) {
+  await apiClient.put(`/api/portal/perfil/${tipo}`, { terminos, version });
 }
 
 export async function crearExperiencia(datos: DatosExperiencia) {
@@ -47,8 +53,8 @@ export async function crearExperiencia(datos: DatosExperiencia) {
 export async function editarExperiencia(id: string, datos: DatosExperiencia) {
   return (await apiClient.put(`/api/portal/perfil/experiencia/${id}`, payloadPeriodo(datos))).data;
 }
-export async function eliminarExperiencia(id: string) {
-  await apiClient.delete(`/api/portal/perfil/experiencia/${id}`);
+export async function eliminarExperiencia(id: string, version?: number | null) {
+  await apiClient.delete(`/api/portal/perfil/experiencia/${id}`, { params: { version } });
 }
 
 export async function crearEducacion(datos: DatosEducacion) {
@@ -57,8 +63,8 @@ export async function crearEducacion(datos: DatosEducacion) {
 export async function editarEducacion(id: string, datos: DatosEducacion) {
   return (await apiClient.put(`/api/portal/perfil/educacion/${id}`, payloadPeriodo(datos))).data;
 }
-export async function eliminarEducacion(id: string) {
-  await apiClient.delete(`/api/portal/perfil/educacion/${id}`);
+export async function eliminarEducacion(id: string, version?: number | null) {
+  await apiClient.delete(`/api/portal/perfil/educacion/${id}`, { params: { version } });
 }
 
 export async function crearCertificacion(datos: DatosCertificacion) {
@@ -67,8 +73,8 @@ export async function crearCertificacion(datos: DatosCertificacion) {
 export async function editarCertificacion(id: string, datos: DatosCertificacion) {
   return (await apiClient.put(`/api/portal/perfil/certificaciones/${id}`, datos)).data;
 }
-export async function eliminarCertificacion(id: string) {
-  await apiClient.delete(`/api/portal/perfil/certificaciones/${id}`);
+export async function eliminarCertificacion(id: string, version?: number | null) {
+  await apiClient.delete(`/api/portal/perfil/certificaciones/${id}`, { params: { version } });
 }
 
 export async function crearProyecto(datos: DatosProyecto) {
@@ -78,8 +84,8 @@ export async function editarProyecto(id: string, datos: DatosProyecto) {
   return (await apiClient.put(`/api/portal/perfil/proyectos/${id}`, await payloadProyecto(datos)))
     .data;
 }
-export async function eliminarProyecto(id: string) {
-  await apiClient.delete(`/api/portal/perfil/proyectos/${id}`);
+export async function eliminarProyecto(id: string, version?: number | null) {
+  await apiClient.delete(`/api/portal/perfil/proyectos/${id}`, { params: { version } });
 }
 
 async function payloadProyecto({ documento, ...datos }: DatosProyecto) {

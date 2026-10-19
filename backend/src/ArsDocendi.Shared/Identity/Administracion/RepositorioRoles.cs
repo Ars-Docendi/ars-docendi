@@ -39,7 +39,7 @@ internal sealed class RepositorioRoles(IdentityDbContext db) : IRepositorioRoles
 
     public Task<bool> ExisteNombreAsync(string nombre, Guid? exceptoId, CancellationToken ct) =>
         db.Roles.AsNoTracking().AnyAsync(r => r.Activo
-            && r.Nombre.ToLower() == nombre.Trim().ToLower()
+            && r.Nombre.Trim().ToLower() == nombre.Trim().ToLower()
             && r.Id != exceptoId, ct);
 
     public Task<bool> ExisteCodigoAsync(string codigo, Guid? exceptoId, CancellationToken ct) =>
@@ -78,12 +78,22 @@ internal sealed class RepositorioRoles(IdentityDbContext db) : IRepositorioRoles
         }
         catch (DbUpdateException error) when (error.InnerException is PostgresException pg)
         {
-            if (pg.ConstraintName == "roles_code_key")
+            if (pg.SqlState == PostgresErrorCodes.UniqueViolation && pg.ConstraintName == "roles_code_key")
             {
                 throw new ExcepcionAplicacion(
                     TipoErrorAplicacion.Conflicto,
                     "identity-role-code-conflict",
                     "Ya existe un rol con ese código.");
+            }
+            if (pg.SqlState == PostgresErrorCodes.UniqueViolation && pg.ConstraintName == "roles_nombre_activo_normalizado_key")
+            {
+                throw new ExcepcionAplicacion(TipoErrorAplicacion.Conflicto,
+                    "identity-role-name-conflict", "Ya existe un rol activo con ese nombre.");
+            }
+            if (pg.SqlState == PostgresErrorCodes.CheckViolation && pg.ConstraintName == "roles_scope_asignaciones_vivas")
+            {
+                throw new ExcepcionAplicacion(TipoErrorAplicacion.Conflicto,
+                    "identity-role-scope-conflict", "No se puede cambiar el ámbito con asignaciones vigentes.");
             }
             throw;
         }

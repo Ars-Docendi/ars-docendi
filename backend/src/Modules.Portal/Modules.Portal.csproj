@@ -19,6 +19,7 @@
     <ProjectReference Include="..\ArsDocendi.Shared\ArsDocendi.Shared.csproj" />
     <ProjectReference Include="..\ArsDocendi.Storage.Contracts\ArsDocendi.Storage.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Portal.Contracts\Modules.Portal.Contracts.csproj" />
+    <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,8 +28,7 @@
   </ItemGroup>
 
   <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
-    <Error Condition="'@(SqlPortal)' == ''"
-           Text="No se encontró ningún .sql en database/portal/." />
+    <Error Condition="'@(SqlPortal)' == ''" Text="No se encontró ningún .sql en database/portal/." />
   </Target>
 
 </Project>

@@ -10,6 +10,7 @@ import {
 } from "../hooks/useAccionesPedido";
 import { useCatalogosDesignaciones } from "../hooks/useCatalogosDesignaciones";
 import { docentesDesdeCatalogo } from "../api/catalogos";
+import { erroresValidacionPedido } from "../api/erroresValidacionPedido";
 import type { DatosEditablesPedido } from "../types";
 
 const RUTA_MIS_PEDIDOS = "/designaciones/mis-pedidos";
@@ -75,11 +76,21 @@ export function PedidoFormPage() {
   }
 
   const guardando = crear.isPending || editar.isPending || enviar.isPending || reenviar.isPending;
+  const hayErrorMutacion = crear.isError || editar.isError || enviar.isError || reenviar.isError;
+  const errorMutacion = crear.isError
+    ? crear.error
+    : editar.isError
+      ? editar.error
+      : enviar.isError
+        ? enviar.error
+        : reenviar.isError
+          ? reenviar.error
+          : null;
+  const erroresBackend = erroresValidacionPedido(errorMutacion);
   const periodoLabel = etiquetaPeriodo(
     pedidoInicial?.periodoId ?? catalogos.data?.periodoActivo?.id ?? "",
     catalogos.data?.periodos ?? [],
   );
-  const crumbEdicion = pedidoInicial?.numero ? `Editar · ${pedidoInicial.numero}` : "Editar";
 
   return (
     <>
@@ -87,9 +98,8 @@ export function PedidoFormPage() {
         separator="›"
         items={[
           { label: "Inicio", href: "/" },
-          { label: "Designaciones" },
           { label: esEdicion ? "Detalle del pedido" : "Mis pedidos", href: rutaRetorno },
-          { label: esEdicion ? crumbEdicion : "Nuevo pedido" },
+          { label: esEdicion ? "Editar pedido" : "Nuevo pedido" },
         ]}
       />
 
@@ -109,9 +119,19 @@ export function PedidoFormPage() {
         </InlineAlert>
       )}
 
-      {(crear.isError || editar.isError || enviar.isError || reenviar.isError) && (
+      {hayErrorMutacion && (
         <InlineAlert severity="danger" title="No se pudo guardar el pedido">
-          Ocurrió un error al guardar. Revisá los datos e intentá de nuevo.
+          {erroresBackend.length > 0 ? (
+            <ul>
+              {erroresBackend.map(({ campo, mensaje }, indice) => (
+                <li key={`${campo}-${indice}`}>
+                  <strong>{campo}:</strong> {mensaje}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            "Ocurrió un error al guardar. Revisá los datos e intentá de nuevo."
+          )}
         </InlineAlert>
       )}
 

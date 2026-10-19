@@ -8,7 +8,7 @@ Definir la persistencia canónica de personas, usuarios, roles y permisos, junto
 
 ### Requirement: Persona como entidad canónica, independiente de la cuenta
 
-El sistema SHALL persistir a las personas en `identity.personas` como entidad canónica, separada de la cuenta de autenticación `identity.users`. Una persona MUST poder existir sin cuenta de Azure AD asociada. `identity.users` SHALL llevar `persona_id` nullable, y `identity.personas.legajo` SHALL ser nullable para admitir a una persona que todavía no lo tiene asignado. `documento` SHALL ser único entre las personas. El registro de una persona provocado por un Alta MUST no crear automáticamente una cuenta de autenticación ni exigir UPN.
+El sistema SHALL persistir a las personas en `identity.personas` como entidad canónica, separada de la cuenta de autenticación `identity.users`. Una persona MUST poder existir sin cuenta de Azure AD asociada. `identity.users` SHALL llevar `persona_id` nullable, y `identity.personas.legajo` SHALL ser nullable para admitir a una persona que todavía no lo tiene asignado. `documento` SHALL ser único entre las personas. El registro de una persona provocado por un Alta MUST no crear automáticamente una cuenta de autenticación ni exigir UPN. `identity.users.azure_oid` y `identity.users.azure_tid` SHALL permanecer vacíos hasta el primer ingreso con Microsoft: dar de alta un usuario MUST NOT generar un identificador de cuenta Microsoft, y el ingreso MUST NOT crear usuarios ni personas.
 
 #### Scenario: Alta de una persona sin cuenta ni legajo
 
@@ -22,11 +22,22 @@ El sistema SHALL persistir a las personas en `identity.personas` como entidad ca
 - **WHEN** finaliza el guardado o envío del pedido
 - **THEN** el sistema MUST no crear usuario, UPN, contraseña ni invitación automática de Azure AD
 
+#### Scenario: El alta administrativa no genera la cuenta Microsoft
+
+- **WHEN** la administración da de alta un usuario
+- **THEN** su fila en `identity.users` queda con `azure_oid` y `azure_tid` vacíos hasta su primer ingreso
+
 #### Scenario: El primer login vincula la cuenta a la persona
 
-- **GIVEN** una persona ya registrada en `identity.personas`
-- **WHEN** esa persona se autentica por primera vez vía Azure AD
-- **THEN** el sistema MUST crear o actualizar su fila en `identity.users` fijando `persona_id` hacia la persona existente, sin duplicar la persona
+- **GIVEN** una persona con un usuario dado de alta por la administración y sin cuenta Microsoft vinculada
+- **WHEN** esa persona ingresa por primera vez con una cuenta Microsoft cuyo mail verificado coincide con su UPN
+- **THEN** el sistema MUST registrar `azure_oid` y `azure_tid` en esa fila existente de `identity.users`, sin crear usuarios, sin duplicar la persona y sin modificar `persona_id`
+
+#### Scenario: Ingreso de una persona sin usuario
+
+- **GIVEN** una persona registrada en `identity.personas` sin fila asociada en `identity.users`
+- **WHEN** ingresa con una cuenta Microsoft cuyo mail verificado no corresponde a ningún usuario
+- **THEN** el sistema MUST denegar el acceso sin crear la cuenta de autenticación
 
 #### Scenario: Documento duplicado es rechazado
 
@@ -74,13 +85,25 @@ El sistema SHALL permitir crear roles nuevos en `identity.roles` además de los 
 
 ### Requirement: El scope declarado por el rol gobierna la asignación a usuarios
 
-El sistema SHALL validar que toda fila de `identity.user_roles` sea coherente con el `scope` declarado por su rol: un rol `global` MUST tener `materia_id` y `carrera_id` en NULL; un rol `materia` MUST tener ambos presentes; un rol `carrera` MUST tener `carrera_id` presente y `materia_id` en NULL. Esta validación SHALL aplicarse igual a los roles creados por el operador que a los de sistema.
+El sistema SHALL validar que toda fila de `identity.user_roles` sea coherente con el rol asignado: un rol global MUST tener `materia_id` y `carrera_id` en NULL; un rol `docente` MUST tener `materia_id` y `carrera_id` presentes juntos, porque una materia dictada en más de una carrera exige elegir una; un rol `jefe_catedra` MUST tener `materia_id` presente y `carrera_id` en NULL; un rol `coordinador_carrera` MUST tener `carrera_id` presente y `materia_id` en NULL. `materia_id` referencia la materia canónica de `identity.materias`; `carrera_id` referencia `identity.carreras`. Esta validación SHALL aplicarse igual a los roles creados por el operador que a los de sistema, según el `scope` declarado por el rol.
 
 #### Scenario: Asignación de un rol de materia sin carrera
 
 - **GIVEN** un rol con `scope = 'materia'`
 - **WHEN** se intenta asignarlo a un usuario sin `carrera_id`
 - **THEN** el sistema MUST rechazar la asignación
+
+#### Scenario: Asignación de Docente sin carrera
+
+- **GIVEN** el rol de sistema `docente`
+- **WHEN** se intenta asignarlo a un usuario con `materia_id` pero sin `carrera_id`
+- **THEN** el sistema MUST rechazar la asignación, porque una materia compartida entre carreras exige elegir una
+
+#### Scenario: Jefe de Cátedra con una sola membresía por materia
+
+- **GIVEN** la materia `01032` se dicta en las carreras `201` y `202`
+- **WHEN** se asigna el rol `jefe_catedra` sobre `01032`
+- **THEN** el sistema MUST guardar una única fila con `materia_id` y sin `carrera_id`, válida en ambas carreras
 
 #### Scenario: Asignación de un rol global con ámbito
 

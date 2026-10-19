@@ -18,6 +18,8 @@ interface ModalEditarDocenteProps {
   onGuardar: (datos: Omit<DocenteMock, "id" | "is_active">) => void;
   onCerrar: () => void;
   materias: MateriaMock[];
+  /** Pertenencias materia–plan: designaciones y membresía docente. */
+  materiasPlan: MateriaMock[];
   cargos: string[];
   dedicaciones: { id: string; nombre: string }[];
   error?: string;
@@ -46,9 +48,10 @@ function camposDesde(d: DocenteMock | null): CamposPersonaDocenteDatos {
 
 function asignacionesDesde(d: DocenteMock | null): AsignacionRow[] {
   if (!d || d.asignaciones.length === 0)
-    return [{ materia: "", cargo: "", horas: "", dedicacionId: "" }];
+    return [{ materiaId: "", carreraId: "", cargo: "", horas: "", dedicacionId: "" }];
   return d.asignaciones.map((a) => ({
-    materia: a.materia.codigo,
+    materiaId: a.materiaId,
+    carreraId: a.carreraId,
     cargo: a.cargo,
     horas: String(a.horas),
     dedicacionId: a.dedicacionId ?? "",
@@ -57,19 +60,22 @@ function asignacionesDesde(d: DocenteMock | null): AsignacionRow[] {
 }
 
 function validarAsignaciones(rows: AsignacionRow[]): string | undefined {
-  const completas = rows.filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0);
+  const completas = rows.filter(
+    (r) => r.materiaId && r.carreraId && r.cargo && r.horas && Number(r.horas) > 0,
+  );
   if (completas.length === 0) return "Agregá al menos una asignación";
   if (
     rows.some(
       (r) =>
-        !r.materia ||
+        !r.materiaId ||
+        !r.carreraId ||
         !r.cargo ||
         !r.horas ||
         Number(r.horas) <= 0 ||
         (!r.dedicacionId && !r.dedicacionLegada),
     )
   ) {
-    return "Completá o quitá las filas incompletas (materia, cargo, dedicación y horas > 0)";
+    return "Completá o quitá las filas incompletas (materia, carrera, cargo, dedicación y horas > 0)";
   }
   return undefined;
 }
@@ -91,7 +97,7 @@ function validarMembresias(filas: MembresiaFila[]): string | undefined {
   ) {
     return "No se puede repetir la misma membresía";
   }
-  if (filas.some((fila) => !fila.rolId || !fila.materiaId || !fila.carreraId)) {
+  if (filas.some((fila) => !fila.rolId || !fila.materiaId)) {
     return "Completá las filas de membresía";
   }
   return undefined;
@@ -103,6 +109,7 @@ export function ModalEditarDocente({
   onGuardar,
   onCerrar,
   materias,
+  materiasPlan,
   cargos,
   dedicaciones,
   error,
@@ -143,13 +150,19 @@ export function ModalEditarDocente({
     if (upnsExistentes.includes(campos.upn.toLowerCase())) return;
 
     const asignaciones: AsignacionMateria[] = asignacionRows
-      .filter((r) => r.materia && r.cargo && r.horas && Number(r.horas) > 0)
-      .map((r) => ({
-        materia: materias.find((m) => m.codigo === r.materia)!,
-        cargo: r.cargo as CargoDocente,
-        horas: Number(r.horas),
-        dedicacionId: r.dedicacionId || null,
-      }));
+      .filter((r) => r.materiaId && r.carreraId && r.cargo && r.horas && Number(r.horas) > 0)
+      .map((r) => {
+        const materia = materias.find((m) => m.id === r.materiaId)!;
+        return {
+          materiaId: materia.id,
+          materiaCodigo: materia.codigo,
+          materiaNombre: materia.nombre,
+          carreraId: r.carreraId,
+          cargo: r.cargo as CargoDocente,
+          horas: Number(r.horas),
+          dedicacionId: r.dedicacionId || null,
+        };
+      });
 
     onGuardar({
       ...campos,
@@ -241,6 +254,7 @@ export function ModalEditarDocente({
               onChange={setMembresias}
               roles={rolesDisponibles}
               materias={materias}
+              materiasPlan={materiasPlan}
               error={errorMembresias}
             />
 
@@ -249,6 +263,7 @@ export function ModalEditarDocente({
               onChange={setAsignacionRows}
               error={errorAsignaciones}
               materias={materias}
+              materiasPlan={materiasPlan}
               cargos={cargos}
               dedicaciones={dedicaciones}
             />

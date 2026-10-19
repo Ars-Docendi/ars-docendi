@@ -136,11 +136,11 @@ El backend MUST aplicar las reglas por novedad al crear y editar. `Alta` SHALL r
 
 ### Requirement: Una materia por pedido
 
-Cada pedido SHALL referir exactamente una materia y su carga horaria. En un Alta, la materia se elegirá entre las materias a cargo del Jefe de Cátedra. En una Baja o un Cambio de cargo o dedicación, la materia se elegirá entre las designaciones vigentes del docente seleccionado que estén a cargo del actor. La carrera se deriva de la materia para determinar al Coordinador competente.
+Cada pedido SHALL referir una materia canónica (`materia_id`), una carrera (`carrera_id`) y su carga horaria. En un Alta, la materia se elegirá entre las materias a cargo del Jefe de Cátedra. En una Baja o un Cambio de cargo o dedicación, la materia se elegirá entre las designaciones vigentes del docente seleccionado que estén a cargo del actor. La carrera MUST elegirse junto con la materia (el catálogo informativo materia–plan ofrece las carreras donde esa materia se dicta de verdad) y se usa para determinar al Coordinador competente. Una materia compartida por varias carreras MUST permitir generar pedidos distintos según la carrera elegida.
 
 #### Scenario: Enrutamiento
 
-- **GIVEN** un pedido de una materia perteneciente a una carrera
+- **GIVEN** un pedido de una materia y una carrera
 - **WHEN** se envía
 - **THEN** queda en revisión del Coordinador de esa carrera
 
@@ -148,7 +148,7 @@ Cada pedido SHALL referir exactamente una materia y su carga horaria. En un Alta
 
 - **GIVEN** un docente seleccionado con exactamente una materia compatible con el ámbito del actor
 - **WHEN** se carga una Baja o un Cambio
-- **THEN** esa materia queda seleccionada automáticamente y sus datos vigentes se muestran como solo lectura
+- **THEN** esa materia (y su carrera) queda seleccionada automáticamente y sus datos vigentes se muestran como solo lectura
 
 #### Scenario: Varias materias compatibles requieren elección
 
@@ -159,8 +159,14 @@ Cada pedido SHALL referir exactamente una materia y su carga horaria. En un Alta
 #### Scenario: Alta se enruta por la materia elegida
 
 - **GIVEN** un Jefe de Cátedra con más de una materia propia
-- **WHEN** crea un Alta y elige una materia
-- **THEN** el pedido queda persistido y se enruta según la carrera de esa materia
+- **WHEN** crea un Alta y elige una materia y una carrera
+- **THEN** el pedido queda persistido y se enruta según la carrera elegida
+
+#### Scenario: Materia compartida entre dos carreras
+
+- **GIVEN** un Jefe de Cátedra de la materia `01032`, que se dicta en las carreras `201` y `202`
+- **WHEN** crea un Alta eligiendo la carrera `202`
+- **THEN** el pedido queda enrutado al Coordinador de `202`, y el de `201` no lo ve
 
 ### Requirement: Alta de persona sin cuenta de autenticación
 
@@ -238,11 +244,11 @@ Al enviar por primera vez, el backend SHALL congelar cargo, dedicación, materia
 
 ### Requirement: Lista Mis pedidos
 
-`/designaciones/mis-pedidos` SHALL listar los pedidos visibles del período, con número, persona, legajo, materia, novedad, estado y prioridad. La fila y la acción Ver SHALL abrir el detalle. Editar y Eliminar SHALL mostrarse sólo cuando la API incluya esas acciones.
+`/designaciones/mis-pedidos` SHALL listar los pedidos visibles del período, con persona, legajo, materia, novedad, estado y prioridad. La lista MUST NOT mostrar una columna con el número de pedido; el número sigue identificando al pedido en el detalle, la edición y los modales. La fila SHALL abrir el detalle (con click, o con Enter o Espacio cuando está enfocada); la tabla MUST NOT mostrar un botón "Ver". Editar y Eliminar SHALL mostrarse sólo cuando la API incluya esas acciones.
 
 #### Scenario: Filtros
 
-- **WHEN** se filtra por docente, número, legajo, tipo o estado
+- **WHEN** se filtra por docente, legajo, tipo o estado
 - **THEN** la tabla conserva sólo las coincidencias sin distinguir mayúsculas ni acentos
 
 #### Scenario: Estados remotos
@@ -269,11 +275,11 @@ Toda referencia visible a un pedido SHALL usar su número de negocio. El UUID MU
 - **WHEN** se abre su detalle, edición o modal de acción
 - **THEN** toda identificación visible MUST usar 2026-0123 y no el UUID
 
-### Requirement: Filtros y ordenamiento por encabezado en Mis pedidos
+### Requirement: Filtros y ordenamiento por encabezado en Mis pedidos sin paginación
 
-La tabla de `/designaciones/mis-pedidos` SHALL ofrecer un control de filtro accesible en cada encabezado de datos: N°, Docente, Legajo, Cátedra, Tipo, Enviado y Estado. La columna Acciones MUST NOT ofrecer filtro ni ordenamiento. Los criterios de texto SHALL buscar coincidencias parciales sin distinguir mayúsculas ni tildes; los criterios categóricos SHALL permitir seleccionar uno o más valores. Los filtros de columnas distintas SHALL combinarse con lógica AND y las opciones múltiples de una misma columna SHALL combinarse con lógica OR.
+La tabla de `/designaciones/mis-pedidos` SHALL ofrecer un control de filtro accesible en cada encabezado de datos: Docente, Legajo, Cátedra, Tipo, Enviado y Estado. La columna Acciones MUST NOT ofrecer filtro ni ordenamiento. Los criterios de texto SHALL buscar coincidencias parciales sin distinguir mayúsculas ni tildes; los criterios categóricos SHALL permitir seleccionar uno o más valores. Los filtros de columnas distintas SHALL combinarse con lógica AND y las opciones múltiples de una misma columna SHALL combinarse con lógica OR.
 
-La tabla SHALL permitir ordenar N°, Docente, Legajo, Cátedra, Tipo, Enviado y Estado desde sus encabezados. Cada orden SHALL alternar entre ascendente, descendente y sin orden manual, y el orden SHALL aplicarse después de filtrar.
+La tabla SHALL permitir ordenar Docente, Legajo, Cátedra, Tipo, Enviado y Estado desde sus encabezados. Cada orden SHALL alternar entre ascendente, descendente y sin orden manual, y el orden SHALL aplicarse después de filtrar.
 
 #### Scenario: Filtrar por docente desde el encabezado
 
@@ -299,11 +305,11 @@ La tabla SHALL permitir ordenar N°, Docente, Legajo, Cátedra, Tipo, Enviado y 
 - **WHEN** el operador ordena el encabezado "Enviado" en forma ascendente
 - **THEN** sólo las filas visibles se ordenan cronológicamente y no reaparecen pedidos excluidos
 
-#### Scenario: Aplicar filtros antes de paginar
+#### Scenario: Filtrar sobre la lista completa
 
-- **GIVEN** la lista supera el tamaño de página
+- **GIVEN** la lista tiene más pedidos de los que entran en pantalla
 - **WHEN** el operador aplica un filtro desde un encabezado
-- **THEN** la paginación se recalcula sobre el conjunto filtrado y conserva la navegación a detalle y las acciones permitidas
+- **THEN** la tabla muestra todos los pedidos que cumplen el filtro, sin paginar, y conserva la navegación a detalle y las acciones permitidas
 
 #### Scenario: Operación accesible del encabezado
 

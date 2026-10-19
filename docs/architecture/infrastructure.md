@@ -89,13 +89,23 @@ de bases ni objetos; los no-prod usan datos sintéticos — **nunca** copia de p
 
 ### Dataset sintético y autenticación de desarrollo
 
-`spin-up.sh` reconstruye `staging` y cada `pr-N` sólo en Proxmox: detiene el Compose project local, purga únicamente el bucket y la identidad SeaweedFS del ambiente, elimina la base local con `drop-db.sh`, aprovisiona o reutiliza la instancia SeaweedFS no-prod y ClamAV del mismo host, crea la base, corre las migraciones, ejecuta `seed.sh` y publica los servicios sólo después de completar esos pasos. Un lock **local por ambiente** serializa reintentos o ejecuciones manuales concurrentes en ese host. Después de las migraciones, `infra/scripts/seed.sh <staging|pr-N|local>` ejecuta el dataset SQL versionado `2026.09.1`. La ejecución es transaccional, serializada con advisory lock e idempotente por UUIDs reservados y upserts; reejecutarla restaura sólo sus fixtures y preserva filas ajenas. El script aborta antes de escribir si el destino es `prod` o si `SEED_FROM_DB` señala la base productiva. `SEED_SQL` permite probar otra versión explícita sin cambiar la protección.
+`spin-up.sh` actualiza prod/staging/pr-N incrementalmente: no elimina bases,
+buckets ni volúmenes en deploy ordinario. Consulta compatibilidad y preview bajo
+un lock compartido en el daemon Docker; con pendientes detiene el backend,
+respalda bases existentes junto con objetos y revalida estado antes de migrar.
+La rotación de credenciales PR ocurre durante mantenimiento sin purge.
+El seed sólo corre en inicialización autorizada con procedencia bootstrap y
+marcador completo confirmado en la misma transacción que el dataset. Los
+redeploys conservan ediciones y adjuntos; un cambio de versión no dispara reseed.
+Una base poblada sin marca/autorización no se adopta ni sobrescribe.
 
-Una falla de `down`, reset, migración o seed detiene `spin-up.sh` por
-`set -euo pipefail` y evita `up -d`; la recuperación de un ambiente descartable
-es corregir la versión y repetir el comando. En `prod` no se ejecutan `down`,
-`drop-db.sh` ni `seed.sh`; el rollback se hace con el backup y el despliegue
-conjunto de la versión anterior.
+Si falla backup/migración/seed no se publica; si falla smoke se detiene el
+candidato, se preserva backup/diagnóstico y no se reinicia automáticamente la
+versión anterior sobre schema potencialmente actualizado. Teardown al cierre o
+reset manual autorizado son las únicas reconstrucciones no productivas; prod
+no admite reset/seed/restore directo. El procedimiento detallado, contrato CLI
+y recuperación aislada están en
+[migrations-persistence.md](../operations/migrations-persistence.md).
 
 La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente ambiente backend no productivo y `DevelopmentAuthentication__Enabled=true`. Sólo acepta usuarios presentes en `public.seed_identities`, activos y con el rol solicitado vigente. El frontend usa el servidor Vite de desarrollo o el opt-in de build `VITE_DEVELOPMENT_AUTH_ENABLED=true`; ambos lados deben estar habilitados para completar el flujo.
 
@@ -107,6 +117,25 @@ La autenticación por `X-Dev-User-Id`/`X-Dev-Role-Code` exige simultáneamente a
 | Producción           | build arg `false`    | `Production` + opt-in `false`    | ruta, esquema, selector y headers ausentes    |
 
 Los defaults del Dockerfile, Compose y `spin-up.sh` son `false`. Además, el Host conserva la guarda independiente `!IsProduction()`: configurar el opt-in accidentalmente en Production no registra la superficie.
+
+### Ingreso con Microsoft por ambiente
+
+El ingreso real usa una registración de Microsoft Entra por ambiente, cada una con su redirect exacto (Microsoft no admite comodines en apps que aceptan cuentas personales):
+
+| Ambiente   | Registración             | Redirect URI (Web)                                      | Cómo se habilita                                                                |
+| ---------- | ------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Local      | Ars Docendi (desarrollo) | `http://localhost/api/auth/signin-oidc` (puerto libre)  | `dotnet user-secrets` + `VITE_MICROSOFT_LOGIN_ENABLED` en `frontend/.env.local` |
+| Staging    | Ars Docendi (staging)    | `https://staging.<DOMINIO>/api/auth/signin-oidc`        | Automático cuando `MICROSOFT_CLIENT_ID_STAGING` y su secret existen en GitHub   |
+| Preview    | Ars Docendi (staging)    | `https://pr-<N>.<DOMINIO>/api/auth/signin-oidc`, a mano | Label `login-microsoft` en el PR; quitar la URI de la registración al terminar  |
+| Producción | Ars Docendi              | `https://<DOMINIO>/api/auth/signin-oidc`                | Siempre: sin `ClientId`/`ClientSecret` el backend no arranca                    |
+
+- **Configuración:** el workflow pasa `MICROSOFT_LOGIN_ENABLED`, `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET` por el entorno del proceso; `compose.base.yml` los mapea a `AutenticacionMicrosoft__*`. El secret nunca se escribe en el `.env` efímero ni en la imagen. El frontend recibe el build arg `VITE_MICROSOFT_LOGIN_ENABLED`.
+- **Detrás del proxy:** el backend confía en `X-Forwarded-Proto`/`X-Forwarded-For` sólo desde la red interna de Docker (`172.16.0.0/12`, el mismo rango que confía Traefik). Así arma el redirect con `https://` y emite las cookies anti-falsificación con `Secure`.
+- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). En prod persisten entre deploys; staging y `pr-N` las pierden al reconstruirse, lo que sólo obliga a volver a ingresar.
+- **Administrador inicial (sólo prod):** si `ADMIN_INICIAL_UPN`, `_NOMBRE`, `_APELLIDO` y `_DOCUMENTO` están cargados, el arranque `--migrate` crea esa persona, su usuario activo y el rol `sys_admin`, sólo si no existe un usuario con ese UPN. El resto se da de alta desde la pantalla de usuarios.
+- **Staging se reconstruye en cada deploy:** los usuarios dados de alta ahí con su mail real se pierden y hay que volver a crearlos con el selector como `sys_admin`.
+- **Vencimiento de secrets:** cada registración admite dos secrets a la vez. Antes del vencimiento se crea el nuevo, se reemplaza en GitHub, se despliega y se borra el viejo. Registrar acá la fecha de vencimiento de cada uno.
+- **Opcional:** fijar `removeUnverifiedEmailClaim = true` en cada registración (`az rest --method PATCH --url https://graph.microsoft.com/v1.0/applications/<object-id> --body '{"authenticationBehaviors":{"removeUnverifiedEmailClaim":true}}'` desde Cloud Shell). Es redundante: el backend ya exige el claim `xms_edov` y es el default para apps multi-tenant nuevas.
 
 ## Proceso de despliegue (CI/CD)
 
@@ -154,7 +183,13 @@ Compose project, base y storage únicamente en la VM.
 - **Deploy/CI**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y credenciales
   administrativas SeaweedFS provienen de GitHub repository secrets; las claves
   de app de `prod`, `staging` y `pr-preview` provienen de sus respectivos
-  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
+  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
+  credenciales de Microsoft siguen ese patrón: `MICROSOFT_CLIENT_ID_STAGING`/`_PROD`
+  son repository variables (no son secretos). `MICROSOFT_CLIENT_SECRET_STAGING` va
+  en los Environments `staging` y `pr-preview` (los previews con la label
+  `login-microsoft` usan la registración de staging); `MICROSOFT_CLIENT_SECRET_PROD`
+  y `ADMIN_INICIAL_*` van en el Environment `prod`. Al rotar el secret de staging hay
+  que actualizar ambos Environments. Los jobs
   inyectan secrets en runtime; nunca se versionan ni se hornean en imágenes.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
@@ -163,16 +198,24 @@ Compose project, base y storage únicamente en la VM.
 
 ## Estrategia de backup
 
-A definir SLA con UNLaM. Respaldar producción en Debian como una unidad de
-base **y objetos**. Conservar por separado el backup y datos del prod anterior
-en Proxmox hasta aceptar el corte y autorizar su tratamiento.
+Antes de migrar una base existente con pendientes, el despliegue detiene
+escritores conocidos y obtiene un snapshot conjunto PostgreSQL + objetos con
+manifiesto y hashes. Una base nueva/no-op no inventa backup.
 
-- `infra/scripts/backup-storage.sh prod` en Debian (dump PostgreSQL + objetos
-  S3), cifrado antes de salir del nodo e identificado por host de origen.
-- Retención: 7 diarios + 4 semanales + 6 mensuales.
-- Prueba mensual de restore en un entorno aislado y descartable autorizado;
-  no copiar datos productivos a staging/previews públicos o compartidos con PRs.
-- Los ambientes staging/pr-N **no** se respaldan (son descartables, datos sintéticos).
+- Volumen Docker privado **local por host y ambiente**, default
+  `arsdocendi-backups-<ambiente>`; streaming sin binds ni dumps en el workspace.
+- `BACKUP_VOLUME_PREFIX` y `BACKUP_RETENTION_DAYS` (default 7, positivo) son vars
+  no secretas de `prod`, `staging` y `pr-preview`.
+- Sólo se retienen automáticamente snapshots completos de deploys exitosos
+  vencidos. Fallidos/incompletos se preservan hasta limpieza explícita.
+- Teardown/reset no borran el volumen de backup. Nada se publica como artifacts
+  de PR ni en hostnames de usuario.
+- Recovery de prod sólo en destino aislado nuevo del mismo principal, sin
+  ingress y con autorización. No restore automático sobre bases activas ni
+  traslado a Proxmox/no-prod.
+- La retención local no define SLA institucional ni reemplaza cifrado/exportación
+  aprobada fuera del host y pruebas periódicas de restauración. Conservar aparte
+  los datos del prod anterior hasta aceptar y autorizar el corte.
 
 ## Checklist de seguridad (ambos hosts)
 
