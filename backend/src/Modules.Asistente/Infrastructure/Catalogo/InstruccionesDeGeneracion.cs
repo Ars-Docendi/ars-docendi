@@ -103,6 +103,14 @@ internal static class InstruccionesDeGeneracion
           la consulta todavía no se ejecutó y puede no encontrar nada.
         - `categoria`: una de `consulta_simple`, `filtro_temporal`,
           `cruce_de_tablas`, `agregacion`, `no_contestable`, `ambigua`.
+        - `motivo`: sólo cuando no es contestable; si lo es, `null`. Uno de:
+          `fuera_de_tema` (nada que ver con la gestión docente),
+          `otro_sistema` (es de otro sistema, como Guaraní o sueldos),
+          `muy_general` (sin un dato puntual que buscar, como una sola palabra),
+          `no_cubierto` (es del dominio, pero las tablas no lo tienen).
+        - `termino`: sólo cuando no es contestable. Las palabras del usuario que
+          nombran lo que no se pudo responder, copiadas tal cual, hasta 4
+          palabras; `null` si no hay.
 
         Si la pregunta nombra una materia sin decir de qué carrera, o a una
         persona solo por su apellido, y eso puede corresponder a más de una fila,

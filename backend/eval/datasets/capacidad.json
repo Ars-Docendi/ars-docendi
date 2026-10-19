@@ -120,21 +120,24 @@
       "pregunta": "¿Cuál es el sueldo de cada profesor?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema", "no_cubierto"]
     },
     {
       "id": "cap-018",
       "pregunta": "¿Qué calificaciones sacaron los alumnos el año pasado?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema"]
     },
     {
       "id": "cap-019",
       "pregunta": "¿En qué aula se dicta Sistemas Operativos?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-020",
@@ -211,21 +214,24 @@
       "pregunta": "¿Qué mail personal cargó cada docente en la sección Contacto de su portal?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-031",
       "pregunta": "¿En qué ruta del servidor está guardado el archivo de CV de cada docente?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-032",
       "pregunta": "¿Qué proyectos de investigación cargó cada docente?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-033",
@@ -259,6 +265,46 @@
           "nombre": "Suárez"
         }
       ]
+    },
+    {
+      "id": "cap-035",
+      "pregunta": "python",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["muy_general"]
+    },
+    {
+      "id": "cap-036",
+      "pregunta": "¿Cuál es la capital de Australia?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["fuera_de_tema"]
+    },
+    {
+      "id": "cap-037",
+      "pregunta": "¿Cómo me inscribo a una materia en Guaraní?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema"]
+    },
+    {
+      "id": "cap-038",
+      "pregunta": "Necesito información.",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["muy_general"]
+    },
+    {
+      "id": "cap-039",
+      "pregunta": "¿Cuántas clases dio cada docente el cuatrimestre pasado?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     }
   ]
 }

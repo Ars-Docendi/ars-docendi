@@ -225,6 +225,34 @@ public sealed class GeneracionDeSqlTests
     // ---------------------------------- motivo y término (asistente-rechazos-dinamicos)
 
     [Fact]
+    public void Las_instrucciones_piden_exactamente_los_cuatro_motivos_y_el_termino()
+    {
+        var instrucciones = InstruccionesDeGeneracion.Instrucciones;
+        var inicio = instrucciones.IndexOf("- `motivo`", StringComparison.Ordinal);
+        var fin = instrucciones.IndexOf("- `termino`", StringComparison.Ordinal);
+
+        Assert.True(inicio >= 0, "Las instrucciones no describen `motivo`.");
+        Assert.True(fin > inicio, "Las instrucciones no describen `termino` después de `motivo`.");
+
+        // Los valores entre acentos graves del bloque de `motivo`, sin la propia
+        // clave ni el `null`: tienen que ser los del enum, ni uno más ni uno menos.
+        var descritos = System.Text.RegularExpressions.Regex
+            .Matches(instrucciones[(inicio + "- `motivo`".Length)..fin], "`([a-z_]+)`")
+            .Select(m => m.Groups[1].Value)
+            .Where(valor => valor != "null")
+            .Distinct()
+            .Order()
+            .ToArray();
+        var esperados = Enum.GetValues<MotivoDeRechazo>()
+            .Select(MotivosDeRechazo.ValorDeCable)
+            .Order()
+            .ToArray();
+
+        Assert.Equal(esperados, descritos);
+        Assert.Equal(4, descritos.Length);
+    }
+
+    [Fact]
     public void Un_motivo_valido_se_conserva()
     {
         var generacion = GeneradorDeSql.Interpretar(
