@@ -1,10 +1,12 @@
 namespace Modules.Designaciones.Api;
 
+/// <summary>Par materia–carrera: una materia dictada en más de una carrera aparece una vez por carrera.</summary>
 public sealed record MateriaDesignacionesDto(
-    Guid Id,
+    Guid MateriaId,
     string Codigo,
     string Nombre,
-    Guid CarreraId);
+    Guid CarreraId,
+    string CarreraNombre);
 
 public sealed record PersonaDesignacionesDto(
     Guid Id,
@@ -17,6 +19,7 @@ public sealed record PersonaDesignacionesDto(
 public sealed record DesignacionVigenteCatalogoDto(
     Guid MateriaId,
     string MateriaNombre,
+    Guid CarreraId,
     Guid CargoId,
     string CargoNombre,
     string? Dedicacion,

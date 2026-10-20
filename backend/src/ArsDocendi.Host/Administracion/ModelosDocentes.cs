@@ -8,6 +8,7 @@ public sealed record AsignacionDocenteDto(
     Guid MateriaId,
     string MateriaCodigo,
     string MateriaNombre,
+    Guid CarreraId,
     Guid CargoId,
     string CargoNombre,
     string CargoAbreviatura,
@@ -61,9 +62,16 @@ public sealed record PersonaElegibleDto(
     string? Upn,
     uint? Version);
 
+/// <param name="Materias">Materias canónicas (membresía de Jefe de Cátedra).</param>
+/// <param name="MateriasPlan">
+/// Pares materia–carrera informativos (catálogo materia–plan deduplicado): membresía de
+/// Docente y designaciones mandan <c>MateriaId</c> y <c>CarreraId</c> por separado, y este
+/// catálogo sólo ayuda a ofrecer combinaciones válidas en el selector.
+/// </param>
 public sealed record CatalogosDocentesDto(
     IReadOnlyList<RolCatalogoDto> Roles,
     IReadOnlyList<ArsDocendi.Shared.Identity.Administracion.OpcionCatalogoDto> Materias,
+    IReadOnlyList<ArsDocendi.Shared.Identity.Administracion.OpcionCatalogoDto> MateriasPlan,
     IReadOnlyList<CargoAdministracionDto> Cargos,
     IReadOnlyList<PersonaElegibleDto> PersonasElegibles,
     IReadOnlyList<DedicacionAdministracionDto> Dedicaciones);

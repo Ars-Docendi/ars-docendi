@@ -18,6 +18,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
 
@@ -315,6 +316,7 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         periodoId = Periodo,
         personaId = persona,
         materiaId = materiaId ?? Materia,
+        carreraId = Carrera,
         novedad,
         cargoSolicitadoId = Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         dedicacionSolicitadaId = dedicacionSolicitadaId

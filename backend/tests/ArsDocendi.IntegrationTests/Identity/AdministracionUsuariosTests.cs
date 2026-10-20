@@ -52,6 +52,10 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         Assert.True(recuperado.Activo);
         Assert.Equal("Ada", recuperado.Nombre);
         Assert.Single(recuperado.Roles, r => r.Codigo == "secretaria");
+        // La cuenta Microsoft se vincula en el primer ingreso, no en el alta.
+        var usuario = await db.Usuarios.AsNoTracking().SingleAsync(u => u.Id == creado.Id, ct);
+        Assert.Null(usuario.AzureOid);
+        Assert.Null(usuario.AzureTid);
     }
 
     [Fact]
@@ -217,10 +221,10 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
             "put-rol@unlam.edu.ar", "50999223") with
         {
             Version = creado.Version,
-            Membresias = [new GuardarAsignacionRolDto(RolDocente, Materia, Carrera)],
+            Membresias = [new GuardarAsignacionRolDto(RolDocente, MateriaId: Materia, CarreraId: Carrera)],
         }, ct);
 
-        Assert.Single(editado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia);
+        Assert.Single(editado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia && m.CarreraId == Carrera);
         Assert.DoesNotContain(editado.Membresias, m => m.Codigo == "secretaria");
     }
 
@@ -235,15 +239,15 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         {
             Membresias =
             [
-                new GuardarAsignacionRolDto(RolDocente, Materia, Carrera),
-                new GuardarAsignacionRolDto(RolJefe, MateriaB, Carrera),
+                new GuardarAsignacionRolDto(RolDocente, MateriaId: Materia, CarreraId: Carrera),
+                new GuardarAsignacionRolDto(RolJefe, MateriaB),
             ],
         }, ct);
 
         Assert.Equal(["docente", "jefe_catedra"], creado.Roles.Select(r => r.Codigo).Order());
-        Assert.Equal(
-            [("docente", Materia), ("jefe_catedra", MateriaB)],
-            creado.Membresias.Select(m => (m.Codigo, m.MateriaId)).OrderBy(m => m.Codigo));
+        Assert.Equal(2, creado.Membresias.Count);
+        Assert.Contains(creado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia && m.CarreraId == Carrera);
+        Assert.Contains(creado.Membresias, m => m.Codigo == "jefe_catedra" && m.MateriaId == MateriaB);
     }
 
     [Fact]
@@ -276,7 +280,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         var designaciones = new ServicioAdministracionDesignaciones(new RepositorioDesignaciones(modulo));
         await designaciones.ReemplazarVigentesAsync(
             creado.PersonaId,
-            [new GuardarDesignacionVigenteDto(Materia, CargoTitular, DedicacionSimple, 12)],
+            [new GuardarDesignacionVigenteDto(Materia, Carrera, CargoTitular, DedicacionSimple, 12)],
             ct);
 
         var usuario = Assert.Single(

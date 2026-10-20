@@ -180,9 +180,14 @@ export function AuditoriaPage() {
           Clave de fila
           <input
             aria-label="Clave de fila"
+            aria-describedby="auditoria-clave-ayuda"
             value={formulario.rowPk}
             onChange={(e) => setFormulario({ ...formulario, rowPk: e.target.value })}
           />
+          <small id="auditoria-clave-ayuda">
+            Usá el JSON completo para una relación precisa. Una clave parcial legada consulta una
+            agrupación histórica, no una relación individual.
+          </small>
         </label>
         <div className="auditoria-filtros-acciones">
           <Button variant="primary" type="submit">

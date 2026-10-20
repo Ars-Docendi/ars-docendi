@@ -4,6 +4,7 @@ using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
+using ArsDocendi.Shared.Identity.Ingreso;
 using ArsDocendi.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 {
     private static readonly Guid Periodo = Guid.Parse("d4000000-0000-4000-8000-000000000001");
     private static readonly Guid Materia = Guid.Parse("70000000-0000-4000-8000-000000000101");
+    private static readonly Guid Carrera = Guid.Parse("c0000000-0000-4000-8000-000000000201");
     private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
     private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
@@ -82,6 +84,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             Periodo,
             null,
             Materia,
+            Carrera,
             Novedades.Alta,
             Guid.Parse("c3000000-0000-4000-8000-000000000001"),
             Guid.Parse("d6000000-0000-4000-8000-000000000001"),
@@ -106,9 +109,13 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             .Select(p => p.PersonaId).SingleAsync(ct));
         Assert.False(await identityDb.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
 
-        var usuario = await new VinculadorPrimerLogin(identityDb).VincularAsync(
-            new DatosPrimerLogin(Guid.NewGuid(), "ada@unlam.edu.ar", "Ada Lovelace", documento), ct);
-        Assert.Equal(persona.Id, usuario.PersonaId);
+        // El ingreso con Microsoft no crea la cuenta de una persona registrada por un Alta.
+        var repositorio = new RepositorioIngreso(identityDb);
+        var ingreso = await new ServicioIngreso(
+                repositorio, new ServicioSesion(repositorio), NullLogger<ServicioIngreso>.Instance)
+            .ResolverAsync(new DatosCuentaMicrosoft(Guid.NewGuid(), Guid.NewGuid(), "ada@unlam.edu.ar", true), ct);
+        Assert.Equal(MotivoRechazoIngreso.NoRegistrado, ingreso.Motivo);
+        Assert.False(await identityDb.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
         Assert.Equal(1, await identityDb.Personas.CountAsync(p => p.Documento == documento, ct));
     }
 
@@ -263,6 +270,40 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Baja_valida_se_envia_sin_cargo_dedicacion_ni_horas()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
+        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
+        var servicio = CrearServicio(Jefe, identityDb, db);
+
+        var baja = await servicio.CrearAsync(
+            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
+            {
+                Novedad = Novedades.Baja,
+                CargoSolicitadoId = null,
+                DedicacionSolicitadaId = null,
+                Horas = null,
+                HorasInvestigacion = null,
+                HorasExternas = null,
+                TipoBaja = TiposBaja.Renuncia,
+                Adjuntos = [new GuardarAdjuntoPedidoDto(TiposAdjunto.Justificativo, "baja.pdf")],
+            }, ct);
+
+        var enviada = await servicio.AplicarAccionAsync(baja.Id, new AccionPedido.Enviar(), ct);
+
+        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviada.Estado);
+        Assert.Null(enviada.CargoSolicitado);
+        Assert.Null(enviada.DedicacionSolicitada);
+        Assert.Null(enviada.Horas);
+        Assert.Null(enviada.HorasInvestigacion);
+        Assert.Null(enviada.HorasExternas);
+        Assert.Equal(TiposBaja.Renuncia, enviada.TipoBaja);
+        Assert.Contains(enviada.Adjuntos, adjunto => adjunto.Tipo == TiposAdjunto.Justificativo);
+    }
+
+    [Fact]
     public async Task Backend_rechaza_materia_ajena_y_baja_sin_designacion_en_la_materia()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -276,6 +317,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
             Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
             {
                 MateriaId = Guid.Parse("70000000-0000-4000-8000-000000000201"),
+                CarreraId = Guid.Parse("c0000000-0000-4000-8000-000000000202"),
             }, ct));
         await Assert.ThrowsAsync<ErrorDominioPedido>(() => servicio.CrearAsync(
             Datos(Guid.Parse("d0000000-0000-4000-8000-000000000002")) with
@@ -351,7 +393,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         var pedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
 
         Assert.Contains(await servicio.ListarAsync(Periodo, ct), p => p.Id == pedidoId);
-        Assert.Equal(Materia, (await servicio.ObtenerAsync(pedidoId, ct)).Materia.Id);
+        Assert.Equal(Materia, (await servicio.ObtenerAsync(pedidoId, ct)).Materia.MateriaId);
     }
 
     [Fact]
@@ -463,7 +505,7 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
         null, 128, null, EstadosArchivo.Disponible, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
     private sealed class AlmacenamientoFalso(Guid propietario, IReadOnlyList<ArchivoDto> disponibles)
-        : IAlmacenamientoArchivos
+        : IAlmacenamientoArchivos, IProteccionArchivos
     {
         private readonly IReadOnlyDictionary<Guid, ArchivoDto> archivos = disponibles.ToDictionary(x => x.Id);
 
@@ -505,11 +547,15 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
 
         public Task EliminarAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) => Task.CompletedTask;
 
+        // Doble del contrato para validación funcional; las carreras se prueban con PostgreSQL real.
+        public Task<T> EjecutarAsync<T>(IReadOnlyCollection<Guid> ids,
+            Func<CancellationToken, Task<T>> operacion, CancellationToken ct) => operacion(ct);
+
         public Task<int> LimpiarAsync(DateTimeOffset ahora, CancellationToken ct) => Task.FromResult(0);
     }
 
     private static GuardarPedidoDto Datos(Guid personaId) => new(
-        Periodo, personaId, Materia, Novedades.Alta,
+        Periodo, personaId, Materia, Carrera, Novedades.Alta,
         Guid.Parse("c3000000-0000-4000-8000-000000000001"),
         Guid.Parse("d6000000-0000-4000-8000-000000000001"),
         10,

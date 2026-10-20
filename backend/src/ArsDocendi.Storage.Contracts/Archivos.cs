@@ -13,7 +13,6 @@ public static class PropositosArchivo
         Cv, DniFrente, DniDorso, Justificativo, DocumentoProyecto,
     };
 
-    public static bool EsImagen(string proposito) => proposito is DniFrente or DniDorso;
     public static bool EsPdf(string proposito) => proposito is Cv or Justificativo or DocumentoProyecto;
 }
 

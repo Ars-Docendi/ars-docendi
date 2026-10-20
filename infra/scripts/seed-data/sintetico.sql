@@ -49,16 +49,35 @@ INSERT INTO identity.carreras (id, code, name, is_active) VALUES
 ON CONFLICT (id) DO UPDATE SET
     code = EXCLUDED.code, name = EXCLUDED.name, is_active = EXCLUDED.is_active;
 
-INSERT INTO identity.materias (id, code, name, carrera_id, is_active) VALUES
-    ('70000000-0000-4000-8000-000000000101', '03500', 'Ingeniería de Software', 'c0000000-0000-4000-8000-000000000201', TRUE),
-    ('70000000-0000-4000-8000-000000000102', '03620', 'Algoritmos y Estructuras de Datos', 'c0000000-0000-4000-8000-000000000201', TRUE),
-    ('70000000-0000-4000-8000-000000000103', '03710', 'Bases de Datos', 'c0000000-0000-4000-8000-000000000201', TRUE),
-    ('70000000-0000-4000-8000-000000000104', '03800', 'Arquitectura de Computadoras', 'c0000000-0000-4000-8000-000000000201', TRUE),
-    ('70000000-0000-4000-8000-000000000201', '04100', 'Organización Industrial', 'c0000000-0000-4000-8000-000000000202', TRUE),
-    ('70000000-0000-4000-8000-000000000202', '04220', 'Investigación Operativa', 'c0000000-0000-4000-8000-000000000202', TRUE)
+INSERT INTO identity.materias (id, code, name, is_active) VALUES
+    ('70000000-0000-4000-8000-000000000101', '03500', 'Ingeniería de Software', TRUE),
+    ('70000000-0000-4000-8000-000000000102', '03620', 'Algoritmos y Estructuras de Datos', TRUE),
+    ('70000000-0000-4000-8000-000000000103', '03710', 'Bases de Datos', TRUE),
+    ('70000000-0000-4000-8000-000000000104', '03800', 'Arquitectura de Computadoras', TRUE),
+    ('70000000-0000-4000-8000-000000000201', '04100', 'Organización Industrial', TRUE),
+    ('70000000-0000-4000-8000-000000000202', '04220', 'Investigación Operativa', TRUE)
 ON CONFLICT (id) DO UPDATE SET
-    code = EXCLUDED.code, name = EXCLUDED.name,
-    carrera_id = EXCLUDED.carrera_id, is_active = EXCLUDED.is_active;
+    code = EXCLUDED.code, name = EXCLUDED.name, is_active = EXCLUDED.is_active;
+
+-- Planes de estudio: uno vigente por carrera. Algoritmos (03620) se dicta en ambos planes:
+-- es la materia compartida que ejercita la regla por materia canónica.
+INSERT INTO identity.planes (id, carrera_id, codigo, nombre, vigente) VALUES
+    ('c1000000-0000-4000-8000-000000000201', 'c0000000-0000-4000-8000-000000000201', '2015', 'Plan 2015', TRUE),
+    ('c1000000-0000-4000-8000-000000000202', 'c0000000-0000-4000-8000-000000000202', '2012', 'Plan 2012', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    carrera_id = EXCLUDED.carrera_id, codigo = EXCLUDED.codigo,
+    nombre = EXCLUDED.nombre, vigente = EXCLUDED.vigente;
+
+INSERT INTO identity.materias_plan (id, plan_id, materia_id, activo) VALUES
+    ('f0000000-0000-4000-8000-000000000101', 'c1000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000101', TRUE),
+    ('f0000000-0000-4000-8000-000000000102', 'c1000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000102', TRUE),
+    ('f0000000-0000-4000-8000-000000000103', 'c1000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000103', TRUE),
+    ('f0000000-0000-4000-8000-000000000104', 'c1000000-0000-4000-8000-000000000201', '70000000-0000-4000-8000-000000000104', TRUE),
+    ('f0000000-0000-4000-8000-000000000121', 'c1000000-0000-4000-8000-000000000202', '70000000-0000-4000-8000-000000000201', TRUE),
+    ('f0000000-0000-4000-8000-000000000122', 'c1000000-0000-4000-8000-000000000202', '70000000-0000-4000-8000-000000000202', TRUE),
+    ('f0000000-0000-4000-8000-000000000123', 'c1000000-0000-4000-8000-000000000202', '70000000-0000-4000-8000-000000000102', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    plan_id = EXCLUDED.plan_id, materia_id = EXCLUDED.materia_id, activo = EXCLUDED.activo;
 
 -- Personas inventadas. Las últimas no tienen cuenta para cubrir altas docentes.
 INSERT INTO identity.personas
@@ -85,16 +104,16 @@ ON CONFLICT (id) DO UPDATE SET
 
 INSERT INTO identity.users
     (id, azure_oid, upn, display_name, is_active, persona_id) VALUES
-    ('a0000000-0000-4000-8000-000000000001', 'a9000000-0000-4000-8000-000000000001', 'carla.lopez@unlam.edu.ar', 'Carla López', TRUE, 'd0000000-0000-4000-8000-000000000001'),
-    ('a0000000-0000-4000-8000-000000000002', 'a9000000-0000-4000-8000-000000000002', 'gustavo.ruiz@unlam.edu.ar', 'Gustavo Ruiz', TRUE, 'd0000000-0000-4000-8000-000000000002'),
-    ('a0000000-0000-4000-8000-000000000003', 'a9000000-0000-4000-8000-000000000003', 'marina.diaz@unlam.edu.ar', 'Marina Díaz', TRUE, 'd0000000-0000-4000-8000-000000000003'),
-    ('a0000000-0000-4000-8000-000000000004', 'a9000000-0000-4000-8000-000000000004', 'secretaria.academica@unlam.edu.ar', 'Lucía Fernández', TRUE, 'd0000000-0000-4000-8000-000000000004'),
-    ('a0000000-0000-4000-8000-000000000005', 'a9000000-0000-4000-8000-000000000005', 'decanato@unlam.edu.ar', 'Roberto Sosa', TRUE, 'd0000000-0000-4000-8000-000000000005'),
-    ('a0000000-0000-4000-8000-000000000006', 'a9000000-0000-4000-8000-000000000006', 'administracion@unlam.edu.ar', 'Paula Gómez', TRUE, 'd0000000-0000-4000-8000-000000000006'),
-    ('a0000000-0000-4000-8000-000000000007', 'a9000000-0000-4000-8000-000000000007', 'sistemas@unlam.edu.ar', 'Ernesto Vidal', TRUE, 'd0000000-0000-4000-8000-000000000007'),
-    ('a0000000-0000-4000-8000-000000000008', 'a9000000-0000-4000-8000-000000000008', 'sofia.peralta@unlam.edu.ar', 'Sofía Peralta', FALSE, 'd0000000-0000-4000-8000-000000000008')
+    ('a0000000-0000-4000-8000-000000000001', NULL, 'carla.lopez@unlam.edu.ar', 'Carla López', TRUE, 'd0000000-0000-4000-8000-000000000001'),
+    ('a0000000-0000-4000-8000-000000000002', NULL, 'gustavo.ruiz@unlam.edu.ar', 'Gustavo Ruiz', TRUE, 'd0000000-0000-4000-8000-000000000002'),
+    ('a0000000-0000-4000-8000-000000000003', NULL, 'marina.diaz@unlam.edu.ar', 'Marina Díaz', TRUE, 'd0000000-0000-4000-8000-000000000003'),
+    ('a0000000-0000-4000-8000-000000000004', NULL, 'secretaria.academica@unlam.edu.ar', 'Lucía Fernández', TRUE, 'd0000000-0000-4000-8000-000000000004'),
+    ('a0000000-0000-4000-8000-000000000005', NULL, 'decanato@unlam.edu.ar', 'Roberto Sosa', TRUE, 'd0000000-0000-4000-8000-000000000005'),
+    ('a0000000-0000-4000-8000-000000000006', NULL, 'administracion@unlam.edu.ar', 'Paula Gómez', TRUE, 'd0000000-0000-4000-8000-000000000006'),
+    ('a0000000-0000-4000-8000-000000000007', NULL, 'sistemas@unlam.edu.ar', 'Ernesto Vidal', TRUE, 'd0000000-0000-4000-8000-000000000007'),
+    ('a0000000-0000-4000-8000-000000000008', NULL, 'sofia.peralta@unlam.edu.ar', 'Sofía Peralta', FALSE, 'd0000000-0000-4000-8000-000000000008')
 ON CONFLICT (id) DO UPDATE SET
-    azure_oid = EXCLUDED.azure_oid, upn = EXCLUDED.upn,
+    azure_oid = NULL, azure_tid = NULL, upn = EXCLUDED.upn,
     display_name = EXCLUDED.display_name, is_active = EXCLUDED.is_active,
     persona_id = EXCLUDED.persona_id;
 
@@ -136,22 +155,24 @@ INSERT INTO identity.rol_permisos (rol_id, permiso_id) VALUES
     ('a1000000-0000-4000-8000-000000000101', 'b2000000-0000-4000-8000-000000000011')
 ON CONFLICT (rol_id, permiso_id) DO NOTHING;
 
--- Asignaciones con los tres tipos de ámbito y un usuario multirol.
+-- Asignaciones con los tres tipos de ámbito y un usuario multirol. El docente manda
+-- materia_id + carrera_id juntos (una materia compartida entre carreras exige elegir una).
 INSERT INTO identity.user_roles
     (id, user_id, role_id, materia_id, carrera_id, granted_by, deleted_at) VALUES
     ('e0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL),
-    ('e0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL),
+    ('e0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000101', NULL, 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000003', 'a1000000-0000-4000-8000-000000000003', NULL, 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000004', 'a1000000-0000-4000-8000-000000000004', NULL, NULL, 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000005', 'a1000000-0000-4000-8000-000000000005', NULL, NULL, 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000006', 'a1000000-0000-4000-8000-000000000006', NULL, NULL, 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000007', 'a1000000-0000-4000-8000-000000000007', NULL, NULL, 'a0000000-0000-4000-8000-000000000007', NULL),
     ('e0000000-0000-4000-8000-000000000008', 'a0000000-0000-4000-8000-000000000008', 'a1000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL)
-    ,('e0000000-0000-4000-8000-000000000009', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL)
-    ,('e0000000-0000-4000-8000-000000000010', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000103', 'c0000000-0000-4000-8000-000000000201', 'a0000000-0000-4000-8000-000000000007', NULL)
+    ,('e0000000-0000-4000-8000-000000000009', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000102', NULL, 'a0000000-0000-4000-8000-000000000007', NULL)
+    ,('e0000000-0000-4000-8000-000000000010', 'a0000000-0000-4000-8000-000000000002', 'a1000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000103', NULL, 'a0000000-0000-4000-8000-000000000007', NULL)
 ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id, role_id = EXCLUDED.role_id,
-    materia_id = EXCLUDED.materia_id, carrera_id = EXCLUDED.carrera_id,
+    materia_id = EXCLUDED.materia_id,
+    carrera_id = EXCLUDED.carrera_id,
     granted_by = EXCLUDED.granted_by, deleted_at = NULL;
 
 -- El catálogo de cargos existe desde migración; el seed restaura sus filas fixture.
@@ -188,42 +209,43 @@ ON CONFLICT (id) DO UPDATE SET
     impacto_hasta = EXCLUDED.impacto_hasta, activo = EXCLUDED.activo;
 
 INSERT INTO designaciones.designaciones
-    (id, persona_id, materia_id, cargo_id, dedicacion_id, horas, horas_investigacion,
+    (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas, horas_investigacion,
      horas_externas, vigente_desde, vigente_hasta, origen_pedido_id) VALUES
-    ('d6000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000101', 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 2, 1, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000101', 'c3000000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000001', 20, 4, 2, DATE '2025-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000003', '70000000-0000-4000-8000-000000000102', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 1, 2, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000010', '70000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 6, 3, 1, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 3, 2, DATE '2026-03-01', DATE '2026-07-31', NULL),
-    ('d6000000-0000-4000-8000-000000000006', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 12, 4, 3, DATE '2026-08-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000101', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 7, 2, 0, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000008', 'd0000000-0000-4000-8000-000000000013', '70000000-0000-4000-8000-000000000101', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 2, 1, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000009', 'd0000000-0000-4000-8000-000000000015', '70000000-0000-4000-8000-000000000103', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 2, 1, DATE '2026-03-01', NULL, NULL),
-    ('d6000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000016', '70000000-0000-4000-8000-000000000101', 'c3000000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000001', 15, 1, 1, DATE '2026-03-01', NULL, NULL)
+    ('d6000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 2, 1, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000002', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000001', 20, 4, 2, DATE '2025-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000003', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 1, 2, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000010', '70000000-0000-4000-8000-000000000201', 'c0000000-0000-4000-8000-000000000202', 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 6, 3, 1, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 3, 2, DATE '2026-03-01', DATE '2026-07-31', NULL),
+    ('d6000000-0000-4000-8000-000000000006', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 12, 4, 3, DATE '2026-08-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000007', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 7, 2, 0, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000008', 'd0000000-0000-4000-8000-000000000013', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 2, 1, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000009', 'd0000000-0000-4000-8000-000000000015', '70000000-0000-4000-8000-000000000103', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000003', 8, 2, 1, DATE '2026-03-01', NULL, NULL),
+    ('d6000000-0000-4000-8000-000000000010', 'd0000000-0000-4000-8000-000000000016', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'c3000000-0000-4000-8000-000000000001', 'd6000000-0000-4000-8000-000000000001', 15, 1, 1, DATE '2026-03-01', NULL, NULL)
 ON CONFLICT (id) DO UPDATE SET
     persona_id = EXCLUDED.persona_id, materia_id = EXCLUDED.materia_id,
-    cargo_id = EXCLUDED.cargo_id, dedicacion_id = EXCLUDED.dedicacion_id,
+    carrera_id = EXCLUDED.carrera_id, cargo_id = EXCLUDED.cargo_id, dedicacion_id = EXCLUDED.dedicacion_id,
     horas = EXCLUDED.horas, horas_investigacion = EXCLUDED.horas_investigacion,
     horas_externas = EXCLUDED.horas_externas, vigente_desde = EXCLUDED.vigente_desde,
     vigente_hasta = EXCLUDED.vigente_hasta, origen_pedido_id = EXCLUDED.origen_pedido_id;
 
 -- Un pedido por persona para cada estado soportado.
 INSERT INTO designaciones.pedidos
-    (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario,
+    (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario,
      cargo_solicitado_id, dedicacion_solicitada_id, horas, horas_investigacion,
      horas_externas, justificacion,
      tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, snapshot) VALUES
-    ('d5000000-0000-4000-8000-000000000001', '2026-9001', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000101', 'Cambio de cargo o dedicación', 'borrador', FALSE, 'c3000000-0000-4000-8000-000000000002', 'd6000000-0000-4000-8000-000000000001', 20, 5, 3, 'Ampliación de responsabilidades', NULL, NULL, NULL, NULL, NULL),
-    ('d5000000-0000-4000-8000-000000000002', '2026-9002', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000010', '70000000-0000-4000-8000-000000000101', 'Alta', 'en_revision_coordinador', FALSE, 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000004', 6, 1, 2, 'Alta de comisión docente', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000003', '2026-9003', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000011', '70000000-0000-4000-8000-000000000101', 'Alta', 'en_revision_secretaria', TRUE, 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 8, 2, 1, 'Cobertura de comisión adicional', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000004', '2026-9004', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000012', '70000000-0000-4000-8000-000000000101', 'Alta', 'en_revision_decanato', FALSE, 'c3000000-0000-4000-8000-000000000006', 'd6000000-0000-4000-8000-000000000005', 6, 3, 2, 'Nueva comisión', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000005', '2026-9005', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000013', '70000000-0000-4000-8000-000000000101', 'Cambio de cargo o dedicación', 'devuelto', FALSE, 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 4, 2, 'Actualización de dedicación', NULL, NULL, 'en_revision_coordinador', 'jefe_catedra', '{"cargo":"Jefe de Trabajos Prácticos","dedicacion":"Categoría 3","horas":8,"materia":"Ingeniería de Software","horas_investigacion":2,"horas_externas":1}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000006', '2026-9006', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'Cambio de cargo o dedicación', 'en_lote', FALSE, 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 12, 4, 3, 'Actualización de designación', NULL, NULL, NULL, NULL, '{"cargo":"Profesor Adjunto","dedicacion":"Categoría 2","horas":10,"materia":"Algoritmos y Estructuras de Datos","horas_investigacion":3,"horas_externas":2}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000007', '2026-9007', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000015', '70000000-0000-4000-8000-000000000103', 'Baja', 'rechazado', FALSE, NULL, NULL, NULL, NULL, NULL, 'Renuncia informada', 'Renuncia', NULL, NULL, NULL, '{"cargo":"Jefe de Trabajos Prácticos","dedicacion":"Categoría 3","horas":8,"materia":"Bases de Datos","horas_investigacion":2,"horas_externas":1}'::JSONB),
-    ('d5000000-0000-4000-8000-000000000008', '2026-9008', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000016', '70000000-0000-4000-8000-000000000101', 'Baja', 'cancelado', FALSE, NULL, NULL, NULL, NULL, NULL, 'Renuncia informada', 'Renuncia', NULL, NULL, NULL, '{"cargo":"Profesor Titular","dedicacion":"Categoría 1","horas":15,"materia":"Ingeniería de Software","horas_investigacion":1,"horas_externas":1}'::JSONB)
+    ('d5000000-0000-4000-8000-000000000001', '2026-9001', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Cambio de cargo o dedicación', 'borrador', FALSE, 'c3000000-0000-4000-8000-000000000002', 'd6000000-0000-4000-8000-000000000001', 20, 5, 3, 'Ampliación de responsabilidades', NULL, NULL, NULL, NULL, NULL),
+    ('d5000000-0000-4000-8000-000000000002', '2026-9002', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000010', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Alta', 'en_revision_coordinador', FALSE, 'c3000000-0000-4000-8000-000000000004', 'd6000000-0000-4000-8000-000000000004', 6, 1, 2, 'Alta de comisión docente', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000003', '2026-9003', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000011', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Alta', 'en_revision_secretaria', TRUE, 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 8, 2, 1, 'Cobertura de comisión adicional', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000004', '2026-9004', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000012', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Alta', 'en_revision_decanato', FALSE, 'c3000000-0000-4000-8000-000000000006', 'd6000000-0000-4000-8000-000000000005', 6, 3, 2, 'Nueva comisión', NULL, NULL, NULL, NULL, '{"cargo":null,"dedicacion":null,"horas":null,"materia":"Ingeniería de Software","horas_investigacion":null,"horas_externas":null}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000005', '2026-9005', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000013', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Cambio de cargo o dedicación', 'devuelto', FALSE, 'c3000000-0000-4000-8000-000000000003', 'd6000000-0000-4000-8000-000000000002', 10, 4, 2, 'Actualización de dedicación', NULL, NULL, 'en_revision_coordinador', 'jefe_catedra', '{"cargo":"Jefe de Trabajos Prácticos","dedicacion":"Categoría 3","horas":8,"materia":"Ingeniería de Software","horas_investigacion":2,"horas_externas":1}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000006', '2026-9006', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000014', '70000000-0000-4000-8000-000000000102', 'c0000000-0000-4000-8000-000000000201', 'Cambio de cargo o dedicación', 'en_lote', FALSE, 'c3000000-0000-4000-8000-000000000005', 'd6000000-0000-4000-8000-000000000004', 12, 4, 3, 'Actualización de designación', NULL, NULL, NULL, NULL, '{"cargo":"Profesor Adjunto","dedicacion":"Categoría 2","horas":10,"materia":"Algoritmos y Estructuras de Datos","horas_investigacion":3,"horas_externas":2}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000007', '2026-9007', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000015', '70000000-0000-4000-8000-000000000103', 'c0000000-0000-4000-8000-000000000201', 'Baja', 'rechazado', FALSE, NULL, NULL, NULL, NULL, NULL, 'Renuncia informada', 'Renuncia', NULL, NULL, NULL, '{"cargo":"Jefe de Trabajos Prácticos","dedicacion":"Categoría 3","horas":8,"materia":"Bases de Datos","horas_investigacion":2,"horas_externas":1}'::JSONB),
+    ('d5000000-0000-4000-8000-000000000008', '2026-9008', 'd4000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000016', '70000000-0000-4000-8000-000000000101', 'c0000000-0000-4000-8000-000000000201', 'Baja', 'cancelado', FALSE, NULL, NULL, NULL, NULL, NULL, 'Renuncia informada', 'Renuncia', NULL, NULL, NULL, '{"cargo":"Profesor Titular","dedicacion":"Categoría 1","horas":15,"materia":"Ingeniería de Software","horas_investigacion":1,"horas_externas":1}'::JSONB)
 ON CONFLICT (id) DO UPDATE SET
     numero = EXCLUDED.numero, periodo_id = EXCLUDED.periodo_id,
-    persona_id = EXCLUDED.persona_id, materia_id = EXCLUDED.materia_id,
+    persona_id = EXCLUDED.persona_id,
+    materia_id = EXCLUDED.materia_id, carrera_id = EXCLUDED.carrera_id,
     novedad = EXCLUDED.novedad, estado = EXCLUDED.estado,
     prioritario = EXCLUDED.prioritario, cargo_solicitado_id = EXCLUDED.cargo_solicitado_id,
     dedicacion_solicitada_id = EXCLUDED.dedicacion_solicitada_id, horas = EXCLUDED.horas,
@@ -346,5 +368,102 @@ INSERT INTO portal.docente_habilidades (perfil_id, habilidad_id, tipo) VALUES
     ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000001', 'habilidad'),
     ('f0000000-0000-4000-8000-000000000001', 'f0800000-0000-4000-8000-000000000002', 'interes')
 ON CONFLICT (perfil_id, habilidad_id, tipo) DO NOTHING;
+
+-- Tareas y proyectos de ejemplo. Fechas relativas a "hoy" para que el semáforo de
+-- vencimiento se vea representativo cuando se siembra. Las personas son los usuarios
+-- sintéticos de arriba (guardadas por id, sin FK entre schemas).
+INSERT INTO tareas.proyectos
+    (id, nombre, descripcion, fecha_inicio, fecha_fin, estado_id, responsable_id) VALUES
+    ('f2000000-0000-4000-8000-000000000001', 'Nuevo sistema de Ingeniería para Testing',
+     'Modernización del entorno de pruebas de la carrera de Ingeniería.',
+     CURRENT_DATE - 20, CURRENT_DATE + 40, (SELECT id FROM tareas.estados_proyecto WHERE codigo = 'abierto'), 'a0000000-0000-4000-8000-000000000005'),
+    ('f2000000-0000-4000-8000-000000000002', 'Digitalización del archivo histórico',
+     'Escaneo y catalogación de expedientes de alumnos anteriores a 2010.',
+     CURRENT_DATE - 5, CURRENT_DATE + 90, (SELECT id FROM tareas.estados_proyecto WHERE codigo = 'abierto'), 'a0000000-0000-4000-8000-000000000004'),
+    ('f2000000-0000-4000-8000-000000000003', 'Migración a la nueva red edilicia',
+     'Cableado y wifi del edificio anexo.',
+     CURRENT_DATE - 120, CURRENT_DATE - 10, (SELECT id FROM tareas.estados_proyecto WHERE codigo = 'finalizado'), 'a0000000-0000-4000-8000-000000000005'),
+    ('f2000000-0000-4000-8000-000000000004', 'Plataforma propia de videoconferencia',
+     'Se evaluó reemplazar la herramienta externa actual.',
+     CURRENT_DATE - 60, CURRENT_DATE - 30, (SELECT id FROM tareas.estados_proyecto WHERE codigo = 'cancelado'), 'a0000000-0000-4000-8000-000000000004')
+ON CONFLICT (id) DO UPDATE SET
+    nombre = EXCLUDED.nombre, descripcion = EXCLUDED.descripcion,
+    fecha_inicio = EXCLUDED.fecha_inicio, fecha_fin = EXCLUDED.fecha_fin,
+    estado_id = EXCLUDED.estado_id, responsable_id = EXCLUDED.responsable_id;
+
+INSERT INTO tareas.tareas
+    (id, titulo, descripcion, fecha_inicio, fecha_fin, prioridad_id, tipo_id, estado_id,
+     porcentaje_avance, solucion, responsable_id, creado_por_id, proyecto_id, tarea_padre_id) VALUES
+    ('f3000000-0000-4000-8000-000000000001', 'Actualizar el padrón de aulas disponibles',
+     'Relevar qué aulas quedaron libres tras el cierre de inscripciones.',
+     CURRENT_DATE - 1, CURRENT_DATE + 19, (SELECT id FROM tareas.prioridades WHERE codigo = 'media'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'administrativa'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), 0, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000004', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000002', 'Cargar novedades de docentes en el sistema',
+     'Ingresar las altas/bajas informadas por las cátedras esta semana.',
+     CURRENT_DATE - 6, CURRENT_DATE + 4, (SELECT id FROM tareas.prioridades WHERE codigo = 'alta'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'administrativa'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'en_curso'), 45, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000004', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000003', 'Confirmar disponibilidad del laboratorio de Redes',
+     'Coordinar con mantenimiento el estado de las PCs antes del examen.',
+     CURRENT_DATE - 9, CURRENT_DATE + 1, (SELECT id FROM tareas.prioridades WHERE codigo = 'alta'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'academica'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'en_curso'), 70, NULL,
+     'a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000006',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000004', 'Revisar el cupo de la comisión de Algoritmos',
+     'Confirmar si hace falta abrir una comisión extra para el próximo cuatrimestre.',
+     CURRENT_DATE - 3, CURRENT_DATE + 7, (SELECT id FROM tareas.prioridades WHERE codigo = 'media'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'academica'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pausa'), 20, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000005', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000005', 'Actualizar el cartel de horarios de la secretaría',
+     'Reflejar el nuevo horario de atención al público.',
+     CURRENT_DATE - 12, CURRENT_DATE - 2, (SELECT id FROM tareas.prioridades WHERE codigo = 'baja'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'administrativa'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'resuelta'), 100,
+     'Se imprimió y colocó el nuevo cartel el lunes.',
+     'a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000004',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000006', 'Coordinar mesa examinadora extraordinaria',
+     'Se evaluó una mesa extra para rezagados de la cursada anterior.',
+     CURRENT_DATE - 8, CURRENT_DATE - 1, (SELECT id FROM tareas.prioridades WHERE codigo = 'media'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'academica'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'cancelada'), 10, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005', NULL, NULL),
+    ('f3000000-0000-4000-8000-000000000007', 'Migrar el sistema de inscripciones al nuevo campus',
+     'Coordinar la migración completa antes del inicio del próximo cuatrimestre.',
+     CURRENT_DATE - 5, CURRENT_DATE + 25, (SELECT id FROM tareas.prioridades WHERE codigo = 'alta'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'investigacion'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'en_curso'), 15, NULL,
+     'a0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', NULL),
+    ('f3000000-0000-4000-8000-000000000008', 'Migrar el módulo de calificaciones',
+     'Portar las notas históricas sin perder el detalle por comisión.',
+     CURRENT_DATE - 4, CURRENT_DATE + 16, (SELECT id FROM tareas.prioridades WHERE codigo = 'alta'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'investigacion'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'en_curso'), 30, NULL,
+     'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000007'),
+    ('f3000000-0000-4000-8000-000000000009', 'Validar las notas migradas contra el sistema anterior',
+     'Muestreo comisión por comisión para confirmar que no se perdió información.',
+     CURRENT_DATE - 1, CURRENT_DATE + 9, (SELECT id FROM tareas.prioridades WHERE codigo = 'media'), (SELECT id FROM tareas.tipos_tarea WHERE codigo = 'investigacion'), (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), 0, NULL,
+     'a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000005',
+     'f2000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000008')
+ON CONFLICT (id) DO UPDATE SET
+    titulo = EXCLUDED.titulo, descripcion = EXCLUDED.descripcion,
+    fecha_inicio = EXCLUDED.fecha_inicio, fecha_fin = EXCLUDED.fecha_fin,
+    prioridad_id = EXCLUDED.prioridad_id, tipo_id = EXCLUDED.tipo_id, estado_id = EXCLUDED.estado_id,
+    porcentaje_avance = EXCLUDED.porcentaje_avance, solucion = EXCLUDED.solucion,
+    responsable_id = EXCLUDED.responsable_id, creado_por_id = EXCLUDED.creado_por_id,
+    proyecto_id = EXCLUDED.proyecto_id, tarea_padre_id = EXCLUDED.tarea_padre_id;
+
+INSERT INTO tareas.tarea_relaciones (tarea_id, relacionada_id) VALUES
+    ('f3000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000002')
+ON CONFLICT (tarea_id, relacionada_id) DO NOTHING;
+
+INSERT INTO tareas.tarea_comentarios (id, tarea_id, autor_id, autor_rol, texto) VALUES
+    ('f4000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000004',
+     'a0000000-0000-4000-8000-000000000002', 'Jefe de Cátedra',
+     'Necesito confirmar el cupo real con Bedelía antes de seguir.')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO tareas.tarea_historial (id, tarea_id, accion, actor_id, actor_rol, estado_id, detalle) VALUES
+    ('f5000000-0000-4000-8000-000000000001', 'f3000000-0000-4000-8000-000000000001', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000002', 'f3000000-0000-4000-8000-000000000002', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000003', 'f3000000-0000-4000-8000-000000000003', 'crear', 'a0000000-0000-4000-8000-000000000006', 'Administrativo', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000004', 'f3000000-0000-4000-8000-000000000004', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000005', 'f3000000-0000-4000-8000-000000000005', 'crear', 'a0000000-0000-4000-8000-000000000004', 'Secretaría Académica', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000006', 'f3000000-0000-4000-8000-000000000006', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000007', 'f3000000-0000-4000-8000-000000000007', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000008', 'f3000000-0000-4000-8000-000000000008', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL),
+    ('f5000000-0000-4000-8000-000000000009', 'f3000000-0000-4000-8000-000000000009', 'crear', 'a0000000-0000-4000-8000-000000000005', 'Decanato', (SELECT id FROM tareas.estados_tarea WHERE codigo = 'pendiente'), NULL)
+ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

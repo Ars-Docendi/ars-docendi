@@ -8,6 +8,7 @@ build
 out
 publish
 artifacts
+.artifacts
 
 # .NET artifacts
 backend/**/bin
@@ -34,3 +35,8 @@ docs/**/_index.md
 
 # Git
 .git
+
+# Generados por `openspec update`: se sobrescriben en cada actualización
+.agents/skills/openspec-*
+.claude/skills/openspec-*
+.claude/commands/opsx

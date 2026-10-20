@@ -12,7 +12,8 @@ import type {
   TipoAdjunto,
   TipoBaja,
 } from "../types";
-import { asignacionVigenteEnMateria } from "../api/catalogos";
+import { PageHeader } from "../../../shared/ui/PageHeader";
+import { asignacionVigenteEnMateria, claveMateria } from "../api/catalogos";
 import { validarPedido, type ErroresValidacion } from "../pedidoValidacion";
 import { SeccionDocentePedido } from "./SeccionDocentePedido";
 import { SeccionDesignacionSolicitada } from "./SeccionDesignacionSolicitada";
@@ -23,9 +24,9 @@ const NOVEDADES: NovedadAdmitida[] = ["Alta", "Baja", "Cambio de cargo o dedicac
 
 /** Etiqueta legible de la etapa a la que retorna un pedido devuelto. */
 const ETIQUETA_ETAPA: Partial<Record<EstadoPedido, string>> = {
-  en_revision_coordinador: "En revisión Coordinador",
-  en_revision_secretaria: "En revisión Secretaría",
-  en_revision_decanato: "En revisión Decanato",
+  en_revision_coordinador: "de Coordinación",
+  en_revision_secretaria: "de Secretaría",
+  en_revision_decanato: "de Decanato",
 };
 
 interface PedidoFormProps {
@@ -65,6 +66,7 @@ function datosIniciales(catedra: string, pedido?: PedidoDesignacion): DatosEdita
     adjuntos: pedido?.adjuntos ?? [],
     personaId: pedido?.personaId,
     materiaId: pedido?.materiaId,
+    carreraId: pedido?.carreraId,
     periodoId: pedido?.periodoId,
     version: pedido?.version,
   };
@@ -150,27 +152,35 @@ export function PedidoForm({
   const materiasDisponibles = useMemo(() => {
     if (esAlta) return materiasBase;
     const materiasDelActor = new Set(materiasBase.map((materia) => materia.id));
-    const ids = new Set<string>();
+    const claves = new Set<string>();
     return (docenteSeleccionado?.materiasActuales ?? []).flatMap((asignacion) => {
       if (!materiasDelActor.has(asignacion.materiaId)) return [];
-      if (ids.has(asignacion.materiaId)) return [];
-      ids.add(asignacion.materiaId);
-      return [{ id: asignacion.materiaId, nombre: asignacion.materia }];
+      const materia = {
+        id: asignacion.materiaId,
+        nombre: asignacion.materia,
+        carreraId: asignacion.carreraId,
+        carreraNombre: materiasBase.find(
+          (item) => item.id === asignacion.materiaId && item.carreraId === asignacion.carreraId,
+        )?.carreraNombre,
+      };
+      if (claves.has(claveMateria(materia))) return [];
+      claves.add(claveMateria(materia));
+      return [materia];
     });
   }, [docenteSeleccionado, esAlta, materiasBase]);
-  const materiaIdSeleccionada = materiasDisponibles.some(
-    (materia) => materia.id === datos.materiaId,
-  )
-    ? datos.materiaId
-    : materiasDisponibles.length === 1
-      ? materiasDisponibles[0].id
-      : undefined;
+  // Una materia compartida entre carreras es una opción por carrera: la carrera define
+  // quién revisa el pedido, así que nunca se elige una por omisión.
+  const materiaSeleccionada =
+    materiasDisponibles.find(
+      (materia) =>
+        materia.id === datos.materiaId &&
+        (!materia.carreraId || materia.carreraId === datos.carreraId),
+    ) ?? (materiasDisponibles.length === 1 ? materiasDisponibles[0] : undefined);
+  const materiaIdSeleccionada = materiaSeleccionada?.id;
   const asignacionSeleccionada = asignacionVigenteEnMateria(
     docenteSeleccionado,
     materiaIdSeleccionada,
-  );
-  const materiaSeleccionada = materiasDisponibles.find(
-    (materia) => materia.id === materiaIdSeleccionada,
+    materiaSeleccionada?.carreraId,
   );
   const errorMateriaSinOpciones =
     !esAlta && docenteSeleccionado && materiasDisponibles.length === 0
@@ -199,6 +209,7 @@ export function PedidoForm({
         horasExternas: 0,
         personaId: undefined,
         materiaId: undefined,
+        carreraId: undefined,
       }));
       return;
     }
@@ -222,6 +233,7 @@ export function PedidoForm({
       horasExternas: asignacion?.horasExternas ?? 0,
       personaId: docente.personaId,
       materiaId: asignacion?.materiaId,
+      carreraId: asignacion?.carreraId,
       catedra: asignacion?.materia ?? "",
     }));
   }
@@ -238,12 +250,19 @@ export function PedidoForm({
     }));
   }
 
-  function seleccionarMateria(materiaId: string) {
-    const materia = materiasDisponibles.find((item) => item.id === materiaId);
-    const asignacion = asignacionVigenteEnMateria(docenteSeleccionado, materiaId);
+  function seleccionarMateria(clave: string) {
+    const materia = materiasDisponibles.find(
+      (item) => claveMateria(item) === clave || item.id === clave,
+    );
+    const asignacion = asignacionVigenteEnMateria(
+      docenteSeleccionado,
+      materia?.id,
+      materia?.carreraId,
+    );
     setDatos((prev) => ({
       ...prev,
       materiaId: materia?.id,
+      carreraId: materia?.carreraId ?? asignacion?.carreraId,
       catedra: materia?.nombre ?? "",
       cargoActual: asignacion?.cargoActual ?? (esAlta ? null : prev.cargoActual),
       dedicacionActual: asignacion?.dedicacionActual ?? (esAlta ? null : prev.dedicacionActual),
@@ -281,6 +300,7 @@ export function PedidoForm({
     const datosParaGuardar = {
       ...datos,
       materiaId: materiaIdSeleccionada,
+      carreraId: materiaSeleccionada?.carreraId ?? datos.carreraId,
       catedra: materiaSeleccionada?.nombre ?? "",
     };
     const resultado = validarPedido(datosParaGuardar, {
@@ -301,7 +321,7 @@ export function PedidoForm({
   const muestraSolicitud = esAlta || esCambio;
 
   const numero = pedidoInicial?.numero ?? "";
-  const titulo = esEdicion ? "Editar pedido de designación" : "Nuevo pedido de designación";
+  const titulo = esEdicion ? "Editar pedido" : "Nuevo pedido";
   const subtitulo = construirSubtitulo(novedad, esEdicion, pedidoInicial, numero, periodoLabel);
   const devolucion = pedidoInicial?.estado === "devuelto" ? ultimaDevolucion(pedidoInicial) : null;
 
@@ -313,13 +333,7 @@ export function PedidoForm({
         handleGuardar();
       }}
     >
-      <header className="adoc-pf-head">
-        <p className="adoc-pf-eyebrow">
-          DESIGNACIONES · {novedad ? novedad.toUpperCase() : "NOVEDAD"}
-        </p>
-        <h1 className="adoc-pf-title">{titulo}</h1>
-        <p className="adoc-pf-subtitle">{subtitulo}</p>
-      </header>
+      <PageHeader title={titulo} meta={subtitulo} />
 
       {devolucion && (
         <InlineAlert severity="warning" title={`Devuelto por el ${devolucion.porRol}`}>
@@ -367,6 +381,7 @@ export function PedidoForm({
             opcionesDocente={opcionesDocente}
             materias={materiasDisponibles}
             materiaId={materiaIdSeleccionada}
+            carreraId={materiaSeleccionada?.carreraId}
             errorMateria={errores.materia ?? errorMateriaSinOpciones}
             cargoActual={datos.cargoActual}
             cargoSolicitado={esCambio ? datos.cargoSolicitado : undefined}

@@ -3,6 +3,7 @@ using ArsDocendi.Shared.Auth;
 using ArsDocendi.Shared.Identity;
 using ArsDocendi.Shared.Identity.Administracion;
 using ArsDocendi.Shared.Identity.Desarrollo;
+using ArsDocendi.Shared.Identity.Ingreso;
 using ArsDocendi.Shared.Persistencia;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +17,10 @@ public static class DependencyInjection
     /// <summary>
     /// Registra las utilidades transversales y la persistencia de identidad/auditoría.
     /// <para>
-    /// DEBE invocarse ANTES que los <c>Add&lt;Modulo&gt;Module()</c> en el Host: el
-    /// contenedor devuelve las implementaciones de <see cref="IMigradorModulo"/> en
-    /// orden de registración, y el schema <c>audit</c> + las tablas de <c>identity</c>
-    /// tienen que existir antes de que cualquier módulo aplique su DDL.
+    /// DEBE invocarse antes de AddMigracionesIdentity y de los módulos en el Host.
+    /// El adaptador de migraciones vive en ArsDocendi.Migraciones para no agregar
+    /// I/O de otros contextos a Shared; Identity/Audit se aplica antes de Storage
+    /// y de las tablas de negocio que dependen de ambas infraestructuras.
     /// </para>
     /// </summary>
     public static IServiceCollection AddArsDocendiShared(this IServiceCollection services, IConfiguration configuration)
@@ -33,17 +34,19 @@ public static class DependencyInjection
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", IdentityDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
-        services.AddScoped<IMigradorModulo, MigradorIdentity>();
         services.AddScoped<IConsultasIdentity, ConsultasIdentity>();
-        services.AddScoped<IVinculadorPrimerLogin, VinculadorPrimerLogin>();
         services.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
         services.AddScoped<ServicioUsuarios>();
+        services.AddScoped<ServicioAdministradorInicial>();
         services.AddScoped<IRepositorioRoles, RepositorioRoles>();
         services.AddScoped<ServicioRoles>();
         services.AddScoped<IRepositorioDocentes, RepositorioDocentes>();
         services.AddScoped<IAdministracionIdentity, ServicioPersonas>();
         services.AddScoped<IUnidadDeTrabajoAdministracion, UnidadDeTrabajoAdministracion>();
         services.AddScoped<ServicioIdentidadesDesarrollo>();
+        services.AddScoped<RepositorioIngreso>();
+        services.AddScoped<ServicioSesion>();
+        services.AddScoped<ServicioIngreso>();
 
         return services;
     }

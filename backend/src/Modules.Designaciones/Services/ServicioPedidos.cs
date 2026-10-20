@@ -15,7 +15,7 @@ namespace Modules.Designaciones.Services;
 /// transición con su evento de historial y dispara la materialización cuando el
 /// pedido termina de recorrer el circuito.
 /// </summary>
-internal sealed class ServicioPedidos(
+internal sealed partial class ServicioPedidos(
     RepositorioPedidos pedidos,
     RepositorioDesignaciones designaciones,
     MaterializadorDesignaciones materializador,
@@ -24,7 +24,8 @@ internal sealed class ServicioPedidos(
     UnidadDeTrabajo unidadDeTrabajo,
     ILogger<ServicioPedidos> logger,
     IAdministracionIdentity? administracionIdentity = null,
-    IAlmacenamientoArchivos? almacenamiento = null)
+    IAlmacenamientoArchivos? almacenamiento = null,
+    IProteccionArchivos? proteccionArchivos = null)
 {
     /// <summary>
     /// Crea un pedido en borrador.
@@ -35,7 +36,15 @@ internal sealed class ServicioPedidos(
     /// al mismo error de dominio.
     /// </para>
     /// </summary>
-    public async Task<Pedido> CrearAsync(DatosPedido datos, CancellationToken ct)
+    private async Task<Pedido> CrearProtegidoAsync(DatosPedido datos, CancellationToken ct)
+    {
+        Pedido resultado = null!;
+        await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
+            resultado = await CrearEnTransaccionAsync(datos, token), ct);
+        return resultado;
+    }
+
+    private async Task<Pedido> CrearEnTransaccionAsync(DatosPedido datos, CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
@@ -47,6 +56,7 @@ internal sealed class ServicioPedidos(
 
         var archivos = await ValidarDatosAsync(datos, actor, ct);
         var datosResueltos = await ResolverPersonaAsync(datos, ct);
+        await designaciones.ValidarDestinosAsync([actor.UsuarioId], [datosResueltos.PersonaId!.Value], ct);
 
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
             datosResueltos.PeriodoId, datosResueltos.PersonaId!.Value, null, ct))
@@ -63,6 +73,7 @@ internal sealed class ServicioPedidos(
             PeriodoId = datos.PeriodoId,
             PersonaId = datosResueltos.PersonaId.Value,
             MateriaId = datos.MateriaId,
+            CarreraId = datos.CarreraId,
             Novedad = datos.Novedad,
             Estado = EstadosPedido.Borrador,
             CreadoEn = DateTimeOffset.UtcNow,
@@ -82,26 +93,28 @@ internal sealed class ServicioPedidos(
         return pedido;
     }
 
-    public async Task<Pedido> EditarAsync(Guid pedidoId, DatosPedido datos, CancellationToken ct)
+    private async Task<Pedido> EditarProtegidoAsync(Guid pedidoId, DatosPedido datos, CancellationToken ct)
     {
         if (datos.Version is null)
         {
             throw new ErrorDominioPedido("La edición requiere la versión vigente del pedido.");
         }
-        if (datos.PersonaId is null || datos.Persona is not null)
+        if (datos.Persona is not null)
             throw new ErrorDominioPedido("La edición debe referir a una persona canónica existente.");
+        var personaId = datos.PersonaId
+            ?? throw new ErrorDominioPedido("La edición debe referir a una persona canónica existente.");
         var actor = await resolutorActor.ResolverAsync(ct);
         var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
-        var carrera = await pedidos.ObtenerCarreraDelPedidoAsync(pedidoId, ct);
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
         if (!MaquinaEstadosPedido.PuedeEditar(pedido, actor)
-            || !MaquinaEstadosPedido.AlcanzaAmbito(pedido, carrera, actor))
+            || !MaquinaEstadosPedido.AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El actor no puede editar este pedido en su estado o ámbito actual.");
         }
         var archivos = await ValidarDatosAsync(datos, actor, ct);
         if (await pedidos.ExisteVivoParaPersonaEnPeriodoAsync(
-            datos.PeriodoId, datos.PersonaId.Value, pedidoId, ct))
+            datos.PeriodoId, personaId, pedidoId, ct))
         {
             throw new ErrorPedidoDuplicado(
                 "Ya existe un pedido en curso para ese docente en el período [BR-designaciones-001].");
@@ -109,10 +122,13 @@ internal sealed class ServicioPedidos(
 
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
+            await designaciones.ValidarDestinosAsync([actor.UsuarioId],
+                pedido.PersonaId == personaId ? [] : [personaId], token);
             pedidos.EsperarVersion(pedido, datos.Version.Value);
             pedido.PeriodoId = datos.PeriodoId;
-            pedido.PersonaId = datos.PersonaId.Value;
+            pedido.PersonaId = personaId;
             pedido.MateriaId = datos.MateriaId;
+            pedido.CarreraId = datos.CarreraId;
             pedido.Novedad = datos.Novedad;
             AplicarDatos(pedido, datos);
             pedidos.ReemplazarAdjuntos(pedido, ConstruirAdjuntos(pedido.Id, datos.Adjuntos, archivos, datos.Adjuntos.Any(EsLegacyCompat) || almacenamiento is null));
@@ -134,34 +150,36 @@ internal sealed class ServicioPedidos(
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
-        var pedido = await pedidos.ObtenerLivianoAsync(pedidoId, ct)
+        var pedido = await pedidos.ObtenerPorIdAsync(pedidoId, ct)
             ?? throw new ErrorDominioPedido($"No existe el pedido {pedidoId}.");
 
-        var carrera = await pedidos.ObtenerCarreraDelPedidoAsync(pedidoId, ct);
-        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, carrera, accion, actor);
-
-        // El snapshot se congela AL ENVIAR, no al crear: mientras el pedido está en
-        // borrador vale el estado vigente del docente. Una vez enviado, el trámite
-        // conserva su verdad histórica aunque la designación cambie después.
-        if (transicion.AccionHistorial == AccionesHistorial.Enviar)
-        {
-            await ValidarDesignacionVigenteAsync(pedido, ct);
-            pedido.Snapshot = await ArmarSnapshotAsync(pedido, ct);
-        }
+        var alcance = new AlcancePedido(pedido.MateriaId, pedido.CarreraId);
+        var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, alcance, accion, actor);
 
         await unidadDeTrabajo.EjecutarEnTransaccionAsync(async token =>
         {
+            await designaciones.ValidarDestinosAsync([actor.UsuarioId], [pedido.PersonaId], token);
+            await designaciones.BloquearAsync(pedido.PersonaId, pedido.MateriaId, token);
+            if (accion is AccionPedido.Enviar or AccionPedido.Reenviar or AccionPedido.Aceptar)
+            {
+                await ValidarCompletitudCircuitoAsync(pedido, token);
+                await ValidarDesignacionVigenteAsync(pedido, token);
+            }
+            // La fotografía se obtiene después de esperar administración y antes de commit.
+            // Reenviar/aprobar nunca recalculan la verdad histórica del primer envío.
+            if (transicion.AccionHistorial == AccionesHistorial.Enviar)
+                pedido.Snapshot = await ArmarSnapshotAsync(pedido, token);
             AplicarTransicion(pedido, transicion);
-            RegistrarEnHistorial(
-                pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, transicion.Comentario);
+            var comentario = transicion.Comentario;
 
-            // El circuito terminó: el trámite se vuelve realidad sobre el estado
-            // vigente. Va dentro de la misma transacción que la transición para que un
-            // fallo parcial no deje un pedido aprobado sin designación.
+            // Vigencias e historial se confirman en la misma transacción.
             if (transicion.EstadoResultante == EstadosPedido.EnLote)
             {
-                await materializador.MaterializarAsync(pedido, token);
+                var detalle = await materializador.MaterializarAsync(pedido, token);
+                if (detalle is not null)
+                    comentario = string.IsNullOrWhiteSpace(comentario) ? detalle : comentario + "\n" + detalle;
             }
+            RegistrarEnHistorial(pedido, transicion.AccionHistorial, transicion.CodigoRolActuante, actor, comentario);
 
             await pedidos.GuardarCambiosAsync(token);
         }, ct);
@@ -178,7 +196,7 @@ internal sealed class ServicioPedidos(
     /// eliminar no deja evento en el historial: el pedido deja de existir. Un devuelto
     /// no se puede eliminar aunque sea editable — ya tiene una revisión asociada.
     /// </summary>
-    public async Task EliminarBorradorAsync(Guid pedidoId, CancellationToken ct)
+    private async Task EliminarBorradorProtegidoAsync(Guid pedidoId, CancellationToken ct)
     {
         var actor = await resolutorActor.ResolverAsync(ct);
 
@@ -319,14 +337,17 @@ internal sealed class ServicioPedidos(
             : null;
         if (datos.PersonaId is not null && persona is null)
             throw new ErrorDominioPedido("La persona seleccionada no existe.");
-        var materia = (await identity.ListarMateriasAsync(ct)).SingleOrDefault(m => m.Id == datos.MateriaId);
-        if (materia is null || !materia.Activo)
-            throw new ErrorDominioPedido("La materia seleccionada no existe o está inactiva.");
+        // La pertenencia materia–plan es sólo informativa acá: confirma que la materia
+        // efectivamente se dicta en la carrera elegida, sin fijar un plan puntual.
+        var seDictaEnLaCarrera = (await identity.ListarMateriasPlanAsync(ct)).Any(mp =>
+            mp.MateriaId == datos.MateriaId && mp.Plan!.CarreraId == datos.CarreraId
+            && mp.Activo && mp.Materia!.Activo && mp.Plan.Activo);
+        if (!seDictaEnLaCarrera)
+            throw new ErrorDominioPedido(
+                "La materia seleccionada no existe, está inactiva o no se dicta en esa carrera.");
         if (!actor.EsDeptoWide
-            && !(actor.Tiene(RolesCircuito.CoordinadorCarrera)
-                && actor.CarrerasACargo.Contains(materia.CarreraId))
-            && !(actor.Tiene(RolesCircuito.JefeCatedra)
-                && actor.MateriasACargo.Contains(materia.Id)))
+            && !(actor.Tiene(RolesCircuito.CoordinadorCarrera) && actor.CarrerasACargo.Contains(datos.CarreraId))
+            && !(actor.Tiene(RolesCircuito.JefeCatedra) && actor.MateriasACargo.Contains(datos.MateriaId)))
             throw new ErrorDominioPedido("La materia seleccionada está fuera del ámbito del actor.");
         if (datos.CargoSolicitadoId is { } cargoId
             && !await pedidos.ExisteCargoActivoAsync(cargoId, ct))

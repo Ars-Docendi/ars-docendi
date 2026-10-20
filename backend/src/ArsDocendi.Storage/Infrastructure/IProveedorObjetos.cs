@@ -8,5 +8,5 @@ public interface IProveedorObjetos
     Task EliminarAsync(string bucket, string clave, CancellationToken ct);
 }
 
-public sealed record ObjetoRemoto(long TamanoBytes, string? Mime, Stream Contenido);
+public sealed record ObjetoRemoto(long TamanoBytes, string? Mime, MemoryStream Contenido);
 public sealed record ObjetoListado(string Clave, DateTimeOffset UltimaModificacion);

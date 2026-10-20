@@ -16,6 +16,14 @@ namespace ArsDocendi.Shared.Identity;
 /// </summary>
 public interface IConsultasIdentity
 {
+    /// <summary>Cuenta y persona por ID; incluye usuarios inactivos para resolver historia.</summary>
+    Task<Usuario?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken ct);
+    /// <summary>Lote selectivo de cuentas y sus personas, incluidas las inactivas.</summary>
+    Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct);
+    /// <summary>Lote selectivo de personas canónicas, sin una consulta por persona.</summary>
+    Task<IReadOnlyList<Persona>> ObtenerPersonasAsync(IReadOnlyCollection<Guid> personaIds, CancellationToken ct);
+    /// <summary>Actividad, roles, palabras y jerarquía antes del límite y materialización.</summary>
+    Task<IReadOnlyList<Usuario>> BuscarCandidatosAsync(FiltroCandidatosIdentity filtro, CancellationToken ct);
     /// <summary>Devuelve la persona, o <c>null</c> si no existe.</summary>
     Task<Persona?> ObtenerPersonaAsync(Guid personaId, CancellationToken ct);
 
@@ -46,28 +54,41 @@ public interface IConsultasIdentity
     /// </summary>
     Task<IReadOnlyList<string>> ObtenerCodigosDeRolesDeSistemaAsync(Guid usuarioId, CancellationToken ct);
 
+    /// <summary>
+    /// Roles de SISTEMA vigentes (código y nombre) de cada usuario indicado. Los usuarios
+    /// inactivos o sin roles de sistema no aparecen en el diccionario. Sirve para mostrar
+    /// el rol de una persona en respuestas sin consultar usuario por usuario.
+    /// </summary>
+    Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
+        IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct);
+
     /// <summary>Códigos de permiso efectivos del usuario, unión de todos sus roles vigentes.</summary>
     Task<IReadOnlyList<string>> ObtenerCodigosDePermisosAsync(Guid usuarioId, CancellationToken ct);
 
     /// <summary>
-    /// Materias sobre las que el usuario tiene vigente el rol de sistema indicado.
-    /// Es el ámbito del Jefe de Cátedra: las cátedras que tiene a cargo.
+    /// Materias canónicas sobre las que el usuario tiene vigente el rol de sistema indicado.
+    /// Es el ámbito del Jefe de Cátedra (vale en todos sus planes) y, junto con
+    /// <see cref="ObtenerCarrerasDeRolAsync"/>, el del Docente.
     /// </summary>
     Task<IReadOnlyList<Guid>> ObtenerMateriasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct);
 
     /// <summary>
-    /// Carreras sobre las que el usuario tiene vigente el rol de sistema indicado.
-    /// Es el ámbito del Coordinador.
+    /// Carreras sobre las que el usuario tiene vigente el rol de sistema indicado. Es el
+    /// ámbito del Coordinador y, junto con <see cref="ObtenerMateriasDeRolAsync"/>, el del Docente.
     /// </summary>
     Task<IReadOnlyList<Guid>> ObtenerCarrerasDeRolAsync(
         Guid usuarioId, string codigoRol, CancellationToken ct);
 
-    /// <summary>Carrera a la que pertenece la materia, o <c>null</c> si la materia no existe.</summary>
-    Task<Guid?> ObtenerCarreraDeMateriaAsync(Guid materiaId, CancellationToken ct);
-
-    /// <summary>Catálogo de materias, incluidas las inactivas referenciadas por historiales.</summary>
+    /// <summary>Catálogo de materias canónicas, incluidas las inactivas referenciadas por historiales.</summary>
     Task<IReadOnlyList<Materia>> ListarMateriasAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Pertenencias materia–plan, informativas: qué materias dicta cada carrera y si su plan
+    /// está vigente/activo. Ninguna FK depende de esto; una materia dictada en dos carreras, o
+    /// bajo dos planes de la misma carrera, aparece una vez por plan.
+    /// </summary>
+    Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct);
 
     /// <summary>Personas canónicas elegibles para operaciones de negocio.</summary>
     Task<IReadOnlyList<Persona>> ListarPersonasAsync(CancellationToken ct);
@@ -75,3 +96,6 @@ public interface IConsultasIdentity
     /// <summary>Cuentas canónicas para resolver actores en respuestas de auditoría.</summary>
     Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct);
 }
+
+/// <summary>Rol de sistema de un usuario: código estable y nombre para mostrar.</summary>
+public sealed record RolDeSistema(string Codigo, string Nombre);

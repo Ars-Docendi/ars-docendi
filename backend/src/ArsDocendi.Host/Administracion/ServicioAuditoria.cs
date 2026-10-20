@@ -8,16 +8,10 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
     private const int TamanoPaginaPredeterminado = 50;
     private const int TamanoPaginaMaximo = 100;
     private static readonly HashSet<string> Acciones = ["INSERT", "UPDATE", "DELETE"];
-    private static readonly HashSet<string> CamposConValorSeguro = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "code", "codigo", "scope", "estado", "status", "action", "novedad", "tipo_baja",
-        "activo", "is_active", "es_sistema", "orden", "horas", "horas_investigacion",
-        "horas_externas", "vigente_desde", "vigente_hasta", "created_at", "deleted_at",
-    };
     private static readonly HashSet<string> CamposPersonalesOSecretos = new(StringComparer.OrdinalIgnoreCase)
     {
         "documento", "cuil", "legajo", "nombre", "apellido", "fecha_nacimiento", "telefono",
-        "upn", "display_name", "azure_oid", "email", "mail", "correo", "client_ip",
+        "upn", "display_name", "azure_oid", "azure_tid", "email", "mail", "correo", "client_ip",
         "password", "token", "access_token", "refresh_token", "secret", "uri",
     };
     private static readonly Dictionary<string, string> EtiquetasModulos = new(StringComparer.OrdinalIgnoreCase)
@@ -131,6 +125,21 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             errores["tabla"] = ["No puede superar 63 caracteres."];
         if (filtros.RowPk?.Trim().Length > 200)
             errores["rowPk"] = ["No puede superar 200 caracteres."];
+        if (filtros.RowPk?.TrimStart().StartsWith('{') == true)
+        {
+            try
+            {
+                using var clave = JsonDocument.Parse(filtros.RowPk);
+                var campos = clave.RootElement.EnumerateObject().ToArray();
+                if (campos.Length == 0 || campos.Select(c => c.Name).Distinct(StringComparer.Ordinal).Count() != campos.Length
+                    || campos.Any(c => c.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number)))
+                    errores["rowPk"] = ["La clave completa requiere un objeto JSON no vacío de componentes escalares."];
+            }
+            catch (JsonException)
+            {
+                errores["rowPk"] = ["La clave completa debe ser un objeto JSON válido."];
+            }
+        }
         if (filtros.Actor?.Trim().Length > 100)
             errores["actor"] = ["No puede superar 100 caracteres."];
         if (errores.Count > 0)
@@ -152,7 +161,7 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             ?? ObtenerClaves(anterior, nueva);
         var cambios = columnas
             .Order(StringComparer.Ordinal)
-            .Select(campo => MapearCambio(campo, anterior, nueva))
+            .Select(campo => MapearCambio(registro.NombreSchema, registro.NombreTabla, campo, anterior, nueva))
             .ToArray();
         var accionEtiqueta = registro.Accion switch
         {
@@ -171,11 +180,18 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
             ? $"{accionEtiqueta} de {objeto.ToLowerInvariant()}"
             : $"{accionEtiqueta} de {objeto.ToLowerInvariant()} · {string.Join(", ", cambios.Select(cambio => cambio.EtiquetaCampo))}";
 
+        if (evento.FormatoClave == "legacy-group")
+            resumen += " · Agrupación histórica (clave parcial; no es una relación precisa)";
+        else if (evento.FormatoClave == "legacy-recovered")
+            resumen += " · Clave legada recuperada en lectura";
+
         return new EventoAuditoriaDto(
             registro.Id,
             registro.NombreSchema,
             registro.NombreTabla,
-            registro.ClaveFila,
+            evento.FormatoClave is "composite-v1" or "legacy-recovered"
+                ? evento.ClaveCompleta ?? registro.ClaveFila
+                : registro.ClaveFila,
             registro.Accion,
             registro.CambiadoEn,
             registro.CambiadoPor,
@@ -191,17 +207,22 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
 
     private static string ResolverActor(RegistroAuditoria evento)
     {
+        string actor;
         if (!string.IsNullOrWhiteSpace(evento.ApellidoPersona)
             && !string.IsNullOrWhiteSpace(evento.NombrePersona))
-            return $"{evento.ApellidoPersona.Trim()}, {evento.NombrePersona.Trim()}";
-        if (!string.IsNullOrWhiteSpace(evento.ApellidoPersona)) return evento.ApellidoPersona.Trim();
-        if (!string.IsNullOrWhiteSpace(evento.NombrePersona)) return evento.NombrePersona.Trim();
-        return string.IsNullOrWhiteSpace(evento.NombreCuenta)
+            actor = $"{evento.ApellidoPersona.Trim()}, {evento.NombrePersona.Trim()}";
+        else if (!string.IsNullOrWhiteSpace(evento.ApellidoPersona)) actor = evento.ApellidoPersona.Trim();
+        else if (!string.IsNullOrWhiteSpace(evento.NombrePersona)) actor = evento.NombrePersona.Trim();
+        else actor = string.IsNullOrWhiteSpace(evento.NombreCuenta)
             ? "Actor no identificado"
             : evento.NombreCuenta.Trim();
+        // Un display_name legado puede ser el UPN; no convertirlo en correo visible.
+        return actor.Contains('@') ? "Actor no identificado" : actor;
     }
 
     private static CambioAuditoriaDto MapearCambio(
+        string schema,
+        string tabla,
         string campo,
         JsonDocument? anterior,
         JsonDocument? nueva)
@@ -209,7 +230,7 @@ public sealed class ServicioAuditoria(IRepositorioAuditoria repositorio)
         var etiquetaCampo = EtiquetasCampos.TryGetValue(campo, out var etiqueta)
             ? etiqueta
             : Humanizar(campo);
-        if (CamposPersonalesOSecretos.Contains(campo) || !CamposConValorSeguro.Contains(campo))
+        if (CamposPersonalesOSecretos.Contains(campo) || !PoliticaValoresAuditoria.Permite(schema, tabla, campo))
             return new CambioAuditoriaDto(campo, null, null, true, etiquetaCampo);
         if (!IntentarObtenerValor(anterior, campo, out var valorAnterior)
             || !IntentarObtenerValor(nueva, campo, out var valorNuevo))

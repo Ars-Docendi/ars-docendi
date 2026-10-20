@@ -19,22 +19,20 @@ public sealed class ManejadorExcepcionesApi(ILogger<ManejadorExcepcionesApi> log
     {
         var error = Clasificar(excepcion);
 
+        // Método y ruta provienen del cliente: no se registran para evitar inyección
+        // de entradas y la exposición de datos privados incluidos en la URL.
         if (error.Status >= StatusCodes.Status500InternalServerError)
         {
             logger.LogError(excepcion,
-                "Error no controlado al procesar {Metodo} {Ruta}; TraceId {TraceId}",
-                contexto.Request.Method,
-                contexto.Request.Path,
+                "Error no controlado al procesar la solicitud; TraceId {TraceId}",
                 contexto.TraceIdentifier);
         }
         else
         {
             logger.LogWarning(
-                "Solicitud rechazada con {CodigoError} ({Status}) en {Metodo} {Ruta}; TraceId {TraceId}",
+                "Solicitud rechazada con {CodigoError} ({Status}); TraceId {TraceId}",
                 error.Codigo,
                 error.Status,
-                contexto.Request.Method,
-                contexto.Request.Path,
                 contexto.TraceIdentifier);
         }
 

@@ -10,6 +10,7 @@ public sealed class AlmacenamientoOptions
     public string Bucket { get; set; } = "arsdocendi-dev";
     public string Ambiente { get; set; } = "development";
     public int ExpiracionCargaSegundos { get; set; } = 600;
+    public int DuracionReservaSegundos { get; set; } = 30;
     public int ExpiracionDescargaSegundos { get; set; } = 300;
     public long TamanoMaximoPdf { get; set; } = 10 * 1024 * 1024;
     public long TamanoMaximoImagen { get; set; } = 5 * 1024 * 1024;
