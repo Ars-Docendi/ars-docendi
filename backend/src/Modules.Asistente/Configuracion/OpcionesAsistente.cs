@@ -489,6 +489,21 @@ public sealed class OpcionesAsistente
     public string UrlDelProveedorLocal { get; set; } = string.Empty;
 
     /// <summary>
+    /// Contexto que el proveedor <c>ollama</c> le pide al servidor en cada pedido
+    /// (<c>options.num_ctx</c>). Cero —el default— no lo manda y vale el del
+    /// servidor (asistente-proveedor-ollama, design.md D3).
+    /// </summary>
+    /// <remarks>
+    /// Tiene que alcanzar para el prefijo estable más el mensaje y el techo de
+    /// salida de la llamada: el adaptador pide <c>truncate: false</c>, así que un
+    /// prompt más largo vuelve como error en vez de recortarse por el principio.
+    /// Tiene que ser el mismo que usa cualquier otro cliente del servidor: uno
+    /// distinto del cargado lo hace recargar el modelo. Lo ideal es que coincida
+    /// con <c>OLLAMA_CONTEXT_LENGTH</c>.
+    /// </remarks>
+    public int ContextoDelModelo { get; set; }
+
+    /// <summary>
     /// Si una consulta que volvió vacía se vuelve a generar una vez. Default
     /// <c>true</c> (asistente-proveedor-local, D6).
     /// </summary>

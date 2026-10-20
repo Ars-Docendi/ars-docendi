@@ -1,0 +1,48 @@
+# Perfil del backend contra el servicio de inferencia compartido
+# (asistente-proveedor-ollama): Ollama en la RTX 5070 de pc-prod con qwen3.5:9b.
+#
+# Se SUMA a compose.base.yml cuando ASISTENTE_PROVEEDOR=ollama (lo hace
+# spin-up.sh). La URL y las credenciales no van acá: son las Inferencia__* de
+# compose.base.yml, que cada deploy entrega por GitHub Environment.
+#
+# El servidor es UNO para todos los ambientes y Ollama atiende a qwen3.5 de a un
+# pedido por vez (fuerza NUM_PARALLEL=1 para esa arquitectura): la compuerta de
+# cada backend en 1 evita llenar la cola de Ollama (503) con pedidos de un mismo
+# ambiente. Ver docs/operations/ollama-compartido.md.
+
+services:
+  backend:
+    environment:
+      Asistente__Modelo: ${ASISTENTE_MODELO_OLLAMA:-qwen3.5:9b}
+      # El prefijo estable ronda los 10-12k tokens; 16k deja lugar para el mensaje
+      # y la salida. Tiene que coincidir con OLLAMA_CONTEXT_LENGTH del servidor:
+      # un num_ctx distinto del cargado hace recargar el modelo.
+      Asistente__ContextoDelModelo: ${ASISTENTE_CONTEXTO_OLLAMA:-16384}
+      Asistente__MaximoDeLlamadasConcurrentes: "1"
+      Asistente__EsperaMaximaEnColaSegundos: "45"
+      # Sin razonamiento en ninguna de las tres llamadas (think: false).
+      Asistente__EsfuerzoDeGeneracion: medio
+      Asistente__EsfuerzoDeRedaccion: minimo
+      Asistente__EsfuerzoDeReescritura: minimo
+      # Mismos techos que el perfil local: cada token de salida es GPU compartida.
+      Asistente__MaximoDeTokensDeGeneracion: "800"
+      Asistente__MaximoDeTokensDeRedaccion: "400"
+      Asistente__MaximoDeTokensDeReescritura: "200"
+      # Reintentar un servidor saturado sólo le suma carga.
+      Asistente__MaximoDeIntentosDeTransporte: "2"
+      # Debajo de los ~100 s en que Cloudflare corta el origen (error 524).
+      Asistente__PresupuestoDelTurnoSegundos: "90"
+      Asistente__ReintentarConsultaVacia: "true"
+      Asistente__ReintentoConContexto: "true"
+      # Optimizaciones para un modelo chico (asistente-optimizaciones-modelo-local).
+      # Las que ahorran llamadas pesan más acá: un solo pedido a la vez para
+      # todos los ambientes.
+      Asistente__EsquemaCompacto: "true"
+      Asistente__EjemplosEnElPrefijo: "true"
+      Asistente__RepararConsultaFallida: "true"
+      Asistente__RedaccionConPlantillas: "true"
+      Asistente__VigenciaDeCacheDeConsultasMinutos: "10"
+      Asistente__ReescrituraEnLaGeneracion: "true"
+      # Traefik del servicio no bufferea (flushinterval -1ms) y el flujo evita el
+      # corte de Cloudflare en respuestas largas.
+      Asistente__StreamingDeRedaccion: "true"

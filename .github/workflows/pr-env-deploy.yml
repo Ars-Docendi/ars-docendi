@@ -88,7 +88,10 @@ jobs:
       # legible por quien pueda abrir un PR y conseguir la label. Las compuertas
       # (label + required reviewers) autorizan el deploy; no auditan el diff del
       # script. Conviene que la clave tenga presupuesto acotado propio.
-      ASISTENTE_PROVEEDOR: ${{ secrets.ASISTENTE__PROVEEDOR }}
+      # Con la label asistente-ollama, el preview usa el servicio de inferencia
+      # compartido (ia.<DOMINIO>) con el usuario `preview` de arriba; sin ella,
+      # lo que diga el secret del environment.
+      ASISTENTE_PROVEEDOR: ${{ contains(github.event.pull_request.labels.*.name, 'asistente-ollama') && 'ollama' || secrets.ASISTENTE__PROVEEDOR }}
       ASISTENTE_CLAVE: ${{ secrets.ASISTENTE__CLAVEDELPROVEEDOR }}
 
       # Ingreso con Microsoft sólo con la label login-microsoft, usando la registración de

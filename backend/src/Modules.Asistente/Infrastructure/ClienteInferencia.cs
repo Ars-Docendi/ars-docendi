@@ -1,9 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace ArsDocendi.Inferencia.Infrastructure;
+namespace Modules.Asistente.Infrastructure;
 
-public sealed class ClienteInferencia(HttpClient http, IOptions<InferenciaOptions> opciones, ILogger<ClienteInferencia> logger)
+/// <summary>Comprueba si el servicio de inferencia compartido responde.</summary>
+public sealed class ClienteInferencia(HttpClient http, IOptions<OpcionesInferencia> opciones, ILogger<ClienteInferencia> logger)
 {
     private static readonly TimeSpan TiempoLimiteComprobacion = TimeSpan.FromSeconds(3);
 
@@ -16,7 +17,9 @@ public sealed class ClienteInferencia(HttpClient http, IOptions<InferenciaOption
         limite.CancelAfter(TiempoLimiteComprobacion);
         try
         {
-            using var respuesta = await http.GetAsync("api/version", limite.Token);
+            using var pedido = new HttpRequestMessage(HttpMethod.Get, opciones.Value.Ruta("api/version"));
+            opciones.Value.Autenticar(pedido);
+            using var respuesta = await http.SendAsync(pedido, limite.Token);
             if (respuesta.IsSuccessStatusCode) return true;
             logger.LogWarning("Inferencia respondió {CodigoEstado} al comprobar su estado", (int)respuesta.StatusCode);
             return false;

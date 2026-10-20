@@ -90,6 +90,13 @@ fi
       ASISTENTE_RO_PII_PASSWORD: "synthetic",
       ...(opciones.proveedor ? { ASISTENTE_PROVEEDOR: opciones.proveedor } : {}),
       ...(opciones.clave ? { ASISTENTE_CLAVE: opciones.clave } : {}),
+      ...(opciones.inferencia
+        ? {
+            INFERENCIA_URL: "https://ia.example.net",
+            INFERENCIA_USUARIO: "preview",
+            INFERENCIA_CONTRASENA: "synthetic",
+          }
+        : {}),
       SEAWEEDFS_ROOT_ACCESS_KEY: "synthetic",
       SEAWEEDFS_ROOT_SECRET_KEY: "synthetic",
       SEAWEEDFS_APP_ACCESS_KEY: "synthetic",
@@ -190,4 +197,18 @@ test("proveedor local con clave suma el perfil del modelo propio a todo compose"
   const llamadas = r.log.split("\n").filter((l) => l.startsWith("docker compose"));
   assert.ok(llamadas.length > 0);
   assert.ok(llamadas.every((l) => l.includes("compose.asistente-local.yml")));
+});
+test("proveedor ollama con servicio de inferencia suma su perfil sin pedir clave", () => {
+  const r = ejecutar("staging", { proveedor: "ollama", inferencia: true });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=ollama$/m);
+  const llamadas = r.log.split("\n").filter((l) => l.startsWith("docker compose"));
+  assert.ok(llamadas.every((l) => l.includes("compose.asistente-ollama.yml")));
+  assert.ok(llamadas.every((l) => !l.includes("compose.asistente-local.yml")));
+});
+test("proveedor ollama sin servicio de inferencia se degrada a simulado", () => {
+  const r = ejecutar("staging", { proveedor: "ollama" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.env, /^ASISTENTE_PROVEEDOR=simulado$/m);
+  assert.doesNotMatch(r.log, /compose\.asistente-ollama\.yml/);
 });

@@ -26,6 +26,9 @@
 #   ASISTENTE_MODELO_LOCAL            --served-model-name; default qwen3-8b
 #   ASISTENTE_MAX_LLAMADAS_CONCURRENTES
 #                                     compuerta del backend; = --max-num-seqs
+#   Con ASISTENTE_PROVEEDOR=ollama no hace falta ASISTENTE_CLAVE: usa el servicio
+#   de inferencia compartido (INFERENCIA_URL, INFERENCIA_USUARIO,
+#   INFERENCIA_CONTRASENA) y sin ellos se degrada a "simulado".
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   BACKUP_VOLUME_PREFIX              default arsdocendi-backups
@@ -107,7 +110,13 @@ trap liberar_lock_ambiente EXIT
 # simulado deja el ambiente en pie y el asistente contestando lo que el simulado
 # contesta, que es visiblemente distinto de una respuesta real.
 proveedor_asistente=${ASISTENTE_PROVEEDOR:-simulado}
-if [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
+if [[ "$proveedor_asistente" == "ollama" ]]; then
+  if [[ -z "${INFERENCIA_URL:-}" || -z "${INFERENCIA_USUARIO:-}" || -z "${INFERENCIA_CONTRASENA:-}" ]]; then
+    log_info msg="proveedor ollama sin servicio de inferencia configurado: se degrada a simulado" \
+      ambiente="$ambiente"
+    proveedor_asistente=simulado
+  fi
+elif [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
   log_info msg="proveedor real pedido sin clave: se degrada a simulado" \
     ambiente="$ambiente" proveedor="$proveedor_asistente"
   proveedor_asistente=simulado
@@ -119,6 +128,8 @@ fi
 archivos_compose=(-f "$compose_file")
 if [[ "$proveedor_asistente" == "local" ]]; then
   archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-local.yml")
+elif [[ "$proveedor_asistente" == "ollama" ]]; then
+  archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-ollama.yml")
 fi
 
 # Materializar el Compose project con un .env efímero (fuera del repo).

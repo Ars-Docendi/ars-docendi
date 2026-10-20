@@ -152,7 +152,7 @@ inferencia (abajo); cada sonda se muestra independientemente.
 
 ### Estado de la inferencia
 
-`GET /api/inferencia/estado` devuelve `EstadoInferenciaDto`. Lo sirve `ArsDocendi.Inferencia`: sin
+`GET /api/inferencia/estado` devuelve `EstadoInferenciaDto`. Lo sirve `Modules.Asistente`: sin
 `Inferencia:Url` responde `deshabilitado` sin contactar el servicio; si no, consulta
 `GET /api/version` de Ollama con timeout de 3 segundos y cualquier falla (red, 401/403 de Access o
 BasicAuth, 5xx, timeout) es `no_disponible` sin revelar URL, usuario ni excepción. La pestaña

@@ -38,7 +38,6 @@ flowchart TD
   end
   subgraph modules [Modules internos]
     Storage["ArsDocendi.Storage"]
-    Inferencia["ArsDocendi.Inferencia"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
@@ -59,7 +58,6 @@ flowchart TD
   Tareas --> Migraciones
   Host --> Designaciones
   Host --> Storage
-  Host --> Inferencia
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
@@ -69,7 +67,6 @@ flowchart TD
 
   Designaciones --> Shared
   Storage --> Shared
-  Inferencia --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
@@ -93,7 +90,7 @@ flowchart TD
 
 Líneas punteadas: dependencias cross-module **proyectadas**, que hoy no existen en ningún `.csproj`. No tienen fila en el manifiesto y no pueden tenerla: una fila existe cuando la referencia existe. Cuando se confirmen, pasan a sólidas y entran al manifiesto en el mismo PR que el `ProjectReference`.
 
-`ArsDocendi.Inferencia` es infraestructura transversal, no un módulo de negocio: encapsula el cliente del servicio de inferencia compartido y expone `GET /api/inferencia/estado`. Depende sólo de `ArsDocendi.Shared` (usa `Permisos` para autorizar la sonda) y lo referencia únicamente el Host como composition root. No tiene `.Contracts` hasta que exista un consumidor; `Modules.Asistente` **no** lo referencia hoy.
+El cliente del servicio de inferencia compartido (Ollama en `ia.<DOMINIO>`) vive en `Modules.Asistente`, su único consumidor: lo usan el proveedor `ollama` y `GET /api/inferencia/estado`. Hasta `asistente-proveedor-ollama` era el proyecto `ArsDocendi.Inferencia`; se integró al módulo y no agrega aristas.
 
 `Modules.Asistente` tampoco referencia `ArsDocendi.Migraciones`: su migrador no envuelve un `DbContext` ni historial EF, sino SQL que converge por construcción (ver [data-model.md](data-model.md#migraciones-en-deploy)).
 

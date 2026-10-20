@@ -1,14 +1,15 @@
 using System.Diagnostics;
-using ArsDocendi.Inferencia.Infrastructure;
 using ArsDocendi.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Modules.Asistente.Infrastructure;
 
-namespace ArsDocendi.Inferencia.Api;
+namespace Modules.Asistente.Api;
 
 public sealed record EstadoInferenciaDto(string Estado, DateTimeOffset ComprobadoEn, double DuracionMs);
 
+/// <summary>Estado del servicio de inferencia compartido, para la pestaña Estado de /sistema.</summary>
 [ApiController]
 [Route("api/inferencia")]
 [Authorize]

@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using ArsDocendi.Host.Desarrollo;
-using ArsDocendi.Inferencia.Infrastructure;
+using Modules.Asistente.Infrastructure;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Npgsql;
 
-namespace ArsDocendi.IntegrationTests.Inferencia;
+namespace ArsDocendi.IntegrationTests.Asistente;
 
 public sealed class InferenciaTests(PostgresFixture postgres) : ClasePostgresAislada(postgres, "inferencia")
 {

@@ -2,6 +2,7 @@ using ArsDocendi.Shared.Persistencia;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Modules.Asistente.Application;
@@ -208,6 +209,17 @@ public static class ModuleExtensions
         // modelo-local, D8): un cliente aparte, con timeout corto y SIN el
         // reintento del proveedor — es un panel, no un turno.
         services.AddHttpClient(TelemetriaDelServidorLocal.Cliente, cliente => cliente.Timeout = TimeSpan.FromSeconds(3));
+
+        // El servicio de inferencia compartido (integrar-cliente-inferencia, ahora
+        // en este módulo: asistente-proveedor-ollama). A diferencia de las
+        // perillas del asistente, una configuración incompleta fuera de
+        // Development SÍ impide arrancar: es una credencial de deploy mal cargada,
+        // no un valor que el primer turno pueda reportar.
+        services.AddOptions<OpcionesInferencia>()
+            .Bind(configuration.GetSection(OpcionesInferencia.Seccion))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<OpcionesInferencia>, ValidacionOpcionesInferencia>();
+        services.AddHttpClient<ClienteInferencia>();
         services.AddScoped<TelemetriaDelServidorLocal>();
 
         // El primer contrato público del módulo (sistema-seccion-unificada,
@@ -479,9 +491,11 @@ public static class ModuleExtensions
             ProveedorSimulado.Clave => new ProveedorSimulado(),
             ProveedorAnthropic.Clave => ArmarAnthropic(sp, modelo),
             ProveedorLocal.Clave => ArmarLocal(sp, valores, modelo),
+            ProveedorOllama.Clave => ArmarOllama(sp, valores, modelo),
             _ => throw new InvalidOperationException(
                 $"Proveedor de modelo '{valores.Proveedor}' desconocido. Los disponibles son "
-                + $"'{ProveedorSimulado.Clave}', '{ProveedorAnthropic.Clave}' y '{ProveedorLocal.Clave}'."),
+                + $"'{ProveedorSimulado.Clave}', '{ProveedorAnthropic.Clave}', '{ProveedorLocal.Clave}' "
+                + $"y '{ProveedorOllama.Clave}'."),
         };
 
     /// <summary>Clave del proveedor que redacta, en el contenedor.</summary>
@@ -571,6 +585,21 @@ public static class ModuleExtensions
             sp.GetRequiredService<ILogger<ProveedorAnthropic>>());
 
     /// <summary>
+    /// Arma el adaptador del servicio de inferencia compartido
+    /// (asistente-proveedor-ollama, D1) con el mismo transporte que los demás.
+    /// </summary>
+    private static ProveedorOllama ArmarOllama(
+        IServiceProvider sp, OpcionesAsistente valores, string modelo) =>
+        new(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
+            sp.GetRequiredService<IOptions<OpcionesInferencia>>().Value,
+            string.IsNullOrWhiteSpace(modelo)
+                ? Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo))
+                : modelo,
+            valores.ContextoDelModelo,
+            sp.GetRequiredService<ILogger<ProveedorOllama>>());
+
+    /// <summary>
     /// Arma el adaptador del modelo propio con el cliente HTTP que ya trae el
     /// reintento (asistente-proveedor-local, D2).
     /// </summary>
@@ -588,4 +617,15 @@ public static class ModuleExtensions
                 ? Requerido(sp, o => o.Modelo, nameof(OpcionesAsistente.Modelo))
                 : modelo,
             sp.GetRequiredService<ILogger<ProveedorLocal>>());
+
+    // En Development no se exigen secretos locales, igual que Almacenamiento.
+    private sealed class ValidacionOpcionesInferencia(IHostEnvironment ambiente) : IValidateOptions<OpcionesInferencia>
+    {
+        public ValidateOptionsResult Validate(string? name, OpcionesInferencia opciones)
+        {
+            if (ambiente.IsDevelopment()) return ValidateOptionsResult.Success;
+            var errores = opciones.Errores().ToList();
+            return errores.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errores);
+        }
+    }
 }

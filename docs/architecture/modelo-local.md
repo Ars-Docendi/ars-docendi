@@ -284,6 +284,23 @@ En social cambió `soc-016`: de correcto a «el enrutador capturó una pregunta 
 | Podar el esquema por pregunta (schema linking, M-Schema) | Es el mayor ahorro de prefill y KV, pero **la literatura es mixta**: en esquemas de tamaño institucional, el schema linking empeoró a modelos de 7–32B (nl2sql-onprem-bench). Además rompe el prefijo estable que la caché necesita. Necesita su propio change medido con el evaluador |
 | Self-consistency / votación                              | +0,13 puntos con p95 de 10,6 a 50 s en el benchmark on-prem. **No**                                                                                                                                                                                                                    |
 
+### Aplicado en `asistente-proveedor-ollama`: el servicio compartido de pc-prod
+
+Develop puso en pc-prod un Ollama compartido con **qwen3.5:9b**. Lo publica Traefik y lo protege Cloudflare Access ([operación](../operations/ollama-compartido.md)). Las opciones del módulo están en el [README](../../backend/src/Modules.Asistente/README.md); este documento sólo registra en qué cambia la estimación.
+
+`ProveedorOllama` (`Asistente__Proveedor=ollama`) habla la API nativa, `/api/chat`, porque Traefik no deja pasar `/v1`. Usa las credenciales `Inferencia__*` de cada ambiente.
+
+Diferencias con el diseño de la §2:
+
+- **Un pedido a la vez.** Ollama fuerza `NUM_PARALLEL=1` para qwen3.5, y ese slot lo comparten prod, staging y los previews. Las cifras de concurrencia de la §5, que suponen vLLM, no aplican acá. El perfil `compose.asistente-ollama.yml` deja la compuerta en 1 por ambiente.
+- **Contexto.** El servidor arranca en 4096. Con ese valor, Ollama recortaría en silencio el esquema del prefijo. Por eso el adaptador manda `truncate: false` y `num_ctx`, y el servidor necesita `OLLAMA_CONTEXT_LENGTH=16384`, que es el mismo valor que `Asistente__ContextoDelModelo`.
+- **Caché de prefijo parcial.**
+  - Qwen3.5 es híbrido: Gated DeltaNet más 8 capas de atención completa. El KV cuesta ~32 KiB por token y 16k entran en ~8–8,5 GB.
+  - El estado recurrente se reutiliza por checkpoints cerca del final del prompt, y el slot único alterna entre los tres prompts de sistema.
+  - Se espera prefill de 2,5–6 s por llamada sin caché. La medición real sale de `prompt_eval_cached_count`, que se informa como tokens de caché.
+- **Calidad.** Qwen3.5-9B mejora a Qwen3-8B en seguimiento de instrucciones: IFEval 91,5 e IFBench 37,8 frente a 28,6, en ambos casos sin razonamiento. No publica números de text-to-SQL. La decisión sigue siendo del evaluador (§7), corrido contra el servicio.
+- **Imagen ≥ 0.31.2.** Antes de esa versión, `format` con `think: false` ignora el esquema en qwen3.5.
+
 ## 7. Piloto antes de pasar un ambiente a `local`
 
 1. **Levantar el servidor y verificar que responde:**

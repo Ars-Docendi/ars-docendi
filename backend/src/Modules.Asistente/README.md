@@ -552,6 +552,7 @@ va por ambiente (`Asistente:Proveedor`):
 | `simulado`  | `ProveedorSimulado`  | Default de todos los ambientes. Determinista, sin red |
 | `anthropic` | `ProveedorAnthropic` | Requiere `Asistente:ClaveDelProveedor`                |
 | `local`     | `ProveedorLocal`     | Requiere `Asistente:UrlDelProveedorLocal`             |
+| `ollama`    | `ProveedorOllama`    | Requiere `Inferencia:Url`, `Usuario` y `Contrasena`   |
 
 Sumar uno nuevo —otro proveedor, o un modelo propio corriendo en la nube— es una
 clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline que
@@ -569,15 +570,16 @@ falla: la métrica del asistente es corrección con abstención.
 
 ### Configuración del adaptador real
 
-| Variable                           | Default           | Qué decide                                     |
-| ---------------------------------- | ----------------- | ---------------------------------------------- |
-| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                    |
-| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado  |
-| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                     |
-| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta            |
-| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español            |
-| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento      |
-| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1` |
+| Variable                           | Default           | Qué decide                                       |
+| ---------------------------------- | ----------------- | ------------------------------------------------ |
+| `Asistente__Proveedor`             | `simulado`        | Cuál adaptador se construye                      |
+| `Asistente__ClaveDelProveedor`     | vacío             | La credencial. Nunca en un archivo versionado    |
+| `Asistente__Modelo`                | `claude-sonnet-5` | Qué modelo                                       |
+| `Asistente__EsfuerzoDeGeneracion`  | `medio`           | Deliberación al generar la consulta              |
+| `Asistente__EsfuerzoDeRedaccion`   | `bajo`            | Deliberación al redactar en español              |
+| `Asistente__EsfuerzoDeReescritura` | `bajo`            | Deliberación al reescribir un seguimiento        |
+| `Asistente__UrlDelProveedorLocal`  | vacío             | Servidor del modelo propio, terminada en `/v1`   |
+| `Asistente__ContextoDelModelo`     | `0`               | `num_ctx` que pide `ollama`; 0 = el del servidor |
 
 **El proveedor `local`** (asistente-proveedor-local) habla con cualquier servidor
 OpenAI-compatible —vLLM, `llama-server`, SGLang— en `{UrlDelProveedorLocal}/chat/completions`.
@@ -587,6 +589,19 @@ proveedor el esfuerzo decide el razonamiento: sólo `alto`/`maximo` lo prenden
 servidor, el modelo elegido y el dimensionamiento para una RTX 5070 están en
 [docs/architecture/modelo-local.md](../../../docs/architecture/modelo-local.md); el
 perfil de valores, en `infra/compose/compose.asistente-local.yml`.
+
+**El proveedor `ollama`** (asistente-proveedor-ollama) habla con el servicio de
+inferencia compartido —Ollama en la RTX 5070 de pc-prod, `ia.<DOMINIO>`— por su API
+nativa, `POST {Inferencia:Url}/api/chat`, que es la única que Traefik deja pasar.
+Las credenciales son las de la sección `Inferencia` (BasicAuth del ambiente y, fuera
+de prod, el Service Token de Cloudflare Access), las mismas que usa
+`GET /api/inferencia/estado`: el cliente del servicio vive en este módulo desde que
+se integró `ArsDocendi.Inferencia`. Apaga el razonamiento con `think: false` salvo
+esfuerzo `alto`/`maximo`, pide salida con esquema por `format`, y manda
+`num_ctx` = `ContextoDelModelo` en cada pedido, porque con el contexto por defecto
+del servidor Ollama recortaría el prefijo del esquema sin avisar. El perfil de
+valores está en `infra/compose/compose.asistente-ollama.yml`; un preview lo usa con
+la label `asistente-ollama`.
 
 **Los esfuerzos son tres y no uno, y el motivo es de latencia.** Con un valor
 global, la redacción deliberaba antes de escribir la primera palabra: para quien

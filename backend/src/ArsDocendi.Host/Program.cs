@@ -15,7 +15,6 @@ using Modules.Asistente;
 using Modules.Asistente.Application;
 using Modules.Aulas;
 using ArsDocendi.Storage;
-using ArsDocendi.Inferencia;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -90,7 +89,6 @@ builder.Services
     .AddArsDocendiShared(builder.Configuration)
     .AddMigracionesIdentity()
     .AddAlmacenamientoModule(builder.Configuration)
-    .AddInferencia(builder.Configuration)
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)

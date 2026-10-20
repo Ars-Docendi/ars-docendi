@@ -56,6 +56,8 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.TopeDeTurnosDelHistorial), o => o.TopeDeTurnosDelHistorial),
         // Sin compuerta de concurrencia (asistente-proveedor-local, D4).
         (nameof(OpcionesAsistente.MaximoDeLlamadasConcurrentes), o => o.MaximoDeLlamadasConcurrentes),
+        // Sin num_ctx: vale el del servidor (asistente-proveedor-ollama, D3).
+        (nameof(OpcionesAsistente.ContextoDelModelo), o => o.ContextoDelModelo),
         // Sin caché de consultas generadas (asistente-optimizaciones-modelo-local, D6).
         (nameof(OpcionesAsistente.VigenciaDeCacheDeConsultasMinutos), o => o.VigenciaDeCacheDeConsultasMinutos),
         (nameof(OpcionesAsistente.MaximoDeTokensDeSegundaGeneracion), o => o.MaximoDeTokensDeSegundaGeneracion),
