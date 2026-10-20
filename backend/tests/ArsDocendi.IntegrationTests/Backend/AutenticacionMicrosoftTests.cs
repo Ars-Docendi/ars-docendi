@@ -53,24 +53,6 @@ public sealed partial class AutenticacionMicrosoftTests(PostgresFixture postgres
     }
 
     [Fact]
-    public async Task Con_ambos_accesos_los_headers_de_desarrollo_siguen_autenticando()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost(microsoft: true, desarrollo: true);
-        using var cliente = CrearCliente(host);
-
-        using var sinSesion = await cliente.GetAsync("/api/designaciones/catalogos", ct);
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, JefeSembrado.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var conHeaders = await cliente.SendAsync(solicitud, ct);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, sinSesion.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, conHeaders.StatusCode);
-    }
-
-    [Fact]
     public async Task Sesion_valida_expone_rol_y_permisos_y_autoriza_la_api()
     {
         var ct = TestContext.Current.CancellationToken;

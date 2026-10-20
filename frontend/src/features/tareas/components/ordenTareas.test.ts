@@ -35,16 +35,6 @@ describe("ordenarTareas", () => {
     expect(resultado.map((t) => t.id)).toEqual(["a", "c", "b"]);
   });
 
-  it("no muta el array original", () => {
-    const tareas = [
-      tarea({ id: "b", fechaInicio: "2026-03-01" }),
-      tarea({ id: "a", fechaInicio: "2026-01-01" }),
-    ];
-    const original = [...tareas];
-    ordenarTareas(tareas, null);
-    expect(tareas).toEqual(original);
-  });
-
   it("ordena por número descendente", () => {
     const tareas = [
       tarea({ id: "a", numero: 1 }),

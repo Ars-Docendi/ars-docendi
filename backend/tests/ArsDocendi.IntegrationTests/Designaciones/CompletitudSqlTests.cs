@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class CompletitudSqlTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Theory]
     [InlineData("cargo_solicitado_id=NULL")]

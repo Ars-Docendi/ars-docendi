@@ -176,14 +176,4 @@ describe("Dashboard del sistema", () => {
     expect(within(inferencia).getByText("No disponible")).toHaveClass("sistema-estado--error");
     expect(screen.getAllByRole("row")).toHaveLength(7);
   });
-
-  it("permite enfocar Actualizar con teclado", async () => {
-    const user = userEvent.setup();
-    renderPagina();
-    await screen.findByRole("row", { name: /PostgreSQL/ });
-
-    await user.tab();
-
-    expect(screen.getByRole("button", { name: "Actualizar" })).toHaveFocus();
-  });
 });

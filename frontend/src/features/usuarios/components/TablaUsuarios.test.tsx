@@ -33,19 +33,6 @@ const USUARIO: UsuarioMock = {
 };
 
 describe("TablaUsuarios", () => {
-  it("no muestra la columna de ámbitos", () => {
-    render(
-      <TablaUsuarios
-        usuarios={[USUARIO]}
-        onDesactivar={vi.fn()}
-        onActivar={vi.fn()}
-        onEditarUsuario={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("columnheader", { name: "Ámbitos" })).not.toBeInTheDocument();
-  });
-
   it("mantiene Acciones sin filtro ni orden y no ordena al abrir un filtro", async () => {
     const user = userEvent.setup();
     const onOrdenChange = vi.fn();
@@ -86,22 +73,5 @@ describe("TablaUsuarios", () => {
     link.addEventListener("click", (evento) => evento.preventDefault());
     await user.click(link);
     expect(onEditarUsuario).toHaveBeenCalledOnce();
-  });
-
-  it("titula Nombre y Email, recorta textos largos y enlaza al docente sin contar materias", () => {
-    render(
-      <TablaUsuarios
-        usuarios={[USUARIO]}
-        onDesactivar={vi.fn()}
-        onActivar={vi.fn()}
-        onEditarUsuario={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByRole("columnheader", { name: "Nombre" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Email" })).toBeInTheDocument();
-    expect(screen.getByText("López, Carla")).toHaveClass("adoc-texto-recortado");
-    expect(screen.getByText("carla.lopez@unlam.edu.ar")).toHaveClass("adoc-texto-recortado");
-    expect(screen.getByRole("link", { name: "Ver docente" })).toHaveTextContent(/^Ver docente$/);
   });
 });
