@@ -19,7 +19,7 @@ public sealed class RepositorioIngreso(IdentityDbContext db)
 
     public Task<Usuario?> BuscarPorUpnAsync(string upnNormalizado, CancellationToken ct) =>
         db.Usuarios.AsNoTracking()
-            .SingleOrDefaultAsync(u => u.Upn.ToLower() == upnNormalizado, ct);
+            .SingleOrDefaultAsync(u => u.Upn.Trim().ToLower() == upnNormalizado.Trim().ToLower(), ct);
 
     /// <summary>El usuario con sus asignaciones vigentes (no revocadas, de roles activos).</summary>
     public Task<Usuario?> ObtenerConRolesVigentesAsync(Guid usuarioId, CancellationToken ct) =>

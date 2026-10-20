@@ -14,6 +14,8 @@ source "$(dirname "$0")/_comun.sh"
 ambiente="${1:-}"
 exigir_ambiente_destruible "$ambiente"   # aborta si es prod o inválido
 
+adquirir_lock_ambiente "$ambiente"
+trap liberar_lock_ambiente EXIT
 scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 

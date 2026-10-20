@@ -23,6 +23,7 @@ export function IndexPage() {
   const remoto = useDocentes();
   const docentes = remoto.consulta.data ?? SIN_DOCENTES;
   const materias = remoto.catalogos.data?.materias ?? [];
+  const materiasPlan = remoto.catalogos.data?.materiasPlan ?? [];
   const cargos = remoto.catalogos.data?.cargos.map((c) => c.nombre) ?? [];
   const rolesDisponibles = remoto.catalogos.data?.roles ?? [];
   const personas =
@@ -148,6 +149,7 @@ export function IndexPage() {
         onCrear={handleCrear}
         onCerrar={() => setModalNuevo(false)}
         materias={materias}
+        materiasPlan={materiasPlan}
         cargos={cargos}
         dedicaciones={remoto.catalogos.data?.dedicaciones.filter((d) => d.activo) ?? []}
         personas={personas}
@@ -178,6 +180,7 @@ export function IndexPage() {
         onGuardar={handleEditar}
         onCerrar={cerrarEdicion}
         materias={materias}
+        materiasPlan={materiasPlan}
         cargos={cargos}
         dedicaciones={remoto.catalogos.data?.dedicaciones.filter((d) => d.activo) ?? []}
         error={

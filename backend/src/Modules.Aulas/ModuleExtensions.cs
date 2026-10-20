@@ -12,7 +12,8 @@ public static class ModuleExtensions
     public static IServiceCollection AddAulasModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AulasDbContext>((sp, opt) =>
-            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor)
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AulasDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorAulas>();

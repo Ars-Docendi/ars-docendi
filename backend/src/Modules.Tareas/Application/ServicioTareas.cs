@@ -16,8 +16,8 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
     {
         var actor = await directorio.ResolverActorAsync(ct);
         var tareas = await repositorio.ListarAsync(actor.SoloResponsableId, ct);
-        var personas = await directorio.CargarAsync(ct);
-        var relaciones = Vecinos(await repositorio.ListarRelacionesAsync(ct));
+        var personas = await directorio.CargarAsync(tareas.SelectMany(t => new[] { t.ResponsableId, t.CreadoPorId }).Distinct().ToArray(), ct);
+        var relaciones = Vecinos(await repositorio.ListarRelacionesDeAsync(tareas.Select(t => t.Id).ToArray(), ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         return tareas.Select(t => Mapear(t, catalogos, personas, relaciones.GetValueOrDefault(t.Id) ?? [], detalle: false)).ToList();
     }
@@ -33,7 +33,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         bool paraProyecto, string? busqueda, CancellationToken ct)
     {
         var actor = await directorio.ResolverActorAsync(ct);
-        var candidatos = await directorio.ListarCandidatosAsync(busqueda, ct);
+        var candidatos = await directorio.ListarCandidatosAsync(actor.Nivel, paraProyecto, busqueda, ct);
         return candidatos
             .Where(c => JerarquiaAsignacion.PuedeAsignar(actor.Nivel, c.RolesCodigo)
                      && (!paraProyecto || JerarquiaAsignacion.EsResponsableDeProyecto(c.RolesCodigo)))
@@ -46,6 +46,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
     public async Task<TareaDto> CrearAsync(CrearTareaRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
         var actor = await directorio.ResolverActorAsync(ct);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         var (prioridad, tipo) = ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
@@ -55,14 +56,12 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         var proyectoId = datos.ProyectoId;
         if (datos.TareaPadreId is { } padreId)
         {
+            await repositorio.BloquearTareaAsync(padreId, ct);
             var padre = await repositorio.ObtenerAsync(padreId, ct)
                 ?? throw NoEncontrada("La tarea padre no existe.");
             proyectoId = padre.ProyectoId;
         }
-        else
-        {
-            await RequerirProyectoQueAdmiteTareasAsync(proyectoId, catalogos, ct);
-        }
+        await RequerirProyectoQueAdmiteTareasAsync(proyectoId, catalogos, ct);
 
         var ahora = DateTimeOffset.UtcNow;
         var tarea = new Tarea
@@ -85,13 +84,17 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         repositorio.Agregar(tarea);
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
 
     public async Task<TareaDto> EditarAsync(Guid id, EditarTareaRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareaAsync(id, ct);
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
+        RequerirVersion(tarea.Version, datos.Version);
         MaquinaEstadosTarea.RequerirPuedeEditarCampos(tarea, actor);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         var (prioridadEditada, tipoEditado) = ValidarDatos(datos.Titulo, datos.Prioridad, datos.Tipo, datos.FechaInicio, datos.FechaFin, catalogos);
@@ -110,6 +113,11 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
             if (datos.ProyectoId != tarea.ProyectoId)
             {
                 await RequerirProyectoQueAdmiteTareasAsync(datos.ProyectoId, catalogos, ct);
+                foreach (var descendiente in await repositorio.DescendientesAsync(id, ct))
+                {
+                    descendiente.ProyectoId = datos.ProyectoId;
+                    MaquinaEstadosTarea.Registrar(descendiente, actor, AccionesHistorial.Editar, null, DateTimeOffset.UtcNow);
+                }
             }
 
             tarea.ProyectoId = datos.ProyectoId;
@@ -125,13 +133,17 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
         MaquinaEstadosTarea.Registrar(tarea, actor, AccionesHistorial.Editar, null, DateTimeOffset.UtcNow);
 
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
 
     public async Task<TareaDto> CambiarEstadoAsync(Guid id, CambiarEstadoTareaRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareaAsync(id, ct);
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
+        RequerirVersion(tarea.Version, datos.Version);
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         var destino = catalogos.EstadoTarea(datos.Estado)
             ?? throw Validacion("estado", $"El estado \"{datos.Estado}\" no existe.");
@@ -140,20 +152,27 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         MaquinaEstadosTarea.CambiarEstado(tarea, actor, actual, destino, datos.Comentario, datos.Solucion);
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
 
     public async Task<TareaDto> EditarAvanceAsync(Guid id, EditarAvanceRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareaAsync(id, ct);
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
+        RequerirVersion(tarea.Version, datos.Version);
         MaquinaEstadosTarea.EditarAvance(tarea, actor, datos.PorcentajeAvance);
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
 
     public async Task<TareaDto> ComentarAsync(Guid id, ComentarTareaRequest datos, CancellationToken ct)
     {
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareaAsync(id, ct);
         if (string.IsNullOrWhiteSpace(datos.Texto))
         {
             throw Validacion("texto", "El comentario no puede estar vacío.");
@@ -161,8 +180,10 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
         var actor = await directorio.ResolverActorAsync(ct);
         var tarea = await RequerirAsync(id, actor, ct);
+        await repositorio.ProtegerUsuariosAsync([actor.UsuarioId], ct);
         tarea.Comentarios.Add(MaquinaEstadosTarea.NuevoComentario(tarea, actor, datos.Texto, DateTimeOffset.UtcNow));
         await repositorio.GuardarAsync(ct);
+        await transaccion.CommitAsync(ct);
         return await MapearDetalleAsync(tarea, ct);
     }
 
@@ -175,36 +196,28 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
                 TipoErrorAplicacion.ReglaDeNegocio, "tarea-regla-invalida", "Una tarea no puede relacionarse consigo misma.");
         }
 
-        // Quien solo ve sus tareas asignadas solo puede relacionar tareas que ve.
+        var (menor, mayor) = Par(id, otraId);
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([menor, mayor], ct);
         var actor = await directorio.ResolverActorAsync(ct);
         if (!await repositorio.ExisteAsync(id, actor.SoloResponsableId, ct)
             || !await repositorio.ExisteAsync(otraId, actor.SoloResponsableId, ct))
-        {
             throw NoEncontrada("La tarea no existe.");
-        }
-
-        var (menor, mayor) = Par(id, otraId);
-        if (await repositorio.ObtenerRelacionAsync(menor, mayor, ct) is null)
-        {
-            repositorio.Agregar(new RelacionTarea { TareaId = menor, RelacionadaId = mayor, CreadoEn = DateTimeOffset.UtcNow });
-            await repositorio.GuardarAsync(ct);
-        }
+        await repositorio.CrearRelacionIdempotenteAsync(menor, mayor, ct);
+        await transaccion.CommitAsync(ct);
     }
 
     public async Task QuitarRelacionAsync(Guid id, Guid otraId, CancellationToken ct)
     {
-        var actor = await directorio.ResolverActorAsync(ct);
-        if (!await repositorio.ExisteAsync(id, actor.SoloResponsableId, ct))
-        {
-            throw NoEncontrada("La tarea no existe.");
-        }
-
         var (menor, mayor) = Par(id, otraId);
-        if (await repositorio.ObtenerRelacionAsync(menor, mayor, ct) is { } relacion)
-        {
-            repositorio.Eliminar(relacion);
-            await repositorio.GuardarAsync(ct);
-        }
+        await using var transaccion = await repositorio.IniciarTransaccionAsync(ct);
+        await repositorio.BloquearTareasAsync([menor, mayor], ct);
+        var actor = await directorio.ResolverActorAsync(ct);
+        if (!await repositorio.ExisteAsync(id, actor.SoloResponsableId, ct)
+            || !await repositorio.ExisteAsync(otraId, actor.SoloResponsableId, ct))
+            throw NoEncontrada("La tarea no existe.");
+        await repositorio.EliminarRelacionIdempotenteAsync(menor, mayor, ct);
+        await transaccion.CommitAsync(ct);
     }
 
     // Internos ----------------------------------------------------------
@@ -227,6 +240,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
     {
         if (proyectoId is not { } id) return;
 
+        await repositorio.BloquearProyectoAsync(id, ct);
         var proyecto = await repositorio.ObtenerProyectoAsync(id, ct)
             ?? throw Validacion("proyectoId", "El proyecto indicado no existe.");
         if (catalogos.EstadoProyecto(proyecto.EstadoId)?.AdmiteTareas != true)
@@ -240,11 +254,12 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
     private async Task RequerirResponsableAsignableAsync(ActorTareas actor, Guid responsableId, CancellationToken ct)
     {
-        var personas = await directorio.CargarAsync(ct);
+        var personas = await directorio.CargarAsync([responsableId], ct);
         if (!personas.TryGetValue(responsableId, out var responsable) || !responsable.Activa)
         {
             throw Validacion("responsableId", "El Responsable indicado no existe o está inactivo.");
         }
+        await repositorio.ProtegerUsuariosAsync([actor.UsuarioId, responsableId], ct);
 
         if (!JerarquiaAsignacion.PuedeAsignar(actor.Nivel, responsable.RolesCodigo))
         {
@@ -267,7 +282,9 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
 
     private async Task<TareaDto> MapearDetalleAsync(Tarea tarea, CancellationToken ct)
     {
-        var personas = await directorio.CargarAsync(ct);
+        var ids = tarea.Comentarios.Select(c => c.AutorId).Concat(tarea.Historial.Select(h => h.ActorId))
+            .Concat([tarea.ResponsableId, tarea.CreadoPorId]).Distinct().ToArray();
+        var personas = await directorio.CargarAsync(ids, ct);
         var vecinos = Vecinos(await repositorio.ListarRelacionesDeAsync(tarea.Id, ct));
         var catalogos = await repositorio.ObtenerCatalogosAsync(ct);
         return Mapear(tarea, catalogos, personas, vecinos.GetValueOrDefault(tarea.Id) ?? [], detalle: true);
@@ -297,7 +314,7 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
                     .Select(e => new EventoTareaDto(e.Id, e.Accion, e.ActorRol, Persona(personas, e.ActorId).Nombre, catalogos.EstadoTarea(e.EstadoId)?.Codigo ?? string.Empty, e.Detalle, e.CreadoEn))
                     .ToList()
                 : [],
-            t.ProyectoId, t.TareaPadreId, relacionadas);
+            t.ProyectoId, t.TareaPadreId, relacionadas, t.Version);
 
     internal static PersonaTareaDto Persona(IReadOnlyDictionary<Guid, PersonaResuelta> personas, Guid id) =>
         personas.TryGetValue(id, out var p)
@@ -323,6 +340,13 @@ public sealed class ServicioTareas(RepositorioTareas repositorio, DirectorioPers
     // que evalúa el CHECK `tarea_id < relacionada_id` (Guid.CompareTo NO lo respeta).
     private static (Guid Menor, Guid Mayor) Par(Guid a, Guid b) =>
         string.CompareOrdinal(a.ToString(), b.ToString()) < 0 ? (a, b) : (b, a);
+
+    internal static void RequerirVersion(uint actual, uint? observada)
+    {
+        if (observada is null) throw Validacion("version", "La versión observada es obligatoria.");
+        if (observada != actual) throw new ExcepcionAplicacion(TipoErrorAplicacion.Conflicto,
+            "concurrency-conflict", "El recurso cambió. Recargá los datos antes de volver a guardar.");
+    }
 
     internal static ExcepcionAplicacion NoEncontrada(string mensaje) =>
         new(TipoErrorAplicacion.NoEncontrado, "resource-not-found", mensaje);

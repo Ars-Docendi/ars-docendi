@@ -389,8 +389,11 @@ public sealed class RunnerYPreflightTests(PostgresFixture postgres)
 
         await using var materias = new NpgsqlCommand(
             """
-            SELECT count(*) FROM identity.materias
-             WHERE name = 'Análisis Matemático'
+            SELECT count(*)
+              FROM identity.materias m
+              JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo
+              JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
+             WHERE m.name = 'Análisis Matemático'
             """, conexion);
 
         await using var personas = new NpgsqlCommand(

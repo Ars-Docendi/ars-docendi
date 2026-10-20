@@ -296,8 +296,11 @@ public sealed class PerfilDelActorTests(PostgresFixture postgres)
               -- Una materia que el actor NO tenga ya: `user_roles_unique_assignment`
               -- rechaza repetir (usuario, rol, materia, carrera), y el seed le da
               -- varias materias al jefe.
+              JOIN identity.planes pl
+                ON pl.carrera_id = ur.carrera_id AND pl.vigente AND pl.activo
+              JOIN identity.materias_plan mp ON mp.plan_id = pl.id AND mp.activo
               JOIN identity.materias m
-                ON m.carrera_id = ur.carrera_id
+                ON m.id = mp.materia_id
                AND m.id NOT IN (SELECT otra.materia_id
                                   FROM identity.user_roles otra
                                  WHERE otra.user_id = ur.user_id

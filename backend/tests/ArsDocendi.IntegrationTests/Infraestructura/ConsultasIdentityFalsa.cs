@@ -29,6 +29,21 @@ internal sealed class ConsultasIdentityFalsa : IConsultasIdentity
     public Task<Persona?> ObtenerPersonaAsync(Guid personaId, CancellationToken ct) =>
         throw new NotImplementedException();
 
+    public Task<Usuario?> ObtenerUsuarioAsync(Guid usuarioId, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<Usuario>> ObtenerUsuariosAsync(IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<Persona>> ObtenerPersonasAsync(IReadOnlyCollection<Guid> personaIds, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<Usuario>> BuscarCandidatosAsync(FiltroCandidatosIdentity filtro, CancellationToken ct) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<MateriaPlan>> ListarMateriasPlanAsync(CancellationToken ct) =>
+        throw new NotImplementedException();
+
     public Task<bool> TieneRolEnMateriaAsync(Guid usuarioId, string codigoRol, Guid materiaId, CancellationToken ct) =>
         throw new NotImplementedException();
 

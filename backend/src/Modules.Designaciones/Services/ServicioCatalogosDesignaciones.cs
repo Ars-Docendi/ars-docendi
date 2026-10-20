@@ -17,11 +17,20 @@ public sealed class ServicioCatalogosDesignaciones(
         var actor = await resolutorActor.ResolverAsync(ct);
         var periodos = await repositorio.ListarPeriodosAsync(ct);
         var activo = periodos.SingleOrDefault(p => p.Activo);
-        var materias = (await identity.ListarMateriasAsync(ct)).Where(m => m.Activo).ToArray();
+        // Catálogo informativo materia–carrera: una materia dictada en dos carreras
+        // aparece dos veces (una por carrera). Se deduplica por (materia, carrera):
+        // dos planes de la misma carrera con la misma materia no deben repetirse.
+        var materias = (await identity.ListarMateriasPlanAsync(ct))
+            .Where(mp => mp.Activo && mp.Materia!.Activo && mp.Plan!.Activo)
+            .Select(mp => new MateriaDesignacionesDto(
+                mp.MateriaId, mp.Materia!.Codigo, mp.Materia.Nombre,
+                mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre))
+            .Distinct()
+            .ToArray();
         var visibles = actor.EsDeptoWide
             ? materias
             : actor.Tiene(RolesCircuito.JefeCatedra)
-                ? materias.Where(m => actor.MateriasACargo.Contains(m.Id)).ToArray()
+                ? materias.Where(m => actor.MateriasACargo.Contains(m.MateriaId)).ToArray()
                 : actor.Tiene(RolesCircuito.CoordinadorCarrera)
                     ? materias.Where(m => actor.CarrerasACargo.Contains(m.CarreraId)).ToArray()
                     : [];
@@ -29,14 +38,14 @@ public sealed class ServicioCatalogosDesignaciones(
         var ocupadas = activo is null
             ? new HashSet<Guid>()
             : await repositorio.ListarPersonasConPedidoVivoAsync(activo.Id, ct);
-        var materiasPorId = materias.ToDictionary(m => m.Id);
-        var idsMateriasVisibles = visibles.Select(m => m.Id).ToHashSet();
+        var materiasCanonicasPorId = (await identity.ListarMateriasAsync(ct)).ToDictionary(m => m.Id);
+        var paresVisibles = visibles.Select(m => (m.MateriaId, m.CarreraId)).ToHashSet();
         var designaciones = (await repositorio.ListarDesignacionesVigentesAsync(ct))
             .GroupBy(d => d.PersonaId)
             .ToDictionary(g => g.Key, g => g.ToArray());
         var designacionesVisibles = designaciones
             .SelectMany(g => g.Value)
-            .Where(d => actor.EsDeptoWide || idsMateriasVisibles.Contains(d.MateriaId))
+            .Where(d => actor.EsDeptoWide || paresVisibles.Contains((d.MateriaId, d.CarreraId)))
             .GroupBy(d => d.PersonaId)
             .ToDictionary(g => g.Key, g => g.ToArray());
         var personas = (await identity.ListarPersonasAsync(ct))
@@ -45,10 +54,11 @@ public sealed class ServicioCatalogosDesignaciones(
             .Select(p => new PersonaDesignacionesDto(
                 p.Id, p.Nombre, p.Apellido, p.Documento, p.Legajo,
                 designacionesVisibles.GetValueOrDefault(p.Id, [])
-                    .Where(d => materiasPorId.ContainsKey(d.MateriaId) && d.Cargo is not null)
+                    .Where(d => materiasCanonicasPorId.ContainsKey(d.MateriaId) && d.Cargo is not null)
                     .Select(d => new DesignacionVigenteCatalogoDto(
                         d.MateriaId,
-                        materiasPorId[d.MateriaId].Nombre,
+                        materiasCanonicasPorId[d.MateriaId].Nombre,
+                        d.CarreraId,
                         d.CargoId,
                         d.Cargo!.Nombre,
                         d.DedicacionCatalogo?.Nombre ?? d.Dedicacion,
@@ -64,8 +74,7 @@ public sealed class ServicioCatalogosDesignaciones(
         return new CatalogosDesignacionesDto(
             activo is null ? null : Mapear(activo),
             periodos.Select(Mapear).ToArray(),
-            visibles.Select(m => new MateriaDesignacionesDto(
-                m.Id, m.Codigo, m.Nombre, m.CarreraId)).ToArray(),
+            visibles,
             personas,
             cargos,
             (await repositorio.ListarDedicacionesActivasAsync(ct))

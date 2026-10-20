@@ -13,6 +13,9 @@ concurrency:
   group: pr-env-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   teardown:
     # Pool persistente (confiable): el teardown corre código de la rama BASE con
@@ -31,7 +34,8 @@ jobs:
       # Checkout de la rama BASE (código confiable), NO el del PR.
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: ${{ github.event.pull_request.base.ref }}
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
 
       - name: Teardown pr-N (contenedores + DROP DATABASE, idempotente)
         run: infra/scripts/teardown.sh "${AMBIENTE}"

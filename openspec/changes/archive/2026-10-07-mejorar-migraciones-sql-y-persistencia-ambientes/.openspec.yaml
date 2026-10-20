@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-10-05
+goal: Consolidar el baseline SQL/EF de alpha, simplificar autoría e integridad,
+  incorporar estado y preview, integrar backups y conservar bases y adjuntos en
+  redeploys de staging y PR sin reaper ni separación de privilegios

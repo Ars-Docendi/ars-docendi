@@ -181,13 +181,14 @@ public sealed class UbicarPedidosTests(PostgresFixture postgres)
         await using var comando = new NpgsqlCommand(
             """
             INSERT INTO designaciones.pedidos
-                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario)
+                (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario)
             VALUES
                 ('d5000000-0000-4000-8000-000000000099',
                  '2026-9099',
                  'd4000000-0000-4000-8000-000000000001',
                  'd0000000-0000-4000-8000-000000000005',
                  '70000000-0000-4000-8000-000000000201',
+                 'c0000000-0000-4000-8000-000000000202',
                  'Sin novedad', 'cancelado', FALSE)
             """, conexion);
 

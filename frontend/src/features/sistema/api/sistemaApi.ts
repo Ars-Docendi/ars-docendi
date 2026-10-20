@@ -110,3 +110,43 @@ export async function consultarEstadoSistema(): Promise<EstadoSistemaDto> {
     };
   }
 }
+
+/** `deshabilitado`: el ambiente no tiene inferencia configurada; no es una falla. */
+export type EstadoInferencia = EstadoDisponibilidad | "deshabilitado";
+
+export interface EstadoInferenciaDto {
+  estado: EstadoInferencia;
+  comprobadoEn: string;
+  duracionMs: number;
+}
+
+interface RespuestaEstadoInferencia {
+  estado?: unknown;
+  comprobadoEn: string;
+  duracionMs: number;
+}
+
+/**
+ * El chequeo del servicio de inferencia (`GET /api/inferencia/estado`), medido
+ * por el servidor como el de PostgreSQL. Una falla de red cuenta como
+ * `no_disponible` sin exponer el destino ni el detalle del error.
+ */
+export async function consultarEstadoInferencia(): Promise<EstadoInferenciaDto> {
+  const inicio = performance.now();
+  try {
+    const { data } = await apiClient.get<RespuestaEstadoInferencia>("/api/inferencia/estado", {
+      timeout: 5000,
+    });
+    return {
+      estado: data.estado === "deshabilitado" ? "deshabilitado" : normalizarEstado(data.estado),
+      comprobadoEn: data.comprobadoEn,
+      duracionMs: data.duracionMs,
+    };
+  } catch {
+    return {
+      estado: "no_disponible",
+      comprobadoEn: new Date().toISOString(),
+      duracionMs: Math.round(performance.now() - inicio),
+    };
+  }
+}

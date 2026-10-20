@@ -14,10 +14,15 @@ public static class ModuleExtensions
     public static IServiceCollection AddPortalModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<PortalDbContext>((sp, opt) =>
-            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor)
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorPortal>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoPortal>();
+        services.AddScoped<ReferenciasArchivosPortal>();
+        services.AddScoped<ArsDocendi.Storage.Contracts.IConsultasReferenciasArchivos>(sp => sp.GetRequiredService<ReferenciasArchivosPortal>());
+        services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp => sp.GetRequiredService<ReferenciasArchivosPortal>());
         services.AddScoped<RepositorioPortal>();
         services.AddScoped<ServicioPortal>();
         services.AddScoped<Modules.Portal.Contracts.Queries.IPortalQueries>(sp => sp.GetRequiredService<ServicioPortal>());

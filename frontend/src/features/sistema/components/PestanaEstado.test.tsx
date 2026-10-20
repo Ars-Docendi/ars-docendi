@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PestanaEstado } from "./PestanaEstado";
 import * as sistemaApi from "../api/sistemaApi";
 import * as auditoriaApi from "../api/auditoriaApi";
-import type { ResultadoPing, EstadoSistemaDto } from "../api/sistemaApi";
+import type { EstadoInferenciaDto, ResultadoPing, EstadoSistemaDto } from "../api/sistemaApi";
 import type { PaginaAuditoria } from "../api/auditoriaApi";
 
 afterEach(() => vi.restoreAllMocks());
@@ -31,10 +31,23 @@ const ESTADO_OK: EstadoSistemaDto = {
   mantenimientoAsistente: "inactivo",
 };
 
+function mockearInferencia(estado: EstadoInferenciaDto["estado"] = "disponible") {
+  return vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
+    estado,
+    comprobadoEn: new Date().toISOString(),
+    duracionMs: estado === "deshabilitado" ? 0 : 25,
+  });
+}
+
 function mockearTodoDisponible() {
   vi.spyOn(sistemaApi, "comprobarPing").mockImplementation(async (c) => ping(c.id, true));
   vi.spyOn(sistemaApi, "consultarEstadoSistema").mockResolvedValue(ESTADO_OK);
+  mockearInferencia();
   vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue(PAGINA_VACIA);
+}
+
+function tarjeta(nombre: string): HTMLElement {
+  return screen.getByText(nombre).closest(".sistema-tarjeta") as HTMLElement;
 }
 
 function montar(props: Partial<Parameters<typeof PestanaEstado>[0]> = {}) {
@@ -57,13 +70,70 @@ function montar(props: Partial<Parameters<typeof PestanaEstado>[0]> = {}) {
 }
 
 describe("PestanaEstado", () => {
-  it("todos disponibles: banner ok con 6 de 6", async () => {
+  it("todos disponibles: banner ok con 7 de 7", async () => {
     mockearTodoDisponible();
 
     montar();
 
     expect(await screen.findByText("Todos los componentes disponibles")).toBeInTheDocument();
+    expect(screen.getByText("7 de 7 responden con normalidad.")).toBeInTheDocument();
+  });
+
+  it("inferencia disponible: tarjeta en Infraestructura con su tiempo de respuesta", async () => {
+    mockearTodoDisponible();
+
+    montar();
+
+    await screen.findByText("Todos los componentes disponibles");
+    const infraestructura = screen.getByRole("region", { name: "Infraestructura" });
+    const inferencia = within(infraestructura)
+      .getByText("Inferencia (IA)")
+      .closest(".sistema-tarjeta") as HTMLElement;
+    expect(within(inferencia).getByText("Disponible")).toBeInTheDocument();
+    expect(within(inferencia).getByText("25 ms")).toBeInTheDocument();
+  });
+
+  it("inferencia deshabilitada: estado neutral, sin Reintentar y sin degradar el banner", async () => {
+    mockearTodoDisponible();
+    mockearInferencia("deshabilitado");
+
+    montar();
+
+    expect(await screen.findByText("Todos los componentes disponibles")).toBeInTheDocument();
     expect(screen.getByText("6 de 6 responden con normalidad.")).toBeInTheDocument();
+    const inferencia = tarjeta("Inferencia (IA)");
+    expect(inferencia).toHaveClass("sistema-tarjeta--deshabilitado");
+    expect(inferencia).not.toHaveClass("sistema-tarjeta--no_disponible");
+    expect(within(inferencia).getByText("Deshabilitado")).toHaveClass(
+      "sistema-pill--deshabilitado",
+    );
+    expect(within(inferencia).getByText("No configurada en este ambiente")).toBeInTheDocument();
+    expect(within(inferencia).queryByText(/ms$/)).not.toBeInTheDocument();
+    expect(within(inferencia).queryByRole("button", { name: "Reintentar" })).toBeNull();
+  });
+
+  it("inferencia no disponible: cuenta como falla, la nombra y se reintenta sola", async () => {
+    mockearTodoDisponible();
+    const espiaInferencia = mockearInferencia("no_disponible");
+    const user = userEvent.setup();
+
+    montar();
+
+    expect(await screen.findByText("1 componente no disponible")).toBeInTheDocument();
+    expect(
+      screen.getByText("Inferencia (IA) no respondió. El resto funciona con normalidad."),
+    ).toBeInTheDocument();
+    const inferencia = tarjeta("Inferencia (IA)");
+    expect(within(inferencia).getByText("No disponible")).toHaveClass(
+      "sistema-pill--no_disponible",
+    );
+    expect(within(tarjeta("PostgreSQL")).getByText("Disponible")).toBeInTheDocument();
+    const llamadasPing = vi.mocked(sistemaApi.comprobarPing).mock.calls.length;
+
+    await user.click(within(inferencia).getByRole("button", { name: "Reintentar" }));
+
+    await waitFor(() => expect(espiaInferencia).toHaveBeenCalledTimes(2));
+    expect(sistemaApi.comprobarPing).toHaveBeenCalledTimes(llamadasPing);
   });
 
   it("«Última comprobación» usa el formato del canvas: d/m/aaaa HH:mm:ss de 24 horas (defecto #2, task 11.4)", async () => {
@@ -76,6 +146,11 @@ describe("PestanaEstado", () => {
     vi.spyOn(sistemaApi, "consultarEstadoSistema").mockResolvedValue({
       ...ESTADO_OK,
       comprobadoEn,
+    });
+    vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
+      estado: "disponible",
+      comprobadoEn,
+      duracionMs: 25,
     });
     vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue(PAGINA_VACIA);
 
@@ -93,6 +168,7 @@ describe("PestanaEstado", () => {
       return ping(c.id, c.id !== "tareas");
     });
     vi.spyOn(sistemaApi, "consultarEstadoSistema").mockResolvedValue(ESTADO_OK);
+    mockearInferencia();
     vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue(PAGINA_VACIA);
     const user = userEvent.setup();
 

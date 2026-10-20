@@ -69,6 +69,8 @@ jobs:
       TAG_BACKEND: sha-${{ github.sha }}
       REGISTRO: ${{ vars.REGISTRO }}
       DOMINIO: ${{ vars.DOMINIO }}
+      BACKUP_VOLUME_PREFIX: ${{ vars.BACKUP_VOLUME_PREFIX }}
+      BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS }}
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
@@ -79,6 +81,11 @@ jobs:
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_STAGING }}
       ASISTENTE_RO_PASSWORD: ${{ secrets.ASISTENTE_RO_PASSWORD_STAGING }}
       ASISTENTE_RO_PII_PASSWORD: ${{ secrets.ASISTENTE_RO_PII_PASSWORD_STAGING }}
+      INFERENCIA_URL: https://ia.${{ vars.DOMINIO }}
+      INFERENCIA_USUARIO: staging
+      INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_STAGING }}
+      INFERENCIA_ACCESS_CLIENT_ID: ${{ secrets.INFERENCIA_ACCESS_CLIENT_ID }}
+      INFERENCIA_ACCESS_CLIENT_SECRET: ${{ secrets.INFERENCIA_ACCESS_CLIENT_SECRET }}
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
       # Ingreso con Microsoft: se prende cuando existe la variable del client ID de staging.

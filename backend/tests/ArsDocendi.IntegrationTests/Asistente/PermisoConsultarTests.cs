@@ -23,7 +23,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 public sealed class PermisoConsultarTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso")
 {
-    private const string Recurso = "identity/011_identity_permiso_asistente.sql";
+    private const string Recurso = "identity/20261020000000_PermisoAsistenteConsultarIdentity.sql";
 
     private static readonly string[] RolesConAcceso =
     [

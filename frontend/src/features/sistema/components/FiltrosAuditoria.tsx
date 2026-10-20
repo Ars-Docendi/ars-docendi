@@ -172,10 +172,15 @@ export function FiltrosAuditoria({
               Clave de fila
               <Input
                 aria-label="Clave de fila"
+                aria-describedby="auditoria-clave-ayuda"
                 placeholder="p. ej. 1042"
                 value={filtros.clave}
                 onChange={(e) => actualizarFiltros({ clave: e.target.value })}
               />
+              <small id="auditoria-clave-ayuda" className="auditoria-campo-ayuda">
+                Usá el JSON completo para una relación precisa. Una clave parcial legada consulta
+                una agrupación histórica, no una relación individual.
+              </small>
             </label>
           </div>
         )}

@@ -980,7 +980,7 @@ una pregunta que exige generar una consulta termina en servicio degradado.
 [docs/architecture/domains/asistente.md § Presupuesto y degradación](../../../docs/architecture/domains/asistente.md)).
 
 Cuatro piezas nuevas, todas gated por `asistente.administrar` (sembrado
-directamente a `sys_admin`, migración `020_identity_permiso_administrar.sql`):
+directamente a `sys_admin`, migración `20261020000900_PermisoAsistenteAdministrarIdentity.sql`):
 
 - **Cupo persistente por actor** (`CuotaPersistente`, reemplaza a
   `CuotaEnMemoria`): turnos/día calendario UTC, con default por rol y override

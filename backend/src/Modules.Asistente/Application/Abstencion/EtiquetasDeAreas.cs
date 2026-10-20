@@ -28,6 +28,8 @@ internal static class EtiquetasDeAreas
         ("designaciones.pedido_historial", "pedidos de designación"),
         ("designaciones.pedido_adjuntos", "pedidos de designación"),
         ("identity.materias", "materias"),
+        ("identity.planes", "materias"),
+        ("identity.materias_plan", "materias"),
         ("identity.carreras", "carreras"),
         ("designaciones.cargos", "cargos"),
         ("designaciones.dedicaciones", "cargos"),

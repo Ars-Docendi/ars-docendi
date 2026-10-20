@@ -6,10 +6,11 @@ namespace Modules.Tareas.Infrastructure.Migrations;
 
 [DbContext(typeof(TareasDbContext))]
 [Migration("20260925000000_CatalogosTareas")]
+[RecursosMigracionSql("tareas/002_tareas_catalogos.sql")]
 public sealed partial class CatalogosTareas : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder) =>
-        migrationBuilder.Sql(RecursosSql.Leer(typeof(CatalogosTareas).Assembly, "tareas/002_tareas_catalogos.sql"));
+        migrationBuilder.AplicarRecursosSql(typeof(CatalogosTareas));
 
     protected override void Down(MigrationBuilder migrationBuilder) =>
         migrationBuilder.Sql("""

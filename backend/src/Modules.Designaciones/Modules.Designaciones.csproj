@@ -20,6 +20,7 @@
     <ProjectReference Include="..\ArsDocendi.Storage.Contracts\ArsDocendi.Storage.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Designaciones.Contracts\Modules.Designaciones.Contracts.csproj" />
     <ProjectReference Include="..\Modules.Portal.Contracts\Modules.Portal.Contracts.csproj" />
+    <ProjectReference Include="..\ArsDocendi.Migraciones\ArsDocendi.Migraciones.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,8 +41,7 @@
   <!-- Ver la nota equivalente en ArsDocendi.Shared.csproj: un glob vacío compilaba
        en silencio y el fallo aparecía recién al migrar. -->
   <Target Name="ValidarSqlEmbebido" BeforeTargets="BeforeBuild">
-    <Error Condition="'@(SqlDesignaciones)' == ''"
-           Text="No se encontró ningún .sql en database/designaciones/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
+    <Error Condition="'@(SqlDesignaciones)' == ''" Text="No se encontró ningún .sql en database/designaciones/. El DDL se embebe como recurso de este assembly, así que sin esos archivos las migraciones fallan en runtime. Verificá que el build context incluya el directorio database/ de la raíz del repo." />
   </Target>
 
 </Project>

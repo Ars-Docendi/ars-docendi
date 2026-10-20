@@ -40,14 +40,15 @@ public static class MaquinaEstadosPedido
     /// <summary>
     /// Valida los guards de la acción y devuelve la transición resultante.
     /// </summary>
-    /// <param name="carreraDelPedido">
-    /// Derivada de <c>identity.materias.carrera_id</c> por el servicio. El pedido no la
-    /// desnormaliza, pero el guard de ámbito del Coordinador la necesita.
+    /// <param name="alcance">
+    /// Cátedra y carrera de la pertenencia materia–plan del pedido, resueltas por el
+    /// servicio desde identity. El guard del Coordinador usa la carrera del plan; el del
+    /// Jefe de Cátedra, la materia canónica.
     /// </param>
     /// <exception cref="ErrorDominioPedido">Si algún guard rechaza la acción.</exception>
     public static TransicionPedido AplicarAccion(
         Pedido pedido,
-        Guid carreraDelPedido,
+        AlcancePedido alcance,
         AccionPedido accion,
         ActorContexto actor)
     {
@@ -68,14 +69,14 @@ public static class MaquinaEstadosPedido
 
         return accion switch
         {
-            AccionPedido.Enviar => Enviar(pedido, actor),
-            AccionPedido.Cancelar => Cancelar(pedido, carreraDelPedido, actor),
-            AccionPedido.Aceptar a => Aceptar(pedido, carreraDelPedido, actor, a.Comentario),
-            AccionPedido.Rechazar a => Rechazar(pedido, carreraDelPedido, actor, a.Justificativo),
-            AccionPedido.Devolver a => Devolver(pedido, carreraDelPedido, actor, a.Comentario),
-            AccionPedido.Reenviar => Reenviar(pedido, carreraDelPedido, actor),
-            AccionPedido.Priorizar a => Priorizar(pedido, carreraDelPedido, actor, a.Motivo, true),
-            AccionPedido.Despriorizar a => Priorizar(pedido, carreraDelPedido, actor, a.Comentario, false),
+            AccionPedido.Enviar => Enviar(pedido, alcance, actor),
+            AccionPedido.Cancelar => Cancelar(pedido, alcance, actor),
+            AccionPedido.Aceptar a => Aceptar(pedido, alcance, actor, a.Comentario),
+            AccionPedido.Rechazar a => Rechazar(pedido, alcance, actor, a.Justificativo),
+            AccionPedido.Devolver a => Devolver(pedido, alcance, actor, a.Comentario),
+            AccionPedido.Reenviar => Reenviar(pedido, alcance, actor),
+            AccionPedido.Priorizar a => Priorizar(pedido, alcance, actor, a.Motivo, true),
+            AccionPedido.Despriorizar a => Priorizar(pedido, alcance, actor, a.Comentario, false),
             _ => throw new ErrorDominioPedido($"Acción no soportada: {accion.GetType().Name}"),
         };
     }
@@ -85,28 +86,9 @@ public static class MaquinaEstadosPedido
     /// Coordinador sólo su carrera; Secretaría, Decanato y Administrativo todo el
     /// departamento; Jefe de Cátedra su cátedra.
     /// </summary>
-    public static bool AlcanzaAmbito(Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
+    public static bool AlcanzaAmbito(AlcancePedido alcance, ActorContexto actor)
     {
-        ArgumentNullException.ThrowIfNull(pedido);
-        return AlcanzaAmbito(pedido.MateriaId, carreraDelPedido, actor);
-    }
-
-    /// <summary>
-    /// La misma regla, sobre la materia y la carrera sueltas.
-    /// </summary>
-    /// <remarks>
-    /// Existe porque hay un caso que necesita el veredicto de ámbito sin necesitar
-    /// el pedido: ubicar trámites por su número legible para ofrecer el vínculo al
-    /// detalle. Cargar el agregado entero —adjuntos, historial, cargo— para leerle
-    /// un <c>Guid</c> es caro y, sobre todo, invita a resolver el ámbito con una
-    /// copia de estas tres líneas en otro lado.
-    ///
-    /// <b>La sobrecarga que toma el <see cref="Pedido"/> delega en ésta.</b> Dos
-    /// implementaciones de la misma regla es exactamente la forma en que un
-    /// vínculo termina prometiendo una pantalla que después responde 403.
-    /// </remarks>
-    public static bool AlcanzaAmbito(Guid materiaDelPedido, Guid carreraDelPedido, ActorContexto actor)
-    {
+        ArgumentNullException.ThrowIfNull(alcance);
         ArgumentNullException.ThrowIfNull(actor);
 
         if (actor.EsDeptoWide)
@@ -115,19 +97,19 @@ public static class MaquinaEstadosPedido
         }
 
         if (actor.Tiene(RolesCircuito.CoordinadorCarrera)
-            && actor.CarrerasACargo.Contains(carreraDelPedido))
+            && actor.CarrerasACargo.Contains(alcance.CarreraId))
         {
             return true;
         }
 
         return actor.Tiene(RolesCircuito.JefeCatedra)
-            && actor.MateriasACargo.Contains(materiaDelPedido);
+            && actor.MateriasACargo.Contains(alcance.MateriaId);
     }
 
     /// <summary>¿El actor puede ejecutar acciones de revisión sobre este pedido?</summary>
-    public static bool PuedeRevisar(Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
+    public static bool PuedeRevisar(Pedido pedido, AlcancePedido alcance, ActorContexto actor)
     {
-        if (!EsEtapaDeRevision(pedido.Estado) || !AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        if (!EsEtapaDeRevision(pedido.Estado) || !AlcanzaAmbito(alcance, actor))
         {
             return false;
         }
@@ -135,11 +117,6 @@ public static class MaquinaEstadosPedido
         return actor.Tiene(RolesCircuito.RolPorEtapa[pedido.Estado])
             || actor.Tiene(RolesCircuito.Administrativo);
     }
-
-    /// <summary>¿Puede avanzar la cadena? Administrativo revisa pero nunca aprueba [BR-designaciones-015].</summary>
-    public static bool PuedeAceptar(Pedido pedido, Guid carreraDelPedido, ActorContexto actor) =>
-        PuedeRevisar(pedido, carreraDelPedido, actor)
-        && actor.Tiene(RolesCircuito.RolPorEtapa[pedido.Estado]);
 
     /// <summary>
     /// ¿El actor puede editar? Sólo un borrador siendo Jefe de Cátedra, o un devuelto
@@ -172,7 +149,7 @@ public static class MaquinaEstadosPedido
     private static bool EsEtapaDeRevision(string estado) =>
         RolesCircuito.RolPorEtapa.ContainsKey(estado);
 
-    private static TransicionPedido Enviar(Pedido pedido, ActorContexto actor)
+    private static TransicionPedido Enviar(Pedido pedido, AlcancePedido alcance, ActorContexto actor)
     {
         if (pedido.Estado != EstadosPedido.Borrador)
         {
@@ -185,7 +162,7 @@ public static class MaquinaEstadosPedido
             throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede enviar el pedido a revisión.");
         }
 
-        if (!actor.MateriasACargo.Contains(pedido.MateriaId))
+        if (!actor.MateriasACargo.Contains(alcance.MateriaId))
         {
             throw new ErrorDominioPedido(
                 "El pedido pertenece a una cátedra que el actor no tiene a cargo [BR-designaciones-009].");
@@ -198,7 +175,7 @@ public static class MaquinaEstadosPedido
     }
 
     private static TransicionPedido Cancelar(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor)
     {
         if (pedido.Estado != EstadosPedido.Borrador)
         {
@@ -211,7 +188,7 @@ public static class MaquinaEstadosPedido
             throw new ErrorDominioPedido("Sólo el Jefe de Cátedra puede cancelar el pedido.");
         }
 
-        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        if (!AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }
@@ -228,7 +205,7 @@ public static class MaquinaEstadosPedido
     /// la etapa actual, o Administrativo [BR-designaciones-013]. Devuelve el código
     /// del rol con el que actúa.
     /// </summary>
-    private static string GuardarRevisor(Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
+    private static string GuardarRevisor(Pedido pedido, AlcancePedido alcance, ActorContexto actor)
     {
         if (!EsEtapaDeRevision(pedido.Estado))
         {
@@ -236,7 +213,7 @@ public static class MaquinaEstadosPedido
                 $"La acción de revisión requiere un pedido en revisión (estado actual: \"{pedido.Estado}\").");
         }
 
-        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        if (!AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }
@@ -263,9 +240,9 @@ public static class MaquinaEstadosPedido
         string.IsNullOrWhiteSpace(texto) ? throw new ErrorDominioPedido(mensaje) : texto;
 
     private static TransicionPedido Aceptar(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor, string? comentario)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string? comentario)
     {
-        var rol = GuardarRevisor(pedido, carreraDelPedido, actor);
+        var rol = GuardarRevisor(pedido, alcance, actor);
 
         if (rol == RolesCircuito.Administrativo)
         {
@@ -281,9 +258,9 @@ public static class MaquinaEstadosPedido
     }
 
     private static TransicionPedido Rechazar(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor, string justificativo)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string justificativo)
     {
-        var rol = GuardarRevisor(pedido, carreraDelPedido, actor);
+        var rol = GuardarRevisor(pedido, alcance, actor);
         var texto = RequerirTexto(
             justificativo, "El rechazo exige un justificativo obligatorio [BR-designaciones-005].");
 
@@ -295,9 +272,9 @@ public static class MaquinaEstadosPedido
     }
 
     private static TransicionPedido Devolver(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor, string comentario)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string comentario)
     {
-        var rol = GuardarRevisor(pedido, carreraDelPedido, actor);
+        var rol = GuardarRevisor(pedido, alcance, actor);
         var texto = RequerirTexto(
             comentario, "La devolución exige un comentario obligatorio [BR-designaciones-005].");
 
@@ -313,7 +290,7 @@ public static class MaquinaEstadosPedido
     }
 
     private static TransicionPedido Reenviar(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor)
     {
         if (pedido.Estado != EstadosPedido.Devuelto)
         {
@@ -327,7 +304,7 @@ public static class MaquinaEstadosPedido
                 "Sólo el propietario del pedido devuelto puede reenviarlo [BR-designaciones-014].");
         }
 
-        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        if (!AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }
@@ -351,9 +328,9 @@ public static class MaquinaEstadosPedido
     /// la misma fundamentación que subirla.
     /// </summary>
     private static TransicionPedido Priorizar(
-        Pedido pedido, Guid carreraDelPedido, ActorContexto actor, string? comentario, bool prioritario)
+        Pedido pedido, AlcancePedido alcance, ActorContexto actor, string? comentario, bool prioritario)
     {
-        if (!AlcanzaAmbito(pedido, carreraDelPedido, actor))
+        if (!AlcanzaAmbito(alcance, actor))
         {
             throw new ErrorDominioPedido("El pedido está fuera del ámbito del actor [BR-designaciones-009].");
         }

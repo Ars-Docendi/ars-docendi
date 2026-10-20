@@ -226,6 +226,12 @@
   border-color: var(--sistema-borde-mantenimiento);
 }
 
+/* Apagado por configuración: punteado neutral para no confundirlo con una falla. */
+.sistema-tarjeta--deshabilitado {
+  border-style: dashed;
+  border-color: var(--color-border-default);
+}
+
 .sistema-tarjeta-encabezado {
   display: flex;
   align-items: center;
@@ -270,6 +276,12 @@
 .sistema-pill--mantenimiento {
   background: var(--warning-100);
   color: var(--warning-700);
+}
+
+.sistema-pill--deshabilitado {
+  background: transparent;
+  color: var(--color-status-neutral-fg);
+  border: var(--border-default) dashed var(--color-border-default);
 }
 
 .sistema-pill--cargando {
@@ -598,6 +610,12 @@
   font-size: var(--text-caption-size);
   font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
+}
+
+.auditoria-campo-ayuda {
+  font-size: var(--text-micro-size);
+  font-weight: var(--weight-regular);
+  color: var(--color-text-tertiary);
 }
 
 .auditoria-filtros-resumen {

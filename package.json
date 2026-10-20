@@ -7,7 +7,7 @@
     "node": ">=24.15"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "^1.12.0",
+    "@fission-ai/openspec": "^0.17.2",
     "husky": "^9.1.7",
     "lint-staged": "17.4.1",
     "prettier": "^3.9.6"

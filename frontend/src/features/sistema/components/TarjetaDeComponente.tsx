@@ -2,14 +2,17 @@ import { Button } from "@ars-docendi/ui";
 
 import type { MantenimientoAsistente, MotivoFalla } from "../api/sistemaApi";
 
-export type TipoDeComponente = "modulo" | "asistente" | "postgresql";
-export type EstadoDeTarjeta = "disponible" | "no_disponible" | "mantenimiento" | "cargando";
+export type TipoDeComponente = "modulo" | "asistente" | "postgresql" | "inferencia";
+export type EstadoDeTarjeta =
+  "disponible" | "no_disponible" | "mantenimiento" | "deshabilitado" | "cargando";
 
 interface TarjetaDeComponenteProps {
   nombre: string;
   tipo: TipoDeComponente;
   cargando: boolean;
   disponible?: boolean;
+  /** Apagado por configuración del ambiente: estado neutral, no una falla. */
+  deshabilitado?: boolean;
   motivoFalla?: MotivoFalla;
   duracionMs?: number;
   mantenimientoAsistente?: MantenimientoAsistente;
@@ -22,9 +25,11 @@ function calcularEstado(
   tipo: TipoDeComponente,
   cargando: boolean,
   disponible: boolean | undefined,
+  deshabilitado: boolean,
   mantenimientoAsistente: MantenimientoAsistente | undefined,
 ): EstadoDeTarjeta {
   if (cargando || disponible === undefined) return "cargando";
+  if (deshabilitado) return "deshabilitado";
   if (!disponible) return "no_disponible";
   if (tipo === "asistente" && mantenimientoAsistente === "activo") return "mantenimiento";
   return "disponible";
@@ -34,6 +39,7 @@ const ETIQUETA_PILL: Record<EstadoDeTarjeta, string> = {
   disponible: "Disponible",
   no_disponible: "No disponible",
   mantenimiento: "Mantenimiento",
+  deshabilitado: "Deshabilitado",
   cargando: "Comprobando…",
 };
 
@@ -43,10 +49,13 @@ function calcularNota(
   motivoFalla: MotivoFalla | undefined,
 ): string {
   if (estado === "cargando") return "Comprobando…";
-  if (tipo === "postgresql")
+  if (estado === "deshabilitado") return "No configurada en este ambiente";
+  if (tipo === "postgresql" || tipo === "inferencia")
     return estado === "disponible"
       ? "Comprobado por separado"
-      : "No se pudo comprobar la conexión.";
+      : tipo === "postgresql"
+        ? "No se pudo comprobar la conexión."
+        : "No se pudo comprobar el servicio.";
   if (estado === "mantenimiento") return "Consultas pausadas por un administrador";
   if (estado === "no_disponible")
     return motivoFalla === "timeout" ? "No respondió en 5 s" : "Respondió con error";
@@ -59,6 +68,7 @@ export function TarjetaDeComponente({
   tipo,
   cargando,
   disponible,
+  deshabilitado = false,
   motivoFalla,
   duracionMs,
   mantenimientoAsistente,
@@ -66,7 +76,7 @@ export function TarjetaDeComponente({
   onReintentar,
   onVerUso,
 }: TarjetaDeComponenteProps) {
-  const estado = calcularEstado(tipo, cargando, disponible, mantenimientoAsistente);
+  const estado = calcularEstado(tipo, cargando, disponible, deshabilitado, mantenimientoAsistente);
   const nota = calcularNota(tipo, estado, motivoFalla);
   const muestraDuracion = estado === "disponible" || estado === "mantenimiento";
 

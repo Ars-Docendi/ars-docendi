@@ -1,6 +1,6 @@
 import { COMPONENTES_PING, type IdComponentePing } from "../api/sistemaApi";
-import { useSaludSistema } from "../hooks/useSaludSistema";
-import { resumirSalud, type EntradaComponenteSalud } from "../utils/resumirSalud";
+import { NOMBRE_INFERENCIA, useSaludSistema } from "../hooks/useSaludSistema";
+import { resumirSalud } from "../utils/resumirSalud";
 import { BannerDeSalud } from "./BannerDeSalud";
 import { TarjetaDeComponente } from "./TarjetaDeComponente";
 import { CambiosRecientes } from "./CambiosRecientes";
@@ -25,22 +25,7 @@ export function PestanaEstado({
   onAbrirCambio,
   onVerTodaLaAuditoria,
 }: PestanaEstadoProps) {
-  const { pings, postgresql, reintentar } = useSaludSistema(true);
-
-  const entradas: EntradaComponenteSalud[] = [
-    ...COMPONENTES_PING.map((c) => ({
-      id: c.id,
-      nombre: c.nombre,
-      disponible: pings[c.id].data?.disponible,
-      comprobadoEn: pings[c.id].data?.comprobadoEn,
-    })),
-    {
-      id: "postgresql",
-      nombre: "PostgreSQL",
-      disponible: postgresql.data ? postgresql.data.estado === "disponible" : undefined,
-      comprobadoEn: postgresql.data?.comprobadoEn,
-    },
-  ];
+  const { pings, postgresql, inferencia, entradas, reintentar } = useSaludSistema(true);
 
   const resumen = resumirSalud({
     componentes: entradas,
@@ -101,6 +86,15 @@ export function PestanaEstado({
             disponible={postgresql.data ? postgresql.data.estado === "disponible" : undefined}
             duracionMs={postgresql.data?.duracionMs}
             onReintentar={() => reintentar("postgresql")}
+          />
+          <TarjetaDeComponente
+            nombre={NOMBRE_INFERENCIA}
+            tipo="inferencia"
+            cargando={inferencia.isLoading || inferencia.isPending}
+            disponible={inferencia.data ? inferencia.data.estado === "disponible" : undefined}
+            deshabilitado={inferencia.data?.estado === "deshabilitado"}
+            duracionMs={inferencia.data?.duracionMs}
+            onReintentar={() => reintentar("inferencia")}
           />
         </div>
       </section>

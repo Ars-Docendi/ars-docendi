@@ -1,6 +1,8 @@
 # Dependency graph
 
-**Reglas**: grafo dirigido acíclico (DAG). Los módulos solo dependen de `ArsDocendi.Shared` y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
+**Reglas**: grafo dirigido acíclico (DAG). Los módulos dependen de infraestructura transversal (`ArsDocendi.Shared`, `ArsDocendi.Migraciones`) y de los `Modules.*.Contracts` que necesiten. Módulo → módulo **solo** vía `.Contracts`.
+
+`ArsDocendi.Migraciones` contiene el adaptador EF reutilizable y la salida CLI. Depende de Shared; Host, Storage y los módulos lo consumen. Shared conserva DTOs/contratos puros y utilidades de recursos, sin I/O adicional hacia los contextos de módulos. La registración de Identity/Audit se realiza con `AddMigracionesIdentity` después de `AddArsDocendiShared`.
 
 `ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4 enmendado), así que suma dependencias de **paquete** — EF Core y Npgsql — pero ninguna de proyecto: el grafo entre proyectos no cambia. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
 
@@ -36,6 +38,7 @@ flowchart TD
   end
   subgraph modules [Modules internos]
     Storage["ArsDocendi.Storage"]
+    Inferencia["ArsDocendi.Inferencia"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
@@ -47,8 +50,16 @@ flowchart TD
   end
 
   Host --> Shared
+  Host --> Migraciones["ArsDocendi.Migraciones"]
+  Migraciones --> Shared
+  Storage --> Migraciones
+  Designaciones --> Migraciones
+  Aulas --> Migraciones
+  Portal --> Migraciones
+  Tareas --> Migraciones
   Host --> Designaciones
   Host --> Storage
+  Host --> Inferencia
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
@@ -58,6 +69,7 @@ flowchart TD
 
   Designaciones --> Shared
   Storage --> Shared
+  Inferencia --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
@@ -80,6 +92,10 @@ flowchart TD
 ```
 
 Líneas punteadas: dependencias cross-module **proyectadas**, que hoy no existen en ningún `.csproj`. No tienen fila en el manifiesto y no pueden tenerla: una fila existe cuando la referencia existe. Cuando se confirmen, pasan a sólidas y entran al manifiesto en el mismo PR que el `ProjectReference`.
+
+`ArsDocendi.Inferencia` es infraestructura transversal, no un módulo de negocio: encapsula el cliente del servicio de inferencia compartido y expone `GET /api/inferencia/estado`. Depende sólo de `ArsDocendi.Shared` (usa `Permisos` para autorizar la sonda) y lo referencia únicamente el Host como composition root. No tiene `.Contracts` hasta que exista un consumidor; `Modules.Asistente` **no** lo referencia hoy.
+
+`Modules.Asistente` tampoco referencia `ArsDocendi.Migraciones`: su migrador no envuelve un `DbContext` ni historial EF, sino SQL que converge por construcción (ver [data-model.md](data-model.md#migraciones-en-deploy)).
 
 Dependencias de **paquete** de `ArsDocendi.Shared` (no son aristas del grafo de proyectos y quedan fuera del manifiesto, pero explican por qué Shared ya no es puro):
 

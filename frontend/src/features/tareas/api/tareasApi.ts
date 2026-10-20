@@ -4,9 +4,12 @@
 // solo se traducen los Problem Details a un mensaje legible para la UI.
 // ============================================================
 import type { AxiosResponse } from "axios";
+import { isAxiosError } from "axios";
 import { apiClient } from "../../../shared/api/client";
 import { mensajeProblema } from "../../../shared/api/problemDetails";
 import type { DatosEditablesTarea, EstadoTarea, PersonaCandidata, Tarea } from "../types";
+
+export class ConflictoTareasError extends Error {}
 
 /** Ejecuta la llamada y, si falla, lanza un `Error` con el mensaje del Problem Details. */
 export async function pedir<T>(
@@ -16,6 +19,12 @@ export async function pedir<T>(
   try {
     return (await llamada).data;
   } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 409) {
+      throw new ConflictoTareasError(
+        "El recurso cambió. Recargá los datos y revisá tus cambios antes de guardar nuevamente.",
+        { cause: error },
+      );
+    }
     throw new Error(mensajeProblema(error, mensajePorDefecto), { cause: error });
   }
 }
@@ -49,14 +58,21 @@ export function crearTarea(datos: DatosEditablesTarea, tareaPadreId?: string): P
   );
 }
 
-export function editarTarea(id: string, datos: DatosEditablesTarea): Promise<Tarea> {
-  return pedir(apiClient.put<Tarea>(`/api/tareas/${id}`, datos), "No se pudo editar la tarea.");
+export function editarTarea(
+  id: string,
+  datos: DatosEditablesTarea,
+  version: number,
+): Promise<Tarea> {
+  return pedir(
+    apiClient.put<Tarea>(`/api/tareas/${id}`, { ...datos, version }),
+    "No se pudo editar la tarea.",
+  );
 }
 
 export function cambiarEstadoTarea(
   id: string,
   estado: EstadoTarea,
-  opciones: { comentario?: string; solucion?: string } = {},
+  opciones: { comentario?: string; solucion?: string; version: number },
 ): Promise<Tarea> {
   return pedir(
     apiClient.post<Tarea>(`/api/tareas/${id}/estado`, { estado, ...opciones }),
@@ -64,9 +80,13 @@ export function cambiarEstadoTarea(
   );
 }
 
-export function editarAvance(id: string, porcentajeAvance: number): Promise<Tarea> {
+export function editarAvance(
+  id: string,
+  porcentajeAvance: number,
+  version: number,
+): Promise<Tarea> {
   return pedir(
-    apiClient.patch<Tarea>(`/api/tareas/${id}/avance`, { porcentajeAvance }),
+    apiClient.patch<Tarea>(`/api/tareas/${id}/avance`, { porcentajeAvance, version }),
     "No se pudo actualizar el avance.",
   );
 }

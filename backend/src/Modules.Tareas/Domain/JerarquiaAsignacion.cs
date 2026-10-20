@@ -50,6 +50,13 @@ public static class JerarquiaAsignacion
     public static string? RolPrincipal(IEnumerable<string> roles) =>
         roles.OrderBy(r => Nivel(r) ?? int.MaxValue).FirstOrDefault();
 
+    public static IReadOnlyCollection<string> RolesAsignables(int? nivelActor, bool paraProyecto) =>
+        Orden.Where(r => nivelActor is not null && Nivel(r) >= nivelActor
+            && (!paraProyecto || EsResponsableDeProyecto([r]))).ToArray();
+
+    public static IReadOnlyCollection<string> RolesSuperiores(int? nivelActor) =>
+        Orden.Where(r => nivelActor is null || Nivel(r) < nivelActor).ToArray();
+
     public static bool PuedeAsignar(int? nivelActor, IEnumerable<string> rolesCandidato)
     {
         var nivelCandidato = MejorNivel(rolesCandidato);

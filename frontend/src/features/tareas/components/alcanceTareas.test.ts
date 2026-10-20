@@ -4,6 +4,7 @@ import type { Tarea } from "../types";
 
 function tarea(id: string, creadoPorId: string, responsableId: string): Tarea {
   return {
+    version: 1,
     id,
     numero: 1,
     titulo: id,

@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cambiarEstadoProyecto, crearProyecto, editarProyecto } from "../api/proyectosApi";
+import { ConflictoTareasError } from "../api/tareasApi";
 import type { DatosEditablesProyecto, EstadoProyecto } from "../types";
 
 interface ParamsCambiarEstado {
+  version: number;
   id: string;
   estadoDestino: EstadoProyecto;
 }
@@ -17,6 +19,7 @@ export function useCrearProyecto() {
 }
 
 interface ParamsEditar {
+  version: number;
   id: string;
   datos: DatosEditablesProyecto;
 }
@@ -25,7 +28,12 @@ interface ParamsEditar {
 export function useEditarProyecto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, datos }: ParamsEditar) => editarProyecto(id, datos),
+    mutationFn: ({ id, datos, version }: ParamsEditar) => editarProyecto(id, datos, version),
+    retry: false,
+    onError: (error) => {
+      if (error instanceof ConflictoTareasError)
+        void qc.invalidateQueries({ queryKey: ["proyectos"] });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proyectos"] }),
   });
 }
@@ -34,8 +42,13 @@ export function useEditarProyecto() {
 export function useCambiarEstadoProyecto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, estadoDestino }: ParamsCambiarEstado) =>
-      cambiarEstadoProyecto(id, estadoDestino),
+    mutationFn: ({ id, estadoDestino, version }: ParamsCambiarEstado) =>
+      cambiarEstadoProyecto(id, estadoDestino, version),
+    retry: false,
+    onError: (error) => {
+      if (error instanceof ConflictoTareasError)
+        void qc.invalidateQueries({ queryKey: ["proyectos"] });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proyectos"] }),
   });
 }

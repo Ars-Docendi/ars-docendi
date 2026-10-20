@@ -67,6 +67,11 @@ beforeEach(() => {
     duracionMs: 5,
     mantenimientoAsistente: "inactivo",
   });
+  vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
+    estado: "deshabilitado",
+    comprobadoEn: new Date().toISOString(),
+    duracionMs: 0,
+  });
   vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue({
     elementos: [],
     pagina: 1,

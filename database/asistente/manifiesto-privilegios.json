@@ -71,10 +71,40 @@
       "tabla": "materias",
       "estado": "concedida",
       "columnas_concedidas": {
-        "asistente_ro": ["id", "code", "name", "carrera_id", "is_active", "created_at"],
-        "asistente_ro_pii": ["id", "code", "name", "carrera_id", "is_active", "created_at"]
+        "asistente_ro": ["id", "code", "name", "is_active", "created_at"],
+        "asistente_ro_pii": ["id", "code", "name", "is_active", "created_at"]
       },
       "columnas_denegadas": []
+    },
+    {
+      "schema": "identity",
+      "tabla": "planes",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "carrera_id", "codigo", "nombre", "vigente", "activo", "created_at"],
+        "asistente_ro_pii": [
+          "id",
+          "carrera_id",
+          "codigo",
+          "nombre",
+          "vigente",
+          "activo",
+          "created_at"
+        ]
+      },
+      "columnas_denegadas": [],
+      "nota": "Catálogo informativo de planes por carrera: es el camino de una materia canónica a sus carreras (con identity.materias_plan)."
+    },
+    {
+      "schema": "identity",
+      "tabla": "materias_plan",
+      "estado": "concedida",
+      "columnas_concedidas": {
+        "asistente_ro": ["id", "plan_id", "materia_id", "activo", "created_at"],
+        "asistente_ro_pii": ["id", "plan_id", "materia_id", "activo", "created_at"]
+      },
+      "columnas_denegadas": [],
+      "nota": "Pertenencia materia-plan. Junto con identity.planes define las materias de una carrera."
     },
     {
       "schema": "identity",
@@ -282,6 +312,7 @@
           "periodo_id",
           "persona_id",
           "materia_id",
+          "carrera_id",
           "novedad",
           "estado",
           "prioritario",
@@ -304,6 +335,7 @@
           "periodo_id",
           "persona_id",
           "materia_id",
+          "carrera_id",
           "novedad",
           "estado",
           "prioritario",
@@ -386,6 +418,7 @@
           "id",
           "persona_id",
           "materia_id",
+          "carrera_id",
           "cargo_id",
           "dedicacion",
           "dedicacion_id",
@@ -401,6 +434,7 @@
           "id",
           "persona_id",
           "materia_id",
+          "carrera_id",
           "cargo_id",
           "dedicacion",
           "dedicacion_id",
@@ -425,6 +459,14 @@
       "columnas_denegadas": []
     },
     {
+      "schema": "designaciones",
+      "tabla": "__EFMigrationsHistory",
+      "estado": "denegada-explicita",
+      "motivo": "Historial de migraciones propio del schema desde el baseline consolidado. Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto en su primera corrida, que es exactamente el caso que la dirección 3 existe para atrapar.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
       "schema": "identity",
       "tabla": "__EFMigrationsHistory",
       "estado": "denegada-explicita",
@@ -440,7 +482,16 @@
         "asistente_ro": ["id", "persona_id", "created_at"],
         "asistente_ro_pii": ["id", "persona_id", "created_at"]
       },
-      "columnas_denegadas": []
+      "columnas_denegadas": [
+        {
+          "columna": "version_habilidades",
+          "motivo": "Contador de concurrencia optimista de la colección del perfil. Es mecánica de escritura de la aplicación, no dato del dominio: ninguna pregunta lo necesita."
+        },
+        {
+          "columna": "version_intereses",
+          "motivo": "Contador de concurrencia optimista de la colección del perfil. Es mecánica de escritura de la aplicación, no dato del dominio: ninguna pregunta lo necesita."
+        }
+      ]
     },
     {
       "schema": "portal",
@@ -589,6 +640,14 @@
       "tabla": "proyecto_documentos",
       "estado": "denegada-explicita",
       "motivo": "Cuelga de proyectos, que no se concede, y su uri es la ubicación de un archivo. Mismo criterio que pedido_adjuntos.uri y que cvs.",
+      "columnas_concedidas": {},
+      "columnas_denegadas": []
+    },
+    {
+      "schema": "portal",
+      "tabla": "__EFMigrationsHistory",
+      "estado": "denegada-explicita",
+      "motivo": "Historial de migraciones propio del schema desde el baseline consolidado. Tabla de control del motor de migraciones. Es fontanería del framework, no dato de dominio: ninguna pregunta del alcance la necesita, y exponerla filtra el estado interno del versionado del esquema. La detectó el test de manifiesto en su primera corrida, que es exactamente el caso que la dirección 3 existe para atrapar.",
       "columnas_concedidas": {},
       "columnas_denegadas": []
     }
