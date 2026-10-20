@@ -129,7 +129,7 @@ public sealed class InferenciaTests(PostgresFixture postgres) : ClasePostgresAis
         var configuracion = Configuracion("https://ia-secreta.prueba.invalid", "usuario-secreto");
         configuracion["Inferencia:Contrasena"] = "";
         configuracion["Inferencia:AccessClientId"] = "id-secreto.access";
-        using var host = new FabricaInferencia(Cadena, new ServicioFalso(HttpStatusCode.OK), configuracion, "Production");
+        using var host = new FabricaInferencia(Cadena, new ServicioFalso(HttpStatusCode.OK), configuracion, "Staging");
 
         var error = Record.Exception(() => host.CreateClient());
 
