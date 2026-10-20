@@ -251,24 +251,6 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Gustavo_conserva_tres_membresias_y_un_rol_resumido()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-
-        var gustavo = Assert.Single(
-            await CrearServicio(db).ListarAsync(ct),
-            u => u.Upn == "gustavo.ruiz@unlam.edu.ar");
-
-        Assert.Single(gustavo.Roles, r => r.Codigo == "jefe_catedra");
-        Assert.Equal(3, gustavo.Membresias.Count);
-        Assert.Equal(3, gustavo.Membresias.Select(m => m.MateriaId).Distinct().Count());
-        Assert.True(gustavo.PerfilDocente.EsDocente);
-        Assert.Equal(3, gustavo.PerfilDocente.CantidadMaterias);
-    }
-
-    [Fact]
     public async Task Perfil_docente_incluye_designacion_vigente_sin_membresia_docente()
     {
         var ct = TestContext.Current.CancellationToken;

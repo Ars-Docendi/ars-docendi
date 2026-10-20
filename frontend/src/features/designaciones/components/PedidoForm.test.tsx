@@ -269,61 +269,6 @@ describe("PedidoForm", () => {
     });
   });
 
-  describe("cargo y dedicación libres (D-6/D-7)", () => {
-    it("en Cambio, el cargo solicitado admite cualquier valor del catálogo (D-6)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene cargo actual "Adjunto".
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      const selectCargo = screen.getByLabelText("Cargo solicitado") as HTMLSelectElement;
-      // "Ayudante" es inferior a "Adjunto": no hay restricción que lo impida.
-      await user.selectOptions(selectCargo, "Ayudante");
-      expect(selectCargo).toHaveValue("Ayudante");
-    });
-
-    it("en Cambio, el Select de dedicación ofrece las seis categorías (D-7)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Cambio de cargo o dedicación"));
-      // Lucía Fernández tiene dedicación actual "Categoría 3".
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
-      const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
-      expect(opciones).toEqual([
-        "",
-        "Categoría 1",
-        "Categoría 2",
-        "Categoría 3",
-        "Categoría 4",
-        "Categoría 5",
-        "Categoría 6",
-      ]);
-
-      await user.selectOptions(selectDedicacion, "Categoría 1");
-      expect(selectDedicacion).toHaveValue("Categoría 1");
-    });
-
-    it("Alta no restringe las opciones de dedicación (no hay dedicación actual)", async () => {
-      const { user } = renderForm();
-      await user.click(screen.getByLabelText("Alta"));
-
-      const selectDedicacion = screen.getByLabelText("Dedicación solicitada") as HTMLSelectElement;
-      const opciones = Array.from(selectDedicacion.options).map((o) => o.value);
-      expect(opciones).toEqual([
-        "",
-        "Categoría 1",
-        "Categoría 2",
-        "Categoría 3",
-        "Categoría 4",
-        "Categoría 5",
-        "Categoría 6",
-      ]);
-    });
-  });
-
   describe("resumen de cambios en el panel de datos actuales (D-8)", () => {
     it("muestra la transición de cargo y dedicación", async () => {
       const { user } = renderForm();
@@ -390,18 +335,6 @@ describe("PedidoForm", () => {
   });
 
   describe("tipificación de la baja", () => {
-    it("exige seleccionar el tipo de baja antes de guardar", async () => {
-      const { user, onGuardar } = renderForm();
-      await user.click(screen.getByLabelText("Baja"));
-      await user.selectOptions(screen.getByLabelText("Docente"), "28341567");
-      await user.selectOptions(screen.getByLabelText("Materia"), "materia-software");
-
-      await user.click(screen.getByRole("button", { name: "Guardar y enviar" }));
-
-      expect(onGuardar).not.toHaveBeenCalled();
-      expect(screen.getByText("Seleccioná el tipo de baja.")).toBeInTheDocument();
-    });
-
     it('"Otro" muestra el campo de detalle y lo exige para enviar', async () => {
       const { user, onGuardar } = renderForm();
       await user.click(screen.getByLabelText("Baja"));

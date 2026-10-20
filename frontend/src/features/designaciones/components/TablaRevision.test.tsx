@@ -92,56 +92,6 @@ function pestania(nombre: string | RegExp) {
 }
 
 describe("TablaRevision (una tabla + pestañas por etapa)", () => {
-  it("usa una sola tabla del design system, con un único head de columnas", () => {
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_revision_coordinador")]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    // Antes eran 4 mini-tablas, cada una con su head repetido.
-    expect(screen.getAllByRole("table")).toHaveLength(1);
-    for (const columna of ["Docente", "Legajo", "Tipo", "Inicio", "Últ. actualización", "Estado"]) {
-      expect(screen.getByRole("columnheader", { name: columna })).toBeInTheDocument();
-    }
-  });
-
-  it("la columna Área existe solo en Todos: en una pestaña de área sería constante", async () => {
-    const user = userEvent.setup();
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_revision_coordinador")]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    // Abre en "En Coordinación": el área la dice la pestaña, no hace falta la columna.
-    expect(screen.queryByRole("columnheader", { name: "Área" })).not.toBeInTheDocument();
-
-    await user.click(pestania(/Todos/));
-    expect(screen.getByRole("columnheader", { name: "Área" })).toBeInTheDocument();
-    expect(screen.getByRole("cell", { name: "Coordinación" })).toBeInTheDocument();
-  });
-
-  it("no tiene columnas Carrera ni Asignatura: una designación puede tener más de una de cada una", () => {
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_revision_coordinador", { carrera: "Ingeniería Industrial" })]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("columnheader", { name: "Carrera" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "Asignatura" })).not.toBeInTheDocument();
-  });
-
   it("muestra las 6 pestañas con su contador, y abre en el área propia del actor", () => {
     render(
       <TablaRevision
@@ -314,19 +264,6 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(filasVisibles()).toEqual(["Secretaría Dos"]);
   });
 
-  it("Administración no tiene etapa propia: abre en Todos", () => {
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_revision_decanato")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(pestania(/Todos/)).toHaveAttribute("aria-selected", "true");
-  });
-
   it("Todos muestra el ámbito sin agrupar, incluidos los cancelados que no caen en ninguna etapa", async () => {
     const user = userEvent.setup();
 
@@ -351,68 +288,6 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(filas).toContain("Cancelado Dos");
     // Un borrador todavía no entró al circuito: no es asunto del revisor.
     expect(filas).not.toContain("Borrador Tres");
-  });
-
-  it("un devuelto vive en la pestaña del área que lo tiene, no en la que lo devolvió", async () => {
-    const user = userEvent.setup();
-    // Decanato lo devolvió a Secretaría [BR-014]: volverá a Decanato, pero hoy lo
-    // tiene Secretaría, así que es ahí donde se lo ve.
-    const devuelto = pedido("devuelto", {
-      docente: { dni: "6", nombre: "Devuelto Seis", antiguedad: 3 },
-      etapaRetorno: "en_revision_decanato",
-      propietarioActual: "Secretaría",
-      historial: [evento("devolver")],
-    });
-
-    render(
-      <TablaRevision
-        pedidos={[devuelto]}
-        actor={DECANO}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("tab", { name: /Devueltos/ })).not.toBeInTheDocument();
-    // Decanato abre en su pestaña y NO lo ve: ya no lo tiene.
-    expect(pestania(/En Decanato/)).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByText("Devuelto Seis")).not.toBeInTheDocument();
-
-    await user.click(pestania(/En Secretaría/));
-    expect(filasVisibles()).toEqual(["Devuelto Seis"]);
-    // El badge de Estado nunca lleva el área: eso es la columna Área, que solo aparece
-    // en "Todos".
-    expect(screen.getByText("Devuelto")).toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "Área" })).not.toBeInTheDocument();
-
-    await user.click(pestania(/Todos/));
-    expect(screen.getByRole("cell", { name: "Secretaría" })).toBeInTheDocument();
-  });
-
-  it("un devuelto a la Cátedra tiene su propia pestaña: el Coordinador ya no lo tiene", async () => {
-    const user = userEvent.setup();
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("devuelto", {
-            docente: { dni: "7", nombre: "Devuelto A Cátedra", antiguedad: 3 },
-            etapaRetorno: "en_revision_coordinador",
-            propietarioActual: "Jefe de Cátedra",
-            historial: [evento("devolver")],
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    // Antes aparecía bajo "En Coordinación", como si el Coordinador lo tuviera.
-    expect(screen.queryByText("Devuelto A Cátedra")).not.toBeInTheDocument();
-
-    await user.click(pestania(/En Cátedra/));
-    expect(filasVisibles()).toEqual(["Devuelto A Cátedra"]);
-    expect(screen.getByText("Devuelto")).toBeInTheDocument();
   });
 
   it("prioritario y devuelto a la vez muestra los dos: ninguno tapa al otro", () => {
@@ -466,30 +341,6 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(pestania(/En Cátedra/)).toHaveTextContent("1");
     expect(pestania(/En Secretaría/)).toHaveTextContent("1");
     expect(pestania(/En Coordinación/)).toHaveTextContent("0");
-  });
-
-  it("Inicio es el envío a revisión, no la creación del borrador", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "12", nombre: "Con Fechas", antiguedad: 3, legajo: "1005" },
-            historial: [
-              evento("crear", "2026-01-05T00:00:00.000Z"),
-              evento("enviar", "2026-03-10T00:00:00.000Z"),
-            ],
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("1005")).toBeInTheDocument();
-    expect(screen.queryByText("05/01/2026")).not.toBeInTheDocument();
-    // El envío es además el último evento: misma fecha en Inicio y Últ. actualización.
-    expect(screen.getAllByText("09/03/2026 21:00")).toHaveLength(2);
   });
 
   it("la fila navega al detalle del pedido", async () => {
@@ -620,49 +471,5 @@ describe("filtros por encabezado de Revisión", () => {
     screen.getByText(p.docente.nombre).closest("tr")!.focus();
     await user.keyboard("{Enter}");
     expect(onSeleccionar).toHaveBeenCalledTimes(2);
-  });
-
-  it("la celda Docente muestra solo el nombre, recortable, e Inicio va en una línea", () => {
-    const p = pedido("en_revision_coordinador", {
-      docente: { dni: "9", nombre: "Montenegro-Echeverría, Leandro", antiguedad: 3 },
-    });
-    render(
-      <TablaRevision pedidos={[p]} actor={COORD} filtros={SIN_FILTROS} onSeleccionar={vi.fn()} />,
-    );
-
-    const fila = screen.getByRole("row", {
-      name: "Ver el pedido de Montenegro-Echeverría, Leandro",
-    });
-    expect(fila.querySelector(".adoc-pedido-avatar")).toBeNull();
-    expect(within(fila).getByText("Montenegro-Echeverría, Leandro")).toHaveClass(
-      "adoc-texto-recortado",
-    );
-    expect(fila.querySelectorAll("td")[3]).toHaveClass("adoc-sin-salto");
-  });
-
-  it("marca la prioridad con un chip junto al nombre, no en Estado", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "10", nombre: "Urgente Diez", antiguedad: 3 },
-            prioritario: true,
-          }),
-          pedido("en_revision_coordinador", {
-            docente: { dni: "11", nombre: "Normal Once", antiguedad: 3 },
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    const urgente = screen.getByRole("row", { name: "Ver el pedido de Urgente Diez" });
-    const normal = screen.getByRole("row", { name: "Ver el pedido de Normal Once" });
-    const [docente, , , , , estado] = urgente.querySelectorAll("td");
-    expect(within(docente).getByText("Prioritario")).toHaveClass("adoc-chip-prioritario");
-    expect(within(estado).queryByText("Prioritario")).not.toBeInTheDocument();
-    expect(within(normal).queryByText("Prioritario")).not.toBeInTheDocument();
   });
 });

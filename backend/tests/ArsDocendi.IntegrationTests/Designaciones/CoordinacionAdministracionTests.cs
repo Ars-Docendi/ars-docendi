@@ -8,7 +8,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class CoordinacionAdministracionTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Administracion_de_identidad_y_circuito_sobre_el_propio_actor_no_invierten_locks()

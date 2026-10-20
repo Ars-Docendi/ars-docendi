@@ -5,7 +5,7 @@ using Modules.Designaciones.Domain;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class CompletitudPedidosTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Theory]
     [InlineData("enviar", "cargoSolicitadoId")]

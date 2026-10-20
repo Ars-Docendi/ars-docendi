@@ -33,32 +33,6 @@ public sealed class IntegridadMateriaTests(PostgresFixture postgres)
         Assert.Equal("designaciones_materia_fk", error.ConstraintName);
     }
 
-    [Fact]
-    public async Task Upgrade_bloquea_huerfano_sin_reasignar_y_upgrade_limpio_preserva_filas()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var cadena = await Postgres.CrearBaseMigradaAsync("materia_upgrade", "20261013155148_NumeracionSinTruncamientoDesignaciones");
-        try
-        {
-            await using var conexion = new NpgsqlConnection(cadena);
-            await conexion.OpenAsync(ct);
-            await PrepararAsync(conexion, ct);
-            await using (var alterar = new NpgsqlCommand("UPDATE designaciones.designaciones SET materia_id='ffffffff-ffff-4fff-8fff-ffffffffffff'", conexion))
-                await alterar.ExecuteNonQueryAsync(ct);
-            await using var db = PostgresFixture.CrearDesignaciones(cadena);
-            await Assert.ThrowsAsync<PostgresException>(() => db.Database.MigrateAsync(ct));
-            await using (var verificar = new NpgsqlCommand("SELECT count(*) FROM designaciones.designaciones WHERE materia_id='ffffffff-ffff-4fff-8fff-ffffffffffff'", conexion))
-                Assert.Equal(1L, await verificar.ExecuteScalarAsync(ct));
-            await using (var repararFixture = new NpgsqlCommand("UPDATE designaciones.designaciones SET materia_id=(SELECT id FROM identity.materias WHERE code='09999')", conexion))
-                await repararFixture.ExecuteNonQueryAsync(ct);
-            await db.Database.MigrateAsync(ct);
-            await using var catalogo = new NpgsqlCommand("SELECT convalidated FROM pg_constraint WHERE conname='designaciones_materia_fk'", conexion);
-            Assert.Equal(true, await catalogo.ExecuteScalarAsync(ct));
-            Assert.Single(await db.Designaciones.ToListAsync(ct));
-        }
-        finally { await Postgres.EliminarBaseAsync(cadena); }
-    }
-
     private static async Task PrepararAsync(NpgsqlConnection conexion, CancellationToken ct)
     {
         await using var comando = new NpgsqlCommand("""

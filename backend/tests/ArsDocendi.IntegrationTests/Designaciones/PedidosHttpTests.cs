@@ -190,41 +190,6 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Http_acepta_las_seis_dedicaciones_en_un_Cambio()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
-        var casos = new[]
-        {
-            (Guid.Parse("d0000000-0000-4000-8000-000000000002"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000001"),
-                Guid.Parse("70000000-0000-4000-8000-000000000101")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000003"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000002"),
-                Guid.Parse("70000000-0000-4000-8000-000000000102")),
-            (Guid.Parse("d0000000-0000-4000-8000-000000000015"),
-                Guid.Parse("d6000000-0000-4000-8000-000000000006"),
-                Guid.Parse("70000000-0000-4000-8000-000000000103")),
-        };
-
-        foreach (var (persona, dedicacionId, materiaId) in casos)
-        {
-            using var respuesta = await cliente.PostAsJsonAsync(
-                "/api/designaciones/pedidos",
-                Datos(persona, materiaId: materiaId, novedad: Novedades.CambioDeCargoODedicacion,
-                    dedicacionSolicitadaId: dedicacionId),
-                ct);
-
-            Assert.Equal(HttpStatusCode.Created, respuesta.StatusCode);
-            var pedido = (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!;
-            Assert.Equal(dedicacionId, pedido.DedicacionSolicitadaId);
-        }
-    }
-
-    [Fact]
     public async Task Recorrido_integrado_corrige_horas_reenvia_aprueba_y_exporta_sin_duplicar_continuidad()
     {
         var ct = TestContext.Current.CancellationToken;

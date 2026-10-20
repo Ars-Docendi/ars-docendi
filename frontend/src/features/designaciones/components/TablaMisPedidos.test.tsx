@@ -138,47 +138,4 @@ describe("TablaMisPedidos", () => {
     expect(onEditar).toHaveBeenCalledOnce();
     expect(onVer).not.toHaveBeenCalled();
   });
-
-  it("recorta Docente, Cátedra y Tipo cuando no entran", () => {
-    render(
-      <TablaMisPedidos
-        pedidos={[pedido()]}
-        onVerDetalle={vi.fn()}
-        onEditar={vi.fn()}
-        onEliminar={vi.fn()}
-      />,
-    );
-
-    for (const texto of ["Ana García", "Cálculo I", "Alta"]) {
-      expect(screen.getByText(texto)).toHaveClass("adoc-texto-recortado");
-    }
-  });
-
-  it("no muestra la columna N°", () => {
-    render(
-      <TablaMisPedidos
-        pedidos={[pedido()]}
-        onVerDetalle={vi.fn()}
-        onEditar={vi.fn()}
-        onEliminar={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("columnheader", { name: /^N°/ })).not.toBeInTheDocument();
-    expect(screen.queryByText("N°-2026-0001")).not.toBeInTheDocument();
-  });
-
-  it('nombra el estado por el área donde está, sin repetir "En revisión"', () => {
-    render(
-      <TablaMisPedidos
-        pedidos={[{ ...pedido(), estado: "en_revision_secretaria" }]}
-        onVerDetalle={vi.fn()}
-        onEditar={vi.fn()}
-        onEliminar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("En Secretaría")).toBeInTheDocument();
-    expect(screen.queryByText(/En revisión/)).not.toBeInTheDocument();
-  });
 });

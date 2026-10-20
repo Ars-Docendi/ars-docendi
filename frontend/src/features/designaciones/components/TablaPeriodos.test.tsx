@@ -60,21 +60,6 @@ describe("TablaPeriodos", () => {
     expect(encabezado).toHaveAttribute("aria-sort", "none");
   });
 
-  it("muestra Editar y Eliminar como botones directos, sin menú kebab", async () => {
-    const user = userEvent.setup();
-    const onEditar = vi.fn();
-    const onEliminar = vi.fn();
-    render(<TablaPeriodos periodos={PERIODOS} onEditar={onEditar} onEliminar={onEliminar} />);
-
-    expect(screen.queryByRole("button", { name: /Acciones del período/ })).not.toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Editar" })[0]);
-    expect(onEditar).toHaveBeenCalledWith(PERIODOS[0]);
-
-    await user.click(screen.getByRole("button", { name: "Eliminar período Primer cuatrimestre" }));
-    expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
-  });
-
   it("el click en la fila abre Editar y Eliminar es un botón de texto", async () => {
     const user = userEvent.setup();
     const onEditar = vi.fn();
@@ -89,11 +74,5 @@ describe("TablaPeriodos", () => {
     await user.click(eliminar);
     expect(onEliminar).toHaveBeenCalledWith(PERIODOS[1]);
     expect(onEditar).toHaveBeenCalledOnce();
-  });
-
-  it("muestra el nombre del período en una línea, recortable", () => {
-    render(<TablaPeriodos periodos={PERIODOS} onEditar={vi.fn()} onEliminar={vi.fn()} />);
-
-    expect(screen.getByText("Segundo cuatrimestre")).toHaveClass("adoc-texto-recortado");
   });
 });

@@ -12,13 +12,56 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests(PostgresFixture postgres, ITestOutputHelper salida)
+/// <summary>
+/// Datos y helpers compartidos. Cada archivo de tests es su propia clase para que
+/// xUnit pueda correrlos en paralelo (paraleliza por clase, no por método).
+/// </summary>
+public abstract class VigenciasPedidosBase(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "vigencias_pedidos")
 {
-    private static readonly Guid PedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
-    private static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
-    private static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
+    protected static readonly Guid PedidoId = Guid.Parse("d5000000-0000-4000-8000-000000000001");
+    protected static readonly Guid Jefe = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    protected static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
 
+    protected async Task SembrarAsync(CancellationToken ct)
+    {
+        var raiz = new DirectoryInfo(AppContext.BaseDirectory);
+        while (raiz is not null && !File.Exists(Path.Combine(raiz.FullName, "AGENTS.md"))) raiz = raiz.Parent;
+        var sql = await File.ReadAllTextAsync(Path.Combine(raiz!.FullName,
+            "infra/scripts/seed-data/sintetico.sql"), ct);
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
+        await comando.ExecuteNonQueryAsync(ct);
+    }
+
+    protected static IServicioPedidosApi CrearApi(Guid usuario, IdentityDbContext identityDb, DesignacionesDbContext db)
+    {
+        var identity = new ConsultasIdentity(identityDb);
+        var resolutor = new ResolutorActor(new UsuarioActual(usuario), identity);
+        var pedidos = new RepositorioPedidos(db);
+        var designaciones = new RepositorioDesignaciones(db);
+        var unidad = new UnidadDeTrabajo(db);
+        var servicio = new ServicioPedidos(pedidos, designaciones, new MaterializadorDesignaciones(designaciones, new RelojFijo()),
+            resolutor, identity, unidad, NullLogger<ServicioPedidos>.Instance);
+        return new ServicioPedidosApi(servicio, pedidos, resolutor, identity, new RepositorioIdempotencia(db), unidad);
+    }
+
+    protected sealed class RelojFijo : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => new(2026, 10, 13, 12, 0, 0, TimeSpan.Zero);
+    }
+
+    protected sealed class UsuarioActual(Guid id) : ICurrentUser
+    {
+        public string UserId => id.ToString();
+        public string? Email => "fixture@example.invalid";
+        public IReadOnlyList<string> Roles => [];
+        public bool IsAuthenticated => true;
+    }
+}
+
+public sealed class VigenciasPedidosTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
+{
     [Fact]
     public async Task Cambio_intradía_conserva_id_inicio_snapshot_y_audita_valores_y_origenes()
     {
@@ -108,41 +151,5 @@ public sealed partial class VigenciasPedidosTests(PostgresFixture postgres, ITes
         Assert.Equal(actual.HorasInvestigacion, nuevo.RootElement.GetProperty("horas_investigacion").GetInt32());
         Assert.Equal(actual.HorasExternas, nuevo.RootElement.GetProperty("horas_externas").GetInt32());
         Assert.Equal(PedidoId.ToString(), nuevo.RootElement.GetProperty("origen_pedido_id").GetString());
-    }
-
-    private async Task SembrarAsync(CancellationToken ct)
-    {
-        var raiz = new DirectoryInfo(AppContext.BaseDirectory);
-        while (raiz is not null && !File.Exists(Path.Combine(raiz.FullName, "AGENTS.md"))) raiz = raiz.Parent;
-        var sql = await File.ReadAllTextAsync(Path.Combine(raiz!.FullName,
-            "infra/scripts/seed-data/sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static IServicioPedidosApi CrearApi(Guid usuario, IdentityDbContext identityDb, DesignacionesDbContext db)
-    {
-        var identity = new ConsultasIdentity(identityDb);
-        var resolutor = new ResolutorActor(new UsuarioActual(usuario), identity);
-        var pedidos = new RepositorioPedidos(db);
-        var designaciones = new RepositorioDesignaciones(db);
-        var unidad = new UnidadDeTrabajo(db);
-        var servicio = new ServicioPedidos(pedidos, designaciones, new MaterializadorDesignaciones(designaciones, new RelojFijo()),
-            resolutor, identity, unidad, NullLogger<ServicioPedidos>.Instance);
-        return new ServicioPedidosApi(servicio, pedidos, resolutor, identity, new RepositorioIdempotencia(db), unidad);
-    }
-
-    private sealed class RelojFijo : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => new(2026, 10, 13, 12, 0, 0, TimeSpan.Zero);
-    }
-
-    private sealed class UsuarioActual(Guid id) : ICurrentUser
-    {
-        public string UserId => id.ToString();
-        public string? Email => "fixture@example.invalid";
-        public IReadOnlyList<string> Roles => [];
-        public bool IsAuthenticated => true;
     }
 }

@@ -9,22 +9,119 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Tareas;
 
-public sealed partial class TareasHttpTests(PostgresFixture postgres)
+/// <summary>
+/// Datos y helpers HTTP compartidos. Cada archivo de tests es su propia clase para que
+/// xUnit pueda correrlos en paralelo (paraleliza por clase, no por método).
+/// </summary>
+public abstract class TareasHttpBase(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "tareas_http")
 {
-    private static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
-    private static readonly Guid JefeCatedra = Guid.Parse("a0000000-0000-4000-8000-000000000002");
-    private static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
-    private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
-    private static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
-    private static readonly Guid Administrador = Guid.Parse("a0000000-0000-4000-8000-000000000007");
-    private static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
-    private static readonly Guid ProyectoTesting = Guid.Parse("f2000000-0000-4000-8000-000000000001");
-    private static readonly Guid ProyectoFinalizado = Guid.Parse("f2000000-0000-4000-8000-000000000003");
-    private static readonly Guid ProyectoCancelado = Guid.Parse("f2000000-0000-4000-8000-000000000004");
-    private static readonly Guid TareaDelDocente = Guid.Parse("f3000000-0000-4000-8000-000000000003");
-    private static readonly Guid TareaSemilla = Guid.Parse("f3000000-0000-4000-8000-000000000001");
+    protected static readonly Guid Docente = Guid.Parse("a0000000-0000-4000-8000-000000000001");
+    protected static readonly Guid JefeCatedra = Guid.Parse("a0000000-0000-4000-8000-000000000002");
+    protected static readonly Guid Coordinador = Guid.Parse("a0000000-0000-4000-8000-000000000003");
+    protected static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
+    protected static readonly Guid Decanato = Guid.Parse("a0000000-0000-4000-8000-000000000005");
+    protected static readonly Guid Administrador = Guid.Parse("a0000000-0000-4000-8000-000000000007");
+    protected static readonly Guid Administrativo = Guid.Parse("a0000000-0000-4000-8000-000000000006");
+    protected static readonly Guid ProyectoTesting = Guid.Parse("f2000000-0000-4000-8000-000000000001");
+    protected static readonly Guid ProyectoFinalizado = Guid.Parse("f2000000-0000-4000-8000-000000000003");
+    protected static readonly Guid ProyectoCancelado = Guid.Parse("f2000000-0000-4000-8000-000000000004");
+    protected static readonly Guid TareaDelDocente = Guid.Parse("f3000000-0000-4000-8000-000000000003");
+    protected static readonly Guid TareaSemilla = Guid.Parse("f3000000-0000-4000-8000-000000000001");
 
+    protected sealed record NuevaTareaJson(
+        string Titulo, string Descripcion, string FechaInicio, string FechaFin, string Prioridad,
+        string Tipo, Guid ResponsableId, Guid? ProyectoId = null, Guid? TareaPadreId = null);
+
+    protected static NuevaTareaJson NuevaTarea(Guid responsable) =>
+        new("Tarea de prueba", "Descripción", "2026-10-01", "2026-10-31", "media", "administrativa", responsable);
+
+    protected static NuevaTareaJson EdicionDe(Guid responsable, string titulo = "Editada") =>
+        new(titulo, "Descripción", "2026-10-01", "2026-10-31", "alta", "posgrado", responsable);
+
+    protected WebApplicationFactory<Program> CrearHost() => new FabricaTareas(Cadena);
+
+    protected sealed class FabricaTareas(string cadena) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseEnvironment("Development");
+            builder.UseSetting("ConnectionStrings:ArsDocendi", cadena);
+            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", bool.TrueString);
+        }
+    }
+
+    protected static HttpClient Cliente(WebApplicationFactory<Program> host, Guid usuario, string rol)
+    {
+        var cliente = host.CreateClient();
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
+        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
+        return cliente;
+    }
+
+    protected static async Task<TareaDto> Crear(HttpClient cliente, NuevaTareaJson datos, CancellationToken ct)
+    {
+        using var respuesta = await cliente.PostVersionadoAsync("/api/tareas", datos, ct);
+        Assert.True(respuesta.StatusCode == HttpStatusCode.Created, await respuesta.Content.ReadAsStringAsync(ct));
+        return (await respuesta.Content.ReadFromJsonAsync<TareaDto>(ct))!;
+    }
+
+    protected static async Task<TareaDto> Cambiar(HttpClient cliente, string ruta, object cuerpo, CancellationToken ct) =>
+        await ReadAsync<TareaDto>(await cliente.PostVersionadoAsync($"{ruta}/estado", cuerpo, ct), ct);
+
+    protected static async Task<T> ReadAsync<T>(HttpResponseMessage respuesta, CancellationToken ct)
+    {
+        using (respuesta)
+        {
+            Assert.True(respuesta.IsSuccessStatusCode, await respuesta.Content.ReadAsStringAsync(ct));
+            return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
+        }
+    }
+
+    protected static async Task Esperar(Task<HttpResponseMessage> solicitud, HttpStatusCode esperado)
+    {
+        using var respuesta = await solicitud;
+        Assert.True(respuesta.StatusCode == esperado,
+            $"Se esperaba {esperado} y fue {respuesta.StatusCode}: {await respuesta.Content.ReadAsStringAsync()}");
+    }
+
+    protected async Task SembrarAsync(CancellationToken ct)
+    {
+        var sql = await File.ReadAllTextAsync(
+            Path.Join(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
+        await comando.ExecuteNonQueryAsync(ct);
+    }
+
+    protected static string BuscarRaizRepositorio()
+    {
+        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directorio is not null)
+        {
+            if (File.Exists(Path.Join(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
+            directorio = directorio.Parent;
+        }
+
+        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
+    }
+
+    protected async Task EsperarBloqueadasAsync(int cantidad, CancellationToken ct)
+    {
+        await using var observador = await AbrirConexionAsync();
+        using var limite = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        limite.CancelAfter(TimeSpan.FromSeconds(30));
+        while (true)
+        {
+            await using var comando = new NpgsqlCommand("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND wait_event_type='Lock'", observador);
+            if (Convert.ToInt64(await comando.ExecuteScalarAsync(limite.Token)) >= cantidad) return;
+            await Task.Delay(20, limite.Token);
+        }
+    }
+}
+
+public sealed class TareasHttpTests(PostgresFixture postgres) : TareasHttpBase(postgres)
+{
     [Fact]
     public async Task Todos_los_roles_ven_las_tareas_pero_solo_las_autoridades_crean()
     {
@@ -356,81 +453,4 @@ public sealed partial class TareasHttpTests(PostgresFixture postgres)
     }
 
     // Helpers -----------------------------------------------------------
-
-    private sealed record NuevaTareaJson(
-        string Titulo, string Descripcion, string FechaInicio, string FechaFin, string Prioridad,
-        string Tipo, Guid ResponsableId, Guid? ProyectoId = null, Guid? TareaPadreId = null);
-
-    private static NuevaTareaJson NuevaTarea(Guid responsable) =>
-        new("Tarea de prueba", "Descripción", "2026-10-01", "2026-10-31", "media", "administrativa", responsable);
-
-    private static NuevaTareaJson EdicionDe(Guid responsable, string titulo = "Editada") =>
-        new(titulo, "Descripción", "2026-10-01", "2026-10-31", "alta", "posgrado", responsable);
-
-    private WebApplicationFactory<Program> CrearHost() => new FabricaTareas(Cadena);
-
-    private sealed class FabricaTareas(string cadena) : WebApplicationFactory<Program>
-    {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseEnvironment("Development");
-            builder.UseSetting("ConnectionStrings:ArsDocendi", cadena);
-            builder.UseSetting($"{AutenticacionDesarrolloOptions.Seccion}:Enabled", bool.TrueString);
-        }
-    }
-
-    private static HttpClient Cliente(WebApplicationFactory<Program> host, Guid usuario, string rol)
-    {
-        var cliente = host.CreateClient();
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, usuario.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, rol);
-        return cliente;
-    }
-
-    private static async Task<TareaDto> Crear(HttpClient cliente, NuevaTareaJson datos, CancellationToken ct)
-    {
-        using var respuesta = await cliente.PostVersionadoAsync("/api/tareas", datos, ct);
-        Assert.True(respuesta.StatusCode == HttpStatusCode.Created, await respuesta.Content.ReadAsStringAsync(ct));
-        return (await respuesta.Content.ReadFromJsonAsync<TareaDto>(ct))!;
-    }
-
-    private static async Task<TareaDto> Cambiar(HttpClient cliente, string ruta, object cuerpo, CancellationToken ct) =>
-        await ReadAsync<TareaDto>(await cliente.PostVersionadoAsync($"{ruta}/estado", cuerpo, ct), ct);
-
-    private static async Task<T> ReadAsync<T>(HttpResponseMessage respuesta, CancellationToken ct)
-    {
-        using (respuesta)
-        {
-            Assert.True(respuesta.IsSuccessStatusCode, await respuesta.Content.ReadAsStringAsync(ct));
-            return (await respuesta.Content.ReadFromJsonAsync<T>(ct))!;
-        }
-    }
-
-    private static async Task Esperar(Task<HttpResponseMessage> solicitud, HttpStatusCode esperado)
-    {
-        using var respuesta = await solicitud;
-        Assert.True(respuesta.StatusCode == esperado,
-            $"Se esperaba {esperado} y fue {respuesta.StatusCode}: {await respuesta.Content.ReadAsStringAsync()}");
-    }
-
-    private async Task SembrarAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Join(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Join(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 }

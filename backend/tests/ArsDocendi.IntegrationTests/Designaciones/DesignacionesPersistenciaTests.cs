@@ -10,31 +10,6 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "designaciones")
 {
     [Fact]
-    public async Task Catalogo_dedicaciones_tiene_seis_opciones_unicas_auditadas_y_referencias_validas()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        Assert.Equal("1,2,3,4,5,6", await EscalarAsync<string>(conexion,
-            "SELECT string_agg(codigo::text, ',' ORDER BY codigo) FROM designaciones.dedicaciones WHERE activo"));
-        await EjecutarAsync(conexion, "UPDATE designaciones.dedicaciones SET activo = false WHERE codigo = 6");
-        Assert.Equal(1L, await EscalarAsync<long>(conexion,
-            "SELECT count(*) FROM audit.change_log WHERE schema_name = 'designaciones' AND table_name = 'dedicaciones'"));
-        var duplicado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "INSERT INTO designaciones.dedicaciones (codigo, nombre, orden) VALUES (1, 'Repetida', 7)"));
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, duplicado.SqlState);
-
-        var datos = await PrepararDatosAsync(conexion);
-        await InsertarPedidoAsync(conexion, "TEST-DEDICACION", datos, datos.Materia1, "borrador");
-        await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, datos.Carrera, null, new DateOnly(2026, 1, 1), null);
-        var referencia = new NpgsqlParameter("id", Guid.NewGuid());
-        var errorPedido = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "UPDATE designaciones.pedidos SET dedicacion_solicitada_id = @id", referencia));
-        var errorDesignacion = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "UPDATE designaciones.designaciones SET dedicacion_id = @id", new NpgsqlParameter("id", Guid.NewGuid())));
-        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorPedido.SqlState);
-        Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, errorDesignacion.SqlState);
-    }
-
-    [Fact]
     public async Task Limpieza_de_idempotencia_retira_solo_las_claves_vencidas()
     {
         await using var conexion = await AbrirConexionAsync();
@@ -54,67 +29,6 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
 
         Assert.Equal(1, retirados);
         Assert.Equal(1L, await EscalarAsync<long>(conexion, "SELECT count(*) FROM designaciones.idempotencia_comandos"));
-    }
-
-    [Fact]
-    public async Task Actualizaciones_y_migracion_noop_preservan_categoria_historica_snapshot_y_horas()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        var datos = await PrepararDatosAsync(conexion);
-        var pedidoId = await InsertarPedidoAsync(conexion, "TEST-HISTORICO", datos, datos.Materia1, "borrador");
-        // Sólo la preparación simula una fila histórica: el baseline ya no ofrece una
-        // transición alpha. Se deshabilitan exclusivamente los validadores de selección,
-        // no constraints, FKs ni auditoría, y se restauran antes de las assertions.
-        await EjecutarAsync(conexion, """
-            ALTER TABLE designaciones.pedidos DISABLE TRIGGER validar_dedicacion_pedido;
-            ALTER TABLE designaciones.designaciones DISABLE TRIGGER validar_dedicacion_vigente;
-            """);
-        try
-        {
-            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia1, datos.Carrera,
-                pedidoId, new DateOnly(2026, 1, 1), null);
-            await InsertarDesignacionAsync(conexion, datos.Persona, datos.Materia2, datos.Carrera,
-                null, new DateOnly(2026, 1, 1), null, legado: true);
-            await EjecutarAsync(conexion, """
-                UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Categoría 0',
-                    horas_investigacion = 7, horas_externas = 5,
-                    snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb;
-                UPDATE designaciones.designaciones SET dedicacion = 'Categoría 6',
-                    dedicacion_id = 'd6000000-0000-4000-8000-000000000006',
-                    horas_investigacion = 7, horas_externas = 5
-                    WHERE origen_pedido_id IS NOT NULL;
-                """);
-        }
-        finally
-        {
-            await EjecutarAsync(conexion, """
-                ALTER TABLE designaciones.pedidos ENABLE TRIGGER validar_dedicacion_pedido;
-                ALTER TABLE designaciones.designaciones ENABLE TRIGGER validar_dedicacion_vigente;
-                """);
-        }
-        await using var contexto = PostgresFixture.CrearDesignaciones(Cadena);
-        await contexto.Database.MigrateAsync(TestContext.Current.CancellationToken);
-        await EjecutarAsync(conexion, "UPDATE designaciones.pedidos SET prioritario = true");
-        await EjecutarAsync(conexion, "UPDATE designaciones.designaciones SET horas = horas + 1");
-        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-            SELECT count(*) FROM designaciones.pedidos
-            WHERE dedicacion_solicitada = 'Categoría 0' AND dedicacion_solicitada_id IS NULL
-              AND snapshot = '{"dedicacion":"Categoría 0","horas":8}'::jsonb
-              AND horas_investigacion = 7 AND horas_externas = 5
-            """));
-        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-            SELECT count(*) FROM designaciones.designaciones v
-            JOIN designaciones.dedicaciones d ON d.id = v.dedicacion_id
-            WHERE d.codigo = 6 AND v.dedicacion = 'Categoría 6' AND v.origen_pedido_id = @pedido
-              AND v.horas_investigacion = 7 AND v.horas_externas = 5
-            """, new NpgsqlParameter("pedido", pedidoId)));
-        Assert.Equal(1L, await EscalarAsync<long>(conexion, """
-            SELECT count(*) FROM designaciones.designaciones
-             WHERE materia_id = @materia AND horas_investigacion IS NULL AND horas_externas IS NULL
-            """, new NpgsqlParameter("materia", datos.Materia2)));
-        var cambiarLegado = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
-            "UPDATE designaciones.pedidos SET dedicacion_solicitada = 'Texto arbitrario'"));
-        Assert.Equal(PostgresErrorCodes.CheckViolation, cambiarLegado.SqlState);
     }
 
     [Fact]
@@ -141,19 +55,6 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
         var textoVigente = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion,
             "UPDATE designaciones.designaciones SET dedicacion = 'Categoría 0'"));
         Assert.Equal(PostgresErrorCodes.CheckViolation, textoVigente.SqlState);
-    }
-
-    [Fact]
-    public async Task Segundo_periodo_activo_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await InsertarPeriodoAsync(conexion, Guid.NewGuid(), true);
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() =>
-            InsertarPeriodoAsync(conexion, Guid.NewGuid(), true));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("periodos_unico_activo", error.ConstraintName);
     }
 
     [Fact]

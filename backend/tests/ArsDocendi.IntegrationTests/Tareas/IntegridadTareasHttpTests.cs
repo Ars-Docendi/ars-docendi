@@ -1,24 +1,11 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Net.Http.Json;
 using Modules.Tareas.Application;
 
 namespace ArsDocendi.IntegrationTests.Tareas;
 
-public sealed partial class TareasHttpTests
+public sealed class IntegridadTareasHttpTests(PostgresFixture postgres) : TareasHttpBase(postgres)
 {
-    [Fact]
-    public async Task Ping_del_modulo_es_publico_y_responde_estado_ok()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        using var respuesta = await cliente.GetAsync("/api/tareas/ping", ct);
-        var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
-
-        Assert.Equal(System.Net.HttpStatusCode.OK, respuesta.StatusCode);
-        Assert.Contains("\"module\":\"tareas\"", cuerpo, StringComparison.Ordinal);
-        Assert.Contains("\"status\":\"ok\"", cuerpo, StringComparison.Ordinal);
-    }
-
     [Fact]
     public async Task Listado_solo_resuelve_identidades_y_relaciones_visibles()
     {

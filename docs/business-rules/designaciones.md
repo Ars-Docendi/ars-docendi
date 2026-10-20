@@ -174,13 +174,12 @@ aprobadas del change `corregir-integridad-y-rendimiento-post-auditoria`; no agre
 normativa, plazos o autoridad de aprobación. Conservan las fuentes pendientes
 anteriores y refuerzan su ejecución:
 
-| Cobertura                                                                                        | Tests persistentes                                                                   | Relación con reglas existentes                                                  |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Administración vs envío/aprobación, relectura protegida y conflicto de observación obsoleta      | `CoordinacionAdministracionTests.cs`, `ConcurrenciaVigenciasTests.cs`                | BR-008/009/013; estado, snapshot y eventos no parciales                         |
-| Actor desactivado tras prevalidación, nueva persona inexistente y transacción local/ambiente     | `DestinosLogicosDesignacionesTests.cs`, `DestinosPedidosTests.cs`                    | BR-009; referencia canónica/elegibilidad actual, sin reemplazar autor histórico |
-| Grilla completa, actor/fechas/acciones, historia 200→2.000 sin expansión y relectura por persona | `ListadoPedidosTests.cs`, `LecturasSelectivasDesignacionesTests.cs`                  | BR-009/013/014; mismas acciones y ámbitos, detalle no truncado                  |
-| Intradía: mismo ID/inicio y tres cargas/orígenes; rollback y snapshot inmutable                  | `VigenciasPedidosTests.cs`, `VigenciasPedidosCasosTests.cs`                          | BR-004/008/018; no inventa cargo/horas/legajo                                   |
-| Identidad sin cuenta y exportación sin mutación                                                  | `PedidosApiTests.cs`, `ExportacionLoteTests.cs`, `Identity/IngresoMicrosoftTests.cs` | BR-002/009; login no provisiona usuarios                                        |
+| Cobertura                                                                                    | Tests persistentes                                                                   | Relación con reglas existentes                                                  |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Administración vs envío/aprobación, relectura protegida y conflicto de observación obsoleta  | `CoordinacionAdministracionTests.cs`, `ConcurrenciaVigenciasTests.cs`                | BR-008/009/013; estado, snapshot y eventos no parciales                         |
+| Actor desactivado tras prevalidación, nueva persona inexistente y transacción local/ambiente | `DestinosLogicosDesignacionesTests.cs`, `DestinosPedidosTests.cs`                    | BR-009; referencia canónica/elegibilidad actual, sin reemplazar autor histórico |
+| Intradía: mismo ID/inicio y tres cargas/orígenes; rollback y snapshot inmutable              | `VigenciasPedidosTests.cs`, `VigenciasPedidosCasosTests.cs`                          | BR-004/008/018; no inventa cargo/horas/legajo                                   |
+| Identidad sin cuenta y exportación sin mutación                                              | `PedidosApiTests.cs`, `ExportacionLoteTests.cs`, `Identity/IngresoMicrosoftTests.cs` | BR-002/009; login no provisiona usuarios                                        |
 
 Los nombres sin prefijo están bajo
 `backend/tests/ArsDocendi.IntegrationTests/Designaciones/`; `Identity/IngresoMicrosoftTests.cs`

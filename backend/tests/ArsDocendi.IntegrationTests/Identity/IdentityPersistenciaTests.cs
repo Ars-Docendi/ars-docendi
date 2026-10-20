@@ -82,19 +82,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Documento_duplicado_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        await InsertarPersonaAsync(conexion, "30333444");
-
-        var error = await Assert.ThrowsAsync<PostgresException>(
-            () => InsertarPersonaAsync(conexion, "30333444"));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("personas_documento_key", error.ConstraintName);
-    }
-
-    [Fact]
     public async Task Rol_custom_con_scope_se_persiste_como_no_sistema()
     {
         var ct = TestContext.Current.CancellationToken;

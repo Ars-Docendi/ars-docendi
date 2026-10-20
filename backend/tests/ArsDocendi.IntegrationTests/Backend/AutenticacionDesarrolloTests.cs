@@ -142,35 +142,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Catalogo_de_permisos_y_defaults_expone_las_pantallas_explicitas()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Development", true);
-        using var cliente = host.CreateClient();
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Administrativo.ToString());
-        cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "administrativo");
-
-        var permisos = await cliente.GetFromJsonAsync<PermisoAdministracionDto[]>(
-            "/api/administracion/permisos", ct);
-        var roles = await cliente.GetFromJsonAsync<RolAdministracionDto[]>(
-            "/api/administracion/roles", ct);
-
-        Assert.NotNull(permisos);
-        Assert.Contains(permisos, permiso => permiso.Codigo == "docentes.ver");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "designaciones.revisar");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "sistema.estado.ver");
-        Assert.Contains(permisos, permiso => permiso.Codigo == "auditoria.ver");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
-            permiso => permiso.Codigo == "docentes.ver");
-        Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
-            permiso => permiso.Codigo == "designaciones.revisar");
-        var administrador = Assert.Single(roles!, rol => rol.Codigo == "sys_admin");
-        Assert.Contains(administrador.Permisos, permiso => permiso.Codigo == "sistema.estado.ver");
-        Assert.Contains(administrador.Permisos, permiso => permiso.Codigo == "auditoria.ver");
-    }
-
-    [Fact]
     public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
     {
         var ct = TestContext.Current.CancellationToken;

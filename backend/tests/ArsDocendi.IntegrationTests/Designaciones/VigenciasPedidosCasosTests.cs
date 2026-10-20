@@ -7,7 +7,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Designaciones;
 
-public sealed partial class VigenciasPedidosTests
+public sealed class VigenciasPedidosCasosTests(PostgresFixture postgres) : VigenciasPedidosBase(postgres)
 {
     [Fact]
     public async Task Cambio_con_inicio_futuro_se_rechaza_sin_eventos_parciales()

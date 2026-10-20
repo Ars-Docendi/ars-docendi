@@ -292,6 +292,50 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
         var transicion = MaquinaEstadosPedido.AplicarAccion(pedido, new AlcancePedido(Materia, Guid.Empty), comando, Actor(rol));
 
         Assert.Equal(rol, transicion.CodigoRolActuante);
+        // Aceptar avanza una etapa; devolver retrocede exactamente un nivel y recuerda
+        // la etapa que devolvió para retomarla al reenviar [BR-designaciones-014].
+        var (estadoEsperado, propietarioEsperado) = (accion, estado) switch
+        {
+            ("aceptar", EstadosPedido.EnRevisionCoordinador) => (EstadosPedido.EnRevisionSecretaria, (string?)null),
+            ("aceptar", EstadosPedido.EnRevisionSecretaria) => (EstadosPedido.EnRevisionDecanato, null),
+            ("aceptar", _) => (EstadosPedido.EnLote, null),
+            ("rechazar", _) => (EstadosPedido.Rechazado, null),
+            (_, EstadosPedido.EnRevisionCoordinador) => (EstadosPedido.Devuelto, RolesCircuito.JefeCatedra),
+            (_, EstadosPedido.EnRevisionSecretaria) => (EstadosPedido.Devuelto, RolesCircuito.CoordinadorCarrera),
+            _ => (EstadosPedido.Devuelto, RolesCircuito.Secretaria),
+        };
+        Assert.Equal(estadoEsperado, transicion.EstadoResultante);
+        Assert.Equal(propietarioEsperado, transicion.PropietarioActual);
+        Assert.Equal(accion == "devolver" ? estado : null, transicion.EtapaRetorno);
+    }
+
+    [Theory]
+    [InlineData(EstadosPedido.Rechazado)]
+    [InlineData(EstadosPedido.EnLote)]
+    [InlineData(EstadosPedido.Cancelado)]
+    public void Estado_terminal_no_admite_ninguna_accion_de_ningun_rol(string estado)
+    {
+        // [BR-designaciones-011] El rechazo (y el resto de los terminales) no se reabre.
+        AccionPedido[] acciones =
+        [
+            new AccionPedido.Enviar(), new AccionPedido.Cancelar(), new AccionPedido.Aceptar(),
+            new AccionPedido.Rechazar("Otra vez"), new AccionPedido.Devolver("Corregir"),
+            new AccionPedido.Reenviar(), new AccionPedido.Priorizar("Urgente"), new AccionPedido.Despriorizar(),
+        ];
+        string[] roles =
+        [
+            RolesCircuito.JefeCatedra, RolesCircuito.CoordinadorCarrera, RolesCircuito.Secretaria,
+            RolesCircuito.Decanato, RolesCircuito.Administrativo,
+        ];
+
+        foreach (var rol in roles)
+        foreach (var accion in acciones)
+        {
+            var pedido = PedidoEn(estado);
+            Assert.Throws<ErrorDominioPedido>(() => MaquinaEstadosPedido.AplicarAccion(
+                pedido, new AlcancePedido(Materia, Guid.Empty), accion, Actor(rol)));
+            Assert.False(MaquinaEstadosPedido.PuedeRevisar(pedido, new AlcancePedido(Materia, Guid.Empty), Actor(rol)));
+        }
     }
 
     [Theory]
