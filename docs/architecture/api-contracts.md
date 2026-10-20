@@ -471,6 +471,7 @@ Exige `asistente.administrar`. La carga del servidor del modelo propio (asistent
 `configurado` es `false` con un proveedor que no es `local`, y entonces todo lo demás viene vacío. `alcanzable` es `false` si `/metrics` no respondió en 3 s o no tiene métricas conocidas. `motor` es `vllm` o `llama.cpp`, según qué métricas publica. Cada métrica es `null` si el servidor no la publica —llama-server no informa aciertos de prefijo—, nunca `0`. `usoDeKvCache` y `aciertosDeCacheDePrefijo` van de 0 a 1; el segundo es acumulado desde que arrancó el servidor. `compuerta` es `null` sin `MaximoDeLlamadasConcurrentes`.
 
 La URL de métricas es la del proveedor sin `/v1`, con la misma clave como `Bearer`. La clave nunca aparece en la respuesta ni en el log.
+
 ## Idempotencia
 
 Las transiciones de pedidos (`enviar`, `reenviar`, `aceptar`, `rechazar`, `devolver`, `priorizar`, `despriorizar`) requieren `Idempotency-Key: <uuid>`. La identidad lógica de la clave incluye actor, ruta, recurso y payload durante 24 horas: el replay idéntico retorna la misma respuesta y una reutilización incompatible retorna `409 idempotency-key-reused`. La exclusión concurrente garantiza una sola transición y un solo evento de historial.

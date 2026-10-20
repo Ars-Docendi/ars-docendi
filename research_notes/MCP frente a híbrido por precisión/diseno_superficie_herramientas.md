@@ -3,6 +3,7 @@
 Notas de investigación. Las rutas de repo son relativas al worktree `feature/asistente-modelo-local` (`/tmp/claude-0/-home-user-ars-docendi/caaad005-9e8c-59cb-9cfd-725e9fa71d55/scratchpad/asistente`) y se citan con la ruta como "URL". Para el contexto general, ver `research_notes/Alternativas a Text to SQL local/arquitectura_actual.md` y `reports/Alternativas a Text to SQL local.md` (alternativas 2, 4 y 6).
 
 Avisos sobre el acceso a fuentes:
+
 - **Bloqueados por el proxy de egreso**: `engineering.block.xyz` (playbook de Block, también vía web.archive.org), `arxiv.org` y `alphaxiv.org`. De los papers de arXiv solo vi resúmenes y extractos del buscador. Las cifras que vienen de ahí están marcadas como "(extracto)".
 - **No investigados en esta ronda**: los posts de GitHub, Stripe, Linear y Cloudflare, y la guía de Microsoft (quedan como gaps).
 - **Cifras de segunda mano**: algunas vienen del informe previo (`reports/Alternativas a Text to SQL local.md`) y no las volví a verificar. Están marcadas como "(vía informe previo)".
@@ -12,20 +13,24 @@ Avisos sobre el acceso a fuentes:
 ## 1. Granularidad: espejo fino de REST vs. herramientas de nivel tarea vs. una herramienta genérica de "consulta estructurada" (capa semántica como herramienta)
 
 ### Takeaway
+
 La evidencia disponible favorece un punto medio. Conviene tener pocas herramientas de nivel tarea, una por familia del dominio, con filtros tipados, enums y una agregación/agrupación cerrada que se resuelva en el backend. Rinde peor tanto el espejo 1:1 de endpoints CRUD como una única herramienta que lo hace todo. Para un modelo chico (Qwen3-8B), el factor que más pesa es que la pregunta típica se resuelva en **una** llamada y que el modelo no tenga que contar, sumar ni filtrar filas por su cuenta.
 
 ### Cited Findings
+
 - **Guía de Anthropic: consolidar alrededor de flujos de trabajo.**
   - "More tools don't always lead to better outcomes". Hay que construir herramientas para flujos específicos y de alto impacto, no envoltorios finos de una API. Ejemplos: preferir `search_contacts` a `list_contacts`, y una `schedule_event` que reemplace la cadena `list_users` → `list_events` → `create_event`.
   - Paginación, filtrado y truncado con defaults sensatos. Claude Code limita las respuestas de herramientas a "25,000 tokens by default".
 
   — [Anthropic, Writing effective tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents)
+
 - **MCP-GRANITE (preprint, extracto).** Varía la granularidad de la misma lógica de dominio para 9 modelos.
   - El nivel intermedio (L3, unas 4 herramientas consolidadas) dio la mayor completitud en 8 de los 9 modelos: 0,49, que es +16,4 % frente al nivel más fino L4 (8–10 herramientas) y +33,6 % frente a L1.
   - El nivel L1, totalmente consolidado en una sola herramienta, fue el peor: 0,36, −12,9 % frente a L4. Además, la tasa de "cero llamadas a herramienta" subió de 10,2 % a 28,2 %.
   - En una regresión logística que controla por tamaño de modelo, L3 multiplica las odds de completar por 1,36 (IC [1,12; 1,66], p = 0,002) y L1 las reduce 22 % (p = 0,009).
 
   No pude ver qué modelos ni de qué tamaño. — [MCP-GRANITE, arXiv 2609.24161](https://arxiv.org/pdf/2609.24161)
+
 - **Selección de herramientas con muchas visibles.** La precisión de selección cae de 85 % con 5 herramientas a 45 % con 20. Recuperar entre 3 y 5 candidatas la mantiene por encima de 80 % (vía informe previo). — [RAG-MCP](https://www.alphaxiv.org/abs/2505.03275)
   - Un blog secundario cita otro corte del mismo trabajo: 13,62 % de acierto con el conjunto grande completo, contra 43 % filtrando. Son configuraciones distintas del mismo paper; no lo pude verificar contra el original. — [tianpan.co](https://tianpan.co/blog/2026/04/19/over-tooled-agent-problem)
 - **Modelos locales con pocas herramientas** (vía informe previo). Con unas 5 herramientas, Qwen3-8B Q4_K_M obtuvo F1 0,919 y Qwen3-14B 0,971. Los especialistas de function calling rindieron peor: xLAM-2-8B 0,570 y watt-tool-8B 0,484. — [Docker, Local LLM tool calling](https://www.docker.com/blog/local-llm-tool-calling-a-practical-evaluation/)
@@ -37,6 +42,7 @@ La evidencia disponible favorece un punto medio. Conviene tener pocas herramient
   - `get_metrics_compiled_sql` devuelve el SQL sin ejecutarlo.
 
   — [dbt docs, about MCP](https://docs.getdbt.com/docs/dbt-ai/about-mcp); [Glama, query_metrics](https://glama.ai/mcp/servers/dbt-labs/dbt-mcp/tools/query_metrics)
+
 - **Cube.** Los servidores MCP comunitarios sobre Cube exponen un descubrimiento (`/meta`) y una consulta (`/load`) con `measures`, `dimensions`, `filters`, `timeDimensions`, `order`, `limit`, etc. El agente "names governed members rather than writing SQL". No pude confirmar el esquema del servidor oficial de Cube. — [Cube.js MCP server (comunitario)](https://github.com/zsembek/Cube.js-MCP-server); [Cube, analytics MCP server](https://cube.dev/articles/analytics-mcp-server)
 - **Benchmarks de capa semántica: todos de proveedores.**
   - dbt reporta 100 % dentro del alcance para la capa semántica contra 62,5 % de Text-to-SQL, y 0 % contra 70 % fuera del alcance (vía informe previo). — [dbt Labs 2026](https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026)
@@ -46,6 +52,7 @@ La evidencia disponible favorece un punto medio. Conviene tener pocas herramient
 - **Práctica general.** Workato recomienda partir del flujo para decidir qué herramientas hacen falta, resumir datasets grandes antes de devolverlos y usar códigos de error consistentes. Un curso lista como error típico "wrapping each REST endpoint one for one". — [Workato, MCP server tool design](https://docs.workato.com/mcp/mcp-server-tool-design)
 
 ### Inferences
+
 - **Recomendación para Ars Docendi (aplica a A y a B por igual).** Cinco o seis herramientas de lectura **por familia del dominio**:
   1. catálogos;
   2. designaciones;
@@ -61,10 +68,12 @@ La evidencia disponible favorece un punto medio. Conviene tener pocas herramient
   - `orden`.
 
   Es el nivel "L3" de MCP-GRANITE y el patrón `query_metrics` de dbt, pero partido por dominio y no en una sola herramienta. Una única `consulta_estructurada` sobre todo el dominio equivale a L1 (peor y con más llamadas omitidas). Copiar los ~60 endpoints 1:1 equivale a L4 o peor, y además casi todos son de escritura.
+
 - **Para un 8B, la agregación tiene que ocurrir en el backend.** Si una herramienta devuelve un listado y el modelo cuenta, suma u ordena, se reintroduce el error que la herramienta debía evitar. A eso se suman el truncado a 200 filas y la prohibición de afirmar conteos cuando hay truncado (`openspec/changes/asistente-carril-sql/design.md` D14).
 - **Una herramienta con enums cerrados se puede certificar de forma exhaustiva.** Ejemplo: `consultar_designaciones` con `vigencia` (3) × `medida` (3) × `agrupar_por` (5). Son 45 combinaciones de SQL generado por plantilla, todas testeables contra el fixture, y eso calza con la regla 8 del repo (BR-* con test). Un lenguaje de consulta libre (GraphQL u OData) vuelve a poner al modelo a generar código. No encontré evidencia medida a favor de GraphQL/OData como superficie para LLM (ver Gaps).
 
 ### Gaps
+
 - No pude leer el PDF de MCP-GRANITE: no sé si incluye modelos de 7–9B ni la distribución de errores por tipo.
 - No encontré ningún estudio que compare espejo REST, herramientas de tarea y herramienta semántica única con el **mismo modelo chico y el mismo dominio**.
 - No encontré evidencia publicada de precisión de herramientas tipo GraphQL u OData para LLM.
@@ -75,7 +84,9 @@ La evidencia disponible favorece un punto medio. Conviene tener pocas herramient
 ## 2. Guías de practicantes: qué reduce errores en concreto
 
 ### Takeaway
+
 Las prácticas con respaldo más concreto son:
+
 - consolidar en flujos;
 - nombres de parámetros inequívocos, con validación estricta de tipos;
 - devolver nombres legibles en lugar de identificadores opacos;
@@ -87,6 +98,7 @@ Las prácticas con respaldo más concreto son:
 Todas apuntan a que la herramienta "hable el idioma del usuario" y haga el trabajo determinista.
 
 ### Cited Findings
+
 - **Anthropic** — [Writing effective tools for agents](https://www.anthropic.com/engineering/writing-tools-for-agents):
   - Devolver campos de alta señal y "eschew low-level technical identifiers". Resolver UUIDs a lenguaje legible "significantly improves Claude's precision in retrieval tasks by reducing hallucinations".
   - Un enum `response_format` (concise/detailed): en el ejemplo, la respuesta concisa usa unos 72 tokens contra 206.
@@ -104,7 +116,9 @@ Todas apuntan a que la herramienta "hable el idioma del usuario" y haga el traba
   — [docs/architecture/modelo-local.md §6, §8](docs/architecture/modelo-local.md); [backend/src/Modules.Asistente/README.md](backend/src/Modules.Asistente/README.md)
 
 ### Inferences
+
 Aplicación concreta a Ars Docendi:
+
 1. **Nombres de herramientas y parámetros en español de negocio**, alineados con el vocabulario del usuario: `materia`, `carrera`, `cargo`, `estado`, `novedad`, `periodo`.
 2. **Los sinónimos se resuelven en el servidor** (auxiliar → ayudante, solicitud → pedido, nombramiento → designación, ciclo → período, urgente → prioritario), no con un glosario en el prompt, que ya empeoró al 8B.
 3. **Enums con descripción breve por valor.** Por ejemplo, `estado`: `en_revision_*` agrupado como `en_revision`, `rechazado`, `devuelto`, etc. Los valores son los del CHECK de [database/designaciones/003_designaciones_pedidos.sql](database/designaciones/003_designaciones_pedidos.sql). Hay que corregir antes la inconsistencia "Categoría 0..6" contra el catálogo 1..6 (TD-025), porque un enum que miente es peor que un comentario que miente.
@@ -113,6 +127,7 @@ Aplicación concreta a Ars Docendi:
 6. **Medir con el evaluador del repo**, dejando los datasets fuera del diseño de herramientas (ver §6, sesgo).
 
 ### Gaps
+
 - No relevé los posts de diseño MCP de GitHub, Stripe, Linear y Cloudflare, ni la guía de Microsoft. No le atribuyo nada a esas fuentes.
 
 ---
@@ -120,9 +135,11 @@ Aplicación concreta a Ars Docendi:
 ## 3. Resolución de entidades y grounding (nombres y materias en español), y cómo evitar que "cero filas" parezca "no hay"
 
 ### Takeaway
+
 La causa principal de respuestas falsas con SQL válido es el literal mal copiado o mal resuelto, que da cero filas o la entidad equivocada. La defensa más precisa es que **cada herramienta reciba el texto de la entidad y la resuelva en el servidor, dentro del conjunto visible del actor, antes de consultar**. El resultado de esa resolución tiene que ser un estado explícito: `resuelto`, `ambiguo` (con candidatos), `no_encontrado` (con sugerencias) o `sin_permiso`. La consulta no se ejecuta salvo con todas las entidades resueltas. Ante ambigüedad se pregunta, con el menú de opciones existente o con elicitation de MCP. Detectar ambigüedad es justo lo que los LLM hacen mal, así que esa detección tiene que ser determinista.
 
 ### Cited Findings
+
 - **Repo.** El caso motivador es "ingeniería informática" vs "Ingeniería **en** Informática", que daba cero filas con SQL válido.
   - "Zero rows from valid SQL is indistinguishable from 'there is none'". Pesa más para Qwen3-8B, "which copies literals less carefully than Claude".
   - ARS-165 propone resolver por Damerau-Levenshtein en proceso sobre entidades visibles, sin `pg_trgm` ni embeddings. Decisiones:
@@ -131,6 +148,7 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
     - "A wrong hint is worse than no hint".
 
   — [openspec/changes/asistente-recuperacion-de-valores/proposal.md](openspec/changes/asistente-recuperacion-de-valores/proposal.md); [design.md D3, D5, D6](openspec/changes/asistente-recuperacion-de-valores/design.md)
+
 - **Repo.** El carril determinista no se activa por defecto porque "Enrutar mal hacia la API devuelve cero filas, y «cero filas» es indistinguible de «no hay»". — [openspec/changes/asistente-enrutador-de-dominio/proposal.md](openspec/changes/asistente-enrutador-de-dominio/proposal.md)
 - **Repo.** Las menciones `@materia` y `#docente` viajan como `$refN` ligados como `uuid`, y el id nunca llega al modelo. — [backend/src/Modules.Asistente/README.md](backend/src/Modules.Asistente/README.md)
 - **CHESS**: un LLM extrae palabras clave de la pregunta y después recupera valores de la base con LSH más similitud semántica (y distancia de edición). Sostiene que sobrecargar el contexto con información redundante degrada el resultado. No obtuve las cifras de la ablación. — [CHESS, arXiv 2405.16755](https://arxiv.org/abs/2405.16755); [Stanford](https://scalingintelligence.stanford.edu/pubs/CHESSpaper)
@@ -145,9 +163,11 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
   - Un blog de terceros afirma que la spec 2026-07-28 la reemplaza por respuestas `input_required` con reintento (Multi Round-Trip Requests). No lo verifiqué contra la spec oficial.
 
   — [MCP spec, elicitation](https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation); [WorkOS](https://workos.com/blog/mcp-elicitation)
+
 - **Anthropic**: nombres legibles en lugar de UUIDs reducen alucinaciones. Conviene preferir herramientas de búsqueda (`search_*`) a listados. — [Anthropic](https://www.anthropic.com/engineering/writing-tools-for-agents)
 
 ### Inferences
+
 **Diseño propuesto, común a A y B.**
 
 1. **Parámetros de entidad "texto o id".** `materia: string | materia_id: uuid`, `carrera`, `docente`, `cargo`, `habilidad`. Con id (mención) no hay que resolver. Con texto, el servidor normaliza (`unaccent`, minúsculas, sinónimos) y resuelve contra el conjunto visible:
@@ -169,10 +189,12 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
    - en A, elicitation de MCP con un enum de candidatos, si el cliente la soporta, o una repregunta del agente.
 
    AMBROSIA indica que no hay que confiar en que el LLM detecte la ambigüedad por su cuenta.
+
 4. **`buscar_entidades(texto, tipos[])`** como herramienta aparte, solo para cadenas (por ejemplo, "¿qué materias tiene la carrera de X?" cuando el modelo duda del tipo). Lo normal es que no se necesite.
 5. **Nunca ejecutar con un literal no resuelto.** Con `no_encontrado` o `ambiguo`, la consulta no corre. En B, el respaldo SQL **no** debe ejecutarse para "salvar" una herramienta que devolvió `no_encontrado` o `ambiguo` de una familia cubierta, porque reintroduciría el falso "no hay" (ver §5).
 
 ### Gaps
+
 - No hay mediciones públicas de la ganancia de la resolución difusa para nombres en español con modelos de 7–9B. La única medición válida sería el gate de ARS-165 (D9), que todavía no corrió según lo que encontré.
 - No sé qué clientes MCP soportan hoy elicitation en modo formulario, ni cómo quedó en la spec 2026-07-28.
 
@@ -181,12 +203,14 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
 ## 4. Cómo se traduce la autorización por ámbito/RLS a cada arquitectura (quién filtra) y su efecto en la corrección
 
 ### Takeaway
+
 - **En A**, filtra el código de aplicación de cada endpoint, con reglas que **no coinciden** con las de RLS. Algunos endpoints de UI aplican además filtros de propósito de pantalla. Si un agente los usa, producen respuestas **silenciosamente incompletas**.
 - **En B**, filtra el motor (RLS más el GUC del actor), igual que hoy.
 - **A tiene una ventaja de precisión**: un 403 explícito distingue "no tenés permiso" de "no hay", y bajo RLS los dos son cero filas.
 - **B la puede igualar** si cada herramienta consulta primero el permiso y el alcance del actor (funciones `identity.asistente_*`) y lo devuelve como estado.
 
 ### Cited Findings
+
 - **Repo, RLS del asistente.** Las policies conjuntan permiso y ámbito: `identity.asistente_tiene_permiso('designaciones.ver') AND materia_id IN (SELECT identity.asistente_materias_visibles())`. Los permisos se leen en vivo, sin listas de roles en el código. — [database/designaciones/009_designaciones_rls_asistente.sql](database/designaciones/009_designaciones_rls_asistente.sql); [openspec/changes/asistente-fundaciones/design.md D5–D6](openspec/changes/asistente-fundaciones/design.md)
 - **Repo, abstención actual.** Con actor acotado no se reintenta ante resultado vacío, porque "RLS convierte 'no tenés permiso' en cero filas... exactamente la misma firma". `AlcanzaTodo` se decide por dominio (designaciones/portal). — [openspec/changes/asistente-carril-sql/design.md D13](openspec/changes/asistente-carril-sql/design.md); [backend/src/Modules.Asistente/Application/Abstencion/PoliticaDeAbstencion.cs](backend/src/Modules.Asistente/Application/Abstencion/PoliticaDeAbstencion.cs)
 - **Repo, el ámbito en la API REST usa otra regla.** `ServicioCatalogosDesignaciones` decide la visibilidad con roles fijos: `actor.EsDeptoWide`, después `RolesCircuito.JefeCatedra` (materias a cargo) y después `RolesCircuito.CoordinadorCarrera` (carreras a cargo); si no, `[]`. — [backend/src/Modules.Designaciones/Services/ServicioCatalogosDesignaciones.cs](backend/src/Modules.Designaciones/Services/ServicioCatalogosDesignaciones.cs)
@@ -195,6 +219,7 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
   - Además, cada persona trae `Documento`, que es PII y en el asistente está enmascarado como `sensible-valor`.
 
   — [ServicioCatalogosDesignaciones.cs](backend/src/Modules.Designaciones/Services/ServicioCatalogosDesignaciones.cs); [backend/src/Modules.Designaciones/Api/ModelosCatalogos.cs](backend/src/Modules.Designaciones/Api/ModelosCatalogos.cs); [database/asistente/manifiesto-sensibilidad.json](database/asistente/manifiesto-sensibilidad.json)
+
 - **Repo, `GET /api/administracion/docentes`.** Combina personas con designaciones vigentes **o** con roles docentes (`porPersona.ContainsKey(p.Id) || RolesDocentes(p.Usuario).Count > 0`), filtradas por las materias visibles del controller. Es otro universo distinto de "designados". — [backend/src/ArsDocendi.Host/Administracion/ServicioDocentes.cs](backend/src/ArsDocendi.Host/Administracion/ServicioDocentes.cs); [backend/src/ArsDocendi.Host/Api/DocentesController.cs](backend/src/ArsDocendi.Host/Api/DocentesController.cs)
 - **Repo, `GET /api/designaciones/pedidos`.** Lista por `periodoId` (por defecto el período activo), acotado en el servicio. `GET periodos` exige `PeriodosAdministrar`. — [backend/src/Modules.Designaciones/Api/PedidosController.cs](backend/src/Modules.Designaciones/Api/PedidosController.cs); `research_notes/Alternativas a Text to SQL local/arquitectura_actual.md` §9
 - **Repo, truncado.** El tope es de 200 filas con una fila sonda. Con truncado, la redacción "tiene prohibido afirmar conteos" y nunca dice cuántas filas quedaron afuera. — [openspec/changes/asistente-carril-sql/design.md D9, D14](openspec/changes/asistente-carril-sql/design.md)
@@ -204,6 +229,7 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
 - **Cube**: los permisos se imponen "outside the prompt". — [Cube](https://cube.dev/articles/analytics-mcp-server)
 
 ### Inferences
+
 - **A con endpoints existentes reutilizados tal cual: riesgo directo de respuestas falsas plausibles.**
   - Con `catalogos`, "¿Quiénes dictan Bases de Datos?" omitiría a todo docente que tenga un pedido vivo en el período activo, y nada le indica al modelo que la lista es parcial.
   - Con `docentes`, "¿quiénes dictan X?" incluiría personas con rol docente sin designación vigente en X, según cómo el `Mapear` construya `Asignaciones`; no lo verifiqué línea por línea.
@@ -214,6 +240,7 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
 - **Vacío por ámbito.** Cada respuesta debería llevar `alcance`, para que la redacción diga "en tus materias no hay…". Eso convierte el vacío por ámbito en una respuesta correcta y acotada, en vez de una abstención o un falso "no hay".
 
 ### Gaps
+
 - No verifiqué si `Mapear` en `ServicioDocentes` restringe `Asignaciones` a las vigentes, ni qué campos PII expone `DocenteAdministracionDto`.
 - No hay un test que compare, para el mismo actor, el conjunto visible por la API contra el visible por RLS.
 
@@ -222,19 +249,23 @@ La causa principal de respuestas falsas con SQL válido es el literal mal copiad
 ## 5. Cómo hacer preciso el Text-to-SQL de respaldo, y cuándo abstenerse
 
 ### Takeaway
+
 Con un 8B, la mayor ganancia de precisión probablemente viene de **no generar los literales**: recuperar valores o resolver entidades antes, y reusar consultas verificadas. Después viene la **verificación con abstención**, mediante un juez LLM o un verificador entrenado sobre el esquema propio. Votar por mayoría o self-consistency da ganancias chicas: en el repo midió +0,13 puntos, y su acuerdo es una mala señal para abstenerse. La regla de abstención debería depender de la penalización de la métrica. Con penalización p por respuesta falsa, responder solo conviene si la precisión condicional estimada supera p/(1+p): 67 % con p = 2.
 
 ### Cited Findings
+
 - **Ejemplos verificados y few-shot.**
   - En el repo, 20 pares verificados en el prefijo dan 26/12/10/18 contra 24/11/10/17 con 4 por pregunta. Con 28 en el prefijo: 28/12/9/17.
   - Agregar 8 ejemplos cambió la selección de 22 de 34 ítems y costó 3 aciertos.
 
   — [docs/architecture/modelo-local.md §8](docs/architecture/modelo-local.md); [backend/src/Modules.Asistente/README.md](backend/src/Modules.Asistente/README.md)
 
-  Snowflake Cortex Analyst usa un *Verified Query Repository* y Databricks Genie *trusted assets* (vía informe previo). — [Snowflake](https://docs.snowflake.com/user-guide/snowflake-cortex/cortex-analyst-evaluations); [Databricks](https://docs.databricks.com/aws/en/genie/trusted-assets)
+  Snowflake Cortex Analyst usa un _Verified Query Repository_ y Databricks Genie _trusted assets_ (vía informe previo). — [Snowflake](https://docs.snowflake.com/user-guide/snowflake-cortex/cortex-analyst-evaluations); [Databricks](https://docs.databricks.com/aws/en/genie/trusted-assets)
+
 - **Recuperación de valores y schema linking.** CHESS recupera valores con LSH más similitud tras extraer palabras clave. — [CHESS](https://arxiv.org/abs/2405.16755)
 
   En el repo, el schema linking empeoró a modelos de 7–32B en esquemas institucionales y rompe el prefijo estable. — [docs/architecture/modelo-local.md §6](docs/architecture/modelo-local.md)
+
 - **Majority voting y self-consistency.**
   - OmniSQL-7B mejora en promedio +8,4 puntos sobre su base, de 52,8 a 61,2 en greedy. Con voto por mayoría llega a 88,9 % en Spider test (7B), 88,3 % (14B) y 89,8 % (32B). Las cifras de BIRD dev con voto no aparecieron en el extracto (tabla 5 del paper). — [OmniSQL, arXiv 2503.02240](https://arxiv.org/pdf/2503.02240)
   - CSC-SQL señala que "the most frequently selected output is not always the correct final result". Su paso correctivo suma entre +0,72 y +5,54 puntos sobre self-consistency, y el 7B llega a 69,19 % en BIRD dev. — [CSC-SQL](https://arxiv.org/html/2505.13271v2)
@@ -248,6 +279,7 @@ Con un 8B, la mayor ganancia de precisión probablemente viene de **no generar l
   - Los verificadores fine-tuneados dan ~0,77–0,79 en distribución y caen a ~0,66 en esquemas no vistos.
 
   — [What Predicts Correctness in Text-to-SQL?, arXiv 2607.06799](https://arxiv.org/abs/2607.06799)
+
 - **Clasificador selectivo.** Somov y Tutubalina (AAAI 2025) abstienen bajo un umbral de incertidumbre. Detectan mejor las preguntas irrelevantes que las consultas mal generadas, y T5 está mejor calibrado que GPT-4 o Llama 3 en ICL. — [Confidence Estimation for Error Detection in Text-to-SQL](https://arxiv.org/abs/2501.09527)
 - **TrustSQL** (vía informe previo): con penalizaciones fuertes, ningún método superó de forma consistente a abstenerse siempre. — [TrustSQL](https://arxiv.org/html/2403.15879v4)
 - **Ambigüedad.** Los LLM recuperan ~27–31 % de las interpretaciones de preguntas ambiguas. — [AMBROSIA](https://arxiv.org/abs/2406.19073)
@@ -260,9 +292,11 @@ Con un 8B, la mayor ganancia de precisión probablemente viene de **no generar l
   - un especialista medido localmente: XiYan-7B Q4 obtuvo 14/34 y "se abstiene de más"; Arctic-R1 7B, 23/34.
 
   — [docs/architecture/modelo-local.md §3](docs/architecture/modelo-local.md); [backend/src/Modules.Asistente/Application/CarrilSql/ValidadorDeSql.cs](backend/src/Modules.Asistente/Application/CarrilSql/ValidadorDeSql.cs)
+
 - **Penalización de la métrica**: 0,5, 1,0 o 2,0 por respuesta falsa (vía informe previo). — [backend/eval/README.md](backend/eval/README.md)
 
 ### Inferences
+
 **Técnicas para el respaldo de B, ordenadas por impacto esperado en precisión con un 8B (inferido, no medido).**
 
 1. **Literales resueltos antes de generar.** Activar la recuperación de valores (ARS-165) y reutilizar la misma resolución de entidades que las herramientas (§3), pasando ids como `$refN`. Ataca el error dominante documentado.
@@ -273,6 +307,7 @@ Con un 8B, la mayor ganancia de precisión probablemente viene de **no generar l
    - no agregar sobre `pedidos` sin decidir el período.
 
    El fallo de una regla se repara una vez; si persiste, abstención.
+
 4. **Ejecución guiada.** Errores del motor: una reparación, como hoy. Vacío con actor global: reintento, como hoy. Vacío con actor acotado: abstención con mensaje de ámbito.
 5. **Juez de verificación** (LLM o verificador fine-tuneado sobre el esquema propio, que siempre está "en distribución"), con abstención por umbral. Las señales de Richardson sugieren que el juez es mejor señal que el acuerdo entre muestras. El umbral se calibra con el evaluador del repo para la penalización vigente.
 6. **Self-consistency y selección de candidatos**: ganancia baja y costosa; mala señal de abstención. Solo valdría como insumo del juez (generar 2–3 candidatos y que el juez elija o se abstenga).
@@ -281,19 +316,21 @@ Con un 8B, la mayor ganancia de precisión probablemente viene de **no generar l
 **Regla de abstención.** Si responder bien vale +1, responder mal vale −p y abstenerse vale 0, conviene responder solo cuando P(correcto) > p/(1+p):
 
 | Penalización p | Umbral de P(correcto) |
-| --- | --- |
-| 0,5 | 33 % |
-| 1 | 50 % |
-| 2 | 67 % |
+| -------------- | --------------------- |
+| 0,5            | 33 %                  |
+| 1              | 50 %                  |
+| 2              | 67 %                  |
 
 La precisión condicional actual de Qwen3-8B al responder en capacidad es de ~26/(26+7) ≈ 79 %. Eso supera el umbral en promedio, pero no en las clases con más falsas. La abstención debería decidirse **por clase de pregunta**, según la familia que detectó el enrutador y la categoría declarada, con tasas medidas en el evaluador, y no con un umbral global. El repo descartó "umbral agregado como gate", pero eso se refería a la puerta de la CI, no a esto.
 
 **Reglas de frontera del híbrido** (precisión):
+
 - **(a)** Si una herramienta de la familia correcta devolvió `no_encontrado`, `ambiguo` o `sin_permiso`, el respaldo **no** se ejecuta.
 - **(b)** Una respuesta del respaldo se rotula como "no certificada" y muestra la interpretación.
 - **(c)** Sin permiso de familia (`asistente_tiene_permiso`), el respaldo tampoco corre para esa familia.
 
 ### Gaps
+
 - No obtuve las cifras de OmniSQL-7B con voto en BIRD dev (tabla 5): el "+3 puntos" que menciona la consigna queda **sin verificar**.
 - No hay cifras de la ablación de recuperación de valores de CHESS.
 - No hay mediciones de jueces LLM chicos (7–9B) como verificadores de SQL en PostgreSQL ni en español.
@@ -304,9 +341,11 @@ La precisión condicional actual de Qwen3-8B al responder en capacidad es de ~26
 ## 6. Catálogo concreto por arquitectura y cobertura sobre los datasets del repo
 
 ### Takeaway
+
 Las 80 preguntas evaluables se agrupan en ocho familias. Con cinco o seis herramientas de nivel tarea que resuelven entidades en el servidor, **las 26 preguntas contestables de capacidad se responden en una sola llamada**, en A y en B, y las 2 ambiguas se convierten en una aclaración determinista. Si A se limita a los endpoints existentes, la mayoría de las preguntas exige varias llamadas, cálculo hecho por el modelo, o no tiene respuesta. Hay dos casos con riesgo de falsas silenciosas. B agrega al respaldo SQL solo lo que queda fuera de las herramientas, y en estos datasets, si las herramientas se diseñan a partir de ellos, eso es casi nada. Diseñar las herramientas mirando el dataset **sesga la medición**: hace falta un conjunto ciego.
 
 ### Cited Findings
+
 - **Datasets.**
   - Capacidad: 34 ítems, entre ellos 6 `no_contestable` y 2 `ambigua`; 3 ítems con actor acotado (`carrera`/`materia`) y 1 `sin_permiso`; 2 con menciones `@`/`#`.
   - Robustez: 15 paráfrasis que heredan la referencia de su ítem de origen.
@@ -314,6 +353,7 @@ Las 80 preguntas evaluables se agrupan en ocho familias. Con cinco o seis herram
   - Social: 20 ítems (11 `social` que deben resolverse con "cero tokens", 3 `no_contestable` y 6 `negativo` que el enrutador no debe capturar).
 
   — [backend/eval/datasets/capacidad.json](backend/eval/datasets/capacidad.json); [robustez.json](backend/eval/datasets/robustez.json); [dialogo.json](backend/eval/datasets/dialogo.json); [social.json](backend/eval/datasets/social.json)
+
 - **Invariante**: "este dataset y el catálogo de ejemplos del módulo son disjuntos — si se solaparan, la métrica mediría cuán bien el sistema reproduce ejemplos que ya vio". — [capacidad.json](backend/eval/datasets/capacidad.json)
 - **Intenciones actuales.** Son 5, con términos como "pedido", "plantel" y "cuantos", y la tabla dorada da **0 de 39** capturas. Los datasets usan "solicitudes", "nombramientos", "asignatura" y "dictan". — [backend/src/Modules.Asistente/Recursos/intenciones.json](backend/src/Modules.Asistente/Recursos/intenciones.json); `arquitectura_actual.md` §4
 - **Catálogos cerrados en la base.** `estado` tiene 8 valores (de `borrador` a `cancelado`), `novedad` 4, `tipo_baja` 3 y la dedicación "Categoría 0..6". La vigencia es `vigente_hasta IS NULL`. — [database/designaciones/003_designaciones_pedidos.sql](database/designaciones/003_designaciones_pedidos.sql); [006_designaciones_designaciones.sql](database/designaciones/006_designaciones_designaciones.sql)
@@ -329,29 +369,32 @@ Las 80 preguntas evaluables se agrupan en ocho familias. Con cinco o seis herram
 ### Inferences
 
 #### 6.1 Familias del dataset
+
 Clasificación propia, a partir de las consultas de referencia.
 
-| Familia | Ítems de capacidad | Robustez / diálogo / social |
-|---|---|---|
-| F1 Catálogos y listados simples | cap-001 carreras, 002 cargos por jerarquía, 011 ciclos, 015 materias de una carrera (4) | rob-001/003/004/006/007/010/013; dia-003 t2, dia-004 t1; soc-011/013/015/016 |
-| F2 Plantel vigente de una materia | cap-004, 009 (actor materia, "la asignatura que dirijo"), 033 (@materia, con cargo) (3) | rob-005 (typo), rob-011; dia-002 t2, dia-003 t1, dia-005 t2 |
-| F3 Designaciones de una persona | cap-034 (#Suárez) (1) | — |
-| F4 Agregaciones y estados de designaciones | cap-003 (top por materia), 005 (conteo vigentes), 006 (conteo ayudante1), 010 (por cargo), 013 (cerradas, listado), 022 (suma horas) (6) | rob-002/008/014; dia-001 t1–t2, dia-005 t1; soc-012 |
-| F5 Pedidos | cap-007 (ciclo en curso), 008 (actor carrera), 012 (rechazadas), 014 (conteo bajas), 016 (urgentes), 023 (actor materia), 024 (sin permiso) (7) | rob-009/012/015; dia-004 t2–t3; soc-014 |
-| F6 Perfil docente (portal ajeno) | cap-025 (habilidad), 026 (posgrado terminado), 027 (certificación vence 2026), 028 (interés en dictar), 029 (conteo con certificación) (5) | — |
-| F7 Fuera de dominio o denegado | cap-017 sueldo, 018 notas, 019 aula, 030 mail de contacto (tabla denegada), 031 ruta del CV (denegada), 032 proyectos (denegada) (6) | soc-008/009/010 |
-| F8 Ambiguas | cap-020 (Análisis Matemático en 3 carreras), 021 (Gómez) (2) | dia-002 t1 |
-| Social y meta | — | soc-001…007, 017…020 (11) |
+| Familia                                    | Ítems de capacidad                                                                                                                              | Robustez / diálogo / social                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| F1 Catálogos y listados simples            | cap-001 carreras, 002 cargos por jerarquía, 011 ciclos, 015 materias de una carrera (4)                                                         | rob-001/003/004/006/007/010/013; dia-003 t2, dia-004 t1; soc-011/013/015/016 |
+| F2 Plantel vigente de una materia          | cap-004, 009 (actor materia, "la asignatura que dirijo"), 033 (@materia, con cargo) (3)                                                         | rob-005 (typo), rob-011; dia-002 t2, dia-003 t1, dia-005 t2                  |
+| F3 Designaciones de una persona            | cap-034 (#Suárez) (1)                                                                                                                           | —                                                                            |
+| F4 Agregaciones y estados de designaciones | cap-003 (top por materia), 005 (conteo vigentes), 006 (conteo ayudante1), 010 (por cargo), 013 (cerradas, listado), 022 (suma horas) (6)        | rob-002/008/014; dia-001 t1–t2, dia-005 t1; soc-012                          |
+| F5 Pedidos                                 | cap-007 (ciclo en curso), 008 (actor carrera), 012 (rechazadas), 014 (conteo bajas), 016 (urgentes), 023 (actor materia), 024 (sin permiso) (7) | rob-009/012/015; dia-004 t2–t3; soc-014                                      |
+| F6 Perfil docente (portal ajeno)           | cap-025 (habilidad), 026 (posgrado terminado), 027 (certificación vence 2026), 028 (interés en dictar), 029 (conteo con certificación) (5)      | —                                                                            |
+| F7 Fuera de dominio o denegado             | cap-017 sueldo, 018 notas, 019 aula, 030 mail de contacto (tabla denegada), 031 ruta del CV (denegada), 032 proyectos (denegada) (6)            | soc-008/009/010                                                              |
+| F8 Ambiguas                                | cap-020 (Análisis Matemático en 3 carreras), 021 (Gómez) (2)                                                                                    | dia-002 t1                                                                   |
+| Social y meta                              | —                                                                                                                                               | soc-001…007, 017…020 (11)                                                    |
 
 #### 6.2 Catálogo propuesto para A (agente sobre endpoints nuevos expuestos por MCP)
 
 Son endpoints REST nuevos y propios del asistente, por ejemplo bajo `api/consultas/...`. Requisitos:
+
 - no reutilizar los de UI (ver §4);
 - aplicar el ámbito con la misma regla que RLS;
 - respuestas sin PII, o con la máscara del manifiesto;
 - la forma de salida de §3.
 
 Herramientas:
+
 1. `listar_catalogo(tipo: carreras|materias|cargos|periodos|estados_pedido|novedades, carrera?: texto)`. Los cargos van ordenados por `orden` (jerarquía) y los períodos por fecha. Cubre F1.
 2. `consultar_designaciones(materia?|materia_id?, carrera?, docente?|docente_id?, cargo?: enum con sinónimos, vigencia: vigentes|cerradas|todas = vigentes, medida: listado|conteo|suma_horas, agrupar_por?: materia|cargo|carrera|docente, orden?, limite?)`. Cubre F2, F3 y F4.
 3. `consultar_pedidos(periodo: activo|todos|texto = todos, estado?: enum[], novedad?: enum[], prioritario?: bool, materia?, carrera?, docente?, medida: listado|conteo, agrupar_por?: estado|novedad|materia)`. Cubre F5. Hay que fijar por especificación qué significa "período por defecto": las referencias de cap-012/014 no filtran período, y cap-007 sí.
@@ -376,35 +419,40 @@ Fuera del agente quedan el enrutador social determinista y el catálogo de capac
 - **Capa 2: el respaldo Text-to-SQL** con las técnicas y las reglas de frontera de §5.
 
 #### 6.4 Cobertura y número de llamadas
+
 Estimación propia, no medida.
 
 **Capacidad (34 ítems):**
 
-| Arquitectura | 1 llamada | Varias llamadas o cálculo del LLM | Sin respuesta posible | Ambiguas (2) | No contestables (6) |
-|---|---|---|---|---|---|
-| A con endpoints **existentes** (espejo) | ~4–5: cap-002, 011 y 007 desde `catalogos`/`pedidos`, con orden o filtro hecho por el LLM; cap-008/023 solo período activo | ~10: cap-004/033/034 vía `catalogos` (**omite personas con pedido vivo**: falsa silenciosa), cap-003/005/006/010/022 contando sobre el volcado, cap-012/014/016 período por período (y `periodos` exige `PeriodosAdministrar`), cap-015 cruzando materias y carreras | ~8: cap-013 (cerradas: no hay endpoint), cap-025–029 (portal ajeno), cap-001 (carreras; depende de permisos de administración), cap-009 parcial | El agente tiene que detectarlas solo (AMBROSIA: mal) | 0 llamadas; abstención a criterio del modelo |
-| A con catálogo **6.2** | 26 de 26 contestables (cap-009/008/023 sin filtro, acotadas por ámbito; cap-024 → `sin_permiso` explícito) | 0 necesarias (`buscar_entidades` solo si el modelo duda) | 0 | 1 llamada → `ambiguo` con candidatos → aclaración | 0 llamadas; sin señal determinista; riesgo de forzar una herramienta parecida (cap-030 → perfil) |
-| B (6.3) | Capa 0: ~10–14 ítems de F1/F4/F5 con slots completos (0 llamadas de selección). Capa 1: el resto de las 26 en 1 llamada de selección | 0 | 0 en este dataset. El respaldo solo cubre la cola **fuera** del dataset | Capa 0: el detector de ambigüedad y `ambiguo` de la herramienta → menú | `ninguna` → respaldo con `es_contestable=false`/categoría, o rechazo por plantilla (hoy Claude acierta 8/8 abstenciones; Qwen responde algunas) |
+| Arquitectura                            | 1 llamada                                                                                                                            | Varias llamadas o cálculo del LLM                                                                                                                                                                                                                                    | Sin respuesta posible                                                                                                                           | Ambiguas (2)                                                           | No contestables (6)                                                                                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| A con endpoints **existentes** (espejo) | ~4–5: cap-002, 011 y 007 desde `catalogos`/`pedidos`, con orden o filtro hecho por el LLM; cap-008/023 solo período activo           | ~10: cap-004/033/034 vía `catalogos` (**omite personas con pedido vivo**: falsa silenciosa), cap-003/005/006/010/022 contando sobre el volcado, cap-012/014/016 período por período (y `periodos` exige `PeriodosAdministrar`), cap-015 cruzando materias y carreras | ~8: cap-013 (cerradas: no hay endpoint), cap-025–029 (portal ajeno), cap-001 (carreras; depende de permisos de administración), cap-009 parcial | El agente tiene que detectarlas solo (AMBROSIA: mal)                   | 0 llamadas; abstención a criterio del modelo                                                                                                    |
+| A con catálogo **6.2**                  | 26 de 26 contestables (cap-009/008/023 sin filtro, acotadas por ámbito; cap-024 → `sin_permiso` explícito)                           | 0 necesarias (`buscar_entidades` solo si el modelo duda)                                                                                                                                                                                                             | 0                                                                                                                                               | 1 llamada → `ambiguo` con candidatos → aclaración                      | 0 llamadas; sin señal determinista; riesgo de forzar una herramienta parecida (cap-030 → perfil)                                                |
+| B (6.3)                                 | Capa 0: ~10–14 ítems de F1/F4/F5 con slots completos (0 llamadas de selección). Capa 1: el resto de las 26 en 1 llamada de selección | 0                                                                                                                                                                                                                                                                    | 0 en este dataset. El respaldo solo cubre la cola **fuera** del dataset                                                                         | Capa 0: el detector de ambigüedad y `ambiguo` de la herramienta → menú | `ninguna` → respaldo con `es_contestable=false`/categoría, o rechazo por plantilla (hoy Claude acierta 8/8 abstenciones; Qwen responde algunas) |
 
 **Robustez (15).**
+
 - Los errores de tipeo en slots (rob-005 "Dattos") los resuelve la resolución difusa del servidor, igual en A y en B.
 - Los errores fuera de slots (rob-004 "carogs", rob-006 "cilcos") los absorbe el LLM en la selección de herramienta. Para la capa 0 de B hace falta tolerancia a errores en los términos disparadores; si no, caen a la capa 1 sin perder precisión.
 - rob-008 "auxiliares de primera" requiere sinónimo en el enum de cargo.
 - rob-012 "solicitudes urgentes" → `prioritario`.
 
 **Diálogo (11 turnos).** Los seguimientos se convierten en una **diferencia de parámetros** sobre la llamada anterior:
+
 - dia-001 t2: `vigencia = cerradas`.
 - dia-004 t3: `+ estado = rechazado`.
 
 Eso es más simple y verificable que reescribir SQL, siempre que el hilo guarde la llamada canónica (nunca filas, regla actual).
 
 dia-005 t2 ("esa materia", que solo aparece en la respuesta) se comporta distinto en cada arquitectura:
+
 - **A**: el agente tiene el resultado de la herramienta en contexto y lo resuelve con naturalidad, pero eso implica guardar filas en el hilo, cosa que hoy se evita a propósito.
 - **B**: necesita el "arrastre de consulta" existente (`openspec/changes/asistente-arrastre-de-consulta/`) adaptado a llamadas canónicas.
 
 dia-002 (aclaración) funciona igual en las dos.
 
 **Social (20).**
+
 - En A, solo si conserva el enrutador social delante del agente. Si no, los 11 ítems `social` fallan.
 - En B, ya está resuelto.
 - Los 6 `negativo` exigen que ni el enrutador social ni la capa 0 capturen de más.
@@ -423,6 +471,7 @@ dia-002 (aclaración) funciona igual en las dos.
   - una partición "dentro" / "fuera de catálogo", para medir por separado precisión de herramientas y precisión del respaldo, como hace dbt (dentro vs. fuera del alcance).
 
 ### Gaps
+
 - Las cifras de cobertura de la tabla 6.4 son estimaciones manuales. No verifiqué qué permiso exige `GET api/administracion/catalogos` (carreras) ni el universo exacto de `DocenteAdministracionDto.Asignaciones`.
 - No hay medición de cuántas preguntas reales caerían fuera de un catálogo de 5–6 herramientas: no hay corpus de tráfico real (`arquitectura_actual.md` §8).
 - No hay medición de cuántas veces un 8B "fuerza" una herramienta para una pregunta fuera de dominio. Habría que medir los 6 `no_contestable` de capacidad y los 3 de social con el catálogo 6.2 frente a `ninguna`.

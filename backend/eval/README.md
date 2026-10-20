@@ -224,6 +224,7 @@ palabra suelta es ambigua, no ajena. Rechazarla como fuera de tema sería negar 
 que el sistema sí tiene; la plantilla de `muy_general` pide el dato puntual sin
 afirmar nada. Responder con los docentes que la declararon movería el ítem fuera de
 `no_contestable` (design.md de asistente-rechazos-dinamicos, pregunta abierta 2).
+
 ## Las preguntas compuestas del plan compilado
 
 `datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 39 preguntas sobre
