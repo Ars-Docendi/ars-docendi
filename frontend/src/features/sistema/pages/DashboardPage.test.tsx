@@ -47,6 +47,13 @@ const estado: EstadoSistema = {
     comprobadoEn: "2026-09-23T18:00:00Z",
     duracionMs: 4,
   },
+  inferencia: {
+    id: "inferencia",
+    nombre: "Inferencia (IA)",
+    estado: "disponible",
+    comprobadoEn: "2026-09-23T18:00:00Z",
+    duracionMs: 25,
+  },
 };
 
 function renderPagina() {
@@ -72,7 +79,10 @@ describe("Dashboard del sistema", () => {
     expect(
       within(await screen.findByRole("row", { name: /PostgreSQL/ })).getByText("Disponible"),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(
+      within(await screen.findByRole("row", { name: /Inferencia/ })).getByText("Disponible"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("row")).toHaveLength(7);
   });
 
   it("representa estados y horas desconocidas sin inventar disponibilidad", async () => {
@@ -137,6 +147,34 @@ describe("Dashboard del sistema", () => {
 
     expect(actualizando).toBeDisabled();
     completar(estado);
+  });
+
+  it("distingue la inferencia deshabilitada de una falla y conserva los demás componentes", async () => {
+    vi.mocked(consultarEstadoSistema).mockResolvedValue({
+      ...estado,
+      inferencia: { ...estado.inferencia, estado: "deshabilitado", duracionMs: 0 },
+    });
+    renderPagina();
+
+    const inferencia = await screen.findByRole("row", { name: /Inferencia/ });
+    const etiqueta = within(inferencia).getByText("Deshabilitado");
+    expect(etiqueta).toHaveClass("sistema-estado--deshabilitado");
+    expect(etiqueta).not.toHaveClass("sistema-estado--error");
+    expect(
+      within(screen.getByRole("row", { name: /PostgreSQL/ })).getByText("Disponible"),
+    ).toBeInTheDocument();
+  });
+
+  it("muestra una falla de inferencia sin ocultar los demás componentes", async () => {
+    vi.mocked(consultarEstadoSistema).mockResolvedValue({
+      ...estado,
+      inferencia: { ...estado.inferencia, estado: "no_disponible" },
+    });
+    renderPagina();
+
+    const inferencia = await screen.findByRole("row", { name: /Inferencia/ });
+    expect(within(inferencia).getByText("No disponible")).toHaveClass("sistema-estado--error");
+    expect(screen.getAllByRole("row")).toHaveLength(7);
   });
 
   it("permite enfocar Actualizar con teclado", async () => {

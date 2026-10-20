@@ -68,6 +68,12 @@ jobs:
       SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
       APP_DB_USER: app_pr_${{ github.event.pull_request.number }}
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PREVIEW }}
+      # Usuario propio de previews: se revoca sin cortar staging.
+      INFERENCIA_URL: https://ia.${{ vars.DOMINIO }}
+      INFERENCIA_USUARIO: preview
+      INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PREVIEW }}
+      INFERENCIA_ACCESS_CLIENT_ID: ${{ secrets.INFERENCIA_ACCESS_CLIENT_ID }}
+      INFERENCIA_ACCESS_CLIENT_SECRET: ${{ secrets.INFERENCIA_ACCESS_CLIENT_SECRET }}
       ASPNETCORE_ENVIRONMENT: Staging
       DEVELOPMENT_AUTHENTICATION_ENABLED: "true"
       GH_TOKEN: ${{ github.token }}

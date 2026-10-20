@@ -183,6 +183,10 @@ Compose project, base y storage únicamente en la VM.
 - **Deploy/CI**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y credenciales
   administrativas SeaweedFS provienen de GitHub repository secrets; las claves
   de app de `prod`, `staging` y `pr-preview` provienen de sus respectivos
+  Environments, igual que las credenciales de inferencia (`INFERENCIA_*`; prod
+  sin Service Token de Cloudflare, ver
+  [github-pr-deploy.md](../operations/github-pr-deploy.md#fuentes-de-variables-y-secretos)).
+  `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
   Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
   credenciales de Microsoft siguen ese patrón: `MICROSOFT_CLIENT_ID_STAGING`/`_PROD`
   son repository variables (no son secretos). `MICROSOFT_CLIENT_SECRET_STAGING` va
