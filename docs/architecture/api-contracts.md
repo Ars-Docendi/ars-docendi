@@ -58,6 +58,7 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
 | Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
 | Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                     | `sistema.estado.ver`, `auditoria.ver`                               |
+| Inferencia          | `GET /api/inferencia/estado`                                                                      | `sistema.estado.ver`                                                |
 | Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
 | Catálogos           | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
 | Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |

@@ -284,6 +284,22 @@ Si falla la **habilitación inicial de Traefik**, el operador detiene/elimina s�
 | 502 / 504                     | IP/puerto upstream, red privada, recursos; no añadir retries de generación.                    |
 | 403 con Service Token         | IP de egreso distinta a la política Access, token vencido/revocado o cabeceras ausentes.       |
 
+## 10. Entrega al backend por GitHub
+
+El backend consume la inferencia con las opciones `Inferencia__*`, que los workflows completan desde secrets de cada GitHub Environment ([matriz](github-pr-deploy.md#fuentes-de-variables-y-secretos)). Los archivos de cabeceras y las contraseñas por teclado de las secciones 7 y 8 quedan sólo para diagnóstico manual.
+
+| Environment  | Usuario `htpasswd` | Secrets                                                                                           |
+| ------------ | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `prod`       | `prod`             | `INFERENCIA_CONTRASENA_PROD`                                                                      |
+| `staging`    | `staging`          | `INFERENCIA_CONTRASENA_STAGING`, `INFERENCIA_ACCESS_CLIENT_ID`, `INFERENCIA_ACCESS_CLIENT_SECRET` |
+| `pr-preview` | `preview`          | `INFERENCIA_CONTRASENA_PREVIEW`, `INFERENCIA_ACCESS_CLIENT_ID`, `INFERENCIA_ACCESS_CLIENT_SECRET` |
+
+1. En pc-prod, dar de alta `preview` con `htpasswd -B -C 12 "$OLLAMA_AUTH_DIR/htpasswd" preview` (sin `-c`), aumentar `OLLAMA_AUTH_REVISION` y recrear Ollama (sección 8).
+2. Cargar cada secret en su Environment con `gh secret set <NOMBRE> --env <environment>` (lo pide por stdin; no pasar el valor como argumento). El Client ID del Service Token incluye el sufijo `.access`.
+3. Desplegar y abrir el dashboard de sistema: la fila "Inferencia (IA)" debe mostrar **Disponible**. "No disponible" con prod correcto suele indicar Access (IP/token) o BasicAuth del usuario del ambiente; el log de Access y la sección 7 permiten aislarlo.
+
+Para revocar previews sin afectar staging, eliminar `preview` del `htpasswd` (sección 8) o vaciar su secret. Revocar el Service Token corta staging y previews a la vez.
+
 ## Referencias y aceptación
 
 Fuentes: [Ollama Docker](https://docs.ollama.com/docker), [FAQ](https://docs.ollama.com/faq), [Docker Debian](https://docs.docker.com/engine/install/debian/), [driver Debian](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/debian.html), [NVIDIA Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), [Traefik BasicAuth](https://github.com/traefik/traefik/blob/v3.7.5/docs/content/reference/routing-configuration/http/middlewares/basicauth.md), [entrypoints](https://github.com/traefik/traefik/blob/v3.7.5/docs/content/reference/install-configuration/entrypoints.md), [RateLimit](https://github.com/traefik/traefik/blob/v3.7.5/docs/content/reference/routing-configuration/http/middlewares/ratelimit.md), [InFlightReq](https://github.com/traefik/traefik/blob/v3.7.5/docs/content/reference/routing-configuration/http/middlewares/inflightreq.md), [Access service tokens](https://developers.cloudflare.com/cloudflare-one/identity/service-tokens/), [cloudflared origin parameters](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/configure-tunnels/cloudflared-parameters/origin-parameters/).

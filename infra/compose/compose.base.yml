@@ -47,6 +47,13 @@ services:
       Almacenamiento__RechazarSiAntivirusNoDisponible: ${ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE:-true}
       Almacenamiento__ClamAvHost: ${ALMACENAMIENTO_CLAMAV_HOST:-clamav}
       Almacenamiento__ClamAvPort: ${ALMACENAMIENTO_CLAMAV_PORT:-3310}
+      # Inferencia (Ollama): vacía = deshabilitada. Los workflows la toman del entorno
+      # del proceso, no del .env temporal; prod usa la red local y no lleva Service Token.
+      Inferencia__Url: ${INFERENCIA_URL:-}
+      Inferencia__Usuario: ${INFERENCIA_USUARIO:-}
+      Inferencia__Contrasena: ${INFERENCIA_CONTRASENA:-}
+      Inferencia__AccessClientId: ${INFERENCIA_ACCESS_CLIENT_ID:-}
+      Inferencia__AccessClientSecret: ${INFERENCIA_ACCESS_CLIENT_SECRET:-}
     networks:
       - red-publica # para que Traefik rutee /api
       - red-datos # para alcanzar la instancia Postgres compartida

@@ -23,6 +23,7 @@ flowchart TD
   end
   subgraph modules [Modules internos]
     Storage["ArsDocendi.Storage"]
+    Inferencia["ArsDocendi.Inferencia"]
     Designaciones["Modules.Designaciones"]
     Aulas["Modules.Aulas"]
     Portal["Modules.Portal"]
@@ -31,6 +32,7 @@ flowchart TD
 
   Host --> Designaciones
   Host --> Storage
+  Host --> Inferencia
   Host --> Aulas
   Host --> Portal
   Host --> Tareas
@@ -41,6 +43,7 @@ flowchart TD
 
   Designaciones --> Shared
   Storage --> Shared
+  Inferencia --> Shared
   Aulas --> Shared
   Portal --> Shared
   Tareas --> Shared
@@ -66,6 +69,8 @@ Líneas punteadas: dependencias cross-module proyectadas (no confirmadas todaví
 | `ArsDocendi.Host`       | `Modules.Designaciones`                 | project reference | Hosting + composition root                                                                         |
 | `ArsDocendi.Host`       | `ArsDocendi.Storage`                    | project reference | Composition root y endpoints de archivos                                                           |
 | `ArsDocendi.Storage`    | `ArsDocendi.Storage.Contracts`          | project reference | Implementación del proveedor privado                                                               |
+| `ArsDocendi.Host`       | `ArsDocendi.Inferencia`                 | project reference | Composition root y estado de la inferencia                                                         |
+| `ArsDocendi.Inferencia` | `ArsDocendi.Shared`                     | project reference | `Permisos` para autorizar `/api/inferencia/estado`; sin Contracts hasta tener consumidor           |
 | `Modules.Designaciones` | `ArsDocendi.Storage.Contracts`          | project reference | Validación de asociaciones por `archivoId`                                                         |
 | `Modules.Portal`        | `ArsDocendi.Storage.Contracts`          | project reference | CV y documentos de proyectos                                                                       |
 | `ArsDocendi.Host`       | `Modules.Aulas`                         | project reference | Hosting                                                                                            |

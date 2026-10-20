@@ -154,7 +154,10 @@ Compose project, base y storage únicamente en la VM.
 - **Deploy/CI**: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` y credenciales
   administrativas SeaweedFS provienen de GitHub repository secrets; las claves
   de app de `prod`, `staging` y `pr-preview` provienen de sus respectivos
-  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
+  Environments, igual que las credenciales de inferencia (`INFERENCIA_*`; prod
+  sin Service Token de Cloudflare, ver
+  [github-pr-deploy.md](../operations/github-pr-deploy.md#fuentes-de-variables-y-secretos)).
+  `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
   inyectan secrets en runtime; nunca se versionan ni se hornean en imágenes.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de

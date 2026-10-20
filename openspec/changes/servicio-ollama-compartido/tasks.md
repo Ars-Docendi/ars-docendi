@@ -20,7 +20,7 @@ Alcance exclusivo: infraestructura/documentación, reutilizando Traefik existent
 
 - [x] 3.1 Revisar scope/diff/whitespace, ausencia de cambios de aplicaciones/workflows/tests y archivo del proxy descartado; ejecutar validación OpenSpec estricta y registrar sólo evidencia real de Traefik, preservando `.gitignore` ajeno.
 - [x] 3.3 Revalidar Compose, Traefik aislado (401/200/429/streaming), ingress cloudflared materializado, formato y OpenSpec estricto tras 2.5.
-- [ ] 3.2 Operador: habilitar Traefik/Ollama en pc-prod, comprobar GPU RTX 5070, descubrimiento Docker/rotación real, Access (sin token/otra IP → 403; vm-dev → 200), ruta local de prod y routing público intacto; dejar pendiente si no hay acceso, sin modificar aplicaciones ni crear tests.
+- [x] 3.2 Operador: habilitar Traefik/Ollama en pc-prod, comprobar GPU RTX 5070, descubrimiento Docker/rotación real, Access (sin token/otra IP → 403; vm-dev → 200), ruta local de prod y routing público intacto; dejar pendiente si no hay acceso, sin modificar aplicaciones ni crear tests.
 
 ## Evidencia de la corrección Traefik
 

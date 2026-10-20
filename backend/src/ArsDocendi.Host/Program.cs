@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Modules.Aulas;
 using ArsDocendi.Storage;
+using ArsDocendi.Inferencia;
 using Modules.Designaciones;
 using Modules.Portal;
 using Modules.Tareas;
@@ -57,6 +58,7 @@ builder.Services.AddSwaggerGen(o =>
 builder.Services
     .AddArsDocendiShared(builder.Configuration)
     .AddAlmacenamientoModule(builder.Configuration)
+    .AddInferencia(builder.Configuration)
     .AddDesignacionesModule(builder.Configuration)
     .AddAulasModule(builder.Configuration)
     .AddPortalModule(builder.Configuration)

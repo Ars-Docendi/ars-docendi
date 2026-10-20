@@ -77,6 +77,10 @@ jobs:
       SEAWEEDFS_ROOT_SECRET_KEY: ${{ secrets.SEAWEEDFS_ROOT_SECRET_KEY }}
       APP_DB_USER: app_prod
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PROD }}
+      # Ruta local por la red Docker `traefik`; prod nunca recibe Service Token.
+      INFERENCIA_URL: http://traefik:11435
+      INFERENCIA_USUARIO: prod
+      INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PROD }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
     steps:
