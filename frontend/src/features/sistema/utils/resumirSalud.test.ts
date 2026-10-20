@@ -103,6 +103,39 @@ describe("resumirSalud", () => {
     expect(resumen.puntoAsistente).toBe("neutral");
   });
 
+  it("un componente no configurado no degrada el resumen ni entra en el conteo", () => {
+    const componentes: EntradaComponenteSalud[] = [
+      ...BASE,
+      {
+        id: "inferencia",
+        nombre: "Inferencia (IA)",
+        disponible: false,
+        comprobadoEn: "2026-09-26T22:00:06Z",
+        noConfigurado: true,
+      },
+    ];
+
+    const resumen = resumirSalud({ componentes, mantenimientoAsistente: "inactivo" });
+
+    expect(resumen.variante).toBe("ok");
+    expect(resumen.subtitulo).toBe("6 de 6 responden con normalidad.");
+    expect(resumen.nombresNoDisponibles).toEqual([]);
+    expect(resumen.puntoEstado).toBe("positivo");
+  });
+
+  it("la inferencia configurada que no responde cuenta como componente no disponible", () => {
+    const componentes: EntradaComponenteSalud[] = [
+      ...BASE,
+      { id: "inferencia", nombre: "Inferencia (IA)", disponible: false },
+    ];
+
+    const resumen = resumirSalud({ componentes, mantenimientoAsistente: "inactivo" });
+
+    expect(resumen.variante).toBe("fallo");
+    expect(resumen.nombresNoDisponibles).toEqual(["Inferencia (IA)"]);
+    expect(resumen.totalComponentes).toBe(7);
+  });
+
   it("comprobaciones pendientes: variante pendiente y punto neutral", () => {
     const componentes = BASE.map((c) =>
       c.id === "aulas" ? { ...c, disponible: undefined, comprobadoEn: undefined } : c,

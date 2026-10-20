@@ -16,14 +16,14 @@ namespace ArsDocendi.Host.Administracion;
 /// </remarks>
 public static class EtiquetasAuditoria
 {
-    public static readonly HashSet<string> CamposConValorSeguro = new(StringComparer.OrdinalIgnoreCase)
+    /// <summary>
+    /// Campos del rastro de administración del asistente (design.md D5) que
+    /// muestran su valor. Los de <c>audit.change_log</c> se clasifican por tabla
+    /// en <see cref="PoliticaValoresAuditoria"/>.
+    /// </summary>
+    public static readonly HashSet<string> CamposConValorSeguroDeAdministracion = new(StringComparer.OrdinalIgnoreCase)
     {
-        "code", "codigo", "scope", "estado", "status", "action", "novedad", "tipo_baja",
-        "activo", "is_active", "es_sistema", "orden", "horas", "horas_investigacion",
-        "horas_externas", "vigente_desde", "vigente_hasta", "created_at", "deleted_at",
-        // Del rastro de administración del asistente (design.md D5): activo ya
-        // está arriba; cupo y tope_mensual_usd son propios de esa fuente.
-        "cupo", "tope_mensual_usd",
+        "activo", "cupo", "tope_mensual_usd",
         // asistente-acceso-granular.
         "acceso_habilitado", "acceso_revocado",
     };

@@ -9,12 +9,7 @@ import { useCurrentUser } from "../../../shared/auth/useCurrentUser";
 import { IconoRefreshCw } from "../../../shared/ui/iconos";
 import { useSeccionSistema, type IdPestanaSistema } from "../hooks/useSeccionSistema";
 import { PREFIJO_SALUD, useSaludSistema } from "../hooks/useSaludSistema";
-import { COMPONENTES_PING } from "../api/sistemaApi";
-import {
-  resumirSalud,
-  type EntradaComponenteSalud,
-  type EstadoDePunto,
-} from "../utils/resumirSalud";
+import { resumirSalud, type EstadoDePunto } from "../utils/resumirSalud";
 import { PuntoDeEstado } from "../components/PuntoDeEstado";
 import { PestanaEstado } from "../components/PestanaEstado";
 import { PestanaAuditoria } from "../components/PestanaAuditoria";
@@ -68,21 +63,7 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
   // de ahí, nunca en su propio montaje inicial.
   const [contadorAsistente, setContadorAsistente] = useState<number | undefined>(undefined);
 
-  const { pings, postgresql } = useSaludSistema(puedeEstado);
-  const entradas: EntradaComponenteSalud[] = [
-    ...COMPONENTES_PING.map((c) => ({
-      id: c.id,
-      nombre: c.nombre,
-      disponible: pings[c.id].data?.disponible,
-      comprobadoEn: pings[c.id].data?.comprobadoEn,
-    })),
-    {
-      id: "postgresql",
-      nombre: "PostgreSQL",
-      disponible: postgresql.data ? postgresql.data.estado === "disponible" : undefined,
-      comprobadoEn: postgresql.data?.comprobadoEn,
-    },
-  ];
+  const { postgresql, entradas } = useSaludSistema(puedeEstado);
   const resumen = resumirSalud({
     componentes: entradas,
     mantenimientoAsistente: postgresql.data?.mantenimientoAsistente ?? "desconocido",

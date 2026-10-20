@@ -7,60 +7,33 @@ namespace ArsDocendi.IntegrationTests.Portal;
 /// La forma del esquema de portal, en lo que otros módulos dependen de ella.
 /// </summary>
 /// <remarks>
-/// <c>portal.perfiles.persona_id</c> es el único camino del portal hacia el padrón,
-/// y nació sin <c>REFERENCES</c>. La constraint no es cosmética: además de la
-/// integridad, es lo que hace que el lector de catálogo del asistente pueda emitir
-/// la relación entre los dos esquemas, porque la lee de <c>pg_constraint</c> con
-/// <c>contype = 'f'</c>. Sin ella habría que escribir el camino a mano en un
-/// comentario, que es poner una barrera de prosa donde puede haber una del motor.
+/// <c>portal.perfiles.persona_id</c> es el único camino del portal hacia el padrón.
+/// Es una referencia LÓGICA (spec <c>integridad-referencias-logicas</c>): no hay FK,
+/// la persona se valida al escribir y su borrado físico lo frena un trigger de
+/// <c>identity</c>. El lector de catálogo del asistente la declara aparte para que
+/// el prefijo del prompt siga diciendo cómo cruzar portal con identity.
 /// </remarks>
 public sealed class EsquemaPortalTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "portal_esquema")
 {
     [Fact]
-    public async Task El_perfil_referencia_a_la_persona_con_una_clave_foranea()
+    public async Task El_lector_de_catalogo_ofrece_el_camino_del_perfil_a_la_persona()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(
-            """
-            SELECT confrelid::REGCLASS::TEXT
-              FROM pg_constraint
-             WHERE conrelid = 'portal.perfiles'::REGCLASS
-               AND contype = 'f'
-               AND conname = 'perfiles_persona_fk'
-            """, conexion);
+        await using var conexion = await AbrirConexionComoAsistenteAsync(conDatosPersonales: false);
+        var referencias = await Modules.Asistente.Infrastructure.LectorDeCatalogo.LeerReferenciasAsync(conexion, ct);
 
-        Assert.Equal("identity.personas", await comando.ExecuteScalarAsync(ct));
-    }
-
-    [Fact]
-    public async Task Un_perfil_que_apunta_a_una_persona_inexistente_no_entra()
-    {
-        // Es la propiedad, no la constraint: lo que importa es que el motor lo
-        // impida, no que exista una fila en un catálogo del sistema.
-        var ct = TestContext.Current.CancellationToken;
-
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(
-            "INSERT INTO portal.perfiles (persona_id) VALUES (gen_random_uuid())", conexion);
-
-        var error = await Assert.ThrowsAsync<PostgresException>(
-            () => comando.ExecuteNonQueryAsync(ct));
-
-        // 23503 es violación de clave foránea. Se afirma el código y no el mensaje
-        // porque el mensaje cambia con la versión y con el locale del servidor.
-        Assert.Equal("23503", error.SqlState);
+        Assert.Contains(referencias, r =>
+            r is { Esquema: "portal", Tabla: "perfiles", Columna: "persona_id" }
+              and { EsquemaReferido: "identity", TablaReferida: "personas", ColumnaReferida: "id" });
     }
 
     [Fact]
     public async Task No_se_borra_una_persona_que_tiene_perfil_cargado()
     {
-        // SIN `ON DELETE CASCADE`, y es deliberado. Las FK internas de portal
-        // cascadean porque un perfil sin dueño no significa nada; ésta no, porque
-        // borrar una persona con perfil cargado tiene que fallar y que alguien lo
-        // mire. En el flujo normal las personas no se borran: se desactivan.
+        // Las personas no se borran: se desactivan. El trigger de identity rechaza
+        // el borrado físico, así que un perfil cargado nunca queda sin dueño.
         var ct = TestContext.Current.CancellationToken;
 
         await using var conexion = await AbrirConexionAsync();

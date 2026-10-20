@@ -65,6 +65,14 @@
     {
       "nombre": "Modules.Asistente.Contracts",
       "estado": "activo"
+    },
+    {
+      "nombre": "ArsDocendi.Migraciones",
+      "estado": "activo"
+    },
+    {
+      "nombre": "ArsDocendi.Inferencia",
+      "estado": "activo"
     }
   ],
   "aristas": [
@@ -221,6 +229,60 @@
         "invariante": "#1",
         "ticket": "ARS-63"
       }
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "Modos CLI one-shot (--estado-migraciones, --script-migraciones, --migrate): el root invoca RunnerMigraciones sobre los IMigradorModulo registrados y registra el migrador de Identity."
+    },
+    {
+      "origen": "ArsDocendi.Host",
+      "destino": "ArsDocendi.Inferencia",
+      "via": "project-reference",
+      "motivo": "Composición del root: registra el cliente del servicio de inferencia compartido y expone GET /api/inferencia/estado."
+    },
+    {
+      "origen": "ArsDocendi.Migraciones",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Contratos puros de migración (IMigradorModulo, RecursosMigracionSql, ValidadorHistorialMigraciones) y el IdentityDbContext que migra."
+    },
+    {
+      "origen": "ArsDocendi.Inferencia",
+      "destino": "ArsDocendi.Shared",
+      "via": "project-reference",
+      "motivo": "Permisos: el estado de inferencia se protege con sistema.estado.ver."
+    },
+    {
+      "origen": "ArsDocendi.Storage",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Storage."
+    },
+    {
+      "origen": "Modules.Aulas",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Aulas."
+    },
+    {
+      "origen": "Modules.Designaciones",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Designaciones."
+    },
+    {
+      "origen": "Modules.Portal",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Portal."
+    },
+    {
+      "origen": "Modules.Tareas",
+      "destino": "ArsDocendi.Migraciones",
+      "via": "project-reference",
+      "motivo": "MigradorEfSql: adaptador común de migraciones EF + SQL versionado para el contexto Tareas."
     }
   ]
 }

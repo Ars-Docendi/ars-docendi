@@ -26,6 +26,10 @@ export const ETIQUETAS_SCOPE: Record<ScopeRol, string> = {
 };
 export type DatosRolNuevo = Pick<RolMock, "nombre" | "descripcion" | "scope">;
 export type DatosRolEditables = DatosRolNuevo;
+/** Misma equivalencia que lower(btrim(name)) de PostgreSQL; las tildes son significativas. */
+export function normalizarNombreRol(nombre: string): string {
+  return nombre.trim().toLowerCase();
+}
 export function normalizarTexto(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }

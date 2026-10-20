@@ -38,14 +38,21 @@ public static class MapeadorEventoAuditoria
         string? nombrePersona,
         string? apellidoPersona)
     {
+        string? nombre = null;
         if (!string.IsNullOrWhiteSpace(nombrePersona) && !string.IsNullOrWhiteSpace(apellidoPersona))
-            return ($"{nombrePersona.Trim()} {apellidoPersona.Trim()}", TipoActorPersona);
-        if (!string.IsNullOrWhiteSpace(nombrePersona))
-            return (nombrePersona.Trim(), TipoActorPersona);
-        if (!string.IsNullOrWhiteSpace(apellidoPersona))
-            return (apellidoPersona.Trim(), TipoActorPersona);
-        if (!string.IsNullOrWhiteSpace(nombreCuenta))
-            return (nombreCuenta.Trim(), TipoActorPersona);
+            nombre = $"{nombrePersona.Trim()} {apellidoPersona.Trim()}";
+        else if (!string.IsNullOrWhiteSpace(nombrePersona))
+            nombre = nombrePersona.Trim();
+        else if (!string.IsNullOrWhiteSpace(apellidoPersona))
+            nombre = apellidoPersona.Trim();
+        else if (!string.IsNullOrWhiteSpace(nombreCuenta))
+            nombre = nombreCuenta.Trim();
+
+        // Un display_name legado puede ser el UPN; no convertirlo en correo visible.
+        if (nombre is not null)
+            return nombre.Contains('@')
+                ? ("Actor no identificado", TipoActorNoIdentificado)
+                : (nombre, TipoActorPersona);
 
         // Ni persona ni cuenta resolvieron. La evidencia que distingue las dos
         // filas restantes de D6 es el request_id: sin ÉL tampoco, nadie hizo
@@ -115,24 +122,35 @@ public static class MapeadorEventoAuditoria
     private static bool EsNumerico(string valor) => long.TryParse(valor, out _);
 
     /// <summary>
-    /// Un campo es de valor seguro cuando está en la lista blanca Y no está en
-    /// la lista de datos personales/secretos — la segunda gana ante cualquier
-    /// solapamiento, aunque hoy no lo hay.
+    /// Un campo de <c>audit.change_log</c> muestra su valor cuando
+    /// <see cref="PoliticaValoresAuditoria"/> lo clasifica para su tabla Y no está
+    /// en la lista de datos personales/secretos — la segunda gana ante cualquier
+    /// solapamiento.
     /// </summary>
-    public static bool EsValorSeguro(string campo) =>
+    public static bool EsValorSeguro(string schema, string tabla, string campo) =>
         !EtiquetasAuditoria.CamposPersonalesOSecretos.Contains(campo)
-        && EtiquetasAuditoria.CamposConValorSeguro.Contains(campo);
+        && PoliticaValoresAuditoria.Permite(schema, tabla, campo);
+
+    /// <summary>
+    /// La misma regla para el rastro de administración del asistente, que no es
+    /// una tabla de <c>audit.change_log</c>: su lista blanca vive en
+    /// <see cref="EtiquetasAuditoria.CamposConValorSeguroDeAdministracion"/>.
+    /// </summary>
+    private static bool EsValorSeguroDeAdministracion(string campo) =>
+        !EtiquetasAuditoria.CamposPersonalesOSecretos.Contains(campo)
+        && EtiquetasAuditoria.CamposConValorSeguroDeAdministracion.Contains(campo);
 
     private static string EtiquetaDeCampo(string campo) =>
         EtiquetasAuditoria.EtiquetasCampos.TryGetValue(campo, out var etiqueta)
             ? etiqueta
             : EtiquetasAuditoria.Humanizar(campo);
 
-    /// <summary>Enmascara según las dos listas: personal/secreto u OCULTO; el resto muestra valor.</summary>
-    public static CambioAuditoriaDto MapearCambio(string campo, JsonDocument? anterior, JsonDocument? nueva)
+    /// <summary>Enmascara personal/secreto o no clasificado para la tabla; el resto muestra valor.</summary>
+    public static CambioAuditoriaDto MapearCambio(
+        string schema, string tabla, string campo, JsonDocument? anterior, JsonDocument? nueva)
     {
         var etiquetaCampo = EtiquetaDeCampo(campo);
-        if (!EsValorSeguro(campo))
+        if (!EsValorSeguro(schema, tabla, campo))
             return new CambioAuditoriaDto(campo, null, null, true, etiquetaCampo);
         if (!IntentarObtenerValor(anterior, campo, out var valorAnterior)
             || !IntentarObtenerValor(nueva, campo, out var valorNuevo))
@@ -149,7 +167,7 @@ public static class MapeadorEventoAuditoria
     public static CambioAuditoriaDto MapearCampoDeAdministracion(Modules.Asistente.Contracts.CampoDeAdministracion campo)
     {
         var etiquetaCampo = EtiquetaDeCampo(campo.Campo);
-        return EsValorSeguro(campo.Campo)
+        return EsValorSeguroDeAdministracion(campo.Campo)
             ? new CambioAuditoriaDto(
                 campo.Campo,
                 FormatearBooleanoDeTexto(campo.Campo, campo.ValorAnterior),
@@ -202,21 +220,27 @@ public static class MapeadorEventoAuditoria
     }
 
     /// <summary>
-    /// Un campo cuyo «antes» Y «después» están ausentes o son <c>null</c> en el
-    /// JSON crudo — antes de cualquier enmascarado — no aporta nada al panel
-    /// («Fecha de baja: — → —» en un ALTA es ruido). Se evalúa sobre el JSON
-    /// crudo, no sobre el <see cref="CambioAuditoriaDto"/> ya mapeado: un campo
-    /// enmascarado siempre lleva valores <c>null</c> en el DTO aunque el dato
-    /// real no lo sea.
+    /// Un campo cuyo «antes» Y «después» son <c>null</c> en el JSON crudo — antes
+    /// de cualquier enmascarado — no aporta nada al panel («Fecha de baja: — → —»
+    /// en un ALTA es ruido). Se evalúa sobre el JSON crudo, no sobre el
+    /// <see cref="CambioAuditoriaDto"/> ya mapeado: un campo enmascarado siempre
+    /// lleva valores <c>null</c> en el DTO aunque el dato real no lo sea.
     /// </summary>
+    /// <remarks>
+    /// <b>Ausente no es nulo.</b> Los snapshots nuevos están minimizados
+    /// (<c>audit.safe_snapshot</c>): un campo que cambió pero no se guardó falta
+    /// del JSON, y sigue siendo un cambio que el panel muestra enmascarado. Sólo un
+    /// lado sin snapshot (el «antes» de un alta, el «después» de una baja) cuenta
+    /// como vacío.
+    /// </remarks>
     public static bool EsAmbosAusentes(JsonDocument? anterior, JsonDocument? nueva, string campo) =>
-        EsAusente(anterior, campo) && EsAusente(nueva, campo);
+        EsVacio(anterior, campo) && EsVacio(nueva, campo);
 
-    private static bool EsAusente(JsonDocument? documento, string campo)
+    private static bool EsVacio(JsonDocument? documento, string campo)
     {
         if (documento is null || documento.RootElement.ValueKind != JsonValueKind.Object) return true;
-        return !documento.RootElement.TryGetProperty(campo, out var valor)
-            || valor.ValueKind == JsonValueKind.Null;
+        return documento.RootElement.TryGetProperty(campo, out var valor)
+            && valor.ValueKind == JsonValueKind.Null;
     }
 
     public static JsonDocument? Parsear(string? json) =>

@@ -24,13 +24,17 @@ Los nombres JSON son `camelCase`. IDs y fechas se representan como UUID y `YYYY-
 ```text
 RolResumenDto          = { id, codigo, nombre }
 AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carreraId? }
+                         Docente → `materiaId` + `carreraId` juntos (una materia compartida entre
+                         carreras exige elegir una); Jefe de Cátedra → `materiaId` (canónica) solo;
+                         Coordinador → `carreraId` solo.
 PerfilDocenteDto       = { esDocente, cantidadMaterias }
 UsuarioResumenDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
                            fechaNacimiento?, telefono?, upn, activo, roles[], membresias[],
                            perfilDocente }
 GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
                            telefono?, upn, membresias[{ rolId, materiaId?, carreraId? }], version? }
-DesignacionVigenteDto  = { id, materia{id,codigo,nombre}, cargo{id,codigo,nombre,abreviatura},
+DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
+                           cargo{id,codigo,nombre,abreviatura},
                            dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
 DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
                            roles[], membresias[], designaciones[] }
@@ -43,6 +47,8 @@ EliminarRolDto         = { version }
 PermisoDto             = { id, codigo, nombre, descripcion }
 EstadoSistemaDto       = { estado: "disponible" | "no_disponible", comprobadoEn, duracionMs,
                            mantenimientoAsistente: "activo" | "inactivo" | "desconocido" }
+EstadoInferenciaDto    = { estado: "deshabilitado" | "disponible" | "no_disponible", comprobadoEn,
+                           duracionMs }
 CambioAuditoriaDto     = { campo, etiquetaCampo, valorAnterior?, valorNuevo?, oculto }
 EventoAuditoriaDto     = { id: string, origen: "cambios" | "asistente", schema, tabla, rowPk, accion,
                            cambiadoEn, cambiadoPor?, requestId?, columnasCambiadas[],
@@ -52,7 +58,11 @@ PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina
                            parcial: boolean, fuentesNoDisponibles: string[] }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
-                           carreras[], materias[{ id, codigo, nombre, carreraId? }], personasElegibles[] }
+                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre }], personasElegibles[] }
+                           `materias` son canónicas (jefe y, junto con `carreraId`, docente);
+                           `materiasPlan` es el catálogo informativo materia–carrera (pares
+                           deduplicados) que acota qué carreras ofrecer para una materia de
+                           Docente — ninguna FK de negocio depende de él.
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles
@@ -122,6 +132,7 @@ Las tablas administrativas navegan entre las fichas mediante `/usuarios?personaI
 | ------ | ------------------------------------ | -------------------- | ------------------------------ |
 | GET    | `/api/administracion/sistema/estado` | `sistema.estado.ver` | `EstadoSistemaDto`             |
 | GET    | `/api/administracion/auditoria`      | `auditoria.ver`      | filtros → `PaginaAuditoriaDto` |
+| GET    | `/api/inferencia/estado`             | `sistema.estado.ver` | `EstadoInferenciaDto`          |
 
 ### Estado del sistema
 
@@ -134,10 +145,19 @@ mantenimiento del asistente, o `"desconocido"` ante cualquier falla o vencimient
 propio (logueado como warning, nunca como error 500: una falla del asistente no puede tirar
 abajo la comprobación de PostgreSQL). La respuesta nunca incluye la razón del mantenimiento ni
 quién lo activó — esos datos siguen exclusivamente detrás de `asistente.consultar`
-(`GET /api/asistente/capacidades`); `sistema.estado.ver` sólo ve el interruptor. El dashboard
-combina este resultado con los pings HTTP existentes de Aulas, Tareas, Designaciones, Portal y
-—desde este cambio— el ping anónimo del asistente (`GET /api/asistente/ping`); cada sonda se
-muestra independientemente.
+(`GET /api/asistente/capacidades`); `sistema.estado.ver` sólo ve el interruptor. La pestaña
+«Estado» de `/sistema` combina este resultado con los pings HTTP existentes de Aulas, Tareas,
+Designaciones, Portal, el ping anónimo del asistente (`GET /api/asistente/ping`) y el estado de la
+inferencia (abajo); cada sonda se muestra independientemente.
+
+### Estado de la inferencia
+
+`GET /api/inferencia/estado` devuelve `EstadoInferenciaDto`. Lo sirve `ArsDocendi.Inferencia`: sin
+`Inferencia:Url` responde `deshabilitado` sin contactar el servicio; si no, consulta
+`GET /api/version` de Ollama con timeout de 3 segundos y cualquier falla (red, 401/403 de Access o
+BasicAuth, 5xx, timeout) es `no_disponible` sin revelar URL, usuario ni excepción. La pestaña
+«Estado» lo muestra como el componente «Inferencia (IA)»; `deshabilitado` se presenta como tal
+(servicio no configurado en el ambiente), nunca como una falla.
 
 ### Auditoría: feed unificado de dos fuentes
 
@@ -157,13 +177,21 @@ usando sólo `audit.change_log` — nunca falla la request completa por una fall
 **Parámetros**: `desde`, `hasta`, `accion` (`INSERT` | `UPDATE` | `DELETE`), `modulo` (`identity`
 | `designaciones` | `portal` | `asistente`, o cualquier nombre de schema ≤ 63 caracteres como
 fallback para módulos futuros), `tabla` (`schema.tabla` calificada o el nombre de tabla desnudo, ≤
-127 caracteres), `rowPk` (≤ 200 caracteres), `cambiadoPor` (UUID, conservado por compatibilidad),
+127 caracteres), `rowPk` (≤ 200 caracteres, ver abajo), `cambiadoPor` (UUID, conservado por compatibilidad),
 `q` (≤ 100 caracteres — **reemplaza** a `actor`, ver abajo), `pagina` (predeterminada 1),
 `tamanoPagina` (predeterminado 50, máximo 100). `schema` y `actor` ya **no existen**: el frontend
 es el único consumidor y el cambio va en el mismo diff. Cuando `modulo` selecciona una sola
 fuente (`"asistente"`, o cualquier otro valor — que sólo puede vivir en `audit.change_log`), la
 otra fuente ni se consulta: es a la vez una optimización de costo y un aislamiento de fallas
 (si `modulo=portal`, una caída del asistente no afecta la respuesta en absoluto).
+
+**Clave de fila (`rowPk`)**: un valor que empieza con `{` es la **clave precisa** y debe ser un
+objeto JSON no vacío de componentes escalares (texto o número) sin nombres repetidos; si no lo es,
+responde `400 validation`. Contra `audit.change_log` coincide con el `row_pk` canónico de los
+eventos nuevos (simples o compuestos) y con los eventos legados cuya clave completa se recupera en
+lectura (`audit.resolved_key`); nunca adjudica a una relación precisa una agrupación histórica
+parcial. Cualquier otro valor se compara como texto exacto contra la clave de fila tal como se
+guardó. Contra el rastro del asistente `rowPk` siempre se compara como texto exacto.
 
 **Búsqueda (`q`)**: reemplaza a `actor` con alcance más amplio, pero es **estrictamente sobre
 etiquetas, nunca sobre valores**. `q` se normaliza (recortado, minúsculas, sin acentos) y se
@@ -175,7 +203,7 @@ fila mismos, y el actor tal como se muestra (incluyendo los literales «Proceso 
 nunca es un oráculo para un dato enmascarado o sin clasificar — hay un test que sembra un valor
 enmascarado y uno seguro y verifica que ninguno de los dos aparece en los resultados de una
 búsqueda por ese valor. La comparación usa la extensión PostgreSQL `unaccent` más `ILIKE`
-(`database/audit/002_audit_busqueda.sql`, aplicada por una migración de `IdentityDbContext` —
+(`database/audit/20261020000800_AuditBusquedaIdentity.sql`, aplicada por una migración de `IdentityDbContext` —
 el Host no depende del orden de migración del asistente, que ya la requiere por su cuenta).
 
 **`q` también encuentra por el sujeto humanizado (fix, 2026-09-27)**: como el objeto de
@@ -215,9 +243,18 @@ caso preciso: una `UPDATE` de **exactamente un** campo de valor seguro lee
 `"{Objeto} #{rowPk}: {Campo} {antes} → {después}"` (el `#rowPk` sólo cuando `rowPk` es numérico,
 para que una clave UUID no inunde la línea). Todo lo demás —un `INSERT`, un `DELETE`, más de un
 campo cambiado, o cualquier campo enmascarado o sin clasificar— se queda en la forma genérica
-`"{accionEtiqueta} de {objeto} · {campos}"`, sin valores. Los eventos del asistente siguen la
-misma regla de enmascarado (`cupo`, `tope_mensual_usd` y `activo` son seguros; `razon` queda sin
-clasificar y por lo tanto enmascarada) con sus propios resúmenes por tipo de acción
+`"{accionEtiqueta} de {objeto} · {campos}"`, sin valores. Según el formato de clave del evento
+(`formatoClave`, metadato de lectura, no un campo del DTO), el resumen agrega un sufijo: «· Clave
+legada recuperada en lectura» para un evento legado cuya clave completa se reconstruyó, o «·
+Agrupación histórica (clave parcial; no es una relación precisa)» para un evento legado de
+`identity.rol_permisos`, `portal.docente_habilidades` o `tareas.tarea_relaciones` cuya clave
+completa no se pudo reconstruir. En los eventos con clave compuesta y en los legados recuperados,
+`rowPk` devuelve la clave completa como JSON, sin alterarla. Para `audit.change_log`, «valor seguro» significa clasificado para
+esa tabla en `PoliticaValoresAuditoria` (una lista por `schema.tabla`; ningún nombre se autoriza
+por prefijo o sufijo) y ausente de la lista de datos personales/secretos, que gana ante cualquier
+solapamiento. Los eventos del asistente usan su propia lista blanca, pequeña y explícita (`cupo`,
+`tope_mensual_usd` y `activo` son seguros; `razon` queda sin clasificar y por lo tanto
+enmascarada) con sus propios resúmenes por tipo de acción
 (`presupuesto.rol`, `presupuesto.usuario` — Alta si el cupo previo era nulo, si no Cambio —,
 `tope_organizacional`, `mantenimiento.activar`/`desactivar`; un código de acción futuro no
 mapeado cae en un «Cambio» genérico humanizado, nunca en un error).
@@ -255,8 +292,8 @@ campo enmascarado siempre lleva `null`/`null` aunque el valor real no lo sea).
 
 Cada consulta a `audit.change_log` tiene timeout de 5 segundos; el rastro del asistente no
 declara uno propio explícito (lee como máximo 2000 filas pequeñas de una tabla propia). Fechas
-invertidas, acción inválida, `q`/`tabla`/`modulo` fuera de longitud o límites de página fuera de
-rango responden `400 validation`. La API es exclusivamente GET; no muta ni borra eventos de
+invertidas, acción inválida, `q`/`tabla`/`modulo`/`rowPk` fuera de longitud, un `rowPk` JSON
+inválido o límites de página fuera de rango responden `400 validation`. La API es exclusivamente GET; no muta ni borra eventos de
 ninguna fuente. La UI muestra fecha, usuario, acción, módulo y resumen; el objeto, clave de fila
 y `requestId` quedan en el detalle (`requestId` siempre `null`/«—» para un evento del asistente:
 ese rastro no registra ningún id de solicitud). No se exponen UPN/correo, `client_ip` ni
@@ -296,4 +333,4 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.

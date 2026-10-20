@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  ConflictoTareasError,
   agregarComentario,
   agregarRelacion,
   cambiarEstadoTarea,
@@ -17,6 +18,7 @@ interface ParamsCrear {
 }
 
 interface ParamsEditar {
+  version: number;
   id: string;
   datos: DatosEditablesTarea;
 }
@@ -27,6 +29,7 @@ interface ParamsRelacion {
 }
 
 interface ParamsCambiarEstado {
+  version: number;
   id: string;
   estadoDestino: EstadoTarea;
   comentario?: string;
@@ -34,6 +37,7 @@ interface ParamsCambiarEstado {
 }
 
 interface ParamsEditarAvance {
+  version: number;
   id: string;
   porcentajeAvance: number;
 }
@@ -56,7 +60,12 @@ export function useCrearTarea() {
 export function useEditarTarea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, datos }: ParamsEditar) => editarTarea(id, datos),
+    mutationFn: ({ id, datos, version }: ParamsEditar) => editarTarea(id, datos, version),
+    retry: false,
+    onError: (error) => {
+      if (error instanceof ConflictoTareasError)
+        void qc.invalidateQueries({ queryKey: ["tareas"] });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
@@ -65,8 +74,13 @@ export function useEditarTarea() {
 export function useCambiarEstadoTarea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, estadoDestino, comentario, solucion }: ParamsCambiarEstado) =>
-      cambiarEstadoTarea(id, estadoDestino, { comentario, solucion }),
+    mutationFn: ({ id, estadoDestino, comentario, solucion, version }: ParamsCambiarEstado) =>
+      cambiarEstadoTarea(id, estadoDestino, { comentario, solucion, version }),
+    retry: false,
+    onError: (error) => {
+      if (error instanceof ConflictoTareasError)
+        void qc.invalidateQueries({ queryKey: ["tareas"] });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }
@@ -75,8 +89,13 @@ export function useCambiarEstadoTarea() {
 export function useEditarAvance() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, porcentajeAvance }: ParamsEditarAvance) =>
-      editarAvance(id, porcentajeAvance),
+    mutationFn: ({ id, porcentajeAvance, version }: ParamsEditarAvance) =>
+      editarAvance(id, porcentajeAvance, version),
+    retry: false,
+    onError: (error) => {
+      if (error instanceof ConflictoTareasError)
+        void qc.invalidateQueries({ queryKey: ["tareas"] });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tareas"] }),
   });
 }

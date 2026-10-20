@@ -5,6 +5,7 @@ import type { Proyecto } from "../types";
 
 function proyecto(id: string, numero: number, estado: string, fechaInicio: string): Proyecto {
   return {
+    version: 1,
     id,
     numero,
     nombre: `Proyecto ${id}`,

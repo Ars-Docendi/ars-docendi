@@ -26,6 +26,10 @@ internal sealed class IndiceDeEntidades(AperturaDeLectura apertura) : IIndiceDeE
     /// Materias con su carrera, y personas con su nombre completo.
     /// </summary>
     /// <remarks>
+    /// La materia es canónica: «su carrera» son las carreras de sus planes vigentes
+    /// y activos, una fila por par. Una materia que se dicta en dos carreras sigue
+    /// siendo ambigua para el detector, como cuando eran dos filas de materias.
+    ///
     /// Los esquemas van cualificados: los roles del asistente corren con
     /// <c>search_path</c> vacío.
     /// </remarks>
@@ -34,7 +38,9 @@ internal sealed class IndiceDeEntidades(AperturaDeLectura apertura) : IIndiceDeE
                m.name     AS valor,
                c.name     AS discriminador
           FROM identity.materias m
-          JOIN identity.carreras c ON c.id = m.carrera_id
+          JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo
+          JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
+          JOIN identity.carreras c ON c.id = pl.carrera_id
          WHERE m.is_active
 
         UNION ALL

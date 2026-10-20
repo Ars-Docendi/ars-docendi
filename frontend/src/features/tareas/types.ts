@@ -42,6 +42,7 @@ export interface EventoHistorialTarea {
 }
 
 export interface Tarea {
+  version: number;
   id: string;
   numero: number; // correlativo legible, asignado por la base al crear
   titulo: string;
@@ -91,6 +92,7 @@ export interface EstadoProyectoCatalogo {
 }
 
 export interface Proyecto {
+  version: number;
   id: string;
   numero: number; // correlativo legible, asignado por la base al crear
   nombre: string;

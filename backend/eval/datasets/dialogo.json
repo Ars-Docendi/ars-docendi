@@ -27,7 +27,7 @@
         },
         {
           "pregunta": "el de Ingeniería en Informática",
-          "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = m.carrera_id WHERE m.name = 'Análisis Matemático' AND c.name = 'Ingeniería en Informática'"
+          "sql_referencia": "SELECT p.apellido, p.nombre FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = d.carrera_id WHERE m.name = 'Análisis Matemático' AND c.name = 'Ingeniería en Informática'"
         }
       ]
     },
@@ -54,7 +54,7 @@
       "turnos": [
         {
           "pregunta": "¿Qué asignaturas se dictan en Ingeniería Industrial?",
-          "sql_referencia": "SELECT m.name FROM identity.materias m JOIN identity.carreras c ON c.id = m.carrera_id WHERE c.name = 'Ingeniería Industrial' ORDER BY m.name"
+          "sql_referencia": "SELECT m.name FROM identity.materias m JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo JOIN identity.carreras c ON c.id = pl.carrera_id WHERE c.name = 'Ingeniería Industrial' ORDER BY m.name"
         },
         {
           "pregunta": "¿Cuántas solicitudes de baja se presentaron?",
@@ -76,7 +76,7 @@
       "turnos": [
         {
           "pregunta": "¿Qué materias de Ingeniería Electrónica tienen algún profesor titular designado?",
-          "sql_referencia": "SELECT DISTINCT m.name FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = m.carrera_id JOIN designaciones.cargos ca ON ca.id = d.cargo_id WHERE c.name = 'Ingeniería Electrónica' AND ca.codigo = 'titular' AND d.vigente_hasta IS NULL"
+          "sql_referencia": "SELECT DISTINCT m.name FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras c ON c.id = d.carrera_id JOIN designaciones.cargos ca ON ca.id = d.cargo_id WHERE c.name = 'Ingeniería Electrónica' AND ca.codigo = 'titular' AND d.vigente_hasta IS NULL"
         },
         {
           "pregunta": "¿y quiénes están designados en esa materia?",

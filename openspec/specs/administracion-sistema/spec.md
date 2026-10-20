@@ -8,7 +8,7 @@ Proporciona a quienes administran el sistema una vista segura de su disponibilid
 
 ### Requirement: Dashboard de salud operativa
 
-The system SHALL offer users holding `sistema.estado.ver` a view of the current state of the backend modules, the assistant and PostgreSQL, presented as the «Estado» tab of the «Sistema» section. The view MUST check, independently of each other, the ping of each business module (`aulas`, `tareas`, `designaciones`, `portal`), the ping of the assistant (`asistente`) and the PostgreSQL connectivity check, and MUST distinguish each module or assistant ping from the database check. A module or assistant ping MUST time out after 5 seconds; its response time MUST be measured by the client. The PostgreSQL check MUST be measured by the server and report its duration.
+The system SHALL offer users holding `sistema.estado.ver` a view of the current state of the backend modules, the assistant, PostgreSQL and the inference service, presented as the «Estado» tab of the «Sistema» section. The view MUST check, independently of each other, the ping of each business module (`aulas`, `tareas`, `designaciones`, `portal`), the ping of the assistant (`asistente`), the PostgreSQL connectivity check and the inference check (`GET /api/inferencia/estado`, same permission), and MUST distinguish each module or assistant ping from the database and inference checks. A module or assistant ping MUST time out after 5 seconds; its response time MUST be measured by the client. The PostgreSQL and inference checks MUST be measured by the server and report their duration. Inference disabled by configuration MUST be shown as disabled, distinct from a failure.
 
 The system status API (`GET /api/administracion/sistema/estado`, `sistema.estado.ver`) MUST additionally report whether the assistant's maintenance mode is active, as one of active, inactive or unknown, without requiring `asistente.consultar` or `asistente.administrar`, and MUST NOT include the maintenance reason, the actor who toggled it or any other detail. A failure to read the maintenance state MUST yield "unknown" and MUST NOT turn the PostgreSQL result into a failure.
 
@@ -16,9 +16,9 @@ Every result MUST carry the time of its check. A failed check MUST be shown as u
 
 #### Scenario: Todos los componentes responden
 
-- **GIVEN** a user with `sistema.estado.ver`, successful pings of the four modules and of the assistant, a successful PostgreSQL check and maintenance inactive
+- **GIVEN** a user with `sistema.estado.ver`, successful pings of the four modules and of the assistant, successful PostgreSQL and inference checks and maintenance inactive
 - **WHEN** they open or refresh the Estado tab
-- **THEN** they see every module, the assistant and PostgreSQL as available, each with its response time and check time
+- **THEN** they see every module, the assistant, PostgreSQL and the inference service as available, each with its response time and check time
 
 #### Scenario: Falla un ping de módulo
 
@@ -50,6 +50,12 @@ Every result MUST carry the time of its check. A failed check MUST be shown as u
 - **GIVEN** maintenance mode active and the assistant ping failing
 - **WHEN** the Estado tab is refreshed
 - **THEN** the assistant appears as unavailable, not as in maintenance
+
+#### Scenario: Inferencia deshabilitada
+
+- **GIVEN** un usuario con `sistema.estado.ver` en un ambiente sin inferencia configurada
+- **WHEN** abre o actualiza la pestaña Estado
+- **THEN** la tarjeta «Inferencia (IA)» aparece como deshabilitada, con un estilo distinto de «No disponible», y los demás componentes conservan su estado
 
 #### Scenario: Consulta del dashboard sin permiso
 
@@ -203,15 +209,23 @@ Each tab MUST carry a status dot with an accessible text equivalent: «Estado» 
 
 ### Requirement: Estado summary banner and component cards
 
-The Estado tab SHALL show a summary banner and one card per checked component, grouped under «Módulos» (Aulas, Tareas, Designaciones, Portal, Asistente) and «Infraestructura» (PostgreSQL). The banner MUST take exactly one of three forms once every check has finished: «Todos los componentes disponibles» with «N de N responden con normalidad.»; a count of unavailable components («1 componente no disponible» / «N componentes no disponibles») naming them, followed by «El resto funciona con normalidad.» when any remain available; or, when every component is available and the assistant is in maintenance, «Todo disponible, asistente en mantenimiento» with «Los módulos responden. El asistente no acepta consultas hasta que se desactive el mantenimiento.». Unavailability MUST take precedence over maintenance. The banner MUST show «Última comprobación» with the date and time of the latest check.
+The Estado tab SHALL show a summary banner and one card per checked component, grouped under «Módulos» (Aulas, Tareas, Designaciones, Portal, Asistente) and «Infraestructura» (PostgreSQL, Inferencia (IA)). The banner MUST take exactly one of three forms once every check has finished: «Todos los componentes disponibles» with «N de N responden con normalidad.»; a count of unavailable components («1 componente no disponible» / «N componentes no disponibles») naming them, followed by «El resto funciona con normalidad.» when any remain available; or, when every component is available and the assistant is in maintenance, «Todo disponible, asistente en mantenimiento» with «Los módulos responden. El asistente no acepta consultas hasta que se desactive el mantenimiento.». Unavailability MUST take precedence over maintenance. Inference disabled by configuration MUST NOT count as unavailable nor as one of the «N de N» components. The banner MUST show «Última comprobación» with the date and time of the latest check.
 
-Each card MUST show the component name; a pill «Disponible», «No disponible» or «Mantenimiento»; the response time as «N ms» with «tiempo de respuesta», or «sin respuesta» when it failed; and a note: «Responde normalmente» for an available module, «Recibe consultas» for the available assistant, «Consultas pausadas por un administrador» for the assistant in maintenance, «No respondió en 5 s» for a ping that timed out, and «Comprobado por separado» for PostgreSQL. A failed card MUST offer «Reintentar», which re-checks only that component. The assistant card MUST offer «Ver uso →», switching to the Asistente tab, only when the session holds `asistente.administrar`.
+Each card MUST show the component name; a pill «Disponible», «No disponible», «Mantenimiento» or, only for the inference card, «Deshabilitado»; the response time as «N ms» with «tiempo de respuesta», or «sin respuesta» when it failed; and a note: «Responde normalmente» for an available module, «Recibe consultas» for the available assistant, «Consultas pausadas por un administrador» for the assistant in maintenance, «No respondió en 5 s» for a ping that timed out, and «Comprobado por separado» for PostgreSQL and for the available inference service. The inference card MUST be fed by `GET /api/inferencia/estado`; when it reports `deshabilitado` the card MUST show «Deshabilitado» with a dashed neutral border, distinct from «No disponible», and MUST NOT offer «Reintentar». A failed card MUST offer «Reintentar», which re-checks only that component. The assistant card MUST offer «Ver uso →», switching to the Asistente tab, only when the session holds `asistente.administrar`.
 
 #### Scenario: Everything available
 
-- **GIVEN** six successful checks and maintenance inactive
+- **GIVEN** six successful checks, the inference service disabled by configuration and maintenance inactive
 - **WHEN** the Estado tab finishes checking
 - **THEN** the banner reads «Todos los componentes disponibles» and «6 de 6 responden con normalidad.»
+- **AND** the inference card shows «Deshabilitado» without «Reintentar»
+
+#### Scenario: Inference unavailable
+
+- **GIVEN** every other check successful and the inference check reporting `no_disponible`
+- **WHEN** the Estado tab finishes checking
+- **THEN** the banner reads «1 componente no disponible» and names Inferencia (IA)
+- **AND** the inference card shows «No disponible» and «Reintentar», which re-checks only the inference service
 
 #### Scenario: Some components unavailable
 
@@ -527,3 +541,83 @@ Activating an audit row SHALL open an inline side panel next to the list — the
 - **GIVEN** an INSERT into `identity.user_roles` whose snapshot has `deleted_at` absent (`null`) and `created_at` at `2026-09-27T01:52:30+00:00` UTC
 - **WHEN** its detail panel is open
 - **THEN** «Qué cambió» does not show a «Fecha de baja» block at all, and «Fecha de creación» shows «— → 26/9/2026 22:52:30»
+
+### Requirement: Identidad completa de eventos sobre relaciones
+
+Los eventos nuevos de tablas con clave compuesta SHALL conservar todos los componentes de esa clave en una representación estable. La consulta MUST distinguir una relación precisa de una agrupación legada y no atribuir a una relación eventos indistinguibles. Los eventos históricos MUST NOT reescribirse ni desaparecer al introducir el formato nuevo. El filtro por clave de fila MUST aceptar la clave precisa como objeto JSON no vacío de componentes escalares y MUST rechazar un objeto inválido con el error de validación estable; un evento legado de clave parcial MUST presentarse declarado como agrupación histórica.
+
+#### Scenario: Dos permisos del mismo rol
+
+- **GIVEN** un rol con dos relaciones de permiso distintas
+- **WHEN** se registran y consultan sus eventos nuevos
+- **THEN** las identidades precisas distinguen rol y permiso; filtrar por una relación no devuelve los cambios de la otra
+
+#### Scenario: Clave precisa inválida
+
+- **GIVEN** un usuario con `auditoria.ver`
+- **WHEN** filtra por una clave de fila que empieza como objeto JSON pero no es un objeto válido de componentes escalares
+- **THEN** la API la rechaza con el error de validación estable y no ejecuta la consulta
+
+#### Scenario: Habilidad e interés del mismo perfil
+
+- **GIVEN** una habilidad asociada a un perfil como habilidad e interés
+- **WHEN** se consulta su historia precisa
+- **THEN** distingue perfil, habilidad y tipo
+
+#### Scenario: Evento legacy sin identidad recuperable
+
+- **GIVEN** un evento antiguo con clave parcial y sin componentes suficientes en sus snapshots
+- **WHEN** se consulta una historia precisa
+- **THEN** no se inventa identidad ni se incluye como coincidencia exacta; sigue disponible como agrupación histórica declarada
+
+### Requirement: Metadatos históricos con desempate determinístico
+
+La consulta de historia SHALL desempatar eventos por identificador además de fecha. Fecha y actor de cada resultado MUST provenir del mismo evento seleccionado. El resultado SHALL conservar orden estable en eventos de una misma transacción y diferenciar creación, última modificación y eliminación.
+
+#### Scenario: Eventos empatados
+
+- **GIVEN** creación y dos modificaciones de una fila con el mismo timestamp
+- **WHEN** se consulta su historia
+- **THEN** creación corresponde al primer evento pertinente y última modificación al último por ID, con su actor correcto
+
+### Requirement: Snapshots nuevos minimizados y legado explícito
+
+Los eventos nuevos MUST persistir valores anteriores/nuevos solo para campos expresamente clasificados como seguros y necesarios, además de nombres de columnas modificadas e identidad técnica. Datos personales, secretos y valores no clasificados MUST NOT duplicarse en snapshots nuevos. La consulta del legado SHALL mantener redacción y controles de acceso sin alterar los eventos automáticamente.
+
+#### Scenario: Cambio de datos personales
+
+- **GIVEN** una persona modifica documento, teléfono o cuenta
+- **WHEN** se genera auditoría nueva
+- **THEN** se registra actor, operación, identidad y columnas afectadas sin copiar esos valores sensibles
+
+#### Scenario: Cambio intradía trazable
+
+- **GIVEN** cambia una vigencia y su origen de pedido
+- **WHEN** se genera auditoría
+- **THEN** se conservan valores técnicos de cargo, dedicación, horas, fechas y orígenes anterior/nuevo necesarios para reconstruir el cambio sin copiar PII del docente
+
+#### Scenario: Evento viejo con PII
+
+- **GIVEN** snapshots antiguos contienen datos personales
+- **WHEN** un usuario autorizado consulta la auditoría
+- **THEN** sigue recibiendo solo valores aprobados y nunca snapshots crudos, correo de actor ni secretos
+
+### Requirement: Retención auditada sin purga automática
+
+La documentación operativa SHALL distinguir metadata de eventos, snapshots nuevos minimizados y valores históricos sensibles, sus accesos y respaldos. MUST declarar que redacción de API no equivale a borrado en BD. Sin política institucional y autorización específica MUST NOT ejecutarse purga, anonimización retrospectiva ni eliminación de historial de trámites.
+
+#### Scenario: Política no aprobada
+
+- **GIVEN** no existe autorización específica para tratar snapshots históricos
+- **WHEN** se despliega la mejora de minimización
+- **THEN** no se purgan eventos ni se atribuye cumplimiento de un plazo legal inventado
+
+### Requirement: Consulta de auditoría con medición y límites preservados
+
+La lectura administrativa SHALL conservar filtros seguros, conteo correcto, paginación del servidor y orden estable. Sus mejoras MUST verificarse con planes, buffers y carga sintética sin quitar límites, permisos o redacción. La adopción de índices SHALL demostrar utilidad para consultas identificadas y considerar costo de escritura.
+
+#### Scenario: Lista reciente sobre muchos eventos
+
+- **GIVEN** muchos eventos sintéticos y una página pequeña solicitada
+- **WHEN** se verifica el plan del listado reciente y su conteo
+- **THEN** se documenta el trabajo de ambas consultas y no se presenta optimizar solo la página como optimización del conteo

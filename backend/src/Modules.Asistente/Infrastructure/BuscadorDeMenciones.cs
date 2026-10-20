@@ -14,7 +14,7 @@ namespace Modules.Asistente.Infrastructure;
 /// resuelve <c>identity.asistente_materias_visibles()</c>; el de los docentes lo
 /// resuelve la policy de RLS de <c>designaciones.designaciones</c>, que ya
 /// conjunta <c>designaciones.ver</c> con el ámbito del actor
-/// (<c>009_designaciones_rls_asistente.sql</c>). Un actor sin ese permiso ve la
+/// (<c>20261020001000_RlsAsistenteDesignaciones.sql</c>). Un actor sin ese permiso ve la
 /// tabla vacía por la policy, no porque este código haya evaluado el permiso: si
 /// alguien borrara el chequeo de acá adentro, el resultado no cambia.
 ///
@@ -38,9 +38,11 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
     private const int Tope = 6;
 
     private const string SqlMaterias = """
-        SELECT m.id, m.name, m.code, c.name AS carrera
+        SELECT DISTINCT m.id, m.name, m.code, c.name AS carrera
           FROM identity.materias m
-          JOIN identity.carreras c ON c.id = m.carrera_id
+          JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo
+          JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
+          JOIN identity.carreras c ON c.id = pl.carrera_id
          WHERE m.is_active
            AND m.id IN (SELECT identity.asistente_materias_visibles())
            AND (
@@ -57,9 +59,11 @@ internal sealed class BuscadorDeMenciones(AperturaDeLectura apertura) : IBuscado
         """;
 
     private const string SqlMateriaPorId = """
-        SELECT m.id, m.name, m.code, c.name AS carrera
+        SELECT DISTINCT m.id, m.name, m.code, c.name AS carrera
           FROM identity.materias m
-          JOIN identity.carreras c ON c.id = m.carrera_id
+          JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo
+          JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
+          JOIN identity.carreras c ON c.id = pl.carrera_id
          WHERE m.is_active
            AND m.id = @id
            AND m.id IN (SELECT identity.asistente_materias_visibles())

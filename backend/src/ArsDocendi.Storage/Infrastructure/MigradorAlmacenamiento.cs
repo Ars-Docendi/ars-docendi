@@ -1,9 +1,6 @@
-using ArsDocendi.Shared.Persistencia;
-using Microsoft.EntityFrameworkCore;
+using ArsDocendi.Migraciones;
 
 namespace ArsDocendi.Storage.Infrastructure;
 
-internal sealed class MigradorAlmacenamiento(AlmacenamientoDbContext db) : IMigradorModulo
-{
-    public Task MigrarAsync(CancellationToken ct) => db.Database.MigrateAsync(ct);
-}
+internal sealed class MigradorAlmacenamiento(AlmacenamientoDbContext db)
+    : MigradorEfSql<AlmacenamientoDbContext>(db, "storage", AlmacenamientoDbContext.Schema);

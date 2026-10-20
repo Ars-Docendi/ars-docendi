@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ArsDocendi.Shared.Aplicacion;
 using Microsoft.Extensions.Logging;
 
@@ -169,6 +170,21 @@ public sealed class ServicioAuditoria(
             errores["tabla"] = ["No puede superar 127 caracteres."];
         if (filtros.RowPk?.Trim().Length > 200)
             errores["rowPk"] = ["No puede superar 200 caracteres."];
+        if (filtros.RowPk?.TrimStart().StartsWith('{') == true)
+        {
+            try
+            {
+                using var clave = JsonDocument.Parse(filtros.RowPk);
+                var campos = clave.RootElement.EnumerateObject().ToArray();
+                if (campos.Length == 0 || campos.Select(c => c.Name).Distinct(StringComparer.Ordinal).Count() != campos.Length
+                    || campos.Any(c => c.Value.ValueKind is not (JsonValueKind.String or JsonValueKind.Number)))
+                    errores["rowPk"] = ["La clave completa requiere un objeto JSON no vacío de componentes escalares."];
+            }
+            catch (JsonException)
+            {
+                errores["rowPk"] = ["La clave completa debe ser un objeto JSON válido."];
+            }
+        }
         if (filtros.Q?.Trim().Length > 100)
             errores["q"] = ["No puede superar 100 caracteres."];
         if (errores.Count > 0)
@@ -211,7 +227,8 @@ public sealed class ServicioAuditoria(
             // «Fecha de baja: — → —» en un ALTA es ruido (sistema-seccion-unificada):
             // se evalúa sobre el JSON crudo, antes de enmascarar (ver EsAmbosAusentes).
             .Where(campo => !MapeadorEventoAuditoria.EsAmbosAusentes(anterior, nueva, campo))
-            .Select(campo => MapeadorEventoAuditoria.MapearCambio(campo, anterior, nueva))
+            .Select(campo => MapeadorEventoAuditoria.MapearCambio(
+                registro.NombreSchema, registro.NombreTabla, campo, anterior, nueva))
             .ToArray();
         var accionEtiqueta = MapeadorEventoAuditoria.EtiquetaDeAccion(registro.Accion);
         var modulo = MapeadorEventoAuditoria.ResolverModulo(registro.NombreSchema);
@@ -224,11 +241,18 @@ public sealed class ServicioAuditoria(
             registro.CambiadoPor, registro.RequestId,
             evento.NombreCuenta, evento.NombrePersona, evento.ApellidoPersona);
 
+        if (evento.FormatoClave == "legacy-group")
+            resumen += " · Agrupación histórica (clave parcial; no es una relación precisa)";
+        else if (evento.FormatoClave == "legacy-recovered")
+            resumen += " · Clave legada recuperada en lectura";
+
         return new EventoAuditoriaDto(
             $"{FusionDeFuentesAuditoria.OrigenCambios}-{registro.Id}",
             registro.NombreSchema,
             registro.NombreTabla,
-            registro.ClaveFila,
+            evento.FormatoClave is "composite-v1" or "legacy-recovered"
+                ? evento.ClaveCompleta ?? registro.ClaveFila
+                : registro.ClaveFila,
             registro.Accion,
             registro.CambiadoEn,
             registro.CambiadoPor,

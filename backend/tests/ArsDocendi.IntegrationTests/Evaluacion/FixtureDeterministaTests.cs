@@ -105,13 +105,18 @@ public sealed partial class FixtureDeterministaTests
     {
         // Sin esto, el detector de ambigüedad —épica posterior— no dispara nunca y
         // los ítems de diálogo que lo prueban dan verde sin medir nada.
+        // La materia es canónica: UNA fila en identity.materias y una pertenencia
+        // por carrera en identity.materias_plan.
         var contenido = new GeneradorDeFixture().Generar();
+        var materias = SeccionDe(contenido, "identity.materias (");
+        var pertenencias = SeccionDe(contenido, "identity.materias_plan");
 
         foreach (var (nombre, carreras) in GeneradorDeFixture.MateriasCompartidas)
         {
-            var apariciones = Contar(SeccionDe(contenido, "identity.materias"), nombre);
+            var fila = Assert.Single(materias, fila => fila.Contains($"'{nombre}'", StringComparison.Ordinal));
+            var id = fila.Split('\'')[1];
 
-            Assert.Equal(carreras, apariciones);
+            Assert.Equal(carreras, Contar(pertenencias, id));
         }
     }
 

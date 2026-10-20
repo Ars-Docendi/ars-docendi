@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using ArsDocendi.Shared.Aplicacion;
 using ArsDocendi.Storage.Contracts;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +6,14 @@ using Microsoft.Extensions.Options;
 
 namespace ArsDocendi.Storage.Infrastructure;
 
-public sealed class ServicioAlmacenamientoArchivos(
+public sealed partial class ServicioAlmacenamientoArchivos(
     AlmacenamientoDbContext db,
     IProveedorObjetos objetos,
     IAntivirusArchivos antivirus,
     IOptions<AlmacenamientoOptions> opciones,
-    ILogger<ServicioAlmacenamientoArchivos> logger) : IAlmacenamientoArchivos
+    ILogger<ServicioAlmacenamientoArchivos> logger,
+    IEnumerable<IConsultasReferenciasArchivos>? consultasReferencias = null,
+    IProteccionArchivos? proteccion = null) : IAlmacenamientoArchivos, IRetencionArchivos, IConsultasArchivos
 {
     private readonly AlmacenamientoOptions config = opciones.Value;
 
@@ -21,141 +22,73 @@ public sealed class ServicioAlmacenamientoArchivos(
         ReglasArchivos.ValidarInicio(datos, config);
         var id = Guid.NewGuid();
         var expira = DateTimeOffset.UtcNow.AddSeconds(config.ExpiracionCargaSegundos);
-        var entidad = new ArchivoEntidad
+        db.Archivos.Add(new ArchivoEntidad
         {
-            Id = id,
-            Proposito = datos.Proposito,
-            Ambiente = config.Ambiente,
-            Bucket = config.Bucket,
-            ClaveObjeto = $"archivos/{id:N}",
-            NombreOriginal = ReglasArchivos.SanitizarNombre(datos.NombreOriginal),
-            MimeDeclarado = datos.MimeDeclarado.Trim().ToLowerInvariant(),
-            TamanoBytes = datos.TamanoBytes,
-            Estado = EstadosArchivo.Pendiente,
-            PropietarioId = propietarioId,
-            ExpiraEn = expira,
+            Id = id, Proposito = datos.Proposito, Ambiente = config.Ambiente, Bucket = config.Bucket,
+            ClaveObjeto = $"archivos/{id:N}", NombreOriginal = ReglasArchivos.SanitizarNombre(datos.NombreOriginal),
+            MimeDeclarado = datos.MimeDeclarado.Trim().ToLowerInvariant(), TamanoBytes = datos.TamanoBytes,
+            Estado = EstadosArchivo.Pendiente, PropietarioId = propietarioId, ExpiraEn = expira,
             CreadoEn = DateTimeOffset.UtcNow,
-        };
-        db.Archivos.Add(entidad);
+        });
         await db.SaveChangesAsync(ct);
         logger.LogInformation("Sesión de carga {ArchivoId} iniciada", id);
-        return new SesionCargaArchivoDto(id, $"/api/archivos/cargas/{id:N}/objeto", expira);
+        return new(id, $"/api/archivos/cargas/{id:N}/objeto", expira);
     }
 
-    public async Task SubirAsync(
-        Guid archivoId,
-        Guid propietarioId,
-        Stream contenido,
-        string? mimeDeclarado,
-        long? tamanoDeclarado,
-        CancellationToken ct)
+    public async Task SubirAsync(Guid archivoId, Guid propietarioId, Stream contenido, string? mimeDeclarado, long? tamanoDeclarado, CancellationToken ct)
     {
-        var entidad = await db.Archivos.SingleOrDefaultAsync(x => x.Id == archivoId, ct)
-            ?? throw Error(TipoErrorAplicacion.NoEncontrado, "archivo-not-found", "No se encontró el archivo.");
-        if (entidad.PropietarioId != propietarioId)
-            throw Error(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "El archivo no pertenece al actor.");
-        if (entidad.Estado != EstadosArchivo.Pendiente || entidad.ExpiraEn <= DateTimeOffset.UtcNow)
-            throw Error(TipoErrorAplicacion.Conflicto, "archivo-upload-expired", "La sesión de carga expiró o ya no es utilizable.");
-
-        if (tamanoDeclarado is > 0 && tamanoDeclarado > entidad.TamanoBytes)
-            throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
-
-        using var memoria = new MemoryStream();
-        var buffer = new byte[81920];
-        int leidos;
-        while ((leidos = await contenido.ReadAsync(buffer, ct)) > 0)
-        {
-            if (memoria.Length + leidos > entidad.TamanoBytes)
-                throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
-            await memoria.WriteAsync(buffer.AsMemory(0, leidos), ct);
-        }
-
-        var tamano = memoria.Length;
-        if (tamano != entidad.TamanoBytes || (tamanoDeclarado is { } declarado && declarado != tamano))
-            throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño subido no coincide con el declarado.");
-
-        memoria.Position = 0;
-        await objetos.SubirAsync(entidad.Bucket, entidad.ClaveObjeto, memoria, entidad.MimeDeclarado, tamano, ct);
-    }
-
-    public async Task<ArchivoDto> ConfirmarCargaAsync(ConfirmarCargaArchivoDto datos, Guid propietarioId, CancellationToken ct)
-    {
-        var entidad = await db.Archivos.SingleOrDefaultAsync(x => x.Id == datos.ArchivoId, ct)
-            ?? throw Error(TipoErrorAplicacion.NoEncontrado, "archivo-not-found", "No se encontró el archivo.");
-        if (entidad.PropietarioId != propietarioId)
-            throw Error(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "El archivo no pertenece al actor.");
-        if (entidad.Estado == EstadosArchivo.Disponible) return Mapear(entidad);
-        if (entidad.Estado != EstadosArchivo.Pendiente || entidad.ExpiraEn <= DateTimeOffset.UtcNow)
-            throw Error(TipoErrorAplicacion.Conflicto, "archivo-upload-expired", "La sesión de carga expiró o ya no es utilizable.");
-
-        var objeto = await objetos.ObtenerAsync(entidad.Bucket, entidad.ClaveObjeto, ct)
-            ?? throw Error(TipoErrorAplicacion.Validacion, "archivo-object-missing", "No se encontró el objeto subido.");
-        using var contenidoObjeto = objeto.Contenido;
-        if (contenidoObjeto.CanSeek) contenidoObjeto.Position = 0;
-        using var memoria = new MemoryStream();
-        await contenidoObjeto.CopyToAsync(memoria, ct);
-        var bytes = memoria.ToArray();
-        var mime = ReglasArchivos.DetectarMime(bytes);
-        var hash = ReglasArchivos.CalcularSha256(bytes);
+        var archivo = await RequerirPropioAsync(archivoId, propietarioId, ct);
+        var ahora = DateTimeOffset.UtcNow;
+        var intento = Guid.NewGuid();
+        var clave = $"archivos/{archivoId:N}/intentos/{intento:N}";
+        var hasta = VencimientoReserva(archivo, ahora);
+        var reservado = await db.Archivos.Where(x => x.Id == archivoId && x.Estado == EstadosArchivo.Pendiente
+            && x.ExpiraEn > ahora && (x.FaseCarga == null || (x.FaseCarga == "subiendo" && x.ReservaHasta < ahora)))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.IntentoId, intento).SetProperty(x => x.ReservaId, intento)
+                .SetProperty(x => x.ClaveObjeto, clave).SetProperty(x => x.FaseCarga, "subiendo").SetProperty(x => x.ReservaHasta, hasta), ct);
+        if (reservado != 1) throw Conflicto();
         try
         {
-            ReglasArchivos.ValidarContenido(entidad.Proposito, mime, objeto.TamanoBytes, config);
-            if (datos.TamanoBytes is { } tamano && tamano != objeto.TamanoBytes)
-                throw Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño confirmado no coincide con el objeto.");
-            if (datos.Sha256 is { Length: > 0 } esperado && !CryptographicOperations.FixedTimeEquals(
-                    System.Text.Encoding.ASCII.GetBytes(hash), System.Text.Encoding.ASCII.GetBytes(esperado.Trim().ToLowerInvariant())))
-                throw Error(TipoErrorAplicacion.Validacion, "archivo-hash-mismatch", "El hash confirmado no coincide con el objeto.");
+            using var memoria = new MemoryStream();
+            var buffer = new byte[81920];
+            int leidos;
+            while ((leidos = await contenido.ReadAsync(buffer, ct)) > 0)
+            {
+                if (memoria.Length + leidos > archivo.TamanoBytes) throw TamanoInvalido();
+                await memoria.WriteAsync(buffer.AsMemory(0, leidos), ct);
+            }
+            if (memoria.Length != archivo.TamanoBytes || (tamanoDeclarado is { } declarado && declarado != memoria.Length))
+                throw TamanoInvalido();
+            memoria.Position = 0;
+            await objetos.SubirAsync(archivo.Bucket, clave, memoria, archivo.MimeDeclarado, memoria.Length, ct);
+            var completado = await db.Archivos.Where(x => x.Id == archivoId && x.Estado == EstadosArchivo.Pendiente
+                && x.ReservaId == intento && x.FaseCarga == "subiendo" && x.ReservaHasta > DateTimeOffset.UtcNow)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.FaseCarga, "cargado").SetProperty(x => x.ReservaHasta, (DateTimeOffset?)null), ct);
+            if (completado != 1) throw Conflicto();
         }
-        catch (ExcepcionAplicacion ex)
+        catch
         {
-            entidad.MimeDetectado = mime;
-            entidad.TamanoBytes = objeto.TamanoBytes;
-            entidad.Sha256 = hash;
-            entidad.Estado = EstadosArchivo.Rechazado;
-            entidad.RevisadoEn = DateTimeOffset.UtcNow;
-            entidad.MotivoRevision = ex.Codigo;
-            await db.SaveChangesAsync(ct);
+            // El intento nunca publicado es propio: no se reutiliza esta clave aunque la subida remota terminara.
+            await db.Archivos.Where(x => x.Id == archivoId && x.ReservaId == intento && x.FaseCarga == "subiendo")
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.FaseCarga, (string?)null).SetProperty(x => x.ReservaId, (Guid?)null)
+                    .SetProperty(x => x.ReservaHasta, (DateTimeOffset?)null), CancellationToken.None);
+            // Si el proveedor falla al compensar, queda un temporal reconocible para limpieza.
+            try { await objetos.EliminarAsync(archivo.Bucket, clave, CancellationToken.None); }
+            catch (Exception ex) { logger.LogWarning("Temporal de {ArchivoId} retenido: {TipoError}", archivoId, ex.GetType().Name); }
             throw;
         }
-
-        memoria.Position = 0;
-        var escaneo = await antivirus.AnalizarAsync(memoria, ct);
-        entidad.MimeDetectado = mime;
-        entidad.TamanoBytes = objeto.TamanoBytes;
-        entidad.Sha256 = hash;
-        entidad.ConfirmadoEn = DateTimeOffset.UtcNow;
-        entidad.RevisadoEn = DateTimeOffset.UtcNow;
-        entidad.MotivoRevision = escaneo.Motivo;
-        entidad.Estado = escaneo.Disponible ? EstadosArchivo.Disponible : EstadosArchivo.Rechazado;
-        await db.SaveChangesAsync(ct);
-        if (!escaneo.Disponible)
-        {
-            var codigo = escaneo.Motivo?.Contains("no está disponible", StringComparison.OrdinalIgnoreCase) == true
-                ? "archivo-antivirus-unavailable"
-                : "archivo-antivirus-rejected";
-            throw Error(
-                TipoErrorAplicacion.Validacion,
-                codigo,
-                escaneo.Motivo ?? "El análisis antivirus rechazó el archivo.");
-        }
-
-        logger.LogInformation("Archivo {ArchivoId} confirmado con estado {Estado}", entidad.Id, entidad.Estado);
-        return Mapear(entidad);
     }
 
     public async Task<ArchivoDto?> ObtenerAsync(Guid archivoId, CancellationToken ct) =>
-        await db.Archivos.AsNoTracking().SingleOrDefaultAsync(x => x.Id == archivoId, ct) is { } entidad ? Mapear(entidad) : null;
+        await db.Archivos.AsNoTracking().SingleOrDefaultAsync(x => x.Id == archivoId, ct) is { } archivo ? Mapear(archivo) : null;
 
-    public async Task<bool> EsPropietarioAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) =>
-        await db.Archivos.AsNoTracking().AnyAsync(x => x.Id == archivoId && x.PropietarioId == propietarioId, ct);
+    public Task<bool> EsPropietarioAsync(Guid archivoId, Guid propietarioId, CancellationToken ct) =>
+        db.Archivos.AsNoTracking().AnyAsync(x => x.Id == archivoId && x.PropietarioId == propietarioId, ct);
 
     public async Task<ArchivoDto> RequerirDisponibleDePropietarioAsync(Guid archivoId, string proposito, Guid propietarioId, CancellationToken ct)
     {
-        var archivo = await db.Archivos.AsNoTracking().SingleOrDefaultAsync(x => x.Id == archivoId, ct)
-            ?? throw Error(TipoErrorAplicacion.NoEncontrado, "archivo-not-found", "No se encontró el archivo.");
-        if (archivo.PropietarioId != propietarioId)
-            throw Error(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "El archivo no pertenece al actor.");
-        if (archivo.Estado != EstadosArchivo.Disponible || !string.Equals(archivo.Proposito, proposito, StringComparison.Ordinal))
+        var archivo = await RequerirPropioAsync(archivoId, propietarioId, ct);
+        if (archivo.Estado != EstadosArchivo.Disponible || archivo.Proposito != proposito)
             throw Error(TipoErrorAplicacion.Validacion, "archivo-not-available", "El archivo no está disponible para ese propósito.");
         return Mapear(archivo);
     }
@@ -165,54 +98,23 @@ public sealed class ServicioAlmacenamientoArchivos(
         var archivo = await db.Archivos.AsNoTracking().SingleOrDefaultAsync(x => x.Id == archivoId, ct);
         if (archivo is null || archivo.Estado != EstadosArchivo.Disponible) return null;
         var objeto = await objetos.ObtenerAsync(archivo.Bucket, archivo.ClaveObjeto, ct);
-        return objeto is null ? null : new DescargaArchivo(objeto.Contenido, archivo.NombreOriginal, archivo.MimeDetectado ?? archivo.MimeDeclarado, objeto.TamanoBytes);
+        return objeto is null ? null : new(objeto.Contenido, archivo.NombreOriginal, archivo.MimeDetectado ?? archivo.MimeDeclarado, objeto.TamanoBytes);
     }
 
-    public async Task EliminarAsync(Guid archivoId, Guid propietarioId, CancellationToken ct)
+    private async Task<ArchivoEntidad> RequerirPropioAsync(Guid id, Guid propietario, CancellationToken ct)
     {
-        var archivo = await db.Archivos.SingleOrDefaultAsync(x => x.Id == archivoId, ct)
+        var archivo = await db.Archivos.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
             ?? throw Error(TipoErrorAplicacion.NoEncontrado, "archivo-not-found", "No se encontró el archivo.");
-        if (archivo.PropietarioId != propietarioId)
+        if (archivo.PropietarioId != propietario)
             throw Error(TipoErrorAplicacion.Prohibido, "archivo-forbidden", "El archivo no pertenece al actor.");
-        if (archivo.Estado == EstadosArchivo.Eliminado) return;
-        await objetos.EliminarAsync(archivo.Bucket, archivo.ClaveObjeto, ct);
-        archivo.Estado = EstadosArchivo.Eliminado;
-        archivo.EliminadoEn = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        return archivo;
     }
 
-    public async Task<int> LimpiarAsync(DateTimeOffset ahora, CancellationToken ct)
-    {
-        var candidatas = await db.Archivos.Where(x =>
-                (x.Estado == EstadosArchivo.Pendiente && x.ExpiraEn < ahora)
-                || (x.Estado == EstadosArchivo.Rechazado && x.RevisadoEn != null && x.RevisadoEn < ahora)
-                || (x.Estado == EstadosArchivo.Disponible && x.EliminadoEn != null && x.EliminadoEn < ahora))
-            .ToListAsync(ct);
-        foreach (var archivo in candidatas)
-        {
-            await objetos.EliminarAsync(archivo.Bucket, archivo.ClaveObjeto, ct);
-            archivo.Estado = EstadosArchivo.Eliminado;
-            archivo.EliminadoEn ??= ahora;
-        }
-
-        var clavesConservadas = await db.Archivos
-            .Where(x => x.Ambiente == config.Ambiente && x.Bucket == config.Bucket && x.Estado != EstadosArchivo.Eliminado)
-            .Select(x => x.ClaveObjeto)
-            .ToHashSetAsync(ct);
-        var huérfanos = (await objetos.ListarAsync(config.Bucket, "archivos/", ct))
-            .Where(x => x.UltimaModificacion < ahora && !clavesConservadas.Contains(x.Clave))
-            .ToArray();
-        foreach (var huérfano in huérfanos)
-            await objetos.EliminarAsync(config.Bucket, huérfano.Clave, ct);
-
-        if (candidatas.Count > 0) await db.SaveChangesAsync(ct);
-        return candidatas.Count + huérfanos.Length;
-    }
-
-    private static ArchivoDto Mapear(ArchivoEntidad x) => new(
-        x.Id, x.Proposito, x.NombreOriginal, x.MimeDeclarado, x.MimeDetectado,
-        x.TamanoBytes, x.Sha256, x.Estado, x.CreadoEn, x.ConfirmadoEn);
-
-    private static ExcepcionAplicacion Error(TipoErrorAplicacion tipo, string codigo, string mensaje) =>
-        new(tipo, codigo, mensaje);
+    private static ArchivoDto Mapear(ArchivoEntidad x) => new(x.Id, x.Proposito, x.NombreOriginal, x.MimeDeclarado,
+        x.MimeDetectado, x.TamanoBytes, x.Sha256, x.Estado, x.CreadoEn, x.ConfirmadoEn);
+    private DateTimeOffset VencimientoReserva(ArchivoEntidad archivo, DateTimeOffset ahora) =>
+        ahora.AddSeconds(Math.Min(Math.Max(1, config.DuracionReservaSegundos), Math.Max(0, (archivo.ExpiraEn - ahora).TotalSeconds / 2)));
+    private static ExcepcionAplicacion Error(TipoErrorAplicacion tipo, string codigo, string mensaje) => new(tipo, codigo, mensaje);
+    private static ExcepcionAplicacion Conflicto() => Error(TipoErrorAplicacion.Conflicto, "archivo-upload-expired", "La sesión expiró o tiene una operación incompatible en curso.");
+    private static ExcepcionAplicacion TamanoInvalido() => Error(TipoErrorAplicacion.Validacion, "archivo-size-mismatch", "El tamaño no coincide con el declarado.");
 }

@@ -40,9 +40,7 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         """
         SELECT count(*)
           FROM designaciones.designaciones d
-         WHERE d.materia_id IN (
-               SELECT m.id FROM identity.materias m
-                WHERE m.carrera_id = 'c0000000-0000-4000-8000-000000000202')
+         WHERE d.carrera_id = 'c0000000-0000-4000-8000-000000000202'
         """;
 
     private static readonly string[] Protegidas =
@@ -98,7 +96,7 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         Assert.All(predicados, qual =>
         {
             Assert.Contains("asistente_tiene_permiso", qual, StringComparison.Ordinal);
-            Assert.Contains("asistente_materias_visibles", qual, StringComparison.Ordinal);
+            Assert.Contains("asistente_alcanza_ambito", qual, StringComparison.Ordinal);
         });
     }
 
@@ -107,7 +105,7 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
     {
         var sql = File.ReadAllText(Path.Combine(
             RaizRepositorio.Ruta(), "database", "designaciones",
-            "009_designaciones_rls_asistente.sql"));
+            "20261020001000_RlsAsistenteDesignaciones.sql"));
 
         Assert.Contains("FORCE ROW LEVEL SECURITY", sql, StringComparison.Ordinal);
         Assert.Contains("dueño", sql, StringComparison.Ordinal);
@@ -126,7 +124,7 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
 
         Assert.Equal(await ContarPedidosDelSeedAsync("TRUE"), global);
         Assert.Equal(
-            await ContarPedidosDelSeedAsync("m.carrera_id = @ambito", CarreraInformatica),
+            await ContarPedidosDelSeedAsync("p.carrera_id = @ambito", CarreraInformatica),
             deCarrera);
         Assert.Equal(
             await ContarPedidosDeLasMateriasDeAsync(Jefe),
@@ -195,9 +193,7 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
               LEFT JOIN designaciones.pedido_historial h ON h.pedido_id = p.id
               LEFT JOIN designaciones.pedido_adjuntos a ON a.pedido_id = p.id
               LEFT JOIN designaciones.designaciones d ON d.materia_id = p.materia_id
-             WHERE p.materia_id NOT IN (
-                   SELECT m.id FROM identity.materias m
-                    WHERE m.carrera_id = 'c0000000-0000-4000-8000-000000000202')
+             WHERE p.carrera_id <> 'c0000000-0000-4000-8000-000000000202'
             """);
         // LA SONDA VA CONTRA designaciones.designaciones Y NO CONTRA pedidos, y el
         // motivo importa: el seed dejó de tener pedidos fuera de Informática, así que
@@ -359,9 +355,9 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
         await EjecutarAsync(
             """
             INSERT INTO designaciones.pedidos
-                (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario)
+                (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario)
             SELECT @id, 'AJENO-' || left(@id::text, 8), per.id, sin_pedido.id,
-                   ajena.id, 'Sin novedad', 'borrador', FALSE
+                   ajena.id, ajena.carrera_id, 'Sin novedad', 'borrador', FALSE
               FROM designaciones.periodos per
               -- Una persona SIN pedido en ese período: hay un único pedido por
               -- docente y período, así que reusar una cualquiera choca.
@@ -373,8 +369,10 @@ public sealed class RlsAlcanceTests(PostgresFixture postgres)
                    LIMIT 1) sin_pedido
               -- Una materia que el actor NO dicta.
               CROSS JOIN LATERAL (
-                  SELECT mm.id
+                  SELECT mm.id, pl.carrera_id
                     FROM identity.materias mm
+                    JOIN identity.materias_plan mp ON mp.materia_id = mm.id AND mp.activo
+                    JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
                    WHERE mm.id NOT IN (SELECT ur.materia_id
                                          FROM identity.user_roles ur
                                         WHERE ur.user_id = @actor

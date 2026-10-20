@@ -9,10 +9,15 @@ export interface EntradaComponenteSalud {
   /** `undefined` mientras la consulta todavía no terminó (pendiente). */
   disponible: boolean | undefined;
   comprobadoEn?: string;
+  /**
+   * Apagado por configuración del ambiente (la inferencia deshabilitada): no
+   * es una falla ni un componente disponible, así que queda fuera del resumen.
+   */
+  noConfigurado?: boolean;
 }
 
 export interface EntradaResumenSalud {
-  /** Los seis componentes: cinco pings más PostgreSQL (design D12). */
+  /** Los siete componentes: cinco pings, PostgreSQL e inferencia (design D12). */
   componentes: EntradaComponenteSalud[];
   mantenimientoAsistente: MantenimientoAsistente;
 }
@@ -44,12 +49,14 @@ function ultimaComprobacion(componentes: EntradaComponenteSalud[]): string | nul
  * nombres de componentes caídos y estado de los dos puntos que dependen de
  * la salud (Estado y Asistente). La indisponibilidad SIEMPRE pesa más que el
  * mantenimiento (requisito "Estado summary banner..."): un componente caído
- * nunca se pisa con el aviso de mantenimiento.
+ * nunca se pisa con el aviso de mantenimiento. Un componente no configurado
+ * en el ambiente no suma ni resta: ni cae ni entra en el «N de N».
  */
 export function resumirSalud({
-  componentes,
+  componentes: todos,
   mantenimientoAsistente,
 }: EntradaResumenSalud): ResumenSalud {
+  const componentes = todos.filter((c) => !c.noConfigurado);
   const pendiente = componentes.some((c) => c.disponible === undefined);
   const noDisponibles = componentes.filter((c) => c.disponible === false);
   const totalDisponibles = componentes.filter((c) => c.disponible === true).length;

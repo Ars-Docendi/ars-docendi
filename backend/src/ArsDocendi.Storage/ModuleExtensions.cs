@@ -56,7 +56,13 @@ public static class ModuleExtensions
         });
         services.AddScoped<Infrastructure.IProveedorObjetos, Infrastructure.ProveedorSeaweedFs>();
         services.AddScoped<Infrastructure.IAntivirusArchivos, Infrastructure.ClamAvAntivirus>();
-        services.AddScoped<Contracts.IAlmacenamientoArchivos, Infrastructure.ServicioAlmacenamientoArchivos>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, Infrastructure.DiagnosticoIntegridadAlmacenamiento>();
+        services.AddScoped<Contracts.IProteccionArchivos, Infrastructure.ProteccionArchivos>();
+        services.AddScoped<Infrastructure.ServicioAlmacenamientoArchivos>();
+        services.AddHostedService<Infrastructure.LimpiezaArchivos>();
+        services.AddScoped<Contracts.IAlmacenamientoArchivos>(sp => sp.GetRequiredService<Infrastructure.ServicioAlmacenamientoArchivos>());
+        services.AddScoped<Contracts.IRetencionArchivos>(sp => sp.GetRequiredService<Infrastructure.ServicioAlmacenamientoArchivos>());
+        services.AddScoped<Contracts.IConsultasArchivos>(sp => sp.GetRequiredService<Infrastructure.ServicioAlmacenamientoArchivos>());
         services.AddControllers().AddApplicationPart(typeof(ModuleExtensions).Assembly);
         return services;
     }

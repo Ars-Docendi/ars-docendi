@@ -106,7 +106,7 @@
       "pregunta": "¿Qué asignaturas se dictan en Ingeniería Industrial?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT m.name AS materia FROM identity.materias m JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE ca.name = 'Ingeniería Industrial' AND m.is_active ORDER BY m.name"
+      "sql_referencia": "SELECT m.name AS materia FROM identity.materias m JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo JOIN identity.carreras ca ON ca.id = pl.carrera_id WHERE ca.name = 'Ingeniería Industrial' AND m.is_active ORDER BY m.name"
     },
     {
       "id": "cap-016",

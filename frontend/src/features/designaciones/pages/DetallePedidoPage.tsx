@@ -17,6 +17,7 @@ import { DatosTramite } from "../components/DatosTramite";
 import { derivarCadena, historialAAuditEntries } from "../components/detalleAdapters";
 import { useActorContexto } from "../hooks/useActorContexto";
 import { usePedido } from "../hooks/usePedidos";
+import { erroresValidacionPedido } from "../api/erroresValidacionPedido";
 import {
   useAceptarPedido,
   useDespriorizarPedido,
@@ -53,6 +54,7 @@ export function DetallePedidoPage() {
   const priorizar = usePriorizarPedido();
   const despriorizar = useDespriorizarPedido();
   const eliminar = useEliminarPedido();
+  const erroresAceptacion = erroresValidacionPedido(aceptar.error);
   const enviando =
     aceptar.isPending ||
     rechazar.isPending ||
@@ -81,6 +83,22 @@ export function DetallePedidoPage() {
         <InlineAlert severity="danger" title="No se encontró el pedido">
           No pudimos cargar el pedido solicitado.{" "}
           <a href={origen.ruta}>Volver a {origen.etiqueta}</a>.
+        </InlineAlert>
+      )}
+
+      {aceptar.isError && (
+        <InlineAlert severity="danger" title="No se pudo aprobar el pedido">
+          {erroresAceptacion.length > 0 ? (
+            <ul>
+              {erroresAceptacion.map(({ campo, mensaje }, indice) => (
+                <li key={`${campo}-${indice}`}>
+                  <strong>{campo}:</strong> {mensaje}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            "No se pudo completar la aprobación. Actualizá el pedido e intentá de nuevo."
+          )}
         </InlineAlert>
       )}
 

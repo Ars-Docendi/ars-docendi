@@ -13,6 +13,13 @@ public interface IRepositorioUsuarios
     Task<IReadOnlyList<Rol>> ObtenerRolesAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Carrera>> ObtenerCarrerasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
     Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct);
+
+    /// <summary>
+    /// Indica si la materia se dicta, vigente, en la carrera indicada (catálogo informativo
+    /// materia–plan). Valida la membresía de Docente, que manda materia y carrera por separado.
+    /// </summary>
+    Task<bool> ExistePertenenciaActivaAsync(Guid materiaId, Guid carreraId, CancellationToken ct);
+
     Task<CatalogosUsuariosDto> ObtenerCatalogosAsync(CancellationToken ct);
     void Agregar(Persona persona, Usuario usuario);
     void EsperarVersion(Usuario usuario, uint version);
@@ -31,7 +38,7 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         ConsultaCompleta(false).SingleOrDefaultAsync(u => u.Id == id, ct);
 
     public Task<bool> ExisteUpnAsync(string upn, Guid? exceptoId, CancellationToken ct) =>
-        db.Usuarios.AsNoTracking().AnyAsync(u => u.Upn == upn && u.Id != exceptoId, ct);
+        db.Usuarios.AsNoTracking().AnyAsync(u => u.Upn.Trim().ToLower() == upn.Trim().ToLower() && u.Id != exceptoId, ct);
 
     public Task<bool> ExisteDocumentoAsync(
         string documento,
@@ -45,12 +52,20 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         CancellationToken ct) =>
         // Estas entidades se vinculan a nuevas asignaciones. Mantenerlas bajo
         // tracking evita que EF interprete los roles existentes como inserts.
-        await db.Roles.Where(r => ids.Contains(r.Id) && r.Activo).ToListAsync(ct);
+        await db.Roles.FromSqlRaw(
+                "SELECT r.*, r.xmin FROM identity.roles r WHERE id = ANY(@ids) ORDER BY id FOR SHARE",
+                new NpgsqlParameter("ids", ids.ToArray()))
+            .Where(r => r.Activo).ToListAsync(ct);
 
     public async Task<IReadOnlyList<Materia>> ObtenerMateriasAsync(
         IReadOnlyCollection<Guid> ids,
         CancellationToken ct) =>
         await db.Materias.AsNoTracking().Where(m => ids.Contains(m.Id) && m.Activo).ToListAsync(ct);
+
+    public Task<bool> ExistePertenenciaActivaAsync(Guid materiaId, Guid carreraId, CancellationToken ct) =>
+        db.MateriasPlan.AsNoTracking().AnyAsync(mp =>
+            mp.MateriaId == materiaId && mp.Plan!.CarreraId == carreraId
+            && mp.Activo && mp.Materia!.Activo && mp.Plan.Activo, ct);
 
     public async Task<IReadOnlyList<Carrera>> ObtenerCarrerasAsync(
         IReadOnlyCollection<Guid> ids,
@@ -69,9 +84,15 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
             .ToListAsync(ct);
         var materias = await db.Materias.AsNoTracking().Where(m => m.Activo)
             .OrderBy(m => m.Nombre)
-            .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre, m.CarreraId))
+            .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre))
             .ToListAsync(ct);
-        return new CatalogosUsuariosDto(roles, carreras, materias);
+        var materiasPlan = await db.MateriasPlan.AsNoTracking()
+            .Where(mp => mp.Activo && mp.Materia!.Activo && mp.Plan!.Activo)
+            .OrderBy(mp => mp.Materia!.Nombre)
+            .Select(mp => new OpcionCatalogoDto(
+                mp.Id, mp.Materia!.Codigo, mp.Materia.Nombre, mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre))
+            .ToListAsync(ct);
+        return new CatalogosUsuariosDto(roles, carreras, materias, materiasPlan);
     }
 
     public void Agregar(Persona persona, Usuario usuario)
@@ -93,7 +114,7 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         {
             var traducido = pg.ConstraintName switch
             {
-                "users_upn_key" => new ExcepcionAplicacion(
+                "users_upn_key" or "users_upn_normalizado_key" when pg.SqlState == PostgresErrorCodes.UniqueViolation => new ExcepcionAplicacion(
                     TipoErrorAplicacion.Conflicto,
                     "identity-upn-conflict",
                     "Ya existe otro usuario con esa UPN."),
@@ -109,6 +130,10 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
                     TipoErrorAplicacion.ReglaDeNegocio,
                     "identity-role-scope-conflict",
                     "No se puede repetir la misma asignación de rol y ámbito."),
+                "user_roles_scope_coherente" when pg.SqlState == PostgresErrorCodes.CheckViolation => new ExcepcionAplicacion(
+                    TipoErrorAplicacion.Conflicto,
+                    "identity-role-scope-conflict",
+                    "El ámbito del rol cambió. Actualizá los datos antes de asignarlo."),
                 _ => null,
             };
             if (traducido is not null) throw traducido;
