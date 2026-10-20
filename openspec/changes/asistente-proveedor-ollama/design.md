@@ -112,7 +112,7 @@ Lo que se recomienda al operador está en [`ollama-compartido.md`](../../../docs
 - **`OLLAMA_CONTEXT_LENGTH=16384`**, igual a `ContextoDelModelo`.
 - **`OLLAMA_KEEP_ALIVE=24h`**, para no pagar la carga del modelo después de 5 minutos sin uso.
 - **`OLLAMA_FLASH_ATTENTION=1`.**
-- **Tasa de Traefik por un criterio que distinga ambientes.** Detrás de cloudflared, todos los pedidos llegan con la misma IP remota. Un turno hace hasta 4 llamadas, así que 30 por minuto compartidos entre staging y todos los previews alcanzan para unos 8 turnos por minuto en total.
+- **Tasa de Traefik por un criterio que distinga ambientes.** Detrás de cloudflared, todos los pedidos llegan con la misma IP remota. Un turno hace hasta 4 llamadas, así que 30 por minuto compartidos entre staging y todos los previews alcanzan para unos 8 turnos por minuto en total. Se propone una segunda tasa por la cabecera `Authorization` (un cupo por usuario de BasicAuth, es decir por ambiente), antes de `ollama-auth`, y dejar la tasa por IP como freno de fuerza bruta.
 
 ### D7 — El servicio compartido es hardware propio para la redacción
 
