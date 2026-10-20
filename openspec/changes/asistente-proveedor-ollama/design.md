@@ -30,7 +30,6 @@ Cuatro datos del servicio ordenan las decisiones:
 - **Decidir que `qwen3.5:9b` es suficiente.** Lo decide el evaluador (`backend/eval`) corrido contra el servicio (tarea 5.2), igual que en `asistente-proveedor-local`.
 - **Cambiar la configuración del servidor.** La opera infraestructura en pc-prod, en una ventana aprobada. Este change documenta lo que el asistente necesita (D6), pero no edita `infra/ollama/`.
 - **Regrabar cassettes contra Ollama.** `ClaveDeCassette` hoy espera el cuerpo de Anthropic, con `system` en la raíz. Grabar contra Ollama necesita su propio change (TD-030).
-- **Redacción sin enmascarar.** `RedaccionSinEnmascararVigente` sigue valiendo sólo para `local`. Extenderla al servicio compartido es una decisión de privacidad aparte.
 
 ## Decisions
 
@@ -114,6 +113,19 @@ Lo que se recomienda al operador está en [`ollama-compartido.md`](../../../docs
 - **`OLLAMA_KEEP_ALIVE=24h`**, para no pagar la carga del modelo después de 5 minutos sin uso.
 - **`OLLAMA_FLASH_ATTENTION=1`.**
 - **Tasa de Traefik por un criterio que distinga ambientes.** Detrás de cloudflared, todos los pedidos llegan con la misma IP remota. Un turno hace hasta 4 llamadas, así que 30 por minuto compartidos entre staging y todos los previews alcanzan para unos 8 turnos por minuto en total.
+
+### D7 — El servicio compartido es hardware propio para la redacción
+
+La GPU de pc-prod es del Departamento, así que `ollama` cuenta como `local` para `RedaccionSinEnmascarar` (`asistente-redaccion-sin-enmascarado-local`). El perfil la prende, y siguen sin cambiar las otras condiciones: sin cassettes, `sensible-texto` siempre suprimido, y quién lee datos personales lo decide PostgreSQL.
+
+Hay un único lugar que decide la vigencia, `OpcionesAsistente.RedaccionSinEnmascararVigente`, y ahora acepta los dos proveedores.
+
+Qué recorren los valores reales en cada ambiente:
+
+- **Prod:** llega al servicio por la red Docker local de pc-prod y no pasa por Internet.
+- **Staging y previews:** pasan por Cloudflare, que termina TLS en el borde. Esos ambientes sólo tienen datos sintéticos (nunca SGA ni PII real), así que no viaja ningún valor real.
+
+Los valores quedan en la caché KV del único slot de Ollama, que es memoria de la GPU propia, y Ollama no los persiste.
 
 ## Risks / Trade-offs
 

@@ -598,7 +598,7 @@ public sealed class OpcionesAsistente
     /// </summary>
     /// <remarks>
     /// <b>Setting it is not enough</b>: it only applies when
-    /// <see cref="RedaccionSinEnmascararVigente"/> is true. With another provider,
+    /// <see cref="RedaccionSinEnmascararVigente"/> is true. With a remote provider,
     /// or with a cassette directory, masking stays on and startup says so.
     /// <c>sensible-texto</c> columns are always suppressed. It is not an
     /// optimization —it measures slower—; it is redaction quality for an
@@ -608,18 +608,24 @@ public sealed class OpcionesAsistente
 
     /// <summary>
     /// Whether redaction runs without masking <c>sensible-valor</c>: the option
-    /// on, the local provider, and no cassette directory.
+    /// on, a provider on own hardware, and no cassette directory.
     /// </summary>
     /// <remarks>
-    /// This is the only place that decides it. The local provider is the only one
-    /// that can be expected to run on own hardware, and a cassette directory would
+    /// This is the only place that decides it. Own hardware means the local
+    /// provider or the shared inference service on the Department's GPU
+    /// (<c>ollama</c>, asistente-proveedor-ollama), and a cassette directory would
     /// record responses with real values into files meant to be versioned. Any
     /// other combination masks.
     /// </remarks>
     public bool RedaccionSinEnmascararVigente =>
         RedaccionSinEnmascarar
-        && string.Equals(Proveedor, Infrastructure.ProveedorLocal.Clave, StringComparison.Ordinal)
+        && ProveedorEnHardwarePropio
         && string.IsNullOrWhiteSpace(DirectorioDeCassettes);
+
+    /// <summary>Whether <see cref="Proveedor"/> runs on the Department's hardware.</summary>
+    internal bool ProveedorEnHardwarePropio =>
+        string.Equals(Proveedor, Infrastructure.ProveedorLocal.Clave, StringComparison.Ordinal)
+        || string.Equals(Proveedor, Infrastructure.ProveedorOllama.Clave, StringComparison.Ordinal);
 
     /// <summary>
     /// Cuántos minutos se reutiliza la consulta generada para la misma pregunta

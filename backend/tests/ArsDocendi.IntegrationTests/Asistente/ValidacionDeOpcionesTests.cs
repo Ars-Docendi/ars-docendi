@@ -173,7 +173,11 @@ public sealed class ValidacionDeOpcionesTests
     [InlineData(true, "local", "cassettes", false)]
     [InlineData(true, "local", "   ", true)]
     [InlineData(true, "Local", "", false)]
-    public void Unmasked_redaction_is_in_effect_only_with_the_local_provider_and_no_cassettes(
+    [InlineData(true, "ollama", "", true)]
+    [InlineData(false, "ollama", "", false)]
+    [InlineData(true, "ollama", "cassettes", false)]
+    [InlineData(true, "Ollama", "", false)]
+    public void Unmasked_redaction_is_in_effect_only_with_an_own_hardware_provider_and_no_cassettes(
         bool requested, string provider, string cassetteDirectory, bool expected)
     {
         var options = new OpcionesAsistente

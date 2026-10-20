@@ -31,13 +31,16 @@ public sealed class AnuncioDeLaRedaccionTests
         Assert.Empty(registro.DeNivel(LogLevel.Warning));
     }
 
-    [Fact]
-    public async Task Local_provider_without_cassettes_states_that_values_are_not_masked()
+    [Theory]
+    [InlineData("local")]
+    [InlineData("ollama")]
+    public async Task Own_hardware_provider_without_cassettes_states_that_values_are_not_masked(
+        string provider)
     {
         var registro = await ArrancarAsync(new OpcionesAsistente
         {
             RedaccionSinEnmascarar = true,
-            Proveedor = "local",
+            Proveedor = provider,
         });
 
         Assert.Contains(

@@ -33,9 +33,10 @@ internal sealed class AnuncioDeLaRedaccion(
         if (opciones.RedaccionSinEnmascarar && !opciones.RedaccionSinEnmascararVigente)
         {
             log.LogWarning(
-                "{Option} is set but not in effect, so redaction keeps masking: it needs provider {LocalProvider} (current: {Provider}) and no cassette directory (set: {HasCassettes}).",
+                "{Option} is set but not in effect, so redaction keeps masking: it needs provider {LocalProvider} or {OllamaProvider} (current: {Provider}) and no cassette directory (set: {HasCassettes}).",
                 nameof(OpcionesAsistente.RedaccionSinEnmascarar),
                 Infrastructure.ProveedorLocal.Clave,
+                Infrastructure.ProveedorOllama.Clave,
                 opciones.Proveedor,
                 !string.IsNullOrWhiteSpace(opciones.DirectorioDeCassettes));
         }

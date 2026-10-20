@@ -46,3 +46,8 @@ services:
       # Traefik del servicio no bufferea (flushinterval -1ms) y el flujo evita el
       # corte de Cloudflare en respuestas largas.
       Asistente__StreamingDeRedaccion: "true"
+      # GPU del Departamento: la redacción lleva los valores sensible-valor reales
+      # (asistente-redaccion-sin-enmascarado-local). Prod llega al servicio por la
+      # red Docker local; staging y previews pasan por Cloudflare, pero sólo tienen
+      # datos sintéticos.
+      Asistente__RedaccionSinEnmascarar: "true"

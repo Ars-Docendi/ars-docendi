@@ -12,6 +12,7 @@
 - [x] 2.3 Traducción de fallas (401/403/404/429/400/5xx, `error` en el flujo, flujo sin cierre) sin loguear prompt ni secretos.
 - [x] 2.4 Opción `Asistente:ContextoDelModelo` (0 = la del servidor) y brazo `ollama` en el registro de adaptadores.
 - [x] 2.5 Tests del adaptador contra un servidor falso, de composición y de que las credenciales no viajan a otro proveedor.
+- [x] 2.6 `ollama` cuenta como hardware propio para `RedaccionSinEnmascarar`; el perfil la prende; tests de vigencia y del anuncio.
 
 ## 3. Despliegue
 

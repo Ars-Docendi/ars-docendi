@@ -84,6 +84,22 @@ El adaptador SHALL devolver el texto, los tokens de entrada (`prompt_eval_count`
 - **WHEN** el adaptador lo lee
 - **THEN** el pipeline recibe una falla de transporte
 
+### Requirement: El servicio compartido cuenta como hardware propio para la redacción
+
+El proveedor `ollama` SHALL contar como hardware propio para `Asistente:RedaccionSinEnmascarar`, igual que `local`: con la opción en `true` y sin directorio de cassettes, el prompt de redacción SHALL llevar el valor real de las columnas `sensible-valor`. Con cassettes MUST seguir enmascarando. Las columnas `sensible-texto` MUST seguir suprimidas. El perfil de deploy del servicio compartido SHALL prender la opción.
+
+#### Scenario: Redacción sin enmascarar con el servicio compartido
+
+- **GIVEN** `Asistente:RedaccionSinEnmascarar` en `true`, el proveedor `ollama` y ningún directorio de cassettes
+- **WHEN** arranca la aplicación
+- **THEN** la redacción no enmascara los valores `sensible-valor` y el arranque lo registra
+
+#### Scenario: Con cassettes se sigue enmascarando
+
+- **GIVEN** la opción en `true`, el proveedor `ollama` y un directorio de cassettes
+- **WHEN** arranca la aplicación
+- **THEN** la redacción enmascara y el arranque advierte que la opción no rige
+
 ### Requirement: Despliegue con el servicio compartido
 
 Con `ASISTENTE_PROVEEDOR=ollama`, el despliegue SHALL sumar el perfil `compose.asistente-ollama.yml` a toda llamada de compose, y MUST NOT exigir `ASISTENTE_CLAVE`. Si el ambiente no tiene `INFERENCIA_URL`, `INFERENCIA_USUARIO` o `INFERENCIA_CONTRASENA`, SHALL degradar a `simulado`. Un preview de PR con la label `asistente-ollama` SHALL desplegarse con el proveedor `ollama`.

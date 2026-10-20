@@ -18,6 +18,7 @@ El asistente no puede usarlo:
   - respuesta entera o por fragmentos NDJSON;
   - fallas traducidas al vocabulario del módulo, sin loguear el prompt ni credenciales.
 - **`ArsDocendi.Inferencia` se integra a `Modules.Asistente`.** El cliente (URL, BasicAuth, Service Token, validación al arranque) y `GET /api/inferencia/estado` pasan al módulo sin cambiar configuración (`Inferencia:*`), ruta, permiso ni contrato. Desaparece el proyecto y su arista con el Host.
+- **Redacción sin enmascarar con la GPU propia:** `ollama` cuenta como hardware del Departamento para `RedaccionSinEnmascarar`, igual que `local`, y el perfil la prende.
 - **Perfil de deploy** `compose.asistente-ollama.yml`, que `spin-up.sh` suma con `ASISTENTE_PROVEEDOR=ollama` cuando el ambiente tiene `INFERENCIA_URL`; sin ella degrada a `simulado` igual que un proveedor real sin clave.
 - **Preview a demanda:** la label `asistente-ollama` en un PR despliega su ambiente con el proveedor `ollama`.
 

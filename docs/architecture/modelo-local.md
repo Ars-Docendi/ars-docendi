@@ -197,7 +197,7 @@ Todo opt-in: con los defaults el prompt de Claude y los cassettes no cambian. Lo
 
 ### Aplicado en `asistente-redaccion-sin-enmascarado-local`
 
-Opt-in (`RedaccionSinEnmascarar`, default `false`): con proveedor `local` y sin directorio de cassettes, el prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del marcador. Con cualquier otro proveedor, o con cassettes, se sigue enmascarando y el arranque advierte. `sensible-texto` se suprime siempre. La exposición —los valores entran en la caché KV y en el camino de las solicitudes del servidor— exige hardware del Departamento y, con llama-server, `--cache-ram 0`; está en el [README del módulo](../../backend/src/Modules.Asistente/README.md#la-frontera-de-salida).
+Opt-in (`RedaccionSinEnmascarar`, default `false`): con proveedor `local` (o `ollama`, desde `asistente-proveedor-ollama`) y sin directorio de cassettes, el prompt de redacción lleva el valor real de las columnas `sensible-valor` en vez del marcador. Con cualquier otro proveedor, o con cassettes, se sigue enmascarando y el arranque advierte. `sensible-texto` se suprime siempre. La exposición —los valores entran en la caché KV y en el camino de las solicitudes del servidor— exige hardware del Departamento y, con llama-server, `--cache-ram 0`; está en el [README del módulo](../../backend/src/Modules.Asistente/README.md#la-frontera-de-salida).
 
 Medido el 2026-10-03 contra Qwen3-8B (llama-server, RTX 3070) con el fixture sintético, 3 preguntas × 2 variantes × 3 repeticiones:
 
@@ -299,6 +299,7 @@ Diferencias con el diseño de la §2:
   - El estado recurrente se reutiliza por checkpoints cerca del final del prompt, y el slot único alterna entre los tres prompts de sistema.
   - Se espera prefill de 2,5–6 s por llamada sin caché. La medición real sale de `prompt_eval_cached_count`, que se informa como tokens de caché.
 - **Calidad.** Qwen3.5-9B mejora a Qwen3-8B en seguimiento de instrucciones: IFEval 91,5 e IFBench 37,8 frente a 28,6, en ambos casos sin razonamiento. No publica números de text-to-SQL. La decisión sigue siendo del evaluador (§7), corrido contra el servicio.
+- **Redacción sin enmascarar.** La GPU es del Departamento: el perfil prende `RedaccionSinEnmascarar`.
 - **Imagen ≥ 0.31.2.** Antes de esa versión, `format` con `think: false` ignora el esquema en qwen3.5.
 
 ## 7. Piloto antes de pasar un ambiente a `local`

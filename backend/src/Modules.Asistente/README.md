@@ -189,7 +189,8 @@ El marcador es un contador por orden de aparición, no un hash del valor: un has
 un documento se invierte por fuerza bruta en segundos.
 
 **Excepción, opt-in: `Asistente__RedaccionSinEnmascarar`.** Con la opción en `true`,
-proveedor `local` y sin `Asistente__DirectorioDeCassettes`, el prompt de redacción
+proveedor en hardware propio (`local`, o `ollama`: la GPU del Departamento) y sin
+`Asistente__DirectorioDeCassettes`, el prompt de redacción
 lleva el valor real de las columnas `sensible-valor` en vez del marcador. Si falta
 cualquiera de las tres condiciones se sigue enmascarando, el proceso arranca igual y
 el arranque registra una advertencia; el arranque también registra una línea que
@@ -929,7 +930,7 @@ tiene que confirmar de a una; los perfiles de `infra/compose/` y la guía de la 
 | `VigenciaDeCacheDeConsultasMinutos` | 0       | Reutiliza la consulta generada para la misma pregunta sin contexto, rol y día. Siempre se vuelve a ejecutar bajo RLS                                                                       |
 | `ReescrituraEnLaGeneracion`         | `false` | Un seguimiento resuelve la anáfora en la misma llamada que genera la SQL: una llamada menos                                                                                                |
 | `StreamingDeRedaccion`              | `false` | Ofrece `POST /consultas/flujo` (redacción por fragmentos) y lo anuncia en `GET /capacidades`                                                                                               |
-| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` y sin cassettes                                                                   |
+| `RedaccionSinEnmascarar`            | `false` | Los valores `sensible-valor` llegan al prompt de redacción sin marcador. Sólo rige con proveedor `local` u `ollama` y sin cassettes                                                        |
 | `RazonamientoEnSegundaGeneracion`   | `false` | La segunda generación del turno (reintento por vacío o reparación) se pide con esfuerzo alto, o sea con razonamiento si el servidor lo permite. Con `--reasoning-budget 0` no tiene efecto |
 | `MaximoDeTokensDeSegundaGeneracion` | 0       | Techo de tokens de esa segunda generación, que razona antes de escribir la consulta. Cero usa `MaximoDeTokensDeGeneracion`; sin la opción anterior no rige                                 |
 
