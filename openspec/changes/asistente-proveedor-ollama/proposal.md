@@ -36,7 +36,7 @@ El asistente no puede usarlo:
 
 - `backend/src/Modules.Asistente/`: `Infrastructure` (adaptador, cliente de inferencia), `Api` (estado de inferencia), `Configuracion`, `ModuleExtensions`.
 - Se elimina `backend/src/ArsDocendi.Inferencia/`; cambian `ArsDocendi.Host` (csproj, `Program.cs`), `backend/ArsDocendi.slnx` y `backend/manifiesto-de-aristas.json`.
-- `infra/compose/compose.asistente-ollama.yml`, `infra/scripts/spin-up.sh`, `.github/workflows/pr-env-deploy.yml`.
+- `infra/ollama/{compose.yml,.env.example}` (contexto, keep-alive, flash attention, tasa por credencial), `infra/compose/compose.asistente-ollama.yml`, `infra/scripts/spin-up.sh`, `.github/workflows/pr-env-deploy.yml`.
 - Docs: `backend/src/Modules.Asistente/README.md`, `docs/architecture/dependency-graph.md`, `docs/architecture/modelo-local.md`, `docs/operations/ollama-compartido.md`.
 - Tests: adaptador contra un transporte falso, composición, estado de inferencia y `spin-up`.
 - Sin cambios para `simulado`, `anthropic` ni `local`.

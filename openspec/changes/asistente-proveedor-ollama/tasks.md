@@ -19,6 +19,7 @@
 - [x] 3.1 `infra/compose/compose.asistente-ollama.yml` con el perfil del servicio compartido.
 - [x] 3.2 `spin-up.sh`: con `ollama` suma el perfil y exige `INFERENCIA_*` en vez de `ASISTENTE_CLAVE`; tests.
 - [x] 3.3 `pr-env-deploy.yml`: la label `asistente-ollama` elige el proveedor `ollama`.
+- [x] 3.4 `infra/ollama/`: contexto 16384, `KEEP_ALIVE` 24h, flash attention y tasa por credencial además de por IP.
 
 ## 4. Documentación
 

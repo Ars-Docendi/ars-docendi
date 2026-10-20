@@ -302,34 +302,46 @@ Para revocar previews sin afectar staging, eliminar `preview` del `htpasswd` (se
 
 ## 11. Configuración para el asistente
 
-El asistente usa el servicio con `Asistente__Proveedor=ollama` (`asistente-proveedor-ollama`, perfil `infra/compose/compose.asistente-ollama.yml`). Los defaults de este servicio no alcanzan para él. Lo que sigue es **recomendado**: lo aplica el operador en `servicio.env` y en las labels de `infra/ollama/compose.yml`, en una ventana aprobada, y se confirma en el preview (tarea 5.1 de ese change).
+El asistente usa el servicio con `Asistente__Proveedor=ollama` (`asistente-proveedor-ollama`, perfil `infra/compose/compose.asistente-ollama.yml`). Ese change ajustó `infra/ollama/compose.yml` y `.env.example` a lo que el asistente necesita:
 
-| Ajuste                                   | Default actual       | Recomendado                                             | Por qué                                                                                                                                                           |
-| ---------------------------------------- | -------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OLLAMA_IMAGEN`                          | digest fijado        | digest de **≥ 0.31.2**                                  | Antes, `format` con `think: false` ignora el esquema en qwen3.5 ([ollama#14645](https://github.com/ollama/ollama/issues/14645)).                                  |
-| `OLLAMA_CONTEXT_LENGTH`                  | `4096`               | `16384`                                                 | El prefijo del asistente ronda 10–12k tokens. Tiene que ser igual a `Asistente__ContextoDelModelo`: un `num_ctx` distinto del cargado recarga el modelo.          |
-| `OLLAMA_KEEP_ALIVE`                      | `5m`                 | `24h`                                                   | Recargar el modelo tras 5 minutos ociosos suma segundos al primer turno.                                                                                          |
-| `OLLAMA_FLASH_ATTENTION`                 | —                    | `1`                                                     | Menos VRAM por token de contexto. KV en `f16` (sin `OLLAMA_KV_CACHE_TYPE`).                                                                                       |
-| `OLLAMA_NUM_PARALLEL`                    | `1`                  | `1`                                                     | Ollama lo fuerza a 1 para qwen3.5; subirlo no agrega slots.                                                                                                       |
-| `OLLAMA_MAX_QUEUE`                       | `4`                  | `4`–`6`                                                 | Pedidos en espera antes del 503. Cada backend con el perfil espera en su propia cola (`EsperaMaximaEnColaSegundos`).                                              |
-| `ollama-concurrencia.inflightreq.amount` | `4`                  | `≤ 1 + MAX_QUEUE`                                       | Más en vuelo que slot + cola sólo produce 503 en Ollama.                                                                                                          |
-| `ollama-tasa.ratelimit`                  | 30/min por IP remota | dos tasas: por IP (anti fuerza bruta) y por ambiente    | Detrás de cloudflared todo el túnel es una IP: staging y todos los previews comparten 30/min, y un turno hace hasta 4 llamadas. Ver abajo.                        |
-| Timeouts de Traefik/cloudflared          | defaults             | comprobar que ninguno corte la respuesta antes de 120 s | El backend corta el turno a los 90 s (`PresupuestoDelTurnoSegundos`). Cloudflare corta a ~100 s si no llegó ningún byte (524); por eso la redacción va por flujo. |
+- **Labels de Traefik:** las aplica `oc up` al recrear Ollama, sin recrear Traefik.
+- **Variables:** un `servicio.env` existente conserva sus valores explícitos, así que el operador tiene que editarlo.
 
-**Tasa por ambiente.** El límite actual cuenta por IP remota y todo lo que entra por el túnel llega con la misma. `Cf-Connecting-IP` tampoco sirve: staging y los previews salen de la misma IP de vm-dev. Lo que sí distingue ambientes es el usuario de BasicAuth, que viaja en `Authorization`. Como `ollama-auth` borra esa cabecera (`removeheader`), la tasa por ambiente va **antes** de la autenticación, y la tasa por IP se queda para frenar la fuerza bruta (con contraseñas distintas, cada intento tendría su propio cupo):
+| Ajuste                                   | Antes         | Ahora                                                   | Por qué                                                                                                                                                                                                    |
+| ---------------------------------------- | ------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OLLAMA_IMAGEN`                          | digest fijado | sin cambio si es **≥ 0.31.2**                           | Antes de esa versión, `format` con `think: false` ignora el esquema en qwen3.5 ([ollama#14645](https://github.com/ollama/ollama/issues/14645)). El digest de `.env.example` es la 0.35.0.                  |
+| `OLLAMA_CONTEXT_LENGTH`                  | `4096`        | `16384`                                                 | El prefijo del asistente ronda 10–12k tokens; con 4096, Ollama descarta el esquema en silencio. Tiene que ser igual a `Asistente__ContextoDelModelo`: un `num_ctx` distinto del cargado recarga el modelo. |
+| `OLLAMA_KEEP_ALIVE`                      | `5m`          | `24h`                                                   | Recargar el modelo tras 5 minutos ociosos suma segundos al primer turno.                                                                                                                                   |
+| `OLLAMA_FLASH_ATTENTION`                 | —             | `1`                                                     | Menos VRAM por token de contexto. El KV queda en `f16` (sin `OLLAMA_KV_CACHE_TYPE`).                                                                                                                       |
+| `OLLAMA_NUM_PARALLEL`                    | `1`           | `1`                                                     | Ollama lo fuerza a 1 para qwen3.5; subirlo no agrega slots.                                                                                                                                                |
+| `OLLAMA_MAX_QUEUE`                       | `4`           | `4`                                                     | Pedidos en espera antes del 503. Cada backend con el perfil espera además en su propia cola (`EsperaMaximaEnColaSegundos`).                                                                                |
+| `ollama-concurrencia.inflightreq.amount` | `4`           | `4`                                                     | Tiene que ser ≤ 1 + `MAX_QUEUE`: más en vuelo que slot más cola sólo produce 503.                                                                                                                          |
+| `ollama-tasa.ratelimit`                  | 30/min por IP | 120/min por IP                                          | Pasa a ser sólo el freno de fuerza bruta.                                                                                                                                                                  |
+| `ollama-tasa-ambiente.ratelimit`         | —             | 30/min por credencial                                   | El cupo por ambiente; se explica abajo.                                                                                                                                                                    |
+| Timeouts de Traefik/cloudflared          | defaults      | comprobar que ninguno corte la respuesta antes de 120 s | El backend corta el turno a los 90 s (`PresupuestoDelTurnoSegundos`). Cloudflare corta a ~100 s si no llegó ningún byte (524); por eso la redacción va por flujo.                                          |
 
-```yaml
-traefik.http.routers.ollama-privada.middlewares: ollama-tasa,ollama-tasa-ambiente,ollama-auth,ollama-concurrencia
-# Por IP: freno de fuerza bruta, holgado para el tráfico legítimo de todos los ambientes.
-traefik.http.middlewares.ollama-tasa.ratelimit.average: "120"
-traefik.http.middlewares.ollama-tasa.ratelimit.period: 1m
-traefik.http.middlewares.ollama-tasa.ratelimit.burst: "20"
-# Por credencial: un cupo para prod, otro para staging y otro para todos los previews.
-traefik.http.middlewares.ollama-tasa-ambiente.ratelimit.average: "30"
-traefik.http.middlewares.ollama-tasa-ambiente.ratelimit.period: 1m
-traefik.http.middlewares.ollama-tasa-ambiente.ratelimit.burst: "10"
-traefik.http.middlewares.ollama-tasa-ambiente.ratelimit.sourcecriterion.requestheadername: Authorization
+**Tasa por ambiente.** El límite anterior contaba por IP remota, y todo lo que entra por el túnel llega con la misma IP: staging y todos los previews compartían 30 pedidos por minuto, y un turno hace hasta 4 llamadas.
+
+`Cf-Connecting-IP` tampoco sirve, porque staging y los previews salen de la misma IP de vm-dev. Lo que sí distingue ambientes es el usuario de BasicAuth, que viaja en `Authorization`.
+
+- **`ollama-tasa-ambiente`** cuenta por esa cabecera. Va **antes** de `ollama-auth`, porque `ollama-auth` la borra (`removeheader`).
+- **`ollama-tasa`**, por IP, se queda para frenar la fuerza bruta: con contraseñas distintas, cada intento tendría su propio cupo en la otra tasa.
+
+**Aplicar en pc-prod.** Con `oc` y `OLLAMA_ENV_FILE` de la sección 3, en una ventana aprobada: Ollama se recrea y los pedidos en curso se cortan.
+
+```bash
+cd /opt/ars-docendi/repo && git pull --ff-only   # checkout con este cambio
+cp -p "$OLLAMA_ENV_FILE" "$OLLAMA_ENV_FILE.$(date +%Y%m%d%H%M%S)"
+# Editar servicio.env: OLLAMA_CONTEXT_LENGTH=16384, OLLAMA_KEEP_ALIVE=24h,
+# y agregar OLLAMA_FLASH_ATTENTION=1.
+oc config --quiet
+oc up -d --wait --wait-timeout 120
+oc exec -T ollama ollama --version                # ≥ 0.31.2
+oc exec -T ollama ollama ps                       # tras un pedido: CONTEXT 16384, UNTIL ~24 h
+docker logs --tail 30 traefik                     # sin errores de middlewares
 ```
+
+Rollback: reponer la copia de `servicio.env` y el checkout anterior, y repetir `oc up -d`.
 
 VRAM estimada de qwen3.5:9b (Q4_K_M, KV `f16`, ~32 KiB por token porque sólo 8 capas son de atención completa): unos 8–8,5 GB con 16k de contexto, unos 9 GB con 32k y unos 10–10,5 GB con 64k. 16k deja margen en los 12 GB. Subir el contexto no hace falta para el asistente; sólo encarece la recarga.
 

@@ -28,7 +28,7 @@ Cuatro datos del servicio ordenan las decisiones:
 **Non-Goals**
 
 - **Decidir que `qwen3.5:9b` es suficiente.** Lo decide el evaluador (`backend/eval`) corrido contra el servicio (tarea 5.2), igual que en `asistente-proveedor-local`.
-- **Cambiar la configuración del servidor.** La opera infraestructura en pc-prod, en una ventana aprobada. Este change documenta lo que el asistente necesita (D6), pero no edita `infra/ollama/`.
+- **Aplicar la configuración en el servidor.** Este change ajusta `infra/ollama/` (D6), pero lo aplica infraestructura en pc-prod, en una ventana aprobada.
 - **Regrabar cassettes contra Ollama.** `ClaveDeCassette` hoy espera el cuerpo de Anthropic, con `system` en la raíz. Grabar contra Ollama necesita su propio change (TD-030).
 
 ## Decisions
@@ -104,9 +104,9 @@ Cómo se clasifican las respuestas del servidor:
 - **`spin-up.sh`.** Con `ollama` pide `INFERENCIA_URL/USUARIO/CONTRASENA` en vez de `ASISTENTE_CLAVE`. Sin ellas degrada a `simulado`, como un proveedor real sin clave.
 - **Workflow de deploy.** La label `asistente-ollama` en un PR elige `ollama` sin tocar el secret del Environment. Staging sigue con su proveedor y cada preview se prende a demanda.
 
-### D6 — Lo que el asistente necesita del servidor (sin aplicarlo acá)
+### D6 — Lo que el asistente necesita del servidor
 
-Lo que se recomienda al operador está en [`ollama-compartido.md`](../../../docs/operations/ollama-compartido.md#11-configuración-para-el-asistente). En resumen:
+`infra/ollama/compose.yml` y `.env.example` pasan a estos defaults. El procedimiento para aplicarlos en pc-prod está en [`ollama-compartido.md`](../../../docs/operations/ollama-compartido.md#11-configuración-para-el-asistente). En resumen:
 
 - **Imagen de Ollama ≥ 0.31.2.** Antes de esa versión, `format` junto con `think: false` ignora el esquema en qwen3.5 (ollama/ollama#14645).
 - **`OLLAMA_CONTEXT_LENGTH=16384`**, igual a `ContextoDelModelo`.
@@ -146,7 +146,7 @@ Los valores quedan en la caché KV del único slot de Ollama, que es memoria de 
 ## Migration Plan
 
 1. Mergear este change. No cambia nada en ningún ambiente: ninguno tiene `ASISTENTE_PROVEEDOR=ollama`.
-2. Infraestructura aplica la configuración recomendada (D6) en pc-prod, en una ventana aprobada.
+2. Infraestructura aplica la configuración de D6 en pc-prod (`servicio.env` más `oc up -d`), en una ventana aprobada.
 3. Abrir un PR con `deploy-preview` + `asistente-ollama`, comprobar «Inferencia (IA)» disponible y hacer un turno real (tarea 5.1).
 4. Correr el evaluador contra el servicio (tarea 5.2).
 5. Sólo con esa medición, decidir si staging pasa a `ollama` cambiando el secret `ASISTENTE__PROVEEDOR`.
