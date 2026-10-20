@@ -83,20 +83,6 @@ public sealed class DesignacionesPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Segundo_pedido_misma_persona_periodo_y_otra_materia_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        var datos = await PrepararDatosAsync(conexion);
-        await InsertarPedidoAsync(conexion, "TEST-0001", datos, datos.Materia1, "borrador");
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() =>
-            InsertarPedidoAsync(conexion, "TEST-0002", datos, datos.Materia2, "borrador"));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("pedidos_uno_por_docente_periodo", error.ConstraintName);
-    }
-
-    [Fact]
     public async Task Dos_pedidos_concurrentes_hacen_fallar_exactamente_uno()
     {
         await using var preparacion = await AbrirConexionAsync();

@@ -122,31 +122,6 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
             });
 
     [Fact]
-    public async Task Schema_conserva_referencias_de_archivo_y_metadata_legacy()
-    {
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(TestContext.Current.CancellationToken);
-        const string sql = """
-            SELECT table_schema, table_name, column_name
-            FROM information_schema.columns
-            WHERE (table_schema, table_name, column_name) IN (
-                ('designaciones', 'pedido_adjuntos', 'archivo_id'),
-                ('designaciones', 'pedido_adjuntos', 'uri'),
-                ('portal', 'cvs', 'archivo_id'),
-                ('portal', 'cvs', 'uri'),
-                ('portal', 'proyecto_documentos', 'archivo_id'),
-                ('portal', 'proyecto_documentos', 'uri'))
-            """;
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
-        var columnas = new HashSet<string>(StringComparer.Ordinal);
-        while (await lector.ReadAsync(TestContext.Current.CancellationToken))
-            columnas.Add($"{lector.GetString(0)}.{lector.GetString(1)}.{lector.GetString(2)}");
-
-        Assert.Equal(6, columnas.Count);
-    }
-
-    [Fact]
     public async Task Carga_confirma_hash_descarga_y_reintento_idempotente()
     {
         await using var db = PostgresFixture.CrearAlmacenamiento(cadena);

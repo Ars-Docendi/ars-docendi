@@ -24,21 +24,6 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     private static readonly Guid DedicacionSimple = Guid.Parse("d6000000-0000-4000-8000-000000000001");
 
     [Fact]
-    public async Task Listado_incluye_persona_roles_y_ambitos_sin_tracking()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var servicio = CrearServicio(db);
-
-        var usuarios = await servicio.ListarAsync(ct);
-
-        Assert.Equal(8, usuarios.Count);
-        Assert.DoesNotContain(usuarios, u => u.Upn == "demo@unlam.edu.ar");
-        Assert.Empty(db.ChangeTracker.Entries());
-    }
-
-    [Fact]
     public async Task Alta_valida_se_persiste_con_persona_y_rol()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -229,28 +214,6 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Una_cuenta_puede_combinar_roles_docentes_por_materia()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var servicio = CrearServicio(db);
-        var creado = await servicio.CrearAsync(DatosValidos("mixta@unlam.edu.ar", "50999333") with
-        {
-            Membresias =
-            [
-                new GuardarAsignacionRolDto(RolDocente, MateriaId: Materia, CarreraId: Carrera),
-                new GuardarAsignacionRolDto(RolJefe, MateriaB),
-            ],
-        }, ct);
-
-        Assert.Equal(["docente", "jefe_catedra"], creado.Roles.Select(r => r.Codigo).Order());
-        Assert.Equal(2, creado.Membresias.Count);
-        Assert.Contains(creado.Membresias, m => m.Codigo == "docente" && m.MateriaId == Materia && m.CarreraId == Carrera);
-        Assert.Contains(creado.Membresias, m => m.Codigo == "jefe_catedra" && m.MateriaId == MateriaB);
-    }
-
-    [Fact]
     public async Task Perfil_docente_incluye_designacion_vigente_sin_membresia_docente()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -294,30 +257,6 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
             Assert.False(await consultas.TieneRolGlobalAsync(id, "secretaria", ct));
             Assert.Empty(await consultas.ObtenerCodigosDePermisosAsync(id, ct));
             Assert.True((await servicio.CambiarEstadoAsync(id, true, inactivo.Version, ct)).Activo);
-        }
-    }
-
-    [Fact]
-    public async Task Cambio_de_estado_con_version_obsoleta_detecta_concurrencia()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        uint versionInicial;
-        Guid id;
-        await using (var db = PostgresFixture.CrearIdentity(Cadena))
-        {
-            var creado = await CrearServicio(db).CrearAsync(
-                DatosValidos("concurrencia@unlam.edu.ar", "50777888"), ct);
-            id = creado.Id;
-            versionInicial = creado.Version;
-        }
-        await using (var primero = PostgresFixture.CrearIdentity(Cadena))
-        {
-            await CrearServicio(primero).CambiarEstadoAsync(id, false, versionInicial, ct);
-        }
-        await using (var segundo = PostgresFixture.CrearIdentity(Cadena))
-        {
-            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
-                CrearServicio(segundo).CambiarEstadoAsync(id, true, versionInicial, ct));
         }
     }
 

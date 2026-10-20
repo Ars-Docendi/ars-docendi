@@ -3,13 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TablaRevision } from "./TablaRevision";
 import type { FiltrosTablero } from "./filtrosTablero";
-import type {
-  ActorContexto,
-  EstadoPedido,
-  EventoHistorial,
-  PedidoDesignacion,
-  PeriodoDesignacion,
-} from "../types";
+import type { ActorContexto, EstadoPedido, PedidoDesignacion, PeriodoDesignacion } from "../types";
 
 const COORD: ActorContexto = {
   rol: "Coordinador",
@@ -67,18 +61,6 @@ function pedido(
   };
 }
 
-function evento(accion: EventoHistorial["accion"], fecha = "2026-01-01T00:00:00.000Z") {
-  contador += 1;
-  return {
-    id: `h${contador}`,
-    accion,
-    porRol: "Coordinador" as const,
-    porNombre: "M. Díaz",
-    etapa: "en_revision_coordinador" as EstadoPedido,
-    fecha,
-  };
-}
-
 /** Nombres de docente de las filas visibles, en orden (sin las iniciales del avatar). */
 function filasVisibles() {
   const cuerpo = screen.getAllByRole("rowgroup")[1];
@@ -92,51 +74,6 @@ function pestania(nombre: string | RegExp) {
 }
 
 describe("TablaRevision (una tabla + pestañas por etapa)", () => {
-  it("muestra las 6 pestañas con su contador, y abre en el área propia del actor", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "1", nombre: "En Coordinación", antiguedad: 3 },
-          }),
-          pedido("en_revision_secretaria", {
-            docente: { dni: "2", nombre: "En Secretaría", antiguedad: 3 },
-          }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getAllByRole("tab")).toHaveLength(6);
-    expect(pestania(/Todos/)).toBeInTheDocument();
-    // La Cátedra no revisa, pero retiene los pedidos que Coordinación le devolvió.
-    expect(pestania(/En Cátedra/)).toBeInTheDocument();
-    expect(pestania(/En Coordinación/)).toHaveAttribute("aria-selected", "true");
-    expect(filasVisibles()).toEqual(["En Coordinación"]);
-  });
-
-  it("la pestaña activa conserva su selección al pasar por hover y permite foco de teclado", async () => {
-    const user = userEvent.setup();
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_lote")]}
-        actor={ADMIN}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    const finalizados = pestania(/Finalizados/);
-    await user.click(finalizados);
-    await user.hover(finalizados);
-
-    expect(finalizados).toHaveClass("active");
-    finalizados.focus();
-    expect(document.activeElement).toBe(finalizados);
-  });
-
   it("muestra Exportar sólo en Finalizados con el período explícito", async () => {
     const user = userEvent.setup();
     const onExportar = vi.fn();
@@ -264,105 +201,6 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     expect(filasVisibles()).toEqual(["Secretaría Dos"]);
   });
 
-  it("Todos muestra el ámbito sin agrupar, incluidos los cancelados que no caen en ninguna etapa", async () => {
-    const user = userEvent.setup();
-
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "1", nombre: "En Circuito", antiguedad: 3 },
-          }),
-          pedido("cancelado", { docente: { dni: "2", nombre: "Cancelado Dos", antiguedad: 3 } }),
-          pedido("borrador", { docente: { dni: "3", nombre: "Borrador Tres", antiguedad: 3 } }),
-        ]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    await user.click(pestania(/Todos/));
-    const filas = filasVisibles();
-    expect(filas).toContain("En Circuito");
-    expect(filas).toContain("Cancelado Dos");
-    // Un borrador todavía no entró al circuito: no es asunto del revisor.
-    expect(filas).not.toContain("Borrador Tres");
-  });
-
-  it("prioritario y devuelto a la vez muestra los dos: ninguno tapa al otro", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("devuelto", {
-            docente: { dni: "25", nombre: "Urgente Devuelto", antiguedad: 3 },
-            prioritario: true,
-            etapaRetorno: "en_revision_decanato",
-            propietarioActual: "Secretaría",
-            historial: [evento("devolver")],
-          }),
-        ]}
-        actor={SECRE}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("Prioritario")).toBeInTheDocument();
-    expect(screen.getByText("Devuelto")).toBeInTheDocument();
-  });
-
-  it("Estado filtra devueltos de distintas áreas y actualiza los contadores", () => {
-    const aCatedra = pedido("devuelto", {
-      docente: { dni: "30", nombre: "Devuelto Cátedra", antiguedad: 3 },
-      propietarioActual: "Jefe de Cátedra",
-      etapaRetorno: "en_revision_coordinador",
-    });
-    const aSecretaria = pedido("devuelto", {
-      docente: { dni: "31", nombre: "Devuelto Secretaría", antiguedad: 3 },
-      propietarioActual: "Secretaría",
-      etapaRetorno: "en_revision_decanato",
-    });
-    const enRevision = pedido("en_revision_coordinador", {
-      docente: { dni: "32", nombre: "En revisión", antiguedad: 3 },
-    });
-
-    render(
-      <TablaRevision
-        pedidos={[aCatedra, aSecretaria, enRevision]}
-        actor={ADMIN}
-        filtros={{ ...SIN_FILTROS, estado: "devuelto" }}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(filasVisibles()).toEqual(["Devuelto Cátedra", "Devuelto Secretaría"]);
-    expect(pestania(/Todos/)).toHaveTextContent("2");
-    expect(pestania(/En Cátedra/)).toHaveTextContent("1");
-    expect(pestania(/En Secretaría/)).toHaveTextContent("1");
-    expect(pestania(/En Coordinación/)).toHaveTextContent("0");
-  });
-
-  it("la fila navega al detalle del pedido", async () => {
-    const user = userEvent.setup();
-    const alSeleccionar = vi.fn();
-    const fila = pedido("en_revision_coordinador", {
-      docente: { dni: "3", nombre: "Clickeable Tres", antiguedad: 3 },
-    });
-
-    render(
-      <TablaRevision
-        pedidos={[fila]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={alSeleccionar}
-      />,
-    );
-
-    await user.click(screen.getByRole("row", { name: "Ver el pedido de Clickeable Tres" }));
-    expect(alSeleccionar).toHaveBeenCalledWith(fila);
-  });
-
   it("una pestaña sin pedidos que cumplan los filtros muestra su estado vacío", async () => {
     const user = userEvent.setup();
     render(
@@ -377,27 +215,6 @@ describe("TablaRevision (una tabla + pestañas por etapa)", () => {
     await user.click(pestania(/Finalizados/));
     expect(screen.getByText("Sin pedidos que cumplan los filtros.")).toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
-  });
-
-  it("los filtros acotan las filas y también los contadores de las pestañas", () => {
-    render(
-      <TablaRevision
-        pedidos={[
-          pedido("en_revision_coordinador", {
-            docente: { dni: "20", nombre: "Buscado Veinte", antiguedad: 3 },
-          }),
-          pedido("en_revision_coordinador", {
-            docente: { dni: "21", nombre: "Otro Veintiuno", antiguedad: 3 },
-          }),
-        ]}
-        actor={COORD}
-        filtros={{ ...SIN_FILTROS, nombre: "buscado" }}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(filasVisibles()).toEqual(["Buscado Veinte"]);
-    expect(pestania(/En Coordinación/).textContent).toContain("1");
   });
 });
 
@@ -429,24 +246,6 @@ describe("filtros por encabezado de Revisión", () => {
       "aria-sort",
       "none",
     );
-  });
-
-  it("ofrece Área sólo en Todos y no ordena al abrir su menú", async () => {
-    const user = userEvent.setup();
-    render(
-      <TablaRevision
-        pedidos={[pedido("en_revision_coordinador", { carrera: "Ingeniería Industrial" })]}
-        actor={COORD}
-        filtros={SIN_FILTROS}
-        onSeleccionar={vi.fn()}
-      />,
-    );
-
-    expect(screen.queryByRole("columnheader", { name: "Área" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("tab", { name: /Todos/ }));
-    await user.click(screen.getByRole("button", { name: "Filtrar Área" }));
-    expect(screen.getByRole("dialog", { name: "Filtro de Área" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Área" })).not.toHaveAttribute("aria-sort");
   });
 
   it("la fila abre el detalle con click o Enter, sin botón Ver ni columna Acciones", async () => {

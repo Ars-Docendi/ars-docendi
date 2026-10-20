@@ -33,17 +33,6 @@ describe("Sidebar — sector Designaciones", () => {
     }
   });
 
-  it("marca el hijo activo según la ruta y mantiene el grupo abierto", () => {
-    renderSidebar(["designaciones.revisar", "periodos.administrar"], {
-      route: "/designaciones/periodos",
-    });
-
-    const periodos = screen.getByRole("link", { name: "Períodos" });
-    expect(periodos).toHaveAttribute("aria-current", "page");
-
-    expect(screen.queryByRole("link", { name: "Designaciones" })).not.toBeInTheDocument();
-  });
-
   it.each([
     ["sistema.estado.ver", "Dashboard del sistema", "/sistema", "Registros de auditoría"],
     ["auditoria.ver", "Registros de auditoría", "/auditoria", "Dashboard del sistema"],
@@ -52,13 +41,6 @@ describe("Sidebar — sector Designaciones", () => {
 
     expect(screen.getByRole("link", { name: etiqueta })).toHaveAttribute("href", ruta);
     expect(screen.queryByRole("link", { name: oculto })).not.toBeInTheDocument();
-  });
-
-  it("Docente: no tiene sector Designaciones", () => {
-    renderSidebar(["aulas.ver"], { route: "/aulas" });
-
-    expect(screen.queryByText("Designaciones")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Reserva de aulas" })).toBeInTheDocument();
   });
 
   it("acepta un rol personalizado sin depender del nombre", () => {

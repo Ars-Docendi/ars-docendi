@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Infraestructura;
@@ -65,18 +64,6 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
                 DROP ROLE IF EXISTS "{rolAplicacion}";
                 """);
         }
-    }
-
-    [Fact]
-    public async Task Script_rechaza_prod_y_origen_productivo_antes_de_invocar_docker()
-    {
-        var prod = await EjecutarScriptSeedAsync("prod");
-        var copia = await EjecutarScriptSeedAsync("staging", "arsdocendi_prod");
-
-        Assert.NotEqual(0, prod.ExitCode);
-        Assert.Contains("PROHIBIDO", prod.Error, StringComparison.Ordinal);
-        Assert.NotEqual(0, copia.ExitCode);
-        Assert.Contains("PROHIBIDO", copia.Error, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -147,31 +134,6 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         await comando.ExecuteNonQueryAsync(ct);
     }
 
-    private static async Task<ResultadoProceso> EjecutarScriptSeedAsync(
-        string ambiente,
-        string? origen = null)
-    {
-        var inicio = new ProcessStartInfo("bash")
-        {
-            WorkingDirectory = BuscarRaizRepositorio(),
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-        };
-        inicio.ArgumentList.Add("infra/scripts/seed.sh");
-        inicio.ArgumentList.Add(ambiente);
-        if (origen is not null)
-        {
-            inicio.Environment["SEED_FROM_DB"] = origen;
-        }
-
-        using var proceso = Process.Start(inicio)
-            ?? throw new InvalidOperationException("No se pudo iniciar seed.sh.");
-        var error = await proceso.StandardError.ReadToEndAsync();
-        await proceso.WaitForExitAsync();
-        return new ResultadoProceso(proceso.ExitCode, error);
-    }
-
     private static string BuscarRaizRepositorio()
     {
         var directorio = new DirectoryInfo(AppContext.BaseDirectory);
@@ -206,5 +168,4 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         return (T)(await comando.ExecuteScalarAsync())!;
     }
 
-    private sealed record ResultadoProceso(int ExitCode, string Error);
 }

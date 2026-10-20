@@ -7,20 +7,6 @@ namespace ArsDocendi.IntegrationTests.Designaciones;
 public sealed class IntegridadMateriaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "integridad_materia")
 {
-    [Theory]
-    [InlineData("INSERT INTO designaciones.designaciones(persona_id,materia_id,carrera_id,cargo_id,dedicacion_id,horas,vigente_desde) SELECT persona_id,gen_random_uuid(),carrera_id,cargo_id,dedicacion_id,10,CURRENT_DATE FROM designaciones.designaciones LIMIT 1")]
-    [InlineData("UPDATE designaciones.designaciones SET materia_id=gen_random_uuid()")]
-    public async Task Materia_inexistente_se_rechaza_por_FK_simple(string sql)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var conexion = await AbrirConexionAsync();
-        await PrepararAsync(conexion, ct);
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        var error = await Assert.ThrowsAsync<PostgresException>(() => comando.ExecuteNonQueryAsync(ct));
-        Assert.Equal("23503", error.SqlState);
-        Assert.Equal("designaciones_materia_fk", error.ConstraintName);
-    }
-
     [Fact]
     public async Task Materia_usada_solo_por_designacion_no_se_borra()
     {

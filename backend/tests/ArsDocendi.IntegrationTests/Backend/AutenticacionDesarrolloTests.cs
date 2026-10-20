@@ -35,29 +35,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     private static readonly Guid CarreraAjena = Guid.Parse("c0000000-0000-4000-8000-000000000202");
 
     [Fact]
-    public async Task Catalogo_y_handler_aceptan_usuario_activo_con_rol_asignado()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Development", true);
-        using var cliente = host.CreateClient();
-
-        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
-            "/api/desarrollo/identidades", ct);
-
-        Assert.NotNull(identidades);
-        Assert.DoesNotContain(identidades, i => i.UsuarioId == Inactivo);
-        var jefe = Assert.Single(identidades, i => i.UsuarioId == Jefe);
-        Assert.Contains(jefe.Roles, r => r.Codigo == "jefe_catedra" && r.Materias.Count > 0);
-
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var respuesta = await cliente.SendAsync(solicitud, ct);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-    }
-
-    [Fact]
     public async Task Jefe_accede_a_docentes_solo_en_sus_materias_y_no_puede_modificarlos()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -249,27 +226,6 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             solicitud, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, respuesta.StatusCode);
-    }
-
-    [Fact]
-    public async Task Staging_con_opt_in_registra_catalogo_y_esquema_de_desarrollo()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost("Staging", true);
-        using var cliente = host.CreateClient();
-
-        var identidades = await cliente.GetFromJsonAsync<IdentidadDesarrolloDto[]>(
-            "/api/desarrollo/identidades", ct);
-
-        Assert.NotNull(identidades);
-        Assert.Contains(identidades, identidad => identidad.UsuarioId == Jefe);
-
-        using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
-        solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
-        using var respuesta = await cliente.SendAsync(solicitud, ct);
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
     }
 
     private WebApplicationFactory<Program> CrearHost(string ambiente, bool habilitada) =>

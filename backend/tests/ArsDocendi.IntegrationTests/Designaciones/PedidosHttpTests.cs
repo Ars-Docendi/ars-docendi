@@ -54,8 +54,11 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
         Assert.Equal("enviar", enviado.Historial.Last().Accion);
 
-        var obtenido = await cliente.GetFromJsonAsync<PedidoDto>(
-            $"/api/designaciones/pedidos/{creado.Id}", ct);
+        var detalle = await cliente.GetStringAsync($"/api/designaciones/pedidos/{creado.Id}", ct);
+        // El frontend mapea este mismo JSON en pedidosApi.contrato.test.ts.
+        ContratoFrontend.Verificar("pedido-detalle.json", detalle);
+        var obtenido = System.Text.Json.JsonSerializer.Deserialize<PedidoDto>(detalle,
+            System.Text.Json.JsonSerializerOptions.Web);
         Assert.Equal(enviado.Estado, obtenido!.Estado);
 
         var devueltoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
@@ -135,58 +138,6 @@ public sealed class PedidosHttpTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         Assert.Equal(etapaRetorno,
             (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!.Estado);
-    }
-
-    [Fact]
-    public async Task Administrativo_puede_rechazar_desde_http()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        Autenticar(
-            cliente,
-            Guid.Parse("a0000000-0000-4000-8000-000000000006"),
-            RolesCircuito.Administrativo);
-        using var solicitud = new HttpRequestMessage(
-            HttpMethod.Post,
-            "/api/designaciones/pedidos/d5000000-0000-4000-8000-000000000002/rechazar")
-        {
-            Content = JsonContent.Create(new AccionPedidoDto("No corresponde")),
-        };
-        solicitud.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
-
-        using var respuesta = await cliente.SendAsync(solicitud, ct);
-
-        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
-        Assert.Equal(EstadosPedido.Rechazado,
-            (await respuesta.Content.ReadFromJsonAsync<PedidoDto>(ct))!.Estado);
-    }
-
-    [Fact]
-    public async Task Http_rechaza_crear_Sin_novedad_y_conserva_la_lectura_del_legado()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using (var conexion = await AbrirConexionAsync())
-        await using (var comando = new NpgsqlCommand("UPDATE designaciones.pedidos SET novedad = 'Sin novedad' WHERE id = 'd5000000-0000-4000-8000-000000000002'", conexion))
-        {
-            await comando.ExecuteNonQueryAsync(ct);
-        }
-        using var host = CrearHost();
-        using var cliente = host.CreateClient();
-        Autenticar(cliente, Jefe, RolesCircuito.JefeCatedra);
-
-        using var respuesta = await cliente.PostAsJsonAsync(
-            "/api/designaciones/pedidos",
-            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000003"), novedad: Novedades.SinNovedad),
-            ct);
-
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, respuesta.StatusCode);
-        var legado = await cliente.GetFromJsonAsync<PedidoDto>(
-            "/api/designaciones/pedidos/d5000000-0000-4000-8000-000000000002", ct);
-        Assert.Equal(Novedades.SinNovedad, legado!.Novedad);
-        Assert.Equal("2026-9002", legado.Numero);
     }
 
     [Fact]

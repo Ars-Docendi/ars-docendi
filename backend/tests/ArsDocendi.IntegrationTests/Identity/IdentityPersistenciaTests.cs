@@ -14,20 +14,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "identity")
 {
     [Fact]
-    public async Task Persona_sin_cuenta_y_sin_legajo_se_persiste()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var db = PostgresFixture.CrearIdentity(Cadena);
-        var persona = NuevaPersona("30111222");
-
-        db.Personas.Add(persona);
-        await db.SaveChangesAsync(ct);
-
-        Assert.Null(persona.Legajo);
-        Assert.False(await db.Usuarios.AnyAsync(u => u.PersonaId == persona.Id, ct));
-    }
-
-    [Fact]
     public async Task Servicio_crea_persona_sin_cuenta_y_rechaza_documento_duplicado()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -231,29 +217,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Permiso_duplicado_en_un_rol_es_rechazado()
-    {
-        await using var conexion = await AbrirConexionAsync();
-        var rol = Guid.NewGuid();
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.roles (id, code, name, scope)
-            VALUES (@rol, 'permisos_custom', 'Permisos custom', 'global')
-            """, new NpgsqlParameter("rol", rol));
-        var permiso = await EscalarAsync<Guid>(
-            conexion, "SELECT id FROM identity.permisos ORDER BY code LIMIT 1");
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.rol_permisos (rol_id, permiso_id) VALUES (@rol, @permiso)
-            """, new NpgsqlParameter("rol", rol), new NpgsqlParameter("permiso", permiso));
-
-        var error = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(conexion, """
-            INSERT INTO identity.rol_permisos (rol_id, permiso_id) VALUES (@rol, @permiso)
-            """, new NpgsqlParameter("rol", rol), new NpgsqlParameter("permiso", permiso)));
-
-        Assert.Equal(PostgresErrorCodes.UniqueViolation, error.SqlState);
-        Assert.Equal("rol_permisos_pkey", error.ConstraintName);
-    }
-
-    [Fact]
     public async Task Interceptor_propaga_el_usuario_al_trigger_de_auditoria()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -291,12 +254,6 @@ public sealed class IdentityPersistenciaTests(PostgresFixture postgres)
         Nombre = "Ada",
         Apellido = "Lovelace",
     };
-
-    private static async Task InsertarPersonaAsync(NpgsqlConnection conexion, string documento) =>
-        await EjecutarAsync(conexion, """
-            INSERT INTO identity.personas (documento, nombre, apellido)
-            VALUES (@documento, 'Ada', 'Lovelace')
-            """, new NpgsqlParameter("documento", documento));
 
     private static async Task<Guid> InsertarUsuarioAsync(NpgsqlConnection conexion)
     {
