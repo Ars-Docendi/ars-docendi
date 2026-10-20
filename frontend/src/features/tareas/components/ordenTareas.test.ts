@@ -4,6 +4,7 @@ import type { Tarea } from "../types";
 
 function tarea(overrides: Partial<Tarea> = {}): Tarea {
   return {
+    version: 1,
     id: overrides.id ?? "t1",
     numero: 1,
     titulo: "Tarea",

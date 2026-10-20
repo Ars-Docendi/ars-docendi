@@ -51,11 +51,67 @@
           "clasificacion": "publica"
         },
         {
+          "columna": "is_active",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "planes",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
           "columna": "carrera_id",
           "clasificacion": "publica"
         },
         {
-          "columna": "is_active",
+          "columna": "codigo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "nombre",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "vigente",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "created_at",
+          "clasificacion": "publica"
+        }
+      ]
+    },
+    {
+      "schema": "identity",
+      "tabla": "materias_plan",
+      "columnas": [
+        {
+          "columna": "id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "plan_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "activo",
           "clasificacion": "publica"
         },
         {
@@ -397,6 +453,10 @@
           "clasificacion": "publica"
         },
         {
+          "columna": "carrera_id",
+          "clasificacion": "publica"
+        },
+        {
           "columna": "novedad",
           "clasificacion": "publica"
         },
@@ -539,6 +599,10 @@
         },
         {
           "columna": "materia_id",
+          "clasificacion": "publica"
+        },
+        {
+          "columna": "carrera_id",
           "clasificacion": "publica"
         },
         {

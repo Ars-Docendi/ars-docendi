@@ -82,6 +82,11 @@ beforeEach(() => {
     duracionMs: 5,
     mantenimientoAsistente: "inactivo",
   });
+  vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
+    estado: "disponible",
+    comprobadoEn: new Date().toISOString(),
+    duracionMs: 25,
+  });
   vi.spyOn(auditoriaApi, "listarAuditoria").mockResolvedValue({
     elementos: [],
     pagina: 1,
@@ -177,6 +182,29 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
         .getAllByRole("tab")
         .find((t) => t.getAttribute("aria-selected") === "true");
       expect(activa).toHaveTextContent("Asistente");
+    });
+  });
+});
+
+describe("SistemaPage — punto de la pestaña Estado con la inferencia", () => {
+  it.each([
+    ["deshabilitado", "sin problemas"],
+    ["no_disponible", "componentes no disponibles"],
+  ] as const)("inferencia %s: la pestaña Estado se anuncia «%s»", async (estado, etiqueta) => {
+    conPermisos(["sistema.estado.ver", "auditoria.ver"]);
+    vi.spyOn(sistemaApi, "consultarEstadoInferencia").mockResolvedValue({
+      estado,
+      comprobadoEn: new Date().toISOString(),
+      duracionMs: 0,
+    });
+
+    montar("/sistema#auditoria");
+
+    await waitFor(() => {
+      const pestanaEstado = screen
+        .getAllByRole("tab")
+        .find((t) => t.textContent?.includes("Estado"));
+      expect(pestanaEstado).toHaveTextContent(`, ${etiqueta}`);
     });
   });
 });

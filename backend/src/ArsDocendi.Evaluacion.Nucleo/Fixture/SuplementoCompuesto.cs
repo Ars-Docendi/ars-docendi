@@ -22,8 +22,9 @@ namespace ArsDocendi.Evaluacion.Nucleo.Fixture;
 /// antigüedad, para que las dos definiciones den respuestas distintas.</item>
 /// </list>
 ///
-/// Los índices de persona y materia son los del generador; ver los comentarios de
-/// cada fila. Los identificadores nuevos arrancan en 1000 para no chocar con los
+/// Los índices de persona son los del generador, y los de materia son sus
+/// <see cref="GeneradorDeFixture.Puestos"/>: cada uno es un par materia canónica +
+/// carrera, así que el índice fija las dos. Ver los comentarios de cada fila. Los identificadores nuevos arrancan en 1000 para no chocar con los
 /// del fixture base.
 /// </remarks>
 internal static class SuplementoCompuesto
@@ -81,11 +82,13 @@ internal static class SuplementoCompuesto
 
         sql.Append(
             "\nINSERT INTO designaciones.designaciones "
-            + "(id, persona_id, materia_id, cargo_id, dedicacion_id, horas, vigente_desde, vigente_hasta) VALUES\n");
+            + "(id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas, vigente_desde, vigente_hasta) VALUES\n");
 
         var filas = Designaciones.Select((fila, indice) =>
             $"    ('{GeneradorDeFixture.IdDeDesignacion(Base + indice)}', '{GeneradorDeFixture.IdDePersona(fila.Persona)}', "
-            + $"'{GeneradorDeFixture.IdDeMateria(fila.Materia)}', '{GeneradorDeFixture.IdDeCargo(fila.Cargo)}', "
+            + $"'{GeneradorDeFixture.IdDeMateria(GeneradorDeFixture.Puestos[fila.Materia].Materia)}', "
+            + $"'{GeneradorDeFixture.IdDeCarrera(GeneradorDeFixture.Puestos[fila.Materia].Carrera)}', "
+            + $"'{GeneradorDeFixture.IdDeCargo(fila.Cargo)}', "
             + $"'d6000000-0000-4000-8000-{fila.Dedicacion.ToString("D12", CultureInfo.InvariantCulture)}', 6, "
             + $"DATE '{fila.Desde}', "
             + (fila.Hasta is null ? "NULL)" : $"DATE '{fila.Hasta}')"));

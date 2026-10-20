@@ -106,7 +106,7 @@
       "pregunta": "¿Qué asignaturas se dictan en Ingeniería Industrial?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT m.name AS materia FROM identity.materias m JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE ca.name = 'Ingeniería Industrial' AND m.is_active ORDER BY m.name"
+      "sql_referencia": "SELECT m.name AS materia FROM identity.materias m JOIN identity.materias_plan mp ON mp.materia_id = m.id AND mp.activo JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo JOIN identity.carreras ca ON ca.id = pl.carrera_id WHERE ca.name = 'Ingeniería Industrial' AND m.is_active ORDER BY m.name"
     },
     {
       "id": "cap-016",
@@ -120,21 +120,24 @@
       "pregunta": "¿Cuál es el sueldo de cada profesor?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema", "no_cubierto"]
     },
     {
       "id": "cap-018",
       "pregunta": "¿Qué calificaciones sacaron los alumnos el año pasado?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema"]
     },
     {
       "id": "cap-019",
       "pregunta": "¿En qué aula se dicta Sistemas Operativos?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-020",
@@ -211,21 +214,24 @@
       "pregunta": "¿Qué mail personal cargó cada docente en la sección Contacto de su portal?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-031",
       "pregunta": "¿En qué ruta del servidor está guardado el archivo de CV de cada docente?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-032",
       "pregunta": "¿Qué proyectos de investigación cargó cada docente?",
       "categoria": "no_contestable",
       "actor": "global",
-      "sql_referencia": null
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     },
     {
       "id": "cap-033",
@@ -233,7 +239,6 @@
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT p.apellido, p.nombre, c.nombre AS cargo FROM designaciones.designaciones d JOIN identity.personas p ON p.id = d.persona_id JOIN designaciones.cargos c ON c.id = d.cargo_id WHERE d.materia_id = $ref1 AND d.vigente_hasta IS NULL ORDER BY p.apellido, p.nombre",
-      "orden_importa": true,
       "referencias": [
         {
           "marcador": "$ref1",
@@ -250,7 +255,6 @@
       "categoria": "cruce_de_tablas",
       "actor": "global",
       "sql_referencia": "SELECT m.name FROM designaciones.designaciones d JOIN identity.materias m ON m.id = d.materia_id WHERE d.persona_id = $ref1 AND d.vigente_hasta IS NULL ORDER BY m.name",
-      "orden_importa": true,
       "referencias": [
         {
           "marcador": "$ref1",
@@ -259,6 +263,46 @@
           "nombre": "Suárez"
         }
       ]
+    },
+    {
+      "id": "cap-035",
+      "pregunta": "python",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["muy_general"]
+    },
+    {
+      "id": "cap-036",
+      "pregunta": "¿Cuál es la capital de Australia?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["fuera_de_tema"]
+    },
+    {
+      "id": "cap-037",
+      "pregunta": "¿Cómo me inscribo a una materia en Guaraní?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["otro_sistema"]
+    },
+    {
+      "id": "cap-038",
+      "pregunta": "Necesito información.",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["muy_general"]
+    },
+    {
+      "id": "cap-039",
+      "pregunta": "¿Cuántas clases dio cada docente el cuatrimestre pasado?",
+      "categoria": "no_contestable",
+      "actor": "global",
+      "sql_referencia": null,
+      "motivos_aceptables": ["no_cubierto"]
     }
   ]
 }

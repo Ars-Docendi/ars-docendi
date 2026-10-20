@@ -32,6 +32,10 @@ public sealed class AlmacenamientoDbContext(DbContextOptions<AlmacenamientoDbCon
             e.Property(x => x.RevisadoEn).HasColumnName("revisado_at");
             e.Property(x => x.MotivoRevision).HasColumnName("motivo_revision");
             e.Property(x => x.EliminadoEn).HasColumnName("eliminado_at");
+            e.Property(x => x.IntentoId).HasColumnName("intento_id");
+            e.Property(x => x.ReservaId).HasColumnName("reserva_id");
+            e.Property(x => x.ReservaHasta).HasColumnName("reserva_hasta");
+            e.Property(x => x.FaseCarga).HasColumnName("fase_carga");
             e.HasIndex(x => new { x.Estado, x.ExpiraEn });
             e.HasIndex(x => new { x.PropietarioId, x.Estado });
             e.HasIndex(x => new { x.Ambiente, x.ClaveObjeto }).IsUnique();

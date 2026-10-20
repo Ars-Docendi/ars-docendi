@@ -173,7 +173,23 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         await using (var portal = CrearPortal(cadena))
         {
-            await portal.Database.MigrateAsync();
+            if (migracionDesignaciones is null)
+            {
+                await portal.Database.MigrateAsync();
+            }
+            else
+            {
+                // Una base histórica de designaciones no puede llevar portal al día:
+                // las migraciones de portal posteriores a ese punto (la RLS del
+                // asistente) invocan funciones que crea designaciones más adelante.
+                var corte = migracionDesignaciones[..14];
+                var hasta = portal.Database.GetMigrations()
+                    .LastOrDefault(id => string.CompareOrdinal(id[..14], corte) <= 0);
+                if (hasta is not null)
+                {
+                    await portal.GetService<IMigrator>().MigrateAsync(hasta);
+                }
+            }
         }
 
         await using (var tareas = CrearTareas(cadena))
@@ -226,32 +242,37 @@ public sealed class PostgresFixture : IAsyncLifetime
         // migración parcial está probando la migración, no los privilegios.
         if (migracionDesignaciones is null)
         {
-            await using var conexion = new NpgsqlConnection(cadena);
-            await conexion.OpenAsync();
-            await PrivilegiosAsistente.AplicarAsync(
-                conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
-
-            await RegistrosAsistente.AplicarAsync(
-                conexion, rolSoloLectura, rolSoloLecturaPii, CancellationToken.None);
-
-            await RetroalimentacionAsistente.AplicarAsync(conexion, CancellationToken.None);
-
-            await HistorialAsistente.AplicarAsync(conexion, CancellationToken.None);
-            await AuditoriaDeSoporteAsistente.AplicarAsync(conexion, CancellationToken.None);
-            await AdministracionAsistente.AplicarAsync(conexion, CancellationToken.None);
+            await new MigradorAsistente(
+                Options.Create(new OpcionesAsistente
+                {
+                    RolSoloLectura = rolSoloLectura,
+                    RolSoloLecturaPii = rolSoloLecturaPii,
+                }),
+                new CadenaDuena(cadena),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<MigradorAsistente>.Instance)
+                .MigrarAsync(CancellationToken.None);
         }
 
         return new BaseDePrueba(cadena, rolSoloLectura, rolSoloLecturaPii, PasswordDeRol);
     }
 
-    public async Task EliminarBaseAsync(BaseDePrueba baseDePrueba)
+    /// <summary>Borra una base que el test creó por su cuenta, sin roles del asistente.</summary>
+    public async Task EliminarBaseAsync(string cadena)
     {
-        var nombre = new NpgsqlConnectionStringBuilder(baseDePrueba.Cadena).Database
+        var nombre = new NpgsqlConnectionStringBuilder(cadena).Database
             ?? throw new InvalidOperationException("La cadena no contiene una base de datos.");
 
         await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
         await conexion.OpenAsync();
         await EjecutarAsync(conexion, $"DROP DATABASE IF EXISTS \"{nombre}\" WITH (FORCE)");
+    }
+
+    public async Task EliminarBaseAsync(BaseDePrueba baseDePrueba)
+    {
+        await EliminarBaseAsync(baseDePrueba.Cadena);
+
+        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+        await conexion.OpenAsync();
 
         // Los roles sobreviven al DROP DATABASE: son de cluster. Sin esta baja, cada
         // clase de test dejaría dos roles colgados en el contenedor compartido.
@@ -297,7 +318,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static DesignacionesDbContext CrearDesignaciones(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<DesignacionesDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
             .Options;
         return new DesignacionesDbContext(opciones);
     }
@@ -305,7 +327,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static TareasDbContext CrearTareas(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<TareasDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", TareasDbContext.Schema))
             .Options;
         return new TareasDbContext(opciones);
     }
@@ -313,7 +336,8 @@ public sealed class PostgresFixture : IAsyncLifetime
     public static PortalDbContext CrearPortal(string cadena)
     {
         var opciones = new DbContextOptionsBuilder<PortalDbContext>()
-            .UseNpgsql(cadena)
+            .UseNpgsql(cadena, npgsql =>
+                npgsql.MigrationsHistoryTable("__EFMigrationsHistory", PortalDbContext.Schema))
             .Options;
         return new PortalDbContext(opciones);
     }

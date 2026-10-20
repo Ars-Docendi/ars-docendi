@@ -7,7 +7,7 @@
       "pregunta": "¿Cuántos titulares hay?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -28,7 +28,7 @@
       "pregunta": "¿Cuántos titulares dictan en al menos dos carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT m.carrera_id) >= 2) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT d.carrera_id) >= 2) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -54,7 +54,7 @@
       "pregunta": "¿Qué porcentaje de los titulares dicta en dos o más carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -81,7 +81,7 @@
       "pregunta": "¿Qué porcentaje de titulares tiene más de 20 años de antigüedad desde su primera designación y además dicta en dos o más carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20 AND (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20 AND (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -113,7 +113,7 @@
       "pregunta": "¿Qué porcentaje de los titulares tiene más de 20 años de antigüedad según la experiencia declarada en el portal?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(e.desde))) FROM portal.experiencias e JOIN portal.perfiles pf ON pf.id = e.perfil_id WHERE pf.persona_id = x.persona_id) > 20) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(e.desde))) FROM portal.experiencias e JOIN portal.perfiles pf ON pf.id = e.perfil_id WHERE pf.persona_id = x.persona_id) > 20) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -150,7 +150,7 @@
       "pregunta": "¿Quiénes son los titulares que dictan en más de una carrera?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT m.carrera_id) > 1) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
+      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT d.carrera_id) > 1) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -176,7 +176,7 @@
       "pregunta": "¿Cuántos docentes dictan en tres carreras o más?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT m.carrera_id) >= 3) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT d.carrera_id) >= 3) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -197,7 +197,7 @@
       "pregunta": "¿Cuántos docentes dictan exactamente dos materias?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT d.materia_id) = 2) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT d.materia_id) = 2) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -218,7 +218,7 @@
       "pregunta": "¿Cuántos titulares de Ingeniería Industrial hay?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular' AND ca.code = 'IND') > 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular' AND ca.code = 'IND') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -244,7 +244,7 @@
       "pregunta": "¿Cuántos docentes dictan Análisis Matemático en Ingeniería Industrial y tienen más de una materia?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE m.name = 'Análisis Matemático' AND ca.code = 'IND') > 0 AND count(DISTINCT d.materia_id) > 1) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE m.name = 'Análisis Matemático' AND ca.code = 'IND') > 0 AND count(DISTINCT d.materia_id) > 1) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -275,7 +275,7 @@
       "pregunta": "¿Qué porcentaje de los docentes de Ingeniería en Informática tiene más de 20 años de antigüedad desde su primera designación?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'INF') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'INF') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -302,7 +302,7 @@
       "pregunta": "¿Cuántos titulares hay?",
       "categoria": "agregacion",
       "actor": "carrera",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -323,7 +323,7 @@
       "pregunta": "¿Quiénes son los jefes de trabajos prácticos que dictan en más de una materia?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'jtp') > 0 AND count(DISTINCT d.materia_id) > 1) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
+      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'jtp') > 0 AND count(DISTINCT d.materia_id) > 1) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -349,7 +349,7 @@
       "pregunta": "¿Cuántos docentes no son titulares y dictan en dos o más carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING NOT (count(*) FILTER (WHERE c.codigo = 'titular') > 0) AND count(DISTINCT m.carrera_id) >= 2) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING NOT (count(*) FILTER (WHERE c.codigo = 'titular') > 0) AND count(DISTINCT d.carrera_id) >= 2) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -375,7 +375,7 @@
       "pregunta": "¿Cuántos docentes tienen alguna designación de categoría 5?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE de.codigo = 5) > 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE de.codigo = 5) > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -396,7 +396,7 @@
       "pregunta": "¿Qué porcentaje de los adjuntos dicta en más de una carrera?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 1) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'adjunto') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 1) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'adjunto') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -423,7 +423,7 @@
       "pregunta": "¿Cuántos docentes de Ingeniería Electrónica tienen más de 20 años de antigüedad según la experiencia declarada en el portal?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'ELE') > 0) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(e.desde))) FROM portal.experiencias e JOIN portal.perfiles pf ON pf.id = e.perfil_id WHERE pf.persona_id = x.persona_id) > 20",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'ELE') > 0) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(e.desde))) FROM portal.experiencias e JOIN portal.perfiles pf ON pf.id = e.perfil_id WHERE pf.persona_id = x.persona_id) > 20",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -459,7 +459,7 @@
       "pregunta": "¿Cuántos pedidos prioritarios hay en Ingeniería Industrial?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM designaciones.pedidos pe JOIN identity.materias m ON m.id = pe.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id WHERE pe.prioritario AND ca.code = 'IND'",
+      "sql_referencia": "SELECT count(*) AS total FROM designaciones.pedidos pe JOIN identity.materias m ON m.id = pe.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id WHERE pe.prioritario AND ca.code = 'IND'",
       "orden_importa": false,
       "plan_referencia": null,
       "nota": "fuera del catálogo: carril SQL"
@@ -489,7 +489,7 @@
       "pregunta": "¿Cuántos ayudantes de primera dictan en más de una carrera?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'ayudante1') > 0 AND count(DISTINCT m.carrera_id) > 1) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'ayudante1') > 0 AND count(DISTINCT d.carrera_id) > 1) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -515,7 +515,7 @@
       "pregunta": "¿Cuántos profesores titulares tienen más de 20 años de antigüedad desde su primera designación en la UNLaM?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -541,7 +541,7 @@
       "pregunta": "¿Quiénes son los docentes con más de 25 años de antigüedad desde su primera designación?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x JOIN identity.personas pe ON pe.id = x.persona_id WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 25 ORDER BY pe.apellido, pe.nombre",
+      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x JOIN identity.personas pe ON pe.id = x.persona_id WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 25 ORDER BY pe.apellido, pe.nombre",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -562,7 +562,7 @@
       "pregunta": "¿Cuántos docentes dictan en Ingeniería Industrial pero no en Ingeniería en Informática?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'IND') > 0 AND count(*) FILTER (WHERE ca.code = 'INF') = 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE ca.code = 'IND') > 0 AND count(*) FILTER (WHERE ca.code = 'INF') = 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -588,7 +588,7 @@
       "pregunta": "¿Cuántos docentes dictan en al menos dos carreras?",
       "categoria": "agregacion",
       "actor": "materia",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT m.carrera_id) >= 2) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT d.carrera_id) >= 2) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -609,7 +609,7 @@
       "pregunta": "¿Cuántos adjuntos tienen categoría 3 o más?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'adjunto' AND de.codigo >= 3) > 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'adjunto' AND de.codigo >= 3) > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -645,7 +645,7 @@
       "pregunta": "¿Qué porcentaje de los ayudantes de segunda dicta en más de dos carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'ayudante2') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'ayudante2') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -672,7 +672,7 @@
       "pregunta": "¿Quiénes son los titulares de Bases de Datos?",
       "categoria": "cruce_de_tablas",
       "actor": "global",
-      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular' AND m.name = 'Bases de Datos') > 0) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
+      "sql_referencia": "SELECT pe.apellido, pe.nombre FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular' AND m.name = 'Bases de Datos') > 0) x JOIN identity.personas pe ON pe.id = x.persona_id ORDER BY pe.apellido, pe.nombre",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -698,7 +698,7 @@
       "pregunta": "Del total de titulares, ¿qué proporción lleva más de veinte años desde su primera designación y enseña en dos carreras o más?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20 AND (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) > 20 AND (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) >= 2) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -730,7 +730,7 @@
       "pregunta": "¿Cuántos docentes dictan en una sola carrera?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT m.carrera_id) = 1) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(DISTINCT d.carrera_id) = 1) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -751,7 +751,7 @@
       "pregunta": "¿Qué porcentaje de los docentes tiene designaciones vigentes en más de una carrera?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT m2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 1) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x",
+      "sql_referencia": "SELECT count(*) FILTER (WHERE (SELECT count(DISTINCT d2.carrera_id) FROM designaciones.designaciones d2 JOIN identity.materias m2 ON m2.id = d2.materia_id WHERE d2.vigente_hasta IS NULL AND d2.persona_id = x.persona_id) > 1) AS cumplen, count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -772,7 +772,7 @@
       "pregunta": "¿Cuántos titulares no dictan en Ingeniería en Informática?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(*) FILTER (WHERE ca.code = 'INF') = 0) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(*) FILTER (WHERE ca.code = 'INF') = 0) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -818,7 +818,7 @@
       "pregunta": "¿Cuántos titulares dictan en dos carreras?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT m.carrera_id) = 2) x",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING count(*) FILTER (WHERE c.codigo = 'titular') > 0 AND count(DISTINCT d.carrera_id) = 2) x",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,
@@ -836,7 +836,7 @@
       "pregunta": "¿Cuántos docentes tienen 25 años de antigüedad desde su primera designación?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = m.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) = 25",
+      "sql_referencia": "SELECT count(*) AS total FROM (SELECT d.persona_id FROM designaciones.designaciones d JOIN designaciones.cargos c ON c.id = d.cargo_id JOIN identity.materias m ON m.id = d.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id LEFT JOIN designaciones.dedicaciones de ON de.id = d.dedicacion_id WHERE d.vigente_hasta IS NULL GROUP BY d.persona_id HAVING TRUE) x WHERE (SELECT extract(year FROM age(DATE '2026-03-02', min(h.vigente_desde))) FROM designaciones.designaciones h WHERE h.persona_id = x.persona_id) = 25",
       "orden_importa": false,
       "plan_referencia": {
         "expresable": true,

@@ -269,38 +269,78 @@ public sealed class GeneradorDeFixture
         sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
     }
 
+    /// <summary>
+    /// Las materias canónicas —una fila por materia— y, aparte, en qué carreras se
+    /// dicta cada una: un plan vigente y activo por carrera y sus pertenencias.
+    /// </summary>
+    /// <remarks>
+    /// Una materia compartida es UNA fila de <c>identity.materias</c> con una
+    /// pertenencia por carrera, que es lo que el detector de ambigüedad tiene que
+    /// distinguir. Las designaciones y los pedidos se reparten por
+    /// <see cref="Puestos"/>: cada par materia + carrera, igual que antes cada fila
+    /// de materia.
+    /// </remarks>
     private static void EscribirMaterias(StringBuilder sql)
     {
-        sql.Append("\nINSERT INTO identity.materias (id, code, name, carrera_id, is_active) VALUES\n");
+        sql.Append("\nINSERT INTO identity.materias (id, code, name, is_active) VALUES\n");
+        sql.Append(string.Join(",\n", NombresCanonicos.Index().Select(materia =>
+            $"    ('{IdDeMateria(materia.Index)}', '{materia.Index + 1:D5}', "
+            + $"'{Escapar(materia.Item)}', TRUE)")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
 
-        var filas = new List<string>();
-        var indice = 0;
+        sql.Append("\nINSERT INTO identity.planes (id, carrera_id, codigo, nombre, vigente, activo) VALUES\n");
+        sql.Append(string.Join(",\n", Enumerable.Range(0, Carreras).Select(carrera =>
+            $"    ('{IdDePlan(carrera)}', '{IdDeCarrera(carrera)}', 'P{Ancla.Year}', "
+            + $"'Plan {Ancla.Year}', TRUE, TRUE)")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+
+        sql.Append("\nINSERT INTO identity.materias_plan (id, plan_id, materia_id, activo) VALUES\n");
+        sql.Append(string.Join(",\n", Puestos.Index().Select(puesto =>
+            $"    ('{IdDePertenencia(puesto.Index)}', '{IdDePlan(puesto.Item.Carrera)}', "
+            + $"'{IdDeMateria(puesto.Item.Materia)}', TRUE)")));
+        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+    }
+
+    /// <summary>Nombres de las materias canónicas, en el orden de sus índices.</summary>
+    private static readonly IReadOnlyList<string> NombresCanonicos =
+    [
+        .. MateriasPropias.SelectMany(propias => propias),
+        .. MateriasCompartidas.Select(compartida => compartida.Nombre),
+    ];
+
+    /// <summary>
+    /// Cada par materia canónica + carrera en que se dicta: las propias en su
+    /// carrera y las compartidas en las primeras N carreras.
+    /// </summary>
+    internal static readonly IReadOnlyList<(int Materia, int Carrera)> Puestos = ArmarPuestos();
+
+    private static List<(int Materia, int Carrera)> ArmarPuestos()
+    {
+        var puestos = new List<(int Materia, int Carrera)>();
+        var materia = 0;
 
         foreach (var (carrera, propias) in MateriasPropias.Index())
         {
-            foreach (var nombre in propias)
+            foreach (var _ in propias)
             {
-                filas.Add(FilaDeMateria(indice++, nombre, carrera));
+                puestos.Add((materia++, carrera));
             }
         }
 
         // Las compartidas van después y de forma explícita: es la colisión que el
         // detector de ambigüedad necesita, y tiene que ser legible en el archivo.
-        foreach (var (nombre, cuantasCarreras) in MateriasCompartidas)
+        foreach (var (_, cuantasCarreras) in MateriasCompartidas)
         {
             for (var carrera = 0; carrera < cuantasCarreras; carrera++)
             {
-                filas.Add(FilaDeMateria(indice++, nombre, carrera));
+                puestos.Add((materia, carrera));
             }
+
+            materia++;
         }
 
-        sql.Append(string.Join(",\n", filas));
-        sql.Append("\nON CONFLICT (id) DO NOTHING;\n");
+        return puestos;
     }
-
-    private static string FilaDeMateria(int indice, string nombre, int carrera) =>
-        $"    ('{IdDeMateria(indice)}', 'M{indice:D3}', '{Escapar(nombre)}', "
-        + $"'{IdDeCarrera(carrera)}', TRUE)";
 
     private void EscribirPersonas(StringBuilder sql)
     {
@@ -390,9 +430,10 @@ public sealed class GeneradorDeFixture
             $"    ('{IdDeAsignacion(1)}', '{IdDeUsuario(1)}', "
             + $"'a1000000-0000-4000-8000-000000000003', NULL, '{IdDeCarrera(0)}')",
 
-            // Jefe de cátedra de la materia 0, que pertenece a la carrera 0.
+            // Jefe de cátedra de la materia 0. Sin carrera: la cátedra es la materia
+            // canónica, en cualquier carrera donde se dicte.
             $"    ('{IdDeAsignacion(2)}', '{IdDeUsuario(2)}', "
-            + $"'a1000000-0000-4000-8000-000000000002', '{IdDeMateria(0)}', '{IdDeCarrera(0)}')",
+            + $"'a1000000-0000-4000-8000-000000000002', '{IdDeMateria(0)}', NULL)",
 
             // Docente sin permisos de designaciones: el caso en que RLS devuelve
             // cero filas por falta de permiso y no por falta de datos.
@@ -464,16 +505,15 @@ public sealed class GeneradorDeFixture
     {
         sql.Append(
             "\nINSERT INTO designaciones.designaciones "
-            + "(id, persona_id, materia_id, cargo_id, dedicacion_id, horas, vigente_desde, vigente_hasta) VALUES\n");
+            + "(id, persona_id, materia_id, carrera_id, cargo_id, dedicacion_id, horas, vigente_desde, vigente_hasta) VALUES\n");
 
         var azar = FuenteDe("designaciones");
-        var materias = TotalDeMaterias();
         var filas = new List<string>();
 
         for (var indice = 0; indice < _personas; indice++)
         {
             var cargo = indice % CodigosDeCargo.Length;
-            var materia = indice % materias;
+            var (materia, carrera) = Puestos[indice % Puestos.Count];
 
             // Una de cada cinco está cerrada: sin designaciones históricas, la
             // diferencia entre «vigente» e «hubo» no se puede medir.
@@ -484,7 +524,7 @@ public sealed class GeneradorDeFixture
 
             filas.Add(
                 $"    ('{IdDeDesignacion(indice)}', '{IdDePersona(indice)}', '{IdDeMateria(materia)}', "
-                + $"'{IdDeCargo(cargo)}', '{IdDeDedicacionAlAzar(azar)}', "
+                + $"'{IdDeCarrera(carrera)}', '{IdDeCargo(cargo)}', '{IdDeDedicacionAlAzar(azar)}', "
                 + $"{4 + azar.Next(8)}, DATE '{Ancla.AddDays(-365):yyyy-MM-dd}', {vigenteHasta})");
         }
 
@@ -496,7 +536,7 @@ public sealed class GeneradorDeFixture
     {
         sql.Append(
             "\nINSERT INTO designaciones.pedidos "
-            + "(id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, "
+            + "(id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario, "
             + "cargo_solicitado_id, dedicacion_solicitada_id, horas) VALUES\n");
 
         string[] novedades = ["Alta", "Baja", "Cambio de cargo o dedicación", "Sin novedad"];
@@ -507,7 +547,6 @@ public sealed class GeneradorDeFixture
         ];
 
         var azar = FuenteDe("pedidos");
-        var materias = TotalDeMaterias();
         var filas = new List<string>();
         var cuantos = _personas / 2;
 
@@ -515,11 +554,12 @@ public sealed class GeneradorDeFixture
         {
             var novedad = novedades[indice % novedades.Length];
             var esBaja = novedad == "Baja";
+            var (materia, carrera) = Puestos[indice % Puestos.Count];
 
             filas.Add(
                 $"    ('{IdDePedido(indice)}', '{Ancla.Year}-{indice:D6}', "
                 + $"'{IdDePeriodo(PeriodoActivo)}', '{IdDePersona(indice)}', "
-                + $"'{IdDeMateria(indice % materias)}', '{Escapar(novedad)}', "
+                + $"'{IdDeMateria(materia)}', '{IdDeCarrera(carrera)}', '{Escapar(novedad)}', "
                 + $"'{estados[indice % estados.Length]}', {(indice % 7 == 0 ? "TRUE" : "FALSE")}, "
                 + (esBaja ? "NULL, NULL, NULL)" :
                     $"'{IdDeCargo(indice % CodigosDeCargo.Length)}', "
@@ -549,10 +589,6 @@ public sealed class GeneradorDeFixture
         var resumen = SHA256.HashData(Encoding.UTF8.GetBytes(seccion));
         return new Random(BitConverter.ToInt32(resumen, 0));
     }
-
-    private static int TotalDeMaterias() =>
-        MateriasPropias.Sum(propias => propias.Length)
-        + MateriasCompartidas.Sum(compartida => compartida.Carreras);
 
     private static string Escapar(string valor) => valor.Replace("'", "''", StringComparison.Ordinal);
 
@@ -733,6 +769,10 @@ public sealed class GeneradorDeFixture
 
     /// <summary>Identificador de materia, derivado del índice.</summary>
     public static string IdDeMateria(int indice) => Identificador('7', indice);
+
+    private static string IdDePlan(int carrera) => Identificador('6', carrera);
+
+    private static string IdDePertenencia(int indice) => Identificador('0', indice);
 
     /// <summary>Identificador de persona, derivado del índice.</summary>
     public static string IdDePersona(int indice) => Identificador('d', indice);

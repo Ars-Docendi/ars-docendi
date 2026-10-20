@@ -71,10 +71,17 @@ public sealed class MencionesTests(PostgresFixture postgres)
         var resultado = await Buscador().BuscarAsync(
             Secretaria, TipoDeMencion.Materia, "algoritmos", TestContext.Current.CancellationToken);
 
-        var fila = Assert.Single(resultado.Resultados);
-        Assert.Equal("Ingeniería en Informática", fila.Carrera);
-        Assert.False(string.IsNullOrWhiteSpace(fila.Codigo));
-        Assert.Null(fila.Cargo);
+        // Algoritmos es una materia canónica compartida: un resultado por carrera
+        // donde se dicta, con el mismo id y el mismo código.
+        Assert.Equal(
+            ["Ingeniería Industrial", "Ingeniería en Informática"],
+            resultado.Resultados.Select(fila => fila.Carrera).Order(StringComparer.Ordinal));
+        Assert.Single(resultado.Resultados.Select(fila => fila.Id).Distinct());
+        Assert.All(resultado.Resultados, fila =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(fila.Codigo));
+            Assert.Null(fila.Cargo);
+        });
     }
 
     [Fact]
@@ -133,7 +140,7 @@ public sealed class MencionesTests(PostgresFixture postgres)
         await SembrarAsync();
 
         // El docente (rol de ámbito de materia) sólo tiene portal.ver/portal.editar
-        // — ver 009_designaciones_rls_asistente.sql—, así que la policy le deja
+        // — ver 20261020001000_RlsAsistenteDesignaciones.sql—, así que la policy le deja
         // la tabla entera vacía, sea cual sea el término.
         var resultado = await Buscador().BuscarAsync(
             Docente, TipoDeMencion.Docente, "a", TestContext.Current.CancellationToken);

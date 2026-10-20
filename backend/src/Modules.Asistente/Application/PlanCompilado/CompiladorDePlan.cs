@@ -27,9 +27,8 @@ internal static class CompiladorDePlan
     private const string Vigentes =
         """
         WITH vigentes AS (
-            SELECT d.persona_id, d.materia_id, m.carrera_id, c.codigo AS cargo, ded.codigo AS dedicacion
+            SELECT d.persona_id, d.materia_id, d.carrera_id, c.codigo AS cargo, ded.codigo AS dedicacion
               FROM designaciones.designaciones d
-              JOIN identity.materias m ON m.id = d.materia_id
               JOIN designaciones.cargos c ON c.id = d.cargo_id
               LEFT JOIN designaciones.dedicaciones ded ON ded.id = d.dedicacion_id
              WHERE d.vigente_hasta IS NULL

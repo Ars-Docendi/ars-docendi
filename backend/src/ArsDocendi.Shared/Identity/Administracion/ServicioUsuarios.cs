@@ -22,6 +22,7 @@ public sealed class ServicioUsuarios(
         CancellationToken ct)
     {
         ValidarDatos(datos);
+        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         var upn = NormalizarUpn(datos.Upn);
         var documento = datos.Documento.Trim();
         await ValidarUnicidadAsync(upn, documento, null, null, ct);
@@ -56,7 +57,6 @@ public sealed class ServicioUsuarios(
             usuario.Roles.Add(asignacion);
         }
 
-        await using var transaccion = await db.Database.BeginTransactionAsync(ct);
         repositorio.Agregar(persona, usuario);
         await repositorio.GuardarAsync(ct);
         await transaccion.CommitAsync(ct);
@@ -85,6 +85,7 @@ public sealed class ServicioUsuarios(
             try
             {
                 db.ChangeTracker.Clear();
+                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
                 var usuario = await ObtenerRequeridoAsync(id, ct);
                 repositorio.EsperarVersion(usuario, datos.Version.Value);
                 var persona = usuario.Persona!;
@@ -93,7 +94,6 @@ public sealed class ServicioUsuarios(
                 await ValidarUnicidadAsync(upn, documento, id, persona.Id, ct);
                 var nuevas = await ConstruirAsignacionesAsync(datos.Membresias, ct);
 
-                await using var transaccion = await db.Database.BeginTransactionAsync(ct);
                 persona.Documento = documento;
                 persona.Cuil = NormalizarOpcional(datos.Cuil);
                 persona.Legajo = NormalizarOpcional(datos.Legajo);
@@ -202,18 +202,15 @@ public sealed class ServicioUsuarios(
         foreach (var dato in datos)
         {
             var rol = roles[dato.RolId];
-            var valido = rol.Ambito switch
-            {
-                "global" => dato.MateriaId is null && dato.CarreraId is null,
-                "carrera" => dato.MateriaId is null && dato.CarreraId is not null,
-                "materia" => dato.MateriaId is not null
-                    && dato.CarreraId is not null
-                    && materias[dato.MateriaId.Value].CarreraId == dato.CarreraId,
-                _ => false,
-            };
+            var valido = AmbitoValido(rol, dato);
             if (!valido)
             {
                 throw ErrorRoles($"El ámbito indicado no corresponde al rol {rol.Nombre}.");
+            }
+            if (rol.Codigo == "docente"
+                && !await repositorio.ExistePertenenciaActivaAsync(dato.MateriaId!.Value, dato.CarreraId!.Value, ct))
+            {
+                throw ErrorRoles("La materia no se dicta, vigente, en la carrera indicada.");
             }
             resultado.Add(new UsuarioRol
             {
@@ -228,6 +225,22 @@ public sealed class ServicioUsuarios(
         }
         return resultado;
     }
+
+    // El docente referencia materia y carrera directamente; el jefe de cátedra, sólo la
+    // materia canónica; el coordinador, sólo la carrera. Los roles creados por el operador
+    // se validan por su ámbito declarado: materia (materia canónica) o carrera.
+    private static bool AmbitoValido(Rol rol, GuardarAsignacionRolDto dato) => rol.Codigo switch
+    {
+        "docente" => dato.MateriaId is not null && dato.CarreraId is not null,
+        "jefe_catedra" => dato.MateriaId is not null && dato.CarreraId is null,
+        _ => rol.Ambito switch
+        {
+            "global" => dato.MateriaId is null && dato.CarreraId is null,
+            "materia" => dato.MateriaId is not null && dato.CarreraId is null,
+            "carrera" => dato.CarreraId is not null && dato.MateriaId is null,
+            _ => false,
+        },
+    };
 
     private static ExcepcionAplicacion ErrorRoles(string mensaje) => new(
         TipoErrorAplicacion.ReglaDeNegocio,

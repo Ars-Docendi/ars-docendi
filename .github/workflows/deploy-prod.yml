@@ -69,6 +69,8 @@ jobs:
       TAG_BACKEND: sha-${{ github.sha }}
       REGISTRO: ${{ vars.REGISTRO }}
       DOMINIO: ${{ vars.DOMINIO }}
+      BACKUP_VOLUME_PREFIX: ${{ vars.BACKUP_VOLUME_PREFIX }}
+      BACKUP_RETENTION_DAYS: ${{ vars.BACKUP_RETENTION_DAYS }}
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
       PGUSER: ${{ secrets.PGUSER }}
@@ -79,6 +81,10 @@ jobs:
       APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD_PROD }}
       ASISTENTE_RO_PASSWORD: ${{ secrets.ASISTENTE_RO_PASSWORD_PROD }}
       ASISTENTE_RO_PII_PASSWORD: ${{ secrets.ASISTENTE_RO_PII_PASSWORD_PROD }}
+      # Ruta local por la red Docker `traefik`; prod nunca recibe Service Token.
+      INFERENCIA_URL: http://traefik:11435
+      INFERENCIA_USUARIO: prod
+      INFERENCIA_CONTRASENA: ${{ secrets.INFERENCIA_CONTRASENA_PROD }}
       ASPNETCORE_ENVIRONMENT: Production
       DEVELOPMENT_AUTHENTICATION_ENABLED: "false"
       # En prod el ingreso con Microsoft es obligatorio: sin estos valores el backend no arranca.

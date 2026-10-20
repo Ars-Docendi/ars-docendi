@@ -30,7 +30,8 @@ public sealed record TareaDto(
     IReadOnlyList<EventoTareaDto> Historial,
     Guid? ProyectoId,
     Guid? TareaPadreId,
-    IReadOnlyList<Guid> TareasRelacionadasIds);
+    IReadOnlyList<Guid> TareasRelacionadasIds,
+    uint Version);
 
 /// <summary><c>AdmiteTareas</c> sale del catálogo de estados: un proyecto que la admite recibe tareas nuevas y genera cuadro en la pantalla inicial.</summary>
 public sealed record ProyectoTareasDto(
@@ -43,7 +44,8 @@ public sealed record ProyectoTareasDto(
     string Estado,
     string EstadoNombre,
     bool AdmiteTareas,
-    PersonaTareaDto Responsable);
+    PersonaTareaDto Responsable,
+    uint Version);
 
 /// <summary>Estado de proyecto del catálogo; <c>Verbo</c> es la acción que lleva a él ("Finalizar", "Cancelar").</summary>
 public sealed record EstadoProyectoDto(string Codigo, string Nombre, string Verbo, bool EsInicial, bool AdmiteTareas);
@@ -71,11 +73,12 @@ public sealed record EditarTareaRequest(
     string Prioridad,
     string Tipo,
     Guid ResponsableId,
-    Guid? ProyectoId);
+    Guid? ProyectoId,
+    uint? Version = null);
 
-public sealed record CambiarEstadoTareaRequest(string Estado, string? Comentario, string? Solucion);
+public sealed record CambiarEstadoTareaRequest(string Estado, string? Comentario, string? Solucion, uint? Version = null);
 
-public sealed record EditarAvanceRequest(int PorcentajeAvance);
+public sealed record EditarAvanceRequest(int PorcentajeAvance, uint? Version = null);
 
 public sealed record ComentarTareaRequest(string Texto);
 
@@ -93,6 +96,7 @@ public sealed record EditarProyectoRequest(
     string? Descripcion,
     DateOnly FechaInicio,
     DateOnly FechaFin,
-    Guid ResponsableId);
+    Guid ResponsableId,
+    uint? Version = null);
 
-public sealed record CambiarEstadoProyectoRequest(string Estado);
+public sealed record CambiarEstadoProyectoRequest(string Estado, uint? Version = null);

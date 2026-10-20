@@ -92,6 +92,15 @@ internal sealed class SelectorDeEjemplos : ISelectorDeEjemplos
         ];
     }
 
+    public bool EsParecida(string pregunta, EjemploSql ejemplo)
+    {
+        ArgumentNullException.ThrowIfNull(pregunta);
+        ArgumentNullException.ThrowIfNull(ejemplo);
+
+        return Jaccard(NormalizadorLexico.Terminos(pregunta), NormalizadorLexico.Terminos(ejemplo.Pregunta))
+            >= ParecidoMinimo;
+    }
+
     private static double Jaccard(IReadOnlySet<string> unos, IReadOnlySet<string> otros)
     {
         if (unos.Count == 0 || otros.Count == 0)

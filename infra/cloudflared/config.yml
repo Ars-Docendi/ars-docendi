@@ -8,6 +8,9 @@ ingress:
   # Tras el corte a Debian, impedir que el wildcard vuelva a publicar prod.
   - hostname: prod.example.net
     service: http_status:404
+  # La IA vive sólo en Debian; el wildcard no debe capturarla aquí.
+  - hostname: ia.example.net
+    service: http_status:404
   - hostname: staging.example.net
     service: http://traefik:80
   # Los previews se sirven directamente por el DNS wildcard de este túnel.

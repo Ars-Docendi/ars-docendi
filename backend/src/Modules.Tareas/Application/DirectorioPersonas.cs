@@ -26,10 +26,11 @@ public sealed record PersonaResuelta(
 /// </summary>
 public sealed class DirectorioPersonas(IConsultasIdentity identity, ICurrentUser usuarioActual)
 {
-    /// <summary>Todos los usuarios de identity (activos o no), para armar respuestas con nombres.</summary>
-    public async Task<IReadOnlyDictionary<Guid, PersonaResuelta>> CargarAsync(CancellationToken ct)
+    /// <summary>Solo identidades necesarias, incluidas las históricas inactivas.</summary>
+    public async Task<IReadOnlyDictionary<Guid, PersonaResuelta>> CargarAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct)
     {
-        var usuarios = await identity.ListarUsuariosAsync(ct);
+        var usuarios = await identity.ObtenerUsuariosAsync(ids.Distinct().ToArray(), ct);
         var roles = await identity.ObtenerRolesDeSistemaAsync(usuarios.Select(u => u.Id).ToArray(), ct);
 
         return usuarios.ToDictionary(
@@ -42,16 +43,16 @@ public sealed class DirectorioPersonas(IConsultasIdentity identity, ICurrentUser
     /// <paramref name="busqueda"/> se acota por nombre, apellido, usuario, legajo o documento
     /// (todas las palabras deben aparecer, sin distinguir mayúsculas ni acentos).
     /// </summary>
-    public async Task<IReadOnlyList<PersonaResuelta>> ListarCandidatosAsync(string? busqueda, CancellationToken ct)
+    public async Task<IReadOnlyList<PersonaResuelta>> ListarCandidatosAsync(
+        int? nivelActor, bool paraProyecto, string? busqueda, CancellationToken ct)
     {
-        var palabras = Normalizar(busqueda ?? string.Empty)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return (await CargarAsync(ct)).Values
-            .Where(p => p.Activa && p.RolesCodigo.Count > 0)
-            .Where(p => palabras.All(palabra => p.TextoBusqueda.Contains(palabra, StringComparison.Ordinal)))
-            .OrderBy(p => p.Nombre, StringComparer.CurrentCulture)
-            .ToList();
+        var admitidos = JerarquiaAsignacion.RolesAsignables(nivelActor, paraProyecto);
+        var excluidos = JerarquiaAsignacion.RolesSuperiores(nivelActor);
+        var usuarios = await identity.BuscarCandidatosAsync(new FiltroCandidatosIdentity(
+            Busqueda: busqueda, Limite: 50, CodigosRolesAdmitidos: admitidos,
+            CodigosRolesExcluidos: excluidos), ct);
+        var roles = await identity.ObtenerRolesDeSistemaAsync(usuarios.Select(u => u.Id).ToArray(), ct);
+        return usuarios.Select(u => Resolver(u, roles.GetValueOrDefault(u.Id) ?? [])).ToArray();
     }
 
     /// <summary>Actor de la sesión: roles de sistema vigentes que coinciden con los de la sesión activa.</summary>

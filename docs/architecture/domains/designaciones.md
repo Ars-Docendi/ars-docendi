@@ -32,12 +32,12 @@ Workflow de **designaciones docentes**: solicitud por Jefe de Cátedra → aprob
 
 Son las dos entidades centrales y quieren propiedades opuestas. Confundirlas es el error de modelado que este dominio evita:
 
-|                        | Pedido (trámite)                   | Designación (estado)    |
-| ---------------------- | ---------------------------------- | ----------------------- |
-| Naturaleza             | Inmutable una vez enviado          | Mutable, tiene vigencia |
-| Verdad que sostiene    | "Esto decía cuando se firmó"       | "Esto es cierto hoy"    |
-| Vínculo con la persona | FK viva **+** `snapshot` congelado | FK viva                 |
-| Vida                   | Termina en un estado terminal      | Vive hasta una Baja     |
+|                        | Pedido (trámite)                       | Designación (estado)    |
+| ---------------------- | -------------------------------------- | ----------------------- |
+| Naturaleza             | Inmutable una vez enviado              | Mutable, tiene vigencia |
+| Verdad que sostiene    | "Esto decía cuando se firmó"           | "Esto es cierto hoy"    |
+| Vínculo con la persona | ID canónico **+** `snapshot` congelado | ID canónico             |
+| Vida                   | Termina en un estado terminal          | Vive hasta una Baja     |
 
 El `snapshot` se congela **al enviar** a revisión, no al crear. Es lo que le da valor probatorio al trámite: un pedido aprobado en Decanato tres meses después sigue diciendo qué cargo tenía el docente el día que se cargó. Si se recalculara, el documento reescribiría su propio pasado.
 
@@ -48,7 +48,8 @@ Aprobar un pedido se traduce a escrituras sobre `designaciones` en una única tr
 ```
 Alta        → INSERT de una designación nueva
 Baja        → UPDATE de vigente_hasta sobre la vigente
-Cambio      → cierra la vigente y abre una nueva con lo solicitado
+Cambio      → actualiza la misma fila si inició en la fecha efectiva;
+              en otro caso cierra la vigente y abre una nueva
 Continuidad → se conserva la designación vigente y no crea pedido
 ```
 
@@ -58,7 +59,7 @@ La cadena completa hacia atrás: designación vigente → `origen_pedido_id` →
 
 ### Un pedido, una materia
 
-`identity.roles` define `jefe_catedra` con `scope = 'materia'`: cátedra **es** materia. Por eso el pedido lleva una sola `materia_id`, y la carrera se deriva de `identity.materias.carrera_id` en vez de desnormalizarse. Con una lista de N materias, un pedido podía abarcar dos carreras y dejar a dos Coordinadores compitiendo por él, sin que BR-designaciones-009 tuviera cómo resolverlo.
+`identity.roles` define `jefe_catedra` con `scope = 'materia'`: cátedra **es** materia. El pedido lleva `materia_id` y `carrera_id` canónicos elegidos juntos. Una materia compartida no determina por sí sola la carrera: la carrera almacenada determina al Coordinador competente. `materias_plan` sólo valida el catálogo informativo; no es una FK obligatoria del pedido.
 
 El formulario resuelve la materia en contexto: Alta usa las materias activas del
 Jefe de Cátedra; Baja/Cambio intersectan esas materias con las designaciones
@@ -66,6 +67,41 @@ vigentes del docente seleccionado. Una única opción se fija automáticamente y
 varias se eligen por UUID. El backend no confía en esa anticipación: valida el
 ámbito y exige `(persona_id, materia_id)` vigente para Baja/Cambio. Snapshot,
 horas y datos actuales se toman de esa designación, nunca de la primera del docente.
+
+### Coordinación de administración y circuito
+
+Las dos rutas usan exclusión transaccional PostgreSQL por persona; el circuito toma
+además el par persona–materia. El guard por persona cubre reemplazos administrativos
+de varias materias y altas de vigencias inexistentes. Siempre se obtiene antes de
+leer el estado que se confirmará; no es un mutex del proceso. El snapshot se lee
+dentro de esa exclusión al enviar y permanece inmutable al reenviar/aprobar.
+
+El orden compartido protege Identity primero (usuarios, personas), después el
+agregado de vigencias (persona, par). Evita una inversión cuando administración
+edita la cuenta del mismo actor que está enviando su propio pedido.
+Una lectura EF anterior al guard no se reutiliza: el circuito relee la vigencia;
+administración compara los `xmin` observados y devuelve conflicto si cambiaron.
+Las entidades modificadas fuera del guard tampoco se revalidan silenciosamente.
+La intención solicitada por un Cambio se aplica al estado recién leído, conservando
+en auditoría los valores y orígenes anteriores/nuevos. No hay retry ciego.
+
+Las nuevas referencias a persona/actor se validan con el protocolo de
+`ProteccionDestinosIdentity` en la transacción consumidora. En administración con
+`TransactionScope`, Npgsql no expone el `DbTransaction` local: se invoca la misma
+función SQL en su conexión enlistada. No se abre otra conexión ni se escribe Identity.
+El actor que dejó de estar activo produce `409 identity-destination-conflict` antes
+del evento; la historia de actores inactivos sigue siendo legible por lote.
+
+### Listado y detalle
+
+La grilla mantiene todas las filas y las acciones autorizadas. No incluye adjuntos
+ni historia completa: agrega como máximo cuatro eventos reales (primero, creación,
+primer envío y último), deduplicados y ordenados por `(created_at,id)`, sin comentarios.
+Esto mantiene el actor de creación, inicio, última actualización, filtros y orden
+del cliente actual. El detalle carga historial completo y documentación autorizada.
+La respuesta posterior al reemplazo administrativo filtra `persona_id` en SQL,
+no materializa primero todas las designaciones. Ver la
+[evidencia reproducible 3.6–3.8](../../evidence/designaciones-3.6-3.8.md).
 
 ## API pública (contract)
 

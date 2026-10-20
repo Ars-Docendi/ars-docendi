@@ -20,4 +20,8 @@ public sealed class ArchivoEntidad
     public DateTimeOffset? RevisadoEn { get; set; }
     public string? MotivoRevision { get; set; }
     public DateTimeOffset? EliminadoEn { get; set; }
+    public Guid? IntentoId { get; set; }
+    public Guid? ReservaId { get; set; }
+    public DateTimeOffset? ReservaHasta { get; set; }
+    public string? FaseCarga { get; set; }
 }

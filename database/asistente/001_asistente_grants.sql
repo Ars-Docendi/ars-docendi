@@ -70,8 +70,10 @@ BEGIN
   -- sobre otra persona, no dato de dominio.
   EXECUTE format('GRANT SELECT (id, code, name, is_active, created_at) ON identity.carreras TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, code, name, is_active, created_at) ON identity.carreras TO %I', rol_pii);
-  EXECUTE format('GRANT SELECT (id, code, name, carrera_id, is_active, created_at) ON identity.materias TO %I', rol_basico);
-  EXECUTE format('GRANT SELECT (id, code, name, carrera_id, is_active, created_at) ON identity.materias TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, code, name, is_active, created_at) ON identity.materias TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, code, name, is_active, created_at) ON identity.materias TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, carrera_id, codigo, nombre, vigente, activo, created_at) ON identity.planes TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT SELECT (id, plan_id, materia_id, activo, created_at) ON identity.materias_plan TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT SELECT (id, legajo, nombre, apellido, created_at) ON identity.personas TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, legajo, nombre, apellido, created_at, documento, cuil, fecha_nacimiento, telefono) ON identity.personas TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, display_name, is_active, created_at, last_login_at, persona_id) ON identity.users TO %I', rol_basico);
@@ -98,6 +100,7 @@ BEGIN
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_actor() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_es_global() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_materias_visibles() TO %I, %I', rol_basico, rol_pii);
+  EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_alcanza_ambito(UUID, UUID) TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_tiene_permiso(TEXT) TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_persona() TO %I, %I', rol_basico, rol_pii);
   EXECUTE format('GRANT EXECUTE ON FUNCTION identity.asistente_alcanza_a(UUID) TO %I, %I', rol_basico, rol_pii);
@@ -120,14 +123,14 @@ BEGIN
   EXECUTE format('GRANT SELECT (id, codigo, nombre, abreviatura, orden, activo, created_at) ON designaciones.cargos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, nombre, carga_desde, carga_hasta, impacto_desde, impacto_hasta, activo, created_at) ON designaciones.periodos TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, nombre, carga_desde, carga_hasta, impacto_desde, impacto_hasta, activo, created_at) ON designaciones.periodos TO %I', rol_pii);
-  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_basico);
-  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, numero, periodo_id, persona_id, materia_id, carrera_id, novedad, estado, prioritario, cargo_solicitado_id, dedicacion_solicitada, horas, horas_investigacion, horas_externas, dedicacion_solicitada_id, justificacion, tipo_baja, tipo_baja_detalle, etapa_retorno, propietario_actual, created_at) ON designaciones.pedidos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, pedido_id, tipo, nombre, created_at) ON designaciones.pedido_adjuntos TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, pedido_id, tipo, nombre, created_at) ON designaciones.pedido_adjuntos TO %I', rol_pii);
   EXECUTE format('GRANT SELECT (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at) ON designaciones.pedido_historial TO %I', rol_basico);
   EXECUTE format('GRANT SELECT (id, pedido_id, accion, rol_id, actor_id, etapa, comentario, created_at) ON designaciones.pedido_historial TO %I', rol_pii);
-  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_basico);
-  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_pii);
+  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_basico);
+  EXECUTE format('GRANT SELECT (id, persona_id, materia_id, carrera_id, cargo_id, dedicacion, dedicacion_id, horas, horas_investigacion, horas_externas, vigente_desde, vigente_hasta, origen_pedido_id, created_at) ON designaciones.designaciones TO %I', rol_pii);
   -- ------------------------------------------------------------------
   -- portal
   -- ------------------------------------------------------------------

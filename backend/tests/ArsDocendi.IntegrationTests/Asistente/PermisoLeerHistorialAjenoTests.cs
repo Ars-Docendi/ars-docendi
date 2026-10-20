@@ -22,7 +22,7 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 public sealed class PermisoLeerHistorialAjenoTests(PostgresFixture postgres)
     : ClasePostgresAislada(postgres, "asistente_permiso_historial_ajeno")
 {
-    private const string Recurso = "identity/019_identity_permiso_leer_historial_ajeno.sql";
+    private const string Recurso = "identity/20261020000700_PermisoAsistenteLeerHistorialAjenoIdentity.sql";
 
     [Fact]
     public async Task Existe_exactamente_una_fila_del_permiso()

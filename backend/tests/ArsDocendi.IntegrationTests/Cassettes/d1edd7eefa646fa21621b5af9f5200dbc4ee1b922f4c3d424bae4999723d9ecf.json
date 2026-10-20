@@ -1,0 +1,7 @@
+{
+  "modelo": "claude-sonnet-5",
+  "fecha": "2026-10-19",
+  "hash_del_prefijo": "7e06fddba2d260e4780a616d0eaafa97399b18252f52baba9dab9f616ce4ef16",
+  "hash_del_fixture": "98de10e72a62fdcf3598e983a92d0de094e742ddf0c7a9cc9e50bc1dd013aaf2",
+  "cuerpo": "{\"model\":\"claude-sonnet-5\",\"id\":\"msg_011CgAjFDdRghekCTvaUd9Yg\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"{\\\"es_contestable\\\": true, \\\"sql\\\": \\\"SELECT nombre, orden FROM designaciones.cargos ORDER BY orden\\\", \\\"razonamiento\\\": \\\"Listo el catálogo de cargos docentes ordenados de mayor a menor jerarquía.\\\", \\\"categoria\\\": \\\"consulta_simple\\\", \\\"motivo\\\": null, \\\"termino\\\": null}\"}],\"container\":null,\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"stop_details\":null,\"usage\":{\"input_tokens\":699,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":12435,\"cache_creation\":{\"ephemeral_5m_input_tokens\":0,\"ephemeral_1h_input_tokens\":0},\"output_tokens\":114,\"output_tokens_details\":{\"thinking_tokens\":0},\"service_tier\":\"standard\",\"inference_geo\":\"global\",\"speed\":\"standard\"},\"diagnostics\":null}"
+}

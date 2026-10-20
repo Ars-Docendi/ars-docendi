@@ -168,7 +168,12 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
         var delCoordinador = await ComoActorListaAsync(
             Coordinador, "SELECT * FROM identity.asistente_materias_visibles()");
         var materiasDeLaCarrera = await LeerColumnaAsync(
-            "SELECT id::text FROM identity.materias WHERE carrera_id = @carrera",
+            """
+            SELECT DISTINCT mp.materia_id::text
+              FROM identity.materias_plan mp
+              JOIN identity.planes pl ON pl.id = mp.plan_id AND pl.vigente AND pl.activo
+             WHERE mp.activo AND pl.carrera_id = @carrera
+            """,
             ("carrera", CarreraDelCoordinador));
 
         // Las materias del jefe salen de sus asignaciones y no de una constante: el

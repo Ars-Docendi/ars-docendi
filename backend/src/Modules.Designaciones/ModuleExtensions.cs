@@ -16,10 +16,17 @@ public static class ModuleExtensions
     public static IServiceCollection AddDesignacionesModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<DesignacionesDbContext>((sp, opt) =>
-            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor)
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
+                    npgsql.MigrationsHistoryTable("__EFMigrationsHistory", DesignacionesDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 
         services.AddScoped<IMigradorModulo, MigradorDesignaciones>();
+        services.AddScoped<IDiagnosticoIntegridadModulo, DiagnosticoDesignaciones>();
+        services.AddScoped<ReferenciasArchivosDesignaciones>();
+        services.AddScoped<ArsDocendi.Storage.Contracts.IConsultasReferenciasArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
+        services.AddScoped<ArsDocendi.Storage.Contracts.IParticipanteTransaccionArchivos>(sp =>
+            sp.GetRequiredService<ReferenciasArchivosDesignaciones>());
 
         services.AddScoped<UnidadDeTrabajo>();
         services.AddScoped<RepositorioPedidos>();
@@ -37,6 +44,7 @@ public static class ModuleExtensions
         services.AddScoped<ServicioCatalogosDesignaciones>();
         services.AddScoped<IAdministracionDesignaciones, ServicioAdministracionDesignaciones>();
         services.AddScoped<IDesignacionesQueries, ServicioConsultasDesignaciones>();
+        services.AddHostedService<LimpiezaComandosIdempotentes>();
 
         services.AddControllers()
             .AddApplicationPart(typeof(ModuleExtensions).Assembly);

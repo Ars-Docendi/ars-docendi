@@ -72,7 +72,7 @@ internal sealed partial class ServicioConsultasDesignaciones(
         return
         [
             .. pedidos
-                .Where(p => MaquinaEstadosPedido.AlcanzaAmbito(p.MateriaId, p.CarreraId, actor))
+                .Where(p => MaquinaEstadosPedido.AlcanzaAmbito(new AlcancePedido(p.MateriaId, p.CarreraId), actor))
                 .Select(p => new PedidoUbicableDto(p.Numero, p.Id)),
         ];
     }

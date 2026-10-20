@@ -865,9 +865,11 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(
             """
-            INSERT INTO identity.materias (id, code, name, carrera_id, is_active)
-            VALUES ('70000000-0000-4000-8000-0000000009f1', '04910', 'Bases de Datos',
-                    'c0000000-0000-4000-8000-000000000202', true)
+            INSERT INTO identity.materias (id, code, name, is_active)
+            VALUES ('70000000-0000-4000-8000-0000000009f1', '04910', 'Bases de Datos', true);
+            INSERT INTO identity.materias_plan (plan_id, materia_id)
+            SELECT pl.id, '70000000-0000-4000-8000-0000000009f1' FROM identity.planes pl
+             WHERE pl.carrera_id = 'c0000000-0000-4000-8000-000000000202' AND pl.vigente AND pl.activo
             """,
             conexion);
 

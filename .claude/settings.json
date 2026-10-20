@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "allow": ["mcp__codegraph__*"]
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +11,16 @@
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/cloud-session-start.sh",
             "timeout": 600
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "codegraph prompt-hook"
           }
         ]
       }

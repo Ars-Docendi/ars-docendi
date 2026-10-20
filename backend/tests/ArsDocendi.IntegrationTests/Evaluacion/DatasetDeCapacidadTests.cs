@@ -328,13 +328,45 @@ public sealed class DatasetDeCapacidadTests
     }
 
     [Fact]
-    public void El_dataset_vigente_sigue_cargando_sin_tocar_motivos_aceptables()
+    public void Los_items_de_rechazo_declaran_los_motivos_aceptables_del_diseno()
     {
-        // El dataset de hoy no declara `motivos_aceptables` en ningún ítem
-        // (llega en la tarea 10.2, unidad B): la validación no lo exige, y
-        // este test es la constancia de que la unidad A no lo rompió.
-        Assert.NotEmpty(Dataset.Items);
-        Assert.All(Dataset.Items, item => Assert.Null(item.MotivosAceptables));
+        // Design.md D10: la tabla se pina literal. Cambiarla es decidir otra cosa.
+        var esperados = new Dictionary<string, string[]>
+        {
+            ["cap-017"] = ["otro_sistema", "no_cubierto"],
+            ["cap-018"] = ["otro_sistema"],
+            ["cap-019"] = ["no_cubierto"],
+            ["cap-030"] = ["no_cubierto"],
+            ["cap-031"] = ["no_cubierto"],
+            ["cap-032"] = ["no_cubierto"],
+        };
+
+        foreach (var (id, motivos) in esperados)
+        {
+            var item = Dataset.Items.Single(i => i.Id == id);
+            Assert.Equal(motivos, item.MotivosAceptables);
+        }
+    }
+
+    [Fact]
+    public void Cada_motivo_de_rechazo_esta_representado_en_el_dataset()
+    {
+        var representados = Dataset.Items
+            .SelectMany(item => item.MotivosAceptables ?? [])
+            .ToHashSet();
+
+        foreach (var motivo in Enum.GetValues<MotivoDeRechazo>())
+        {
+            Assert.Contains(MotivosDeRechazo.ValorDeCable(motivo), representados);
+        }
+    }
+
+    [Fact]
+    public void La_palabra_python_espera_muy_general()
+    {
+        var item = Dataset.Items.Single(i => i.Pregunta == "python");
+
+        Assert.Equal(["muy_general"], item.MotivosAceptables);
     }
 
     // ------------------------------------------------------ menciones (D10/D11)

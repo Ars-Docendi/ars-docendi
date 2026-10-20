@@ -40,4 +40,10 @@ public interface ISelectorDeEjemplos
     /// que es peor que no darle ninguno.
     /// </remarks>
     IReadOnlyList<EjemploSql> Elegir(string pregunta);
+
+    /// <summary>
+    /// Si la pregunta se parece a la del ejemplo tanto como para que
+    /// <see cref="Elegir"/> lo habría elegido: el mismo parecido, el mismo umbral.
+    /// </summary>
+    bool EsParecida(string pregunta, EjemploSql ejemplo);
 }

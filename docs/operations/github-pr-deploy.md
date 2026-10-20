@@ -17,13 +17,24 @@ no evidencia de despliegues reales ni de configuración externa aplicada.
 Los jobs de aplicación conservan **GitHub Actions** como fuente; no hay un
 segundo inventario de credenciales de deploy en archivos locales:
 
-| Scope                    | Variables / secretos consumidos                                                                      |
-| ------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Repository variables     | `REGISTRO`, `DOMINIO`                                                                                |
-| Repository secrets       | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY` |
-| Environment `prod`       | `APP_DB_PASSWORD_PROD`                                                                               |
-| Environment `staging`    | `APP_DB_PASSWORD_STAGING`                                                                            |
-| Environment `pr-preview` | `APP_DB_PASSWORD_PREVIEW` (sólo en el job aprobado del Environment)                                  |
+| Scope                    | Variables / secretos consumidos                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Repository variables     | `REGISTRO`, `DOMINIO`                                                                                                                      |
+| Repository secrets       | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `SEAWEEDFS_ROOT_ACCESS_KEY`, `SEAWEEDFS_ROOT_SECRET_KEY`                                       |
+| Environment `prod`       | `APP_DB_PASSWORD_PROD`, `INFERENCIA_CONTRASENA_PROD`                                                                                       |
+| Environment `staging`    | `APP_DB_PASSWORD_STAGING`, `INFERENCIA_CONTRASENA_STAGING`, `INFERENCIA_ACCESS_CLIENT_ID/SECRET`                                           |
+| Environment `pr-preview` | `APP_DB_PASSWORD_PREVIEW`, `INFERENCIA_CONTRASENA_PREVIEW`, `INFERENCIA_ACCESS_CLIENT_ID/SECRET` (sólo en el job aprobado del Environment) |
+
+Las credenciales de inferencia (Ollama compartido) se definen **por Environment**, no
+como secrets de repositorio, para que el job de prod no tenga el Service Token de
+Cloudflare Access. Los workflows fijan la URL y el usuario: prod usa
+`http://traefik:11435` con `prod`; staging y previews usan
+`https://ia.<DOMINIO>` con `staging` y `preview`. El Service Token
+(`INFERENCIA_ACCESS_CLIENT_ID/SECRET`) es el mismo en `staging` y `pr-preview`.
+Un ambiente con la URL fijada y la contraseña ausente no arranca; vaciar
+`INFERENCIA_URL` en el workflow deshabilita la inferencia. Alta de usuarios y
+token en [ollama-compartido.md](ollama-compartido.md#10-entrega-al-backend-por-github).
+El dashboard de sistema muestra el resultado de la conexión en cada ambiente.
 
 `PGHOST=arsdocendi-postgres` puede tener el mismo nombre en ambos hosts porque
 resuelve dentro de su propia red Docker. **Antes de activar cada destino**,
@@ -108,6 +119,21 @@ su identidad en `seaweedfs-prod`; `staging` y cada `pr-N` registran dinámicamen
 la suya en el SeaweedFS compartido `seaweedfs-nonprod`. ClamAV no requiere un
 secret por ambiente: todos consumen el servicio interno `clamav-shared`.
 
+## Persistencia, backups y sección crítica
+
+`BACKUP_VOLUME_PREFIX` (default `arsdocendi-backups`) y
+`BACKUP_RETENTION_DAYS` (default `7`, entero positivo) se configuran como **vars**
+opcionales en cada Environment `prod`, `staging`, `pr-preview`, no como secrets.
+El volumen privado reside en el host del ambiente y sobrevive al runner; no
+subir snapshots, metadata de usuarios o dumps como artifacts/comentarios de PR.
+Deploy y teardown comparten grupo `pr-env-N` sin cancelación en curso y lock
+atómico en el daemon para ejecuciones manuales. GitHub no garantiza FIFO.
+El cierre conserva teardown destructivo autorizado, pero no borra backups ni
+reintroduce reaper. Un reset requiere `RESET_AUTHORIZED` y nunca admite prod.
+
+Procedimiento completo y límites de recuperación:
+[migrations-persistence.md](migrations-persistence.md).
+
 ## Credencial aislada por PR
 
 `pr-env-deploy.yml` genera una credencial de aplicación efímera para cada PR y
@@ -129,9 +155,13 @@ servicio y volumen no-prod compartidos.
 3. El workflow recibe el evento `labeled` y pasa el primer gate.
 4. Un reviewer aprueba el deployment en `pr-preview`.
 5. El runner efímero construye y publica las imágenes en el registry.
-6. `spin-up.sh pr-<N>` registra la identidad del PR en el SeaweedFS no-prod
-   compartido, crea el bucket, la base y las fixtures, y publica
-   `https://pr-<N>.<DOMINIO>`.
+6. `spin-up.sh pr-<N>` revalida que el PR siga abierto bajo lock, aprovisiona
+   sólo faltantes y conserva filas/bucket/objetos entre redeploys. Detiene backend
+   antes de rotar credenciales o migrar, respalda si hay pendientes en una base
+   existente y sólo inicializa fixtures con autorización/marca completa.
+7. Publica `https://pr-<N>.<DOMINIO>` y comenta éxito sólo después de verificar
+   SHA, cuatro pings, identidad DB read-only y cero pendientes. Un smoke fallido
+   deja el backend detenido, sin comentario exitoso.
 
 Los PRs que solo modifican documentación no disparan este workflow debido al
 filtro de paths.
@@ -200,7 +230,8 @@ El workflow presupone que ya existen:
 - Docker/Compose y las redes externas `traefik` y `arsdocendi-datos`;
 - PostgreSQL accesible como `PGHOST` dentro de `arsdocendi-datos`;
 - Traefik y Cloudflare Tunnel con wildcard DNS para `<pr-N>.<DOMINIO>`;
-- acceso a los registros públicos de las imágenes fijadas de SeaweedFS y AWS CLI.
+- acceso a los registros públicos de las imágenes fijadas de SeaweedFS y AWS CLI;
+- Bash, Python 3.12+, OpenSSL, tar y curl para validación/stdio (sin psql local).
 
 El workflow usa `GITHUB_TOKEN` con `packages: write` para GHCR; no hace falta
 crear un PAT para publicar imágenes en el registry de GitHub.

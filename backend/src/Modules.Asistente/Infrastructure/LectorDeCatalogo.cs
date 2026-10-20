@@ -96,8 +96,39 @@ internal static class LectorDeCatalogo
            AND pg_catalog.has_schema_privilege(fc.relnamespace, 'USAGE')
            AND pg_catalog.has_column_privilege(c.oid,  a.attnum,  'SELECT')
            AND pg_catalog.has_column_privilege(fc.oid, fa.attnum, 'SELECT')
-         ORDER BY n.nspname, c.relname, a.attname
+
+        UNION
+
+        -- Referencias LÓGICAS entre módulos: sin FK a propósito (la integridad la
+        -- sostienen los triggers de identity.proteger_borrado_destino_logico y la
+        -- validación al escribir), pero son el join de toda pregunta útil sobre el
+        -- portal. Pasan por los mismos chequeos de privilegio que las FK.
+        SELECT v.esquema, v.tabla, v.columna,
+               v.esquema_referido, v.tabla_referida, v.columna_referida
+          FROM (VALUES {ReferenciasLogicas}) AS v(esquema, tabla, columna,
+                                                  esquema_referido, tabla_referida, columna_referida)
+         WHERE pg_catalog.has_schema_privilege(v.esquema, 'USAGE')
+           AND pg_catalog.has_schema_privilege(v.esquema_referido, 'USAGE')
+           AND pg_catalog.has_column_privilege(
+                   pg_catalog.quote_ident(v.esquema) || '.' || pg_catalog.quote_ident(v.tabla),
+                   v.columna, 'SELECT')
+           AND pg_catalog.has_column_privilege(
+                   pg_catalog.quote_ident(v.esquema_referido) || '.' || pg_catalog.quote_ident(v.tabla_referida),
+                   v.columna_referida, 'SELECT')
+
+         ORDER BY 1, 2, 3
         """;
+
+    /// <summary>
+    /// Referencias entre schemas que el modelo de datos mantiene sin FK.
+    /// </summary>
+    /// <remarks>
+    /// <c>portal.perfiles.persona_id</c> es el único camino del portal hacia una
+    /// persona, y es una referencia lógica (spec <c>integridad-referencias-logicas</c>):
+    /// sin esta fila el prefijo no le diría al modelo cómo cruzar portal con identity.
+    /// </remarks>
+    private const string ReferenciasLogicas =
+        "('portal', 'perfiles', 'persona_id', 'identity', 'personas', 'id')";
 
     public static async Task<IReadOnlyList<ColumnaLegible>> LeerColumnasAsync(
         NpgsqlConnection conexion, CancellationToken ct)

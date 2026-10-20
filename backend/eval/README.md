@@ -201,6 +201,29 @@ mismos marcadores al ejecutar tanto la consulta generada como la de referencia.
 fixture, así que un ítem con una mención rota que no ejecutara se vería igual que
 cualquier otra referencia rota.
 
+### Motivos aceptables del rechazo (ARS-139)
+
+Los ítems `no_contestable` pueden declarar `motivos_aceptables`: los motivos de
+rechazo (`fuera_de_tema`, `otro_sistema`, `muy_general`, `no_cubierto`) con los que
+el ítem se considera bien rechazado. La carga lo valida —lista no vacía, valores del
+conjunto, sólo en `no_contestable`— y hay al menos un ítem por motivo.
+
+```json
+{ "id": "cap-018", "categoria": "no_contestable", "motivos_aceptables": ["otro_sistema"] }
+```
+
+El acuerdo es **informativo**: el reporte de capacidad agrega la sección «Motivo del
+rechazo (informativo)» con cuántos ítems comparables declararon un motivo aceptable y
+cuáles no, pero el puntaje, las tres penalizaciones y el gate de regresión no lo
+miran. Un motivo equivocado cambia el texto que ve el usuario, no si el asistente se
+abstuvo; meterlo en el puntaje mezclaría dos preguntas distintas en un solo número.
+
+`cap-035` es «python» y espera `muy_general`, no `fuera_de_tema`: el fixture —igual
+que producción— tiene Python como habilidad declarada en el portal, así que la
+palabra suelta es ambigua, no ajena. Rechazarla como fuera de tema sería negar algo
+que el sistema sí tiene; la plantilla de `muy_general` pide el dato puntual sin
+afirmar nada. Responder con los docentes que la declararon movería el ítem fuera de
+`no_contestable` (design.md de asistente-rechazos-dinamicos, pregunta abierta 2).
 ## Las preguntas compuestas del plan compilado
 
 `datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 39 preguntas sobre

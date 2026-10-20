@@ -33,9 +33,12 @@ public sealed class AciclicidadDelGrafoTests
 
         var ciclos = DetectorDeCiclos.Detectar(conCiclo);
 
-        var ciclo = Assert.Single(ciclos);
+        // Cierra dos ciclos: el directo y el que pasa por ArsDocendi.Migraciones,
+        // que Designaciones referencia y que a su vez depende de Shared.
+        Assert.Equal(2, ciclos.Count);
+        Assert.All(ciclos, c => Assert.Contains("ArsDocendi.Shared", c.Proyectos));
+        var ciclo = Assert.Single(ciclos, c => !c.Proyectos.Contains("ArsDocendi.Migraciones"));
         Assert.Contains("Modules.Designaciones", ciclo.Proyectos);
-        Assert.Contains("ArsDocendi.Shared", ciclo.Proyectos);
 
         // Enumerar los proyectos es la mitad del valor: un «hay un ciclo» sin
         // nombres obliga a reconstruir a mano cuál de las diecisiete aristas lo cerró.

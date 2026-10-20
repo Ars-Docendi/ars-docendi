@@ -27,7 +27,7 @@
   **Consecuencia asumida:** es la finalidad más amplia de las que se evaluaron, y por eso **no acota el `GRANT`**: se concede la trayectoria completa —formación, experiencia, certificaciones y habilidades— sin vínculo con un trámite. Una finalidad más estrecha, como «armar el proyecto docente», habría permitido recortar columnas. Se eligió la amplia con conocimiento de eso.
 
 - **Roles afectados:** todos los que pueden usar el asistente.
-- **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/015_identity_permiso_portal_trayectoria.sql`). Conceder es una decisión de Secretaría, no un despliegue.
+- **Implementación:** el permiso `portal.ver_trayectoria_ajena` nace concedido a nadie (`database/identity/20261020000400_PermisoPortalTrayectoriaAjenaIdentity.sql`). Conceder es una decisión de Secretaría, no un despliegue.
 - **Mapping a test:** `PermisoYPersonaPortalTests.El_permiso_existe_y_no_lo_tiene_ningun_rol`.
 
 ### BR-`portal`-002 Quién puede otorgar el permiso de trayectoria ajena
@@ -50,7 +50,7 @@
 - **Fuente normativa:** Ley 25.326, art. 4 inc. 1 (pertinencia y no excesividad respecto de la finalidad). _(Cita pendiente de verificación.)_
 - **Consecuencia asumida:** un docente **sin designación vigente** no lo alcanza ningún rol no global. Es la lectura literal de «sus profesores asignados» y tiene filo: entre períodos, un docente desaparece de la vista de su jefe justo cuando hay que renovarlo. Se eligió sobre las alternativas —última designación, o período de gracia— porque las dos hacen que el alcance nunca se achique.
 - **Roles afectados:** todos los que pueden usar el asistente.
-- **Implementación:** `identity.asistente_alcanza_a(persona)`, invocada por las seis policies de `database/portal/005_portal_rls_ambito.sql`.
+- **Implementación:** `identity.asistente_alcanza_a(persona)`, invocada por las seis policies de `database/portal/20261020001700_RlsPorAmbitoPortal.sql`.
 - **Mapping a test:** `RlsPortalAsistenteTests`, en particular `El_vocabulario_de_habilidades_sigue_al_alcance_de_quien_las_declaro`.
 
 ### BR-`portal`-003 El contacto personal no es consultable por el asistente

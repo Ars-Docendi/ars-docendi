@@ -2,10 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-test("ingress Debian publica exclusivamente el dominio raíz", () => {
+test("ingress Debian publica sólo el dominio raíz y la IA protegida por Access", () => {
   const config = leer("infra/cloudflared/config-principal.yml");
   assert.match(config, /hostname: example\.net\n\s+service: http:\/\/traefik:80/);
-  assert.equal((config.match(/hostname:/g) ?? []).length, 1);
+  assert.deepEqual(config.match(/hostname: \S+/g), [
+    "hostname: example.net",
+    "hostname: ia.example.net",
+  ]);
+  // La IA va al entrypoint privado, nunca a `web`, y cloudflared exige el JWT de Access.
+  assert.match(
+    config,
+    /hostname: ia\.example\.net\n\s+service: http:\/\/traefik:11435\n\s+originRequest:\n\s+access:\n\s+required: true/,
+  );
   assert.match(config, /service: http_status:404/);
 });
 
@@ -17,6 +25,11 @@ test("ingress Proxmox rechaza prod antes del wildcard y conserva staging", () =>
     config.indexOf("hostname: prod.example.net") < config.indexOf('hostname: "*.example.net"'),
   );
   assert.match(config, /hostname: "\*\.example\.net"\n\s+service: http:\/\/traefik:80/);
+  // La IA vive sólo en Debian: el wildcard de previews no debe capturarla.
+  assert.match(config, /hostname: ia\.example\.net\n\s+service: http_status:404/);
+  assert.ok(
+    config.indexOf("hostname: ia.example.net") < config.indexOf('hostname: "*.example.net"'),
+  );
 });
 
 const leer = (ruta) => readFileSync(new URL(`../../${ruta}`, import.meta.url), "utf8");
@@ -77,7 +90,7 @@ test("previews y teardown permanecen en Proxmox con ambos gates", () => {
     /if: contains\(github\.event\.pull_request\.labels\.\*\.name, 'deploy-preview'\)/,
   );
   assert.match(teardown, /runs-on: \[self-hosted, arsdocendi, confiable, secundaria\]/);
-  assert.match(teardown, /ref: \$\{\{ github\.event\.pull_request\.base\.ref \}\}/);
+  assert.match(teardown, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
   assert.match(teardown, /infra\/scripts\/teardown\.sh/);
   assert.doesNotMatch(deploy, /^  pull_request_target:/m);
 });

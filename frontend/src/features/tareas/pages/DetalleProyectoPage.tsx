@@ -31,6 +31,7 @@ export function DetalleProyectoPage() {
   const crearTarea = useCrearTarea();
   const [modalTareaAbierto, setModalTareaAbierto] = useState(false);
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
+  const [versionEditar, setVersionEditar] = useState(0);
 
   const { puedeGestionarProyectos: puedeCambiar, puedeCrearTarea } = usePermisosTareas();
   const tareasDelProyecto = proyecto
@@ -85,7 +86,13 @@ export function DetalleProyectoPage() {
                   </Button>
                 )}
                 {puedeCambiar && (
-                  <Button variant="secondary" onClick={() => setModalEditarAbierto(true)}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setVersionEditar(proyecto.version);
+                      setModalEditarAbierto(true);
+                    }}
+                  >
                     Editar
                   </Button>
                 )}
@@ -102,7 +109,11 @@ export function DetalleProyectoPage() {
                         variant={estado.admiteTareas ? "secondary" : "destructive"}
                         loading={cambiarEstado.isPending}
                         onClick={() =>
-                          cambiarEstado.mutate({ id: proyecto.id, estadoDestino: estado.codigo })
+                          cambiarEstado.mutate({
+                            id: proyecto.id,
+                            version: proyecto.version,
+                            estadoDestino: estado.codigo,
+                          })
                         }
                       >
                         {estado.verbo}
@@ -185,7 +196,7 @@ export function DetalleProyectoPage() {
           onCerrar={() => setModalEditarAbierto(false)}
           onGuardar={(datos) =>
             editarProyecto.mutate(
-              { id: proyecto.id, datos },
+              { id: proyecto.id, version: versionEditar, datos },
               { onSuccess: () => setModalEditarAbierto(false) },
             )
           }

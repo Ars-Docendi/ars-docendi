@@ -29,18 +29,19 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Docente.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "docente");
 
-        Assert.NotNull(await cliente.GetFromJsonAsync<PerfilDocenteDto>("/api/portal/perfil", ct));
+        var original = await cliente.GetFromJsonAsync<PerfilDocenteDto>("/api/portal/perfil", ct);
+        Assert.NotNull(original);
 
         var contacto = await PutAsync<ContactoDto>(cliente, "/api/portal/perfil/contacto",
-            new GuardarContactoDto("11-5555-0000", "docente@example.com"), ct);
+            new GuardarContactoDto("11-5555-0000", "docente@example.com", original.Contacto.Version), ct);
         Assert.Equal("docente@example.com", contacto.Mail);
 
         var cv = await PutAsync<CvDto>(cliente, "/api/portal/perfil/cv",
-            new GuardarCvDto("cv.pdf", "synthetic://cv"), ct);
+            new GuardarCvDto("cv.pdf", "synthetic://cv") { Version = original.Cv?.Version }, ct);
         Assert.Equal("cv.pdf", cv.Nombre);
         await EsperarAsync(cliente.GetAsync("/api/portal/perfil/cv/descarga", ct), HttpStatusCode.NotFound);
         using (var referenciaInvalida = await cliente.PutAsJsonAsync(
-            "/api/portal/perfil/cv", new { archivoId = Guid.NewGuid() }, ct))
+            "/api/portal/perfil/cv", new { archivoId = Guid.NewGuid(), version = cv.Version }, ct))
         {
             Assert.Equal(HttpStatusCode.NotFound, referenciaInvalida.StatusCode);
             var problema = JsonNode.Parse(await referenciaInvalida.Content.ReadAsStringAsync(ct));
@@ -48,9 +49,9 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         }
 
         await EsperarAsync(cliente.PutAsJsonAsync("/api/portal/perfil/habilidades",
-            new GuardarTagsDto(["C#", " c# "]), ct), HttpStatusCode.NoContent);
+            new GuardarTagsDto(["C#", " c# "], original.VersionHabilidades), ct), HttpStatusCode.NoContent);
         await EsperarAsync(cliente.PutAsJsonAsync("/api/portal/perfil/intereses",
-            new GuardarTagsDto(["C#", "Docencia"]), ct), HttpStatusCode.NoContent);
+            new GuardarTagsDto(["C#", "Docencia"], original.VersionIntereses), ct), HttpStatusCode.NoContent);
 
         var experiencia = await PostAsync<ExperienciaDto>(cliente, "/api/portal/perfil/experiencia",
             new GuardarExperienciaDto("Docente", "UNLaM", "Descripción", new(2020, 1, 1), null), ct);
@@ -59,20 +60,20 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
             HttpStatusCode.BadRequest);
         experiencia = await PutAsync<ExperienciaDto>(cliente,
             $"/api/portal/perfil/experiencia/{experiencia.Id}",
-            new GuardarExperienciaDto("Profesora", "UNLaM", "Actualizada", new(2020, 1, 1), null), ct);
+            new GuardarExperienciaDto("Profesora", "UNLaM", "Actualizada", new(2020, 1, 1), null, experiencia.Version), ct);
         Assert.Equal("Profesora", experiencia.Puesto);
 
         var educacion = await PostAsync<EducacionDto>(cliente, "/api/portal/perfil/educacion",
             new GuardarEducacionDto("Grado", "Ingeniería", "UNLaM", new(2010, 1, 1), new(2015, 1, 1)), ct);
         educacion = await PutAsync<EducacionDto>(cliente, $"/api/portal/perfil/educacion/{educacion.Id}",
-            new GuardarEducacionDto("Maestría", "Software", "UNLaM", new(2016, 1, 1), new(2018, 1, 1)), ct);
+            new GuardarEducacionDto("Maestría", "Software", "UNLaM", new(2016, 1, 1), new(2018, 1, 1), educacion.Version), ct);
         Assert.Equal("Maestría", educacion.Nivel);
 
         var certificacion = await PostAsync<CertificacionDto>(cliente, "/api/portal/perfil/certificaciones",
             new GuardarCertificacionDto("Cloud", "Proveedor", new(2025, 1, 1), null), ct);
         certificacion = await PutAsync<CertificacionDto>(cliente,
             $"/api/portal/perfil/certificaciones/{certificacion.Id}",
-            new GuardarCertificacionDto("Cloud II", "Proveedor", new(2025, 1, 1), new(2026, 1, 1)), ct);
+            new GuardarCertificacionDto("Cloud II", "Proveedor", new(2025, 1, 1), new(2026, 1, 1), certificacion.Version), ct);
         Assert.Equal("Cloud II", certificacion.Nombre);
 
         var proyecto = await PostAsync<ProyectoDto>(cliente, "/api/portal/perfil/proyectos",
@@ -80,7 +81,7 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
                 "10.1000/test", "proyecto.pdf", "synthetic://proyecto"), ct);
         proyecto = await PutAsync<ProyectoDto>(cliente, $"/api/portal/perfil/proyectos/{proyecto.Id}",
             new GuardarProyectoDto("Proyecto II", "Investigadora", "Actualizado", new(2024, 1, 1), null,
-                null, "proyecto-v2.pdf", "synthetic://proyecto-v2"), ct);
+                null, "proyecto-v2.pdf", "synthetic://proyecto-v2") { Version = proyecto.Version }, ct);
         Assert.Equal("proyecto-v2.pdf", proyecto.Documento?.Nombre);
         await EsperarAsync(cliente.GetAsync($"/api/portal/perfil/proyectos/{proyecto.Id}/documento", ct), HttpStatusCode.NotFound);
 
@@ -95,13 +96,13 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
 
         foreach (var ruta in new[]
         {
-            $"experiencia/{experiencia.Id}",
-            $"educacion/{educacion.Id}",
-            $"certificaciones/{certificacion.Id}",
-            $"proyectos/{proyecto.Id}",
+            $"experiencia/{experiencia.Id}?version={experiencia.Version}",
+            $"educacion/{educacion.Id}?version={educacion.Version}",
+            $"certificaciones/{certificacion.Id}?version={certificacion.Version}",
+            $"proyectos/{proyecto.Id}?version={proyecto.Version}",
         })
             await EsperarAsync(cliente.DeleteAsync($"/api/portal/perfil/{ruta}", ct), HttpStatusCode.NoContent);
-        await EsperarAsync(cliente.DeleteAsync("/api/portal/perfil/cv", ct), HttpStatusCode.NoContent);
+        await EsperarAsync(cliente.DeleteAsync($"/api/portal/perfil/cv?version={cv.Version}", ct), HttpStatusCode.NoContent);
 
         var perfil = await cliente.GetFromJsonAsync<PerfilDocenteDto>("/api/portal/perfil", ct);
         Assert.NotNull(perfil);
@@ -181,7 +182,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Subió de 105 a 121 con el sistema de tareas (develop): dieciséis entre
         // TareasController y ProyectosTareasController.
-        Assert.Equal(121, operaciones.Length);
+        //
+        // Subió de 121 a 122 con el cliente de inferencia (develop):
+        // `GET /api/inferencia/estado` en InferenciaController.
+        Assert.Equal(122, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 
