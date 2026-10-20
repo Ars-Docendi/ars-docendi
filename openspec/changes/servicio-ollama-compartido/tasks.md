@@ -12,13 +12,15 @@ Alcance exclusivo: infraestructura/documentación, reutilizando Traefik existent
 
 - [x] 2.1 Conservar guía Debian/Docker/NVIDIA/toolkit contrastada con fuentes oficiales; verificar comandos/condiciones y no ejecutar provisioning privilegiado.
 - [x] 2.2 Documentar red externa, mounts/puerto/imagen existentes y habilitación/reversión de Traefik en ventana aprobada, arranque/modelos y auth manual con revisión explícita; verificar coherencia con archivos y sintaxis Bash sin ejecutar administración.
-- [x] 2.3 Actualizar topología Serve→Traefik→Ollama y vm-dev sin cliente vía VM router, DNS/TLS y sonda Docker temporal; verificar separación de routing público/privado sin modificar consumidores.
+- [x] 2.3 Actualizar topología Serve→Traefik→Ollama y vm-dev sin cliente vía VM router, DNS/TLS y sonda Docker temporal; verificar separación de routing público/privado sin modificar consumidores. _(Reemplazada por 2.5.)_
+- [x] 2.5 Reemplazar Tailscale Serve por regla `ia` del túnel principal (Access Service Token + IP de egreso, JWT en cloudflared, WAF) y 404 en Proxmox; prod sólo local por red `traefik`; middlewares rateLimit/inFlightReq; actualizar runbook y README de cloudflared.
 - [x] 2.4 Documentar mantenimiento y rollback sólo IA frente al rollback inicial del Traefik compartido, preservando modelos/red/mappings, y actualizar enlace; verificar referencias y limitaciones, sin prometer cuotas/prioridad o reload automático del archivo auth.
 
 ## 3. Verificación y aceptación
 
 - [x] 3.1 Revisar scope/diff/whitespace, ausencia de cambios de aplicaciones/workflows/tests y archivo del proxy descartado; ejecutar validación OpenSpec estricta y registrar sólo evidencia real de Traefik, preservando `.gitignore` ajeno.
-- [ ] 3.2 Operador: habilitar Traefik/Ollama en pc-prod, comprobar GPU RTX 5070, descubrimiento Docker/rotación real, HTTPS local/subred/Docker y routing público intacto; dejar pendiente si no hay acceso, sin modificar aplicaciones ni crear tests.
+- [x] 3.3 Revalidar Compose, Traefik aislado (401/200/429/streaming), ingress cloudflared materializado, formato y OpenSpec estricto tras 2.5.
+- [ ] 3.2 Operador: habilitar Traefik/Ollama en pc-prod, comprobar GPU RTX 5070, descubrimiento Docker/rotación real, Access (sin token/otra IP → 403; vm-dev → 200), ruta local de prod y routing público intacto; dejar pendiente si no hay acceso, sin modificar aplicaciones ni crear tests.
 
 ## Evidencia de la corrección Traefik
 
@@ -30,3 +32,10 @@ Alcance exclusivo: infraestructura/documentación, reutilizando Traefik existent
 - Relectura auth comprobada: editar sólo htpasswd dejó credencial retirada en 200; revisión de config provocó 401 para retirado y 200 para vigente. El equivalente vía labels/evento Docker queda en aceptación manual.
 - Recursos temporales eliminados y ausencia verificada. Documentación Bash validada sólo sintácticamente, versión CLI con entrypoint explícito ejercida. Scope/whitespace/OpenSpec revisados; `.gitignore` ajeno conservado; sin suites ni tests nuevos.
 - **3.2 pendiente:** operador debe habilitar Traefik existente en ventana, verificar descubrimiento Docker/rotación, RTX 5070 y HTTPS real local/subred/Docker, además de routing público intacto. No sincronizar/archivar como si estuviera aceptado.
+
+## Evidencia del reemplazo por Cloudflare
+
+- `cloudflared ingress validate` OK en ambas plantillas materializadas con valores ficticios. Debian: `ia` → `traefik:11435`, apex → `traefik:80`, preview → 404. Proxmox: `ia` y apex → 404, preview → `traefik:80`.
+- Traefik v3 aislado (file provider, sin upstream real): 401 sin credencial, 404 en `POST /api/pull`, 429 al superar la ráfaga (la petición anónima consumió cupo: rateLimit precede a auth). Streaming no re-ejercido: flushInterval y servicio sin cambios.
+- Compose `config --quiet` OK, Prettier OK y `openspec validate --all --strict` OK.
+- Access, DNS, WAF y validación JWT real no son verificables aquí: quedan en 3.2.

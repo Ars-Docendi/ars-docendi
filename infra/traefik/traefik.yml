@@ -24,9 +24,11 @@ entryPoints:
       middlewares:
         - headers-seguridad@file
 
-  # IA privada: sólo publicar en pc-prod como 127.0.0.1:11435:11435.
-  # Tailscale Serve termina HTTPS; Cloudflare usa exclusivamente `web`.
+  # IA privada (sólo pc-prod). Llegan: cloudflared por `ia.<DOMINIO>` tras
+  # Cloudflare Access (staging/pr-N) y prod por la red Docker `traefik`.
+  # Publicar en el host sólo como 127.0.0.1:11435:11435 (CLI del operador).
   # Ollama declara routers explícitos para ESTE entrypoint, nunca `web`.
+  # Sin forwardedHeaders: rateLimit usa la IP remota real, no X-Forwarded-For.
   ollama:
     address: ":11435"
     transport:

@@ -22,11 +22,17 @@ La infraestructura MUST permitir ejecutar Ollama con GPU NVIDIA en pc-prod y con
 
 ### Requirement: Endpoint privado y autenticado
 
-La infraestructura MUST exponer únicamente el proxy autenticado por HTTPS privado, sin publicar Ollama directamente, ni usar ingress público, Funnel o Cloudflare. MUST permitir rutas/métodos documentados de inferencia y consulta de versión/modelos, denegando administración remota de modelos. Credenciales MUST quedar fuera de archivos versionados e imágenes.
+La infraestructura MUST exponer únicamente el proxy autenticado, sin publicar Ollama directamente. Fuera de pc-prod MUST ser alcanzable sólo por un hostname dedicado del túnel Cloudflare principal protegido por Cloudflare Access con Service Token e IP de origen permitida, y cloudflared MUST exigir el JWT de Access. MUST permitir rutas/métodos documentados de inferencia y consulta de versión/modelos, denegando administración remota de modelos. Credenciales MUST quedar fuera de archivos versionados e imágenes.
+
+#### Scenario: Origen sin Service Token o IP no permitida
+
+- **GIVEN** el hostname de IA publicado por el túnel
+- **WHEN** se solicita sin Service Token válido o desde una IP fuera de la política
+- **THEN** Cloudflare Access rechaza la petición antes de llegar al origen.
 
 #### Scenario: Acceso sin credencial
 
-- **GIVEN** un origen autorizado por la red privada
+- **GIVEN** un origen que superó Cloudflare Access
 - **WHEN** solicita una ruta permitida sin credencial válida
 - **THEN** recibe HTTP 401 y no accede a inferencia.
 
@@ -38,13 +44,19 @@ La infraestructura MUST exponer únicamente el proxy autenticado por HTTPS priva
 
 ### Requirement: Reutilizar proxy existente sin exposición pública
 
-La infraestructura MUST reutilizar Traefik existente, sin agregar otro proxy productivo, y separar inferencia en un entrypoint privado no publicado por el túnel público. Su configuración MUST preservar routing de aplicaciones. Habilitación del proxy compartido MUST documentar ventana y reversión; apply MUST NOT reiniciarlo sin operación aprobada en host real.
+La infraestructura MUST reutilizar Traefik existente, sin agregar otro proxy productivo, y separar inferencia en un entrypoint privado distinto de `web`, con límites de tasa y concurrencia por origen. Su configuración MUST preservar routing de aplicaciones. Habilitación del proxy compartido MUST documentar ventana y reversión; apply MUST NOT reiniciarlo sin operación aprobada en host real.
 
 #### Scenario: API IA no se enruta por ingreso público
 
 - **GIVEN** router privado activo y routing público de aplicaciones
 - **WHEN** se solicita una ruta Ollama por entrypoint web
-- **THEN** no se entrega Ollama ni se añade una ruta pública de IA, mientras sus peticiones privadas autorizadas pueden responder.
+- **THEN** no se entrega Ollama por el hostname de aplicaciones, mientras sus peticiones autorizadas por el entrypoint privado pueden responder.
+
+#### Scenario: Exceso de peticiones
+
+- **GIVEN** un origen que supera el límite de tasa configurado
+- **WHEN** continúa enviando peticiones
+- **THEN** recibe HTTP 429 sin llegar a Ollama.
 
 #### Scenario: Rotación autenticación sin reiniciar proxy compartido
 
@@ -52,21 +64,21 @@ La infraestructura MUST reutilizar Traefik existente, sin agregar otro proxy pro
 - **WHEN** operador actualiza archivo, revisión y configuración según guía
 - **THEN** el usuario retirado deja de acceder y el vigente conserva acceso, sin reiniciar Traefik ni cambiar aplicaciones.
 
-### Requirement: Accesibilidad por topología de subred existente
+### Requirement: Accesibilidad por ambiente
 
-El endpoint MUST poder ser alcanzado por clientes autorizados desde pc-prod y desde la red Docker de vm-dev usando su VM subnet router existente, sin instalar Tailscale en vm-dev ni contenedores ni modificar aplicaciones. La configuración documentada MUST validar el certificado HTTPS y contemplar DNS, rutas, origen efectivo y retorno.
+Staging/pr-N en vm-dev MUST alcanzar el endpoint sólo por el túnel Cloudflare principal con Service Token y credencial propia. Prod MUST alcanzarlo sólo localmente por la red Docker de Traefik, sin salir del host y sin Service Token. El hostname de IA MUST NOT ser servido por el túnel de Proxmox ni por el entrypoint `web`. MUST NOT requerir cambios en aplicaciones.
 
 #### Scenario: Cliente temporal en red Docker de vm-dev
 
-- **GIVEN** pc-prod con IP Tailscale y vm-dev con IP de subred enrutada por otra VM
-- **WHEN** el operador usa una sonda temporal de infraestructura desde la red del consumidor
-- **THEN** puede comprobar el endpoint por HTTPS sin cambiar código, imagen o configuración del consumidor.
+- **GIVEN** Service Token, credencial `staging` y la IP de egreso de vm-dev autorizada
+- **WHEN** el operador usa una sonda temporal desde la red del consumidor
+- **THEN** obtiene respuesta por HTTPS sin cambiar código, imagen o configuración del consumidor.
 
-#### Scenario: DNS no disponible
+#### Scenario: Prod por ruta local
 
-- **GIVEN** ruta a la IP Tailscale pero resolución del FQDN ausente
-- **WHEN** el operador sigue el diagnóstico
-- **THEN** identifica el fallo de nombre y configura su resolución antes de aceptar acceso, sin desactivar TLS ni usar una IP incompatible con el certificado.
+- **GIVEN** el backend prod en la red Docker de Traefik en pc-prod
+- **WHEN** una sonda temporal en su namespace solicita el entrypoint privado con credencial `prod`
+- **THEN** obtiene respuesta sin atravesar Cloudflare, y esa credencial sola no habilita acceso desde Internet.
 
 ### Requirement: Archivos y alcance limitados a infraestructura
 

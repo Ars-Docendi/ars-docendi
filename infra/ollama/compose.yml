@@ -50,7 +50,8 @@ services:
       traefik.http.routers.ollama-privada.rule: "(Method(`GET`) && (Path(`/api/version`) || Path(`/api/tags`))) || (Method(`POST`) && (Path(`/api/chat`) || Path(`/api/generate`)))"
       traefik.http.routers.ollama-privada.priority: "100"
       traefik.http.routers.ollama-privada.service: ollama-local
-      traefik.http.routers.ollama-privada.middlewares: ollama-auth
+      # Tasa antes de auth: también frena fuerza bruta de BasicAuth.
+      traefik.http.routers.ollama-privada.middlewares: ollama-tasa,ollama-auth,ollama-concurrencia
       traefik.http.services.ollama-local.loadbalancer.server.port: "11434"
       traefik.http.services.ollama-local.loadbalancer.passhostheader: "false"
       # Streaming: flush inmediato, sin middleware Buffering ni Retry.
@@ -59,6 +60,11 @@ services:
       traefik.http.middlewares.ollama-auth.basicauth.removeheader: "true"
       # Cambiar revisión tras rotar htpasswd fuerza reconstrucción del middleware.
       traefik.http.middlewares.ollama-auth.basicauth.realm: "Docendi IA privada r${OLLAMA_AUTH_REVISION:-1}"
+      # Por IP remota real (sin confiar X-Forwarded-For): túnel y prod tienen cupos separados.
+      traefik.http.middlewares.ollama-tasa.ratelimit.average: "30"
+      traefik.http.middlewares.ollama-tasa.ratelimit.period: 1m
+      traefik.http.middlewares.ollama-tasa.ratelimit.burst: "10"
+      traefik.http.middlewares.ollama-concurrencia.inflightreq.amount: "4"
 
 networks:
   inferencia:

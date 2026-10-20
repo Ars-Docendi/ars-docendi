@@ -2,7 +2,7 @@
 
 La guía implementada y mantenida está en [docs/operations/ollama-compartido.md](../../../docs/operations/ollama-compartido.md).
 
-Contiene comandos administrativos separados de la operación no privilegiada, configuración Docker/NVIDIA, habilitación/reversión de Traefik existente, autenticación manual con revisión, arranque/modelos, Tailscale Serve y subnet router existente, DNS/TLS, sondas Docker temporales, mantenimiento y rollback sin borrar volúmenes.
+Contiene comandos administrativos separados de la operación no privilegiada, configuración Docker/NVIDIA, habilitación/reversión de Traefik existente, autenticación manual con revisión, arranque/modelos, Cloudflare Tunnel + Access para staging/pr-N, ruta local de prod, sondas Docker temporales, mantenimiento y rollback sin borrar volúmenes.
 
 No incluye cambios de aplicaciones, CI/CD o tests nuevos. Las credenciales se preparan fuera del repositorio y se solicitan interactivamente; el proxy no es un gateway desarrollado.
 

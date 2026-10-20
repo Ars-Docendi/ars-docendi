@@ -4,16 +4,15 @@
 
 El proxy existente de Ars Docendi es Traefik. El usuario aprobó reutilizarlo, retirando el proxy añadido en la implementación preliminar. Alcance sólo infraestructura/documentación: ninguna aplicación, workflow, variable de backend, gateway o suite de tests.
 
-Topología declarada: pc-prod tiene GPU RTX 5070 y Tailscale directo; vm-dev aloja staging/pr-N sin cliente, accediendo por una VM subnet router separada. Conexión bidireccional confirmada por operador, no aceptación HTTPS/GPU desde esta sesión.
+Topología declarada: pc-prod (Debian) tiene GPU RTX 5070, prod y el túnel Cloudflare principal; vm-dev (Proxmox) aloja staging/pr-N con su propio túnel. Se descarta Tailscale Serve: staging/pr-N llegan por el túnel principal; prod, sólo localmente.
 
 ```text
-vm-dev → VM subnet router → Tailscale → pc-prod:HTTPS
-                                        │ Serve
-                                        ▼
-                              Traefik existente (ollama)
-                                        │ red privada
-                                        ▼
-                                  Ollama → GPU
+vm-dev ──HTTPS + Service Token──▶ Cloudflare Access ──túnel principal──▶ cloudflared (JWT)
+                                                                              │ red traefik
+backend prod ─────────────────── red traefik ──────────────────────▶ Traefik :11435 (ollama)
+                                                                              │ red privada
+                                                                              ▼
+                                                                        Ollama → GPU
 ```
 
 ## Goals / Non-Goals
@@ -32,9 +31,9 @@ Red `docendi-ai-inferencia` externa administrada por operador, uniendo sólo Oll
 
 ### 2. EntryPoint privado y labels Docker
 
-Agregar únicamente `entryPoints.ollama` (:11435) al archivo estático Traefik, conservando web/dashboard/providers. Operador publica 127.0.0.1:11435:11435 y Serve HTTPS hacia ese loopback. El bind es al host loopback, no al loopback dentro del contenedor: la publicación Docker necesita que el entrypoint acepte en su interfaz de contenedor.
+Agregar únicamente `entryPoints.ollama` (:11435) al archivo estático Traefik, conservando web/dashboard/providers. Escucha en la interfaz del contenedor: lo alcanzan cloudflared y el backend prod por la red Docker `traefik` existente. El operador publica además 127.0.0.1:11435:11435 sólo para su CLI. Sin `forwardedHeaders`, para que rateLimit/inFlightReq cuenten por IP remota real.
 
-Labels en Ollama: router `ollama-privada` con entrypoint explícito `ollama`, reglas de GET version/tags y POST chat/generate, BasicAuth y servicio HTTP 11434. `traefik.docker.network` sobreescribe la red Docker pública por defecto del provider. Ningún router IA en web/Cloudflare, ni archivos dinámicos IA globales que exijan auth en Proxmox. No se configura Funnel.
+Labels en Ollama: router `ollama-privada` con entrypoint explícito `ollama`, reglas de GET version/tags y POST chat/generate, BasicAuth y servicio HTTP 11434. `traefik.docker.network` sobreescribe la red Docker pública por defecto del provider. Ningún router IA en `web`, ni archivos dinámicos IA globales que exijan auth en Proxmox. Cadena: `ollama-tasa` (rateLimit, antes de auth para frenar fuerza bruta) → `ollama-auth` → `ollama-concurrencia` (inFlightReq).
 
 Habilitación inicial requiere recrear Traefik para nuevos puertos/mounts/red: reiniciar solamente no agrega esas opciones. Documentar inventario de imagen/opciones existentes, ventana, backup reversible y comprobación pública; nunca ejecutarlo en esta sesión ni clonar un docker run sin preservar extras reales. No actualizar su imagen por este cambio.
 
@@ -52,17 +51,23 @@ Servicio Traefik con flushInterval negativo para flush inmediato, sin Buffering 
 
 Timeout privado: 30 s para lectura de petición, writeTimeout 0 para no cortar streaming por plazo global, idle 60 s. Cliente debe gestionar su deadline; no agregar lógica de aplicación en este cambio. Deshabilitar access logs del entrypoint privado; conservar observabilidad pública.
 
-### 5. DNS/TLS y acceso desde subred
+### 5. Cloudflare Tunnel + Access (staging/pr-N) y ruta local (prod)
 
-Serve termina HTTPS de FQDN de pc-prod; resolver ese nombre a su IP Tailscale desde vm-dev/Docker con DNS accesible. No suponer MagicDNS disponible por ruta de subred ni usar `-k`/URL IP con certificado de nombre. `--resolve` sólo diagnóstico.
+Defensa en capas, todas obligatorias:
 
-Reusar VM router y retorno existentes. Inventariar origen efectivo tras NAT y limitar policy/firewall al destino/puerto necesario. No instalar Tailscale en vm-dev o contenedores. Sondear desde namespace/red real sin modificar consumidores.
+1. Hostname dedicado `ia.<DOMINIO>` sólo en el túnel principal → `http://traefik:11435`. CNAME explícito `ia` gana al wildcard de Proxmox; su túnel responde 404 a `ia` antes del wildcard.
+2. Cloudflare Access self-hosted, única política Service Auth: Service Token `vm-dev-ia` (vencimiento ≤ 1 año) **y** IP de egreso de vm-dev. Corta en el borde: sin token o desde otra IP no llega al origen.
+3. `originRequest.access.required` en cloudflared con teamName/AUD: el origen rechaza sin JWT válido aunque la aplicación Access se borre o relaje.
+4. WAF: rate limiting del host y bloqueo de métodos ≠ GET/POST.
+5. Traefik: allowlist método/ruta, rateLimit, inFlightReq y BasicAuth con usuario `staging` distinto de `prod`.
+
+Prod no usa el túnel: llama `http://traefik:11435` por la red `traefik`, sin salir del host, y su credencial no tiene Service Token, inútil desde Internet. Un fallback por túnel no aporta disponibilidad (mismo host/Traefik) y se descarta. Alternativa WARP Connector/red privada descartada: agrega un componente en Proxmox. La entrega del Service Token a staging/pr-N pertenece al change de integración.
 
 ### 6. Configuración y verificación acotadas
 
 Conservar `OLLAMA_IMAGEN`, `OLLAMA_ARCHIVO_AUTH` (información del operador), `OLLAMA_MODELO` y límites nativos. Retirar `OLLAMA_PROXY_IMAGEN/UID/GID/PUERTO_PROXY`; agregar red externa y revisión auth. Archivo auth/modelo sólo operación, no mounts del Compose de Ollama. Ejemplo sin secretos.
 
-En entorno aislado sin GPU/Tailscale, validar Compose y ejecutar la versión existente de Traefik con file provider materializado a partir de las labels, sin montar socket real ni leer secretos de otras aplicaciones. Esto verifica parser/reglas/auth/streaming, pero NO acredita descubrimiento Docker real ni corte del proxy compartido; éstos quedan en 3.2. Contenedores de validación se marcan `traefik.enable=false` para no afectar el provider compartido.
+En entorno aislado sin GPU/Cloudflare, validar Compose y ejecutar la versión existente de Traefik con file provider materializado a partir de las labels, sin montar socket real ni leer secretos de otras aplicaciones. Esto verifica parser/reglas/auth/streaming, pero NO acredita descubrimiento Docker real ni corte del proxy compartido; éstos quedan en 3.2. Contenedores de validación se marcan `traefik.enable=false` para no afectar el provider compartido.
 
 ## Risks / Trade-offs
 
@@ -70,19 +75,20 @@ En entorno aislado sin GPU/Tailscale, validar Compose y ejecutar la versión exi
 - [Rotación afecta IA brevemente] → recreación de Ollama/revisión explícita, sin reiniciar proxy compartido.
 - [Red externa queda al parar IA] → previsto: pertenece al operador/Traefik, no borrarla por teardown de aplicación.
 - [Competencia GPU/RAM con producción] → límites conservadores/operación manual, sin prometer reserva o SLO.
-- [Fallo DNS/router/certificado] → HTTPS desde namespace real, preservar rutas; no fallback público.
+- [Service Token filtrado] → IP de egreso requerida, BasicAuth y rate limiting; revocación inmediata en Zero Trust.
+- [IP de egreso de vm-dev cambia] → Access devuelve 403 (falla cerrado); actualizar la política.
 - [Host/daemon no comparten rutas] → operar en pc-prod y validar mounts; usar stdin/volúmenes temporales para validación local aislada.
 
 ## Migration Plan
 
-Retirar el archivo del proxy descartado → revisar/validar archivos → operador prepara GPU y auth/red → ventana para recrear Traefik existente con nuevo entrypoint/mount/port/red → Ollama/modelo/GPU → Serve → comprobación local/subred/Docker y público intacto. Sin despliegues/configuración de aplicaciones.
+Retirar el archivo del proxy descartado → revisar/validar archivos → operador prepara GPU y auth/red → ventana para recrear Traefik existente con nuevo entrypoint/mount/port/red → Ollama/modelo/GPU → Access/DNS/WAF e ingress `ia` → comprobación Internet/vm-dev/prod y público intacto. Sin despliegues/configuración de aplicaciones.
 
-Rollback IA: retirar mapping Serve propio y detener sólo proyecto Ollama sin -v; provider elimina su router, Traefik/red externa siguen. Rollback de corte inicial: retirar contenedor nuevo del proxy y recuperar config/contenedor/imagen anteriores en ventana aprobada. No restaurar DB/storage, modificar DNS público o detener proyectos de aplicaciones.
+Rollback IA: retirar regla `ia` del ingress y la aplicación Access, y detener sólo proyecto Ollama sin -v; provider elimina su router, Traefik/red externa siguen. Rollback de corte inicial: retirar contenedor nuevo del proxy y recuperar config/contenedor/imagen anteriores en ventana aprobada. No restaurar DB/storage, modificar DNS público o detener proyectos de aplicaciones.
 
 ## Open Questions
 
-Antes de operación real: IP/FQDN/CIDR/origen efectivo/puerto libre, rutas y permisos auth, imagen/options del Traefik de pc-prod y recursos/modelo dimensionados. No son preguntas de integración backend.
+Antes de operación real: dominio, team name/AUD, IP de egreso estable de vm-dev, permisos auth, imagen/options del Traefik de pc-prod y recursos/modelo dimensionados. No son preguntas de integración backend.
 
 ## Referencias
 
-Traefik v3.7.5 existente en el daemon consultado, sin asumir que pc-prod usa esa misma versión: documentación/código oficial de BasicAuth, entrypoints y servicios en `github.com/traefik/traefik` (tag v3.7.5). Referencias de Ollama, Docker, NVIDIA y Tailscale en el runbook implementado. Mantener evidencia de validación aislada separada del gate manual real.
+Traefik v3.7.5 existente en el daemon consultado, sin asumir que pc-prod usa esa misma versión: documentación/código oficial de BasicAuth, entrypoints y servicios en `github.com/traefik/traefik` (tag v3.7.5). Referencias de Ollama, Docker, NVIDIA y Cloudflare en el runbook implementado. Mantener evidencia de validación aislada separada del gate manual real.
