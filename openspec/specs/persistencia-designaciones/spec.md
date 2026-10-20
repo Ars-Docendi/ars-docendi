@@ -50,40 +50,6 @@ El sistema SHALL registrar en `designaciones.designaciones` la columna nullable 
 - **WHEN** se consulta su origen
 - **THEN** el sistema MUST poder recuperar el pedido, su historial de trámite completo y sus eventos en `audit.change_log`
 
-### Requirement: El pedido cubre exactamente una materia
-
-El sistema SHALL persistir cada pedido de designación con una única `materia_id` —la cátedra sobre la que el Jefe de Cátedra opera— y sus `horas` como columnas del propio pedido. Para un Alta, la materia deberá pertenecer al conjunto de materias donde el actor tiene una membresía vigente de Jefe de Cátedra. Para una Baja o un Cambio de cargo o dedicación, la materia deberá pertenecer tanto al ámbito del actor como a una designación vigente del docente seleccionado. La carrera del pedido SHALL derivarse de `identity.materias.carrera_id` y MUST NOT almacenarse denormalizada.
-
-#### Scenario: La carrera del pedido se deriva de su materia
-
-- **GIVEN** un pedido persistido sobre una materia
-- **WHEN** el Coordinador consulta su tablero de revisión
-- **THEN** el pedido MUST aparecer bajo la carrera a la que pertenece esa materia, resolviendo un único Coordinador competente
-
-#### Scenario: Un Jefe de Cátedra no puede cargar un pedido sobre una cátedra ajena
-
-- **GIVEN** un Jefe de Cátedra sin rol vigente sobre una materia dada
-- **WHEN** intenta crear un pedido sobre esa materia
-- **THEN** el sistema MUST denegar la creación
-
-#### Scenario: Baja sobre una materia no designada al docente
-
-- **GIVEN** un Jefe de Cátedra con ámbito sobre Materia A y un docente con designación vigente sólo en Materia B
-- **WHEN** intenta crear una Baja para Materia A
-- **THEN** el backend MUST rechazarla porque la materia no pertenece al estado vigente del docente
-
-#### Scenario: Cambio sobre la materia seleccionada del docente
-
-- **GIVEN** un docente con designaciones vigentes en Materias A y B, y un Jefe con ámbito sobre ambas
-- **WHEN** crea un Cambio para Materia B
-- **THEN** el pedido MUST referir `materia_id` de B y tomar de B los datos vigentes del snapshot
-
-#### Scenario: Un rol revocado deja de habilitar la carga
-
-- **GIVEN** un usuario cuyo rol de Jefe de Cátedra sobre una materia fue revocado (`deleted_at` no nulo)
-- **WHEN** intenta crear un pedido sobre esa materia
-- **THEN** el sistema MUST denegar la creación
-
 ### Requirement: Un pedido por docente por período, con la base de datos como autoridad [BR-designaciones-001]
 
 El sistema SHALL impedir que exista más de un pedido no terminal para la misma persona dentro del mismo período, **sin importar la cátedra**. La restricción MUST implementarse como índice único parcial en PostgreSQL sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, y SHALL validarse además en el backend antes de intentar la escritura, para producir el mensaje de error correspondiente. Ante una violación del índice, el backend MUST traducirla al mismo mensaje en lugar de propagar un error de base de datos.
@@ -161,37 +127,50 @@ El sistema SHALL persistir el historial de cada pedido en `designaciones.pedido_
 
 ### Requirement: Aprobación de un pedido materializada sobre las designaciones vigentes
 
-El sistema SHALL traducir la aprobación de un pedido a escrituras sobre `designaciones.designaciones`, dentro de una única transacción, según su novedad: un **Alta** abre una designación nueva; una **Baja** cierra la designación vigente fijando `vigente_hasta`; un **Cambio de cargo o dedicación** cierra la vigente y abre una nueva con los valores solicitados, las tres cargas horarias solicitadas y el origen del pedido. La ausencia de novedad aprobada MUST conservar las designaciones vigentes sin crear pedido alguno. Toda designación así producida MUST llevar `origen_pedido_id` apuntando al pedido aprobado.
+El sistema SHALL materializar aprobación y eventos en una única transacción: Alta abre una vigencia, Baja la cierra y Cambio cierra/abre con valores y origen solicitados. Si la vigente comenzó en la misma fecha efectiva del Cambio, SHALL actualizar esa fila conservando ID e inicio, sin intervalo vacío o solapado, y auditar valores y orígenes anterior/nuevo. Sin novedad aprobada conserva las vigencias sin crear pedido. El origen actual SHALL identificar el pedido aprobado.
 
 #### Scenario: Aprobación de un Alta
 
 - **GIVEN** un pedido de novedad "Alta" que completó el circuito de aprobación
 - **WHEN** el sistema materializa el resultado
-- **THEN** MUST abrirse una designación vigente para esa persona y materia, con `origen_pedido_id` al pedido
+- **THEN** se abre una designación vigente para esa persona y materia, con `origen_pedido_id` al pedido
 
 #### Scenario: Aprobación de una Baja
 
 - **GIVEN** un pedido de novedad "Baja" que completó el circuito
 - **WHEN** el sistema materializa el resultado
-- **THEN** la designación vigente de esa persona sobre esa materia MUST quedar cerrada con su `vigente_hasta`
+- **THEN** la designación vigente de esa persona sobre esa materia queda cerrada con su `vigente_hasta`
 
 #### Scenario: Aprobación de un Cambio
 
-- **GIVEN** un pedido de novedad "Cambio de cargo o dedicación" que completó el circuito
-- **WHEN** el sistema materializa el resultado
-- **THEN** la designación vigente MUST cerrarse y MUST abrirse una nueva con el cargo, la dedicación y las tres cargas horarias solicitadas, ambas en la misma transacción
+- **GIVEN** un pedido Cambio aprobado y una vigencia iniciada antes de su fecha efectiva
+- **WHEN** se materializa
+- **THEN** la anterior se cierra y se abre una nueva con cargo, dedicación y tres cargas horarias solicitadas, sin solapamiento y en la misma transacción
 
 #### Scenario: Sin novedad no altera el estado vigente
 
 - **GIVEN** una persona y materia con designación vigente y sin novedad aprobada
 - **WHEN** se consulta el resultado para el lote del período
-- **THEN** MUST conservar sus valores sin crear un pedido Sin novedad
+- **THEN** conserva sus valores sin crear un pedido Sin novedad
 
 #### Scenario: Un fallo parcial no deja estado inconsistente
 
-- **GIVEN** un pedido de "Cambio" en proceso de materialización
-- **WHEN** la apertura de la designación nueva falla
-- **THEN** el cierre de la anterior MUST revertirse, dejando el estado vigente intacto
+- **GIVEN** un Cambio en proceso de materialización
+- **WHEN** falla la apertura o actualización intradía
+- **THEN** se revierte la operación completa, conservando el estado vigente, el pedido y sus eventos previos
+
+#### Scenario: Cambio sobre una vigencia iniciada ese día
+
+- **GIVEN** una vigencia iniciada en la fecha efectiva del Cambio
+- **WHEN** se aprueba el Cambio
+- **THEN** mantiene ID e inicio y adopta cargo, dedicación, horas y origen del pedido nuevo
+- **AND** el snapshot inicial del trámite no se recalcula y la auditoría conserva valores y orígenes anterior/nuevo
+
+#### Scenario: Cambio intradía reintentado
+
+- **GIVEN** un Cambio intradía confirmado con su clave idempotente
+- **WHEN** se reintenta la aprobación reconocida
+- **THEN** no se duplica la actualización ni el historial
 
 ### Requirement: Período con una única ventana activa
 
@@ -275,3 +254,79 @@ Las designaciones SHALL conservar horas de investigación y externas, además de
 - **GIVEN** un Alta o Cambio con cargas 12, 4 y 2
 - **WHEN** Decanato aprueba y se consulta la designación resultante
 - **THEN** MUST devolver 12, 4 y 2 y futuras solicitudes MUST poder fotografiar esos valores vigentes
+
+### Requirement: Numeración de pedidos sin truncamiento
+
+Los números de pedido SHALL conservar el prefijo de año y un correlativo con mínimo de cuatro dígitos, sin truncar valores más largos. La asignación MUST ser concurrentemente segura, conservar números históricos y admitir gaps; MUST NOT reiniciar la secuencia ni renumerar registros para evitar colisiones.
+
+#### Scenario: Correlativo de cinco dígitos
+
+- **GIVEN** valores de secuencia 1000, 9999, 10000 y 10001 en el mismo año
+- **WHEN** se asignan sus números
+- **THEN** son distintos y los dos últimos conservan completos los sufijos 10000 y 10001
+
+#### Scenario: Intento revertido
+
+- **GIVEN** una creación consume un correlativo y luego se revierte
+- **WHEN** se crea el siguiente pedido
+- **THEN** no se exige reutilizar el número consumido y no se modifica ninguno existente
+
+### Requirement: Existencia referencial de la materia de una designación
+
+Toda designación MUST referenciar una materia canónica existente. La base SHALL rechazar inserciones o actualizaciones huérfanas y borrados físicos incompatibles. Esta garantía MUST NOT imponer pertenencia a un plan ni una FK compuesta materia–carrera informativa.
+
+#### Scenario: SQL con materia inexistente
+
+- **GIVEN** una persona, cargo, dedicación y carrera válidos
+- **WHEN** una escritura usa una materia inexistente
+- **THEN** la base rechaza toda la operación
+
+#### Scenario: Materia usada solo por designaciones
+
+- **GIVEN** una materia referenciada por una designación y sin pedidos
+- **WHEN** se intenta borrarla físicamente
+- **THEN** la base conserva la materia y su designación
+
+### Requirement: Mutaciones de vigencias sin pérdida concurrente
+
+La administración y el circuito SHALL coordinar escrituras sobre la misma persona/materia. Una operación basada en una versión obsoleta MUST fallar con conflicto o revalidarse antes de confirmar; MUST NOT sobrescribir atributos ni materializar un snapshot obsoleto silenciosamente. Cambios de estado, vigencias y sus eventos SHALL confirmarse atómicamente.
+
+#### Scenario: Administración contra aprobación
+
+- **GIVEN** administración y aprobación observan la misma vigencia y una modifica sus horas
+- **WHEN** la otra intenta confirmar usando el estado anterior
+- **THEN** no pierde el cambio confirmado y una respuesta de conflicto no agrega eventos ni materialización parciales
+
+### Requirement: Materia y carrera canónicas del pedido
+
+El sistema SHALL persistir cada pedido con una materia y carrera canónicas elegidas juntas, y sus horas. Alta exige materia dentro del ámbito vigente del Jefe; Baja/Cambio exige además designación vigente del docente en esa materia. La carrera almacenada SHALL determinar al Coordinador competente; los planes son informativos y MUST NOT convertirse en referencia obligatoria de negocio.
+
+#### Scenario: La carrera del pedido determina su revisión
+
+- **GIVEN** una materia compartida por dos carreras y un pedido para una de ellas
+- **WHEN** se consulta el tablero de revisión
+- **THEN** aparece solo en el ámbito de la carrera elegida, sin derivarla de una columna inexistente de la materia
+
+#### Scenario: Un Jefe de Cátedra no puede cargar un pedido sobre una cátedra ajena
+
+- **GIVEN** un Jefe sin rol vigente sobre una materia
+- **WHEN** intenta crear un pedido sobre ella
+- **THEN** se deniega la creación
+
+#### Scenario: Baja sobre una materia no designada al docente
+
+- **GIVEN** un Jefe con ámbito sobre Materia A y un docente con vigencia solo en B
+- **WHEN** intenta crear una Baja para A
+- **THEN** se rechaza por ausencia de vigencia compatible
+
+#### Scenario: Cambio sobre la materia seleccionada del docente
+
+- **GIVEN** un docente con vigencias en A y B y un Jefe con ámbito sobre ambas
+- **WHEN** crea un Cambio para B
+- **THEN** el pedido y su snapshot refieren los datos de B
+
+#### Scenario: Un rol revocado deja de habilitar la carga
+
+- **GIVEN** un usuario cuyo rol de Jefe sobre una materia fue revocado
+- **WHEN** intenta crear un pedido para ella
+- **THEN** se deniega la creación

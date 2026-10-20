@@ -26,7 +26,7 @@
 ## 5. Verificación
 
 - [x] 5.1 Ejecutar `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `openspec validate --all --strict`; registrar checks que el entorno no permita completar.
-- [ ] 5.2 Operador: crear secrets y usuario `preview`, desplegar staging y un pr-N, y confirmar "Disponible" en el dashboard de cada uno y en prod tras el release.
+- [x] 5.2 Operador: crear secrets y usuario `preview`, desplegar staging y un pr-N, y confirmar "Disponible" en el dashboard de cada uno y en prod tras el release.
 
 ## Evidencia
 
