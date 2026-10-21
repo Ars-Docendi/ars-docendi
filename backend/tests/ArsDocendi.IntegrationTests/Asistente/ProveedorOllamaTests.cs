@@ -295,6 +295,21 @@ public sealed class ProveedorOllamaTests
     }
 
     [Fact]
+    public async Task Se_compone_sin_host_como_en_el_evaluador()
+    {
+        // El evaluador arma el módulo sin Host: no hay IHostEnvironment. La
+        // validación de Inferencia no puede exigirlo para resolver el proveedor.
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        using var servicios = Componer(servidor, intentos: 1, conHost: false).BuildServiceProvider();
+        using var turno = servicios.CreateScope();
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>().CompletarAsync(Solicitud, Ct));
+
+        Assert.Single(servidor.Pedidos);
+    }
+
+    [Fact]
     public async Task Las_credenciales_del_servicio_no_viajan_a_otro_proveedor()
     {
         var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
@@ -335,7 +350,7 @@ public sealed class ProveedorOllamaTests
             NullLogger<ProveedorOllama>.Instance);
 
     private static ServiceCollection Componer(
-        ServidorFalso servidor, int intentos, string proveedor = ProveedorOllama.Clave)
+        ServidorFalso servidor, int intentos, string proveedor = ProveedorOllama.Clave, bool conHost = true)
     {
         static string Ajuste(string nombre) => $"{OpcionesAsistente.Seccion}:{nombre}";
 
@@ -359,8 +374,10 @@ public sealed class ProveedorOllamaTests
 
         var servicios = new ServiceCollection();
         servicios.AddLogging();
-        servicios.AddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(
-            new AmbienteDePrueba());
+        if (conHost)
+        {
+            servicios.AddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(new AmbienteDePrueba());
+        }
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
         servicios.AddHttpClient(ModuleExtensions.ClienteDelProveedor)

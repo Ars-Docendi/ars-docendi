@@ -618,12 +618,14 @@ public static class ModuleExtensions
                 : modelo,
             sp.GetRequiredService<ILogger<ProveedorLocal>>());
 
-    // En Development no se exigen secretos locales, igual que Almacenamiento.
-    private sealed class ValidacionOpcionesInferencia(IHostEnvironment ambiente) : IValidateOptions<OpcionesInferencia>
+    // En Development no se exigen secretos locales, igual que Almacenamiento. Sin
+    // Host —el evaluador compone el módulo solo— no hay ambiente y se valida.
+    private sealed class ValidacionOpcionesInferencia(IHostEnvironment? ambiente = null)
+        : IValidateOptions<OpcionesInferencia>
     {
         public ValidateOptionsResult Validate(string? name, OpcionesInferencia opciones)
         {
-            if (ambiente.IsDevelopment()) return ValidateOptionsResult.Success;
+            if (ambiente?.IsDevelopment() == true) return ValidateOptionsResult.Success;
             var errores = opciones.Errores().ToList();
             return errores.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errores);
         }
