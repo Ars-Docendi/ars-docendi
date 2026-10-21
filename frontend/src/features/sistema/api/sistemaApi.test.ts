@@ -13,7 +13,11 @@ vi.mock("../../../shared/api/client", () => ({
   apiClient: { get: vi.fn() },
 }));
 
-beforeEach(() => vi.mocked(apiClient.get).mockReset());
+// Con llaves: Vitest toma lo que devuelve un hook como su limpieza, y
+// `mockReset()` devuelve el mock, que se invocaría al terminar cada test.
+beforeEach(() => {
+  vi.mocked(apiClient.get).mockReset();
+});
 
 const ASISTENTE = COMPONENTES_PING.find((c) => c.id === "asistente")!;
 
