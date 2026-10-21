@@ -459,7 +459,7 @@
       "pregunta": "¿Cuántos pedidos prioritarios hay en Ingeniería Industrial?",
       "categoria": "agregacion",
       "actor": "global",
-      "sql_referencia": "SELECT count(*) AS total FROM designaciones.pedidos pe JOIN identity.materias m ON m.id = pe.materia_id JOIN identity.carreras ca ON ca.id = d.carrera_id WHERE pe.prioritario AND ca.code = 'IND'",
+      "sql_referencia": "SELECT count(*) AS total FROM designaciones.pedidos pe JOIN identity.carreras ca ON ca.id = pe.carrera_id WHERE pe.prioritario AND ca.code = 'IND'",
       "orden_importa": false,
       "plan_referencia": null,
       "nota": "fuera del catálogo: carril SQL"

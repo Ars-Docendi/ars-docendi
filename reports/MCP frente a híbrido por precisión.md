@@ -60,8 +60,8 @@ Cada una tiene enums cerrados, una `medida` (`listado | conteo | suma_horas`), u
 
 Hay dos hallazgos del repo que valen para las dos arquitecturas:
 
-- **Los endpoints de UI tienen filtros silenciosos.** `GET /api/designaciones/catalogos` excluye a las personas con un pedido vivo en el período activo ([ServicioCatalogosDesignaciones.cs](backend/src/Modules.Designaciones/Services/ServicioCatalogosDesignaciones.cs)). Un agente que pregunte "¿quiénes dictan Bases de Datos?" a ese endpoint recibiría una lista parcial sin ninguna advertencia. Por eso A exige endpoints nuevos y propios del asistente.
-- **La resolución de entidades va en el servidor, con estado explícito.** La causa principal de respuestas falsas con SQL válido es el literal mal resuelto, porque "cero filas de un SQL válido son indistinguibles de «no hay»" ([proposal de recuperación de valores](openspec/changes/asistente-recuperacion-de-valores/proposal.md)). Los estados son `ok | ambiguo | no_encontrado | sin_permiso | vacio`, y la consulta no se ejecuta mientras quede una entidad sin resolver. Los LLM recuperan apenas ~27 % de las interpretaciones de una pregunta ambigua ([AMBROSIA](https://arxiv.org/abs/2406.19073)), así que detectar la ambigüedad no puede quedar en manos del modelo.
+- **Los endpoints de UI tienen filtros silenciosos.** `GET /api/designaciones/catalogos` excluye a las personas con un pedido vivo en el período activo ([ServicioCatalogosDesignaciones.cs](../backend/src/Modules.Designaciones/Services/ServicioCatalogosDesignaciones.cs)). Un agente que pregunte "¿quiénes dictan Bases de Datos?" a ese endpoint recibiría una lista parcial sin ninguna advertencia. Por eso A exige endpoints nuevos y propios del asistente.
+- **La resolución de entidades va en el servidor, con estado explícito.** La causa principal de respuestas falsas con SQL válido es el literal mal resuelto, porque "cero filas de un SQL válido son indistinguibles de «no hay»" ([proposal de recuperación de valores](../openspec/changes/asistente-recuperacion-de-valores/proposal.md)). Los estados son `ok | ambiguo | no_encontrado | sin_permiso | vacio`, y la consulta no se ejecuta mientras quede una entidad sin resolver. Los LLM recuperan apenas ~27 % de las interpretaciones de una pregunta ambigua ([AMBROSIA](https://arxiv.org/abs/2406.19073)), así que detectar la ambigüedad no puede quedar en manos del modelo.
 
 ### Modelos por nivel según la primera ronda
 
@@ -180,15 +180,15 @@ var candidatas = catalogo.Intenciones
     .ToList();
 ```
 
-Para resolver, alcanza con que cada slot exigido resuelva a un único valor. **No hay ningún control sobre los términos sobrantes** ([ResolutorDeIntenciones.cs](backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs)). El propio comentario de la clase lo reconoce: la guarda de "no dejar tokens de contenido" que hace viable al enrutador social "no sirve acá".
+Para resolver, alcanza con que cada slot exigido resuelva a un único valor. **No hay ningún control sobre los términos sobrantes** ([ResolutorDeIntenciones.cs](../backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs)). El propio comentario de la clase lo reconoce: la guarda de "no dejar tokens de contenido" que hace viable al enrutador social "no sirve acá".
 
-Con el catálogo vigente ([intenciones.json](backend/src/Modules.Asistente/Recursos/intenciones.json)), "¿Cuántos pedidos rechazados hubo en Ingeniería Industrial el ciclo pasado?" satisface {cuantos, pedido} + `estado = rechazado`, y la carrera y el período se descartan en silencio. "¿Cuántos ayudantes de primera hay en Bases de Datos?" cae en `designaciones-de-un-cargo` y devuelve el conteo global.
+Con el catálogo vigente ([intenciones.json](../backend/src/Modules.Asistente/Recursos/intenciones.json)), "¿Cuántos pedidos rechazados hubo en Ingeniería Industrial el ciclo pasado?" satisface {cuantos, pedido} + `estado = rechazado`, y la carrera y el período se descartan en silencio. "¿Cuántos ayudantes de primera hay en Bases de Datos?" cae en `designaciones-de-un-cargo` y devuelve el conteo global.
 
-Hoy el daño es latente: la tabla dorada da **0 de 39 capturas**, en parte porque «rechazadas» no coincide con el literal `rechazado`. Pero **crece con cada sinónimo que se agrega para subir la cobertura**, que era justamente la recomendación de la ronda 1. Además, el enrutador corre después del reescritor LLM, así que hereda sus errores con sello de certificado ([EnrutadorDeDominio.cs](backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs)).
+Hoy el daño es latente: la tabla dorada da **0 de 39 capturas**, en parte porque «rechazadas» no coincide con el literal `rechazado`. Pero **crece con cada sinónimo que se agrega para subir la cobertura**, que era justamente la recomendación de la ronda 1. Además, el enrutador corre después del reescritor LLM, así que hereda sus errores con sello de certificado ([EnrutadorDeDominio.cs](../backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs)).
 
-El respaldo local cayó por una cuenta sencilla. Si responder bien vale +1, responder mal vale −p y abstenerse vale 0, solo conviene responder cuando P(correcto) > p/(1+p). La precisión condicional medida de Qwen3-8B es 26/33 = 78,8 %, pero con n = 33 no se puede afirmar que supere el 66,7 % que exige p = 2, y mucho menos en las clases con más falsas ([modelo-local.md §3](docs/architecture/modelo-local.md)).
+El respaldo local cayó por una cuenta sencilla. Si responder bien vale +1, responder mal vale −p y abstenerse vale 0, solo conviene responder cuando P(correcto) > p/(1+p). La precisión condicional medida de Qwen3-8B es 26/33 = 78,8 %, pero con n = 33 no se puede afirmar que supere el 66,7 % que exige p = 2, y mucho menos en las clases con más falsas ([modelo-local.md §3](../docs/architecture/modelo-local.md)).
 
-Por último, la línea de base de Claude con Text-to-SQL suma **0 respuestas falsas en 78 ítems**: 30/32 en capacidad con 2 sobre-abstenciones, 14/15 en robustez, 11/11 en diálogo y 20/20 en social ([lineas-de-base/capacidad.json](backend/eval/lineas-de-base/capacidad.json)). En ese nivel ninguna arquitectura puede ganar sobre el dataset vigente.
+Por último, la línea de base de Claude con Text-to-SQL suma **0 respuestas falsas en 78 ítems**: 30/32 en capacidad con 2 sobre-abstenciones, 14/15 en robustez, 11/11 en diálogo y 20/20 en social ([lineas-de-base/capacidad.json](../backend/eval/lineas-de-base/capacidad.json)). En ese nivel ninguna arquitectura puede ganar sobre el dataset vigente.
 
 ## B* gana con margen en local y empata o gana por poco con Claude
 
@@ -517,7 +517,7 @@ Hace falta además una **partición de preguntas compuestas** en el conjunto cie
 **Inconsistencias del repo y de la investigación.**
 
 - **Scripts inexistentes.** Se mencionaron como base del análisis los scripts de `eval-local/` (`correr.sh`, `comparar.py`), pero **no existen** ni en el worktree ni en el disco (búsqueda con `find /`). El análisis estadístico se diseñó desde cero.
-- **Líneas de base no comparables.** La de Claude se midió con 32 ítems de capacidad y la local con 34, así que no hay comparación sobre el mismo dataset. Además, el README de las líneas de base dice 31/32, 13/15 y 8/9, mientras sus JSON dan 30/32, 14/15 y 11/11 ([lineas-de-base/README.md](backend/eval/lineas-de-base/README.md)).
+- **Líneas de base no comparables.** La de Claude se midió con 32 ítems de capacidad y la local con 34, así que no hay comparación sobre el mismo dataset. Además, el README de las líneas de base dice 31/32, 13/15 y 8/9, mientras sus JSON dan 30/32, 14/15 y 11/11 ([lineas-de-base/README.md](../backend/eval/lineas-de-base/README.md)).
 - **Cassettes.** Hay 109, pero la línea de base se congeló "reproduciendo los 107".
 - **Tamaño del dominio.** Aparece como 14, 20 o 21 tablas según el documento.
 - **Comentarios y definiciones que mienten.** Los comentarios del esquema dicen «Categoría 0..6» contra un catálogo 1..6 (TD-025). Las referencias de cap-007 filtran por período y las de cap-012/014 no, así que el "período por defecto" no está definido.

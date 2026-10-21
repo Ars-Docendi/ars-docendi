@@ -77,6 +77,31 @@ public sealed class PlanCompiladoTests(PostgresFixture postgres)
         Assert.True(fallas.Count == 0, string.Join(Environment.NewLine, fallas));
     }
 
+    [Fact]
+    public async Task Cada_consulta_de_referencia_del_dataset_ejecuta_contra_su_fixture()
+    {
+        // También las de los ítems sin plan: el evaluador las ejecuta igual cuando el
+        // turno responde, y una rota convierte el ítem en un fallo que no es del modelo.
+        await AplicarFixtureAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var ejecutor = Ejecutor();
+        var rotas = new List<string>();
+
+        foreach (var item in PlanCompiladoPurosTests.ItemsDelDataset().Where(i => !string.IsNullOrWhiteSpace(i.SqlReferencia)))
+        {
+            try
+            {
+                await ejecutor.EjecutarAsync(item.SqlReferencia!, Actor(item.Actor), false, ct);
+            }
+            catch (ConsultaRechazadaPorElMotor error)
+            {
+                rotas.Add($"{item.Id}: {error.InnerException?.Message ?? error.Message}");
+            }
+        }
+
+        Assert.True(rotas.Count == 0, string.Join(Environment.NewLine, rotas));
+    }
+
     [Theory]
     [InlineData("cmp-001", "4")]
     [InlineData("cmp-004", "1|4")]

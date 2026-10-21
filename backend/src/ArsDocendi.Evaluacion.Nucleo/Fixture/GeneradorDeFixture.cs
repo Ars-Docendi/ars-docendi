@@ -179,7 +179,6 @@ public sealed class GeneradorDeFixture
     /// Cuántas personas generar. Es parámetro para poder demostrar en un test que
     /// cambiarlo NO corre los valores de las secciones siguientes.
     /// </param>
-    /// <param name="personas">Cuántas personas genera el padrón.</param>
     /// <param name="conSuplementoCompuesto">
     /// Agrega el suplemento de las preguntas compuestas (change
     /// <c>asistente-plan-compilado</c>, D10): más de una designación vigente por

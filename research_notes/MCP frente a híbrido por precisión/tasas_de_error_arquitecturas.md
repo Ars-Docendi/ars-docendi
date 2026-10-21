@@ -55,7 +55,7 @@ En todos los benchmarks de llamadas encadenadas la precisión "de tarea completa
 ### Inferences
 
 - Composición del error (aritmética, no de una fuente): si cada llamada correcta tiene probabilidad p y la tarea requiere n llamadas dependientes, P(éxito) ≈ p^n. ComplexFuncBench lo muestra empíricamente: GPT-4o 80,6 % por llamada → 60,5 % de tarea (consistente con ~2–3 llamadas efectivas); Qwen2.5-7B 18 % → 5 %. Con p = 0,9, tres llamadas dan 0,73; con p = 0,8, 0,51. Para un 8B local con p por llamada en el rango 0,2–0,6 (ComplexFuncBench, BFCL miss_param), cualquier pregunta que exija ≥2 llamadas encadenadas queda por debajo del 40 %.
-- El dato más relevante para "respuestas incorrectas silenciosas" es miss_param: Qwen3-8B sin thinking pide el parámetro faltante sólo 4–13,5 % de las veces (según harness); el resto adivina. Un agente con tools REST completas no elimina esto: un `GET /designaciones?carrera=...` con la carrera adivinada devuelve filas reales y una respuesta perfectamente plausible.
+- El dato más relevante para "respuestas incorrectas silenciosas" es miss_param: Qwen3-8B sin thinking resuelve sólo 4–13,5 % de esas tareas multiturno (según harness). El puntaje no separa pedir el parámetro de fallar por otro motivo, así que «el resto adivina» es una hipótesis a confirmar en las transcripciones, no un dato. Un agente con tools REST completas no elimina esto: un `GET /designaciones?carrera=...` con la carrera adivinada devuelve filas reales y una respuesta perfectamente plausible.
 - Los benchmarks de tool use son ruidosos (48 % de tareas defectuosas en BFCL según Epoch; discrepancias de 0,005 vs 0,155 entre harnesses), por lo que diferencias de pocos puntos no deben guiar la decisión; un golden set propio es imprescindible.
 
 ### Gaps

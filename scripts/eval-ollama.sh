@@ -194,10 +194,13 @@ correr() {
   mkdir -p "$SALIDA/$nombre"
   cp backend/eval/reportes/*.md backend/eval/reportes/*.jsonl "$SALIDA/$nombre/" 2>/dev/null || true
   # 0 = sin regresión, 4 = el gate encontró regresión contra la línea de base:
-  # las dos son corridas válidas. 3 = el preflight rechazó el proveedor.
+  # las dos son corridas válidas. Cualquier otro código —3 es el preflight— corta.
   echo "$nombre: código $codigo, $((fin - inicio)) s" | tee -a "$resumen" >&2
-  [[ "$codigo" != 3 ]] ||
-    fatal "msg=\"el preflight rechazó el proveedor; ver $SALIDA/$nombre.log\" ayuda=\"servicio, credenciales o modelo\""
+  case "$codigo" in
+    0|4) ;;
+    3) fatal "msg=\"el preflight rechazó el proveedor; ver $SALIDA/$nombre.log\" ayuda=\"servicio, credenciales o modelo\"" ;;
+    *) fatal "msg=\"la pasada $nombre terminó con código $codigo; ver $SALIDA/$nombre.log\"" ;;
+  esac
 }
 
 for pasada in $PASADAS; do

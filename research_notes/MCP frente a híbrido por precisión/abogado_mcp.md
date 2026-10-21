@@ -115,24 +115,24 @@ El ataque más sólido contra B no viene de la literatura sino del **código del
 
 **Evidencia del repo (leída en esta ronda)**
 
-- `ResolutorDeIntenciones.ResolverAsync` acepta una intención si `i.Terminos.IsSubsetOf(terminos) && !i.Excluye.Overlaps(terminos)` y cada slot exigido resuelve a exactamente un valor. No hay control sobre los términos sobrantes. El comentario de la clase dice textualmente: "La guarda que hace viable el enrutador social —interceptar solo si no queda ningún token de contenido— **no sirve acá**: distinguir «¿cuál es el estado del pedido de Pérez?» de una pregunta arbitraria exige intención Y slots" — [backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs](backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs).
-- Catálogo actual (5 intenciones) — [backend/src/Modules.Asistente/Recursos/intenciones.json](backend/src/Modules.Asistente/Recursos/intenciones.json):
+- `ResolutorDeIntenciones.ResolverAsync` acepta una intención si `i.Terminos.IsSubsetOf(terminos) && !i.Excluye.Overlaps(terminos)` y cada slot exigido resuelve a exactamente un valor. No hay control sobre los términos sobrantes. El comentario de la clase dice textualmente: "La guarda que hace viable el enrutador social —interceptar solo si no queda ningún token de contenido— **no sirve acá**: distinguir «¿cuál es el estado del pedido de Pérez?» de una pregunta arbitraria exige intención Y slots" — [backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs](../../backend/src/Modules.Asistente/Application/Determinista/ResolutorDeIntenciones.cs).
+- Catálogo actual (5 intenciones) — [backend/src/Modules.Asistente/Recursos/intenciones.json](../../backend/src/Modules.Asistente/Recursos/intenciones.json):
   - `designaciones-de-un-cargo` = términos `["cuantos"]` + slot `Cargo`;
   - `pedidos-en-un-estado` = `["cuantos","pedido"]` + `Estado`;
   - `pedidos-de-una-novedad` = `["pedido"]`, excluye `cuantos`, + `Novedad`;
   - `plantel-de-una-materia` = `["plantel"]` + `Materia`;
   - `estado-del-pedido-de-una-persona` = `["estado","pedido"]` + `Persona`.
-- El normalizador ya pliega «solicitud/solicitudes» → `pedido` y «nombramiento(s)» → `designacion` — [backend/src/Modules.Asistente/Application/Lexico/NormalizadorLexico.cs](backend/src/Modules.Asistente/Application/Lexico/NormalizadorLexico.cs).
-- Los valores de `Estado` y `Novedad` son los literales del CHECK (`pedidos_estado_valido`, `pedidos_novedad_valida`), y los cargos usan su "forma preguntable" — [backend/src/Modules.Asistente/Infrastructure/CatalogoDelDominioReal.cs](backend/src/Modules.Asistente/Infrastructure/CatalogoDelDominioReal.cs). Esto explica en parte el 0/39 de capturas: «rechazadas» no coincide con `rechazado`.
-- El enrutador "corre **después del reescritor** y antes del detector de ambigüedad" — [backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs](backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs). El reescritor es la "única llamada al modelo de la capa" conversacional — [README del módulo](backend/src/Modules.Asistente/README.md) (vía `arquitectura_actual.md` §1).
-- El propio repo ya vio una falla léxica de este tipo: con el glosario, los sinónimos «cerrado/terminado» "arrastraron preguntas al estado del pedido", y capacidad bajó a 25/34 — [docs/architecture/modelo-local.md §6](docs/architecture/modelo-local.md) (vía `arquitectura_actual.md` §7).
+- El normalizador ya pliega «solicitud/solicitudes» → `pedido` y «nombramiento(s)» → `designacion` — [backend/src/Modules.Asistente/Application/Lexico/NormalizadorLexico.cs](../../backend/src/Modules.Asistente/Application/Lexico/NormalizadorLexico.cs).
+- Los valores de `Estado` y `Novedad` son los literales del CHECK (`pedidos_estado_valido`, `pedidos_novedad_valida`), y los cargos usan su "forma preguntable" — [backend/src/Modules.Asistente/Infrastructure/CatalogoDelDominioReal.cs](../../backend/src/Modules.Asistente/Infrastructure/CatalogoDelDominioReal.cs). Esto explica en parte el 0/39 de capturas: «rechazadas» no coincide con `rechazado`.
+- El enrutador "corre **después del reescritor** y antes del detector de ambigüedad" — [backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs](../../backend/src/Modules.Asistente/Application/Determinista/EnrutadorDeDominio.cs). El reescritor es la "única llamada al modelo de la capa" conversacional — [README del módulo](../../backend/src/Modules.Asistente/README.md) (vía `arquitectura_actual.md` §1).
+- El propio repo ya vio una falla léxica de este tipo: con el glosario, los sinónimos «cerrado/terminado» "arrastraron preguntas al estado del pedido", y capacidad bajó a 25/34 — [docs/architecture/modelo-local.md §6](../../docs/architecture/modelo-local.md) (vía `arquitectura_actual.md` §7).
 - Ítem `dia-004` del dataset de diálogo:
   - t2: «¿Cuántas solicitudes de baja se presentaron?»
   - t3: «¿y cuántas de esas fueron rechazadas?», con referencia `novedad = 'Baja' AND estado = 'rechazado'`.
 
-  — [backend/eval/datasets/dialogo.json](backend/eval/datasets/dialogo.json).
+  — [backend/eval/datasets/dialogo.json](../../backend/eval/datasets/dialogo.json).
 
-- **El respaldo SQL hoy.** Qwen3-8B Q4 (perfil B) acierta 26/34 con 7 falsas en capacidad. La línea de base de Claude (`claude-sonnet-5`) tiene 30/32 en capacidad, con 2 `abstencion_sobrelo_factible` (cap-004, cap-008) y **0 traducciones incorrectas**; en robustez 14/15 (1 sobre-abstención, rob-011), en diálogo 11/11 y en social 20/20 — [backend/eval/lineas-de-base/capacidad.json](backend/eval/lineas-de-base/capacidad.json), [robustez.json](backend/eval/lineas-de-base/robustez.json), [dialogo.json](backend/eval/lineas-de-base/dialogo.json), [social.json](backend/eval/lineas-de-base/social.json) [medido, repo].
+- **El respaldo SQL hoy.** Qwen3-8B Q4 (perfil B) acierta 26/34 con 7 falsas en capacidad. La línea de base de Claude (`claude-sonnet-5`) tiene 30/32 en capacidad, con 2 `abstencion_sobrelo_factible` (cap-004, cap-008) y **0 traducciones incorrectas**; en robustez 14/15 (1 sobre-abstención, rob-011), en diálogo 11/11 y en social 20/20 — [backend/eval/lineas-de-base/capacidad.json](../../backend/eval/lineas-de-base/capacidad.json), [robustez.json](../../backend/eval/lineas-de-base/robustez.json), [dialogo.json](../../backend/eval/lineas-de-base/dialogo.json), [social.json](../../backend/eval/lineas-de-base/social.json) [medido, repo].
 
 **Evidencia externa sobre los mecanismos de falla de B**
 
@@ -265,10 +265,10 @@ Hoy el arnés y el dataset favorecen estructuralmente a B: el techo de 4 llamada
   - el runner de capacidad llama a `GeneradorDeSql` directamente;
   - para comparar arquitecturas hace falta un punto de extensión de estrategia de turno.
 
-  — [README del módulo](backend/src/Modules.Asistente/README.md); [reports/Alternativas a Text to SQL local.md](../../reports/Alternativas%20a%20Text%20to%20SQL%20local.md) (sección "Un banco de pruebas").
+  — [README del módulo](../../backend/src/Modules.Asistente/README.md); [reports/Alternativas a Text to SQL local.md](../../reports/Alternativas%20a%20Text%20to%20SQL%20local.md) (sección "Un banco de pruebas").
 
-- Los datasets se escribieron para medir traducción a SQL ("el corpus se escribió para medir traducción a SQL") y hay un invariante de disjunción entre el dataset y los ejemplos — [backend/eval/datasets/capacidad.json](backend/eval/datasets/capacidad.json) (vía `arquitectura_actual.md` §4, `diseno_superficie_herramientas.md` §6).
-- Claude con Text-to-SQL ya da 0 respuestas falsas en capacidad, robustez, diálogo y social (3 sobre-abstenciones) — [backend/eval/lineas-de-base/](backend/eval/lineas-de-base/capacidad.json) [medido]. Es un dataset saturado para el nivel Claude.
+- Los datasets se escribieron para medir traducción a SQL ("el corpus se escribió para medir traducción a SQL") y hay un invariante de disjunción entre el dataset y los ejemplos — [backend/eval/datasets/capacidad.json](../../backend/eval/datasets/capacidad.json) (vía `arquitectura_actual.md` §4, `diseno_superficie_herramientas.md` §6).
+- Claude con Text-to-SQL ya da 0 respuestas falsas en capacidad, robustez, diálogo y social (3 sobre-abstenciones) — [backend/eval/lineas-de-base/](../../backend/eval/lineas-de-base/capacidad.json) [medido]. Es un dataset saturado para el nivel Claude.
 - Varianza:
   - LiveMCPBench: corridas repetidas del mismo setup variaron entre 57,9 % y 76,8 % — [arXiv 2508.01780](https://arxiv.org/abs/2508.01780) [resumen].
   - Toolathlon (Sonnet 5.5): pass@3 85,2 % contra pass^3 68,5 % [agregador].
@@ -323,12 +323,12 @@ Con el dataset actual, ganar es imposible: Claude con Text-to-SQL ya tiene 0 fal
 
 ### Cited Findings
 
-- Claude Sonnet 5 con Text-to-SQL: capacidad 30/32 (0 incorrectas, 2 sobre-abstenciones), robustez 14/15, diálogo 11/11, social 20/20 — [backend/eval/lineas-de-base/](backend/eval/lineas-de-base/capacidad.json) [medido, repo].
-- Qwen3-8B Q4 en la 3070: 26/34 con 7 falsas en capacidad — [docs/architecture/modelo-local.md §3](docs/architecture/modelo-local.md) [medido, repo] (vía `arquitectura_actual.md` §5).
+- Claude Sonnet 5 con Text-to-SQL: capacidad 30/32 (0 incorrectas, 2 sobre-abstenciones), robustez 14/15, diálogo 11/11, social 20/20 — [backend/eval/lineas-de-base/](../../backend/eval/lineas-de-base/capacidad.json) [medido, repo].
+- Qwen3-8B Q4 en la 3070: 26/34 con 7 falsas en capacidad — [docs/architecture/modelo-local.md §3](../../docs/architecture/modelo-local.md) [medido, repo] (vía `arquitectura_actual.md` §5).
 - Composición local: 84 % → 16 % al ramificar (Qwen3-14B) — [AgentFloor](https://arxiv.org/html/2605.00334v1) [resumen]. Abstención local: Qwen3-8B, 36,2 % de alucinación con distractores (56,8 % con thinking) — [Reasoning Trap](https://arxiv.org/pdf/2510.22977) [resumen].
 - Frontera: MCP-Atlas Opus 5 85,8 %; CCTU Opus 4.6 65 % de corrección — [Scale](https://labs.scale.com/leaderboard/mcp_atlas); [arXiv 2603.15309](https://arxiv.org/pdf/2603.15309) [agregador/resumen].
 - Contra el enrutamiento por LLM en general: los clasificadores por embeddings superan a los LLM en enrutamiento en un asistente desplegado — [arXiv 2608.30738](https://arxiv.org/pdf/2608.30738) [resumen]. A favor del LLM: mayor recall fuera de alcance (85,6 contra 58,1) — [arXiv 2608.20371](https://arxiv.org/html/2608.20371) [resumen]. Hallazgos en tensión: la pregunta es _qué tipo de error_ importa (falsos positivos certificados contra falta de cobertura).
-- El repo ya descartó clasificar con el LLM (60 % de F1 en triage de 5 clases; 77,4 % en 9 vías), aunque con modelos y prompts anteriores — [docs/product/designs/asistente-conversacional-definicion.md §6](docs/product/designs/asistente-conversacional-definicion.md) (vía `arquitectura_actual.md` §4).
+- El repo ya descartó clasificar con el LLM (60 % de F1 en triage de 5 clases; 77,4 % en 9 vías), aunque con modelos y prompts anteriores — [docs/product/designs/asistente-conversacional-definicion.md §6](../../docs/product/designs/asistente-conversacional-definicion.md) (vía `arquitectura_actual.md` §4).
 
 ### Inferences
 

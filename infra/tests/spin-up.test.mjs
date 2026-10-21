@@ -203,6 +203,7 @@ test("proveedor ollama con servicio de inferencia suma su perfil sin pedir clave
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.env, /^ASISTENTE_PROVEEDOR=ollama$/m);
   const llamadas = r.log.split("\n").filter((l) => l.startsWith("docker compose"));
+  assert.ok(llamadas.length > 0);
   assert.ok(llamadas.every((l) => l.includes("compose.asistente-ollama.yml")));
   assert.ok(llamadas.every((l) => !l.includes("compose.asistente-local.yml")));
 });
