@@ -258,44 +258,7 @@ public sealed class GeneradorDeSql(
                 + "se usa igual. El presupuesto de la llamada está al límite.");
         }
 
-        if (interpretada is { EsContestable: true, Sql: { } sql }
-            && CopiaDeEjemplo.CopiadoSinPedirlo(sql, TextoDelTurno(pregunta, interpretada, menciones), ejemplos)
-                is not null)
-        {
-            // UNA COPIA DEL CATÁLOGO QUE NADIE PIDIÓ ES UNA ABSTENCIÓN. Un modelo
-            // chico, ante «status» repetido en un hilo, devolvió el primer ejemplo
-            // tal cual —una consulta válida sobre una materia que el usuario nunca
-            // nombró— y el turno la ejecutó. Está acá y no en el carril porque la
-            // primera generación, el reintento y la reparación pasan por este
-            // método. Sin motivo: resuelve `no_cubierto`, como cualquier rechazo
-            // del modelo. No se registra la consulta ni la pregunta.
-            log.LogWarning(
-                "La generación es copia de un ejemplo del catálogo que la pregunta no pide; se trata como abstención.");
-
-            return GeneracionDeSql.NoContestable(RazonamientoIninteligible);
-        }
-
         return interpretada ?? GeneracionDeSql.NoContestable(RazonamientoIninteligible);
-    }
-
-    private static List<string> TextoDelTurno(
-        string pregunta,
-        GeneracionDeSql interpretada,
-        IReadOnlyList<(string Marcador, TipoDeMencion Tipo, ResultadoDeMencion Entidad)>? menciones)
-    {
-        var texto = new List<string> { pregunta };
-
-        if (interpretada.PreguntaInterpretada is { } reescrita)
-        {
-            texto.Add(reescrita);
-        }
-
-        foreach (var (_, tipo, entidad) in menciones ?? [])
-        {
-            texto.Add(MarcadoresDeReferencias.Etiqueta(tipo, entidad));
-        }
-
-        return texto;
     }
 
     /// <summary>
