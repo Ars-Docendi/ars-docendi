@@ -304,7 +304,7 @@ Antes de citar cualquiera de estos números en una decisión formal, conviene ve
 - El tamaño del dominio aparece como "catorce tablas, poco más de cien columnas", como "20 tablas" en las líneas de base y como **21 tablas y 151 columnas** en los manifiestos.
 - El README dice que `Modules.Asistente.Contracts` no tiene ningún `.cs`, pero hoy contiene dos.
 - La auditoría habla de "dos llamadas al modelo" y numera tres.
-- La rama `infra/ollama` despliega Ollama con `qwen3:4b` en Debian 13 y solo expone `/api/chat` y `/api/generate`. En cambio, `modelo-local.md` descarta Ollama, elige vLLM sobre Ubuntu 24.04, y `ProveedorLocal` llama a `/chat/completions`, que esa configuración de Traefik no deja pasar ([ollama-compartido.md, origin/infra/ollama](../docs/operations/ollama-compartido.md)).
+- La rama `infra/ollama` despliega Ollama con `qwen3:4b` en Debian 13 y solo expone `/api/chat` y `/api/generate`. En cambio, `modelo-local.md` descarta Ollama, elige vLLM sobre Ubuntu 24.04, y `ProveedorLocal` llama a `/chat/completions`, que esa configuración de Traefik no deja pasar ([ollama-compartido.md, origin/infra/ollama](../docs/operations/ollama-compartido.md)). **Actualización 2026-10-21:** resuelto por el change `asistente-proveedor-ollama`. El asistente usa ese Ollama por su API nativa con `ProveedorOllama` (`Asistente__Proveedor=ollama`) y el modelo pasó a `qwen3.5:9b` ([ollama-compartido.md §11](../docs/operations/ollama-compartido.md#11-configuración-para-el-asistente)).
 - La premisa de que llama-server "guarda N copias" del prefijo está parcialmente desactualizada por el KV unificado.
 - Los comentarios del esquema dicen «Categoría 0» a «6», cuando el catálogo va de 1 a 6 (TD-025): le mienten al modelo de cualquier alternativa que lea el esquema.
 

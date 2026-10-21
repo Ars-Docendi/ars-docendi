@@ -331,6 +331,7 @@ Un único puerto agnóstico (`IProveedorDeModelo`) tiene tres adaptadores: `simu
 ### Inferences
 
 - Hay tensión entre la rama `infra/ollama` (Ollama con qwen3:4b) y `modelo-local.md` (Ollama descartado; vLLM con Qwen3-8B-AWQ). Además, `ProveedorLocal` llama a `{Url}/chat/completions` (ruta OpenAI `/v1`), que las reglas de Traefik de esa rama no exponen: solo dejan pasar `/api/chat` y `/api/generate`. Sin cambios, el adaptador actual no podría usar ese endpoint (inferencia, no probada).
+- **Actualización 2026-10-21** (posterior a este análisis): la tensión se resolvió con el change `asistente-proveedor-ollama`. Ahora hay un cuarto adaptador, `ProveedorOllama` (`Asistente__Proveedor=ollama`), que usa la API nativa (`/api/chat`) del Ollama compartido con `qwen3.5:9b`. — [ollama-compartido.md §11](../../docs/operations/ollama-compartido.md#11-configuración-para-el-asistente); [README del módulo](../../backend/src/Modules.Asistente/README.md)
 - Sobre las cifras locales: 26/34 en capacidad con 7 respuestas falsas significa que alrededor de 1 de cada 5 preguntas de capacidad recibe una afirmación incorrecta, contra prácticamente ninguna con Claude en su línea de base (2 abstenciones sobre lo factible, 0 traducciones incorrectas en el JSON de capacidad).
 
 ### Gaps
