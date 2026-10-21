@@ -1,4 +1,5 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using Modules.Asistente.Api;
 using Modules.Asistente.Application;
 using Npgsql;
 
@@ -21,6 +22,10 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
 
     private const string DosTramites =
         "SELECT numero FROM designaciones.pedidos ORDER BY numero LIMIT 2";
+
+    private const string UnTramiteConMateria =
+        "SELECT p.numero, m.name FROM designaciones.pedidos p "
+        + "JOIN identity.materias m ON m.id = p.materia_id WHERE p.numero = '2026-9001'";
 
     private const string SinFilas =
         "SELECT numero FROM designaciones.pedidos WHERE numero = 'no-existe'";
@@ -175,15 +180,142 @@ public sealed class VinculosDelTurnoTests(PostgresFixture postgres)
         Assert.Empty(turno.Vinculos ?? []);
     }
 
+    // ------------------------- principal, posiciones en el texto y orígenes
+
+    [Fact]
+    public async Task Una_fila_vinculada_trae_su_principal_sus_posiciones_y_sus_origenes()
+    {
+        await SembrarAsync();
+        var fichas = new FichasEspia();
+        var banco = Banco(
+            new ResolutorEspia(("2026-9001", "abc-123")), fichas,
+            ProveedorGuionado.Generacion(UnTramiteConMateria), "El pedido 2026-9001 está en curso.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿en qué estado está el 2026-9001?", TestContext.Current.CancellationToken);
+
+        Assert.Equal(("pedido-designacion", "abc-123"), (turno.Principal!.Tipo, turno.Principal.Id));
+        Assert.Equal("2026-9001", turno.Principal.Datos["numero"]);
+        Assert.Equal(["designaciones", "identity"], turno.Origenes);
+
+        var ubicado = Assert.Single(turno.VinculosDelTexto!);
+        Assert.Equal("2026-9001", turno.Respuesta.Substring(ubicado.Desde, ubicado.Largo));
+    }
+
+    [Fact]
+    public async Task Varias_filas_vinculadas_no_traen_principal_y_no_piden_ficha()
+    {
+        await SembrarAsync();
+        var fichas = new FichasEspia();
+        var banco = Banco(
+            new ResolutorEspia(("2026-9001", "a"), ("2026-9002", "b")), fichas,
+            ProveedorGuionado.Generacion(DosTramites), "Hay dos trámites.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿qué trámites hay?", TestContext.Current.CancellationToken);
+
+        Assert.Null(turno.Principal);
+        Assert.Equal(0, fichas.Llamadas);
+        Assert.Equal(["designaciones"], turno.Origenes);
+    }
+
+    [Fact]
+    public async Task Un_proveedor_de_fichas_que_lanza_no_tumba_el_turno()
+    {
+        await SembrarAsync();
+        var banco = Banco(
+            new ResolutorEspia(("2026-9001", "abc-123")), new FichasQueRevientan(),
+            ProveedorGuionado.Generacion(UnTramiteConMateria), "El pedido 2026-9001 está en curso.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿en qué estado está el 2026-9001?", TestContext.Current.CancellationToken);
+
+        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
+        Assert.Null(turno.Principal);
+        Assert.Single(turno.Vinculos!);
+        Assert.Single(turno.VinculosDelTexto!);
+        Assert.Single(turno.Filas);
+    }
+
+    [Fact]
+    public async Task Sin_adaptador_de_fichas_la_fila_vinculada_responde_sin_principal()
+    {
+        await SembrarAsync();
+        var banco = Banco(
+            new ResolutorEspia(("2026-9001", "abc-123")), new SinFichas(),
+            ProveedorGuionado.Generacion(UnTramiteConMateria), "El pedido 2026-9001 está en curso.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿en qué estado está el 2026-9001?", TestContext.Current.CancellationToken);
+
+        Assert.Null(turno.Principal);
+        Assert.Single(turno.Vinculos!);
+    }
+
+    [Fact]
+    public async Task Un_turno_sin_filas_no_trae_origenes_ni_principal()
+    {
+        await SembrarAsync();
+        var banco = Banco(new ResolutorEspia(), ProveedorGuionado.Generacion(SinFilas));
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿existe el trámite inventado?", TestContext.Current.CancellationToken);
+
+        Assert.Empty(turno.Origenes ?? []);
+        Assert.Null(turno.Principal);
+        Assert.Empty(turno.VinculosDelTexto ?? []);
+    }
+
+    [Fact]
+    public async Task Los_tres_campos_nuevos_viajan_en_la_respuesta_del_contrato()
+    {
+        await SembrarAsync();
+        var banco = Banco(
+            new ResolutorEspia(("2026-9001", "abc-123")), new FichasEspia(),
+            ProveedorGuionado.Generacion(UnTramiteConMateria), "El pedido 2026-9001 está en curso.");
+
+        var turno = await banco.Capa().ResponderAsync(
+            Secretaria, null, "¿en qué estado está el 2026-9001?", TestContext.Current.CancellationToken);
+        var respuesta = RespuestaDelAsistente.De(turno);
+
+        Assert.Equal("abc-123", respuesta.Principal!.Id);
+        Assert.Equal(["designaciones", "identity"], respuesta.Origenes);
+        Assert.Single(respuesta.VinculosDelTexto);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
-    private BancoDelAsistente Banco(IResolutorDeVinculos resolutor, params string[] guion)
+    private BancoDelAsistente Banco(IResolutorDeVinculos resolutor, params string[] guion) =>
+        Banco(resolutor, new SinFichas(), guion);
+
+    private BancoDelAsistente Banco(
+        IResolutorDeVinculos resolutor, IProveedorDeFichas fichas, params string[] guion)
     {
         var (basica, pii) = CadenasDeLectura();
 
         return BancoDelAsistente.Armar(
             basica, pii, ClasificadorDeSensibilidad(),
-            Apertura, vinculos: resolutor, guion: guion);
+            Apertura, vinculos: resolutor, fichas: fichas, guion: guion);
+    }
+
+    /// <summary>Entrega una ficha mínima para lo que se le pida, y cuenta los pedidos.</summary>
+    private sealed class FichasEspia : IProveedorDeFichas
+    {
+        public int Llamadas { get; private set; }
+
+        public Task<FichaDelElemento?> ObtenerAsync(string tipo, string id, CancellationToken ct)
+        {
+            Llamadas++;
+
+            return Task.FromResult<FichaDelElemento?>(new FichaDelElemento(
+                tipo, id, new Dictionary<string, string?> { ["numero"] = "2026-9001" }));
+        }
+    }
+
+    private sealed class FichasQueRevientan : IProveedorDeFichas
+    {
+        public Task<FichaDelElemento?> ObtenerAsync(string tipo, string id, CancellationToken ct) =>
+            throw new InvalidOperationException("Designaciones no contestó.");
     }
 
     /// <summary>Resuelve lo que se le dijo, y anota qué le preguntaron.</summary>

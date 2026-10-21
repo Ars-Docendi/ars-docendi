@@ -200,6 +200,9 @@ public sealed class CarrilDelPlan
             CategoriaRespondida,
             _contador.Llamadas,
             Sql: perfil.VeLaConsulta ? consulta.Sql : null,
+            // El plan no anota SqlEjecutado (no hay consulta que un seguimiento edite),
+            // así que las áreas que leyó se declaran acá, de la consulta que corrió.
+            Origenes: OrigenesDeLosDatos.De(consulta.Sql),
             ClaveDeRetroalimentacion: Guid.NewGuid());
     }
 

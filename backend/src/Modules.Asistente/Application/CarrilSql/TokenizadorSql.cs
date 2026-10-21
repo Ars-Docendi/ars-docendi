@@ -26,10 +26,12 @@ internal enum ClaseDeToken
 /// Un token con su clase y su texto ya en minúsculas.
 /// </summary>
 /// <param name="Inicio">
-/// Posición del primer carácter del token en el texto original. Sólo
+/// Posición del primer carácter del token en el texto original.
 /// <see cref="ClaseDeToken.Marcador"/> la necesita —<see cref="ReescritorDeMarcadores"/>
 /// la usa para reescribir el <c>$</c> en <c>@</c> sin reconstruir la consulta
-/// entera—; el resto de los tokens la deja en su valor por defecto.
+/// entera— y <see cref="ClaseDeToken.Palabra"/> la lleva para que
+/// <see cref="OrigenesDeLosDatos"/> pueda ver si la palabra va seguida de un punto
+/// (un nombre calificado). El resto de los tokens la deja en su valor por defecto.
 /// </param>
 internal readonly record struct TokenSql(ClaseDeToken Clase, string Texto, int Inicio = -1);
 
@@ -537,7 +539,8 @@ internal static class TokenizadorSql
 
         tokens.Add(new TokenSql(
             ClaseDeToken.Palabra,
-            sql[inicio..posicion].ToLowerInvariant()));
+            sql[inicio..posicion].ToLowerInvariant(),
+            inicio));
 
         return posicion;
     }

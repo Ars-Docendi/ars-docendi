@@ -736,7 +736,15 @@ public sealed partial class ArquitecturaAsistenteTests
     /// el compilador rechaza ahí un tipo menos accesible. Su constructor y su único
     /// método son `internal`; el contenedor lo arma con una fábrica.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 95;
+    /// <remarks>
+    /// Subido a 98 por asistente-respuestas-con-vinculos (D1, D2): tres tipos que la
+    /// superficie HTTP y el Host exigen públicos. <c>IProveedorDeFichas</c> y
+    /// <c>FichaDelElemento</c> son el puerto que implementa el Host (como
+    /// <c>IResolutorDeVinculos</c>), y <c>VinculoDelTexto</c> es el tipo de elemento de
+    /// una propiedad del ya público <c>ResultadoDelTurno</c>. El ubicador, los
+    /// orígenes y <c>SinFichas</c> quedan `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 98;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()

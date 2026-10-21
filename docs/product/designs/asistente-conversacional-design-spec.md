@@ -82,8 +82,9 @@ La visibilidad no se decide por rol sino por el permiso `asistente.consultar`, c
   zoom de la interfaz, como hace el escenario del modal—, título «Asistente» en el encabezado
   del `Modal`. En ≤ 640 px ocupa la pantalla completa, sin radio ni margen.
 - **Página `/asistente`**: eliminada en v3 (ARS-151); ver § Rediseño v3.
-- **Tarjeta de respuesta**: fondo `--color-bg-sunken`, radio `--radius-sm`, texto a `72ch`; la
-  tabla ocupa todo el ancho de la tarjeta, con cabecera pegajosa y `max-height: 50vh`.
+- **Tarjeta de respuesta**: reemplazada en v3 por el bloque de respuesta con borde (ver §
+  Rediseño v3, «Respuestas que llevan al sistema»); la tabla ocupa todo el ancho del bloque, con
+  cabecera pegajosa y `max-height: 50vh`.
 - **Celda con vínculo**: la celda que identifica algo abrible se pinta como enlace
   (`--color-accent`, subrayado con `text-underline-offset: 2px`). **No hay columna «Ver»**: en el
   modal el ancho ya está comprometido y el identificador es lo que la mano iba a buscar de todos
@@ -473,8 +474,12 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
   nombre accesible del diálogo sigue siendo «Asistente».
 - **Hilo**: columna centrada de 720 px, 44 px entre turnos. Pregunta a la derecha en burbuja
   neutra (`--color-bg-canvas`, texto primario, radio `--radius-sm`, ≤ 80 %); debajo, sus
-  herramientas: «Copiar pregunta» siempre y «Editar y reenviar» sólo en la última.
-- **Respuesta**: texto a 16 px/1,6 y `68ch`; «Entendí: …» si hubo reinterpretación; tabla con
+  herramientas: «Copiar pregunta» siempre y, sólo en la última, «Editar y reenviar» y
+  «Repetir consulta».
+- **Respuesta**: todo lo que contesta (texto, ficha o tabla, opciones, avisos, «Consultando…»,
+  procedencia y barra de acciones) va en **un bloque** con `--color-bg-raised`, borde
+  `--color-border-default`, radio `--radius-sm` y `--space-4` de relleno, separado de la burbuja de
+  la pregunta; los turnos restaurados del historial usan el mismo bloque. Texto a 16 px/1,6 y `68ch`; «Entendí: …» si hubo reinterpretación; tabla con
   borde `--color-border-default`, `max-height` 260 px con scroll propio y cabecera pegajosa sobre
   `--color-bg-canvas`; aviso de truncado; «Ver la consulta» (con permiso) y «Cómo lo interpreté»
   (sólo modo debug); **barra de acciones** de íconos de 28 px: «Copiar respuesta», «Ampliar
@@ -505,6 +510,39 @@ TD-024). Donde el mock y este spec difieren, gana este spec (ver «Desvíos del 
 | Menciones                 | «@» materias, «#» docentes. Menos de 2 letras: aviso «Escribí al menos 2 letras para buscar materias.». Popover con borde fuerte: grupo, ícono, nombre, carrera, código (materias) o cargo (docentes), «Hay más coincidencias. Seguí escribiendo para acotar.», vacío «Sin materias que coincidan en las carreras a las que tenés acceso.», pie con candado «Solo aparecen materias y docentes de las carreras a las que tu perfil tiene acceso.» y «Enter elige · Esc cierra». Lo elegido queda como chip y viaja con su id. |
 | Aviso de deshacer         | Apariencia del `Toast` de la librería (fondo `--color-bg-raised`, borde `--color-border-strong`, filete izquierdo `--color-accent`, texto `--color-text-primary`), al pie del rail: «Conversación archivada» / «Conversación restaurada» / «Conversación eliminada» / «Conversaciones eliminadas» + «Deshacer», **10 s**. Uno a la vez; sigue visible con el rail colapsado (se superpone al hilo).                                                                                                                           |
 | Borrar todas              | Pide confirmación inline: «¿Borrar TODAS tus conversaciones, incluidas las archivadas? Vas a poder deshacerlo durante 10 segundos.» y después muestra el aviso.                                                                                                                                                                                                                                                                                                                                                               |
+
+### Respuestas que llevan al sistema (asistente-respuestas-con-vinculos)
+
+Referencia visual: prototipo [Asistente: rediseño](https://claude.ai/artifact/Srtyn2Mrc6TauhYLaMT1Jn),
+página «Tipos de respuesta», tarjetas 01–20 (sólo los tipos con destino existente).
+
+- **Chip en el texto**: el valor de una celda vinculada que aparece en la prosa se pinta como
+  enlace en línea (`--color-accent-subtle` de fondo, borde del mismo tono, texto
+  `--color-accent-pressed`, peso 500, radio `--radius-sm`, ícono de documento delante). Sigue el
+  flujo del texto (`pre-wrap`). Nombre accesible «Ver el trámite 2026-9005». Una posición que no
+  coincide con el texto o un tipo desconocido se pinta como texto.
+- **Ficha del elemento principal** (una fila con un vínculo): tarjeta dentro del bloque con
+  ícono en cuadro `--color-accent-subtle`, eyebrow «PEDIDO DE DESIGNACIÓN» (11 px, 600),
+  título «{número} · {materia}» (16 px, 600), estado a la derecha como píldora y una grilla de dos
+  columnas con Novedad, Período, Cargo, Dedicación (sólo los presentes) y Última actividad
+  (dd/mm/aaaa). Al pie, «Abrir pedido →» con aspecto de botón primario. Tono del estado:
+  `en_lote` éxito; `en_revision_*` aviso; `devuelto` y `rechazado` peligro; el resto, neutro
+  (`--color-status-*-bg/fg`).
+- **Con ficha** el texto no lleva chips y la tabla de una fila no se muestra debajo: sigue en
+  «Ampliar tabla» y «Exportar a CSV» de la barra. Un principal de tipo desconocido se ignora y la
+  respuesta se ve como sin ficha.
+- **Procedencia**: línea al pie del bloque, 12 px en texto secundario, «Datos de Designaciones»
+  (varias áreas con « · »; `identity` se muestra «Institucional»; los códigos desconocidos se
+  omiten; sin áreas no se pinta). Nunca cantidades ni la consulta.
+- **Repetir consulta**: botón de texto con ícono de flecha circular junto a «Editar y reenviar»,
+  sólo en la última pregunta con respuesta, sin turno en vuelo ni bloqueo (cupo agotado,
+  mantenimiento). Reenvía la misma pregunta, con sus menciones, por el camino de «Editar y
+  reenviar» (reemplaza pregunta y respuesta; es un turno nuevo para el cupo).
+- **Volver a la conversación**: botón flotante fijo abajo a la derecha de la pantalla de destino
+  (pastilla, `--color-accent`, ≥ 44 px, flecha hacia atrás), por debajo del modal. Aparece sólo si
+  el modal se cerró porque se siguió un vínculo de una respuesta (chip, celda o «Abrir pedido»);
+  cerrar con «×», Escape o «Atrás» no lo muestra. Reabre el asistente en el mismo hilo y
+  desaparece al reabrir o al navegar a otra pantalla.
 
 ### Tokens (del mock a `@ars-docendi/ui/theme.css`)
 
@@ -544,12 +582,14 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
   activa vuelve a la bienvenida; «Deshacer» la reanuda.
 - Esc cierra, en este orden y sin cerrar el modal: el popover de menciones, el menú «⋮», la
   edición inline, la tabla ampliada. Con nada de eso abierto, Esc cierra el modal como hoy.
-- Vínculos de trámite en celdas: se mantienen (también en la tabla ampliada) y siguen cerrando
-  el modal al navegar.
+- Vínculos de trámite en celdas, chips y «Abrir pedido»: se mantienen (también en la tabla
+  ampliada) y siguen cerrando el modal al navegar; ver «Volver a la conversación» arriba.
 - `/asistente` → home (`/portal`) con el modal abierto; sin acceso, sólo la home.
 
 ### Desvíos del mock (decididos en `asistente-rediseno-v3`, pendientes de confirmación del PO)
 
+- La respuesta ya no es texto plano sin tarjeta: asistente-respuestas-con-vinculos la encierra
+  en un bloque con borde (prototipo «Asistente: rediseño»), que reemplaza el criterio del mock v3.
 - Sin navegación de versiones «N / M» ni la nota de versiones al editar (descartado por producto).
 - El aviso dura **10 s** (el mock usa 5 s).
 - El panel 👎 sigue al mock 1:1 (PO-changed 2026-09-26): pastillas de elección múltiple y el
@@ -584,6 +624,7 @@ CSS de la feature **sólo** se usan los semánticos (ningún `oklch(` ni hex fue
 
 - [`docs/product/design-principles.md`](../design-principles.md)
 - Spec funcional: [`openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md`](../../../openspec/changes/asistente-rediseno-conversacion/specs/asistente-conversacion/spec.md)
+- Respuestas con vínculos: [`openspec/changes/asistente-respuestas-con-vinculos/`](../../../openspec/changes/asistente-respuestas-con-vinculos/) y el prototipo [Asistente: rediseño](https://claude.ai/artifact/Srtyn2Mrc6TauhYLaMT1Jn)
 - Rediseño v3: [`openspec/changes/asistente-rediseno-v3/`](../../../openspec/changes/asistente-rediseno-v3/) y épica ARS-140
 - [Definición del asistente](./asistente-conversacional-definicion.md) §3.1, §3.2, §4.6, §4.7
 - Change previo: `openspec/changes/asistente-frontend/` (D1-D8)

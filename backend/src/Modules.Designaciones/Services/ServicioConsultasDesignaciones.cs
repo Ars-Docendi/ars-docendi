@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ArsDocendi.Shared.Identity;
 using Modules.Designaciones.Contracts.Queries;
 using Modules.Designaciones.Domain;
 using Modules.Designaciones.Repositories;
@@ -8,7 +9,8 @@ namespace Modules.Designaciones.Services;
 /// <inheritdoc cref="IDesignacionesQueries" />
 internal sealed partial class ServicioConsultasDesignaciones(
     RepositorioPedidos repositorio,
-    ResolutorActor resolutorActor) : IDesignacionesQueries
+    ResolutorActor resolutorActor,
+    IConsultasIdentity identity) : IDesignacionesQueries
 {
     /// <summary>
     /// Forma del número de trámite: cuatro dígitos de año, guión, y la parte de la
@@ -76,4 +78,66 @@ internal sealed partial class ServicioConsultasDesignaciones(
                 .Select(p => new PedidoUbicableDto(p.Numero, p.Id)),
         ];
     }
+
+    public async Task<FichaDePedidoDto?> FichaDePedidoAsync(Guid id, CancellationToken ct)
+    {
+        var datos = await repositorio.ObtenerFichaAsync(id, ct);
+
+        // Inexistente y fuera de ámbito se ven igual desde afuera: ninguno vuelve.
+        if (datos is null)
+        {
+            return null;
+        }
+
+        var actor = await resolutorActor.ResolverAsync(ct);
+
+        if (!MaquinaEstadosPedido.AlcanzaAmbito(new AlcancePedido(datos.MateriaId, datos.CarreraId), actor))
+        {
+            return null;
+        }
+
+        // Mismo criterio que el detalle (ServicioPedidosApi): la materia sale del
+        // catálogo de identity. Un trámite cuya materia ya no está no se mapea
+        // allá, así que tampoco hay ficha acá.
+        var materia = (await identity.ListarMateriasAsync(ct)).FirstOrDefault(m => m.Id == datos.MateriaId);
+
+        if (materia is null)
+        {
+            return null;
+        }
+
+        return new FichaDePedidoDto(
+            datos.Id,
+            datos.Numero,
+            datos.Novedad,
+            materia.Nombre,
+            datos.Estado,
+            EtiquetaDelEstado(datos.Estado),
+            datos.Periodo,
+            datos.Cargo,
+            datos.Dedicacion,
+            datos.UltimoMovimiento ?? datos.CreadoEn);
+    }
+
+    /// <summary>
+    /// Cómo se llama cada estado del circuito para una persona.
+    /// </summary>
+    /// <remarks>
+    /// El vocabulario es el de la interfaz de designaciones (<c>EstadoPedidoBadge</c>),
+    /// para que la ficha y la pantalla del trámite digan lo mismo. Un código que no
+    /// está acá se devuelve tal cual: mostrar el código es mejor que inventar una
+    /// palabra.
+    /// </remarks>
+    private static string EtiquetaDelEstado(string estado) => estado switch
+    {
+        EstadosPedido.Borrador => "Borrador",
+        EstadosPedido.EnRevisionCoordinador => "En Coordinación",
+        EstadosPedido.EnRevisionSecretaria => "En Secretaría",
+        EstadosPedido.EnRevisionDecanato => "En Decanato",
+        EstadosPedido.Devuelto => "Devuelto",
+        EstadosPedido.EnLote => "En lote",
+        EstadosPedido.Rechazado => "Rechazado",
+        EstadosPedido.Cancelado => "Cancelado",
+        _ => estado,
+    };
 }

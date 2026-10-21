@@ -101,6 +101,9 @@ builder.Services
 // es el único que puede componerlos sin agregar una arista entre módulos.
 builder.Services.AddScoped<IResolutorDeVinculos, VinculosDeDesignaciones>();
 
+// Las fichas, igual: el módulo registra `SinFichas` y ésta lo reemplaza.
+builder.Services.AddScoped<IProveedorDeFichas, FichasDeDesignaciones>();
+
 var app = builder.Build();
 
 // Recién acá hay logger. Se registra la RUTA y la CANTIDAD, nunca las claves ni

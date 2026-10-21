@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CanceledError } from "axios";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { LanzadorAsistente } from "./components/LanzadorAsistente";
 import * as api from "./api/asistenteApi";
@@ -256,5 +256,114 @@ describe("Seguir un vínculo", () => {
     await user.click(screen.getByRole("button", { name: "Preguntar" }));
 
     expect(await screen.findByText("El 2026-9005 está devuelto.")).toBeInTheDocument();
+  });
+});
+
+// ============================================================
+// «Volver a la conversación» (asistente-respuestas-con-vinculos, D6).
+// ============================================================
+
+describe("Volver a la conversación", () => {
+  const TURNO_CON_CHIP: Partial<RespuestaDelAsistente> = {
+    ...TURNO_CON_VINCULO,
+    vinculosDelTexto: [{ desde: 3, largo: 9, tipo: "pedido-designacion", id: "abc-123" }],
+  };
+
+  async function abrirYPreguntar(user: ReturnType<typeof userEvent.setup>) {
+    vi.spyOn(api, "consultar").mockResolvedValue(respuesta(TURNO_CON_CHIP));
+    montar(
+      <>
+        <LanzadorAsistente />
+        <Ubicacion />
+        <Link to="/otra-pantalla">Otra pantalla</Link>
+      </>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Preguntar" }));
+    await user.type(await screen.findByLabelText("Tu pregunta"), "¿y el 9005?{Enter}");
+  }
+
+  it("seguir un chip cierra el modal, navega y ofrece volver; volver reabre con la conversación", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+
+    // El chip del texto (y no la celda de la tabla, que tiene el mismo nombre).
+    const [chip] = await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+    await user.click(chip);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByTestId("ubicacion")).toHaveTextContent("/designaciones/pedidos/abc-123");
+
+    const volver = await screen.findByRole("button", { name: "Volver a la conversación" });
+    await user.click(volver);
+
+    // El chip parte el párrafo en varios nodos: se compara su texto completo.
+    expect(
+      await screen.findByText(
+        (_, nodo) => nodo?.tagName === "P" && nodo.textContent === "El 2026-9005 está devuelto.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Volver a la conversación" })).toBeNull();
+  });
+
+  it("seguir la celda de la tabla también lo ofrece", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+
+    const enlaces = await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+    await user.click(enlaces[enlaces.length - 1]);
+
+    expect(await screen.findByRole("button", { name: "Volver a la conversación" })).toBeVisible();
+  });
+
+  it("cerrar con la «×» no lo ofrece", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+    await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+
+    await user.click(screen.getByRole("button", { name: /Cerrar/ }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    // Navegar después de cerrar tampoco lo ofrece: no se siguió ningún vínculo.
+    await user.click(screen.getByRole("link", { name: "Otra pantalla" }));
+    expect(screen.queryByRole("button", { name: "Volver a la conversación" })).toBeNull();
+  });
+
+  it("cerrar con Escape no lo ofrece", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+    await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    expect(screen.queryByRole("button", { name: "Volver a la conversación" })).toBeNull();
+  });
+
+  it("navegar a otra pantalla lo quita", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+
+    const [chip] = await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+    await user.click(chip);
+    await screen.findByRole("button", { name: "Volver a la conversación" });
+
+    await user.click(screen.getByRole("link", { name: "Otra pantalla" }));
+
+    expect(screen.queryByRole("button", { name: "Volver a la conversación" })).toBeNull();
+  });
+
+  it("reabrir con «Preguntar» lo quita", async () => {
+    const user = userEvent.setup();
+    await abrirYPreguntar(user);
+
+    const [chip] = await screen.findAllByRole("link", { name: "Ver el trámite 2026-9005" });
+    await user.click(chip);
+    await screen.findByRole("button", { name: "Volver a la conversación" });
+
+    await user.click(screen.getByRole("button", { name: "Preguntar" }));
+    await screen.findByRole("dialog");
+
+    expect(screen.queryByRole("button", { name: "Volver a la conversación" })).toBeNull();
   });
 });

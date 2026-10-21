@@ -11,6 +11,41 @@ namespace Modules.Designaciones.Contracts.Queries;
 public sealed record PedidoUbicableDto(string Numero, Guid Id);
 
 /// <summary>
+/// Los datos clave de un trámite, para mostrarlo en una ficha.
+/// </summary>
+/// <param name="Id">Con qué identificador se abre el trámite.</param>
+/// <param name="Numero">Número legible, el que ve el usuario.</param>
+/// <param name="Novedad">Qué pide el trámite: alta, baja o cambio.</param>
+/// <param name="Materia">Nombre de la materia de la cátedra.</param>
+/// <param name="Estado">Código del estado, estable; el cliente decide cómo pintarlo.</param>
+/// <param name="EstadoEtiqueta">
+/// Cómo se llama el estado para una persona. La pone este módulo porque el
+/// vocabulario del circuito es suyo.
+/// </param>
+/// <param name="Periodo">Nombre del período del trámite.</param>
+/// <param name="Cargo">Cargo solicitado, si el trámite lo tiene.</param>
+/// <param name="Dedicacion">Dedicación solicitada, si el trámite la tiene.</param>
+/// <param name="UltimaActividad">
+/// Fecha del último movimiento del historial; si todavía no hay ninguno, la de
+/// creación.
+/// </param>
+/// <remarks>
+/// <b>No lleva ruta ni etiquetas de campo:</b> el módulo dice QUÉ es el trámite y la
+/// interfaz decide cómo se ve y a dónde lleva.
+/// </remarks>
+public sealed record FichaDePedidoDto(
+    Guid Id,
+    string Numero,
+    string Novedad,
+    string Materia,
+    string Estado,
+    string EstadoEtiqueta,
+    string Periodo,
+    string? Cargo,
+    string? Dedicacion,
+    DateTimeOffset UltimaActividad);
+
+/// <summary>
 /// Consultas públicas del módulo de designaciones para otros módulos.
 /// </summary>
 public interface IDesignacionesQueries
@@ -41,4 +76,20 @@ public interface IDesignacionesQueries
     /// </remarks>
     Task<IReadOnlyList<PedidoUbicableDto>> UbicarPedidosAsync(
         IReadOnlyCollection<string> textos, CancellationToken ct);
+
+    /// <summary>
+    /// La ficha de un trámite, o nada si el actor autenticado no puede abrirlo.
+    /// </summary>
+    /// <remarks>
+    /// <b>Mismo criterio que el detalle.</b> Se filtra con el ámbito de
+    /// <c>GET /api/designaciones/pedidos/{id}</c>, para que ofrecer la ficha y abrir
+    /// el detalle nunca discrepen: una ficha cuyo botón termina en 403 es lo que
+    /// <see cref="UbicarPedidosAsync"/> ya evita para los vínculos.
+    ///
+    /// <b>Devuelve <c>null</c> igual</b> para un trámite inexistente y para uno fuera
+    /// del ámbito: distinguirlos sería un canal de inferencia sobre trámites ajenos.
+    /// La política de permiso <c>designaciones.ver</c> es de quien llama, como en el
+    /// endpoint.
+    /// </remarks>
+    Task<FichaDePedidoDto?> FichaDePedidoAsync(Guid id, CancellationToken ct);
 }

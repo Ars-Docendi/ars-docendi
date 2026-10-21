@@ -116,6 +116,23 @@ public enum EstadoDelTurno
 /// calculan adentro: quién puede abrir un trámite lo decide el módulo dueño, no la
 /// policy que dejó pasar la fila. Ver <see cref="IResolutorDeVinculos"/>.
 /// </remarks>
+/// <param name="VinculosDelTexto">
+/// Dónde, dentro de <see cref="Respuesta"/> (el texto FINAL, tras cualquier
+/// reescritura), aparece el valor de una celda que tiene vínculo. Sólo se señala lo
+/// que el resultado ya vinculó: ver <see cref="UbicadorEnElTexto"/>. Nulo o vacío si
+/// no hay nada que señalar.
+/// </param>
+/// <param name="Principal">
+/// La ficha del elemento sobre el que trata la respuesta, cuando el resultado es una
+/// sola fila con un solo vínculo y el módulo dueño entregó la ficha. Nulo en cualquier
+/// otro caso. Sus datos <b>no pasan por el modelo</b>: ver
+/// <see cref="IProveedorDeFichas"/>.
+/// </param>
+/// <param name="Origenes">
+/// Códigos de los schemas que leyó la consulta ejecutada
+/// (<see cref="OrigenesDeLosDatos"/>), deduplicados y en orden estable. Nulo o vacío
+/// si el turno no ejecutó consulta.
+/// </param>
 /// <param name="CupoRestante">
 /// El cupo diario del actor INMEDIATAMENTE DESPUÉS de que este turno se
 /// cobrara (asistente-cupo-visible, tarea 7.2) — nunca el valor de antes.
@@ -167,6 +184,9 @@ public sealed record ResultadoDelTurno(
     string? Sql = null,
     string? SqlEjecutado = null,
     IReadOnlyList<VinculoDelResultado>? Vinculos = null,
+    IReadOnlyList<VinculoDelTexto>? VinculosDelTexto = null,
+    FichaDelElemento? Principal = null,
+    IReadOnlyList<string>? Origenes = null,
     Guid? ClaveDeRetroalimentacion = null,
     int? CupoRestante = null,
     Guid? Conversacion = null,

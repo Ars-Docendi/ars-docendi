@@ -38,6 +38,7 @@ public sealed class CapaConversacional(
     IPresupuestoOrganizacional presupuestoOrganizacional,
     ICandadoDelTurno candadoDelTurno,
     IResolutorDeVinculos vinculos,
+    IProveedorDeFichas fichas,
     ContadorDeLlamadasDelTurno contador,
     DecisionSombraDelTurno decisionSombra,
     IOptions<OpcionesAsistente> opciones,
@@ -747,14 +748,20 @@ public sealed class CapaConversacional(
         // En el pivote la pregunta interpretada se devuelve SIEMPRE, aunque
         // coincida con el mensaje: es la señal de que el asistente soltó el tema
         // anterior, y sin ella el usuario no tiene forma de saberlo.
-        return resultado with
+        var cerrado = await CierreDelTurno.CompletarAsync(
+            resultado,
+            CierreDelTurno.TextoDelRechazo(resultado, historial, interpretada),
+            vinculos,
+            fichas,
+            log,
+            ct);
+
+        return cerrado with
         {
             Hilo = conversacion.Id,
             PreguntaInterpretada = pivote
                 ? interpretada
                 : resultado.PreguntaInterpretada,
-            Respuesta = CierreDelTurno.TextoDelRechazo(resultado, historial, interpretada),
-            Vinculos = await CierreDelTurno.VinculosAsync(resultado, vinculos, log, ct),
         };
     }
 

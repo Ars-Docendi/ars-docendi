@@ -57,6 +57,13 @@ interface TablaDeResultadoProps {
    * propio botón, como siempre.
    */
   onExportarDisponible?: (exportar: () => void) => void;
+  /**
+   * No dibuja la tabla en línea, pero sigue montada: «Ampliar tabla» y la
+   * exportación a CSV siguen funcionando. Es lo que pasa una respuesta con ficha,
+   * donde la tabla de una fila repetiría lo que la ficha ya muestra
+   * (asistente-respuestas-con-vinculos, D3).
+   */
+  soloAmpliada?: boolean;
 }
 
 /**
@@ -92,6 +99,7 @@ export function TablaDeResultado({
   ampliado,
   onAmpliarChange,
   onExportarDisponible,
+  soloAmpliada = false,
 }: TablaDeResultadoProps) {
   if (columnas.length === 0 || filas.length === 0) return null;
 
@@ -110,6 +118,7 @@ export function TablaDeResultado({
       ampliadoControlado={ampliado}
       onAmpliarChange={onAmpliarChange}
       onExportarDisponible={onExportarDisponible}
+      oculta={soloAmpliada}
     />
   );
 }
@@ -126,6 +135,8 @@ interface TablaConAccionesProps {
   onAmpliarChange?: (ampliado: boolean) => void;
   /** Ver `TablaDeResultadoProps.onExportarDisponible`. */
   onExportarDisponible?: (exportar: () => void) => void;
+  /** Ver `TablaDeResultadoProps.soloAmpliada`. */
+  oculta: boolean;
   porCelda: Map<string, VinculoDelResultado>;
 }
 
@@ -157,6 +168,7 @@ function TablaConAcciones({
   ampliadoControlado,
   onAmpliarChange,
   onExportarDisponible,
+  oculta,
 }: TablaConAccionesProps) {
   const [orden, setOrden] = useState<OrdenDeColumna | null>(null);
   const [ampliadoPropio, setAmpliadoPropio] = useState(false);
@@ -262,7 +274,7 @@ function TablaConAcciones({
   const anuncioDeOrden = textoDelAnuncioDeOrden(orden, columnas);
 
   return (
-    <div className="adoc-asistente-tabla" ref={raizRef}>
+    <div className="adoc-asistente-tabla" ref={raizRef} hidden={oculta}>
       <TablaOrdenable
         columnas={columnas}
         filas={filas}
@@ -377,7 +389,10 @@ function TablaConAcciones({
  * exacta del modal, que en ese contexto no existe para cubrir.
  */
 function contenedorDelModal(raiz: HTMLDivElement | null): HTMLElement {
-  return raiz?.closest<HTMLElement>(".adoc-asistente-grilla") ?? raiz ?? document.body;
+  // Una tabla oculta (respuesta con ficha) no puede alojar la vista ampliada: su
+  // contenido tampoco se vería.
+  const propio = raiz && !raiz.hidden ? raiz : null;
+  return raiz?.closest<HTMLElement>(".adoc-asistente-grilla") ?? propio ?? document.body;
 }
 
 // ============================================================
@@ -562,6 +577,7 @@ function Celda({ valor, vinculo }: { valor: unknown; vinculo?: VinculoDelResulta
       className="adoc-asistente-vinculo"
       to={destino.ruta(vinculo.id)}
       aria-label={`Ver el ${destino.sustantivo} ${texto}`}
+      data-vinculo-del-asistente=""
     >
       {texto}
     </Link>

@@ -107,6 +107,31 @@ internal sealed partial class RepositorioPedidos(DesignacionesDbContext db)
             .ToListAsync(ct);
     }
 
+    // La ficha del trámite: una proyección y no el agregado. No hace falta el
+    // historial entero ni los adjuntos, sólo la fecha del último movimiento, que se
+    // calcula en la base. Sin colecciones cargadas, y sin seguimiento de cambios.
+    public Task<DatosDeFicha?> ObtenerFichaAsync(Guid pedidoId, CancellationToken ct) =>
+        db.Pedidos
+          .AsNoTracking()
+          .Where(p => p.Id == pedidoId)
+          .Select(p => new DatosDeFicha
+          {
+              Id = p.Id,
+              Numero = p.Numero,
+              Novedad = p.Novedad,
+              Estado = p.Estado,
+              MateriaId = p.MateriaId,
+              CarreraId = p.CarreraId,
+              Periodo = p.Periodo == null ? string.Empty : p.Periodo.Nombre,
+              Cargo = p.CargoSolicitado == null ? null : p.CargoSolicitado.Nombre,
+              Dedicacion = p.DedicacionSolicitadaCatalogo != null
+                  ? p.DedicacionSolicitadaCatalogo.Nombre
+                  : p.DedicacionSolicitada,
+              UltimoMovimiento = p.Historial.Max(h => (DateTimeOffset?)h.CreadoEn),
+              CreadoEn = p.CreadoEn,
+          })
+          .FirstOrDefaultAsync(ct);
+
     public async Task<string> SiguienteNumeroAsync(CancellationToken ct)
     {
         var numeros = await db.Database
@@ -174,4 +199,34 @@ internal sealed class PedidoUbicado
     public Guid MateriaId { get; set; }
 
     public Guid CarreraId { get; set; }
+}
+
+/// <summary>
+/// Lo que la ficha de un trámite necesita leer, antes de resolver la materia y
+/// filtrar por ámbito.
+/// </summary>
+internal sealed class DatosDeFicha
+{
+    public Guid Id { get; set; }
+
+    public string Numero { get; set; } = string.Empty;
+
+    public string Novedad { get; set; } = string.Empty;
+
+    public string Estado { get; set; } = string.Empty;
+
+    public Guid MateriaId { get; set; }
+
+    public Guid CarreraId { get; set; }
+
+    public string Periodo { get; set; } = string.Empty;
+
+    public string? Cargo { get; set; }
+
+    public string? Dedicacion { get; set; }
+
+    /// <summary>Fecha del último evento del historial; nula si todavía no tiene ninguno.</summary>
+    public DateTimeOffset? UltimoMovimiento { get; set; }
+
+    public DateTimeOffset CreadoEn { get; set; }
 }

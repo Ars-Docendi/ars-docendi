@@ -63,6 +63,22 @@ describe("Ampliar tabla", () => {
     expect(within(region).getByRole("button", { name: "Contraer" })).toBeInTheDocument();
   });
 
+  // Dentro del modal, `.adoc-asistente-modal header` colapsa a alto 0 cualquier
+  // `<header>` —para esconder el de la librería— y `.adoc-modal header` le pone
+  // su relleno y borde: con un `<header>` el encabezado, y con él «Contraer»,
+  // copiar y exportar, desaparecía en la app real.
+  it("no usa header, que el modal estiliza como el suyo", async () => {
+    const user = abrir();
+    montar(
+      <TablaDeResultado columnas={COLUMNAS} filas={FILAS} truncado={false} pregunta={PREGUNTA} />,
+    );
+
+    await ampliar(user);
+
+    const region = screen.getByRole("region", { name: "Tabla ampliada" });
+    expect(region.querySelector("header, footer")).toBeNull();
+  });
+
   it("mantiene las mismas columnas, marcas de sensible, enlaces y leyenda que la vista en línea", async () => {
     const user = abrir();
     montar(

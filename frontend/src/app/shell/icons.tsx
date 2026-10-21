@@ -437,4 +437,24 @@ export const closeIcon = (
   </svg>
 );
 
+/**
+ * Flecha hacia la izquierda. Va delante de «Volver a la conversación», el botón
+ * flotante que reabre el asistente después de seguir un vínculo.
+ */
+export const arrowLeftIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M14.5 9h-11M8.5 4.5 4 9l4.5 4.5" />
+  </svg>
+);
+
+/**
+ * Flecha circular. Va delante de «Repetir consulta», bajo la última pregunta del
+ * asistente.
+ */
+export const repetirIcon = (
+  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <path d="M15 9a6 6 0 1 1-1.8-4.3M15 3v3h-3" />
+  </svg>
+);
+
 export type NavIconKey = keyof typeof navIcons;

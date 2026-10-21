@@ -140,12 +140,19 @@ public sealed class VinculosDeDesignacionesTests
         public Task<IReadOnlyList<PedidoUbicableDto>> UbicarPedidosAsync(
             IReadOnlyCollection<string> textos, CancellationToken ct) =>
             Task.FromResult(ubicables);
+
+        public Task<FichaDePedidoDto?> FichaDePedidoAsync(Guid id, CancellationToken ct) =>
+            Task.FromResult<FichaDePedidoDto?>(null);
     }
 
     private sealed class ConsultasQueRevientan : IDesignacionesQueries
     {
         public Task<IReadOnlyList<PedidoUbicableDto>> UbicarPedidosAsync(
             IReadOnlyCollection<string> textos, CancellationToken ct) =>
+            throw new InvalidOperationException(
+                "No se tiene que consultar designaciones sin haber pasado la política.");
+
+        public Task<FichaDePedidoDto?> FichaDePedidoAsync(Guid id, CancellationToken ct) =>
             throw new InvalidOperationException(
                 "No se tiene que consultar designaciones sin haber pasado la política.");
     }
