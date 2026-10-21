@@ -225,6 +225,24 @@ que el sistema sí tiene; la plantilla de `muy_general` pide el dato puntual sin
 afirmar nada. Responder con los docentes que la declararon movería el ítem fuera de
 `no_contestable` (design.md de asistente-rechazos-dinamicos, pregunta abierta 2).
 
+## Contra el servicio de inferencia compartido (Ollama)
+
+`scripts/eval-ollama.sh` corre el evaluador contra el Ollama de pc-prod
+(`asistente-proveedor-ollama`) desde vm-dev, que es la única máquina que Cloudflare
+Access deja pasar. Copia la configuración `Asistente__*` e `Inferencia__*` de un backend
+desplegado con ese proveedor (por defecto `pr-40-backend-1`) sin mostrar las credenciales.
+Arma un PostgreSQL descartable con las dos bases (fixture de siempre y con suplemento),
+corre las pasadas y copia los reportes de cada una a `reportes/ollama-<fecha>/`:
+
+```bash
+scripts/eval-ollama.sh                         # cuatro ejes, compuestas sin plan, compuestas con plan
+PASADAS="control plan" scripts/eval-ollama.sh  # sólo las compuestas
+EVAL_INFERENCIA_USUARIO=eval scripts/eval-ollama.sh  # con un usuario htpasswd propio
+```
+
+Sólo necesita Docker. Ocupa el único slot de la GPU, que también usa prod, así que
+conviene correrlo en una ventana acordada.
+
 ## Las preguntas compuestas del plan compilado
 
 `datasets/compuestas.json` (change `asistente-plan-compilado`) tiene 39 preguntas sobre
