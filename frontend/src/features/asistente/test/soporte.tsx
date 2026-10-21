@@ -57,6 +57,9 @@ export function respuesta(parcial: Partial<RespuestaDelAsistente> = {}): Respues
     filas: [],
     truncado: false,
     vinculos: [],
+    vinculosDelTexto: [],
+    principal: null,
+    origenes: [],
     metricas: { llamadasAlModelo: 2 },
     ...parcial,
   };

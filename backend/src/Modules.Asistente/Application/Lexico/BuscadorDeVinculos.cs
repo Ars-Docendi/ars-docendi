@@ -125,6 +125,13 @@ internal static class BuscadorDeVinculos
     /// además garantiza que el valor de la celda sea el identificador COMPLETO: un
     /// texto que sólo <i>menciona</i> un número —«ver el 2026-9001»— no coincide con
     /// ninguno, así que no puede producir un vínculo falso.
+    ///
+    /// <b>Esto habla de las CELDAS.</b> Una mención en la prosa de la respuesta no
+    /// produce un vínculo por sí sola, pero sí se enlaza <b>cuando el mismo valor ya
+    /// tiene vínculo en una celda</b>: de eso se ocupa <see cref="UbicadorEnElTexto"/>,
+    /// que no resuelve nada nuevo y sólo busca en el texto final los valores que este
+    /// buscador ya vinculó. Un número que aparece únicamente en la prosa sigue sin
+    /// enlace.
     /// </remarks>
     private static bool EsCandidato(object? valor, out string texto)
     {

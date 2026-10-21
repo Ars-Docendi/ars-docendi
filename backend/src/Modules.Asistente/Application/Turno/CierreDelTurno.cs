@@ -4,15 +4,86 @@ namespace Modules.Asistente.Application;
 
 /// <summary>
 /// Lo último que le pasa al resultado de un turno antes de salir: el texto con
-/// que se rechaza y los vínculos que lo acompañan.
+/// que se rechaza y todo lo que lo acompaña (vínculos, posiciones en el texto,
+/// elemento principal y áreas de datos).
 /// </summary>
 /// <remarks>
 /// Sale de <see cref="CapaConversacional"/> porque no es orquestación: no decide
-/// por dónde va el turno, adorna el que ya terminó. Las dos son estáticas y
-/// reciben lo que necesitan, así que se prueban sin armar la capa entera.
+/// por dónde va el turno, adorna el que ya terminó. Son estáticas y reciben lo que
+/// necesitan, así que se prueban sin armar la capa entera.
 /// </remarks>
 internal static class CierreDelTurno
 {
+    /// <summary>
+    /// El resultado con todo lo que se le agrega al salir, calculado sobre el texto
+    /// FINAL.
+    /// </summary>
+    /// <remarks>
+    /// <b>El orden es el contrato:</b> primero el texto (que puede reescribirse), después
+    /// los vínculos de las celdas, y recién entonces lo que depende de las dos cosas —las
+    /// posiciones se miden sobre el texto que el usuario lee, y el principal sobre los
+    /// vínculos—. Cambiar el orden calcularía posiciones sobre un texto que nunca se
+    /// muestra.
+    /// </remarks>
+    public static async Task<ResultadoDelTurno> CompletarAsync(
+        ResultadoDelTurno resultado,
+        string texto,
+        IResolutorDeVinculos resolutor,
+        IProveedorDeFichas fichas,
+        ILogger log,
+        CancellationToken ct)
+    {
+        var vinculos = await VinculosAsync(resultado, resolutor, log, ct);
+
+        return resultado with
+        {
+            Respuesta = texto,
+            Vinculos = vinculos,
+            VinculosDelTexto = UbicadorEnElTexto.Ubicar(texto, resultado.Filas, vinculos),
+            Principal = await PrincipalAsync(resultado, vinculos, fichas, log, ct),
+            Origenes = resultado.Origenes ?? OrigenesDeLosDatos.De(resultado.SqlEjecutado),
+        };
+    }
+
+    /// <summary>
+    /// La ficha del elemento principal, o ninguna.
+    /// </summary>
+    /// <remarks>
+    /// <b>La regla es determinista y no depende del modelo:</b> hay principal cuando el
+    /// resultado tiene UNA fila y esa fila tiene UN vínculo. Con varias filas no hay un
+    /// «el elemento», y con varios vínculos en una fila tampoco.
+    ///
+    /// <b>Un fallo acá no tumba el turno</b>, por el mismo motivo que los vínculos: la
+    /// ficha es una presentación sobre la respuesta, no la respuesta.
+    /// </remarks>
+    public static async Task<FichaDelElemento?> PrincipalAsync(
+        ResultadoDelTurno resultado,
+        IReadOnlyList<VinculoDelResultado> vinculos,
+        IProveedorDeFichas fichas,
+        ILogger log,
+        CancellationToken ct)
+    {
+        if (resultado.Filas.Count != 1 || vinculos.Count != 1)
+        {
+            return null;
+        }
+
+        var vinculo = vinculos[0];
+
+        try
+        {
+            return await fichas.ObtenerAsync(vinculo.Tipo, vinculo.Id, ct);
+        }
+        catch (Exception excepcion) when (excepcion is not OperationCanceledException)
+        {
+            log.LogWarning(
+                excepcion,
+                "No se pudo obtener la ficha del elemento principal ({Tipo}); se responde sin ella.",
+                vinculo.Tipo);
+            return null;
+        }
+    }
+
     /// <summary>
     /// Los vínculos del resultado, o ninguno.
     /// </summary>

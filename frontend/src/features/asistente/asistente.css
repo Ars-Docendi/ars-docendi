@@ -935,15 +935,294 @@
   }
 }
 
-/* La respuesta: texto plano, ancho completo. No es una tarjeta —sin borde ni
-   fondo propio (asistente-rediseno-v3, mock v3: reemplaza la tarjeta gris de
-   v2)—; la tabla y los demás bloques, que no son sólo texto, usan el ancho
-   entero del turno. */
+/* La respuesta: UN bloque con fondo elevado, borde y radio del tema
+   (asistente-respuestas-con-vinculos, D7), separado de la burbuja de la pregunta.
+   Adentro van el texto, la ficha, la tabla, las opciones, los avisos de estado,
+   «Consultando…», la procedencia y la barra de acciones; también los turnos
+   restaurados del historial (`ContenidoHistorico`), para que se vean igual. La
+   tabla y los demás bloques que no son sólo texto usan el ancho entero. */
 .adoc-asistente-respuesta {
   align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+}
+
+/* La tabla oculta (respuesta con ficha) sigue montada para «Ampliar tabla»: el
+   atributo `hidden` pierde contra el `display` de las reglas de autor. */
+.adoc-asistente-tabla[hidden] {
+  display: none;
+}
+
+/* El elemento nombrado en el texto, como chip EN LÍNEA: sigue el flujo del texto
+   (`pre-wrap` del párrafo) y no lo parte en bloques. Con el contenedor por
+   delante porque `.adoc-ui a` le gana a una sola clase y le pondría el color de
+   enlace. */
+.adoc-asistente-respuesta .adoc-asistente-chip {
+  display: inline;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.adoc-asistente-respuesta .adoc-asistente-chip:hover {
+  border-color: var(--color-accent);
+}
+
+.adoc-asistente-respuesta .adoc-asistente-chip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-chip-icono {
+  display: inline-block;
+  width: 0.875em;
+  height: 0.875em;
+  margin-inline-end: 4px;
+  vertical-align: -0.1em;
+}
+
+.adoc-asistente-chip-icono svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* La ficha del elemento principal: una tarjeta elevada DENTRO del bloque. */
+.adoc-asistente-ficha {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+}
+
+.adoc-asistente-ficha-cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.adoc-asistente-ficha-icono {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-pressed);
+}
+
+.adoc-asistente-ficha-icono svg {
+  width: 18px;
+  height: 18px;
+}
+
+.adoc-asistente-ficha-titulos {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adoc-asistente-ficha-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-ficha-titulo {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* El estado, con el tono que el cliente deduce del código. */
+.adoc-asistente-ficha-estado {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption-size);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.adoc-asistente-ficha-estado--exito {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-fg);
+}
+
+.adoc-asistente-ficha-estado--aviso {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+
+.adoc-asistente-ficha-estado--peligro {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+.adoc-asistente-ficha-estado--neutro {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
+
+.adoc-asistente-ficha-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.adoc-asistente-ficha-dato {
+  min-width: 0;
+}
+
+.adoc-asistente-ficha-dato dt {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-ficha-dato dd {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  overflow-wrap: anywhere;
+}
+
+.adoc-asistente-ficha-pie {
+  display: flex;
+}
+
+/* Un enlace con aspecto de botón primario: navega, no ejecuta. Con el contenedor
+   por delante por la misma razón que el chip. */
+.adoc-asistente-respuesta .adoc-asistente-ficha-abrir {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-size: var(--text-body-sm-size);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.adoc-asistente-respuesta .adoc-asistente-ficha-abrir:hover {
+  background: var(--color-accent-hover);
+}
+
+.adoc-asistente-respuesta .adoc-asistente-ficha-abrir:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-ficha-flecha {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+}
+
+.adoc-asistente-ficha-flecha svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* De dónde salen los datos: una línea discreta al pie del bloque. */
+.adoc-asistente-procedencia {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* «Repetir consulta»: botón de texto bajo la última pregunta. Se revela con el
+   resto de las herramientas de la pregunta. */
+.adoc-asistente-repetir {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+
+.adoc-asistente-repetir:hover {
+  background: var(--color-bg-canvas);
+}
+
+.adoc-asistente-repetir-icono {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+}
+
+.adoc-asistente-repetir-icono svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* «Volver a la conversación»: flota abajo a la derecha de la pantalla de destino,
+   POR DEBAJO del modal en el apilado. 44 px de alto, el mínimo táctil. */
+.adoc-asistente-volver {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: var(--z-overlay);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.adoc-asistente-volver:hover {
+  background: var(--color-accent-hover);
+}
+
+.adoc-asistente-volver:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.adoc-asistente-volver-icono {
+  display: inline-flex;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.adoc-asistente-volver-icono svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* La redacción mientras llega (asistente-optimizaciones-modelo-local, D9): el

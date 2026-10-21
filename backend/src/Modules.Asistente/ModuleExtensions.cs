@@ -386,6 +386,11 @@ public static class ModuleExtensions
         // responden igual y no ofrecen vínculos, que es la degradación correcta.
         services.AddScoped<IResolutorDeVinculos, SinVinculos>();
 
+        // Igual con las fichas: el asistente no sabe qué datos tiene un trámite, así
+        // que el puerto arranca sin ninguna y el Host lo reemplaza. Sin adaptador
+        // la respuesta no trae elemento principal y se muestra como siempre.
+        services.AddScoped<IProveedorDeFichas, SinFichas>();
+
         services.AddScoped<CapaConversacional>();
 
         // -------------------------------------------- registros y su purga

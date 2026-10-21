@@ -164,7 +164,8 @@ public sealed class UbicarPedidosTests(PostgresFixture postgres)
         DesignacionesDbContext db) =>
         new ServicioConsultasDesignaciones(
             new RepositorioPedidos(db),
-            new ResolutorActor(new UsuarioActualFalso(usuarioId), new ConsultasIdentity(identityDb)));
+            new ResolutorActor(new UsuarioActualFalso(usuarioId), new ConsultasIdentity(identityDb)),
+            new ConsultasIdentity(identityDb));
 
     /// <summary>
     /// Un pedido en Organización Industrial, que es de la OTRA carrera.

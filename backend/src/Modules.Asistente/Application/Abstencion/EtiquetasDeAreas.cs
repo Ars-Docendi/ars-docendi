@@ -48,6 +48,17 @@ internal static class EtiquetasDeAreas
         ("identity.rol_permisos", "usuarios con sus roles"),
     ];
 
+    /// <summary>
+    /// Los schemas que el asistente tiene habilitados: los de las tablas con
+    /// etiqueta. Es la fuente de las áreas que declara la respuesta
+    /// (<see cref="OrigenesDeLosDatos"/>), y no una lista aparte: el guard de
+    /// cobertura que compara este mapa contra el manifiesto de privilegios la
+    /// mantiene al día.
+    /// </summary>
+    internal static readonly IReadOnlySet<string> SchemasHabilitados =
+        Mapa.Select(par => par.Tabla[..par.Tabla.IndexOf('.', StringComparison.Ordinal)])
+            .ToHashSet(StringComparer.Ordinal);
+
     private static readonly IReadOnlySet<string> TablasConocidas =
         Mapa.Select(par => par.Tabla).ToHashSet(StringComparer.Ordinal);
 

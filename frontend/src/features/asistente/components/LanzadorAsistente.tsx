@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import { Modal } from "@ars-docendi/ui";
 
 import { PanelAsistente } from "./PanelAsistente";
+import { VolverALaConversacion } from "./VolverALaConversacion";
 import { useAccesoAlAsistente } from "../hooks/useAccesoAlAsistente";
 import { useAsistente } from "../hooks/useAsistente";
 import { useHistorialAsistente } from "../hooks/useHistorialAsistente";
@@ -58,6 +59,10 @@ export function LanzadorAsistente() {
   const lanzador = useRef<HTMLButtonElement>(null);
   const { pathname } = useLocation();
   const [rutaVista, setRutaVista] = useState(pathname);
+  // Hubo un clic en un vínculo de una respuesta con el modal abierto, y la ruta
+  // todavía no cambió. Es estado y no una ref porque se lee al renderizar.
+  const [siguioVinculo, setSiguioVinculo] = useState(false);
+  const [volverVisible, setVolverVisible] = useState(false);
 
   // AJUSTE DE ESTADO EN RENDER, no un efecto. Cerrar en un `useEffect` pinta el
   // modal una vez encima de la pantalla nueva y lo saca en el commit siguiente;
@@ -67,10 +72,20 @@ export function LanzadorAsistente() {
   //
   // La conversación no se pierde: vive en este componente, que sigue montado en la
   // barra mientras la aplicación navega por debajo.
+  //
+  // SI LA RUTA CAMBIÓ PORQUE SE SIGUIÓ UN VÍNCULO DE UNA RESPUESTA, además se
+  // ofrece «Volver a la conversación» (asistente-respuestas-con-vinculos, D6). Cerrar
+  // con «×», Escape o «Atrás» nunca marca `siguioVinculo`, así que no lo muestra.
   if (rutaVista !== pathname) {
     setRutaVista(pathname);
     setAbierto(false);
+    setSiguioVinculo(false);
+    // Cada cambio de ruta lo recalcula: navegar de nuevo, sin vínculo, lo quita.
+    setVolverVisible(siguioVinculo);
   }
+
+  // Reabrir el asistente, por el medio que sea, lo quita.
+  if (abierto && volverVisible) setVolverVisible(false);
 
   // EL MODAL DE LA LIBRERÍA NO GESTIONA EL FOCO: ni lo contiene ni lo devuelve. Se
   // portalea a `body`, hermano de `#root`, así que hacer inerte la raíz mientras
@@ -90,6 +105,11 @@ export function LanzadorAsistente() {
       boton?.focus();
     };
   }, [abierto]);
+
+  function alCambiarApertura(valor: boolean) {
+    if (!valor) setSiguioVinculo(false);
+    setAbierto(valor);
+  }
 
   const [parametros, fijarParametros] = useSearchParams();
   const marcaPedida = parametros.get("asistente") === "abrir";
@@ -167,17 +187,34 @@ export function LanzadorAsistente() {
           como hacía v2, ya no alcanza para el rail + encabezado de v3. */}
       <Modal
         open={abierto}
-        onOpenChange={setAbierto}
+        onOpenChange={alCambiarApertura}
         title="Asistente"
         hideCloseButton
         className="adoc-asistente-modal"
       >
-        <PanelAsistente
-          asistente={asistente}
-          historial={historial}
-          onCerrar={() => setAbierto(false)}
-        />
+        {/* `display: contents`: sólo escucha, no participa del layout. El
+            atributo lo llevan el chip, la celda con vínculo y el botón de la
+            ficha; no hace falta pasar nada por props. */}
+        <div
+          style={{ display: "contents" }}
+          onClickCapture={(evento) => {
+            if (
+              evento.target instanceof Element &&
+              evento.target.closest("a[data-vinculo-del-asistente]")
+            ) {
+              setSiguioVinculo(true);
+            }
+          }}
+        >
+          <PanelAsistente
+            asistente={asistente}
+            historial={historial}
+            onCerrar={() => alCambiarApertura(false)}
+          />
+        </div>
       </Modal>
+
+      {volverVisible && !abierto && <VolverALaConversacion onVolver={() => setAbierto(true)} />}
     </>
   );
 }

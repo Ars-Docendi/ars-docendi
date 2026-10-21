@@ -124,6 +124,41 @@ public sealed record PedidoDeRetroalimentacion(
 /// </remarks>
 public sealed record VinculoDto(int Fila, int Columna, string Tipo, string Id);
 
+/// <summary>
+/// Dónde, dentro del texto de la respuesta, aparece un valor que el resultado ya
+/// vinculó (<c>vinculosDelTexto</c>).
+/// </summary>
+/// <param name="Desde">
+/// Índice del primer carácter en <c>respuesta</c>, en unidades de código UTF-16: las
+/// mismas que usa <c>String.prototype.slice</c> en el cliente.
+/// </param>
+/// <param name="Largo">Cuántas unidades de código ocupa el valor.</param>
+/// <param name="Tipo">Igual que en <see cref="VinculoDto"/>.</param>
+/// <param name="Id">Igual que en <see cref="VinculoDto"/>.</param>
+/// <remarks>
+/// Sólo se señala lo que una celda del resultado ya vinculó: un número que aparece
+/// únicamente en la prosa no lleva enlace. Llegan con el evento final de
+/// <c>/consultas/flujo</c>; los borradores parciales no las traen.
+/// </remarks>
+public sealed record VinculoDelTextoDto(int Desde, int Largo, string Tipo, string Id);
+
+/// <summary>
+/// El elemento sobre el que trata la respuesta, con su ficha (<c>principal</c>).
+/// </summary>
+/// <param name="Tipo">El mismo tipo que el vínculo del elemento.</param>
+/// <param name="Id">El mismo identificador que el vínculo del elemento.</param>
+/// <param name="Datos">
+/// Los datos clave, con claves documentadas por tipo (ver <c>api-contracts.md</c>).
+/// Para <c>pedido-designacion</c>: <c>numero</c>, <c>novedad</c>, <c>materia</c>,
+/// <c>estado</c>, <c>estadoEtiqueta</c>, <c>periodo</c>, <c>cargo</c>,
+/// <c>dedicacion</c> y <c>ultimaActividad</c>.
+/// </param>
+/// <remarks>
+/// Un cliente que no conoce el <paramref name="Tipo"/> ignora la ficha y muestra la
+/// respuesta como si no hubiera principal.
+/// </remarks>
+public sealed record PrincipalDto(string Tipo, string Id, IReadOnlyDictionary<string, string?> Datos);
+
 /// <summary>Una columna del resultado, con su marca de sensibilidad.</summary>
 /// <param name="Sensible">
 /// Si la columna trae un dato personal. Lo necesita quien renderiza: con columnas
@@ -186,6 +221,26 @@ public sealed record RespuestaDelAsistente
     /// </remarks>
     public IReadOnlyList<VinculoDto> Vinculos { get; init; } = [];
 
+    /// <summary>
+    /// Las apariciones, dentro de <c>respuesta</c>, de los valores de celda que tienen
+    /// vínculo. Vacío si no hay ninguna.
+    /// </summary>
+    public IReadOnlyList<VinculoDelTextoDto> VinculosDelTexto { get; init; } = [];
+
+    /// <summary>
+    /// El elemento sobre el que trata la respuesta, con su ficha. Nulo salvo que el
+    /// resultado sea una sola fila con un solo vínculo y el módulo dueño haya entregado
+    /// la ficha.
+    /// </summary>
+    public PrincipalDto? Principal { get; init; }
+
+    /// <summary>
+    /// De qué áreas salen los datos: códigos de schema (<c>designaciones</c>,
+    /// <c>identity</c>, <c>portal</c>), sin repetir y en orden estable. Vacío si el
+    /// turno no ejecutó consulta. Nunca la consulta, sus tablas ni cuántas filas.
+    /// </summary>
+    public IReadOnlyList<string> Origenes { get; init; } = [];
+
     /// <summary>Lo que costó el turno.</summary>
     public required MetricasDto Metricas { get; init; }
 
@@ -228,6 +283,12 @@ public sealed record RespuestaDelAsistente
             Sql = turno.Sql,
             Vinculos = [.. (turno.Vinculos ?? []).Select(
                 v => new VinculoDto(v.Fila, v.Columna, v.Tipo, v.Id))],
+            VinculosDelTexto = [.. (turno.VinculosDelTexto ?? []).Select(
+                v => new VinculoDelTextoDto(v.Desde, v.Largo, v.Tipo, v.Id))],
+            Principal = turno.Principal is { } principal
+                ? new PrincipalDto(principal.Tipo, principal.Id, principal.Datos)
+                : null,
+            Origenes = [.. turno.Origenes ?? []],
             Metricas = new MetricasDto(turno.LlamadasAlModelo, turno.Categoria),
             ClaveDeRetroalimentacion = turno.ClaveDeRetroalimentacion,
             CupoRestante = turno.CupoRestante,

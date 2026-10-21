@@ -301,6 +301,9 @@ Respuesta:
 | `filas[]`                  | Los valores reales, incluidos los que no viajaron al modelo                                                         |
 | `truncado`                 | Booleano, **nunca** un conteo                                                                                       |
 | `vinculos[]`               | Qué celdas llevan a una pantalla del sistema                                                                        |
+| `vinculosDelTexto[]`       | Dónde, dentro de `respuesta`, aparece un valor que una celda ya vinculó (`{ desde, largo, tipo, id }`)              |
+| `principal`                | El elemento sobre el que trata la respuesta, con su ficha (`{ tipo, id, datos }`); `null` si no hay                 |
+| `origenes[]`               | De qué áreas salen los datos: códigos de schema (`designaciones`, `identity`, `portal`)                             |
 | `sql`                      | Solo con `asistente.ver_consulta`                                                                                   |
 | `metricas`                 | Llamadas al modelo y categoría                                                                                      |
 | `claveDeRetroalimentacion` | Solo cuando `estado = respondida`. Ver `POST /api/asistente/retroalimentacion`                                      |
@@ -314,6 +317,38 @@ Respuesta:
 **`vinculos[]`** trae `{ fila, columna, tipo, id }` y **no una URL**: el backend dice qué clase de recurso identifica cada celda y con qué identificador se abre, y la ruta la resuelve el cliente, que es donde viven las rutas. Un cliente que no reconoce un `tipo` **no pinta nada** — así, el día que se ofrezcan vínculos a otro módulo, un cliente viejo no muestra un enlace roto.
 
 Que una fila esté en `filas[]` **no implica** que traiga vínculo. Las filas las filtra el motor con las policies de RLS del asistente; la pantalla la autoriza el módulo dueño del recurso, con su propia regla. **No son la misma regla y divergen hoy**: el ámbito departamental es una lista fija de códigos de rol en el módulo y `identity.roles.scope` en las funciones del asistente; los roles del módulo salen del token y están acotados al rol seleccionado en la sesión, y los del asistente son las asignaciones vigentes leídas en vivo; el permiso es un claim de un lado y la matriz en vivo del otro. Por eso el vínculo se le pregunta al módulo dueño —`IDesignacionesQueries.UbicarPedidosAsync` para el trámite— y no se deduce de que la fila haya llegado: deducirlo produce un botón que responde 403 al apretarlo, que es lo que el invariante #7 prohíbe.
+
+**`vinculosDelTexto[]`** trae `{ desde, largo, tipo, id }` por cada aparición, dentro de `respuesta`, del valor de una celda que **ya tiene vínculo**. Es la forma de enlazar la prosa sin que el modelo escriba enlaces:
+
+- **Sólo se señala lo que el resultado ya vinculó.** Un número que aparece únicamente en el texto, o cuya celda no se resolvió, no lleva enlace. No hay una regex por tipo en el asistente ni un segundo resolutor.
+- **La coincidencia es exacta, ordinal y por palabra completa**: inmediatamente antes y después del valor no puede haber una letra, un dígito ni un guion (`2026-90051` no enlaza `2026-9005`). Sin normalizar mayúsculas ni tildes.
+- **`desde` y `largo` son índices de `string` de .NET**, es decir unidades de código UTF-16: las mismas que usa `String.prototype.slice` en el cliente, así que no hace falta convertir nada. Se calculan sobre `respuesta` **tal como sale**, después de cualquier reescritura del rechazo; el cliente tiene que pintar el texto sin transformarlo (sin recortar ni normalizar espacios) o las posiciones dejan de coincidir.
+- Las apariciones vienen en orden y **sin superponerse**. `tipo` e `id` son los de `vinculos[]`; un cliente que no reconoce el `tipo` no pinta el enlace.
+- Un turno restaurado del historial no las trae: el historial no persiste el texto.
+
+**`principal`** es el elemento sobre el que trata la respuesta, con una ficha armada por el módulo dueño. Hay principal cuando el resultado tiene **exactamente una fila y esa fila tiene exactamente un vínculo**, y el módulo entregó la ficha: es una regla determinista, no una decisión del modelo. Si el módulo no la entrega (el actor no alcanza el trámite, el proveedor falló, no hay adaptador), `principal` es `null` y la respuesta se muestra como si no existiera la ficha; un fallo se registra como advertencia y **nunca** tumba el turno.
+
+```json
+{
+  "tipo": "pedido-designacion",
+  "id": "d5000000-0000-4000-8000-000000000005",
+  "datos": {
+    "numero": "2026-9005",
+    "novedad": "Cambio de cargo o dedicación",
+    "materia": "Ingeniería de Software",
+    "estado": "en_revision_coordinador",
+    "estadoEtiqueta": "En Coordinación",
+    "periodo": "2026 – 1.er cuatrimestre",
+    "cargo": "Profesor Adjunto",
+    "dedicacion": "Categoría 3",
+    "ultimaActividad": "2026-09-03T14:30:00.0000000+00:00"
+  }
+}
+```
+
+`datos` es un diccionario de **claves documentadas por tipo**, no un tipo del contrato: el asistente no referencia los DTO de otros módulos (ARS-46) y las transporta tal cual. Para `pedido-designacion`, `cargo` y `dedicacion` sólo están si el trámite los tiene; `ultimaActividad` es ISO 8601; `estadoEtiqueta` la pone Designaciones (dueña del vocabulario) y el tono visual lo decide el cliente a partir de `estado`, con un neutro para un código que no conozca. **Estos datos no pasan por el modelo**, y se autorizan con el mismo criterio que `GET /api/designaciones/pedidos/{id}` (permiso `designaciones.ver` más el ámbito del actor). Un cliente que no reconoce el `tipo` ignora la ficha.
+
+**`origenes[]`** lista los **códigos de schema** que leyó la consulta ejecutada —`designaciones`, `identity`, `portal`—, sin repetir y en orden alfabético. Se derivan de los identificadores calificados de la consulta validada, restringidos a los schemas que el asistente tiene habilitados. Es vacío cuando el turno no ejecutó consulta (aclaración, rechazo, error, degradado) y cuando la consulta no devolvió filas. El cliente traduce el código a una etiqueta («Designaciones», «Portal», «Institucional» para `identity`) y omite los que no conoce. **Nunca** viajan la consulta, sus tablas ni la cantidad de filas: en una respuesta truncada un conteo podría leerse como el total, que es justo lo que `truncado` se niega a revelar.
 
 **`Idempotency-Key` obligatoria.** Cada turno cuesta dos o tres llamadas al modelo, así que un doble submit se factura completo dos veces. Se resuelve **en memoria con expiración corta y acotada por actor** — no se reusa ni se copia `designaciones.idempotencia_comandos`, que guarda el cuerpo completo de la respuesta HTTP, que es exactamente lo que este módulo decidió no persistir.
 
@@ -330,6 +365,8 @@ Todo lo que falla **antes de escribir nada** —clave faltante, mención no disp
 | `redaccion` | `{ "texto": "<fragmento>" }`                     | Cada fragmento de la redacción, en orden                      |
 | `resultado` | La misma `RespuestaDelAsistente` de `/consultas` | Al final, siempre que el turno termine                        |
 | `error`     | `{ "status": 500 }`                              | Si algo falla después de empezar; no llega ningún `resultado` |
+
+`vinculosDelTexto`, `principal` y `origenes` viajan **sólo en el `resultado` final**: los fragmentos de `redaccion` son borradores sin posiciones, así que los enlaces del texto y la ficha aparecen recién cuando llega ese evento —el mismo momento en que aparecen la tabla y `vinculos[]`—.
 
 Los fragmentos son una **vista previa**: lo que vale es `resultado`, que puede no coincidir carácter a carácter con su concatenación (se recorta y se descarta razonamiento). Un turno que no redacta con el modelo —sin filas, plantilla, abstención, degradado, idempotencia recordada— manda sólo `resultado`. Sólo el proveedor `local` emite fragmentos; con otro, el flujo trae sólo `resultado`. Si el cliente se desconecta el turno termina igual y queda guardado bajo su clave.
 

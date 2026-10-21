@@ -88,6 +88,7 @@ internal sealed class BancoDelAsistente
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
         ICatalogoDelDominio? dominio = null,
         IResolutorDeVinculos? vinculos = null,
+        IProveedorDeFichas? fichas = null,
         ILogger<CapaConversacional>? logCapa = null,
         int cupoDiario = 0,
         decimal topeOrganizacional = 0,
@@ -104,6 +105,7 @@ internal sealed class BancoDelAsistente
         // Sin adaptador compuesto, igual que el módulo sin el Host: los turnos
         // responden y no ofrecen vínculos. Un test que quiera vínculos pasa el suyo.
         var losVinculos = vinculos ?? new SinVinculos();
+        var lasFichas = fichas ?? new SinFichas();
 
         // El envoltorio permite meter un medidor entre el guionado y el pipeline. El
         // eje social lo necesita: afirma «cero tokens de entrada», y ese número sale
@@ -223,6 +225,7 @@ internal sealed class BancoDelAsistente
                     presupuestoOrganizacional,
                     candadoDelTurno,
                     losVinculos,
+                    lasFichas,
                     contador,
                     decisionSombra,
                     opciones,

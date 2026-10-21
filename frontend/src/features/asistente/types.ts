@@ -51,6 +51,29 @@ export interface MetricasDelTurno {
   // tipo no se puede pintar por descuido.
 }
 
+/**
+ * Una aparición, dentro de `respuesta`, de un valor de celda que lleva a una
+ * pantalla del sistema. `desde` y `largo` son unidades de código UTF-16: las que
+ * usa `String.prototype.slice`, así que se aplican al texto tal cual llegó.
+ */
+export interface VinculoDelTexto {
+  desde: number;
+  largo: number;
+  tipo: string;
+  id: string;
+}
+
+/**
+ * El elemento del que trata la respuesta cuando el resultado es uno solo. `datos`
+ * son claves documentadas por `tipo` (ver `api-contracts.md`); el cliente decide
+ * cómo se ven.
+ */
+export interface PrincipalDeLaRespuesta {
+  tipo: string;
+  id: string;
+  datos: Record<string, string>;
+}
+
 export interface RespuestaDelAsistente {
   estado: EstadoDelTurno;
   respuesta: string;
@@ -70,6 +93,15 @@ export interface RespuestaDelAsistente {
   truncado: boolean;
   /** Las celdas que llevan a una pantalla del sistema. Vacío si ninguna. */
   vinculos: VinculoDelResultado[];
+  /**
+   * Dónde, dentro de `respuesta`, se nombran elementos vinculados. Vacío si ninguno
+   * (y en los turnos restaurados del historial, que no guardan el texto).
+   */
+  vinculosDelTexto: VinculoDelTexto[];
+  /** El elemento principal de la respuesta, o `null` si no hay uno solo. */
+  principal: PrincipalDeLaRespuesta | null;
+  /** Códigos de las áreas de datos consultadas (`designaciones`, `identity`, `portal`). */
+  origenes: string[];
   /** Solo llega con el permiso `asistente.ver_consulta`. */
   sql?: string | null;
   metricas: MetricasDelTurno;

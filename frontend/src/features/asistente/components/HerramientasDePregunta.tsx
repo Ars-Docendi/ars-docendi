@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type Ref } from "react";
 
 import { DURACION_DEL_COPIADO_MS } from "./BarraDeAcciones";
-import { checkIcon, copyIcon, pencilIcon } from "../../../app/shell/icons";
+import { checkIcon, copyIcon, pencilIcon, repetirIcon } from "../../../app/shell/icons";
 import { copiar, hayPortapapeles } from "../utils/portapapeles";
 
 interface HerramientasDePreguntaProps {
@@ -14,6 +14,12 @@ interface HerramientasDePreguntaProps {
    * control «Editar y reenviar» no se monta.
    */
   onEditar?: () => void;
+  /**
+   * Reenvía esta misma pregunta tal cual (asistente-respuestas-con-vinculos, D5).
+   * Ausente salvo en la última pregunta, ya respondida, sin turno en vuelo ni
+   * bloqueo.
+   */
+  onRepetir?: () => void;
   /** Al botón «Editar y reenviar», para devolverle el foco al cancelar la edición. */
   editarBotonRef?: Ref<HTMLButtonElement>;
   /** Para el test, que no puede esperar el tiempo real. */
@@ -22,7 +28,7 @@ interface HerramientasDePreguntaProps {
 
 /**
  * Las herramientas de una pregunta: «Copiar pregunta» y, sólo en la última,
- * «Editar y reenviar» (asistente-edicion-de-la-ultima-pregunta, design.md D9
+ * «Editar y reenviar» y «Repetir consulta» (asistente-edicion-de-la-ultima-pregunta, design.md D9
  * de asistente-rediseno-v3).
  *
  * SE REVELAN CON EL HOVER O EL FOCO DEL TURNO, igual que
@@ -33,12 +39,13 @@ interface HerramientasDePreguntaProps {
 export function HerramientasDePregunta({
   pregunta,
   onEditar,
+  onRepetir,
   editarBotonRef,
   duracionDelCopiadoMs = DURACION_DEL_COPIADO_MS,
 }: HerramientasDePreguntaProps) {
   const hayCopiar = hayPortapapeles();
 
-  if (!hayCopiar && !onEditar) return null;
+  if (!hayCopiar && !onEditar && !onRepetir) return null;
 
   return (
     <div className="adoc-asistente-pregunta-herramientas">
@@ -54,6 +61,15 @@ export function HerramientasDePregunta({
           onClick={onEditar}
         >
           {pencilIcon}
+        </button>
+      )}
+
+      {onRepetir && (
+        <button type="button" className="adoc-asistente-repetir" onClick={onRepetir}>
+          <span className="adoc-asistente-repetir-icono" aria-hidden="true">
+            {repetirIcon}
+          </span>
+          Repetir consulta
         </button>
       )}
     </div>

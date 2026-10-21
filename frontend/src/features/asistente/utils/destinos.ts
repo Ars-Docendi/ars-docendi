@@ -35,3 +35,14 @@ const DESTINOS: Record<string, DestinoDelVinculo> = {
 export function destinoDe(tipo: string): DestinoDelVinculo | undefined {
   return Object.hasOwn(DESTINOS, tipo) ? DESTINOS[tipo] : undefined;
 }
+
+/**
+ * Los tipos de principal que este cliente sabe dibujar como ficha. Igual que con
+ * los vínculos, uno que no está acá se ignora y la respuesta se ve como si no lo
+ * tuviera (asistente-respuestas-con-vinculos, D3).
+ */
+const TIPOS_CON_FICHA = new Set(["pedido-designacion"]);
+
+export function tipoConFicha(tipo: string): boolean {
+  return TIPOS_CON_FICHA.has(tipo) && destinoDe(tipo) !== undefined;
+}
