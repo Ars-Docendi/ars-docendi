@@ -119,7 +119,9 @@ export function TablaAmpliada({
       aria-label="Tabla ampliada"
       onKeyDownCapture={alTeclear}
     >
-      <header className="adoc-asistente-ampliada-encabezado">
+      {/* `div` y no `header`: dentro del modal, la ui-lib y `asistente.css`
+          estilizan ese elemento como la cabecera del propio modal. */}
+      <div className="adoc-asistente-ampliada-encabezado">
         <div className="adoc-asistente-ampliada-titulo">
           <span className="adoc-asistente-ampliada-eyebrow">Tabla ampliada</span>
           <span className="adoc-asistente-ampliada-pregunta">{pregunta}</span>
@@ -149,7 +151,7 @@ export function TablaAmpliada({
         >
           Contraer
         </Button>
-      </header>
+      </div>
 
       <div className="adoc-asistente-ampliada-cuerpo">
         <TablaOrdenable
