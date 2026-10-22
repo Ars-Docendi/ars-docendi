@@ -108,7 +108,9 @@ export function BuscadorAyuda({ consultaInicial = "" }: { consultaInicial?: stri
         )}
       </div>
       {mostrarPanel && (
-        <div className="ayuda-buscador-panel">
+        // El foco queda en el campo: Safari no enfoca el enlace al hacer clic y el blur cerraría
+        // el panel antes de que llegue el click.
+        <div className="ayuda-buscador-panel" onMouseDown={(evento) => evento.preventDefault()}>
           {enPanel.length > 0 ? (
             <div id={idLista} role="listbox" aria-label="Resultados de la búsqueda">
               {enPanel.map((articulo, indice) => (

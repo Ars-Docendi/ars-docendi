@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
@@ -108,6 +108,16 @@ describe("BuscadorAyuda", () => {
     expect(screen.getAllByRole("option")).toHaveLength(5);
     const todos = screen.getByRole("link", { name: "Ver todos los resultados" });
     expect(todos).toHaveAttribute("href", "/ayuda/buscar?q=introduccion");
+  });
+
+  it("presionar dentro del panel no le quita el foco al campo", async () => {
+    // Safari no enfoca un enlace al hacer clic: sin esto, el blur cierra el panel antes del click.
+    const user = userEvent.setup();
+    const entrada = renderBuscador();
+    await user.type(entrada, "introduccion");
+
+    const todos = screen.getByRole("link", { name: "Ver todos los resultados" });
+    expect(fireEvent.mouseDown(todos)).toBe(false);
   });
 
   it("con cinco o menos coincidencias no ofrece 'Ver todos los resultados'", async () => {
