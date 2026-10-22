@@ -30,11 +30,12 @@ Restricciones (ver [`module-anatomy.md`](./module-anatomy.md)):
 
 ## Frontend (React 19 + Vite)
 
-| Carpeta                           | Rol                                                                        |
-| --------------------------------- | -------------------------------------------------------------------------- |
-| `frontend/src/app/`               | Router (react-router-dom) + composición de páginas.                        |
-| `frontend/src/shared/`            | API client (axios), auth (Azure AD), UI primitivos compartidos.            |
-| `frontend/src/features/<modulo>/` | Una feature por módulo del backend (designaciones, aulas, portal, tareas). |
+| Carpeta                           | Rol                                                                                        |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `frontend/src/app/`               | Router (react-router-dom) + composición de páginas.                                        |
+| `frontend/src/shared/`            | API client (axios), auth (Azure AD), UI primitivos compartidos.                            |
+| `frontend/src/features/<modulo>/` | Una feature por módulo del backend (designaciones, aulas, portal, tareas).                 |
+| `frontend/src/features/ayuda/`    | Centro de ayuda (`/ayuda`): contenido estático en el bundle, sin módulo de backend ni API. |
 
 Restricciones:
 

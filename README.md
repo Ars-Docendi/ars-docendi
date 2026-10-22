@@ -130,6 +130,14 @@ pnpm --filter frontend build
 
 Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-cheat-sheet).
 
+## Centro de ayuda
+
+La app incluye un Centro de ayuda en `/ayuda` (ítem al pie del menú lateral). Es contenido estático del frontend, sin backend, filtrado por los permisos de la sesión.
+
+- Los artículos viven en `frontend/src/features/ayuda/contenido/<modulo>/<articulo>.ts` y se registran en `contenido/index.ts`.
+- Las capturas van en `frontend/public/ayuda/<modulo>/`, en WebP calidad 85 y hasta 150 KB, tomadas solo con datos sintéticos (nunca `sga.sql` ni PII real).
+- Al cambiar una pantalla o un permiso, actualizá en el mismo diff el artículo que lo documenta. El test de integridad (`contenido/integridad.test.ts`) valida permisos, enlaces, capturas y pesos.
+
 ## Estructura
 
 ```
