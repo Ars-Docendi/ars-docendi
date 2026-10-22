@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { useCurrentUser } from "../shared/auth/useCurrentUser";
 import { Sidebar } from "./shell/Sidebar";
@@ -14,6 +14,11 @@ import "./shell/shell.css";
 export default function AppLayout() {
   const usuarioActual = useCurrentUser();
   const [collapsed, setCollapsed] = useState(false);
+  const { pathname } = useLocation();
+  // Bajo /ayuda la sidebar se contrae a íconos para dar lugar a la de documentación.
+  // Se deriva de la ruta (sin estado ni efectos): al salir, vuelve sola al estado previo.
+  const enAyuda = pathname === "/ayuda" || pathname.startsWith("/ayuda/");
+  const colapsado = collapsed || enAyuda;
 
   if (usuarioActual.isLoading) return <main role="status">Cargando sesión…</main>;
   if (usuarioActual.error || !usuarioActual.user) {
@@ -29,9 +34,9 @@ export default function AppLayout() {
   const user = usuarioActual.user;
 
   return (
-    <div className={`adoc-ui adoc-app${collapsed ? " collapsed" : ""}`}>
-      <TopBar collapsed={collapsed} onToggleCollapse={() => setCollapsed((c) => !c)} user={user} />
-      <Sidebar collapsed={collapsed} permissions={user.permissions} />
+    <div className={`adoc-ui adoc-app${colapsado ? " collapsed" : ""}`}>
+      <TopBar collapsed={colapsado} onToggleCollapse={() => setCollapsed((c) => !c)} user={user} />
+      <Sidebar collapsed={colapsado} permissions={user.permissions} />
       <main className="adoc-main">
         <Outlet />
       </main>

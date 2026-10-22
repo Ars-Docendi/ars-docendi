@@ -24,7 +24,7 @@ Leé antes de cambiar:
 6. Cambios de API, schema o dependencias actualizan la documentación correspondiente en el mismo diff.
 7. No crear UI ficticia, botones muertos, abstracciones especulativas ni dependencias innecesarias.
 8. Las reglas normativas usan `BR-<modulo>-NNN`, fuente y mapping a tests.
-9. Los cambios de UX actualizan su design spec cuando existe.
+9. Los cambios de UX actualizan su design spec cuando existe; los cambios de UX o de permisos actualizan también el artículo del Centro de ayuda que los documenta.
 10. Identificadores, comentarios y documentación propios se escriben en español; los símbolos de frameworks conservan sus nombres.
 
 ## Flujo de trabajo
