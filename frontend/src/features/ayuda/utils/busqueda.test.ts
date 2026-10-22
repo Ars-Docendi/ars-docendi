@@ -79,6 +79,29 @@ describe("buscar", () => {
     expect(slugs(buscar("gizmo", articulos))).toEqual(["en-paso", "en-pregunta"]);
   });
 
+  it("busca en las viñetas de «¿Qué sucede después?» como cuerpo", () => {
+    const articulos = [
+      articulo({
+        slug: "en-termino",
+        despues: {
+          titulo: "Después",
+          cuerpo: "",
+          viñetas: [{ termino: "Gizmo", descripcion: "" }],
+        },
+      }),
+      articulo({
+        slug: "en-descripcion",
+        despues: {
+          titulo: "Después",
+          cuerpo: "",
+          viñetas: [{ termino: "Estado", descripcion: "Podés reabrir el gizmo." }],
+        },
+      }),
+      articulo({ slug: "ninguno" }),
+    ];
+    expect(slugs(buscar("gizmo", articulos))).toEqual(["en-termino", "en-descripcion"]);
+  });
+
   it("en empate conserva el orden del contenido", () => {
     const articulos = ["c", "a", "b"].map((slug) => articulo({ slug, titulo: "Igual" }));
     expect(slugs(buscar("igual", articulos))).toEqual(["c", "a", "b"]);

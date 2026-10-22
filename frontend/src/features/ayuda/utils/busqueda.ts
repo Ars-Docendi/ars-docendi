@@ -59,6 +59,7 @@ function indexar(articulo: ArticuloAyuda): TextoIndexado {
     articulo.introduccion,
     ...articulo.pasos.flatMap((paso) => [paso.titulo, paso.cuerpo, paso.nota?.cuerpo ?? ""]),
     articulo.despues?.cuerpo ?? "",
+    ...(articulo.despues?.viñetas ?? []).flatMap((v) => [v.termino, v.descripcion]),
     ...(articulo.preguntas ?? []).flatMap((p) => [p.pregunta, p.respuesta]),
   ].join(" ");
   const nuevo: TextoIndexado = {
