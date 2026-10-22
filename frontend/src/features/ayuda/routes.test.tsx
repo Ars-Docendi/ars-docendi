@@ -70,9 +70,8 @@ describe("rutas de ayuda", () => {
 
     await user.click(await contenido.findByRole("link", { name: /Bienvenida al sistema/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe("/ayuda/general/bienvenida"));
-    expect(await contenido.findByRole("heading", { level: 1 })).toHaveTextContent(
-      "Bienvenida al sistema",
-    );
+    // La navegación se renderiza en una transición: hay que esperar el h1 del artículo, no el anterior.
+    await contenido.findByRole("heading", { level: 1, name: "Bienvenida al sistema" });
 
     await user.click(await screen.findByRole("link", { name: "Cerrá la sesión" }));
     await waitFor(() => expect(router.state.location.hash).toBe("#paso-3"));

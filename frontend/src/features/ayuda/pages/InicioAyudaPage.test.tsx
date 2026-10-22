@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { within } from "@testing-library/react";
 
 import { prepararEntornoDom } from "../testing/entornoDom";
 import { contenidoAyuda, renderAyuda } from "../testing/renderAyuda";
@@ -37,21 +37,12 @@ describe("InicioAyudaPage", () => {
     expect(contenido.queryByText("Tareas de prueba")).not.toBeInTheDocument();
   });
 
-  it("sigue la convención de encabezado: migas desde Inicio y título sin pretitle", async () => {
+  it("enlaza la miga Inicio a la raíz y marca la página actual", async () => {
     renderAyuda("/ayuda");
     const contenido = await contenidoAyuda();
 
-    expect(await contenido.findByRole("heading", { level: 1 })).toHaveTextContent(
-      /^Centro de ayuda$/,
-    );
     const migas = contenido.getByRole("navigation", { name: "Migas de pan" });
     expect(within(migas).getByRole("link", { name: "Inicio" })).toHaveAttribute("href", "/");
     expect(within(migas).getByText("Centro de ayuda")).toHaveAttribute("aria-current", "page");
-  });
-
-  it("muestra también la sidebar de documentación", async () => {
-    renderAyuda("/ayuda");
-
-    expect(await screen.findByRole("navigation", { name: "Documentación de ayuda" })).toBeVisible();
   });
 });

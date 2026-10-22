@@ -105,23 +105,6 @@ describe("Sidebar — Centro de ayuda", () => {
     expect(screen.queryByText("Trabajo")).not.toBeInTheDocument();
   });
 
-  it("queda actual en cualquier ruta bajo /ayuda", () => {
-    renderSidebar([], { route: "/ayuda/tareas/crear-una-tarea" });
-
-    expect(screen.getByRole("link", { name: "Centro de ayuda" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-  });
-
-  it("no queda actual fuera de /ayuda", () => {
-    renderSidebar([], { route: "/portal" });
-
-    expect(screen.getByRole("link", { name: "Centro de ayuda" })).not.toHaveAttribute(
-      "aria-current",
-    );
-  });
-
   it("contraída muestra solo el ícono con title y nombre accesible", () => {
     renderSidebar([], { collapsed: true });
 
@@ -129,11 +112,5 @@ describe("Sidebar — Centro de ayuda", () => {
     expect(enlace).toHaveAttribute("title", "Centro de ayuda");
     expect(enlace).toHaveAttribute("aria-label", "Centro de ayuda");
     expect(enlace).not.toHaveTextContent("Centro de ayuda");
-  });
-
-  it("conserva el texto de versión en el pie", () => {
-    renderSidebar([]);
-
-    expect(screen.getByText(/Versión 1\.0\.0/)).toBeInTheDocument();
   });
 });

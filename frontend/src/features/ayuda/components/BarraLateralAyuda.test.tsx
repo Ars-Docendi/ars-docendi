@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { prepararEntornoDom } from "../testing/entornoDom";
@@ -157,7 +157,8 @@ describe("BarraLateralAyuda", () => {
       await user.click(within(await screen.findByRole("listbox")).getAllByRole("option")[0]);
 
       expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-      expect(campo).toHaveValue("");
+      // El campo se reinicia cuando se renderiza la ruta nueva, que llega en una transición.
+      await waitFor(() => expect(campo).toHaveValue(""));
     });
 
     it("al elegir un resultado tecleado fuera de la búsqueda el texto queda y el panel se cierra", async () => {
