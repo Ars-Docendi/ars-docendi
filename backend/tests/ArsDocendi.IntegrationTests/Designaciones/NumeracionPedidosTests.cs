@@ -50,7 +50,8 @@ public sealed class NumeracionPedidosTests(PostgresFixture postgres)
     [Fact]
     public async Task Upgrade_preserva_secuencia_y_funcion_es_no_op_al_reaplicar()
     {
-        var cadena = await Postgres.CrearBaseMigradaAsync("numeracion_upgrade", "20261005000200_BaselineDesignaciones");
+        var baseDePrueba = await Postgres.CrearBaseMigradaAsync("numeracion_upgrade", "20261005000200_BaselineDesignaciones");
+        var cadena = baseDePrueba.Cadena;
         try
         {
             await using var conexion = new NpgsqlConnection(cadena);
@@ -98,7 +99,7 @@ public sealed class NumeracionPedidosTests(PostgresFixture postgres)
             await db.Database.MigrateAsync(TestContext.Current.CancellationToken);
             Assert.EndsWith("-10002", await SiguienteAsync(conexion, TestContext.Current.CancellationToken));
         }
-        finally { await Postgres.EliminarBaseAsync(cadena); }
+        finally { await Postgres.EliminarBaseAsync(baseDePrueba); }
     }
 
     private static async Task<string> SiguienteAsync(NpgsqlConnection conexion, CancellationToken cancellationToken)

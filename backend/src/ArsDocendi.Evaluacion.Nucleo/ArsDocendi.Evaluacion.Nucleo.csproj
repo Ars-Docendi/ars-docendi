@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!--
+    ESTE proyecto SÍ está en ArsDocendi.slnx, y el ejecutable que lo usa NO.
+
+    El reparto no es por «qué es de evaluación» sino por QUÉ CUESTA DINERO. Acá
+    vive el generador del fixture, el modelo del dataset, la puntuación, el
+    sellado y la orquestación del runner: todo código puro sobre datos, que el
+    CI prueba con un proveedor de guion. Afuera queda lo único que instancia un
+    proveedor real.
+
+    Sacar TODO lo de evaluación de la solución dejaría sin tests justamente a
+    las piezas donde un error hace que el número mienta, y un eval sin tests es
+    un eval en el que no se puede confiar.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Modules.Asistente\Modules.Asistente.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

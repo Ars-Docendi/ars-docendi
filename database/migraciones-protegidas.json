@@ -29,5 +29,14 @@
     "database/storage/001_storage_archivos.sql": "7947721ee37ceda224cecab2e7577ce0a11aea2cab2d833ef43a4247c5f546e9",
     "database/storage/002_storage_audit_attach.sql": "8b3cb4e8ac90b974256486c653628f04b9aaae25795b887298277e334888e69e"
   },
-  "clasificados": {}
+  "clasificados": {
+    "asistente/001_asistente_grants.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/002_asistente_registros.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/003_asistente_retroalimentacion.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/004_asistente_historial.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/005_asistente_auditoria_soporte.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/006_asistente_administracion.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/007_asistente_version.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada.",
+    "asistente/008_asistente_presupuesto_usuario_vigente_unico.sql": "DDL convergente del módulo Asistente: lo aplica MigradorAsistente (sin historial EF) y su estado se informa por huella en asistente.version_aplicada."
+  }
 }

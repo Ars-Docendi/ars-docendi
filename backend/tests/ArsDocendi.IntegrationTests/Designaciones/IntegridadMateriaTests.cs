@@ -37,7 +37,8 @@ public sealed class IntegridadMateriaTests(PostgresFixture postgres)
     public async Task Upgrade_bloquea_huerfano_sin_reasignar_y_upgrade_limpio_preserva_filas()
     {
         var ct = TestContext.Current.CancellationToken;
-        var cadena = await Postgres.CrearBaseMigradaAsync("materia_upgrade", "20261013155148_NumeracionSinTruncamientoDesignaciones");
+        var baseDePrueba = await Postgres.CrearBaseMigradaAsync("materia_upgrade", "20261013155148_NumeracionSinTruncamientoDesignaciones");
+        var cadena = baseDePrueba.Cadena;
         try
         {
             await using var conexion = new NpgsqlConnection(cadena);
@@ -56,7 +57,7 @@ public sealed class IntegridadMateriaTests(PostgresFixture postgres)
             Assert.Equal(true, await catalogo.ExecuteScalarAsync(ct));
             Assert.Single(await db.Designaciones.ToListAsync(ct));
         }
-        finally { await Postgres.EliminarBaseAsync(cadena); }
+        finally { await Postgres.EliminarBaseAsync(baseDePrueba); }
     }
 
     private static async Task PrepararAsync(NpgsqlConnection conexion, CancellationToken ct)

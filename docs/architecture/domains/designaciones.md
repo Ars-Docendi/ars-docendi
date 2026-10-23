@@ -105,11 +105,23 @@ no materializa primero todas las designaciones. Ver la
 
 ## API pública (contract)
 
-| Interfaz                       | Métodos                                             | Consumido por                      |
-| ------------------------------ | --------------------------------------------------- | ---------------------------------- |
-| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes | superficie administrativa del Host |
+| Interfaz                       | Métodos                                                            | Consumido por                                                 |
+| ------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| `IAdministracionDesignaciones` | listar, validar y reemplazar designaciones vigentes                | superficie administrativa del Host                            |
+| `IDesignacionesQueries`        | ubicar trámites por su número legible y obtener su ficha, acotados | adaptadores de vínculos y de fichas del asistente, en el Host |
 
 El contract transporta UUIDs y DTOs puros de asignación; no expone entidades EF, repositorios ni el `DesignacionesDbContext`. La administración de docentes puede coordinar persona, rol docente y designaciones sin adquirir una referencia al módulo interno.
+
+`IDesignacionesQueries.UbicarPedidosAsync` existe para que **otro módulo no tenga que adivinar quién puede abrir un trámite**. Aplica el mismo criterio que `GET /api/designaciones/pedidos/{id}` —`MaquinaEstadosPedido.AlcanzaAmbito`, la misma función, no una copia— y devuelve **menos** de lo que se le pide: descarta por forma lo que no puede ser un número de trámite antes de consultar la base, y omite lo que existe pero queda fuera del ámbito del actor, sin distinguir un caso del otro.
+
+`IDesignacionesQueries.FichaDePedidoAsync(Guid id, ct)` devuelve la **ficha** de un trámite (`FichaDePedidoDto`: número, novedad, materia, estado con su etiqueta, período, cargo y dedicación solicitados si los tiene, y fecha de la última actividad) o `null`. Existe para que el asistente muestre un único trámite en una ficha con el botón «Abrir pedido»:
+
+- **Mismo criterio que el detalle.** Filtra con `MaquinaEstadosPedido.AlcanzaAmbito`, igual que `GET /api/designaciones/pedidos/{id}` y `UbicarPedidosAsync`; un test compara los dos caminos para el mismo actor y los mismos trámites, porque una ficha cuyo botón termina en 403 es UI ficticia. La política `designaciones.ver` es de quien llama, como en el endpoint.
+- **`null` es lo mismo para «no existe» y «fuera de tu ámbito».** Distinguirlos sería un canal de inferencia sobre trámites ajenos. También es `null` si la materia ya no está en el catálogo de identity, porque el detalle tampoco puede mapear ese trámite.
+- **Sin ruta ni etiquetas de campo.** Dice qué es el trámite; cómo se ve y a dónde lleva lo decide la interfaz. La excepción es `EstadoEtiqueta`, el nombre del estado («En Coordinación», «Devuelto»…), porque el vocabulario del circuito es de este módulo y coincide con el de la pantalla de designaciones.
+- **Una proyección, no el agregado.** El repositorio lee el pedido con su período y cargo y calcula la fecha del último movimiento de `pedido_historial` en la base; no carga el historial ni los adjuntos. Sin movimientos, la última actividad es la fecha de creación. El nombre de la materia sale de `IConsultasIdentity`.
+
+Lo consume el asistente conversacional para ofrecer el vínculo al detalle desde una respuesta. Consume el contract **desde el Host** y no desde `Modules.Asistente`: la arista entre módulos es ARS-46 y todavía no está aprobada, así que el asistente declara un puerto (`IResolutorDeVinculos`, `IProveedorDeFichas`) y el composition root lo compone (`VinculosDeDesignaciones`, `FichasDeDesignaciones`).
 
 Para un Alta de pedido, Designaciones consume por DI la frontera pública
 `IAdministracionIdentity.CrearPersonaSinCuentaAsync`. La implementación vive en

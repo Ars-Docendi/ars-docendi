@@ -16,8 +16,9 @@ public sealed class IndicesSelectivosMedidosTests(PostgresFixture postgres)
     public async Task Instalacion_y_upgrade_crean_indices_validos_sin_modificar_datos(bool upgrade)
     {
         var ct = TestContext.Current.CancellationToken;
-        var cadena = await postgres.CrearBaseMigradaAsync("indices_medidos",
+        var baseDePrueba = await postgres.CrearBaseMigradaAsync("indices_medidos",
             upgrade ? "20261005000200_BaselineDesignaciones" : null);
+        var cadena = baseDePrueba.Cadena;
         try
         {
             await using var conexion = new NpgsqlConnection(cadena);
@@ -75,7 +76,7 @@ public sealed class IndicesSelectivosMedidosTests(PostgresFixture postgres)
                 await db.Database.MigrateAsync(ct);
             Assert.Equal(antes, await DatosAsync(conexion, ct));
         }
-        finally { await postgres.EliminarBaseAsync(cadena); }
+        finally { await postgres.EliminarBaseAsync(baseDePrueba); }
     }
 
     private static async Task<string> DatosAsync(NpgsqlConnection conexion, CancellationToken ct)

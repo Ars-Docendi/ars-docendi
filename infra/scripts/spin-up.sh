@@ -10,11 +10,25 @@
 #   REGISTRO TAG_FRONTEND TAG_BACKEND referencia de imágenes
 #   PGHOST PGPORT PGUSER PGPASSWORD   credenciales ADMIN de Postgres (libpq)
 #   APP_DB_USER APP_DB_PASSWORD       rol/password de la app para este ambiente
+#   ASISTENTE_RO_PASSWORD             password del rol de lectura del asistente
+#   ASISTENTE_RO_PII_PASSWORD         password del rol de lectura con datos personales
 #   SEAWEEDFS_ROOT_ACCESS_KEY SEAWEEDFS_ROOT_SECRET_KEY credenciales administrativas del servicio privado
 #   En prod y staging, las credenciales de aplicación se derivan de la raíz.
 #   En pr-N se inyectan SEAWEEDFS_APP_ACCESS_KEY_PR_<N> /
 #   SEAWEEDFS_APP_SECRET_KEY_PR_<N>.
 # Variables opcionales:
+#   ASISTENTE_PROVEEDOR               proveedor del modelo; default "simulado"
+#   ASISTENTE_CLAVE                   credencial del proveedor real; sin ella se
+#                                     degrada a "simulado". Con "local" es el
+#                                     --api-key del servidor de compose.llm.yml
+#   ASISTENTE_URL_LOCAL               servidor del modelo propio; default
+#                                     http://arsdocendi-llm:8000/v1
+#   ASISTENTE_MODELO_LOCAL            --served-model-name; default qwen3-8b
+#   ASISTENTE_MAX_LLAMADAS_CONCURRENTES
+#                                     compuerta del backend; = --max-num-seqs
+#   Con ASISTENTE_PROVEEDOR=ollama no hace falta ASISTENTE_CLAVE: usa el servicio
+#   de inferencia compartido (INFERENCIA_URL, INFERENCIA_USUARIO,
+#   INFERENCIA_CONTRASENA) y sin ellos se degrada a "simulado".
 #   ASPNETCORE_ENVIRONMENT            default Production
 #   DEVELOPMENT_AUTHENTICATION_ENABLED default false
 #   BACKUP_VOLUME_PREFIX              default arsdocendi-backups
@@ -24,6 +38,8 @@
 #   ADMIN_INICIAL_UPN ADMIN_INICIAL_NOMBRE ADMIN_INICIAL_APELLIDO ADMIN_INICIAL_DOCUMENTO
 #                                     sólo prod: administrador inicial que crea --migrate
 #   Estas variables llegan a Compose por el entorno del proceso, no por el .env efímero.
+#   Las contraseñas del asistente y ASISTENTE_CLAVE también: el .env efímero sólo
+#   lleva nombres de rol y el proveedor ya resuelto.
 #   CLI fijo de la imagen: --estado-migraciones / --script-migraciones - / --migrate.
 
 source "$(dirname "$0")/_comun.sh"
@@ -39,6 +55,8 @@ validar_ambiente "$ambiente"
 export RELEASE_SHA="${TAG_BACKEND#sha-}"
 : "${APP_DB_USER:?msg=\"falta APP_DB_USER\"}"
 : "${APP_DB_PASSWORD:?msg=\"falta APP_DB_PASSWORD\"}"
+: "${ASISTENTE_RO_PASSWORD:?msg=\"falta ASISTENTE_RO_PASSWORD\"}"
+: "${ASISTENTE_RO_PII_PASSWORD:?msg=\"falta ASISTENTE_RO_PII_PASSWORD\"}"
 : "${SEAWEEDFS_ROOT_ACCESS_KEY:?msg=\"falta SEAWEEDFS_ROOT_ACCESS_KEY\"}"
 : "${SEAWEEDFS_ROOT_SECRET_KEY:?msg=\"falta SEAWEEDFS_ROOT_SECRET_KEY\"}"
 variable_ambiente="${ambiente^^}"
@@ -64,6 +82,8 @@ scripts_dir="$(cd "$(dirname "$0")" && pwd)"
 compose_file="$(cd "$scripts_dir/../compose" && pwd)/compose.base.yml"
 
 base="$(nombre_base "$ambiente")"
+rol_ro="$(rol_asistente "$ambiente" basico)"
+rol_ro_pii="$(rol_asistente "$ambiente" pii)"
 host_publico="$(hostname_publico "$ambiente" "$DOMINIO")"
 
 # Npgsql admite valores entre comillas dobles; una comilla interna se duplica.
@@ -83,6 +103,35 @@ log_info msg="spin-up iniciado" ambiente="$ambiente" host="$host_publico" base="
 adquirir_lock_ambiente "$ambiente"
 trap liberar_lock_ambiente EXIT
 
+# Proveedor del modelo: real SOLO si además vino la clave.
+#
+# Pedir `anthropic` sin credencial no falla al levantar: falla la primera vez que
+# alguien pregunta, con un 500 que no dice que falta configuración. Degradar acá al
+# simulado deja el ambiente en pie y el asistente contestando lo que el simulado
+# contesta, que es visiblemente distinto de una respuesta real.
+proveedor_asistente=${ASISTENTE_PROVEEDOR:-simulado}
+if [[ "$proveedor_asistente" == "ollama" ]]; then
+  if [[ -z "${INFERENCIA_URL:-}" || -z "${INFERENCIA_USUARIO:-}" || -z "${INFERENCIA_CONTRASENA:-}" ]]; then
+    log_info msg="proveedor ollama sin servicio de inferencia configurado: se degrada a simulado" \
+      ambiente="$ambiente"
+    proveedor_asistente=simulado
+  fi
+elif [[ "$proveedor_asistente" != "simulado" && -z "${ASISTENTE_CLAVE:-}" ]]; then
+  log_info msg="proveedor real pedido sin clave: se degrada a simulado" \
+    ambiente="$ambiente" proveedor="$proveedor_asistente"
+  proveedor_asistente=simulado
+fi
+
+# Modelo propio (asistente-proveedor-local): suma el perfil del backend que
+# apunta al servidor compartido de compose.llm.yml. La clave es el --api-key de
+# ese servidor, así que la regla de arriba aplica igual.
+archivos_compose=(-f "$compose_file")
+if [[ "$proveedor_asistente" == "local" ]]; then
+  archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-local.yml")
+elif [[ "$proveedor_asistente" == "ollama" ]]; then
+  archivos_compose+=(-f "$(dirname "$compose_file")/compose.asistente-ollama.yml")
+fi
+
 # Materializar el Compose project con un .env efímero (fuera del repo).
 env_file="$(mktemp)"
 trap 'rm -f "$env_file"; liberar_lock_ambiente' EXIT
@@ -94,6 +143,12 @@ TAG_FRONTEND=${TAG_FRONTEND}
 TAG_BACKEND=${TAG_BACKEND}
 ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Production}
 DEVELOPMENT_AUTHENTICATION_ENABLED=${DEVELOPMENT_AUTHENTICATION_ENABLED:-false}
+ASISTENTE_ROL_BASICO=${rol_ro}
+ASISTENTE_ROL_PII=${rol_ro_pii}
+ASISTENTE_PROVEEDOR=${proveedor_asistente}
+ASISTENTE_URL_LOCAL=${ASISTENTE_URL_LOCAL:-http://arsdocendi-llm:8000/v1}
+ASISTENTE_MODELO_LOCAL=${ASISTENTE_MODELO_LOCAL:-qwen3-8b}
+ASISTENTE_MAX_LLAMADAS_CONCURRENTES=${ASISTENTE_MAX_LLAMADAS_CONCURRENTES:-8}
 ALMACENAMIENTO_ENDPOINT=${ALMACENAMIENTO_ENDPOINT:-${seaweedfs_host}:8333}
 ALMACENAMIENTO_BUCKET=${SEAWEEDFS_BUCKET_PREFIX:-arsdocendi}-${ambiente}
 ALMACENAMIENTO_ACCESS_KEY=${seaweedfs_app_access_key}
@@ -102,7 +157,7 @@ ALMACENAMIENTO_RECHAZAR_SI_ANTIVIRUS_NO_DISPONIBLE=${ALMACENAMIENTO_RECHAZAR_SI_
 ALMACENAMIENTO_CLAMAV_HOST=${ALMACENAMIENTO_CLAMAV_HOST:-$clamav_host}
 EOF
 
-compose() { docker compose -p "$ambiente" --env-file "$env_file" -f "$compose_file" "$@"; }
+compose() { docker compose -p "$ambiente" --env-file "$env_file" "${archivos_compose[@]}" "$@"; }
 # Validar el ciclo de vida bajo el mismo lock que teardown, también en reintentos.
 if [[ "$ambiente" == pr-* && -n "${GITHUB_API_URL:-}" ]]; then
   : "${GH_TOKEN:?falta token para revalidar PR}"
@@ -115,6 +170,9 @@ exigir_configuracion_backups
 base_nueva=false
 if ! existe_base "$base"; then base_nueva=true; fi
 "$scripts_dir/provision-db.sh" "$ambiente"
+# Test de humo: los roles del asistente existen y no tienen privilegios de
+# escritura, ANTES de que corra ninguna migración.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 # Consultas y preview de la misma imagen candidata, sin listener ni binds.
 trabajo="$(mktemp -d)"
 backup_id=""
@@ -176,6 +234,9 @@ if (( pendientes > 0 )); then
   critica=true
   compose run --rm -T --no-deps backend dotnet ArsDocendi.Host.dll --migrate
 fi
+# Mismo test de humo, ahora con las tablas creadas: ninguna migración le dio al
+# asistente un privilegio de mutación.
+"$scripts_dir/verificar-roles-asistente.sh" "$ambiente"
 if [[ "$ambiente" != prod ]]; then
   SEED_BASE_CREATED="$base_nueva" "$scripts_dir/seed.sh" "$ambiente"
 fi

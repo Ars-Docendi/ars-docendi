@@ -27,6 +27,37 @@ export const IconoFilter = () => (
   </Svg>
 );
 
+export const IconoListFilter = () => (
+  <Svg>
+    <path d="M3 6h18" />
+    <path d="M7 12h10" />
+    <path d="M10 18h4" />
+  </Svg>
+);
+
+export const IconoSearch = () => (
+  <Svg>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </Svg>
+);
+
+export const IconoRefreshCw = () => (
+  <Svg>
+    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+    <path d="M8 16H3v5" />
+  </Svg>
+);
+
+export const IconoRotateCcw = () => (
+  <Svg>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+  </Svg>
+);
+
 export const IconoEllipsisVertical = () => (
   <Svg>
     <circle cx="12" cy="12" r="1" />
@@ -118,5 +149,19 @@ export const IconoMail = () => (
   <Svg>
     <rect width="20" height="16" x="2" y="4" rx="2" />
     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </Svg>
+);
+
+export const IconoDownload = () => (
+  <Svg>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" x2="12" y1="15" y2="3" />
+  </Svg>
+);
+
+export const IconoWrench = () => (
+  <Svg>
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
   </Svg>
 );

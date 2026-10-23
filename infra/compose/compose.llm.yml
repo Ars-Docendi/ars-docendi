@@ -1,0 +1,141 @@
+# Servidor del modelo propio del asistente (asistente-proveedor-local).
+#
+# UNA instancia por host con GPU, compartida por los ambientes que la usen,
+# igual que `arsdocendi-postgres`: es su propio Compose project y vive en la red
+# `arsdocendi-datos`, así que el backend de cualquier ambiente la alcanza como
+# `http://arsdocendi-llm:8000/v1` sin publicar ningún puerto al host.
+#
+#   docker compose -p llm -f infra/compose/compose.llm.yml up -d
+#
+# Hardware objetivo: RTX 5070 (12 GB, Blackwell sm_120), Intel Core i9, Linux
+# nativo con driver NVIDIA >= 580 (CUDA 13) y nvidia-container-toolkit. La
+# investigación y el dimensionamiento están en docs/architecture/modelo-local.md.
+#
+# Las decisiones que importan, en una línea cada una (design.md D1/D7):
+# - vLLM y no llama-server: vLLM comparte los bloques KV del prefijo (~12k
+#   tokens de esquema) entre los turnos en vuelo; llama-server guarda una copia
+#   por slot y 8 slots de 16k no entran en 12 GB.
+# - Qwen3-8B-AWQ: atención pura (prefix caching estable) y 4-bit Marlin, que
+#   corre en sm_120. FP8 de pesos deja casi sin KV; NVFP4 en vLLM sobre GeForce
+#   todavía cae a kernels lentos.
+# - KV en FP8: duplica la capacidad con pérdida despreciable.
+# - max-num-seqs 8 = Asistente__MaximoDeLlamadasConcurrentes del backend: el
+#   servidor nunca encola, la cola real es la del backend (con espera máxima).
+# - Thinking apagado por defecto; el backend lo pide sólo con esfuerzo alto.
+#
+# Fijar el tag de la imagen y validar antes de subirlo: el soporte de sm_120
+# todavía cambia entre versiones. Verificar los flags con `vllm serve --help`
+# de ESE tag (un flag desconocido impide arrancar). La cola la acota la
+# compuerta del backend; si la versión trae `--max-num-queued-reqs`, sumarlo
+# para que un desborde responda 503 en vez de crecer.
+
+services:
+  vllm:
+    image: vllm/vllm-openai:${LLM_IMAGEN_TAG:-v0.30.0}
+    container_name: arsdocendi-llm
+    restart: unless-stopped
+    ipc: host
+    networks:
+      - red-datos
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      # Símbolos del framework: se usan tal como los define la imagen.
+      VLLM_API_KEY: ${LLM_API_KEY:?falta LLM_API_KEY}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      # Pesos descargados y caché de torch.compile: sin ellos cada arranque
+      # baja ~6 GB y recompila durante minutos.
+      - arsdocendi-llm-hf:/root/.cache/huggingface
+      - arsdocendi-llm-vllm:/root/.cache/vllm
+    command:
+      - --model=${LLM_MODELO:-Qwen/Qwen3-8B-AWQ}
+      - --served-model-name=${LLM_NOMBRE_SERVIDO:-qwen3-8b}
+      - --quantization=awq_marlin
+      # Prefijo de ~12,3k tokens + mensaje variable (≤1,5k) + techo de salida
+      # de la generación (800) entra holgado en 16k.
+      - --max-model-len=16384
+      - --gpu-memory-utilization=0.90
+      - --max-num-seqs=${LLM_MAX_SECUENCIAS:-8}
+      # Prefill por pasos: un prompt frío de 12k no congela el decode de los
+      # turnos que ya están escribiendo.
+      - --max-num-batched-tokens=4096
+      - --enable-prefix-caching
+      - --kv-cache-dtype=fp8
+      # Informa `cached_tokens`: es la única forma de ver si la caché de prefijo
+      # está acertando (el backend lo guarda como tokens_de_cache).
+      - --enable-prompt-tokens-details
+      - --default-chat-template-kwargs={"enable_thinking":false}
+      # Si con KV FP8 aparece texto incoherente en sm_120, descomentar:
+      # - --attention-backend=TRITON_ATTN
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Cargar pesos, compilar y capturar CUDA graphs tarda minutos.
+      start_period: 600s
+
+  # ALTERNATIVA: llama-server (llama.cpp), para un host donde vLLM no arranque.
+  # Se levanta con `--profile llama-cpp` y en lugar de `vllm` (los dos piden la
+  # GPU entera). Guarda una copia del prefijo POR SLOT, así que entran menos
+  # turnos en vuelo: 4 slots de 16k, y Asistente__MaximoDeLlamadasConcurrentes=4.
+  llama:
+    profiles: [llama-cpp]
+    image: ghcr.io/ggml-org/llama.cpp:${LLAMA_IMAGEN_TAG:-server-cuda}
+    container_name: arsdocendi-llm-llamacpp
+    restart: unless-stopped
+    networks:
+      - red-datos
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - arsdocendi-llm-gguf:/modelos
+    command:
+      - --model=/modelos/${LLAMA_GGUF:-Qwen3-8B-Q4_K_M.gguf}
+      - --alias=${LLM_NOMBRE_SERVIDO:-qwen3-8b}
+      - --n-gpu-layers=99
+      # -np explícito: 4 slots de 16k cada uno (ctx total / slots).
+      - --ctx-size=65536
+      - --parallel=4
+      - --flash-attn=on
+      - --cache-type-k=q8_0
+      - --cache-type-v=q8_0
+      - --batch-size=2048
+      - --ubatch-size=1024
+      - --jinja
+      - --reasoning-budget=0
+      - --metrics
+      # PRIVACIDAD: llama.cpp#27148 (abierto): con la caché de slots ociosos,
+      # bajo carga un slot puede restaurar el KV de OTRA conversación. Con datos
+      # acotados por usuario eso es una fuga: se apaga.
+      - --cache-ram=0
+      - --api-key=${LLM_API_KEY:?falta LLM_API_KEY}
+      - --host=0.0.0.0
+      - --port=8000
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  arsdocendi-llm-hf:
+  arsdocendi-llm-vllm:
+  arsdocendi-llm-gguf:
+
+networks:
+  red-datos:
+    external: true
+    name: arsdocendi-datos

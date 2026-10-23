@@ -77,12 +77,12 @@ public sealed class AuditoriaRendimientoTests(PostgresFixture postgres, ITestOut
                     .UseNpgsql(Cadena).AddInterceptors(captura).Options);
                 var filtro = caso switch
                 {
-                    "tabla" => new ConsultaAuditoriaDto(Schema: "designaciones", Tabla: "pedidos"),
+                    "tabla" => new ConsultaAuditoriaDto(Modulo: "designaciones", Tabla: "pedidos"),
                     "rango" => new ConsultaAuditoriaDto(Desde: new DateTimeOffset(2026, 5, 19, 0, 0, 0, TimeSpan.Zero)),
-                    "fila" => new ConsultaAuditoriaDto(Schema: "tareas", Tabla: "tareas", RowPk: "199999"),
+                    "fila" => new ConsultaAuditoriaDto(Modulo: "tareas", Tabla: "tareas", RowPk: "199999"),
                     _ => new ConsultaAuditoriaDto(),
                 };
-                var pagina = await new RepositorioAuditoria(db).ListarAsync(filtro, Ct);
+                var pagina = await new RepositorioAuditoria(db).ListarAsync(filtro, 0, filtro.TamanoPagina, Ct);
                 Assert.Equal(caso switch { "tabla" => 20000, "fila" => 1, "rango" => eventosIniciales + 1281, _ => eventosIniciales + 200000 }, pagina.Total);
                 Assert.Equal(Math.Min(pagina.Total, 50), pagina.Registros.Count);
                 var orden = pagina.Registros.Select(x => x.Registro).ToArray();

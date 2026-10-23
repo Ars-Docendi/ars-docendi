@@ -252,3 +252,31 @@ registra dumps, comandos y comparación exacta normalizada, excluyendo únicamen
 histories EF y timestamps de instalación de catálogos. No contiene SGA ni datos
 personales reales. La comparación de este corte no es una matriz permanente de
 upgrades históricos ni un detector de drift de producción.
+
+## Integración de incrementales del Asistente
+
+La rama del asistente traía migraciones con IDs anteriores al baseline consolidado
+(agosto–septiembre de 2026). Como nunca se aplicaron sobre una base del corte de
+alpha, se integraron como incrementales **posteriores** al último ID de develop,
+con el nombre que genera `scaffold.mjs` (`<id>_<Nombre><Contexto>`) y el SQL
+adaptado al modelo académico canónico:
+
+| Contexto      | IDs                               | Contenido                                                                                                                         |
+| ------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Identity      | `20261020000000`–`20261020000900` | Permisos del asistente, funciones de alcance del actor, comentarios para el prompt, `unaccent`                                    |
+| Identity      | `20261020000950`                  | `audit.safe_snapshot` conserva `deleted_at` de `identity.user_roles` (la versión publicada nombraba `revocado_at`, que no existe) |
+| Designaciones | `20261020001000`–`20261020001300` | RLS del asistente, comentarios y la función `identity.asistente_alcanza_a` (lee `designaciones`)                                  |
+| Portal        | `20261020001500`–`20261020001700` | RLS del asistente, comentarios y RLS por ámbito                                                                                   |
+
+- Cada cadena aplica sólo recursos de su carpeta. `identity.asistente_alcanza_a`
+  vive en `database/designaciones/` porque su cuerpo `LANGUAGE sql` referencia
+  `designaciones.designaciones` y se parsea al crearse: la cadena de Identity
+  corre antes de que ese schema exista.
+- `portal.perfiles.persona_id` sigue siendo una referencia lógica: la FK que
+  agregaba el asistente no se integró. El lector de catálogo del asistente
+  declara esa referencia aparte para el prompt.
+- `database/asistente/*.sql` no tiene historial EF: lo aplica `MigradorAsistente`,
+  que converge y registra una huella de sus scripts y roles en
+  `asistente.version_aplicada`. Por eso esos archivos figuran en
+  `clasificados` del manifiesto y el contexto `asistente` informa una única
+  versión disponible a `--estado-migraciones`/`--script-migraciones`.

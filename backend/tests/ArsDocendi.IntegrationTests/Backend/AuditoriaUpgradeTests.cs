@@ -97,8 +97,8 @@ public sealed class AuditoriaUpgradeTests : IAsyncLifetime
         Assert.Equal(antes, await Escalar<string>(huella + $" WHERE id<={maxId}"));
         Assert.Equal(tramites, await Escalar<string>(historial));
         await using var consulta = PostgresFixture.CrearIdentity(cadena);
-        var pagina = await new ServicioAuditoria(new RepositorioAuditoria(consulta)).ListarAsync(new ConsultaAuditoriaDto(
-            Schema: "identity", Tabla: "personas", TamanoPagina: 100), Ct);
+        var pagina = await ServicioAuditoriaDePrueba.Crear(new RepositorioAuditoria(consulta)).ListarAsync(new ConsultaAuditoriaDto(
+            Modulo: "identity", Tabla: "personas", TamanoPagina: 100), Ct);
         Assert.DoesNotContain("telefono-nuevo-sintetico", System.Text.Json.JsonSerializer.Serialize(pagina));
     }
 }
