@@ -102,6 +102,26 @@ public sealed class AccesoAlAsistenteTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Ediciones_simultaneas_del_cupo_propio_dejan_una_sola_fila_vigente()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Cada edición con su propia conexión, como dos administradores a la vez.
+        await Task.WhenAll(Enumerable.Range(1, 8).Select(cupo =>
+            Presupuestos().EditarOverrideDeUsuarioAsync(Secretaria, cupo, ct)));
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            SELECT count(*) FROM asistente.presupuesto_usuario
+             WHERE actor_id = @actor AND vigente_hasta IS NULL
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", Secretaria);
+        Assert.Equal(1L, (long)(await comando.ExecuteScalarAsync(ct))!);
+    }
+
+    [Fact]
     public async Task Sin_acceso_el_turno_no_llama_al_modelo_ni_para_saludar()
     {
         await SembrarAsync();

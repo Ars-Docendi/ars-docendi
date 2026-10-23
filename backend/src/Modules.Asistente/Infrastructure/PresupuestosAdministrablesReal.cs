@@ -47,6 +47,18 @@ internal sealed class PresupuestosAdministrablesReal(
         await conexion.OpenAsync(ct);
         await using var transaccion = await conexion.BeginTransactionAsync(ct);
 
+        // Serializa las ediciones del mismo actor: sin esto, dos simultáneas
+        // cierran la misma fila y abren una cada una, y el índice único de
+        // 008_asistente_presupuesto_usuario_vigente_unico.sql rechazaría la
+        // segunda con un 500. Con el lock, la segunda lee la fila de la primera.
+        await using (var serializar = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(hashtextextended('asistente.presupuesto_usuario:' || @actor::text, 0))",
+            conexion, transaccion))
+        {
+            serializar.Parameters.AddWithValue("actor", actor);
+            await serializar.ExecuteNonQueryAsync(ct);
+        }
+
         await using var leer = new NpgsqlCommand(
             """
             SELECT cupo_diario_turnos FROM asistente.presupuesto_usuario

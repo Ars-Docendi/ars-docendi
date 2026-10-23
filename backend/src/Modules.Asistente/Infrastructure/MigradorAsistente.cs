@@ -56,6 +56,7 @@ internal sealed class MigradorAsistente(
         HistorialAsistente.RecursoSql,
         AuditoriaDeSoporteAsistente.RecursoSql,
         AdministracionAsistente.RecursoSql,
+        AdministracionAsistente.RecursoSqlVigenteUnico,
         RecursoVersion,
     ];
 
