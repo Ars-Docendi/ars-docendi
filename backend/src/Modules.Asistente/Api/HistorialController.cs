@@ -203,8 +203,7 @@ public sealed class HistorialController(
         // Mismo criterio que `Obtener`: las menciones se re-resuelven para el actor
         // que reanuda, así que el cliente pinta el chip apenas siembra la
         // conversación (decisión 15 del PO).
-        var turnosDto = await Task.WhenAll(
-            turnos.Select(t => TurnoDeHistorialDto.DeAsync(t, perfil.VeLaConsulta, actor, menciones, ct)));
+        var turnosDto = await TurnoDeHistorialDto.DeTodosAsync(turnos, perfil.VeLaConsulta, actor, menciones, ct);
 
         return Ok(new ReanudarDto(sembrado.Id, turnosDto));
     }

@@ -84,6 +84,24 @@ public sealed record TurnoDeHistorialDto(
         new(t.Id, t.Pregunta, veLaConsulta ? t.SqlResuelto : null, NombreDelEstado.De(t.Estado), t.OcurrioEn,
             await ResolverMencionesAsync(t.Referencias, actorQueLee, menciones, ct));
 
+    /// <summary>
+    /// Todos los turnos de una conversación, en orden y de a uno: cada mención
+    /// resuelta abre una conexión de lectura, y en paralelo una conversación larga
+    /// tomaría del pool tantas como menciones tenga.
+    /// </summary>
+    internal static async Task<IReadOnlyList<TurnoDeHistorialDto>> DeTodosAsync(
+        IReadOnlyList<TurnoDeHistorial> turnos, bool veLaConsulta, Guid actorQueLee,
+        IBuscadorDeMenciones menciones, CancellationToken ct)
+    {
+        var resultado = new List<TurnoDeHistorialDto>(turnos.Count);
+        foreach (var turno in turnos)
+        {
+            resultado.Add(await DeAsync(turno, veLaConsulta, actorQueLee, menciones, ct));
+        }
+
+        return resultado;
+    }
+
     private static async Task<IReadOnlyList<MencionDeHistorialDto>> ResolverMencionesAsync(
         IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? referencias,
         Guid actor, IBuscadorDeMenciones menciones, CancellationToken ct)
@@ -148,8 +166,7 @@ public sealed record ConversacionDetalleDto(
         ConversacionDetalle c, bool veLaConsulta, Guid actorQueLee, IBuscadorDeMenciones menciones,
         CancellationToken ct)
     {
-        var turnos = await Task.WhenAll(
-            c.Turnos.Select(t => TurnoDeHistorialDto.DeAsync(t, veLaConsulta, actorQueLee, menciones, ct)));
+        var turnos = await TurnoDeHistorialDto.DeTodosAsync(c.Turnos, veLaConsulta, actorQueLee, menciones, ct);
 
         return new(c.Id, c.Titulo, c.CreadoEn, c.UltimaActividad, turnos);
     }
