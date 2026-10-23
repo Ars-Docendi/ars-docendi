@@ -1,0 +1,99 @@
+/* Buscador emergente de materias: mismo formato que el buscador de Responsable de Tareas
+   (`selectorResponsable.css`), con cuatro filtros y la tabla ocupando el alto disponible. */
+.adoc-modal.adoc-buscador-materias {
+  width: 880px;
+  height: 640px;
+  min-width: min(560px, 100%);
+  min-height: min(420px, 100%);
+}
+.adoc-buscador-materias > .body {
+  display: flex;
+  flex-direction: column;
+}
+
+.adoc-buscador-materias-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.adoc-buscador-materias-contexto {
+  font-size: var(--text-caption-size);
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+
+.adoc-buscador-materias-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.adoc-buscador-materias-filtro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-micro-size);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.adoc-buscador-materias-filtro.is-materiaCodigo,
+.adoc-buscador-materias-filtro.is-carreraCodigo {
+  flex: 0 0 7.5rem;
+}
+.adoc-buscador-materias-filtro.is-materiaNombre {
+  flex: 1.4 1 10rem;
+}
+.adoc-buscador-materias-filtro.is-carreraNombre {
+  flex: 1 1 10rem;
+}
+
+.adoc-buscador-materias-estado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-buscador-materias-resultados {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.adoc-buscador-materias-resultados table {
+  width: 100%;
+  table-layout: auto;
+}
+.adoc-buscador-materias-resultados td,
+.adoc-buscador-materias-resultados th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.adoc-buscador-materias-resultados th.is-codigo {
+  width: 6rem;
+}
+.adoc-buscador-materias-carreras {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+tr.adoc-buscador-materias-no-elegible td {
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+.adoc-buscador-materias-motivo {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--neutral-300);
+  color: var(--color-text-secondary);
+  font-size: var(--text-micro-size);
+  font-weight: 500;
+  white-space: nowrap;
+}

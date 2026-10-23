@@ -1,0 +1,14 @@
+/* Campo de solo lectura con la materia elegida más el botón que abre el buscador. */
+.adoc-selector-materia {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.adoc-selector-materia > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.adoc-selector-materia input[readonly] {
+  cursor: pointer;
+}

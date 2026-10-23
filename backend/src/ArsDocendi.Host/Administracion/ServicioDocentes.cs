@@ -106,7 +106,8 @@ public sealed class ServicioDocentes(
                 .Select(m => new OpcionCatalogoDto(m.Id, m.Codigo, m.Nombre)).ToArray(),
             pares.Where(mp => mp.Plan!.Activo && (materiasVisibles is null || materiasVisibles.Contains(mp.MateriaId)))
                 .Select(mp => new OpcionCatalogoDto(
-                    mp.MateriaId, mp.Materia!.Codigo, mp.Materia.Nombre, mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre))
+                    mp.MateriaId, mp.Materia!.Codigo, mp.Materia.Nombre,
+                    mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre, mp.Plan.Carrera.Codigo))
                 .Distinct()
                 .ToArray(),
             cargos.Where(c => c.Activo).ToArray(),

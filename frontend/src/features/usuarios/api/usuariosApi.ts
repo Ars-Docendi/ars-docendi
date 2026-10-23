@@ -37,6 +37,7 @@ export interface CatalogosUsuarios {
     nombre: string;
     carreraId?: string | null;
     carreraNombre?: string | null;
+    carreraCodigo?: string | null;
   }[];
 }
 

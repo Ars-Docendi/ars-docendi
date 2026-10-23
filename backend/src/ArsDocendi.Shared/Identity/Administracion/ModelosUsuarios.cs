@@ -59,7 +59,8 @@ public sealed record OpcionCatalogoDto(
     string Codigo,
     string Nombre,
     Guid? CarreraId = null,
-    string? CarreraNombre = null);
+    string? CarreraNombre = null,
+    string? CarreraCodigo = null);
 
 public sealed record RolCatalogoDto(
     Guid Id,

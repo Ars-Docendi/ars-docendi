@@ -11,6 +11,8 @@ import {
 } from "../models";
 import { AsignacionesSelector, type AsignacionRow } from "./AsignacionesSelector";
 import { CamposPersonaDocente, type CamposPersonaDocenteDatos } from "./CamposPersonaDocente";
+import "../../../shared/ui/modalEstirable.css";
+import "./modalDocente.css";
 
 interface ModalEditarDocenteProps {
   docente: DocenteMock | null;
@@ -202,6 +204,7 @@ export function ModalEditarDocente({
         if (!next) onCerrar();
       }}
       title="Editar docente"
+      className="adoc-modal--estirable adoc-modal-docente"
       footer={
         <div
           className="adoc-modal-actions"
@@ -262,7 +265,6 @@ export function ModalEditarDocente({
               rows={asignacionRows}
               onChange={setAsignacionRows}
               error={errorAsignaciones}
-              materias={materias}
               materiasPlan={materiasPlan}
               cargos={cargos}
               dedicaciones={dedicaciones}

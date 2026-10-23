@@ -53,11 +53,14 @@ EventoAuditoriaDto     = { id, schema, tabla, rowPk, accion, cambiadoEn, cambiad
 PaginaAuditoriaDto     = { elementos: EventoAuditoriaDto[], pagina, tamanoPagina, total }
 ReemplazarPermisosDto  = { permisoIds[], version }
 CatalogoIdentityDto    = { roles[{ id, codigo, nombre, ambito, esSistema }], permisos[],
-                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre }], personasElegibles[] }
+                           carreras[], materias[{ id, codigo, nombre }], materiasPlan[{ id, codigo, nombre, carreraId, carreraNombre, carreraCodigo }], personasElegibles[] }
                            `materias` son canónicas (jefe y, junto con `carreraId`, docente);
                            `materiasPlan` es el catálogo informativo materia–carrera (pares
                            deduplicados) que acota qué carreras ofrecer para una materia de
-                           Docente — ninguna FK de negocio depende de él.
+                           Docente — ninguna FK de negocio depende de él. Su `id` es el de la
+                           materia canónica (no el de la fila materia–plan) y `carreraCodigo`
+                           permite buscar por código de carrera. Mismo formato en
+                           `/api/administracion/docentes/catalogos` y en el catálogo de usuarios.
 ```
 
 Los roles personalizados conservan su `codigo` al renombrarse y exigen nombre único entre roles

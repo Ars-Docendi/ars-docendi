@@ -89,8 +89,12 @@ internal sealed class RepositorioUsuarios(IdentityDbContext db) : IRepositorioUs
         var materiasPlan = await db.MateriasPlan.AsNoTracking()
             .Where(mp => mp.Activo && mp.Materia!.Activo && mp.Plan!.Activo)
             .OrderBy(mp => mp.Materia!.Nombre)
+            // Par materia–carrera: el id es el de la materia canónica (no el de la fila
+            // materia–plan); dos planes de la misma carrera no repiten el par.
             .Select(mp => new OpcionCatalogoDto(
-                mp.Id, mp.Materia!.Codigo, mp.Materia.Nombre, mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre))
+                mp.MateriaId, mp.Materia!.Codigo, mp.Materia.Nombre,
+                mp.Plan!.CarreraId, mp.Plan.Carrera!.Nombre, mp.Plan.Carrera.Codigo))
+            .Distinct()
             .ToListAsync(ct);
         return new CatalogosUsuariosDto(roles, carreras, materias, materiasPlan);
     }

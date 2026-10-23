@@ -4,6 +4,7 @@ export interface MateriaMock {
   nombre: string;
   carreraId?: string | null;
   carreraNombre?: string | null;
+  carreraCodigo?: string | null;
 }
 export interface MembresiaRolDocente {
   id: string;

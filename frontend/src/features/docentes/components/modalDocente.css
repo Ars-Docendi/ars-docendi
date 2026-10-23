@@ -1,0 +1,9 @@
+/* Modales "Nuevo docente" y "Editar docente": abren con el tamaño de su contenido (ancho para
+   leer materia y carrera, alto hasta el último botón), acotado a la ventana, y se pueden
+   redimensionar (`adoc-modal--estirable`). */
+.adoc-modal.adoc-modal-docente {
+  width: fit-content;
+  height: auto;
+  min-width: min(640px, 100%);
+  min-height: min(320px, 100%);
+}

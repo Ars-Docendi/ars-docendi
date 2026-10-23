@@ -56,6 +56,22 @@ public sealed class AdministracionDocentesTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Catalogo_materia_carrera_informa_codigo_de_carrera()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var identity = PostgresFixture.CrearIdentity(Cadena);
+        await PrepararCatalogoAsync(identity, ct);
+        await using var modulo = PostgresFixture.CrearDesignaciones(Cadena);
+
+        var catalogos = await CrearServicio(identity, modulo).ObtenerCatalogosAsync(null, ct);
+
+        var par = Assert.Single(catalogos.MateriasPlan, mp => mp.Id == Materia);
+        Assert.Equal(Carrera, par.CarreraId);
+        Assert.Equal("INFO", par.CarreraCodigo);
+        Assert.Equal("Ingeniería Informática", par.CarreraNombre);
+    }
+
+    [Fact]
     public async Task Alta_sobre_persona_existente_crea_cuenta_sin_duplicar_persona()
     {
         var ct = TestContext.Current.CancellationToken;

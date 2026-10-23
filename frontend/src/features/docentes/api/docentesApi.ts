@@ -49,6 +49,7 @@ export interface CatalogosDocentes {
     nombre: string;
     carreraId?: string | null;
     carreraNombre?: string | null;
+    carreraCodigo?: string | null;
   }[];
   cargos: { id: string; codigo: string; nombre: string; abreviatura: string }[];
   personasElegibles: {

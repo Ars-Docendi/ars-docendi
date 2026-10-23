@@ -28,6 +28,26 @@ productos cartesianos entre listas.
 Cada fila distribuye materia, cargo y dedicación en controles amplios y legibles, con horas como
 campo compacto separado; el layout puede ocupar dos renglones para evitar cortar los textos.
 
+## Buscador de materias
+
+La materia de una asignación o de una membresía de ámbito materia se elige con un campo de solo
+lectura y el botón "Buscar" ("Cambiar" si ya hay selección), igual que el Responsable en Tareas.
+El modal "Buscar materia" tiene el formato de "Buscar Responsable": filtros por código y nombre de
+materia y por código y nombre de carrera en una fila con "Buscar" (también Enter), conteo de
+resultados, "Limpiar filtros", tabla con filas clickeables (Tab + Enter) y "Cancelar".
+
+- Asignaciones y membresía Docente: cada fila es una materia en una carrera; elegirla completa
+  ambas, por lo que no hay un selector de carrera aparte.
+- Membresía Jefe de Cátedra: una fila por materia con la columna "Se dicta en"; se elige sólo la
+  materia. Coordinador conserva su selector de carrera.
+- Lo que no se puede elegir se ve atenuado con su motivo ("Ya asignada", "Ya tiene esta
+  membresía") y la selección actual aparece resaltada.
+
+"Nuevo docente" y "Editar docente" abren con el tamaño de su contenido: el ancho necesario para
+leer la materia y la carrera elegidas y el alto justo hasta "+ Agregar asignación", acotados a la
+ventana. Junto con "Buscar materia" (880×640 al abrir) se pueden estirar desde la esquina inferior
+derecha; el cuerpo desplaza y el encabezado y el pie quedan visibles.
+
 ## Estados y accesibilidad
 
 - En alta desde "Persona del sistema", los datos personales se muestran en una tarjeta con el

@@ -39,6 +39,26 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Catalogo_materia_carrera_referencia_la_materia_canonica()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await EjecutarSeedAsync(ct);
+        await using var db = PostgresFixture.CrearIdentity(Cadena);
+
+        var catalogos = await CrearServicio(db).ObtenerCatalogosAsync(ct);
+
+        // El editor de membresías busca las carreras de la materia elegida comparando este
+        // id con el de la materia: el id de la fila materia–plan nunca coincide.
+        var materias = catalogos.Materias.Select(m => m.Id).ToHashSet();
+        Assert.NotEmpty(catalogos.MateriasPlan);
+        Assert.All(catalogos.MateriasPlan, par => Assert.Contains(par.Id, materias));
+        Assert.All(catalogos.MateriasPlan, par => Assert.False(string.IsNullOrEmpty(par.CarreraCodigo)));
+        Assert.Equal(
+            catalogos.MateriasPlan.Count,
+            catalogos.MateriasPlan.Select(par => (par.Id, par.CarreraId)).Distinct().Count());
+    }
+
+    [Fact]
     public async Task Alta_valida_se_persiste_con_persona_y_rol()
     {
         var ct = TestContext.Current.CancellationToken;
