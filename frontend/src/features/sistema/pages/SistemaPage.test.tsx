@@ -236,6 +236,19 @@ describe("SistemaPage — «Actualizar» (requisito «Refresh the active tab»)"
     // «Actualizar» en Auditoría no dispara una sonda de Estado adicional.
     expect(espiaPing).toHaveBeenCalledTimes(5);
   });
+
+  it("en Estado, también vuelve a pedir «Cambios recientes»", async () => {
+    conPermisos(["sistema.estado.ver", "asistente.administrar", "auditoria.ver"]);
+    const espiaAuditoria = vi.spyOn(auditoriaApi, "listarAuditoria");
+    const user = userEvent.setup();
+
+    montar("/sistema");
+    await waitFor(() => expect(espiaAuditoria).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: "Actualizar" }));
+
+    await waitFor(() => expect(espiaAuditoria).toHaveBeenCalledTimes(2));
+  });
 });
 
 describe("SistemaPage — la pestaña Auditoría no debe expulsar al usuario a Estado (regresión)", () => {
@@ -358,10 +371,11 @@ describe("SistemaPage — puntos de estado accesibles", () => {
 
     montar("/sistema");
 
-    await waitFor(() => expect(screen.getAllByRole("tab")).toHaveLength(3));
-    const tabs = screen.getAllByRole("tab");
-    for (const tab of tabs) {
-      expect(tab.textContent?.length).toBeGreaterThan(0);
-    }
+    // La etiqueta del punto, no el nombre de la pestaña: ése está siempre.
+    await waitFor(() => {
+      const [estado, asistente] = screen.getAllByRole("tab");
+      expect(estado).toHaveTextContent(", sin problemas");
+      expect(asistente).toHaveTextContent(", sin mantenimiento");
+    });
   });
 });

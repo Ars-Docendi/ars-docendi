@@ -28,6 +28,9 @@ const NOMBRES_PESTANAS: Record<IdPestanaSistema, string> = {
 
 const PREFIJO_ASISTENTE = ["asistente"] as const;
 const PREFIJO_AUDITORIA = ["administracion", "auditoria"] as const;
+// «Cambios recientes» se ve en la pestaña Estado pero su clave cuelga de la
+// auditoría: sin nombrarla, «Actualizar» en Estado la dejaba vieja.
+const CLAVE_RECIENTES = ["administracion", "auditoria", "recientes"] as const;
 
 function etiquetaEstado(tono: EstadoDePunto): string {
   if (tono === "negativo") return "componentes no disponibles";
@@ -76,7 +79,9 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
         ? PREFIJO_AUDITORIA
         : PREFIJO_ASISTENTE;
   const cantidadEnCurso = useIsFetching({ queryKey: prefijoActivo });
-  const actualizando = cantidadEnCurso > 0;
+  const recientesEnCurso = useIsFetching({ queryKey: CLAVE_RECIENTES });
+  const conRecientes = pestanaActiva === "estado" && puedeAuditoria;
+  const actualizando = cantidadEnCurso > 0 || (conRecientes && recientesEnCurso > 0);
 
   function alActualizar() {
     if (pestanaActiva === "asistente") {
@@ -86,6 +91,9 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
       return;
     }
     void queryClient.refetchQueries({ queryKey: prefijoActivo });
+    if (conRecientes) {
+      void queryClient.refetchQueries({ queryKey: CLAVE_RECIENTES });
+    }
   }
 
   function irAAuditoriaConEvento(idEvento: string) {
