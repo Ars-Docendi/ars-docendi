@@ -10,11 +10,15 @@ namespace Modules.Asistente.Infrastructure;
 /// cubre cualquier implementación real que llegue después sin que ella tenga que
 /// saber nada de reintentos.
 ///
-/// Reintenta lo que puede mejorar solo: <c>429</c>, los <c>5xx</c> de servidor y
-/// las fallas de red. NO reintenta ningún <c>400</c> —incluido el del límite de
-/// gasto— porque reintentar un rechazo por presupuesto agotado gasta presupuesto
-/// que ya no hay. Tampoco <c>401</c> ni <c>403</c>: una credencial no se arregla
-/// esperando.
+/// Reintenta lo que puede mejorar solo: <c>429</c> y los <c>5xx</c> de servidor.
+/// NO reintenta ningún <c>400</c> —incluido el del límite de gasto— porque
+/// reintentar un rechazo por presupuesto agotado gasta presupuesto que ya no hay.
+/// Tampoco <c>401</c> ni <c>403</c>: una credencial no se arregla esperando.
+///
+/// Tampoco las fallas de red (<see cref="HttpRequestException"/>), a propósito:
+/// la llamada es un POST y una conexión cortada a mitad de camino no dice si el
+/// proveedor ya la procesó. Repetirla podría cobrar la misma generación dos
+/// veces. Esa falla sube como tal y la cuenta el breaker.
 /// </remarks>
 internal sealed class ReintentoDeTransporte(
     int maximoDeIntentos,
