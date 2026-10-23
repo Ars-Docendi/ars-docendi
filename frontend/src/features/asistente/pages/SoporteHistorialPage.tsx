@@ -79,7 +79,14 @@ export function SoporteHistorialPage() {
 
   function confirmarRazon(evento: FormEvent) {
     evento.preventDefault();
-    setRazonConfirmada(razon.trim());
+    const confirmada = razon.trim();
+    setRazonConfirmada(confirmada);
+    // Misma razón, misma clave: sin pedirla de nuevo, volver a confirmar no
+    // leería nada y esa confirmación quedaría sin su fila de auditoría.
+    if (confirmada === razonConfirmada) {
+      void conversaciones.refetch();
+      if (hiloAbierto) void detalle.refetch();
+    }
   }
 
   return (
