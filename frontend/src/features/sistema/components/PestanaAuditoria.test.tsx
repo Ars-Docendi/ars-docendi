@@ -84,6 +84,21 @@ describe("PestanaAuditoria", () => {
     expect(espia.mock.calls[1][0]).toMatchObject({ accion: "UPDATE" });
   });
 
+  it("escribir la tabla consulta una vez al terminar, no una vez por tecla", async () => {
+    const espia = vi.spyOn(api, "listarAuditoria").mockResolvedValue(pagina([]));
+    const user = userEvent.setup();
+
+    montar();
+    await waitFor(() => expect(espia).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: /Más filtros/ }));
+    await user.type(screen.getByRole("textbox", { name: "Tabla" }), "identity.users");
+
+    await waitFor(() =>
+      expect(espia).toHaveBeenLastCalledWith(expect.objectContaining({ tabla: "identity.users" })),
+    );
+    expect(espia).toHaveBeenCalledTimes(2);
+  });
+
   it("explica clave compuesta y agrupación legada sin alterar el filtro JSON", async () => {
     const espia = vi.spyOn(api, "listarAuditoria").mockResolvedValue(pagina([]));
     const user = userEvent.setup();

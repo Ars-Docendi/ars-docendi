@@ -22,6 +22,15 @@ const PERIODOS: { valor: Periodo; etiqueta: string }[] = [
   { valor: "todo", etiqueta: "Todo" },
 ];
 
+/** Los filtros que se escriben: se aplican con debounce, igual que la búsqueda. */
+const CAMPOS_ESCRITOS = ["desde", "hasta", "tabla", "clave"] as const;
+type CampoEscrito = (typeof CAMPOS_ESCRITOS)[number];
+type ValoresEscritos = Record<CampoEscrito, string>;
+
+function valoresEscritos(filtros: EstadoFiltrosAuditoria): ValoresEscritos {
+  return { desde: filtros.desde, hasta: filtros.hasta, tabla: filtros.tabla, clave: filtros.clave };
+}
+
 const ACCIONES: { valor: FiltroAccion; etiqueta: string }[] = [
   { valor: "", etiqueta: "Todas" },
   { valor: "INSERT", etiqueta: "Altas" },
@@ -57,6 +66,31 @@ export function FiltrosAuditoria({
     return () => clearTimeout(temporizador);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busqueda]);
+
+  // Lo mismo para Desde, Hasta, Tabla y Clave: aplicados en cada tecla,
+  // escribir «identity.users» dejaba 14 entradas en el historial y 14 consultas.
+  const externos = valoresEscritos(filtros);
+  const [escritos, setEscritos] = useState(externos);
+  const [ultimosExternos, setUltimosExternos] = useState(externos);
+  if (CAMPOS_ESCRITOS.some((campo) => externos[campo] !== ultimosExternos[campo])) {
+    setUltimosExternos(externos);
+    setEscritos(externos);
+  }
+
+  useEffect(() => {
+    const cambios = CAMPOS_ESCRITOS.filter((campo) => escritos[campo] !== filtros[campo]);
+    if (cambios.length === 0) return;
+    const temporizador = setTimeout(
+      () => actualizarFiltros(Object.fromEntries(cambios.map((campo) => [campo, escritos[campo]]))),
+      300,
+    );
+    return () => clearTimeout(temporizador);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [escritos]);
+
+  function escribir(campo: CampoEscrito, valor: string) {
+    setEscritos((anteriores) => ({ ...anteriores, [campo]: valor }));
+  }
 
   return (
     <>
@@ -146,8 +180,8 @@ export function FiltrosAuditoria({
               <Input
                 aria-label="Desde"
                 type="datetime-local"
-                value={filtros.desde}
-                onChange={(e) => actualizarFiltros({ desde: e.target.value })}
+                value={escritos.desde}
+                onChange={(e) => escribir("desde", e.target.value)}
               />
             </label>
             <label className="auditoria-campo">
@@ -155,8 +189,8 @@ export function FiltrosAuditoria({
               <Input
                 aria-label="Hasta"
                 type="datetime-local"
-                value={filtros.hasta}
-                onChange={(e) => actualizarFiltros({ hasta: e.target.value })}
+                value={escritos.hasta}
+                onChange={(e) => escribir("hasta", e.target.value)}
               />
             </label>
             <label className="auditoria-campo">
@@ -164,8 +198,8 @@ export function FiltrosAuditoria({
               <Input
                 aria-label="Tabla"
                 placeholder="p. ej. identity.users"
-                value={filtros.tabla}
-                onChange={(e) => actualizarFiltros({ tabla: e.target.value })}
+                value={escritos.tabla}
+                onChange={(e) => escribir("tabla", e.target.value)}
               />
             </label>
             <label className="auditoria-campo">
@@ -174,8 +208,8 @@ export function FiltrosAuditoria({
                 aria-label="Clave de fila"
                 aria-describedby="auditoria-clave-ayuda"
                 placeholder="p. ej. 1042"
-                value={filtros.clave}
-                onChange={(e) => actualizarFiltros({ clave: e.target.value })}
+                value={escritos.clave}
+                onChange={(e) => escribir("clave", e.target.value)}
               />
               <small id="auditoria-clave-ayuda" className="auditoria-campo-ayuda">
                 Usá el JSON completo para una relación precisa. Una clave parcial legada consulta
