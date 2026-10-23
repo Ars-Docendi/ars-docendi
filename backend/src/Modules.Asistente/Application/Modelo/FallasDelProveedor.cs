@@ -32,9 +32,13 @@ internal sealed class TimeoutDelProveedor(TimeSpan cuanto)
 /// no falló, está OCUPADO atendiendo a otros. Contarlo como fallo abriría el
 /// breaker y apagaría el asistente para todos justo cuando más se lo usa — el
 /// breaker no la ve porque la compuerta va por fuera de él.
+///
+/// La lanza también <c>ProveedorOllama</c> cuando el servicio compartido responde
+/// 429 o 503 (asistente-proveedor-ollama, design.md D4): ahí la cola llena es la
+/// del servidor y no la del módulo, sin espera propia, y el motivo lo dice.
 /// </remarks>
-internal sealed class ProveedorSaturado(TimeSpan espera)
-    : Exception($"No hubo lugar para llamar al modelo en {espera.TotalSeconds:0.#} s: hay demasiadas consultas en curso.")
+internal sealed class ProveedorSaturado(TimeSpan espera, string? motivo = null)
+    : Exception(motivo ?? $"No hubo lugar para llamar al modelo en {espera.TotalSeconds:0.#} s: hay demasiadas consultas en curso.")
 {
     /// <summary>Lo que se esperó en la cola.</summary>
     public TimeSpan Espera { get; } = espera;

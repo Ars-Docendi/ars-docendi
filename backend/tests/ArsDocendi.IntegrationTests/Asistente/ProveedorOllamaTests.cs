@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -201,8 +202,6 @@ public sealed class ProveedorOllamaTests
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.Forbidden)]
     [InlineData(HttpStatusCode.NotFound)]
-    [InlineData(HttpStatusCode.TooManyRequests)]
-    [InlineData(HttpStatusCode.ServiceUnavailable)]
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.BadGateway)]
     public async Task Toda_falla_llega_como_falla_de_transporte_para_que_el_breaker_la_cuente(
@@ -217,6 +216,22 @@ public sealed class ProveedorOllamaTests
             () => Armar(servidor).CompletarAsync(Solicitud, Ct));
 
         Assert.Equal(estado, error.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task La_saturacion_del_servicio_no_es_falla_de_transporte(HttpStatusCode estado)
+    {
+        // 429 de Traefik o 503 de Ollama con la cola llena: el servicio está
+        // ocupado, no caído. Si llegara como HttpRequestException, el breaker la
+        // contaría y apagaría el asistente justo cuando más se lo usa.
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(estado));
+
+        var error = await Assert.ThrowsAsync<ProveedorSaturado>(
+            () => Armar(servidor).CompletarAsync(Solicitud, Ct));
+
+        Assert.Contains(((int)estado).ToString(CultureInfo.InvariantCulture), error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -279,7 +294,7 @@ public sealed class ProveedorOllamaTests
     [Fact]
     public async Task Compuesto_usa_la_configuracion_inferencia_y_el_transporte_del_modulo()
     {
-        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.BadGateway));
         using var servicios = Componer(servidor, intentos: 2).BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
@@ -299,7 +314,7 @@ public sealed class ProveedorOllamaTests
     {
         // El evaluador arma el módulo sin Host: no hay IHostEnvironment. La
         // validación de Inferencia no puede exigirlo para resolver el proveedor.
-        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.BadGateway));
         using var servicios = Componer(servidor, intentos: 1, conHost: false).BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
@@ -312,7 +327,7 @@ public sealed class ProveedorOllamaTests
     [Fact]
     public async Task Las_credenciales_del_servicio_no_viajan_a_otro_proveedor()
     {
-        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        var servidor = new ServidorFalso(_ => new HttpResponseMessage(HttpStatusCode.BadGateway));
         using var servicios = Componer(servidor, intentos: 1, proveedor: ProveedorAnthropic.Clave)
             .BuildServiceProvider();
         using var turno = servicios.CreateScope();

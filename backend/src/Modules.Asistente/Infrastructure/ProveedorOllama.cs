@@ -334,10 +334,14 @@ internal sealed class ProveedorOllama : IProveedorDeModelo
         else if (estado is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
         {
             // 429 lo pone Traefik (tasa o pedidos en vuelo); 503 lo pone Ollama con
-            // la cola llena. Los dos son saturación del servicio, no una caída.
+            // la cola llena. Los dos son saturación del servicio, no una caída: no
+            // es transporte, así que el breaker no la cuenta y el usuario lee «probá
+            // en unos segundos» en vez de apagar el asistente para todos.
             _log.LogWarning(
                 "El servicio de inferencia está saturado ({Estado}): límite de pedidos o cola llena.",
                 codigo);
+            throw new ProveedorSaturado(
+                TimeSpan.Zero, $"El servicio de inferencia está saturado ({codigo}): límite de pedidos o cola llena.");
         }
         else if (codigo is 400 or 422)
         {

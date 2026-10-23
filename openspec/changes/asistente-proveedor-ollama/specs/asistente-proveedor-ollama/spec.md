@@ -76,7 +76,8 @@ El adaptador SHALL devolver el texto, los tokens de entrada (`prompt_eval_count`
 
 - **GIVEN** el servicio responde 429 (Traefik) o 503 (cola de Ollama llena)
 - **WHEN** el adaptador traduce la respuesta
-- **THEN** el pipeline recibe una falla de transporte y el log la identifica como saturación, no como caída
+- **THEN** el pipeline recibe una saturación del proveedor, no una falla de transporte, y el log la identifica como saturación
+- **AND** el corte al proveedor no la cuenta como fallo y el usuario lee que pruebe de nuevo en unos segundos
 
 #### Scenario: Flujo cortado
 

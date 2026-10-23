@@ -93,6 +93,8 @@ Cómo se clasifican las respuestas del servidor:
 | 401/403                                        | BasicAuth, Service Token o IP | Se nombran las tres causas         |
 | 404                                            | Modelo no descargado          | Se dice eso                        |
 
+La saturación llega al pipeline como `ProveedorSaturado`, la misma que lanza la compuerta, y no como falla de transporte. Así el breaker no la cuenta: un servidor ocupado no es uno caído, y abrir el corte apagaría el asistente para todos los ambientes justo cuando más se lo usa. El usuario lee el texto de saturación («probá de nuevo en unos segundos»). El resto de los estados sí son falla de transporte y el breaker los cuenta.
+
 `MaximoDeIntentosDeTransporte=2`: reintentar contra un servidor saturado sólo le suma carga.
 
 ### D5 — Perfil de deploy y preview por label

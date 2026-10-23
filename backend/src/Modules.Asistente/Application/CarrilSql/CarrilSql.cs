@@ -133,12 +133,11 @@ public sealed class CarrilSql(
         }
         catch (ProveedorSaturado excepcion)
         {
-            // La compuerta no dio lugar a tiempo (asistente-proveedor-local, D4).
+            // La compuerta no dio lugar a tiempo (asistente-proveedor-local, D4) o
+            // el servicio compartido está lleno (asistente-proveedor-ollama, D4).
             // Information y no Warning: el sistema está ocupado, no roto, y el
             // texto le dice al usuario que pruebe en unos segundos — no «más tarde».
-            log.LogInformation(
-                "No hubo lugar para llamar al modelo en {Segundos}s: hay demasiadas consultas en curso.",
-                excepcion.Espera.TotalSeconds);
+            log.LogInformation("{Motivo}", excepcion.Message);
             return Degradado(aMostrar, PoliticaDeAbstencion.TextoProveedorSaturado);
         }
         catch (TimeoutDelProveedor excepcion)
