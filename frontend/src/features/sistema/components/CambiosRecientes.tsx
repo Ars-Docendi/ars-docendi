@@ -49,6 +49,16 @@ export function CambiosRecientes({ onAbrirCambio, onVerTodo }: CambiosRecientesP
 
       {consulta.isPending && <p role="status">Cargando cambios recientes…</p>}
 
+      {/* Sin esto, una carga fallida se veía igual que «no hubo cambios». */}
+      {consulta.isError && (
+        <div className="sistema-cambios-vacio" role="alert">
+          <p>No se pudieron cargar los cambios recientes.</p>
+          <button type="button" className="sistema-enlace" onClick={() => void consulta.refetch()}>
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {consulta.data && elementos.length === 0 && (
         <p className="sistema-cambios-vacio">Todavía no hay cambios registrados.</p>
       )}

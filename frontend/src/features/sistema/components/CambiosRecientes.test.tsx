@@ -101,4 +101,22 @@ describe("CambiosRecientes", () => {
 
     expect(await screen.findByText("Todavía no hay cambios registrados.")).toBeInTheDocument();
   });
+
+  it("si la carga falla lo anuncia y permite reintentar, en vez de quedar vacía", async () => {
+    const listar = vi
+      .spyOn(api, "listarAuditoria")
+      .mockRejectedValueOnce(new Error("500"))
+      .mockResolvedValue(pagina([]));
+    const user = userEvent.setup();
+
+    montar();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudieron cargar los cambios recientes.",
+    );
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByText("Todavía no hay cambios registrados.")).toBeInTheDocument();
+    expect(listar).toHaveBeenCalledTimes(2);
+  });
 });
