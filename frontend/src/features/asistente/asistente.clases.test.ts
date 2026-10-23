@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
@@ -29,12 +29,12 @@ const raiz = join(import.meta.dirname);
  * cosa que este guard busca.
  */
 const codigoDeLaFeature = (directorio: string): string[] =>
-  readdirSync(directorio).flatMap((entrada) => {
-    const ruta = join(directorio, entrada);
-    if (statSync(ruta).isDirectory()) {
+  readdirSync(directorio, { withFileTypes: true }).flatMap((entrada) => {
+    const ruta = join(directorio, entrada.name);
+    if (entrada.isDirectory()) {
       return codigoDeLaFeature(ruta);
     }
-    return /\.tsx?$/.test(entrada) && !/\.test\.tsx?$/.test(entrada)
+    return /\.tsx?$/.test(entrada.name) && !/\.test\.tsx?$/.test(entrada.name)
       ? [readFileSync(ruta, "utf8")]
       : [];
   });
