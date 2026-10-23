@@ -2707,6 +2707,12 @@
   color: var(--warning-700);
 }
 
+.adoc-asistente-admin-mantenimiento-error {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--danger-700);
+}
+
 /* `.adoc-btn.v-secondary` ya trae `color`/`border-color` con la misma
    especificidad (dos clases): sin repetir `.adoc-btn` acá, esa regla ganaba
    por orden de aparición y el botón se veía con el borde neutro de siempre

@@ -23,6 +23,9 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
   const [editando, setEditando] = useState(false);
   const [razon, setRazon] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // Un guardado que falla (403, 500, red) se anuncia: sin esto la promesa
+  // quedaba rechazada sin manejo y la pantalla no explicaba nada.
+  const [error, setError] = useState<string | null>(null);
   // El botón «Activar mantenimiento» reaparece con el foco cuando el panel de
   // razón se cierra —guardado o cancelado— para no soltarlo al `<body>`
   // (tasks.md 13.2: los guardados se anuncian sin mover el foco).
@@ -56,11 +59,15 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
   async function activar() {
     if (faltaRazon) return;
     setEnviando(true);
+    setError(null);
     try {
       activadoAhoraRef.current = true;
       await onGuardar(true, razon.trim());
       setEditando(false);
       setRazon("");
+    } catch {
+      activadoAhoraRef.current = false;
+      setError("No se pudo activar el mantenimiento. Probá de nuevo.");
     } finally {
       setEnviando(false);
     }
@@ -68,8 +75,11 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
 
   async function desactivar() {
     setEnviando(true);
+    setError(null);
     try {
       await onGuardar(false, undefined);
+    } catch {
+      setError("No se pudo desactivar el mantenimiento. Probá de nuevo.");
     } finally {
       setEnviando(false);
     }
@@ -109,6 +119,11 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
             Desactivar mantenimiento
           </Button>
         </div>
+        {error && (
+          <p className="adoc-asistente-admin-mantenimiento-error" role="alert">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -165,6 +180,12 @@ export function BannerDeMantenimiento({ mantenimiento, onGuardar }: BannerDeMant
             </Button>
           </div>
         </div>
+      )}
+
+      {error && (
+        <p className="adoc-asistente-admin-mantenimiento-error" role="alert">
+          {error}
+        </p>
       )}
     </div>
   );

@@ -358,6 +358,25 @@ describe("El banner de mantenimiento (tasks.md 11.6, fidelidad con el canvas)", 
 
     await waitFor(() => expect(editarMantenimiento).toHaveBeenCalledWith(false, undefined));
   });
+
+  it("si el guardado falla, lo anuncia y deja el panel abierto para reintentar", async () => {
+    vi.spyOn(adminApi, "obtenerUso").mockResolvedValue(USO_VACIO);
+    vi.spyOn(api, "obtenerCapacidades").mockResolvedValue(CAPACIDADES);
+    vi.spyOn(adminApi, "editarMantenimiento").mockRejectedValue(new Error("500"));
+    const user = userEvent.setup();
+
+    montarPanel();
+
+    const grupo = within(screen.getByRole("group", { name: "Modo mantenimiento" }));
+    await user.click(grupo.getByRole("button", { name: "Activar mantenimiento" }));
+    await user.type(grupo.getByLabelText(/Razón/), "Mantenimiento programado");
+    await user.click(grupo.getByRole("button", { name: "Activar mantenimiento" }));
+
+    expect(await grupo.findByRole("alert")).toHaveTextContent(
+      "No se pudo activar el mantenimiento.",
+    );
+    expect(grupo.getByLabelText(/Razón/)).toHaveValue("Mantenimiento programado");
+  });
 });
 
 describe("Accesibilidad del panel (tasks.md 13.1)", () => {
