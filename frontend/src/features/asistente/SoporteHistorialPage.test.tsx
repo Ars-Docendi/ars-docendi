@@ -199,6 +199,9 @@ describe("Sólo pregunta/SQL/desenlace/momentos, nada de filas ni re-ejecución 
       CONVERSACION_AJENA.turnos[0].pregunta,
     );
     expect(within(detalle).getByText(/Respondida/)).toBeInTheDocument();
+    // El momento en hora argentina (09:00:05Z son las 06:00:05), no el ISO crudo.
+    expect(detalle.querySelector("time")).toHaveTextContent("06:00:05");
+    expect(detalle).not.toHaveTextContent(CONVERSACION_AJENA.turnos[0].ocurrioEn);
     await user.click(within(detalle).getByText("Ver la consulta"));
     expect(within(detalle).getByText(CONVERSACION_AJENA.turnos[0].sql!)).toBeInTheDocument();
 
