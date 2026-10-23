@@ -31,14 +31,19 @@ interface CeldaDeAccesoProps {
  */
 export function CeldaDeAcceso({ nombre, acceso, origen, onCambiar }: CeldaDeAccesoProps) {
   const [enviando, setEnviando] = useState(false);
+  // Un cambio que falla se anuncia, en vez de dejar la promesa sin manejo.
+  const [error, setError] = useState<string | null>(null);
   // «Quitar, no dar»: un usuario al que el rol no le da acceso no puede
   // prenderse desde acá — sólo se restablece una revocación propia.
   const bloqueadoPorRol = !acceso && origen === "rol";
 
   async function cambiar(habilitado: boolean) {
     setEnviando(true);
+    setError(null);
     try {
       await onCambiar(habilitado);
+    } catch {
+      setError(`No se pudo cambiar el acceso de ${nombre}. Probá de nuevo.`);
     } finally {
       setEnviando(false);
     }
@@ -71,6 +76,11 @@ export function CeldaDeAcceso({ nombre, acceso, origen, onCambiar }: CeldaDeAcce
         >
           <IconoRotateCcw />
         </Button>
+      )}
+      {error && (
+        <span className="adoc-asistente-admin-error" role="alert">
+          {error}
+        </span>
       )}
     </div>
   );

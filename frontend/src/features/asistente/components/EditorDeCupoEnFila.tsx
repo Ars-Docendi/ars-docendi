@@ -80,6 +80,9 @@ export function EditorDeCupoEnFila({
   const [valor, setValor] = useState("");
   const [confirmando, setConfirmando] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // Un guardado que falla (403, 500, red) se anuncia; sin esto la promesa
+  // quedaba rechazada sin manejo y la fila no decía nada.
+  const [error, setError] = useState<string | null>(null);
   // El botón «Editar» reaparece en el lugar exacto donde estaba el foco
   // cuando la edición termina —guardada o cancelada—, para no soltar el foco
   // al `<body>` cuando el campo/los botones de edición desaparecen del DOM
@@ -98,12 +101,15 @@ export function EditorDeCupoEnFila({
 
   async function aplicar(cupo: number) {
     setEnviando(true);
+    setError(null);
     try {
       await onGuardar(cupo);
       onGuardado(cupo);
       volverAEnfocarRef.current = true;
       setEditando(false);
       setConfirmando(null);
+    } catch {
+      setError(`No se pudo guardar el cupo de ${nombre}. Probá de nuevo.`);
     } finally {
       setEnviando(false);
     }
@@ -123,7 +129,14 @@ export function EditorDeCupoEnFila({
     volverAEnfocarRef.current = true;
     setEditando(false);
     setConfirmando(null);
+    setError(null);
   }
+
+  const alerta = error && (
+    <span className="adoc-asistente-admin-error" role="alert">
+      {error}
+    </span>
+  );
 
   if (confirmando !== null) {
     return (
@@ -144,6 +157,7 @@ export function EditorDeCupoEnFila({
         <Button variant="ghost" size="sm" disabled={enviando} onClick={cancelar}>
           Cancelar
         </Button>
+        {alerta}
       </div>
     );
   }
@@ -171,6 +185,7 @@ export function EditorDeCupoEnFila({
           Cancelar
         </Button>
         <span className="adoc-asistente-admin-cupo-hint">0 = sin tope.</span>
+        {alerta}
       </div>
     );
   }
@@ -178,11 +193,14 @@ export function EditorDeCupoEnFila({
   async function restablecer() {
     if (!onRestablecer) return;
     setEnviando(true);
+    setError(null);
     try {
       await onRestablecer();
       // El botón de restablecer desaparece con el override: el foco vuelve
       // al lápiz, que siempre está (tasks.md 13.2).
       botonEditarRef.current?.focus();
+    } catch {
+      setError(`No se pudo restablecer el cupo de ${nombre}. Probá de nuevo.`);
     } finally {
       setEnviando(false);
     }
@@ -222,6 +240,7 @@ export function EditorDeCupoEnFila({
       >
         <IconoSquarePen />
       </Button>
+      {alerta}
     </div>
   );
 }

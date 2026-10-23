@@ -101,6 +101,32 @@ describe("EditorDeCupoEnFila", () => {
     expect(await screen.findByText(/¿Bajar de 20 a 0\?/)).toBeInTheDocument();
   });
 
+  it("si el guardado falla, lo anuncia y deja la edición abierta para reintentar", async () => {
+    const onGuardado = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <EditorDeCupoEnFila
+        nombre="docente"
+        cupoConocido={15}
+        origen="rol"
+        onGuardar={vi.fn().mockRejectedValue(new Error("500"))}
+        onGuardado={onGuardado}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Editar cupo diario de docente" }));
+    await user.clear(screen.getByLabelText("Cupo diario de docente (turnos)"));
+    await user.type(screen.getByLabelText("Cupo diario de docente (turnos)"), "20");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "No se pudo guardar el cupo de docente.",
+    );
+    expect(screen.getByLabelText("Cupo diario de docente (turnos)")).toHaveValue(20);
+    expect(onGuardado).not.toHaveBeenCalled();
+  });
+
   it("cancelar vuelve al valor conocido sin llamar a guardar", async () => {
     const onGuardar = vi.fn();
     const user = userEvent.setup();
