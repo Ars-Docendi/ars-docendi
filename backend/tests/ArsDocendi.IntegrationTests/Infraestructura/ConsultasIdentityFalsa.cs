@@ -73,7 +73,14 @@ internal sealed class ConsultasIdentityFalsa : IConsultasIdentity
     public Task<IReadOnlyList<Usuario>> ListarUsuariosAsync(CancellationToken ct) =>
         throw new NotImplementedException();
 
+    // El nombre legible no se siembra: el código hace de nombre.
     public Task<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>> ObtenerRolesDeSistemaAsync(
         IReadOnlyCollection<Guid> usuarioIds, CancellationToken ct) =>
-        throw new NotImplementedException();
+        Task.FromResult<IReadOnlyDictionary<Guid, IReadOnlyList<RolDeSistema>>>(
+            usuarioIds
+                .Where(id => _rolesPorActor.TryGetValue(id, out var roles) && roles.Length > 0)
+                .Distinct()
+                .ToDictionary(
+                    id => id,
+                    id => (IReadOnlyList<RolDeSistema>)[.. _rolesPorActor[id].Select(c => new RolDeSistema(c, c))]));
 }

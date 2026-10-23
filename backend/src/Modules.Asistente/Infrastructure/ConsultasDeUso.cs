@@ -32,17 +32,15 @@ internal sealed class ConsultasDeUso(CadenaDuena cadena, IConsultasIdentity iden
         var nombres = (await identidad.ListarUsuariosAsync(ct))
             .ToDictionary(u => u.Id, u => u.NombreParaMostrar);
 
-        // Un solo pedido de roles por actor DISTINTO, reusado para armar el
-        // agregado por rol Y para exponer los códigos de rol de cada fila de
-        // usuario (tarea «rol y cupo efectivo por usuario» de
-        // sistema-seccion-unificada) — antes se pedía una vez POR FILA acá
-        // abajo, redundante para un actor con varios turnos en el período.
-        var rolesPorActor = new Dictionary<Guid, IReadOnlyList<string>>();
-        foreach (var actor in filas.Select(f => f.Actor).Distinct())
-        {
-            rolesPorActor[actor] = [.. (await identidad.ObtenerCodigosDeRolesDeSistemaAsync(actor, ct))
-                .Order(StringComparer.Ordinal)];
-        }
+        // Un solo pedido de roles para todos los actores del período, reusado
+        // para armar el agregado por rol Y para exponer los códigos de rol de
+        // cada fila de usuario (tarea «rol y cupo efectivo por usuario» de
+        // sistema-seccion-unificada).
+        var roles = await identidad.ObtenerRolesDeSistemaAsync(
+            [.. filas.Select(f => f.Actor).Distinct()], ct);
+        var rolesPorActor = roles.ToDictionary(
+            par => par.Key,
+            par => (IReadOnlyList<string>)[.. par.Value.Select(r => r.Codigo).Distinct().Order(StringComparer.Ordinal)]);
 
         var porUsuario = filas
             .GroupBy(f => f.Actor)
