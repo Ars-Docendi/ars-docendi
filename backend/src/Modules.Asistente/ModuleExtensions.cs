@@ -287,9 +287,10 @@ public static class ModuleExtensions
         services.AddSingleton<IClasificadorDeSensibilidad, CatalogoDeSensibilidad>();
 
         // La fecha se resuelve UNA VEZ por turno: con alcance de request, un turno
-        // que empieza a las 23:59:59 no puede cambiar de día a la mitad.
-        services.AddScoped<IFechaDeReferencia>(_ =>
-            new FechaDeReferenciaFija(DateOnly.FromDateTime(DateTime.UtcNow)));
+        // que empieza a las 23:59:59 no puede cambiar de día a la mitad. Sale del
+        // TimeProvider registrado, como el resto de los relojes del módulo.
+        services.AddScoped<IFechaDeReferencia>(sp => new FechaDeReferenciaFija(
+            DateOnly.FromDateTime(sp.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime)));
 
         services.AddScoped<IPerfilDelActor, ConsultorDeAlcance>();
         services.AddScoped<IConsultorDeCobertura, ConsultorDeCobertura>();

@@ -23,18 +23,10 @@ public interface IFechaDeReferencia
     DateOnly Hoy();
 }
 
-/// <summary>Fecha de referencia tomada del reloj del sistema.</summary>
-/// <remarks>
-/// Es el único lugar del carril que mira un reloj. Todo lo que está aguas abajo
-/// recibe la fecha ya resuelta, así que un turno que empieza a las 23:59:59 no
-/// puede cambiar de día a la mitad.
-/// </remarks>
-internal sealed class FechaDeReferenciaDelSistema : IFechaDeReferencia
-{
-    public DateOnly Hoy() => DateOnly.FromDateTime(DateTime.UtcNow);
-}
-
-/// <summary>Fecha de referencia fija, para evaluación y para tests.</summary>
+/// <summary>
+/// Fecha de referencia fija: la del turno en producción (resuelta una vez, al
+/// abrirse el request), y la del dataset en evaluación y en tests.
+/// </summary>
 internal sealed class FechaDeReferenciaFija(DateOnly fecha) : IFechaDeReferencia
 {
     public DateOnly Hoy() => fecha;
