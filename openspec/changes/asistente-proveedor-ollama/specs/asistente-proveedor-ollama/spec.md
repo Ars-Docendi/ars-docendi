@@ -52,7 +52,7 @@ El adaptador `ollama` SHALL pedir `think: false` salvo con esfuerzo alto o máxi
 
 ### Requirement: Respuesta y fallas del servicio
 
-El adaptador SHALL devolver el texto, los tokens de entrada (`prompt_eval_count`), los leídos de caché (`prompt_eval_cached_count`, nunca más que los de entrada) y los de salida (`eval_count`), y SHALL marcar el corte por techo cuando `done_reason` es `length`. Con quien escuche, SHALL pedir la respuesta por fragmentos NDJSON y entregar el texto visible a medida que llega. Todo estado no exitoso, un fragmento con `error`, un flujo cortado o sin cierre MUST llegar al pipeline como falla de transporte, y los logs MUST NOT incluir el prompt, la URL con credenciales ni los secretos.
+El adaptador SHALL devolver el texto, los tokens de entrada (`prompt_eval_count`), los leídos de caché (`prompt_eval_cached_count`, nunca más que los de entrada) y los de salida (`eval_count`), y SHALL marcar el corte por techo cuando `done_reason` es `length`. Con quien escuche, SHALL pedir la respuesta por fragmentos NDJSON y entregar el texto visible a medida que llega. Todo estado no exitoso distinto de 429 y 503, un fragmento con `error`, un flujo cortado o sin cierre MUST llegar al pipeline como falla de transporte; 429 y 503 MUST llegar como saturación del proveedor. Los logs MUST NOT incluir el prompt, la URL con credenciales ni los secretos.
 
 #### Scenario: Corte por techo
 
