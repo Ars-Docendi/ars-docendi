@@ -13,8 +13,9 @@ using System.Runtime.CompilerServices;
 //
 // La superficie de `Application` es `internal` a propósito: `public` es una promesa
 // de estabilidad, y el módulo no le prometió nada a nadie. Lo que sí ofrece a los
-// otros módulos va en `Modules.Asistente.Contracts`, hoy vacío y que se llena con
-// el carril determinista de API (ARS-10).
+// otros módulos va en `Modules.Asistente.Contracts`: hoy la auditoría de
+// administración y el modo mantenimiento que lee el Host; el carril determinista
+// de API (ARS-10) sumará lo suyo.
 [assembly: InternalsVisibleTo("ArsDocendi.Evaluacion.Nucleo")]
 
 // El ejecutable del evaluador, que compone el pipeline para correrlo. Va aparte del

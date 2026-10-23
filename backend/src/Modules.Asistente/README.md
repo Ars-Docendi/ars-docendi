@@ -26,8 +26,10 @@ construidas y una sigue abierta de verdad:
 | Cuota por actor, circuit breaker y registros                 | E8    | Construida    |
 
 **E6 es la que falta, y no es un detalle de redacción.** `Modules.Asistente.Contracts`
-no tiene ningún `.cs`, y el enrutador determinista corre **en modo sombra**: decide
-y registra su decisión, pero el turno sigue por el carril SQL igual. Está declarado
+sólo publica lo que el Host lee del módulo (`IConsultasDeAuditoriaDeAdministracion` e
+`IConsultaDeMantenimiento`), nada del carril determinista, y el enrutador corre
+**en modo sombra**: decide y registra su decisión, pero el turno sigue por el
+carril SQL igual. Está declarado
 y argumentado en `openspec/changes/asistente-enrutador-de-dominio/design.md` (D2).
 
 No hay carpeta `Domain/`, a diferencia de los otros módulos: el asistente no
@@ -1265,11 +1267,15 @@ mediría cuán bien el sistema reproduce ejemplos que ya vio.
 
 ## Dependencias
 
-Solo `ArsDocendi.Shared`. No referencia ningún otro módulo ni su propio
-`.Contracts` (que nace vacío: ver
+`ArsDocendi.Shared` y su propio `.Contracts`, que implementa para que el Host lea
+la auditoría de administración y el modo mantenimiento sin SQL directo (ver
 [Modules.Asistente.Contracts/README.md](../Modules.Asistente.Contracts/README.md)).
+No referencia ningún otro módulo ni `Contracts` ajeno: esas aristas llegan con el
+carril determinista de API.
 
-Tampoco declara EF Core, Npgsql ni MediatR: llegan cuando haya código que los use.
+Paquetes: `Anthropic` para el proveedor cloud y `Npgsql` para las conexiones de
+migración y de solo lectura. No declara EF Core ni MediatR: el módulo no tiene
+entidades ni `DbContext`.
 
 ## Schema PostgreSQL
 
