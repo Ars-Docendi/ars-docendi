@@ -1,4 +1,5 @@
 import type { PeriodoDeUso, UsoAgregado } from "../types";
+import { neutralizarFormula } from "./portapapeles";
 
 /**
  * Exportación CSV de la vista activa del detalle de uso (rediseño «Uso del
@@ -22,7 +23,7 @@ const ENCABEZADOS = [
 /** Envuelve un campo en comillas dobles sólo si hace falta (RFC 4180). */
 function celdaCsv(valor: string | number): string {
   const texto = String(valor);
-  if (/[",\n]/.test(texto)) {
+  if (/[",\r\n]/.test(texto)) {
     return `"${texto.replace(/"/g, '""')}"`;
   }
   return texto;
@@ -37,7 +38,10 @@ export function construirCsvDeUso(filas: UsoAgregado[], esUsuarios: boolean): st
   const encabezado = [esUsuarios ? "Usuario" : "Rol", ...ENCABEZADOS].map(celdaCsv).join(",");
   const cuerpo = filas.map((f) =>
     [
-      f.nombreParaMostrar ?? f.clave,
+      // El nombre es el único texto libre de la fila: se neutraliza como en
+      // `tablaComoCsv`, para que «=…» no corra como fórmula al abrir el archivo.
+      // Las columnas numéricas no, porque nunca son negativas.
+      neutralizarFormula(f.nombreParaMostrar ?? f.clave),
       f.turnos,
       f.llamadasAlModelo,
       f.tokensDeEntrada,

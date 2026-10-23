@@ -61,6 +61,12 @@ describe("construirCsvDeUso", () => {
     expect(csv).toContain('"Ana, ""Pepa"" Paz"');
   });
 
+  it("un nombre que empieza como fórmula sale neutralizado (inyección CSV)", () => {
+    const csv = construirCsvDeUso([{ ...FILA, nombreParaMostrar: '=HYPERLINK("x")' }], true);
+
+    expect(csv).toContain('"\'=HYPERLINK(""x"")"');
+  });
+
   it("lleva BOM UTF-8 al principio, para que Excel no rompa los acentos", () => {
     const csv = construirCsvDeUso([FILA], true);
 

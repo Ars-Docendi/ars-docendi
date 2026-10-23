@@ -44,7 +44,7 @@ const PRIMEROS_CARACTERES_DE_FORMULA = new Set(["=", "+", "-", "@", "\t", "\r"])
  * could run as a spreadsheet formula. Applied BEFORE RFC 4180 quoting, so the
  * apostrophe itself never needs escaping.
  */
-function neutralizarFormula(texto: string): string {
+export function neutralizarFormula(texto: string): string {
   return texto.length > 0 && PRIMEROS_CARACTERES_DE_FORMULA.has(texto[0]) ? `'${texto}` : texto;
 }
 
