@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ArsDocendi.Host.Desarrollo;
 using ArsDocendi.IntegrationTests.Infraestructura;
 using ArsDocendi.Shared.Persistencia;
@@ -313,6 +315,39 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
         Assert.Equal(1L, await EscalarAsync<long>(
             "SELECT count(*) FROM asistente.auditoria_administracion WHERE accion = 'tope_organizacional'"));
+    }
+
+    [Fact]
+    public async Task El_tope_con_decimales_se_audita_como_json_valido_en_cualquier_cultura()
+    {
+        // Interpolado, un decimal sale con la coma de la cultura del proceso
+        // (es-AR: «12,5») y la fila de auditoría deja de ser JSON. El request
+        // hereda la cultura del test sólo si el servidor preserva el contexto.
+        await SembrarAsync();
+        using var host = CrearHost();
+        host.Server.PreserveExecutionContext = true;
+        using var cliente = host.CreateClient();
+        Autenticar(cliente, Sistemas, "sys_admin");
+        var cultura = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("es-AR");
+        try
+        {
+            var respuesta = await cliente.PutAsJsonAsync(
+                "/api/asistente/administracion/tope-organizacional",
+                new PedidoDeTopeDto(12.5m),
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal(HttpStatusCode.NoContent, respuesta.StatusCode);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = cultura;
+        }
+
+        var despues = await EscalarAsync<string>(
+            "SELECT despues FROM asistente.auditoria_administracion WHERE accion = 'tope_organizacional'");
+        using var json = JsonDocument.Parse(despues);
+        Assert.Equal(12.5m, json.RootElement.GetProperty("topeMensualUsd").GetDecimal());
     }
 
     // ------------------------------------------------------------------ 12.8

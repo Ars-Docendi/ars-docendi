@@ -255,8 +255,8 @@ public sealed class AdministracionAsistenteController(
 
         await auditoria.RegistrarAsync(
             actor, "tope_organizacional",
-            $"{{\"topeMensualUsd\":{antes}}}",
-            $"{{\"topeMensualUsd\":{despues}}}",
+            JsonSerializer.Serialize(new { topeMensualUsd = antes }),
+            JsonSerializer.Serialize(new { topeMensualUsd = despues }),
             ct);
 
         return NoContent();
