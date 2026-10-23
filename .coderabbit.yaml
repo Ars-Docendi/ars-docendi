@@ -1,6 +1,0 @@
-# Temporal: #40 supera el tope de 300 archivos por review de CodeRabbit, así
-# que se revisa en tandas. Se borra al terminar la última.
-inheritance: true
-reviews:
-  path_filters:
-    - "frontend/**"
