@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Input } from "@ars-docendi/ui";
+import { Button, Input } from "@ars-docendi/ui";
 
 import { DetalleDeSoporte } from "../components/DetalleDeSoporte";
 import { SelectorDeSujeto } from "../components/SelectorDeSujeto";
@@ -24,12 +24,18 @@ import "../asistente.css";
  * pide ni el listado ni una conversación puntual — los dos endpoints del
  * backend la exigen igual, así que esto es la misma regla del lado del
  * cliente, no una regla nueva.
+ *
+ * LA RAZÓN SE CONFIRMA, NO SE TIPEA: cada lectura queda auditada con su
+ * razón, así que las consultas dependen de la razón confirmada con «Ver
+ * historial» y no de cada tecla. Si no, escribir «porque falla» dejaba en la
+ * auditoría una lectura con «p», otra con «po», y así hasta el final.
  */
 export function SoporteHistorialPage() {
   const [sujetoId, setSujetoId] = useState<string | null>(null);
   const [razon, setRazon] = useState("");
+  const [razonConfirmada, setRazonConfirmada] = useState("");
   const [hiloAbierto, setHiloAbierto] = useState<string | null>(null);
-  const razonValida = razon.trim().length > 0;
+  const razonValida = razonConfirmada.length > 0;
 
   const personas = useQuery({
     queryKey: ["asistente", "soporte-historial", "personas"],
@@ -37,14 +43,14 @@ export function SoporteHistorialPage() {
   });
 
   const conversaciones = useQuery({
-    queryKey: ["asistente", "soporte-historial", "listar", sujetoId, razon],
-    queryFn: () => listarHistorialDeSoporte(sujetoId ?? "", razon),
+    queryKey: ["asistente", "soporte-historial", "listar", sujetoId, razonConfirmada],
+    queryFn: () => listarHistorialDeSoporte(sujetoId ?? "", razonConfirmada),
     enabled: Boolean(sujetoId) && razonValida,
   });
 
   const detalle = useQuery({
-    queryKey: ["asistente", "soporte-historial", "leer", sujetoId, hiloAbierto, razon],
-    queryFn: () => leerHistorialDeSoporte(sujetoId ?? "", hiloAbierto ?? "", razon),
+    queryKey: ["asistente", "soporte-historial", "leer", sujetoId, hiloAbierto, razonConfirmada],
+    queryFn: () => leerHistorialDeSoporte(sujetoId ?? "", hiloAbierto ?? "", razonConfirmada),
     enabled: Boolean(sujetoId) && Boolean(hiloAbierto) && razonValida,
   });
 
@@ -55,7 +61,13 @@ export function SoporteHistorialPage() {
 
   function cambiarRazon(valor: string) {
     setRazon(valor);
+    setRazonConfirmada("");
     setHiloAbierto(null);
+  }
+
+  function confirmarRazon(evento: FormEvent) {
+    evento.preventDefault();
+    setRazonConfirmada(razon.trim());
   }
 
   return (
@@ -73,17 +85,23 @@ export function SoporteHistorialPage() {
           onSeleccionar={elegirSujeto}
         />
 
-        <Input
-          value={razon}
-          onChange={(e) => cambiarRazon(e.target.value)}
-          placeholder="¿Por qué necesitás ver este historial?"
-          aria-label="Razón del acceso"
-        />
+        <form className="adoc-asistente-soporte-razon" onSubmit={confirmarRazon}>
+          <Input
+            value={razon}
+            onChange={(e) => cambiarRazon(e.target.value)}
+            placeholder="¿Por qué necesitás ver este historial?"
+            aria-label="Razón del acceso"
+          />
+          <Button type="submit" variant="secondary" disabled={razon.trim().length === 0}>
+            Ver historial
+          </Button>
+        </form>
       </div>
 
       {sujetoId && !razonValida && (
         <p className="adoc-asistente-soporte-sin-razon">
-          Ingresá una razón para listar o abrir el historial de esta persona.
+          Ingresá una razón y elegí «Ver historial» para listar o abrir el historial de esta
+          persona.
         </p>
       )}
 

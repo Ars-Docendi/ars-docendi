@@ -346,7 +346,9 @@ perderlo en `<body>`, porque la fila o el formulario que tenía el foco se desmo
 mecanismo que ya protege `/designaciones/periodos`—, así que sin el permiso no hay ítem de
 navegación y la ruta ni resuelve. La pantalla: un buscador de personas (reusa el endpoint real de
 administración de usuarios, no un buscador nuevo) para elegir a quién, un campo de razón
-obligatorio, y recién con los dos la lista de sus conversaciones y, al abrir una, su detalle. El
+obligatorio que se confirma con «Ver historial» (o Enter) —cada lectura queda auditada con su
+razón, así que escribirla no lee nada—, y recién con los dos la lista de sus conversaciones y, al
+abrir una, su detalle. El
 detalle muestra pregunta, consulta (siempre, sin el gate de `asistente.ver_consulta` — el permiso
 de soporte ya es el de diagnóstico), desenlace y momento — **nunca** una fila de resultado ni un
 botón de «Volver a consultar»: esa acción no existe para el historial ajeno, ni por soporte ni por

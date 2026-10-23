@@ -1776,6 +1776,16 @@
   gap: var(--space-3);
 }
 
+.adoc-asistente-soporte-razon {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.adoc-asistente-soporte-razon > :first-child {
+  flex: 1;
+}
+
 .adoc-asistente-soporte-selector {
   display: flex;
   flex-direction: column;

@@ -131,14 +131,13 @@ describe("La razón es obligatoria (tasks.md 13.2)", () => {
 
     await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
     expect(listar).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Ingresá una razón para listar o abrir el historial de esta persona."),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Ingresá una razón y elegí «Ver historial»/)).toBeInTheDocument();
 
     await user.type(
       screen.getByLabelText("Razón del acceso"),
       "El usuario reportó una respuesta incorrecta",
     );
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
 
     await waitFor(() =>
       expect(listar).toHaveBeenCalledWith(
@@ -147,6 +146,25 @@ describe("La razón es obligatoria (tasks.md 13.2)", () => {
       ),
     );
     expect(await screen.findByText(CONVERSACION_AJENA.titulo)).toBeInTheDocument();
+  });
+
+  it("escribir la razón no lee nada: se lee una sola vez, con la razón confirmada", async () => {
+    // Cada lectura queda auditada con su razón: una por tecla dejaba en la
+    // auditoría razones truncadas («E», «El», «El u»…).
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
+    const listar = vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([]);
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    expect(listar).not.toHaveBeenCalled();
+
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
+    expect(listar).toHaveBeenCalledWith(PERSONA.id, "Reviso un reclamo");
   });
 });
 
@@ -169,6 +187,7 @@ describe("Sólo pregunta/SQL/desenlace/momentos, nada de filas ni re-ejecución 
 
     await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
     await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
     await user.click(await screen.findByRole("button", { name: CONVERSACION_AJENA.titulo }));
 
     const detalle = await screen.findByLabelText(
@@ -208,6 +227,7 @@ describe("Marcas «Archivada» / «Pendiente de borrado» (tasks.md 3.5)", () =>
 
     await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
     await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
 
     expect(await screen.findByText("Archivada")).toBeInTheDocument();
     expect(screen.queryByText("Pendiente de borrado")).toBeNull();
@@ -231,6 +251,7 @@ describe("Marcas «Archivada» / «Pendiente de borrado» (tasks.md 3.5)", () =>
 
     await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
     await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
 
     expect(await screen.findByText("Pendiente de borrado")).toBeInTheDocument();
     expect(screen.queryByText("Archivada")).toBeNull();
