@@ -66,11 +66,22 @@ describe("La ruta, sin el permiso (tasks.md 13.1)", () => {
       expect(screen.queryByText("Historial del asistente (soporte)")).not.toBeInTheDocument(),
     );
   });
+
+  it("con el permiso de soporte pero sin usuarios.ver tampoco resuelve: no habría a quién elegir", async () => {
+    conUsuario(["asistente.leer_historial_ajeno"]);
+    const buscar = vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([]);
+
+    montarConRouter("/asistente/soporte-historial");
+
+    expect(await screen.findByText("Inicio")).toBeInTheDocument();
+    expect(screen.queryByText("Historial del asistente (soporte)")).not.toBeInTheDocument();
+    expect(buscar).not.toHaveBeenCalled();
+  });
 });
 
 describe("La ruta, con el permiso (tasks.md 13.1)", () => {
   it("la pantalla se monta", async () => {
-    conUsuario(["asistente.leer_historial_ajeno"]);
+    conUsuario(["asistente.leer_historial_ajeno", "usuarios.ver"]);
     vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([]);
 
     montarConRouter("/asistente/soporte-historial");

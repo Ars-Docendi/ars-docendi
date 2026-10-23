@@ -342,9 +342,10 @@ renombrar además devuelven el foco al contenedor del cajón (con `tabIndex={-1}
 perderlo en `<body>`, porque la fila o el formulario que tenía el foco se desmonta con la acción.
 
 **Pantalla de soporte, en su propia ruta.** `/asistente/soporte-historial` (permiso
-`asistente.leer_historial_ajeno`, sembrado a NINGÚN rol) reutiliza `RequirePermission` —mismo
-mecanismo que ya protege `/designaciones/periodos`—, así que sin el permiso no hay ítem de
-navegación y la ruta ni resuelve. La pantalla: un buscador de personas (reusa el endpoint real de
+`asistente.leer_historial_ajeno`, sembrado a NINGÚN rol, y además `usuarios.ver`, que exige el
+listado de personas del selector) reutiliza `RequirePermission` —mismo mecanismo que ya protege
+`/designaciones/periodos`—, así que sin los dos permisos no hay ítem de navegación y la ruta ni
+resuelve. La pantalla: un buscador de personas (reusa el endpoint real de
 administración de usuarios, no un buscador nuevo) para elegir a quién, un campo de razón
 obligatorio que se confirma con «Ver historial» (o Enter) —cada lectura queda auditada con su
 razón, así que escribirla no lee nada—, y recién con los dos la lista de sus conversaciones y, al

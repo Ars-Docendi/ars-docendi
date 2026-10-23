@@ -10,6 +10,11 @@ export interface NavItem {
    * sistema-seccion-unificada). El ítem «Sistema» es el primer caso real.
    */
   permiso: string | readonly string[];
+  /**
+   * Permisos que el ítem exige TODOS, además de `permiso`: para una pantalla
+   * que necesita dos permisos a la vez para ser usable.
+   */
+  ademas?: readonly string[];
   children?: NavItem[];
 }
 
@@ -86,8 +91,11 @@ export const NAVEGACION: NavGroup[] = [
         // sin el permiso, este ítem no aparece, y sin el ítem no hay cómo llegar a la
         // ruta desde la navegación —la ruta en sí también la protege
         // `RequirePermission` (ver features/asistente/routes.tsx), así que escribir la
-        // URL a mano tampoco alcanza.
+        // URL a mano tampoco alcanza. `usuarios.ver` también hace falta: el
+        // selector de sujeto lee el listado de usuarios, que el backend protege
+        // con ese permiso.
         permiso: "asistente.leer_historial_ajeno",
+        ademas: ["usuarios.ver"],
       },
       // «Uso del asistente» ya no es un ítem propio: sistema-seccion-unificada
       // (ARS-154) lo absorbe en la pestaña Asistente del ítem «Sistema» de
@@ -106,6 +114,9 @@ export function filtrarNavegacion(permisos: readonly string[]): NavGroup[] {
   const efectivos = new Set(permisos);
   return NAVEGACION.map((grupo) => ({
     ...grupo,
-    items: grupo.items.filter((item) => tienePermiso(efectivos, item.permiso)),
+    items: grupo.items.filter(
+      (item) =>
+        tienePermiso(efectivos, item.permiso) && (item.ademas ?? []).every((p) => efectivos.has(p)),
+    ),
   })).filter((grupo) => grupo.items.length > 0);
 }

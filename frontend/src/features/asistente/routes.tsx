@@ -16,6 +16,10 @@ import { SoporteHistorialPage } from "./pages/SoporteHistorialPage";
  * es una lectura de OTRA persona, así que además del gate del backend en cada
  * endpoint (§9), la ruta misma no resuelve sin el permiso — no hay elemento que
  * montar, y por eso tasks.md 13.1 la pide «sin match de ruta» y no sólo sin link.
+ * Exige además `usuarios.ver`: el selector de sujeto lee
+ * `GET /api/administracion/usuarios`, que el backend protege con ese permiso, y
+ * sin él la pantalla se montaría sin nadie a quién elegir. Los dos `RequirePermission`
+ * anidados piden AMBOS (cada uno, por sí solo, es any-of).
  *
  * `administracion` sigue el MISMO criterio (asistente-administracion-de-uso,
  * tasks.md 11.1): editar presupuestos y el kill switch es una acción
@@ -34,7 +38,12 @@ export const routes: RouteObject = {
     { index: true, element: <Navigate to="/portal?asistente=abrir" replace /> },
     {
       element: <RequirePermission permission="asistente.leer_historial_ajeno" />,
-      children: [{ path: "soporte-historial", element: <SoporteHistorialPage /> }],
+      children: [
+        {
+          element: <RequirePermission permission="usuarios.ver" />,
+          children: [{ path: "soporte-historial", element: <SoporteHistorialPage /> }],
+        },
+      ],
     },
     {
       element: <RequirePermission permission="asistente.administrar" />,

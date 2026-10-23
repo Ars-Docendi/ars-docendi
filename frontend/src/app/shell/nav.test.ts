@@ -48,3 +48,24 @@ describe("El ítem «Sistema» (any-of sistema.estado.ver | asistente.administra
     expect(items.some((item) => item.label === "Uso del asistente")).toBe(false);
   });
 });
+
+describe("El ítem «Historial del asistente» (asistente.leer_historial_ajeno y usuarios.ver)", () => {
+  const etiqueta = "Historial del asistente";
+
+  it.each([[["asistente.leer_historial_ajeno"]], [["usuarios.ver"]]])(
+    "no aparece con sólo %j",
+    (permisos) => {
+      const items = filtrarNavegacion(permisos).flatMap((g) => g.items);
+
+      expect(items.some((item) => item.label === etiqueta)).toBe(false);
+    },
+  );
+
+  it("aparece con los dos", () => {
+    const items = filtrarNavegacion(["asistente.leer_historial_ajeno", "usuarios.ver"]).flatMap(
+      (g) => g.items,
+    );
+
+    expect(items.find((item) => item.label === etiqueta)?.to).toBe("/asistente/soporte-historial");
+  });
+});
