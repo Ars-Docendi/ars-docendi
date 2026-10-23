@@ -312,6 +312,37 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Un_cliente_que_se_va_despues_de_la_llamada_no_se_saltea_el_registro()
+    {
+        // La cuota se deriva de registro_operativo: si el token cancelado del
+        // request cortaba la escritura de la fila, irse a mitad del turno era una
+        // forma de consultar sin que el cupo lo contara.
+        await SembrarAsync();
+        var (basica, pii) = CadenasDeLectura();
+        using var fuente = new CancellationTokenSource();
+        var registro = new RegistroQueRespetaLaCancelacion();
+        var banco = BancoDelAsistente.Armar(
+            basica,
+            pii,
+            ClasificadorDeSensibilidad(),
+            Apertura,
+            new OpcionesAsistente(),
+            reloj: new RelojFijo(Ancla),
+            proveedor: new ProveedorGuionado(ProveedorGuionado.Generacion(ContarDocentes))
+            {
+                Antes = fuente.Cancel,
+            },
+            registro: registro);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            banco.Capa().ResponderAsync(
+                Secretaria, null, "¿cuántos docentes están designados?", fuente.Token));
+
+        var fila = Assert.Single(registro.Turnos);
+        Assert.Equal(1, fila.LlamadasAlModelo);
+    }
+
+    [Fact]
     public async Task Un_presupuesto_en_cero_deja_el_turno_sin_cota()
     {
         await SembrarAsync();
@@ -561,6 +592,21 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     }
 
     // ------------------------------------------------------------------ apoyo
+
+    /// <summary>Como el registro real: con el token cancelado, no escribe.</summary>
+    private sealed class RegistroQueRespetaLaCancelacion : IRegistroDelTurno
+    {
+        private readonly List<TurnoParaRegistrar> _turnos = [];
+
+        public IReadOnlyList<TurnoParaRegistrar> Turnos => _turnos;
+
+        public Task RegistrarAsync(TurnoParaRegistrar turno, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            _turnos.Add(turno);
+            return Task.CompletedTask;
+        }
+    }
 
     private BancoDelAsistente Banco(
         OpcionesAsistente configuracion,

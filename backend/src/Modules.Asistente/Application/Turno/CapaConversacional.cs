@@ -190,7 +190,7 @@ public sealed class CapaConversacional(
             log.LogInformation("Turno del asistente resuelto para el actor {ActorId}.", actor);
 
             await RegistrarAsync(
-                actor, conversacion, mensaje, turno, arranco, ct,
+                actor, conversacion, mensaje, turno, arranco, CancellationToken.None,
                 claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado, mencionesNuevas);
 
             resultado = turno;
@@ -205,7 +205,7 @@ public sealed class CapaConversacional(
 
             var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
             await RegistrarAsync(
-                actor, conversacion, mensaje, turno, arranco, ct,
+                actor, conversacion, mensaje, turno, arranco, CancellationToken.None,
                 claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado, mencionesNuevas);
 
             resultado = turno;
@@ -233,7 +233,7 @@ public sealed class CapaConversacional(
 
             await RegistrarAsync(
                 actor, conversacion, mensaje, FabricasDelResultado.Caido(conversacion, contador.Llamadas),
-                arranco, ct, claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes,
+                arranco, CancellationToken.None, claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes,
                 mencionesNuevas: mencionesNuevas);
 
             throw;
@@ -260,9 +260,14 @@ public sealed class CapaConversacional(
             // fila (asistente-administracion-de-uso)—, así que decidir SI corresponde
             // cobrar es responsabilidad de este sitio de llamada, no de la
             // implementación de la cuota.
+            //
+            // Ni el registro de arriba ni esta contabilidad usan el token del
+            // request: un cliente que se va DESPUÉS de la llamada al modelo no
+            // puede saltearse el cobro. La cuota se deriva de registro_operativo,
+            // así que una fila que no se escribe es un turno que no se cobra.
             if (contador.Llamadas > 0)
             {
-                await cuota.AnotarAsync(actor, ct);
+                await cuota.AnotarAsync(actor, CancellationToken.None);
 
                 // Mismo guard y mismo sitio que la cuota, por el mismo D4: si
                 // no hubo llamada al modelo, no hay tokens que costear.
@@ -272,7 +277,7 @@ public sealed class CapaConversacional(
                     contador.TokensDeEntrada,
                     contador.TokensDeSalida,
                     contador.TokensDeCache,
-                    ct);
+                    CancellationToken.None);
             }
         }
 
