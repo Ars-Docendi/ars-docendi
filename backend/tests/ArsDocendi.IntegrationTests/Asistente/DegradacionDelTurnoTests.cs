@@ -303,7 +303,7 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
         await SembrarAsync();
         var banco = Banco(new OpcionesAsistente());
 
-        var fuente = new CancellationTokenSource();
+        using var fuente = new CancellationTokenSource();
         await fuente.CancelAsync();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
