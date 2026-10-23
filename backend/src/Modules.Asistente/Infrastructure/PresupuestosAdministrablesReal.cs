@@ -47,17 +47,7 @@ internal sealed class PresupuestosAdministrablesReal(
         await conexion.OpenAsync(ct);
         await using var transaccion = await conexion.BeginTransactionAsync(ct);
 
-        // Serializa las ediciones del mismo actor: sin esto, dos simultáneas
-        // cierran la misma fila y abren una cada una, y el índice único de
-        // 008_asistente_presupuesto_usuario_vigente_unico.sql rechazaría la
-        // segunda con un 500. Con el lock, la segunda lee la fila de la primera.
-        await using (var serializar = new NpgsqlCommand(
-            "SELECT pg_advisory_xact_lock(hashtextextended('asistente.presupuesto_usuario:' || @actor::text, 0))",
-            conexion, transaccion))
-        {
-            serializar.Parameters.AddWithValue("actor", actor);
-            await serializar.ExecuteNonQueryAsync(ct);
-        }
+        await SerializarPorActorAsync(conexion, transaccion, actor, ct);
 
         await using var leer = new NpgsqlCommand(
             """
@@ -100,6 +90,9 @@ internal sealed class PresupuestosAdministrablesReal(
     {
         await using var conexion = new NpgsqlConnection(cadena.Valor);
         await conexion.OpenAsync(ct);
+        await using var transaccion = await conexion.BeginTransactionAsync(ct);
+
+        await SerializarPorActorAsync(conexion, transaccion, actor, ct);
 
         // Cierra la vigencia sin abrir otra (D5): la historia del override
         // queda entera y el actor vuelve a heredar el cupo de su rol.
@@ -109,11 +102,36 @@ internal sealed class PresupuestosAdministrablesReal(
                SET vigente_hasta = @ahora
              WHERE actor_id = @actor AND vigente_hasta IS NULL
             RETURNING cupo_diario_turnos
-            """, conexion);
+            """, conexion, transaccion);
         cerrar.Parameters.AddWithValue("actor", actor);
         cerrar.Parameters.AddWithValue("ahora", reloj.GetUtcNow());
 
-        return await cerrar.ExecuteScalarAsync(ct) is int antes ? antes : null;
+        var antes = await cerrar.ExecuteScalarAsync(ct) is int valor ? valor : (int?)null;
+        await transaccion.CommitAsync(ct);
+
+        return antes;
+    }
+
+    /// <summary>
+    /// Serializa las escrituras de <c>presupuesto_usuario</c> de un mismo actor
+    /// hasta que termine la transacción.
+    /// </summary>
+    /// <remarks>
+    /// Sin esto, dos ediciones simultáneas cierran la misma fila y abren una cada
+    /// una, y el índice único de
+    /// 008_asistente_presupuesto_usuario_vigente_unico.sql rechazaría la segunda
+    /// con un 500. Y un restablecimiento que corre durante una edición espera por
+    /// la fila vieja, no ve la nueva y la deja vigente. Con el lock, cada
+    /// operación lee lo que dejó la anterior.
+    /// </remarks>
+    private static async Task SerializarPorActorAsync(
+        NpgsqlConnection conexion, NpgsqlTransaction transaccion, Guid actor, CancellationToken ct)
+    {
+        await using var serializar = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(hashtextextended('asistente.presupuesto_usuario:' || @actor::text, 0))",
+            conexion, transaccion);
+        serializar.Parameters.AddWithValue("actor", actor);
+        await serializar.ExecuteNonQueryAsync(ct);
     }
 
     public async Task<(bool Antes, bool Despues)> EditarAccesoDeRolAsync(

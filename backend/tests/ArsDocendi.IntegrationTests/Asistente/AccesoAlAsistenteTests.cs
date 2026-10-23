@@ -122,6 +122,33 @@ public sealed class AccesoAlAsistenteTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Restablecer_el_cupo_propio_espera_a_la_edicion_en_curso_del_mismo_actor()
+    {
+        // Sin el mismo lock, un restablecimiento durante una edición espera por la
+        // fila vieja, no ve la nueva y la deja vigente.
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        await Presupuestos().EditarOverrideDeUsuarioAsync(Secretaria, 60, ct);
+
+        await using var edicion = await AbrirConexionAsync();
+        await using var transaccion = await edicion.BeginTransactionAsync(ct);
+        await using (var tomar = new NpgsqlCommand(
+            "SELECT pg_advisory_xact_lock(hashtextextended('asistente.presupuesto_usuario:' || @actor::text, 0))",
+            edicion, transaccion))
+        {
+            tomar.Parameters.AddWithValue("actor", Secretaria);
+            await tomar.ExecuteNonQueryAsync(ct);
+        }
+
+        var restablecer = Presupuestos().RestablecerOverrideDeUsuarioAsync(Secretaria, ct);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        Assert.False(restablecer.IsCompleted);
+
+        await transaccion.CommitAsync(ct);
+        Assert.Equal(60, await restablecer);
+    }
+
+    [Fact]
     public async Task Sin_acceso_el_turno_no_llama_al_modelo_ni_para_saludar()
     {
         await SembrarAsync();
