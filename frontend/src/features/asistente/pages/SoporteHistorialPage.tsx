@@ -29,6 +29,11 @@ import "../asistente.css";
  * razón, así que las consultas dependen de la razón confirmada con «Ver
  * historial» y no de cada tecla. Si no, escribir «porque falla» dejaba en la
  * auditoría una lectura con «p», otra con «po», y así hasta el final.
+ *
+ * Por la misma razón, ninguna de las dos lecturas se repite sola al volver el
+ * foco a la ventana o al reconectar: cada repetición sería otra fila de
+ * auditoría que nadie pidió. Sí se repite al volver a confirmar, porque ahí
+ * hay una lectura nueva que registrar.
  */
 export function SoporteHistorialPage() {
   const [sujetoId, setSujetoId] = useState<string | null>(null);
@@ -46,16 +51,23 @@ export function SoporteHistorialPage() {
     queryKey: ["asistente", "soporte-historial", "listar", sujetoId, razonConfirmada],
     queryFn: () => listarHistorialDeSoporte(sujetoId ?? "", razonConfirmada),
     enabled: Boolean(sujetoId) && razonValida,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const detalle = useQuery({
     queryKey: ["asistente", "soporte-historial", "leer", sujetoId, hiloAbierto, razonConfirmada],
     queryFn: () => leerHistorialDeSoporte(sujetoId ?? "", hiloAbierto ?? "", razonConfirmada),
     enabled: Boolean(sujetoId) && Boolean(hiloAbierto) && razonValida,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
+  // La razón se confirma para UNA persona: cambiar de persona pide volver a
+  // confirmarla, o se leería el historial de otra con una razón ajena.
   function elegirSujeto(id: string) {
     setSujetoId(id);
+    setRazonConfirmada("");
     setHiloAbierto(null);
   }
 

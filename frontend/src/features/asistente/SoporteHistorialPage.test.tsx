@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 
 import { routes } from "./routes";
@@ -165,6 +165,53 @@ describe("La razón es obligatoria (tasks.md 13.2)", () => {
 
     await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
     expect(listar).toHaveBeenCalledWith(PERSONA.id, "Reviso un reclamo");
+  });
+});
+
+describe("La razón confirmada no se reutiliza ni se repite sola", () => {
+  const OTRA_PERSONA: PersonaParaSoporte = {
+    id: "99999999-9999-4999-8999-999999999999",
+    nombre: "Julián",
+    apellido: "Rey",
+    documento: "28111222",
+  };
+
+  it("cambiar de persona pide volver a confirmar: no lee a la otra con una razón ajena", async () => {
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA, OTRA_PERSONA]);
+    const listar = vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([]);
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
+    await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
+
+    await user.click(screen.getByRole("button", { name: /Rey, Julián/ }));
+
+    expect(listar).toHaveBeenCalledTimes(1);
+    expect(listar).not.toHaveBeenCalledWith(OTRA_PERSONA.id, expect.anything());
+  });
+
+  it("volver el foco a la ventana no repite la lectura auditada", async () => {
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
+    const listar = vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([]);
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
+    await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
+
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    focusManager.setFocused(undefined);
+
+    await new Promise((resolver) => setTimeout(resolver, 50));
+    expect(listar).toHaveBeenCalledTimes(1);
   });
 });
 
