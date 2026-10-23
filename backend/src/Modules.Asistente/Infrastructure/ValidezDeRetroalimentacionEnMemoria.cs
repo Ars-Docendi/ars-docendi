@@ -25,6 +25,17 @@ internal sealed class ValidezDeRetroalimentacionEnMemoria(IOptions<OpcionesAsist
 
     public void Registrar(Guid token, DateTimeOffset mintedAt)
     {
+        // La purga al escribir: un token que nadie vuelve a consultar nunca pasa
+        // por EsVigente, y sin esto quedaría para siempre.
+        var vigencia = TimeSpan.FromMinutes(opciones.Value.VigenciaDeRetroalimentacionMinutos);
+        foreach (var (vencido, minted) in _mintedAt)
+        {
+            if (mintedAt - minted > vigencia)
+            {
+                _mintedAt.TryRemove(vencido, out _);
+            }
+        }
+
         _mintedAt[token] = mintedAt;
     }
 

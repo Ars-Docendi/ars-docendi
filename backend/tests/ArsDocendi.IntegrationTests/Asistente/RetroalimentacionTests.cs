@@ -90,6 +90,22 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
         Assert.Null(sinToken.ClaveDeRetroalimentacion);
     }
 
+    [Fact]
+    public void Registrar_purga_los_tokens_vencidos_que_nadie_volvio_a_consultar()
+    {
+        var validez = new ValidezDeRetroalimentacionEnMemoria(Options.Create(new OpcionesAsistente()));
+        var vigencia = TimeSpan.FromMinutes(new OpcionesAsistente().VigenciaDeRetroalimentacionMinutos);
+        var origen = new DateTimeOffset(2026, 10, 23, 12, 0, 0, TimeSpan.Zero);
+        var olvidado = Guid.NewGuid();
+        validez.Registrar(olvidado, origen);
+
+        validez.Registrar(Guid.NewGuid(), origen + vigencia + TimeSpan.FromMinutes(1));
+
+        // Consultado con el reloj de cuando se emitió, seguiría vigente si la
+        // entrada siguiera ahí: que no lo esté prueba que se purgó.
+        Assert.False(validez.EsVigente(olvidado, origen));
+    }
+
     // -------------------------------------------------------- the endpoint (3.x)
 
     [Fact]
