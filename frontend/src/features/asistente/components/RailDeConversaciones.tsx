@@ -66,8 +66,8 @@ export function RailDeConversaciones({
   const { conversaciones, busqueda, setBusqueda, conversacionActivaId, aviso } = historial;
   const lista = conversaciones.data ?? [];
   const conBusqueda = busqueda.trim().length > 0;
-  const activas = conBusqueda ? lista : lista.filter((c) => !c.archivada);
-  const archivadas = conBusqueda ? [] : lista.filter((c) => c.archivada);
+  const activas = conBusqueda ? lista : lista.filter((conversacion) => !conversacion.archivada);
+  const archivadas = conBusqueda ? [] : lista.filter((conversacion) => conversacion.archivada);
   const grupos = agruparPorFecha(activas);
 
   // FOCO AL CONTROL VISIBLE EN EL NUEVO ESTADO, NUNCA AL DOCUMENTO

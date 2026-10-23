@@ -150,9 +150,11 @@ export function PanelDeUso({
 
   const esUsuarios = pestana === "usuarios";
   const filas = esUsuarios ? uso.porUsuario : uso.porRol;
-  const q = busqueda.trim().toLowerCase();
-  const filtradas = q
-    ? filas.filter((f) => (f.nombreParaMostrar ?? f.clave).toLowerCase().includes(q))
+  const textoBuscado = busqueda.trim().toLowerCase();
+  const filtradas = textoBuscado
+    ? filas.filter((fila) =>
+        (fila.nombreParaMostrar ?? fila.clave).toLowerCase().includes(textoBuscado),
+      )
     : filas;
   const ordenadas = [...filtradas].sort((a, b) => {
     const diferencia = valorDeMetrica(b, metrica) - valorDeMetrica(a, metrica);

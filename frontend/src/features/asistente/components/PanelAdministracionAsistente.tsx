@@ -174,7 +174,7 @@ export function PanelAdministracionAsistente({ actualizacion }: PanelAdministrac
     descargarArchivo(nombreDeArchivoDeUso(periodo), csv, "text/csv;charset=utf-8");
   }
 
-  const usuariosActivos = uso.data?.porUsuario.filter((f) => f.turnos > 0).length;
+  const usuariosActivos = uso.data?.porUsuario.filter((fila) => fila.turnos > 0).length;
 
   return (
     <div className="adoc-asistente-administracion">
