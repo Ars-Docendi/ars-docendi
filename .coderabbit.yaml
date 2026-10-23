@@ -3,5 +3,4 @@
 inheritance: true
 reviews:
   path_filters:
-    - "backend/src/**"
-    - "database/**"
+    - "frontend/**"
