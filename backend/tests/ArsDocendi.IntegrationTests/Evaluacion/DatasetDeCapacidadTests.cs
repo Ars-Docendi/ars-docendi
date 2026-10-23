@@ -265,6 +265,21 @@ public sealed class DatasetDeCapacidadTests
         Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("consulta_simpel", "global", "categoría")]
+    [InlineData("consulta_simple", "rector", "actor")]
+    public void Un_item_fuera_de_las_listas_cerradas_se_rechaza(string categoria, string actor, string campo)
+    {
+        var excepcion = Assert.Throws<InvalidOperationException>(
+            () => DatasetDeCapacidad.Interpretar(
+                $$"""
+                {"items":[{"id":"x-1","pregunta":"a","categoria":"{{categoria}}","actor":"{{actor}}","sql_referencia":"SELECT 1"}]}
+                """));
+
+        Assert.Contains("x-1", excepcion.Message, StringComparison.Ordinal);
+        Assert.Contains(campo, excepcion.Message, StringComparison.Ordinal);
+    }
+
     // ---------------------- motivos_aceptables (asistente-rechazos-dinamicos, D10)
 
     [Fact]

@@ -195,6 +195,20 @@ public sealed class DatasetDeCapacidad
 
         foreach (var item in items)
         {
+            // Listas cerradas: un valor fuera de ellas no rompería la corrida, pero
+            // el ítem caería en una categoría o un actor que ningún reporte agrupa.
+            if (!CategoriaDeItem.Todas.Contains(item.Categoria))
+            {
+                throw new InvalidOperationException(
+                    $"El ítem '{item.Id}' tiene una categoría desconocida: '{item.Categoria}'.");
+            }
+
+            if (!ActorDeItem.Todos.Contains(item.Actor))
+            {
+                throw new InvalidOperationException(
+                    $"El ítem '{item.Id}' tiene un actor desconocido: '{item.Actor}'.");
+            }
+
             ValidarMotivosAceptables(item);
         }
 
