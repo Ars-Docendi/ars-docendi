@@ -14,6 +14,9 @@ namespace Modules.Asistente.Application;
 /// </remarks>
 internal static class PoliticaDeAbstencion
 {
+    private static readonly TimeZoneInfo ZonaDeLaInstitucion =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Argentina/Buenos_Aires");
+
     /// <summary>
     /// Si para este actor, <b>en esta consulta</b>, cero filas significa que no hay
     /// filas.
@@ -293,10 +296,13 @@ internal static class PoliticaDeAbstencion
     /// sistema <b>sabe</b> exactamente cuándo vuelve el cupo, y callárselo deja a
     /// quien pregunta reintentando a ciegas contra algo que no se va a destrabar
     /// hasta una hora fija.
+    ///
+    /// La hora se muestra en la zona de la institución y no en la del proceso:
+    /// el contenedor corre en UTC y «a las 17:00» sería, para quien lee, las 14.
     /// </remarks>
     public static string TextoCuotaAgotada(DateTimeOffset? vuelveA) => vuelveA is { } cuando
         ? "Alcanzaste tu límite de consultas por ahora. Volvés a tener disponibles a las "
-            + $"{cuando.ToLocalTime():HH:mm}."
+            + $"{TimeZoneInfo.ConvertTime(cuando, ZonaDeLaInstitucion):HH:mm}."
         : "Alcanzaste tu límite de consultas por ahora. Probá de nuevo más tarde.";
 
     /// <summary>

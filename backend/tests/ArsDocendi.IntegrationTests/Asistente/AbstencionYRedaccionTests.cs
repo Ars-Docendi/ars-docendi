@@ -14,6 +14,19 @@ namespace ArsDocendi.IntegrationTests.Asistente;
 /// </remarks>
 public sealed class AbstencionYRedaccionTests
 {
+    // ------------------------------------------------------ cuota agotada
+
+    [Fact]
+    public void La_hora_de_regreso_del_cupo_se_muestra_en_la_zona_de_la_institucion()
+    {
+        // 20:00 UTC son las 17:00 en Buenos Aires (UTC-3, sin horario de verano),
+        // sea cual sea la zona del proceso.
+        var texto = PoliticaDeAbstencion.TextoCuotaAgotada(
+            new DateTimeOffset(2026, 10, 23, 20, 0, 0, TimeSpan.Zero));
+
+        Assert.EndsWith("a las 17:00.", texto, StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------ guard de vacío
 
     /// <summary>Qué cuenta como resultado vacío y qué no.</summary>
