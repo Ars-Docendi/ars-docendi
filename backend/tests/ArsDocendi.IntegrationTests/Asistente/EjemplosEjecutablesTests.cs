@@ -45,6 +45,7 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
                 // Se recorre entero: un error de tipo aparece al leer, no al abrir.
                 while (await lector.ReadAsync(TestContext.Current.CancellationToken))
                 {
+                    // Nada que hacer con la fila: sólo importa que se pueda leer.
                 }
             }
             catch (PostgresException error)

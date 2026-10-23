@@ -97,10 +97,11 @@ public sealed class AdministracionDeUsoMigracionTests(PostgresFixture postgres)
     {
         await using var conexion = await AbrirConexionAsync();
 
+        await using var comando = new NpgsqlCommand(
+            "INSERT INTO asistente.modo_mantenimiento (id, activo, actualizado_en) VALUES (2, false, now())",
+            conexion);
         var error = await Assert.ThrowsAsync<PostgresException>(() =>
-            new NpgsqlCommand(
-                "INSERT INTO asistente.modo_mantenimiento (id, activo, actualizado_en) VALUES (2, false, now())",
-                conexion).ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+            comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
 
         // check_violation: el CHECK id = 1 es lo que impide una segunda fila.
         Assert.Equal("23514", error.SqlState);
