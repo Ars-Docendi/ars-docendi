@@ -77,8 +77,14 @@ export function SoporteHistorialPage() {
     setHiloAbierto(null);
   }
 
+  // Mientras una lectura está en curso no se acepta otra confirmación: el
+  // refetch reutilizaría esa misma solicitud y la confirmación quedaría sin
+  // su lectura (y sin su fila de auditoría).
+  const leyendo = conversaciones.isFetching || detalle.isFetching;
+
   function confirmarRazon(evento: FormEvent) {
     evento.preventDefault();
+    if (leyendo) return;
     const confirmada = razon.trim();
     setRazonConfirmada(confirmada);
     // Misma razón, misma clave: sin pedirla de nuevo, volver a confirmar no
@@ -111,7 +117,7 @@ export function SoporteHistorialPage() {
             placeholder="¿Por qué necesitás ver este historial?"
             aria-label="Razón del acceso"
           />
-          <Button type="submit" variant="secondary" disabled={razon.trim().length === 0}>
+          <Button type="submit" variant="secondary" disabled={razon.trim().length === 0 || leyendo}>
             Ver historial
           </Button>
         </form>

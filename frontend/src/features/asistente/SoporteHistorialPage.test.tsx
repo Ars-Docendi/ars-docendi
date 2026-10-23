@@ -211,6 +211,31 @@ describe("La razón confirmada no se reutiliza ni se repite sola", () => {
     await waitFor(() => expect(listar).toHaveBeenCalledTimes(2));
   });
 
+  it("mientras la primera lectura está en curso no acepta otra confirmación", async () => {
+    vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
+    let responder: (valor: never[]) => void = () => undefined;
+    const listar = vi
+      .spyOn(soporteApi, "listarHistorialDeSoporte")
+      .mockImplementation(() => new Promise((resolver) => (responder = resolver)));
+    const user = userEvent.setup();
+
+    montarPagina(<SoporteHistorialPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Díaz, Marina/ }));
+    await user.type(screen.getByLabelText("Razón del acceso"), "Reviso un reclamo");
+    await user.click(screen.getByRole("button", { name: "Ver historial" }));
+    await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
+
+    expect(screen.getByRole("button", { name: "Ver historial" })).toBeDisabled();
+    await user.keyboard("{Enter}");
+    expect(listar).toHaveBeenCalledTimes(1);
+
+    responder([]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Ver historial" })).toBeEnabled(),
+    );
+  });
+
   it("volver el foco a la ventana no repite la lectura auditada", async () => {
     vi.spyOn(soporteApi, "buscarPersonasParaSoporte").mockResolvedValue([PERSONA]);
     const listar = vi.spyOn(soporteApi, "listarHistorialDeSoporte").mockResolvedValue([]);
