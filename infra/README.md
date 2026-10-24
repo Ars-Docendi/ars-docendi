@@ -74,8 +74,8 @@ make down AMBIENTE=pr-123
 Pasos **manuales** para dejar cada host listo para que CI despliegue. Se hacen
 una vez por host, en orden; los pasos de previews se hacen sólo en Proxmox.
 La configuración de Cloudflare DNS/túneles y el registro de runners son
-responsabilidad exclusiva del operador, fuera del repositorio. El cambio temporal está descrito en
-`openspec/changes/deploy-dual-con-failover-temporal/`.
+responsabilidad exclusiva del operador, fuera del repositorio. La topología está en
+[docs/architecture/infrastructure.md](../docs/architecture/infrastructure.md).
 
 Orden de dependencias: redes → Postgres → Traefik → cloudflared → runners.
 Traefik debe estar arriba **antes** que cualquier ambiente (los rutea); y
@@ -408,7 +408,7 @@ Runbooks: [migraciones/persistencia](../docs/operations/migrations-persistence.m
 [scopes y gates](../docs/operations/github-pr-deploy.md).
 Las garantías, límites y comandos de ensayo están detallados allí.
 
-## Empaquetado de la app (resuelto en el change `containerizar-app`)
+## Empaquetado de la app
 
 El empaquetado que esta plataforma consume vive en el repo:
 

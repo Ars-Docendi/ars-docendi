@@ -41,8 +41,8 @@ Para cada criterio, asignar score 1-5 con justificación breve.
 #### Calidad de código (25%)
 
 - ¿Respeta layers (Controller → Service → Repository)?
-- ¿Respeta DAG (no referencias a `Internal/` de otros módulos)?
-- ¿Tests significativos, sin god classes?
+- ¿Respeta DAG (sin referencias a implementaciones `Modules.<Otro>`)?
+- ¿Tests significativos, sin god classes? ¿Sin tests redundantes ni de los que [golden-principles → Tests](../../../docs/quality/golden-principles.md#tests) excluye?
 
 #### Diseño / UX (20%)
 

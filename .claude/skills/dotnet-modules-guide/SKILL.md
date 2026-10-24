@@ -1,6 +1,6 @@
 ---
 name: dotnet-modules-guide
-description: Convenciones .NET para módulos backend de Ars Docendi — anatomía de módulo, contract-first cross-module, layer rules Controller → Service → Repository, registración en el Host, endpoint /api/{x}/ping obligatorio.
+description: Convenciones .NET para módulos backend de Ars Docendi — fronteras por Contracts, capas Controller → Service/Application → Repository, autorización por permiso, SQL versionado y endpoint /api/{x}/ping obligatorio.
 paths:
   - "backend/src/Modules.**"
   - "backend/src/ArsDocendi.Host/**"
@@ -10,105 +10,25 @@ user-invocable: false
 
 # .NET modules guide
 
-Path-scoped: se auto-activa al tocar paths backend del proyecto.
-
-## Layout de un módulo
-
-```
-backend/src/
-├── Modules.<X>/                  # INTERNO — implementación
-│   ├── Controllers/
-│   ├── Services/
-│   ├── Repositories/
-│   ├── Domain/{Entities,ValueObjects}/
-│   ├── Infrastructure/<X>DbContext.cs
-│   ├── Internal/                 # NO importable desde fuera
-│   └── ModuleRegistration.cs
-└── Modules.<X>.Contracts/        # PÚBLICO — única superficie cross-module
-    ├── DTOs/
-    ├── Interfaces/
-    └── Events/
-```
+Path-scoped: se auto-activa al tocar paths backend. La estructura vigente es la del código; esta guía sólo fija las reglas que el código no expresa. Antes de crear carpetas o archivos, imitá un módulo existente (`Modules.Portal` o `Modules.Tareas`) y leé [module-anatomy.md](../../../docs/architecture/module-anatomy.md).
 
 ## Reglas duras
 
-### Cross-module
+- **Fronteras**: `Modules.X` referencia sólo `ArsDocendi.Shared`, `ArsDocendi.Migraciones` y proyectos `*.Contracts`. Nunca otro `Modules.Y`. Los edges vigentes están en [dependency-graph.md](../../../docs/architecture/dependency-graph.md) y `ArquitecturaIdentityTests` los verifica.
+- **Contracts**: sólo DTOs, interfaces y tokens públicos; sin lógica ni I/O.
+- **Identity**: se lee mediante `IConsultasIdentity`; sólo la administración la escribe.
+- **Capas**: Controller (en `Api/`) → Service/Application → Repository → DbContext. Un controller nunca consulta un repositorio.
+- **Autorización**: `[Authorize(Policy = Permisos.<...>)]` por permiso efectivo. **Nunca** `[Authorize(Roles = ...)]`. Sólo los pings y las rutas de ingreso (`/api/auth/*`) son anónimas.
+- **Registro**: cada módulo expone `Add<Modulo>Module(IConfiguration)` en `ModuleExtensions.cs`, invocado desde `ArsDocendi.Host/Program.cs`.
+- **Persistencia**: un schema por módulo. El DDL es SQL versionado embebido: se genera con `node scripts/migrations/scaffold.mjs <Contexto> <Nombre>`. **No usar `dotnet ef migrations add`.** Ver [database/README.md](../../../database/README.md).
+- **Logging**: Serilog con templates; nunca `Console.WriteLine` ni PII (DNI, nombres, mails).
+- **Tests**: en `backend/tests/ArsDocendi.IntegrationTests/<Modulo>/`, con los criterios de [golden-principles → Tests](../../../docs/quality/golden-principles.md#tests). Los tests de BR-\* se registran en `docs/business-rules/<modulo>.md`.
 
-- **Importar SOLO desde `Modules.<Otro>.Contracts`** — NUNCA referenciar `Modules.<Otro>/*.csproj`.
-- **NO importar** desde `Modules.<Otro>/Internal/`.
-- Inyectar servicios de otros módulos via DI usando interfaces de `Modules.<Otro>.Contracts/Interfaces/`.
-
-### Capas
-
-- **Controller → Service → Repository** únicamente.
-- Controller fino, validación de DTOs, status codes, `[Authorize(Roles = ...)]`.
-- Service: lógica de negocio, orquestación, transacciones.
-- Repository: persistencia, queries EF Core.
-- **Prohibido**: controller → repository directo.
-
-### Contracts
-
-- `Modules.<X>.Contracts`: **solo** DTOs, interfaces, tokens públicos. **Sin lógica**.
-- Cualquier helper privado vive en `Modules.<X>/Internal/`.
-
-### Endpoints
-
-- Cada módulo expone `GET /api/<modulo>/ping` con `[AllowAnonymous]` como smoke test.
-- Toda acción mutativa requiere `[Authorize(Roles = ...)]` con los roles institucionales relevantes.
-
-### Persistencia
-
-- Un schema PostgreSQL por módulo (`designaciones`, `aulas`, `portal`, `tareas`).
-- Cada DbContext con `MigrationsHistoryTable` apuntando al schema del módulo.
-- Sin FKs cross-schema salvo justificación documentada.
-
-### Registración
-
-- Cada módulo expone `IServiceCollection.Add<X>Module()` en `ModuleRegistration.cs`.
-- El Host invoca todas en `Program.cs`:
-  ```csharp
-  builder.Services
-    .AddDesignacionesModule(builder.Configuration)
-    .AddAulasModule(builder.Configuration)
-    .AddPortalModule(builder.Configuration)
-    .AddTareasModule(builder.Configuration);
-  ```
-
-### Logging
-
-- **Serilog** para structured logging. Nunca `Console.WriteLine`.
-- **No loggear PII** (DNIs, nombres, mails) en INFO/DEBUG. Si necesario, redactar o usar template-only logging.
-
-### Tests
-
-- xUnit para tests unitarios (path: `backend/tests/Modules.<X>.Tests/`).
-- Tests de BR-\* deben linkearse en `docs/business-rules/<x>.md` sección "Test mapping".
-
-## Comandos clave
+## Comandos
 
 ```bash
-# Build
 dotnet build backend/ArsDocendi.slnx
-
-# Run
-dotnet run --project backend/src/ArsDocendi.Host
-
-# Tests
 dotnet test backend/ArsDocendi.slnx
-
-# Format (también lo hace pre-commit)
 dotnet format backend/ArsDocendi.slnx
-
-# Add migration
-dotnet ef migrations add <Nombre> \
-  --project backend/src/Modules.<X> \
-  --startup-project backend/src/ArsDocendi.Host \
-  --context <X>DbContext
+dotnet run --project backend/src/ArsDocendi.Host --no-build -- --validar-recursos
 ```
-
-## Docs relevantes
-
-- [docs/architecture/module-anatomy.md](../../../docs/architecture/module-anatomy.md)
-- [docs/architecture/dependency-graph.md](../../../docs/architecture/dependency-graph.md)
-- [docs/architecture/data-model.md](../../../docs/architecture/data-model.md)
-- [docs/quality/golden-principles.md](../../../docs/quality/golden-principles.md)

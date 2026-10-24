@@ -34,15 +34,15 @@ Garantiza que el bug está verificablemente fixeado y no puede regresar silencio
 
 Antes de escribir código, determinar el scope:
 
-| Scope                                            | Acción                                                                |
-| ------------------------------------------------ | --------------------------------------------------------------------- |
-| Un solo módulo, sin cambio de Contracts          | Continuar este workflow — sin spec ni change                          |
-| Toca `Modules.<X>.Contracts` o múltiples módulos | Crear un change con `/opsx:propose` + nota en `docs/plans/backlog.md` |
-| Revela brecha arquitectural                      | Escalar a `/add-feature` completo                                     |
+| Scope                                            | Acción                                       |
+| ------------------------------------------------ | -------------------------------------------- |
+| Un solo módulo, sin cambio de Contracts          | Continuar este workflow — sin spec ni change |
+| Toca `Modules.<X>.Contracts` o múltiples módulos | Crear un change con `/opsx:propose`          |
+| Revela brecha arquitectural                      | Escalar a `/add-feature` completo            |
 
 ### 3. Red — escribir el test que falla
 
-- Agregar test en el directorio de tests del módulo afectado que captura el bug exacto.
+- Agregar test en el directorio de tests del módulo afectado que captura el bug exacto. Si ya existe un test de esa regla que no detectó el bug, fortalecer ese (más asserts o un `InlineData`) en lugar de crear uno paralelo. Ver [golden-principles → Tests](../../../docs/quality/golden-principles.md#tests).
 - El test DEBE FALLAR contra el código actual. Si no se puede escribir test fallable (e.g. bug puramente visual), documentar reproducción manual en el proposal del change.
 - Stagear el test rojo para que la falla quede registrada.
 

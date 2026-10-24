@@ -195,7 +195,6 @@ Las tablas de **Usuarios** y **Docentes** ofrecen un control compacto de filtro 
 ## Referencias
 
 - [`docs/product/design-principles.md`](../design-principles.md)
-- Plan maestro histórico del prototipo mock: [`docs/product/designs/proyecto-docente-frontend-plan.md`](./proyecto-docente-frontend-plan.md)
 - Spec funcional de pedidos: [`openspec/specs/pedidos-designacion/spec.md`](../../../openspec/specs/pedidos-designacion/spec.md)
 - Spec funcional de aprobación: [`openspec/specs/aprobacion-pedidos-designacion/spec.md`](../../../openspec/specs/aprobacion-pedidos-designacion/spec.md)
 - Tablero de revisión: [`openspec/specs/tablero-revision-tabla/spec.md`](../../../openspec/specs/tablero-revision-tabla/spec.md)

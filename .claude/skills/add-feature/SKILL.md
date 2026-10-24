@@ -74,7 +74,7 @@ Read-only / minimal change antes de merge:
 
 - Autorización por rol matchea la spec; sin endpoints públicos nuevos sin Contracts documentados.
 - Sin secrets en código; ver `docs/quality/golden-principles.md`.
-- Deps y cross-module imports respetan `docs/architecture/dependency-graph.md` (DAG, sin leak de Internal).
+- Deps y cross-module imports respetan `docs/architecture/dependency-graph.md` (DAG, sin referencias a implementaciones de otro módulo).
 - Si toca deploy o env vars, cross-check `docs/architecture/infrastructure.md`.
 
 Si hay issues, arreglarlas antes de step 9.

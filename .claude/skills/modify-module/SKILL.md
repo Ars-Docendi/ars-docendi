@@ -44,7 +44,7 @@ Modificar un módulo existente. Énfasis en análisis de **impacto sobre Contrac
 
 - Si Contracts cambia: hacerlo **primero** (contract-first).
 - Implementar internos respetando layer rules (Controller → Service → Repository).
-- Mantener `Internal/` como privado (no exportar).
+- No exponer tipos internos: lo público vive sólo en `Modules.<X>.Contracts`.
 
 ### 4. Tests
 
@@ -75,7 +75,7 @@ Branch `feature/modify-<x>-<short-description>`. Ver [open-pr.md](../../../docs/
 
 - **Contract-first**: si toca Contracts, modificar Contracts antes que internals.
 - **Breaking change → spec obligatoria**: escalar a `/opsx:propose` + `/add-feature`.
-- Mantener `Internal/` privado — sin exportarlo.
+- Lo público vive sólo en `Modules.<X>.Contracts`.
 - **Sin cambios secretos**: el PR del Modify debe documentar el delta en `docs/`.
 
 ## Arguments

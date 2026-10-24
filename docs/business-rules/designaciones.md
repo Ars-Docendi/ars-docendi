@@ -7,7 +7,7 @@
 - **Specs OpenSpec relacionadas:** `openspec/specs/pedidos-designacion/` y `openspec/specs/aprobacion-pedidos-designacion/`.
 - **Normativa de referencia:** Estatuto / régimen docente UNLaM (citas exactas **pendientes de confirmación con el cliente** para BR-001..004).
 
-> **Alcance de este documento.** Registra las reglas que implementan **SCRUM-7** (carga de pedidos por el Jefe de Cátedra: BR-001..004, BR-008, BR-018) y **SCRUM-8** (circuito de aprobación, change `flujo-aprobacion-designaciones`: BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
+> **Alcance de este documento.** Reglas de la carga de pedidos por el Jefe de Cátedra (BR-001..004, BR-008, BR-018) y del circuito de aprobación (BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
 
 ## Reglas
 
@@ -76,7 +76,7 @@
 - **Provenance:** `from_spec`
 - **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
 - **Ejemplos:** Un pedido en `en_revision_coordinador` rechaza la edición. Un pedido `devuelto` con `propietarioActual = "Jefe de Cátedra"` se puede editar; la edición no cambia el estado.
-- **Roles afectados:** Jefe de Cátedra (y, para la devolución, los revisores definidos en SCRUM-8).
+- **Roles afectados:** Jefe de Cátedra (y, para la devolución, los revisores del circuito de aprobación).
 
 ### BR-`designaciones`-005 Rechazo exige justificativo; devolución exige comentario
 
@@ -184,11 +184,7 @@ anteriores y refuerzan su ejecución:
 Los nombres sin prefijo están bajo
 `backend/tests/ArsDocendi.IntegrationTests/Designaciones/`; `Identity/IngresoMicrosoftTests.cs`
 parte de `backend/tests/ArsDocendi.IntegrationTests/`.
-Resultados y límites: [evidencia 3.6–3.8](../evidence/designaciones-3.6-3.8.md).
-
-## Pendientes (SCRUM-8)
-
-✅ **Completado.** Las reglas del circuito de aprobación (BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017) quedaron registradas arriba **con sus tests** en el change `flujo-aprobacion-designaciones`. No quedan BR pendientes de SCRUM-8.
+Resultados y límites: [evidencia 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
 
 ## Assumptions (a confirmar)
 

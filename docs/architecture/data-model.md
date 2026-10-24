@@ -161,7 +161,7 @@ Listado y detalle son consultas distintas: grilla sin documentos y con un resume
 de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
 orden `(created_at,id)`. Relectura administrativa por persona y resolución de
 personas/actores por lote evitan materialización global innecesaria.
-Ver [evidencia Designaciones 3.6–3.8](../evidence/designaciones-3.6-3.8.md).
+Ver [evidencia Designaciones 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
 
 ### Portal (`schema: portal`)
 
@@ -176,7 +176,7 @@ descargables. Todas las tablas tienen `created_at` y `audit.attach`.
 Los accesos por `perfil_id` a experiencias, educaciones, certificaciones y proyectos
 usan índices SQL incrementales, no propiedades EF generadoras de DDL. La evidencia
 reproducible de planes, buffers y escrituras con dataset sintético está en
-[Portal post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md).
+[Portal post-auditoría](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/portal-storage-tareas-post-auditoria.md).
 
 ### Tareas (`schema: tareas`)
 
@@ -196,7 +196,7 @@ validan, obsoletas responden conflicto y el historial se confirma con la mutaci�
 Relaciones usan un par canónico e idempotencia para altas/bajas repetidas.
 
 Ver [dominio y API de Tareas](domains/tareas.md), [contratos API](api-contracts.md)
-y [evidencia post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md)
+y [evidencia post-auditoría](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/portal-storage-tareas-post-auditoria.md)
 para pruebas HTTP/SQL y cobertura de consultas selectivas.
 
 ### Storage (`schema: storage`)

@@ -79,21 +79,7 @@ El workflow de teardown usa los mismos nombres para eliminar sólo el bucket y l
 identidad lógica del `pr-N`. No baja el proyecto/volumen SeaweedFS compartido ni
 necesita permisos sobre otros buckets.
 
-## Secrets legados de MinIO
-
-Los workflows versionados consumen los nombres nuevos. Si aún aparecen los
-anteriores en GitHub, mantenerlos sólo hasta verificar que no exista ningún
-consumidor activo y luego retirarlos desde el repositorio; no reutilizar un
-nombre legado en los jobs nuevos:
-
-| Nombre anterior       | Nombre nuevo                |
-| --------------------- | --------------------------- |
-| `MINIO_ROOT_USER`     | `SEAWEEDFS_ROOT_ACCESS_KEY` |
-| `MINIO_ROOT_PASSWORD` | `SEAWEEDFS_ROOT_SECRET_KEY` |
-
-Los workflows no consumen los nombres `MINIO_*`. Una rotación de los valores
-`SEAWEEDFS_ROOT_*` exige coordinar **ambos hosts** y los environments; cambiar
-sólo GitHub sin actualizar las identidades S3 existentes rompe el deploy.
+Una rotación de `SEAWEEDFS_ROOT_ACCESS_KEY`/`SEAWEEDFS_ROOT_SECRET_KEY` exige coordinar **ambos hosts** y los environments; cambiar sólo GitHub sin actualizar las identidades S3 existentes rompe el deploy.
 
 ## Environments `staging` y `prod`
 

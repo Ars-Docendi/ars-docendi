@@ -26,13 +26,13 @@ Rúbrica para evaluar trabajo en Ars Docendi. La usan reviewers humanos, agentes
 
 ### Calidad de código (25%)
 
-| Score | Descripción                                                                         |
-| ----- | ----------------------------------------------------------------------------------- |
-| 5     | Respeta layers, DAG, no fake UI, tests significativos, sin god classes              |
-| 4     | Estructura sólida, minor violaciones (sin impacto en mantenibilidad)                |
-| 3     | Aceptable; algunas violaciones de layer rules o cross-module sin justificar         |
-| 2     | Violaciones serias de arquitectura (referencias a Internal/ de otro módulo, ciclos) |
-| 1     | Código no mantenible; rompe las reglas de AGENTS.md                                 |
+| Score | Descripción                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------- |
+| 5     | Respeta layers, DAG, no fake UI, tests significativos, sin god classes                             |
+| 4     | Estructura sólida, minor violaciones (sin impacto en mantenibilidad)                               |
+| 3     | Aceptable; algunas violaciones de layer rules o cross-module sin justificar                        |
+| 2     | Violaciones serias de arquitectura (referencias a `Modules.<Otro>` en vez de su Contracts, ciclos) |
+| 1     | Código no mantenible; rompe las reglas de AGENTS.md                                                |
 
 ### Diseño / UX (20%)
 

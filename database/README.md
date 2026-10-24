@@ -177,9 +177,9 @@ protegen. Editar/eliminar un archivo protegido, retirar su entrada o cambiar su
 hash/clasificación histórica falla con exit 1. Agregar una migración válida se
 permite sin una nueva versión global.
 
-### Congelar el corte revisado (una única vez)
+### Congelar el corte revisado (ya ejecutado en #39)
 
-Sólo después de terminar y revisar **todo** el baseline consolidado:
+Se documenta para auditar el manifiesto existente; no se repite. Se hizo sólo después de terminar y revisar **todo** el baseline consolidado:
 
 ```bash
 node scripts/migrations/manifest.mjs --dry-run
@@ -210,7 +210,7 @@ El ejemplo no autoriza crear ese recurso: su existencia y la clasificación se
 revisan juntas. Se rechazan excepciones vacías, inexistentes, duplicadas con un
 consumidor o modificaciones a clasificaciones históricas.
 
-Para el primer PR, cuya base alpha todavía no contiene manifiesto, una persona
+Para el primer PR (ya integrado), cuya base alpha todavía no contenía manifiesto, una persona
 revisora debe fijar el **SHA completo del commit que ya contiene el inventario
 final aprobado** en la variable de repositorio `CORTE_MIGRACIONES_REVISADO`.
 No usar el HEAD mutable del PR, un branch/tag o un SHA calculado en el workflow.
@@ -242,13 +242,3 @@ dotnet run --project backend/src/ArsDocendi.Host -- --migrate
 La reejecución sólo es no-op para historia compatible. `Down` del baseline falla
 explícitamente: recuperar un backup en un destino aislado y una versión
 compatible, no borrar el schema para recuperar una instancia persistente.
-
-## Evidencia del squash
-
-La instalación alpha se ejecutó desde SQL generado por EF del `git archive HEAD`
-aislado, antes de eliminar la historia. PostgreSQL 18.4 desechable; bytes SQL y
-dumps por stdin/stdout, sin bind mounts. `.artifacts/baseline/inventario.md`
-registra dumps, comandos y comparación exacta normalizada, excluyendo únicamente
-histories EF y timestamps de instalación de catálogos. No contiene SGA ni datos
-personales reales. La comparación de este corte no es una matriz permanente de
-upgrades históricos ni un detector de drift de producción.

@@ -8,7 +8,7 @@ Si es la primera vez que cloneás el repo:
 ./scripts/setup.sh
 ```
 
-Esto levanta Postgres en docker, instala deps Node (raíz + frontend), restaura y buildea backend .NET. Más detalle en [README.md](README.md).
+Requisitos, pasos manuales y seed en [README.md](README.md).
 
 ## Pre-commit
 
@@ -37,11 +37,12 @@ pnpm format:check   # verifica sin modificar
 ### Temporales
 
 - **`feature/<descripcion-corta>`** — Trabajo nuevo. Sale de `develop`, mergea a `develop` vía PR.
+- **`chore/`, `infra/`** — Igual que `feature/`, para mantenimiento o infraestructura sin cambio funcional.
 - **`hotfix/<descripcion-corta>`** — Parche urgente sobre producción. Sale de `main`, mergea a `main` **y** a `develop` (dos PRs) para que el fix no se pierda en el próximo release.
 
 ### Naming
 
-- Prefijo obligatorio: `feature/` o `hotfix/`.
+- Prefijo obligatorio: `feature/`, `chore/`, `infra/` o `hotfix/`.
 - Nombre en kebab-case, descripción corta de qué hace la branch.
 - Ejemplos: `feature/login-azure-ad`, `feature/reserva-aulas-listado`, `hotfix/swagger-403-en-prod`.
 
@@ -105,6 +106,7 @@ NO reemplaza el review humano — lo complementa.
 - [ ] El PR tiene change OpenSpec aprobado y apply-ready (si es feature) o spec de bug (si es bug escalado a change).
 - [ ] CI verde (backend + frontend + format-check).
 - [ ] Tests cubren BR-\* aplicables (si la feature las introduce/modifica).
+- [ ] Los tests nuevos no duplican otros existentes y cumplen [golden-principles → Tests](docs/quality/golden-principles.md#tests); los que quedaron redundantes se borraron.
 - [ ] Docs actualizadas (dependency-graph, api-contracts, data-model, domains/) si hubo cambios estructurales.
 - [ ] No hay fake UI (stubs visualmente completos sin lógica).
 - [ ] Sin secrets en código.
@@ -132,13 +134,7 @@ Ver [docs/business-rules/\_template.md](docs/business-rules/_template.md) para e
 
 ## Convenciones de código
 
-Detalle en [docs/quality/golden-principles.md](docs/quality/golden-principles.md). Resumen:
-
-- **Backend (.NET)**: Controller → Service → Repository. Sin saltar capas. Cross-module SOLO via `Modules.<X>.Contracts`. Cada módulo expone `/api/<x>/ping`.
-- **Frontend (React + Vite)**: features aisladas en `src/features/<x>/`. Lo común sube a `src/shared/`. React Query para data del servidor. Un solo `axios` instance.
-- **Archivos chicos**: ~300 líneas como cap soft.
-- **Logging**: Serilog (backend), structured. Nunca `Console.WriteLine` ni `console.log` en código productivo.
-- **Naming**: PascalCase (componentes, clases .NET), camelCase (funciones, variables, hooks), kebab-case (filenames, branches, slugs).
+Las reglas de capas, fronteras, frontend, logging y tests están en [AGENTS.md](AGENTS.md#reglas-de-implementación) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md); no se repiten acá.
 
 ## Commits
 
@@ -150,6 +146,7 @@ Detalle en [docs/quality/golden-principles.md](docs/quality/golden-principles.md
   - `docs: ...` — solo documentación
   - `chore: ...` — tooling, configs, CI
   - `ci: ...` — workflows GitHub Actions
+  - `infra(<area>): ...` — compose, scripts o provisioning de `infra/`
 - Un commit = un cambio lógico. Evitar commits gigantes que mezclan refactor + feature + bug fix.
 - Idioma: consistente dentro del mismo commit (español o inglés según preferencia del equipo).
 
@@ -159,7 +156,7 @@ Por convención del proyecto, **no agregar** `Co-Authored-By: Claude` o similar 
 
 ## Glue OpenSpec (política D7)
 
-El glue generado por OpenSpec (`.claude/commands/opsx/` + `.claude/skills/openspec-*`) **se versiona en el repo**: cualquiera que clone tiene el planning listo sin configuración adicional.
+El glue generado por OpenSpec (`.claude/commands/opsx/`, `.claude/skills/openspec-*` y `.agents/skills/openspec-*` para Codex) **se versiona en el repo**. Es código generado: no se edita a mano: cualquiera que clone tiene el planning listo sin configuración adicional.
 
 ### Disciplina obligatoria
 
@@ -169,7 +166,7 @@ El glue generado por OpenSpec (`.claude/commands/opsx/` + `.claude/skills/opensp
 
 ### Por qué importa
 
-Si el glue en `.claude/commands/opsx/` queda desincronizado de la versión de la CLI instalada localmente, los comandos `/opsx:*` pueden fallar silenciosamente o comportarse distinto entre developers. El versionado del glue garantiza reproducibilidad.
+Si el glue queda desincronizado de la versión de la CLI instalada localmente, los comandos `/opsx:*` pueden fallar silenciosamente o comportarse distinto entre developers. El versionado del glue garantiza reproducibilidad.
 
 ## Recursos
 

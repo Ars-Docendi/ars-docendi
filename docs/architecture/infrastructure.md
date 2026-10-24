@@ -6,11 +6,10 @@ en la VM Proxmox secundaria**, en sus subdominios. No hay LB, Worker DNS,
 deploy dual ni failover; tampoco se comparten datos, objetos o sesiones.
 Una caída de Debian deja producción indisponible.
 
-> **Estado:** esta es la topología objetivo del cambio
-> `deploy-dual-con-failover-temporal` (nombre histórico, alcance revisado),
-> no una afirmación de corte operativo. El operador configura Cloudflare y
-> los runners de GitHub; el traslado de producción requiere decisión explícita
-> sobre los datos previos, ventana de mantenimiento y aceptación verificable.
+> **Estado:** topología objetivo, no una afirmación de corte operativo. El
+> operador configura Cloudflare y los runners de GitHub; el traslado de
+> producción requiere decisión explícita sobre los datos previos, ventana de
+> mantenimiento y aceptación verificable.
 
 > Artefactos versionados en [`infra/`](../../infra/) (compose, traefik, cloudflared,
 > scripts, Makefile) y [`.github/workflows/`](../../.github/workflows/).

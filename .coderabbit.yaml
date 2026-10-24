@@ -1,0 +1,279 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Configuración de CodeRabbit para Ars Docendi.
+# Las reglas viven en AGENTS.md, docs/quality/golden-principles.md y database/README.md,
+# que CodeRabbit lee como guías de código (knowledge_base). Este archivo fija sólo el foco
+# por ruta, el ruido permitido y los checks de merge: no copiar reglas acá.
+
+language: "es-AR"
+
+tone_instructions: |
+  Escribí en español rioplatense (voseo), directo y sin relleno.
+  No comentes formato: Prettier lo verifica en CI y dotnet format corre en el pre-commit.
+
+chat:
+  art: false
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    # Se suman a los defaults, que ya leen AGENTS.md y CLAUDE.md.
+    filePatterns:
+      - files: "CONTRIBUTING.md"
+        applyTo: "**/*"
+      - files: "docs/quality/golden-principles.md"
+        applyTo: "backend/src/**/*.cs,frontend/src/**/*.ts,frontend/src/**/*.tsx"
+      - files: "database/README.md"
+        applyTo: "database/**/*.sql,backend/src/**/Migrations/**/*.cs"
+
+reviews:
+  # assertive: el repo tiene reglas explícitas y espera que se señalen. Bajar a chill si hay ruido.
+  profile: "assertive"
+  # El bot comenta y no bloquea: la aprobación humana es obligatoria (CONTRIBUTING.md, Code review).
+  request_changes_workflow: false
+  fail_commit_status: false
+  high_level_summary_instructions: |
+    Resumí el PR en un máximo de 5 viñetas: qué cambia, qué módulos toca (backend o frontend)
+    y si modifica migraciones, API, schema o dependencias.
+  # Ruido visual que no aporta a la revisión de este repo.
+  sequence_diagrams: false
+  poem: false
+  in_progress_fortune: false
+  # Sin CODEOWNERS en el repo, las sugerencias de revisores no aportan.
+  suggested_reviewers: false
+  # Anti-slop detecta y gestiona PRs de spam o baja calidad. Apagado hasta que el equipo
+  # decida qué acciones permite.
+  slop_detection:
+    enabled: false
+
+  auto_review:
+    enabled: true
+    drafts: true
+    # develop es la rama por defecto y ya se revisa; main recibe releases y hotfixes.
+    base_branches:
+      - "^main$"
+
+  # Código generado o histórico: no aporta revisión y mete ruido.
+  path_filters:
+    - "!**/*ModelSnapshot.cs"
+    - "!openspec/changes/archive/**"
+    - "!docs/**/_index.md"
+    - "!.claude/commands/opsx/**"
+    - "!.claude/skills/openspec-*/**"
+    - "!.agents/skills/openspec-*/**"
+
+  path_instructions:
+    - path: "backend/src/**/*.cs"
+      instructions: |
+        Reglas transversales del backend (golden-principles, Higiene de código y Boundaries de datos).
+        - Logging estructurado con Serilog; señalar cualquier Console.WriteLine.
+        - Errores y logs sin PII, credenciales, IDs internos ni datos de otro ámbito.
+        - Las entradas HTTP se validan en el borde; las reglas de negocio viven en services.
+        - Archivos que superen ~300 líneas: señalar si conviene partirlos.
+
+    - path: "backend/src/Modules.*/**/*.cs"
+      instructions: |
+        Módulos (AGENTS.md, reglas 1–3 y 7; golden-principles, Fronteras, Capas y Autorización). Señalar:
+        - Referencias a implementaciones o Internal/ de otro módulo: el cruce va sólo por Modules.<Y>.Contracts.
+        - Controllers que llaman repositories o concentran reglas de negocio.
+        - Rutas sin autorización por permiso, o autorizadas por nombre de rol, salvo el ping público.
+        - Escrituras sobre identity (personas, roles, permisos) fuera de la superficie de administración. Los módulos leen con IConsultasIdentity.
+        - Un módulo nuevo sin GET /api/<modulo>/ping con [AllowAnonymous] que responda { module, status: "ok" }.
+        - En Modules.*.Contracts sólo DTOs, interfaces y tokens, sin lógica ni I/O. Un cambio de DTO expuesto por HTTP afecta al frontend y a docs/architecture/api-contracts*.md.
+
+    - path: "backend/src/ArsDocendi.Shared/**/*.cs"
+      instructions: |
+        Shared admite sólo utilidades puras transversales y la persistencia de los schemas identity y audit (AGENTS.md, regla 4). Señalar como bloqueante:
+        - Lógica de dominio, I/O o estado mutable nuevos.
+        - Utilidades que usa un solo módulo: deben vivir en Modules.<X>/Internal/.
+        - Escrituras nuevas sobre identity fuera de la superficie de administración.
+
+    - path: "database/**"
+      instructions: |
+        Migraciones protegidas (database/README.md; AGENTS.md, sección Migraciones). Señalar como bloqueante:
+        - Editar, borrar o ampliar un SQL o wrapper que ya existe en la rama base. El cambio va en una migración incremental nueva, creada con scripts/migrations/scaffold.mjs.
+        - Cambios destructivos sin plan de datos: DROP, TRUNCATE, DELETE o UPDATE masivos, cambios de tipo sin conversión, NOT NULL sobre columnas con datos sin default ni backfill.
+        - Constraints o índices que bloqueen tablas o validen datos existentes sin plan explícito.
+        - Funciones SECURITY DEFINER sin search_path fijado.
+        - Fixes que dependan de drop, purge, reseed o restore automático.
+        - Editar database/migraciones-protegidas.json a mano: sólo lo regenera scripts/migrations/manifest.mjs en el corte aprobado.
+
+    - path: "backend/src/**/Migrations/**/*.cs"
+      instructions: |
+        Wrappers de migración EF (database/README.md). Señalar como bloqueante:
+        - Modificar un wrapper o un .Designer.cs que ya existe en la rama base.
+        - Un wrapper nuevo sin [DbContext], [Migration] y [RecursosMigracionSql(...)] en el orden correcto, o cuyo Up no llame AplicarRecursosSql con su propio tipo.
+        - Migraciones generadas con dotnet ef migrations add como DDL paralelo al SQL autorizado.
+
+    - path: "scripts/migrations/**"
+      instructions: |
+        Herramientas que implementan la protección histórica (database/README.md). Señalar como bloqueante cualquier cambio que relaje validate.mjs, git-confiable.mjs, proteccion.mjs o manifest.mjs: saltear archivos, aceptar globs en excepciones, omitir la comparación con --base-ref o recalcular hashes. Ese cambio requiere un test nuevo en scripts/tests/migrations.test.mjs que lo cubra.
+
+    - path: "frontend/src/**"
+      instructions: |
+        Frontend (golden-principles, Frontend y Autorización; AGENTS.md, reglas 7 y 9). Señalar:
+        - Features que se importan entre sí; lo común va en frontend/src/shared/.
+        - Clientes HTTP fuera de frontend/src/shared/api, o fetch manual con useEffect para datos del servidor. Los datos del servidor van con React Query.
+        - Stubs: botones sin acción, formularios que no envían, pantallas vacías o datos mock en código de producción.
+        - Ocultar una acción en la UI como única protección: el backend también debe validar el permiso.
+        - HTML inyectado sin sanitizar (dangerouslySetInnerHTML), IDs de base o stacktraces visibles al usuario.
+        - Accesibilidad básica: controles con nombre accesible, foco visible y errores anunciados.
+        - Cambios de UX: actualizar su design spec si existe. Preferir @ars-docendi/ui y shared/ antes de crear componentes nuevos.
+
+    - path: "frontend/src/**/*.test.*"
+      instructions: |
+        Tests de frontend (golden-principles, Tests; AGENTS.md, regla 11). Un test se justifica sólo si protege una regla de negocio, una garantía de seguridad o de datos, o un flujo de usuario que otro test no cubra. Señalar como sobrante:
+        - Tests que cuentan pestañas, opciones, filas o columnas, o que validan el contenido de sintetico.sql.
+        - Tests cosméticos: títulos, textos de botones, íconos, tooltips, posición o recortes.
+        - Tests que prueban la librería o el navegador, por ejemplo que NavLink marque aria-current.
+        - Tests que duplican otro existente, o que inventan DTOs cuando existe un contrato en frontend/src/test/contratos/.
+        Un bug fix debe incluir un test que falle antes del cambio.
+
+    - path: "backend/tests/**/*.cs"
+      instructions: |
+        Tests de backend (golden-principles, Tests; AGENTS.md, regla 11). Usar la capa más barata que verifique de verdad: unit para lógica pura, integración con PostgreSQL para constraints, triggers o transacciones. Señalar como sobrante:
+        - Tests que cuentan endpoints, catálogos, filas del seed o columnas.
+        - Verificación de forma: information_schema, pg_index, reflexión sobre nombres, o regex sobre scripts, workflows o YAML.
+        - Pruebas de constraints o de frameworks que la base ya garantiza.
+        - Mediciones de rendimiento: EXPLAIN ANALYZE, volumen sintético o conteo de consultas.
+        Cada operación sensible necesita un caso denegado por falta de permiso y otro permitido por permiso.
+
+    - path: "docs/**"
+      instructions: |
+        La documentación es el sistema de registro. Si el PR cambia API, schema, dependencias o límites entre módulos, debe actualizar en el mismo PR la doc afectada (AGENTS.md, regla 6): docs/architecture/ (api-contracts*.md, data-model.md, dependency-graph.md, domains/) y docs/business-rules/ si corresponde. Verificar que rutas, archivos y comandos citados existan. Enlazar las reglas de AGENTS.md en vez de copiarlas.
+        En docs/business-rules/: cada BR-<modulo>-NNN tiene enunciado, cita normativa exacta y al menos un test que la verifique (_template.md). Los IDs no se renumeran.
+
+    - path: "openspec/**"
+      instructions: |
+        OpenSpec es la fuente de verdad del comportamiento (openspec/config.yaml). Specs y artefactos en español; requisitos con MUST, SHALL o SHOULD y escenarios Given/When/Then; cada regla reglamentaria mapeada a su BR-<modulo>-NNN con cita. openspec/specs/ cambia al sincronizar o archivar un change, no editándolo a mano dentro de una feature.
+
+    - path: "infra/**"
+      instructions: |
+        Infraestructura y datos de desarrollo. Señalar como bloqueante:
+        - Datos reales o PII versionados. infra/scripts/seed-data/sga.sql está en .gitignore: si aparece en un diff, es un error grave.
+        - Credenciales, tokens o claves en compose, scripts o .env.example. Sólo placeholders.
+        - Ejecución automática de drop, purge o reseed (en deploy, seed o migraciones). Los resets son operaciones manuales y explícitas.
+        - Cambios que hagan que seed.sh acepte datasets con datos reales.
+        Los scripts se prueban ejecutándolos con sus fronteras externas sustituidas (infra/tests), no verificando su texto.
+
+    - path: ".github/**"
+      instructions: |
+        Workflows de GitHub Actions. Señalar como bloqueante:
+        - pull_request_target, o código de un PR externo ejecutado en runners self-hosted (etiquetas en .github/actionlint.yaml).
+        - Permisos por encima de contents: read sin justificación, o jobs sin permissions declarados.
+        - Acciones de terceros referenciadas por tag o rama en vez de SHA completo, como hace el resto del repo.
+        - Secretos en logs, o datos de un PR interpolados en `run:` (inyección de comandos).
+        - Un deploy a producción que ejecute fixtures o seed (AGENTS.md: producción nunca recibe fixtures).
+
+    - path: "**/package.json"
+      instructions: |
+        Dependencias npm: sólo las necesarias (AGENTS.md, regla 7), con licencia y mantenimiento revisados. Compatibles con engines (Node >=24.15) y packageManager (pnpm). Una dependencia desde git debe fijarse por commit SHA: hoy @ars-docendi/ui apunta a release/v1.0.4. Un bump de @fission-ai/openspec exige correr openspec update y versionar el glue en el mismo PR (CONTRIBUTING.md).
+
+    - path: "backend/**/*.csproj"
+      instructions: |
+        Paquetes NuGet: versión explícita, acorde a global.json (.NET 10), y cada paquete nuevo justificado en el PR. Un proyecto de módulo sólo referencia Modules.<Y>.Contracts de otros módulos: revisar que el DAG se preserve y que docs/architecture/dependency-graph.md quede actualizado.
+
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: |
+        Conventional Commits en minúsculas: tipo(ámbito): descripción en imperativo.
+        Tipos: feat, fix, refactor, test, docs, chore, ci, infra.
+        Ámbito: módulo o área (designaciones, aulas, portal, tareas, identity, database, frontend, backend, infra).
+        Ejemplo: feat(designaciones): validar vigencia del pedido.
+    description:
+      mode: "warning"
+    # No se exigen docstrings ni issues vinculados: el planning vive en openspec/changes.
+    docstrings:
+      mode: "off"
+    issue_assessment:
+      mode: "off"
+    custom_checks:
+      - name: "Migraciones históricas intactas"
+        mode: "warning"
+        instructions: |
+          Falla si el diff edita, borra o renombra un SQL o wrapper de migración que ya existe en la rama base (database/**, Migrations/**), o si modifica database/migraciones-protegidas.json o scripts/migrations/** sin tests nuevos que lo cubran. Pasa si sólo agrega archivos de migración nuevos o no toca esas rutas.
+      - name: "Feature con change OpenSpec"
+        mode: "warning"
+        instructions: |
+          Falla si el PR agrega una capability o un comportamiento visible para el usuario y no incluye ni referencia un change en openspec/changes/<id>/ con proposal, specs y tasks. Pasa para bug fixes, refactors, docs y chores.
+      - name: "Sin PII ni secretos"
+        mode: "warning"
+        instructions: |
+          Falla si el diff agrega datos personales reales (DNI, legajos, correos o teléfonos), credenciales, tokens o claves, o contenido de infra/scripts/seed-data/sga.sql. Falla también si un error o log nuevo expone PII o datos de otro ámbito. Pasa si los datos son sintéticos o placeholders.
+      - name: "Tests que aportan valor"
+        mode: "warning"
+        instructions: |
+          Falla si el diff agrega un test que cuenta elementos, verifica forma (information_schema, pg_index, reflexión, regex sobre YAML o scripts), es cosmético, prueba el framework, mide rendimiento o duplica otro test existente. Criterios en docs/quality/golden-principles.md, sección Tests.
+
+  finishing_touches:
+    # El bot no escribe commits en la rama del PR: los cambios los hace el autor.
+    autofix:
+      enabled: false
+    fix_ci:
+      enabled: false
+    resolve_merge_conflict:
+      enabled: false
+    simplify:
+      enabled: false
+    # Generar tests o docstrings automáticamente va contra la política de tests (golden-principles).
+    unit_tests:
+      enabled: false
+    docstrings:
+      enabled: false
+
+  tools:
+    # Seguridad: secretos, workflows de Actions, dependencias y skills de agentes.
+    gitleaks:
+      enabled: true
+    zizmor:
+      enabled: true
+    # Los lockfiles quedan fuera de la revisión por defecto: confirmar en el primer PR que toque
+    # pnpm-lock.yaml que osvScanner sí lo analiza.
+    osvScanner:
+      enabled: true
+    skillspector:
+      enabled: true
+    # Contextos que CI no lintea: workflows, Dockerfiles, scripts de shell e infra en Python.
+    actionlint:
+      enabled: true
+    hadolint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    ruff:
+      enabled: true
+    # CodeRabbit activa casi todas las herramientas por defecto. Estas se apagan: CI, CodeQL,
+    # Prettier o ruff ya cubren esa área, otra herramienta duplica sus hallazgos, o no se
+    # evaluaron en este repo y podrían generar ruido.
+    eslint: { enabled: false }
+    biome: { enabled: false }
+    oxc: { enabled: false }
+    reactDoctor: { enabled: false }
+    markdownlint: { enabled: false }
+    yamllint: { enabled: false }
+    htmlhint: { enabled: false }
+    stylelint: { enabled: false }
+    checkmake: { enabled: false }
+    dotenvLint: { enabled: false }
+    languagetool: { enabled: false }
+    presidio: { enabled: false }
+    ast-grep: { enabled: false }
+    semgrep: { enabled: false }
+    opengrep: { enabled: false }
+    checkov: { enabled: false }
+    trivy: { enabled: false }
+    trufflehog: { enabled: false }
+    sqlfluff: { enabled: false }
+    squawk: { enabled: false }
+    flake8: { enabled: false }
+    pylint: { enabled: false }
+
+code_generation:
+  docstrings:
+    language: "es-AR"
+  unit_tests:
+    path_instructions:
+      - path: "**"
+        instructions: |
+          Generar tests sólo si protegen una BR-*, una garantía de seguridad o de datos, o un flujo de usuario sin cobertura previa (golden-principles, Tests). Usar la capa más barata; no contar elementos ni verificar forma o cosméticos.

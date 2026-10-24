@@ -1,6 +1,6 @@
 ---
 name: architecture-drift-check
-description: Pass read-only que compara docs/architecture/dependency-graph.md + module-anatomy.md contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, edges no registrados.
+description: Pass read-only que compara docs/architecture/, los docs de dominio y las skills path-scoped contra el código real. Detecta módulos no documentados, ciclos, referencias cruzadas inválidas, edges no registrados.
 argument-hint: [<modulo opcional>]
 ---
 
@@ -16,7 +16,7 @@ argument-hint: [<modulo opcional>]
 
 ### 1. Módulos no documentados
 
-- Listar todos los `backend/src/Modules.*/` directorios.
+- Listar todos los `backend/src/Modules.*/` directorios (sin `.Contracts`).
 - Cruzar contra `docs/architecture/domains/` archivos.
 - Cada módulo sin doc correspondiente → **drift**.
 
@@ -25,7 +25,7 @@ argument-hint: [<modulo opcional>]
 Inspeccionar todos los `.csproj` y extraer ProjectReferences:
 
 ```bash
-grep -rE "ProjectReference" backend/src/Modules.*/*.csproj
+grep -rE "ProjectReference" backend/src/*/*.csproj
 ```
 
 Construir grafo + detectar ciclos con DFS.
@@ -38,17 +38,13 @@ Cualquier referencia desde `Modules.<X>/*.csproj` a `Modules.<Y>/*.csproj` (no a
 grep -E "Include=\".*Modules\.[A-Z][a-zA-Z]+/\"" backend/src/Modules.*/*.csproj | grep -v ".Contracts"
 ```
 
-### 4. Imports de Internal/ cross-module
+### 4. Guías que contradicen el código
 
-```bash
-grep -rE "using ArsDocendi.Modules.[A-Z][a-zA-Z]+\.Internal" backend/src/ --include="*.cs" | grep -v "Modules.<MismoModulo>"
-```
-
-Cualquier match desde un módulo distinto → **violación**.
+Las skills `dotnet-modules-guide`, `react-features-guide` y `create-module` se inyectan en el contexto de los agentes. Verificar que cada archivo, carpeta, atributo o comando que nombran exista y se use en el código (por ejemplo `ModuleExtensions.cs`, `[Authorize(Policy = ...)]`, `app/router.tsx`). Una contradicción → **drift** `high`.
 
 ### 5. Edges no registrados
 
-Listar todos los `ProjectReference` cross-module en el código.
+Listar todos los `ProjectReference` de `backend/src/*/*.csproj`, incluidos Host, Shared, Storage, Inferencia y Migraciones.
 
 Cruzar contra el "Edge registry" de `docs/architecture/dependency-graph.md`.
 
@@ -58,7 +54,7 @@ Cada edge en código no listado en docs → **drift**.
 
 Listar todos los `[Http*]` attrs en controllers.
 
-Cruzar contra la sección "Endpoints por módulo" de `docs/architecture/api-contracts.md`.
+Cruzar contra `docs/architecture/api-contracts*.md`.
 
 Endpoints no documentados → **drift** (low/medium).
 
@@ -73,7 +69,7 @@ Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
 ## Hard rules
 
 - **Read-only**.
-- Drifts críticos (ciclos, referencias inválidas, leak de Internal): `blocker` — el equipo debe arreglar ANTES del próximo merge.
+- Drifts críticos (ciclos, referencias inválidas): `blocker` — el equipo debe arreglar ANTES del próximo merge.
 - Drifts documentales: pueden ser `medium`, arreglar en próxima PR de docs.
 
 ## Arguments

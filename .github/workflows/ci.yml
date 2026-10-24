@@ -69,6 +69,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prettier check
         run: pnpm format:check
+      - name: Links relativos en docs
+        run: node scripts/docs/check-links.mjs
 
   infra:
     name: Infra (scripts de despliegue)

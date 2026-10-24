@@ -41,6 +41,7 @@ dotnet new classlib -n Modules.<X> -o Modules.<X>
 cd Modules.<X>
 dotnet add reference ../Modules.<X>.Contracts/Modules.<X>.Contracts.csproj
 dotnet add reference ../ArsDocendi.Shared/ArsDocendi.Shared.csproj
+dotnet add reference ../ArsDocendi.Migraciones/ArsDocendi.Migraciones.csproj
 ```
 
 ### 4. Agregar a la solution
@@ -56,63 +57,39 @@ dotnet sln ArsDocendi.slnx add src/Modules.<X>.Contracts/Modules.<X>.Contracts.c
 ```bash
 cd backend/src/ArsDocendi.Host
 dotnet add reference ../Modules.<X>/Modules.<X>.csproj
-dotnet add reference ../Modules.<X>.Contracts/Modules.<X>.Contracts.csproj
 ```
 
-### 6. Estructura interna del módulo
+El Host referencia `Modules.<X>.Contracts` directamente sólo si consume una de sus interfaces (como `Modules.Designaciones.Contracts`).
 
-Crear directorios + archivos esqueleto siguiendo [module-anatomy.md](../../../docs/architecture/module-anatomy.md):
+### 6. Estructura interna mínima
+
+Copiar la forma de `Modules.Aulas`, el módulo mínimo vigente, y crear sólo lo que se usa (sin carpetas vacías):
 
 ```
 Modules.<X>/
-├── Controllers/
-│   └── <X>Controller.cs       # con endpoint /api/<x>/ping mínimo
-├── Services/
-│   └── <X>Service.cs
-├── Repositories/
-│   └── <X>Repository.cs
-├── Domain/
-│   ├── Entities/
-│   └── ValueObjects/
+├── Api/<X>Controller.cs           # ping obligatorio
 ├── Infrastructure/
-│   └── <X>DbContext.cs        # EF Core con schema "<x>"
-├── Internal/                  # placeholder
-└── ModuleRegistration.cs      # IServiceCollection extension
+│   ├── <X>DbContext.cs            # schema "<x>"
+│   └── Migrador<X>.cs             # IMigradorModulo
+└── ModuleExtensions.cs            # Add<X>Module(IConfiguration)
 ```
+
+`Application/` o `Services/`, `Repositories/` y `Domain/` se agregan con la primera feature real (ver `Modules.Tareas`).
 
 ### 7. Endpoint `/api/<x>/ping` obligatorio
 
+Igual a `Modules.Aulas/Api/AulasController.cs`:
+
 ```csharp
-[ApiController]
-[Route("api/<x>")]
-public class <X>Controller : ControllerBase {
-    [HttpGet("ping")]
-    [AllowAnonymous]
-    public IActionResult Ping() => Ok(new { module = "<x>", timestamp = DateTimeOffset.UtcNow });
-}
+[HttpGet("ping")]
+public IActionResult Ping() => Ok(new { module = "<x>", status = "ok" });
 ```
 
 ### 8. Registración
 
-En `ModuleRegistration.cs`:
+`ModuleExtensions.cs` replica `Modules.Aulas/ModuleExtensions.cs`: DbContext con interceptor de auditoría, `IMigradorModulo` y `AddApplicationPart`. Después, en `ArsDocendi.Host/Program.cs`, encadenar `.Add<X>Module(builder.Configuration)`.
 
-```csharp
-public static class <X>ModuleExtensions {
-    public static IServiceCollection Add<X>Module(this IServiceCollection services, IConfiguration config) {
-        services.AddDbContext<<X>DbContext>(opts => opts.UseNpgsql(config.GetConnectionString("ArsDocendi"),
-            npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", schema: "<x>")));
-        services.AddScoped<I<X>Service, <X>Service>();
-        // ...
-        return services;
-    }
-}
-```
-
-En `ArsDocendi.Host/Program.cs`:
-
-```csharp
-builder.Services.Add<X>Module(builder.Configuration);
-```
+Registrar el contexto nuevo en `contextos` de `scripts/migrations/comun.mjs` y crear el schema inicial con `node scripts/migrations/scaffold.mjs <X> <Nombre>` ([database/README.md](../../../database/README.md)). No usar `dotnet ef migrations add`.
 
 ### 9. Frontend slice (si aplica)
 
@@ -124,8 +101,7 @@ Estructura mínima:
 
 ```
 frontend/src/features/<x>/
-├── index.ts                 # exports públicos del feature
-├── api/                     # llamadas axios al backend
+├── api/                     # funciones tipadas sobre shared/api/client.ts
 ├── components/
 ├── hooks/                   # React Query hooks
 └── routes.tsx               # rutas del feature
@@ -151,18 +127,20 @@ dotnet run --project src/ArsDocendi.Host
 curl http://localhost:5000/api/<x>/ping
 ```
 
-Debe retornar `{ "module": "<x>", "timestamp": "..." }`.
+Debe retornar `{ "module": "<x>", "status": "ok" }`.
+
+No agregues un test automatizado del ping: lo verifica en cada despliegue `infra/scripts/smoke.sh`. Sumá `<x>` a la lista de módulos de ese script y de su test (`infra/tests/smoke.test.mjs`). Los tests del módulo nuevo siguen los criterios de [golden-principles → Tests](../../../docs/quality/golden-principles.md#tests).
 
 ### 13. Commit + PR
 
-Branch `feature/create-module-<x>`. Ver [open-pr.md](../../../docs/workflows/open-pr.md).
+Branch `feature/<x>`. Ver [open-pr.md](../../../docs/workflows/open-pr.md).
 
 ## Reglas duras
 
 - **Nunca** referenciar otros `Modules.<Otro>` (no Contracts) — usar siempre el `.Contracts` de los otros.
 - **Sin código** en `Modules.<X>.Contracts` — solo DTOs, interfaces, tokens.
 - **Endpoint `/api/<x>/ping`** es obligatorio.
-- **`ModuleRegistration.cs`** debe existir aunque al principio registre poco.
+- **`ModuleExtensions.cs`** debe existir aunque al principio registre poco.
 - Documentar en `dependency-graph.md` cualquier edge nuevo cross-module.
 
 ## Arguments

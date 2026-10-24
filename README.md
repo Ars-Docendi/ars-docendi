@@ -8,9 +8,11 @@ Sistema web para el Departamento de Ingeniería de la UNLaM. Para las reglas de 
 
 Monolito modular en monorepo:
 
-- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos aislados (Designaciones, Aulas, Portal, Tareas). Cada módulo tiene su par `Modules.X` (interno) + `Modules.X.Contracts` (público). Comunicación entre módulos sólo vía contratos.
-- **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aislados por módulo.
-- **Base de datos**: PostgreSQL único, un schema por módulo (`designaciones`, `aulas`, `portal`, `tareas`).
+- **backend/**: ASP.NET Core 10 Web API. Un Host compone 4 módulos de negocio (Designaciones, Aulas, Portal, Tareas) y la infraestructura transversal (`Shared`, `Migraciones`, `Storage`, `Inferencia`). Comunicación entre módulos sólo vía proyectos `*.Contracts`.
+- **frontend/**: Vite + React 19 + TypeScript. Una app única con `src/features/` aisladas entre sí.
+- **Base de datos**: PostgreSQL único, un schema por contexto (`identity`, `audit`, `storage`, `designaciones`, `aulas`, `portal`, `tareas`).
+
+Detalle en [docs/architecture/](docs/architecture/).
 
 ## Requisitos
 
@@ -94,7 +96,7 @@ pnpm --filter frontend dev
 - App: `http://localhost:5173`
 - Vite proxea `/api` a `http://localhost:5000`: el frontend y la API quedan en el mismo origen, como en los despliegues. No hace falta `VITE_API_URL`.
 
-#### 5. Ingreso con Microsoft (opcional)
+#### 6. Ingreso con Microsoft (opcional)
 
 En local se entra con el selector de identidades sembradas, que hay que habilitar en el backend una sola vez:
 
@@ -140,19 +142,24 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-cheat-sheet).
 │   ├── ArsDocendi.slnx
 │   └── src/
 │       ├── ArsDocendi.Host/
-│       ├── ArsDocendi.Shared/
+│       ├── ArsDocendi.Shared/        # identity, audit y utilidades
+│       ├── ArsDocendi.Migraciones/   # runner de SQL versionado
+│       ├── ArsDocendi.Storage/       + .Contracts/ (adjuntos S3)
+│       ├── ArsDocendi.Inferencia/    # cliente Ollama
 │       ├── Modules.Designaciones/  + .Contracts/
 │       ├── Modules.Aulas/          + .Contracts/
 │       ├── Modules.Portal/         + .Contracts/
 │       └── Modules.Tareas/         + .Contracts/
+│   └── tests/ArsDocendi.IntegrationTests/
+├── database/                 # SQL versionado por contexto
 ├── frontend/                 # Vite + React 19 + TS
 │   └── src/{app,shared,features}/
 ├── openspec/                 # Planning: specs vigentes + changes activos (fuente de verdad)
 ├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
 ├── infra/                    # Compose + Traefik + Cloudflare Tunnel (producción en Debian; pruebas en Proxmox)
 ├── scripts/                  # setup local
-├── .claude/skills/           # Skills Claude Code project-scoped
-├── .github/workflows/        # ci.yml (path filtering + openspec validate)
+├── .claude/, .agents/        # skills de Claude Code y Codex
+├── .github/workflows/        # CI, CodeQL y deploys (staging, prod, pr-N)
 ├── .husky/pre-commit
 ├── lint-staged.config.mjs
 ├── global.json               # fija el SDK y el runner de tests .NET
@@ -162,13 +169,9 @@ Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-cheat-sheet).
 └── .env.example
 ```
 
-## Convenciones de módulos
+## Convenciones
 
-- `Modules.X` solo referencia `Shared` y `Modules.*.Contracts`. **Prohibido** referenciar `Modules.X` internos entre sí.
-- Cada módulo expone `GET /api/{x}/ping` como smoke test.
-- En el frontend, las features no se importan entre sí; lo común sube a `src/shared/`.
-
-Detalle completo en [AGENTS.md](AGENTS.md) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
+Las reglas de módulos, frontend y tests están en [AGENTS.md](AGENTS.md#reglas-de-implementación) y [docs/quality/golden-principles.md](docs/quality/golden-principles.md).
 
 ## Próximos pasos
 

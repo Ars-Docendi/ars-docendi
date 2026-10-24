@@ -111,8 +111,8 @@ Si falla, usar la skill `/ci-fix` documentada en [el índice de workflows](./REA
 
 ## Reglas
 
-- **Base correcta**: `develop` para features/bugs comunes; `main` solo para hotfixes (y abrir cherry-pick a `develop`).
-- **Branch nombre**: seguir convención del CONTRIBUTING (`feature/<kebab>`, `hotfix/<kebab>`).
+- **Base correcta**: `develop` para features/bugs comunes; `main` solo para hotfixes (más un segundo PR del mismo fix a `develop`, ver CONTRIBUTING).
+- **Branch nombre**: seguir la convención de CONTRIBUTING.
 - **Sin force-push** en branches con review en curso salvo coordinado con reviewers.
 - **PR description completa**: la sección "Documentación tocada" es checklist real, no decorativa.
-- **Sin attribution AI**: el equipo decide cómo firmar; por convención de proyecto NO agregar "Co-Authored-By Claude".
+- **Sin atribución AI**: ver [CONTRIBUTING](../../CONTRIBUTING.md#sin-atribución-ai).
