@@ -47,15 +47,15 @@ En Claude Code viven en `.claude/skills/<nombre>/SKILL.md` y se invocan con `/<n
 
 ## Cuando algo se rompe
 
-| Problema                          | Acción                                                                                                           |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Pre-commit aborta el commit       | Leer el error, arreglar formato o lint, `git add` y re-commit. No usar `--no-verify`                             |
-| `pnpm install` falla              | Verificar las versiones de Node y pnpm declaradas en `package.json` (`engines`, `packageManager`)                |
-| `dotnet restore` falla            | Verificar el SDK fijado en `global.json`; `dotnet nuget locals all --clear`                                      |
-| Postgres no levanta               | `docker compose down -v` (**borra los datos locales**) y volver a correr `./scripts/setup.sh`                    |
-| Tests fallan en CI, no localmente | Revisar `.github/workflows/ci.yml` y reproducir sus versiones                                                    |
-| CI rojo en tu PR                  | `/ci-fix <PR>`                                                                                                   |
-| Olvidaste archivar post-merge     | `/opsx:archive <id>`                                                                                             |
-| Una skill `/<nombre>` no aparece  | Confirmar que existe `.claude/skills/<nombre>/SKILL.md` con `name:` en el frontmatter y reiniciar la herramienta |
+| Problema                          | Acción                                                                                                                                                                                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-commit aborta el commit       | Leer el error, arreglar formato o lint, `git add` y re-commit. No usar `--no-verify`                                                                                                                                                                    |
+| `pnpm install` falla              | Verificar las versiones de Node y pnpm declaradas en `package.json` (`engines`, `packageManager`)                                                                                                                                                       |
+| `dotnet restore` falla            | Verificar el SDK fijado en `global.json`; `dotnet nuget locals all --clear`                                                                                                                                                                             |
+| Postgres no levanta               | Ver el error con `docker compose logs postgres`, reiniciar con `docker compose down` y volver a correr `./scripts/setup.sh`. `docker compose down -v` **borra los datos locales**: usalo sólo como reinicio explícito, tras respaldarlos si hacen falta |
+| Tests fallan en CI, no localmente | Revisar `.github/workflows/ci.yml` y reproducir sus versiones                                                                                                                                                                                           |
+| CI rojo en tu PR                  | `/ci-fix <PR>`                                                                                                                                                                                                                                          |
+| Olvidaste archivar post-merge     | `/opsx:archive <id>`                                                                                                                                                                                                                                    |
+| Una skill `/<nombre>` no aparece  | Confirmar que existe `.claude/skills/<nombre>/SKILL.md` con `name:` en el frontmatter y reiniciar la herramienta                                                                                                                                        |
 
 Si sigue sin estar claro, preguntale al equipo. Si la confusión se repite, falta documentación: agregala en el PR donde la viviste.

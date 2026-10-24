@@ -27,7 +27,7 @@ Monolito modular en un único `ArsDocendi.slnx`. Cada módulo es un proyecto sep
 
 Restricciones (ver [`module-anatomy.md`](./module-anatomy.md)):
 
-- `Modules.X` solo referencia `Shared` y `Modules.*.Contracts`. **Prohibido referenciar `Modules.X` internos entre sí**.
+- `Modules.X` solo referencia `Shared`, `ArsDocendi.Migraciones` y `Modules.*.Contracts`. **Prohibido referenciar `Modules.X` internos entre sí**.
 - Cada módulo expone `GET /api/{x}/ping` como smoke test.
 - `*.Contracts` contiene solo DTOs, interfaces y tokens públicos. **Sin lógica**.
 

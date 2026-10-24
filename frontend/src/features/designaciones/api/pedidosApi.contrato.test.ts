@@ -37,5 +37,8 @@ describe("contrato del detalle de pedido", () => {
     expect(pedido.docente.dni).toBe(dni);
     expect(pedido.adjuntos.map((a) => [a.id, a.tipo, a.estadoArchivo])).toEqual(adjuntos);
     expect(pedido.historial.map((h) => [h.id, h.accion, h.fecha])).toEqual(historial);
+    expect(pedido.historial.map((h) => h.porNombre)).toEqual(
+      contrato.historial.map((h) => h.actorNombre),
+    );
   });
 });

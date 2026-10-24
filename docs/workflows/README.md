@@ -15,7 +15,7 @@ El detalle paso a paso de cada workflow vive en su skill (`.claude/skills/<x>/SK
 | Después de mergear PR de feature           | `/opsx:archive <id>`             | Archiva change en `openspec/changes/archive/` + mergea delta specs |
 | Bug, un módulo, sin cambio de Contracts    | `/fix-bug`                       | Red-green test + fix                                               |
 | Bug que toca Contracts o múltiples módulos | `/fix-bug` + `/opsx:propose`     | Change OpenSpec + fix                                              |
-| Agregar tests (BR-\* o smoke técnico)      | `/add-tests`                     | Opcional `docs/business-rules/` + tests + traceability             |
+| Agregar tests (BR-\* o garantías sin BR)   | `/add-tests`                     | Opcional `docs/business-rules/` + tests + traceability             |
 | Nuevo módulo .NET (Modules.X + .Contracts) | `/create-module`                 | Module scaffold + domain doc                                       |
 | Cambiar módulo existente                   | `/modify-module`                 | Análisis de impacto en Contracts                                   |
 | Evaluar trabajo completado                 | `/evaluate`                      | Report + scorecard update                                          |

@@ -74,7 +74,7 @@ reviews:
     - path: "backend/src/Modules.*/**/*.cs"
       instructions: |
         Módulos (AGENTS.md, reglas 1–3 y 7; golden-principles, Fronteras, Capas y Autorización). Señalar:
-        - Referencias a implementaciones o Internal/ de otro módulo: el cruce va sólo por Modules.<Y>.Contracts.
+        - Referencias a la implementación de otro módulo: el cruce va sólo por Modules.<Y>.Contracts.
         - Controllers que llaman repositories o concentran reglas de negocio.
         - Rutas sin autorización por permiso, o autorizadas por nombre de rol, salvo el ping público.
         - Escrituras sobre identity (personas, roles, permisos) fuera de la superficie de administración. Los módulos leen con IConsultasIdentity.
@@ -85,7 +85,7 @@ reviews:
       instructions: |
         Shared admite sólo utilidades puras transversales y la persistencia de los schemas identity y audit (AGENTS.md, regla 4). Señalar como bloqueante:
         - Lógica de dominio, I/O o estado mutable nuevos.
-        - Utilidades que usa un solo módulo: deben vivir en Modules.<X>/Internal/.
+        - Utilidades que usa un solo módulo: deben vivir dentro de Modules.<X>.
         - Escrituras nuevas sobre identity fuera de la superficie de administración.
 
     - path: "database/**"

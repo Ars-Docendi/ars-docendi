@@ -130,7 +130,7 @@ pnpm --filter frontend lint
 pnpm --filter frontend build
 ```
 
-Más comandos en [ONBOARDING.md → Cheat sheet](ONBOARDING.md#3-cheat-sheet).
+Más comandos en [ONBOARDING.md → Flujos comunes](ONBOARDING.md#4-flujos-comunes).
 
 `frontend/src/test/contratos/` guarda respuestas reales de la API que el frontend usa en sus tests. Si un cambio intencional altera la forma de una respuesta, el test de backend falla; regeneralo con `ACTUALIZAR_CONTRATOS=1 dotnet test backend/ArsDocendi.slnx` y adaptá el mapper del frontend.
 

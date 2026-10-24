@@ -11,7 +11,20 @@ const archivos = execFileSync("git", ["ls-files", "*.md"], { encoding: "utf8" })
 const rotos = [];
 for (const archivo of archivos) {
   const texto = readFileSync(archivo, "utf8");
-  for (const [, destino] of texto.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)) {
+  const definiciones = new Map(
+    [...texto.matchAll(/^\s*\[([^\]]+)\]:\s*<?([^\s>#]+)/gm)].map(([, e, d]) => [
+      e.toLowerCase(),
+      d,
+    ]),
+  );
+  const destinos = [
+    ...[...texto.matchAll(/\]\(<?([^)\s>#]+)>?(?:#[^)]*)?\)/g)].map((m) => m[1]),
+    ...[...texto.matchAll(/\]\[([^\]]*)\]/g)]
+      .map((m) => definiciones.get(m[1].toLowerCase()))
+      .filter(Boolean),
+    ...definiciones.values(),
+  ];
+  for (const destino of new Set(destinos)) {
     if (/^[a-z]+:/i.test(destino)) continue;
     if (!existsSync(resolve(dirname(archivo), decodeURI(destino)))) {
       rotos.push(`${archivo} -> ${destino}`);
