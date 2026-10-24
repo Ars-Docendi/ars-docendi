@@ -43,8 +43,8 @@ resultados, "Limpiar filtros", tabla con filas clickeables (Tab + Enter) y "Canc
 - Lo que no se puede elegir se ve atenuado con su motivo ("Ya asignada", "Ya tiene esta
   membresía") y la selección actual aparece resaltada.
 
-"Nuevo docente" y "Editar docente" abren con el tamaño de su contenido: el ancho necesario para
-leer la materia y la carrera elegidas y el alto justo hasta "+ Agregar asignación", acotados a la
+"Nuevo docente", "Editar docente", "Nuevo usuario" y "Editar usuario" abren con el tamaño de su contenido: el ancho necesario para
+leer la materia y la carrera elegidas y el alto justo hasta el último "+ Agregar…", acotados a la
 ventana. Junto con "Buscar materia" (880×640 al abrir) se pueden estirar desde la esquina inferior
 derecha; el cuerpo desplaza y el encabezado y el pie quedan visibles.
 

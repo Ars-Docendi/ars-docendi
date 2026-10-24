@@ -11,3 +11,12 @@
   flex: 1;
   min-height: 0;
 }
+
+/* Formularios administrativos (docentes, usuarios): abren con el tamaño de su contenido —ancho
+   para leer las materias elegidas y alto hasta el último botón—, acotado a la ventana. */
+.adoc-modal.adoc-modal--ajustado {
+  width: fit-content;
+  height: auto;
+  min-width: min(640px, 100%);
+  min-height: min(320px, 100%);
+}

@@ -4,6 +4,7 @@ import { MembresiasSelector, type MembresiaFila } from "../../../shared/ui/Membr
 import { membresiaAGuardar } from "../../../shared/ui/membresias";
 import type { CatalogosUsuarios } from "../api/usuariosApi";
 import { nombreCompleto, type UsuarioGuardar, type UsuarioMock } from "../models";
+import "../../../shared/ui/modalEstirable.css";
 
 interface ModalEditarUsuarioProps {
   usuario: UsuarioMock | null;
@@ -74,6 +75,7 @@ export function ModalEditarUsuario({
         if (!next) onCerrar();
       }}
       title="Editar usuario"
+      className="adoc-modal--estirable adoc-modal--ajustado"
       footer={
         <div
           className="adoc-modal-actions"
