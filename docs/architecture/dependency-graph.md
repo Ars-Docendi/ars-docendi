@@ -47,7 +47,7 @@ flowchart TD
   Host --> Tareas
   Host -->|"orquestación administrativa de docentes"| DesignacionesContracts
   Host --> AulasContracts
-  Host --> PortalContracts
+  Host -->|"administración de Mi Portal de otras personas"| PortalContracts
   Host --> TareasContracts
 
   Designaciones --> Shared

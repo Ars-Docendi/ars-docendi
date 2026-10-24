@@ -49,9 +49,9 @@ if (origenesPermitidos.Length > 0)
         politica.WithOrigins(origenesPermitidos).AllowAnyHeader().AllowAnyMethod()));
 }
 builder.Services.AddExceptionHandler<ManejadorExcepcionesApi>();
-builder.Services.AddScoped<ServicioDocentes>();
-builder.Services.AddScoped<ServicioUsuariosAdministracion>();
 builder.Services.AddScoped<ResolutorAlcanceDocentes>();
+builder.Services.AddScoped<ServicioAdministracionPersonas>();
+builder.Services.AddScoped<AlcancePersonas>();
 builder.Services.AddScoped<IRepositorioEstadoSistema, RepositorioEstadoSistema>();
 builder.Services.AddScoped<ServicioEstadoSistema>();
 builder.Services.AddScoped<IRepositorioAuditoria, RepositorioAuditoria>();

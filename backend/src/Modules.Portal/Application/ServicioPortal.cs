@@ -216,10 +216,21 @@ public sealed partial class ServicioPortal(
         },
     };
 
-    private async Task<Persona> PersonaActualAsync(CancellationToken ct) =>
-        Guid.TryParse(usuario.UserId, out var uid)
+    // Persona cuyo perfil se edita. Sin objetivo es la persona autenticada (Mi Portal); con
+    // objetivo, la que eligió un operador autorizado (ver AdministracionPortal). El usuario
+    // autenticado sigue siendo el autor de los cambios y el dueño de los archivos que sube.
+    private Guid? personaObjetivoId;
+
+    internal void ActuarSobre(Guid personaId) => personaObjetivoId = personaId;
+
+    private async Task<Persona> PersonaActualAsync(CancellationToken ct)
+    {
+        if (personaObjetivoId is { } objetivo)
+            return await identity.ObtenerPersonaAsync(objetivo, ct) ?? throw NoEncontrado();
+        return Guid.TryParse(usuario.UserId, out var uid)
             ? (await identity.ObtenerUsuarioAsync(uid, ct))?.Persona ?? throw NoEncontrado()
             : throw new ExcepcionAplicacion(TipoErrorAplicacion.NoAutenticado, "unauthenticated", "Se requiere autenticación.");
+    }
 
     private Guid UsuarioIdActual() => Guid.TryParse(usuario.UserId, out var uid)
         ? uid

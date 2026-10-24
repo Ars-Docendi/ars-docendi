@@ -26,6 +26,8 @@ interface MembresiasSelectorProps {
   materiasPlan?: OpcionCatalogo[];
   carreras?: OpcionCatalogo[];
   error?: string;
+  /** Muestra los roles sin poder cambiarlos. */
+  soloLectura?: boolean;
 }
 
 export function MembresiasSelector({
@@ -36,6 +38,7 @@ export function MembresiasSelector({
   materiasPlan = [],
   carreras = [],
   error,
+  soloLectura = false,
 }: MembresiasSelectorProps) {
   function actualizar(i: number, cambios: Partial<MembresiaFila>) {
     onChange(filas.map((fila, indice) => (indice === i ? { ...fila, ...cambios } : fila)));
@@ -64,6 +67,7 @@ export function MembresiasSelector({
                 value={fila.rolId}
                 onChange={(e) => cambiarRol(i, e.target.value)}
                 aria-label={`Rol de membresía ${i + 1}`}
+                disabled={soloLectura}
                 style={{ flex: "0 0 13rem" }}
               >
                 <option value="">Rol…</option>
@@ -105,6 +109,7 @@ export function MembresiasSelector({
                         : undefined
                     }
                     ariaLabel={`Materia de membresía ${i + 1}`}
+                    soloLectura={soloLectura}
                     placeholder={
                       esDocente
                         ? "Ninguna materia y carrera seleccionada"
@@ -119,6 +124,7 @@ export function MembresiasSelector({
                   value={fila.carreraId}
                   onChange={(e) => actualizar(i, { carreraId: e.target.value })}
                   aria-label={`Carrera de membresía ${i + 1}`}
+                  disabled={soloLectura}
                   style={{ flex: "1" }}
                 >
                   <option value="">Carrera…</option>
@@ -131,7 +137,7 @@ export function MembresiasSelector({
                 </Select>
               )}
 
-              {filas.length > 1 && (
+              {filas.length > 1 && !soloLectura && (
                 <button
                   type="button"
                   onClick={() => onChange(filas.filter((_, indice) => indice !== i))}
@@ -151,14 +157,16 @@ export function MembresiasSelector({
             </div>
           );
         })}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => onChange([...filas, { rolId: "", materiaId: "", carreraId: "" }])}
-        >
-          + Agregar membresía
-        </Button>
+        {!soloLectura && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => onChange([...filas, { rolId: "", materiaId: "", carreraId: "" }])}
+          >
+            + Agregar membresía
+          </Button>
+        )}
       </div>
     </Field>
   );

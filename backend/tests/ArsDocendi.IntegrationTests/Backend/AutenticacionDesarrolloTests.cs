@@ -68,18 +68,16 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "jefe_catedra");
 
-        var docentes = await cliente.GetFromJsonAsync<DocenteAdministracionDto[]>(
-            "/api/administracion/docentes", ct);
-        var catalogos = await cliente.GetFromJsonAsync<CatalogosDocentesDto>(
-            "/api/administracion/docentes/catalogos", ct);
+        var docentes = await cliente.GetFromJsonAsync<PersonaAdministracionDto[]>(
+            "/api/administracion/personas", ct);
         using var detalleFueraDeAmbito = await cliente.GetAsync(
-            "/api/administracion/docentes/d0000000-0000-4000-8000-000000000010", ct);
+            "/api/administracion/personas/d0000000-0000-4000-8000-000000000010", ct);
         using var detalleMixto = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaMixta}", ct);
+            $"/api/administracion/personas/{personaMixta}", ct);
         using var detalleAjeno = await cliente.GetAsync(
-            $"/api/administracion/docentes/{personaAjena}", ct);
+            $"/api/administracion/personas/{personaAjena}", ct);
         using var alta = await cliente.PostAsJsonAsync(
-            "/api/administracion/docentes", new { }, ct);
+            "/api/administracion/personas", new { }, ct);
 
         Assert.NotNull(docentes);
         Assert.NotEmpty(docentes);
@@ -90,12 +88,8 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         Assert.Contains(mixta.Membresias, membresia => membresia.MateriaId == MateriasDelJefe[0]);
         Assert.DoesNotContain(mixta.Membresias, membresia => membresia.MateriaId == MateriaAjena);
         Assert.DoesNotContain(docentes, docente => docente.PersonaId == personaAjena);
-        Assert.NotNull(catalogos);
-        Assert.Equal(MateriasDelJefe.Length, catalogos.Materias.Count);
-        Assert.All(catalogos.Materias, materia => Assert.Contains(materia.Id, MateriasDelJefe));
-        Assert.Empty(catalogos.PersonasElegibles);
         Assert.Equal(HttpStatusCode.OK, detalleMixto.StatusCode);
-        var detalle = await detalleMixto.Content.ReadFromJsonAsync<DocenteAdministracionDto>(ct);
+        var detalle = await detalleMixto.Content.ReadFromJsonAsync<PersonaAdministracionDto>(ct);
         Assert.NotNull(detalle);
         Assert.DoesNotContain(detalle.Asignaciones, asignacion => asignacion.MateriaId == MateriaAjena);
         Assert.DoesNotContain(detalle.Membresias, membresia => membresia.MateriaId == MateriaAjena);
@@ -112,7 +106,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(
-            HttpMethod.Get, "/api/administracion/docentes");
+            HttpMethod.Get, "/api/administracion/personas");
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Docente.ToString());
         solicitud.Headers.Add(AutenticacionDesarrolloHandler.HeaderRol, "docente");
 
@@ -206,7 +200,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
 
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderRol, "revisor_custom");
-        using var docentes = await cliente.GetAsync("/api/administracion/docentes", ct);
+        using var docentes = await cliente.GetAsync("/api/administracion/personas", ct);
         Assert.Equal(HttpStatusCode.OK, docentes.StatusCode);
     }
 

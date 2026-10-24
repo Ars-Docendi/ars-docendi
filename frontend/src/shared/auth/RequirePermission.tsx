@@ -1,9 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useCurrentUser } from "./useCurrentUser";
 
-export function RequirePermission({ permission }: { permission: string }) {
+/** Con uno de los permisos alcanza. */
+export function RequirePermission({ permission }: { permission: string | string[] }) {
   const { user, isLoading } = useCurrentUser();
   if (isLoading) return null;
-  if (!user || !user.permissions.includes(permission)) return <Navigate to="/" replace />;
+  const requeridos = Array.isArray(permission) ? permission : [permission];
+  if (!user || !requeridos.some((p) => user.permissions.includes(p)))
+    return <Navigate to="/" replace />;
   return <Outlet />;
 }

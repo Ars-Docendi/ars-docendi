@@ -15,7 +15,7 @@ Contratos detallados:
 
 ## Autenticación y autorización
 
-Las rutas de negocio requieren una identidad autenticada. La autorización se evalúa con permisos (`usuarios.ver`, `roles.administrar`, `designaciones.gestionar`, etc.) y los ámbitos persistidos en `identity.user_roles`; rol, materia o carrera enviados por el cliente nunca son autoridad.
+Las rutas de negocio requieren una identidad autenticada. La autorización se evalúa con permisos (`personas.ver`, `roles.administrar`, `designaciones.gestionar`, etc.) y los ámbitos persistidos en `identity.user_roles`; rol, materia o carrera enviados por el cliente nunca son autoridad.
 
 El ingreso real es con cuentas Microsoft (personales o de cualquier organización) y se habilita con `AutenticacionMicrosoft:Habilitada=true`. El backend hace el intercambio OpenID Connect como cliente confidencial y emite su propia cookie de sesión (`__Host-ars-sesion`, `HttpOnly`, `Secure`, `SameSite=Lax`); los tokens de Microsoft nunca llegan al navegador. La cookie sólo identifica al usuario: en cada solicitud el Host verifica que siga activo y resuelve su rol y permisos desde `identity`, así que desactivarlo o cambiarle el rol aplica en la solicitud siguiente. El ingreso no crea usuarios: sólo acepta un mail verificado por Microsoft que coincida con el UPN de un usuario activo con rol vigente. Sin sesión válida la API responde `401`, nunca una redirección.
 
@@ -67,19 +67,18 @@ Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepcion
 
 Los DTOs, permisos, códigos de error y respuestas exactas están detallados en [Administración y desarrollo](./api-contracts-administracion.md) y [Designaciones](./api-contracts-designaciones.md).
 
-| Superficie          | Rutas principales                                                                                 | Autorización                                                        |
-| ------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Usuarios            | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
-| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
-| Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
-| Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                     | `sistema.estado.ver`, `auditoria.ver`                               |
-| Inferencia          | `GET /api/inferencia/estado`                                                                      | `sistema.estado.ver`                                                |
-| Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
-| Catálogos           | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
-| Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
-| Archivos            | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                    | autenticado; archivo propio para mutaciones                         |
-| Sesión dev          | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
-| Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/logout`                            | con `AutenticacionMicrosoft:Habilitada`                             |
+| Superficie          | Rutas principales                                                                                                                     | Autorización                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Personas            | `GET/POST /api/administracion/personas`, `GET/PUT /{personaId}`, estado, `/catalogos`, `/documento/{doc}` y `/{personaId}/portal/...` | `personas.ver` / `personas.ver_ambito` / `personas.administrar` / `portal.administrar` |
+| Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                                                      | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`                          |
+| Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                                                         | `sistema.estado.ver`, `auditoria.ver`                                                  |
+| Inferencia          | `GET /api/inferencia/estado`                                                                                                          | `sistema.estado.ver`                                                                   |
+| Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                                                           | `periodos.administrar`                                                                 |
+| Catálogos           | `GET /api/designaciones/catalogos`                                                                                                    | `designaciones.ver`                                                                    |
+| Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                                                      | permisos de consulta, gestión o revisión; siempre acotados al actor                    |
+| Archivos            | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                                                        | autenticado; archivo propio para mutaciones                                            |
+| Sesión dev          | `GET /api/desarrollo/identidades`                                                                                                     | sólo ambiente no productivo con opt-in                                                 |
+| Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/logout`                                                                | con `AutenticacionMicrosoft:Habilitada`                                                |
 
 Todos los DTOs usan JSON `camelCase`, UUIDs canónicos y fechas ISO. Las respuestas de pedidos incluyen historial y `accionesPermitidas`; el frontend no vuelve a ejecutar la autorización ni la máquina de estados. En pedidos, el Alta envía `persona { documento, nombre, apellido }` sin `personaId`; Baja y Cambio envían `personaId` y siempre `materiaId` + `carreraId` explícitos (una materia dictada en más de una carrera exige elegir una).
 

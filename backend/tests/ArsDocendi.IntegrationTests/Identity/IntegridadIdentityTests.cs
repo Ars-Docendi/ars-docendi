@@ -42,7 +42,7 @@ public sealed class IntegridadIdentityTests : IAsyncLifetime
         await Sql("INSERT INTO identity.users(upn,display_name) VALUES (' Cuenta@Example.test ', 'Sintético');");
         await using var db = CrearDb();
         Assert.NotNull(await new RepositorioIngreso(db).BuscarPorUpnAsync("cuenta@example.test", Ct));
-        Assert.True(await new RepositorioUsuarios(db).ExisteUpnAsync("CUENTA@example.test ", null, Ct));
+        Assert.True(await new RepositorioDocentes(db).ExisteUpnAsync("CUENTA@example.test ", null, Ct));
     }
     [Theory]
     [InlineData(false)]
