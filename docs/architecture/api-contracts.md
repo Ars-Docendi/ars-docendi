@@ -196,36 +196,41 @@ Los filtros de visibilidad y jerarquía se aplican antes de materializar/límite
 
 ### Asistente (`/api/asistente/`)
 
-| Método | Path                                                     | Permiso                          | Descripción                                                           |
-| ------ | -------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/ping`                                                  | (anónimo)                        | Health check del módulo                                               |
-| POST   | `/consultas`                                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
-| POST   | `/consultas/flujo`                                       | `asistente.consultar`            | El mismo turno, con la redacción por fragmentos (`text/event-stream`) |
-| GET    | `/menciones`                                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#» |
-| GET    | `/capacidades`                                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
-| POST   | `/retroalimentacion`                                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                         |
-| GET    | `/historial`                                             | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                         |
-| GET    | `/historial/{id}`                                        | `asistente.consultar`            | El detalle de una conversación propia                                 |
-| PATCH  | `/historial/{id}`                                        | `asistente.consultar`            | Renombra una conversación propia                                      |
-| POST   | `/historial/{id}/archivar`                               | `asistente.consultar`            | Archiva una conversación propia                                       |
-| POST   | `/historial/{id}/desarchivar`                            | `asistente.consultar`            | Desarchiva una conversación propia                                    |
-| DELETE | `/historial/{id}`                                        | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                    |
-| DELETE | `/historial`                                             | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado          |
-| POST   | `/historial/borrados/{lote}/deshacer`                    | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana               |
-| POST   | `/historial/{id}/reanudar`                               | `asistente.consultar`            | Reanuda una conversación propia                                       |
-| POST   | `/historial/turnos/{id}/reejecutar`                      | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
-| POST   | `/soporte/historial/{actorId}/listar`                    | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria               |
-| POST   | `/soporte/historial/{actorId}/{id}/leer`                 | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria             |
-| PATCH  | `/administracion/mantenimiento`                          | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo  |
-| GET    | `/administracion/uso`                                    | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                   |
-| GET    | `/administracion/presupuestos`                           | `asistente.administrar`          | Tope organizacional, cupos por rol/usuario y gasto estimado del mes   |
-| PUT    | `/administracion/presupuestos/roles/{rol}`               | `asistente.administrar`          | Edita el cupo diario default de un rol                                |
-| PUT    | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Edita el override de cupo diario de un usuario                        |
-| DELETE | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Restablece el cupo de un usuario al de su rol                         |
-| PUT    | `/administracion/presupuestos/roles/{rol}/acceso`        | `asistente.administrar`          | Prende/apaga el acceso de un rol al asistente                         |
-| PUT    | `/administracion/presupuestos/usuarios/{actorId}/acceso` | `asistente.administrar`          | Quita o restablece el acceso de un usuario (nunca lo da)              |
-| PUT    | `/administracion/tope-organizacional`                    | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                     |
-| GET    | `/administracion/servidor-local`                         | `asistente.administrar`          | Carga del servidor del modelo propio y de la compuerta del backend    |
+| Método | Path                                                     | Permiso                          | Descripción                                                            |
+| ------ | -------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| GET    | `/ping`                                                  | (anónimo)                        | Health check del módulo                                                |
+| POST   | `/consultas`                                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                      |
+| POST   | `/consultas/flujo`                                       | `asistente.consultar`            | El mismo turno, con la redacción por fragmentos (`text/event-stream`)  |
+| GET    | `/menciones`                                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para el popover «@»/«#»  |
+| GET    | `/capacidades`                                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                           |
+| POST   | `/retroalimentacion`                                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón)                          |
+| GET    | `/historial`                                             | `asistente.consultar`            | Lista (y busca en) las conversaciones propias                          |
+| GET    | `/historial/{id}`                                        | `asistente.consultar`            | El detalle de una conversación propia                                  |
+| PATCH  | `/historial/{id}`                                        | `asistente.consultar`            | Renombra una conversación propia                                       |
+| POST   | `/historial/{id}/archivar`                               | `asistente.consultar`            | Archiva una conversación propia                                        |
+| POST   | `/historial/{id}/desarchivar`                            | `asistente.consultar`            | Desarchiva una conversación propia                                     |
+| DELETE | `/historial/{id}`                                        | `asistente.consultar`            | Marca una conversación propia pendiente de borrado                     |
+| DELETE | `/historial`                                             | `asistente.consultar`            | Marca TODAS las conversaciones propias pendientes de borrado           |
+| POST   | `/historial/borrados/{lote}/deshacer`                    | `asistente.consultar`            | Deshace un lote de borrado propio, dentro de su ventana                |
+| POST   | `/historial/{id}/reanudar`                               | `asistente.consultar`            | Reanuda una conversación propia                                        |
+| POST   | `/historial/turnos/{id}/reejecutar`                      | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                     |
+| POST   | `/soporte/historial/{actorId}/listar`                    | `asistente.leer_historial_ajeno` | Lista el historial de OTRO actor, con razón obligatoria                |
+| POST   | `/soporte/historial/{actorId}/{id}/leer`                 | `asistente.leer_historial_ajeno` | Lee una conversación de OTRO actor, con razón obligatoria              |
+| PATCH  | `/administracion/mantenimiento`                          | `asistente.administrar`          | Prende/apaga el modo mantenimiento. Razón obligatoria para prenderlo   |
+| GET    | `/administracion/uso`                                    | `asistente.administrar`          | Panel de uso: por usuario, por rol y organizacional                    |
+| GET    | `/administracion/presupuestos`                           | `asistente.administrar`          | Tope organizacional, cupos por rol/usuario y gasto estimado del mes    |
+| PUT    | `/administracion/presupuestos/roles/{rol}`               | `asistente.administrar`          | Edita el cupo diario default de un rol                                 |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Edita el override de cupo diario de un usuario                         |
+| DELETE | `/administracion/presupuestos/usuarios/{actorId}`        | `asistente.administrar`          | Restablece el cupo de un usuario al de su rol                          |
+| PUT    | `/administracion/presupuestos/roles/{rol}/acceso`        | `asistente.administrar`          | Prende/apaga el acceso de un rol al asistente                          |
+| PUT    | `/administracion/presupuestos/usuarios/{actorId}/acceso` | `asistente.administrar`          | Quita o restablece el acceso de un usuario (nunca lo da)               |
+| PUT    | `/administracion/tope-organizacional`                    | `asistente.administrar`          | Edita el tope de gasto mensual de la organización                      |
+| GET    | `/administracion/servidor-local`                         | `asistente.administrar`          | Carga del servidor del modelo propio y de la compuerta del backend     |
+| GET    | `/administracion/modelo`                                 | `asistente.administrar`          | Modelo en uso, origen, servidores locales configurados y catálogo      |
+| POST   | `/administracion/modelo/prueba`                          | `asistente.administrar`          | Una llamada mínima real; no persiste nada                              |
+| PUT    | `/administracion/modelo`                                 | `asistente.administrar`          | Re-prueba en el servidor, guarda la clave si viene y fija el modelo    |
+| DELETE | `/administracion/modelo`                                 | `asistente.administrar`          | Vuelve a la configuración del servidor                                 |
+| POST   | `/administracion/credenciales/{empresa}/reemplazo`       | `asistente.administrar`          | Valida una clave nueva con el proveedor y recién entonces la reemplaza |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
@@ -508,6 +513,47 @@ Exige `asistente.administrar`. La carga del servidor del modelo propio (asistent
 `configurado` es `false` con un proveedor que no es `local`, y entonces todo lo demás viene vacío. `alcanzable` es `false` si `/metrics` no respondió en 3 s o no tiene métricas conocidas. `motor` es `vllm` o `llama.cpp`, según qué métricas publica. Cada métrica es `null` si el servidor no la publica —llama-server no informa aciertos de prefijo—, nunca `0`. `usoDeKvCache` y `aciertosDeCacheDePrefijo` van de 0 a 1; el segundo es acumulado desde que arrancó el servidor. `compuerta` es `null` sin `MaximoDeLlamadasConcurrentes`.
 
 La URL de métricas es la del proveedor sin `/v1`, con la misma clave como `Bearer`. La clave nunca aparece en la respuesta ni en el log.
+
+#### Modelo y claves de proveedor (`asistente-modelo-en-caliente`)
+
+Las cinco rutas exigen `asistente.administrar` (`403` sin él, sin tocar nada) y viven en `AdministracionDelModeloController`. Ninguna respuesta, log, mensaje de error ni fila de auditoría lleva el texto de una clave: sólo la **pista** (los últimos 4 caracteres). Ninguna ruta acepta una URL, un host ni una credencial de servidor local: el servidor local se elige por **identificador** (`ollama` o `local`), y el pedido rechaza cualquier campo que el contrato no nombre.
+
+Errores: `ProblemDetails` con la extensión `codigo`. `400` pedido no válido (`empresa-desconocida`, `servidor-local-no-configurado`, `modelo-fuera-del-catalogo`, `credencial-local-no-admitida`, `clave-demasiado-corta`, `empresa-sin-clave`); `422` la prueba del servidor falló y no se cambió nada (`codigo` es uno de los cinco de la prueba); `503` `clave-maestra-no-disponible` (falta `Asistente__ClaveMaestra`: guardar una clave falla, los servidores locales siguen seleccionables).
+
+**`GET /administracion/modelo`** devuelve:
+
+```json
+{
+  "enUso": { "origen": "pantalla", "empresa": "openai", "modelo": "gpt-5" },
+  "servidoresLocales": ["ollama"],
+  "catalogo": [
+    {
+      "empresa": "openai",
+      "tipo": "nube",
+      "credencial": { "estado": "guardada", "pista": "WXYZ" },
+      "modelos": ["gpt-5", "gpt-5-mini"]
+    },
+    {
+      "empresa": "anthropic",
+      "tipo": "nube",
+      "credencial": { "estado": "faltante", "pista": null },
+      "modelos": ["claude-haiku-4-5", "claude-sonnet-5"]
+    },
+    { "empresa": "ollama", "tipo": "local", "credencial": null, "modelos": ["qwen3.5:9b"] }
+  ],
+  "cifradoDisponible": true
+}
+```
+
+`origen` es `servidor` (configuración del ambiente: `empresa` y `modelo` son `Asistente__Proveedor` y `Asistente__Modelo`) o `pantalla` (selección guardada). `servidoresLocales` lista sólo los configurados (`ollama` con `Inferencia__Url`, `local` con `Asistente__UrlDelProveedorLocal`), nunca una URL. El catálogo sale de `asistente.catalogo_de_modelos`; los grupos `local` no llevan credencial.
+
+**`POST /administracion/modelo/prueba`** — pedido `{ empresa, modelo, claveNueva? }`. Hace **una** llamada mínima real por el mismo camino de adaptador que un turno (con la clave nueva si viene, si no con la guardada) y **no persiste nada**. Siempre `200`: `{ "exito": true, "latenciaMs": 412 }` o `{ "exito": false, "codigo": "..." }` con uno de `clave-invalida` (401/403, o sin clave), `sin-credito` (402 o el proveedor dice que no hay saldo), `modelo-inexistente` (404, y 400/422 del proveedor), `saturado` (`ProveedorSaturado`, 429/503/529, o la compuerta de la GPU ocupada: la prueba no espera en la cola) o `inalcanzable` (transporte, timeout o 5xx). Para `ollama`, 401/403 es la credencial de servidor (`Inferencia__*`) rechazada; ninguna credencial aparece en la respuesta.
+
+**`PUT /administracion/modelo`** — mismo pedido. Re-prueba **en el servidor** (lo que la pantalla mostró antes no vale), guarda la clave nueva sólo si la prueba pasó, fija la selección y vacía `CacheDeConsultasGeneradas`. Devuelve `{ enUso, latenciaMs, pista }`; si la prueba falla, `422` con el `codigo` y selección y claves intactas. Audita antes de responder: `credencial.crear` o `credencial.reemplazar` (empresa y pista) y `modelo.seleccionar` (`antes`/`despues` con empresa y modelo; `{"origen":"servidor"}` si no había selección).
+
+**`DELETE /administracion/modelo`** — vuelve a la configuración del servidor, vacía la caché y audita `modelo.restablecer`. Siempre `204`; sin selección guardada no hay nada que revertir y no escribe fila. Las claves guardadas se conservan.
+
+**`POST /administracion/credenciales/{empresa}/reemplazo`** — pedido `{ clave }`, sólo empresas en la nube. Valida la clave nueva con el proveedor (con el modelo en uso si es de esa empresa, si no el primero de su catálogo) y la reemplaza únicamente si pasa; si falla, `422` y la clave vieja sigue guardada y en uso. Independiente de la selección. Devuelve `{ empresa, pista }` y audita `credencial.reemplazar` (o `credencial.crear` si no había una) con las dos pistas.
 
 ## Idempotencia
 

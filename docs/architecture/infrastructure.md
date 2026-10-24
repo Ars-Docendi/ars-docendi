@@ -229,9 +229,9 @@ Compose project, base y storage únicamente en la VM.
   Environment, nunca de repositorio ni de imagen. Sin ella el módulo arranca, el ping
   responde y los modelos locales siguen funcionando; sólo guardar o leer una clave de
   API falla (503). **Perderla deja irrecuperables las claves guardadas**: se vuelven a
-  cargar desde la pantalla. El reenvío desde `compose.base.yml` (`ASISTENTE_CLAVE_MAESTRA`)
-  y la entrada de `.env.example` llegan con los endpoints de administración del mismo
-  change; hasta entonces la variable sólo existe como configuración del proceso.
+  cargar desde la pantalla. `compose.base.yml` la reenvía desde `ASISTENTE_CLAVE_MAESTRA` (y
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`), vacías por default; la entrada de `.env.example`
+  llega con el cierre del mismo change.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

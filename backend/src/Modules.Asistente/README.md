@@ -370,6 +370,18 @@ Tres decisiones que conviene no deshacer sin leer:
   conversación puntual.
 - `PATCH /api/asistente/administracion/mantenimiento` — prende/apaga el kill switch.
   Razón obligatoria para prenderlo. Audita antes de responder.
+- `GET /api/asistente/administracion/modelo` — modelo en uso, origen (servidor o pantalla),
+  servidores locales configurados (identificadores, nunca URL) y catálogo por empresa con el
+  estado de la clave (pista o faltante). Nunca la clave.
+- `POST /api/asistente/administracion/modelo/prueba` — una llamada mínima real a una empresa y
+  modelo (con una clave nueva opcional); devuelve la latencia o uno de `clave-invalida`,
+  `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`. No persiste nada.
+- `PUT /api/asistente/administracion/modelo` — re-prueba en el servidor, guarda la clave si
+  viene, fija la selección y vacía la caché de consultas generadas. Audita antes de responder.
+- `DELETE /api/asistente/administracion/modelo` — vuelve a la configuración del servidor.
+- `POST /api/asistente/administracion/credenciales/{empresa}/reemplazo` — valida la clave nueva
+  con el proveedor y sólo entonces reemplaza la guardada. Sin `Asistente__ClaveMaestra`, guardar
+  una clave responde `503`; los servidores locales siguen seleccionables.
 - `GET /api/asistente/administracion/uso` — panel de uso por usuario, por rol y
   organizacional. Ver «Administración de uso» más abajo.
 - `PUT /api/asistente/administracion/presupuestos/roles/{rol}` — edita el cupo diario

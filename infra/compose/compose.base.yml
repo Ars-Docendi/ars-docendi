@@ -69,6 +69,11 @@ services:
       # `anthropic` sin clave — un proveedor real sin credencial fallaría recién
       # cuando alguien pregunte, que es el peor momento para enterarse.
       Asistente__ClaveDelProveedor: ${ASISTENTE_CLAVE:-}
+      # Clave maestra (AES-GCM, 32 bytes en base64) de las claves de API que un
+      # administrador guarda desde la pantalla. Vacía no rompe nada: el módulo arranca
+      # y guardar una clave responde 503. La anterior sólo existe durante una rotación.
+      Asistente__ClaveMaestra: ${ASISTENTE_CLAVE_MAESTRA:-}
+      Asistente__ClaveMaestraAnterior: ${ASISTENTE_CLAVE_MAESTRA_ANTERIOR:-}
       Almacenamiento__Endpoint: ${ALMACENAMIENTO_ENDPOINT:-seaweedfs:8333}
       Almacenamiento__UseSsl: ${ALMACENAMIENTO_USE_SSL:-false}
       Almacenamiento__AccessKey: ${ALMACENAMIENTO_ACCESS_KEY}

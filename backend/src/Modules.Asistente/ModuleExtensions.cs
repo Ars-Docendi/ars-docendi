@@ -215,6 +215,9 @@ public static class ModuleExtensions
         services.AddSingleton<CifradoDeCredenciales>();
         services.AddScoped<RepositorioDeCredenciales>();
         services.AddScoped<RepositorioDelModelo>();
+        // Slice 3: the administration endpoints. Resolved per request only.
+        services.AddScoped<ProbadorDeConexion>();
+        services.AddScoped<Api.AdministracionDelModelo>();
 
         // Telemetría del servidor del modelo propio (asistente-optimizaciones-
         // modelo-local, D8): un cliente aparte, con timeout corto y SIN el

@@ -157,22 +157,29 @@ o se declara la excepción.
 
 ## Endpoints HTTP
 
-| Método | Path                                                   | Permiso                          | Qué                                                                   |
-| ------ | ------------------------------------------------------ | -------------------------------- | --------------------------------------------------------------------- |
-| GET    | `/api/asistente/ping`                                  | (anónimo)                        | Smoke test, sin base ni proveedor                                     |
-| POST   | `/api/asistente/consultas`                             | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                     |
-| GET    | `/api/asistente/menciones`                             | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para «@»/«#»            |
-| GET    | `/api/asistente/capacidades`                           | `asistente.consultar`            | Qué puede hacer el asistente para este actor                          |
-| POST   | `/api/asistente/retroalimentacion`                     | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token |
-| GET    | `/api/asistente/historial`                             | `asistente.consultar`            | Lista y busca las conversaciones propias                              |
-| GET    | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | El detalle de una conversación propia                                 |
-| PATCH  | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | Renombra una conversación propia                                      |
-| DELETE | `/api/asistente/historial/{id}`                        | `asistente.consultar`            | Borra una conversación propia                                         |
-| DELETE | `/api/asistente/historial`                             | `asistente.consultar`            | Borra TODAS las conversaciones propias                                |
-| POST   | `/api/asistente/historial/{id}/reanudar`               | `asistente.consultar`            | Reanuda una conversación propia                                       |
-| POST   | `/api/asistente/historial/turnos/{id}/reejecutar`      | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                    |
-| POST   | `/api/asistente/soporte/historial/{actorId}/listar`    | `asistente.leer_historial_ajeno` | Lista el historial de otro actor, con razón obligatoria               |
-| POST   | `/api/asistente/soporte/historial/{actorId}/{id}/leer` | `asistente.leer_historial_ajeno` | Lee una conversación de otro actor, con razón obligatoria             |
+| Método | Path                                                             | Permiso                          | Qué                                                                    |
+| ------ | ---------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| GET    | `/api/asistente/ping`                                            | (anónimo)                        | Smoke test, sin base ni proveedor                                      |
+| POST   | `/api/asistente/consultas`                                       | `asistente.consultar`            | Un turno. Exige `Idempotency-Key`                                      |
+| GET    | `/api/asistente/menciones`                                       | `asistente.consultar`            | Busca materias o docentes dentro del alcance, para «@»/«#»             |
+| GET    | `/api/asistente/capacidades`                                     | `asistente.consultar`            | Qué puede hacer el asistente para este actor                           |
+| POST   | `/api/asistente/retroalimentacion`                               | `asistente.consultar`            | Califica un turno respondido (thumbs + razón), por posesión del token  |
+| GET    | `/api/asistente/historial`                                       | `asistente.consultar`            | Lista y busca las conversaciones propias                               |
+| GET    | `/api/asistente/historial/{id}`                                  | `asistente.consultar`            | El detalle de una conversación propia                                  |
+| PATCH  | `/api/asistente/historial/{id}`                                  | `asistente.consultar`            | Renombra una conversación propia                                       |
+| DELETE | `/api/asistente/historial/{id}`                                  | `asistente.consultar`            | Borra una conversación propia                                          |
+| DELETE | `/api/asistente/historial`                                       | `asistente.consultar`            | Borra TODAS las conversaciones propias                                 |
+| POST   | `/api/asistente/historial/{id}/reanudar`                         | `asistente.consultar`            | Reanuda una conversación propia                                        |
+| POST   | `/api/asistente/historial/turnos/{id}/reejecutar`                | `asistente.consultar`            | «Volver a consultar» un turno propio ya respondido                     |
+| POST   | `/api/asistente/soporte/historial/{actorId}/listar`              | `asistente.leer_historial_ajeno` | Lista el historial de otro actor, con razón obligatoria                |
+| POST   | `/api/asistente/soporte/historial/{actorId}/{id}/leer`           | `asistente.leer_historial_ajeno` | Lee una conversación de otro actor, con razón obligatoria              |
+| GET    | `/api/asistente/administracion/modelo`                           | `asistente.administrar`          | Modelo en uso, servidores locales configurados y catálogo con claves   |
+| POST   | `/api/asistente/administracion/modelo/prueba`                    | `asistente.administrar`          | Una llamada mínima real a una empresa y modelo; no persiste nada       |
+| PUT    | `/api/asistente/administracion/modelo`                           | `asistente.administrar`          | Re-prueba en el servidor, guarda la clave y fija el modelo             |
+| DELETE | `/api/asistente/administracion/modelo`                           | `asistente.administrar`          | Vuelve a la configuración del servidor                                 |
+| POST   | `/api/asistente/administracion/credenciales/{empresa}/reemplazo` | `asistente.administrar`          | Valida una clave nueva con el proveedor y recién entonces la reemplaza |
+
+Las rutas de `administracion/modelo` y `credenciales` (contrato completo en [api-contracts.md](../api-contracts.md)) viven en `AdministracionDelModeloController` y delegan en `AdministracionDelModelo`. Una clave nunca sale del servidor: sólo viaja su pista (4 caracteres), y un guard estático de `ArquitecturaAsistenteTests` falla si una clave, `Inferencia__Contrasena` o el secreto de Access puede llegar a una respuesta, un log, el mensaje de una excepción o una fila de auditoría. «Probar conexión» y el reemplazo usan el mismo camino de adaptador que un turno (`ClientesDeChat` + `ProveedorChat`, o `ArmarOllama` / `ArmarLocal`) sin pasar por el breaker, y la prueba de `ollama` / `local` pasa por la compuerta sin esperar cola.
 
 El ping vive en su **propio controller, sin constructor**. Estuvo junto al turno hasta
 que ése ganó dependencias, y ahí se rompió: construir el controller pasó a exigir las

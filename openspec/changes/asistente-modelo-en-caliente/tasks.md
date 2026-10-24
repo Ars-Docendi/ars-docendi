@@ -45,20 +45,20 @@
 
 ## 3. Slice 3 — Administration endpoints
 
-- [ ] 3.1 `GET api/asistente/administracion/modelo` — current selection, origin (server configuration or screen), local servers configured (identifier only, never a URL), catalog grouped by company with key status (hint or missing); never the key
-- [ ] 3.2 `POST .../modelo/prueba` `{empresa, modelo, claveNueva?}` — one minimal real call; returns latency or one of `clave-invalida`, `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`; persists nothing. For `ollama`: 401/403 → `clave-invalida`, 404 → `modelo-inexistente`, 429/503 (`ProveedorSaturado`) → `saturado`, transport failure → `inalcanzable`
-- [ ] 3.3 `PUT .../modelo` `{empresa, modelo, claveNueva?}` — server re-tests, saves a new key if given, sets the selection, then calls `CacheDeConsultasGeneradas.Vaciar()`; audit row written before responding
-- [ ] 3.4 `DELETE .../modelo` — return to server configuration (also calls `CacheDeConsultasGeneradas.Vaciar()`); audited
-- [ ] 3.5 `POST .../credenciales/{empresa}/reemplazo` `{clave}` — cloud companies only; validate against the provider first, replace only on success, otherwise leave the old key untouched; independent of model selection; audited
-- [ ] 3.6 Local-server check on every local selection or test: the identifier must be `ollama` with `Inferencia__Url` set, or `local` with `Asistente__UrlDelProveedorLocal` set; otherwise reject without an outbound call. No endpoint accepts a URL, host or local credential
-- [ ] 3.7 Audit actions for selection, revert, key replacement and key creation through `IAuditoriaDeAdministracion`, recording `empresa`, `modelo` and the hint only
-- [ ] 3.8 Test: every route returns 403 without `asistente.administrar`; no route collides with `uso`, `presupuestos`, `servidor-local`, `tope-organizacional`, `mantenimiento`
-- [ ] 3.9 Test: a failed replacement keeps the old key decryptable and in use
-- [ ] 3.10 Test: PUT with a failing test result does not change the selection
-- [ ] 3.11 Test: an unconfigured local server identifier is rejected without any outbound call
-- [ ] 3.12 Test: each error code of the test endpoint is produced by a stubbed provider response of the matching kind, including `saturado` from a 503 of the shared service
-- [ ] 3.13 Static confinement test: no response, log call, exception message or audit row can carry key text, `Inferencia__Contrasena` or the Access secret (scan modeled on the existing confinement scans)
-- [ ] 3.14 Test: saving a key with no master key configured returns 503 and leaves the local servers usable
+- [x] 3.1 `GET api/asistente/administracion/modelo` — current selection, origin (server configuration or screen), local servers configured (identifier only, never a URL), catalog grouped by company with key status (hint or missing); never the key
+- [x] 3.2 `POST .../modelo/prueba` `{empresa, modelo, claveNueva?}` — one minimal real call; returns latency or one of `clave-invalida`, `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`; persists nothing. For `ollama`: 401/403 → `clave-invalida`, 404 → `modelo-inexistente`, 429/503 (`ProveedorSaturado`) → `saturado`, transport failure → `inalcanzable`
+- [x] 3.3 `PUT .../modelo` `{empresa, modelo, claveNueva?}` — server re-tests, saves a new key if given, sets the selection, then calls `CacheDeConsultasGeneradas.Vaciar()`; audit row written before responding
+- [x] 3.4 `DELETE .../modelo` — return to server configuration (also calls `CacheDeConsultasGeneradas.Vaciar()`); audited
+- [x] 3.5 `POST .../credenciales/{empresa}/reemplazo` `{clave}` — cloud companies only; validate against the provider first, replace only on success, otherwise leave the old key untouched; independent of model selection; audited
+- [x] 3.6 Local-server check on every local selection or test: the identifier must be `ollama` with `Inferencia__Url` set, or `local` with `Asistente__UrlDelProveedorLocal` set; otherwise reject without an outbound call. No endpoint accepts a URL, host or local credential
+- [x] 3.7 Audit actions for selection, revert, key replacement and key creation through `IAuditoriaDeAdministracion`, recording `empresa`, `modelo` and the hint only
+- [x] 3.8 Test: every route returns 403 without `asistente.administrar`; no route collides with `uso`, `presupuestos`, `servidor-local`, `tope-organizacional`, `mantenimiento`
+- [x] 3.9 Test: a failed replacement keeps the old key decryptable and in use
+- [x] 3.10 Test: PUT with a failing test result does not change the selection
+- [x] 3.11 Test: an unconfigured local server identifier is rejected without any outbound call
+- [x] 3.12 Test: each error code of the test endpoint is produced by a stubbed provider response of the matching kind, including `saturado` from a 503 of the shared service
+- [x] 3.13 Static confinement test: no response, log call, exception message or audit row can carry key text, `Inferencia__Contrasena` or the Access secret (scan modeled on the existing confinement scans)
+- [x] 3.14 Test: saving a key with no master key configured returns 503 and leaves the local servers usable
 
 ## 4. Slice 4 — Frontend "Modelo" tab
 

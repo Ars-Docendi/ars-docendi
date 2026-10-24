@@ -38,7 +38,7 @@ internal sealed class RepositorioDeCredenciales(
     CadenaDuena cadena, CifradoDeCredenciales cifrado, TimeProvider reloj)
 {
     /// <summary>The shortest key accepted: below this, a 4-character hint would reveal most of it.</summary>
-    private const int LongitudMinimaDeLaClave = 8;
+    internal const int LongitudMinimaDeLaClave = 8;
 
     private const int LongitudDeLaPista = 4;
 

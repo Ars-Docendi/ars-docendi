@@ -49,6 +49,18 @@ internal sealed class ProveedorChat : IProveedorDeModelo, IDisposable
 {
     private const string ConteoDeCreacionDeCache = "CacheCreationInputTokens";
 
+    /// <summary>
+    /// Key of <see cref="Exception.Data"/> set (to <c>true</c>) on a failure whose provider
+    /// text says the account is out of credit. The text itself never leaves this class:
+    /// only this flag does, for the administrator's connection test.
+    /// </summary>
+    internal const string IndicioDeSinCredito = "ars.sin-credito";
+
+    // Provider wordings for "no credit": Anthropic 400 "credit balance is too low",
+    // OpenAI 429 "insufficient_quota" / "exceeded your current quota", and the like.
+    private static readonly string[] MarcasDeSinCredito =
+        ["credit balance", "insufficient_quota", "exceeded your current quota", "billing", "insufficient credit"];
+
     private readonly string _empresa;
     private readonly string _modelo;
     private readonly IChatClient _cliente;
@@ -125,7 +137,13 @@ internal sealed class ProveedorChat : IProveedorDeModelo, IDisposable
                     estado is { } e ? (int)e : 0);
             }
 
-            throw new HttpRequestException("El proveedor del modelo no sirvió la llamada.", null, estado);
+            var falla = new HttpRequestException("El proveedor del modelo no sirvió la llamada.", null, estado);
+            if (IndicaFaltaDeCredito(excepcion.Message))
+            {
+                falla.Data[IndicioDeSinCredito] = true;
+            }
+
+            throw falla;
         }
 
         return Traducir(respuesta, solicitud);
@@ -179,6 +197,10 @@ internal sealed class ProveedorChat : IProveedorDeModelo, IDisposable
             seQuedoSinTokens,
             deCache);
     }
+
+    private static bool IndicaFaltaDeCredito(string? texto) =>
+        texto is not null
+        && MarcasDeSinCredito.Any(marca => texto.Contains(marca, StringComparison.OrdinalIgnoreCase));
 
     private static int Acotar(long tokens) =>
         tokens <= 0 ? 0 : tokens >= int.MaxValue ? int.MaxValue : (int)tokens;
