@@ -97,5 +97,5 @@
 - [ ] 6.3 `docs/architecture/data-model.md` — three new tables, price write path
 - [ ] 6.4 `docs/architecture/infrastructure.md` — `Asistente__ClaveMaestra`, `Asistente__ClaveMaestraAnterior`, how local servers derive from `Inferencia__*` and `Asistente__UrlDelProveedorLocal`, master key generation and rotation procedure; cross-reference `docs/operations/ollama-compartido.md` and `docs/architecture/modelo-local.md`
 - [ ] 6.5 `backend/src/Modules.Asistente/README.md`, `backend/eval/README.md`, `docs/quality/tech-debt.md` (TD-008: switching provider or model is now a screen action)
-- [ ] 6.6 `.env.example` and `infra/compose/compose.base.yml` — add `Asistente__ClaveMaestra` the way `Inferencia__*` is forwarded; update only after any merge conflict in `.env.example` is resolved
+- [x] 6.6 `.env.example` and `infra/compose/compose.base.yml` — add `Asistente__ClaveMaestra` the way `Inferencia__*` is forwarded; update only after any merge conflict in `.env.example` is resolved
 - [ ] 6.7 Run the proportional verification: `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`; record any check the environment could not complete
