@@ -21,6 +21,7 @@ Detalle en [docs/architecture/](docs/architecture/).
 - pnpm 12.3.4+ (o `corepack enable` para usar la versión declarada en `package.json`)
 - Docker + Docker Compose (para Postgres local)
 - `gh` CLI (para flujos de PRs)
+- `codegraph` (opcional): índice de código que usan los asistentes (`.mcp.json`, `.codex/config.toml` y el hook de `.claude/settings.json`). Sin el binario esos asistentes funcionan, pero sin sus consultas indexadas.
 
 ## Levantar el entorno
 
@@ -31,6 +32,8 @@ Detalle en [docs/architecture/](docs/architecture/).
 ```
 
 Este script: crea `.env` desde `.env.example`, levanta Postgres en docker, instala deps Node (raíz + frontend), restaura/buildea backend, aplica migraciones y siembra datos de desarrollo. Al terminar te lista las URLs.
+
+**Requiere el dataset SGA privado** (`infra/scripts/seed-data/sga.sql`, o la ruta en `SEED_SGA_FILE`). No está versionado porque contiene PII real: se pide al equipo por canal privado o se genera con `node scripts/seed/emitir-sga.js --entrada <json> --salida <sga.sql>` (ver el encabezado del script). Sin ese archivo el último paso (seed) aborta.
 
 El seed solo corre la primera vez (base vacía) — si ya sembraste, correrlo de nuevo no pisa lo que edites desde la app. Para volver al dataset original: `docker compose down -v && ./scripts/setup.sh`.
 
@@ -55,6 +58,8 @@ Husky se activa automáticamente con `pnpm install` y configura el pre-commit (d
 #### 3. Migraciones y seed
 
 ```bash
+# Autorizar la inicialización ANTES de migrar (sólo en una base vacía)
+bash infra/scripts/seed-local.sh --authorize-empty
 cd backend
 dotnet restore
 dotnet build
@@ -136,38 +141,7 @@ Más comandos en [ONBOARDING.md → Flujos comunes](ONBOARDING.md#4-flujos-comun
 
 ## Estructura
 
-```
-/
-├── backend/                  # .NET 10, monolito modular
-│   ├── ArsDocendi.slnx
-│   └── src/
-│       ├── ArsDocendi.Host/
-│       ├── ArsDocendi.Shared/        # identity, audit y utilidades
-│       ├── ArsDocendi.Migraciones/   # runner de SQL versionado
-│       ├── ArsDocendi.Storage/       + .Contracts/ (adjuntos S3)
-│       ├── ArsDocendi.Inferencia/    # cliente Ollama
-│       ├── Modules.Designaciones/  + .Contracts/
-│       ├── Modules.Aulas/          + .Contracts/
-│       ├── Modules.Portal/         + .Contracts/
-│       └── Modules.Tareas/         + .Contracts/
-│   └── tests/ArsDocendi.IntegrationTests/
-├── database/                 # SQL versionado por contexto
-├── frontend/                 # Vite + React 19 + TS
-│   └── src/{app,shared,features}/
-├── openspec/                 # Planning: specs vigentes + changes activos (fuente de verdad)
-├── docs/                     # System of record (product, architecture, quality, workflows, business-rules, references)
-├── infra/                    # Compose + Traefik + Cloudflare Tunnel (producción en Debian; pruebas en Proxmox)
-├── scripts/                  # setup local
-├── .claude/, .agents/        # skills de Claude Code y Codex
-├── .github/workflows/        # CI, CodeQL y deploys (staging, prod, pr-N)
-├── .husky/pre-commit
-├── lint-staged.config.mjs
-├── global.json               # fija el SDK y el runner de tests .NET
-├── package.json              # hospeda husky/lint-staged/prettier
-├── pnpm-workspace.yaml       # declara frontend como workspace
-├── docker-compose.yml
-└── .env.example
-```
+Monorepo con `backend/` (.NET 10, monolito modular: `src/` y `tests/`), `frontend/` (Vite + React 19), `database/` (SQL versionado por contexto), `openspec/` (specs vigentes y changes activos), `docs/` (arquitectura, calidad, reglas de negocio, workflows), `infra/` (Compose, Traefik, scripts de despliegue), `scripts/` (setup local y tooling de docs/migraciones/seed) y `.github/workflows/` (CI, CodeQL y deploys). La organización interna de cada módulo está en [docs/architecture/module-anatomy.md](docs/architecture/module-anatomy.md) y los edges permitidos en [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md).
 
 ## Convenciones
 

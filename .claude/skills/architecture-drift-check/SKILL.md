@@ -35,7 +35,7 @@ Construir grafo + detectar ciclos con DFS.
 Cualquier referencia desde `Modules.<X>/*.csproj` a `Modules.<Y>/*.csproj` (no a `Modules.<Y>.Contracts/`) → **violación** del principio cross-module-via-Contracts.
 
 ```bash
-grep -E "Include=\".*Modules\.[A-Z][a-zA-Z]+/\"" backend/src/Modules.*/*.csproj | grep -v ".Contracts"
+grep -nE 'ProjectReference Include="[^"]*Modules\.[A-Za-z]+\.csproj"' backend/src/Modules.*/*.csproj
 ```
 
 ### 4. Guías que contradicen el código
@@ -60,7 +60,7 @@ Endpoints no documentados → **drift** (low/medium).
 
 ## Output
 
-Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
+Reporte en `.artifacts/arch-drift-YYYY-MM-DD.md` con:
 
 - Drifts encontrados con severidad.
 - Path + línea.

@@ -41,7 +41,9 @@ public static class ContratoFrontend
         JsonObject objeto => "{" + string.Join(",", objeto
             .OrderBy(p => p.Key, StringComparer.Ordinal)
             .Select(p => $"{p.Key}:{Forma(p.Value)}")) + "}",
-        JsonArray lista => lista.Count == 0 ? "[]" : $"[{Forma(lista[0])}]",
+        JsonArray lista => lista.Count == 0
+            ? "[]"
+            : "[" + string.Join("|", lista.Select(Forma).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) + "]",
         JsonValue valor => valor.GetValueKind() switch
         {
             JsonValueKind.True or JsonValueKind.False => "bool",

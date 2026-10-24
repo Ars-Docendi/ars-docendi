@@ -18,7 +18,7 @@ Path-scoped: se auto-activa al tocar paths backend. La estructura vigente es la 
 - **Contracts**: sólo DTOs, interfaces y tokens públicos; sin lógica ni I/O.
 - **Identity**: se lee mediante `IConsultasIdentity`; sólo la administración la escribe.
 - **Capas**: Controller (en `Api/`) → Service/Application → Repository → DbContext. Un controller nunca consulta un repositorio.
-- **Autorización**: `[Authorize(Policy = Permisos.<...>)]` por permiso efectivo. **Nunca** `[Authorize(Roles = ...)]`. Sólo los pings y las rutas de ingreso (`/api/auth/*`) son anónimas.
+- **Autorización**: `[Authorize(Policy = Permisos.<...>)]` por permiso efectivo. **Nunca** `[Authorize(Roles = ...)]`. Sólo los pings, las rutas de ingreso (`/api/auth/*`) y `GET /api/desarrollo/identidades` (registrada únicamente en desarrollo) son anónimas.
 - **Registro**: cada módulo expone `Add<Modulo>Module(IConfiguration)` en `ModuleExtensions.cs`, invocado desde `ArsDocendi.Host/Program.cs`.
 - **Persistencia**: un schema por módulo. El DDL es SQL versionado embebido: se genera con `node scripts/migrations/scaffold.mjs <Contexto> <Nombre>`. **No usar `dotnet ef migrations add`.** Ver [database/README.md](../../../database/README.md).
 - **Logging**: Serilog con templates; nunca `Console.WriteLine` ni PII (DNI, nombres, mails).

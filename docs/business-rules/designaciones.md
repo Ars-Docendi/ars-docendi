@@ -7,7 +7,9 @@
 - **Specs OpenSpec relacionadas:** `openspec/specs/pedidos-designacion/` y `openspec/specs/aprobacion-pedidos-designacion/`.
 - **Normativa de referencia:** Estatuto / régimen docente UNLaM (citas exactas **pendientes de confirmación con el cliente** para BR-001..004).
 
-> **Alcance de este documento.** Reglas de la carga de pedidos por el Jefe de Cátedra (BR-001..004, BR-008, BR-018) y del circuito de aprobación (BR-005, BR-009, BR-011, BR-013, BR-014, BR-015, BR-017), cada una con su mapping a test.
+> **Alcance de este documento.** Reglas de la carga de pedidos por el Jefe de Cátedra que provienen de normativa institucional (BR-001..004, BR-018), cada una con su mapping a test.
+>
+> **Reglas de proceso.** Las reglas del circuito de aprobación (justificativo obligatorio, edición sólo en borrador/devuelto, ámbito por rol, rechazo terminal, revisor de la etapa, devolución de un nivel, Administración sin aprobar, prioridad) son decisiones de proceso, no normativa: viven en las specs [`aprobacion-pedidos-designacion`](../../openspec/specs/aprobacion-pedidos-designacion/spec.md) y [`pedidos-designacion`](../../openspec/specs/pedidos-designacion/spec.md). Los identificadores `BR-designaciones-005/008/009/011/013/014/015/017` se conservan como etiquetas estables en esas specs, en mensajes de error y en comentarios de código.
 
 ## Reglas
 
@@ -22,10 +24,10 @@
 - **Implementación:** doble capa, con la base de datos como autoridad.
 
   ```sql
-  -- database/designaciones/003_designaciones_pedidos.sql
+  -- database/designaciones/002_designaciones_pedidos.sql
   CREATE UNIQUE INDEX pedidos_uno_por_docente_periodo
       ON designaciones.pedidos (periodo_id, persona_id)
-      WHERE estado NOT IN ('rechazado', 'cancelado');
+      WHERE estado <> ALL (ARRAY['rechazado', 'cancelado']);
   ```
 
   El índice es lo único que sobrevive a dos requests concurrentes. El backend valida antes para producir el mensaje del spec y traduce la violación del índice al mismo error. El conjunto de estados excluidos vive en C# en `EstadosPedido.NoOcupanCupo` y **debe** coincidir con el `WHERE` del índice: si se desalinean, backend y base discrepan sobre qué es un duplicado.
@@ -43,11 +45,11 @@
 
 ### BR-`designaciones`-003 Baja exige justificativo
 
-- **Statement:** Un pedido con novedad "Baja" debe adjuntar obligatoriamente un justificativo antes de poder guardarse.
+- **Statement:** Un pedido con novedad "Baja" debe indicar el tipo de baja y adjuntar obligatoriamente un justificativo antes de poder guardarse.
 - **Rationale:** La baja de una designación debe quedar documentada con su justificación.
 - **Provenance:** `from_spec`
 - **Fuente normativa:** Pendiente de confirmación con el cliente (estatuto / régimen docente UNLaM).
-- **Ejemplos:** Una "Baja" sin adjunto justificativo bloquea el guardado. Con el justificativo cargado, no marca error.
+- **Ejemplos:** Una "Baja" sin tipo o sin adjunto justificativo bloquea el guardado. Con ambos cargados, no marca error.
 - **Roles afectados:** Jefe de Cátedra.
 
 ### BR-`designaciones`-004 Cambio de cargo o dedicación exige justificación
@@ -69,101 +71,15 @@
 - **Roles afectados:** Jefe de Cátedra.
 - **Implementación:** `identity.personas.legajo` es **nullable** precisamente para admitir el caso del Alta — un docente que todavía no existe en el sistema y cuyo legajo asigna RRHH después. La obligatoriedad en Baja y Cambio la valida el backend, no la base: es una regla dependiente de la novedad del pedido, no del estado de la persona.
 
-### BR-`designaciones`-008 Tras enviar, el Jefe de Cátedra no edita salvo devolución
-
-- **Statement:** Un pedido solo es editable en estado `borrador`, o en estado `devuelto` cuando el actor es su propietario actual. Tras enviarlo a revisión, queda de solo lectura para el Jefe de Cátedra hasta que sea devuelto.
-- **Rationale:** Preserva la integridad de lo que está bajo revisión: el revisor evalúa lo que recibió, y el JC solo puede corregir si el pedido vuelve a sus manos.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Un pedido en `en_revision_coordinador` rechaza la edición. Un pedido `devuelto` con `propietarioActual = "Jefe de Cátedra"` se puede editar; la edición no cambia el estado.
-- **Roles afectados:** Jefe de Cátedra (y, para la devolución, los revisores del circuito de aprobación).
-
-### BR-`designaciones`-005 Rechazo exige justificativo; devolución exige comentario
-
-- **Statement:** Una acción de rechazo MUST incluir un justificativo no vacío y una acción de devolución MUST incluir un comentario no vacío; sin ese texto, la acción se rechaza.
-- **Rationale:** El Jefe de Cátedra (y la auditoría) deben saber por qué un pedido fue rechazado o qué corregir tras una devolución; un rechazo/devolución sin fundamento no es trazable.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Rechazar con justificativo vacío o solo espacios se deniega. Devolver sin comentario se deniega. El modal de la UI adelanta la validación; el dominio es la autoridad.
-- **Roles afectados:** Coordinador, Secretaría, Decanato, Administración.
-
-### BR-`designaciones`-009 Acción y visibilidad acotadas al ámbito del rol
-
-> **Fuente de la carrera (change `rediseno-modelo-academico`).** El pedido lleva `materia_id`
-> (canónica) y `carrera_id` directos, elegidos juntos al cargarlo — no se derivan de un plan.
-> `identity.materias_plan`/`planes` son catálogo informativo (qué materias se dictan en qué
-> carreras), sin FK de negocio. Una materia compartida por dos carreras genera pedidos distintos
-> según la carrera elegida.
-
-- **Statement:** El Coordinador solo ve y actúa sobre pedidos de su carrera; Secretaría, Decanato y Administración tienen alcance de todo el departamento. Una acción sobre un pedido fuera del ámbito del actor MUST denegarse.
-- **Rationale:** El circuito refleja la estructura institucional: un Coordinador de una carrera no decide sobre designaciones de otra.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Un Coordinador de "Ingeniería en Informática" no ve ni puede actuar sobre un pedido de "Ingeniería Industrial". La Secretaría ve ambos.
-- **Roles afectados:** Coordinador (acotado a su carrera); Secretaría, Decanato, Administración (depto-wide).
-
-### BR-`designaciones`-011 El rechazo es terminal
-
-- **Statement:** Un pedido en estado `rechazado` MUST no admitir ninguna acción posterior (aceptar, devolver, reenviar, etc.): es un estado terminal.
-- **Rationale:** Un rechazo cierra el circuito para ese pedido; reabrirlo desvirtuaría la trazabilidad y la decisión tomada.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Intentar aceptar o devolver un pedido ya rechazado se deniega (idempotencia terminal).
-- **Roles afectados:** Todos los revisores.
-
-### BR-`designaciones`-013 Solo el revisor de la etapa actual puede actuar
-
-- **Statement:** Aceptar, rechazar o devolver un pedido MUST estar permitido únicamente al revisor cuyo rol corresponde a la etapa actual del pedido (o a Administración como revisor depto-wide, salvo aceptar). Un rol que no es el de la etapa actual se deniega.
-- **Rationale:** La cadena es secuencial (Coordinador → Secretaría → Decanato); cada etapa la resuelve su responsable, no uno anterior o posterior.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Con el pedido en `en_revision_secretaria`, el Coordinador (etapa anterior) no puede aceptarlo/rechazarlo/devolverlo.
-- **Roles afectados:** Coordinador, Secretaría, Decanato (cada uno en su etapa); Administración (cualquier etapa, salvo aceptar).
-
-### BR-`designaciones`-014 Devolución retrocede un nivel; reenvío retoma la etapa
-
-- **Statement:** Una devolución lleva el pedido a `devuelto` fijando `etapaRetorno` (la etapa desde la que se devolvió) y `propietarioActual` (quién corrige), retrocediendo un nivel: desde Coordinador → Jefe de Cátedra; desde Secretaría → Coordinador; desde Decanato → Secretaría. El propietario puede reenviar, y el reenvío retoma la `etapaRetorno`.
-- **Rationale:** La corrección la hace el actor inmediatamente anterior, y al reenviar el pedido vuelve exactamente a la etapa que lo devolvió (no reinicia toda la cadena).
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** La Secretaría devuelve un pedido en `en_revision_secretaria` → queda `devuelto`, `propietarioActual = Coordinador`, `etapaRetorno = en_revision_secretaria`. Al reenviarlo el Coordinador, vuelve a `en_revision_secretaria`. Solo el propietario puede reenviar.
-- **Roles afectados:** Todos los revisores (devuelven); el propietario anterior (reenvía).
-
-### BR-`designaciones`-015 Administración revisa pero no aprueba
-
-- **Statement:** El rol Administración puede rechazar y devolver pedidos dentro del departamento, pero MUST no poder aceptar (avanzar la cadena) en ninguna etapa.
-- **Rationale:** Administración cumple un rol de control/gestión sobre el circuito, no de aprobación académica; la decisión de avanzar la designación recae en la cadena Coordinador → Secretaría → Decanato.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Administración intenta aceptar un pedido en cualquier etapa `en_revision_*` → se deniega. Rechazar o devolver con su comentario sí está permitido.
-- **Roles afectados:** Administración.
-
-### BR-`designaciones`-017 Cualquier actor marca prioritario con justificativo
-
-- **Statement:** Cualquier actor dentro de su ámbito puede marcar un pedido no terminal como prioritario (`prioritario = true`) sin cambiar su estado; el justificativo (motivo) MUST ser obligatorio.
-- **Rationale:** La prioridad es una señal de gestión transversal (no una transición de estado); su motivo debe quedar registrado para la trazabilidad.
-- **Provenance:** `from_spec`
-- **Fuente normativa:** Decisión de proceso (a validar con Secretaría Académica).
-- **Ejemplos:** Marcar prioritario sin justificativo se deniega. Con motivo, el pedido queda `prioritario = true` y conserva su estado (p. ej. sigue en `en_revision_coordinador`).
-- **Roles afectados:** Todos los actores dentro de su ámbito.
-
 ## Mapping a tests
 
-| Rule ID              | Test file(s)                                                                                                                                                                                                                                                        | Tipo                          | Notas                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------- |
-| BR-designaciones-001 | `frontend/src/features/designaciones/pedidoValidacion.test.ts` → `unPedidoPorDocentePorPeriodo`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/DesignacionesPersistenciaTests.cs` → rechazo entre cátedras, carrera concurrente y reintento tras rechazo | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
-| BR-designaciones-002 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
-| BR-designaciones-003 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
-| BR-designaciones-004 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
-| BR-designaciones-018 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                                        | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
-| BR-designaciones-008 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                                     | unit + integración PostgreSQL | Decisión de proceso.                  |
-| BR-designaciones-005 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `frontend/src/features/designaciones/components/ModalConfirmacionAccion.test.tsx`                                                                                                | unit + ui                     | Decisión de proceso.                  |
-| BR-designaciones-009 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit + integración PostgreSQL | Decisión de proceso.                  |
-| BR-designaciones-011 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
-| BR-designaciones-013 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`; `backend/tests/ArsDocendi.IntegrationTests/Backend/BackendIntegridadTests.cs`                                                                                                    | unit + integración            | Decisión de proceso.                  |
-| BR-designaciones-014 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit + integración PostgreSQL | Decisión de proceso.                  |
-| BR-designaciones-015 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
-| BR-designaciones-017 | `backend/tests/ArsDocendi.IntegrationTests/Designaciones/RevisionPedidosTests.cs`                                                                                                                                                                                   | unit                          | Decisión de proceso.                  |
+| Rule ID              | Test file(s)                                                                                                                                                                                                                       | Tipo                          | Notas                                 |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------- |
+| BR-designaciones-001 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/DesignacionesPersistenciaTests.cs` → rechazo entre cátedras, carrera concurrente y reintento tras rechazo | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-002 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                       | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-003 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                       | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-004 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                       | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
+| BR-designaciones-018 | `frontend/src/features/designaciones/pedidoValidacion.test.ts`; `backend/tests/ArsDocendi.IntegrationTests/Designaciones/PedidosApiTests.cs`                                                                                       | unit + integración PostgreSQL | Cita normativa pendiente con cliente. |
 
 Todo BR-\* debe tener al menos un test verificando la regla.
 
@@ -174,12 +90,12 @@ aprobadas del change `corregir-integridad-y-rendimiento-post-auditoria`; no agre
 normativa, plazos o autoridad de aprobación. Conservan las fuentes pendientes
 anteriores y refuerzan su ejecución:
 
-| Cobertura                                                                                    | Tests persistentes                                                                   | Relación con reglas existentes                                                  |
-| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Administración vs envío/aprobación, relectura protegida y conflicto de observación obsoleta  | `CoordinacionAdministracionTests.cs`, `ConcurrenciaVigenciasTests.cs`                | BR-008/009/013; estado, snapshot y eventos no parciales                         |
-| Actor desactivado tras prevalidación, nueva persona inexistente y transacción local/ambiente | `DestinosLogicosDesignacionesTests.cs`, `DestinosPedidosTests.cs`                    | BR-009; referencia canónica/elegibilidad actual, sin reemplazar autor histórico |
-| Intradía: mismo ID/inicio y tres cargas/orígenes; rollback y snapshot inmutable              | `VigenciasPedidosTests.cs`, `VigenciasPedidosCasosTests.cs`                          | BR-004/008/018; no inventa cargo/horas/legajo                                   |
-| Identidad sin cuenta y exportación sin mutación                                              | `PedidosApiTests.cs`, `ExportacionLoteTests.cs`, `Identity/IngresoMicrosoftTests.cs` | BR-002/009; login no provisiona usuarios                                        |
+| Cobertura                                                                                    | Tests persistentes                                                                   | Relación con reglas existentes                                                          |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Administración vs envío/aprobación, relectura protegida y conflicto de observación obsoleta  | `CoordinacionAdministracionTests.cs`, `ConcurrenciaVigenciasTests.cs`                | circuito de aprobación; estado, snapshot y eventos no parciales                         |
+| Actor desactivado tras prevalidación, nueva persona inexistente y transacción local/ambiente | `DestinosLogicosDesignacionesTests.cs`, `DestinosPedidosTests.cs`                    | ámbito del rol; referencia canónica/elegibilidad actual, sin reemplazar autor histórico |
+| Intradía: mismo ID/inicio y tres cargas/orígenes; rollback y snapshot inmutable              | `VigenciasPedidosTests.cs`, `VigenciasPedidosCasosTests.cs`                          | BR-004/018 y edición del pedido; no inventa cargo/horas/legajo                          |
+| Identidad sin cuenta y exportación sin mutación                                              | `PedidosApiTests.cs`, `ExportacionLoteTests.cs`, `Identity/IngresoMicrosoftTests.cs` | BR-002 y ámbito del rol; login no provisiona usuarios                                   |
 
 Los nombres sin prefijo están bajo
 `backend/tests/ArsDocendi.IntegrationTests/Designaciones/`; `Identity/IngresoMicrosoftTests.cs`

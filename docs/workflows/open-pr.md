@@ -21,10 +21,7 @@ git push -u origin <BRANCH_NAME>
 Antes de `gh pr create`:
 
 - `git status` limpio (nada por commitear).
-- `dotnet build backend/ArsDocendi.slnx` verde (backend).
-- `pnpm --filter frontend build` verde (frontend, si se tocó).
-- `pnpm --filter frontend lint` verde (si se tocó frontend).
-- Tests relevantes pasan.
+- Checks de [AGENTS.md → Verificación](../../AGENTS.md#verificación) según lo tocado, en verde.
 
 ### 3. Construir título y body
 

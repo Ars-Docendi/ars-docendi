@@ -70,14 +70,14 @@ Los DTOs, permisos, códigos de error y respuestas exactas están detallados en 
 | Superficie          | Rutas principales                                                                                 | Autorización                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Usuarios            | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
-| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
+| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `docentes.ver` / `usuarios.administrar`                             |
 | Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
 | Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                     | `sistema.estado.ver`, `auditoria.ver`                               |
 | Inferencia          | `GET /api/inferencia/estado`                                                                      | `sistema.estado.ver`                                                |
 | Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
 | Catálogos           | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
 | Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
-| Archivos            | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                    | autenticado; archivo propio para mutaciones                         |
+| Archivos            | `POST /api/archivos/cargas`, subida del objeto, confirmación, metadata, descarga y baja           | autenticado; archivo propio para mutaciones                         |
 | Sesión dev          | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
 | Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/logout`                            | con `AutenticacionMicrosoft:Habilitada`                             |
 
@@ -107,7 +107,8 @@ Sólo `GET /ping` (anónimo).
 | --------------- | ------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
 | GET             | `/ping`                                                                                    | (anónimo)   | Health check del módulo         |
 | GET             | `/perfil`                                                                                  | autenticado | Perfil propio completo          |
-| PUT/DELETE      | `/perfil/contacto`, `/perfil/cv`                                                           | autenticado | Contacto y metadata de CV       |
+| PUT             | `/perfil/contacto`                                                                         | autenticado | Contacto                        |
+| PUT/DELETE      | `/perfil/cv`                                                                               | autenticado | Metadata de CV                  |
 | POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
 | PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
 
@@ -130,11 +131,12 @@ clave ni estado enviado por el cliente. Las descargas pasan por el backend:
 
 1. `POST /cargas` recibe propósito, nombre, MIME declarado y tamaño; devuelve
    `archivoId`, ruta PUT temporal del backend y expiración.
-2. El cliente sube el objeto y llama `POST /cargas/{archivoId}/confirmar` con
-   hash/tamaño observados. El backend valida firma, MIME real, límites y
+2. El cliente sube el objeto con `PUT /cargas/{archivoId}/objeto` y llama
+   `POST /cargas/{archivoId}/confirmar` con hash/tamaño observados. El backend valida firma, MIME real, límites y
    antivirus antes de marcarlo `disponible`.
 3. `GET /{archivoId}` devuelve solo metadata. `GET /{archivoId}/descarga` no
-   revela bucket ni clave y solo devuelve bytes disponibles.
+   revela bucket ni clave y solo devuelve bytes disponibles. `DELETE /{archivoId}`
+   da de baja un archivo propio.
 
 Una carga pendiente, rechazada, expirada o de otro propósito produce Problem
 Details estable y nunca puede asociarse a Portal o Designaciones.
@@ -175,4 +177,4 @@ V1 implícito hasta que sea necesario versionar. Cuando se necesite: prefijo `/a
 
 ## Auto-discovery
 
-Swagger UI disponible en `/swagger` (solo Development). Cada controller debe tener atributos `[ProducesResponseType]` para que el schema sea preciso.
+Swagger UI disponible en `/swagger` (solo Development).

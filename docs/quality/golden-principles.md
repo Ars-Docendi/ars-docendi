@@ -12,8 +12,7 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 ## Contracts y Shared
 
 - `Modules.<X>.Contracts`: **solo DTOs, interfaces y tokens públicos** — sin lógica, sin I/O.
-- `ArsDocendi.Shared`: **funciones puras** — sin I/O, sin network, sin estado mutable compartido.
-  - **Única excepción**: la persistencia de los schemas `identity` y `audit` (`IdentityDbContext` + su migrador). Es infraestructura transversal de la que dependen los 4 módulos, no lógica de dominio. Ninguna otra I/O entra a Shared.
+- `ArsDocendi.Shared`: utilidades transversales sin estado mutable compartido, más la infraestructura de los schemas `identity` y `audit` (contexto, repositorios, servicios de administración e interceptor de auditoría). Es infraestructura de la que dependen todos los módulos, no lógica de dominio. Ninguna otra I/O entra a Shared. El migrador vive en `ArsDocendi.Migraciones`.
   - Corolario: los módulos **leen** identity para autorizar. Escribir `personas`, `roles`, `permisos` o `rol_permisos` es exclusivo de la superficie de administración — el invariante #1 no lo cubre porque no es una relación cross-module.
 - Evitar "god utils": si Shared crece mucho, **partir por concern** (objetivo: ~20 exports públicos por archivo o split).
 
@@ -36,7 +35,7 @@ Reglas opinionadas para mantener el código **legible para agentes** y **seguro 
 ## Autorización por permisos efectivos
 
 - Las rutas administrativas deben requerir `[Authorize(Policy = Permisos.<...>)]` y validar permisos efectivos; no acoplar acceso a nombres de roles con `[Authorize(Roles = ...)]`.
-- Toda ruta debe autorizar en backend salvo los pings de salud declarados explícitamente públicos.
+- Toda ruta debe autorizar en backend salvo los pings de salud, el ingreso (`/api/auth/*`) y `GET /api/desarrollo/identidades` (sólo en desarrollo), declarados explícitamente públicos.
 - Testear la **denegación cuando falta el permiso** de cada operación sensible. No hace falta la matriz completa de roles × rutas: un caso denegado y uno permitido por permiso.
 - La visibilidad de navegación y los guards del frontend mejoran la UX, pero nunca sustituyen la autorización backend.
 
@@ -109,4 +108,4 @@ Un test se justifica sólo si, al fallar, el sistema queda incompleto o incorrec
 
 - Cuando cambia comportamiento, API, o schema, actualizar el doc relevante **en el mismo PR**:
   - `api-contracts.md`, `data-model.md`, `dependency-graph.md`, `domains/<x>.md`, business-rules.
-- Specs y plans son **artefactos de primera clase**, no opcionales para features de tamaño no trivial.
+- Los changes OpenSpec (proposal, specs, tasks) son **artefactos de primera clase**, no opcionales para features de tamaño no trivial.

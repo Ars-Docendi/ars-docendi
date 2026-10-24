@@ -104,7 +104,7 @@ NO reemplaza el review humano — lo complementa.
 ### Checklist mínimo del reviewer
 
 - [ ] El PR tiene change OpenSpec aprobado y apply-ready (si es feature) o spec de bug (si es bug escalado a change).
-- [ ] CI verde (backend + frontend + format-check).
+- [ ] CI verde.
 - [ ] Tests cubren BR-\* aplicables (si la feature las introduce/modifica).
 - [ ] Los tests nuevos no duplican otros existentes y cumplen [golden-principles → Tests](docs/quality/golden-principles.md#tests); los que quedaron redundantes se borraron.
 - [ ] Docs actualizadas (dependency-graph, api-contracts, data-model, domains/) si hubo cambios estructurales.
@@ -114,7 +114,7 @@ NO reemplaza el review humano — lo complementa.
 
 ## Requisitos para mergear un PR
 
-1. CI verde (backend + frontend + format-check).
+1. CI verde.
 2. 1 aprobación humana de otro miembro del equipo.
 3. Branch al día respecto de la base (puede requerir rebase / merge previo).
 4. Conversaciones de review resueltas.
@@ -162,7 +162,7 @@ El glue generado por OpenSpec (`.claude/commands/opsx/`, `.claude/skills/openspe
 
 - Al bumpear el devDep `@fission-ai/openspec` en `package.json`, correr `openspec update` y commitear el glue regenerado en el **mismo PR** que bump el paquete.
 - **Nadie corre `openspec init` global** — el init ya está hecho y el glue vive en el repo.
-- El CI corre `openspec validate --strict` en cada PR sobre specs y changes. (Opcional pendiente: un guard que falle si `openspec update` produce diff, para detectar glue desincronizado.)
+- El CI corre `openspec validate --all` en cada PR sobre specs y changes. (Opcional pendiente: un guard que falle si `openspec update` produce diff, para detectar glue desincronizado.)
 
 ### Por qué importa
 

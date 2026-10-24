@@ -18,7 +18,7 @@ El detalle paso a paso de cada workflow vive en su skill (`.claude/skills/<x>/SK
 | Agregar tests (BR-\* o garantías sin BR)   | `/add-tests`                     | Opcional `docs/business-rules/` + tests + traceability             |
 | Nuevo módulo .NET (Modules.X + .Contracts) | `/create-module`                 | Module scaffold + domain doc                                       |
 | Cambiar módulo existente                   | `/modify-module`                 | Análisis de impacto en Contracts                                   |
-| Evaluar trabajo completado                 | `/evaluate`                      | Report + scorecard update                                          |
+| Evaluar trabajo completado                 | `/evaluate`                      | Report de findings (sin escribir archivos)                         |
 | PR necesita review estructurado            | `/pr-review`                     | Inline comments + summary                                          |
 | CI falló en PR existente                   | `/ci-fix`                        | `gh` inspect → fix mínimo → push mismo branch                      |
 | Docs de arquitectura vs código real        | `/architecture-drift-check`      | Findings read-only                                                 |

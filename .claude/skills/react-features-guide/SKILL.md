@@ -13,7 +13,7 @@ Path-scoped: se auto-activa al tocar `frontend/src/`. La estructura vigente es l
 ## Reglas duras
 
 - **Aislamiento**: una feature no importa de otra. Lo común sube a `src/shared/`.
-- **HTTP**: sólo `shared/api/client.ts` importa Axios; las features exponen funciones tipadas en `features/<x>/api/`.
+- **HTTP**: sólo `shared/api/client.ts` crea la instancia de Axios; las features exponen funciones tipadas en `features/<x>/api/` y no la reinstancian.
 - **Datos del servidor**: siempre React Query (hooks en `features/<x>/hooks/`). Nunca `useEffect` + fetch.
 - **Rutas**: cada feature exporta las suyas en `features/<x>/routes.tsx` y `app/router.tsx` las compone.
 - **Estados visibles**: carga, vacío, error y éxito en toda vista que consulta datos ([design-principles](../../../docs/product/design-principles.md)).

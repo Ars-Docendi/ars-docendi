@@ -11,7 +11,7 @@
 
 ## Bounded context
 
-- **Pertenece**: Docentes (entidad y sus atributos), áreas de experticia, horas disponibles declaradas.
+- **Pertenece**: perfil del docente (contacto, CV, experiencia, educación, certificaciones, proyectos) y habilidades/intereses.
 - **No pertenece**: Designaciones (`Designaciones`), reservas de aulas (`Aulas`), asignaciones académicas reales (Guaraní).
 
 ## Entidades principales

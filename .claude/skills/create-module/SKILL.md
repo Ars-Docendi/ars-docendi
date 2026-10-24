@@ -27,22 +27,19 @@ Scaffold de un **nuevo módulo .NET** (`Modules.<X>` + `Modules.<X>.Contracts`) 
 
 ### 2. Crear los dos proyectos .NET
 
+No uses `dotnet new classlib`: no declara `FrameworkReference` de ASP.NET ni los paquetes EF Core/Npgsql, y el módulo no compila. Copiá los `.csproj` de `Modules.Aulas` y `Modules.Aulas.Contracts` y renombrá las referencias a `Modules.<X>`:
+
 ```bash
 cd backend/src
-# Contracts (sin lógica)
-dotnet new classlib -n Modules.<X>.Contracts -o Modules.<X>.Contracts
-# Implementación
-dotnet new classlib -n Modules.<X> -o Modules.<X>
+mkdir Modules.<X> Modules.<X>.Contracts
+cp Modules.Aulas/Modules.Aulas.csproj Modules.<X>/Modules.<X>.csproj
+cp Modules.Aulas.Contracts/Modules.Aulas.Contracts.csproj Modules.<X>.Contracts/Modules.<X>.Contracts.csproj
+# editar Modules.<X>.csproj: ProjectReference ..\Modules.Aulas.Contracts -> ..\Modules.<X>.Contracts
 ```
 
-### 3. Referenciar Contracts desde Module
+### 3. Referencias del módulo
 
-```bash
-cd Modules.<X>
-dotnet add reference ../Modules.<X>.Contracts/Modules.<X>.Contracts.csproj
-dotnet add reference ../ArsDocendi.Shared/ArsDocendi.Shared.csproj
-dotnet add reference ../ArsDocendi.Migraciones/ArsDocendi.Migraciones.csproj
-```
+El `.csproj` copiado ya referencia `ArsDocendi.Shared`, `ArsDocendi.Migraciones` y `Modules.<X>.Contracts`. No agregues otras referencias a `Modules.<Y>` (sólo a `Modules.<Y>.Contracts`).
 
 ### 4. Agregar a la solution
 

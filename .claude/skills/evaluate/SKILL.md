@@ -1,12 +1,12 @@
 ---
 name: evaluate
-description: Evaluación read-only del trabajo completado contra spec + grading-criteria + golden-principles. Termina actualizando docs/quality/scorecard.md con la composite score. NO modifica código.
+description: Evaluación read-only del trabajo completado contra spec + grading-criteria + golden-principles. Termina reportando la composite score. NO modifica código.
 argument-hint: [<feature-kebab>]
 ---
 
 # Evaluate
 
-Evaluación **read-only** del trabajo completado contra spec + grading-criteria + golden-principles. Termina con actualización del `scorecard.md`.
+Evaluación **read-only** del trabajo completado contra spec + grading-criteria + golden-principles. Termina reportando la composite score.
 
 ## Cuándo usar
 
@@ -24,7 +24,7 @@ Evaluación **read-only** del trabajo completado contra spec + grading-criteria 
 ### 1. Recopilar artefactos
 
 - Spec con acceptance criteria explícitas.
-- Plan con definition of done.
+- `tasks.md` del change OpenSpec (definition of done).
 - BR-\* aplicables en `docs/business-rules/`.
 - PR(s) involucrados.
 
@@ -68,17 +68,9 @@ Para cada criterio, asignar score 1-5 con justificación breve.
 
 - **Ningún criterio < 3**
 - **Funcionalidad ≥ 4** para releases al cliente
-- Si falla: documentar en el plan + en `tech-debt.md`, NO mergear a `main`.
+- Si falla: documentar en el change OpenSpec + en `tech-debt.md`, NO mergear a `main`.
 
-### 5. Actualizar scorecard
-
-Agregar fila a [scorecard.md](../../../docs/quality/scorecard.md):
-
-```markdown
-| YYYY-MM-DD | <feature-name> | 5 | 4 | 4 | 3 | 4 | 4.3 | Notas sobre lo evaluado |
-```
-
-### 6. Reportar findings al equipo
+### 5. Reportar findings al equipo
 
 - Score compuesto.
 - Anti-patterns identificados que ameritan actualizar `golden-principles.md`.

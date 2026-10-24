@@ -4,7 +4,7 @@ Cómo empezar a trabajar en Ars Docendi y con qué flujo. El setup (requisitos, 
 
 ## 1. Qué leer (en orden)
 
-1. **[AGENTS.md](AGENTS.md)**: contexto e invariantes comunes a cualquier herramienta. **Es la única lectura obligatoria.**
+1. **[AGENTS.md](AGENTS.md)**: contexto e invariantes comunes a cualquier herramienta. **Leelo junto con [README.md](README.md) antes de hacer cambios.**
 2. **[CONTRIBUTING.md](CONTRIBUTING.md)**: ramas, pre-commit, commits y review.
 3. **[docs/architecture/](docs/architecture/)**: stack, anatomía de módulos y grafo de dependencias.
 4. **[docs/quality/golden-principles.md](docs/quality/golden-principles.md)**: los anti-patterns que marcan `/pr-review` y `/evaluate`.

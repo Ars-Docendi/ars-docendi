@@ -1,6 +1,6 @@
 # Technical debt tracker
 
-Brechas conocidas, atajos intencionales y follow-ups. Linkear a planes y specs cuando sea posible. Toda deuda con dueño + fecha.
+Brechas conocidas, atajos intencionales y follow-ups. Linkear a changes OpenSpec y specs cuando sea posible. Toda deuda con fecha de apertura; el dueño se asigna al priorizarla.
 
 | ID     | Área     | Severidad | Resumen                                                                                                                                                                                                                                                                                                                                                   | Remediación                                                                                                                                                                                                       | Owner | Abierto    |
 | ------ | -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------- |

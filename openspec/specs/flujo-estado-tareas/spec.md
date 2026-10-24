@@ -15,9 +15,17 @@ Una tarea SHALL tener exactamente uno de los siguientes estados en todo momento:
 - **WHEN** una autoridad crea una tarea
 - **THEN** el estado inicial de la tarea es Pendiente
 
-### Requirement: El Responsable cambia libremente entre Pendiente, En curso, Pausa y Resuelta
+### Requirement: El Responsable cambia entre Pendiente, En curso, Pausa y Resuelta mientras la tarea no es terminal
 
 El usuario Responsable de una tarea SHALL poder cambiar su estado a cualquiera de Pendiente, En curso, Pausa o Resuelta, sin restricción de orden entre ellos. El Responsable MUST NOT poder cambiar el estado a Cancelada.
+
+Una tarea Resuelta o Cancelada es terminal: sólo la autoridad creadora SHALL poder reabrirla. El Responsable MUST NOT poder cambiar el estado de una tarea terminal.
+
+#### Scenario: El Responsable no reabre una tarea Resuelta
+
+- **GIVEN** una tarea Resuelta con el usuario actual como Responsable (y no como autoridad creadora)
+- **WHEN** intenta cambiar su estado a En curso
+- **THEN** el sistema rechaza la acción y la tarea conserva su estado
 
 #### Scenario: El Responsable marca la tarea como Resuelta
 

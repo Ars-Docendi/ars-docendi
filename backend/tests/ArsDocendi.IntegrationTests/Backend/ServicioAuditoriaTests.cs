@@ -63,6 +63,29 @@ public sealed class ServicioAuditoriaTests
         Assert.Equal("pedido-dos", evento.Cambios.Single(c => c.Campo == "origen_pedido_id").ValorNuevo);
     }
 
+    [Fact]
+    public async Task Tabla_ausente_de_la_politica_oculta_el_valor_legacy()
+    {
+        var registro = new RegistroCambio
+        {
+            Id = 11,
+            NombreSchema = "legacy",
+            NombreTabla = "tabla_desconocida",
+            ClaveFila = "11",
+            Accion = "UPDATE",
+            FilaAnterior = "{\"campo_legacy\":\"anterior\"}",
+            FilaNueva = "{\"campo_legacy\":\"nuevo\"}",
+            ColumnasCambiadas = ["campo_legacy"]
+        };
+        var servicio = new ServicioAuditoria(new RepositorioAuditoriaEnMemoria(new ResultadoPaginaAuditoria(
+            [new RegistroAuditoria(registro, null, null, null)], 1)));
+        var evento = Assert.Single((await servicio.ListarAsync(new ConsultaAuditoriaDto(), CancellationToken.None)).Elementos);
+        var cambio = Assert.Single(evento.Cambios);
+        Assert.True(cambio.Oculto);
+        Assert.Null(cambio.ValorAnterior);
+        Assert.Null(cambio.ValorNuevo);
+    }
+
     [Theory]
     [InlineData("{")]
     [InlineData("{\"rol_id\":{\"secreto\":\"valor\"}}")]

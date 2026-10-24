@@ -1,10 +1,10 @@
 # Guía del repositorio
 
-Esta es la fuente de instrucciones para cualquier asistente o herramienta de desarrollo. Los adaptadores específicos deben enlazar este archivo, no copiarlo.
+Esta es la fuente de instrucciones para cualquier asistente o herramienta de desarrollo. Los adaptadores específicos deben enlazar este archivo, no copiarlo. Única excepción: el glue generado de OpenSpec (`.claude/skills/openspec-*`, `.claude/commands/opsx/`, `.agents/skills/openspec-*`) se versiona tal como lo emite `openspec update` y no se edita a mano ([CONTRIBUTING → Glue OpenSpec](CONTRIBUTING.md#glue-openspec-política-d7)).
 
 ## Contexto
 
-Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cuatro contextos: Designaciones, Aulas, Portal y Tareas.
+Ars Docendi es un sistema institucional de la UNLaM: backend ASP.NET Core 10, frontend React 19/Vite 8 y PostgreSQL 18. El monorepo contiene cuatro contextos de dominio (Designaciones, Aulas, Portal y Tareas) más los servicios transversales Identity, Storage e Inferencia (ver [docs/architecture/dependency-graph.md](docs/architecture/dependency-graph.md)).
 
 Leé antes de cambiar:
 
@@ -50,18 +50,17 @@ Leé antes de cambiar:
 
 ## Verificación
 
-```bash
-dotnet test backend/ArsDocendi.slnx
-pnpm --filter frontend test:run
-pnpm --filter frontend lint
-pnpm --filter frontend build
-pnpm format:check
-pnpm exec openspec validate --all --strict
-```
+Esta es la lista única de checks; los skills y playbooks la enlazan. CI (`.github/workflows/ci.yml`) corre los mismos. Ejecutá los que correspondan al cambio:
 
-Ejecutá el subconjunto proporcional al cambio y dejá constancia de cualquier check que el entorno no permita completar.
+| Tocaste                       | Comando                                                                                                                                                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend                       | `dotnet test backend/ArsDocendi.slnx`                                                                                                                                                                                     |
+| SQL, migraciones o manifiesto | `node --test scripts/tests/migrations.test.mjs`, `node scripts/migrations/validate.mjs` y, tras `dotnet build -c Release`, `dotnet run --project backend/src/ArsDocendi.Host --no-build -c Release -- --validar-recursos` |
+| Frontend                      | `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`                                                                                                                          |
+| `infra/`                      | `node --test infra/tests/*.test.mjs`                                                                                                                                                                                      |
+| Docs, specs o cualquier `.md` | `pnpm format:check`, `node scripts/docs/check-links.mjs`, `pnpm exec openspec validate --all`                                                                                                                             |
 
-<!-- CODEGRAPH_START -->
+Dejá constancia de cualquier check que el entorno no permita completar.
 
 ## CodeGraph
 

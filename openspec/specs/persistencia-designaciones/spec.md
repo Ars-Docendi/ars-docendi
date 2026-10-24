@@ -52,7 +52,7 @@ El sistema SHALL registrar en `designaciones.designaciones` la columna nullable 
 
 ### Requirement: Un pedido por docente por período, con la base de datos como autoridad [BR-designaciones-001]
 
-El sistema SHALL impedir que exista más de un pedido no terminal para la misma persona dentro del mismo período, **sin importar la cátedra**. La restricción MUST implementarse como índice único parcial en PostgreSQL sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, y SHALL validarse además en el backend antes de intentar la escritura, para producir el mensaje de error correspondiente. Ante una violación del índice, el backend MUST traducirla al mismo mensaje en lugar de propagar un error de base de datos.
+El sistema SHALL impedir que exista más de un pedido que ocupe cupo (cualquiera salvo `rechazado` y `cancelado`) para la misma persona dentro del mismo período, **sin importar la cátedra**. La restricción MUST implementarse como índice único parcial en PostgreSQL sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, y SHALL validarse además en el backend antes de intentar la escritura, para producir el mensaje de error correspondiente. Ante una violación del índice, el backend MUST traducirla al mismo mensaje en lugar de propagar un error de base de datos.
 
 #### Scenario: Segundo pedido para el mismo docente en el mismo período [BR-designaciones-001]
 
@@ -76,7 +76,7 @@ El sistema SHALL impedir que exista más de un pedido no terminal para la misma 
 
 - **GIVEN** una persona cuyo único pedido del período quedó en estado `rechazado`
 - **WHEN** se crea un pedido nuevo para esa persona en el mismo período
-- **THEN** la operación MUST aceptarse, porque el índice excluye los estados terminales
+- **THEN** la operación MUST aceptarse, porque el índice excluye los estados `rechazado` y `cancelado` (un pedido `en_lote` sigue ocupando el cupo)
 
 ### Requirement: Snapshot inmutable de los datos vigentes al enviar
 

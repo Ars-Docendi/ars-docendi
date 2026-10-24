@@ -67,7 +67,7 @@ Detalle en [infra/traefik/README.md](../../infra/traefik/README.md).
   túneles locales, o configura rutas equivalentes en el panel para túneles
   remotos. Un YAML local no configura automáticamente un túnel remoto.
 - **TLS lo termina Cloudflare**; cloudflared y Traefik hablan HTTP interno. Traefik confía los forwarded headers solo del upstream interno y no gestiona ACME.
-- Un smoke check `/api/designaciones/ping` comprueba API, **no** salud integral
+- Un smoke check (`infra/scripts/smoke.sh`, que consulta el ping de cada módulo) comprueba API, **no** salud integral
   de DB/S3 ni failover. Las alertas no cambian el destino del tráfico.
 - Detalle en [infra/cloudflared/README.md](../../infra/cloudflared/README.md).
 
@@ -130,9 +130,9 @@ El ingreso real usa una registración de Microsoft Entra por ambiente, cada una 
 
 - **Configuración:** el workflow pasa `MICROSOFT_LOGIN_ENABLED`, `MICROSOFT_CLIENT_ID` y `MICROSOFT_CLIENT_SECRET` por el entorno del proceso; `compose.base.yml` los mapea a `AutenticacionMicrosoft__*`. El secret nunca se escribe en el `.env` efímero ni en la imagen. El frontend recibe el build arg `VITE_MICROSOFT_LOGIN_ENABLED`.
 - **Detrás del proxy:** el backend confía en `X-Forwarded-Proto`/`X-Forwarded-For` sólo desde la red interna de Docker (`172.16.0.0/12`, el mismo rango que confía Traefik). Así arma el redirect con `https://` y emite las cookies anti-falsificación con `Secure`.
-- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). En prod persisten entre deploys; staging y `pr-N` las pierden al reconstruirse, lo que sólo obliga a volver a ingresar.
+- **Claves de Data Protection:** cifran la cookie de sesión y los tokens anti-falsificación. Viven en el volumen `claves` del Compose project (`/claves`). Persisten entre deploys (el despliegue es incremental y no elimina volúmenes); un `pr-N` las pierde al desmontarse, lo que sólo obliga a volver a ingresar.
 - **Administrador inicial (sólo prod):** si `ADMIN_INICIAL_UPN`, `_NOMBRE`, `_APELLIDO` y `_DOCUMENTO` están cargados, el arranque `--migrate` crea esa persona, su usuario activo y el rol `sys_admin`, sólo si no existe un usuario con ese UPN. El resto se da de alta desde la pantalla de usuarios.
-- **Staging se reconstruye en cada deploy:** los usuarios dados de alta ahí con su mail real se pierden y hay que volver a crearlos con el selector como `sys_admin`.
+- **Staging conserva sus datos entre deploys:** los usuarios dados de alta ahí con su mail real persisten, igual que adjuntos y ediciones (ver "Dataset sintético y autenticación de desarrollo").
 - **Vencimiento de secrets:** cada registración admite dos secrets a la vez. Antes del vencimiento se crea el nuevo, se reemplaza en GitHub, se despliega y se borra el viejo. Registrar acá la fecha de vencimiento de cada uno.
 - **Opcional:** fijar `removeUnverifiedEmailClaim = true` en cada registración (`az rest --method PATCH --url https://graph.microsoft.com/v1.0/applications/<object-id> --body '{"authenticationBehaviors":{"removeUnverifiedEmailClaim":true}}'` desde Cloud Shell). Es redundante: el backend ya exige el claim `xms_edov` y es el default para apps multi-tenant nuevas.
 
@@ -185,8 +185,7 @@ Compose project, base y storage únicamente en la VM.
   Environments, igual que las credenciales de inferencia (`INFERENCIA_*`; prod
   sin Service Token de Cloudflare, ver
   [github-pr-deploy.md](../operations/github-pr-deploy.md#fuentes-de-variables-y-secretos)).
-  `REGISTRO`/`DOMINIO` son GitHub repository variables. Los jobs
-  Environments. `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
+  `REGISTRO`/`DOMINIO` son GitHub repository variables. Las
   credenciales de Microsoft siguen ese patrón: `MICROSOFT_CLIENT_ID_STAGING`/`_PROD`
   son repository variables (no son secretos). `MICROSOFT_CLIENT_SECRET_STAGING` va
   en los Environments `staging` y `pr-preview` (los previews con la label

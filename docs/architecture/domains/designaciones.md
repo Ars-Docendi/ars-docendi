@@ -109,7 +109,7 @@ El contrato completo está en [api-contracts-designaciones.md](../api-contracts-
 
 Ver [`docs/business-rules/designaciones.md`](../../business-rules/designaciones.md).
 
-BR-designaciones-001 es la única con implementación en la base: índice único parcial sobre `(periodo_id, persona_id)` excluyendo los estados terminales, más validación en el backend para el mensaje de error. La base es la autoridad — es lo único que sobrevive a dos requests concurrentes.
+BR-designaciones-001 es la única con implementación en la base: índice único parcial sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, más validación en el backend para el mensaje de error. La base es la autoridad — es lo único que sobrevive a dos requests concurrentes.
 
 ## Dependencias
 

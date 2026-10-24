@@ -1,20 +1,19 @@
 # Convenciones de datos remotos en frontend
 
-Cada feature mantiene su propio adapter HTTP, tipos y hooks. Sólo `shared/api/client.ts` importa Axios; componentes y páginas consumen funciones tipadas o hooks.
+Cada feature mantiene su propio adapter HTTP, tipos y hooks. Sólo `shared/api/client.ts` crea la instancia de Axios; el resto del código importa de `axios` únicamente tipos o `isAxiosError` para inspeccionar errores. Componentes y páginas consumen funciones tipadas o hooks.
 
 ## Estructura
 
 ```text
 features/<feature>/
 ├── api/
-│   ├── <feature>Api.ts      # request/response y adaptación de DTO
-│   └── queryKeys.ts         # factory estable de claves
+│   └── <feature>Api.ts      # request/response y adaptación de DTO
 ├── hooks/
-│   └── use<Recurso>.ts      # useQuery/useMutation
+│   └── use<Recurso>.ts      # useQuery/useMutation y su factory de claves (<recurso>Keys)
 └── types.ts                 # modelo de presentación, sin tipos Axios
 ```
 
-No se crea un registro global de query keys: eso acoplaría features independientes. La forma mínima de una factory es:
+No se crea un registro global de query keys: eso acoplaría features independientes. Cada factory vive junto al hook que la usa (por ejemplo `usuariosKeys` en `useUsuarios.ts`). La forma mínima es:
 
 ```ts
 export const recursoKeys = {

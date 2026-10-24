@@ -18,7 +18,9 @@ for (const archivo of archivos) {
     ]),
   );
   const destinos = [
-    ...[...texto.matchAll(/\]\(<?([^)\s>#]+)>?(?:#[^)]*)?\)/g)].map((m) => m[1]),
+    ...[...texto.matchAll(/\]\(<?([^)\s>#]+)>?(?:#[^)\s]*)?(?:\s+(?:"[^"]*"|'[^']*'))?\s*\)/g)].map(
+      (m) => m[1],
+    ),
     ...[...texto.matchAll(/\]\[([^\]]*)\]/g)]
       .map((m) => definiciones.get(m[1].toLowerCase()))
       .filter(Boolean),

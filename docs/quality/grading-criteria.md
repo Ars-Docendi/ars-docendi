@@ -68,10 +68,8 @@ Rúbrica para evaluar trabajo en Ars Docendi. La usan reviewers humanos, agentes
 
 - **Default**: **ningún criterio < 3**, **funcionalidad ≥ 4** para releases al cliente.
 - Funcionalidad < 4 → no se mergea a `main`.
-- Excepciones documentadas en el plan activo y en `tech-debt.md`.
+- Excepciones documentadas en el change OpenSpec y en `tech-debt.md`.
 
 ## Score compuesto
 
 `0.30 × Func + 0.25 × Code + 0.20 × UX + 0.15 × Orig + 0.10 × Doc` (cada uno 1–5).
-
-Registrar en `scorecard.md` después de cada feature relevante o cuando se corre `/evaluate`.
