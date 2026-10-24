@@ -61,5 +61,5 @@
 ## 6. Retiro de lo anterior y verificación
 
 - [x] 6.1 Retirar `UsuariosController`, `DocentesController`, `ServicioDocentes`, `ServicioUsuariosAdministracion`, DTOs sin uso y `features/usuarios` / `features/docentes`; nueva migración incremental que elimina `usuarios.ver`, `usuarios.administrar` y `docentes.ver` (con `Down` que los restaura). Buscar consumidores antes de borrar.
-- [ ] 6.2 Verificación proporcional: tests de las áreas tocadas (identity/administración, portal, frontend personas y portal), lint, build, `pnpm exec openspec validate --all --strict`, validación de migraciones y `--validar-recursos`.
-- [ ] 6.3 Prueba manual del usuario en la app local: listado y filtros, alta y edición, DNI repetido, roles por operador (Administrativo, Jefe de Cátedra, Observador), corrección y descarga en Mi Portal.
+- [x] 6.2 Verificación proporcional: tests de las áreas tocadas (identity/administración, portal, frontend personas y portal), lint, build, `pnpm exec openspec validate --all --strict`, validación de migraciones y `--validar-recursos`.
+- [x] 6.3 Prueba manual del usuario en la app local: listado y filtros, alta y edición, DNI repetido, roles por operador (Administrativo, Jefe de Cátedra, Observador), corrección y descarga en Mi Portal.
