@@ -151,12 +151,12 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             "/api/administracion/roles", ct);
 
         Assert.NotNull(permisos);
-        Assert.Contains(permisos, permiso => permiso.Codigo == "docentes.ver");
+        Assert.Contains(permisos, permiso => permiso.Codigo == "personas.ver");
         Assert.Contains(permisos, permiso => permiso.Codigo == "designaciones.revisar");
         Assert.Contains(permisos, permiso => permiso.Codigo == "sistema.estado.ver");
         Assert.Contains(permisos, permiso => permiso.Codigo == "auditoria.ver");
         Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
-            permiso => permiso.Codigo == "docentes.ver");
+            permiso => permiso.Codigo == "personas.ver");
         Assert.Contains(Assert.Single(roles!, rol => rol.Codigo == "administrativo").Permisos,
             permiso => permiso.Codigo == "designaciones.revisar");
         var administrador = Assert.Single(roles!, rol => rol.Codigo == "sys_admin");
@@ -178,7 +178,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
                    (@inactivo, 'inactivo_custom', 'Inactivo personalizado', 'global', FALSE);
             INSERT INTO identity.rol_permisos (rol_id, permiso_id)
             SELECT @activo, id FROM identity.permisos
-            WHERE code IN ('designaciones.ver', 'docentes.ver', 'designaciones.revisar');
+            WHERE code IN ('designaciones.ver', 'personas.ver', 'designaciones.revisar');
             INSERT INTO identity.user_roles (user_id, role_id)
             VALUES (@usuario, @activo);
             """, conexion))
@@ -195,7 +195,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
             "/api/desarrollo/identidades", ct);
         var jefe = Assert.Single(identidades!, identidad => identidad.UsuarioId == Jefe);
         var custom = Assert.Single(jefe.Roles, rol => rol.Codigo == "revisor_custom");
-        Assert.Contains("docentes.ver", custom.Permisos);
+        Assert.Contains("personas.ver", custom.Permisos);
         Assert.DoesNotContain(jefe.Roles, rol => rol.Codigo == "inactivo_custom");
 
         cliente.DefaultRequestHeaders.Add(AutenticacionDesarrolloHandler.HeaderUsuario, Jefe.ToString());
