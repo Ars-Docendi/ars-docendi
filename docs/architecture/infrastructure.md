@@ -221,6 +221,17 @@ Compose project, base y storage únicamente en la VM.
 - **Servicios permanentes**: los runners y `cloudflared` requieren credenciales
   protegidas en cada máquina para funcionar fuera de un job; son distintas de
   las credenciales de deploy de la aplicación.
+- **Clave maestra del asistente** (`asistente-modelo-en-caliente`): `Asistente__ClaveMaestra`
+  (32 bytes en base64) cifra con AES-GCM las claves de API por empresa que un
+  administrador guarda desde la pantalla; `Asistente__ClaveMaestraAnterior`
+  (opcional) sólo existe durante una rotación: lo cifrado con ella se recifra con la
+  vigente al leerlo. Generar una: `openssl rand -base64 32`. Es un secreto de
+  Environment, nunca de repositorio ni de imagen. Sin ella el módulo arranca, el ping
+  responde y los modelos locales siguen funcionando; sólo guardar o leer una clave de
+  API falla (503). **Perderla deja irrecuperables las claves guardadas**: se vuelven a
+  cargar desde la pantalla. El reenvío desde `compose.base.yml` (`ASISTENTE_CLAVE_MAESTRA`)
+  y la entrada de `.env.example` llegan con los endpoints de administración del mismo
+  change; hasta entonces la variable sólo existe como configuración del proceso.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

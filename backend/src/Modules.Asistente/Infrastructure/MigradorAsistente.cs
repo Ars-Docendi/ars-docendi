@@ -57,6 +57,7 @@ internal sealed class MigradorAsistente(
         AuditoriaDeSoporteAsistente.RecursoSql,
         AdministracionAsistente.RecursoSql,
         AdministracionAsistente.RecursoSqlVigenteUnico,
+        ModeloAsistente.RecursoSql,
         RecursoVersion,
     ];
 
@@ -161,6 +162,10 @@ internal sealed class MigradorAsistente(
         // among the DDL calls only for readability — nothing in it depends
         // on the other tables existing.
         await AdministracionAsistente.AplicarAsync(conexion, ct);
+
+        // Same reason: runtime-model tables (credential, selection, catalog),
+        // inside the wholesale-denied schema; inert until an administrator uses them.
+        await ModeloAsistente.AplicarAsync(conexion, ct);
 
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 

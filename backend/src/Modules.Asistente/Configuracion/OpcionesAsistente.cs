@@ -681,6 +681,28 @@ public sealed class OpcionesAsistente
     public decimal TemperaturaDeMuestrasDelPlan { get; set; } = 0.6m;
 
     /// <summary>
+    /// Clave maestra (32 bytes en base64) con que se cifran las claves de API por
+    /// empresa guardadas en <c>asistente.credencial_de_proveedor</c>
+    /// (asistente-modelo-en-caliente, D4). Variable: <c>Asistente__ClaveMaestra</c>.
+    /// </summary>
+    /// <remarks>
+    /// Vacía por default y eso está bien: sin ella el módulo arranca y los modelos
+    /// locales siguen funcionando; lo único que falla es guardar o leer una clave de
+    /// API, con un error que lo dice. Por eso su formato NO lo valida
+    /// <see cref="ValidadorDeOpcionesAsistente"/> al leer las opciones sino
+    /// <see cref="Infrastructure.CifradoDeCredenciales"/> cuando alguien pide una
+    /// operación con claves. Nunca en un archivo versionado ni en un log.
+    /// </remarks>
+    public string ClaveMaestra { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Clave maestra anterior, sólo durante una rotación: lo cifrado con ella se
+    /// descifra y se recifra con <see cref="ClaveMaestra"/> al leerlo. Variable:
+    /// <c>Asistente__ClaveMaestraAnterior</c>. Vacía cuando no hay rotación en curso.
+    /// </summary>
+    public string ClaveMaestraAnterior { get; set; } = string.Empty;
+
+    /// <summary>
     /// Cualquier valor no vacío permite salir a la red a grabar lo que falte.
     /// </summary>
     /// <remarks>

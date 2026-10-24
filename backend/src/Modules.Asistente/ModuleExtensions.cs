@@ -205,6 +205,14 @@ public static class ModuleExtensions
         services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
         services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
 
+        // Runtime model (asistente-modelo-en-caliente, slice 1). Inert: nothing here
+        // is resolved at startup, and CifradoDeCredenciales reads the master keys
+        // only when a key operation is requested, so the module starts and the ping
+        // answers with no master key configured.
+        services.AddSingleton<CifradoDeCredenciales>();
+        services.AddScoped<RepositorioDeCredenciales>();
+        services.AddScoped<RepositorioDelModelo>();
+
         // Telemetría del servidor del modelo propio (asistente-optimizaciones-
         // modelo-local, D8): un cliente aparte, con timeout corto y SIN el
         // reintento del proveedor — es un panel, no un turno.

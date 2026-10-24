@@ -159,6 +159,12 @@ public sealed class PrivilegiosLecturaTests(PostgresFixture postgres)
     [InlineData(true, "modo_mantenimiento")]
     [InlineData(false, "auditoria_administracion")]
     [InlineData(true, "auditoria_administracion")]
+    [InlineData(false, "credencial_de_proveedor")]
+    [InlineData(true, "credencial_de_proveedor")]
+    [InlineData(false, "modelo_vigente")]
+    [InlineData(true, "modelo_vigente")]
+    [InlineData(false, "catalogo_de_modelos")]
+    [InlineData(true, "catalogo_de_modelos")]
     public async Task La_administracion_de_uso_es_inalcanzable_por_ninguno_de_los_dos_roles(
         bool conDatosPersonales, string tabla)
     {

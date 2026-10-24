@@ -1,23 +1,23 @@
 ## 0. Prerequisites
 
-- [ ] 0.1 Confirm the branch contains `asistente-proveedor-local` and `asistente-proveedor-ollama` (`ProveedorLocal`, `ProveedorOllama`, `OpcionesInferencia`, `ProveedorConCompuerta`, `FallasDelProveedor`); this change assumes them. Both are on the head of PR #40
+- [x] 0.1 Confirm the branch contains `asistente-proveedor-local` and `asistente-proveedor-ollama` (`ProveedorLocal`, `ProveedorOllama`, `OpcionesInferencia`, `ProveedorConCompuerta`, `FallasDelProveedor`); this change assumes them. Both are on the head of PR #40
 - [ ] 0.2 Re-derive the next free `database/asistente` number against the target base immediately before writing the SQL (today: `008_asistente_presupuesto_usuario_vigente_unico.sql` is the last, so this change uses `009`; `asistente-metricas-de-calidad` uses `010`). If another change lands a number first, renumber both together and keep `RecursoVersion` last in `MigradorAsistente.Recursos`
 - [ ] 0.3 `.env.example` is updated only after any merge conflict in it is resolved (task 6.6); never read or edit real `.env*` files
 
 ## 1. Slice 1 — Storage, crypto and catalog
 
-- [ ] 1.1 `database/asistente/009_asistente_modelo.sql` (new file, never edit a published one) — `credencial_de_proveedor(empresa PK, clave_cifrada, pista, validada_en, actor_id, actualizado_en)`, `modelo_vigente(id smallint PK CHECK (id = 1), empresa, modelo, actor_id, actualizado_en)`, `catalogo_de_modelos(empresa, modelo, PK(empresa, modelo))`; `IF NOT EXISTS` throughout, comments on every table and column, `COMMENT` explaining that no row in `modelo_vigente` means server configuration
-- [ ] 1.2 Static wrapper class `ModeloAsistente` (`RecursoSql`, `AplicarAsync`) following `AdministracionAsistente`, embedded resource entry, and registration in `MigradorAsistente.Recursos` after `AdministracionAsistente.RecursoSqlVigenteUnico` and before `RecursoVersion`
-- [ ] 1.3 Seed `catalogo_de_modelos` (idempotent `INSERT ... ON CONFLICT DO NOTHING`): initial Anthropic, OpenAI, Google Gemini and Mistral entries confirmed against evaluation results, `ollama/qwen3.5:9b` (`compose.asistente-ollama.yml`) and `local/qwen3-8b` (`compose.asistente-local.yml`)
-- [ ] 1.4 Confirm the manifests need no change: the `asistente` schema is `denegado` wholesale in `database/asistente/manifiesto-privilegios.json` and neither manifest lists schema-internal tables; add no entries
-- [ ] 1.5 `CifradoDeCredenciales` (AES-GCM, `v1:{kid}:{base64(iv|tag|ciphertext)}`, AAD `asistente:{empresa}`, current and previous master key, lazy re-encryption on read), reading `Asistente__ClaveMaestra` / `Asistente__ClaveMaestraAnterior` through `OpcionesAsistente`, with validation (32 bytes, base64) added to `ValidadorDeOpcionesAsistente` only for the case "a key operation is requested", so it never runs at module registration and an unset key never fails startup
-- [ ] 1.6 Repository for credentials, selection and catalog (reads and writes; key text never returned, only `pista`)
-- [ ] 1.7 Test: migration applies twice without error; DDL passes the `ArquitecturaAsistenteTests` rules (no `DROP`, `RENAME`, `ALTER COLUMN ... TYPE`)
-- [ ] 1.8 Test: `ManifiestoPrivilegiosTests` / `PrivilegiosLecturaTests` still pass and show neither read-only role can read the three new tables (extend `PrivilegiosLecturaTests` with them)
-- [ ] 1.9 Test: AES-GCM round trip; a tampered ciphertext fails; a ciphertext moved to another company's AAD fails
-- [ ] 1.10 Test: rotation — a value encrypted under the previous key (by `kid`) decrypts and is re-encrypted under the current key on read
-- [ ] 1.11 Test: with no master key configured, the module starts and `/api/asistente/ping` answers; saving a key reports the unavailable-key condition
-- [ ] 1.12 Update `ArquitecturaAsistenteTests`: add the new reader/writer files to the `CadenaDuena` allowlist `PuedenUsarLaCadenaDelDueno` if they need the owner connection, and raise `SuperficiePublicaDeApplication` only by the exact count of intentionally public new types
+- [x] 1.1 `database/asistente/009_asistente_modelo.sql` (new file, never edit a published one) — `credencial_de_proveedor(empresa PK, clave_cifrada, pista, validada_en, actor_id, actualizado_en)`, `modelo_vigente(id smallint PK CHECK (id = 1), empresa, modelo, actor_id, actualizado_en)`, `catalogo_de_modelos(empresa, modelo, PK(empresa, modelo))`; `IF NOT EXISTS` throughout, comments on every table and column, `COMMENT` explaining that no row in `modelo_vigente` means server configuration
+- [x] 1.2 Static wrapper class `ModeloAsistente` (`RecursoSql`, `AplicarAsync`) following `AdministracionAsistente`, embedded resource entry, and registration in `MigradorAsistente.Recursos` after `AdministracionAsistente.RecursoSqlVigenteUnico` and before `RecursoVersion`
+- [x] 1.3 Seed `catalogo_de_modelos` (idempotent `INSERT ... ON CONFLICT DO NOTHING`): initial Anthropic, OpenAI, Google Gemini and Mistral entries (OpenAI, Gemini and Mistral ids are provisional: no evaluation results exist yet; confirm or correct them in a follow-up SQL before slice 3), `ollama/qwen3.5:9b` (`compose.asistente-ollama.yml`) and `local/qwen3-8b` (`compose.asistente-local.yml`)
+- [x] 1.4 Confirm the manifests need no change: the `asistente` schema is `denegado` wholesale in `database/asistente/manifiesto-privilegios.json` and neither manifest lists schema-internal tables; add no entries
+- [x] 1.5 `CifradoDeCredenciales` (AES-GCM, `v1:{kid}:{base64(iv|tag|ciphertext)}`, AAD `asistente:{empresa}`, current and previous master key, lazy re-encryption on read), reading `Asistente__ClaveMaestra` / `Asistente__ClaveMaestraAnterior` through `OpcionesAsistente`, with validation (32 bytes, base64) added to `ValidadorDeOpcionesAsistente` only for the case "a key operation is requested", so it never runs at module registration and an unset key never fails startup
+- [x] 1.6 Repository for credentials, selection and catalog (reads and writes; key text never returned, only `pista`)
+- [x] 1.7 Test: migration applies twice without error; DDL passes the `ArquitecturaAsistenteTests` rules (no `DROP`, `RENAME`, `ALTER COLUMN ... TYPE`)
+- [x] 1.8 Test: `ManifiestoPrivilegiosTests` / `PrivilegiosLecturaTests` still pass and show neither read-only role can read the three new tables (extend `PrivilegiosLecturaTests` with them)
+- [x] 1.9 Test: AES-GCM round trip; a tampered ciphertext fails; a ciphertext moved to another company's AAD fails
+- [x] 1.10 Test: rotation — a value encrypted under the previous key (by `kid`) decrypts and is re-encrypted under the current key on read
+- [x] 1.11 Test: with no master key configured, the module starts and `/api/asistente/ping` answers; saving a key reports the unavailable-key condition
+- [x] 1.12 Update `ArquitecturaAsistenteTests`: add the new reader/writer files to the `CadenaDuena` allowlist `PuedenUsarLaCadenaDelDueno` if they need the owner connection, and raise `SuperficiePublicaDeApplication` only by the exact count of intentionally public new types
 
 ## 2. Slice 2 — Spike, `ProveedorChat`, resolver, keyed breaker
 

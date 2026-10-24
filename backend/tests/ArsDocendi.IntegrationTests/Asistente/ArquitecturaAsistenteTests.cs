@@ -73,6 +73,11 @@ public sealed partial class ArquitecturaAsistenteTests
         // the wholesale-revoked `asistente` schema, so even reading needs the
         // owner connection (asistente-administracion-de-uso).
         "CuotaPersistente.cs",
+        // Same reason as CuotaPersistente.cs: credencial_de_proveedor,
+        // modelo_vigente and catalogo_de_modelos sit inside the wholesale-revoked
+        // `asistente` schema (asistente-modelo-en-caliente).
+        "RepositorioDeCredenciales.cs",
+        "RepositorioDelModelo.cs",
         // Same reason as CuotaPersistente.cs above — reads
         // tope_organizacional/consumo_organizacional_mensual/tabla_de_precios
         // and writes the accumulator, all inside the same revoked schema.
@@ -390,6 +395,9 @@ public sealed partial class ArquitecturaAsistenteTests
         // previous version, open the new one) — no RLS-scoped read of
         // anything keyed to identity.asistente_actor(), so no actor to fix.
         "PresupuestosAdministrablesReal.cs",
+        // Same reason as AdministracionAsistente.cs: DDL runner for the three
+        // runtime-model tables (asistente-modelo-en-caliente), no actor involved.
+        "ModeloAsistente.cs",
         // Same reason as RegistrosAsistente.cs: the owner connection
         // (CadenaDuena) replacing turno_historico's last row for «Editar y
         // reenviar» (asistente-edicion-de-la-ultima-pregunta, design.md D9),
@@ -566,6 +574,11 @@ public sealed partial class ArquitecturaAsistenteTests
         "AuditoriaDeAdministracionReal.cs",
         "ConsultasDeUso.cs",
         "PresupuestosAdministrablesReal.cs",
+        // Same reason as CuotaPersistente.cs above: credencial_de_proveedor,
+        // modelo_vigente and catalogo_de_modelos are inside the wholesale-revoked
+        // `asistente` schema (asistente-modelo-en-caliente). Writes included.
+        "RepositorioDeCredenciales.cs",
+        "RepositorioDelModelo.cs",
         // Same reason as ConsultasDeUso.cs above (sistema-seccion-unificada,
         // design.md D1, tarea 1.2).
         "ConsultasDeAuditoriaDeAdministracion.cs",
@@ -852,6 +865,14 @@ public sealed partial class ArquitecturaAsistenteTests
 
         Assert.Equal(2, Detectar(sinteticos, ClaveConValor()).Count);
 
+        // The master keys are secrets too (asistente-modelo-en-caliente).
+        Assert.Equal(2, Detectar(
+            [
+                new("d/appsettings.json", "{\"Asistente\":{\"ClaveMaestra\":\"AAAA\"}}"),
+                new("e/appsettings.json", "{\"Asistente\":{\"ClaveMaestraAnterior\": \"BBBB\"}}"),
+            ],
+            ClaveConValor()).Count);
+
         // Declararla vacía es exactamente lo que el repositorio SÍ puede hacer:
         // documenta que el valor existe sin traer ningún secreto.
         Assert.Empty(Detectar(
@@ -1111,6 +1132,6 @@ public sealed partial class ArquitecturaAsistenteTests
 
     // La clave declarada CON un valor. La cadena vacía se perdona a propósito: es la
     // forma en que un appsettings documenta que el valor existe sin traer el secreto.
-    [GeneratedRegex("\"ClaveDelProveedor\"\\s*:\\s*\"[^\"]+\"")]
+    [GeneratedRegex("\"(?:ClaveDelProveedor|ClaveMaestra|ClaveMaestraAnterior)\"\\s*:\\s*\"[^\"]+\"")]
     private static partial Regex ClaveConValor();
 }

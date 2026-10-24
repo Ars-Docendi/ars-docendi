@@ -106,6 +106,53 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.EsperaBaseMs), o => o.EsperaBaseMs),
     ];
 
+    /// <summary>
+    /// Valida las claves maestras SÓLO cuando alguien va a cifrar o descifrar una
+    /// credencial (asistente-modelo-en-caliente, tarea 1.5).
+    /// </summary>
+    /// <remarks>
+    /// No forma parte de <see cref="Validate"/> a propósito: esa corre en el primer
+    /// turno de cualquier ambiente, y un ambiente sin clave maestra —el simulado, el
+    /// modelo local— es una configuración válida. Los mensajes nombran la variable y
+    /// nunca su valor: una clave mal pegada es, igual, una clave.
+    /// </remarks>
+    /// <returns>Una falla por problema; vacía si se puede operar con claves.</returns>
+    internal static IReadOnlyList<string> ValidarClavesMaestras(OpcionesAsistente options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        var fallas = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(options.ClaveMaestra))
+        {
+            fallas.Add(
+                $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.ClaveMaestra)}' no está configurada: "
+                + "sin ella no se pueden guardar ni leer claves de API.");
+        }
+        else if (!EsClaveDe32Bytes(options.ClaveMaestra))
+        {
+            fallas.Add(
+                $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.ClaveMaestra)}' tiene que ser "
+                + "base64 de exactamente 32 bytes.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ClaveMaestraAnterior)
+            && !EsClaveDe32Bytes(options.ClaveMaestraAnterior))
+        {
+            fallas.Add(
+                $"'{OpcionesAsistente.Seccion}:{nameof(OpcionesAsistente.ClaveMaestraAnterior)}' tiene que ser "
+                + "base64 de exactamente 32 bytes, o estar vacía.");
+        }
+
+        return fallas;
+    }
+
+    internal static bool EsClaveDe32Bytes(string base64)
+    {
+        Span<byte> destino = stackalloc byte[33];
+        return Convert.TryFromBase64String(base64.Trim(), destino, out var escritos) && escritos == 32;
+    }
+
     public ValidateOptionsResult Validate(string? name, OpcionesAsistente options)
     {
         ArgumentNullException.ThrowIfNull(options);
