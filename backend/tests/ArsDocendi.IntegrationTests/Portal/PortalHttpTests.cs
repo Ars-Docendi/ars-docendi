@@ -185,7 +185,12 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Subió de 121 a 122 con el cliente de inferencia (develop):
         // `GET /api/inferencia/estado` en InferenciaController.
-        Assert.Equal(122, operaciones.Length);
+        //
+        // Subió de 122 a 127 con asistente-modelo-en-caliente: cinco en
+        // AdministracionDelModeloController (`GET`, `PUT` y `DELETE
+        // /api/asistente/administracion/modelo`, `POST …/modelo/prueba` y
+        // `POST …/credenciales/{empresa}/reemplazo`).
+        Assert.Equal(127, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 
