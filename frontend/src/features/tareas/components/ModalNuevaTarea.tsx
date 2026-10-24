@@ -18,6 +18,8 @@ import type {
   Tarea,
   TipoTarea,
 } from "../types";
+import "../../../shared/ui/modalEstirable.css";
+import "./modalesEstirables.css";
 
 interface ModalNuevaTareaProps {
   open: boolean;
@@ -146,6 +148,7 @@ export function ModalNuevaTarea({
   return (
     <Modal
       open={open}
+      className="adoc-modal--estirable adoc-modal-tareas"
       onOpenChange={(next) => {
         if (!next) handleCerrar();
       }}
