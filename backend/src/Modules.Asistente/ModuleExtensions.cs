@@ -165,14 +165,17 @@ public static class ModuleExtensions
 
         // ------------------------------------------- presupuesto y degradación
 
-        // El breaker es SINGLETON: el estado del proveedor es del proceso, no del
-        // request. Uno por turno no acumularía ningún fallo y nunca abriría.
-        services.AddSingleton<BreakerDelProveedor>();
+        // El registro de breakers es SINGLETON: el estado del proveedor es del
+        // proceso, no del request. Uno por turno no acumularía ningún fallo y nunca
+        // abriría. Hay un breaker por `Nombre` de adaptador (asistente-modelo-en-
+        // caliente, D8): cambiar de modelo no hereda el corte de otro.
+        services.AddSingleton<RegistroDeBreakers>();
 
         // La compuerta de concurrencia (asistente-proveedor-local, D4) es SINGLETON
         // por el mismo motivo que el breaker: la GPU es una sola para todo el
         // proceso. Sólo se resuelve si `MaximoDeLlamadasConcurrentes` es mayor que
-        // cero — con cero, `Encadenar` ni la pide y la cadena queda como antes.
+        // cero — con cero, el resolutor ni la pide y la cadena queda como antes. Sólo
+        // envuelve a `ollama` y `local` (asistente-modelo-en-caliente, D3).
         services.AddSingleton(sp => new CompuertaDelModelo(
             Math.Max(1, sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value.MaximoDeLlamadasConcurrentes),
             sp.GetRequiredService<TimeProvider>()));
@@ -259,8 +262,21 @@ public static class ModuleExtensions
         // La cuota NO está en esta cadena: la cobra la capa conversacional, que es
         // lo único que conoce al actor. Meterla acá exigiría un objeto de request
         // mutable con el actor adentro, leído por capas que no lo declaran.
+        //
+        // Desde asistente-modelo-en-caliente (D3) la cadena no se arma acá: la arma
+        // el resolutor del turno, que lee la selección guardada UNA vez por turno y,
+        // sin selección, usa los adaptadores del ambiente de arriba. Lo que se
+        // registra es el puerto del turno, que no lee nada hasta que sale la primera
+        // llamada: el arranque no toca la base y un turno que no llama al modelo
+        // tampoco arma ningún adaptador.
+        services.AddSingleton(new EnvoltorioDelProveedor(envolverProveedor));
+        services.AddScoped<ILectorDeLaSeleccion, LectorDeLaSeleccion>();
+        services.AddScoped<ResolutorDelProveedor>();
+        services.AddScoped<IBreakerDelTurno>(sp => sp.GetRequiredService<ResolutorDelProveedor>());
+        services.AddScoped<IEnmascaradoDelTurno>(sp => sp.GetRequiredService<ResolutorDelProveedor>());
+
         services.AddScoped<IProveedorDeModelo>(
-            sp => Encadenar(sp, sp.GetRequiredService<ProveedorBase>().Valor));
+            sp => new ProveedorDelTurno(sp.GetRequiredService<ResolutorDelProveedor>(), paraRedactar: false));
 
         // LA SEGUNDA CADENA, para redactar. Comparte el techo del turno y el corte
         // con la primera —el contador es scoped y el breaker singleton, así que las
@@ -275,7 +291,7 @@ public static class ModuleExtensions
         // sabe que le tocó otro.
         services.AddKeyedScoped<IProveedorDeModelo>(
             ProveedorDeRedaccion,
-            (sp, _) => Encadenar(sp, sp.GetRequiredService<BaseDeRedaccion>().Valor));
+            (sp, _) => new ProveedorDelTurno(sp.GetRequiredService<ResolutorDelProveedor>(), paraRedactar: true));
 
         // ---------------------------------------------------------------- carril SQL
 
@@ -529,44 +545,6 @@ public static class ModuleExtensions
     public const string AdaptadorDeRedaccion = "asistente-adaptador-redaccion";
 
     /// <summary>
-    /// Envuelve un proveedor con el corte y el techo del turno.
-    /// </summary>
-    /// <remarks>
-    /// El orden va de afuera hacia adentro de más barato a más caro:
-    /// techo del turno → compuerta → corte + timeout → proveedor real. Invertir
-    /// techo y corte haría que el corte registrara intentos que el techo iba a
-    /// rechazar igual, y un solo turno desbocado abriría el corte para todos.
-    ///
-    /// La compuerta (asistente-proveedor-local, D4) va ENTRE el techo y el corte:
-    /// después del techo para que una llamada que el turno no puede hacer no
-    /// ocupe lugar en la cola, y antes del corte para que la espera en la cola no
-    /// consuma el timeout de la llamada ni cuente como fallo del proveedor. Con
-    /// <c>MaximoDeLlamadasConcurrentes</c> en cero no se agrega.
-    /// </remarks>
-    private static IProveedorDeModelo Encadenar(IServiceProvider sp, IProveedorDeModelo interno)
-    {
-        var valores = sp.GetRequiredService<IOptions<OpcionesAsistente>>().Value;
-        var contador = sp.GetRequiredService<ContadorDeLlamadasDelTurno>();
-
-        IProveedorDeModelo conCorte = new ProveedorConBreaker(
-            interno,
-            sp.GetRequiredService<BreakerDelProveedor>(),
-            TimeSpan.FromSeconds(valores.TimeoutDeLlamadaSegundos),
-            sp.GetRequiredService<TimeProvider>());
-
-        if (valores.MaximoDeLlamadasConcurrentes > 0)
-        {
-            conCorte = new ProveedorConCompuerta(
-                conCorte,
-                sp.GetRequiredService<CompuertaDelModelo>(),
-                TimeSpan.FromSeconds(valores.EsperaMaximaEnColaSegundos),
-                contador);
-        }
-
-        return new ProveedorConTechoDeLlamadas(conCorte, contador);
-    }
-
-    /// <summary>
     /// Interpreta los tres esfuerzos y descarta el resultado, para fallar temprano.
     /// </summary>
     private static void ValidarEsfuerzos(OpcionesAsistente valores)
@@ -602,7 +580,7 @@ public static class ModuleExtensions
     /// Arma el adaptador del servicio de inferencia compartido
     /// (asistente-proveedor-ollama, D1) con el mismo transporte que los demás.
     /// </summary>
-    private static ProveedorOllama ArmarOllama(
+    internal static ProveedorOllama ArmarOllama(
         IServiceProvider sp, OpcionesAsistente valores, string modelo) =>
         new(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),
@@ -621,7 +599,7 @@ public static class ModuleExtensions
     /// Mismo transporte que <see cref="ArmarAnthropic"/>, por el mismo motivo: un
     /// solo lugar reintenta. La clave es opcional con este proveedor.
     /// </remarks>
-    private static ProveedorLocal ArmarLocal(
+    internal static ProveedorLocal ArmarLocal(
         IServiceProvider sp, OpcionesAsistente valores, string modelo) =>
         new(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClienteDelProveedor),

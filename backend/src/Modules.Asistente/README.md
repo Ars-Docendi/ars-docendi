@@ -562,6 +562,31 @@ clase en `Infrastructure` y un brazo más del `switch`. No hay nada del pipeline
 rehacer, y los dos conviven en la misma compilación con ambientes distintos
 eligiendo uno u otro.
 
+### Selección en caliente (`asistente-modelo-en-caliente`)
+
+El `switch` es la **configuración de respaldo**. Un administrador puede elegir otro
+modelo desde la pantalla Sistema, y esa selección (`asistente.modelo_vigente`) manda
+mientras exista:
+
+- `ResolutorDelProveedor` (scoped) la lee **una vez por turno**, sin caché de proceso:
+  un cambio rige desde el turno siguiente, en todas las instancias del Host, y el turno
+  en curso termina en el modelo con el que empezó. Sin fila usa los adaptadores del
+  ambiente, como siempre. Nada lee la base al arrancar.
+- Las empresas en la nube (`anthropic`, `openai`, `google`, `mistral`) corren en
+  `ProveedorChat`, sobre `IChatClient` de Microsoft.Extensions.AI, con la clave de esa
+  empresa descifrada de `asistente.credencial_de_proveedor` (`Asistente__ClaveMaestra`).
+  `ollama` y `local` siguen en `ProveedorOllama` y `ProveedorLocal`: el servidor se elige
+  por identificador, nunca por URL.
+- Todo adaptador se llama `"{empresa}/{modelo}"`; el breaker es uno por nombre
+  (`RegistroDeBreakers`); la compuerta de concurrencia sólo envuelve a `ollama` y
+  `local`; y con una selección `ModeloDeRedaccion` se ignora: el modelo elegido genera y
+  redacta.
+- **Una empresa en la nube siempre enmascara** la redacción: `RedaccionSinEnmascarar` sólo
+  rige si el adaptador resuelto del turno corre en hardware propio.
+- Los SDK de `Anthropic` y `OpenAI` se nombran sólo en `ProveedorAnthropic.cs` y
+  `ClientesDeChat.cs` (test de arquitectura). Agregar un modelo es una fila del catálogo
+  (SQL `database/asistente/`), no código.
+
 El default es el simulado y usar uno real exige configuración explícita. El motivo
 no es estilístico: los ambientes efímeros de PR no pueden tener clave real, porque
 su workflow hace checkout del head del pull request y ejecuta un script que viene de
@@ -892,7 +917,7 @@ y no cuesta nada.
 
 ```
 ProveedorConTechoDeLlamadas      ← techo del turno
-  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo con MaximoDeLlamadasConcurrentes > 0)
+  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo `ollama` y `local`, y con MaximoDeLlamadasConcurrentes > 0)
        └─ ProveedorConBreaker    ← estado del proveedor + timeout por llamada
             └─ proveedor real
 ```

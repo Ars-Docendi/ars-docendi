@@ -757,9 +757,34 @@ El proveedor se envuelve de afuera hacia adentro, de más barato a más caro:
 
 ```
 ProveedorConTechoDeLlamadas   ← techo del turno
-  └─ ProveedorConBreaker      ← estado del proveedor + timeout por llamada
-       └─ proveedor real
+  └─ ProveedorConCompuerta    ← sólo `ollama` y `local`, y sólo con MaximoDeLlamadasConcurrentes > 0
+       └─ ProveedorConBreaker ← estado del proveedor (uno por `Nombre`) + timeout por llamada
+            └─ proveedor real
 ```
+
+### Selección del modelo en caliente (`asistente-modelo-en-caliente`)
+
+El proveedor y el modelo ya no se eligen una sola vez por proceso. Un `ResolutorDelProveedor` **scoped** decide, **una vez por turno**, con qué adaptador corre ese turno:
+
+- **Con selección guardada** (`asistente.modelo_vigente`, una fila, `id = 1`): arma el adaptador desde esa fila. Las cuatro empresas en la nube (`anthropic`, `openai`, `google`, `mistral`) corren en `ProveedorChat`, sobre `Microsoft.Extensions.AI` (`IChatClient`), con la clave de la empresa descifrada de `asistente.credencial_de_proveedor` (AES-GCM, clave maestra `Asistente__ClaveMaestra`). Los servidores locales siguen en sus adaptadores (`ollama` → `ProveedorOllama`, `local` → `ProveedorLocal`), armados por los mismos `ArmarOllama` / `ArmarLocal` de siempre: la pantalla sólo elige un identificador, nunca una URL ni una credencial.
+- **Sin selección**: devuelve exactamente lo que el registro construye desde el ambiente (`Asistente__Proveedor`, `Asistente__Modelo`, `Asistente__ModeloDeRedaccion`). El arranque no lee la base y el ping responde con la configuración incompleta.
+
+La selección **no se cachea en el proceso** —varias instancias del Host comparten la base y un cambio rige desde el turno siguiente en todas— y un turno **termina en el adaptador con el que empezó**: el resolutor lee la fila la primera vez que se le pregunta y no vuelve a leerla en ese scope. Pregunta primero **quién** es el adaptador (disponibilidad y enmascarado sólo necesitan eso) y arma la cadena recién en la primera llamada al modelo, así que un turno resuelto por el carril determinista no construye ningún adaptador. Una selección cuyo adaptador no se puede armar (clave ausente o ilegible, servidor local no configurado) no revienta el turno: se vuelve un adaptador que falla cada llamada como falla del proveedor, que el breaker cuenta y el carril degrada.
+
+Qué cambia en la cadena con una selección:
+
+| Pieza                  | Regla                                                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Nombre                 | Todo adaptador se llama `"{empresa}/{modelo}"` (`simulado` a secas), la forma que ya usan `registro_operativo.proveedor` y `tabla_de_precios`.                                                                                 |
+| Breaker                | Uno por `Nombre` (`RegistroDeBreakers`). Cambiar de modelo no hereda un corte abierto, y volver a uno que sigue caído lo encuentra abierto. `DisponibilidadDelModeloReal` pregunta por el del adaptador que el turno resolvió. |
+| Compuerta              | Sólo `ollama` y `local`: modela una GPU. Una empresa en la nube tiene techo y breaker, nada más.                                                                                                                               |
+| Saturación             | El 429/503 del servicio compartido sigue siendo `ProveedorSaturado`: el breaker no lo cuenta. El 429 de una empresa en la nube sí es una falla de transporte y se cuenta.                                                      |
+| Redacción              | Con selección, `ModeloDeRedaccion` del ambiente se ignora: el modelo elegido genera **y** redacta.                                                                                                                             |
+| Enmascarado            | `RedaccionSinEnmascarar` sólo rige si el adaptador **resuelto** corre en hardware propio (`ollama`, `local`) y no hay directorio de cassettes. Cualquier empresa en la nube enmascara, diga lo que diga el ambiente.           |
+| `AnuncioDeLaRedaccion` | Sigue describiendo el estado del ambiente al arrancar; el estado efectivo de un turno lo decide el adaptador resuelto.                                                                                                         |
+| Caché de consultas     | `CacheDeConsultasGeneradas.Vaciar()` lo llama la escritura de la selección (slice 3), para que una consulta generada por el modelo anterior no se sirva después de cambiar.                                                    |
+
+`ProveedorChat` hace **un intento por llamada** —el único reintento es `ReintentoDeTransporte`, y los reintentos del SDK van en cero— y traduce las fallas de los dos SDK a `HttpRequestException` con el código HTTP preservado y **sin** mensaje del proveedor ni excepción interna: un 401 puede devolver parte de la clave y el carril loguea lo que atrapa. Anthropic arma su pedido con tipos crudos (`cache_control` sobre el prefijo, `output_config.effort`, nunca `ChatOptions.Reasoning`, que enciende el pensamiento extendido), y un test fija que el cuerpo sea idéntico al de `ProveedorAnthropic`. Los tipos de ambos SDK viven en `ProveedorAnthropic.cs` y `ClientesDeChat.cs`.
 
 ### El grabador de cassettes va por fuera del reintento
 
@@ -1409,11 +1434,14 @@ viven en el manifiesto de privilegios y en las policies RLS.
   agrega edges hacia `Modules.<X>.Contracts`, es de la épica E6.
 - **Hacia afuera**: nadie lo consume.
 - **Externas**: un proveedor de modelo de lenguaje, detrás de `IProveedorDeModelo`.
-  Dos implementaciones: `ProveedorSimulado` (default de todos los ambientes) y
-  `ProveedorAnthropic`, que se elige con `Asistente__Proveedor=anthropic` y exige
-  clave. El SDK del proveedor se nombra en un solo archivo, fijado por un test de
-  arquitectura, así que sumar un adaptador —o cambiar de proveedor— es una clase y
-  un brazo del `switch`. **El asistente no accede a ninguna otra fuente externa**:
+  `ProveedorSimulado` (default de todos los ambientes), `ProveedorAnthropic`
+  (`Asistente__Proveedor=anthropic`, exige clave), los dos servidores locales
+  (`ProveedorOllama`, `ProveedorLocal`) y `ProveedorChat`, que sirve a las cuatro
+  empresas en la nube desde la selección guardada (ver «Selección del modelo en
+  caliente»). Los SDK (`Anthropic`, `Microsoft.Extensions.AI.OpenAI`) se nombran en
+  dos archivos, fijados por un test de arquitectura, así que sumar una empresa es una
+  entrada del catálogo y, si no habla OpenAI, un constructor de pedido en
+  `ClientesDeChat.cs`. **El asistente no accede a ninguna otra fuente externa**:
   opera exclusivamente sobre la base del propio sistema.
 
 ## Specs activas

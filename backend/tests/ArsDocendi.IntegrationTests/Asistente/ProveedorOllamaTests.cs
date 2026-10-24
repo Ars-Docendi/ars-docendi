@@ -1,3 +1,4 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -395,6 +396,7 @@ public sealed class ProveedorOllamaTests
         }
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
         servicios.AddHttpClient(ModuleExtensions.ClienteDelProveedor)
             .ConfigurePrimaryHttpMessageHandler(() => servidor);
 

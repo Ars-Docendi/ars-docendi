@@ -275,7 +275,8 @@ internal sealed class BancoDelAsistente
         ILogger<CarrilSql>? log = null,
         CacheDeConsultasGeneradas? cache = null,
         IOptions<OpcionesAsistente>? opcionesDelRedactor = null,
-        CarrilDelPlan? plan = null) =>
+        CarrilDelPlan? plan = null,
+        IEnmascaradoDelTurno? enmascarado = null) =>
         new(
             new GeneradorDeSql(
                 new ProveedorDeEsquema(apertura),
@@ -312,5 +313,14 @@ internal sealed class BancoDelAsistente
                 NullLogger<CatalogoDeCapacidades>.Instance),
             opcionesDelRedactor ?? Options.Create(new OpcionesAsistente()),
             log ?? NullLogger<CarrilSql>.Instance,
+            // Unit-level default: the environment decides, as it did before the
+            // runtime selection. The real composition is tested through DI.
+            enmascarado ?? new EnmascaradoDelEntorno(opcionesDelRedactor ?? Options.Create(new OpcionesAsistente())),
             plan);
+
+    internal sealed class EnmascaradoDelEntorno(IOptions<OpcionesAsistente> opciones) : IEnmascaradoDelTurno
+    {
+        public Task<bool> RedaccionSinEnmascararAsync(CancellationToken ct) =>
+            Task.FromResult(opciones.Value.RedaccionSinEnmascararVigente);
+    }
 }

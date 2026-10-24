@@ -182,7 +182,8 @@ public sealed class RunnerDeCapacidadMotivoTests(PostgresFixture postgres)
                 new ConsultasIdentityFalsa(),
                 NullLogger<CatalogoDeCapacidades>.Instance),
             opciones,
-            NullLogger<CarrilSql>.Instance);
+            NullLogger<CarrilSql>.Instance,
+            new BancoDelAsistente.EnmascaradoDelEntorno(opciones));
 
         var runner = new RunnerDeCapacidad(Carril, ejecutor, new ActoresFijos(), proveedor)
         {

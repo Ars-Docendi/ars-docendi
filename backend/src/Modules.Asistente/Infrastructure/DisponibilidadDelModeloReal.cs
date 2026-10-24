@@ -16,7 +16,7 @@ internal sealed class DisponibilidadDelModeloReal(
     ICuotaDelActor cuota,
     IPresupuestoOrganizacional presupuestoOrganizacional,
     IDisponibilidadDelModulo disponibilidadDelModulo,
-    BreakerDelProveedor breaker)
+    IBreakerDelTurno breaker)
     : IDisponibilidadDelModelo
 {
     public async Task<MotivoSinModelo> ConsultarAsync(Guid actor, CancellationToken ct)
@@ -52,7 +52,9 @@ internal sealed class DisponibilidadDelModeloReal(
             return MotivoSinModelo.Mantenimiento;
         }
 
-        return breaker.Estado == EstadoDelBreaker.Abierto
+        // El breaker del adaptador que ESTE turno resolvió (asistente-modelo-en-
+        // caliente, D8): uno abierto para otro modelo no cuenta.
+        return await breaker.EstadoAsync(ct) == EstadoDelBreaker.Abierto
             ? MotivoSinModelo.ProveedorCaido
             : MotivoSinModelo.Ninguno;
     }

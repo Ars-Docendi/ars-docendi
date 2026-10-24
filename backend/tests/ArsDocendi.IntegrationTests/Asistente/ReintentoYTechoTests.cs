@@ -1,3 +1,4 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Net;
 using System.Net.Http.Headers;
 using ArsDocendi.Shared;
@@ -263,6 +264,7 @@ public sealed class ReintentoYTechoTests
         servicios.AddLogging();
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
         return servicios;
     }
 

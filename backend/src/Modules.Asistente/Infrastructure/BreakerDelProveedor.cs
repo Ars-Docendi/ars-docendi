@@ -18,6 +18,21 @@ public enum EstadoDelBreaker
 }
 
 /// <summary>
+/// El estado del breaker del adaptador que el turno resolvió
+/// (asistente-modelo-en-caliente, D8).
+/// </summary>
+/// <remarks>
+/// Es asíncrono porque saber CUÁL es el adaptador del turno puede requerir leer la
+/// selección guardada. <see cref="BreakerDelProveedor"/> lo implementa trivialmente
+/// con su propio estado: un breaker suelto no tiene nada que resolver.
+/// </remarks>
+internal interface IBreakerDelTurno
+{
+    /// <summary>Estado del breaker del adaptador resuelto para este turno.</summary>
+    Task<EstadoDelBreaker> EstadoAsync(CancellationToken ct);
+}
+
+/// <summary>
 /// Corta las llamadas al proveedor cuando viene fallando, y las restablece solo.
 /// </summary>
 /// <remarks>
@@ -31,12 +46,14 @@ public enum EstadoDelBreaker
 /// que recién se está recuperando, que es exactamente el escenario que el breaker
 /// existe para evitar.
 ///
-/// Es singleton: el estado del proveedor es del proceso, no del request.
+/// Guarda el estado de UN adaptador. Hay uno por <c>Nombre</c> y los reparte
+/// <see cref="RegistroDeBreakers"/>, que es el singleton: el estado del proveedor
+/// es del proceso, no del request, y cambiar de modelo no hereda el de otro.
 /// </remarks>
 internal sealed class BreakerDelProveedor(
     IOptions<OpcionesAsistente> opciones,
     TimeProvider reloj,
-    ILogger<BreakerDelProveedor> log)
+    ILogger<BreakerDelProveedor> log) : IBreakerDelTurno
 {
     private readonly Lock _candado = new();
 
@@ -55,6 +72,9 @@ internal sealed class BreakerDelProveedor(
             }
         }
     }
+
+    /// <inheritdoc />
+    public Task<EstadoDelBreaker> EstadoAsync(CancellationToken ct) => Task.FromResult(Estado);
 
     /// <summary>
     /// Si esta llamada puede salir. En prueba, se la concede a una sola.

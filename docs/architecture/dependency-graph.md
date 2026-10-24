@@ -102,6 +102,15 @@ Dependencias de **paquete** de `ArsDocendi.Shared` (no son aristas del grafo de 
 | `Microsoft.EntityFrameworkCore.Relational` | `AuditDbConnectionInterceptor`                     |
 | `Npgsql.EntityFrameworkCore.PostgreSQL`    | Provider de PostgreSQL para ese contexto           |
 
+Dependencias de paquete de `Modules.Asistente` para los proveedores de modelo en la nube (`asistente-modelo-en-caliente`; tampoco son edges del grafo):
+
+| Paquete                          | Razón                                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Anthropic`                      | SDK de Anthropic: `ProveedorAnthropic` (selección por ambiente) y el cliente de `ProveedorChat` para esa empresa                   |
+| `Microsoft.Extensions.AI.OpenAI` | Cliente OpenAI sobre `IChatClient`: OpenAI, Mistral y Gemini (endpoint compatible), todos desde `Infrastructure/ClientesDeChat.cs` |
+
+Un test de arquitectura (`El_SDK_del_proveedor_se_nombra_en_un_solo_archivo`) limita los tipos de ambos SDK a `ProveedorAnthropic.cs` y `ClientesDeChat.cs`.
+
 Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edges del grafo):
 
 | Paquete                                             | Razón                                                                     |

@@ -1,4 +1,7 @@
 using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Modules.Asistente;
@@ -281,6 +284,42 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_cloud_adapter_resolved_for_the_turn_masks_even_when_the_environment_runs_on_own_hardware()
+    {
+        await SembrarAsync();
+
+        // The environment says own hardware with the option on; the turn resolved a
+        // cloud company (a runtime selection). The turn's decision wins: masked.
+        var (_, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Cuál es el documento de los docentes?",
+            SqlDeDocumentos,
+            SinEnmascarar(provider: "ollama"),
+            new EnmascaradoFijo(sinEnmascarar: false));
+
+        var redaccion = proveedor.Recibidas[^1].Mensaje;
+
+        Assert.DoesNotContain(DocumentoSembrado, redaccion, StringComparison.Ordinal);
+        Assert.Contains("«documento", redaccion, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_own_hardware_adapter_resolved_for_the_turn_unmasks_per_the_environment_option()
+    {
+        await SembrarAsync();
+
+        // The reverse: a cloud environment, and the turn resolved own hardware.
+        var (_, proveedor) = await PreguntarAsync(
+            Secretaria,
+            "¿Cuál es el documento de los docentes?",
+            SqlDeDocumentos,
+            SinEnmascarar(provider: "anthropic"),
+            new EnmascaradoFijo(sinEnmascarar: true));
+
+        Assert.Contains(DocumentoSembrado, proveedor.Recibidas[^1].Mensaje, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Unmasked_option_with_a_cassette_directory_keeps_the_document_out_of_the_prompt()
     {
         await SembrarAsync();
@@ -474,12 +513,13 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     }
 
     private async Task<(ResultadoDelTurno Turno, ProveedorGuionado Proveedor)> PreguntarAsync(
-        Guid actor, string pregunta, string sql, OpcionesAsistente? opciones = null)
+        Guid actor, string pregunta, string sql, OpcionesAsistente? opciones = null,
+        IEnmascaradoDelTurno? enmascarado = null)
     {
         var proveedor = new ProveedorGuionado(ProveedorGuionado.Generacion(sql));
 
-        var turno = await CarrilCon(proveedor, opcionesDelRedactor: opciones).ResponderAsync(
-            actor, pregunta, null, TestContext.Current.CancellationToken);
+        var turno = await CarrilCon(proveedor, opcionesDelRedactor: opciones, enmascarado: enmascarado)
+            .ResponderAsync(actor, pregunta, null, TestContext.Current.CancellationToken);
 
         return (turno, proveedor);
     }
@@ -487,7 +527,8 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
     private CarrilSql CarrilCon(
         ProveedorGuionado proveedor,
         RegistroDeCapturas? registro = null,
-        OpcionesAsistente? opcionesDelRedactor = null)
+        OpcionesAsistente? opcionesDelRedactor = null,
+        IEnmascaradoDelTurno? enmascarado = null)
     {
         var (basica, pii) = CadenasDeLectura();
         var opciones = Options.Create(new OpcionesAsistente());
@@ -504,7 +545,135 @@ public sealed class EnmascaramientoDelTurnoTests(PostgresFixture postgres)
             contador,
             opciones,
             log: registro is null ? NullLogger<CarrilSql>.Instance : registro.Logger<CarrilSql>(),
-            opcionesDelRedactor: opcionesDelRedactor is null ? null : Options.Create(opcionesDelRedactor));
+            opcionesDelRedactor: opcionesDelRedactor is null ? null : Options.Create(opcionesDelRedactor),
+            enmascarado: enmascarado);
+    }
+
+    // ---- the real composition wires the resolver into CarrilSql (task 2.19, end to end)
+
+    [Fact]
+    public async Task Through_the_real_composition_a_cloud_selection_masks_and_own_hardware_unmasks()
+    {
+        await SembrarAsync();
+        var ct = TestContext.Current.CancellationToken;
+        var cable = new CableDeRedaccion();
+
+        static string A(string n) => $"{OpcionesAsistente.Seccion}:{n}";
+        var configuracion = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:ArsDocendi"] = Cadena,
+                [A(nameof(OpcionesAsistente.RolSoloLectura))] = RolSoloLectura,
+                [A(nameof(OpcionesAsistente.PasswordSoloLectura))] = PostgresFixture.PasswordDeRol,
+                [A(nameof(OpcionesAsistente.RolSoloLecturaPii))] = RolSoloLecturaPii,
+                [A(nameof(OpcionesAsistente.PasswordSoloLecturaPii))] = PostgresFixture.PasswordDeRol,
+                [A(nameof(OpcionesAsistente.Proveedor))] = "ollama",
+                [A(nameof(OpcionesAsistente.Modelo))] = "qwen3.5:9b",
+                [A(nameof(OpcionesAsistente.ContextoDelModelo))] = "16384",
+                [A(nameof(OpcionesAsistente.RedaccionSinEnmascarar))] = "true",
+                [A(nameof(OpcionesAsistente.ClaveMaestra))] = CifradoDeCredencialesTests.ClaveMaestra(7),
+                [A(nameof(OpcionesAsistente.MaximoDeIntentosDeTransporte))] = "1",
+                [$"{OpcionesInferencia.Seccion}:Url"] = "https://ia.example.net",
+                [$"{OpcionesInferencia.Seccion}:Usuario"] = "preview",
+                [$"{OpcionesInferencia.Seccion}:Contrasena"] = "clave",
+            })
+            .Build();
+
+        var servicios = new ServiceCollection();
+        servicios.AddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(new AmbienteDelHost());
+        servicios.AddLogging();
+        servicios.AddArsDocendiShared(configuracion);
+        servicios.AddAsistenteModule(configuracion);
+        servicios.AddHttpClient(ModuleExtensions.ClienteDelProveedor)
+            .ConfigurePrimaryHttpMessageHandler(() => cable);
+        await using var raiz = servicios.BuildServiceProvider();
+
+        async Task<string> RedaccionAsync()
+        {
+            cable.Reiniciar();
+            using var turno = raiz.CreateScope();
+            var carril = turno.ServiceProvider.GetRequiredService<CarrilSql>();
+            var resultado = await carril.ResponderAsync(
+                Secretaria, "¿Cuál es el documento de los docentes?", null, ct);
+            Assert.Equal(EstadoDelTurno.Respondida, resultado.Estado);
+            return cable.UltimoPrompt();
+        }
+
+        async Task SeleccionarAsync(string empresa, string modelo, string? clave)
+        {
+            await using var alcance = raiz.CreateAsyncScope();
+            if (clave is not null)
+            {
+                await alcance.ServiceProvider.GetRequiredService<RepositorioDeCredenciales>()
+                    .GuardarAsync(empresa, clave, Guid.NewGuid(), ct);
+            }
+
+            Assert.True(await alcance.ServiceProvider.GetRequiredService<RepositorioDelModelo>()
+                .AplicarSeleccionAsync(empresa, modelo, Guid.NewGuid(), ct));
+        }
+
+        // Environment: own hardware with the option on, no selection: unmasked.
+        Assert.Contains(DocumentoSembrado, await RedaccionAsync(), StringComparison.Ordinal);
+
+        // A stored cloud selection: the redaction prompt sent to the cloud is masked.
+        await SeleccionarAsync("openai", "gpt-5", "sk-live-ABCDEFGH12345678WXYZ");
+        var enLaNube = await RedaccionAsync();
+        Assert.Equal("api.openai.com", cable.UltimoHost);
+        Assert.DoesNotContain(DocumentoSembrado, enLaNube, StringComparison.Ordinal);
+        Assert.Contains("«documento", enLaNube, StringComparison.Ordinal);
+
+        // Back to own hardware: unmasked again.
+        await SeleccionarAsync("ollama", "qwen3.5:9b", null);
+        Assert.Contains(DocumentoSembrado, await RedaccionAsync(), StringComparison.Ordinal);
+        Assert.Equal("ia.example.net", cable.UltimoHost);
+    }
+
+    /// <summary>Answers a generation (call 1) and a redaction (call 2) for both wire shapes.</summary>
+    private sealed class CableDeRedaccion : HttpMessageHandler
+    {
+        private const string Sql = "SELECT apellido, documento FROM identity.personas ORDER BY legajo";
+        private readonly List<(string Host, string Cuerpo)> _pedidos = [];
+
+        public string UltimoHost => _pedidos[^1].Host;
+
+        public void Reiniciar() => _pedidos.Clear();
+
+        /// <summary>The text of every message of the last request, JSON-decoded.</summary>
+        public string UltimoPrompt() => string.Join(
+            "\n",
+            System.Text.Json.JsonDocument.Parse(_pedidos[^1].Cuerpo).RootElement
+                .GetProperty("messages").EnumerateArray()
+                .Select(m => m.GetProperty("content").ToString()));
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage pedido, CancellationToken ct)
+        {
+            _pedidos.Add((pedido.RequestUri!.Host, await pedido.Content!.ReadAsStringAsync(ct)));
+            var texto = _pedidos.Count == 1 ? ProveedorGuionado.Generacion(Sql) : "Respuesta redactada.";
+            var json = System.Text.Json.JsonSerializer.Serialize(texto);
+
+            var cuerpo = pedido.RequestUri.Host == "ia.example.net"
+                ? $$$"""{"model":"m","message":{"role":"assistant","content":{{{json}}} },"done":true,"done_reason":"stop","prompt_eval_count":10,"eval_count":5}"""
+                : $$$"""{"id":"c","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":{{{json}}} },"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}""";
+
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(cuerpo, System.Text.Encoding.UTF8, "application/json"),
+            };
+        }
+    }
+
+    private sealed class AmbienteDelHost : Microsoft.Extensions.Hosting.IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Development";
+        public string ApplicationName { get; set; } = "pruebas";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
+            new Microsoft.Extensions.FileProviders.NullFileProvider();
+    }
+
+    private sealed class EnmascaradoFijo(bool sinEnmascarar) : IEnmascaradoDelTurno
+    {
+        public Task<bool> RedaccionSinEnmascararAsync(CancellationToken ct) => Task.FromResult(sinEnmascarar);
     }
 
 }

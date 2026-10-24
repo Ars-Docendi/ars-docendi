@@ -617,9 +617,20 @@ public sealed class OpcionesAsistente
     /// record responses with real values into files meant to be versioned. Any
     /// other combination masks.
     /// </remarks>
-    public bool RedaccionSinEnmascararVigente =>
+    public bool RedaccionSinEnmascararVigente => RedaccionSinEnmascararCon(ProveedorEnHardwarePropio);
+
+    /// <summary>
+    /// The same decision for an adapter that is not necessarily the one the
+    /// environment names: a runtime selection resolved for the turn
+    /// (asistente-modelo-en-caliente, D7).
+    /// </summary>
+    /// <param name="adaptadorEnHardwarePropio">
+    /// Whether the resolved adapter runs on the Department's hardware (only
+    /// <c>ollama</c> and <c>local</c>). A cloud company is never.
+    /// </param>
+    internal bool RedaccionSinEnmascararCon(bool adaptadorEnHardwarePropio) =>
         RedaccionSinEnmascarar
-        && ProveedorEnHardwarePropio
+        && adaptadorEnHardwarePropio
         && string.IsNullOrWhiteSpace(DirectorioDeCassettes);
 
     /// <summary>Whether <see cref="Proveedor"/> runs on the Department's hardware.</summary>

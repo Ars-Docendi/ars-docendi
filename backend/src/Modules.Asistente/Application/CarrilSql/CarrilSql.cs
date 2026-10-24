@@ -28,6 +28,7 @@ public sealed class CarrilSql(
     ICatalogoDeCapacidades capacidades,
     IOptions<OpcionesAsistente> opciones,
     ILogger<CarrilSql> log,
+    IEnmascaradoDelTurno enmascarado,
     CarrilDelPlan? plan = null)
 {
     /// <summary>Responde una pregunta acotada al actor.</summary>
@@ -580,9 +581,17 @@ public sealed class CarrilSql(
         //
         // With RedaccionSinEnmascarar in effect (own model, no cassettes) the
         // sensible-valor values travel as they are; sensible-texto is always suppressed.
+        //
+        // With a runtime model selection (asistente-modelo-en-caliente, D7) the
+        // decision comes from the adapter the turn resolved, not from the
+        // environment: a cloud company masks whatever the environment says.
+        //
+        // The port is mandatory on purpose: an optional one would fall back to the
+        // environment when a composition forgot it, and unmask toward a cloud company.
+        var sinEnmascarar = await enmascarado.RedaccionSinEnmascararAsync(ct);
         var paraElModelo = Enmascarador.Enmascarar(
             resultado,
-            opciones.Value.RedaccionSinEnmascararVigente
+            sinEnmascarar
                 ? ModoDeEnmascarado.SoloTextoLibre
                 : ModoDeEnmascarado.Todo);
         var texto = await redactor.RedactarAsync(

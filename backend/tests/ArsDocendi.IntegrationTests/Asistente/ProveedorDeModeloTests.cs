@@ -117,14 +117,16 @@ public sealed partial class ProveedorDeModeloTests
     }
 
     [Fact]
-    public void Un_proveedor_desconocido_falla_nombrando_el_valor_configurado()
+    public async Task Un_proveedor_desconocido_falla_nombrando_el_valor_configurado()
     {
         using var servicios = Componer("openai-de-verdad").BuildServiceProvider();
 
         using var turno = servicios.CreateScope();
 
-        var error = Assert.Throws<InvalidOperationException>(
-            turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
+        // The adapter is resolved by the turn's resolver at the first call.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
         Assert.Contains("openai-de-verdad", error.Message, StringComparison.Ordinal);
     }
@@ -196,6 +198,7 @@ public sealed partial class ProveedorDeModeloTests
         servicios.AddLogging();
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
         return servicios;
     }
 

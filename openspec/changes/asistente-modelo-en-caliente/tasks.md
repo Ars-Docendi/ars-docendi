@@ -21,34 +21,34 @@
 
 ## 2. Slice 2 — Spike, `ProveedorChat`, resolver, keyed breaker
 
-- [ ] 2.1 Spike (timeboxed, results recorded in this change's design.md under D10): through Microsoft.Extensions.AI verify (a) injection of the named `ClienteDelProveedor` `HttpClient` so `GrabadorDeCassettes` and `ReintentoDeTransporte` still wrap every call, (b) Anthropic `cache_control` on `PrefijoEstable`, (c) `EsfuerzoDelModelo` mapping per company, (d) Gemini through `/v1beta/openai/`, (e) provider failures surface as `HttpRequestException` with `StatusCode` preserved, (f) `SeQuedoSinTokens` from the finish reason. For any failed point, mark that company "keeps hand-written adapter" and continue
-- [ ] 2.2 Add `Microsoft.Extensions.AI.OpenAI` to `Modules.Asistente`; pin versions consistent with `Anthropic` 12.42.1 / `Microsoft.Extensions.AI.Abstractions`
-- [ ] 2.3 `ProveedorChat : IProveedorDeModelo` with `Nombre = "{empresa}/{modelo}"`, one attempt per call, failures translated to `HttpRequestException` (status preserved) or caller-token cancellation (the only shapes `ProveedorConBreaker` counts), no raw provider detail in messages
-- [ ] 2.4 Per-company client factory for the four cloud companies (Anthropic via `AsIChatClient()`; OpenAI, Mistral and Gemini via OpenAI-compatible endpoints). The local kinds are not built here: `ProveedorOllama` and `ProveedorLocal` are built by the existing `ArmarOllama` / `ArmarLocal` paths, reusing `OpcionesInferencia.Autenticar` and `UrlDelProveedorLocal`
-- [ ] 2.5 `IResolutorDelProveedor` (scoped): read `modelo_vigente` once per turn, decrypt the company key for cloud kinds, build the adapter for that turn only, fall back to the environment-built singletons (`ProveedorBase`, `BaseDeRedaccion`) when no row exists; no process cache of the selection. The two scoped `Encadenar` registrations (`IProveedorDeModelo`, keyed `ProveedorDeRedaccion`) call it. Preserve `envolverProveedor` for the evaluator on both paths and keep the raw adapter inside the ceiling and breaker
-- [ ] 2.6 Apply the concurrency gate (`ProveedorConCompuerta`) only when the resolved kind is `ollama` or `local`; cloud kinds get ceiling plus breaker only
-- [ ] 2.7 Turn `BreakerDelProveedor` into a per-`Nombre` registry; `Encadenar` and `DisponibilidadDelModeloReal` read the breaker of the resolved name
-- [ ] 2.8 Ignore `ModeloDeRedaccion` when a runtime selection exists
-- [ ] 2.9 Decide `RedaccionSinEnmascararVigente` from the resolved adapter: with a runtime selection, own hardware means only `ollama` / `local`; any cloud company masks regardless of `RedaccionSinEnmascarar`. Update the read in `CarrilSql` and keep `AnuncioDeLaRedaccion` describing the environment state
-- [ ] 2.10 Clear `CacheDeConsultasGeneradas` when a selection write succeeds
-- [ ] 2.11 Update `ArquitecturaAsistenteTests.El_SDK_del_proveedor_se_nombra_en_un_solo_archivo` to allow exactly `ProveedorAnthropic.cs` (until retired) plus the one new file that builds `IChatClient`
-- [ ] 2.12 Test: wire-level parity — for the same `SolicitudAlModelo`, a fake handler captures the same Anthropic request body (system with `cache_control`, `output_config.effort`, token ceilings) from `ProveedorAnthropic` and `ProveedorChat`, and the translated `RespuestaDelModelo` carries the same text, token counts, cache tokens and `SeQuedoSinTokens`. Not through cassettes (TD-030)
-- [ ] 2.13 Test: switching the stored selection changes the adapter used by the next turn without restarting the Host
-- [ ] 2.14 Test: a turn that began before the switch finishes on the old model
-- [ ] 2.15 Test: with no stored selection the environment configuration is used unchanged, for each of `simulado`, `anthropic`, `local` and `ollama`
-- [ ] 2.16 Test: with incomplete configuration the Host starts and `/api/asistente/ping` answers
-- [ ] 2.17 Test: an open breaker for one `Nombre` does not affect another `Nombre`, and `DisponibilidadDelModeloReal` reports `ProveedorCaido` only for the resolved name
-- [ ] 2.18 Test: the selected model performs both generation and redaction when a selection exists
-- [ ] 2.19 Test: with `RedaccionSinEnmascarar=true` and environment `ollama`, selecting a cloud company makes the redaction prompt carry masked `sensible-valor` markers; selecting `ollama` again unmasks
-- [ ] 2.20 Test: the concurrency gate wraps `ollama` and `local` selections and does not wrap a cloud selection, even with `MaximoDeLlamadasConcurrentes > 0`
-- [ ] 2.21 Test: a saturated shared service (`ProveedorSaturado` from 429/503) does not open the breaker for `ollama/...`
+- [x] 2.1 Spike (timeboxed, results recorded in this change's design.md under D10): through Microsoft.Extensions.AI verify (a) injection of the named `ClienteDelProveedor` `HttpClient` so `GrabadorDeCassettes` and `ReintentoDeTransporte` still wrap every call, (b) Anthropic `cache_control` on `PrefijoEstable`, (c) `EsfuerzoDelModelo` mapping per company, (d) Gemini through `/v1beta/openai/`, (e) provider failures surface as `HttpRequestException` with `StatusCode` preserved, (f) `SeQuedoSinTokens` from the finish reason. For any failed point, mark that company "keeps hand-written adapter" and continue
+- [x] 2.2 Add `Microsoft.Extensions.AI.OpenAI` to `Modules.Asistente`; pin versions consistent with `Anthropic` 12.42.1 / `Microsoft.Extensions.AI.Abstractions`
+- [x] 2.3 `ProveedorChat : IProveedorDeModelo` with `Nombre = "{empresa}/{modelo}"`, one attempt per call, failures translated to `HttpRequestException` (status preserved) or caller-token cancellation (the only shapes `ProveedorConBreaker` counts), no raw provider detail in messages
+- [x] 2.4 Per-company client factory for the four cloud companies (Anthropic via `AsIChatClient()`; OpenAI, Mistral and Gemini via OpenAI-compatible endpoints). The local kinds are not built here: `ProveedorOllama` and `ProveedorLocal` are built by the existing `ArmarOllama` / `ArmarLocal` paths, reusing `OpcionesInferencia.Autenticar` and `UrlDelProveedorLocal`
+- [x] 2.5 `IResolutorDelProveedor` (scoped): read `modelo_vigente` once per turn, decrypt the company key for cloud kinds, build the adapter for that turn only, fall back to the environment-built singletons (`ProveedorBase`, `BaseDeRedaccion`) when no row exists; no process cache of the selection. The two scoped `Encadenar` registrations (`IProveedorDeModelo`, keyed `ProveedorDeRedaccion`) call it. Preserve `envolverProveedor` for the evaluator on both paths and keep the raw adapter inside the ceiling and breaker
+- [x] 2.6 Apply the concurrency gate (`ProveedorConCompuerta`) only when the resolved kind is `ollama` or `local`; cloud kinds get ceiling plus breaker only
+- [x] 2.7 Turn `BreakerDelProveedor` into a per-`Nombre` registry; `Encadenar` and `DisponibilidadDelModeloReal` read the breaker of the resolved name
+- [x] 2.8 Ignore `ModeloDeRedaccion` when a runtime selection exists
+- [x] 2.9 Decide `RedaccionSinEnmascararVigente` from the resolved adapter: with a runtime selection, own hardware means only `ollama` / `local`; any cloud company masks regardless of `RedaccionSinEnmascarar`. Update the read in `CarrilSql` and keep `AnuncioDeLaRedaccion` describing the environment state
+- [x] 2.10 Clear `CacheDeConsultasGeneradas` when a selection write succeeds (no write path exists until slice 3: `CacheDeConsultasGeneradas.Vaciar()` is exposed and tested here, and tasks 3.3 and 3.4 call it)
+- [x] 2.11 Update `ArquitecturaAsistenteTests.El_SDK_del_proveedor_se_nombra_en_un_solo_archivo` to allow exactly `ProveedorAnthropic.cs` (until retired) plus the one new file that builds `IChatClient`
+- [x] 2.12 Test: wire-level parity — for the same `SolicitudAlModelo`, a fake handler captures the same Anthropic request body (system with `cache_control`, `output_config.effort`, token ceilings) from `ProveedorAnthropic` and `ProveedorChat`, and the translated `RespuestaDelModelo` carries the same text, token counts, cache tokens and `SeQuedoSinTokens`. Not through cassettes (TD-030)
+- [x] 2.13 Test: switching the stored selection changes the adapter used by the next turn without restarting the Host
+- [x] 2.14 Test: a turn that began before the switch finishes on the old model
+- [x] 2.15 Test: with no stored selection the environment configuration is used unchanged, for each of `simulado`, `anthropic`, `local` and `ollama`
+- [x] 2.16 Test: with incomplete configuration the Host starts and `/api/asistente/ping` answers
+- [x] 2.17 Test: an open breaker for one `Nombre` does not affect another `Nombre`, and `DisponibilidadDelModeloReal` reports `ProveedorCaido` only for the resolved name
+- [x] 2.18 Test: the selected model performs both generation and redaction when a selection exists
+- [x] 2.19 Test: with `RedaccionSinEnmascarar=true` and environment `ollama`, selecting a cloud company makes the redaction prompt carry masked `sensible-valor` markers; selecting `ollama` again unmasks
+- [x] 2.20 Test: the concurrency gate wraps `ollama` and `local` selections and does not wrap a cloud selection, even with `MaximoDeLlamadasConcurrentes > 0`
+- [x] 2.21 Test: a saturated shared service (`ProveedorSaturado` from 429/503) does not open the breaker for `ollama/...`
 
 ## 3. Slice 3 — Administration endpoints
 
 - [ ] 3.1 `GET api/asistente/administracion/modelo` — current selection, origin (server configuration or screen), local servers configured (identifier only, never a URL), catalog grouped by company with key status (hint or missing); never the key
 - [ ] 3.2 `POST .../modelo/prueba` `{empresa, modelo, claveNueva?}` — one minimal real call; returns latency or one of `clave-invalida`, `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`; persists nothing. For `ollama`: 401/403 → `clave-invalida`, 404 → `modelo-inexistente`, 429/503 (`ProveedorSaturado`) → `saturado`, transport failure → `inalcanzable`
-- [ ] 3.3 `PUT .../modelo` `{empresa, modelo, claveNueva?}` — server re-tests, saves a new key if given, sets the selection; audit row written before responding
-- [ ] 3.4 `DELETE .../modelo` — return to server configuration; audited
+- [ ] 3.3 `PUT .../modelo` `{empresa, modelo, claveNueva?}` — server re-tests, saves a new key if given, sets the selection, then calls `CacheDeConsultasGeneradas.Vaciar()`; audit row written before responding
+- [ ] 3.4 `DELETE .../modelo` — return to server configuration (also calls `CacheDeConsultasGeneradas.Vaciar()`); audited
 - [ ] 3.5 `POST .../credenciales/{empresa}/reemplazo` `{clave}` — cloud companies only; validate against the provider first, replace only on success, otherwise leave the old key untouched; independent of model selection; audited
 - [ ] 3.6 Local-server check on every local selection or test: the identifier must be `ollama` with `Inferencia__Url` set, or `local` with `Asistente__UrlDelProveedorLocal` set; otherwise reject without an outbound call. No endpoint accepts a URL, host or local credential
 - [ ] 3.7 Audit actions for selection, revert, key replacement and key creation through `IAuditoriaDeAdministracion`, recording `empresa`, `modelo` and the hint only

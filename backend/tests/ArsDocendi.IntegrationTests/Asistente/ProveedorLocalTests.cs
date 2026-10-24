@@ -1,3 +1,4 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -249,13 +250,16 @@ public sealed class ProveedorLocalTests
     }
 
     [Fact]
-    public void Sin_url_pedir_el_proveedor_falla_nombrando_el_valor_que_falta()
+    public async Task Sin_url_pedir_el_proveedor_falla_nombrando_el_valor_que_falta()
     {
         using var servicios = Componer(url: null).BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
-        var error = Assert.Throws<InvalidOperationException>(
-            turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
+        // The adapter is resolved by the turn's resolver at the first call, so an
+        // incomplete configuration fails there and not when the port is requested.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
         Assert.Contains(
             nameof(OpcionesAsistente.UrlDelProveedorLocal), error.Message, StringComparison.Ordinal);
@@ -442,6 +446,7 @@ public sealed class ProveedorLocalTests
         servicios.AddLogging();
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
 
         if (servidor is not null)
         {

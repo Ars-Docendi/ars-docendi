@@ -49,13 +49,16 @@ public sealed class SeleccionDelProveedorTests
     }
 
     [Fact]
-    public void Sin_clave_pedir_el_proveedor_falla_nombrando_el_valor_que_falta()
+    public async Task Sin_clave_pedir_el_proveedor_falla_nombrando_el_valor_que_falta()
     {
         using var servicios = Componer(clave: null).BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
-        var error = Assert.Throws<InvalidOperationException>(
-            turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
+        // The adapter is resolved by the turn's resolver at the first call, so an
+        // incomplete configuration fails there and not when the port is requested.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
         // El mensaje tiene que nombrar el valor: «falta configuración» manda a
         // buscar en veinte lugares.
@@ -90,14 +93,17 @@ public sealed class SeleccionDelProveedorTests
     }
 
     [Fact]
-    public void Un_esfuerzo_desconocido_falla_nombrando_los_aceptados()
+    public async Task Un_esfuerzo_desconocido_falla_nombrando_los_aceptados()
     {
         using var servicios = Componer(clave: "clave-de-prueba", esfuerzo: "altisimo")
             .BuildServiceProvider();
         using var turno = servicios.CreateScope();
 
-        var error = Assert.Throws<InvalidOperationException>(
-            turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>);
+        // The adapter is resolved by the turn's resolver at the first call, so an
+        // incomplete configuration fails there and not when the port is requested.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
 
         // Falla en vez de caer al default en silencio: alguien que escribió
         // «altisimo» quiere enterarse al arrancar, no correr un mes con un esfuerzo
@@ -290,6 +296,7 @@ public sealed class SeleccionDelProveedorTests
         servicios.AddLogging();
         servicios.AddArsDocendiShared(configuracion);
         servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
 
         if (transporte is not null)
         {

@@ -757,7 +757,14 @@ public sealed partial class ArquitecturaAsistenteTests
     /// una propiedad del ya público <c>ResultadoDelTurno</c>. El ubicador, los
     /// orígenes y <c>SinFichas</c> quedan `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 98;
+    /// <remarks>
+    /// Raised to 99 for asistente-modelo-en-caliente (D7): <c>IEnmascaradoDelTurno</c>
+    /// is an optional constructor parameter of the already-public <c>CarrilSql</c>,
+    /// which decides masking from the adapter the turn resolved, and the compiler
+    /// rejects a less-accessible type there. Its only implementation, the resolver,
+    /// stays `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 99;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
@@ -824,7 +831,10 @@ public sealed partial class ArquitecturaAsistenteTests
     public void El_SDK_del_proveedor_se_nombra_en_un_solo_archivo()
     {
         var culpables = Detectar(CodigoDelModulo(), SdkDelProveedor())
-            .Where(ruta => !ruta.EndsWith("ProveedorAnthropic.cs", StringComparison.Ordinal))
+            .Where(ruta => !ruta.EndsWith("ProveedorAnthropic.cs", StringComparison.Ordinal)
+                // The one file that builds IChatClient for the cloud companies
+                // (asistente-modelo-en-caliente, D2): exactly two files name an SDK.
+                && !ruta.EndsWith("ClientesDeChat.cs", StringComparison.Ordinal))
             .ToList();
 
         // Es lo que hace cierta la promesa de que el puerto es agnóstico. Mientras
@@ -1127,7 +1137,7 @@ public sealed partial class ArquitecturaAsistenteTests
     // El namespace raíz del SDK y sus tipos propios. Alcanza con el namespace: no
     // hay forma de usar el SDK sin nombrarlo, porque el módulo no tiene ningún
     // using global que lo traiga.
-    [GeneratedRegex(@"\bAnthropic\.[A-Z]|\bAnthropicClient\b")]
+    [GeneratedRegex(@"\bAnthropic\.[A-Z]|\bAnthropicClient\b|\bOpenAI\.[A-Z]|\bOpenAIClient\b|\bSystem\.ClientModel\b")]
     private static partial Regex SdkDelProveedor();
 
     // La clave declarada CON un valor. La cadena vacía se perdona a propósito: es la
