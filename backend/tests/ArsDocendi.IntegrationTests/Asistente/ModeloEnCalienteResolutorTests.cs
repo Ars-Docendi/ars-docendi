@@ -145,7 +145,10 @@ public sealed class ModeloEnCalienteResolutorTests(PostgresFixture postgres)
 
     // ------------------------------------------------------------ composition
 
-    private ServiceProvider Componer(Cable cable, Action<Dictionary<string, string?>>? ajustar = null)
+    private ServiceProvider Componer(
+        Cable cable,
+        Action<Dictionary<string, string?>>? ajustar = null,
+        Func<IProveedorDeModelo, IProveedorDeModelo>? envolverProveedor = null)
     {
         static string A(string nombre) => $"{OpcionesAsistente.Seccion}:{nombre}";
 
@@ -167,7 +170,7 @@ public sealed class ModeloEnCalienteResolutorTests(PostgresFixture postgres)
         servicios.AddLogging();
         servicios.AddSingleton<IHostEnvironment>(new AmbienteDePrueba());
         servicios.AddArsDocendiShared(configuracion);
-        servicios.AddAsistenteModule(configuracion);
+        servicios.AddAsistenteModule(configuracion, envolverProveedor);
         servicios.AddHttpClient(ModuleExtensions.ClienteDelProveedor)
             .ConfigurePrimaryHttpMessageHandler(() => cable);
 
@@ -315,6 +318,50 @@ public sealed class ModeloEnCalienteResolutorTests(PostgresFixture postgres)
         Assert.Equal(
             delEntorno,
             turno.ServiceProvider.GetRequiredService<ResolutorDelProveedor>().IdentidadDelEntorno().NombreDeGeneracion);
+    }
+
+    // ------------------------- the evaluator's wrapper is one instance, by environment
+
+    /// <summary>Counts the calls that reach it, like the evaluator's consumption meter.</summary>
+    private sealed class Contador(IProveedorDeModelo interno) : IProveedorDeModelo
+    {
+        public int Llamadas { get; private set; }
+
+        public string Nombre => interno.Nombre;
+
+        public bool EsSimulado => interno.EsSimulado;
+
+        public async Task<RespuestaDelModelo> CompletarAsync(SolicitudAlModelo solicitud, CancellationToken ct)
+        {
+            Llamadas++;
+            return await interno.CompletarAsync(solicitud, ct);
+        }
+    }
+
+    [Fact]
+    public async Task The_provider_wrapper_is_built_once_and_meters_every_turn_even_with_a_stored_selection()
+    {
+        var cable = new Cable();
+        var envoltorios = new List<Contador>();
+        await using var raiz = Componer(cable, envolverProveedor: interno =>
+        {
+            var contador = new Contador(interno);
+            envoltorios.Add(contador);
+            return contador;
+        });
+        await SeleccionarAsync(raiz, "openai", "gpt-5", ClaveDeLaNube);
+
+        for (var i = 0; i < 2; i++)
+        {
+            using var turno = raiz.CreateScope();
+            await Generacion(turno).CompletarAsync(Solicitud, Ct);
+        }
+
+        // The hook belongs to the evaluator, which chooses by environment: one wrapper
+        // for the whole run, every call through it, and the stored selection ignored.
+        var unico = Assert.Single(envoltorios);
+        Assert.Equal(2, unico.Llamadas);
+        Assert.Empty(cable.Pedidos);
     }
 
     // ------------------------------------------ 2.16 incomplete configuration

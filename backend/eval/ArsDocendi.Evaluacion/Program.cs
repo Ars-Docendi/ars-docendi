@@ -197,9 +197,11 @@ public static class Program
 
             var actores = new ActoresDelFixture();
 
-            // El proveedor ya se resolvió arriba, así que la fábrica del envoltorio
-            // corrió y el medidor existe. Si no existiera, el eje social mediría
-            // cero para siempre.
+            // El preflight de arriba ya hizo la primera llamada, y el adaptador se arma
+            // recién en ella: ahí corrió la fábrica del envoltorio y el medidor existe.
+            // Es uno solo para toda la corrida (el módulo ignora la selección guardada
+            // cuando hay envoltorio). Si no existiera, el eje social mediría cero
+            // para siempre.
             var medidorDelTurno = medidor ?? throw new InvalidOperationException(
                 "El módulo no aplicó el envoltorio del proveedor.");
 

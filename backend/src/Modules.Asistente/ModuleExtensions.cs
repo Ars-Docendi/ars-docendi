@@ -36,6 +36,11 @@ public static class ModuleExtensions
     /// se quiere saber es si un turno alcanzó al proveedor, y el techo y el corte
     /// pueden hacer que no lo alcance. Va adentro y no encima por eso.
     ///
+    /// Se aplica UNA vez por contenedor, al adaptador del ambiente (un solo medidor
+    /// para toda la corrida). Por eso, si se pasa, el módulo ignora la selección
+    /// guardada en <c>asistente.modelo_vigente</c>: aplicarlo sobre el adaptador que
+    /// arma cada turno crearía un envoltorio por turno y partiría los totales.
+    ///
     /// Nulo en producción, que es donde no hay nada que medir de más.
     /// </param>
     public static IServiceCollection AddAsistenteModule(

@@ -5,7 +5,11 @@ using Modules.Asistente.Application;
 
 namespace Modules.Asistente.Infrastructure;
 
-/// <summary>The evaluator's wrapper of the raw adapter, applied inside the ceiling and the breaker.</summary>
+/// <summary>
+/// The evaluator's wrapper of the raw adapter, applied inside the ceiling and the breaker.
+/// Its presence also pins the module to the environment's adapter (see
+/// <c>ResolutorDelProveedor</c>): a wrapper is built once per container, never per turn.
+/// </summary>
 internal sealed record EnvoltorioDelProveedor(Func<IProveedorDeModelo, IProveedorDeModelo>? Envolver);
 
 /// <summary>
@@ -142,6 +146,15 @@ internal sealed class ResolutorDelProveedor(
 
     private async Task<IdentidadDelModelo> LeerIdentidadAsync(CancellationToken ct)
     {
+        // The evaluator's wrapper (a meter that must be ONE instance for the whole run)
+        // exists only for the adapter the environment describes: a stored selection
+        // would build a raw adapter per turn and wrap it again each time, splitting the
+        // totals. The evaluator chooses by environment, so the selection is not read.
+        if (envoltorio.Envolver is not null)
+        {
+            return IdentidadDelEntorno();
+        }
+
         var seleccion = await lector.LeerAsync(ct);
         if (seleccion is null)
         {
@@ -213,7 +226,7 @@ internal sealed class ResolutorDelProveedor(
             crudo = new ProveedorNoArmable(identidad.NombreDeGeneracion);
         }
 
-        return envoltorio.Envolver?.Invoke(crudo) ?? crudo;
+        return crudo;
     }
 
     private async Task<IProveedorDeModelo> ArmarEnLaNubeAsync(IdentidadDelModelo identidad, CancellationToken ct)
