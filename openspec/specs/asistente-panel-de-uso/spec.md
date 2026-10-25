@@ -30,7 +30,7 @@ The system SHALL expose a read endpoint, gated by the `asistente.administrar` pe
 
 ### Requirement: Estimated cost from a versioned price table
 
-The system SHALL compute an estimated cost per user, per role, and org-wide by multiplying each row's token counts by a versioned, admin-configurable price table keyed by provider and model. Every place the estimate is shown SHALL label it as an estimate and state that the provider's invoice is the source of truth for actual billing.
+The system SHALL compute an estimated cost per user, per role, and org-wide by multiplying each row's token counts by a versioned, admin-configurable price table keyed by provider and model, and SHALL provide an administrator write path that adds a new version by closing the current one. Every place the estimate is shown SHALL label it as an estimate and state that the provider's invoice is the source of truth for actual billing.
 
 #### Scenario: Cost changes when the price table changes
 
@@ -43,6 +43,13 @@ The system SHALL compute an estimated cost per user, per role, and org-wide by m
 - **GIVEN** a `registro_operativo` row whose `proveedor` value has no matching entry in the price table
 - **WHEN** the dashboard computes estimated cost for a period including that row
 - **THEN** the system excludes that row's cost from the total and reports it separately as "not priced", rather than defaulting to zero silently
+
+#### Scenario: Pricing an unpriced model takes effect for later usage
+
+- **GIVEN** a model with no price and rows reported as "not priced"
+- **WHEN** an administrator writes a price effective from a given date
+- **THEN** rows recorded on or after that date are priced with it
+- **AND** rows recorded before that date remain "not priced"
 
 ### Requirement: Per-user display name resolution without a new permission dependency
 
