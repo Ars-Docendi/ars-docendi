@@ -55,7 +55,7 @@
 - [x] 4.7 "Por modelo" table with turn counts
 - [x] 4.8 "Respuestas con problemas" table with filters Todas / Pulgar abajo / Fallos / Reemplazadas, pagination, and a privacy footnote; replaced by an information notice without `asistente.revisar_calidad` (and no problem-list request is made)
 - [x] 4.9 Tab status dot turns to warning when the negative rate rises
-- [ ] 4.10 Optional, only if `asistente-modelo-en-caliente` is merged: show each model's 30-day negative rate in the Modelo tab dropdown
+- [ ] 4.10 Optional: show each model's 30-day negative rate in the Modelo tab dropdown — deferred: optional, not built (`asistente-modelo-en-caliente` is on this branch and archived, so it could be done; it was left out of this change)
 - [x] 4.11 Vitest: "Respuestas negativas" is rendered first with the emphasis class and trend note
 - [x] 4.12 Vitest: filters change the requested `tipo` and the visible rows
 - [x] 4.13 Vitest (`SistemaPage.test.tsx`, `routes.test.tsx`): permission gating of the tab and of the problem table (notice shown instead)
@@ -64,7 +64,7 @@
 
 ## 5. Documentation and verification
 
-- [ ] 5.1 `docs/architecture/domains/asistente.md`, `docs/architecture/api-contracts.md`, `docs/architecture/data-model.md`
-- [ ] 5.2 Permissions documentation, if any, for `asistente.revisar_calidad`
-- [ ] 5.3 `docs/quality/tech-debt.md` — new entry for the in-memory voting token lost on restart and expiring after `VigenciaDeRetroalimentacionMinutos`; add a TD-012 note that the aggregates respect it and that `modelo` is an attribute shared with `registro_operativo.proveedor`
-- [ ] 5.4 Run the proportional verification: `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`; record any check the environment could not complete
+- [x] 5.1 `docs/architecture/domains/asistente.md`, `docs/architecture/api-contracts.md`, `docs/architecture/data-model.md`
+- [x] 5.2 Permissions documentation, if any, for `asistente.revisar_calidad`
+- [x] 5.3 `docs/quality/tech-debt.md` — new entry for the in-memory voting token lost on restart and expiring after `VigenciaDeRetroalimentacionMinutos`; add a TD-012 note that the aggregates respect it and that `modelo` is an attribute shared with `registro_operativo.proveedor`
+- [x] 5.4 Run the proportional verification: `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`; record any check the environment could not complete

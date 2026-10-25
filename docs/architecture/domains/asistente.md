@@ -1460,7 +1460,10 @@ How users rate answers and where the assistant visibly fails, per model and over
 - **Policy denials are not the model's fault.** Quota, organization cap, maintenance, revoked access and a concurrent turn are excluded from every rate and returned as a separate count by cause. `resultado_vacio` is a signal, not a failure.
 - **Two permissions.** `asistente.administrar` opens the aggregates. `asistente.revisar_calidad`, seeded to no role, opens the anonymous problem list (question text, reason or cause, type, model, day, state), and every successful read of it is audited into `asistente.auditoria_revision_de_calidad` before the response, with its own retention (`RetencionDeAuditoriaDeCalidadDias`, 365).
 - **A trend only when it means something.** The trend against the previous period of equal length is omitted when either period has fewer than 20 votes or the previous period falls outside retention.
-- **Known limitation.** The voting token lives in memory and expires, so coverage is shown next to the negative rate (design D7).
+- **The screen.** Sistema › Calidad (after Modelo, gated by `asistente.administrar`): KPIs with "Respuestas negativas" first, a chart per day (per week for 90) in which days without votes are gaps ("sin valoraciones", never 0%) and the average line counts only days with votes, breakdowns by reason and cause, a per-model table and the problem table (an information notice without `asistente.revisar_calidad`). The tab status dot turns to warning when the 30-day negative rate rises against the previous 30 days, whatever period is selected in the tab. A reason's share is shown as a dash when there are no negative votes.
+- **Unclassified failures.** A failing turn (`ServicioDegradado` or `Fallo`) with no recorded cause is shown under `sin_clasificar`, so a path that forgot to record one is visible. `modelosDisponibles` ignores the model filter so the select stays whole.
+- **Retention.** `PurgaDeRegistros` also purges `auditoria_revision_de_calidad` (`RetencionDeAuditoriaDeCalidadDias`, 365) and counts it in its log line.
+- **Known limitation.** The voting token lives in memory and expires, so coverage is shown next to the negative rate (design D7). Tracked as TD-031 in `docs/quality/tech-debt.md`.
 
 Contract: [api-contracts.md](../api-contracts.md#quality-metrics-asistente-metricas-de-calidad).
 

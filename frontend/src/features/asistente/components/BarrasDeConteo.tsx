@@ -62,7 +62,8 @@ export function BarrasDeConteo({
                   />
                 </span>
                 <span className="adoc-asistente-admin-metrica-texto">
-                  {formatearCantidad(c.cantidad)} · {formatearTasa(c.cantidad / total)}
+                  {formatearCantidad(c.cantidad)} ·{" "}
+                  {formatearTasa(total === 0 ? null : c.cantidad / total)}
                 </span>
               </span>
             </li>

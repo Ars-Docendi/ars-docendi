@@ -34,7 +34,13 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
   const desde = serie.length > 0 ? formatearDia(serie[0].dia) : formatearDia(calidad.desde);
   const hasta =
     serie.length > 0 ? formatearDia(serie[serie.length - 1].dia) : formatearDia(calidad.hasta);
-  const descripcion = `Porcentaje de respuestas negativas por ${unidad}, del ${desde} al ${hasta}. Promedio ${formatearTasa(promedio)}.`;
+  const sinTurnos = serie.every((p) => p.turnos === 0);
+  const conValoraciones = serie.filter((p) => p.votos > 0).length;
+  const resumenDeHuecos =
+    conValoraciones < serie.length
+      ? ` ${conValoraciones} de ${serie.length} ${porSemana ? "semanas" : "días"} con valoraciones; el resto, sin valoraciones.`
+      : "";
+  const descripcion = `Porcentaje de respuestas negativas por ${unidad}, del ${desde} al ${hasta}. Promedio ${formatearTasa(promedio)}.${resumenDeHuecos}`;
 
   return (
     <section className="adoc-asistente-admin-panel-uso-tarjeta" aria-labelledby={idTitulo}>
@@ -44,7 +50,7 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
         </span>
         <span className="calidad-grafico-encabezado-derecha">
           <span className="adoc-hint calidad-sin-margen">Promedio {formatearTasa(promedio)}</span>
-          {serie.length > 0 && (
+          {!sinTurnos && (
             <button
               type="button"
               className="calidad-enlace"
@@ -58,7 +64,7 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
         </span>
       </div>
 
-      {serie.length === 0 ? (
+      {sinTurnos ? (
         <p className="adoc-asistente-admin-panel-vacio-texto">No hay turnos en este período.</p>
       ) : (
         <div id={idTabla}>
@@ -86,7 +92,11 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
                       <td>{formatearDia(p.dia)}</td>
                       <td className="calidad-numero">{formatearCantidad(p.votos)}</td>
                       <td className="calidad-numero">{formatearCantidad(p.negativos)}</td>
-                      <td className="calidad-numero">{formatearTasa(p.tasaNegativa)}</td>
+                      <td className="calidad-numero">
+                        {p.tasaNegativa === null
+                          ? "sin valoraciones"
+                          : formatearTasa(p.tasaNegativa)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -107,12 +117,14 @@ export function GraficoDeNegativas({ calidad }: GraficoDeNegativasProps) {
                 )}
                 {serie.map((p) => (
                   <span className="calidad-barra-celda" aria-hidden="true" key={p.dia}>
-                    <span
-                      className="calidad-barra"
-                      style={{
-                        height: `${Math.max(1, ((p.tasaNegativa ?? 0) * 100 * 100) / maximo)}%`,
-                      }}
-                    />
+                    {p.tasaNegativa !== null && (
+                      <span
+                        className="calidad-barra"
+                        style={{
+                          height: `${Math.max(1, (p.tasaNegativa * 100 * 100) / maximo)}%`,
+                        }}
+                      />
+                    )}
                     <span className="calidad-barra-tip">{textoDeBarra(p, porSemana)}</span>
                   </span>
                 ))}

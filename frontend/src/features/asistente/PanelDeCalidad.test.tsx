@@ -259,6 +259,35 @@ describe("PanelDeCalidad — gráfico", () => {
     );
   });
 
+  it("los días sin valoraciones son huecos: sin barra y «sin valoraciones» en la tabla y el resumen", async () => {
+    const user = userEvent.setup();
+    espiaCalidad.mockResolvedValue(
+      calidad({
+        serie: [
+          { dia: "2026-10-22", turnos: 0, votos: 0, negativos: 0, tasaNegativa: null },
+          { dia: "2026-10-23", turnos: 10, votos: 4, negativos: 1, tasaNegativa: 0.25 },
+          { dia: "2026-10-24", turnos: 0, votos: 0, negativos: 0, tasaNegativa: null },
+        ],
+      }),
+    );
+    const { container } = montar();
+
+    const grafico = await screen.findByRole("img", {
+      name: /del 22\/10 al 24\/10\..*1 de 3 días con valoraciones/,
+    });
+    expect(grafico).toBeInTheDocument();
+    expect(container.querySelectorAll(".calidad-barra")).toHaveLength(1);
+    expect(container.querySelectorAll(".calidad-barra-celda")).toHaveLength(3);
+
+    await user.click(screen.getByRole("button", { name: "Ver como tabla" }));
+    const tabla = screen.getByRole("table", { name: /Porcentaje de respuestas negativas por día/ });
+    const filas = within(tabla).getAllByRole("row");
+    expect(filas).toHaveLength(4);
+    expect(within(filas[1]).getByText("sin valoraciones")).toBeInTheDocument();
+    expect(within(filas[3]).getByText("sin valoraciones")).toBeInTheDocument();
+    expect(within(filas[2]).getByText("25,0%")).toBeInTheDocument();
+  });
+
   it("con 90 días la serie es semanal y la tabla titula «Semana del»", async () => {
     const user = userEvent.setup();
     espiaCalidad.mockResolvedValue(calidad({ periodoDias: 90, porSemana: true }));
@@ -291,6 +320,22 @@ describe("PanelDeCalidad — motivos, causas y denegaciones", () => {
     expect(within(vacia).getByText("Señal")).toBeInTheDocument();
     const fallo = within(tarjeta).getByText("El modelo tardó demasiado").closest("li")!;
     expect(within(fallo).queryByText("Señal")).toBeNull();
+  });
+
+  it("sin votos negativos los motivos muestran «0 · —», nunca NaN", async () => {
+    espiaCalidad.mockResolvedValue(
+      calidad({
+        negativosPorMotivo: [
+          { clave: "datos_incorrectos", cantidad: 0 },
+          { clave: "sin_motivo", cantidad: 0 },
+        ],
+      }),
+    );
+    montar();
+
+    const tarjeta = (await screen.findByText("Por qué no sirvió")).closest("section")!;
+    expect(within(tarjeta).getAllByText("0 · —")).toHaveLength(2);
+    expect(tarjeta).not.toHaveTextContent("NaN");
   });
 
   it("las denegaciones de política van aparte, con su propia explicación", async () => {

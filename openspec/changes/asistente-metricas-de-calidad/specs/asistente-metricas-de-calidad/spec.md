@@ -6,7 +6,7 @@ Gives administrators a view of how users rate the Asistente's answers and where 
 
 ### Requirement: Aggregate quality metrics are available to administrators
 
-The system SHALL expose a read endpoint, gated by `asistente.administrar`, that for a period of 7, 30 or 90 days and an optional model returns: the negative rate (negative votes divided by total votes), negatives by reason (the four reasons and "no reason given"), detectable failures by cause, the share of answers with problems (negative, replaced or a provider or query failure, counted once per turn), vote coverage (votes divided by answered turns), a per-model breakdown, a per-day series (per week for 90 days) and the comparison with the previous period of equal length. Turns denied by policy (quota, organization cap, maintenance, revoked access, concurrent turn) SHALL be excluded from every rate and SHALL be returned as a separate count by policy cause, the trend versus the previous period SHALL be omitted when either period has fewer than 20 votes, and the day of a vote SHALL be the day of its turn.
+The system SHALL expose a read endpoint, gated by `asistente.administrar`, that for a period of 7, 30 or 90 days and an optional model returns: the negative rate (negative votes divided by total votes), negatives by reason (the four reasons and "no reason given"), detectable failures by cause, the share of answers with problems (negative, replaced or a provider or query failure, counted once per turn), vote coverage (votes divided by answered turns), a per-model breakdown, a series covering every day of the period (every week for 90 days) and the comparison with the previous period of equal length. Turns denied by policy (quota, organization cap, maintenance, revoked access, concurrent turn) SHALL be excluded from every rate and SHALL be returned as a separate count by policy cause, the trend versus the previous period SHALL be omitted when either period has fewer than 20 votes, and the day of a vote SHALL be the day of its turn. A day or week without turns SHALL appear in the series as a point with a null rate, never as 0%, rates whose denominator is zero SHALL be null, and the response SHALL list every model seen in the period regardless of the model filter.
 
 #### Scenario: Rates are computed from votes and turns
 
@@ -39,6 +39,19 @@ The system SHALL expose a read endpoint, gated by `asistente.administrar`, that 
 - **GIVEN** a turn that was rated negative and was also replaced
 - **WHEN** the share of answers with problems is computed
 - **THEN** that turn contributes one to the numerator
+
+#### Scenario: Days without votes are gaps in the series
+
+- **GIVEN** a 30-day period with votes on a single day
+- **WHEN** an administrator requests the metrics
+- **THEN** the series has one point for each of the 30 days, in order
+- **AND** only the day with votes has a rate, and every other point has a null rate
+
+#### Scenario: Rates without a denominator are null
+
+- **GIVEN** a period with no votes
+- **WHEN** an administrator requests the metrics
+- **THEN** the negative rate is null and the screen shows a dash, not 0%
 
 #### Scenario: Coverage is votes over answered turns
 
@@ -126,7 +139,7 @@ The system SHALL record on the analytic record of each failing or empty turn exa
 
 - **GIVEN** a failing turn with no cause recorded
 - **WHEN** failures by cause are computed
-- **THEN** it appears under an "unclassified" bucket instead of being dropped
+- **THEN** it appears under the `sin_clasificar` bucket instead of being dropped
 
 ### Requirement: A replaced answer is recorded as implicit dissatisfaction
 
@@ -164,6 +177,12 @@ The system SHALL compute quality metrics from `registro_analitico` joined only w
 
 The system SHALL expose a paginated list of problem answers, filterable by type (negative rating, failure, replacement), period and model, requiring the new permission `asistente.revisar_calidad`, which SHALL be seeded to no role. Each row SHALL show the anonymous question text, the reason or cause, the type, the model, the day and the state, and SHALL NOT show the actor or the comment. Every successful read SHALL write an audit row.
 
+#### Scenario: The review permission alone opens the list but not the aggregates
+
+- **GIVEN** a caller with `asistente.revisar_calidad` but without `asistente.administrar`
+- **WHEN** the caller requests the problem list and then the aggregates
+- **THEN** the list is returned and the aggregates respond 403
+
 #### Scenario: Holding only the administration permission is not enough
 
 - **GIVEN** a caller with `asistente.administrar` but without `asistente.revisar_calidad`
@@ -196,7 +215,7 @@ The system SHALL expose a paginated list of problem answers, filterable by type 
 
 ### Requirement: The Calidad tab emphasizes negative answers and respects permissions
 
-The Sistema screen SHALL show a "Calidad" tab between "Modelo" and "Auditoría" (immediately after "Asistente" while the "Modelo" tab does not exist) to holders of `asistente.administrar`, whose first KPI, "Respuestas negativas", is wider and red-accented and shows the trend against the previous period, with an amber note when rising. The tab status dot SHALL turn to warning when the negative rate rises. The "Respuestas con problemas" table SHALL be replaced by an information notice for viewers without `asistente.revisar_calidad`.
+The Sistema screen SHALL show a "Calidad" tab between "Modelo" and "Auditoría" to holders of `asistente.administrar`, whose first KPI, "Respuestas negativas", is wider and red-accented and shows the trend against the previous period, with an amber note when rising. The tab status dot SHALL turn to warning when the 30-day negative rate rises against the previous 30 days, whatever period is selected in the tab. The "Respuestas con problemas" table SHALL be replaced by an information notice for viewers without `asistente.revisar_calidad`.
 
 #### Scenario: The negative KPI comes first and is emphasized
 
@@ -221,3 +240,10 @@ The Sistema screen SHALL show a "Calidad" tab between "Modelo" and "Auditoría" 
 - **GIVEN** the per-day chart
 - **WHEN** it renders
 - **THEN** it has an accessible label and an equivalent table alternative
+- **AND** days without votes read "sin valoraciones" in the table and the label, and draw no bar
+
+#### Scenario: A breakdown without entries shows no percentage
+
+- **GIVEN** a period with no negative votes
+- **WHEN** "Por qué no sirvió" renders
+- **THEN** each reason shows its count of 0 with a dash, never NaN

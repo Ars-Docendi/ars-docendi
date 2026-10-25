@@ -185,17 +185,34 @@ internal sealed class ConsultasDeCalidad(
             desde, hasta, modelo);
         comando.Parameters.AddWithValue("semanal", porSemana);
 
-        var puntos = new List<PuntoDeCalidad>();
-        await using var lector = await comando.ExecuteReaderAsync(ct);
-        while (await lector.ReadAsync(ct))
+        var conDatos = new Dictionary<DateOnly, PuntoDeCalidad>();
+        await using (var lector = await comando.ExecuteReaderAsync(ct))
         {
-            puntos.Add(new PuntoDeCalidad(
-                lector.GetFieldValue<DateOnly>(0),
-                (int)lector.GetInt64(1), (int)lector.GetInt64(2), (int)lector.GetInt64(3)));
+            while (await lector.ReadAsync(ct))
+            {
+                var dia = lector.GetFieldValue<DateOnly>(0);
+                conDatos[dia] = new PuntoDeCalidad(
+                    dia, (int)lector.GetInt64(1), (int)lector.GetInt64(2), (int)lector.GetInt64(3));
+            }
+        }
+
+        // The series covers every day (or every week) of the period, so a chart cannot stretch
+        // one day of data over the whole width. A point with no turns carries a null rate:
+        // it is a gap, and 0% would claim "no negatives" where nobody voted.
+        var paso = porSemana ? 7 : 1;
+        var primero = porSemana ? LunesDe(desde) : desde;
+        var puntos = new List<PuntoDeCalidad>();
+        for (var dia = primero; dia <= hasta; dia = dia.AddDays(paso))
+        {
+            puntos.Add(conDatos.GetValueOrDefault(dia) ?? new PuntoDeCalidad(dia, 0, 0, 0));
         }
 
         return puntos;
     }
+
+    /// <summary>The Monday of the week of <paramref name="dia"/>, as PostgreSQL's <c>date_trunc('week')</c>.</summary>
+    private static DateOnly LunesDe(DateOnly dia) =>
+        dia.AddDays(-(((int)dia.DayOfWeek + 6) % 7));
 
     private static async Task<IReadOnlyList<ConteoDeCalidad>> LeerMotivosAsync(
         NpgsqlConnection conexion, DateOnly desde, DateOnly hasta, string? modelo, CancellationToken ct)

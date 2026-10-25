@@ -138,13 +138,15 @@ internal sealed class PurgaDeRegistros(
             log.LogInformation(
                 "Purga del asistente: {Operativas} filas operativas, {Analiticas} analíticas, "
                 + "{Conversaciones} conversaciones, {Auditorias} auditorías de soporte, "
-                + "{AuditoriasDeAdministracion} auditorías de administración y "
+                + "{AuditoriasDeAdministracion} auditorías de administración, "
+                + "{AuditoriasDeCalidad} auditorías de revisión de calidad y "
                 + "{BorradosPendientes} borrados pendientes anteriores a sus respectivos cortes.",
                 operativas,
                 analiticas,
                 conversaciones,
                 auditorias,
                 auditoriasDeAdministracion,
+                auditoriasDeCalidad,
                 borradosPendientes);
         }
 

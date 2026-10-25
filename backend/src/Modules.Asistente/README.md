@@ -396,7 +396,8 @@ Tres decisiones que conviene no deshacer sin leer:
 - `GET /api/asistente/administracion/calidad?periodo=7|30|90&modelo=` — métricas de calidad
   agregadas (`asistente-metricas-de-calidad`), exige `asistente.administrar`. Tasa negativa,
   motivos, fallos por causa, cobertura de voto, tabla por modelo, serie por día (por semana a
-  90 días) y tendencia contra el período anterior, omitida con menos de 20 votos en cualquiera
+  90 días) que cubre todo el período, con los días sin votos como huecos (tasa `null`, nunca 0)
+  y tendencia contra el período anterior, omitida con menos de 20 votos en cualquiera
   de los dos. Los turnos denegados por política quedan fuera de toda tasa y se devuelven
   aparte. El día de un voto es el de su turno.
 - `GET /api/asistente/administracion/calidad/problemas?periodo=&modelo=&tipo=&pagina=` — la

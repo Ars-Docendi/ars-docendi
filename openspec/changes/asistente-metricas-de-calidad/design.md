@@ -106,7 +106,7 @@ A new reader (`ConsultasDeCalidad`) queries `retroalimentacion_turno` and `regis
 
 ### D9 — Frontend emphasis and Sistema integration
 
-"Respuestas negativas" is the first KPI, wider and red-accented, with the trend against the previous period (an amber note when rising). The per-day chart is a single series with an average reference line, an accessible label and a table alternative. The tab status dot turns to warning when the negative rate rises. Without `asistente.revisar_calidad`, the problem table is replaced by an information notice. The tab sits after "Modelo" in `ORDEN` (`estado`, `asistente`, `modelo`, `calidad`, `auditoria`); until `asistente-modelo-en-caliente` lands, it follows "Asistente". Gating reuses `asistente.administrar`, so `app/shell/nav.ts` needs no change. The page's "Actualizar" button invalidates the tab's own query-key prefix, as it does for the other tabs.
+"Respuestas negativas" is the first KPI, wider and red-accented, with the trend against the previous period (an amber note when rising). The per-day chart is a single series with an average reference line (computed only over the days with votes), an accessible label and a table alternative; days without votes are gaps (no bar, null rate, "sin valoraciones" in the tooltip, the table and the accessible summary), never 0%. The tab status dot (`useCalidadEnAlza`) turns to warning when the **30-day** negative rate is above the previous 30 days', regardless of the period and model chosen inside the tab; it shares the panel's default query key. Without `asistente.revisar_calidad`, the problem table is replaced by an information notice. The tab sits after "Modelo" in `ORDEN` (`estado`, `asistente`, `modelo`, `calidad`, `auditoria`); `asistente-modelo-en-caliente` is on this branch and archived, so "Modelo" exists. Showing each model's 30-day negative rate in the Modelo dropdown was optional and is not built (task 4.10). Gating reuses `asistente.administrar`, so `app/shell/nav.ts` needs no change. The page's "Actualizar" button invalidates the tab's own query-key prefix, as it does for the other tabs.
 
 ## Risks / Trade-offs
 
@@ -129,3 +129,13 @@ A new reader (`ConsultasDeCalidad`) queries `retroalimentacion_turno` and `regis
 - **Trend arrow threshold:** the arrow is suppressed when either period has fewer than 20 votes (named constant).
 - **`modelo` under TD-012:** accepted as the full `empresa/modelo` string shared with `registro_operativo.proveedor`. Comparing models is a core goal; the attribute has low cardinality and carries no actor or precise time. The acceptance is recorded in TD-012.
 - **Policy denials:** excluded from every rate and shown as a separate count by policy cause (D1).
+
+### D10 — Response contract as built
+
+- **Series.** The backend returns one point per day of the period (per week, keyed by the Monday of the week, when the period is 90 days), oldest first. A point without turns has zero counts and a null `tasaNegativa`. Filling it in the backend keeps the contract self-describing and stops a chart from stretching a single day over the whole width. A weekly first point is the Monday of the week of `desde`.
+- **Rates are null, not zero,** whenever their denominator is zero; shares inside a breakdown (for example the reasons) are computed by the client over the listed total and show a dash when that total is zero.
+- **`modelosDisponibles`** lists every model seen in the period and ignores the `modelo` filter, so the select stays whole while one model is selected.
+- **`familia`** on a cause is `proveedor`, `consulta`, `senal` or `politica`; it is null for reasons and for `sin_clasificar`. `resultado_vacio` carries `senal`: shown, not counted as a failure.
+- **`sin_clasificar`** collects failing turns (state `ServicioDegradado` or `Fallo`) that recorded no cause, so a path that forgot to record one is visible. A turn with an unrecorded cause and any other state is not a failure.
+- **Permissions.** `asistente.revisar_calidad` alone opens the problem list and not the aggregates; `asistente.administrar` alone opens the aggregates and not the list.
+- **Purge.** `PurgaDeRegistros` deletes the quality audit table by `RetencionDeAuditoriaDeCalidadDias` and includes its count in the total and in its log line.

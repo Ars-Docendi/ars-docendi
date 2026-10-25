@@ -526,7 +526,7 @@ Two routes in `CalidadController`, each with its **own** permission (there is no
 | `GET /administracion/calidad`           | `asistente.administrar`     | `403`, no data                   |
 | `GET /administracion/calidad/problemas` | `asistente.revisar_calidad` | `403`, no data, **no audit row** |
 
-`asistente.revisar_calidad` is seeded to no role, not even `sys_admin`: holding `asistente.administrar` alone does not open the list, and holding only `asistente.revisar_calidad` does not open the aggregates.
+`asistente.revisar_calidad` is seeded to no role, not even `sys_admin`: holding `asistente.administrar` alone does not open the list, and holding only `asistente.revisar_calidad` opens the list but not the aggregates (and the Sistema tab itself needs `asistente.administrar`).
 
 **`GET /api/asistente/administracion/calidad?periodo=7|30|90&modelo=`**. `periodo` defaults to 30; any other value is `400`. `modelo` is an optional `empresa/modelo` filter. The period is the last N days up to and including today (UTC), by the turn's own day. Rates are fractions between 0 and 1, and are `null` (never `0`) when their denominator is zero.
 
@@ -557,7 +557,10 @@ Two routes in `CalidadController`, each with its **own** permission (there is no
   "denegacionesDePolitica": [{ "clave": "cupo_agotado", "cantidad": 2, "familia": "politica" }],
   "porModelo": [{ "modelo": "ollama/qwen3.5:9b", "resumen": { "...": "same shape as resumen" } }],
   "modelosDisponibles": ["anthropic/claude-sonnet-5", "ollama/qwen3.5:9b"],
-  "serie": [{ "dia": "2027-06-14", "turnos": 3, "votos": 3, "negativos": 2, "tasaNegativa": 0.667 }]
+  "serie": [
+    { "dia": "2027-06-13", "turnos": 0, "votos": 0, "negativos": 0, "tasaNegativa": null },
+    { "dia": "2027-06-14", "turnos": 3, "votos": 3, "negativos": 2, "tasaNegativa": 0.667 }
+  ]
 }
 ```
 
@@ -566,7 +569,7 @@ Two routes in `CalidadController`, each with its **own** permission (there is no
 - `negativosPorMotivo` always lists the four reasons and `sin_motivo`; a vote can carry several reasons, so it does not add up to `negativos`.
 - `fallosPorCausa` carries `resultado_vacio` with `familia: "senal"` (shown, not counted as a failure) and `sin_clasificar` for a failing turn that recorded no cause.
 - `tendencia` compares with the previous period of equal length and is `null` when it cannot be told, with `motivoSinTendencia`: `pocos_votos` (either period has fewer than 20 votes) or `fuera_de_retencion` (the previous period is not fully inside `RetencionDeRegistrosDias`, so always for 90).
-- `serie` is per day, or per week (the Monday of the week) when `periodoDias` is 90, oldest first; days with no turns are omitted. A vote counts on the day of its turn.
+- `serie` is per day, or per week (the Monday of the week) when `periodoDias` is 90, oldest first; the series covers **every** day (or week) of the period, so a day or week with no turns is a point with zeros and `tasaNegativa: null` (a gap, never `0`). A weekly series starts on the Monday of the week of `desde`. A vote counts on the day of its turn.
 - `modelosDisponibles` ignores the `modelo` filter, so the model select stays whole.
 
 **`GET /api/asistente/administracion/calidad/problemas?periodo=&modelo=&tipo=negativa|fallo|reemplazo&pagina=`**. `tipo` is optional (all three); `pagina` is 1-based, default 1, at most 1000; 25 rows per page. Any invalid value is `400` and writes no audit row. Returns `{ pagina, tamanoDePagina, total, filas[] }`, each row `{ tipo, pregunta, motivo, modelo, dia, estado }`: the anonymous question text, the reasons (comma-separated) or the cause, the type, the model, the day and the state. A turn with several problems is one row, typed as the filter asks or, with no filter, negative before failure before replacement. Policy denials and `resultado_vacio` are never listed. **No row carries an actor, a comment or a precise time.**

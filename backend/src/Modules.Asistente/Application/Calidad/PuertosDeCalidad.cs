@@ -95,7 +95,7 @@ public sealed record TendenciaDeCalidad(double TasaAnterior, double Variacion, i
 /// <param name="DenegacionesDePolitica">Policy denials by cause, outside every rate.</param>
 /// <param name="PorModelo">One row per model, in the period.</param>
 /// <param name="ModelosDisponibles">Every model seen in the period, ignoring the model filter.</param>
-/// <param name="Serie">The series, oldest first; days or weeks with no turns are omitted.</param>
+/// <param name="Serie">The series, oldest first, with one point per day (per week for 90 days) of the period; a point with no turns has zero counts and a null rate.</param>
 public sealed record CalidadAgregada(
     int PeriodoDias,
     string? Modelo,

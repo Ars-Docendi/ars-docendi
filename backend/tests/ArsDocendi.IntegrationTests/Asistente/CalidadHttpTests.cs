@@ -113,7 +113,40 @@ public sealed class CalidadHttpTests(PostgresFixture postgres)
         var serie = calidad.Serie.ToDictionary(p => p.Dia);
         Assert.Equal(1, serie[Hoy.AddDays(-1)].Negativos);
         Assert.Equal(1, serie[Hoy.AddDays(-3)].Negativos);
-        Assert.False(serie.ContainsKey(Hoy));
+        Assert.True(serie.ContainsKey(Hoy));
+    }
+
+    [Fact]
+    public async Task La_serie_cubre_cada_dia_del_periodo_y_los_dias_sin_votos_son_huecos()
+    {
+        await SembrarAsync(TestContext.Current.CancellationToken);
+        var turno = await SembrarTurnoAsync(2, "Respondida", null, ModeloA);
+        await SembrarVotoAsync(turno, false, ["otro"], diasDespues: 0);
+
+        var calidad = await ObtenerAsync($"{Ruta}?periodo=30");
+
+        Assert.Equal(30, calidad.Serie.Count);
+        Assert.Equal(Enumerable.Range(0, 30).Select(i => Hoy.AddDays(i - 29)), calidad.Serie.Select(p => p.Dia));
+        var conDatos = Assert.Single(calidad.Serie, p => p.Votos > 0);
+        Assert.Equal(Hoy.AddDays(-2), conDatos.Dia);
+        Assert.Equal(1.0, conDatos.TasaNegativa);
+        // A gap is "no votes", never 0%: a rate of zero would claim there were no negatives.
+        Assert.All(calidad.Serie.Where(p => p.Votos == 0), p => Assert.Null(p.TasaNegativa));
+    }
+
+    [Fact]
+    public async Task La_serie_semanal_cubre_cada_semana_del_periodo_sin_saltos()
+    {
+        await SembrarAsync(TestContext.Current.CancellationToken);
+        await SembrarVotosAsync(diasAtras: 2, positivos: 1, negativos: 1);
+
+        var calidad = await ObtenerAsync($"{Ruta}?periodo=90");
+
+        Assert.Equal(
+            calidad.Serie.Select(p => p.Dia.AddDays(7)).SkipLast(1),
+            calidad.Serie.Select(p => p.Dia).Skip(1));
+        Assert.True(calidad.Serie.Count >= 13);
+        Assert.Contains(calidad.Serie, p => p.Votos == 0 && p.TasaNegativa is null);
     }
 
     [Fact]
