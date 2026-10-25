@@ -230,8 +230,31 @@ Compose project, base y storage únicamente en la VM.
   responde y los modelos locales siguen funcionando; sólo guardar o leer una clave de
   API falla (503). **Perderla deja irrecuperables las claves guardadas**: se vuelven a
   cargar desde la pantalla. `compose.base.yml` la reenvía desde `ASISTENTE_CLAVE_MAESTRA` (y
-  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`), vacías por default; la entrada de `.env.example`
-  llega con el cierre del mismo change.
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`), vacías por default, igual que `Inferencia__*`
+  desde `INFERENCIA_*`; ambas están documentadas en [`.env.example`](../../.env.example).
+  **Rotación**: (1) generar la nueva con `openssl rand -base64 32`; (2) en el Environment,
+  `ASISTENTE_CLAVE_MAESTRA_ANTERIOR` = la vigente y `ASISTENTE_CLAVE_MAESTRA` = la nueva, y
+  redesplegar; (3) cada clave guardada se recifra con la nueva **la primera vez que se la
+  lee** (un turno, «Probar conexión» o un reemplazo), no antes: una empresa que nadie usó
+  sigue cifrada con la vieja; (4) comprobar que ninguna fila conserva el `kid` viejo
+  (`SELECT empresa, split_part(clave_cifrada, ':', 2) AS kid FROM asistente.credencial_de_proveedor`,
+  con la conexión dueña; el `kid` es un prefijo del valor, nunca la clave) y, si alguna lo
+  conserva, volver a probar esa empresa o reemplazar su clave desde la pantalla; (5) recién
+  entonces vaciar `ASISTENTE_CLAVE_MAESTRA_ANTERIOR`. Quitar la anterior antes del paso 4
+  deja ilegible lo que siga con el `kid` viejo: ese modelo degrada hasta reingresar la clave.
+- **Servidores locales del asistente** (`asistente-modelo-en-caliente`): la pantalla sólo
+  ofrece los que el ambiente ya configura, por identificador y nunca por URL. `ollama` (el
+  servicio de inferencia compartido) aparece si `Inferencia__Url` está definida, y sus
+  credenciales salen de `Inferencia__Usuario`/`Contrasena` y, fuera de producción, del
+  Service Token de Cloudflare (`Inferencia__AccessClientId`/`AccessClientSecret`); `local`
+  (servidor propio llama.cpp/vLLM) aparece si `Asistente__UrlDelProveedorLocal` está
+  definida, con `Asistente__ClaveDelProveedor` como bearer opcional. Ninguna de esas
+  credenciales se carga ni se muestra en la pantalla; sumar un servidor es configuración de
+  despliegue. El servicio compartido se opera según
+  [ollama-compartido.md](../operations/ollama-compartido.md) y el dimensionamiento del
+  servidor propio está en [modelo-local.md](modelo-local.md). Con una selección guardada,
+  `Asistente__Proveedor`, `Asistente__Modelo` y `Asistente__ModeloDeRedaccion` quedan como
+  respaldo: se usan de nuevo al volver a la configuración del servidor.
 - Lista documentada en [`.env.example`](../../.env.example) (raíz) y el runbook.
 
 ## Estrategia de backup

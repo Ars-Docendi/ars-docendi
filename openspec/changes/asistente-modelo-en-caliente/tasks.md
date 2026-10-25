@@ -1,8 +1,8 @@
 ## 0. Prerequisites
 
 - [x] 0.1 Confirm the branch contains `asistente-proveedor-local` and `asistente-proveedor-ollama` (`ProveedorLocal`, `ProveedorOllama`, `OpcionesInferencia`, `ProveedorConCompuerta`, `FallasDelProveedor`); this change assumes them. Both are on the head of PR #40
-- [ ] 0.2 Re-derive the next free `database/asistente` number against the target base immediately before writing the SQL (today: `008_asistente_presupuesto_usuario_vigente_unico.sql` is the last, so this change uses `009`; `asistente-metricas-de-calidad` uses `010`). If another change lands a number first, renumber both together and keep `RecursoVersion` last in `MigradorAsistente.Recursos`
-- [ ] 0.3 `.env.example` is updated only after any merge conflict in it is resolved (task 6.6); never read or edit real `.env*` files
+- [x] 0.2 Re-derive the next free `database/asistente` number against the target base immediately before writing the SQL (today: `008_asistente_presupuesto_usuario_vigente_unico.sql` is the last, so this change uses `009`; `asistente-metricas-de-calidad` uses `010`). If another change lands a number first, renumber both together and keep `RecursoVersion` last in `MigradorAsistente.Recursos` — done 2026-10-24: `009_asistente_modelo.sql` landed as the next free number (`git log -- database/asistente/009_asistente_modelo.sql`, 888db899), after the PR #40 merges; `RecursoVersion` stays last
+- [x] 0.3 `.env.example` is updated only after any merge conflict in it is resolved (task 6.6); never read or edit real `.env*` files — done 2026-10-24: `.env.example` was updated after the merge conflict was resolved (7ab22acf); real `.env*` files were never read or edited
 
 ## 1. Slice 1 — Storage, crypto and catalog
 
@@ -92,10 +92,10 @@
 
 ## 6. Slice 6 — Documentation and verification
 
-- [ ] 6.1 `docs/architecture/domains/asistente.md` — runtime selection, resolver, keyed breaker, gate scope, masking rule
-- [ ] 6.2 `docs/architecture/api-contracts.md` — new routes and error codes
-- [ ] 6.3 `docs/architecture/data-model.md` — three new tables, price write path
-- [ ] 6.4 `docs/architecture/infrastructure.md` — `Asistente__ClaveMaestra`, `Asistente__ClaveMaestraAnterior`, how local servers derive from `Inferencia__*` and `Asistente__UrlDelProveedorLocal`, master key generation and rotation procedure; cross-reference `docs/operations/ollama-compartido.md` and `docs/architecture/modelo-local.md`
-- [ ] 6.5 `backend/src/Modules.Asistente/README.md`, `backend/eval/README.md`, `docs/quality/tech-debt.md` (TD-008: switching provider or model is now a screen action)
+- [x] 6.1 `docs/architecture/domains/asistente.md` — runtime selection, resolver, keyed breaker, gate scope, masking rule
+- [x] 6.2 `docs/architecture/api-contracts.md` — new routes and error codes
+- [x] 6.3 `docs/architecture/data-model.md` — three new tables, price write path
+- [x] 6.4 `docs/architecture/infrastructure.md` — `Asistente__ClaveMaestra`, `Asistente__ClaveMaestraAnterior`, how local servers derive from `Inferencia__*` and `Asistente__UrlDelProveedorLocal`, master key generation and rotation procedure; cross-reference `docs/operations/ollama-compartido.md` and `docs/architecture/modelo-local.md`
+- [x] 6.5 `backend/src/Modules.Asistente/README.md`, `backend/eval/README.md`, `docs/quality/tech-debt.md` (TD-008: switching provider or model is now a screen action)
 - [x] 6.6 `.env.example` and `infra/compose/compose.base.yml` — add `Asistente__ClaveMaestra` the way `Inferencia__*` is forwarded; update only after any merge conflict in `.env.example` is resolved
-- [ ] 6.7 Run the proportional verification: `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`; record any check the environment could not complete
+- [x] 6.7 Run the proportional verification: `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check`, `pnpm exec openspec validate --all --strict`; record any check the environment could not complete — done 2026-10-24: backend build 0 errors; `dotnet test --solution` 2784 passed, 3 known pre-existing failures (PrefijoDeLosCassettesTests, HigieneDeCassettesTests, Sin_proveedor_local_la_telemetria_dice_que_no_esta_configurado); frontend 1007 tests, lint and build clean; openspec 106/106; migrations validate and tests pass; `--validar-recursos` compatible. `format:check` only flags untracked `eval-local/`

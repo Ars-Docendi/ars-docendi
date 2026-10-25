@@ -50,6 +50,19 @@ desacuerdo con la de producción sin que nada falle. Además el que devuelve el
 contenedor viene ya envuelto en el reintento, el techo por turno y el corte — que es
 lo que corre de verdad. Medir sobre un proveedor desnudo mediría otro sistema.
 
+**La selección de modelo en caliente no es la forma de elegir acá** (`asistente-modelo-en-caliente`).
+El evaluador conserva su propio proveedor: el que dicen `Asistente__Proveedor`,
+`Asistente__Modelo` y `Asistente__ClaveDelProveedor`, que `AddAsistenteModule` envuelve con
+el medidor de consumo (`envolverProveedor`) dentro del techo y el corte. La pantalla
+Sistema › Modelo cambia el modelo del **Host** escribiendo `asistente.modelo_vigente`; al
+evaluador sólo lo alcanzaría si la base a la que se conecta tuviera una fila ahí, porque el
+resolutor del módulo la lee igual que en el Host. La base del fixture no la tiene, y una
+corrida contra una base con selección guardada **no es comparable** (el medidor se arma
+por scope en ese camino): antes de medir, volver a la configuración del servidor
+(`DELETE /api/asistente/administracion/modelo`) o usar una base propia del evaluador.
+Las claves que guarda la pantalla (`credencial_de_proveedor`) tampoco las usa el
+evaluador: la suya es siempre `Asistente__ClaveDelProveedor`.
+
 Sin la tercera, el preflight rechaza y **no se escribe ningún reporte**. Es
 deliberado: un reporte escrito sobre una corrida inválida es peor que no tener
 reporte, porque el que no existe se nota y el que miente no.

@@ -24,7 +24,7 @@ This change lets an administrator switch the model at runtime from the Sistema s
 
 ### New Capabilities
 
-- `asistente-modelo-en-caliente`: runtime model selection, per-company encrypted credentials, the repository-defined catalog, the local-host allowlist, and the price write path.
+- `asistente-modelo-en-caliente`: runtime model selection, per-company encrypted credentials, the repository-defined catalog, the closed set of local servers derived from server configuration, and the price write path.
 
 ### Modified Capabilities
 

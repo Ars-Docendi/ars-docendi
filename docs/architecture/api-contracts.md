@@ -231,6 +231,7 @@ Los filtros de visibilidad y jerarquía se aplican antes de materializar/límite
 | PUT    | `/administracion/modelo`                                 | `asistente.administrar`          | Re-prueba en el servidor, guarda la clave si viene y fija el modelo    |
 | DELETE | `/administracion/modelo`                                 | `asistente.administrar`          | Vuelve a la configuración del servidor                                 |
 | POST   | `/administracion/credenciales/{empresa}/reemplazo`       | `asistente.administrar`          | Valida una clave nueva con el proveedor y recién entonces la reemplaza |
+| POST   | `/administracion/precios`                                | `asistente.administrar`          | Carga un precio como versión nueva de un modelo del catálogo           |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 

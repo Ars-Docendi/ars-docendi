@@ -95,13 +95,20 @@ The system SHALL name each adapter `"{empresa}/{modelo}"` and SHALL hold circuit
 
 ### Requirement: The concurrency gate protects local servers only
 
-The system SHALL apply the concurrency gate only to adapters running on own hardware (the shared inference service and the own server), and SHALL NOT apply it to a cloud company, while the per-turn call ceiling and the circuit breaker apply to every adapter.
+The system SHALL apply the concurrency gate only to adapters running on own hardware (the shared inference service and the own server), and SHALL NOT apply it to a cloud company or to an environment-configured `anthropic` or `simulado` adapter, while the per-turn call ceiling and the circuit breaker apply to every adapter.
 
 #### Scenario: A cloud selection is not serialized by the GPU gate
 
 - **GIVEN** an environment with the concurrency gate set to one call
 - **WHEN** an administrator selects a cloud company and two turns call it at once
 - **THEN** both calls proceed without waiting on the gate
+
+#### Scenario: An unbuildable selection degrades instead of failing the turn
+
+- **GIVEN** a stored selection whose key is missing or unreadable, or whose master key is unavailable
+- **WHEN** a turn calls the model
+- **THEN** the call fails as a provider failure and the turn degrades
+- **AND** no key or provider text appears in the error or the log
 
 #### Scenario: A saturated shared service does not open the breaker
 
@@ -156,6 +163,12 @@ The system SHALL keep at most one API key per company, encrypted at rest with AE
 - **THEN** it decrypts correctly
 - **AND** it is stored again under the current master key
 
+#### Scenario: Reverting without a stored selection is a no-op
+
+- **GIVEN** no stored selection
+- **WHEN** an administrator reverts to server configuration
+- **THEN** the response is 204, nothing changes and no audit row is written
+
 #### Scenario: No master key still allows the local model
 
 - **GIVEN** no `Asistente__ClaveMaestra` configured
@@ -171,7 +184,7 @@ The system SHALL keep at most one API key per company, encrypted at rest with AE
 
 ### Requirement: Connection testing persists nothing
 
-The system SHALL provide an administrator-only test that makes one minimal real call to the given company and model, optionally with a not-yet-saved key, and SHALL return either the latency or exactly one of the codes `clave-invalida`, `inalcanzable`, `sin-credito`, `modelo-inexistente` or `saturado`. The test SHALL NOT persist the key, the selection or any other state.
+The system SHALL provide an administrator-only test that makes one minimal real call to the given company and model, optionally with a not-yet-saved key, and SHALL return either the latency or exactly one of the codes `clave-invalida`, `inalcanzable`, `sin-credito`, `modelo-inexistente` or `saturado`. A failed test SHALL be answered with HTTP 200 and `exito: false` carrying the code, because it is a result and not a request error. The test SHALL NOT persist the key, the selection or any other state, and SHALL NOT count against or reset the circuit breaker of any adapter name. For a local server the test SHALL go through the concurrency gate without waiting.
 
 #### Scenario: A successful test returns latency
 
@@ -192,6 +205,16 @@ The system SHALL provide an administrator-only test that makes one minimal real 
 - **THEN** the response carries `clave-invalida`
 - **AND** no credential text appears in the response
 
+### Requirement: The model screen state carries the catalog, key status and prices
+
+The system SHALL answer `GET /api/asistente/administracion/modelo` with what is in use and its origin, the configured local servers (identifiers only), the catalog by company with key status, whether encryption is available, and `precios[]` with the price in force of every priced catalog model. A model absent from `precios[]` SHALL be treated as not priced.
+
+#### Scenario: An unpriced model is absent from the prices
+
+- **GIVEN** a catalog model without a `tabla_de_precios` row
+- **WHEN** an administrator reads the model screen state
+- **THEN** `precios[]` has no entry for it
+
 ### Requirement: Applying a selection re-tests on the server and saves atomically
 
 The system SHALL re-run the connection test on the server when a selection is applied, SHALL save a new key only when that test succeeds, and SHALL set the selection only after that. Every apply SHALL be audited before the response.
@@ -201,7 +224,7 @@ The system SHALL re-run the connection test on the server when a selection is ap
 - **GIVEN** an apply request whose re-test fails
 - **WHEN** the request is processed
 - **THEN** the selection and stored keys are unchanged
-- **AND** the response carries the failure code
+- **AND** the response is 422 and carries the failure code
 
 #### Scenario: A successful apply records an audit row first
 
@@ -211,7 +234,7 @@ The system SHALL re-run the connection test on the server when a selection is ap
 
 ### Requirement: Replacing a key validates the new key first
 
-The system SHALL replace a company's key through a dedicated operation, independent of model selection, that validates the new key against the provider and replaces the stored key only on success. On failure the previous key SHALL remain stored and in use.
+The system SHALL replace a company's key through a dedicated operation, independent of model selection, that validates the new key against the provider and replaces the stored key only on success. On failure the response SHALL be 422 with the failure code and the previous key SHALL remain stored and in use.
 
 #### Scenario: A failed replacement keeps the old key
 
@@ -261,7 +284,7 @@ Every route introduced by this capability SHALL require `asistente.administrar` 
 
 ### Requirement: Prices are written as new versions
 
-The system SHALL let an administrator write a price for a company and model as a new version: the current `tabla_de_precios` row is closed and a new row opened in one transaction, and earlier usage SHALL keep being priced with the version in force when it was recorded.
+The system SHALL let an administrator write a price for a company and model (USD per million tokens, effective from a calendar date taken as 00:00 UTC) as a new version, pricing cached tokens like input tokens when no cache price is given and rejecting negative, missing, out-of-range or over-precise amounts, a model outside the catalog and a date earlier than the current version's start with a 400 and a code: the current `tabla_de_precios` row is closed and a new row opened in one transaction, and earlier usage SHALL keep being priced with the version in force when it was recorded.
 
 #### Scenario: A new version closes the previous one
 

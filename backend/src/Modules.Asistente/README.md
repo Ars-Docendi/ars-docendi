@@ -375,13 +375,22 @@ Tres decisiones que conviene no deshacer sin leer:
   estado de la clave (pista o faltante). Nunca la clave.
 - `POST /api/asistente/administracion/modelo/prueba` — una llamada mínima real a una empresa y
   modelo (con una clave nueva opcional); devuelve la latencia o uno de `clave-invalida`,
-  `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`. No persiste nada.
+  `inalcanzable`, `sin-credito`, `modelo-inexistente`, `saturado`. No persiste nada y no pasa por
+  el breaker del modelo. Una prueba fallida es `200` con `{ exito: false, codigo }`.
 - `PUT /api/asistente/administracion/modelo` — re-prueba en el servidor, guarda la clave si
   viene, fija la selección y vacía la caché de consultas generadas. Audita antes de responder.
-- `DELETE /api/asistente/administracion/modelo` — vuelve a la configuración del servidor.
+- `DELETE /api/asistente/administracion/modelo` — vuelve a la configuración del servidor
+  (`204`; sin selección guardada no hace nada y no audita).
 - `POST /api/asistente/administracion/credenciales/{empresa}/reemplazo` — valida la clave nueva
   con el proveedor y sólo entonces reemplaza la guardada. Sin `Asistente__ClaveMaestra`, guardar
-  una clave responde `503`; los servidores locales siguen seleccionables.
+  una clave responde `503` `clave-maestra-no-disponible`; los servidores locales siguen
+  seleccionables. Si la prueba del servidor falla, `PUT` y reemplazo responden `422` con el
+  `codigo` y no cambian nada; un pedido inválido es `400` con `codigo`.
+- `POST /api/asistente/administracion/precios` — carga un precio (US$ por millón de tokens) como
+  versión nueva de un modelo del catálogo. `GET .../modelo` trae el precio vigente de cada
+  modelo en `precios`. Las cinco acciones de auditoría de esta superficie son
+  `modelo.seleccionar`, `modelo.restablecer`, `credencial.crear`, `credencial.reemplazar` y
+  `precio.cargar` (las de clave registran sólo empresa y pista).
 - `GET /api/asistente/administracion/uso` — panel de uso por usuario, por rol y
   organizacional. Ver «Administración de uso» más abajo.
 - `PUT /api/asistente/administracion/presupuestos/roles/{rol}` — edita el cupo diario
@@ -591,15 +600,24 @@ mientras exista:
   por identificador, nunca por URL.
 - Todo adaptador se llama `"{empresa}/{modelo}"`; el breaker es uno por nombre
   (`RegistroDeBreakers`); la compuerta de concurrencia sólo envuelve a `ollama` y
-  `local`; y con una selección `ModeloDeRedaccion` se ignora: el modelo elegido genera y
+  `local`, vengan de una selección o del ambiente; y con una selección `ModeloDeRedaccion` se ignora: el modelo elegido genera y
   redacta.
+- Una selección cuyo adaptador no se puede armar (sin clave, clave ilegible, sin clave
+  maestra, servidor local ya no configurado) no rompe el turno: falla cada llamada como falla
+  del proveedor y el turno degrada. «Probar conexión» usa el mismo camino de adaptador pero
+  no pasa por el breaker, y para `ollama`/`local` pasa por la compuerta sin esperar cola.
+- Los servidores locales ofrecidos salen de la configuración: `ollama` si hay `Inferencia__Url`,
+  `local` si hay `Asistente__UrlDelProveedorLocal`. La clave maestra se genera, se reenvía y
+  se rota como dice `docs/architecture/infrastructure.md` (Gestión de secretos).
+- Mistral no recibe `reasoning_effort` (sólo se probó la forma del pedido); OpenAI y Gemini
+  sí, según `EsfuerzoDelModelo`; Anthropic usa `output_config.effort` y nunca `ChatOptions.Reasoning`.
 - **Una empresa en la nube siempre enmascara** la redacción: `RedaccionSinEnmascarar` sólo
   rige si el adaptador resuelto del turno corre en hardware propio.
 - **Precios**: `RepositorioDePrecios` es el único escritor de `tabla_de_precios`. Cada
   `POST /administracion/precios` cierra la versión abierta del modelo y abre otra en una
   transacción (candado consultivo por modelo); los lectores siguen eligiendo por rango
   `[vigente_desde, vigente_hasta)`. Los montos entran en US$ por millón y se guardan por
-  token con división `decimal` exacta. Audita `precio.cargar`.
+  token con división `decimal` exacta; sin precio de caché se usa el de entrada. Audita `precio.cargar`.
 - Los SDK de `Anthropic` y `OpenAI` se nombran sólo en `ProveedorAnthropic.cs` y
   `ClientesDeChat.cs` (test de arquitectura). Agregar un modelo es una fila del catálogo
   (SQL `database/asistente/`), no código.
@@ -852,7 +870,8 @@ Dos cosas que cuestan una tarde si no están escritas:
   atraviesa sin contarse. Un tipo del SDK que se escapara haría que el corte no
   abriera nunca.
 
-Un test de arquitectura fija que el SDK se nombre en **un solo archivo**. Es lo que
+Un test de arquitectura fija que el SDK de cada proveedor se nombre en un archivo
+acotado (`ProveedorAnthropic.cs` y `ClientesDeChat.cs`). Es lo que
 hace verificable —y no meramente intencional— la promesa de que el puerto es
 agnóstico.
 
@@ -934,7 +953,7 @@ y no cuesta nada.
 
 ```
 ProveedorConTechoDeLlamadas      ← techo del turno
-  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo `ollama` y `local`, y con MaximoDeLlamadasConcurrentes > 0)
+  └─ ProveedorConCompuerta       ← lugar en la GPU (sólo `ollama` y `local`, y con MaximoDeLlamadasConcurrentes > 0; un ambiente `anthropic` o `simulado` no la lleva)
        └─ ProveedorConBreaker    ← estado del proveedor + timeout por llamada
             └─ proveedor real
 ```
