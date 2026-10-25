@@ -26,6 +26,9 @@ public static class EtiquetasAuditoria
         "activo", "cupo", "tope_mensual_usd",
         // asistente-acceso-granular.
         "acceso_habilitado", "acceso_revocado",
+        // asistente-modelo-en-caliente: company, model, origin and the key HINT.
+        // The audit JSON never carries key text.
+        "empresa", "modelo", "origen", "pista",
     };
 
     /// <summary>
@@ -87,6 +90,10 @@ public static class EtiquetasAuditoria
 
     public static readonly Dictionary<string, string> EtiquetasCampos = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["empresa"] = "Empresa",
+        ["modelo"] = "Modelo",
+        ["origen"] = "Origen",
+        ["pista"] = "Pista de la clave",
         ["code"] = "Código",
         ["codigo"] = "Código",
         ["scope"] = "Ámbito",

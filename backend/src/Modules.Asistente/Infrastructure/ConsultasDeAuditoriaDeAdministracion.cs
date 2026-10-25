@@ -133,6 +133,30 @@ internal sealed class ConsultasDeAuditoriaDeAdministracion(CadenaDuena cadena)
                     CampoDe("razon", docAntes, docDespues, "Razon"),
                 ]),
 
+            // asistente-modelo-en-caliente: the JSON holds company, model, origin and the
+            // key HINT only; it never holds key text (see ConfinamientoDeClaves tests).
+            "modelo.seleccionar" or "modelo.restablecer" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") ?? Texto(docAntes, "empresa"),
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("modelo", docAntes, docDespues),
+                    CampoDe("origen", docAntes, docDespues),
+                    CampoDe("pista", docAntes, docDespues),
+                ]),
+
+            "credencial.crear" or "credencial.reemplazar" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") ?? Texto(docAntes, "empresa"),
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("pista", docAntes, docDespues),
+                ]),
+
             _ => new EventoDeAdministracion(id, actorId, ocurridoEn, tipo, null, null, []),
         };
     }

@@ -137,6 +137,33 @@ public sealed class FuenteAuditoriaAsistente(
                 return ("Mantenimiento del asistente", "modo_mantenimiento", "—", "Cambio",
                     "Mantenimiento del asistente desactivado");
 
+            case "modelo.seleccionar":
+            case "modelo.restablecer":
+                {
+                    const string objeto = "Modelo del asistente";
+                    // Origin «servidor» (or a revert) means server configuration; otherwise company / model.
+                    string Lado(Func<string, string> valor) =>
+                        valor("origen") == "servidor" ? "configuración del servidor" : $"{valor("empresa")} / {valor("modelo")}";
+                    var pista = Despues("pista");
+                    var resumen = $"{objeto}: {Lado(Antes)} → {Lado(Despues)}"
+                        + (pista == "—" ? "" : $" (clave {pista})");
+                    return (objeto, "modelo_del_asistente", evento.Clave ?? "—", "Cambio", resumen);
+                }
+
+            case "credencial.crear":
+                {
+                    var objeto = $"Clave de {Despues("empresa")}";
+                    return (objeto, "modelo_del_asistente", evento.Clave ?? "—", "Alta",
+                        $"{objeto} guardada (pista {Despues("pista")})");
+                }
+
+            case "credencial.reemplazar":
+                {
+                    var objeto = $"Clave de {Despues("empresa")}";
+                    return (objeto, "modelo_del_asistente", evento.Clave ?? "—", "Cambio",
+                        $"{objeto} reemplazada: pista {Antes("pista")} → {Despues("pista")}");
+                }
+
             default:
                 // Un Tipo desconocido (futuro código de acción todavía no
                 // mapeado acá) es «Cambio» genérico y humanizado, sin campos

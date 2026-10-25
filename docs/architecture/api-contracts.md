@@ -553,6 +553,8 @@ Errores: `ProblemDetails` con la extensión `codigo`. `400` pedido no válido (`
 
 **`DELETE /administracion/modelo`** — vuelve a la configuración del servidor, vacía la caché y audita `modelo.restablecer`. Siempre `204`; sin selección guardada no hay nada que revertir y no escribe fila. Las claves guardadas se conservan.
 
+En el feed unificado de auditoría (Sistema › Auditoría) estas cuatro acciones (`modelo.seleccionar`, `modelo.restablecer`, `credencial.crear`, `credencial.reemplazar`) llegan con `modulo=asistente`, `tabla=modelo_del_asistente`, `rowPk` = empresa, y un `resumen` en español con empresa, modelo, origen y pista de la clave (nunca el texto de la clave). `credencial.crear` se etiqueta «Alta»; el resto, «Cambio».
+
 **`POST /administracion/credenciales/{empresa}/reemplazo`** — pedido `{ clave }`, sólo empresas en la nube. Valida la clave nueva con el proveedor (con el modelo en uso si es de esa empresa, si no el primero de su catálogo) y la reemplaza únicamente si pasa; si falla, `422` y la clave vieja sigue guardada y en uso. Independiente de la selección. Devuelve `{ empresa, pista }` y audita `credencial.reemplazar` (o `credencial.crear` si no había una) con las dos pistas.
 
 ## Idempotencia

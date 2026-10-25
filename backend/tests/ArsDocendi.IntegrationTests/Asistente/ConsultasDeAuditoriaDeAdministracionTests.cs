@@ -148,6 +148,41 @@ public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture po
         Assert.DoesNotContain(lote.Eventos, e => e.OcurridoEn == t3);
     }
 
+    [Fact]
+    public async Task Las_acciones_del_modelo_y_de_las_claves_se_normalizan_a_sus_campos()
+    {
+        await SembrarAsync();
+        await InsertarAccionAsync("modelo.seleccionar", """{"origen":"servidor"}""",
+            """{"empresa":"openai","modelo":"gpt-5","pista":"…ab12"}""");
+        await InsertarAccionAsync("modelo.restablecer", """{"empresa":"openai","modelo":"gpt-5"}""",
+            """{"origen":"servidor"}""");
+        await InsertarAccionAsync("credencial.crear", null, """{"empresa":"openai","pista":"…ab12"}""");
+        await InsertarAccionAsync("credencial.reemplazar", """{"empresa":"openai","pista":"…ab12"}""",
+            """{"empresa":"openai","pista":"…cd34"}""");
+
+        var consultas = new ConsultasDeAuditoriaDeAdministracion(new CadenaDuena(Cadena));
+        var lote = await consultas.ListarAsync(null, null, TestContext.Current.CancellationToken);
+
+        var seleccion = Assert.Single(lote.Eventos, e => e.Tipo == "modelo.seleccionar");
+        Assert.Equal("openai", seleccion.Clave);
+        Assert.Equal("servidor", Assert.Single(seleccion.Campos, c => c.Campo == "origen").ValorAnterior);
+        Assert.Equal("gpt-5", Assert.Single(seleccion.Campos, c => c.Campo == "modelo").ValorNuevo);
+        Assert.Equal("…ab12", Assert.Single(seleccion.Campos, c => c.Campo == "pista").ValorNuevo);
+
+        var restablecer = Assert.Single(lote.Eventos, e => e.Tipo == "modelo.restablecer");
+        Assert.Equal("openai", restablecer.Clave);
+        Assert.Equal("servidor", Assert.Single(restablecer.Campos, c => c.Campo == "origen").ValorNuevo);
+
+        var crear = Assert.Single(lote.Eventos, e => e.Tipo == "credencial.crear");
+        Assert.Equal("openai", crear.Clave);
+        Assert.Null(Assert.Single(crear.Campos, c => c.Campo == "pista").ValorAnterior);
+
+        var reemplazar = Assert.Single(lote.Eventos, e => e.Tipo == "credencial.reemplazar");
+        var pista = Assert.Single(reemplazar.Campos, c => c.Campo == "pista");
+        Assert.Equal("…ab12", pista.ValorAnterior);
+        Assert.Equal("…cd34", pista.ValorNuevo);
+    }
+
     // ------------------------------------------------------------------------ apoyo
 
     private async Task InsertarFilasSinteticasAsync(int cantidad)
@@ -162,6 +197,21 @@ public sealed class ConsultasDeAuditoriaDeAdministracionTests(PostgresFixture po
             """, conexion);
         comando.Parameters.AddWithValue("actor", Sistemas);
         comando.Parameters.AddWithValue("cantidad", cantidad);
+        await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task InsertarAccionAsync(string accion, string? antes, string? despues)
+    {
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            """
+            INSERT INTO asistente.auditoria_administracion (actor_id, ocurrido_en, accion, antes, despues)
+            VALUES (@actor, now(), @accion, @antes, @despues)
+            """, conexion);
+        comando.Parameters.AddWithValue("actor", Sistemas);
+        comando.Parameters.AddWithValue("accion", accion);
+        comando.Parameters.AddWithValue("antes", (object?)antes ?? DBNull.Value);
+        comando.Parameters.AddWithValue("despues", (object?)despues ?? DBNull.Value);
         await comando.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 

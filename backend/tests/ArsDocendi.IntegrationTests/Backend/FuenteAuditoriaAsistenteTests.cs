@@ -114,4 +114,81 @@ public sealed class FuenteAuditoriaAsistenteTests
         Assert.Equal("Tope mensual organizacional: 0 → 500 USD", dto.Resumen);
         Assert.Equal("—", dto.RowPk);
     }
+
+    private static EventoAuditoriaDto MapearSolo(string tipo, string? clave, params CampoDeAdministracion[] campos) =>
+        FuenteAuditoriaAsistente.Mapear(
+            new EventoDeAdministracion(7, Actor, DateTimeOffset.UnixEpoch, tipo, clave, null, campos),
+            new Dictionary<Guid, NombreResuelto>());
+
+    [Fact]
+    public void Seleccion_de_modelo_desde_el_servidor_muestra_empresa_modelo_y_pista()
+    {
+        var dto = MapearSolo(
+            "modelo.seleccionar", "openai",
+            new CampoDeAdministracion("empresa", null, "openai"),
+            new CampoDeAdministracion("modelo", null, "gpt-5"),
+            new CampoDeAdministracion("origen", "servidor", null),
+            new CampoDeAdministracion("pista", null, "…ab12"));
+
+        Assert.Equal("Modelo del asistente: configuración del servidor → openai / gpt-5 (clave …ab12)", dto.Resumen);
+        Assert.Equal("Modelo del asistente", dto.Objeto);
+        Assert.Equal("modelo_del_asistente", dto.Tabla);
+        Assert.Equal("openai", dto.RowPk);
+        Assert.Equal("Cambio", dto.AccionEtiqueta);
+        Assert.All(dto.Cambios, c => Assert.False(c.Oculto));
+        Assert.Contains(dto.Cambios, c => c.Campo == "pista" && c.EtiquetaCampo == "Pista de la clave");
+    }
+
+    [Fact]
+    public void Seleccion_de_modelo_local_entre_modelos_no_muestra_pista()
+    {
+        var dto = MapearSolo(
+            "modelo.seleccionar", "ollama",
+            new CampoDeAdministracion("empresa", "openai", "ollama"),
+            new CampoDeAdministracion("modelo", "gpt-5", "qwen"),
+            new CampoDeAdministracion("origen", null, null),
+            new CampoDeAdministracion("pista", null, null));
+
+        Assert.Equal("Modelo del asistente: openai / gpt-5 → ollama / qwen", dto.Resumen);
+    }
+
+    [Fact]
+    public void Restablecer_el_modelo_vuelve_a_la_configuracion_del_servidor()
+    {
+        var dto = MapearSolo(
+            "modelo.restablecer", "openai",
+            new CampoDeAdministracion("empresa", "openai", null),
+            new CampoDeAdministracion("modelo", "gpt-5", null),
+            new CampoDeAdministracion("origen", null, "servidor"),
+            new CampoDeAdministracion("pista", null, null));
+
+        Assert.Equal("Modelo del asistente: openai / gpt-5 → configuración del servidor", dto.Resumen);
+        Assert.Equal("modelo_del_asistente", dto.Tabla);
+    }
+
+    [Fact]
+    public void Credencial_nueva_es_alta_y_muestra_solo_la_pista()
+    {
+        var dto = MapearSolo(
+            "credencial.crear", "openai",
+            new CampoDeAdministracion("empresa", null, "openai"),
+            new CampoDeAdministracion("pista", null, "…ab12"));
+
+        Assert.Equal("Clave de openai guardada (pista …ab12)", dto.Resumen);
+        Assert.Equal("Alta", dto.AccionEtiqueta);
+        Assert.Equal("INSERT", dto.Accion);
+        Assert.Equal("modelo_del_asistente", dto.Tabla);
+    }
+
+    [Fact]
+    public void Credencial_reemplazada_muestra_las_dos_pistas()
+    {
+        var dto = MapearSolo(
+            "credencial.reemplazar", "openai",
+            new CampoDeAdministracion("empresa", "openai", "openai"),
+            new CampoDeAdministracion("pista", "…ab12", "…cd34"));
+
+        Assert.Equal("Clave de openai reemplazada: pista …ab12 → …cd34", dto.Resumen);
+        Assert.Equal("Cambio", dto.AccionEtiqueta);
+    }
 }
