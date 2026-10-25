@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change asistente-modelo-en-caliente. Update Purpose after archive.
+Lets an administrator change the Asistente's model provider and model at runtime from the Sistema screen, choose among several cloud companies and the local servers the deployment already configures (the shared inference service and an own server), and keep one encrypted API key per cloud company, without a restart and without a key ever leaving the server.
 
 ## Requirements
 
