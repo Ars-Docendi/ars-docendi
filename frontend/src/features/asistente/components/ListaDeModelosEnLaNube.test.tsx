@@ -50,6 +50,15 @@ function opcionResaltada(): string | null {
 }
 
 describe("ListaDeModelosEnLaNube", () => {
+  it("la lista de opciones tiene nombre accesible en español, el de su etiqueta", async () => {
+    const user = userEvent.setup();
+    const { boton } = montar();
+
+    await user.click(boton);
+
+    expect(screen.getByRole("listbox")).toHaveAccessibleName("Modelo");
+  });
+
   it("cerrada, muestra el modelo elegido con su empresa y el estado de su clave", () => {
     const { boton } = montar();
 

@@ -77,6 +77,16 @@ public sealed class FuenteAuditoriaAsistente(
             ? fecha.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)
             : valor;
 
+    /// <summary>
+    /// Invariant decimal → es-AR amount with 2 to 6 decimals («0.6» → «0,60»), the
+    /// same format the Modelo tab shows; any other text passes through unchanged.
+    /// </summary>
+    private static string MontoLegible(string valor) =>
+        decimal.TryParse(valor, System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out var monto)
+            ? monto.ToString("#,0.00####", System.Globalization.CultureInfo.GetCultureInfo("es-AR"))
+            : valor;
+
     /// <summary>La tabla de mapeo de design.md D5, por <c>Tipo</c>.</summary>
     private static (string Objeto, string Tabla, string RowPk, string AccionEtiqueta, string Resumen) DatosDelTipo(
         EventoDeAdministracion evento, string? nombreAfectado, IReadOnlyList<CambioAuditoriaDto> campos)
@@ -174,8 +184,9 @@ public sealed class FuenteAuditoriaAsistente(
             case "precio.cargar":
                 {
                     var objeto = $"Precio de {Despues("empresa")} / {Despues("modelo")}";
-                    var resumen = $"{objeto}: US$ {Despues("entrada_por_millon")} entrada · "
-                        + $"US$ {Despues("salida_por_millon")} salida · US$ {Despues("cache_por_millon")} caché "
+                    var resumen = $"{objeto}: US$ {MontoLegible(Despues("entrada_por_millon"))} entrada · "
+                        + $"US$ {MontoLegible(Despues("salida_por_millon"))} salida · "
+                        + $"US$ {MontoLegible(Despues("cache_por_millon"))} caché "
                         + $"por millón de tokens, desde {FechaLegible(Despues("vigente_desde"))}";
                     return (objeto, "tabla_de_precios", evento.Clave ?? "—",
                         AntesEsNulo("entrada_por_millon") ? "Alta" : "Cambio", resumen);

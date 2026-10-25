@@ -86,6 +86,27 @@ describe("PanelModeloDelAsistente — qué está en uso", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("preselecciona el modelo del ambiente cuando el servidor local lo lista aunque no esté en el catálogo", async () => {
+    vi.spyOn(api, "obtenerEstadoDelModelo").mockResolvedValue(
+      estadoBase({
+        enUso: { origen: "servidor", empresa: "local", modelo: "qwen3.5:9b-q4_K_M" },
+        catalogo: [
+          ...estadoBase().catalogo.filter((g) => g.empresa !== "local"),
+          {
+            empresa: "local",
+            tipo: "local",
+            credencial: null,
+            modelos: ["qwen3.5:9b-q4_K_M", "qwen3-8b"],
+          },
+        ],
+      }),
+    );
+    montar();
+
+    expect(await screen.findByRole("combobox", { name: /Servidor/ })).toHaveValue("local");
+    expect(screen.getByRole("combobox", { name: /Modelo/ })).toHaveValue("qwen3.5:9b-q4_K_M");
+  });
+
   it("marca «En uso» sólo en la tarjeta de la modalidad vigente", async () => {
     montar();
 
@@ -624,6 +645,7 @@ describe("PanelModeloDelAsistente — precio del modelo", () => {
 
     const formulario = await abrirElFormularioDePrecio(user);
 
+    expect(formulario).toHaveAccessibleName("Precio de anthropic/claude-sonnet-5");
     expect(within(formulario).getByLabelText(/Vigente desde/)).toHaveValue("2026-10-24");
     expect(formulario).toHaveTextContent("página de precios de Anthropic");
     expect(formulario).toHaveTextContent("LiteLLM");
@@ -749,7 +771,7 @@ describe("PanelModeloDelAsistente — precio del modelo", () => {
 
     expect(
       await screen.findByText(
-        "Precio vigente desde 01/09/2026: US$ 3 entrada · US$ 15 salida · US$ 0,3 caché, por millón de tokens.",
+        "Precio vigente desde 01/09/2026: US$ 3,00 entrada · US$ 15,00 salida · US$ 0,30 caché, por millón de tokens.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("note")).not.toBeInTheDocument();
@@ -791,7 +813,7 @@ describe("PanelModeloDelAsistente — precio del modelo", () => {
 
     await waitFor(() => expect(guardar).toHaveBeenCalledOnce());
     expect(
-      await screen.findByText(/Precio vigente desde 01\/10\/2026: US\$ 6 entrada/),
+      await screen.findByText(/Precio vigente desde 01\/10\/2026: US\$ 6,00 entrada/),
     ).toBeInTheDocument();
   });
 

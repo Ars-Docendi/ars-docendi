@@ -88,7 +88,7 @@ Keys are stored in `asistente.credencial_de_proveedor` encrypted with `System.Se
 
 ### D5 — The catalog is defined by the repository
 
-`asistente.catalogo_de_modelos(empresa, modelo)` is seeded by the SQL file. Adding a model is a pull request. The UI lists cloud models grouped by company; the local panel lists the configured local servers with their catalog models. Live listing from provider APIs is out of scope: it would make the screen depend on third-party availability and expose models the pipeline was never evaluated against. The shared service's `/api/tags` is reachable, but listing from it has the same objection.
+`asistente.catalogo_de_modelos(empresa, modelo)` is seeded by the SQL file. Adding a model is a pull request. The UI lists cloud models grouped by company; the local panel lists the configured local servers with their catalog models **plus the model the environment configures for that server** (`Asistente__Modelo` when `Asistente__Proveedor` names the server), deduplicated and listed first. That environment model is accepted by test and apply for that server only, is never written to the catalog, and is the model already running in production, so offering it does not expose an unevaluated one. Live listing from provider APIs is out of scope: it would make the screen depend on third-party availability and expose models the pipeline was never evaluated against. The shared service's `/api/tags` is reachable, but listing from it has the same objection.
 
 Seed: Anthropic, OpenAI, Google and Mistral entries; `ollama/qwen3.5:9b` (the model `compose.asistente-ollama.yml` and the evaluation target use); `local/qwen3-8b` (the default of `compose.asistente-local.yml`). Identifiers are confirmed against evaluation results during task 1.3.
 

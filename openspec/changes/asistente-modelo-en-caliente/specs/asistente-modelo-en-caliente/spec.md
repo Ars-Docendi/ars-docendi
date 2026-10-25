@@ -119,7 +119,13 @@ The system SHALL apply the concurrency gate only to adapters running on own hard
 
 ### Requirement: The model catalog is defined by the repository
 
-The system SHALL offer only models present in a seeded catalog table, grouped by company, and SHALL reject any selection of a model not in the catalog. The system MUST NOT list models from provider APIs.
+The system SHALL offer only models present in a seeded catalog table, grouped by company, and SHALL reject any selection of a model not in the catalog, except that for a configured local server the model the environment configures for that server (`Asistente__Modelo` when `Asistente__Proveedor` names it) SHALL also be offered, first in its group, and accepted without being written to the catalog. The system MUST NOT list models from provider APIs.
+
+#### Scenario: The environment model of a configured local server is offered and accepted
+
+- **GIVEN** `Asistente__Proveedor=local`, `Asistente__Modelo=qwen3.5:9b-q4_K_M` and a configured own server whose catalog lacks that model
+- **WHEN** an administrator reads the screen state, and tests or applies `local` with that model
+- **THEN** the `local` group lists it first, followed by its catalog models, the test and the apply succeed, and the catalog is unchanged; the same model for another server is still rejected
 
 #### Scenario: A model outside the catalog is rejected
 

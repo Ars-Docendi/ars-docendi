@@ -109,7 +109,7 @@ export function PanelDeModeloLocal({
         <div id="modelo-local-pista" className="adoc-hint">
           {modelos.length === 0
             ? "El catálogo no tiene modelos para este servidor."
-            : "Los modelos del catálogo para este servidor."}
+            : "Los modelos del catálogo y el que ya usa este servidor."}
         </div>
       </div>
     </div>

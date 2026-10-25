@@ -11,11 +11,12 @@ interface CambiosDelModeloProps {
 const MAXIMO_VISIBLE = 5;
 
 /**
- * La tabla con la que el feed de auditoría marca los eventos del modelo y de sus
- * claves (`modelo.*` y `credencial.*` en `FuenteAuditoriaAsistente`). El feed
- * filtra por una sola tabla, así que una sola consulta alcanza.
+ * Las tablas con las que el feed de auditoría marca los eventos del modelo y de
+ * sus claves (`modelo.*` y `credencial.*`) y los de precios (`precio.cargar`, que
+ * `FuenteAuditoriaAsistente` asigna a `tabla_de_precios`). El feed filtra por una
+ * sola tabla: se consulta cada una y se mezclan por fecha.
  */
-const TABLA_DEL_MODELO = "modelo_del_asistente";
+const TABLAS_DEL_MODELO = ["modelo_del_asistente", "tabla_de_precios"] as const;
 
 /**
  * Los últimos eventos del modelo y de sus claves, con las etiquetas y el
@@ -26,18 +27,27 @@ const TABLA_DEL_MODELO = "modelo_del_asistente";
 export function CambiosDelModelo({ onAbrirCambio, onVerTodo }: CambiosDelModeloProps) {
   const consulta = useQuery({
     queryKey: ["modelo", "cambios"],
-    queryFn: () =>
-      listarAuditoria({
-        pagina: 1,
-        tamanoPagina: MAXIMO_VISIBLE,
-        modulo: "asistente",
-        tabla: TABLA_DEL_MODELO,
-      }),
+    queryFn: async () => {
+      const paginas = await Promise.all(
+        TABLAS_DEL_MODELO.map((tabla) =>
+          listarAuditoria({
+            pagina: 1,
+            tamanoPagina: MAXIMO_VISIBLE,
+            modulo: "asistente",
+            tabla,
+          }),
+        ),
+      );
+      return paginas
+        .flatMap((p) => p.elementos)
+        .sort((a, b) => new Date(b.cambiadoEn).getTime() - new Date(a.cambiadoEn).getTime())
+        .slice(0, MAXIMO_VISIBLE);
+    },
     refetchOnWindowFocus: false,
   });
 
   const ahora = new Date();
-  const elementos = consulta.data?.elementos ?? [];
+  const elementos = consulta.data ?? [];
 
   return (
     <section className="sistema-cambios-recientes" aria-labelledby="modelo-cambios-titulo">

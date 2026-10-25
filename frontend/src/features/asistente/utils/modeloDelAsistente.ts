@@ -219,9 +219,10 @@ export function fechaLegible(iso: string): string {
   return anio && mes && dia ? `${dia}/${mes}/${anio}` : iso;
 }
 
-/** US$ por millón de tokens, sin ceros de más: «3», «0,3», «1234,567891». */
+/** US$ por millón de tokens, de dos a seis decimales: «3,00», «0,60», «0,000125». */
 export function montoLegible(valor: number): string {
   return valor.toLocaleString("es-AR", {
+    minimumFractionDigits: 2,
     maximumFractionDigits: PRECIO_DECIMALES,
     useGrouping: false,
   });

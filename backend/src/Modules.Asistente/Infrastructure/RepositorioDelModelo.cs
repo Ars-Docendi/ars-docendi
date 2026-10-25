@@ -44,10 +44,12 @@ internal sealed class RepositorioDelModelo(CadenaDuena cadena, TimeProvider relo
     /// <summary>
     /// Stores the selection if, and only if, <paramref name="empresa"/> and
     /// <paramref name="modelo"/> are in the catalog. Returns false (and changes
-    /// nothing) when they are not.
+    /// nothing) when they are not. <paramref name="modeloDelEntorno"/> is the model the
+    /// environment configures for a local server: it is accepted for that company
+    /// without being a catalog row.
     /// </summary>
     public async Task<bool> AplicarSeleccionAsync(
-        string empresa, string modelo, Guid actor, CancellationToken ct)
+        string empresa, string modelo, Guid actor, CancellationToken ct, string? modeloDelEntorno = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(empresa);
         ArgumentException.ThrowIfNullOrWhiteSpace(modelo);
@@ -60,15 +62,17 @@ internal sealed class RepositorioDelModelo(CadenaDuena cadena, TimeProvider relo
         await using var comando = new NpgsqlCommand(
             """
             INSERT INTO asistente.modelo_vigente (id, empresa, modelo, actor_id, actualizado_en)
-            SELECT 1, c.empresa, c.modelo, @actor, @ahora
-              FROM asistente.catalogo_de_modelos c
-             WHERE c.empresa = @empresa AND c.modelo = @modelo
+            SELECT 1, @empresa, @modelo, @actor, @ahora
+             WHERE EXISTS (SELECT 1 FROM asistente.catalogo_de_modelos c
+                            WHERE c.empresa = @empresa AND c.modelo = @modelo)
+                OR (@entorno::text IS NOT NULL AND @entorno::text = @modelo)
             ON CONFLICT (id) DO UPDATE
                 SET empresa = EXCLUDED.empresa, modelo = EXCLUDED.modelo,
                     actor_id = EXCLUDED.actor_id, actualizado_en = EXCLUDED.actualizado_en
             """, conexion);
         comando.Parameters.AddWithValue("empresa", empresa);
         comando.Parameters.AddWithValue("modelo", modelo);
+        comando.Parameters.AddWithValue("entorno", (object?)modeloDelEntorno ?? DBNull.Value);
         comando.Parameters.AddWithValue("actor", actor);
         comando.Parameters.AddWithValue("ahora", reloj.GetUtcNow());
 

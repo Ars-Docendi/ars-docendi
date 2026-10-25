@@ -74,7 +74,7 @@ internal sealed class AdministracionDelModelo(
     public async Task<EstadoDelModeloDto> LeerAsync(CancellationToken ct)
     {
         var seleccion = await modelos.LeerSeleccionAsync(ct);
-        var catalogo = await modelos.ListarCatalogoAsync(ct);
+        var catalogo = await ListarOfrecidosAsync(ct);
         var claves = (await credenciales.ListarAsync(ct)).ToDictionary(c => c.Empresa, StringComparer.Ordinal);
 
         var grupos = catalogo
@@ -103,6 +103,40 @@ internal sealed class AdministracionDelModelo(
                 .Where(p => catalogo.Any(m => m.Empresa == p.Empresa && m.Modelo == p.Modelo))
                 .Select(ADto)]);
     }
+
+    /// <summary>
+    /// What the screen offers and the endpoints accept: the catalog plus, for each
+    /// configured local server, the model the environment configures for it (D5).
+    /// The environment model comes first in its group, and nothing is written to the
+    /// catalog: the model the server is already running is not an unevaluated one.
+    /// </summary>
+    private async Task<IReadOnlyList<ModeloDelCatalogo>> ListarOfrecidosAsync(CancellationToken ct)
+    {
+        var catalogo = await modelos.ListarCatalogoAsync(ct);
+        var ofrecidos = new List<ModeloDelCatalogo>(catalogo.Count + 2);
+
+        foreach (var servidor in ServidoresLocales.Configurados(asistente.Value, inferencia.Value))
+        {
+            if (ModeloDelEntorno(servidor) is { } delEntorno)
+            {
+                ofrecidos.Add(new ModeloDelCatalogo(servidor, delEntorno));
+            }
+        }
+
+        ofrecidos.AddRange(catalogo.Where(m => !ofrecidos.Any(o => o.Empresa == m.Empresa && o.Modelo == m.Modelo)));
+        return ofrecidos;
+    }
+
+    /// <summary>
+    /// The model the environment configures for a local server: <c>Asistente__Modelo</c>
+    /// when <c>Asistente__Proveedor</c> names that server (the same value the resolver
+    /// hands to the adapter when nothing is stored). Null otherwise.
+    /// </summary>
+    private string? ModeloDelEntorno(string servidor) =>
+        string.Equals(asistente.Value.Proveedor, servidor, StringComparison.Ordinal)
+        && !string.IsNullOrWhiteSpace(asistente.Value.Modelo)
+            ? asistente.Value.Modelo.Trim()
+            : null;
 
     public async Task<Resultado<ResultadoDePruebaDto>> ProbarAsync(PedidoDeModeloDto pedido, CancellationToken ct)
     {
@@ -187,7 +221,8 @@ internal sealed class AdministracionDelModelo(
 
         var antes = await modelos.LeerSeleccionAsync(ct);
 
-        if (!await modelos.AplicarSeleccionAsync(pedido.Empresa, pedido.Modelo, actor, ct))
+        var delEntorno = ServidoresLocales.EsLocal(pedido.Empresa) ? ModeloDelEntorno(pedido.Empresa) : null;
+        if (!await modelos.AplicarSeleccionAsync(pedido.Empresa, pedido.Modelo, actor, ct, delEntorno))
         {
             // The catalog changed between the check and the write.
             return Resultado<ModeloAplicadoDto>.Invalido(CodigosDelModelo.ModeloFueraDelCatalogo);
@@ -289,7 +324,7 @@ internal sealed class AdministracionDelModelo(
         ArgumentNullException.ThrowIfNull(pedido);
 
         if (string.IsNullOrWhiteSpace(pedido.Modelo) || string.IsNullOrWhiteSpace(pedido.Empresa)
-            || !(await modelos.ListarCatalogoAsync(ct)).Any(m => m.Empresa == pedido.Empresa && m.Modelo == pedido.Modelo))
+            || !(await ListarOfrecidosAsync(ct)).Any(m => m.Empresa == pedido.Empresa && m.Modelo == pedido.Modelo))
         {
             return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.ModeloFueraDelCatalogo);
         }
@@ -435,7 +470,7 @@ internal sealed class AdministracionDelModelo(
         }
 
         if (string.IsNullOrWhiteSpace(pedido.Modelo)
-            || !(await modelos.ListarCatalogoAsync(ct)).Any(m => m.Empresa == empresa && m.Modelo == pedido.Modelo))
+            || !(await ListarOfrecidosAsync(ct)).Any(m => m.Empresa == empresa && m.Modelo == pedido.Modelo))
         {
             return CodigosDelModelo.ModeloFueraDelCatalogo;
         }

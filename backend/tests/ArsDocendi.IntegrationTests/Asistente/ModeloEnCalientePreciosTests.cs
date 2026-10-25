@@ -186,7 +186,7 @@ public sealed class ModeloEnCalientePreciosTests(PostgresFixture postgres)
         Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
         var fila = Assert.Single(await FilasAsync("openai", "gpt-5"));
         Assert.Equal(0.000002m, fila.Cache);
-        Assert.Equal((await CuerpoAsync(respuesta)).GetProperty("cachePorMillon").GetDecimal(), 2m);
+        Assert.Equal(2m, (await CuerpoAsync(respuesta)).GetProperty("cachePorMillon").GetDecimal());
     }
 
     [Fact]
@@ -440,7 +440,7 @@ public sealed class ModeloEnCalientePreciosTests(PostgresFixture postgres)
         Assert.Equal("tabla_de_precios", alta.Tabla);
         Assert.Equal("openai/gpt-5", alta.RowPk);
         Assert.Equal(
-            "Precio de openai / gpt-5: US$ 3 entrada · US$ 15 salida · US$ 0.3 caché por millón de tokens, desde 01/09/2026",
+            "Precio de openai / gpt-5: US$ 3,00 entrada · US$ 15,00 salida · US$ 0,30 caché por millón de tokens, desde 01/09/2026",
             alta.Resumen);
 
         var cambio = FuenteAuditoriaAsistente.Mapear(eventos[1], new Dictionary<Guid, NombreResuelto>());

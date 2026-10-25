@@ -163,7 +163,8 @@ public sealed class ModeloEnCalienteAdministracionTests(PostgresFixture postgres
 
     private WebApplicationFactory<Program> CrearHost(
         Cable cable, bool conServicioCompartido = false, bool conServidorPropio = false,
-        bool conClaveMaestra = true, int compuerta = 0, Registro? registro = null)
+        bool conClaveMaestra = true, int compuerta = 0, Registro? registro = null,
+        string? modeloLocalDelEntorno = null)
     {
         string A(string nombre) => $"{OpcionesAsistente.Seccion}:{nombre}";
 
@@ -186,7 +187,8 @@ public sealed class ModeloEnCalienteAdministracionTests(PostgresFixture postgres
 
             // Explicit blanks: the Development host also reads the repository's .env, and
             // "which local servers are configured" must come from this test alone.
-            builder.UseSetting(A(nameof(OpcionesAsistente.Proveedor)), "simulado");
+            builder.UseSetting(A(nameof(OpcionesAsistente.Proveedor)), modeloLocalDelEntorno is null ? "simulado" : "local");
+            builder.UseSetting(A(nameof(OpcionesAsistente.Modelo)), modeloLocalDelEntorno ?? string.Empty);
             builder.UseSetting($"{OpcionesInferencia.Seccion}:Url", string.Empty);
             builder.UseSetting(A(nameof(OpcionesAsistente.UrlDelProveedorLocal)), string.Empty);
 
@@ -827,6 +829,66 @@ public sealed class ModeloEnCalienteAdministracionTests(PostgresFixture postgres
         Assert.Equal("modelo.seleccionar", fila.Accion);
         Assert.DoesNotContain("pista\":\"", fila.Despues, StringComparison.Ordinal);
         Assert.DoesNotContain(ContrasenaDelServidor, fila.Despues, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------- the environment model of a local server
+
+    private const string ModeloDelEntorno = "qwen3.5:9b-q4_K_M";
+
+    [Fact]
+    public async Task The_screen_offers_the_environment_model_of_a_configured_local_server_first_without_writing_the_catalog()
+    {
+        await SembrarAsync(Ct);
+        var catalogosAntes = await EscalarAsync<long>("SELECT count(*) FROM asistente.catalogo_de_modelos");
+        using var host = CrearHost(new Cable(), conServicioCompartido: true, conServidorPropio: true,
+            modeloLocalDelEntorno: ModeloDelEntorno);
+        using var cliente = Admin(host);
+
+        using var respuesta = await cliente.GetAsync($"{Ruta}/modelo", Ct);
+        var cuerpo = await CuerpoAsync(respuesta);
+        var grupos = cuerpo.GetProperty("catalogo").EnumerateArray().ToDictionary(g => g.GetProperty("empresa").GetString()!);
+
+        var locales = grupos["local"].GetProperty("modelos").EnumerateArray().Select(m => m.GetString()).ToList();
+        Assert.Equal([ModeloDelEntorno, "qwen3-8b"], locales);
+        Assert.DoesNotContain(ModeloDelEntorno, grupos["ollama"].GetProperty("modelos").EnumerateArray().Select(m => m.GetString()));
+        Assert.Equal("servidor", cuerpo.GetProperty("enUso").GetProperty("origen").GetString());
+        Assert.Equal(catalogosAntes, await EscalarAsync<long>("SELECT count(*) FROM asistente.catalogo_de_modelos"));
+    }
+
+    [Fact]
+    public async Task The_environment_model_of_a_configured_local_server_can_be_tested_and_applied()
+    {
+        await SembrarAsync(Ct);
+        var cable = new Cable();
+        using var host = CrearHost(cable, conServicioCompartido: true, conServidorPropio: true,
+            modeloLocalDelEntorno: ModeloDelEntorno);
+        using var cliente = Admin(host);
+
+        using var prueba = await Probar(cliente, "local", ModeloDelEntorno);
+        Assert.Equal(HttpStatusCode.OK, prueba.StatusCode);
+
+        using var aplicada = await Aplicar(cliente, "local", ModeloDelEntorno);
+        Assert.Equal(HttpStatusCode.OK, aplicada.StatusCode);
+        Assert.Equal(("local", ModeloDelEntorno), await SeleccionGuardadaAsync());
+    }
+
+    [Theory]
+    [InlineData("local", "otro-modelo")]
+    [InlineData("ollama", ModeloDelEntorno)]
+    public async Task A_model_that_is_neither_in_the_catalog_nor_the_environment_model_of_that_server_is_still_rejected(
+        string servidor, string modelo)
+    {
+        await SembrarAsync(Ct);
+        var cable = new Cable();
+        using var host = CrearHost(cable, conServicioCompartido: true, conServidorPropio: true,
+            modeloLocalDelEntorno: ModeloDelEntorno);
+        using var cliente = Admin(host);
+
+        using var respuesta = await Aplicar(cliente, servidor, modelo);
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+        Assert.Equal("modelo-fuera-del-catalogo", (await CuerpoAsync(respuesta)).GetProperty("codigo").GetString());
+        Assert.Null(await SeleccionGuardadaAsync());
     }
 
     // ----------------------------------------------------------------------- 3.14
