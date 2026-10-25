@@ -34,6 +34,7 @@ function estadoBase(cambios: Partial<EstadoDelModelo> = {}): EstadoDelModelo {
       { empresa: "local", tipo: "local", credencial: null, modelos: ["qwen3-8b"] },
     ],
     cifradoDisponible: true,
+    precios: [],
     ...cambios,
   };
 }
@@ -582,5 +583,226 @@ describe("PanelModeloDelAsistente — cambios del modelo", () => {
     montar(<p>Listado de cambios</p>);
 
     expect(await screen.findByText("Listado de cambios")).toBeInTheDocument();
+  });
+});
+
+const PRECIO_DE_CLAUDE = {
+  empresa: "anthropic",
+  modelo: "claude-sonnet-5",
+  entradaPorMillon: 3,
+  salidaPorMillon: 15,
+  cachePorMillon: 0.3,
+  version: 1,
+  vigenteDesde: "2026-09-01",
+};
+
+async function abrirElFormularioDePrecio(user: ReturnType<typeof userEvent.setup>) {
+  await irALaNube(user);
+  await user.click(await screen.findByRole("button", { name: "Cargar precio" }));
+  return screen.getByRole("group", { name: /Precio de/ });
+}
+
+describe("PanelModeloDelAsistente — precio del modelo", () => {
+  it("sin precio cargado avisa y ofrece «Cargar precio», también para un modelo local", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    // The initial selection is the local model in use.
+    const aviso = await screen.findByRole("note");
+    expect(aviso).toHaveTextContent("Sin precio cargado.");
+    expect(aviso).toHaveTextContent("ollama/qwen3.5:9b");
+    expect(screen.getByRole("button", { name: "Cargar precio" })).toBeInTheDocument();
+
+    await irALaNube(user);
+    expect(screen.getByRole("note")).toHaveTextContent("anthropic/claude-sonnet-5");
+  });
+
+  it("abre el formulario con la fecha de hoy y la ayuda sobre dónde buscar los valores", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2026, 9, 24, 12) });
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+
+    expect(within(formulario).getByLabelText(/Vigente desde/)).toHaveValue("2026-10-24");
+    expect(formulario).toHaveTextContent("página de precios de Anthropic");
+    expect(formulario).toHaveTextContent("LiteLLM");
+    expect(formulario).toHaveTextContent("no oficial");
+    expect(within(formulario).getByRole("button", { name: "Guardar precio" })).toBeInTheDocument();
+    expect(within(formulario).getByRole("button", { name: "Cancelar" })).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("no envía nada y marca los campos obligatorios si faltan entrada o salida", async () => {
+    const guardar = vi.spyOn(api, "cargarPrecio");
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    expect(guardar).not.toHaveBeenCalled();
+    expect(within(formulario).getAllByText("Completá este monto.")).toHaveLength(2);
+    expect(within(formulario).getByLabelText(/Entrada/)).toBeInvalid();
+  });
+
+  it("rechaza un monto negativo, uno con más de seis decimales y uno fuera de rango", async () => {
+    const guardar = vi.spyOn(api, "cargarPrecio");
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.type(within(formulario).getByLabelText(/Entrada/), "-1");
+    await user.type(within(formulario).getByLabelText(/Salida/), "1.1234567");
+    await user.type(within(formulario).getByLabelText(/Caché/), "20000");
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    expect(guardar).not.toHaveBeenCalled();
+    expect(within(formulario).getByText("No puede ser negativo.")).toBeInTheDocument();
+    expect(within(formulario).getByText("Admite hasta seis decimales.")).toBeInTheDocument();
+    expect(within(formulario).getByText(/Supera el máximo/)).toBeInTheDocument();
+  });
+
+  it("guarda el precio, cierra el formulario, lo anuncia y vuelve a leer el estado", async () => {
+    const guardar = vi.spyOn(api, "cargarPrecio").mockResolvedValue(PRECIO_DE_CLAUDE);
+    const leer = vi.spyOn(api, "obtenerEstadoDelModelo");
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.type(within(formulario).getByLabelText(/Entrada/), "3");
+    await user.type(within(formulario).getByLabelText(/Salida/), "15");
+    await user.type(within(formulario).getByLabelText(/Caché/), "0.3");
+    leer.mockResolvedValue(estadoBase({ precios: [PRECIO_DE_CLAUDE] }));
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    await waitFor(() =>
+      expect(guardar).toHaveBeenCalledWith({
+        empresa: "anthropic",
+        modelo: "claude-sonnet-5",
+        entradaPorMillon: 3,
+        salidaPorMillon: 15,
+        cachePorMillon: 0.3,
+        vigenteDesde: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    );
+    expect(await screen.findByText(/Precio vigente desde 01\/09\/2026/)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Precio de/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent(
+      "Precio de anthropic/claude-sonnet-5 guardado.",
+    );
+  });
+
+  it("sin caché no lo envía: el servidor lo cobra como la entrada", async () => {
+    const guardar = vi.spyOn(api, "cargarPrecio").mockResolvedValue(PRECIO_DE_CLAUDE);
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.type(within(formulario).getByLabelText(/Entrada/), "3");
+    await user.type(within(formulario).getByLabelText(/Salida/), "15");
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    await waitFor(() => expect(guardar).toHaveBeenCalledOnce());
+    expect(guardar.mock.calls[0][0]).not.toHaveProperty("cachePorMillon");
+  });
+
+  it("si el servidor rechaza el precio, lo dice y el formulario queda abierto con lo escrito", async () => {
+    vi.spyOn(api, "cargarPrecio").mockRejectedValue(
+      errorHttp(400, "vigencia-anterior-a-la-version-actual"),
+    );
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.type(within(formulario).getByLabelText(/Entrada/), "3");
+    await user.type(within(formulario).getByLabelText(/Salida/), "15");
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "La fecha de vigencia no puede ser anterior a la de la versión vigente.",
+    );
+    expect(within(formulario).getByLabelText(/Entrada/)).toHaveValue(3);
+  });
+
+  it("«Cancelar» cierra el formulario sin guardar y devuelve el foco al botón", async () => {
+    const guardar = vi.spyOn(api, "cargarPrecio");
+    const user = userEvent.setup();
+    montar();
+
+    const formulario = await abrirElFormularioDePrecio(user);
+    await user.click(within(formulario).getByRole("button", { name: "Cancelar" }));
+
+    expect(guardar).not.toHaveBeenCalled();
+    expect(screen.queryByRole("group", { name: /Precio de/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cargar precio" })).toHaveFocus();
+  });
+
+  it("con precio muestra desde cuándo rige y sus tres montos, sin la advertencia", async () => {
+    vi.spyOn(api, "obtenerEstadoDelModelo").mockResolvedValue(
+      estadoBase({
+        enUso: { origen: "pantalla", empresa: "anthropic", modelo: "claude-sonnet-5" },
+        precios: [PRECIO_DE_CLAUDE],
+      }),
+    );
+    montar();
+
+    expect(
+      await screen.findByText(
+        "Precio vigente desde 01/09/2026: US$ 3 entrada · US$ 15 salida · US$ 0,3 caché, por millón de tokens.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cargar nueva versión" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cargar precio" })).not.toBeInTheDocument();
+  });
+
+  it("«Cargar nueva versión» abre el formulario vacío, con la fecha de hoy, y guarda otra versión", async () => {
+    const nueva = {
+      ...PRECIO_DE_CLAUDE,
+      entradaPorMillon: 6,
+      version: 2,
+      vigenteDesde: "2026-10-01",
+    };
+    const guardar = vi.spyOn(api, "cargarPrecio").mockResolvedValue(nueva);
+    const leer = vi.spyOn(api, "obtenerEstadoDelModelo").mockResolvedValue(
+      estadoBase({
+        enUso: { origen: "pantalla", empresa: "anthropic", modelo: "claude-sonnet-5" },
+        precios: [PRECIO_DE_CLAUDE],
+      }),
+    );
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(await screen.findByRole("button", { name: "Cargar nueva versión" }));
+    const formulario = screen.getByRole("group", { name: /Precio de/ });
+    expect(within(formulario).getByLabelText(/Entrada/)).toHaveValue(null);
+    expect(within(formulario).getByLabelText(/Vigente desde/)).toHaveAttribute("min", "2026-09-01");
+
+    await user.type(within(formulario).getByLabelText(/Entrada/), "6");
+    await user.type(within(formulario).getByLabelText(/Salida/), "30");
+    leer.mockResolvedValue(
+      estadoBase({
+        enUso: { origen: "pantalla", empresa: "anthropic", modelo: "claude-sonnet-5" },
+        precios: [nueva],
+      }),
+    );
+    await user.click(within(formulario).getByRole("button", { name: "Guardar precio" }));
+
+    await waitFor(() => expect(guardar).toHaveBeenCalledOnce());
+    expect(
+      await screen.findByText(/Precio vigente desde 01\/10\/2026: US\$ 6 entrada/),
+    ).toBeInTheDocument();
+  });
+
+  it("al elegir otro modelo descarta el formulario a medias", async () => {
+    const user = userEvent.setup();
+    montar();
+
+    await abrirElFormularioDePrecio(user);
+    await elegirModeloEnLaNube(user, "claude-haiku-4-5");
+
+    expect(screen.queryByRole("group", { name: /Precio de/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent("anthropic/claude-haiku-4-5");
   });
 });

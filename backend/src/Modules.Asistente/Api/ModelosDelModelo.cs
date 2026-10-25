@@ -25,6 +25,32 @@ public sealed record PedidoDeModeloDto(string Empresa, string Modelo, string? Cl
     }
 }
 
+/// <summary>
+/// A price for one catalog model, in USD per million tokens. <c>VigenteDesde</c> is a
+/// calendar date: the new version starts at 00:00 UTC of that day, the same UTC day
+/// boundary the rest of the module uses. A missing cache price means cached tokens are
+/// priced like input tokens, never as zero. Amounts and the date are nullable only so
+/// that a missing member is answered with a code instead of silently reading as zero.
+/// </summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record PedidoDePrecioDto(
+    string Empresa,
+    string Modelo,
+    decimal? EntradaPorMillon,
+    decimal? SalidaPorMillon,
+    decimal? CachePorMillon,
+    DateOnly? VigenteDesde);
+
+/// <summary>A price in force, in USD per million tokens, and the date it started.</summary>
+public sealed record PrecioDelModeloDto(
+    string Empresa,
+    string Modelo,
+    decimal EntradaPorMillon,
+    decimal SalidaPorMillon,
+    decimal CachePorMillon,
+    int Version,
+    DateOnly VigenteDesde);
+
 /// <summary>The replacement key of a cloud company.</summary>
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record PedidoDeReemplazoDeClaveDto(string Clave)
@@ -49,13 +75,15 @@ public sealed record EmpresaDelCatalogoDto(
 
 /// <summary>
 /// The model screen: what is in use, the local servers the deployment configures
-/// (identifiers only, never a URL) and the catalog by company.
+/// (identifiers only, never a URL), the catalog by company and the price in force of
+/// every priced catalog model (a model absent from <c>Precios</c> is "not priced").
 /// </summary>
 public sealed record EstadoDelModeloDto(
     ModeloEnUsoDto EnUso,
     IReadOnlyList<string> ServidoresLocales,
     IReadOnlyList<EmpresaDelCatalogoDto> Catalogo,
-    bool CifradoDisponible);
+    bool CifradoDisponible,
+    IReadOnlyList<PrecioDelModeloDto> Precios);
 
 /// <summary>Result of a connection test: a latency, or one failure code.</summary>
 public sealed record ResultadoDePruebaDto(bool Exito, int? LatenciaMs, string? Codigo);

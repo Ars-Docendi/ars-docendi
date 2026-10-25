@@ -793,6 +793,26 @@ Qué cambia en la cadena con una selección:
 
 `ProveedorChat` hace **un intento por llamada** —el único reintento es `ReintentoDeTransporte`, y los reintentos del SDK van en cero— y traduce las fallas de los dos SDK a `HttpRequestException` con el código HTTP preservado y **sin** mensaje del proveedor ni excepción interna: un 401 puede devolver parte de la clave y el carril loguea lo que atrapa. Anthropic arma su pedido con tipos crudos (`cache_control` sobre el prefijo, `output_config.effort`, nunca `ChatOptions.Reasoning`, que enciende el pensamiento extendido), y un test fija que el cuerpo sea idéntico al de `ProveedorAnthropic`. Los tipos de ambos SDK viven en `ProveedorAnthropic.cs` y `ClientesDeChat.cs`.
 
+#### Precios versionados (`asistente-modelo-en-caliente`, D9)
+
+El costo estimado sigue saliendo de `asistente.tabla_de_precios`, pero ahora la tabla tiene
+escritor: `POST /api/asistente/administracion/precios` carga un precio por modelo del
+catálogo (también para `ollama` y `local`, que quedan «sin precio» hasta que se cargue uno;
+nunca cuestan cero). Cada escritura **cierra la versión abierta y abre otra** en una
+transacción, nunca edita una fila: los lectores (`ConsultasDeUso`,
+`PresupuestoOrganizacionalPersistente`, `CalculadoraDeCosto`) eligen la versión cuyo rango
+`[vigente_desde, vigente_hasta)` contiene el instante del turno, así que el uso anterior al
+cambio conserva el precio viejo y el uso de un modelo antes sin precio sigue «sin precio»
+hasta la fecha de vigencia.
+
+Decisiones: la fecha de vigencia es un día (UTC, como el resto del módulo) y no puede ser
+anterior al inicio de la versión abierta (igual sí); sin precio de caché se usa el de
+entrada; los montos admiten hasta seis decimales por millón y hasta US$ 10.000, para que la
+conversión por token entre exacta en `numeric(18,12)`. La acción de auditoría es
+`precio.cargar`. `GET /administracion/modelo` expone el precio vigente de cada modelo
+(`precios`) para que la pestaña Modelo distinga «Sin precio cargado» de «Precio vigente
+desde …».
+
 ### El grabador de cassettes va por fuera del reintento
 
 Debajo de esos tres decoradores está el **cliente HTTP con nombre** del módulo,

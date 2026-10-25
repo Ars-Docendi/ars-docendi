@@ -215,6 +215,7 @@ public static class ModuleExtensions
         services.AddSingleton<CifradoDeCredenciales>();
         services.AddScoped<RepositorioDeCredenciales>();
         services.AddScoped<RepositorioDelModelo>();
+        services.AddScoped<RepositorioDePrecios>();
         // Slice 3: the administration endpoints. Resolved per request only.
         services.AddScoped<ProbadorDeConexion>();
         services.AddScoped<Api.AdministracionDelModelo>();

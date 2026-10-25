@@ -78,6 +78,9 @@ public sealed partial class ArquitecturaAsistenteTests
         // `asistente` schema (asistente-modelo-en-caliente).
         "RepositorioDeCredenciales.cs",
         "RepositorioDelModelo.cs",
+        // Same reason: tabla_de_precios is inside the wholesale-revoked `asistente`
+        // schema, and the price write path needs the owner connection.
+        "RepositorioDePrecios.cs",
         // Same reason as CuotaPersistente.cs above — reads
         // tope_organizacional/consumo_organizacional_mensual/tabla_de_precios
         // and writes the accumulator, all inside the same revoked schema.
@@ -398,6 +401,10 @@ public sealed partial class ArquitecturaAsistenteTests
         // Same reason as AdministracionAsistente.cs: DDL runner for the three
         // runtime-model tables (asistente-modelo-en-caliente), no actor involved.
         "ModeloAsistente.cs",
+        // Same reason as PresupuestosAdministrablesReal.cs: closes the open price
+        // version and opens the new one in one owner-connection transaction
+        // (asistente-modelo-en-caliente, D9). tabla_de_precios is keyed to no actor.
+        "RepositorioDePrecios.cs",
         // Same reason as RegistrosAsistente.cs: the owner connection
         // (CadenaDuena) replacing turno_historico's last row for «Editar y
         // reenviar» (asistente-edicion-de-la-ultima-pregunta, design.md D9),
@@ -579,6 +586,9 @@ public sealed partial class ArquitecturaAsistenteTests
         // `asistente` schema (asistente-modelo-en-caliente). Writes included.
         "RepositorioDeCredenciales.cs",
         "RepositorioDelModelo.cs",
+        // Same reason: tabla_de_precios is inside the wholesale-revoked `asistente`
+        // schema, and the price write path needs the owner connection.
+        "RepositorioDePrecios.cs",
         // Same reason as ConsultasDeUso.cs above (sistema-seccion-unificada,
         // design.md D1, tarea 1.2).
         "ConsultasDeAuditoriaDeAdministracion.cs",

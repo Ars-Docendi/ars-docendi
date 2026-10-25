@@ -595,6 +595,11 @@ mientras exista:
   redacta.
 - **Una empresa en la nube siempre enmascara** la redacción: `RedaccionSinEnmascarar` sólo
   rige si el adaptador resuelto del turno corre en hardware propio.
+- **Precios**: `RepositorioDePrecios` es el único escritor de `tabla_de_precios`. Cada
+  `POST /administracion/precios` cierra la versión abierta del modelo y abre otra en una
+  transacción (candado consultivo por modelo); los lectores siguen eligiendo por rango
+  `[vigente_desde, vigente_hasta)`. Los montos entran en US$ por millón y se guardan por
+  token con división `decimal` exacta. Audita `precio.cargar`.
 - Los SDK de `Anthropic` y `OpenAI` se nombran sólo en `ProveedorAnthropic.cs` y
   `ClientesDeChat.cs` (test de arquitectura). Agregar un modelo es una fila del catálogo
   (SQL `database/asistente/`), no código.

@@ -5,7 +5,9 @@ import type {
   MantenimientoDelAsistente,
   ModeloAplicado,
   PedidoDeModelo,
+  PedidoDePrecio,
   PeriodoDeUso,
+  PrecioDelModelo,
   PresupuestosDelAsistente,
   ResultadoDePrueba,
   ServidorLocal,
@@ -155,6 +157,19 @@ export async function reemplazarClaveDeEmpresa(
   const { data } = await apiClient.post<CredencialReemplazada>(
     `/api/asistente/administracion/credenciales/${encodeURIComponent(empresa)}/reemplazo`,
     { clave },
+  );
+  return data;
+}
+
+/**
+ * Escribe un precio como una versión nueva del modelo: cierra la vigente y abre
+ * la nueva en una sola transacción. Un precio o una fecha inválidos (400) traen
+ * `codigo` y no cambian nada.
+ */
+export async function cargarPrecio(pedido: PedidoDePrecio): Promise<PrecioDelModelo> {
+  const { data } = await apiClient.post<PrecioDelModelo>(
+    "/api/asistente/administracion/precios",
+    pedido,
   );
   return data;
 }

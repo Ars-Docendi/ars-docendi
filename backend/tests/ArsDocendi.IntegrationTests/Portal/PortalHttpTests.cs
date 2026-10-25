@@ -190,7 +190,10 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         // AdministracionDelModeloController (`GET`, `PUT` y `DELETE
         // /api/asistente/administracion/modelo`, `POST …/modelo/prueba` y
         // `POST …/credenciales/{empresa}/reemplazo`).
-        Assert.Equal(127, operaciones.Length);
+        //
+        // Subió de 127 a 128 con la carga de precios del modelo en caliente:
+        // `POST /api/asistente/administracion/precios`.
+        Assert.Equal(128, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

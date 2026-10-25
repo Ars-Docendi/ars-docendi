@@ -516,7 +516,7 @@ La URL de métricas es la del proveedor sin `/v1`, con la misma clave como `Bear
 
 #### Modelo y claves de proveedor (`asistente-modelo-en-caliente`)
 
-Las cinco rutas exigen `asistente.administrar` (`403` sin él, sin tocar nada) y viven en `AdministracionDelModeloController`. Ninguna respuesta, log, mensaje de error ni fila de auditoría lleva el texto de una clave: sólo la **pista** (los últimos 4 caracteres). Ninguna ruta acepta una URL, un host ni una credencial de servidor local: el servidor local se elige por **identificador** (`ollama` o `local`), y el pedido rechaza cualquier campo que el contrato no nombre.
+Las seis rutas exigen `asistente.administrar` (`403` sin él, sin tocar nada) y viven en `AdministracionDelModeloController`. Ninguna respuesta, log, mensaje de error ni fila de auditoría lleva el texto de una clave: sólo la **pista** (los últimos 4 caracteres). Ninguna ruta acepta una URL, un host ni una credencial de servidor local: el servidor local se elige por **identificador** (`ollama` o `local`), y el pedido rechaza cualquier campo que el contrato no nombre.
 
 Errores: `ProblemDetails` con la extensión `codigo`. `400` pedido no válido (`empresa-desconocida`, `servidor-local-no-configurado`, `modelo-fuera-del-catalogo`, `credencial-local-no-admitida`, `clave-demasiado-corta`, `empresa-sin-clave`); `422` la prueba del servidor falló y no se cambió nada (`codigo` es uno de los cinco de la prueba); `503` `clave-maestra-no-disponible` (falta `Asistente__ClaveMaestra`: guardar una clave falla, los servidores locales siguen seleccionables).
 
@@ -541,11 +541,22 @@ Errores: `ProblemDetails` con la extensión `codigo`. `400` pedido no válido (`
     },
     { "empresa": "ollama", "tipo": "local", "credencial": null, "modelos": ["qwen3.5:9b"] }
   ],
-  "cifradoDisponible": true
+  "cifradoDisponible": true,
+  "precios": [
+    {
+      "empresa": "openai",
+      "modelo": "gpt-5",
+      "entradaPorMillon": 3,
+      "salidaPorMillon": 15,
+      "cachePorMillon": 0.3,
+      "version": 2,
+      "vigenteDesde": "2026-09-20"
+    }
+  ]
 }
 ```
 
-`origen` es `servidor` (configuración del ambiente: `empresa` y `modelo` son `Asistente__Proveedor` y `Asistente__Modelo`) o `pantalla` (selección guardada). `servidoresLocales` lista sólo los configurados (`ollama` con `Inferencia__Url`, `local` con `Asistente__UrlDelProveedorLocal`), nunca una URL. El catálogo sale de `asistente.catalogo_de_modelos`; los grupos `local` no llevan credencial.
+`precios` trae la versión **vigente ahora** de cada modelo del catálogo que tiene precio (en US$ por millón de tokens); un modelo que no figura está «sin precio cargado». Un precio con inicio futuro todavía no figura. `origen` es `servidor` (configuración del ambiente: `empresa` y `modelo` son `Asistente__Proveedor` y `Asistente__Modelo`) o `pantalla` (selección guardada). `servidoresLocales` lista sólo los configurados (`ollama` con `Inferencia__Url`, `local` con `Asistente__UrlDelProveedorLocal`), nunca una URL. El catálogo sale de `asistente.catalogo_de_modelos`; los grupos `local` no llevan credencial.
 
 **`POST /administracion/modelo/prueba`** — pedido `{ empresa, modelo, claveNueva? }`. Hace **una** llamada mínima real por el mismo camino de adaptador que un turno (con la clave nueva si viene, si no con la guardada) y **no persiste nada**. Siempre `200`: `{ "exito": true, "latenciaMs": 412 }` o `{ "exito": false, "codigo": "..." }` con uno de `clave-invalida` (401/403, o sin clave), `sin-credito` (402 o el proveedor dice que no hay saldo), `modelo-inexistente` (404, y 400/422 del proveedor), `saturado` (`ProveedorSaturado`, 429/503/529, o la compuerta de la GPU ocupada: la prueba no espera en la cola) o `inalcanzable` (transporte, timeout o 5xx). Para `ollama`, 401/403 es la credencial de servidor (`Inferencia__*`) rechazada; ninguna credencial aparece en la respuesta.
 
@@ -554,6 +565,10 @@ Errores: `ProblemDetails` con la extensión `codigo`. `400` pedido no válido (`
 **`DELETE /administracion/modelo`** — vuelve a la configuración del servidor, vacía la caché y audita `modelo.restablecer`. Siempre `204`; sin selección guardada no hay nada que revertir y no escribe fila. Las claves guardadas se conservan.
 
 En el feed unificado de auditoría (Sistema › Auditoría) estas cuatro acciones (`modelo.seleccionar`, `modelo.restablecer`, `credencial.crear`, `credencial.reemplazar`) llegan con `modulo=asistente`, `tabla=modelo_del_asistente`, `rowPk` = empresa, y un `resumen` en español con empresa, modelo, origen y pista de la clave (nunca el texto de la clave). `credencial.crear` se etiqueta «Alta»; el resto, «Cambio».
+
+**`POST /administracion/precios`** — pedido `{ empresa, modelo, entradaPorMillon, salidaPorMillon, cachePorMillon?, vigenteDesde }`, montos en US$ por millón de tokens y `vigenteDesde` una fecha `AAAA-MM-DD` (la nueva versión rige desde las 00:00 UTC de ese día, el mismo corte UTC que usa el resto del módulo). Escribe una **versión nueva** de `asistente.tabla_de_precios`: cierra la fila abierta del modelo (`vigente_hasta = vigenteDesde`) y abre la nueva en una sola transacción, con un candado por modelo para que dos escrituras simultáneas no abran dos filas vigentes. La conversión a precio por token es una división `decimal` exacta, sin pasar por punto flotante. Sin `cachePorMillon`, los tokens de caché se cobran como los de entrada (nunca como cero). Devuelve `{ empresa, modelo, entradaPorMillon, salidaPorMillon, cachePorMillon, version, vigenteDesde }`. `400` con `codigo`: `modelo-fuera-del-catalogo`, `precio-obligatorio` (falta entrada, salida o fecha), `precio-negativo`, `precio-fuera-de-rango` (más de US$ 10.000 por millón), `precio-con-demasiados-decimales` (más de seis decimales por millón: la columna `numeric(18,12)` no los guardaría exactos) y `vigencia-anterior-a-la-version-actual` (una fecha igual a la de la versión abierta sí se acepta: la fila anterior queda con un rango vacío). Audita `precio.cargar` (`antes` es la versión que se cerró, o nada si era el primer precio; `despues` la nueva) antes de responder. Cargar un precio no recalcula `consumo_organizacional_mensual`: ese acumulador suma una vez por turno con el precio de ese momento.
+
+En el feed unificado `precio.cargar` llega con `modulo=asistente`, `tabla=tabla_de_precios`, `rowPk` = `empresa/modelo` y un `resumen` como «Precio de openai / gpt-5: US$ 6 entrada · US$ 30 salida · US$ 0.6 caché por millón de tokens, desde 20/09/2026»; es «Alta» para el primer precio de un modelo y «Cambio» para las versiones siguientes.
 
 **`POST /administracion/credenciales/{empresa}/reemplazo`** — pedido `{ clave }`, sólo empresas en la nube. Valida la clave nueva con el proveedor (con el modelo en uso si es de esa empresa, si no el primero de su catálogo) y la reemplaza únicamente si pasa; si falla, `422` y la clave vieja sigue guardada y en uso. Independiente de la selección. Devuelve `{ empresa, pista }` y audita `credencial.reemplazar` (o `credencial.crear` si no había una) con las dos pistas.
 

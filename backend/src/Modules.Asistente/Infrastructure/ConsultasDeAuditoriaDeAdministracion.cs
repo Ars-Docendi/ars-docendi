@@ -157,6 +157,24 @@ internal sealed class ConsultasDeAuditoriaDeAdministracion(CadenaDuena cadena)
                     CampoDe("pista", docAntes, docDespues),
                 ]),
 
+            // asistente-modelo-en-caliente: a price version. Company, model, the three amounts per
+            // million tokens and the start date; prices are not secrets.
+            "precio.cargar" => new EventoDeAdministracion(
+                id, actorId, ocurridoEn, tipo,
+                Clave: Texto(docDespues, "empresa") is { } empresa && Texto(docDespues, "modelo") is { } modelo
+                    ? $"{empresa}/{modelo}"
+                    : null,
+                UsuarioAfectado: null,
+                Campos:
+                [
+                    CampoDe("empresa", docAntes, docDespues),
+                    CampoDe("modelo", docAntes, docDespues),
+                    CampoDe("entrada_por_millon", docAntes, docDespues, "entradaPorMillon"),
+                    CampoDe("salida_por_millon", docAntes, docDespues, "salidaPorMillon"),
+                    CampoDe("cache_por_millon", docAntes, docDespues, "cachePorMillon"),
+                    CampoDe("vigente_desde", docAntes, docDespues, "vigenteDesde"),
+                ]),
+
             _ => new EventoDeAdministracion(id, actorId, ocurridoEn, tipo, null, null, []),
         };
     }

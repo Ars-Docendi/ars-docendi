@@ -29,6 +29,8 @@ public static class EtiquetasAuditoria
         // asistente-modelo-en-caliente: company, model, origin and the key HINT.
         // The audit JSON never carries key text.
         "empresa", "modelo", "origen", "pista",
+        // asistente-modelo-en-caliente: a price version (amounts per million tokens, start date).
+        "entrada_por_millon", "salida_por_millon", "cache_por_millon", "vigente_desde",
     };
 
     /// <summary>
@@ -94,6 +96,9 @@ public static class EtiquetasAuditoria
         ["modelo"] = "Modelo",
         ["origen"] = "Origen",
         ["pista"] = "Pista de la clave",
+        ["entrada_por_millon"] = "Entrada (US$ por millón)",
+        ["salida_por_millon"] = "Salida (US$ por millón)",
+        ["cache_por_millon"] = "Caché (US$ por millón)",
         ["code"] = "Código",
         ["codigo"] = "Código",
         ["scope"] = "Ámbito",

@@ -3230,6 +3230,24 @@
   background: var(--color-bg-surface);
 }
 
+.adoc-asistente-modelo-precio-vigente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.adoc-asistente-modelo-precio-accion {
+  margin-top: var(--space-2);
+}
+
+.adoc-asistente-modelo-precio-campos {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+
 .adoc-asistente-modelo-clave-guardada {
   display: flex;
   align-items: center;
@@ -3451,9 +3469,16 @@
   font-size: var(--text-body-sm-size);
 }
 
+@media (max-width: 960px) {
+  .adoc-asistente-modelo-precio-campos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .adoc-asistente-modelo-modalidades,
-  .adoc-asistente-modelo-campos {
+  .adoc-asistente-modelo-campos,
+  .adoc-asistente-modelo-precio-campos {
     grid-template-columns: minmax(0, 1fr);
   }
 }

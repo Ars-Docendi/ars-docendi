@@ -138,8 +138,14 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   (4) «Probar conexión» y «Aplicar cambio», este último deshabilitado hasta que la prueba del
   destino y de la clave elegidos pase (cambiar cualquiera de los dos lo vuelve a deshabilitar),
   con una confirmación en línea que dice que los turnos en curso terminan con el modelo actual;
-  (5) «Cambios del modelo», con los estilos `sistema-cambios-*`, sólo con `auditoria.ver`. El
-  formulario de precio llega con el slice 5 del mismo change.
+  (5) «Cambios del modelo», con los estilos `sistema-cambios-*`, sólo con `auditoria.ver`.
+  Bajo el selector, el precio del modelo elegido (local o en la nube): sin precio, una alerta
+  «Sin precio cargado» con «Cargar precio»; con precio, «Precio vigente desde DD/MM/AAAA: US$ X
+  entrada · US$ Y salida · US$ Z caché, por millón de tokens» y «Cargar nueva versión». Los dos
+  abren un formulario en línea (Entrada, Salida, Caché opcional —vacío se cobra como la
+  entrada— y «Vigente desde», con la fecha de hoy), con ayuda que remite a la página de precios
+  del proveedor y a la lista pública de LiteLLM como atajo no oficial, y «Guardar precio» /
+  «Cancelar». Guardar escribe una versión nueva; la anterior queda para el historial.
 - **Auditoría**: panel de filtros arriba (búsqueda + período como grupo de botones + chips de
   Acción/Módulo + «Más filtros» colapsable con badge de cuántos están activos), luego una
   grilla de dos columnas `minmax(0,1fr) 380px` cuando el detalle está abierto — la lista angosta

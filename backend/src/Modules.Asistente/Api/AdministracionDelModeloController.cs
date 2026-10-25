@@ -79,6 +79,24 @@ public sealed class AdministracionDelModeloController(ICurrentUser usuario) : Co
         return resultado.Desenlace == Desenlace.Exito ? Ok(resultado.Valor) : Rechazo(resultado.Desenlace, resultado.Codigo!);
     }
 
+    /// <summary>
+    /// Writes a price (USD per million tokens) as a new version of a catalog model.
+    /// Closes the open version and opens the new one in one transaction. Audited.
+    /// </summary>
+    [HttpPost("precios")]
+    public async Task<ActionResult<PrecioDelModeloDto>> CargarPrecio(PedidoDePrecioDto pedido, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pedido);
+
+        if (!ActorDeLaSesion(out var actor))
+        {
+            return Unauthorized();
+        }
+
+        var resultado = await Servicio().CargarPrecioAsync(pedido, actor, ct);
+        return resultado.Desenlace == Desenlace.Exito ? Ok(resultado.Valor) : Rechazo(resultado.Desenlace, resultado.Codigo!);
+    }
+
     private AdministracionDelModelo Servicio() =>
         HttpContext.RequestServices.GetRequiredService<AdministracionDelModelo>();
 
@@ -95,6 +113,10 @@ public sealed class AdministracionDelModeloController(ICurrentUser usuario) : Co
                 StatusCodes.Status422UnprocessableEntity,
                 "La prueba de conexión falló",
                 "El proveedor no aceptó la prueba. No se cambió nada."),
+            Desenlace.PedidoInvalido when EsDePrecio(codigo) => (
+                StatusCodes.Status400BadRequest,
+                "Precio no válido",
+                "El precio o la fecha de vigencia del pedido no son válidos. No se cambió nada."),
             _ => (
                 StatusCodes.Status400BadRequest,
                 "Pedido no válido",
@@ -106,6 +128,10 @@ public sealed class AdministracionDelModeloController(ICurrentUser usuario) : Co
 
         return new ObjectResult(problema) { StatusCode = estado };
     }
+
+    private static bool EsDePrecio(string codigo) =>
+        codigo.StartsWith("precio-", StringComparison.Ordinal)
+        || codigo == CodigosDelModelo.VigenciaAnteriorALaVersionActual;
 
     private bool ActorDeLaSesion(out Guid actor) => Guid.TryParse(usuario.UserId, out actor);
 }

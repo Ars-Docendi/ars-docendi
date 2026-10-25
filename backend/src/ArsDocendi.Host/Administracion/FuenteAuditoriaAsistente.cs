@@ -70,6 +70,13 @@ public sealed class FuenteAuditoriaAsistente(
             FusionDeFuentesAuditoria.OrigenAsistente);
     }
 
+    /// <summary>«aaaa-mm-dd» → «dd/mm/aaaa»; cualquier otro texto pasa sin tocar.</summary>
+    private static string FechaLegible(string valor) =>
+        DateOnly.TryParseExact(valor, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var fecha)
+            ? fecha.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture)
+            : valor;
+
     /// <summary>La tabla de mapeo de design.md D5, por <c>Tipo</c>.</summary>
     private static (string Objeto, string Tabla, string RowPk, string AccionEtiqueta, string Resumen) DatosDelTipo(
         EventoDeAdministracion evento, string? nombreAfectado, IReadOnlyList<CambioAuditoriaDto> campos)
@@ -162,6 +169,16 @@ public sealed class FuenteAuditoriaAsistente(
                     var objeto = $"Clave de {Despues("empresa")}";
                     return (objeto, "modelo_del_asistente", evento.Clave ?? "—", "Cambio",
                         $"{objeto} reemplazada: pista {Antes("pista")} → {Despues("pista")}");
+                }
+
+            case "precio.cargar":
+                {
+                    var objeto = $"Precio de {Despues("empresa")} / {Despues("modelo")}";
+                    var resumen = $"{objeto}: US$ {Despues("entrada_por_millon")} entrada · "
+                        + $"US$ {Despues("salida_por_millon")} salida · US$ {Despues("cache_por_millon")} caché "
+                        + $"por millón de tokens, desde {FechaLegible(Despues("vigente_desde"))}";
+                    return (objeto, "tabla_de_precios", evento.Clave ?? "—",
+                        AntesEsNulo("entrada_por_millon") ? "Alta" : "Cambio", resumen);
                 }
 
             default:

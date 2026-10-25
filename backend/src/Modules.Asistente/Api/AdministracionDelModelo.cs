@@ -42,6 +42,11 @@ internal static class CodigosDelModelo
     public const string ClaveDemasiadoCorta = "clave-demasiado-corta";
     public const string EmpresaSinClave = "empresa-sin-clave";
     public const string ClaveMaestraNoDisponible = "clave-maestra-no-disponible";
+    public const string PrecioObligatorio = "precio-obligatorio";
+    public const string PrecioNegativo = "precio-negativo";
+    public const string PrecioFueraDeRango = "precio-fuera-de-rango";
+    public const string PrecioConDemasiadosDecimales = "precio-con-demasiados-decimales";
+    public const string VigenciaAnteriorALaVersionActual = "vigencia-anterior-a-la-version-actual";
 }
 
 /// <summary>
@@ -61,6 +66,8 @@ internal sealed class AdministracionDelModelo(
     ProbadorDeConexion probador,
     IAuditoriaDeAdministracion auditoria,
     CacheDeConsultasGeneradas cache,
+    RepositorioDePrecios precios,
+    TimeProvider reloj,
     IOptions<OpcionesAsistente> asistente,
     IOptions<OpcionesInferencia> inferencia)
 {
@@ -91,7 +98,10 @@ internal sealed class AdministracionDelModelo(
             enUso,
             [.. ServidoresLocales.Configurados(asistente.Value, inferencia.Value)],
             grupos,
-            cifrado.Disponible);
+            cifrado.Disponible,
+            [.. (await precios.ListarVigentesAsync(reloj.GetUtcNow(), ct))
+                .Where(p => catalogo.Any(m => m.Empresa == p.Empresa && m.Modelo == p.Modelo))
+                .Select(ADto)]);
     }
 
     public async Task<Resultado<ResultadoDePruebaDto>> ProbarAsync(PedidoDeModeloDto pedido, CancellationToken ct)
@@ -267,6 +277,109 @@ internal sealed class AdministracionDelModelo(
             return Resultado<CredencialReemplazadaDto>.SinClaveMaestra();
         }
     }
+
+    /// <summary>
+    /// Writes a price as a new version of its model (D9): validation first, then one
+    /// transaction that closes the open version and opens the new one, then the audit
+    /// row, then the answer. Nothing is written when validation fails.
+    /// </summary>
+    public async Task<Resultado<PrecioDelModeloDto>> CargarPrecioAsync(
+        PedidoDePrecioDto pedido, Guid actor, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(pedido);
+
+        if (string.IsNullOrWhiteSpace(pedido.Modelo) || string.IsNullOrWhiteSpace(pedido.Empresa)
+            || !(await modelos.ListarCatalogoAsync(ct)).Any(m => m.Empresa == pedido.Empresa && m.Modelo == pedido.Modelo))
+        {
+            return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.ModeloFueraDelCatalogo);
+        }
+
+        if (pedido.EntradaPorMillon is not { } entrada
+            || pedido.SalidaPorMillon is not { } salida
+            || pedido.VigenteDesde is not { } desde)
+        {
+            return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.PrecioObligatorio);
+        }
+
+        // Cached tokens priced like input tokens when no cache price is given: a cache
+        // price of zero would make them silently free.
+        var cache = pedido.CachePorMillon ?? entrada;
+
+        foreach (var monto in new[] { entrada, salida, cache })
+        {
+            if (monto < 0)
+            {
+                return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.PrecioNegativo);
+            }
+
+            if (monto > MaximoPorMillon)
+            {
+                return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.PrecioFueraDeRango);
+            }
+
+            // numeric(18,12) per token holds six decimals per million: more would round.
+            if (decimal.Round(monto, DecimalesPorMillon) != monto)
+            {
+                return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.PrecioConDemasiadosDecimales);
+            }
+        }
+
+        var escritura = await precios.EscribirNuevaVersionAsync(
+            pedido.Empresa,
+            pedido.Modelo,
+            entrada / TokensPorMillon,
+            salida / TokensPorMillon,
+            cache / TokensPorMillon,
+            new DateTimeOffset(desde.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero),
+            ct);
+
+        if (escritura.Desenlace == DesenlaceDeEscrituraDePrecio.VigenciaAnteriorALaVersionActual)
+        {
+            return Resultado<PrecioDelModeloDto>.Invalido(CodigosDelModelo.VigenciaAnteriorALaVersionActual);
+        }
+
+        var nueva = escritura.Nueva!;
+
+        await auditoria.RegistrarAsync(
+            actor,
+            "precio.cargar",
+            escritura.Anterior is { } anterior ? JsonSerializer.Serialize(JsonDelPrecio(anterior)) : null,
+            JsonSerializer.Serialize(JsonDelPrecio(nueva)),
+            ct);
+
+        return Resultado<PrecioDelModeloDto>.Ok(ADto(nueva));
+    }
+
+    private const decimal TokensPorMillon = 1_000_000m;
+    private const decimal MaximoPorMillon = 10_000m;
+    private const int DecimalesPorMillon = 6;
+
+    private static PrecioDelModeloDto ADto(VersionDePrecio version) => new(
+        version.Empresa,
+        version.Modelo,
+        PorMillon(version.EntradaPorToken),
+        PorMillon(version.SalidaPorToken),
+        PorMillon(version.CachePorToken),
+        version.Version,
+        DateOnly.FromDateTime(version.VigenteDesde.UtcDateTime));
+
+    /// <summary>The per-token column back to USD per million, without trailing zeros.</summary>
+    private static decimal PorMillon(decimal porToken) => (porToken * TokensPorMillon) / 1.000000000000000000000000000000m;
+
+    // Audit payload: company, model, the three amounts per million (as exact text) and the
+    // start date. Prices are not secrets and no key is in reach of this method.
+    private static object JsonDelPrecio(VersionDePrecio version) => new
+    {
+        empresa = version.Empresa,
+        modelo = version.Modelo,
+        entradaPorMillon = TextoDelMonto(PorMillon(version.EntradaPorToken)),
+        salidaPorMillon = TextoDelMonto(PorMillon(version.SalidaPorToken)),
+        cachePorMillon = TextoDelMonto(PorMillon(version.CachePorToken)),
+        vigenteDesde = DateOnly.FromDateTime(version.VigenteDesde.UtcDateTime).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+    };
+
+    private static string TextoDelMonto(decimal monto) =>
+        monto.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>Saves the key, records the validation, writes the audit row. Returns the new hint.</summary>
     private async Task<string> GuardarYAuditarClaveAsync(

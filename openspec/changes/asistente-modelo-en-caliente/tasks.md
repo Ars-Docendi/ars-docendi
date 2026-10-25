@@ -81,14 +81,14 @@
 
 ## 5. Slice 5 — Price write path and form
 
-- [ ] 5.1 `POST api/asistente/administracion/precios` `{empresa, modelo, entradaPorMillon, salidaPorMillon, cachePorMillon?, vigenteDesde}` — convert to the per-token columns of `tabla_de_precios`, close the current row and insert a new version in one transaction; audited
-- [ ] 5.2 Validation: non-negative amounts, `vigenteDesde` not before the current version's start, `empresa/modelo` in the catalog
-- [ ] 5.3 Frontend: "Sin precio cargado" warning with "Cargar precio" form (input, output and cache USD per million tokens plus effective date; provider pricing page or the LiteLLM public price list shown as suggestions only). Offered for local models too, which are "not priced" until a price is loaded
-- [ ] 5.4 Frontend: when priced, show "Precio vigente desde …" and "Cargar nueva versión"
-- [ ] 5.5 Test: writing a price closes the previous version and opens exactly one current version
-- [ ] 5.6 Test: usage computed for rows before the change still uses the old version
-- [ ] 5.7 Test: a model without a price is reported as not priced and the price endpoint returns 403 without the permission
-- [ ] 5.8 Vitest: price form states (missing, present, new version)
+- [x] 5.1 `POST api/asistente/administracion/precios` `{empresa, modelo, entradaPorMillon, salidaPorMillon, cachePorMillon?, vigenteDesde}` — convert to the per-token columns of `tabla_de_precios`, close the current row and insert a new version in one transaction; audited
+- [x] 5.2 Validation: non-negative amounts, `vigenteDesde` not before the current version's start, `empresa/modelo` in the catalog
+- [x] 5.3 Frontend: "Sin precio cargado" warning with "Cargar precio" form (input, output and cache USD per million tokens plus effective date; provider pricing page or the LiteLLM public price list shown as suggestions only). Offered for local models too, which are "not priced" until a price is loaded
+- [x] 5.4 Frontend: when priced, show "Precio vigente desde …" and "Cargar nueva versión"
+- [x] 5.5 Test: writing a price closes the previous version and opens exactly one current version
+- [x] 5.6 Test: usage computed for rows before the change still uses the old version
+- [x] 5.7 Test: a model without a price is reported as not priced and the price endpoint returns 403 without the permission
+- [x] 5.8 Vitest: price form states (missing, present, new version)
 
 ## 6. Slice 6 — Documentation and verification
 

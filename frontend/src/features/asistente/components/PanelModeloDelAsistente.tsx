@@ -4,6 +4,7 @@ import { Button, InlineAlert } from "@ars-docendi/ui";
 
 import {
   aplicarModelo,
+  cargarPrecio,
   obtenerEstadoDelModelo,
   probarModelo,
   reemplazarClaveDeEmpresa,
@@ -21,15 +22,18 @@ import {
   nombreDeLaEmpresa,
   nombreDelModelo,
   pedidoDe,
+  precioDelModelo,
   seleccionInicial,
   textoDelCodigo,
   type SeleccionDelModelo,
 } from "../utils/modeloDelAsistente";
 import { AccionesDelModelo, type VistaDePrueba } from "./AccionesDelModelo";
 import { BannerDelModeloEnUso } from "./BannerDelModeloEnUso";
+import type { PedidoDePrecio } from "../types";
 import type { GrupoDeModelosEnLaNube } from "./ListaDeModelosEnLaNube";
 import { PanelDeModeloEnLaNube, type ReemplazoEnCurso } from "./PanelDeModeloEnLaNube";
 import { PanelDeModeloLocal } from "./PanelDeModeloLocal";
+import { PrecioDelModelo } from "./PrecioDelModelo";
 import { TarjetasDeModalidad } from "./TarjetasDeModalidad";
 import "../asistente.css";
 
@@ -257,6 +261,16 @@ export function PanelModeloDelAsistente({ cambios }: PanelModeloDelAsistenteProp
     }
   }
 
+  // Guardar un precio escribe una versión nueva; si el servidor la rechaza, el
+  // error sube hasta el formulario, que lo muestra y queda abierto.
+  async function guardarPrecio(pedidoDePrecio: PedidoDePrecio) {
+    await cargarPrecio(pedidoDePrecio);
+    await queryClient.invalidateQueries({ queryKey: CLAVE_MODELO });
+    setAnuncio(
+      `Precio de ${nombreDelModelo(pedidoDePrecio.empresa, pedidoDePrecio.modelo)} guardado.`,
+    );
+  }
+
   const reemplazoVisible =
     reemplazo && reemplazo.empresa === seleccion.empresa && esNube && claveGuardada
       ? { validando: reemplazo.validando, error: reemplazo.error }
@@ -355,6 +369,17 @@ export function PanelModeloDelAsistente({ cambios }: PanelModeloDelAsistenteProp
             modelo={seleccion.modeloLocal}
             onServidor={elegirServidor}
             onModelo={(modeloLocal) => cambiarSeleccion({ modeloLocal })}
+          />
+        )}
+
+        {destino && (
+          <PrecioDelModelo
+            key={nombreDelDestino}
+            empresa={destino.empresa}
+            modelo={destino.modelo}
+            nombre={nombreDelDestino}
+            vigente={precioDelModelo(datos, destino.empresa, destino.modelo)}
+            onGuardar={guardarPrecio}
           />
         )}
 

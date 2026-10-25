@@ -555,6 +555,38 @@ export interface EstadoDelModelo {
   catalogo: EmpresaDelCatalogo[];
   /** `false` cuando falta la clave maestra: guardar claves no está disponible. */
   cifradoDisponible: boolean;
+  /**
+   * El precio vigente ahora de cada modelo del catálogo que tiene uno. Un modelo
+   * que no figura acá está «sin precio cargado».
+   */
+  precios: PrecioDelModelo[];
+}
+
+/** Un precio vigente, en US$ por millón de tokens. */
+export interface PrecioDelModelo {
+  empresa: string;
+  modelo: string;
+  entradaPorMillon: number;
+  salidaPorMillon: number;
+  cachePorMillon: number;
+  version: number;
+  /** Fecha de inicio, «AAAA-MM-DD». */
+  vigenteDesde: string;
+}
+
+/**
+ * Un precio nuevo para un modelo del catálogo, en US$ por millón de tokens. Es
+ * una versión nueva: la anterior se cierra en `vigenteDesde`. Sin `cachePorMillon`,
+ * los tokens de caché se cobran como los de entrada.
+ */
+export interface PedidoDePrecio {
+  empresa: string;
+  modelo: string;
+  entradaPorMillon: number;
+  salidaPorMillon: number;
+  cachePorMillon?: number;
+  /** «AAAA-MM-DD». */
+  vigenteDesde: string;
 }
 
 export interface PedidoDeModelo {
