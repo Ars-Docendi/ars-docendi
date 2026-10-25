@@ -211,6 +211,11 @@ public static class ModuleExtensions
         services.AddScoped<IDisponibilidadDelModulo, DisponibilidadDelModuloReal>();
         services.AddScoped<IAuditoriaDeAdministracion, AuditoriaDeAdministracionReal>();
         services.AddScoped<IConsultasDeUso, ConsultasDeUso>();
+        // Quality metrics (asistente-metricas-de-calidad): two readers confined to the
+        // analytic record and the vote table, and the audit of the problem list.
+        services.AddScoped<IConsultasDeCalidad, ConsultasDeCalidad>();
+        services.AddScoped<IConsultasDeProblemasDeCalidad, ConsultasDeProblemasDeCalidad>();
+        services.AddScoped<IAuditoriaDeRevisionDeCalidad, AuditoriaDeRevisionDeCalidad>();
         services.AddScoped<IPresupuestosAdministrables, PresupuestosAdministrablesReal>();
 
         // Runtime model (asistente-modelo-en-caliente, slice 1). Inert: nothing here

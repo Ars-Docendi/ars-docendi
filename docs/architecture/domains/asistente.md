@@ -179,6 +179,8 @@ o se declara la excepción.
 | DELETE | `/api/asistente/administracion/modelo`                           | `asistente.administrar`          | Vuelve a la configuración del servidor                                 |
 | POST   | `/api/asistente/administracion/credenciales/{empresa}/reemplazo` | `asistente.administrar`          | Valida una clave nueva con el proveedor y recién entonces la reemplaza |
 | POST   | `/api/asistente/administracion/precios`                          | `asistente.administrar`          | Carga un precio como versión nueva de un modelo del catálogo           |
+| GET    | `/api/asistente/administracion/calidad`                          | `asistente.administrar`          | Métricas de calidad agregadas, por modelo y período                    |
+| GET    | `/api/asistente/administracion/calidad/problemas`                | `asistente.revisar_calidad`      | Lista anónima y auditada de respuestas con problemas                   |
 
 Las rutas de `administracion/modelo` y `credenciales` (contrato completo en [api-contracts.md](../api-contracts.md)) viven en `AdministracionDelModeloController` y delegan en `AdministracionDelModelo`. Una clave nunca sale del servidor: sólo viaja su pista (4 caracteres), y un guard estático de `ArquitecturaAsistenteTests` falla si una clave, `Inferencia__Contrasena` o el secreto de Access puede llegar a una respuesta, un log, el mensaje de una excepción o una fila de auditoría. «Probar conexión» y el reemplazo usan el mismo camino de adaptador que un turno (`ClientesDeChat` + `ProveedorChat`, o `ArmarOllama` / `ArmarLocal`) sin pasar por el breaker, y la prueba de `ollama` / `local` pasa por la compuerta sin esperar cola. Toda escritura se audita antes de responder, con las acciones `modelo.seleccionar`, `modelo.restablecer`, `credencial.crear`, `credencial.reemplazar` y `precio.cargar` (las de clave registran sólo empresa y pista; restablecer sin selección guardada es un no-op sin fila de auditoría).
 
@@ -1448,6 +1450,19 @@ TD-012 sigue valiendo frente al asistente mismo (que no puede leer ninguna
 de las dos tablas) y frente a cualquiera sin acceso al historial; deja de
 valer, por diseño, frente a quien tiene el historial — el dueño, o soporte
 con permiso, razón y auditoría.
+
+### Quality metrics (`asistente-metricas-de-calidad`)
+
+How users rate answers and where the assistant visibly fails, per model and over time, without ever tying a rating to a person.
+
+- **Where the numbers come from.** Two readers, `ConsultasDeCalidad` (aggregates) and `ConsultasDeProblemasDeCalidad` (the list), read `registro_analitico` joined by id with `retroalimentacion_turno` and nothing else. `ArquitecturaAsistenteTests` allows only those two files (plus the feedback writer) to name the vote table, and fails if either names the operational record, an actor or reader column, the comment column or the vote timestamp (TD-012). The day of a vote is the day of its turn.
+- **What the analytic record gained.** `causa` (closed vocabulary of 22 codes, one per failure path), `modelo` (the adapter's `empresa/modelo`, also on turns that never called a model) and `reemplazado` (set when an answered turn is replaced by edit and resend). A model's own declination is not a cause.
+- **Policy denials are not the model's fault.** Quota, organization cap, maintenance, revoked access and a concurrent turn are excluded from every rate and returned as a separate count by cause. `resultado_vacio` is a signal, not a failure.
+- **Two permissions.** `asistente.administrar` opens the aggregates. `asistente.revisar_calidad`, seeded to no role, opens the anonymous problem list (question text, reason or cause, type, model, day, state), and every successful read of it is audited into `asistente.auditoria_revision_de_calidad` before the response, with its own retention (`RetencionDeAuditoriaDeCalidadDias`, 365).
+- **A trend only when it means something.** The trend against the previous period of equal length is omitted when either period has fewer than 20 votes or the previous period falls outside retention.
+- **Known limitation.** The voting token lives in memory and expires, so coverage is shown next to the negative rate (design D7).
+
+Contract: [api-contracts.md](../api-contracts.md#quality-metrics-asistente-metricas-de-calidad).
 
 ## Reglas de negocio (BR-\*)
 

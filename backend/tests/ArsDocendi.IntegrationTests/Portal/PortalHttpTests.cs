@@ -193,7 +193,11 @@ public sealed class PortalHttpTests(PostgresFixture postgres)
         //
         // Subió de 127 a 128 con la carga de precios del modelo en caliente:
         // `POST /api/asistente/administracion/precios`.
-        Assert.Equal(128, operaciones.Length);
+        //
+        // Subió de 128 a 130 con asistente-metricas-de-calidad: dos en
+        // CalidadController (`GET /api/asistente/administracion/calidad`, los agregados,
+        // y `GET …/calidad/problemas`, la lista anónima y auditada).
+        Assert.Equal(130, operaciones.Length);
         Assert.Contains(("/api/administracion/sistema/estado", "get"), operaciones);
         Assert.Contains(("/api/administracion/auditoria", "get"), operaciones);
 

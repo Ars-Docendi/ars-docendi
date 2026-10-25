@@ -112,6 +112,13 @@ public sealed partial class ArquitecturaAsistenteTests
         // D1, tarea 1.2) — same wholesale-revoked schema as the rest of this
         // list, so even reading its own audit trail needs the owner connection.
         "ConsultasDeAuditoriaDeAdministracion.cs",
+        // The two quality readers and the audit of the problem list
+        // (asistente-metricas-de-calidad): registro_analitico, retroalimentacion_turno and
+        // auditoria_revision_de_calidad sit inside the wholesale-revoked `asistente`
+        // schema, so even reading them needs the owner connection.
+        "ConsultasDeCalidad.cs",
+        "ConsultasDeProblemasDeCalidad.cs",
+        "AuditoriaDeRevisionDeCalidad.cs",
     ];
 
     // ------------------------------------------------- la cadena del dueño no se filtra
@@ -595,6 +602,11 @@ public sealed partial class ArquitecturaAsistenteTests
         // Same reason as ConsultasDeUso.cs above (sistema-seccion-unificada,
         // design.md D1, tarea 1.2).
         "ConsultasDeAuditoriaDeAdministracion.cs",
+        // Same reason as ConsultasDeUso.cs above (asistente-metricas-de-calidad): the two
+        // quality readers and the append-only audit of the problem list.
+        "ConsultasDeCalidad.cs",
+        "ConsultasDeProblemasDeCalidad.cs",
+        "AuditoriaDeRevisionDeCalidad.cs",
     ];
 
     [Fact]
@@ -626,6 +638,88 @@ public sealed partial class ArquitecturaAsistenteTests
             "await using var conexion = new NpgsqlConnection(cadena.Valor);");
 
         Assert.Single(Detectar([sintetico], ConexionConstruidaAMano()));
+    }
+
+    // ------------------------------------------ the quality readers are confined
+
+    /// <summary>
+    /// The only files that may read the vote table for quality (design D8 of
+    /// asistente-metricas-de-calidad). The feedback writer is the table's other file.
+    /// </summary>
+    private static readonly string[] LectoresDeCalidad =
+        ["ConsultasDeCalidad.cs", "ConsultasDeProblemasDeCalidad.cs"];
+
+    private static readonly string[] PuedenNombrarLaTablaDeVotos =
+        [.. LectoresDeCalidad, "RegistroDeRetroalimentacion.cs"];
+
+    [Fact]
+    public void Solo_los_lectores_de_calidad_y_el_escritor_de_votos_nombran_la_tabla_de_votos()
+    {
+        var archivos = CodigoDelModulo();
+
+        // The quality readers must exist and name the table: if they were renamed this rule
+        // would pass over an empty set.
+        foreach (var lector in LectoresDeCalidad)
+        {
+            Assert.Single(archivos, a => Path.GetFileName(a.Ruta) == lector
+                && TablaDeVotos().IsMatch(a.Contenido));
+        }
+
+        var infracciones = Detectar(
+            archivos.Where(a => !PuedenNombrarLaTablaDeVotos.Contains(Path.GetFileName(a.Ruta))),
+            TablaDeVotos());
+
+        Assert.True(infracciones.Count == 0,
+            "Only the quality readers and the feedback writer may name retroalimentacion_turno. "
+            + "Detected in: " + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void Los_lectores_de_calidad_no_nombran_la_fila_operativa_ni_un_actor_ni_el_texto_o_la_hora_del_voto()
+    {
+        var lectores = CodigoDelModulo()
+            .Where(a => LectoresDeCalidad.Contains(Path.GetFileName(a.Ruta)))
+            .ToArray();
+
+        Assert.Equal(LectoresDeCalidad.Length, lectores.Length);
+
+        var infracciones = Detectar(lectores, LoQueLosLectoresDeCalidadNoPuedenNombrar());
+
+        Assert.True(infracciones.Count == 0,
+            "A quality reader names something that could link a vote to a person or to the "
+            + "operational record (TD-012). Detected in: " + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void El_detector_de_los_lectores_de_calidad_reconoce_cada_forma_prohibida()
+    {
+        // The synthetic pair: a regex that stopped matching would report no violation forever.
+        foreach (var prohibido in new[]
+        {
+            "FROM asistente.registro_operativo",
+            "SELECT actor_id FROM x",
+            "SELECT r.comentario",
+            "SELECT r.actualizado_en",
+            "INSERT INTO asistente.auditoria_revision_de_calidad (lector_id)",
+            "SELECT ocurrido_en",
+            "IConsultasIdentity identidad",
+        })
+        {
+            Assert.Single(Detectar(
+                [new Archivo("Infrastructure/ConsultasDeCalidad.cs", prohibido)],
+                LoQueLosLectoresDeCalidadNoPuedenNombrar()));
+        }
+
+        Assert.Empty(Detectar(
+            [new Archivo(
+                "Infrastructure/ConsultasDeCalidad.cs",
+                "SELECT dia, modelo, causa FROM asistente.registro_analitico a "
+                + "LEFT JOIN asistente.retroalimentacion_turno r ON r.analitico_id = a.id")],
+            LoQueLosLectoresDeCalidadNoPuedenNombrar()));
+
+        Assert.Single(Detectar(
+            [new Archivo("Infrastructure/Otro.cs", "FROM asistente.retroalimentacion_turno")],
+            TablaDeVotos()));
     }
 
     // ------------------------------------------------ la superficie pública
@@ -784,7 +878,18 @@ public sealed partial class ArquitecturaAsistenteTests
     /// exposes it does not compile (same reason as <c>MotivoDeRechazo</c>). Its family
     /// enum and the wire-value helper stay `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 100;
+    /// <remarks>
+    /// Raised to 111 for asistente-metricas-de-calidad (section 3): eleven types the HTTP
+    /// surface needs public. The three ports (<c>IConsultasDeCalidad</c>,
+    /// <c>IConsultasDeProblemasDeCalidad</c>, <c>IAuditoriaDeRevisionDeCalidad</c>) are
+    /// constructor parameters of the public <c>CalidadController</c>, and the eight records
+    /// (<c>ResumenDeCalidad</c>, <c>ConteoDeCalidad</c>, <c>ModeloDeCalidad</c>,
+    /// <c>PuntoDeCalidad</c>, <c>TendenciaDeCalidad</c>, <c>CalidadAgregada</c>,
+    /// <c>ProblemaDeCalidad</c>, <c>PaginaDeProblemas</c>) are the response bodies, which are
+    /// the Application records themselves (none has an actor, a comment or a vote time). The
+    /// readers, the audit writer and the constants stay `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 111;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
@@ -1057,6 +1162,18 @@ public sealed partial class ArquitecturaAsistenteTests
 
     [GeneratedRegex(@"\bnew\s+NpgsqlConnection\s*\(")]
     private static partial Regex ConexionConstruidaAMano();
+
+    [GeneratedRegex(@"\bretroalimentacion_turno\b")]
+    private static partial Regex TablaDeVotos();
+
+    // What would let a quality reader tie a vote to a person or to a precise moment:
+    // the operational record, any actor or reader column, a vote's free text and its
+    // timestamp, and the identity ports.
+    [GeneratedRegex(
+        @"\b(?:registro_operativo|actor_id|lector_id|sujeto_id|actualizado_en|comentario|ocurrido_en)\b"
+        + @"|\bIConsultasIdentity\b|\bICurrentUser\b",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex LoQueLosLectoresDeCalidadNoPuedenNombrar();
 
     [GeneratedRegex(@"\bPreambuloDelActor\b")]
     private static partial Regex UsoDelPreambulo();

@@ -232,6 +232,8 @@ Los filtros de visibilidad y jerarquía se aplican antes de materializar/límite
 | DELETE | `/administracion/modelo`                                 | `asistente.administrar`          | Vuelve a la configuración del servidor                                 |
 | POST   | `/administracion/credenciales/{empresa}/reemplazo`       | `asistente.administrar`          | Valida una clave nueva con el proveedor y recién entonces la reemplaza |
 | POST   | `/administracion/precios`                                | `asistente.administrar`          | Carga un precio como versión nueva de un modelo del catálogo           |
+| GET    | `/administracion/calidad`                                | `asistente.administrar`          | Métricas de calidad agregadas, por modelo y período                    |
+| GET    | `/administracion/calidad/problemas`                      | `asistente.revisar_calidad`      | Lista anónima y auditada de respuestas con problemas                   |
 
 Es el único ping declarado `[AllowAnonymous]` en el código. Los otros cuatro responden anónimos porque el Host no tiene una política global que exija autenticación, no porque lo declaren; si algún día se agrega esa política, dejan de responder. Hay un test que lo demuestra en `PingAsistenteTests`.
 
@@ -514,6 +516,64 @@ Exige `asistente.administrar`. La carga del servidor del modelo propio (asistent
 `configurado` es `false` con un proveedor que no es `local`, y entonces todo lo demás viene vacío. `alcanzable` es `false` si `/metrics` no respondió en 3 s o no tiene métricas conocidas. `motor` es `vllm` o `llama.cpp`, según qué métricas publica. Cada métrica es `null` si el servidor no la publica —llama-server no informa aciertos de prefijo—, nunca `0`. `usoDeKvCache` y `aciertosDeCacheDePrefijo` van de 0 a 1; el segundo es acumulado desde que arrancó el servidor. `compuerta` es `null` sin `MaximoDeLlamadasConcurrentes`.
 
 La URL de métricas es la del proveedor sin `/v1`, con la misma clave como `Bearer`. La clave nunca aparece en la respuesta ni en el log.
+
+#### Quality metrics (`asistente-metricas-de-calidad`)
+
+Two routes in `CalidadController`, each with its **own** permission (there is no class-level policy, so they are not ANDed):
+
+| Route                                   | Permission                  | Without it                       |
+| --------------------------------------- | --------------------------- | -------------------------------- |
+| `GET /administracion/calidad`           | `asistente.administrar`     | `403`, no data                   |
+| `GET /administracion/calidad/problemas` | `asistente.revisar_calidad` | `403`, no data, **no audit row** |
+
+`asistente.revisar_calidad` is seeded to no role, not even `sys_admin`: holding `asistente.administrar` alone does not open the list, and holding only `asistente.revisar_calidad` does not open the aggregates.
+
+**`GET /api/asistente/administracion/calidad?periodo=7|30|90&modelo=`**. `periodo` defaults to 30; any other value is `400`. `modelo` is an optional `empresa/modelo` filter. The period is the last N days up to and including today (UTC), by the turn's own day. Rates are fractions between 0 and 1, and are `null` (never `0`) when their denominator is zero.
+
+```json
+{
+  "periodoDias": 30,
+  "modelo": null,
+  "desde": "2027-05-17",
+  "hasta": "2027-06-15",
+  "porSemana": false,
+  "resumen": {
+    "turnos": 11,
+    "votos": 5,
+    "positivos": 2,
+    "negativos": 3,
+    "respondidas": 8,
+    "conProblemas": 7,
+    "fallosDetectables": 3,
+    "tasaNegativa": 0.6,
+    "tasaConProblemas": 0.636,
+    "tasaDeFallos": 0.273,
+    "cobertura": 0.625
+  },
+  "tendencia": { "tasaAnterior": 0.2, "variacion": 0.3, "votosAnteriores": 25 },
+  "motivoSinTendencia": null,
+  "negativosPorMotivo": [{ "clave": "datos_incorrectos", "cantidad": 1, "familia": null }],
+  "fallosPorCausa": [{ "clave": "timeout_proveedor", "cantidad": 1, "familia": "proveedor" }],
+  "denegacionesDePolitica": [{ "clave": "cupo_agotado", "cantidad": 2, "familia": "politica" }],
+  "porModelo": [{ "modelo": "ollama/qwen3.5:9b", "resumen": { "...": "same shape as resumen" } }],
+  "modelosDisponibles": ["anthropic/claude-sonnet-5", "ollama/qwen3.5:9b"],
+  "serie": [{ "dia": "2027-06-14", "turnos": 3, "votos": 3, "negativos": 2, "tasaNegativa": 0.667 }]
+}
+```
+
+- `resumen` counts **turns attended**: turns whose cause is in the policy family (`cupo_agotado`, `tope_organizacional`, `mantenimiento`, `acceso_revocado`, `turno_concurrente`) are outside every numerator and denominator and come back only in `denegacionesDePolitica`.
+- `tasaNegativa` is negative votes over votes (the headline). `cobertura` is votes over `Respondida` turns. `conProblemas` counts a turn once if it was rated negative, replaced, or failed. `fallosDetectables` counts provider- and query-family causes plus failing turns with no recorded cause.
+- `negativosPorMotivo` always lists the four reasons and `sin_motivo`; a vote can carry several reasons, so it does not add up to `negativos`.
+- `fallosPorCausa` carries `resultado_vacio` with `familia: "senal"` (shown, not counted as a failure) and `sin_clasificar` for a failing turn that recorded no cause.
+- `tendencia` compares with the previous period of equal length and is `null` when it cannot be told, with `motivoSinTendencia`: `pocos_votos` (either period has fewer than 20 votes) or `fuera_de_retencion` (the previous period is not fully inside `RetencionDeRegistrosDias`, so always for 90).
+- `serie` is per day, or per week (the Monday of the week) when `periodoDias` is 90, oldest first; days with no turns are omitted. A vote counts on the day of its turn.
+- `modelosDisponibles` ignores the `modelo` filter, so the model select stays whole.
+
+**`GET /api/asistente/administracion/calidad/problemas?periodo=&modelo=&tipo=negativa|fallo|reemplazo&pagina=`**. `tipo` is optional (all three); `pagina` is 1-based, default 1, at most 1000; 25 rows per page. Any invalid value is `400` and writes no audit row. Returns `{ pagina, tamanoDePagina, total, filas[] }`, each row `{ tipo, pregunta, motivo, modelo, dia, estado }`: the anonymous question text, the reasons (comma-separated) or the cause, the type, the model, the day and the state. A turn with several problems is one row, typed as the filter asks or, with no filter, negative before failure before replacement. Policy denials and `resultado_vacio` are never listed. **No row carries an actor, a comment or a precise time.**
+
+Every successful read inserts one row into `asistente.auditoria_revision_de_calidad` (reader, database moment, filters as text, rows returned) **before** the response; if the insert fails the request fails and no page leaves.
+
+Neither route returns a vote's free-text comment or its timestamp, under any filter: `CalidadHttpTests` scans the responses for them, and `ArquitecturaAsistenteTests` fails if the two reader files name the operational record, an actor column, the comment column or the vote timestamp (TD-012).
 
 #### Modelo y claves de proveedor (`asistente-modelo-en-caliente`)
 

@@ -32,17 +32,17 @@
 
 ## 3. Backend: aggregates and problem list
 
-- [ ] 3.1 Aggregate reader `ConsultasDeCalidad` reading only `registro_analitico` and `retroalimentacion_turno`, never `actualizado_en` or `comentario` (negative rate, negatives by reason, failures by cause, problems once per turn, coverage, per-model table with turn counts, series by `dia`, previous-period trend omitted below 20 votes in either period); policy-family turns excluded from numerators and denominators and returned as a separate count by policy cause
-- [ ] 3.2 `GET api/asistente/administracion/calidad?periodo=7|30|90&modelo=` (policy `asistente.administrar`); reject any other period; no route collides with `uso`, `presupuestos`, `servidor-local`, `tope-organizacional`, `mantenimiento`
-- [ ] 3.3 `GET api/asistente/administracion/calidad/problemas?periodo&modelo&tipo=negativa|fallo|reemplazo&pagina` (permission `asistente.revisar_calidad`) returning anonymous rows: question text, reason or cause, type, model, day, state
-- [ ] 3.4 Audit every successful read of the problem list into `asistente.auditoria_revision_de_calidad` (reader, moment, filters, row count), written before responding, append-only, following `auditoria_acceso_historial`
-- [ ] 3.5 Extend `ArquitecturaAsistenteTests` (a new rule: no allowlist of `retroalimentacion_turno` readers exists today): only the quality readers may read `retroalimentacion_turno`; they reference neither `registro_operativo`, an actor column, `actualizado_en` nor `comentario`; update `PuedenUsarLaCadenaDelDueno` and `SuperficiePublicaDeApplication` (98 today) only by what the change adds; ratify nothing unless the `causa` CHECK is later replaced
-- [ ] 3.6 Test: aggregate correctness against a seeded set (rates, reasons, causes, coverage, once-per-turn "with problems", policy turns excluded from the rates and counted separately, trend omitted below 20 votes)
-- [ ] 3.7 Test: the trend compares against the previous period of equal length and is marked unavailable outside retention
-- [ ] 3.8 Test: no endpoint returns `comentario` or `actualizado_en` (response-shape scan plus a seeded comment that must not appear)
-- [ ] 3.9 Test: the problem list returns 403 without `asistente.revisar_calidad`, including for a holder of `asistente.administrar` alone
-- [ ] 3.10 Test: a successful problem-list read writes exactly one audit row, and a refused read writes none
-- [ ] 3.11 Test: aggregates return 403 without `asistente.administrar`
+- [x] 3.1 Aggregate reader `ConsultasDeCalidad` reading only `registro_analitico` and `retroalimentacion_turno`, never `actualizado_en` or `comentario` (negative rate, negatives by reason, failures by cause, problems once per turn, coverage, per-model table with turn counts, series by `dia`, previous-period trend omitted below 20 votes in either period); policy-family turns excluded from numerators and denominators and returned as a separate count by policy cause
+- [x] 3.2 `GET api/asistente/administracion/calidad?periodo=7|30|90&modelo=` (policy `asistente.administrar`); reject any other period; no route collides with `uso`, `presupuestos`, `servidor-local`, `tope-organizacional`, `mantenimiento`
+- [x] 3.3 `GET api/asistente/administracion/calidad/problemas?periodo&modelo&tipo=negativa|fallo|reemplazo&pagina` (permission `asistente.revisar_calidad`) returning anonymous rows: question text, reason or cause, type, model, day, state
+- [x] 3.4 Audit every successful read of the problem list into `asistente.auditoria_revision_de_calidad` (reader, moment, filters, row count), written before responding, append-only, following `auditoria_acceso_historial`
+- [x] 3.5 Extend `ArquitecturaAsistenteTests` (a new rule: no allowlist of `retroalimentacion_turno` readers exists today): only the quality readers may read `retroalimentacion_turno`; they reference neither `registro_operativo`, an actor column, `actualizado_en` nor `comentario`; update `PuedenUsarLaCadenaDelDueno`, `PuedenConstruirConexion` and `SuperficiePublicaDeApplication` only by what the change adds (the cap went from 100 to 111: three ports and eight response records); the only ratification is the `causa` CHECK, already added by name to `ReemplazosDeCheckRatificados` in slice 2 (`registro_analitico_causa_valida`, because a 22-code CHECK needs commas that the single permitted `ALTER TABLE` shape forbids), and this section ratifies nothing further
+- [x] 3.6 Test: aggregate correctness against a seeded set (rates, reasons, causes, coverage, once-per-turn "with problems", policy turns excluded from the rates and counted separately, trend omitted below 20 votes)
+- [x] 3.7 Test: the trend compares against the previous period of equal length and is marked unavailable outside retention
+- [x] 3.8 Test: no endpoint returns `comentario` or `actualizado_en` (response-shape scan plus a seeded comment that must not appear)
+- [x] 3.9 Test: the problem list returns 403 without `asistente.revisar_calidad`, including for a holder of `asistente.administrar` alone
+- [x] 3.10 Test: a successful problem-list read writes exactly one audit row, and a refused read writes none
+- [x] 3.11 Test: aggregates return 403 without `asistente.administrar`
 
 ## 4. Frontend: "Calidad" tab
 

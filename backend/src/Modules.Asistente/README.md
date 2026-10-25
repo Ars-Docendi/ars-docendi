@@ -393,6 +393,18 @@ Tres decisiones que conviene no deshacer sin leer:
   `precio.cargar` (las de clave registran sólo empresa y pista).
 - `GET /api/asistente/administracion/uso` — panel de uso por usuario, por rol y
   organizacional. Ver «Administración de uso» más abajo.
+- `GET /api/asistente/administracion/calidad?periodo=7|30|90&modelo=` — métricas de calidad
+  agregadas (`asistente-metricas-de-calidad`), exige `asistente.administrar`. Tasa negativa,
+  motivos, fallos por causa, cobertura de voto, tabla por modelo, serie por día (por semana a
+  90 días) y tendencia contra el período anterior, omitida con menos de 20 votos en cualquiera
+  de los dos. Los turnos denegados por política quedan fuera de toda tasa y se devuelven
+  aparte. El día de un voto es el de su turno.
+- `GET /api/asistente/administracion/calidad/problemas?periodo=&modelo=&tipo=&pagina=` — la
+  lista anónima de respuestas con problemas (pregunta, motivo o causa, tipo, modelo, día,
+  estado), exige `asistente.revisar_calidad` (sembrado a ningún rol; tener sólo
+  `asistente.administrar` da `403`). Cada lectura exitosa escribe una fila en
+  `asistente.auditoria_revision_de_calidad` antes de responder; una rechazada no escribe nada.
+  Ni ésta ni la anterior devuelven el comentario ni la hora de un voto, ni a ningún actor.
 - `PUT /api/asistente/administracion/presupuestos/roles/{rol}` — edita el cupo diario
   default de un rol.
 - `PUT /api/asistente/administracion/presupuestos/usuarios/{actorId}` — edita el
