@@ -19,9 +19,10 @@ last_updated: 2026-09-26
 ## Resumen
 
 Tres pantallas hoy separadas —Dashboard del sistema, Registros de auditoría y Uso del
-asistente— se unifican en una sola sección «Sistema» (`/sistema`) con tres tabs
-permission-gated: **Estado**, **Asistente** y **Auditoría**. Cada tab conserva su propio
-permiso; ninguno nuevo se crea ni se amplía. Prioriza diagnóstico rápido («¿está todo
+asistente— se unifican en una sola sección «Sistema» (`/sistema`) con tabs
+permission-gated: **Estado**, **Asistente** y **Auditoría**; `asistente-modelo-en-caliente`
+agrega **Modelo** entre Asistente y Auditoría. Cada tab conserva su propio
+permiso (Modelo usa el de Asistente, `asistente.administrar`); ninguno nuevo se crea ni se amplía. Prioriza diagnóstico rápido («¿está todo
 funcionando y qué cambió últimamente?»), trazabilidad comprensible de un feed de auditoría que
 ahora cruza dos fuentes, privacidad, y consistencia con la interfaz institucional existente.
 
@@ -41,7 +42,7 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
    servicios, uso del asistente y registros de auditoría.» y un botón secundario
    «Actualizar» que refetchea sólo la tab activa (con estado «Actualizando…» y deshabilitado
    mientras corre).
-2. Ve las tabs Estado · Asistente · Auditoría, cada una con un punto de estado junto al nombre
+2. Ve las tabs Estado · Asistente · Modelo · Auditoría, cada una con un punto de estado junto al nombre
    (sano / con problemas / en mantenimiento / pendiente). La tab inicial es la del hash de la
    URL si es válido y permitido; si no, la primera tab permitida en ese orden. Cambiar de tab
    agrega una entrada de historial (Atrás vuelve a la tab anterior).
@@ -59,7 +60,10 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
    KPIs organizacionales del período + el tope mensual, y el detalle por usuario/rol en dos
    tabs con buscador, columnas ordenables, y el cupo diario editado directo en la fila (nunca
    escribiendo un código de rol ni un UUID).
-6. En **Auditoría**, busca por texto libre, período (Hoy / 7 días / 30 días / Todo, default 7
+6. En **Modelo** (`asistente.administrar`), ve qué modelo responde y de dónde sale, elige entre
+   «Modelo local» y «API en la nube», prueba la conexión y recién entonces aplica el cambio
+   (detalle en «Layout / IA» y «Copy exacto»).
+7. En **Auditoría**, busca por texto libre, período (Hoy / 7 días / 30 días / Todo, default 7
    días), chips de Acción y de Módulo, y filtros adicionales colapsados (Desde, Hasta, Tabla,
    Clave de fila). La lista agrupa por día; abrir una fila muestra el detalle en un panel
    lateral, no en un modal — la lista se angosta, nada la tapa.
@@ -115,6 +119,27 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   también ↺ para volver al del rol, y sin acceso el cupo se atenúa y el lápiz se deshabilita.
   En «Por rol», el interruptor prende y apaga el acceso del rol. No hay gráfico de tendencia
   por día: requiere datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8 y §13).
+- **Modelo** (`asistente-modelo-en-caliente`): el `PanelModeloDelAsistente`, también compuesto
+  desde `app/router.tsx`, con `<h2>«Modelo del asistente»` + copete. De arriba abajo: (1) banner
+  «En uso: {empresa/modelo}» con los estilos del banner de mantenimiento, el origen (configuración
+  del servidor o elegido desde la pantalla), una nota de enmascaramiento cuando la selección de
+  pantalla es una API en la nube, y «Volver a la configuración del servidor» sólo si el origen es
+  la pantalla; (2) dos tarjetas-radio «Modelo local» / «API en la nube» con pill «En uso» en la
+  vigente; (3) una tarjeta de configuración. **Local**: select «Servidor» (sólo los configurados,
+  por nombre: «Servicio de inferencia compartido», «Servidor propio»; con tooltip de ayuda que
+  explica que las credenciales viven en la configuración del servidor) y select «Modelo» del
+  catálogo; sin campo de URL ni de credencial. **Nube**: lista propia (`listbox`) agrupada por
+  empresa, con el estado de la clave en el encabezado de cada grupo (guardada, en verde / «falta
+  la clave», en ámbar), tilde en la opción elegida y pill «En uso»; operable con flechas,
+  Inicio/Fin, Enter/Espacio, Esc y clic afuera. Debajo, «Clave de {empresa}»: campo de
+  contraseña si falta (se guarda cifrada al aplicar), o sólo la pista «••••1234» con
+  «Reemplazar», que abre un panel aparte donde la clave actual «sigue en uso hasta que confirmes
+  el reemplazo»; «Confirmar reemplazo» la valida con el proveedor y, si falla, la vieja queda;
+  (4) «Probar conexión» y «Aplicar cambio», este último deshabilitado hasta que la prueba del
+  destino y de la clave elegidos pase (cambiar cualquiera de los dos lo vuelve a deshabilitar),
+  con una confirmación en línea que dice que los turnos en curso terminan con el modelo actual;
+  (5) «Cambios del modelo», con los estilos `sistema-cambios-*`, sólo con `auditoria.ver`. El
+  formulario de precio llega con el slice 5 del mismo change.
 - **Auditoría**: panel de filtros arriba (búsqueda + período como grupo de botones + chips de
   Acción/Módulo + «Más filtros» colapsable con badge de cuántos están activos), luego una
   grilla de dos columnas `minmax(0,1fr) 380px` cuando el detalle está abierto — la lista angosta
@@ -246,7 +271,7 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
 
 - Header: «Sistema»; bajada «Estado de los servicios, uso del asistente y registros de
   auditoría.»; botón «Actualizar» / «Actualizando…».
-- Tabs: «Estado», «Asistente», «Auditoría».
+- Tabs: «Estado», «Asistente», «Modelo», «Auditoría».
 - Banner Estado: «Todos los componentes disponibles» / «N de N responden con normalidad.»;
   «1 componente no disponible» / «N componentes no disponibles» + «El resto funciona con
   normalidad.» (omitido si no queda ninguno disponible); «Todo disponible, asistente en
@@ -259,6 +284,21 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
   separado», «Estado de mantenimiento sin comprobar»; botones «Reintentar», «Ver uso →».
 - Cambios recientes: título «Cambios recientes»; enlace «Ver todo en Auditoría →»; vacío
   «Todavía no hay cambios registrados.»; horas «Hoy HH:mm» / «Ayer HH:mm» / «d/m HH:mm».
+- Modelo: título «Modelo del asistente»; copete «Elegí si responde el modelo local o una API en la
+  nube. Cada empresa guarda su propia clave, y el cambio rige desde el próximo turno sin reiniciar
+  el servidor.»; banner «En uso: {empresa/modelo}» / «Configuración del servidor: tomada de las
+  variables de entorno al iniciar.» o «Elegido desde esta pantalla. Rige desde el próximo turno.»
+  / «Con una API en la nube, los datos personales viajan siempre enmascarados.» / «Volver a la
+  configuración del servidor»; tarjetas «Modelo local» / «API en la nube» (pill «En uso»); campos
+  «Servidor», «Modelo», «Clave de {empresa}» («Pegá la clave de API»), «Reemplazar», «Nueva clave
+  de API», «Confirmar reemplazo» / «Probando la nueva clave…»; «No se reemplazó.» + motivo + «La
+  clave ••••{pista} sigue en uso.»; «Probar conexión», «Aplicar cambio», «Para aplicar, primero la
+  prueba tiene que pasar.»; «Conexión correcta.» / «{empresa/modelo} respondió en {N} ms.»; «La
+  prueba falló.» + motivo + «No se guardó nada.»; `saturado`: «El servicio está ocupado, probá en
+  unos segundos.» (aviso, no fallo); confirmación «¿Cambiar el modelo?» / «Desde el próximo turno
+  el asistente responde con {destino}. Los turnos en curso terminan con {vigente}.» / «Cancelar»
+  / «Confirmar cambio»; sin clave maestra «Guardar claves no está disponible…»; lista «Cambios del
+  modelo» con «Ver todo en Auditoría →».
 - Asistente: título «Uso del asistente»; copete «Consumo, presupuestos, acceso y
   mantenimiento.»; período «Hoy» / «7 días» / «30 días»; botón «Exportar CSV»; banner
   «Asistente disponible» / «Todos los usuarios con permiso pueden consultar.» / «Activar

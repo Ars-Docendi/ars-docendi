@@ -62,22 +62,22 @@
 
 ## 4. Slice 4 — Frontend "Modelo" tab
 
-- [ ] 4.1 `frontend/src/features/sistema/hooks/useSeccionSistema.ts` — add `modelo` to `IdPestanaSistema`, `ORDEN` (Estado, Asistente, Modelo, then Calidad and Auditoría) and `PERMISO_POR_PESTANA` (`asistente.administrar`); `pages/SistemaPage.tsx` — `NOMBRES_PESTANAS`, the tab content, the "Actualizar" prefix (`prefijoActivo`, a `modelo` query-key prefix) and the status-dot tone (neutral). `app/shell/nav.ts` needs no change: the Sistema item already accepts any of `sistema.estado.ver`, `asistente.administrar`, `auditoria.ver`
-- [ ] 4.2 API hooks for the endpoints in slice 3 (React Query, the single axios instance)
-- [ ] 4.3 "En uso" banner reusing the `adoc-asistente-admin-mantenimiento` styles from `features/asistente/asistente.css` (or the Sistema equivalents), with "Volver a la configuración del servidor", and a note when masking is active because a cloud model is selected
-- [ ] 4.4 Two radio cards, "Modelo local" and "API en la nube"
-- [ ] 4.5 Local panel: server select listing only the configured local servers by name ("Servicio de inferencia compartido", "Servidor propio"), model select from the catalog, help tooltip explaining credentials live in server configuration. No URL or credential field
-- [ ] 4.6 Cloud panel: custom listbox grouped by company, group header shows key status (saved hint in green, missing in amber), check mark on the selected option, "En uso" pill; keyboard operable (arrows, Enter, Esc, click outside)
-- [ ] 4.7 Key field "Clave de {empresa}" appears when the company has no key and is saved on apply
-- [ ] 4.8 "Probar conexión" then "Aplicar cambio" (disabled until the test passes), with inline confirmation stating in-flight turns finish on the current model; `saturado` is shown as "El servicio está ocupado, probá en unos segundos", not as a failure
-- [ ] 4.9 Key replacement panel: current key stays visible ("Sigue en uso hasta que confirmes el reemplazo"), "Confirmar reemplazo" validates first, failure keeps the old key
-- [ ] 4.10 "Cambios del modelo" list reusing `sistema-cambios-*` styles from `sistema.css`, linking to Auditoría
-- [ ] 4.11 Reuse existing classes and `@ars-docendi/ui` components; no placeholder controls
-- [ ] 4.12 Vitest (`SistemaPage.test.tsx`, `routes.test.tsx`): tab hidden without the permission and shown with it, after "Asistente"
-- [ ] 4.13 Vitest: listbox keyboard behavior (arrows, Enter, Esc, click outside)
-- [ ] 4.14 Vitest: "Aplicar cambio" disabled until the connection test passes, and disabled again when the selection changes
-- [ ] 4.15 Vitest: replacement flow keeps the old key visible on failure and updates the hint on success
-- [ ] 4.16 Update the design spec for the Sistema screen (`docs/product/designs/administracion-sistema-design-spec.md` and `docs/product/designs/asistente-conversacional-design-spec.md`) where they describe the Sistema tabs (AGENTS.md rule 9)
+- [x] 4.1 `frontend/src/features/sistema/hooks/useSeccionSistema.ts` — add `modelo` to `IdPestanaSistema`, `ORDEN` (Estado, Asistente, Modelo, then Calidad and Auditoría) and `PERMISO_POR_PESTANA` (`asistente.administrar`); `pages/SistemaPage.tsx` — `NOMBRES_PESTANAS`, the tab content, the "Actualizar" prefix (`prefijoActivo`, a `modelo` query-key prefix) and the status-dot tone (neutral). `app/shell/nav.ts` needs no change: the Sistema item already accepts any of `sistema.estado.ver`, `asistente.administrar`, `auditoria.ver`
+- [x] 4.2 API hooks for the endpoints in slice 3 (React Query, the single axios instance)
+- [x] 4.3 "En uso" banner reusing the `adoc-asistente-admin-mantenimiento` styles from `features/asistente/asistente.css` (or the Sistema equivalents), with "Volver a la configuración del servidor", and a note when masking is active because a cloud model is selected
+- [x] 4.4 Two radio cards, "Modelo local" and "API en la nube"
+- [x] 4.5 Local panel: server select listing only the configured local servers by name ("Servicio de inferencia compartido", "Servidor propio"), model select from the catalog, help tooltip explaining credentials live in server configuration. No URL or credential field
+- [x] 4.6 Cloud panel: custom listbox grouped by company, group header shows key status (saved hint in green, missing in amber), check mark on the selected option, "En uso" pill; keyboard operable (arrows, Enter, Esc, click outside)
+- [x] 4.7 Key field "Clave de {empresa}" appears when the company has no key and is saved on apply
+- [x] 4.8 "Probar conexión" then "Aplicar cambio" (disabled until the test passes), with inline confirmation stating in-flight turns finish on the current model; `saturado` is shown as "El servicio está ocupado, probá en unos segundos", not as a failure
+- [x] 4.9 Key replacement panel: current key stays visible ("Sigue en uso hasta que confirmes el reemplazo"), "Confirmar reemplazo" validates first, failure keeps the old key
+- [x] 4.10 "Cambios del modelo" list reusing `sistema-cambios-*` styles from `sistema.css`, linking to Auditoría
+- [x] 4.11 Reuse existing classes and `@ars-docendi/ui` components; no placeholder controls
+- [x] 4.12 Vitest (`SistemaPage.test.tsx`, `routes.test.tsx`): tab hidden without the permission and shown with it, after "Asistente"
+- [x] 4.13 Vitest: listbox keyboard behavior (arrows, Enter, Esc, click outside)
+- [x] 4.14 Vitest: "Aplicar cambio" disabled until the connection test passes, and disabled again when the selection changes
+- [x] 4.15 Vitest: replacement flow keeps the old key visible on failure and updates the hint on success
+- [x] 4.16 Update the design spec for the Sistema screen (`docs/product/designs/administracion-sistema-design-spec.md` and `docs/product/designs/asistente-conversacional-design-spec.md`) where they describe the Sistema tabs (AGENTS.md rule 9)
 
 ## 5. Slice 5 — Price write path and form
 

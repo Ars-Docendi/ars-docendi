@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { Button, Tabs } from "@ars-docendi/ui";
 import type { TabItem } from "@ars-docendi/ui";
@@ -13,20 +13,27 @@ import { resumirSalud, type EstadoDePunto } from "../utils/resumirSalud";
 import { PuntoDeEstado } from "../components/PuntoDeEstado";
 import { PestanaEstado } from "../components/PestanaEstado";
 import { PestanaAuditoria } from "../components/PestanaAuditoria";
+import { CambiosDelModelo } from "../components/CambiosDelModelo";
 import "../sistema.css";
 
 interface SistemaPageProps {
   /** El panel de uso del asistente, compuesto desde `app/router.tsx` (design D8). */
   PanelAsistente: ComponentType<{ actualizacion?: number }>;
+  /** La pestaña «Modelo», compuesta desde `app/router.tsx` igual que el panel de uso. */
+  PanelModelo: ComponentType<{ cambios?: ReactNode }>;
 }
 
 const NOMBRES_PESTANAS: Record<IdPestanaSistema, string> = {
   estado: "Estado",
   asistente: "Asistente",
+  modelo: "Modelo",
   auditoria: "Auditoría",
 };
 
 const PREFIJO_ASISTENTE = ["asistente"] as const;
+// El estado del modelo y «Cambios del modelo» comparten este prefijo: es lo que
+// «Actualizar» refresca en la pestaña Modelo.
+const PREFIJO_MODELO = ["modelo"] as const;
 const PREFIJO_AUDITORIA = ["administracion", "auditoria"] as const;
 // «Cambios recientes» se ve en la pestaña Estado pero su clave cuelga de la
 // auditoría: sin nombrarla, «Actualizar» en Estado la dejaba vieja.
@@ -52,7 +59,7 @@ function etiquetaAsistente(tono: EstadoDePunto): string {
  * (design D10); react-query comparte la misma clave de query, así que no hay
  * pedidos duplicados cuando la pestaña Estado también las usa.
  */
-export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
+export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
   const { user } = useCurrentUser();
   const permisos = user?.permissions ?? [];
   const puedeEstado = permisos.includes("sistema.estado.ver");
@@ -77,7 +84,9 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
       ? PREFIJO_SALUD
       : pestanaActiva === "auditoria"
         ? PREFIJO_AUDITORIA
-        : PREFIJO_ASISTENTE;
+        : pestanaActiva === "modelo"
+          ? PREFIJO_MODELO
+          : PREFIJO_ASISTENTE;
   const cantidadEnCurso = useIsFetching({ queryKey: prefijoActivo });
   const recientesEnCurso = useIsFetching({ queryKey: CLAVE_RECIENTES });
   const conRecientes = pestanaActiva === "estado" && puedeAuditoria;
@@ -171,6 +180,18 @@ export function SistemaPage({ PanelAsistente }: SistemaPageProps) {
           />
         )}
         {pestanaActiva === "asistente" && <PanelAsistente actualizacion={contadorAsistente} />}
+        {pestanaActiva === "modelo" && (
+          <PanelModelo
+            cambios={
+              puedeAuditoria ? (
+                <CambiosDelModelo
+                  onAbrirCambio={irAAuditoriaConEvento}
+                  onVerTodo={irATodaLaAuditoria}
+                />
+              ) : undefined
+            }
+          />
+        )}
         {pestanaActiva === "auditoria" && <PestanaAuditoria />}
       </div>
     </main>

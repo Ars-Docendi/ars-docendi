@@ -427,6 +427,19 @@ viva sin mover el foco. El banner de mantenimiento y el indicador de cupo son le
 de pantalla sin depender de `hover` ni de `title` — nunca la única forma de enterarse de una causa
 de bloqueo.
 
+## Modelo del asistente (asistente-modelo-en-caliente)
+
+La elección del modelo que responde deja de ser sólo configuración del servidor y pasa a tener
+una pestaña **Modelo** dentro de la sección «Sistema» (`/sistema#modelo`, permiso
+`asistente.administrar`, a continuación de la pestaña Asistente). Su layout, estados, copy y
+accesibilidad —banner «En uso», tarjetas «Modelo local» / «API en la nube», lista agrupada por
+empresa con el estado de la clave, reemplazo de clave que valida antes de reemplazar, «Probar
+conexión» antes de «Aplicar cambio» y confirmación en línea— están en
+[administracion-sistema-design-spec.md](administracion-sistema-design-spec.md), que es la dueña de
+la pantalla. Lo que importa para el asistente: el cambio rige desde el **próximo turno**, un
+turno en curso termina con el modelo con que empezó, y con una API en la nube la redacción siempre
+enmascara los datos personales aunque el ambiente diga lo contrario.
+
 ## Rediseño v3 — modal con historial integrado (asistente-rediseno-v3)
 
 Sección agregada por `asistente-rediseno-v3` (épica ARS-140, decisiones del 2026-09-26).

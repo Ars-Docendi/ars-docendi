@@ -22,3 +22,6 @@ export { LanzadorAsistente } from "./components/LanzadorAsistente";
 // alcanzar `components/…` directo, el import profundo cross-frontera que
 // `no-restricted-imports` prohíbe.
 export { PanelAdministracionAsistente } from "./components/PanelAdministracionAsistente";
+// La pestaña «Modelo» de Sistema (asistente-modelo-en-caliente, tarea 4): se
+// compone desde `app/router.tsx` igual que el panel de uso, por la misma razón.
+export { PanelModeloDelAsistente } from "./components/PanelModeloDelAsistente";

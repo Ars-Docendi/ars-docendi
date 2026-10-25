@@ -3187,3 +3187,273 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ============================================================
+   Pestaña «Modelo» de Sistema (asistente-modelo-en-caliente, tarea 4).
+   Reusa `adoc-asistente-admin-*` (banner, acciones) y las clases `sistema-*`
+   de tarjeta, pill y cambios; acá sólo lo propio de esta pestaña.
+   ============================================================ */
+
+.adoc-asistente-modelo-mono {
+  font-family: var(--font-mono);
+}
+
+.adoc-asistente-modelo-modalidades {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.adoc-asistente-modelo-tarjeta {
+  cursor: pointer;
+}
+
+.adoc-asistente-modelo-tarjeta--activa {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.adoc-asistente-modelo-configuracion {
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.adoc-asistente-modelo-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+}
+
+.adoc-asistente-modelo-subpanel {
+  gap: var(--space-3);
+  background: var(--color-bg-surface);
+}
+
+.adoc-asistente-modelo-clave-guardada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 6px 6px 12px;
+  border: var(--border-default) solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  font-size: var(--text-body-sm-size);
+}
+
+.adoc-asistente-modelo-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: var(--space-4);
+  border-top: var(--border-default) solid var(--color-border-subtle);
+}
+
+.adoc-asistente-modelo-acciones-pista {
+  margin-right: auto;
+}
+
+/* ---------- Ayuda con tooltip ---------- */
+
+.adoc-asistente-modelo-etiqueta {
+  display: flex;
+  align-items: center;
+}
+
+.adoc-asistente-modelo-ayuda {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.adoc-asistente-modelo-ayuda-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: help;
+}
+
+.adoc-asistente-modelo-ayuda-boton:hover,
+.adoc-asistente-modelo-ayuda-boton:focus-visible {
+  color: var(--color-accent);
+}
+
+.adoc-asistente-modelo-ayuda-burbuja {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 10;
+  width: 300px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+  font-size: var(--text-caption-size);
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+
+.adoc-asistente-modelo-ayuda:hover .adoc-asistente-modelo-ayuda-burbuja,
+.adoc-asistente-modelo-ayuda:focus-within .adoc-asistente-modelo-ayuda-burbuja {
+  display: block;
+}
+
+/* ---------- Lista de modelos en la nube (listbox) ---------- */
+
+.adoc-asistente-modelo-lista {
+  position: relative;
+}
+
+.adoc-asistente-modelo-lista-boton {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 12px;
+  border: var(--border-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adoc-asistente-modelo-lista-boton:hover {
+  border-color: var(--color-border-ink);
+}
+
+.adoc-asistente-modelo-lista-boton:focus-visible {
+  outline: var(--border-focus) solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+
+.adoc-asistente-modelo-lista-valor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.adoc-asistente-modelo-lista-nombre {
+  font-family: var(--font-mono);
+  font-size: var(--text-body-sm-size);
+  font-weight: 500;
+}
+
+.adoc-asistente-modelo-lista-sub {
+  font-size: var(--text-caption-size);
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-modelo-lista-chevron {
+  flex: none;
+  color: var(--color-text-tertiary);
+}
+
+.adoc-asistente-modelo-lista-boton[aria-expanded="true"] .adoc-asistente-modelo-lista-chevron {
+  transform: rotate(180deg);
+}
+
+.adoc-asistente-modelo-lista-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  max-height: 340px;
+  overflow: auto;
+  padding: var(--space-1) 0;
+  border: var(--border-default) solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.adoc-asistente-modelo-lista-panel:focus-visible {
+  outline: var(--border-focus) solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+
+.adoc-asistente-modelo-lista-grupo + .adoc-asistente-modelo-lista-grupo {
+  border-top: var(--border-default) solid var(--color-border-subtle);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+}
+
+.adoc-asistente-modelo-lista-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 6px 12px 4px;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.adoc-asistente-modelo-lista-clave {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.adoc-asistente-modelo-lista-clave--con {
+  color: var(--color-status-success-fg);
+}
+
+.adoc-asistente-modelo-lista-clave--sin {
+  color: var(--color-status-warning-fg);
+}
+
+.adoc-asistente-modelo-lista-opcion {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.adoc-asistente-modelo-lista-opcion--activa {
+  background: var(--color-bg-surface);
+}
+
+.adoc-asistente-modelo-lista-opcion--elegida {
+  background: var(--color-accent-subtle);
+}
+
+.adoc-asistente-modelo-lista-check {
+  width: 16px;
+  flex: none;
+  display: inline-flex;
+  color: var(--color-accent);
+}
+
+.adoc-asistente-modelo-lista-opcion-nombre {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--text-body-sm-size);
+}
+
+@media (max-width: 640px) {
+  .adoc-asistente-modelo-modalidades,
+  .adoc-asistente-modelo-campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,8 +1,13 @@
 import { apiClient } from "../../../shared/api/client";
 import type {
+  CredencialReemplazada,
+  EstadoDelModelo,
   MantenimientoDelAsistente,
+  ModeloAplicado,
+  PedidoDeModelo,
   PeriodoDeUso,
   PresupuestosDelAsistente,
+  ResultadoDePrueba,
   ServidorLocal,
   UsoDelAsistente,
 } from "../types";
@@ -96,6 +101,60 @@ export async function editarMantenimiento(
 export async function obtenerServidorLocal(): Promise<ServidorLocal> {
   const { data } = await apiClient.get<ServidorLocal>(
     "/api/asistente/administracion/servidor-local",
+  );
+  return data;
+}
+
+/**
+ * Lo que está en uso, los servidores locales configurados y el catálogo con el
+ * estado de la clave de cada empresa (asistente-modelo-en-caliente).
+ */
+export async function obtenerEstadoDelModelo(): Promise<EstadoDelModelo> {
+  const { data } = await apiClient.get<EstadoDelModelo>("/api/asistente/administracion/modelo");
+  return data;
+}
+
+/**
+ * Una llamada mínima real, sin persistir nada. Una prueba que falla es un 200
+ * con `exito: false` y un código; un pedido inválido (400) o sin clave maestra
+ * (503) sí rechaza la promesa.
+ */
+export async function probarModelo(pedido: PedidoDeModelo): Promise<ResultadoDePrueba> {
+  const { data } = await apiClient.post<ResultadoDePrueba>(
+    "/api/asistente/administracion/modelo/prueba",
+    pedido,
+  );
+  return data;
+}
+
+/**
+ * Re-prueba en el servidor, guarda la clave nueva si viene y fija el modelo.
+ * Si la prueba falla responde 422 con `codigo` y no cambia nada.
+ */
+export async function aplicarModelo(pedido: PedidoDeModelo): Promise<ModeloAplicado> {
+  const { data } = await apiClient.put<ModeloAplicado>(
+    "/api/asistente/administracion/modelo",
+    pedido,
+  );
+  return data;
+}
+
+/** Vuelve a la configuración del servidor. Las claves guardadas se conservan. */
+export async function restablecerModelo(): Promise<void> {
+  await apiClient.delete("/api/asistente/administracion/modelo");
+}
+
+/**
+ * Valida la clave nueva contra el proveedor y la reemplaza sólo si pasa; si
+ * falla, 422 y la vieja sigue guardada y en uso.
+ */
+export async function reemplazarClaveDeEmpresa(
+  empresa: string,
+  clave: string,
+): Promise<CredencialReemplazada> {
+  const { data } = await apiClient.post<CredencialReemplazada>(
+    `/api/asistente/administracion/credenciales/${encodeURIComponent(empresa)}/reemplazo`,
+    { clave },
   );
   return data;
 }

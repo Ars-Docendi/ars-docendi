@@ -515,3 +515,69 @@ export interface TurnoHistoricoEnCurso {
   /** El último resultado de «volver a consultar», si se pidió. */
   reejecucion?: ReejecucionResultado;
 }
+
+// ============================================================
+// Modelo y claves de proveedor (asistente-modelo-en-caliente, slice 3).
+// Ver docs/architecture/api-contracts.md §«Modelo y claves de proveedor».
+//
+// Ningún tipo de RESPUESTA tiene un campo capaz de llevar una clave: sólo la
+// pista de cuatro caracteres. La clave existe únicamente en `PedidoDeModelo` y
+// `claveNueva`, que viajan de la pantalla al servidor y no vuelven.
+// ============================================================
+
+/** `servidor` es la configuración del ambiente; `pantalla`, una selección guardada. */
+export type OrigenDelModelo = "servidor" | "pantalla";
+
+export interface ModeloEnUso {
+  origen: OrigenDelModelo;
+  empresa: string;
+  modelo: string;
+}
+
+export interface CredencialDeEmpresa {
+  estado: "guardada" | "faltante";
+  /** Los últimos cuatro caracteres; `null` cuando falta la clave. */
+  pista: string | null;
+}
+
+/** Un grupo del catálogo. Los grupos `local` no llevan credencial. */
+export interface EmpresaDelCatalogo {
+  empresa: string;
+  tipo: "nube" | "local";
+  credencial: CredencialDeEmpresa | null;
+  modelos: string[];
+}
+
+export interface EstadoDelModelo {
+  enUso: ModeloEnUso;
+  /** Identificadores (`ollama`, `local`) de los servidores configurados; nunca una URL. */
+  servidoresLocales: string[];
+  catalogo: EmpresaDelCatalogo[];
+  /** `false` cuando falta la clave maestra: guardar claves no está disponible. */
+  cifradoDisponible: boolean;
+}
+
+export interface PedidoDeModelo {
+  empresa: string;
+  modelo: string;
+  /** Una clave todavía no guardada, de una empresa en la nube. */
+  claveNueva?: string;
+}
+
+/** `exito: false` es una respuesta 200: la prueba corrió y el proveedor no la aceptó. */
+export interface ResultadoDePrueba {
+  exito: boolean;
+  latenciaMs: number | null;
+  codigo: string | null;
+}
+
+export interface ModeloAplicado {
+  enUso: ModeloEnUso;
+  latenciaMs: number;
+  pista: string | null;
+}
+
+export interface CredencialReemplazada {
+  empresa: string;
+  pista: string;
+}

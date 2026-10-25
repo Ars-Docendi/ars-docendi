@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { Navigate, type RouteObject } from "react-router-dom";
 
 import { RequirePermission } from "../../shared/auth/RequirePermission";
@@ -8,6 +8,11 @@ const PERMISOS_SISTEMA = ["sistema.estado.ver", "asistente.administrar", "audito
 interface CrearRutasProps {
   /** El panel de uso del asistente, compuesto por `app/router.tsx` (design D8). */
   PanelAsistente: ComponentType<{ actualizacion?: number }>;
+  /**
+   * La pestaña «Modelo», también compuesta por `app/router.tsx`: recibe como
+   * `cambios` la lista de cambios del modelo que arma esta feature.
+   */
+  PanelModelo: ComponentType<{ cambios?: ReactNode }>;
 }
 
 /**
@@ -16,7 +21,7 @@ interface CrearRutasProps {
  * componente del panel de uso llega como parámetro desde `app/router.tsx`,
  * la raíz de composición autorizada a importar ambos barrels.
  */
-export function crearRutas({ PanelAsistente }: CrearRutasProps): RouteObject[] {
+export function crearRutas({ PanelAsistente, PanelModelo }: CrearRutasProps): RouteObject[] {
   return [
     {
       element: <RequirePermission permission={PERMISOS_SISTEMA} />,
@@ -25,7 +30,9 @@ export function crearRutas({ PanelAsistente }: CrearRutasProps): RouteObject[] {
           path: "/sistema",
           lazy: () =>
             import("./pages/SistemaPage").then(({ SistemaPage }) => ({
-              Component: () => <SistemaPage PanelAsistente={PanelAsistente} />,
+              Component: () => (
+                <SistemaPage PanelAsistente={PanelAsistente} PanelModelo={PanelModelo} />
+              ),
             })),
         },
       ],

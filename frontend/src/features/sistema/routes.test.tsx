@@ -15,6 +15,10 @@ function PanelAsistenteDePrueba() {
   return <p>Panel de asistente</p>;
 }
 
+function PanelModeloDePrueba() {
+  return <p>Panel de modelo</p>;
+}
+
 const usuario: CurrentUserState = {
   user: {
     id: "a0000000-0000-4000-8000-000000000099",
@@ -42,7 +46,7 @@ function montar(entrada: string) {
   const router = createMemoryRouter(
     [
       { path: "/", element: <p>Inicio</p> },
-      ...crearRutas({ PanelAsistente: PanelAsistenteDePrueba }),
+      ...crearRutas({ PanelAsistente: PanelAsistenteDePrueba, PanelModelo: PanelModeloDePrueba }),
     ],
     { initialEntries: [entrada] },
   );
@@ -102,6 +106,25 @@ describe("/sistema — cualquiera de los tres permisos alcanza", () => {
     montar("/sistema");
 
     expect(await screen.findByText("Inicio")).toBeInTheDocument();
+  });
+});
+
+describe("/sistema#modelo — la pestaña sigue el permiso del asistente", () => {
+  it("con asistente.administrar, el hash #modelo muestra el panel del modelo", async () => {
+    conPermisos(["asistente.administrar"]);
+
+    montar("/sistema#modelo");
+
+    expect(await screen.findByText("Panel de modelo")).toBeInTheDocument();
+  });
+
+  it("sin asistente.administrar, el hash #modelo no muestra el panel", async () => {
+    conPermisos(["auditoria.ver"]);
+
+    montar("/sistema#modelo");
+
+    expect(await screen.findByRole("heading", { name: "Sistema" })).toBeInTheDocument();
+    expect(screen.queryByText("Panel de modelo")).not.toBeInTheDocument();
   });
 });
 

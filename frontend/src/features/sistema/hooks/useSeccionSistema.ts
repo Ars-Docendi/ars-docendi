@@ -1,13 +1,14 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-export type IdPestanaSistema = "estado" | "asistente" | "auditoria";
+export type IdPestanaSistema = "estado" | "asistente" | "modelo" | "auditoria";
 
-const ORDEN: readonly IdPestanaSistema[] = ["estado", "asistente", "auditoria"];
+const ORDEN: readonly IdPestanaSistema[] = ["estado", "asistente", "modelo", "auditoria"];
 
 const PERMISO_POR_PESTANA: Record<IdPestanaSistema, string> = {
   estado: "sistema.estado.ver",
   asistente: "asistente.administrar",
+  modelo: "asistente.administrar",
   auditoria: "auditoria.ver",
 };
 
@@ -29,7 +30,7 @@ export interface UseSeccionSistemaResultado {
  * (design D9, sistema-seccion-unificada).
  *
  * La pestaña inicial es la del hash cuando es válida Y permitida; si no, la
- * primera permitida en el orden fijo Estado → Asistente → Auditoría. Cuando
+ * primera permitida en el orden fijo Estado → Asistente → Modelo → Auditoría. Cuando
  * tuvo que corregir, reemplaza la entrada de historial (no agrega una nueva)
  * para que la URL siempre nombre la pestaña que se ve.
  *

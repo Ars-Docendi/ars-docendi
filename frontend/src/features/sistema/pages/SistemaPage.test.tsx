@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -38,12 +39,21 @@ function PanelAsistenteDePrueba({ actualizacion }: { actualizacion?: number }) {
   return <p>Panel de asistente {actualizacion ?? "sin actualizar"}</p>;
 }
 
+function PanelModeloDePrueba({ cambios }: { cambios?: ReactNode }) {
+  return (
+    <div>
+      <p>Panel de modelo</p>
+      {cambios}
+    </div>
+  );
+}
+
 function montar(entrada = "/sistema") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
     <QueryClientProvider client={cliente}>
       <MemoryRouter initialEntries={[entrada]}>
-        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} />
+        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} PanelModelo={PanelModeloDePrueba} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -62,7 +72,7 @@ function montarConUbicacion(entrada = "/sistema#auditoria") {
     <QueryClientProvider client={cliente}>
       <MemoryRouter initialEntries={[entrada]}>
         <Ubicacion />
-        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} />
+        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} PanelModelo={PanelModeloDePrueba} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -100,7 +110,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("SistemaPage — pestañas por permiso (design D9)", () => {
-  it("con los tres permisos: Estado, Asistente y Auditoría en orden, Estado activo, hash #estado", async () => {
+  it("con los tres permisos: Estado, Asistente, Modelo y Auditoría en orden, Estado activo, hash #estado", async () => {
     conPermisos(["sistema.estado.ver", "asistente.administrar", "auditoria.ver"]);
 
     montar("/sistema");
@@ -109,9 +119,51 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
     expect(tabs.map((t) => t.textContent)).toEqual([
       expect.stringContaining("Estado"),
       expect.stringContaining("Asistente"),
+      expect.stringContaining("Modelo"),
       expect.stringContaining("Auditoría"),
     ]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("sin asistente.administrar no hay pestaña Modelo, y su hash cae a la primera permitida", async () => {
+    conPermisos(["sistema.estado.ver", "auditoria.ver"]);
+
+    montar("/sistema#modelo");
+
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      expect.stringContaining("Estado"),
+      expect.stringContaining("Auditoría"),
+    ]);
+    expect(screen.queryByRole("tab", { name: /Modelo/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Panel de modelo")).not.toBeInTheDocument();
+    await waitFor(() => expect(tabs[0]).toHaveAttribute("aria-selected", "true"));
+  });
+
+  it("con asistente.administrar, Modelo aparece justo después de Asistente y se abre por hash", async () => {
+    conPermisos(["asistente.administrar"]);
+
+    montar("/sistema#modelo");
+
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      expect.stringContaining("Asistente"),
+      expect.stringContaining("Modelo"),
+    ]);
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Panel de modelo")).toBeInTheDocument();
+  });
+
+  it("«Cambios del modelo» se entrega al panel sólo con auditoria.ver", async () => {
+    conPermisos(["asistente.administrar"]);
+    const sinAuditoria = montar("/sistema#modelo");
+    expect(await screen.findByText("Panel de modelo")).toBeInTheDocument();
+    expect(screen.queryByText("Cambios del modelo")).not.toBeInTheDocument();
+    sinAuditoria.unmount();
+
+    conPermisos(["asistente.administrar", "auditoria.ver"]);
+    montar("/sistema#modelo");
+    expect(await screen.findByText("Cambios del modelo")).toBeInTheDocument();
   });
 
   it("con un único permiso, sólo esa pestaña se renderiza y ninguna otra hace pedidos", async () => {
@@ -126,16 +178,18 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
     expect(espiaPing).not.toHaveBeenCalled();
   });
 
-  it("dos de tres: Asistente y Auditoría, Asistente activo, sin sondas de salud", async () => {
+  it("dos de tres: Asistente, Modelo y Auditoría, Asistente activo, sin sondas de salud", async () => {
     conPermisos(["asistente.administrar", "auditoria.ver"]);
     const espiaPing = vi.spyOn(sistemaApi, "comprobarPing");
 
     montar("/sistema");
 
     const tabs = await screen.findAllByRole("tab");
-    expect(
-      tabs.map((t) => t.textContent?.includes("Asistente") || t.textContent?.includes("Auditoría")),
-    ).toEqual([true, true]);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      expect.stringContaining("Asistente"),
+      expect.stringContaining("Modelo"),
+      expect.stringContaining("Auditoría"),
+    ]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(espiaPing).not.toHaveBeenCalled();
   });
