@@ -19,6 +19,12 @@ function PanelModeloDePrueba() {
   return <p>Panel de modelo</p>;
 }
 
+function PanelCalidadDePrueba() {
+  return <p>Panel de calidad</p>;
+}
+
+const useCalidadEnAlzaDePrueba = () => false;
+
 const usuario: CurrentUserState = {
   user: {
     id: "a0000000-0000-4000-8000-000000000099",
@@ -46,7 +52,12 @@ function montar(entrada: string) {
   const router = createMemoryRouter(
     [
       { path: "/", element: <p>Inicio</p> },
-      ...crearRutas({ PanelAsistente: PanelAsistenteDePrueba, PanelModelo: PanelModeloDePrueba }),
+      ...crearRutas({
+        PanelAsistente: PanelAsistenteDePrueba,
+        PanelModelo: PanelModeloDePrueba,
+        PanelCalidad: PanelCalidadDePrueba,
+        useCalidadEnAlza: useCalidadEnAlzaDePrueba,
+      }),
     ],
     { initialEntries: [entrada] },
   );
@@ -125,6 +136,25 @@ describe("/sistema#modelo — la pestaña sigue el permiso del asistente", () =>
 
     expect(await screen.findByRole("heading", { name: "Sistema" })).toBeInTheDocument();
     expect(screen.queryByText("Panel de modelo")).not.toBeInTheDocument();
+  });
+});
+
+describe("/sistema#calidad — la pestaña sigue el permiso del asistente", () => {
+  it("con asistente.administrar, el hash #calidad muestra el panel de calidad", async () => {
+    conPermisos(["asistente.administrar"]);
+
+    montar("/sistema#calidad");
+
+    expect(await screen.findByText("Panel de calidad")).toBeInTheDocument();
+  });
+
+  it("sin asistente.administrar, el hash #calidad no muestra el panel", async () => {
+    conPermisos(["auditoria.ver"]);
+
+    montar("/sistema#calidad");
+
+    expect(await screen.findByRole("heading", { name: "Sistema" })).toBeInTheDocument();
+    expect(screen.queryByText("Panel de calidad")).not.toBeInTheDocument();
   });
 });
 

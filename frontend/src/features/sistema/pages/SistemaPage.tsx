@@ -21,12 +21,17 @@ interface SistemaPageProps {
   PanelAsistente: ComponentType<{ actualizacion?: number }>;
   /** La pestaña «Modelo», compuesta desde `app/router.tsx` igual que el panel de uso. */
   PanelModelo: ComponentType<{ cambios?: ReactNode }>;
+  /** La pestaña «Calidad», compuesta desde `app/router.tsx` igual que las otras. */
+  PanelCalidad: ComponentType;
+  /** `true` si la tasa de negativas sube: pone en advertencia el punto de la pestaña. */
+  useCalidadEnAlza: (habilitado: boolean) => boolean;
 }
 
 const NOMBRES_PESTANAS: Record<IdPestanaSistema, string> = {
   estado: "Estado",
   asistente: "Asistente",
   modelo: "Modelo",
+  calidad: "Calidad",
   auditoria: "Auditoría",
 };
 
@@ -34,6 +39,8 @@ const PREFIJO_ASISTENTE = ["asistente"] as const;
 // El estado del modelo y «Cambios del modelo» comparten este prefijo: es lo que
 // «Actualizar» refresca en la pestaña Modelo.
 const PREFIJO_MODELO = ["modelo"] as const;
+// Los agregados y la lista de problemas de calidad cuelgan de este prefijo.
+const PREFIJO_CALIDAD = ["calidad"] as const;
 const PREFIJO_AUDITORIA = ["administracion", "auditoria"] as const;
 // «Cambios recientes» se ve en la pestaña Estado pero su clave cuelga de la
 // auditoría: sin nombrarla, «Actualizar» en Estado la dejaba vieja.
@@ -59,7 +66,12 @@ function etiquetaAsistente(tono: EstadoDePunto): string {
  * (design D10); react-query comparte la misma clave de query, así que no hay
  * pedidos duplicados cuando la pestaña Estado también las usa.
  */
-export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
+export function SistemaPage({
+  PanelAsistente,
+  PanelModelo,
+  PanelCalidad,
+  useCalidadEnAlza,
+}: SistemaPageProps) {
   const { user } = useCurrentUser();
   const permisos = user?.permissions ?? [];
   const puedeEstado = permisos.includes("sistema.estado.ver");
@@ -73,6 +85,7 @@ export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
   // de ahí, nunca en su propio montaje inicial.
   const [contadorAsistente, setContadorAsistente] = useState<number | undefined>(undefined);
 
+  const calidadEnAlza = useCalidadEnAlza(puedeAsistente);
   const { postgresql, entradas } = useSaludSistema(puedeEstado);
   const resumen = resumirSalud({
     componentes: entradas,
@@ -86,7 +99,9 @@ export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
         ? PREFIJO_AUDITORIA
         : pestanaActiva === "modelo"
           ? PREFIJO_MODELO
-          : PREFIJO_ASISTENTE;
+          : pestanaActiva === "calidad"
+            ? PREFIJO_CALIDAD
+            : PREFIJO_ASISTENTE;
   const cantidadEnCurso = useIsFetching({ queryKey: prefijoActivo });
   const recientesEnCurso = useIsFetching({ queryKey: CLAVE_RECIENTES });
   const conRecientes = pestanaActiva === "estado" && puedeAuditoria;
@@ -123,13 +138,17 @@ export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
         ? resumen.puntoEstado
         : id === "asistente"
           ? resumen.puntoAsistente
-          : "neutral";
+          : id === "calidad" && calidadEnAlza
+            ? "advertencia"
+            : "neutral";
     const etiqueta =
       id === "estado"
         ? etiquetaEstado(tono)
         : id === "asistente"
           ? etiquetaAsistente(tono)
-          : "sin novedades";
+          : id === "calidad" && calidadEnAlza
+            ? "respuestas negativas en alza"
+            : "sin novedades";
     return {
       id,
       label: (
@@ -192,6 +211,7 @@ export function SistemaPage({ PanelAsistente, PanelModelo }: SistemaPageProps) {
             }
           />
         )}
+        {pestanaActiva === "calidad" && <PanelCalidad />}
         {pestanaActiva === "auditoria" && <PestanaAuditoria />}
       </div>
     </main>

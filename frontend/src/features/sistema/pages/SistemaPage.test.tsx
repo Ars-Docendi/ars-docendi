@@ -48,12 +48,31 @@ function PanelModeloDePrueba({ cambios }: { cambios?: ReactNode }) {
   );
 }
 
+function PanelCalidadDePrueba() {
+  return <p>Panel de calidad</p>;
+}
+
+/** The hook injected by the router; tests flip `calidadEnAlza` to drive the dot. */
+let calidadEnAlza = false;
+const useCalidadEnAlzaDePrueba = vi.fn((habilitado: boolean) => habilitado && calidadEnAlza);
+
+function PaginaDePrueba() {
+  return (
+    <SistemaPage
+      PanelAsistente={PanelAsistenteDePrueba}
+      PanelModelo={PanelModeloDePrueba}
+      PanelCalidad={PanelCalidadDePrueba}
+      useCalidadEnAlza={useCalidadEnAlzaDePrueba}
+    />
+  );
+}
+
 function montar(entrada = "/sistema") {
   const cliente = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
     <QueryClientProvider client={cliente}>
       <MemoryRouter initialEntries={[entrada]}>
-        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} PanelModelo={PanelModeloDePrueba} />
+        <PaginaDePrueba />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -72,13 +91,14 @@ function montarConUbicacion(entrada = "/sistema#auditoria") {
     <QueryClientProvider client={cliente}>
       <MemoryRouter initialEntries={[entrada]}>
         <Ubicacion />
-        <SistemaPage PanelAsistente={PanelAsistenteDePrueba} PanelModelo={PanelModeloDePrueba} />
+        <PaginaDePrueba />
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
 beforeEach(() => {
+  calidadEnAlza = false;
   vi.spyOn(sistemaApi, "comprobarPing").mockImplementation(async (c) => ({
     id: c.id,
     nombre: c.nombre,
@@ -120,6 +140,7 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
       expect.stringContaining("Estado"),
       expect.stringContaining("Asistente"),
       expect.stringContaining("Modelo"),
+      expect.stringContaining("Calidad"),
       expect.stringContaining("Auditoría"),
     ]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
@@ -149,6 +170,7 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
     expect(tabs.map((t) => t.textContent)).toEqual([
       expect.stringContaining("Asistente"),
       expect.stringContaining("Modelo"),
+      expect.stringContaining("Calidad"),
     ]);
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Panel de modelo")).toBeInTheDocument();
@@ -188,6 +210,7 @@ describe("SistemaPage — pestañas por permiso (design D9)", () => {
     expect(tabs.map((t) => t.textContent)).toEqual([
       expect.stringContaining("Asistente"),
       expect.stringContaining("Modelo"),
+      expect.stringContaining("Calidad"),
       expect.stringContaining("Auditoría"),
     ]);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
@@ -431,5 +454,55 @@ describe("SistemaPage — puntos de estado accesibles", () => {
       expect(estado).toHaveTextContent(", sin problemas");
       expect(asistente).toHaveTextContent(", sin mantenimiento");
     });
+  });
+});
+
+describe("SistemaPage — pestaña Calidad", () => {
+  it("con asistente.administrar aparece entre Modelo y Auditoría y se abre por hash #calidad", async () => {
+    conPermisos(["asistente.administrar", "auditoria.ver"]);
+
+    montar("/sistema#calidad");
+
+    const tabs = await screen.findAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      expect.stringContaining("Asistente"),
+      expect.stringContaining("Modelo"),
+      expect.stringContaining("Calidad"),
+      expect.stringContaining("Auditoría"),
+    ]);
+    expect(tabs[2]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Panel de calidad")).toBeInTheDocument();
+  });
+
+  it("sin asistente.administrar no hay pestaña Calidad y su hash cae a la primera permitida", async () => {
+    conPermisos(["auditoria.ver"]);
+
+    montar("/sistema#calidad");
+
+    await screen.findAllByRole("tab");
+    expect(screen.queryByRole("tab", { name: /Calidad/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Panel de calidad")).not.toBeInTheDocument();
+    expect(useCalidadEnAlzaDePrueba).toHaveBeenCalledWith(false);
+  });
+
+  it("el punto de la pestaña pasa a advertencia cuando la tasa de negativas sube", async () => {
+    conPermisos(["asistente.administrar"]);
+    calidadEnAlza = true;
+
+    montar("/sistema");
+
+    const pestana = await screen.findByRole("tab", { name: /Calidad/ });
+    expect(pestana.querySelector(".punto-estado--advertencia")).not.toBeNull();
+    expect(screen.getByText(/respuestas negativas en alza/)).toBeInTheDocument();
+  });
+
+  it("sin alza el punto de Calidad es neutral", async () => {
+    conPermisos(["asistente.administrar"]);
+
+    montar("/sistema");
+
+    const pestana = await screen.findByRole("tab", { name: /Calidad/ });
+    expect(pestana.querySelector(".punto-estado--neutral")).not.toBeNull();
+    expect(pestana.querySelector(".punto-estado--advertencia")).toBeNull();
   });
 });

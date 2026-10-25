@@ -46,21 +46,21 @@
 
 ## 4. Frontend: "Calidad" tab
 
-- [ ] 4.1 `frontend/src/features/sistema/hooks/useSeccionSistema.ts` and `pages/SistemaPage.tsx` — add `calidad` to `IdPestanaSistema`, `ORDEN` (after `modelo`, before `auditoria`; right after `asistente` until `asistente-modelo-en-caliente` lands), `PERMISO_POR_PESTANA` (`asistente.administrar`), `NOMBRES_PESTANAS`, the tab content, the "Actualizar" query-key prefix and the status-dot tone. `app/shell/nav.ts` needs no change
-- [ ] 4.2 API hooks for both endpoints
-- [ ] 4.3 Header: title "Calidad de las respuestas", model select, period 7/30/90
-- [ ] 4.4 KPI row: "Respuestas negativas" first, wider, red-accented, with trend and an amber note when rising; then "Con problemas", "Fallos detectables", "Positivas", "Cobertura de voto" (reusing `KpisDeUso` styles where they fit)
-- [ ] 4.5 Per-day negative-percentage bar chart: single series, average reference line, hover tooltip, accessible label and table alternative; weekly buckets at 90 days
-- [ ] 4.6 "Por qué no sirvió" and "Fallos por causa" bars; `resultado_vacio` shown as a signal; saturation shown as "ocupado" and not as an outage
-- [ ] 4.7 "Por modelo" table with turn counts
-- [ ] 4.8 "Respuestas con problemas" table with filters Todas / Pulgar abajo / Fallos / Reemplazadas, pagination, and a privacy footnote; replaced by an information notice without `asistente.revisar_calidad` (and no problem-list request is made)
-- [ ] 4.9 Tab status dot turns to warning when the negative rate rises
+- [x] 4.1 `frontend/src/features/sistema/hooks/useSeccionSistema.ts` and `pages/SistemaPage.tsx` — add `calidad` to `IdPestanaSistema`, `ORDEN` (after `modelo`, before `auditoria`; right after `asistente` until `asistente-modelo-en-caliente` lands), `PERMISO_POR_PESTANA` (`asistente.administrar`), `NOMBRES_PESTANAS`, the tab content, the "Actualizar" query-key prefix and the status-dot tone. `app/shell/nav.ts` needs no change
+- [x] 4.2 API hooks for both endpoints
+- [x] 4.3 Header: title "Calidad de las respuestas", model select, period 7/30/90
+- [x] 4.4 KPI row: "Respuestas negativas" first, wider, red-accented, with trend and an amber note when rising; then "Con problemas", "Fallos detectables", "Positivas", "Cobertura de voto" (reusing `KpisDeUso` styles where they fit)
+- [x] 4.5 Per-day negative-percentage bar chart: single series, average reference line, hover tooltip, accessible label and table alternative; weekly buckets at 90 days
+- [x] 4.6 "Por qué no sirvió" and "Fallos por causa" bars; `resultado_vacio` shown as a signal; saturation shown as "ocupado" and not as an outage
+- [x] 4.7 "Por modelo" table with turn counts
+- [x] 4.8 "Respuestas con problemas" table with filters Todas / Pulgar abajo / Fallos / Reemplazadas, pagination, and a privacy footnote; replaced by an information notice without `asistente.revisar_calidad` (and no problem-list request is made)
+- [x] 4.9 Tab status dot turns to warning when the negative rate rises
 - [ ] 4.10 Optional, only if `asistente-modelo-en-caliente` is merged: show each model's 30-day negative rate in the Modelo tab dropdown
-- [ ] 4.11 Vitest: "Respuestas negativas" is rendered first with the emphasis class and trend note
-- [ ] 4.12 Vitest: filters change the requested `tipo` and the visible rows
-- [ ] 4.13 Vitest (`SistemaPage.test.tsx`, `routes.test.tsx`): permission gating of the tab and of the problem table (notice shown instead)
-- [ ] 4.14 Vitest: chart has an accessible label and table alternative
-- [ ] 4.15 Update the design specs (`docs/product/designs/administracion-sistema-design-spec.md`, `docs/product/designs/asistente-conversacional-design-spec.md`) where they describe the Sistema tabs (AGENTS.md rule 9)
+- [x] 4.11 Vitest: "Respuestas negativas" is rendered first with the emphasis class and trend note
+- [x] 4.12 Vitest: filters change the requested `tipo` and the visible rows
+- [x] 4.13 Vitest (`SistemaPage.test.tsx`, `routes.test.tsx`): permission gating of the tab and of the problem table (notice shown instead)
+- [x] 4.14 Vitest: chart has an accessible label and table alternative
+- [x] 4.15 Update the design specs (`docs/product/designs/administracion-sistema-design-spec.md`, `docs/product/designs/asistente-conversacional-design-spec.md`) where they describe the Sistema tabs (AGENTS.md rule 9)
 
 ## 5. Documentation and verification
 

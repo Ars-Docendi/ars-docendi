@@ -613,3 +613,87 @@ export interface CredencialReemplazada {
   empresa: string;
   pista: string;
 }
+
+// ---------- Calidad de las respuestas (asistente-metricas-de-calidad) ----------
+
+export type PeriodoDeCalidad = 7 | 30 | 90;
+
+export type TipoDeProblema = "negativa" | "fallo" | "reemplazo";
+
+/** Fractions between 0 and 1, or `null` when the denominator is zero. */
+export interface ResumenDeCalidad {
+  turnos: number;
+  votos: number;
+  positivos: number;
+  negativos: number;
+  respondidas: number;
+  conProblemas: number;
+  fallosDetectables: number;
+  tasaNegativa: number | null;
+  tasaConProblemas: number | null;
+  tasaDeFallos: number | null;
+  cobertura: number | null;
+}
+
+export interface ConteoDeCalidad {
+  clave: string;
+  cantidad: number;
+  /** `proveedor`, `consulta`, `senal` or `politica`; only for causes. */
+  familia?: string | null;
+}
+
+export interface ModeloDeCalidad {
+  modelo: string | null;
+  resumen: ResumenDeCalidad;
+}
+
+export interface PuntoDeCalidad {
+  /** «AAAA-MM-DD»: the day, or the Monday of the week when the series is weekly. */
+  dia: string;
+  turnos: number;
+  votos: number;
+  negativos: number;
+  tasaNegativa: number | null;
+}
+
+export interface TendenciaDeCalidad {
+  tasaAnterior: number;
+  /** Current minus previous, in fraction points (0.05 is five points). */
+  variacion: number;
+  votosAnteriores: number;
+}
+
+export type MotivoSinTendencia = "pocos_votos" | "fuera_de_retencion";
+
+export interface CalidadAgregada {
+  periodoDias: number;
+  modelo: string | null;
+  desde: string;
+  hasta: string;
+  porSemana: boolean;
+  resumen: ResumenDeCalidad;
+  tendencia: TendenciaDeCalidad | null;
+  motivoSinTendencia: MotivoSinTendencia | null;
+  negativosPorMotivo: ConteoDeCalidad[];
+  fallosPorCausa: ConteoDeCalidad[];
+  denegacionesDePolitica: ConteoDeCalidad[];
+  porModelo: ModeloDeCalidad[];
+  modelosDisponibles: string[];
+  serie: PuntoDeCalidad[];
+}
+
+export interface ProblemaDeCalidad {
+  tipo: TipoDeProblema;
+  pregunta: string;
+  motivo: string | null;
+  modelo: string | null;
+  dia: string;
+  estado: string;
+}
+
+export interface PaginaDeProblemas {
+  pagina: number;
+  tamanoDePagina: number;
+  total: number;
+  filas: ProblemaDeCalidad[];
+}

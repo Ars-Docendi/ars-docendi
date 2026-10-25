@@ -11,7 +11,12 @@ import { routes as usuariosRoutes } from "../features/usuarios/routes";
 import { routes as docentesRoutes } from "../features/docentes/routes";
 import { routes as rolesRoutes } from "../features/roles/routes";
 import { routes as asistenteRoutes } from "../features/asistente/routes";
-import { PanelAdministracionAsistente, PanelModeloDelAsistente } from "../features/asistente";
+import {
+  PanelAdministracionAsistente,
+  PanelDeCalidad,
+  PanelModeloDelAsistente,
+  useCalidadEnAlza,
+} from "../features/asistente";
 import { crearRutas as crearRutasSistema } from "../features/sistema/routes";
 
 export const router = createBrowserRouter([
@@ -36,6 +41,8 @@ export const router = createBrowserRouter([
           ...crearRutasSistema({
             PanelAsistente: PanelAdministracionAsistente,
             PanelModelo: PanelModeloDelAsistente,
+            PanelCalidad: PanelDeCalidad,
+            useCalidadEnAlza,
           }),
           { path: "/membresia-roles", element: <Navigate to="/roles" replace /> },
           asistenteRoutes,

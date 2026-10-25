@@ -21,8 +21,10 @@ last_updated: 2026-09-26
 Tres pantallas hoy separadas —Dashboard del sistema, Registros de auditoría y Uso del
 asistente— se unifican en una sola sección «Sistema» (`/sistema`) con tabs
 permission-gated: **Estado**, **Asistente** y **Auditoría**; `asistente-modelo-en-caliente`
-agrega **Modelo** entre Asistente y Auditoría. Cada tab conserva su propio
-permiso (Modelo usa el de Asistente, `asistente.administrar`); ninguno nuevo se crea ni se amplía. Prioriza diagnóstico rápido («¿está todo
+agrega **Modelo** y `asistente-metricas-de-calidad` agrega **Calidad**, ambas entre Asistente y
+Auditoría. Cada tab conserva su propio permiso (Modelo y Calidad usan el de Asistente,
+`asistente.administrar`); Calidad suma un permiso propio, `asistente.revisar_calidad`, sólo para
+la lista de preguntas (ver su sección). Prioriza diagnóstico rápido («¿está todo
 funcionando y qué cambió últimamente?»), trazabilidad comprensible de un feed de auditoría que
 ahora cruza dos fuentes, privacidad, y consistencia con la interfaz institucional existente.
 
@@ -42,7 +44,7 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
    servicios, uso del asistente y registros de auditoría.» y un botón secundario
    «Actualizar» que refetchea sólo la tab activa (con estado «Actualizando…» y deshabilitado
    mientras corre).
-2. Ve las tabs Estado · Asistente · Modelo · Auditoría, cada una con un punto de estado junto al nombre
+2. Ve las tabs Estado · Asistente · Modelo · Calidad · Auditoría, cada una con un punto de estado junto al nombre
    (sano / con problemas / en mantenimiento / pendiente). La tab inicial es la del hash de la
    URL si es válido y permitido; si no, la primera tab permitida en ese orden. Cambiar de tab
    agrega una entrada de historial (Atrás vuelve a la tab anterior).
@@ -119,6 +121,34 @@ muestra u oculta con su propio permiso — nunca por rol. `/auditoria` y
   también ↺ para volver al del rol, y sin acceso el cupo se atenúa y el lápiz se deshabilita.
   En «Por rol», el interruptor prende y apaga el acceso del rol. No hay gráfico de tendencia
   por día: requiere datos que el backend todavía no expone (ver ARS-156, tasks.md §12.8 y §13).
+- **Calidad** (`asistente-metricas-de-calidad`, `asistente.administrar`): el `PanelDeCalidad`,
+  compuesto desde `app/router.tsx` igual que Asistente y Modelo (`features/sistema` no importa
+  `features/asistente`; el hook `useCalidadEnAlza` llega por la misma vía). `<h2>«Calidad de las
+respuestas»` + copete, a la derecha un select «Modelo» («Todos los modelos» + los vistos en el
+  período) y el selector de período 7 / 30 / 90 días (30 por defecto). De arriba abajo: (1) fila
+  de cinco KPIs donde **«Respuestas negativas» va primero, más ancha y con acento rojo**, con
+  «N de M valoraciones» y la tendencia contra el período anterior de igual largo («▲ 5,0 pts…» en
+  ámbar si sube, «▼ …» sin énfasis si baja; sin tendencia dice «Pocas valoraciones para comparar»
+  o «El período anterior ya no se conserva»); luego «Con problemas», «Fallos detectables»,
+  «Positivas» y «Cobertura de voto». Una tasa sin denominador se ve «—», nunca «0,0%»; los
+  porcentajes van en es-AR con una decimal; (2) tarjeta «Respuestas negativas por día» («por
+  semana» con 90 días): una sola serie (sin leyenda), barras finas con tope redondeado de 4 px y
+  2 px de separación, línea punteada del promedio, eje recesivo y tooltip al pasar el mouse; el
+  contenedor es una `img` con una etiqueta que resume la serie y «Ver como tabla» muestra los
+  mismos números como tabla (Día o Semana del / Valoraciones / Negativas / % negativas); junto a
+  ella «Por qué no sirvió» (barras por motivo, con la aclaración de que un voto puede tener varios
+  motivos); (3) «Fallos por causa» (barras con una etiqueta en español por cada uno de los 22
+  códigos más «Sin clasificar»; «Consulta sin resultados» lleva la marca «Señal» porque no cuenta
+  como fallo, y la saturación dice «Proveedor ocupado (no es una caída)») y la tabla «Por modelo»
+  con los turnos de cada uno; (4) «Denegaciones de política» (cupo, tope, mantenimiento, acceso,
+  turno en curso): un conteo aparte que no entra en ninguna tasa; (5) «Respuestas con problemas»:
+  filtros «Todas / Pulgar abajo / Fallos / Reemplazadas», tabla Día / Pregunta / Problema /
+  Detalle / Modelo, paginación de 25 («Anterior», «Página X de Y», «Siguiente») y la nota «Sin
+  nombre de quien preguntó y sin el comentario libre…». Sin `asistente.revisar_calidad` (que
+  ningún rol trae por defecto) la tarjeta se reemplaza por un aviso informativo «Necesitás el
+  permiso «Revisar calidad del asistente»» y la lista no se pide. El punto de estado de la
+  pestaña pasa a advertencia («respuestas negativas en alza») cuando la tasa de 30 días supera la
+  del período anterior; si no, es neutral. «Actualizar» refresca los agregados y la lista.
 - **Modelo** (`asistente-modelo-en-caliente`): el `PanelModeloDelAsistente`, también compuesto
   desde `app/router.tsx`, con `<h2>«Modelo del asistente»` + copete. De arriba abajo: (1) banner
   «En uso: {empresa/modelo}» con los estilos del banner de mantenimiento, el origen (configuración
@@ -277,7 +307,7 @@ Todas las cadenas visibles para la persona usuaria, tal como las cita la spec de
 
 - Header: «Sistema»; bajada «Estado de los servicios, uso del asistente y registros de
   auditoría.»; botón «Actualizar» / «Actualizando…».
-- Tabs: «Estado», «Asistente», «Modelo», «Auditoría».
+- Tabs: «Estado», «Asistente», «Modelo», «Calidad», «Auditoría».
 - Banner Estado: «Todos los componentes disponibles» / «N de N responden con normalidad.»;
   «1 componente no disponible» / «N componentes no disponibles» + «El resto funciona con
   normalidad.» (omitido si no queda ninguno disponible); «Todo disponible, asistente en

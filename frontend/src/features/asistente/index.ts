@@ -25,3 +25,8 @@ export { PanelAdministracionAsistente } from "./components/PanelAdministracionAs
 // La pestaña «Modelo» de Sistema (asistente-modelo-en-caliente, tarea 4): se
 // compone desde `app/router.tsx` igual que el panel de uso, por la misma razón.
 export { PanelModeloDelAsistente } from "./components/PanelModeloDelAsistente";
+// La pestaña «Calidad» de Sistema (asistente-metricas-de-calidad, tarea 4): se compone
+// desde `app/router.tsx` igual que las otras dos, junto con el hook que pone el punto
+// de estado de la pestaña en advertencia cuando la tasa de negativas sube.
+export { PanelDeCalidad } from "./components/PanelDeCalidad";
+export { useCalidadEnAlza } from "./hooks/useCalidadEnAlza";

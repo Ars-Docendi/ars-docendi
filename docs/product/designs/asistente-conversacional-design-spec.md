@@ -427,6 +427,16 @@ viva sin mover el foco. El banner de mantenimiento y el indicador de cupo son le
 de pantalla sin depender de `hover` ni de `title` — nunca la única forma de enterarse de una causa
 de bloqueo.
 
+## Calidad de las respuestas (asistente-metricas-de-calidad)
+
+Las valoraciones del voto («Sirvió» / «No sirvió» con motivos) y los fallos que el sistema
+detecta solos se ven en una pestaña **Calidad** de la sección «Sistema» (`/sistema#calidad`,
+permiso `asistente.administrar`, entre Modelo y Auditoría). La lista de las preguntas con
+problema pide además `asistente.revisar_calidad`. Layout, copy, estados y accesibilidad están en
+[administracion-sistema-design-spec.md](administracion-sistema-design-spec.md), dueña de la
+pantalla. Lo que importa para el asistente: el voto y su comentario no cambian, y el comentario
+libre nunca se muestra en esta pestaña.
+
 ## Modelo del asistente (asistente-modelo-en-caliente)
 
 La elección del modelo que responde deja de ser sólo configuración del servidor y pasa a tener

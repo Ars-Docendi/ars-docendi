@@ -1,16 +1,20 @@
 import { apiClient } from "../../../shared/api/client";
 import type {
+  CalidadAgregada,
   CredencialReemplazada,
   EstadoDelModelo,
   MantenimientoDelAsistente,
   ModeloAplicado,
+  PaginaDeProblemas,
   PedidoDeModelo,
   PedidoDePrecio,
+  PeriodoDeCalidad,
   PeriodoDeUso,
   PrecioDelModelo,
   PresupuestosDelAsistente,
   ResultadoDePrueba,
   ServidorLocal,
+  TipoDeProblema,
   UsoDelAsistente,
 } from "../types";
 
@@ -170,6 +174,39 @@ export async function cargarPrecio(pedido: PedidoDePrecio): Promise<PrecioDelMod
   const { data } = await apiClient.post<PrecioDelModelo>(
     "/api/asistente/administracion/precios",
     pedido,
+  );
+  return data;
+}
+
+/**
+ * Aggregate quality metrics (asistente-metricas-de-calidad). Needs
+ * `asistente.administrar`. `modelo` is the optional `empresa/modelo` filter.
+ */
+export async function obtenerCalidad(
+  periodo: PeriodoDeCalidad,
+  modelo?: string,
+): Promise<CalidadAgregada> {
+  const { data } = await apiClient.get<CalidadAgregada>("/api/asistente/administracion/calidad", {
+    params: { periodo, modelo },
+  });
+  return data;
+}
+
+/**
+ * One page (25 rows) of the anonymous problem list. Needs
+ * `asistente.revisar_calidad`, a different permission from the aggregates:
+ * callers must not request it without it (the backend answers 403 and audits
+ * nothing). Every successful read is audited on the server.
+ */
+export async function obtenerProblemasDeCalidad(
+  periodo: PeriodoDeCalidad,
+  pagina: number,
+  modelo?: string,
+  tipo?: TipoDeProblema,
+): Promise<PaginaDeProblemas> {
+  const { data } = await apiClient.get<PaginaDeProblemas>(
+    "/api/asistente/administracion/calidad/problemas",
+    { params: { periodo, modelo, tipo, pagina } },
   );
   return data;
 }

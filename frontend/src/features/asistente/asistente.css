@@ -3482,3 +3482,237 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------- Calidad de las respuestas (asistente-metricas-de-calidad) ---------- */
+
+/* «Respuestas negativas» is the headline: wider, with a red accent on its left edge. */
+.calidad-kpis {
+  grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
+}
+
+.calidad-kpi--negativa {
+  border-color: var(--color-border-danger);
+  box-shadow: inset 3px 0 0 var(--color-border-danger);
+}
+
+.calidad-fila {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.calidad-fila--grafico {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+}
+
+.calidad-fila--causas {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+}
+
+.calidad-selector-modelo {
+  min-width: 240px;
+}
+
+.calidad-mono {
+  font-family: var(--font-mono);
+}
+
+.calidad-nowrap {
+  white-space: nowrap;
+}
+
+.calidad-numero {
+  text-align: right;
+}
+
+.calidad-sin-margen {
+  margin: 0;
+}
+
+.calidad-solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.calidad-grafico-encabezado-derecha {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.calidad-enlace {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-caption-size);
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.calidad-enlace:disabled {
+  color: var(--color-text-tertiary);
+  text-decoration: none;
+  cursor: default;
+}
+
+/* Single series, thin bars, 2px gap, 4px rounded tops, recessive axis. */
+.calidad-grafico {
+  position: relative;
+  height: 180px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding-top: 18px;
+  border-bottom: var(--border-default) solid var(--color-border-default);
+}
+
+.calidad-grafico-max {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.calidad-grafico-promedio {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.calidad-barra-celda {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.calidad-barra {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--color-accent);
+}
+
+.calidad-barra-celda:hover .calidad-barra {
+  background: var(--color-accent-hover);
+}
+
+.calidad-barra-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  white-space: nowrap;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-on-inverse);
+  font-size: var(--text-caption-size);
+}
+
+.calidad-barra-celda:hover .calidad-barra-tip {
+  display: block;
+}
+
+.calidad-grafico-eje {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-caption-size);
+  color: var(--color-text-tertiary);
+}
+
+.calidad-lista-barras {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calidad-fila-barra {
+  display: grid;
+  grid-template-columns: minmax(0, 190px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm-size);
+}
+
+.calidad-fila-etiqueta {
+  color: var(--color-text-secondary);
+}
+
+.calidad-senal {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+}
+
+.calidad-tipo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.calidad-tipo--negativa {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-fg);
+}
+
+.calidad-tipo--fallo {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+
+.calidad-tipo--reemplazo {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-fg);
+}
+
+.calidad-paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--text-body-sm-size);
+  color: var(--color-text-secondary);
+}
+
+.calidad-paginacion-botones {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+@media (max-width: 1100px) {
+  .calidad-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calidad-kpis .calidad-kpi--negativa {
+    grid-column: 1 / -1;
+  }
+
+  .calidad-fila--grafico,
+  .calidad-fila--causas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

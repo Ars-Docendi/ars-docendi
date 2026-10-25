@@ -13,6 +13,13 @@ interface CrearRutasProps {
    * `cambios` la lista de cambios del modelo que arma esta feature.
    */
   PanelModelo: ComponentType<{ cambios?: ReactNode }>;
+  /** La pestaña «Calidad», compuesta desde `app/router.tsx` como las otras dos. */
+  PanelCalidad: ComponentType;
+  /**
+   * Hook que dice si la tasa de respuestas negativas sube; pone en advertencia el
+   * punto de estado de la pestaña «Calidad». Llega por acá por la misma razón.
+   */
+  useCalidadEnAlza: (habilitado: boolean) => boolean;
 }
 
 /**
@@ -21,7 +28,12 @@ interface CrearRutasProps {
  * componente del panel de uso llega como parámetro desde `app/router.tsx`,
  * la raíz de composición autorizada a importar ambos barrels.
  */
-export function crearRutas({ PanelAsistente, PanelModelo }: CrearRutasProps): RouteObject[] {
+export function crearRutas({
+  PanelAsistente,
+  PanelModelo,
+  PanelCalidad,
+  useCalidadEnAlza,
+}: CrearRutasProps): RouteObject[] {
   return [
     {
       element: <RequirePermission permission={PERMISOS_SISTEMA} />,
@@ -31,7 +43,12 @@ export function crearRutas({ PanelAsistente, PanelModelo }: CrearRutasProps): Ro
           lazy: () =>
             import("./pages/SistemaPage").then(({ SistemaPage }) => ({
               Component: () => (
-                <SistemaPage PanelAsistente={PanelAsistente} PanelModelo={PanelModelo} />
+                <SistemaPage
+                  PanelAsistente={PanelAsistente}
+                  PanelModelo={PanelModelo}
+                  PanelCalidad={PanelCalidad}
+                  useCalidadEnAlza={useCalidadEnAlza}
+                />
               ),
             })),
         },
