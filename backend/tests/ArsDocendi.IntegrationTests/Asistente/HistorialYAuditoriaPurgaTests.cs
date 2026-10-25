@@ -156,7 +156,53 @@ public sealed class HistorialYAuditoriaPurgaTests(PostgresFixture postgres)
             ("hilo", hilo)));
     }
 
+    [Fact]
+    public async Task The_quality_review_audit_is_purged_by_its_own_window()
+    {
+        var reloj = new RelojFijo(Ancla);
+        await SembrarAuditoriaDeCalidadAsync(Ancla.AddDays(-400));
+        await SembrarAuditoriaDeCalidadAsync(Ancla.AddDays(-30));
+
+        var borradas = await PurgaDeCalidad(reloj, dias: 365).PurgarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, borradas);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_revision_de_calidad"));
+    }
+
+    [Fact]
+    public async Task The_quality_review_audit_outlives_the_analytic_retention()
+    {
+        // 90 days for the analytic rows, 365 for the trail: a read of 200 days ago stays.
+        var reloj = new RelojFijo(Ancla);
+        await SembrarAuditoriaDeCalidadAsync(Ancla.AddDays(-200));
+
+        var borradas = await PurgaDeCalidad(reloj, dias: 365, diasRegistros: 90)
+            .PurgarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, borradas);
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.auditoria_revision_de_calidad"));
+    }
+
     // ------------------------------------------------------------------ apoyo
+
+    private PurgaDeRegistros PurgaDeCalidad(TimeProvider reloj, int dias, int diasRegistros = 90) =>
+        new(new CadenaDuena(Cadena),
+            Options.Create(new OpcionesAsistente
+            {
+                RetencionDeRegistrosDias = diasRegistros,
+                RetencionDeAuditoriaDeCalidadDias = dias,
+            }),
+            reloj,
+            NullLogger<PurgaDeRegistros>.Instance);
+
+    private Task SembrarAuditoriaDeCalidadAsync(DateTimeOffset ocurrioEn) =>
+        EjecutarAsync(
+            "INSERT INTO asistente.auditoria_revision_de_calidad (lector_id, ocurrido_en, filtros, filas) "
+            + "VALUES (@lector, @cuando, 'periodo=30', 3)",
+            ("lector", Guid.NewGuid()),
+            ("cuando", ocurrioEn));
 
     private PurgaDeRegistros Purga(TimeProvider reloj, int diasHistorial, int diasAuditoria = 365) =>
         new(new CadenaDuena(Cadena),

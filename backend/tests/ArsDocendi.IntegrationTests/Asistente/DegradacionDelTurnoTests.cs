@@ -606,6 +606,12 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
             _turnos.Add(turno);
             return Task.CompletedTask;
         }
+
+        public Task MarcarReemplazadoAsync(Guid analiticoId, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            return Task.CompletedTask;
+        }
     }
 
     private BancoDelAsistente Banco(

@@ -314,7 +314,10 @@ internal sealed class ProveedorAnthropic : IProveedorDeModelo, IDisposable
             "El proveedor del modelo rechazó la credencial. Revisá Asistente__ClaveDelProveedor "
             + "en este ambiente: mientras siga así, todos los turnos van a responder degradados.");
 
-        return Transporte(excepcion);
+        // Keeps the status so the turn's cause is credencial_rechazada and not a
+        // generic provider error (asistente-metricas-de-calidad, D2).
+        return new HttpRequestException(
+            "El proveedor del modelo no sirvió la llamada.", excepcion, System.Net.HttpStatusCode.Unauthorized);
     }
 
     /// <summary>El request salió mal armado de acá. Ningún reintento lo arregla.</summary>

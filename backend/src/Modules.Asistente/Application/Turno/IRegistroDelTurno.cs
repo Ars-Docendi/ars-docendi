@@ -82,6 +82,18 @@ public enum CarrilDelTurno
 /// por el techo de tokens. Va SÓLO al registro operativo: el analítico no lo
 /// recibe nunca (TD-012, ver <c>database/asistente/002_asistente_registros.sql</c>).
 /// </param>
+/// <param name="Causa">
+/// Why the turn failed or came back empty (asistente-metricas-de-calidad, D2), or
+/// <c>null</c>. Goes ONLY to the analytic record, as a closed code: it carries no
+/// actor and no time, so it adds no selector (TD-012).
+/// </param>
+/// <param name="Modelo">
+/// The <c>empresa/modelo</c> of the adapter resolved for the turn
+/// (<see cref="IProveedorDeModelo.Nombre"/>), also on turns that never called a
+/// model. It is the same string as <see cref="Proveedor"/>: a coarse attribute shared
+/// by both records, accepted in design D3 and noted in TD-012. Goes to the analytic
+/// record too, so quality metrics can be compared per model without a join.
+/// </param>
 public sealed record TurnoParaRegistrar(
     Guid Actor,
     Guid AnaliticoId,
@@ -99,7 +111,9 @@ public sealed record TurnoParaRegistrar(
     string Categoria,
     string Proveedor,
     string? IntencionSombra,
-    MotivoDeRechazo? MotivoDeRechazo = null);
+    MotivoDeRechazo? MotivoDeRechazo = null,
+    CausaDelTurno? Causa = null,
+    string? Modelo = null);
 
 /// <summary>
 /// Escribe los dos registros desvinculados (RF-16).
@@ -115,4 +129,11 @@ public interface IRegistroDelTurno
 {
     /// <summary>Registra un turno. No propaga errores.</summary>
     Task RegistrarAsync(TurnoParaRegistrar turno, CancellationToken ct);
+
+    /// <summary>
+    /// Flags the analytic record <paramref name="analiticoId"/> as replaced by the user
+    /// (implicit dissatisfaction, design D4 of asistente-metricas-de-calidad). Does not
+    /// propagate errors and touches nothing but that flag: no actor, no time.
+    /// </summary>
+    Task MarcarReemplazadoAsync(Guid analiticoId, CancellationToken ct);
 }

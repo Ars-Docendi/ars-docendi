@@ -919,6 +919,7 @@ turno: para eso tiene su propio máximo de intentos.
 | `RetencionDeHistorialDias`                 | 180     | Cuánto vive una conversación propia, desde su última actividad                   |
 | `RetencionDeAuditoriaDeSoporteDias`        | 365     | Cuánto vive un registro de auditoría de acceso de soporte                        |
 | `RetencionDeAuditoriaDeAdministracionDias` | 365     | Cuánto vive un registro de auditoría de administración (§ Administración de uso) |
+| `RetencionDeAuditoriaDeCalidadDias`        | 365     | Cuánto vive un registro de lectura de la lista de problemas de calidad           |
 | `PeriodoDePurgaHoras`                      | 24      | Cada cuánto corre la purga                                                       |
 | `VentanaDeDeshacerSegundos`                | 15      | Cuánto sigue pendiente un borrado y se puede deshacer                            |
 | `PeriodoDeBarridoDeBorradosSegundos`       | 60      | Cada cuánto corre el barrido que purga físicamente lo vencido                    |

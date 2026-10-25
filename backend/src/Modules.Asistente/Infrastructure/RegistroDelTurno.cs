@@ -45,7 +45,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
                 "tokens_de_entrada", "tokens_de_salida", "latencia_ms", "hubo_reintento",
                 "truncado", "proveedor", "tokens_de_cache", "intencion_sombra", "motivo_rechazo",
             ],
-            ["registro_analitico"] = ["id", "pregunta", "categoria", "estado", "dia"],
+            ["registro_analitico"] = ["id", "pregunta", "categoria", "estado", "dia", "causa", "modelo"],
         };
 
     private static readonly string InsertarEnOperativo = Insertar("registro_operativo");
@@ -127,8 +127,40 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         // el esquema; el test que sostiene la propiedad es el que verifica el tipo.
         comando.Parameters.AddWithValue("dia", DateOnly.FromDateTime(turno.Cuando.UtcDateTime));
 
+        // Two coarse attributes of the TURN, never of the person (design D2/D3 of
+        // asistente-metricas-de-calidad): a closed failure code, and the same
+        // empresa/modelo string the operational record carries. Neither adds an actor
+        // or a precise time. `reemplazado` is not written here: it is flagged later,
+        // by its own UPDATE, if the user replaces this turn (MarcarReemplazadoAsync).
+        comando.Parameters.AddWithValue(
+            "causa",
+            NpgsqlDbType.Text,
+            turno.Causa is { } causa ? CausasDelTurno.ValorDeCable(causa) : DBNull.Value);
+        comando.Parameters.AddWithValue(
+            "modelo", NpgsqlDbType.Text, (object?)turno.Modelo ?? DBNull.Value);
+
         await comando.ExecuteNonQueryAsync(ct);
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A plain UPDATE by id, and nothing else: `reemplazado` is the only column it
+    /// touches, so it cannot add an actor or a time to the analytic record (TD-012).
+    /// Not part of <see cref="ColumnasQueEscribe"/> because no INSERT writes it; the
+    /// migrator checks it explicitly.
+    /// </remarks>
+    public Task MarcarReemplazadoAsync(Guid analiticoId, CancellationToken ct) =>
+        EscribirAsync(
+            "analítico (reemplazado)",
+            async conexion =>
+            {
+                await using var comando = new NpgsqlCommand(
+                    "UPDATE asistente.registro_analitico SET reemplazado = true WHERE id = @id",
+                    conexion);
+                comando.Parameters.AddWithValue("id", analiticoId);
+                await comando.ExecuteNonQueryAsync(ct);
+            },
+            ct);
 
     /// <summary>
     /// Arma el INSERT de una tabla desde <see cref="ColumnasQueEscribe"/>.

@@ -93,7 +93,8 @@ public sealed class CapaConversacional(
         {
             var conversacionRechazada = hilos.Resolver(hilo, actor);
             var turnoRechazado = FabricasDelResultado.Degradado(
-                conversacionRechazada, PoliticaDeAbstencion.TextoTurnoConcurrente);
+                conversacionRechazada, PoliticaDeAbstencion.TextoTurnoConcurrente,
+                CausaDelTurno.TurnoConcurrente);
 
             // REEMPLAZO + CANDADO RECHAZADO (design.md D9, punto 4): «el
             // rechazo del candado no cambia nada». Un turno nuevo cualquiera
@@ -203,7 +204,8 @@ public sealed class CapaConversacional(
                 "El turno del asistente agotó su presupuesto de {Segundos}s.",
                 valores.PresupuestoDelTurnoSegundos);
 
-            var turno = FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoServicioDegradado);
+            var turno = FabricasDelResultado.Degradado(
+                conversacion, PoliticaDeAbstencion.TextoServicioDegradado, CausaDelTurno.PresupuestoDelTurno);
             await RegistrarAsync(
                 actor, conversacion, mensaje, turno, arranco, CancellationToken.None,
                 claveDelCliente, inicioDeSegmentoAntes, aclaracionAntes, reemplazado, mencionesNuevas);
@@ -376,7 +378,11 @@ public sealed class CapaConversacional(
                 turno.Categoria,
                 proveedor.Nombre,
                 decisionSombra.Intencion,
-                turno.MotivoDeRechazo),
+                turno.MotivoDeRechazo,
+                turno.Causa,
+                // The same resolved adapter name as `Proveedor` above, also on turns
+                // that never called a model (asistente-metricas-de-calidad, D3).
+                proveedor.Nombre),
             ct);
 
         // HISTORIAL PROPIO (asistente-historial-conversaciones). Se excluye
@@ -427,6 +433,15 @@ public sealed class CapaConversacional(
                 if (reemplazado.Identidad.ClaveDeRetroalimentacion is { } tokenViejo)
                 {
                     validezDeRetroalimentacion.Revocar(tokenViejo);
+
+                    // IMPLICIT DISSATISFACTION (asistente-metricas-de-calidad, D4). The
+                    // token is the replaced turn's analytic id ONLY for a Respondida
+                    // turn: every other state generates an id nobody keeps, and a
+                    // restart empties the in-memory thread. When it is null nothing is
+                    // flagged, on purpose: the limitation is documented, not guessed.
+                    // Here, and not earlier, so a replacement that fails (restored
+                    // before registering, never reaching this point) flags nothing.
+                    await registro.MarcarReemplazadoAsync(tokenViejo, ct);
                 }
 
                 await historial.ReemplazarUltimoTurnoAsync(conversacion, paraHistorial, ct);
@@ -549,7 +564,8 @@ public sealed class CapaConversacional(
         // base) tampoco le corresponden.
         if (motivo == MotivoSinModelo.SinAcceso)
         {
-            return FabricasDelResultado.Degradado(conversacion, PoliticaDeAbstencion.TextoSinAcceso);
+            return FabricasDelResultado.Degradado(
+                conversacion, PoliticaDeAbstencion.TextoSinAcceso, CausaDelTurno.AccesoRevocado);
         }
 
         var hayModelo = motivo == MotivoSinModelo.Ninguno;
@@ -686,7 +702,10 @@ public sealed class CapaConversacional(
         // corta ACÁ y no antes, para que todo lo anterior haya tenido su chance.
         if (!hayModelo)
         {
-            return FabricasDelResultado.Degradado(conversacion, await TextoSinModeloAsync(actor, motivo, ct));
+            return FabricasDelResultado.Degradado(
+                conversacion,
+                await TextoSinModeloAsync(actor, motivo, ct),
+                CausasDelTurno.DeMotivoSinModelo(motivo));
         }
 
         var aMostrar = string.Equals(interpretada, mensaje, StringComparison.Ordinal)

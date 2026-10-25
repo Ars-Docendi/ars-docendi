@@ -168,6 +168,13 @@ public enum EstadoDelTurno
 /// consumidor que lo necesite, y el texto ya lo explica. Va sólo al registro
 /// operativo (<see cref="TurnoParaRegistrar.MotivoDeRechazo"/>).
 /// </param>
+/// <param name="Causa">
+/// Por qué falló o volvió vacío este turno (asistente-metricas-de-calidad, D2), o
+/// <c>null</c> en una respuesta normal y en el rechazo declarado por el modelo, que no
+/// es una causa. Se carga como dato desde cada camino de falla y no se deriva del
+/// texto. <b>Nunca se mapea al DTO de la API</b>: va sólo al registro analítico
+/// (<see cref="TurnoParaRegistrar.Causa"/>).
+/// </param>
 public sealed record ResultadoDelTurno(
     EstadoDelTurno Estado,
     string Respuesta,
@@ -191,4 +198,5 @@ public sealed record ResultadoDelTurno(
     int? CupoRestante = null,
     Guid? Conversacion = null,
     IReadOnlyDictionary<string, (TipoDeMencion Tipo, Guid Id)>? ReferenciasEjecutadas = null,
-    MotivoDeRechazo? MotivoDeRechazo = null);
+    MotivoDeRechazo? MotivoDeRechazo = null,
+    CausaDelTurno? Causa = null);

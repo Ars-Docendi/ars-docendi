@@ -38,7 +38,8 @@ public sealed record GeneracionDeSql(
     string Categoria,
     MotivoDeRechazo? Motivo = null,
     string? TerminoCandidato = null,
-    string? PreguntaInterpretada = null)
+    string? PreguntaInterpretada = null,
+    CausaDelTurno? Causa = null)
 {
     /// <summary>Generación que declara la pregunta fuera de alcance.</summary>
     public static GeneracionDeSql NoContestable(
@@ -57,7 +58,14 @@ public sealed record GeneracionDeSql(
     /// acreditar como acierto un turno que no llegó a decidir nada.
     /// </remarks>
     public static GeneracionDeSql Truncada(string razonamiento) =>
-        new(false, null, razonamiento, CategoriaTruncada);
+        new(false, null, razonamiento, CategoriaTruncada, Causa: CausaDelTurno.GeneracionCortada);
+
+    /// <summary>
+    /// The model answered something that could not be interpreted. Unlike a declared
+    /// abstention it carries a cause: the model decided nothing.
+    /// </summary>
+    public static GeneracionDeSql Ininteligible(string razonamiento) =>
+        new(false, null, razonamiento, CategoriaNoContestable, Causa: CausaDelTurno.RespuestaIninteligible);
 
     /// <summary>Categoría con que se marca una pregunta fuera de alcance.</summary>
     public const string CategoriaNoContestable = "no_contestable";
@@ -258,7 +266,7 @@ public sealed class GeneradorDeSql(
                 + "se usa igual. El presupuesto de la llamada está al límite.");
         }
 
-        return interpretada ?? GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+        return interpretada ?? GeneracionDeSql.Ininteligible(RazonamientoIninteligible);
     }
 
     /// <summary>
@@ -426,7 +434,7 @@ public sealed class GeneradorDeSql(
     /// tal, que es exactamente el caso que el validador existe para evitar.
     /// </remarks>
     internal static GeneracionDeSql Interpretar(string texto) =>
-        InterpretarSiSePuede(texto) ?? GeneracionDeSql.NoContestable(RazonamientoIninteligible);
+        InterpretarSiSePuede(texto) ?? GeneracionDeSql.Ininteligible(RazonamientoIninteligible);
 
     /// <summary>
     /// Interpreta la respuesta, o nulo si no tiene la forma esperada.

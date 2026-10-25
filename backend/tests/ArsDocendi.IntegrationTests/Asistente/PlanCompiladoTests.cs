@@ -193,6 +193,8 @@ public sealed class PlanCompiladoTests(PostgresFixture postgres)
         Assert.NotNull(resultado);
         Assert.Equal(EstadoDelTurno.NoContestable, resultado.Estado);
         Assert.Equal(CarrilDelPlan.CategoriaAbstencion, resultado.Categoria);
+        // The invalid first sample is the plan_invalido path (asistente-metricas-de-calidad, D2).
+        Assert.Equal(CausaDelTurno.PlanInvalido, resultado.Causa);
         Assert.Equal(1, guion.Llamadas);
     }
 
@@ -223,6 +225,8 @@ public sealed class PlanCompiladoTests(PostgresFixture postgres)
         Assert.NotNull(resultado);
         Assert.Equal(EstadoDelTurno.NoContestable, resultado.Estado);
         Assert.Contains("No encontré la carrera", resultado.Respuesta);
+        // An unknown entity is the lane declining the question, not an invalid plan: no cause.
+        Assert.Null(resultado.Causa);
     }
 
     [Fact]

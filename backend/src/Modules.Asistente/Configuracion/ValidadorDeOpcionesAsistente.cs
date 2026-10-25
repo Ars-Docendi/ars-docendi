@@ -79,6 +79,7 @@ internal sealed class ValidadorDeOpcionesAsistente : IValidateOptions<OpcionesAs
         (nameof(OpcionesAsistente.RetencionDeHistorialDias), o => o.RetencionDeHistorialDias),
         (nameof(OpcionesAsistente.RetencionDeAuditoriaDeSoporteDias), o => o.RetencionDeAuditoriaDeSoporteDias),
         (nameof(OpcionesAsistente.RetencionDeAuditoriaDeAdministracionDias), o => o.RetencionDeAuditoriaDeAdministracionDias),
+        (nameof(OpcionesAsistente.RetencionDeAuditoriaDeCalidadDias), o => o.RetencionDeAuditoriaDeCalidadDias),
         (nameof(OpcionesAsistente.PeriodoDePurgaHoras), o => o.PeriodoDePurgaHoras),
         (nameof(OpcionesAsistente.VentanaDeDeshacerSegundos), o => o.VentanaDeDeshacerSegundos),
         (nameof(OpcionesAsistente.PeriodoDeBarridoDeBorradosSegundos),

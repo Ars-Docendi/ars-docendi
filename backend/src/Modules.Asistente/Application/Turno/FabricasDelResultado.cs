@@ -54,13 +54,15 @@ internal static class FabricasDelResultado
             // cobrar al actor en el `finally`. Si el registro dijera cero, las dos
             // fuentes discreparían justo en el caso que se está registrando.
             llamadas,
-            conversacion.Id);
+            conversacion.Id,
+            Causa: CausaDelTurno.Excepcion);
 
     /// <summary>Categoría con que el registro analítico marca un turno caído.</summary>
     internal const string CategoriaDelFallo = "fallo";
 
     /// <summary>Un turno que termina sin modelo: cero llamadas al proveedor.</summary>
-    public static ResultadoDelTurno Degradado(HiloConversacional conversacion, string texto) =>
+    public static ResultadoDelTurno Degradado(
+        HiloConversacional conversacion, string texto, CausaDelTurno? causa) =>
         new(EstadoDelTurno.ServicioDegradado,
             texto,
             Razonamiento: string.Empty,
@@ -71,7 +73,8 @@ internal static class FabricasDelResultado
             [],
             GeneracionDeSql.CategoriaNoContestable,
             LlamadasAlModelo: 0,
-            conversacion.Id);
+            conversacion.Id,
+            Causa: causa);
 
     /// <summary>Un turno del carril sin datos: cero llamadas al modelo.</summary>
     /// <remarks>

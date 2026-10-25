@@ -98,6 +98,18 @@ internal sealed class PurgaDeRegistros(
             corteDeAuditoriaDeAdministracion,
             ct);
 
+        // THE QUALITY REVIEW AUDIT HAS ITS OWN WINDOW too (design D5 of
+        // asistente-metricas-de-calidad): it records who read question text and has to
+        // outlive the analytic rows it describes, so it does not follow their retention.
+        var corteDeAuditoriaDeCalidad =
+            reloj.GetUtcNow() - TimeSpan.FromDays(valores.RetencionDeAuditoriaDeCalidadDias);
+        var auditoriasDeCalidad = await BorrarAsync(
+            conexion,
+            "DELETE FROM asistente.auditoria_revision_de_calidad WHERE ocurrido_en < @corte",
+            "corte",
+            corteDeAuditoriaDeCalidad,
+            ct);
+
         // BACKSTOP DEL BARRIDO DE UN MINUTO (design.md D4 de
         // asistente-historial-conversaciones): `BarridoDeBorradosPendientes`
         // ya corre esta misma sentencia cada
@@ -119,7 +131,7 @@ internal sealed class PurgaDeRegistros(
             ct);
 
         var total = operativas + analiticas + conversaciones + auditorias
-            + auditoriasDeAdministracion + borradosPendientes;
+            + auditoriasDeAdministracion + auditoriasDeCalidad + borradosPendientes;
 
         if (total > 0)
         {

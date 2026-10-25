@@ -344,6 +344,17 @@ public sealed class OpcionesAsistente
     /// </remarks>
     public int RetencionDeAuditoriaDeAdministracionDias { get; set; } = 365;
 
+    /// <summary>
+    /// How long the audit trail of reads of the quality problem list is kept, in days
+    /// (asistente-metricas-de-calidad, D5).
+    /// </summary>
+    /// <remarks>
+    /// Its own knob, same criterion as <see cref="RetencionDeAuditoriaDeSoporteDias"/>: the
+    /// trail has to outlive the analytic records whose question text it describes (those
+    /// follow <see cref="RetencionDeRegistrosDias"/>).
+    /// </remarks>
+    public int RetencionDeAuditoriaDeCalidadDias { get; set; } = 365;
+
     /// <summary>Cada cuánto corre la purga, en horas.</summary>
     public int PeriodoDePurgaHoras { get; set; } = 24;
 

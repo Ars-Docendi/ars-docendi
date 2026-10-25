@@ -401,6 +401,9 @@ public sealed partial class ArquitecturaAsistenteTests
         // Same reason as AdministracionAsistente.cs: DDL runner for the three
         // runtime-model tables (asistente-modelo-en-caliente), no actor involved.
         "ModeloAsistente.cs",
+        // Same reason: DDL runner for the quality columns and the review audit
+        // table (asistente-metricas-de-calidad), no actor involved.
+        "CalidadAsistente.cs",
         // Same reason as PresupuestosAdministrablesReal.cs: closes the open price
         // version and opens the new one in one owner-connection transaction
         // (asistente-modelo-en-caliente, D9). tabla_de_precios is keyed to no actor.
@@ -774,7 +777,14 @@ public sealed partial class ArquitecturaAsistenteTests
     /// rejects a less-accessible type there. Its only implementation, the resolver,
     /// stays `internal`.
     /// </remarks>
-    private const int SuperficiePublicaDeApplication = 99;
+    /// <remarks>
+    /// Raised to 100 for asistente-metricas-de-calidad (D2): <c>CausaDelTurno</c> is a
+    /// parameter of the already-public <c>GeneracionDeSql</c>, <c>ResultadoDelTurno</c>
+    /// and <c>TurnoParaRegistrar</c>, and an enum less accessible than the record that
+    /// exposes it does not compile (same reason as <c>MotivoDeRechazo</c>). Its family
+    /// enum and the wire-value helper stay `internal`.
+    /// </remarks>
+    private const int SuperficiePublicaDeApplication = 100;
 
     [Fact]
     public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
@@ -1125,6 +1135,14 @@ public sealed partial class ArquitecturaAsistenteTests
         // arriba, guardado por nombre en `pg_constraint` para que la segunda corrida
         // sea un no-op.
         "registro_operativo_motivo_rechazo_valido",
+
+        // 010 (asistente-metricas-de-calidad, design D2): `causa` is a closed
+        // vocabulary on registro_analitico. The ADD COLUMN stays comma-free; the
+        // CHECK lists 22 codes, so it goes in a guarded DO block by name in
+        // pg_constraint (no ADD CONSTRAINT IF NOT EXISTS), the same pattern as the
+        // ones above. It drops nothing: ratified only because the detector's single
+        // unconditional ALTER shape is ADD COLUMN IF NOT EXISTS.
+        "registro_analitico_causa_valida",
     ];
 
     /// <summary>

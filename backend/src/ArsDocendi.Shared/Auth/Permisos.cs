@@ -66,6 +66,18 @@ public static class Permisos
     /// </remarks>
     public const string AsistenteAdministrar = "asistente.administrar";
 
+    /// <summary>
+    /// Revisar la lista anónima de respuestas con problemas del asistente
+    /// (pregunta, razón o causa, tipo, modelo, día y estado).
+    /// </summary>
+    /// <remarks>
+    /// Se siembra <b>sin concedérselo a ningún rol, ni siquiera <c>sys_admin</c></b>:
+    /// la lista muestra el texto de preguntas de personas, que puede llevar datos
+    /// personales, así que verlo es una decisión distinta de ver los contadores
+    /// (<see cref="AsistenteAdministrar"/>). Cada lectura queda auditada.
+    /// </remarks>
+    public const string AsistenteRevisarCalidad = "asistente.revisar_calidad";
+
     public static readonly string[] Todos =
     [
         UsuariosVer,
@@ -87,6 +99,7 @@ public static class Permisos
         AsistenteVerConsulta,
         AsistenteLeerHistorialAjeno,
         AsistenteAdministrar,
+        AsistenteRevisarCalidad,
         TareasVer,
         TareasGestionar,
         ProyectosGestionar,

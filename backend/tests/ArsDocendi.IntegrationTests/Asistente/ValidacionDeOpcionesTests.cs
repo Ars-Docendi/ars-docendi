@@ -68,6 +68,7 @@ public sealed class ValidacionDeOpcionesTests
     [Theory]
     [InlineData(nameof(OpcionesAsistente.RetencionDeHistorialDias))]
     [InlineData(nameof(OpcionesAsistente.RetencionDeAuditoriaDeSoporteDias))]
+    [InlineData(nameof(OpcionesAsistente.RetencionDeAuditoriaDeCalidadDias))]
     public void Las_dos_retenciones_del_historial_no_positivas_se_rechazan(string perilla)
     {
         var resultado = EnPerilla(perilla, 0);

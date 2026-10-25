@@ -81,6 +81,9 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
         // dimensión que se agrega achica el conjunto en el que alguien se esconde.
         await RegistrarAsync(Turno());
 
+        // `modelo` is the named, accepted exception (design D3 of asistente-metricas-de-calidad,
+        // noted in TD-012): a coarse attribute for comparing models, with a small closed catalog.
+        // What stays out is the `proveedor` column of the operational record, and any actor or time.
         Assert.DoesNotContain("proveedor", await ColumnasDeAsync("registro_analitico"));
     }
 
@@ -642,8 +645,12 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
                 Alguien, null, "¿en qué estado está el pedido de Gómez?",
                 TestContext.Current.CancellationToken);
 
+        // The three extra columns are the quality attributes of asistente-metricas-de-calidad
+        // (010): a closed failure code, the model name (the one attribute shared with the
+        // operational record, accepted in design D3 and noted in TD-012) and the replaced
+        // flag. None of them is the intention, an actor or a precise time.
         Assert.Equal(
-            ["categoria", "dia", "estado", "id", "pregunta"],
+            ["categoria", "causa", "dia", "estado", "id", "modelo", "pregunta", "reemplazado"],
             await ColumnasDeAsync("registro_analitico"));
 
         Assert.Empty(

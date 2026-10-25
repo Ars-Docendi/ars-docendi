@@ -58,6 +58,7 @@ internal sealed class MigradorAsistente(
         AdministracionAsistente.RecursoSql,
         AdministracionAsistente.RecursoSqlVigenteUnico,
         ModeloAsistente.RecursoSql,
+        CalidadAsistente.RecursoSql,
         RecursoVersion,
     ];
 
@@ -167,6 +168,10 @@ internal sealed class MigradorAsistente(
         // inside the wholesale-denied schema; inert until an administrator uses them.
         await ModeloAsistente.AplicarAsync(conexion, ct);
 
+        // Quality columns on registro_analitico plus the review audit table
+        // (asistente-metricas-de-calidad). After RegistrosAsistente: it alters its table.
+        await CalidadAsistente.AplicarAsync(conexion, ct);
+
         await VerificarColumnasDelRegistroAsync(conexion, ct);
 
         // Último: la versión sólo queda registrada si todo lo anterior se aplicó.
@@ -218,6 +223,21 @@ internal sealed class MigradorAsistente(
     }
 
     /// <summary>
+    /// Columns written NOT by the two INSERTs of <see cref="RegistroDelTurno"/> but by
+    /// something else, checked explicitly because nothing derives them from that list
+    /// (asistente-metricas-de-calidad): the replaced flag, written by its own UPDATE,
+    /// and the audit table of reads of the quality problem list, written by its own
+    /// INSERT. Same silent failure mode as the INSERTs: a missing column makes a write
+    /// that is swallowed on purpose fail on every turn.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<string>> ColumnasEscritasAparte =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+        {
+            ["registro_analitico"] = ["reemplazado"],
+            ["auditoria_revision_de_calidad"] = ["id", "lector_id", "ocurrido_en", "filtros", "filas"],
+        };
+
+    /// <summary>
     /// Falla si a la base le falta alguna columna que el registro del turno escribe.
     /// </summary>
     /// <remarks>
@@ -242,7 +262,7 @@ internal sealed class MigradorAsistente(
     {
         var faltantes = new List<string>();
 
-        foreach (var (tabla, columnas) in RegistroDelTurno.ColumnasQueEscribe)
+        foreach (var (tabla, columnas) in RegistroDelTurno.ColumnasQueEscribe.Concat(ColumnasEscritasAparte))
         {
             var presentes = await ColumnasDeAsync(conexion, tabla, ct);
 
@@ -262,8 +282,9 @@ internal sealed class MigradorAsistente(
             + ". El proceso no arranca a propósito: sin ellas el INSERT del registro "
             + "falla en cada turno, el fallo se traga para no tumbar el servicio y el "
             + "registro deja de guardar en silencio. Si la columna es nueva, le falta "
-            + "su ALTER TABLE ... ADD COLUMN IF NOT EXISTS en "
-            + "database/asistente/002_asistente_registros.sql.");
+            + "su ALTER TABLE ... ADD COLUMN IF NOT EXISTS en un "
+            + "database/asistente/NNN_*.sql registrado en MigradorAsistente.Recursos "
+            + "(002 para el operativo, 010 para causa y modelo del analítico).");
     }
 
     private static async Task<HashSet<string>> ColumnasDeAsync(

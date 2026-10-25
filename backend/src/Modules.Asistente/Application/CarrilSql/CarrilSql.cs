@@ -106,7 +106,8 @@ public sealed class CarrilSql(
             // «no tenés acceso a eso» es una respuesta, no una falla.
             log.LogWarning(
                 "El motor rechazó la lectura por falta de privilegio del rol del asistente.");
-            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos);
+            return SinDatos(
+                aMostrar, PoliticaDeAbstencion.TextoSinAccesoALosDatos, CausaDelTurno.SinPrivilegioDeDatos);
         }
         catch (ConsultaRechazadaPorElMotor excepcion)
         {
@@ -116,21 +117,22 @@ public sealed class CarrilSql(
             // respuesta.
             log.LogWarning(
                 excepcion, "El motor rechazó la consulta generada ({Estado}).", excepcion.Estado);
-            return SinDatos(aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar);
+            return SinDatos(
+                aMostrar, PoliticaDeAbstencion.TextoErrorAlConsultar, CausasDelTurno.DeMotor(excepcion.Estado));
         }
         catch (TechoDeLlamadasSuperado)
         {
             // El turno pidió más llamadas de las que su techo permite. No es un
             // error del usuario ni algo que reintentar sirva.
             log.LogWarning("El turno del asistente agotó su techo de llamadas al modelo.");
-            return Degradado(aMostrar);
+            return Degradado(aMostrar, CausaDelTurno.TechoDeLlamadas);
         }
         catch (ProveedorNoDisponible)
         {
             // El breaker cortó el paso. No es un fallo de este turno: es el sistema
             // no gastando una llamada contra un proveedor que ya sabe caído.
             log.LogInformation("El corte al proveedor del modelo sigue abierto.");
-            return Degradado(aMostrar);
+            return Degradado(aMostrar, CausaDelTurno.ProveedorNoDisponible);
         }
         catch (ProveedorSaturado excepcion)
         {
@@ -139,24 +141,24 @@ public sealed class CarrilSql(
             // Information y no Warning: el sistema está ocupado, no roto, y el
             // texto le dice al usuario que pruebe en unos segundos — no «más tarde».
             log.LogInformation("{Motivo}", excepcion.Message);
-            return Degradado(aMostrar, PoliticaDeAbstencion.TextoProveedorSaturado);
+            return Degradado(aMostrar, CausaDelTurno.ProveedorSaturado, PoliticaDeAbstencion.TextoProveedorSaturado);
         }
         catch (TimeoutDelProveedor excepcion)
         {
             log.LogWarning(excepcion, "El proveedor del modelo agotó el tiempo de la llamada.");
-            return Degradado(aMostrar);
+            return Degradado(aMostrar, CausaDelTurno.TimeoutProveedor);
         }
         catch (HttpRequestException excepcion)
         {
             log.LogWarning(excepcion, "El proveedor del modelo no respondió.");
-            return Degradado(aMostrar);
+            return Degradado(aMostrar, CausasDelTurno.DeHttp(excepcion.StatusCode));
         }
         catch (TaskCanceledException excepcion) when (!ct.IsCancellationRequested)
         {
             // Cancelación por timeout del cliente HTTP, no por el token del
             // request: el usuario sigue esperando, el proveedor no contestó.
             log.LogWarning(excepcion, "El proveedor del modelo agotó su tiempo de respuesta.");
-            return Degradado(aMostrar);
+            return Degradado(aMostrar, CausaDelTurno.TimeoutProveedor);
         }
     }
 
@@ -284,7 +286,10 @@ public sealed class CarrilSql(
             log.LogInformation(
                 "El carril SQL rechazó la pregunta ({Motivo}).", MotivosDeRechazo.ValorDeCable(motivo));
 
-            return NoContestable(generacion, aMostrar, texto, generacion.Categoria);
+            // `generacion.Causa` is null for the model's own declination (not a cause)
+            // and set for a truncated or unintelligible generation, where the model
+            // decided nothing.
+            return NoContestable(generacion, aMostrar, texto, generacion.Categoria, generacion.Causa);
         }
 
         var veredicto = ValidadorDeSql.Validar(generacion.Sql, declarados, requeridos);
@@ -300,7 +305,7 @@ public sealed class CarrilSql(
 
             return NoContestable(
                 generacion, aMostrar, PoliticaDeAbstencion.TextoRechazadaPorValidador,
-                GeneracionDeSql.CategoriaNoContestable);
+                GeneracionDeSql.CategoriaNoContestable, CausaDelTurno.ValidadorRechazo);
         }
 
         ResultadoDeConsulta resultado;
@@ -652,13 +657,17 @@ public sealed class CarrilSql(
             Sql: LaConsulta(generacion, perfil),
             // Respondida too (zero rows is still an answer), so it gets a token the
             // same way RedactadoAsync's branch does.
-            ClaveDeRetroalimentacion: Guid.NewGuid());
+            ClaveDeRetroalimentacion: Guid.NewGuid(),
+            // Still Respondida: an empty result is often the correct answer. The cause
+            // is only a signal that lets the quality view tell it apart.
+            Causa: CausaDelTurno.ResultadoVacio);
 
     private ResultadoDelTurno NoContestable(
         GeneracionDeSql generacion,
         string? aMostrar,
         string texto,
-        string categoria) =>
+        string categoria,
+        CausaDelTurno? causa) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             generacion.Razonamiento,
@@ -674,7 +683,8 @@ public sealed class CarrilSql(
             // validador reusa este mismo constructor con una `generacion` cuyo
             // `EsContestable` era verdadero, así que ahí siempre es `null` — el
             // motivo del registro operativo nunca lo pone el validador.
-            MotivoDeRechazo: generacion.Motivo);
+            MotivoDeRechazo: generacion.Motivo,
+            Causa: causa);
 
     /// <summary>
     /// Las áreas consultables del actor, ya renderizadas para un rechazo, o
@@ -710,7 +720,7 @@ public sealed class CarrilSql(
     /// No consume la segunda llamada al modelo: no hay nada que narrar, y pedirle
     /// que narre una falla es pedirle que invente una explicación.
     /// </remarks>
-    private ResultadoDelTurno SinDatos(string? aMostrar, string texto) =>
+    private ResultadoDelTurno SinDatos(string? aMostrar, string texto, CausaDelTurno causa) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             Razonamiento: string.Empty,
@@ -720,7 +730,8 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             GeneracionDeSql.CategoriaNoContestable,
-            contador.Llamadas);
+            contador.Llamadas,
+            Causa: causa);
 
     /// <summary>
     /// La consulta generada, solo si el actor puede verla.
@@ -740,7 +751,9 @@ public sealed class CarrilSql(
     /// suyo.
     /// </summary>
     private ResultadoDelTurno Degradado(
-        string? aMostrar, string texto = PoliticaDeAbstencion.TextoServicioDegradado) =>
+        string? aMostrar,
+        CausaDelTurno causa,
+        string texto = PoliticaDeAbstencion.TextoServicioDegradado) =>
         new(EstadoDelTurno.ServicioDegradado,
             texto,
             Razonamiento: string.Empty,
@@ -750,5 +763,6 @@ public sealed class CarrilSql(
             Truncado: false,
             [],
             GeneracionDeSql.CategoriaNoContestable,
-            contador.Llamadas);
+            contador.Llamadas,
+            Causa: causa);
 }

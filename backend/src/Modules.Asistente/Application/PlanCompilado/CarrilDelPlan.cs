@@ -93,7 +93,7 @@ public sealed class CarrilDelPlan
         if (!veredicto.EsValido)
         {
             _log.LogInformation("La primera muestra del plan es inválida: {Motivo}", veredicto.Motivo);
-            return Abstencion(TextoSinSeguridad);
+            return Abstencion(TextoSinSeguridad, CausaDelTurno.PlanInvalido);
         }
 
         var plan = veredicto.Plan!;
@@ -170,7 +170,7 @@ public sealed class CarrilDelPlan
             // Defensa en profundidad: el compilador no debería producir nunca algo
             // que el validador rechace. Si pasa, es un bug y no se ejecuta.
             _log.LogError("El validador rechazó una consulta compilada: {Motivo}", veredicto.Motivo);
-            return Abstencion(TextoSinSeguridad);
+            return Abstencion(TextoSinSeguridad, CausaDelTurno.PlanInvalido);
         }
 
         // Siempre con el rol básico: el plan nunca lee columnas sensibles.
@@ -183,7 +183,7 @@ public sealed class CarrilDelPlan
                 > Convert.ToInt64(resultado.Filas[0][1], System.Globalization.CultureInfo.InvariantCulture))
         {
             _log.LogError("La consulta compilada devolvió un numerador mayor que su denominador.");
-            return Abstencion(TextoSinSeguridad);
+            return Abstencion(TextoSinSeguridad, CausaDelTurno.PlanInvalido);
         }
 
         var alcanzaTodo = PoliticaDeAbstencion.AlcanzaTodo(perfil, plan.TocaPortal);
@@ -255,7 +255,7 @@ public sealed class CarrilDelPlan
             _contador.Llamadas,
             Opciones: opcionesDeAclaracion);
 
-    private ResultadoDelTurno Abstencion(string texto) =>
+    private ResultadoDelTurno Abstencion(string texto, CausaDelTurno? causa = null) =>
         new(EstadoDelTurno.NoContestable,
             texto,
             Razonamiento: string.Empty,
@@ -265,5 +265,6 @@ public sealed class CarrilDelPlan
             Truncado: false,
             [],
             CategoriaAbstencion,
-            _contador.Llamadas);
+            _contador.Llamadas,
+            Causa: causa);
 }

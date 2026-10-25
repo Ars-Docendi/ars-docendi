@@ -352,6 +352,96 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Contains(tabla, error.Message, StringComparison.Ordinal);
     }
 
+    // ------------------------------- calidad (asistente-metricas-de-calidad, 010)
+
+    [Fact]
+    public async Task An_old_base_receives_the_quality_columns_and_its_rows_survive_untouched()
+    {
+        // The base of the fixture already has them: put it back in the shape it had
+        // before 010, WITH a row, because a NOT NULL column without a DEFAULT passes on
+        // an empty table and aborts on the real one.
+        await EjecutarAsync("ALTER TABLE asistente.registro_analitico DROP COLUMN causa, DROP COLUMN modelo, DROP COLUMN reemplazado");
+        await EjecutarAsync("DROP TABLE asistente.auditoria_revision_de_calidad");
+        var id = await SembrarRegistroAnaliticoAsync();
+
+        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
+
+        var columnas = await ColumnasDeAsync("registro_analitico");
+        Assert.Contains("causa", columnas);
+        Assert.Contains("modelo", columnas);
+        Assert.Contains("reemplazado", columnas);
+        Assert.Contains("lector_id", await ColumnasDeAsync("auditoria_revision_de_calidad"));
+
+        await using var conexion = await AbrirConexionAsync();
+        await using var comando = new NpgsqlCommand(
+            "SELECT causa, modelo, reemplazado FROM asistente.registro_analitico WHERE id = @id", conexion);
+        comando.Parameters.AddWithValue("id", id);
+        await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        Assert.True(await lector.ReadAsync(TestContext.Current.CancellationToken));
+        Assert.True(lector.IsDBNull(0));
+        Assert.True(lector.IsDBNull(1));
+        Assert.False(lector.GetBoolean(2));
+    }
+
+    [Fact]
+    public async Task The_cause_check_accepts_every_code_and_rejects_an_unknown_one()
+    {
+        foreach (var causa in CausasDelTurno.Todas.Select(CausasDelTurno.ValorDeCable))
+        {
+            await EjecutarAsync(
+                "INSERT INTO asistente.registro_analitico (pregunta, categoria, estado, dia, causa) "
+                + "VALUES ('p', 'c', 'e', current_date, @causa)",
+                ("causa", causa));
+        }
+
+        var error = await Assert.ThrowsAsync<PostgresException>(() => EjecutarAsync(
+            "INSERT INTO asistente.registro_analitico (pregunta, categoria, estado, dia, causa) "
+            + "VALUES ('p', 'c', 'e', current_date, 'inventada')"));
+
+        Assert.Equal("23514", error.SqlState);
+        Assert.Equal(22L, await EscalarAsync<long>(
+            "SELECT count(*) FROM asistente.registro_analitico WHERE causa IS NOT NULL"));
+    }
+
+    [Fact]
+    public async Task The_quality_columns_carry_the_TD_012_warning_and_the_audit_table_has_no_foreign_keys()
+    {
+        foreach (var columna in (string[])["causa", "modelo", "reemplazado"])
+        {
+            var comentario = await EscalarAsync<string>(
+                "SELECT col_description('asistente.registro_analitico'::regclass, a.attnum) "
+                + "FROM pg_attribute a WHERE a.attrelid = 'asistente.registro_analitico'::regclass "
+                + "AND a.attname = @columna",
+                ("columna", columna));
+
+            Assert.Contains("TD-012", comentario, StringComparison.Ordinal);
+            Assert.Contains("actor", comentario, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(0L, await EscalarAsync<long>(
+            "SELECT count(*) FROM pg_constraint "
+            + "WHERE conrelid = 'asistente.auditoria_revision_de_calidad'::regclass AND contype = 'f'"));
+        Assert.Equal(1L, await EscalarAsync<long>(
+            "SELECT count(*) FROM pg_indexes WHERE schemaname = 'asistente' "
+            + "AND indexname = 'ix_auditoria_revision_de_calidad_ocurrido_en'"));
+    }
+
+    [Fact]
+    public async Task The_migrator_refuses_to_start_without_a_column_of_the_quality_audit_table()
+    {
+        // No ADD COLUMN repairs it: the table is created whole. `id` is the one column
+        // the DDL does not comment, so the DDL itself cannot trip first. This is the net
+        // below the DDL, for the day someone adds a column to the CREATE TABLE and forgets the ALTER.
+        const string columna = "id";
+        await EjecutarAsync($"ALTER TABLE asistente.auditoria_revision_de_calidad DROP COLUMN {columna}");
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Migrador().MigrarAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains(columna, error.Message, StringComparison.Ordinal);
+        Assert.Contains("auditoria_revision_de_calidad", error.Message, StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------------ apoyo
 
     private MigradorAsistente Migrador() =>
