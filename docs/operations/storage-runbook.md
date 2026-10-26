@@ -232,7 +232,7 @@ omitan el protocolo.
 
 Pruebas de consumidores y proveedor real: `backend/tests/ArsDocendi.IntegrationTests/Storage/`
 y `Portal/ReferenciasPortalTests.cs`. La matriz y ejecución está en
-[portal-storage-tareas-post-auditoria](../evidence/portal-storage-tareas-post-auditoria.md);
+[portal-storage-tareas-post-auditoria](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/portal-storage-tareas-post-auditoria.md);
 los ensayos de backup/restore se documentan en este runbook y en
 [migrations-persistence](migrations-persistence.md#ensayos-reproducibles).
 

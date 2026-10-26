@@ -4,6 +4,8 @@
 
 Flujo de aprobación de los pedidos de designación docente del lado de los roles revisores (Coordinador, Secretaría, Decanato y Administración). Cubre el tablero de revisión filtrado por ámbito, la cadena de aprobación que avanza etapa por etapa, las acciones de aceptar / rechazar / devolver / marcar prioritario con sus reglas de dominio (justificativo obligatorio, terminalidad, guard de etapa, retroceso de un nivel), el detalle role-aware con cadena de aprobación e historial, el recorrido completo de la cadena mediante cambio de rol, y el routing/gating de las superficies de revisión.
 
+Las etiquetas `[BR-designaciones-005/009/011/013/014/015/017]` de esta spec identifican reglas de proceso (no normativa institucional) definidas aquí; ver [business-rules](../../../docs/business-rules/designaciones.md).
+
 ## Requirements
 
 ### Requirement: Backend autoritativo para acciones de revisión

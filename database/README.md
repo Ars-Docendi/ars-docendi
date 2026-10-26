@@ -23,39 +23,9 @@ El preflight debe rechazar historia alpha, IDs desconocidos/discontinuos y schem
 gestionados sin historial reconocido antes de cualquier escritura. No hacer
 `stamp`, `DROP` ni resets automáticos sobre esos destinos.
 
-## Integración de incrementales Identity y Tareas
+## Verificación de migraciones
 
-Las dos migraciones Identity incorporadas desde la rama anterior tenían IDs
-anteriores al baseline. Se renumeran sus wrappers (incluido el nombre de archivo),
-sin tocar los SQL entrantes ni los SQL/wrappers publicados del baseline:
-
-| ID anterior                              | ID integrado                             |
-| ---------------------------------------- | ---------------------------------------- |
-| `20260924000000_PermisosTareas`          | `20261005000400_PermisosTareas`          |
-| `20261003000000_CuentaMicrosoftUsuarios` | `20261005000500_CuentaMicrosoftUsuarios` |
-
-EF aplica primero `20261005000000_BaselineIdentityYAudit` y luego ambos
-incrementales. El baseline ya contiene `tareas.ver` y `tareas.gestionar` y sus
-asignaciones para Secretaría, Administrativo y sys_admin. El SQL incremental
-conserva su `ON CONFLICT`: agrega `proyectos.gestionar` y amplía las asignaciones
-sin duplicar permisos. El baseline no contiene `azure_tid`; el incremental de
-cuentas agrega esa columna, permite una cuenta aún no vinculada y retira los
-`azure_oid` provisionales, tal como declara su SQL original. No adoptar ni
-renombrar historial existente de la rama alpha: el preflight sigue rechazándolo.
-
-Los cinco wrappers entrantes declaran `[RecursosMigracionSql(...)]` y consumen
-esa metadata mediante `AplicarRecursosSql`, la API existente del repositorio
-(no existe `RecursosSql.LeerDeMigracion`). Tareas conserva sus tres IDs y su
-orden propio: schema, catálogos, IDs de catálogos.
-
-`MigracionesRuntimeTests` verifica instalación nueva, preview sin escrituras,
-upgrade desde el baseline con datos, inventario de permisos sin duplicados y
-reejecución sin nuevas filas de auditoría. `IngresoMicrosoftTests` usa materias
-canónicas con códigos numéricos de cinco dígitos y carrera en el ámbito del rol,
-no en la entidad Materia. La validación Git contra el SHA completo de HEAD,
-el build Release y `--validar-recursos` complementan las pruebas reales con
-PostgreSQL desechable. Si `dotnet test` descubre cero tests, ejecutar el assembly
-Release con `dotnet vstest` y verificar los totales del TRX.
+`MigracionesRuntimeTests` verifica instalación nueva, preview sin escrituras, upgrade desde el baseline con datos y reejecución sin nuevas filas de auditoría. CI complementa con la validación Git contra el SHA base, el build Release y `--validar-recursos`. Si `dotnet test` descubre cero tests, ejecutar el assembly Release con `dotnet vstest` y verificar los totales del TRX.
 
 ## Orden de recursos
 
@@ -177,24 +147,11 @@ protegen. Editar/eliminar un archivo protegido, retirar su entrada o cambiar su
 hash/clasificación histórica falla con exit 1. Agregar una migración válida se
 permite sin una nueva versión global.
 
-### Congelar el corte revisado (una única vez)
+### Manifiesto protegido
 
-Sólo después de terminar y revisar **todo** el baseline consolidado:
+`database/migraciones-protegidas.json` (formato 1) guarda los hashes SHA-256 de SQL y wrappers históricos y sus `clasificados`. El corte inicial ya se ejecutó y no se repite: el CLI rechaza `--corte-revisado` cuando la base contiene manifiesto, y `manifest.mjs` rechaza archivos alterados o eliminados antes de regenerar (no hay `--force`). Para auditarlo: `node scripts/migrations/manifest.mjs --dry-run` y `node scripts/migrations/validate.mjs`.
 
-```bash
-node scripts/migrations/manifest.mjs --dry-run
-node scripts/migrations/manifest.mjs
-node scripts/migrations/validate.mjs
-```
-
-El generador escribe `database/migraciones-protegidas.json` con versión de
-formato 1, hashes SHA-256 de SQL/wrappers y `clasificados`. Nunca debe capturar
-archivos intermedios ni volver a incluir las migraciones alpha eliminadas.
-Si ya existe un manifiesto, rechaza archivos alterados/eliminados antes de
-regenerar; no hay `--force` ni flag para saltar protección.
-
-Las excepciones SQL requieren una ruta **exacta** y motivo, no globs. Si existe
-un recurso de soporte sin consumidor EF, proporcionar un JSON de clasificaciones:
+Los SQL sin consumidor EF sólo se admiten con una excepción de ruta **exacta** y motivo, nunca con globs, pasada como JSON de clasificaciones (`manifest.mjs --clasificaciones <archivo>`):
 
 ```json
 {
@@ -202,37 +159,7 @@ un recurso de soporte sin consumidor EF, proporcionar un JSON de clasificaciones
 }
 ```
 
-```bash
-node scripts/migrations/manifest.mjs --clasificaciones inventario-soporte.json
-```
-
-El ejemplo no autoriza crear ese recurso: su existencia y la clasificación se
-revisan juntas. Se rechazan excepciones vacías, inexistentes, duplicadas con un
-consumidor o modificaciones a clasificaciones históricas.
-
-Para el primer PR, cuya base alpha todavía no contiene manifiesto, una persona
-revisora debe fijar el **SHA completo del commit que ya contiene el inventario
-final aprobado** en la variable de repositorio `CORTE_MIGRACIONES_REVISADO`.
-No usar el HEAD mutable del PR, un branch/tag o un SHA calculado en el workflow.
-El check requiere que **la base y el corte aprobado sean ancestros del candidato**
-y compartan historia Git. Pueden estar en ramas divergentes: la base puede haber
-avanzado después de crear el corte, antes de integrarlo. No se exige que el corte
-descienda del SHA base actual. Se validan los bytes del corte contra su inventario
-y después contra el PR; siguen rechazándose modificaciones o eliminaciones de
-los archivos protegidos, incluso si el PR altera sus hashes:
-
-```bash
-node scripts/migrations/validate.mjs --base-ref "$BASE_REF" --corte-revisado "$SHA_CORTE_APROBADO"
-```
-
-Retirar la variable después de integrar el corte. El workflow sólo la pasa si
-el SHA base todavía no contiene `database/migraciones-protegidas.json`; si la
-variable permanece configurada, se omite automáticamente cuando la base ya está
-protegida y se compara contra ese SHA base, no contra el corte antiguo.
-El CLI sigue rechazando `--corte-revisado` explícito cuando la base contiene
-manifiesto: no se puede repetir el squash.
-Si falta el commit/inventario aprobado o la historia Git, CI falla cerrada. Esto
-no migra una instancia alpha ni habilita edición de historia ya aplicada.
+El ejemplo no autoriza crear ese recurso: su existencia y la clasificación se revisan juntas. Se rechazan excepciones vacías, inexistentes, duplicadas con un consumidor o modificaciones a clasificaciones históricas. Si falta el commit base o la historia Git, CI falla cerrada.
 
 ```bash
 # Aplicación one-shot, sin listener HTTP
@@ -242,13 +169,3 @@ dotnet run --project backend/src/ArsDocendi.Host -- --migrate
 La reejecución sólo es no-op para historia compatible. `Down` del baseline falla
 explícitamente: recuperar un backup en un destino aislado y una versión
 compatible, no borrar el schema para recuperar una instancia persistente.
-
-## Evidencia del squash
-
-La instalación alpha se ejecutó desde SQL generado por EF del `git archive HEAD`
-aislado, antes de eliminar la historia. PostgreSQL 18.4 desechable; bytes SQL y
-dumps por stdin/stdout, sin bind mounts. `.artifacts/baseline/inventario.md`
-registra dumps, comandos y comparación exacta normalizada, excluyendo únicamente
-histories EF y timestamps de instalación de catálogos. No contiene SGA ni datos
-personales reales. La comparación de este corte no es una matriz permanente de
-upgrades históricos ni un detector de drift de producción.

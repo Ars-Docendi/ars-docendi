@@ -45,9 +45,9 @@ La clave del connection string es **`ArsDocendi`** (`ConnectionStrings:ArsDocend
 
 ## Migraciones en deploy
 
-El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica Identity/Audit, Storage, Designaciones y Portal en ese orden, manteniendo la integración de Aulas/Tareas sin inventarles baselines. Termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`, variable `COMANDO_MIGRACIONES`, default `dotnet ArsDocendi.Host.dll --migrate`).
+El `ArsDocendi.Host` soporta un arranque **one-shot** de migraciones: con el argumento `--migrate` aplica las migraciones de todos los módulos con migrador registrado. Termina con exit 0 **sin** levantar el web server. Lo invoca la infra de deploy (`infra/scripts/spin-up.sh`). Los demás modos de consulta y validación (`--estado-migraciones`, `--script-migraciones`, `--validar-recursos`) están en [database/README.md](../../database/README.md).
 
-Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente (`Database.Migrate()`).
+Respeta la frontera de módulos (invariante #1): cada módulo expone su rutina de migración vía la interfaz `IMigradorModulo` (en `ArsDocendi.Shared`) con una implementación **interna** que envuelve su `DbContext`; el Host resuelve todas las implementaciones por DI y nunca referencia los `DbContext` internos. La operación es idempotente: sólo aplica las migraciones que no figuran en el historial.
 
 ## Diagnóstico de integridad de datos
 
@@ -77,7 +77,7 @@ reseed o reasignación para superar una garantía.
 | `personas`      | Entidad canónica de una persona. Existe **con o sin cuenta**: un Alta refiere a alguien que nunca se logueó y todavía no tiene legajo (por eso `legajo` es nullable, BR-designaciones-018)                                                                                                             | **Sí** — documento, CUIL, teléfono, fecha nac. |
 | `users`         | Cuenta de acceso dada de alta por la administración. `azure_oid` y `azure_tid` identifican la cuenta Microsoft: vacíos hasta el primer ingreso, que los vincula (`CHECK` ambos o ninguno); desde entonces el usuario se reconoce por ellos y no por el mail. El ingreso nunca crea usuarios            | Parcial — UPN, display name                    |
 | `roles`         | Catálogo **abierto**. Los 7 originales llevan `es_sistema` y están protegidos por trigger; los personalizados conservan su código estable y usan `is_active` para baja lógica                                                                                                                          | No                                             |
-| `permisos`      | Catálogo **cerrado** de 24. Cada `code` lo lee un check del backend                                                                                                                                                                                                                                    | No                                             |
+| `permisos`      | Catálogo **cerrado**, sembrado por SQL versionado. Cada `code` lo lee un check del backend (`Permisos.cs`)                                                                                                                                                                                             | No                                             |
 | `rol_permisos`  | Membresía rol → permiso. La parte editable del modelo de autorización; se conserva al desactivar un rol                                                                                                                                                                                                | No                                             |
 | `user_roles`    | Asignación de rol a usuario, acotada por materia/carrera según el `scope` del rol. Soft-delete; las relaciones sobreviven a la baja del rol para auditoría                                                                                                                                             | No                                             |
 | `carreras`      | Catálogo. Vive acá por ser destino de ámbito de las asignaciones                                                                                                                                                                                                                                       | No                                             |
@@ -161,7 +161,7 @@ Listado y detalle son consultas distintas: grilla sin documentos y con un resume
 de hasta cuatro eventos reales por pedido (sin comentarios), detalle completo con
 orden `(created_at,id)`. Relectura administrativa por persona y resolución de
 personas/actores por lote evitan materialización global innecesaria.
-Ver [evidencia Designaciones 3.6–3.8](../evidence/designaciones-3.6-3.8.md).
+Ver [evidencia Designaciones 3.6–3.8](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/designaciones-3.6-3.8.md).
 
 ### Portal (`schema: portal`)
 
@@ -176,7 +176,7 @@ descargables. Todas las tablas tienen `created_at` y `audit.attach`.
 Los accesos por `perfil_id` a experiencias, educaciones, certificaciones y proyectos
 usan índices SQL incrementales, no propiedades EF generadoras de DDL. La evidencia
 reproducible de planes, buffers y escrituras con dataset sintético está en
-[Portal post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md).
+[Portal post-auditoría](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/portal-storage-tareas-post-auditoria.md).
 
 ### Tareas (`schema: tareas`)
 
@@ -196,7 +196,7 @@ validan, obsoletas responden conflicto y el historial se confirma con la mutaci�
 Relaciones usan un par canónico e idempotencia para altas/bajas repetidas.
 
 Ver [dominio y API de Tareas](domains/tareas.md), [contratos API](api-contracts.md)
-y [evidencia post-auditoría](../evidence/portal-storage-tareas-post-auditoria.md)
+y [evidencia post-auditoría](../../openspec/changes/archive/2026-10-20-corregir-integridad-y-rendimiento-post-auditoria/evidence/portal-storage-tareas-post-auditoria.md)
 para pruebas HTTP/SQL y cobertura de consultas selectivas.
 
 ### Storage (`schema: storage`)
@@ -287,7 +287,7 @@ SELECT * FROM audit.row_history('identity', 'user_roles', '<uuid>');
 
 ## Consideraciones PII
 
-Los datos personales del sistema (documento, CUIL, teléfono, fecha de nacimiento) se concentran en **`identity.personas`**, no en `Portal`. Cuando Portal tenga schema, sumará lo suyo (áreas de experticia, disponibilidad horaria), pero la identidad de la persona vive en un solo lugar. Requisitos:
+Los datos personales del sistema (documento, CUIL, teléfono, fecha de nacimiento) se concentran en **`identity.personas`**, no en `Portal`. Portal guarda lo suyo en su propio schema, pero la identidad de la persona vive en un solo lugar. Requisitos:
 
 - **Encriptación at-rest**: PostgreSQL con encrypted volume en la VM (TBD en `infrastructure.md`).
 - **Encriptación in-transit**: TLS obligatorio para conexiones a Postgres en producción.
@@ -316,7 +316,7 @@ PostgreSQL permite FKs cross-schema. **Política**: evitarlas. Si un módulo nec
 | `designaciones.pedido_historial` | `identity.roles`    | El rol con el que se actuó es parte del registro probatorio del trámite                                          |
 | `designaciones.pedido_historial` | `identity.users`    | Ídem, para el actor                                                                                              |
 | `designaciones.designaciones`    | `identity.personas` | Ídem que pedidos                                                                                                 |
-| `designaciones.designaciones`    | `identity.materias` | Referencia lógica validada por aplicación; la captura final alpha no contiene FK simple                          |
+| `designaciones.designaciones`    | `identity.materias` | FK `ON DELETE RESTRICT` (`20261013170855_IntegridadMateriaDesignaciones.sql`)                                    |
 | `designaciones.designaciones`    | `identity.carreras` | Ídem que pedidos                                                                                                 |
 | `audit.change_log`               | `identity.users`    | Preexistente                                                                                                     |
 

@@ -33,10 +33,7 @@ gh run view <RUN_ID> --log-failed          # logs solo de los steps fallidos
 Según el tipo de falla:
 
 - **Build backend**: `dotnet build backend/ArsDocendi.slnx`
-- **Test backend**: `dotnet test backend/ArsDocendi.slnx`
-- **Format**: `pnpm format:check`
-- **Frontend build**: `pnpm --filter frontend build`
-- **Frontend lint**: `pnpm --filter frontend lint`
+- **Cualquier otro job** (tests, migraciones, infra, links, OpenSpec, format): el comando equivalente está en [AGENTS.md → Verificación](../../../AGENTS.md#verificación).
 
 Si no reproducís localmente, el problema puede ser env de CI (versión de Node, falta de variable, etc.) — investigar el workflow.
 

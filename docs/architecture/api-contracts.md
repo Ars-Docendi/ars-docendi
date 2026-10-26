@@ -11,7 +11,7 @@ Contratos detallados:
 
 - Desarrollo local: `http://localhost:5000`
 - Swagger UI: `http://localhost:5000/swagger` (solo en Development)
-- Producción: TBD (depende de la VM y reverse proxy — ver [`infrastructure.md`](./infrastructure.md))
+- Desplegado: mismo origen que el frontend (`https://<DOMINIO>/api`, staging y `pr-N` en sus subdominios; ver [`infrastructure.md`](./infrastructure.md))
 
 ## Autenticación y autorización
 
@@ -63,21 +63,21 @@ Sigue la convención RFC 7807 (Problem Details). Status codes habituales:
 
 Las extensiones `code` y `errors` se incluyen cuando corresponden. Las excepciones inesperadas se registran con Serilog junto con `traceId`, pero la respuesta nunca publica stack traces ni datos sensibles.
 
-## Endpoints nuevos
+## Superficies
 
 Los DTOs, permisos, códigos de error y respuestas exactas están detallados en [Administración y desarrollo](./api-contracts-administracion.md) y [Designaciones](./api-contracts-designaciones.md).
 
 | Superficie          | Rutas principales                                                                                 | Autorización                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Usuarios            | `GET/POST /api/administracion/usuarios`, `GET/PUT /{id}`, `POST /{id}/activar` o `/desactivar`    | `usuarios.ver` / `usuarios.administrar`                             |
-| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `usuarios.ver` / `usuarios.administrar`                             |
+| Docentes            | `GET/POST /api/administracion/docentes`, `GET/PUT /{personaId}`, cambios de estado y `/catalogos` | `docentes.ver` / `usuarios.administrar`                             |
 | Roles y permisos    | `/api/administracion/roles`, `/permisos`, `/roles/{id}/permisos`                                  | `roles.ver`, `roles.administrar`, `roles.gestionar_membresia`       |
 | Sistema y auditoría | `GET /api/administracion/sistema/estado`, `GET /api/administracion/auditoria`                     | `sistema.estado.ver`, `auditoria.ver`                               |
 | Inferencia          | `GET /api/inferencia/estado`                                                                      | `sistema.estado.ver`                                                |
 | Períodos            | `/api/designaciones/periodos` y comandos activar/desactivar                                       | `periodos.administrar`                                              |
 | Catálogos           | `GET /api/designaciones/catalogos`                                                                | `designaciones.ver`                                                 |
 | Pedidos             | `/api/designaciones/pedidos`, detalle, envío, reenvío y revisión                                  | permisos de consulta, gestión o revisión; siempre acotados al actor |
-| Archivos            | `POST /api/archivos/cargas`, confirmación, metadata y descarga                                    | autenticado; archivo propio para mutaciones                         |
+| Archivos            | `POST /api/archivos/cargas`, subida del objeto, confirmación, metadata, descarga y baja           | autenticado; archivo propio para mutaciones                         |
 | Sesión dev          | `GET /api/desarrollo/identidades`                                                                 | sólo ambiente no productivo con opt-in                              |
 | Sesión              | `GET /api/auth/login`, `GET /api/auth/sesion`, `POST /api/auth/logout`                            | con `AutenticacionMicrosoft:Habilitada`                             |
 
@@ -95,17 +95,11 @@ antes de commit. Las nuevas referencias validan destinos en la misma transacció
 `409 identity-destination-conflict` no agrega eventos parciales. Ver el
 [contrato detallado](./api-contracts-designaciones.md#lectura-de-grilla-versus-detalle).
 
-| Método | Path    | Rol mínimo | Descripción                           |
-| ------ | ------- | ---------- | ------------------------------------- |
-| GET    | `/ping` | (anónimo)  | Health check del módulo               |
-| ...    | ...     | ...        | _(a documentar en specs por feature)_ |
+Rutas, DTOs, permisos y códigos de error: [api-contracts-designaciones.md](./api-contracts-designaciones.md).
 
 ### Aulas (`/api/aulas/`)
 
-| Método | Path    | Rol mínimo | Descripción                           |
-| ------ | ------- | ---------- | ------------------------------------- |
-| GET    | `/ping` | (anónimo)  | Health check del módulo               |
-| ...    | ...     | ...        | _(a documentar en specs por feature)_ |
+Sólo `GET /ping` (anónimo).
 
 ### Portal (`/api/portal/`)
 
@@ -113,14 +107,10 @@ antes de commit. Las nuevas referencias validan destinos en la misma transacció
 | --------------- | ------------------------------------------------------------------------------------------ | ----------- | ------------------------------- |
 | GET             | `/ping`                                                                                    | (anónimo)   | Health check del módulo         |
 | GET             | `/perfil`                                                                                  | autenticado | Perfil propio completo          |
-| PUT/DELETE      | `/perfil/contacto`, `/perfil/cv`                                                           | autenticado | Contacto y metadata de CV       |
+| PUT             | `/perfil/contacto`                                                                         | autenticado | Contacto                        |
+| PUT/DELETE      | `/perfil/cv`                                                                               | autenticado | Metadata de CV                  |
 | POST/PUT/DELETE | `/perfil/experiencia`, `/perfil/educacion`, `/perfil/certificaciones`, `/perfil/proyectos` | autenticado | CRUD propio                     |
 | PUT             | `/perfil/habilidades`, `/perfil/intereses`                                                 | autenticado | Reemplazo independiente de tags |
-
-La lectura completa usa seis consultas EF split dentro de un snapshot
-`REPEATABLE READ`: preserva las secciones completas sin multiplicar colecciones
-hermanas. La identidad se resuelve por cuenta concreta y la metadata documental
-mediante un lote de IDs, no mediante directorios globales ni un lookup por adjunto.
 
 Las respuestas de contacto, CV e ítems de trayectoria/proyectos contienen `version`.
 PUT y DELETE de secciones existentes requieren la versión observada; DELETE la
@@ -141,30 +131,17 @@ clave ni estado enviado por el cliente. Las descargas pasan por el backend:
 
 1. `POST /cargas` recibe propósito, nombre, MIME declarado y tamaño; devuelve
    `archivoId`, ruta PUT temporal del backend y expiración.
-2. El cliente sube el objeto y llama `POST /cargas/{archivoId}/confirmar` con
-   hash/tamaño observados. El backend valida firma, MIME real, límites y
+2. El cliente sube el objeto con `PUT /cargas/{archivoId}/objeto` y llama
+   `POST /cargas/{archivoId}/confirmar` con hash/tamaño observados. El backend valida firma, MIME real, límites y
    antivirus antes de marcarlo `disponible`.
 3. `GET /{archivoId}` devuelve solo metadata. `GET /{archivoId}/descarga` no
-   revela bucket ni clave y solo devuelve bytes disponibles.
+   revela bucket ni clave y solo devuelve bytes disponibles. `DELETE /{archivoId}`
+   da de baja un archivo propio.
 
 Una carga pendiente, rechazada, expirada o de otro propósito produce Problem
 Details estable y nunca puede asociarse a Portal o Designaciones.
 
-Cada upload reserva un intento persistido con clave inmutable. La confirmación
-publica mediante CAS únicamente los bytes verificados de ese intento; un PUT
-tardío no puede reemplazar la clave publicada. Una confirmación ya publicada es
-idempotente. Reserva, recuperación y limpieza usan tokens de intento y vencimiento;
-ninguna transacción PostgreSQL permanece abierta durante stream o antivirus.
-
-Asociar/desvincular y reservar eliminación comparten exclusión transaccional por
-archivo, en orden estable de IDs, y participantes locales enlistados en una única
-conexión/transacción. Portal y Designaciones consultan sus referencias mediante
-contratos puros; un consumidor faltante/fallido impide el borrado. DELETE directo
-de un archivo referenciado devuelve conflicto sin quitar su descarga. Reemplazar
-CV/documento primero confirma la desvinculación y luego evalúa retención; otra
-referencia conserva los bytes. Un fallo remoto tras reservar eliminación mantiene
-indisponibilidad y permite reintentar, nunca vuelve a publicar por una revisión
-tardía.
+Garantías de publicación, retención y borrado: spec [almacenamiento-adjuntos](../../openspec/specs/almacenamiento-adjuntos/spec.md).
 
 ### Tareas (`/api/tareas/`)
 
@@ -188,11 +165,7 @@ Acceso por permiso del rol vigente (no por nombre de rol). `tareas.ver` lo tiene
 | PUT         | `/proyectos/{id}`                               | `proyectos.gestionar` | Editar nombre, descripción, fechas y Responsable (el estado se cambia aparte); el Responsable se revalida solo si cambia       |
 | POST        | `/proyectos/{id}/estado`                        | `proyectos.gestionar` | Finalizar o cancelar un proyecto                                                                                               |
 
-Una solicitud valida el Proyecto efectivo de la tarea hija bajo los mismos locks que serializan el cierre del proyecto; nuevas altas no entran en un estado que no admita tareas. Si la edición conserva el Proyecto actual, un estado cerrado no convierte esa edición en una reasignación. El cambio de Proyecto de una raíz propaga el nuevo valor a los descendientes existentes, incluidos `NULL` heredados, dentro de la misma transacción.
-
-Tarea y Proyecto exponen `version` (`xmin`). PUT y cambios de estado/avance requieren la versión observada; ausencia/obsolescencia responde `409 concurrency-conflict` antes de persistir historial parcial. El frontend invalida/recarga y deja la resolución al usuario, sin reintento ciego. La relación bidireccional es idempotente para pares canónicos; borrar una relación ausente también responde éxito.
-
-Los filtros de visibilidad y jerarquía se aplican antes de materializar/límite; nombres e historial se resuelven para IDs visibles, manteniendo identidades inactivas sólo para lectura histórica. El proyecto requerido por hijas y la solución de tareas resueltas se validan además mediante constraints SQL incrementales, usando IDs de catálogos numéricos; no se exige Proyecto a tareas raíz ni se expone reparenting.
+Tarea y Proyecto exponen `version`: PUT y los cambios de estado o avance requieren la versión observada; una ausente responde `400` y una obsoleta `409 concurrency-conflict`. Reglas de jerarquía, herencia de Proyecto y visibilidad: spec [tareas-api](../../openspec/specs/tareas-api/spec.md).
 
 ## Idempotencia
 
@@ -204,4 +177,4 @@ V1 implícito hasta que sea necesario versionar. Cuando se necesite: prefijo `/a
 
 ## Auto-discovery
 
-Swagger UI disponible en `/swagger` (solo Development). Cada controller debe tener atributos `[ProducesResponseType]` para que el schema sea preciso.
+Swagger UI disponible en `/swagger` (solo Development).

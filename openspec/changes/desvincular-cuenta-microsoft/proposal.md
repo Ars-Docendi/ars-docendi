@@ -2,7 +2,7 @@
 
 ## Why
 
-El change archivado `2026-10-11-vinculacion-cuenta-microsoft` quedó con sus tareas de implementación sin marcar. Su requisito de desvincular la cuenta Microsoft sigue vigente en `openspec/specs/vinculacion-cuenta-microsoft/spec.md`, pero el endpoint, los campos del DTO y la acción de `/usuarios` no existen en `backend/src` ni en `frontend/src`. Sin desvincular, una persona vinculada a una cuenta equivocada no tiene salida desde la app.
+El change archivado `2026-10-11-vinculacion-cuenta-microsoft` quedó con sus tareas de implementación sin marcar. Sus requisitos (estado de vinculación visible y desvinculación administrativa) se habían sincronizado a `openspec/specs/` sin estar implementados: el endpoint, los campos del DTO y la acción de `/usuarios` no existen en `backend/src` ni en `frontend/src`. Se retiraron de `specs/` (que describe sólo lo vigente) y este change los lleva como delta. Sin desvincular, una persona vinculada a una cuenta equivocada no tiene salida desde la app.
 
 ## What Changes
 
@@ -11,7 +11,7 @@ El change archivado `2026-10-11-vinculacion-cuenta-microsoft` quedó con sus tar
 - Agregar la acción "Desvincular cuenta" en `/usuarios`, con confirmación, visible solo con vínculo y permiso `usuarios.administrar`.
 - Documentar el endpoint y los campos en `docs/architecture/api-contracts-administracion.md`.
 
-No cambia ningún requisito vigente: este change solo implementa lo ya especificado.
+Los requisitos se agregan como nueva capability `vinculacion-cuenta-microsoft` y se modifican las columnas y acciones de `listar-usuarios` (columna de cuenta Microsoft y acción "Desvincular cuenta", retiradas de la spec vigente hasta implementarse).
 
 ## Estado
 

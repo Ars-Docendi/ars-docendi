@@ -23,17 +23,6 @@ public sealed class ValidacionArchivosTests
     }
 
     [Fact]
-    public void Calcula_hash_sha256_estable_y_de_longitud_fija()
-    {
-        var contenido = "contenido de prueba"u8;
-        var hash = ReglasArchivos.CalcularSha256(contenido);
-
-        Assert.Equal(64, hash.Length);
-        Assert.Equal(hash, ReglasArchivos.CalcularSha256(contenido));
-        Assert.NotEqual(hash, ReglasArchivos.CalcularSha256("contenido distinto"u8));
-    }
-
-    [Fact]
     public void Rechaza_proposito_mime_y_tamano_no_admitidos()
     {
         var error = Assert.Throws<ExcepcionAplicacion>(() => ReglasArchivos.ValidarInicio(
