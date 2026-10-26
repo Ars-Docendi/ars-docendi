@@ -56,13 +56,13 @@ El sistema SHALL impedir que exista más de un pedido que ocupe cupo (cualquiera
 
 #### Scenario: Segundo pedido para el mismo docente en el mismo período [BR-designaciones-001]
 
-- **GIVEN** una persona que ya tiene un pedido no terminal en el período abierto
+- **GIVEN** una persona que ya tiene en el período abierto un pedido cuyo estado no es `rechazado` ni `cancelado`
 - **WHEN** se intenta crear un segundo pedido para esa persona en ese período
 - **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en el período
 
 #### Scenario: El bloqueo alcanza a otra cátedra [BR-designaciones-001]
 
-- **GIVEN** una persona con un pedido no terminal cargado por el Jefe de Cátedra de una materia
+- **GIVEN** una persona con un pedido cargado por el Jefe de Cátedra de una materia, cuyo estado no es `rechazado` ni `cancelado`
 - **WHEN** el Jefe de Cátedra de otra materia intenta cargar un pedido para esa misma persona en el mismo período
 - **THEN** el sistema MUST rechazar la creación, e informarlo **sin exponer datos del pedido bloqueante**, que pertenece a una cátedra ajena al actor
 

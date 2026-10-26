@@ -37,7 +37,7 @@ Si no queda nada, terminá ahí: no hay gap que cubrir.
 
 1. Leer `docs/business-rules/<modulo>.md`, sección **Mapping a tests**, e identificar las `BR-*` sin test o con un test que no afirma el `Statement`.
 2. Por cada una, releer `Statement` y `Ejemplos` y elegir la capa:
-   - Guard de la máquina de estados o validación pura: unit test (por ejemplo `MaquinaEstadosPedido` en `RevisionPedidosTests`).
+   - Guard de la máquina de estados o validación pura: unit test (por ejemplo `MaquinaEstadosPedidoTests`).
    - Constraint, trigger o concurrencia: integración con PostgreSQL.
    - Una `BR-*` validada en ambos lados se prueba completa en backend; el frontend sólo prueba que anticipa el error en su módulo de validación (`*Validacion.test.ts`), no en el componente.
 3. Escribir un caso positivo y uno negativo.
