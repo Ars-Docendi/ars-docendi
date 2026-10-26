@@ -1,3 +1,4 @@
+using ArsDocendi.IntegrationTests.Infraestructura;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -6,7 +7,7 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Tareas;
 
-public sealed partial class TareasHttpTests
+public sealed class CierreTareasHttpTests(PostgresFixture postgres) : TareasHttpBase(postgres)
 {
     [Theory]
     [InlineData(false)]

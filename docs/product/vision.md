@@ -9,14 +9,14 @@ Ars Docendi reemplaza el flujo manual y fragmentado (planillas Excel, mails, pap
 - **Eliminar la fragmentación documental**: una única fuente de verdad por dominio (designaciones, aulas, portal, tareas).
 - **Hacer cumplir el flujo institucional**: las aprobaciones/rechazos respetan la cadena de roles real del departamento.
 - **Reducir tiempo administrativo** en los procesos cíclicos (período de designaciones, mesas de examen).
-- **Integrar el ecosistema institucional**: SSO con Microsoft Azure AD (credenciales UNLaM), consumo de la API Guaraní para visualización de asignaciones existentes.
+- **Integrar el ecosistema institucional**: ingreso con cuentas Microsoft (Entra ID) y, a futuro, consumo de la API Guaraní para visualizar asignaciones existentes (sin integración todavía).
 - **Trazabilidad reglamentaria**: toda regla de negocio rastreable a su origen normativo (estatutos, regímenes, normativas departamentales).
 
 ## Non-goals
 
 - **Gestión académica de alumnos** (notas, regularidades, mesas) — eso vive en Guaraní, Ars Docendi solo consume.
 - **Sistema general de RRHH universitario** — solo cubre el alcance del Departamento de Ingeniería.
-- **Reemplazo del SSO institucional** — Ars Docendi consume Azure AD, no maneja credenciales propias.
+- **Reemplazo del SSO institucional** — Ars Docendi delega el ingreso en Microsoft Entra ID y no maneja credenciales propias.
 - **Reservas de aulas para uso académico regular** (clases) — solo exámenes y casos puntuales coordinados por Administrativos.
 
 ## Success metrics

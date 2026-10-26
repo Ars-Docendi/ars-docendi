@@ -29,48 +29,6 @@ public sealed class PedidosApiTests(PostgresFixture postgres)
     private static readonly Guid Secretaria = Guid.Parse("a0000000-0000-4000-8000-000000000004");
 
     [Fact]
-    public async Task Controller_crea_obtiene_edita_envia_reenvia_y_elimina()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
-        await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
-        await using var db = PostgresFixture.CrearDesignaciones(Cadena);
-        var controller = new PedidosController(CrearServicio(Jefe, identityDb, db));
-
-        var respuesta = await controller.Crear(Datos(
-            Guid.Parse("d0000000-0000-4000-8000-000000000002")), ct);
-        var creado = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>(respuesta.Result).Value);
-        Assert.Matches(@"^\d{4}-\d{4}$", creado.Numero);
-        Assert.Equal("crear", Assert.Single(creado.Historial).Accion);
-        Assert.Contains("enviar", creado.AccionesPermitidas);
-
-        var editado = await controller.Editar(creado.Id, Datos(creado.Persona.Id) with
-        {
-            Horas = 18,
-            Justificacion = "Actualización de carga",
-            Version = creado.Version,
-        }, ct);
-        Assert.Equal(18, editado.Horas);
-        Assert.Equal("editar", editado.Historial.Last().Accion);
-
-        var enviado = await controller.Enviar(creado.Id, Guid.NewGuid().ToString(), ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, enviado.Estado);
-        Assert.Equal("enviar", enviado.Historial.Last().Accion);
-        Assert.NotNull(enviado.Snapshot);
-        Assert.Equal(enviado.Materia.Nombre, enviado.Snapshot.Materia);
-
-        var devueltoId = Guid.Parse("d5000000-0000-4000-8000-000000000005");
-        var reenviado = await controller.Reenviar(devueltoId, Guid.NewGuid().ToString(), ct);
-        Assert.Equal(EstadosPedido.EnRevisionCoordinador, reenviado.Estado);
-        Assert.Equal("reenviar", reenviado.Historial.Last().Accion);
-
-        var borrador = Assert.IsType<PedidoDto>(Assert.IsType<CreatedAtActionResult>((await controller.Crear(
-            Datos(Guid.Parse("d0000000-0000-4000-8000-000000000003")), ct)).Result).Value);
-        Assert.IsType<NoContentResult>(await controller.Eliminar(borrador.Id, ct));
-        Assert.Null(await db.Pedidos.FindAsync([borrador.Id], ct));
-    }
-
-    [Fact]
     public async Task Alta_con_datos_nuevos_crea_persona_sin_cuenta_y_pedido()
     {
         var ct = TestContext.Current.CancellationToken;

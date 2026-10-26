@@ -28,7 +28,7 @@ AsignacionRolDto       = { id, rolId, codigo, nombre, ambito, materiaId?, carrer
                          carreras exige elegir una); Jefe de Cátedra → `materiaId` (canónica) solo;
                          Coordinador → `carreraId` solo.
 PerfilDocenteDto       = { esDocente, cantidadMaterias }
-UsuarioResumenDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
+UsuarioAdministracionDto      = { id, personaId, nombre, apellido, documento, legajo?, cuil?,
                            fechaNacimiento?, telefono?, upn, activo, roles[], membresias[],
                            perfilDocente }
 GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNacimiento?,
@@ -36,7 +36,7 @@ GuardarUsuarioDto      = { nombre, apellido, documento, legajo?, cuil?, fechaNac
 DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraId,
                            cargo{id,codigo,nombre,abreviatura},
                            dedicacion?, dedicacionId?, horas, horasInvestigacion?, horasExternas?, vigenteDesde }
-DocenteResumenDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
+DocenteAdministracionDto      = { personaId, usuarioId?, datosPersona..., tieneCuenta, activo?,
                            roles[], membresias[], designaciones[] }
 GuardarDocenteDto      = { personaId? | personaNueva, datosPersona..., membresias[],
                            designaciones[], version? }
@@ -69,27 +69,27 @@ pueden reemplazarse.
 
 ## Rutas de usuarios
 
-| Método | Ruta                                           | Permiso                | Entrada / salida                                        |
-| ------ | ---------------------------------------------- | ---------------------- | ------------------------------------------------------- |
-| GET    | `/api/administracion/usuarios`                 | `usuarios.ver`         | `UsuarioResumenDto[]`                                   |
-| GET    | `/api/administracion/usuarios/{id}`            | `usuarios.ver`         | `UsuarioResumenDto`                                     |
-| POST   | `/api/administracion/usuarios`                 | `usuarios.administrar` | `GuardarUsuarioDto` → `201 UsuarioResumenDto`           |
-| PUT    | `/api/administracion/usuarios/{id}`            | `usuarios.administrar` | `GuardarUsuarioDto` con `version` → `UsuarioResumenDto` |
-| POST   | `/api/administracion/usuarios/{id}/activar`    | `usuarios.administrar` | `{ version }` → `UsuarioResumenDto`                     |
-| POST   | `/api/administracion/usuarios/{id}/desactivar` | `usuarios.administrar` | `{ version }` → `UsuarioResumenDto`                     |
+| Método | Ruta                                           | Permiso                | Entrada / salida                                               |
+| ------ | ---------------------------------------------- | ---------------------- | -------------------------------------------------------------- |
+| GET    | `/api/administracion/usuarios`                 | `usuarios.ver`         | `UsuarioAdministracionDto[]`                                   |
+| GET    | `/api/administracion/usuarios/{id}`            | `usuarios.ver`         | `UsuarioAdministracionDto`                                     |
+| POST   | `/api/administracion/usuarios`                 | `usuarios.administrar` | `GuardarUsuarioDto` → `201 UsuarioAdministracionDto`           |
+| PUT    | `/api/administracion/usuarios/{id}`            | `usuarios.administrar` | `GuardarUsuarioDto` con `version` → `UsuarioAdministracionDto` |
+| POST   | `/api/administracion/usuarios/{id}/activar`    | `usuarios.administrar` | `{ version }` → `UsuarioAdministracionDto`                     |
+| POST   | `/api/administracion/usuarios/{id}/desactivar` | `usuarios.administrar` | `{ version }` → `UsuarioAdministracionDto`                     |
 
 ## Rutas de docentes y catálogos
 
-| Método | Ruta                                                  | Permiso                      | Entrada / salida                                   |
-| ------ | ----------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
-| GET    | `/api/administracion/docentes`                        | `usuarios.ver` o JdC acotado | `DocenteResumenDto[]`                              |
-| GET    | `/api/administracion/docentes/{personaId}`            | `usuarios.ver` o JdC acotado | `DocenteResumenDto`                                |
-| POST   | `/api/administracion/docentes`                        | `usuarios.administrar`       | `GuardarDocenteDto` → `201 DocenteResumenDto`      |
-| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar`       | `GuardarDocenteDto` → `DocenteResumenDto`          |
-| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar`       | `DocenteResumenDto`                                |
-| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar`       | `DocenteResumenDto`                                |
-| GET    | `/api/administracion/docentes/catalogos`              | `usuarios.ver` o JdC acotado | materias, cargos y personas elegibles según ámbito |
-| GET    | `/api/administracion/catalogos`                       | autenticado                  | `CatalogoIdentityDto` filtrado por permisos        |
+| Método | Ruta                                                  | Permiso                      | Entrada / salida                                     |
+| ------ | ----------------------------------------------------- | ---------------------------- | ---------------------------------------------------- |
+| GET    | `/api/administracion/docentes`                        | `docentes.ver` o JdC acotado | `DocenteAdministracionDto[]`                         |
+| GET    | `/api/administracion/docentes/{personaId}`            | `docentes.ver` o JdC acotado | `DocenteAdministracionDto`                           |
+| POST   | `/api/administracion/docentes`                        | `usuarios.administrar`       | `GuardarDocenteDto` → `201 DocenteAdministracionDto` |
+| PUT    | `/api/administracion/docentes/{personaId}`            | `usuarios.administrar`       | `GuardarDocenteDto` → `DocenteAdministracionDto`     |
+| POST   | `/api/administracion/docentes/{personaId}/activar`    | `usuarios.administrar`       | `DocenteAdministracionDto`                           |
+| POST   | `/api/administracion/docentes/{personaId}/desactivar` | `usuarios.administrar`       | `DocenteAdministracionDto`                           |
+| GET    | `/api/administracion/docentes/catalogos`              | `docentes.ver` o JdC acotado | materias, cargos y personas elegibles según ámbito   |
+| GET    | `/api/administracion/catalogos`                       | `usuarios.ver`               | `CatalogoIdentityDto` filtrado por permisos          |
 
 Alta/edición docente es atómica desde la perspectiva HTTP. Si falla identity o el comando público de Designaciones, el servidor revierte o compensa la unidad completa y retorna Problem Details.
 

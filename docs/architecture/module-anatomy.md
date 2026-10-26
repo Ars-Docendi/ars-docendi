@@ -7,7 +7,7 @@ Cada contexto vive en `backend/src/Modules.<Modulo>/`. Cuando otro módulo neces
 ```text
 Modules.<Modulo>/
 ├── Api/                 # controllers y DTOs HTTP internos
-├── Application/         # casos de uso (Portal)
+├── Application/         # casos de uso (Portal, Tareas)
 ├── Services/            # orquestación (Designaciones)
 ├── Domain/              # entidades y reglas puras
 ├── Repositories/        # consultas y persistencia EF
@@ -21,7 +21,7 @@ Modules.<Modulo>.Contracts/
 └── Modules.<Modulo>.Contracts.csproj
 ```
 
-No todos los módulos necesitan todas las carpetas. Aulas y Tareas, por ejemplo, sólo exponen hoy su ping y su infraestructura mínima; no se crean clases vacías para completar el dibujo.
+No todos los módulos necesitan todas las carpetas: Aulas, por ejemplo, sólo expone hoy su ping y su infraestructura mínima. No se crean clases vacías para completar el dibujo.
 
 ## Flujo
 
