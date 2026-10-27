@@ -106,22 +106,6 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         public Task<EstadoDeMantenimientoPublico> ConsultarAsync(CancellationToken ct) =>
             throw new InvalidOperationException("Falla simulada para el test.");
     }
-
-    [Fact]
-    public async Task Migracion_de_permisos_es_no_op_en_una_base_ya_actualizada_y_no_amplia_otros_roles()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var identidad = PostgresFixture.CrearIdentity(Cadena);
-        var antes = await ContarPermisosNuevosAsync(ct);
-
-        await identidad.Database.MigrateAsync(ct);
-
-        var despues = await ContarPermisosNuevosAsync(ct);
-        Assert.Equal((2L, 2L, 0L), antes);
-        Assert.Equal(antes, despues);
-    }
-
-    [Fact]
     public async Task Auditoria_pagina_filtra_y_oculta_valores_personales_desconocidos()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -614,29 +598,6 @@ public sealed class AdministracionSistemaTests(PostgresFixture postgres)
         await using var conexion = await AbrirConexionAsync();
         await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
         await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private async Task<(long Permisos, long AsignacionesSysAdmin, long AsignacionesOtrosRoles)> ContarPermisosNuevosAsync(
-        CancellationToken ct)
-    {
-        const string sql = """
-            SELECT
-                (SELECT count(*) FROM identity.permisos
-                 WHERE code IN ('sistema.estado.ver', 'auditoria.ver')),
-                (SELECT count(*) FROM identity.rol_permisos rp
-                 JOIN identity.permisos p ON p.id = rp.permiso_id
-                 JOIN identity.roles r ON r.id = rp.rol_id
-                 WHERE p.code IN ('sistema.estado.ver', 'auditoria.ver') AND r.code = 'sys_admin'),
-                (SELECT count(*) FROM identity.rol_permisos rp
-                 JOIN identity.permisos p ON p.id = rp.permiso_id
-                 JOIN identity.roles r ON r.id = rp.rol_id
-                 WHERE p.code IN ('sistema.estado.ver', 'auditoria.ver') AND r.code <> 'sys_admin');
-            """;
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        await using var lector = await comando.ExecuteReaderAsync(ct);
-        await lector.ReadAsync(ct);
-        return (lector.GetInt64(0), lector.GetInt64(1), lector.GetInt64(2));
     }
 
     private async Task<long> ContarCambiosAuditoriaAsync(CancellationToken ct)

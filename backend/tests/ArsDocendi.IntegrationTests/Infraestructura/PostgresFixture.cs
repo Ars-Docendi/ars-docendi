@@ -83,6 +83,10 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     private readonly SemaphoreSlim _candadoDeLaPlantilla = new(1, 1);
 
+    // PostgreSQL rechaza clonar una plantilla mientras otra copia la está leyendo
+    // («source database is being accessed by other users»): los clones se serializan.
+    private readonly SemaphoreSlim _clonado = new(1, 1);
+
     private async Task<string> PlantillaAsync()
     {
         if (_plantilla is not null)
@@ -118,14 +122,29 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     private async Task CrearBaseVaciaAsync(string nombre, string? plantilla = null)
     {
-        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
-        await conexion.OpenAsync();
-        await using var comando = new NpgsqlCommand(
-            plantilla is null
-                ? $"CREATE DATABASE \"{nombre}\""
-                : $"CREATE DATABASE \"{nombre}\" TEMPLATE \"{plantilla}\"",
-            conexion);
-        await comando.ExecuteNonQueryAsync();
+        if (plantilla is not null)
+        {
+            await _clonado.WaitAsync();
+        }
+
+        try
+        {
+            await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+            await conexion.OpenAsync();
+            await using var comando = new NpgsqlCommand(
+                plantilla is null
+                    ? $"CREATE DATABASE \"{nombre}\""
+                    : $"CREATE DATABASE \"{nombre}\" TEMPLATE \"{plantilla}\"",
+                conexion);
+            await comando.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            if (plantilla is not null)
+            {
+                _clonado.Release();
+            }
+        }
     }
 
     private string CadenaDe(string nombre) =>

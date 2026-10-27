@@ -4,7 +4,7 @@
 
 `ArsDocendi.Migraciones` contiene el adaptador EF reutilizable y la salida CLI. Depende de Shared; Host, Storage y los módulos lo consumen. Shared conserva DTOs/contratos puros y utilidades de recursos, sin I/O adicional hacia los contextos de módulos. La registración de Identity/Audit se realiza con `AddMigracionesIdentity` después de `AddArsDocendiShared`.
 
-`ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4 enmendado), así que suma dependencias de **paquete** — EF Core y Npgsql — pero ninguna de proyecto: el grafo entre proyectos no cambia. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
+`ArsDocendi.Shared` hospeda además la persistencia de `identity` y `audit` (invariante #4), así que tiene dependencias de **paquete** (EF Core y Npgsql), pero ninguna de proyecto. La contrapartida es que todos los módulos alcanzan `identity` sin pasar por Contracts; ver "Frontera de lectura sobre identity" más abajo.
 
 ## La lista de aristas vive en el manifiesto
 
@@ -84,7 +84,6 @@ flowchart TD
   EvaluacionNucleo -->|"excepción al invariante #1 (ARS-63)"| Asistente
 
   Designaciones -->|"correo de altas vía PortalContracts"| PortalContracts
-  Aulas -.->|"vía PortalContracts (TBD)"| PortalContracts
   Asistente -.->|"carril determinista de API (TBD)"| DesignacionesContracts
 ```
 
@@ -120,7 +119,7 @@ Dependencias de paquete del Host para el ingreso con Microsoft (tampoco son edge
 
 ## Frontera de lectura sobre `identity`
 
-Los 4 módulos referencian `ArsDocendi.Shared`, y desde este change eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
+Los 4 módulos referencian `ArsDocendi.Shared`, y eso les da alcance directo a `identity`. El invariante #1 **no** cubre este caso: no es una relación cross-module, porque referenciar Shared es legítimo para todos.
 
 La disciplina, corolario del invariante #4 enmendado:
 
@@ -169,7 +168,7 @@ internas de Portal.
 
 `ArsDocendi.Host.Administracion.ServicioDocentes` coordina la identidad canónica con las asignaciones vigentes. Para la parte de Designaciones depende sólo de `IAdministracionDesignaciones` y sus DTOs en `Modules.Designaciones.Contracts`; la implementación queda dentro de `Modules.Designaciones`. Este camino usa la arista Host → Contracts ya registrada y no agrega Designaciones → Host ni Shared → módulo, por lo que el grafo continúa acíclico.
 
-**Aristas cross-module proyectadas** (a confirmar en la spec respectiva, sin fila en el manifiesto hasta que el `.csproj` las referencie): `Modules.Aulas` → `Modules.Portal.Contracts`, para conocer al docente solicitante de la reserva; y `Modules.Asistente` → `Modules.Designaciones.Contracts`, que llega con el carril determinista de API (ARS-46).
+**Arista cross-module proyectada** (a confirmar en la spec respectiva, sin fila en el manifiesto hasta que el `.csproj` la referencie): `Modules.Asistente` → `Modules.Designaciones.Contracts`, que llega con el carril determinista de API (ARS-46).
 
 ## Agregar una arista nueva
 

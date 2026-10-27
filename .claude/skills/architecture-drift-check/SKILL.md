@@ -16,7 +16,7 @@ argument-hint: [<modulo opcional>]
 
 ### 1. Módulos no documentados
 
-- Listar todos los `backend/src/Modules.*/` directorios.
+- Listar todos los `backend/src/Modules.*/` directorios (sin `.Contracts`).
 - Cruzar contra `docs/architecture/domains/` archivos.
 - Cada módulo sin doc correspondiente → **drift**.
 
@@ -35,16 +35,12 @@ En rojo, el mensaje ya nombra el ciclo: no hace falta reconstruirlo a mano. No r
 Cualquier referencia desde `Modules.<X>/*.csproj` a `Modules.<Y>/*.csproj` (no a `Modules.<Y>.Contracts/`) → **violación** del principio cross-module-via-Contracts.
 
 ```bash
-grep -E "Include=\".*Modules\.[A-Z][a-zA-Z]+/\"" backend/src/Modules.*/*.csproj | grep -v ".Contracts"
+grep -nE 'ProjectReference Include="[^"]*Modules\.[A-Za-z]+\.csproj"' backend/src/Modules.*/*.csproj
 ```
 
-### 4. Imports de Internal/ cross-module
+### 4. Guías que contradicen el código
 
-```bash
-grep -rE "using ArsDocendi.Modules.[A-Z][a-zA-Z]+\.Internal" backend/src/ --include="*.cs" | grep -v "Modules.<MismoModulo>"
-```
-
-Cualquier match desde un módulo distinto → **violación**.
+Las skills `dotnet-modules-guide`, `react-features-guide` y `create-module` se inyectan en el contexto de los agentes. Verificar que cada archivo, carpeta, atributo o comando que nombran exista y se use en el código (por ejemplo `ModuleExtensions.cs`, `[Authorize(Policy = ...)]`, `app/router.tsx`). Una contradicción → **drift** `high`.
 
 ### 5. Aristas no registradas
 
@@ -60,13 +56,13 @@ Cualquier match desde un módulo distinto → **violación**.
 
 Listar todos los `[Http*]` attrs en controllers.
 
-Cruzar contra la sección "Endpoints por módulo" de `docs/architecture/api-contracts.md`.
+Cruzar contra `docs/architecture/api-contracts*.md`.
 
 Endpoints no documentados → **drift** (low/medium).
 
 ## Output
 
-Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
+Reporte en `.artifacts/arch-drift-YYYY-MM-DD.md` con:
 
 - Drifts encontrados con severidad.
 - Path + línea.
@@ -75,7 +71,7 @@ Reporte en `artifacts/arch-drift-YYYY-MM-DD.md` con:
 ## Hard rules
 
 - **Read-only**.
-- Drifts críticos (ciclos, referencias inválidas, leak de Internal): `blocker` — el equipo debe arreglar ANTES del próximo merge.
+- Drifts críticos (ciclos, referencias inválidas): `blocker` — el equipo debe arreglar ANTES del próximo merge.
 - Drifts documentales: pueden ser `medium`, arreglar en próxima PR de docs.
 
 ## Arguments

@@ -52,17 +52,17 @@ El sistema SHALL registrar en `designaciones.designaciones` la columna nullable 
 
 ### Requirement: Un pedido por docente por período, con la base de datos como autoridad [BR-designaciones-001]
 
-El sistema SHALL impedir que exista más de un pedido no terminal para la misma persona dentro del mismo período, **sin importar la cátedra**. La restricción MUST implementarse como índice único parcial en PostgreSQL sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, y SHALL validarse además en el backend antes de intentar la escritura, para producir el mensaje de error correspondiente. Ante una violación del índice, el backend MUST traducirla al mismo mensaje en lugar de propagar un error de base de datos.
+El sistema SHALL impedir que exista más de un pedido que ocupe cupo (cualquiera salvo `rechazado` y `cancelado`) para la misma persona dentro del mismo período, **sin importar la cátedra**. La restricción MUST implementarse como índice único parcial en PostgreSQL sobre `(periodo_id, persona_id)` excluyendo los estados `rechazado` y `cancelado`, y SHALL validarse además en el backend antes de intentar la escritura, para producir el mensaje de error correspondiente. Ante una violación del índice, el backend MUST traducirla al mismo mensaje en lugar de propagar un error de base de datos.
 
 #### Scenario: Segundo pedido para el mismo docente en el mismo período [BR-designaciones-001]
 
-- **GIVEN** una persona que ya tiene un pedido no terminal en el período abierto
+- **GIVEN** una persona que ya tiene en el período abierto un pedido cuyo estado no es `rechazado` ni `cancelado`
 - **WHEN** se intenta crear un segundo pedido para esa persona en ese período
 - **THEN** el sistema MUST rechazar la creación e indicar que ya existe un pedido para ese docente en el período
 
 #### Scenario: El bloqueo alcanza a otra cátedra [BR-designaciones-001]
 
-- **GIVEN** una persona con un pedido no terminal cargado por el Jefe de Cátedra de una materia
+- **GIVEN** una persona con un pedido cargado por el Jefe de Cátedra de una materia, cuyo estado no es `rechazado` ni `cancelado`
 - **WHEN** el Jefe de Cátedra de otra materia intenta cargar un pedido para esa misma persona en el mismo período
 - **THEN** el sistema MUST rechazar la creación, e informarlo **sin exponer datos del pedido bloqueante**, que pertenece a una cátedra ajena al actor
 
@@ -76,7 +76,7 @@ El sistema SHALL impedir que exista más de un pedido no terminal para la misma 
 
 - **GIVEN** una persona cuyo único pedido del período quedó en estado `rechazado`
 - **WHEN** se crea un pedido nuevo para esa persona en el mismo período
-- **THEN** la operación MUST aceptarse, porque el índice excluye los estados terminales
+- **THEN** la operación MUST aceptarse, porque el índice excluye los estados `rechazado` y `cancelado` (un pedido `en_lote` sigue ocupando el cupo)
 
 ### Requirement: Snapshot inmutable de los datos vigentes al enviar
 

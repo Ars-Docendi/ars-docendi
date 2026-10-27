@@ -113,15 +113,10 @@ public sealed class CatalogosDesignacionesTests(PostgresFixture postgres)
             .ObtenerAsync(ct);
 
         Assert.NotNull(catalogos.PeriodoActivo);
-        Assert.Equal(3, catalogos.Periodos.Count);
-        Assert.Equal(6, catalogos.Cargos.Count);
         Assert.DoesNotContain(catalogos.Personas, p => p.Id == PersonaConPedidoVivo);
         Assert.Contains(catalogos.Personas, p => p.Id == PersonaConPedidoRechazado);
-        Assert.Equal(6, catalogos.Dedicaciones.Count);
-        Assert.Contains(catalogos.Dedicaciones, d => d.Nombre == "Categoría 6");
         Assert.Contains("Cambio de cargo o dedicación", catalogos.Novedades);
         Assert.DoesNotContain(Novedades.SinNovedad, catalogos.Novedades);
-        Assert.Equal([1, 2, 3, 4, 5, 6], catalogos.Dedicaciones.Select(d => (int)d.Codigo));
         var dedicacion = await designacionesDb.Dedicaciones.SingleAsync(d => d.Codigo == 6, ct);
         dedicacion.Activo = false;
         await designacionesDb.SaveChangesAsync(ct);

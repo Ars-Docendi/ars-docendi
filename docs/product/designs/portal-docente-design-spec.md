@@ -37,16 +37,16 @@ Se diseña **"Mi Portal"** (`/portal`), la pantalla donde el docente mantiene su
 
 Una **sola página scrolleable, sin pestañas**. `Breadcrumbs` (Inicio › Mi portal) + `PageHeader` con título "Mi portal" (sin pretitle: la ubicación la da el breadcrumb, ver la convención de encabezados en `proyecto-docente-design-spec.md`), y debajo las ocho secciones en este orden:
 
-| #   | Sección                         | Modo           | Contenido                                                                        |
-| --- | ------------------------------- | -------------- | -------------------------------------------------------------------------------- |
-| 1   | **Perfil**                      | solo lectura   | Nombre y apellido, mail institucional (Azure AD); DNI, legajo, CUIL (Secretaría) |
-| 2   | **Contacto**                    | edición inline | Teléfono, mail                                                                   |
-| 3   | **CV**                          | archivo único  | PDF, reemplazable                                                                |
-| 4   | **Experiencia**                 | lista          | Puesto, organización, período (con "actual"), descripción                        |
-| 5   | **Educación**                   | lista          | Nivel, carrera o título, institución, período                                    |
-| 6   | **Certificaciones**             | lista          | Nombre, emisor, fecha, vencimiento opcional                                      |
-| 7   | **Proyectos**                   | lista          | Nombre, rol, años, descripción, PDF o DOI                                        |
-| 8   | **Habilidades** / **Intereses** | tags           | Dos listas separadas, mismo vocabulario                                          |
+| #   | Sección                         | Modo           | Contenido                                                                                |
+| --- | ------------------------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| 1   | **Perfil**                      | solo lectura   | Nombre y apellido, mail institucional (cuenta Microsoft); DNI, legajo, CUIL (Secretaría) |
+| 2   | **Contacto**                    | edición inline | Teléfono, mail                                                                           |
+| 3   | **CV**                          | archivo único  | PDF, reemplazable                                                                        |
+| 4   | **Experiencia**                 | lista          | Puesto, organización, período (con "actual"), descripción                                |
+| 5   | **Educación**                   | lista          | Nivel, carrera o título, institución, período                                            |
+| 6   | **Certificaciones**             | lista          | Nombre, emisor, fecha, vencimiento opcional                                              |
+| 7   | **Proyectos**                   | lista          | Nombre, rol, años, descripción, PDF o DOI                                                |
+| 8   | **Habilidades** / **Intereses** | tags           | Dos listas separadas, mismo vocabulario                                                  |
 
 El orden va de lo más estable e identitario a lo más discrecional, con lo que más se edita (Contacto) y lo de mayor valor por esfuerzo (CV) arriba.
 
@@ -128,7 +128,7 @@ Mi portal
 - **El estado manda, no la visita.** Todo depende de si la sección tiene datos, nunca de si es el primer ingreso. No hay modo "primera vez" ni estado de onboarding que persistir, y el día que exista un dashboard el Portal se muda al menú sin cambios.
 - **Habilidades e intereses separados.** Ante una vacante son señales distintas: quién puede tomarla ya y quién la tomaría formándose. Una sola lista pierde la distinción.
 - **Un patrón de lista reutilizado** para Experiencia, Educación, Certificaciones y Proyectos, en vez de cuatro secciones a medida.
-- **El bloque Perfil nunca está vacío.** Viene precargado de Azure AD y Secretaría, así que lo primero que ve un docente nuevo es su nombre y su legajo correctos — mejor primera impresión que un formulario en blanco.
+- **El bloque Perfil nunca está vacío.** Viene precargado de la cuenta Microsoft y de Secretaría, así que lo primero que ve un docente nuevo es su nombre y su legajo correctos — mejor primera impresión que un formulario en blanco.
 
 ## Anti-patterns a evitar (específicos de esta feature)
 

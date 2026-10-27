@@ -14,38 +14,16 @@ Stack: **Docker Compose + Traefik + Cloudflare Tunnel**. Topología completa en
 
 ## Layout
 
-```
-infra/
-├── compose/
-│   ├── compose.base.yml      # definición de servicios (frontend+backend), parametrizada
-│   ├── compose.storage.yml   # SeaweedFS prod o pool compartido no-prod
-│   ├── compose.antivirus.yml # ClamAV compartido por los ambientes de cada host
-│   └── .env.example          # variables de un ambiente
-├── traefik/
-│   ├── traefik.yml           # config estática (entrypoints, docker provider, sin ACME)
-│   ├── dynamic/headers-seguridad.yml
-│   └── README.md             # convención de labels de routing
-├── cloudflared/
-│   ├── config.yml            # ingress de Proxmox (rechazo prod, staging y previews)
-│   ├── config-principal.yml  # ingress de Debian (sólo dominio raíz productivo)
-│   └── README.md             # crear túnel + credenciales
-├── scripts/
-│   ├── _comun.sh             # helpers (logging, validación, nombres de base y rol)
-│   ├── provision-db.sh       # crea base + roles del ambiente (idempotente)
-│   ├── seed.sh               # siembra datos sintéticos (aborta si datos de prod)
-│   ├── drop-db.sh            # DROP DATABASE (solo staging/pr-N, nunca prod)
-│   ├── verificar-roles-asistente.sh  # test de humo read-only de los roles del asistente
-│   ├── spin-up.sh <env>      # actualiza persistentemente con preflight/backup/smoke
-│   ├── teardown.sh <env>     # down -v + drop-db (idempotente)
-│   ├── backup-storage.sh <env> # snapshot privado en volumen Docker
-│   ├── restore-storage.sh <dest> <backup> # recovery aislado autorizado
-│   └── seed-data/sintetico.sql
-├── runners/
-│   ├── respawn-efimero.sh                  # registra+corre 1 runner efímero (token auto)
-│   └── arsdocendi-runner-efimero@.service  # unit template systemd (N instancias)
-├── Makefile                  # up / down / logs / ps
-└── README.md                 # este archivo + runbook
-```
+| Carpeta        | Contenido                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `compose/`     | Servicios parametrizados por ambiente (`compose.base.yml`), SeaweedFS (`compose.storage.yml`), ClamAV (`compose.antivirus.yml`) y `.env.example` |
+| `traefik/`     | Config estática y dinámica de Traefik; convención de labels en su README                                                                         |
+| `cloudflared/` | Ingress del túnel de Proxmox (`config.yml`) y de Debian (`config-principal.yml`)                                                                 |
+| `scripts/`     | Provisioning, seed, spin-up/teardown, backups y smoke. El encabezado de cada script documenta su uso                                             |
+| `ollama/`      | Instancia Docker independiente de Ollama                                                                                                         |
+| `runners/`     | Runner efímero de GitHub Actions y su unit systemd                                                                                               |
+| `tests/`       | Tests (`node --test`) de los scripts de infraestructura                                                                                          |
+| `Makefile`     | Atajos de operación manual (`up`, `down`, `logs`, `ps` y operaciones explícitas de datos)                                                        |
 
 CI relacionada en `.github/workflows/`: `deploy-prod`, `deploy-staging`,
 `pr-env-deploy`, `pr-env-teardown`.
@@ -68,6 +46,8 @@ make ps   AMBIENTE=pr-123
 make down AMBIENTE=pr-123
 ```
 
+El Makefile también define `reset`, `backup`, `backups` y `restore`; son operaciones explícitas, no parte del deploy.
+
 ---
 
 # Runbook — provisioning del host (una sola vez)
@@ -75,8 +55,8 @@ make down AMBIENTE=pr-123
 Pasos **manuales** para dejar cada host listo para que CI despliegue. Se hacen
 una vez por host, en orden; los pasos de previews se hacen sólo en Proxmox.
 La configuración de Cloudflare DNS/túneles y el registro de runners son
-responsabilidad exclusiva del operador, fuera del repositorio. El cambio temporal está descrito en
-`openspec/changes/deploy-dual-con-failover-temporal/`.
+responsabilidad exclusiva del operador, fuera del repositorio. La topología está en
+[docs/architecture/infrastructure.md](../docs/architecture/infrastructure.md).
 
 Orden de dependencias: redes → Postgres → Traefik → cloudflared → runners.
 Traefik debe estar arriba **antes** que cualquier ambiente (los rutea); y
@@ -493,7 +473,7 @@ Runbooks: [migraciones/persistencia](../docs/operations/migrations-persistence.m
 [scopes y gates](../docs/operations/github-pr-deploy.md).
 Las garantías, límites y comandos de ensayo están detallados allí.
 
-## Empaquetado de la app (resuelto en el change `containerizar-app`)
+## Empaquetado de la app
 
 El empaquetado que esta plataforma consume vive en el repo:
 

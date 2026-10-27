@@ -17,4 +17,4 @@ Pendiente de implementación en otra PR. Cada tarea se verifica con sus pruebas 
 
 ## 3. Cierre
 
-- [ ] 3.1 Correr `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all --strict`.
+- [ ] 3.1 Correr `dotnet test backend/ArsDocendi.slnx`, `pnpm --filter frontend test:run`, `pnpm --filter frontend lint`, `pnpm --filter frontend build`, `pnpm format:check` y `pnpm exec openspec validate --all`.

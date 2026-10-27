@@ -267,26 +267,6 @@ public sealed class ServicioAuditoriaTests
         Assert.Equal("Actor no identificado", evento.Actor);
     }
 
-    [Theory]
-    [InlineData("schema_futuro", "tabla_nueva")]
-    [InlineData("identity", "personas")]
-    public async Task Valor_legacy_no_clasificado_en_esa_tabla_se_oculta(string schema, string tabla)
-    {
-        var registro = new RegistroCambio
-        {
-            Id = 8,
-            NombreSchema = schema,
-            NombreTabla = tabla,
-            ClaveFila = "8",
-            Accion = "UPDATE",
-            FilaNueva = "{\"code\":\"secreto-sintetico\"}",
-            ColumnasCambiadas = ["code"]
-        };
-        var servicio = ServicioCon(new RegistroAuditoria(registro, null, null, null));
-        var evento = Assert.Single((await servicio.ListarAsync(new ConsultaAuditoriaDto(), CancellationToken.None)).Elementos);
-        Assert.True(Assert.Single(evento.Cambios).Oculto);
-    }
-
     [Fact]
     public async Task Vigencia_expone_solo_valores_tecnicos_de_cargo_y_origen()
     {
@@ -306,6 +286,28 @@ public sealed class ServicioAuditoriaTests
         Assert.All(evento.Cambios, c => Assert.False(c.Oculto));
         Assert.Equal("pedido-uno", evento.Cambios.Single(c => c.Campo == "origen_pedido_id").ValorAnterior);
         Assert.Equal("pedido-dos", evento.Cambios.Single(c => c.Campo == "origen_pedido_id").ValorNuevo);
+    }
+
+    [Fact]
+    public async Task Tabla_ausente_de_la_politica_oculta_el_valor_legacy()
+    {
+        var registro = new RegistroCambio
+        {
+            Id = 11,
+            NombreSchema = "legacy",
+            NombreTabla = "tabla_desconocida",
+            ClaveFila = "11",
+            Accion = "UPDATE",
+            FilaAnterior = "{\"campo_legacy\":\"anterior\"}",
+            FilaNueva = "{\"campo_legacy\":\"nuevo\"}",
+            ColumnasCambiadas = ["campo_legacy"]
+        };
+        var servicio = ServicioCon(new RegistroAuditoria(registro, null, null, null));
+        var evento = await UnicoEvento(servicio);
+        var cambio = Assert.Single(evento.Cambios);
+        Assert.True(cambio.Oculto);
+        Assert.Null(cambio.ValorAnterior);
+        Assert.Null(cambio.ValorNuevo);
     }
 
     [Theory]

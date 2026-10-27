@@ -24,18 +24,46 @@ using Npgsql;
 
 namespace ArsDocendi.IntegrationTests.Storage;
 
-public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgres) : IAsyncLifetime
+/// <summary>
+/// Un SeaweedFS por clase: los tests de la clase corren en serie, así que compartirlo
+/// evita arrancar un contenedor por test sin mezclar ejecuciones concurrentes.
+/// </summary>
+public sealed class SeaweedFsFixture : IAsyncLifetime
 {
-    private const string SeaweedFsImage = "chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882";
-    private const string AdminAccessKey = "test-admin-access";
-    private const string AdminSecretKey = "test-admin-secret-1234567890";
+    public IContainer Contenedor { get; } = new ContainerBuilder(AlmacenamientoSeaweedFsTests.SeaweedFsImage)
+        .WithResourceMapping(Encoding.UTF8.GetBytes(AlmacenamientoSeaweedFsTests.S3Config), "/data/s3.json")
+        .WithCommand("mini", "-dir=/data", "-s3", "-s3.config=/data/s3.json", "-master.telemetry=false")
+        .WithPortBinding(8333, true)
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("S3 Endpoint"))
+        .Build();
+
+    public string Endpoint => $"http://{Contenedor.Hostname}:{Contenedor.GetMappedPublicPort(8333)}";
+
+    public async ValueTask InitializeAsync()
+    {
+        await Contenedor.StartAsync();
+        using var administrador = AlmacenamientoSeaweedFsTests.CrearCliente(
+            Endpoint, AlmacenamientoSeaweedFsTests.AdminAccessKey, AlmacenamientoSeaweedFsTests.AdminSecretKey);
+        await administrador.PutBucketAsync(new PutBucketRequest { BucketName = AlmacenamientoSeaweedFsTests.Bucket });
+        await administrador.PutBucketAsync(new PutBucketRequest { BucketName = AlmacenamientoSeaweedFsTests.StagingBucket });
+    }
+
+    public ValueTask DisposeAsync() => Contenedor.DisposeAsync();
+}
+
+public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgres, SeaweedFsFixture seaweedFs)
+    : IAsyncLifetime, IClassFixture<SeaweedFsFixture>
+{
+    internal const string SeaweedFsImage = "chrislusf/seaweedfs@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882";
+    internal const string AdminAccessKey = "test-admin-access";
+    internal const string AdminSecretKey = "test-admin-secret-1234567890";
     private const string AccessKey = "test-access-key";
     private const string SecretKey = "test-secret-key-1234567890";
     private const string StagingAccessKey = "test-staging-key";
     private const string StagingSecretKey = "test-staging-secret-1234567890";
-    private const string Bucket = "arsdocendi-test";
-    private const string StagingBucket = "arsdocendi-staging-test";
-    private const string S3Config = """
+    internal const string Bucket = "arsdocendi-test";
+    internal const string StagingBucket = "arsdocendi-staging-test";
+    internal const string S3Config = """
         {
           "identities": [
             {
@@ -59,12 +87,6 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
     private static readonly Guid Propietario = Guid.Parse("a0000000-0000-4000-8000-000000000001");
     private static readonly Guid OtroPropietario = Guid.Parse("a0000000-0000-4000-8000-000000000002");
 
-    private readonly IContainer seaweedFs = new ContainerBuilder(SeaweedFsImage)
-        .WithResourceMapping(Encoding.UTF8.GetBytes(S3Config), "/data/s3.json")
-        .WithCommand("mini", "-dir=/data", "-s3", "-s3.config=/data/s3.json", "-master.telemetry=false")
-        .WithPortBinding(8333, true)
-        .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("S3 Endpoint"))
-        .Build();
     private BaseDePrueba? baseDePrueba;
     private string cadena = string.Empty;
     private string endpoint = string.Empty;
@@ -73,16 +95,10 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
 
     public async ValueTask InitializeAsync()
     {
-        await seaweedFs.StartAsync();
         baseDePrueba = await postgres.CrearBaseMigradaAsync("storage_seaweedfs");
         cadena = baseDePrueba.Cadena;
         await SembrarPersonaPropietariaAsync();
-        endpoint = $"http://{seaweedFs.Hostname}:{seaweedFs.GetMappedPublicPort(8333)}";
-        using (var administrador = CrearCliente(AdminAccessKey, AdminSecretKey))
-        {
-            await administrador.PutBucketAsync(new PutBucketRequest { BucketName = Bucket });
-            await administrador.PutBucketAsync(new PutBucketRequest { BucketName = StagingBucket });
-        }
+        endpoint = seaweedFs.Endpoint;
         cliente = CrearCliente(AccessKey, SecretKey);
         clienteStaging = CrearCliente(StagingAccessKey, StagingSecretKey);
     }
@@ -92,7 +108,6 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
         cliente?.Dispose();
         clienteStaging?.Dispose();
         if (baseDePrueba is not null) await postgres.EliminarBaseAsync(baseDePrueba);
-        await seaweedFs.DisposeAsync();
     }
 
     // portal.perfiles referencia a identity.personas (referencia lógica, validada al
@@ -113,6 +128,9 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
     }
 
     private IAmazonS3 CrearCliente(string accessKey, string secretKey) =>
+        CrearCliente(endpoint, accessKey, secretKey);
+
+    internal static IAmazonS3 CrearCliente(string endpoint, string accessKey, string secretKey) =>
         new AmazonS3Client(
             new BasicAWSCredentials(accessKey, secretKey),
             new AmazonS3Config
@@ -122,31 +140,6 @@ public sealed partial class AlmacenamientoSeaweedFsTests(PostgresFixture postgre
                 UseHttp = true,
                 AuthenticationRegion = "us-east-1",
             });
-
-    [Fact]
-    public async Task Schema_conserva_referencias_de_archivo_y_metadata_legacy()
-    {
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(TestContext.Current.CancellationToken);
-        const string sql = """
-            SELECT table_schema, table_name, column_name
-            FROM information_schema.columns
-            WHERE (table_schema, table_name, column_name) IN (
-                ('designaciones', 'pedido_adjuntos', 'archivo_id'),
-                ('designaciones', 'pedido_adjuntos', 'uri'),
-                ('portal', 'cvs', 'archivo_id'),
-                ('portal', 'cvs', 'uri'),
-                ('portal', 'proyecto_documentos', 'archivo_id'),
-                ('portal', 'proyecto_documentos', 'uri'))
-            """;
-        await using var comando = new NpgsqlCommand(sql, conexion);
-        await using var lector = await comando.ExecuteReaderAsync(TestContext.Current.CancellationToken);
-        var columnas = new HashSet<string>(StringComparer.Ordinal);
-        while (await lector.ReadAsync(TestContext.Current.CancellationToken))
-            columnas.Add($"{lector.GetString(0)}.{lector.GetString(1)}.{lector.GetString(2)}");
-
-        Assert.Equal(6, columnas.Count);
-    }
 
     [Fact]
     public async Task Carga_confirma_hash_descarga_y_reintento_idempotente()

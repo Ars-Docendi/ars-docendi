@@ -11,7 +11,7 @@
 
 ## Bounded context
 
-- **Pertenece**: Docentes (entidad y sus atributos), áreas de experticia, horas disponibles declaradas.
+- **Pertenece**: perfil del docente (contacto, CV, experiencia, educación, certificaciones, proyectos) y habilidades/intereses.
 - **No pertenece**: Designaciones (`Designaciones`), reservas de aulas (`Aulas`), asignaciones académicas reales (Guaraní).
 
 ## Entidades principales
@@ -72,17 +72,12 @@ Este módulo todavía no tiene reglas provenientes de normativa institucional re
 
 ## Dependencias
 
-- **Hacia adentro**: ninguna (es módulo fundacional de datos).
-- **Hacia afuera**: no agrega edges; los contratos quedan disponibles para futuros consumidores.
-- **Externas**: **Azure AD** (login institucional — el docente se autentica con sus credenciales UNLaM).
-
-## Specs activas
-
-_(autogenerable a futuro)_
+- **Hacia adentro**: `ArsDocendi.Storage.Contracts` (CV y documentos de proyectos).
+- **Hacia afuera**: `Modules.Designaciones` consume `IPortalQueries` (correo del perfil para exportar altas).
+- **Externas**: ninguna. El ingreso con Microsoft lo resuelve el Host; ver [api-contracts.md](../api-contracts.md#autenticación-y-autorización).
 
 ## Decisiones registradas
 
-- **Identidad desde Azure AD**: el ID del docente se vincula al `oid` (object ID) del token de Azure AD. NO se manejan credenciales propias.
 - **PII sensible**: ver `data-model.md` para tratamiento de PII (encriptación, logs, backup).
 - **Vocabulario de experticia por folksonomía**: no hay catálogo curado de antemano. Los docentes escriben el término y el autocompletado sobre lo ya cargado evita que se fragmente; `nombre_norm` (único) corta duplicados y `canonica_id` permite fusionar variantes sin perder datos. Ver `openspec/specs/experticia-docente/spec.md`.
 
