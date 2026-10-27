@@ -136,7 +136,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
 
         Assert.Contains("proveedor", columnas);
         Assert.Contains("tokens_de_cache", columnas);
-        Assert.Contains("intencion_sombra", columnas);
+        Assert.DoesNotContain("intencion_sombra", columnas);
         Assert.Contains("motivo_rechazo", columnas);
     }
 
@@ -340,8 +340,7 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
             Truncado: false,
             "¿cuántos docentes hay?",
             "cruce_de_tablas",
-            Proveedor: "anthropic/claude-sonnet-5",
-            IntencionSombra: null);
+            Proveedor: "anthropic/claude-sonnet-5");
 
     /// <summary>Columnas, índices y privilegios del schema, en una lista comparable.</summary>
     private Task<List<string>> FormaDelSchemaAsync() =>

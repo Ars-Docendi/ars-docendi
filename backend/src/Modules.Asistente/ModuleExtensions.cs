@@ -260,20 +260,6 @@ public static class ModuleExtensions
         services.AddSingleton<IAlmacenDeHilos, AlmacenDeHilosEnMemoria>();
         services.AddSingleton<IIndiceDeEntidades, IndiceDeEntidades>();
 
-        // El catálogo del dominio es el índice de entidades MÁS el vocabulario cerrado del trámite,
-        // compuestos afuera y no adentro: el índice lo consumen el detector de ambigüedad y el de
-        // cambio de tema, y meterles «borrador» o «Titular» como entidades les cambiaría el
-        // comportamiento en silencio.
-        services.AddSingleton<ICatalogoDelDominio, CatalogoDelDominioReal>();
-        services.AddSingleton(CatalogoDeIntenciones.Cargar());
-        services.AddScoped<ResolutorDeIntenciones>();
-        services.AddScoped<EnrutadorDeDominio>();
-
-        // El portador de la decisión sombra es SCOPED por el mismo motivo que el
-        // contador de llamadas: la decisión es de UN turno, y uno singleton le
-        // devolvería al registro la intención del turno anterior.
-        services.AddScoped<DecisionSombraDelTurno>();
-
         services.AddScoped<ReescritorDePreguntas>();
         services.AddScoped<IRegistroDelTurno, RegistroDelTurno>();
 

@@ -288,8 +288,7 @@ esquema más pesado; es el mismo criterio con que el módulo ya acepta el residu
 **Es un upsert, una fila por turno, sin historial.** `INSERT ... ON CONFLICT
 (analitico_id) DO UPDATE`: cambiar de voto reemplaza el anterior, nunca lo acumula.
 Guardar un historial de razones o de comentarios sería un lugar más donde una queja
-rara termina reidentificando a quien la escribió, el mismo argumento que ya vale para
-`intencion_sombra`.
+rara termina reidentificando a quien la escribió, el mismo argumento de TD-012.
 
 **El comentario libre (design.md D7/D14, PO-changed 2026-09-26).** El panel del 👎
 acepta, además de cero o más razones de la lista cerrada, un comentario de hasta 500
@@ -544,75 +543,11 @@ rol de PostgreSQL). El operador acepta que los valores entren en la caché KV y 
 camino de las solicitudes del servidor del modelo, que debe correr en hardware del
 Departamento. Detalle y medición en [modelo-local.md §6](../modelo-local.md).
 
-## El carril determinista: catálogo de intenciones
+## El carril determinista: retirado
 
-Las preguntas que la API del sistema **ya sabe responder** no necesitan que un modelo reconstruya su consulta. El carril determinista las reconoce contra un catálogo cerrado y las enruta a la API. Hoy está construida **la primera mitad**: el catálogo y la resolución de slots. El enrutador que los consume, y los edges hacia los `Contracts` de los módulos consumidos, son el cambio siguiente.
+El enrutador de dominio en modo sombra, el catálogo de intenciones (`intenciones.json`) y la resolución de slots se **retiraron** (`asistente-retirar-enrutador-sombra`). Corrían en cada turno, anotaban qué intención habría capturado la pregunta y el turno seguía por el carril SQL: nunca cambiaron una respuesta, y la decisión no podía servir de reemplazo cuando el modelo falla. Con ellos se fue `asistente.registro_operativo.intencion_sombra` (migración `011_asistente_retirar_intencion_sombra.sql`).
 
-**Clasificar la intención con el modelo está descartado con evidencia**: 60% de F1 en triage de cinco clases, 77,4% en nueve vías. Un clasificador que falla una de cada cuatro veces, cuesta una llamada y corta el flujo es peor que una tabla.
-
-### Qué declara una intención
-
-`Recursos/intenciones.json` es un archivo, no código disperso. Cada intención declara los términos que tienen que aparecer en la pregunta normalizada, los slots que exige y un **destino lógico**. El destino es un nombre: nadie lo invoca desde el catálogo, y por eso el módulo no gana ninguna referencia nueva.
-
-El reconocimiento es por **conjunto** de términos y no por expresión regular: «¿en qué estado está el pedido de Pérez?» y «¿el pedido de Pérez en qué estado está?» son la misma pregunta, y una regex sobre lenguaje natural es una promesa de precisión que el orden de las palabras no sostiene.
-
-### De dónde salen los valores
-
-Los slots se resuelven contra la base, nunca contra una lista escrita a mano:
-
-| Clase de slot                 | Fuente                                                      |
-| ----------------------------- | ----------------------------------------------------------- |
-| Materia, Persona              | El índice de entidades que ya usan los dos detectores       |
-| Estado, Novedad, Tipo de baja | Los `CHECK` de `designaciones.pedidos`, vía `pg_constraint` |
-| Cargo                         | `designaciones.cargos`, por nombre y por abreviatura        |
-
-**Por qué se leen los `CHECK` y no se copian sus valores.** El problema de la lista copiada no es la duplicación sino su modo de fallar: cuando alguien agregue un estado, la lista no rompe nada. El resolutor deja de reconocerlo, la pregunta cae al carril SQL y nadie se entera de que había un camino más barato. Un desajuste que no falla es un desajuste que dura. Por eso una restricción que no enumera literales —o que alguien renombró— es un **error ruidoso** y nunca un vocabulario vacío.
-
-**Y por qué el vocabulario se compone al lado del índice y no adentro.** `CatalogoDeEntidades` lo consumen el detector de ambigüedad, que dispara cuando un término colisiona, y el de cambio de tema, que mide el solapamiento de entidades entre dos preguntas. Meterles «borrador», «Alta» y «Titular» adentro les cambiaría el comportamiento en silencio: palabras que hoy son texto común pasarían a ser entidades del dominio. Componiendo afuera, los dos quedan intactos por construcción y no por un test que lo vigile.
-
-### La colisión no resuelve
-
-Un término que corresponde a más de un valor deja el slot **sin resolver**, y una intención con un slot sin resolver no queda reconocida. Es la misma regla del detector de ambigüedad, escrita en el sentido de este carril: con dos Pérez, enrutar con uno devuelve las filas del otro, y esa respuesta es indistinguible de la correcta para quien preguntó.
-
-**El default es SQL y nunca API.** Enrutar mal hacia la API devuelve cero filas, y «cero filas» es indistinguible de «no hay» — la mentira que la política de abstención prohíbe. Fallar hacia el carril más caro es fallar hacia el que puede responder.
-
-### El enrutador y el modo sombra
-
-El enrutador de dominio corre entre el reescritor y el detector de ambigüedad. Las dos vecindades tienen motivo: después del reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta que se resuelve la anáfora; antes del detector porque una pregunta que el catálogo cubre con todos sus slots únicos no es ambigua, y hacerla pasar por el menú sería preguntar algo ya decidido.
-
-**Decide y no ejecuta.** Devuelve la intención resuelta o nada; no llama a ninguna API. Nulo es el caso normal y no un error.
-
-**Hoy está en modo sombra**: la decisión se toma sobre tráfico real y se registra, y el turno sigue al carril SQL igual que siempre. No hay a dónde enrutar todavía — faltan los adaptadores de respuesta y los edges hacia `Modules.<X>.Contracts`, que necesitan el acuerdo del equipo por el checklist de cinco pasos.
-
-Está cableado igual porque ese pedido de aprobación se fundamenta con un número —qué proporción del tráfico real captura un catálogo de cinco intenciones y cuántas veces se equivoca— y ese número no existe si la decisión no se toma nunca. No cambia ninguna respuesta, así que no puede romper nada, y se saca borrando unas líneas.
-
-**Dónde queda la decisión.** En `asistente.registro_operativo.intencion_sombra`, con el nombre de la intención o nulo si ninguna capturó la pregunta; nulo es el caso normal. Viaja desde el paso 5 hasta el escritor por un portador con alcance de turno —la misma forma que `ContadorDeLlamadasDelTurno`—, porque el registro se escribe afuera del pipeline, también cuando el turno se cae: una pregunta capturada que después revienta conserva su decisión en la fila del fallo. **No va al registro analítico**, y es una decisión de privacidad tomada explícitamente: las capturas son la minoría, así que cada intención concreta es un valor raro, y un valor raro ahí es el selector que le daría utilidad al canal residual de TD-012.
-
-`carril` **no** cambia de significado: sigue siendo la ruta real del turno. Son dos hechos distintos y ninguno implica al otro — un turno capturado puede terminar en aclaración o en fallo sin dejar de haber sido capturado. La consulta que produce la cobertura sobre tráfico real, con esa advertencia al lado, está en el [README del módulo](../../../backend/src/Modules.Asistente/README.md#el-enrutador-en-sombra-y-cómo-se-lo-mide).
-
-**Cuando ARS-46 se apruebe la columna no se borra ni se renombra**: pasa a registrar la intención que sí enrutó. Borrarla partiría la serie justo cuando se vuelve interesante, porque comparar el antes con el después es la única forma de saber si la sombra predijo bien.
-
-### El corpus ajeno y la tabla dorada
-
-Que el enrutador capture lo que le corresponde lo prueban unos pocos casos. Que **no** capture lo que no le corresponde no se puede probar con casos escritos a mano: uno escribe los que ya sabe que fallan.
-
-Por eso el corpus sale de `capacidad.json` y `robustez.json`. Los escribió otra tarea con otro objetivo —medir traducción a SQL y tolerancia al fraseo—, así que son preguntas legítimas y ajenas al catálogo. Cuando el catálogo crezca, el corpus crece con él sin que nadie lo mantenga, y es lo único que puede fallar por agregar una intención demasiado laxa.
-
-Sobre ese corpus se fija una **tabla dorada** —`backend/tests/ArsDocendi.IntegrationTests/Asistente/tabla-dorada-enrutador.json`, una entrada por ítem con la intención que captura o nulo— y no un assert booleano «ninguna se captura». Los dos fallan en las mismas situaciones, pero piden arreglos opuestos: ante una intención nueva y legítima que **debe** capturar un ítem, el booleano sólo se podía satisfacer debilitando la intención o sacando el ítem del dataset; la tabla se actualiza y el diff muestra la decisión. Y produce un **número** en vez de un veredicto —cuántos ítems del corpus captura el catálogo, hoy 0 de 39—, que es la mitad del dato con que se fundamenta el pedido de los edges y se obtiene sin tráfico real ni una llamada al modelo.
-
-El mensaje de fallo nombra el ítem, la **dirección** del cambio y su lectura: `nulo → intención` es posible laxitud y se revisa la intención, no el dataset; `intención → nulo` es una captura perdida. La tabla **no se regenera** como efecto de correr el test —si lo hiciera, una laxitud se absorbería sola en el commit que la causara— y hereda el guard del banco que reemplaza: otro test verifica que cubra exactamente los ítems de los dos datasets, porque una tabla vacía daría verde para siempre.
-
-**Ya encontró una.** «¿Cuántas solicitudes de baja se presentaron?» caía en `pedidos-de-una-novedad`, porque «solicitudes» normaliza a «pedido» y «baja» es una novedad válida. La intención existe para **listar** los pedidos de una novedad; la pregunta pide **contarlos**, que tiene otra forma de respuesta.
-
-De ahí salieron los **términos excluidos**: una intención puede declarar términos que no deben aparecer. No había alternativa positiva — «¿qué pedidos de Alta hay?» no tiene ninguna palabra de contenido que «¿cuántos pedidos de Alta hay?» no tenga, y lo único que las separa es la presencia de «cuántos».
-
-### Lo que esta pieza no es
-
-**No generaliza, y conviene decirlo.** La guarda que hace viable el enrutador social —interceptar solo si no queda ningún token de contenido— no sirve acá: distinguir «¿cuál es el estado del pedido de Pérez?» de una pregunta arbitraria exige intención **y** slots. Es viable sobre un catálogo chico de preguntas frecuentes.
-
-El catálogo nace con cinco intenciones y crece **de a una, cada una con su caso de prueba**. Hay un test que itera el catálogo y falla nombrando la intención que no tiene caso: es lo que hace barata la disciplina, y la razón de que el catálogo sea un archivo.
-
-**Cuesta cero llamadas al modelo.** Se verifica sobre las dependencias y no contando llamadas: un contador en cero dice que esta vez no llamó; que el tipo no reciba por dónde llamar dice que no puede.
+Cada turno sigue por el carril SQL. Un carril sin modelo —un plan determinista— y los edges hacia los `Contracts` de otros módulos (épica E6, ARS-46) serían un change propio, no un rescate de este código; el historial vive en `openspec/changes/archive/`.
 
 ## Presupuesto y degradación
 
@@ -911,7 +846,7 @@ techo de tokens. **Sólo va al operativo, nunca al analítico**: quien tiene acc
 operativo ya lee el texto de la pregunta ahí mismo, así que el motivo no le agrega
 ninguna información — sumarlo al analítico sería, en cambio, una dimensión más por
 la cual agrupar una pregunta anónima con otras del mismo día, exactamente el riesgo
-que TD-012 ya documenta para `intencion_sombra`. El término del rechazo nunca se
+que TD-012 ya documenta. El término del rechazo nunca se
 persiste en ninguno de los dos registros. Habilita `SELECT motivo_rechazo,
 count(*) FROM asistente.registro_operativo WHERE estado = 'no_contestable' GROUP BY
 1` para la tasa de rechazo por motivo, sin cambio de esquema si algún día se quisiera
@@ -1503,9 +1438,9 @@ viven en el manifiesto de privilegios y en las policies RLS.
 - `openspec/changes/archive/2026-10-26-asistente-frontend/` — la feature, sus dos montajes y la accesibilidad
 - `openspec/changes/archive/2026-10-26-asistente-proveedor-anthropic/` — el primer adaptador real del puerto
 - `openspec/changes/archive/2026-10-26-asistente-rediseno-conversacion/` — la conversación: reintento con la misma clave, «Dejar de esperar», conversación nueva y que sobrevive al cierre del modal, foco, columnas sensibles marcadas y el aspecto con tokens del tema
-- `openspec/changes/archive/2026-10-26-asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite
-- `openspec/changes/archive/2026-10-26-asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra
-- `openspec/changes/archive/2026-10-26-asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus
+- `openspec/changes/archive/2026-10-26-asistente-catalogo-de-intenciones/` — el catálogo cerrado y el vocabulario del trámite (retirado por `asistente-retirar-enrutador-sombra`)
+- `openspec/changes/archive/2026-10-26-asistente-enrutador-de-dominio/` — la decisión de carril en modo sombra (retirado)
+- `openspec/changes/archive/2026-10-26-asistente-registro-de-la-decision-sombra/` — la decisión al registro operativo y la tabla dorada del corpus (retirado)
 - `openspec/changes/archive/2026-10-26-asistente-feedback-export-seguimiento/` — el token de retroalimentación, la exportación CSV y las sugerencias de seguimiento
 - `openspec/changes/archive/2026-10-26-asistente-historial-conversaciones/` — el historial propio, reanudar, «volver a consultar» y el acceso de soporte auditado
 - `openspec/changes/archive/2026-10-26-asistente-rediseno-v3/` — un solo montaje, el rail, archivar, borrado diferido con deshacer, editar y reenviar la última pregunta, menciones «@materia»/«#docente» y el fin de las sugerencias fuera de la bienvenida

@@ -12,7 +12,6 @@ public sealed class CapaConversacional(
     ReescritorDePreguntas reescritor,
     CarrilSql carril,
     ICatalogoDeCapacidades capacidades,
-    EnrutadorDeDominio enrutador,
     IProveedorDeModelo proveedor,
     IRegistroDelTurno registro,
     IRegistroDeHistorial historial,
@@ -26,7 +25,6 @@ public sealed class CapaConversacional(
     IResolutorDeVinculos vinculos,
     IProveedorDeFichas fichas,
     ContadorDeLlamadasDelTurno contador,
-    DecisionSombraDelTurno decisionSombra,
     IOptions<OpcionesAsistente> opciones,
     TimeProvider reloj,
     ILogger<CapaConversacional> log)
@@ -243,7 +241,6 @@ public sealed class CapaConversacional(
                 mensaje,
                 turno.Categoria,
                 proveedor.Nombre,
-                decisionSombra.Intencion,
                 turno.MotivoDeRechazo,
                 turno.Causa,
                 // The same resolved adapter name as `Proveedor` above, also on turns
@@ -451,25 +448,6 @@ public sealed class CapaConversacional(
         var interpretada = hayModelo && !reescribeLaGeneracion
             ? await ReescribirOCrudaAsync(pregunta, historial, ct)
             : pregunta;
-
-        // 5 — ENRUTADOR DE DOMINIO, EN MODO SOMBRA. Va acá y no en otro lado: después del
-        // reescritor porque «¿y el de Pérez?» no tiene slot que resolver hasta que se resuelve la
-        // anáfora, y antes del detector de ambigüedad porque una pregunta con todos sus slots
-        // únicos no es ambigua.
-        var determinista = await enrutador.DecidirAsync(interpretada, ct);
-
-        if (determinista is not null)
-        {
-            // Al portador y no al resultado del turno: el registro se escribe afuera del pipeline,
-            // también en las dos ramas de `catch`, donde no hay ningún `ResultadoDelTurno` del que
-            // leerla.
-            decisionSombra.Anotar(determinista.Intencion.Nombre);
-
-            log.LogInformation(
-                "El carril determinista habría resuelto este turno con {Intencion}; "
-                + "sigue por SQL porque todavía no hay a dónde enrutar.",
-                determinista.Intencion.Nombre);
-        }
 
         // 6 — AMBIGÜEDAD. Después del reescritor a propósito: «¿y en Análisis Matemático?» no
         // contiene ninguna entidad ambigua hasta que se la reescribe, y la reescrita sí.

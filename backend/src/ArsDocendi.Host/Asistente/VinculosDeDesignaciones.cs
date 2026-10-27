@@ -12,8 +12,7 @@ namespace ArsDocendi.Host.Asistente;
 /// <b>Vive en el Host y no en el módulo del asistente</b>, que es el punto entero.
 /// El asistente declara <see cref="IResolutorDeVinculos"/> y no referencia a
 /// ningún otro módulo: la arista <c>Modules.Asistente → Modules.&lt;X&gt;.Contracts</c>
-/// es ARS-46 y necesita la aprobación del equipo, y el propio código lo dice donde
-/// el enrutador de dominio quedó en modo sombra. El composition root ya ve a los dos
+/// es ARS-46 y necesita la aprobación del equipo. El composition root ya ve a los dos
 /// módulos —así compone <c>ServicioDocentes</c> con <c>IAdministracionDesignaciones</c>—
 /// y es el lugar donde esta clase de decisión corresponde.
 ///

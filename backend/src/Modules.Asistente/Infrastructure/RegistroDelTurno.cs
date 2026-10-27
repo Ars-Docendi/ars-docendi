@@ -18,7 +18,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
             [
                 "actor_id", "ocurrido_en", "carril", "estado", "llamadas_al_modelo",
                 "tokens_de_entrada", "tokens_de_salida", "latencia_ms", "hubo_reintento",
-                "truncado", "proveedor", "tokens_de_cache", "intencion_sombra", "motivo_rechazo",
+                "truncado", "proveedor", "tokens_de_cache", "motivo_rechazo",
             ],
             ["registro_analitico"] = ["id", "pregunta", "categoria", "estado", "dia", "causa", "modelo"],
         };
@@ -56,13 +56,7 @@ internal sealed class RegistroDelTurno(CadenaDuena cadena, ILogger<RegistroDelTu
         comando.Parameters.AddWithValue("proveedor", turno.Proveedor);
         comando.Parameters.AddWithValue("tokens_de_cache", turno.TokensDeCache);
 
-        // También va solo al operativo, y el motivo es el mismo de arriba más uno propio: las
-        // capturas son la minoría, así que cada intención concreta es un valor raro, y un valor
-        // raro en el analítico es el selector que le daría utilidad al canal residual de TD-012.
-        comando.Parameters.AddWithValue(
-            "intencion_sombra", NpgsqlDbType.Text, (object?)turno.IntencionSombra ?? DBNull.Value);
-
-        // También nulo por omisión, y también es el caso normal (asistente- rechazos-dinamicos):
+        // Nulo por omisión, y es el caso normal (asistente-rechazos-dinamicos):
         // sólo un rechazo declarado por el modelo lo trae.
         comando.Parameters.AddWithValue(
             "motivo_rechazo",

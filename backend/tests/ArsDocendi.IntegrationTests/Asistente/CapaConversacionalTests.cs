@@ -559,103 +559,9 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.Equal("Ahí van.", segundo.Respuesta);
     }
 
-    // ------------------------------------------- enrutador de dominio, en sombra
-
     [Fact]
-    public async Task Una_pregunta_que_el_carril_determinista_capturaria_responde_igual_que_antes()
+    public async Task Una_colision_termina_en_aclaracion()
     {
-        // La propiedad que hace seguro al modo sombra: la decisión se toma y la respuesta no cambia.
-        await SembrarAsync();
-        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
-
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria,
-            null,
-            "¿en qué estado está el pedido de Gómez?",
-            TestContext.Current.CancellationToken);
-
-        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.Equal(CarrilDelTurno.Sql, ((RegistroEnMemoria)banco.Registro).Turnos.Single().Carril);
-    }
-
-    [Fact]
-    public async Task El_enrutador_de_dominio_no_agrega_ninguna_llamada_al_modelo()
-    {
-        // Dos llamadas: generación y redacción. Las mismas que antes de que el
-        // enrutador existiera; decidir el carril cuesta cero.
-        await SembrarAsync();
-        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
-
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria,
-            null,
-            "¿en qué estado está el pedido de Gómez?",
-            TestContext.Current.CancellationToken);
-
-        Assert.Equal(2, turno.LlamadasAlModelo);
-        Assert.Equal(2, banco.Proveedor.Llamadas);
-    }
-
-    [Fact]
-    public async Task Un_turno_capturado_que_pide_aclaracion_registra_el_carril_de_aclaracion()
-    {
-        // Las dos columnas son dos hechos distintos y ninguno implica al otro. Acá se ven
-        // separadas: el enrutador captura —«Gómez» resuelve el único slot que la intención exige— y
-        // el turno igual termina en el menú, porque la pregunta nombra ADEMÁS una materia que colisiona.
-        await SembrarAsync();
-        await AgregarColisionesAsync();
-
-        var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
-
-        var turno = await banco.Capa().ResponderAsync(
-            Secretaria,
-            null,
-            "¿en qué estado está el pedido de Gómez de Bases de Datos?",
-            TestContext.Current.CancellationToken);
-
-        var fila = ((RegistroEnMemoria)banco.Registro).Turnos.Single();
-
-        Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
-        Assert.Equal(CarrilDelTurno.Aclaracion, fila.Carril);
-        Assert.Equal("estado-del-pedido-de-una-persona", fila.IntencionSombra);
-    }
-
-    [Fact]
-    public async Task La_respuesta_al_usuario_es_la_misma_con_captura_y_sin_ella()
-    {
-        // LA PROPIEDAD QUE HACE SEGURO AL MODO SOMBRA, probada contra sí misma: la MISMA pregunta,
-        // el MISMO guion, y la única diferencia es si el catálogo la capturó o no.
-        await SembrarAsync();
-        var ct = TestContext.Current.CancellationToken;
-        const string pregunta = "¿en qué estado está el pedido de Gómez?";
-
-        var conCaptura = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
-        var capturado = await conCaptura.Capa().ResponderAsync(Secretaria, null, pregunta, ct);
-
-        var sinCaptura = BancoSinDominio(
-            ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
-        var suelto = await sinCaptura.Capa().ResponderAsync(Secretaria, null, pregunta, ct);
-
-        // Primero, que las dos corridas efectivamente decidieron distinto. Sin esto
-        // el test compararía dos veces lo mismo y daría verde sin probar nada.
-        Assert.Equal(
-            "estado-del-pedido-de-una-persona",
-            ((RegistroEnMemoria)conCaptura.Registro).Turnos.Single().IntencionSombra);
-        Assert.Null(((RegistroEnMemoria)sinCaptura.Registro).Turnos.Single().IntencionSombra);
-
-        Assert.Equal(capturado.Estado, suelto.Estado);
-        Assert.Equal(capturado.Respuesta, suelto.Respuesta);
-        Assert.Equal(capturado.Categoria, suelto.Categoria);
-        Assert.Equal(capturado.PreguntaInterpretada, suelto.PreguntaInterpretada);
-        Assert.Equal(capturado.LlamadasAlModelo, suelto.LlamadasAlModelo);
-        Assert.Equal(capturado.Columnas, suelto.Columnas);
-        Assert.Equal(capturado.Filas.Count, suelto.Filas.Count);
-    }
-
-    [Fact]
-    public async Task Una_colision_termina_en_aclaracion_y_no_en_el_carril_determinista()
-    {
-        // El enrutador corre ANTES del detector de ambigüedad, así que hay que probar que no le roba el turno.
         await SembrarAsync();
         await AgregarColisionesAsync();
         var banco = Banco(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.");
@@ -669,6 +575,7 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
         Assert.Equal(EstadoDelTurno.NecesitaAclaracion, turno.Estado);
         Assert.Equal(CarrilDelTurno.Aclaracion, ((RegistroEnMemoria)banco.Registro).Turnos.Single().Carril);
     }
+
     // --------------------------------------- reemplazo (design.md D9, ARS-147)
 
     [Fact]
@@ -989,27 +896,6 @@ public sealed class CapaConversacionalTests(PostgresFixture postgres)
     private IAlmacenDeHilos NuevosHilos() =>
         new AlmacenDeHilosEnMemoria(
             Options.Create(new OpcionesAsistente()), TimeProvider.System);
-
-    /// <summary>Un banco cuyo enrutador no puede capturar nada.</summary>
-    private BancoDelAsistente BancoSinDominio(params string[] guion)
-    {
-        var (basica, pii) = CadenasDeLectura();
-
-        return BancoDelAsistente.Armar(
-            basica,
-            pii,
-            ClasificadorDeSensibilidad(),
-            Apertura,
-            hilos: NuevosHilos(),
-            dominio: new DominioSinValores(),
-            guion: guion);
-    }
-
-    private sealed class DominioSinValores : ICatalogoDelDominio
-    {
-        public Task<CatalogoDelDominio> ObtenerAsync(CancellationToken ct) =>
-            Task.FromResult(new CatalogoDelDominio([]));
-    }
 
     private async Task AgregarColisionesAsync()
     {

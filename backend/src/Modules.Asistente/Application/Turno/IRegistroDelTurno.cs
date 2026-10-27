@@ -36,7 +36,6 @@ public sealed record TurnoParaRegistrar(
     string Pregunta,
     string Categoria,
     string Proveedor,
-    string? IntencionSombra,
     MotivoDeRechazo? MotivoDeRechazo = null,
     CausaDelTurno? Causa = null,
     string? Modelo = null);

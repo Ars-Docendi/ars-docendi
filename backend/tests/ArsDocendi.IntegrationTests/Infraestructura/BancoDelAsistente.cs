@@ -72,7 +72,6 @@ internal sealed class BancoDelAsistente
         IRegistroDeHistorial? historial = null,
         IValidezDeRetroalimentacion? validezDeRetroalimentacionCompartida = null,
         Func<IProveedorDeModelo, IProveedorDeModelo>? envolver = null,
-        ICatalogoDelDominio? dominio = null,
         IResolutorDeVinculos? vinculos = null,
         IProveedorDeFichas? fichas = null,
         ILogger<CapaConversacional>? logCapa = null,
@@ -132,14 +131,6 @@ internal sealed class BancoDelAsistente
             identidad,
             NullLogger<CatalogoDeCapacidades>.Instance);
 
-        // El enrutador de dominio se comparte por el mismo motivo que el índice: su catálogo del
-        // dominio es un caché, y uno por turno no cachearía nada.
-        var enrutador = new EnrutadorDeDominio(
-            new ResolutorDeIntenciones(
-                CatalogoDeIntenciones.Cargar(),
-                dominio ?? new CatalogoDelDominioReal(indice, apertura)),
-            NullLogger<EnrutadorDeDominio>.Instance);
-
         return new BancoDelAsistente
         {
             Proveedor = elProveedor,
@@ -158,10 +149,6 @@ internal sealed class BancoDelAsistente
             Fabrica = () =>
             {
                 var contador = new ContadorDeLlamadasDelTurno(valores.MaximoDeLlamadasPorTurno);
-
-                // Por turno, igual que el contador: es la decisión de ESTE turno la
-                // que tiene que llegar a su fila del registro.
-                var decisionSombra = new DecisionSombraDelTurno();
 
                 var conBreaker = new ProveedorConBreaker(
                     visto,
@@ -188,7 +175,6 @@ internal sealed class BancoDelAsistente
                     new ReescritorDePreguntas(conTecho, Options.Create(new OpcionesAsistente())),
                     carril,
                     catalogo,
-                    enrutador,
                     conTecho,
                     elRegistro,
                     elHistorial,
@@ -202,7 +188,6 @@ internal sealed class BancoDelAsistente
                     losVinculos,
                     lasFichas,
                     contador,
-                    decisionSombra,
                     opciones,
                     elReloj,
                     logCapa ?? NullLogger<CapaConversacional>.Instance);

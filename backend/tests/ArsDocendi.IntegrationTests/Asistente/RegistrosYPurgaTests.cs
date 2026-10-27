@@ -125,8 +125,8 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
     [Fact]
     public async Task El_registro_analitico_no_tiene_ninguna_columna_para_el_motivo_del_rechazo()
     {
-        // Mismo guard que el de `intencion_sombra`, y en verde desde el primer día por el mismo
-        // motivo: lo que sostiene la desvinculación es la AUSENCIA de la columna, no una convención de escritura.
+        // En verde desde el primer día: lo que sostiene la desvinculación es la AUSENCIA de la
+        // columna, no una convención de escritura.
         var columnas = await ColumnasDeAsync("registro_analitico");
 
         Assert.DoesNotContain("motivo_rechazo", columnas);
@@ -430,116 +430,15 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
         Assert.True(entrada > 0, "El turno facturó tokens de entrada y el registro los perdió.");
     }
 
-    // --------------------------------------- la decisión del enrutador sombra
-
     [Fact]
-    public async Task Un_turno_capturado_deja_su_intencion_en_la_fila_operativa()
+    public async Task El_registro_analitico_conserva_solo_sus_columnas_desvinculadas()
     {
-        // La decisión se toma en el paso 5 y hasta ahora moría en un LogInformation.
-        // Ésta es la fila de la que sale el número que ARS-46 pide.
-        await SembrarAsync();
-
-        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
-            .ResponderAsync(
-                Alguien, null, "¿en qué estado está el pedido de Gómez?",
-                TestContext.Current.CancellationToken);
-
-        Assert.Equal(
-            ["estado-del-pedido-de-una-persona"],
-            await LeerAsync<string>(
-                "SELECT intencion_sombra FROM asistente.registro_operativo"));
-    }
-
-    [Fact]
-    public async Task Una_pregunta_que_ninguna_intencion_cubre_deja_la_columna_en_nulo()
-    {
-        // Nulo es el caso NORMAL, no un dato faltante ni un error: un catálogo de cinco intenciones
-        // no cubre la mayoría de las preguntas y no pretende hacerlo.
-        await SembrarAsync();
-
-        var turno = await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
-            .ResponderAsync(
-                Alguien, null, "¿cuántos docentes están designados?",
-                TestContext.Current.CancellationToken);
-
-        Assert.Equal(EstadoDelTurno.Respondida, turno.Estado);
-        Assert.Equal(1L, await EscalarAsync<long>(
-            """
-            SELECT count(*) FROM asistente.registro_operativo
-             WHERE intencion_sombra IS NULL
-            """));
-    }
-
-    [Fact]
-    public async Task Un_turno_que_termina_antes_del_enrutador_deja_la_columna_en_nulo()
-    {
-        // Un saludo corta en el paso 1 y nunca llega al paso 5. No hubo decisión que registrar, así
-        // que la columna queda nula por la misma razón que la anterior y no por una distinta.
-        await SembrarAsync();
-
-        await Capa().ResponderAsync(
-            Alguien, null, "hola", TestContext.Current.CancellationToken);
-
-        Assert.Equal(1L, await EscalarAsync<long>(
-            """
-            SELECT count(*) FROM asistente.registro_operativo
-             WHERE intencion_sombra IS NULL
-            """));
-    }
-
-    [Fact]
-    public async Task Un_turno_capturado_que_responde_por_SQL_registra_las_dos_cosas()
-    {
-        // Las dos columnas en la MISMA fila, que es donde se ve que no se pisan.
-        await SembrarAsync();
-
-        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
-            .ResponderAsync(
-                Alguien, null, "¿en qué estado está el pedido de Gómez?",
-                TestContext.Current.CancellationToken);
-
-        Assert.Equal(
-            ["Sql · estado-del-pedido-de-una-persona"],
-            await LeerAsync<string>(
-                """
-                SELECT carril || ' · ' || intencion_sombra
-                  FROM asistente.registro_operativo
-                """));
-    }
-
-    [Fact]
-    public async Task El_registro_analitico_no_tiene_ninguna_columna_para_la_intencion()
-    {
-        // EN VERDE DESDE EL PRIMER DÍA, A PROPÓSITO. Su valor no es lo que prueba hoy sino cuándo
-        // se pone en rojo: el día que alguien agregue la columna acá por simetría con el operativo.
-        var columnas = await ColumnasDeAsync("registro_analitico");
-
-        Assert.DoesNotContain("intencion_sombra", columnas);
-        Assert.DoesNotContain(columnas, c => c.Contains("intencion", StringComparison.Ordinal));
-        Assert.DoesNotContain(columnas, c => c.Contains("sombra", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task Un_turno_capturado_no_deja_rastro_de_la_intencion_en_el_analitico()
-    {
-        // La otra mitad: no alcanza con que no haya columna, tampoco tiene que
-        // aparecer el nombre de la intención dentro de ninguna de las que hay.
-        await SembrarAsync();
-
-        await Capa(ProveedorGuionado.Generacion(ContarDocentes), "Hay 4 docentes.")
-            .ResponderAsync(
-                Alguien, null, "¿en qué estado está el pedido de Gómez?",
-                TestContext.Current.CancellationToken);
-
         // The three extra columns are the quality attributes of asistente-metricas-de-calidad
         // (010): a closed failure code, the model name (the one attribute shared with the
         // operational record, accepted in design D3 and noted in TD-012) and the replaced flag.
         Assert.Equal(
             ["categoria", "causa", "dia", "estado", "id", "modelo", "pregunta", "reemplazado"],
             await ColumnasDeAsync("registro_analitico"));
-
-        Assert.Empty(
-            await BuscarTextoAsync("registro_analitico", "estado-del-pedido-de-una-persona"));
     }
 
     [Fact]
@@ -664,7 +563,6 @@ public sealed class RegistrosYPurgaTests(PostgresFixture postgres)
             pregunta,
             "cruce_de_tablas",
             Proveedor: "anthropic/claude-sonnet-5",
-            IntencionSombra: null,
             MotivoDeRechazo: motivoDeRechazo);
 
     private async Task RegistrarAsync(TurnoParaRegistrar turno)

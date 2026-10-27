@@ -205,7 +205,30 @@ public sealed partial class ArquitecturaAsistenteTests
         var archivos = DdlDelAsistente();
 
         Assert.NotEmpty(archivos);
-        Assert.Empty(Detectar(archivos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()));
+        Assert.Empty(Detectar(
+            archivos.Select(SinReemplazosDeCheckRatificados).Select(SinRetirosDeColumnaRatificados),
+            DestruccionEnSql()));
+    }
+
+    [Fact]
+    public void Solo_el_retiro_de_una_columna_ratificada_escapa_a_la_prohibicion_de_DROP()
+    {
+        Archivo[] sinteticos =
+        [
+            new("021_columna_no_ratificada.sql",
+                "ALTER TABLE asistente.registro_operativo DROP COLUMN IF EXISTS proveedor;"),
+            new("022_ratificada_en_otra_tabla.sql",
+                "ALTER TABLE asistente.registro_analitico DROP COLUMN IF EXISTS intencion_sombra;"),
+            new("023_ratificada_y_algo_mas.sql",
+                "ALTER TABLE asistente.registro_operativo DROP COLUMN IF EXISTS intencion_sombra;\n"
+                + "DROP TABLE asistente.registro_operativo;"),
+        ];
+
+        Assert.Equal(3, Detectar(sinteticos.Select(SinRetirosDeColumnaRatificados), DestruccionEnSql()).Count);
+        Assert.Empty(Detectar(
+            [SinRetirosDeColumnaRatificados(new("024_ratificada.sql",
+                "ALTER TABLE asistente.registro_operativo DROP COLUMN IF EXISTS intencion_sombra;"))],
+            DestruccionEnSql()));
     }
 
     [Fact]
@@ -336,6 +359,9 @@ public sealed partial class ArquitecturaAsistenteTests
         // Same reason: DDL runner for the quality columns and the review audit
         // table (asistente-metricas-de-calidad), no actor involved.
         "CalidadAsistente.cs",
+        // Same reason: DDL runner that drops the retired intencion_sombra column
+        // (asistente-retirar-enrutador-sombra), no actor involved.
+        "RetiroDeIntencionSombraAsistente.cs",
         // Same reason as PresupuestosAdministrablesReal.cs: closes the open price
         // version and opens the new one in one owner-connection transaction
         // (asistente-modelo-en-caliente, D9). tabla_de_precios is keyed to no actor.
@@ -942,6 +968,31 @@ public sealed partial class ArquitecturaAsistenteTests
                     @"\bALTER\s+TABLE\s+asistente\.\w+\s+(?:DROP\s+CONSTRAINT\s+IF\s+EXISTS\s+"
                         + Regex.Escape(nombre) + @"|ADD\s+CONSTRAINT\s+" + Regex.Escape(nombre)
                         + @"\s+CHECK\b[^;]*)\s*;",
+                    string.Empty,
+                    RegexOptions.IgnoreCase)),
+        };
+
+    /// <summary>Columnas de tablas propias que su archivo puede retirar, y por qué.</summary>
+    private static readonly (string Tabla, string Columna)[] RetirosDeColumnaRatificados =
+    [
+        // 011 (asistente-retirar-enrutador-sombra): el enrutador de dominio en modo sombra se
+        // eliminó y nadie escribe la columna. 002 la sigue declarando (convergente), así que
+        // el retiro corre después de él en cada pasada.
+        ("registro_operativo", "intencion_sombra"),
+    ];
+
+    /// <summary>
+    /// El contenido del archivo sin los retiros de columna ratificados, para que
+    /// <see cref="DestruccionEnSql"/> juzgue todo lo demás.
+    /// </summary>
+    private static Archivo SinRetirosDeColumnaRatificados(Archivo archivo) =>
+        archivo with
+        {
+            Contenido = RetirosDeColumnaRatificados.Aggregate(archivo.Contenido, (contenido, retiro) =>
+                Regex.Replace(
+                    contenido,
+                    @"\bALTER\s+TABLE\s+asistente\." + Regex.Escape(retiro.Tabla)
+                        + @"\s+DROP\s+COLUMN\s+IF\s+EXISTS\s+" + Regex.Escape(retiro.Columna) + @"\s*;",
                     string.Empty,
                     RegexOptions.IgnoreCase)),
         };

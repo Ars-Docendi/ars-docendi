@@ -514,29 +514,6 @@ public sealed class DegradacionDelTurnoTests(PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Un_turno_que_se_cae_despues_de_decidir_conserva_la_intencion()
-    {
-        // El paso 5 corre antes que el carril SQL, así que cuando el proveedor explota la decisión
-        // ya estaba tomada.
-        await SembrarAsync();
-
-        var banco = BancoCon(
-            new OpcionesAsistente(),
-            null,
-            new ProveedorGuionado { Falla = new InvalidOperationException("el proveedor explotó") });
-
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => banco.Capa().ResponderAsync(
-                Secretaria, null, "¿en qué estado está el pedido de Gómez?",
-                TestContext.Current.CancellationToken));
-
-        var fila = ((RegistroEnMemoria)banco.Registro).Turnos.Single();
-
-        Assert.Equal(CarrilDelTurno.Fallo, fila.Carril);
-        Assert.Equal("estado-del-pedido-de-una-persona", fila.IntencionSombra);
-    }
-
-    [Fact]
     public void El_estado_de_un_turno_caido_no_tiene_nombre_en_el_contrato()
     {
         // `Fallo` existe sólo para el registro. Que el mapeo del contrato reviente

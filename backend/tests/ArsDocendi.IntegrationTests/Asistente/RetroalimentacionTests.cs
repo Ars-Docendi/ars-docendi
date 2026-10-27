@@ -443,8 +443,7 @@ public sealed class RetroalimentacionTests(PostgresFixture postgres)
             Truncado: false,
             "¿cuántos docentes hay?",
             "cruce_de_tablas",
-            Proveedor: "guionado",
-            IntencionSombra: null);
+            Proveedor: "guionado");
 
     private static ResultadoDelTurno TurnoDeEjemplo(Guid? token) =>
         new(EstadoDelTurno.Respondida,
