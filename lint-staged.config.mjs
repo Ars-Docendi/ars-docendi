@@ -11,7 +11,7 @@
  */
 
 // lint-staged separa el comando por espacios: cada path va entre comillas para que
-// un nombre con espacios (p. ej. en reports/) llegue como un solo argumento.
+// un nombre con espacios llegue como un solo argumento.
 const rutas = (files) => files.map((f) => JSON.stringify(f)).join(" ");
 
 export default {
