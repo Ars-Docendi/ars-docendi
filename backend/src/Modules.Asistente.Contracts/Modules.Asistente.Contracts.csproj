@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Sin PackageReference ni ProjectReference. La decisión de conservarlo ya
+       cerró (README.md, sistema-seccion-unificada design.md D1): sus primeros
+       tipos son DTOs e interfaces puros, y Contracts no referencia a nadie —
+       eso es lo que garantiza que la arista Host → Contracts y la arista
+       Modules.Asistente → Contracts no puedan cerrar un ciclo. -->
+
+</Project>

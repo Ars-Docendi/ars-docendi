@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using ArsDocendi.IntegrationTests.Infraestructura;
 
 namespace ArsDocendi.IntegrationTests.Backend;
 
@@ -7,11 +8,17 @@ public sealed class ArquitecturaIdentityTests
     [Fact]
     public void Proyectos_de_modulo_no_referencian_internals_de_otro_modulo()
     {
-        var raiz = BuscarRaizRepositorio();
+        var raiz = RaizRepositorio.Ruta();
         var proyectos = Directory.EnumerateFiles(
                 Path.Combine(raiz, "backend", "src"), "Modules.*.csproj", SearchOption.AllDirectories)
-            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal));
+            .Where(ruta => !ruta.Contains(".Contracts", StringComparison.Ordinal))
+            .ToArray();
         var infracciones = new List<string>();
+
+        // Los cinco módulos internos, Asistente incluido. Si el glob dejara de
+        // alcanzar alguno, el test pasaría sin haberlo mirado.
+        Assert.Equal(5, proyectos.Length);
+        Assert.Contains(proyectos, ruta => ruta.EndsWith("Modules.Asistente.csproj", StringComparison.Ordinal));
 
         foreach (var proyecto in proyectos)
         {
@@ -35,22 +42,5 @@ public sealed class ArquitecturaIdentityTests
             infracciones.Count == 0,
             "La comunicación cross-module sólo puede usar Contracts. " +
             $"Referencias detectadas: {string.Join(", ", infracciones)}");
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (Directory.Exists(Path.Combine(directorio.FullName, "backend", "src"))
-                && File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
-            {
-                return directorio.FullName;
-            }
-
-            directorio = directorio.Parent;
-        }
-
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 }

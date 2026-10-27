@@ -33,7 +33,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Listados_se_acotan_por_materia_carrera_y_alcance_global()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -77,7 +77,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Cadena_de_aceptacion_usa_el_rol_de_cada_etapa_y_un_historial_atomico()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var pedido = await CrearServicio(Jefe, identityDb, db).CrearAsync(
@@ -108,7 +108,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Aprobacion_final_materializa_una_designacion_trazable()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
         var persona = Guid.Parse("d0000000-0000-4000-8000-000000000003");
@@ -155,7 +155,7 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
     public async Task Alta_y_cambio_conservan_separadas_las_tres_cargas_del_pedido_y_snapshot()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identityDb = PostgresFixture.CrearIdentity(Cadena);
         await using var db = PostgresFixture.CrearDesignaciones(Cadena);
 
@@ -247,26 +247,6 @@ public sealed class RevisionPedidosTests(PostgresFixture postgres)
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniFrente, "dni-frente.pdf"),
             new GuardarAdjuntoPedidoDto(TiposAdjunto.DniDorso, "dni-dorso.pdf"),
         ]);
-
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 
     private sealed class UsuarioActualFalso(Guid id) : ICurrentUser
     {

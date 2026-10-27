@@ -2,5 +2,7 @@
 
 | Módulo / archivo |
 | --- |
-| [Designaciones](./designaciones.md) |
-| [Tareas](./tareas.md) |
+| [asistente](./asistente.md) |
+| [designaciones](./designaciones.md) |
+| [portal](./portal.md) |
+| [tareas](./tareas.md) |

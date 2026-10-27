@@ -122,7 +122,7 @@ reviews:
 
     - path: "frontend/src/**/*.test.*"
       instructions: |
-        Tests de frontend (golden-principles, Tests; AGENTS.md, regla 11). Un test se justifica sólo si protege una regla de negocio, una garantía de seguridad o de datos, o un flujo de usuario que otro test no cubra. Señalar como sobrante:
+        Tests de frontend (golden-principles, Tests; AGENTS.md, regla 12). Un test se justifica sólo si protege una regla de negocio, una garantía de seguridad o de datos, o un flujo de usuario que otro test no cubra. Señalar como sobrante:
         - Tests que cuentan pestañas, opciones, filas o columnas, o que validan el contenido de sintetico.sql.
         - Tests cosméticos: títulos, textos de botones, íconos, tooltips, posición o recortes.
         - Tests que prueban la librería o el navegador, por ejemplo que NavLink marque aria-current.
@@ -131,7 +131,7 @@ reviews:
 
     - path: "backend/tests/**/*.cs"
       instructions: |
-        Tests de backend (golden-principles, Tests; AGENTS.md, regla 11). Usar la capa más barata que verifique de verdad: unit para lógica pura, integración con PostgreSQL para constraints, triggers o transacciones. Señalar como sobrante:
+        Tests de backend (golden-principles, Tests; AGENTS.md, regla 12). Usar la capa más barata que verifique de verdad: unit para lógica pura, integración con PostgreSQL para constraints, triggers o transacciones. Señalar como sobrante:
         - Tests que cuentan endpoints, catálogos, filas del seed o columnas.
         - Verificación de forma: information_schema, pg_index, reflexión sobre nombres, o regex sobre scripts, workflows o YAML.
         - Pruebas de constraints o de frameworks que la base ya garantiza.

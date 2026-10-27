@@ -9,7 +9,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     public async Task Seed_es_idempotente_restaura_fixtures_y_preserva_filas_ajenas()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var conexion = await AbrirConexionAsync();
         var personaAjena = Guid.NewGuid();
         await EjecutarAsync(conexion, """
@@ -21,7 +21,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
 
         var pedidosAntes = await EscalarAsync<long>(conexion,
             "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%'");
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
 
         Assert.Equal(pedidosAntes, await EscalarAsync<long>(conexion,
             "SELECT count(*) FROM designaciones.pedidos WHERE numero LIKE '2026-90%'"));
@@ -47,7 +47,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
                 ALTER DATABASE "{baseActual}" OWNER TO "{rolAplicacion}";
                 """);
 
-            await EjecutarSeedAsync(ct);
+            await SembrarAsync(ct);
 
             await EjecutarAsync(conexion, $"SET ROLE \"{rolAplicacion}\";");
             Assert.True(await EscalarAsync<bool>(conexion,
@@ -70,16 +70,16 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
     public async Task Reconstruccion_local_reinicia_una_base_y_preserva_la_vecina()
     {
         var ct = TestContext.Current.CancellationToken;
-        var baseRecreable = string.Empty;
-        var baseVecina = string.Empty;
+        BaseDePrueba? baseRecreable = null;
+        BaseDePrueba? baseVecina = null;
         try
         {
             baseRecreable = await Postgres.CrearBaseMigradaAsync("reconstruible");
             baseVecina = await Postgres.CrearBaseMigradaAsync("vecina");
-            await EjecutarSeedAsync(baseRecreable, ct);
-            await EjecutarSeedAsync(baseVecina, ct);
+            await SembrarAsync(baseRecreable.Cadena, ct);
+            await SembrarAsync(baseVecina.Cadena, ct);
 
-            await using (var conexion = new NpgsqlConnection(baseRecreable))
+            await using (var conexion = new NpgsqlConnection(baseRecreable.Cadena))
             {
                 await conexion.OpenAsync(ct);
                 await EjecutarAsync(conexion, """
@@ -88,7 +88,7 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
                     """);
             }
 
-            await using (var conexion = new NpgsqlConnection(baseVecina))
+            await using (var conexion = new NpgsqlConnection(baseVecina.Cadena))
             {
                 await conexion.OpenAsync(ct);
                 await EjecutarAsync(conexion, """
@@ -99,9 +99,9 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
 
             await Postgres.EliminarBaseAsync(baseRecreable);
             baseRecreable = await Postgres.CrearBaseMigradaAsync("reconstruible");
-            await EjecutarSeedAsync(baseRecreable, ct);
+            await SembrarAsync(baseRecreable.Cadena, ct);
 
-            await using var recreada = new NpgsqlConnection(baseRecreable);
+            await using var recreada = new NpgsqlConnection(baseRecreable.Cadena);
             await recreada.OpenAsync(ct);
             Assert.Equal(0L, await EscalarAsync<long>(recreada,
                 "SELECT count(*) FROM identity.personas WHERE documento = 'TEST-RESET'"));
@@ -110,42 +110,16 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
             Assert.Equal("2026.09.1", await EscalarAsync<string>(recreada,
                 "SELECT valor FROM public.seed_metadata WHERE clave = 'dataset_version'"));
 
-            await using var vecina = new NpgsqlConnection(baseVecina);
+            await using var vecina = new NpgsqlConnection(baseVecina.Cadena);
             await vecina.OpenAsync(ct);
             Assert.Equal(1L, await EscalarAsync<long>(vecina,
                 "SELECT count(*) FROM identity.personas WHERE documento = 'TEST-VECINA'"));
         }
         finally
         {
-            if (baseRecreable.Length > 0) await Postgres.EliminarBaseAsync(baseRecreable);
-            if (baseVecina.Length > 0) await Postgres.EliminarBaseAsync(baseVecina);
+            if (baseRecreable is not null) await Postgres.EliminarBaseAsync(baseRecreable);
+            if (baseVecina is not null) await Postgres.EliminarBaseAsync(baseVecina);
         }
-    }
-
-    private Task EjecutarSeedAsync(CancellationToken ct) => EjecutarSeedAsync(Cadena, ct);
-
-    private async Task EjecutarSeedAsync(string cadena, CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = new NpgsqlConnection(cadena);
-        await conexion.OpenAsync(ct);
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md")))
-            {
-                return directorio.FullName;
-            }
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
     }
 
     private static async Task EjecutarAsync(
@@ -167,5 +141,4 @@ public sealed class SeedSinteticoTests(PostgresFixture postgres)
         comando.Parameters.AddRange(parametros);
         return (T)(await comando.ExecuteScalarAsync())!;
     }
-
 }

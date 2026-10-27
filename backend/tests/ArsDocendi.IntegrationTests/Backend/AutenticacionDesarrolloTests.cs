@@ -38,7 +38,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     public async Task Jefe_accede_a_docentes_solo_en_sus_materias_y_no_puede_modificarlos()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         var (personaMixta, personaAjena) = await AgregarDocentesConAmbitoMixtoAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
@@ -85,7 +85,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     public async Task Docente_sin_permiso_no_accede_a_la_administracion_de_docentes()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(
@@ -104,7 +104,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     public async Task Administrativo_accede_a_los_catalogos_de_roles_y_permisos(string ruta)
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(HttpMethod.Get, ruta);
@@ -122,7 +122,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     public async Task Catalogo_y_handler_aceptan_rol_personalizado_con_permisos_y_omiten_inactivo()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         var rolActivo = Guid.NewGuid();
         var rolInactivo = Guid.NewGuid();
         await using (var conexion = await AbrirConexionAsync())
@@ -167,7 +167,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         string rol)
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         using var host = CrearHost("Development", true);
         using var cliente = host.CreateClient();
         using var solicitud = new HttpRequestMessage(HttpMethod.Get, "/api/designaciones/catalogos");
@@ -183,7 +183,7 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
     public async Task Handler_rechaza_usuario_activo_ajeno_al_dataset()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         var usuario = Guid.NewGuid();
         await using (var conexion = await AbrirConexionAsync())
         await using (var comando = new NpgsqlCommand("""
@@ -328,23 +328,5 @@ public sealed class AutenticacionDesarrolloTests(PostgresFixture postgres)
         CreadoEn = DateTimeOffset.UtcNow,
     };
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
 
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 }

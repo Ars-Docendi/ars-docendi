@@ -1,0 +1,290 @@
+using System.Net;
+using ArsDocendi.IntegrationTests.Infraestructura;
+using ArsDocendi.Shared;
+using ArsDocendi.Shared.Persistencia;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Modules.Asistente;
+using Modules.Asistente.Application;
+using Modules.Asistente.Infrastructure;
+
+namespace ArsDocendi.IntegrationTests.Asistente;
+
+/// <summary>
+/// Verifica que el adaptador real se elija por ambiente y quede enchufado a la cadena de
+/// decoradores que ya existía.
+/// </summary>
+public sealed class SeleccionDelProveedorTests
+{
+    private const string CadenaDelDueno =
+        "Host=arsdocendi-postgres;Port=5432;Database=arsdocendi_pr_123;Username=app_pr_123;Password=x";
+
+    private static readonly SolicitudAlModelo Solicitud = new()
+    {
+        PrefijoEstable = "Esquema.",
+        Mensaje = "¿Qué docentes dictan Bases de Datos?",
+        Temperatura = 0.0m,
+        Esfuerzo = EsfuerzoDelModelo.Medio,
+        MaximoDeTokens = 256,
+    };
+
+    [Fact]
+    public void Configurado_con_clave_el_proveedor_resuelto_no_es_simulado()
+    {
+        using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+        using var turno = servicios.CreateScope();
+
+        var proveedor = turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>();
+
+        Assert.False(proveedor.EsSimulado);
+        Assert.StartsWith("anthropic/", proveedor.Nombre, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Sin_clave_pedir_el_proveedor_falla_nombrando_el_valor_que_falta()
+    {
+        using var servicios = Componer(clave: null).BuildServiceProvider();
+        using var turno = servicios.CreateScope();
+
+        // The adapter is resolved by the turn's resolver at the first call, so an
+        // incomplete configuration fails there and not when the port is requested.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
+
+        // El mensaje tiene que nombrar el valor: «falta configuración» manda a
+        // buscar en veinte lugares.
+        Assert.Contains(
+            nameof(OpcionesAsistente.ClaveDelProveedor), error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Sin_clave_el_Host_igual_arranca_y_el_ping_responde()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Contrapartida del test anterior, y es la que importa: la configuración del proveedor NO
+        // puede ser condición de arranque.
+        using var host = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            // En Production el Host exige el ingreso con Microsoft configurado.
+            builder.UseSetting("AutenticacionMicrosoft:Habilitada", "true");
+            builder.UseSetting("AutenticacionMicrosoft:ClientId", "cliente-pruebas");
+            builder.UseSetting("AutenticacionMicrosoft:ClientSecret", "secreto-pruebas");
+            builder.UseSetting($"ConnectionStrings:{CadenaDuena.Clave}", CadenaDelDueno);
+            builder.UseSetting(Ajuste(nameof(OpcionesAsistente.Proveedor)), "anthropic");
+        });
+        using var cliente = host.CreateClient();
+
+        using var respuesta = await cliente.GetAsync("/api/asistente/ping", ct);
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+    }
+
+    [Fact]
+    public async Task Un_esfuerzo_desconocido_falla_nombrando_los_aceptados()
+    {
+        using var servicios = Componer(clave: "clave-de-prueba", esfuerzo: "altisimo")
+            .BuildServiceProvider();
+        using var turno = servicios.CreateScope();
+
+        // The adapter is resolved by the turn's resolver at the first call, so an
+        // incomplete configuration fails there and not when the port is requested.
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
+
+        // Falla en vez de caer al default en silencio: alguien que escribió «altisimo» quiere
+        // enterarse al arrancar, no correr un mes con un esfuerzo que no eligió.
+        Assert.Contains("altisimo", error.Message, StringComparison.Ordinal);
+
+        // Y el mensaje enumera los aceptados y nombra CUÁL de los tres valores está
+        // mal: con tres esfuerzos configurables, decir solo «esfuerzo desconocido»
+        // deja a quien lo lee buscando en cuál de los tres se equivocó.
+        Assert.Contains("maximo", error.Message, StringComparison.Ordinal);
+        Assert.Contains(
+            nameof(OpcionesAsistente.EsfuerzoDeGeneracion), error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task El_adaptador_consume_el_cliente_con_el_reintento_del_modulo()
+    {
+        using var transporte = TransporteFalso.QueFalla(HttpStatusCode.InternalServerError);
+        using var servicios = Componer(clave: "clave-de-prueba", transporte: transporte, intentos: 3)
+            .BuildServiceProvider();
+        using var turno = servicios.CreateScope();
+
+        var proveedor = turno.ServiceProvider.GetRequiredService<IProveedorDeModelo>();
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => proveedor.CompletarAsync(Solicitud, TestContext.Current.CancellationToken));
+
+        // Tres intentos, y ni uno más: el adaptador no reintenta y el handler del módulo sí.
+        Assert.Equal(3, transporte.Intentos);
+    }
+
+    [Fact]
+    public async Task Fallas_repetidas_del_proveedor_abren_el_corte()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var transporte = TransporteFalso.QueFalla(HttpStatusCode.InternalServerError);
+        using var servicios = Componer(
+            clave: "clave-de-prueba", transporte: transporte, intentos: 1, fallosParaAbrir: 2)
+            .BuildServiceProvider();
+
+        for (var turno = 0; turno < 2; turno++)
+        {
+            using var alcance = servicios.CreateScope();
+            await Assert.ThrowsAsync<HttpRequestException>(
+                () => alcance.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                    .CompletarAsync(Solicitud, ct));
+        }
+
+        var antes = transporte.Intentos;
+
+        using var tercero = servicios.CreateScope();
+        await Assert.ThrowsAsync<ProveedorNoDisponible>(
+            () => tercero.ServiceProvider.GetRequiredService<IProveedorDeModelo>()
+                .CompletarAsync(Solicitud, ct));
+
+        // Es la prueba de que la traducción de fallas del adaptador LLEGA al breaker.
+        Assert.Equal(antes, transporte.Intentos);
+    }
+
+    // ------------------------------------------------------------------ apoyo
+
+    private static string Ajuste(string nombre) => $"{OpcionesAsistente.Seccion}:{nombre}";
+
+    // ------------------------------------------------- disposición del adaptador
+
+    [Fact]
+    public void El_adaptador_crudo_es_un_servicio_del_contenedor()
+    {
+        // ES LO QUE HACE QUE SE DISPONGA. El contenedor libera lo que él construyó y registró; un
+        // adaptador guardado adentro de un record marcador —que no es IDisposable— nunca recibe
+        // Dispose(), y su cliente HTTP queda vivo hasta que el proceso muera.
+        using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+
+        var crudo = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+
+        Assert.IsAssignableFrom<IDisposable>(crudo);
+
+        // Y es singleton: dos resoluciones dan el mismo objeto, así que hay un solo
+        // dueño para un solo cliente.
+        Assert.Same(
+            crudo,
+            servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+                ModuleExtensions.AdaptadorDeGeneracion));
+    }
+
+    [Fact]
+    public void Sin_modelo_de_redaccion_propio_las_dos_cadenas_comparten_una_instancia()
+    {
+        // LA VARIANTE QUE HARÍA DOBLE UNA DISPOSICIÓN INGENUA. Con `ModeloDeRedaccion` vacío —el
+        // default— redactar usa el mismo adaptador que generar.
+        using var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+
+        var generacion = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+        var redaccion = servicios.GetRequiredService<BaseDeRedaccion>().Valor;
+
+        Assert.Same(generacion, redaccion);
+    }
+
+    [Fact]
+    public void Con_modelo_de_redaccion_propio_son_dos_adaptadores_distintos()
+    {
+        // La otra variante: dos modelos, dos adaptadores, dos clientes, y el
+        // contenedor dueño de los dos. Cada uno se dispone una vez.
+        using var servicios = Componer(clave: "clave-de-prueba", modeloDeRedaccion: "claude-haiku-4-5")
+            .BuildServiceProvider();
+
+        var generacion = servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+        var redaccion = servicios.GetRequiredService<BaseDeRedaccion>().Valor;
+
+        Assert.NotSame(generacion, redaccion);
+        Assert.Same(
+            redaccion,
+            servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+                ModuleExtensions.AdaptadorDeRedaccion));
+    }
+
+    [Fact]
+    public void Disponer_el_adaptador_dos_veces_no_falla()
+    {
+        // El contenedor lo dispone una sola vez, pero la idempotencia es lo que hace que un cambio
+        // futuro en la registración no se pague con una excepción al apagar el proceso.
+        var servicios = Componer(clave: "clave-de-prueba").BuildServiceProvider();
+        var crudo = (IDisposable)servicios.GetRequiredKeyedService<IProveedorDeModelo>(
+            ModuleExtensions.AdaptadorDeGeneracion);
+
+        crudo.Dispose();
+        crudo.Dispose();
+
+        servicios.Dispose();
+    }
+
+    private static ServiceCollection Componer(
+        string? clave,
+        string esfuerzo = "alto",
+        string? modeloDeRedaccion = null,
+        TransporteFalso? transporte = null,
+        int? intentos = null,
+        int? fallosParaAbrir = null)
+    {
+        var valores = new Dictionary<string, string?>
+        {
+            [$"ConnectionStrings:{CadenaDuena.Clave}"] = CadenaDelDueno,
+            [Ajuste(nameof(OpcionesAsistente.Proveedor))] = "anthropic",
+            [Ajuste(nameof(OpcionesAsistente.EsfuerzoDeGeneracion))] = esfuerzo,
+            [Ajuste(nameof(OpcionesAsistente.EsperaBaseMs))] = "1",
+            [Ajuste(nameof(OpcionesAsistente.EsperaMaximaMs))] = "2",
+        };
+
+        if (modeloDeRedaccion is not null)
+        {
+            valores[Ajuste(nameof(OpcionesAsistente.ModeloDeRedaccion))] = modeloDeRedaccion;
+        }
+
+        if (clave is not null)
+        {
+            valores[Ajuste(nameof(OpcionesAsistente.ClaveDelProveedor))] = clave;
+        }
+
+        if (intentos is { } cuantos)
+        {
+            valores[Ajuste(nameof(OpcionesAsistente.MaximoDeIntentosDeTransporte))] =
+                cuantos.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (fallosParaAbrir is { } cuantosFallos)
+        {
+            valores[Ajuste(nameof(OpcionesAsistente.FallosParaAbrirElBreaker))] =
+                cuantosFallos.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        var configuracion = new ConfigurationBuilder().AddInMemoryCollection(valores).Build();
+
+        var servicios = new ServiceCollection();
+        servicios.AddLogging();
+        servicios.AddArsDocendiShared(configuracion);
+        servicios.AddAsistenteModule(configuracion);
+        servicios.SinSeleccionGuardada();
+
+        if (transporte is not null)
+        {
+            // Se reemplaza el handler PRIMARIO del cliente con nombre, no el cliente
+            // entero: así el reintento del módulo sigue en el pipeline y lo que se
+            // mide es el cableado real, no una versión de laboratorio.
+            servicios.AddHttpClient(ModuleExtensions.ClienteDelProveedor)
+                .ConfigurePrimaryHttpMessageHandler(() => transporte);
+        }
+
+        return servicios;
+    }
+}

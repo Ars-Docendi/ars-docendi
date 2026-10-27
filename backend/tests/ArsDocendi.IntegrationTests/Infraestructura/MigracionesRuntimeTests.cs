@@ -117,7 +117,10 @@ public sealed class MigracionesRuntimeTests : IAsyncLifetime
 
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.carreras WHERE code='TEST-UPGRADE'"));
         Assert.Equal(1L, await Escalar("SELECT count(*) FROM identity.users WHERE upn='upgrade@example.test' AND azure_oid IS NULL AND azure_tid IS NULL"));
-        Assert.Equal(25L, await Escalar("SELECT count(*) FROM identity.permisos"));
+        // 25 del baseline + incrementales de Tareas, más los seis del asistente
+        // (asistente.consultar, asistente.ver_consulta, portal.ver_trayectoria_ajena,
+        // asistente.leer_historial_ajeno, asistente.administrar y asistente.revisar_calidad).
+        Assert.Equal(31L, await Escalar("SELECT count(*) FROM identity.permisos"));
         Assert.Equal(7L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.ver'"));
         Assert.Equal(4L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='tareas.gestionar'"));
         Assert.Equal(3L, await Escalar("SELECT count(*) FROM identity.rol_permisos rp JOIN identity.permisos p ON p.id=rp.permiso_id WHERE p.code='proyectos.gestionar'"));

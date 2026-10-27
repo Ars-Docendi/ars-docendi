@@ -12,7 +12,7 @@ public static class ModuleExtensions
     public static IServiceCollection AddAulasModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AulasDbContext>((sp, opt) =>
-            opt.UseNpgsql(configuration.GetConnectionString("ArsDocendi"), npgsql =>
+            opt.UseNpgsql(sp.GetRequiredService<CadenaDuena>().Valor, npgsql =>
                     npgsql.MigrationsHistoryTable("__EFMigrationsHistory", AulasDbContext.Schema))
                .AddInterceptors(sp.GetRequiredService<AuditDbConnectionInterceptor>()));
 

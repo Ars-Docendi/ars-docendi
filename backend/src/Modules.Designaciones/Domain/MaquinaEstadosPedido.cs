@@ -88,6 +88,9 @@ public static class MaquinaEstadosPedido
     /// </summary>
     public static bool AlcanzaAmbito(AlcancePedido alcance, ActorContexto actor)
     {
+        ArgumentNullException.ThrowIfNull(alcance);
+        ArgumentNullException.ThrowIfNull(actor);
+
         if (actor.EsDeptoWide)
         {
             return true;

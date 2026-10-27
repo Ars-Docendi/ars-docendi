@@ -1,0 +1,958 @@
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using ArsDocendi.IntegrationTests.Infraestructura;
+
+namespace ArsDocendi.IntegrationTests.Asistente;
+
+/// <summary>Guards de arquitectura propios del módulo del asistente.</summary>
+public sealed partial class ArquitecturaAsistenteTests
+{
+    /// <summary>
+    /// Únicos archivos que pueden nombrar <c>CadenaDuena</c>, y por qué cada uno.
+    /// </summary>
+    private static readonly string[] PuedenUsarLaCadenaDelDueno =
+    [
+        "MigradorAsistente.cs",
+        "ModuleExtensions.cs",
+        "RegistroDelTurno.cs",
+        "PurgaDeRegistros.cs",
+        "RegistroDeRetroalimentacion.cs",
+        "RegistroDeHistorial.cs",
+        "ConsultasDeHistorial.cs",
+        "ConsultasDeAuditoriaDeSoporte.cs",
+        // BarridoDeBorradosPendientes.cs: BarridoDePendientes, la parte scoped y testeable de ese
+        // archivo, abre su propia conexión con la cadena dueña para el DELETE físico del backstop
+        // de deshacer (asistente-rediseno-v3, design.md D4) — misma tabla, mismo schema revocado
+        // entero que ConsultasDeHistorial ya necesita leer y escribir con esta conexión.
+        "BarridoDeBorradosPendientes.cs",
+        // CuotaPersistente.cs: same reason as ConsultasDeHistorial.cs — reads
+        // presupuesto_rol/presupuesto_usuario/registro_operativo, all inside
+        // the wholesale-revoked `asistente` schema, so even reading needs the
+        // owner connection (asistente-administracion-de-uso).
+        "CuotaPersistente.cs",
+        // Same reason as CuotaPersistente.cs: credencial_de_proveedor,
+        // modelo_vigente and catalogo_de_modelos sit inside the wholesale-revoked
+        // `asistente` schema (asistente-modelo-en-caliente).
+        "RepositorioDeCredenciales.cs",
+        "RepositorioDelModelo.cs",
+        // Same reason: tabla_de_precios is inside the wholesale-revoked `asistente`
+        // schema, and the price write path needs the owner connection.
+        "RepositorioDePrecios.cs",
+        // Same reason as CuotaPersistente.cs above — reads
+        // tope_organizacional/consumo_organizacional_mensual/tabla_de_precios
+        // and writes the accumulator, all inside the same revoked schema.
+        "PresupuestoOrganizacionalPersistente.cs",
+        // CandadoDelTurnoReal.cs takes CadenaDuena to hand it to CandadoDelTurno, which needs the
+        // owner's credentials to open its own dedicated (unpooled) connection for the advisory lock
+        // — design.md D5 of asistente-administracion-de-uso.
+        "CandadoDelTurnoReal.cs",
+        // CandadoDelTurno.cs itself: same reason, it is the class that
+        // actually opens the dedicated connection with CadenaDuena.
+        "CandadoDelTurno.cs",
+        // Reads/writes modo_mantenimiento, inside the wholesale-revoked
+        // `asistente` schema — same reason as CuotaPersistente.cs above.
+        "DisponibilidadDelModuloReal.cs",
+        // Writes the append-only auditoria_administracion, same schema.
+        "AuditoriaDeAdministracionReal.cs",
+        // Aggregates registro_operativo/tabla_de_precios for the usage panel,
+        // same wholesale-revoked schema (tarea 9.1-9.4).
+        "ConsultasDeUso.cs",
+        // Reads/writes presupuesto_rol/presupuesto_usuario/tope_organizacional,
+        // same wholesale-revoked schema (tareas 9.5/9.6).
+        "PresupuestosAdministrablesReal.cs",
+        // Reads presupuesto_rol.acceso_habilitado and acceso_usuario_revocado
+        // (asistente-acceso-granular), same wholesale-revoked schema — same
+        // reason as CuotaPersistente.cs.
+        "AccesoPersistente.cs",
+        // Reads auditoria_administracion (sistema-seccion-unificada, design.md
+        // D1, tarea 1.2) — same wholesale-revoked schema as the rest of this
+        // list, so even reading its own audit trail needs the owner connection.
+        "ConsultasDeAuditoriaDeAdministracion.cs",
+        // The two quality readers and the audit of the problem list
+        // (asistente-metricas-de-calidad): registro_analitico, retroalimentacion_turno and
+        // auditoria_revision_de_calidad sit inside the wholesale-revoked `asistente`
+        // schema, so even reading them needs the owner connection.
+        "ConsultasDeCalidad.cs",
+        "ConsultasDeProblemasDeCalidad.cs",
+        "AuditoriaDeRevisionDeCalidad.cs",
+    ];
+
+    // ------------------------------------------------- la cadena del dueño no se filtra
+
+    [Fact]
+    public void Solo_el_migrador_y_la_composicion_usan_la_cadena_del_dueno()
+    {
+        var archivos = CodigoDelModulo();
+
+        // Es el guard más importante del módulo. Todo el trabajo de privilegios por
+        // columna se evapora si el motor de consulta recibe la conexión del dueño:
+        // seguiría funcionando, leyendo de más y sin fallar.
+        Assert.NotEmpty(archivos);
+        var infracciones = Detectar(
+            archivos.Where(a => !PuedenUsarLaCadenaDelDueno.Contains(Path.GetFileName(a.Ruta))),
+            UsoDeCadenaDuena());
+
+        Assert.True(infracciones.Count == 0,
+            "Solo el migrador y la composición pueden nombrar CadenaDuena. Detectado en: "
+            + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_un_uso_de_la_cadena_del_dueno()
+    {
+        var sintetico = new Archivo(
+            "Application/MotorDeConsulta.cs",
+            "public sealed class MotorDeConsulta(CadenaDuena cadena) { }");
+
+        var infracciones = Detectar([sintetico], UsoDeCadenaDuena());
+
+        Assert.Single(infracciones);
+    }
+
+    // --------------------------------------------------------- el módulo no escribe
+
+    [Fact]
+    public void El_codigo_del_modulo_no_muta_datos_de_otro_schema()
+    {
+        var archivos = CodigoDelModulo();
+
+        Assert.NotEmpty(archivos);
+        var infracciones = DetectarMutacionAjena(archivos, MutacionEnCodigo());
+
+        Assert.True(infracciones.Count == 0,
+            "El asistente es de solo lectura sobre los datos del sistema. Lo único que "
+            + "escribe es su propio schema `asistente`. Detectado en: "
+            + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_sentencia_de_mutacion_ajena_en_codigo()
+    {
+        Archivo[] sinteticos =
+        [
+            new("Application/Guardar.cs", "var sql = \"INSERT INTO designaciones.pedidos VALUES (1)\";"),
+            new("Application/Borrar.cs", "var sql = \"DELETE FROM identity.personas\";"),
+            new("Application/Vaciar.cs", "var sql = \"TRUNCATE designaciones.pedidos\";"),
+            new("Application/VaciarTabla.cs", "var sql = \"TRUNCATE TABLE identity.personas\";"),
+            new("Application/Persistir.cs", "await db.SaveChangesAsync(ct);"),
+        ];
+
+        var infracciones = DetectarMutacionAjena(sinteticos, MutacionEnCodigo());
+
+        Assert.Equal(5, infracciones.Count);
+    }
+
+    [Fact]
+    public void Escribir_el_schema_propio_del_asistente_no_es_una_infraccion()
+    {
+        // LA LÍNEA EXACTA DEL GUARD, y conviene que esté escrita como test y no como comentario. Lo
+        // que el invariante prohíbe es tocar los datos de los módulos, y eso sigue prohibido en la
+        // línea de abajo.
+        Archivo[] sinteticos =
+        [
+            new("Infrastructure/Propio.cs",
+                "var sql = \"INSERT INTO asistente.registro_operativo (actor_id) VALUES (@a)\";"),
+            new("Infrastructure/Purga.cs",
+                "var sql = \"DELETE FROM asistente.registro_analitico WHERE dia < @corte\";"),
+        ];
+
+        Assert.Empty(DetectarMutacionAjena(sinteticos, MutacionEnCodigo()));
+
+        Assert.Single(DetectarMutacionAjena(
+            [new("Infrastructure/Ajeno.cs",
+                "var sql = \"INSERT INTO designaciones.pedidos (id) VALUES (@a)\";")],
+            MutacionEnCodigo()));
+    }
+
+    [Fact]
+    public void Una_lista_de_palabras_prohibidas_no_cuenta_como_mutacion()
+    {
+        // El validador de la SQL generada tiene que enumerar lo que rechaza. Una enumeración de
+        // prohibiciones es lo contrario de una mutación, y el detector no puede confundirlas: si lo
+        // hiciera, la salida sería quitar el guard o quitar la enumeración, y las dos son peores.
+        Archivo[] sinteticos =
+        [
+            new("Application/ValidadorFicticio.cs",
+                """
+                private static readonly HashSet<string> Prohibidas =
+                    ["insert", "update", "delete", "truncate", "merge"];
+                """),
+        ];
+
+        Assert.Empty(Detectar(sinteticos, MutacionEnCodigo()));
+    }
+
+    // ------------------------------------------------------------- el DDL no muta
+
+    [Fact]
+    public void El_DDL_del_asistente_no_toca_ningun_schema_ajeno()
+    {
+        var archivos = DdlDelAsistente();
+
+        // El DDL del módulo concede lectura sobre los schemas de los otros y crea el suyo propio.
+        Assert.NotEmpty(archivos);
+        var infracciones = DetectarMutacionAjena(archivos, MutacionEnSql());
+
+        Assert.True(infracciones.Count == 0,
+            "El DDL del asistente solo concede privilegios y crea su propio schema. "
+            + "Detectado en: " + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void El_DDL_del_asistente_no_borra_ni_reescribe_nada_de_lo_que_ya_existe()
+    {
+        // LO PROHIBIDO ES LO DESTRUCTIVO Y LO QUE DEPENDE DEL ORDEN: `DROP`, `RENAME` y `ALTER COLUMN ...
+        var archivos = DdlDelAsistente();
+
+        Assert.NotEmpty(archivos);
+        Assert.Empty(Detectar(archivos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()));
+    }
+
+    [Fact]
+    public void Solo_el_reemplazo_de_un_CHECK_ratificado_escapa_a_la_prohibicion_de_DROP()
+    {
+        const string Reemplazo =
+            """
+            ALTER TABLE asistente.retroalimentacion_turno
+                DROP CONSTRAINT IF EXISTS retroalimentacion_turno_razones_validas;
+            ALTER TABLE asistente.retroalimentacion_turno
+                ADD CONSTRAINT retroalimentacion_turno_razones_validas
+                CHECK (razones IS NULL OR razones <@ ARRAY['a', 'b']::text[]);
+            """;
+        Archivo[] sinteticos =
+        [
+            new("017_check_no_ratificado.sql",
+                "ALTER TABLE asistente.registro_operativo DROP CONSTRAINT IF EXISTS otro_check;"),
+            new("018_ratificado_pero_otra_accion.sql",
+                """
+                ALTER TABLE asistente.retroalimentacion_turno
+                    DROP CONSTRAINT retroalimentacion_turno_razones_validas;
+                """),
+            new("019_ratificado_y_algo_mas.sql",
+                Reemplazo + "\nALTER TABLE asistente.retroalimentacion_turno DROP COLUMN razones;"),
+        ];
+
+        Assert.Equal(3, Detectar(sinteticos.Select(SinReemplazosDeCheckRatificados), DestruccionEnSql()).Count);
+        Assert.Empty(Detectar(
+            [SinReemplazosDeCheckRatificados(new("020_ratificado.sql", Reemplazo))],
+            DestruccionEnSql()));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_un_DDL_que_toca_lo_ajeno()
+    {
+        Archivo[] sinteticos =
+        [
+            new("003_tabla_ajena.sql", "CREATE TABLE designaciones.consultas (id uuid);"),
+            new("004_semilla.sql", "INSERT INTO identity.roles (code) VALUES ('x');"),
+            new("005_indice.sql", "CREATE INDEX ix_x ON identity.personas (legajo);"),
+        ];
+
+        Assert.Equal(3, DetectarMutacionAjena(sinteticos, MutacionEnSql()).Count);
+
+        // Y el propio, no.
+        Assert.Empty(DetectarMutacionAjena(
+            [new("006_propio.sql", "CREATE TABLE asistente.consultas (id uuid);")],
+            MutacionEnSql()));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_un_DDL_destructivo()
+    {
+        Archivo[] sinteticos =
+        [
+            new("007_baja.sql", "DROP TABLE designaciones.pedidos;"),
+            new("008_baja_propia.sql", "DROP TABLE asistente.registro_operativo;"),
+            new("009_columna_sin_guarda.sql",
+                "ALTER TABLE asistente.registro_analitico ADD COLUMN x text;"),
+            new("010_baja_de_columna.sql",
+                "ALTER TABLE asistente.registro_operativo DROP COLUMN proveedor;"),
+            new("011_cambio_de_tipo.sql",
+                "ALTER TABLE asistente.registro_operativo ALTER COLUMN latencia_ms TYPE bigint;"),
+            new("012_renombre.sql",
+                "ALTER TABLE asistente.registro_operativo RENAME COLUMN carril TO ruta;"),
+            new("013_columna_ajena.sql",
+                "ALTER TABLE designaciones.pedidos ADD COLUMN IF NOT EXISTS x text;"),
+            // Con coma, la sentencia lleva más de una acción y la segunda queda fuera de lo que el
+            // patrón puede leer.
+            new("014_dos_acciones.sql",
+                """
+                ALTER TABLE asistente.registro_operativo
+                    ADD COLUMN IF NOT EXISTS a text, ADD COLUMN b text;
+                """),
+        ];
+
+        Assert.Equal(8, Detectar(sinteticos, DestruccionEnSql()).Count);
+    }
+
+    [Fact]
+    public void Agregar_una_columna_con_guarda_al_schema_propio_no_es_una_infraccion()
+    {
+        // LA LÍNEA EXACTA DEL GUARD NUEVO. Es la única sentencia que repara una base que ya tenía
+        // la tabla, y es idempotente y sin orden: agrega lo que falta y no toca lo que está.
+        Archivo[] sinteticos =
+        [
+            new("015_columna_propia.sql",
+                "ALTER TABLE asistente.registro_operativo ADD COLUMN IF NOT EXISTS x text;"),
+            new("016_columna_propia_en_dos_lineas.sql",
+                """
+                ALTER TABLE asistente.registro_operativo
+                    ADD COLUMN IF NOT EXISTS tokens_de_cache integer;
+                """),
+        ];
+
+        Assert.Empty(Detectar(sinteticos, DestruccionEnSql()));
+    }
+
+    // ------------------------------------------- el actor se fija en un solo lugar
+
+    /// <summary>El único archivo que puede armar el preámbulo de lectura.</summary>
+    private const string ArchivoDelPreambulo = "PreambuloDelActor.cs";
+
+    /// <summary>
+    /// Archivos que abren transacción <b>sin</b> actor, y por qué. Los dos corren DDL de migración
+    /// con la conexión del dueño que les pasa el migrador: no hay actor que fijar, y RLS no aplica
+    /// al dueño de la tabla.
+    /// </summary>
+    private static readonly string[] TransaccionesSinActor =
+    [
+        "PrivilegiosAsistente.cs",
+        "RegistrosAsistente.cs",
+        // Same reason as RegistrosAsistente.cs: migration DDL run with the owner
+        // connection, no actor to fix and RLS does not apply to the owner.
+        "RetroalimentacionAsistente.cs",
+        // Same reason: DDL runners for the two new tables, no actor involved.
+        "HistorialAsistente.cs",
+        "AuditoriaDeSoporteAsistente.cs",
+        // Same reason: DDL runner for the seven administration-of-use tables
+        // (asistente-administracion-de-uso), no actor involved.
+        "AdministracionAsistente.cs",
+        // Writes presupuesto_usuario in its own short transaction (close the previous version, open
+        // the new one) — no RLS-scoped read of anything keyed to identity.asistente_actor(), so no actor to fix.
+        "PresupuestosAdministrablesReal.cs",
+        // Same reason as AdministracionAsistente.cs: DDL runner for the three
+        // runtime-model tables (asistente-modelo-en-caliente), no actor involved.
+        "ModeloAsistente.cs",
+        // Same reason: DDL runner for the quality columns and the review audit
+        // table (asistente-metricas-de-calidad), no actor involved.
+        "CalidadAsistente.cs",
+        // Same reason as PresupuestosAdministrablesReal.cs: closes the open price
+        // version and opens the new one in one owner-connection transaction
+        // (asistente-modelo-en-caliente, D9). tabla_de_precios is keyed to no actor.
+        "RepositorioDePrecios.cs",
+        // Same reason as RegistrosAsistente.cs: the owner connection (CadenaDuena) replacing
+        // turno_historico's last row for «Editar y reenviar»
+        // (asistente-edicion-de-la-ultima-pregunta, design.md D9), in one transaction so a failed
+        // insert leaves the old row.
+        "RegistroDeHistorial.cs",
+    ];
+
+    [Fact]
+    public void El_preambulo_de_lectura_se_arma_en_un_solo_archivo()
+    {
+        var archivos = CodigoDelModulo();
+
+        // El ajuste del actor y la declaración de solo lectura viven juntos en un solo archivo
+        // porque juntos son la afirmación que sostiene el invariante #14: toda transacción que fija
+        // el actor es de solo lectura.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, PreambuloDeLectura())
+            .Where(ruta => !Path.GetFileName(ruta).Equals(ArchivoDelPreambulo, StringComparison.Ordinal))
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "El ajuste del actor y el SET TRANSACTION READ ONLY solo pueden estar en "
+            + $"{ArchivoDelPreambulo}. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_un_preambulo_suelto()
+    {
+        Archivo[] sinteticos =
+        [
+            new("Infrastructure/ConsultorNuevo.cs",
+                "var c = new NpgsqlCommand(\"SELECT set_config('app.asistente_user_id', @a, true)\");"),
+            new("Infrastructure/OtroConsultor.cs",
+                "var c = new NpgsqlCommand(\"SET TRANSACTION READ ONLY\", conexion, transaccion);"),
+        ];
+
+        Assert.Equal(2, Detectar(sinteticos, PreambuloDeLectura()).Count);
+    }
+
+    [Fact]
+    public void Toda_transaccion_de_lectura_pasa_por_el_preambulo()
+    {
+        var archivos = CodigoDelModulo();
+
+        // ESTE ES EL GUARD QUE ATRAPA AL QUINTO CONSULTOR. El de arriba impide escribir el ajuste
+        // en otro lado; este impide OLVIDARLO, que es el modo de falla que importa y el único que
+        // es silencioso: sin el ajuste, identity.asistente_actor() devuelve NULL, la policy da
+        // falso, y el asistente contesta «no hay datos» en vez de «no podés verlos».
+        Assert.NotEmpty(archivos);
+        var culpables = archivos
+            .Where(a => !TransaccionesSinActor.Contains(Path.GetFileName(a.Ruta)))
+            .Where(a => !Path.GetFileName(a.Ruta).Equals(ArchivoDelPreambulo, StringComparison.Ordinal))
+            .Where(SinPreambulo)
+            .Select(a => a.Ruta)
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "Hay una transacción de lectura que no aplica el preámbulo del actor. "
+            + "Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_transaccion_sin_preambulo()
+    {
+        var olvidadizo = new Archivo(
+            "Infrastructure/ConsultorNuevo.cs",
+            """
+            await using var transaccion = await conexion.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted, ct);
+            await using var leer = new NpgsqlCommand("SELECT 1", conexion, transaccion);
+            """);
+
+        Assert.True(SinPreambulo(olvidadizo));
+
+        // Y el que sí lo aplica, no.
+        var correcto = olvidadizo with
+        {
+            Contenido = olvidadizo.Contenido
+                + "\nawait PreambuloDelActor.AplicarAsync(conexion, transaccion, actor, ct);",
+        };
+
+        Assert.False(SinPreambulo(correcto));
+    }
+
+    // --------------------------------------------- el ping no arrastra dependencias
+
+    [Fact]
+    public void El_controller_del_ping_no_tiene_ninguna_dependencia()
+    {
+        // ESTO YA SE ROMPIÓ UNA VEZ. El ping vivía junto al endpoint del turno; el día que ese
+        // controller ganó dependencias, construirlo pasó a exigir las cadenas de solo lectura —cuya
+        // fábrica falla si el ambiente no las configuró— y el ping devolvió 500 sin base.
+        var tipo = typeof(Modules.Asistente.Api.PingAsistenteController);
+
+        Assert.All(
+            tipo.GetConstructors(),
+            constructor => Assert.Empty(constructor.GetParameters()));
+    }
+
+    [Fact]
+    public void El_ping_no_esta_en_el_controller_del_turno()
+    {
+        var tipo = typeof(Modules.Asistente.Api.AsistenteController);
+
+        Assert.DoesNotContain(
+            tipo.GetMethods().Select(m => m.Name),
+            nombre => nombre.Equals("Ping", StringComparison.Ordinal));
+    }
+
+    // ------------------------------------------- una sola puerta a las bases
+
+    /// <summary>Los únicos archivos que pueden construir una conexión a mano, y por qué.</summary>
+    private static readonly string[] PuedenConstruirConexion =
+    [
+        "AperturaDeLectura.cs",
+        "MigradorAsistente.cs",
+        "RegistroDelTurno.cs",
+        "PurgaDeRegistros.cs",
+        // Same reason as RegistroDelTurno.cs above: writes the feedback table with the owner
+        // connection, since both read-only roles have the whole `asistente` schema revoked.
+        "RegistroDeRetroalimentacion.cs",
+        // Same reason: writes hilo_historico/turno_historico with the owner
+        // connection, same wholesale-revoked schema.
+        "RegistroDeHistorial.cs",
+        // Reads (not writes) hilo_historico/turno_historico — the read-only roles cannot reach the
+        // schema at all, so even reading it needs the owner connection.
+        "ConsultasDeHistorial.cs",
+        // Reads another actor's history and writes the append-only audit row,
+        // both against the same wholesale-revoked schema.
+        "ConsultasDeAuditoriaDeSoporte.cs",
+        // BarridoDeBorradosPendientes.cs: BarridoDePendientes physically
+        // deletes rows of the same wholesale-revoked schema (the deferred
+        // delete's backstop, design.md D4) — same reason as PurgaDeRegistros.cs.
+        "BarridoDeBorradosPendientes.cs",
+        // Reads presupuesto_rol/presupuesto_usuario and counts registro_operativo
+        // (asistente-administracion-de-uso) — all three inside the same wholesale-revoked
+        // `asistente` schema, so even reading needs the owner connection, same reason as
+        // ConsultasDeHistorial.cs above.
+        "CuotaPersistente.cs",
+        // Same reason as CuotaPersistente.cs above.
+        "PresupuestoOrganizacionalPersistente.cs",
+        // Same reason as CuotaPersistente.cs above (asistente-acceso-granular).
+        "AccesoPersistente.cs",
+        // CandadoDelTurno.cs needs its OWN dedicated, unpooled connection for the session-level
+        // advisory lock (design.md D5): AperturaDeLectura's pooled connections cannot own a
+        // session-scoped lock, since the pool can hand that same physical connection to someone
+        // else the moment it is returned.
+        "CandadoDelTurno.cs",
+        // Same reason as CuotaPersistente.cs above.
+        "DisponibilidadDelModuloReal.cs",
+        "AuditoriaDeAdministracionReal.cs",
+        "ConsultasDeUso.cs",
+        "PresupuestosAdministrablesReal.cs",
+        // Same reason as CuotaPersistente.cs above: credencial_de_proveedor,
+        // modelo_vigente and catalogo_de_modelos are inside the wholesale-revoked
+        // `asistente` schema (asistente-modelo-en-caliente). Writes included.
+        "RepositorioDeCredenciales.cs",
+        "RepositorioDelModelo.cs",
+        // Same reason: tabla_de_precios is inside the wholesale-revoked `asistente`
+        // schema, and the price write path needs the owner connection.
+        "RepositorioDePrecios.cs",
+        // Same reason as ConsultasDeUso.cs above (sistema-seccion-unificada,
+        // design.md D1, tarea 1.2).
+        "ConsultasDeAuditoriaDeAdministracion.cs",
+        // Same reason as ConsultasDeUso.cs above (asistente-metricas-de-calidad): the two
+        // quality readers and the append-only audit of the problem list.
+        "ConsultasDeCalidad.cs",
+        "ConsultasDeProblemasDeCalidad.cs",
+        "AuditoriaDeRevisionDeCalidad.cs",
+    ];
+
+    [Fact]
+    public void Toda_lectura_del_sistema_pasa_por_la_apertura()
+    {
+        var archivos = CodigoDelModulo();
+
+        // Con doce constructores de conexión repartidos, «con qué techo de comando lee el
+        // asistente» no tenía respuesta: dependía de cuál corriera.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, ConexionConstruidaAMano())
+            .Where(ruta => !PuedenConstruirConexion.Contains(Path.GetFileName(ruta)))
+            .ToList();
+
+        Assert.True(culpables.Count == 0,
+            "Hay código del módulo que construye su propia conexión. Para leer del sistema "
+            + "se usa `AperturaDeLectura`, que decide el rol y el techo de comando en un solo "
+            + "lugar. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_conexion_construida_a_mano()
+    {
+        var sintetico = new Archivo(
+            "Infrastructure/LectorNuevo.cs",
+            "await using var conexion = new NpgsqlConnection(cadena.Valor);");
+
+        Assert.Single(Detectar([sintetico], ConexionConstruidaAMano()));
+    }
+
+    // ------------------------------------------ the quality readers are confined
+
+    /// <summary>
+    /// The only files that may read the vote table for quality (design D8 of
+    /// asistente-metricas-de-calidad). The feedback writer is the table's other file.
+    /// </summary>
+    private static readonly string[] LectoresDeCalidad =
+        ["ConsultasDeCalidad.cs", "ConsultasDeProblemasDeCalidad.cs"];
+
+    private static readonly string[] PuedenNombrarLaTablaDeVotos =
+        [.. LectoresDeCalidad, "RegistroDeRetroalimentacion.cs"];
+
+    [Fact]
+    public void Solo_los_lectores_de_calidad_y_el_escritor_de_votos_nombran_la_tabla_de_votos()
+    {
+        var archivos = CodigoDelModulo();
+
+        // The quality readers must exist and name the table: if they were renamed this rule
+        // would pass over an empty set.
+        foreach (var lector in LectoresDeCalidad)
+        {
+            Assert.Single(archivos, a => Path.GetFileName(a.Ruta) == lector
+                && TablaDeVotos().IsMatch(a.Contenido));
+        }
+
+        var infracciones = Detectar(
+            archivos.Where(a => !PuedenNombrarLaTablaDeVotos.Contains(Path.GetFileName(a.Ruta))),
+            TablaDeVotos());
+
+        Assert.True(infracciones.Count == 0,
+            "Only the quality readers and the feedback writer may name retroalimentacion_turno. "
+            + "Detected in: " + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void Los_lectores_de_calidad_no_nombran_la_fila_operativa_ni_un_actor_ni_el_texto_o_la_hora_del_voto()
+    {
+        var lectores = CodigoDelModulo()
+            .Where(a => LectoresDeCalidad.Contains(Path.GetFileName(a.Ruta)))
+            .ToArray();
+
+        Assert.Equal(LectoresDeCalidad.Length, lectores.Length);
+
+        var infracciones = Detectar(lectores, LoQueLosLectoresDeCalidadNoPuedenNombrar());
+
+        Assert.True(infracciones.Count == 0,
+            "A quality reader names something that could link a vote to a person or to the "
+            + "operational record (TD-012). Detected in: " + string.Join(", ", infracciones));
+    }
+
+    [Fact]
+    public void El_detector_de_los_lectores_de_calidad_reconoce_cada_forma_prohibida()
+    {
+        // The synthetic pair: a regex that stopped matching would report no violation forever.
+        foreach (var prohibido in new[]
+        {
+            "FROM asistente.registro_operativo",
+            "SELECT actor_id FROM x",
+            "SELECT r.comentario",
+            "SELECT r.actualizado_en",
+            "INSERT INTO asistente.auditoria_revision_de_calidad (lector_id)",
+            "SELECT ocurrido_en",
+            "IConsultasIdentity identidad",
+        })
+        {
+            Assert.Single(Detectar(
+                [new Archivo("Infrastructure/ConsultasDeCalidad.cs", prohibido)],
+                LoQueLosLectoresDeCalidadNoPuedenNombrar()));
+        }
+
+        Assert.Empty(Detectar(
+            [new Archivo(
+                "Infrastructure/ConsultasDeCalidad.cs",
+                "SELECT dia, modelo, causa FROM asistente.registro_analitico a "
+                + "LEFT JOIN asistente.retroalimentacion_turno r ON r.analitico_id = a.id")],
+            LoQueLosLectoresDeCalidadNoPuedenNombrar()));
+
+        Assert.Single(Detectar(
+            [new Archivo("Infrastructure/Otro.cs", "FROM asistente.retroalimentacion_turno")],
+            TablaDeVotos()));
+    }
+
+    // ------------------------------------------------ la superficie pública
+
+    /// <summary>Cuántos tipos de <c>Application</c> pueden ser públicos hoy.</summary>
+    private const int SuperficiePublicaDeApplication = 111;
+
+    [Fact]
+    public void La_superficie_publica_de_Application_no_crece_sin_que_nadie_lo_note()
+    {
+        var publicos = TiposDeclarados(EsPublico());
+
+        // `public` es una promesa de estabilidad: dice «podés depender de mí, no te voy a romper».
+        Assert.True(
+            publicos.Count <= SuperficiePublicaDeApplication,
+            $"La superficie pública de Application subió a {publicos.Count} (el tope es "
+            + $"{SuperficiePublicaDeApplication}). Un tipo nuevo va `internal` salvo que la "
+            + "superficie HTTP del módulo lo exija, y en ese caso se sube el tope con el "
+            + "motivo escrito. Públicos hoy: " + string.Join(", ", publicos));
+    }
+
+    [Fact]
+    public void El_detector_de_superficie_publica_reconoce_las_dos_formas()
+    {
+        // EL PAR SINTÉTICO. Una expresión regular que dejara de matchear reportaría
+        // cero públicos y este guard pasaría en verde para siempre.
+        Archivo[] sinteticos =
+        [
+            new("Application/Turno/Uno.cs", "public sealed class Uno { }"),
+            new("Application/Modelo/Dos.cs", "public interface Dos { }"),
+            new("Application/Lexico/Tres.cs", "public readonly record struct Tres(int A);"),
+            new("Application/Turno/Cuatro.cs", "internal sealed class Cuatro { }"),
+        ];
+
+        var publicos = sinteticos
+            .SelectMany(a => EsPublico().Matches(a.Contenido).Select(m => m.Groups["nombre"].Value))
+            .ToList();
+
+        Assert.Equal(["Uno", "Dos", "Tres"], publicos);
+    }
+
+    // ------------------------------------------------------------- las referencias
+
+    [Fact]
+    public void El_modulo_solo_referencia_ArsDocendi_Shared_y_su_propio_Contracts()
+    {
+        var proyecto = Path.Combine(
+            RaizRepositorio.BackendSrc(), "Modules.Asistente", "Modules.Asistente.csproj");
+        Assert.True(File.Exists(proyecto), $"No se encontró {proyecto}.");
+
+        // Los .csproj escriben las rutas con separador de Windows. Path.* no lo
+        // parte en Linux, así que hay que normalizar antes de quedarse con el nombre.
+        var referencias = XDocument.Load(proyecto)
+            .Descendants("ProjectReference")
+            .Select(nodo => (nodo.Attribute("Include")?.Value ?? string.Empty).Replace('\\', '/'))
+            .Select(ruta => Path.GetFileNameWithoutExtension(ruta))
+            .ToArray();
+
+        // Los edges hacia Contracts AJENOS llegan con el carril determinista de API.
+        Assert.Equal(["ArsDocendi.Shared", "Modules.Asistente.Contracts"], referencias);
+    }
+
+    [Fact]
+    public void El_SDK_del_proveedor_se_nombra_en_un_solo_archivo()
+    {
+        var culpables = Detectar(CodigoDelModulo(), SdkDelProveedor())
+            .Where(ruta => !ruta.EndsWith("ProveedorAnthropic.cs", StringComparison.Ordinal)
+                // The one file that builds IChatClient for the cloud companies
+                // (asistente-modelo-en-caliente, D2): exactly two files name an SDK.
+                && !ruta.EndsWith("ClientesDeChat.cs", StringComparison.Ordinal))
+            .ToList();
+
+        // Es lo que hace cierta la promesa de que el puerto es agnóstico. Mientras el SDK viva en
+        // un archivo, cambiar de proveedor —o sumar un segundo, o pasarse a un modelo propio— es
+        // escribir otra clase al lado y otro brazo del switch.
+        Assert.Empty(culpables);
+    }
+
+    // -------------------------------------------------- higiene de la credencial
+
+    [Fact]
+    public void Ningun_archivo_de_configuracion_versionado_trae_la_clave_del_proveedor()
+    {
+        var archivos = ConfiguracionVersionada();
+
+        // El default de `ClaveDelProveedor` es la cadena vacía y la clave real entra por ambiente.
+        Assert.NotEmpty(archivos);
+        var culpables = Detectar(archivos, ClaveConValor());
+
+        Assert.True(culpables.Count == 0,
+            "Hay una clave del proveedor escrita en configuración versionada. "
+            + "Va por variable de ambiente. Detectado en: " + string.Join(", ", culpables));
+    }
+
+    [Fact]
+    public void El_detector_reconoce_una_clave_escrita_en_configuracion()
+    {
+        Archivo[] sinteticos =
+        [
+            new("a/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\":\"sk-ant-api03-x\"}}"),
+            new("b/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\": \"a-mano\"}}"),
+        ];
+
+        Assert.Equal(2, Detectar(sinteticos, ClaveConValor()).Count);
+
+        // The master keys are secrets too (asistente-modelo-en-caliente).
+        Assert.Equal(2, Detectar(
+            [
+                new("d/appsettings.json", "{\"Asistente\":{\"ClaveMaestra\":\"AAAA\"}}"),
+                new("e/appsettings.json", "{\"Asistente\":{\"ClaveMaestraAnterior\": \"BBBB\"}}"),
+            ],
+            ClaveConValor()).Count);
+
+        // Declararla vacía es exactamente lo que el repositorio SÍ puede hacer:
+        // documenta que el valor existe sin traer ningún secreto.
+        Assert.Empty(Detectar(
+            [new("c/appsettings.json", "{\"Asistente\":{\"ClaveDelProveedor\": \"\"}}")],
+            ClaveConValor()));
+    }
+
+    // ------------------------------------------------------------------------ apoyo
+
+    private sealed record Archivo(string Ruta, string Contenido);
+
+    private static IReadOnlyList<string> Detectar(IEnumerable<Archivo> archivos, Regex patron) =>
+        archivos.Where(a => patron.IsMatch(a.Contenido)).Select(a => a.Ruta).ToList();
+
+    /// <summary>Si el archivo abre una transacción y no nombra el preámbulo del actor.</summary>
+    private static bool SinPreambulo(Archivo archivo) =>
+        AperturaDeTransaccion().IsMatch(archivo.Contenido)
+        && !UsoDelPreambulo().IsMatch(archivo.Contenido);
+
+    /// <summary>
+    /// Igual que <see cref="Detectar"/>, pero perdona lo que apunta al schema propio.
+    /// </summary>
+    private static IReadOnlyList<string> DetectarMutacionAjena(
+        IEnumerable<Archivo> archivos, Regex patron) =>
+        archivos
+            .Where(a => patron.Matches(a.Contenido).Any(m => !EsDelSchemaPropio(m)))
+            .Select(a => a.Ruta)
+            .ToList();
+
+    private static bool EsDelSchemaPropio(Match coincidencia)
+    {
+        var objetivo = coincidencia.Groups["objetivo"];
+
+        if (!objetivo.Success)
+        {
+            return false;
+        }
+
+        var nombre = objetivo.Value.Replace("\"", string.Empty, StringComparison.Ordinal);
+
+        return nombre.Equals("asistente", StringComparison.OrdinalIgnoreCase)
+            || nombre.StartsWith("asistente.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Los tipos de <c>Application</c> que declara el patrón, ordenados.</summary>
+    private static IReadOnlyList<string> TiposDeclarados(Regex patron) =>
+        [.. CodigoDelModulo()
+            .Where(a => a.Ruta.Contains($"Application{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .SelectMany(a => patron.Matches(a.Contenido).Select(m => m.Groups["nombre"].Value))
+            .Order(StringComparer.Ordinal)];
+
+    private static Archivo[] CodigoDelModulo()
+    {
+        var raiz = RaizRepositorio.Ruta();
+        var modulo = Path.Combine(RaizRepositorio.BackendSrc(), "Modules.Asistente");
+
+        return [.. Directory.EnumerateFiles(modulo, "*.cs", SearchOption.AllDirectories)
+            .Where(ruta => !ruta.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Where(ruta => !ruta.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+            .Select(ruta => new Archivo(
+                Path.GetRelativePath(raiz, ruta),
+                SinComentariosDeCodigo(File.ReadAllText(ruta))))];
+    }
+
+    /// <summary>Los archivos de configuración que el repositorio versiona.</summary>
+    private static Archivo[] ConfiguracionVersionada()
+    {
+        var raiz = RaizRepositorio.Ruta();
+
+        return [.. Directory
+            .EnumerateFiles(raiz, "appsettings*.json", SearchOption.AllDirectories)
+            .Where(ruta => !EnCarpeta(ruta, "obj") && !EnCarpeta(ruta, "bin"))
+            .Where(ruta => !EnCarpeta(ruta, "node_modules"))
+            .Where(EstaVersionado)
+            .Select(ruta => new Archivo(Path.GetRelativePath(raiz, ruta), File.ReadAllText(ruta)))];
+    }
+
+    private static bool EnCarpeta(string ruta, string carpeta) =>
+        ruta.Contains(
+            $"{Path.DirectorySeparatorChar}{carpeta}{Path.DirectorySeparatorChar}",
+            StringComparison.Ordinal);
+
+    private static bool EstaVersionado(string ruta)
+    {
+        var nombre = Path.GetFileName(ruta);
+
+        return !nombre.Contains(".Development.", StringComparison.OrdinalIgnoreCase)
+            && !nombre.Contains(".Local.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Archivo[] DdlDelAsistente()
+    {
+        var raiz = RaizRepositorio.Ruta();
+        var directorio = Path.Combine(raiz, "database", "asistente");
+
+        return [.. Directory.EnumerateFiles(directorio, "*.sql", SearchOption.AllDirectories)
+            .Select(ruta => new Archivo(
+                Path.GetRelativePath(raiz, ruta),
+                SinComentariosDeSql(File.ReadAllText(ruta))))];
+    }
+
+    private static string SinComentariosDeCodigo(string codigo) =>
+        ComentariosDeCodigo().Replace(codigo, string.Empty);
+
+    private static string SinComentariosDeSql(string sql) =>
+        ComentariosDeSql().Replace(sql, string.Empty);
+
+    [GeneratedRegex(@"//.*?$|/\*.*?\*/", RegexOptions.Multiline | RegexOptions.Singleline)]
+    private static partial Regex ComentariosDeCodigo();
+
+    [GeneratedRegex(@"--.*?$", RegexOptions.Multiline)]
+    private static partial Regex ComentariosDeSql();
+
+    [GeneratedRegex(@"\bCadenaDuena\b")]
+    private static partial Regex UsoDeCadenaDuena();
+
+    // Declaraciones públicas de nivel superior. El ancla de línea es lo que las distingue de los
+    // MIEMBROS públicos de un tipo, que van indentados y no son superficie del módulo sino de su tipo.
+    [GeneratedRegex(
+        @"^public (?:sealed |abstract |static |readonly |partial )*"
+        + @"(?:class|record struct|record|interface|enum|struct) (?<nombre>\w+)",
+        RegexOptions.Multiline)]
+    private static partial Regex EsPublico();
+
+    // Las dos mitades del preámbulo, en un solo patrón: el nombre del ajuste del actor y la
+    // declaración de solo lectura.
+    [GeneratedRegex(@"app\.asistente_user_id|SET\s+TRANSACTION\s+READ\s+ONLY", RegexOptions.IgnoreCase)]
+    private static partial Regex PreambuloDeLectura();
+
+    [GeneratedRegex(@"\bBeginTransactionAsync\s*\(")]
+    private static partial Regex AperturaDeTransaccion();
+
+    [GeneratedRegex(@"\bnew\s+NpgsqlConnection\s*\(")]
+    private static partial Regex ConexionConstruidaAMano();
+
+    [GeneratedRegex(@"\bretroalimentacion_turno\b")]
+    private static partial Regex TablaDeVotos();
+
+    // What would let a quality reader tie a vote to a person or to a precise moment:
+    // the operational record, any actor or reader column, a vote's free text and its
+    // timestamp, and the identity ports.
+    [GeneratedRegex(
+        @"\b(?:registro_operativo|actor_id|lector_id|sujeto_id|actualizado_en|comentario|ocurrido_en)\b"
+        + @"|\bIConsultasIdentity\b|\bICurrentUser\b",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex LoQueLosLectoresDeCalidadNoPuedenNombrar();
+
+    [GeneratedRegex(@"\bPreambuloDelActor\b")]
+    private static partial Regex UsoDelPreambulo();
+
+    // TRUNCATE exige un objetivo —igual que las otras tres formas de este patrón— y no aparece suelto.
+    [GeneratedRegex(
+        @"\bINSERT\s+INTO\s+(?<objetivo>[\w"".]+)|\bUPDATE\s+(?<objetivo>[\w"".]+)\s+SET\b|" +
+        @"\bDELETE\s+FROM\s+(?<objetivo>[\w"".]+)|\bTRUNCATE\s+(?:TABLE\s+)?(?<objetivo>[\w"".]+)|" +
+        @"\bSaveChanges(?:Async)?\s*\(|\bExecuteUpdate\w*\s*\(|\bExecuteDelete\w*\s*\(",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex MutacionEnCodigo();
+
+    [GeneratedRegex(
+        @"\bINSERT\s+INTO\s+(?<objetivo>[\w"".]+)|\bUPDATE\s+(?<objetivo>[\w"".]+)\s+SET\b|" +
+        @"\bDELETE\s+FROM\s+(?<objetivo>[\w"".]+)|\bTRUNCATE\s+(?:TABLE\s+)?(?<objetivo>[\w"".]+)|" +
+        @"\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?<objetivo>[\w"".]+)|" +
+        @"\bCREATE\s+SCHEMA\s+(?:IF\s+NOT\s+EXISTS\s+)?(?<objetivo>[\w""]+)|" +
+        @"\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?" +
+        @"[\w"".]+\s+ON\s+(?<objetivo>[\w"".]+)",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex MutacionEnSql();
+
+    // Lo destructivo y lo que depende del orden, con UNA forma permitida. `DROP` y `RENAME` no
+    // tienen excepción de schema: no hay caso en que este módulo tenga que borrar o renombrar algo,
+    // ni siquiera lo propio.
+    [GeneratedRegex(
+        @"\bDROP\s+\w+\b|\bRENAME\b|" +
+        @"\bALTER\s+TABLE\s+(?!""?asistente""?\.""?\w+""?\s+ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\s+[^;,]+;)",
+        RegexOptions.IgnoreCase)]
+    private static partial Regex DestruccionEnSql();
+
+    /// <summary>CHECK de tablas propias que su archivo puede reemplazar, y por qué.</summary>
+    private static readonly string[] ReemplazosDeCheckRatificados =
+    [
+        // 003 (asistente-rediseno-v3, design.md D7, PO-changed 2026-09-26): `razon` se retira en
+        // favor de `razones` (lista) + `comentario`.
+        "retroalimentacion_turno_razones_validas",
+        "retroalimentacion_turno_comentario_longitud",
+
+        // asistente-rechazos-dinamicos: `motivo_rechazo` lleva su CHECK inline en el `CREATE TABLE`
+        // (que no tiene la restricción de una sola acción sin coma), y este mismo `ADD CONSTRAINT`
+        // lo agrega también contra una base que ya tenía `registro_operativo` sin la columna —
+        // mismo patrón que los dos de arriba, guardado por nombre en `pg_constraint` para que la
+        // segunda corrida sea un no-op.
+        "registro_operativo_motivo_rechazo_valido",
+
+        // 010 (asistente-metricas-de-calidad, design D2): `causa` is a closed vocabulary on
+        // registro_analitico.
+        "registro_analitico_causa_valida",
+    ];
+
+    /// <summary>
+    /// El contenido del archivo sin los reemplazos de CHECK ratificados, para que
+    /// <see cref="DestruccionEnSql"/> juzgue todo lo demás.
+    /// </summary>
+    private static Archivo SinReemplazosDeCheckRatificados(Archivo archivo) =>
+        archivo with
+        {
+            Contenido = ReemplazosDeCheckRatificados.Aggregate(archivo.Contenido, (contenido, nombre) =>
+                Regex.Replace(
+                    contenido,
+                    @"\bALTER\s+TABLE\s+asistente\.\w+\s+(?:DROP\s+CONSTRAINT\s+IF\s+EXISTS\s+"
+                        + Regex.Escape(nombre) + @"|ADD\s+CONSTRAINT\s+" + Regex.Escape(nombre)
+                        + @"\s+CHECK\b[^;]*)\s*;",
+                    string.Empty,
+                    RegexOptions.IgnoreCase)),
+        };
+
+    // El namespace raíz del SDK y sus tipos propios. Alcanza con el namespace: no hay forma de usar
+    // el SDK sin nombrarlo, porque el módulo no tiene ningún using global que lo traiga.
+    [GeneratedRegex(@"\bAnthropic\.[A-Z]|\bAnthropicClient\b|\bOpenAI\.[A-Z]|\bOpenAIClient\b|\bSystem\.ClientModel\b")]
+    private static partial Regex SdkDelProveedor();
+
+    // La clave declarada CON un valor. La cadena vacía se perdona a propósito: es la
+    // forma en que un appsettings documenta que el valor existe sin traer el secreto.
+    [GeneratedRegex("\"(?:ClaveDelProveedor|ClaveMaestra|ClaveMaestraAnterior)\"\\s*:\\s*\"[^\"]+\"")]
+    private static partial Regex ClaveConValor();
+}

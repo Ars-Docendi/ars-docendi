@@ -196,7 +196,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     public async Task Edicion_reemplaza_la_membresia_del_usuario()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var db = PostgresFixture.CrearIdentity(Cadena);
         var servicio = CrearServicio(db);
         var creado = await servicio.CrearAsync(
@@ -217,7 +217,7 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
     public async Task Perfil_docente_incluye_designacion_vigente_sin_membresia_docente()
     {
         var ct = TestContext.Current.CancellationToken;
-        await EjecutarSeedAsync(ct);
+        await SembrarAsync(ct);
         await using var identity = PostgresFixture.CrearIdentity(Cadena);
         var creado = await CrearServicio(identity).CrearAsync(
             DatosValidos("designacion@unlam.edu.ar", "50999444"), ct);
@@ -282,23 +282,4 @@ public sealed class AdministracionUsuariosTests(PostgresFixture postgres)
         new DateOnly(1990, 1, 1), null, upn,
         [new GuardarAsignacionRolDto(RolSecretaria)]);
 
-    private async Task EjecutarSeedAsync(CancellationToken ct)
-    {
-        var sql = await File.ReadAllTextAsync(
-            Path.Combine(BuscarRaizRepositorio(), "infra", "scripts", "seed-data", "sintetico.sql"), ct);
-        await using var conexion = await AbrirConexionAsync();
-        await using var comando = new NpgsqlCommand(sql, conexion) { CommandTimeout = 60 };
-        await comando.ExecuteNonQueryAsync(ct);
-    }
-
-    private static string BuscarRaizRepositorio()
-    {
-        var directorio = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directorio is not null)
-        {
-            if (File.Exists(Path.Combine(directorio.FullName, "AGENTS.md"))) return directorio.FullName;
-            directorio = directorio.Parent;
-        }
-        throw new DirectoryNotFoundException("No se encontró la raíz del repositorio.");
-    }
 }
