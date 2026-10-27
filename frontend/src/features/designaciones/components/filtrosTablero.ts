@@ -69,15 +69,6 @@ export const CARRERAS: string[] = [
   "Ingeniería Electrónica",
 ];
 
-/** Nombre abreviado de la carrera, para la columna Carrera de la Tabla de revisión. */
-export const ABREVIATURA_CARRERA: Record<string, string> = {
-  "Ingeniería en Informática": "Informática",
-  "Ingeniería Industrial": "Industrial",
-  "Ingeniería Civil": "Civil",
-  "Ingeniería Mecánica": "Mecánica",
-  "Ingeniería Electrónica": "Electrónica",
-};
-
 export interface FiltrosTablero {
   tipo: FiltroTipo;
   estado: FiltroEstado;

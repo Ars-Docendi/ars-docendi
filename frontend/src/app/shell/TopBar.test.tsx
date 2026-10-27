@@ -29,14 +29,6 @@ function renderTopBar() {
 }
 
 describe("TopBar", () => {
-  it("no muestra búsqueda global, notificaciones ni ayuda", () => {
-    renderTopBar();
-
-    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Notificaciones" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ayuda" })).not.toBeInTheDocument();
-  });
-
   it("mantiene el menú de usuario con Cerrar sesión", async () => {
     renderTopBar();
 

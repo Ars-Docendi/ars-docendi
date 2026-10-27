@@ -2,52 +2,8 @@
 
 ## Propósito
 
-Gestión de **pedidos y asignación de aulas y laboratorios** para mesas de examen (no para uso académico regular, que ya está coordinado por otra vía).
+Gestión de **pedidos y asignación de aulas y laboratorios** para mesas de examen. No cubre el uso académico regular, que se coordina por otra vía institucional y no se va a duplicar.
 
-## Roles que interactúan
+## Estado
 
-- **Docente / Jefe de Cátedra** — Solicita aula para examen.
-- **Administrativos** — Gestionan las reservas, asignan aulas, resuelven conflictos.
-- **Secretaría Académica** — Configurables del módulo (qué aulas existen, capacidades, equipamiento).
-
-## Bounded context
-
-- **Pertenece**: Aulas, laboratorios, pedidos de reserva, asignaciones, períodos de exámenes.
-- **No pertenece**: Usuarios del aula (vienen del Portal), información académica de las materias.
-
-## Entidades principales
-
-| Entidad                                  | Descripción | Schema/Tabla |
-| ---------------------------------------- | ----------- | ------------ |
-| _(a definir en spec inicial del módulo)_ | ...         | `aulas.*`    |
-
-## API pública (contract)
-
-| Interfaz      | Métodos | Consumido por |
-| ------------- | ------- | ------------- |
-| _(a definir)_ | ...     | ...           |
-
-## Endpoints HTTP
-
-| Método                    | Path              | Rol       | Descripción  |
-| ------------------------- | ----------------- | --------- | ------------ |
-| GET                       | `/api/aulas/ping` | (anónimo) | Health check |
-| _(a documentar en specs)_ | ...               | ...       | ...          |
-
-## Reglas de negocio
-
-Este módulo todavía no tiene reglas provenientes de normativa institucional registradas.
-
-## Dependencias
-
-- **Hacia adentro**: `Modules.Portal.Contracts` (conocer al docente solicitante).
-- **Hacia afuera**: ninguna por ahora.
-- **Externas**: ninguna conocida.
-
-## Specs activas
-
-_(autogenerable a futuro)_
-
-## Decisiones registradas
-
-- **Solo exámenes**: el alcance no incluye aulas para clases regulares — ese flujo existe institucionalmente por otra vía y no se va a duplicar.
+Sin funcionalidad todavía: `Modules.Aulas` sólo expone `GET /api/aulas/ping` y su schema `aulas` vacío. Roles, entidades, API y dependencias se definen en el change OpenSpec que inicie el módulo; no se documentan antes de existir.

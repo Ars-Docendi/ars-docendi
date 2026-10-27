@@ -26,13 +26,13 @@ Rúbrica para evaluar trabajo en Ars Docendi. La usan reviewers humanos, agentes
 
 ### Calidad de código (25%)
 
-| Score | Descripción                                                                         |
-| ----- | ----------------------------------------------------------------------------------- |
-| 5     | Respeta layers, DAG, no fake UI, tests significativos, sin god classes              |
-| 4     | Estructura sólida, minor violaciones (sin impacto en mantenibilidad)                |
-| 3     | Aceptable; algunas violaciones de layer rules o cross-module sin justificar         |
-| 2     | Violaciones serias de arquitectura (referencias a Internal/ de otro módulo, ciclos) |
-| 1     | Código no mantenible; rompe las reglas de AGENTS.md                                 |
+| Score | Descripción                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------- |
+| 5     | Respeta layers, DAG, no fake UI, tests significativos, sin god classes                             |
+| 4     | Estructura sólida, minor violaciones (sin impacto en mantenibilidad)                               |
+| 3     | Aceptable; algunas violaciones de layer rules o cross-module sin justificar                        |
+| 2     | Violaciones serias de arquitectura (referencias a `Modules.<Otro>` en vez de su Contracts, ciclos) |
+| 1     | Código no mantenible; rompe las reglas de AGENTS.md                                                |
 
 ### Diseño / UX (20%)
 
@@ -68,10 +68,8 @@ Rúbrica para evaluar trabajo en Ars Docendi. La usan reviewers humanos, agentes
 
 - **Default**: **ningún criterio < 3**, **funcionalidad ≥ 4** para releases al cliente.
 - Funcionalidad < 4 → no se mergea a `main`.
-- Excepciones documentadas en el plan activo y en `tech-debt.md`.
+- Excepciones documentadas en el change OpenSpec y en `tech-debt.md`.
 
 ## Score compuesto
 
 `0.30 × Func + 0.25 × Code + 0.20 × UX + 0.15 × Orig + 0.10 × Doc` (cada uno 1–5).
-
-Registrar en `scorecard.md` después de cada feature relevante o cuando se corre `/evaluate`.

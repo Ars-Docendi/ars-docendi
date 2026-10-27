@@ -56,7 +56,7 @@ El planning vive en OpenSpec (`openspec/changes/<id>/`). `/add-feature` **no pla
 
 ### 5. Implementation hard gate (OBLIGATORIO antes de tocar código)
 
-1. Confirmar que el change está apply-ready: `openspec status --change "<id>"` con todos los artefactos de `applyRequires` (típicamente `tasks`) en estado `done`.
+1. Confirmar que el change está apply-ready: `pnpm exec openspec status --change "<id>"` con todos los artefactos de `applyRequires` (típicamente `tasks`) en estado `done`.
 
 Si no está listo: **parar inmediatamente**. Volver al step 2 o completar el change con `/opsx:propose`.
 
@@ -74,7 +74,7 @@ Read-only / minimal change antes de merge:
 
 - Autorización por rol matchea la spec; sin endpoints públicos nuevos sin Contracts documentados.
 - Sin secrets en código; ver `docs/quality/golden-principles.md`.
-- Deps y cross-module imports respetan `docs/architecture/dependency-graph.md` (DAG, sin leak de Internal).
+- Deps y cross-module imports respetan `docs/architecture/dependency-graph.md` (DAG, sin referencias a implementaciones de otro módulo).
 - Si toca deploy o env vars, cross-check `docs/architecture/infrastructure.md`.
 
 Si hay issues, arreglarlas antes de step 9.
@@ -83,11 +83,9 @@ Si hay issues, arreglarlas antes de step 9.
 
 **Verificación**:
 
-1. Backend: `dotnet test backend/ArsDocendi.slnx` — todos verdes.
-2. Frontend: `pnpm --filter frontend lint` + `pnpm --filter frontend build` — todos verdes.
-3. Manual spot-check de los flujos por rol afectado.
-4. `openspec validate --strict <id>` — verde.
-5. Correr `/evaluate` para validar contra spec + grading-criteria.
+1. Checks de [AGENTS.md → Verificación](../../../AGENTS.md#verificación) según lo tocado — todos verdes.
+2. Manual spot-check de los flujos por rol afectado.
+3. Correr `/evaluate` para validar contra spec + grading-criteria.
 
 **Documentación** (si cambiaste boundaries, APIs o persistencia): `docs/architecture/dependency-graph.md`, `api-contracts.md`, `data-model.md`, `domains/<dominio>.md`, y `docs/business-rules/<dominio>.md` (si introduce/modifica BR-\*).
 
@@ -111,11 +109,8 @@ Ver [open-pr.md](../../../docs/workflows/open-pr.md) para el procedimiento canó
 
 ## Comandos clave
 
-- Backend build: `dotnet build backend/ArsDocendi.slnx`
-- Backend test: `dotnet test backend/ArsDocendi.slnx`
-- Frontend build: `pnpm --filter frontend build` · lint: `pnpm --filter frontend lint`
-- Format: `pnpm format` (raíz)
-- OpenSpec: `openspec list`, `openspec status --change <id>`, `openspec validate --strict <id>`
+- Checks: [AGENTS.md → Verificación](../../../AGENTS.md#verificación) · formato: `pnpm format` (raíz)
+- OpenSpec: `pnpm exec openspec list`, `pnpm exec openspec status --change <id>`, `pnpm exec openspec validate <id>`
 
 ## Arguments
 

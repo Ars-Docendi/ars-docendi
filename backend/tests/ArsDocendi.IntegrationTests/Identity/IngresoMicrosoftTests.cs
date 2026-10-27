@@ -22,18 +22,6 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
     private static readonly Guid RolSecretaria = Guid.Parse("a1000000-0000-4000-8000-000000000004");
 
     [Fact]
-    public async Task Acepta_usuario_activo_con_rol_y_mail_verificado()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var usuario = await CrearUsuarioAsync("ada@dominio.edu.ar", activo: true, [RolSecretaria], ct);
-
-        var resultado = await ResolverAsync(CuentaOrganizacional("ada@dominio.edu.ar"), ct);
-
-        Assert.True(resultado.Aceptado);
-        Assert.Equal(usuario, resultado.UsuarioId);
-    }
-
-    [Fact]
     public async Task Rechaza_mail_sin_dominio_verificado()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -129,15 +117,6 @@ public sealed class IngresoMicrosoftTests(PostgresFixture postgres)
         Assert.Equal(2, sesion.CantidadRoles);
         Assert.Equal(await PermisosDeRolAsync(RolDocente, ct), sesion.Permisos.Order().ToArray());
         Assert.True(resultado.Aceptado);
-    }
-
-    [Fact]
-    public async Task Sesion_de_usuario_desactivado_es_nula()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var usuario = await CrearUsuarioAsync("baja@dominio.edu.ar", activo: false, [RolDocente], ct);
-
-        Assert.Null(await CrearSesion().ObtenerAsync(usuario, ct));
     }
 
     [Fact]

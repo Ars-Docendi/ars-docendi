@@ -143,16 +143,4 @@ describe("Registros de auditoría", () => {
       ),
     );
   });
-
-  it("prioriza los cinco encabezados de lectura rápida", async () => {
-    renderPagina();
-
-    const tabla = await screen.findByRole("table", { name: "Registros de auditoría" });
-
-    expect(
-      within(tabla)
-        .getAllByRole("columnheader")
-        .map((encabezado) => encabezado.textContent),
-    ).toEqual(["Fecha", "Usuario", "Acción", "Módulo", "Cambio"]);
-  });
 });

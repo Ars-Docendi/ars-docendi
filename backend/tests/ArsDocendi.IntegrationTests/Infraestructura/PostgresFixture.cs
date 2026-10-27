@@ -25,21 +25,60 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => new(_contenedor.DisposeAsync().AsTask());
 
+    private const string Plantilla = "plantilla_migrada";
+    // Migrar una vez y clonar evita repetir todas las migraciones en cada test.
+    // PostgreSQL rechaza clonar una plantilla mientras otra copia la está leyendo: se serializa.
+    private readonly SemaphoreSlim _clonado = new(1, 1);
+    private readonly Lock _creacionPlantilla = new();
+    private Task? _plantilla;
+
     public async Task<string> CrearBaseMigradaAsync(string prefijo, string? migracionDesignaciones = null)
     {
-        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
-        await using (var conexion = new NpgsqlConnection(_contenedor.GetConnectionString()))
+        if (migracionDesignaciones is not null)
         {
-            await conexion.OpenAsync();
-            await using var comando = new NpgsqlCommand($"CREATE DATABASE \"{nombre}\"", conexion);
-            await comando.ExecuteNonQueryAsync();
+            return await CrearYMigrarAsync($"{prefijo}_{Guid.NewGuid():N}", migracionDesignaciones);
         }
 
-        var cadena = new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
+        lock (_creacionPlantilla)
+        {
+            _plantilla ??= CrearYMigrarAsync(Plantilla, null);
+        }
+
+        await _plantilla;
+        var nombre = $"{prefijo}_{Guid.NewGuid():N}";
+        await _clonado.WaitAsync();
+        try
+        {
+            await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\" TEMPLATE \"{Plantilla}\"");
+        }
+        finally
+        {
+            _clonado.Release();
+        }
+
+        return Cadena(nombre);
+    }
+
+    private async Task EjecutarEnServidorAsync(string sql)
+    {
+        await using var conexion = new NpgsqlConnection(_contenedor.GetConnectionString());
+        await conexion.OpenAsync();
+        await using var comando = new NpgsqlCommand(sql, conexion);
+        await comando.ExecuteNonQueryAsync();
+    }
+
+    private string Cadena(string nombre) =>
+        new NpgsqlConnectionStringBuilder(_contenedor.GetConnectionString())
         {
             Database = nombre,
             Pooling = false,
         }.ConnectionString;
+
+    private async Task<string> CrearYMigrarAsync(string nombre, string? migracionDesignaciones)
+    {
+        await EjecutarEnServidorAsync($"CREATE DATABASE \"{nombre}\"");
+
+        var cadena = Cadena(nombre);
 
         await using (var identity = CrearIdentity(cadena))
         {
