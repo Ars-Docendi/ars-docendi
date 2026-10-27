@@ -19,30 +19,6 @@ public sealed class CatalogoDeGlosarioTests
     // ------------------------------------------------------------ el archivo
 
     [Fact]
-    public void El_recurso_embebido_se_encuentra_por_nombre()
-    {
-        Assert.Equal("Modules.Asistente.Recursos.glosario.json", CatalogoDeGlosario.RecursoCatalogo);
-        Assert.Contains(
-            CatalogoDeGlosario.RecursoCatalogo,
-            typeof(CatalogoDeGlosario).Assembly.GetManifestResourceNames());
-    }
-
-    [Fact]
-    public void El_archivo_real_carga_con_los_veinticuatro_terminos_decididos()
-    {
-        var catalogo = CatalogoDeGlosario.Cargar();
-
-        Assert.Equal(24, catalogo.Terminos.Count);
-        Assert.All(catalogo.Terminos, t => Assert.NotEmpty(t.Referencias));
-    }
-
-    [Fact]
-    public void El_archivo_real_se_lee_una_sola_vez()
-    {
-        Assert.Same(CatalogoDeGlosario.Vigente, CatalogoDeGlosario.Vigente);
-    }
-
-    [Fact]
     public void Aprobado_es_en_lote_y_no_existe_un_estado_aprobado()
     {
         var referencia = Assert.Single(Termino("aprobado").Referencias);

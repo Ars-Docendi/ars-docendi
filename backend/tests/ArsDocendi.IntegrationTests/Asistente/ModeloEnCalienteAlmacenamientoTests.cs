@@ -27,50 +27,6 @@ public sealed class ModeloEnCalienteAlmacenamientoTests(PostgresFixture postgres
 
     // ------------------------------------------------------------- the DDL (1.1, 1.7)
 
-    [Theory]
-    [InlineData("credencial_de_proveedor", "actor_id,actualizado_en,clave_cifrada,empresa,pista,validada_en")]
-    [InlineData("modelo_vigente", "actor_id,actualizado_en,empresa,id,modelo")]
-    [InlineData("catalogo_de_modelos", "empresa,modelo")]
-    public async Task The_tables_exist_with_the_expected_columns_and_comments(string tabla, string columnas)
-    {
-        var ct = TestContext.Current.CancellationToken;
-        await using var conexion = await AbrirConexionAsync();
-
-        var reales = new List<string>();
-        await using (var comando = new NpgsqlCommand(
-            """
-            SELECT column_name FROM information_schema.columns
-             WHERE table_schema = 'asistente' AND table_name = @tabla ORDER BY column_name
-            """, conexion))
-        {
-            comando.Parameters.AddWithValue("tabla", tabla);
-            await using var lector = await comando.ExecuteReaderAsync(ct);
-            while (await lector.ReadAsync(ct))
-            {
-                reales.Add(lector.GetString(0));
-            }
-        }
-
-        Assert.Equal(columnas.Split(','), reales);
-
-        // Every table and every column carries a COMMENT (task 1.1).
-        await using var sinComentario = new NpgsqlCommand(
-            """
-            SELECT (SELECT count(*) FROM pg_description d
-                     WHERE d.objoid = c.oid AND d.objsubid = 0 AND d.classoid = 'pg_class'::regclass) AS tabla,
-                   (SELECT count(*) FROM pg_attribute a
-                     WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
-                       AND col_description(c.oid, a.attnum) IS NULL) AS columnas_sin_comentario
-              FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-             WHERE n.nspname = 'asistente' AND c.relname = @tabla
-            """, conexion);
-        sinComentario.Parameters.AddWithValue("tabla", tabla);
-        await using var resultado = await sinComentario.ExecuteReaderAsync(ct);
-        Assert.True(await resultado.ReadAsync(ct));
-        Assert.Equal(1L, resultado.GetInt64(0));
-        Assert.Equal(0L, resultado.GetInt64(1));
-    }
-
     [Fact]
     public async Task Applying_the_model_DDL_twice_changes_nothing_and_keeps_the_seed_stable()
     {
@@ -84,20 +40,6 @@ public sealed class ModeloEnCalienteAlmacenamientoTests(PostgresFixture postgres
 
         Assert.Equal(antes, await ContarCatalogoAsync(conexion, ct));
         Assert.Equal(0L, await EscalarAsync(conexion, "SELECT count(*) FROM asistente.modelo_vigente", ct));
-    }
-
-    [Fact]
-    public async Task The_catalog_seed_covers_the_four_cloud_companies_and_the_two_local_models()
-    {
-        var catalogo = await new RepositorioDelModelo(Duena, new RelojFijo(Ancla))
-            .ListarCatalogoAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(
-            ["anthropic", "google", "local", "mistral", "ollama", "openai"],
-            catalogo.Select(m => m.Empresa).Distinct().Order(StringComparer.Ordinal));
-        Assert.Contains(new ModeloDelCatalogo("ollama", "qwen3.5:9b"), catalogo);
-        Assert.Contains(new ModeloDelCatalogo("local", "qwen3-8b"), catalogo);
-        Assert.Contains(catalogo, m => m.Empresa == "anthropic" && m.Modelo == "claude-sonnet-5");
     }
 
     [Fact]

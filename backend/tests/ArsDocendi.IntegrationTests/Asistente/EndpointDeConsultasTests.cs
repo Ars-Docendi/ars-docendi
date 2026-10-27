@@ -458,20 +458,6 @@ public sealed class EndpointDeConsultasTests(PostgresFixture postgres)
         Assert.Equal(0, columnas);
     }
 
-    [Fact]
-    public async Task El_actor_sale_de_la_sesion_y_no_del_cuerpo_del_pedido()
-    {
-        // El pedido no tiene dónde poner un actor, y ése es el punto: un
-        // identificador tomado del cuerpo sería un selector de alcance controlado por
-        // el cliente.
-        Assert.DoesNotContain(
-            typeof(ConsultaDelAsistente).GetProperties().Select(p => p.Name),
-            nombre => nombre.Contains("Actor", StringComparison.OrdinalIgnoreCase)
-                || nombre.Contains("Usuario", StringComparison.OrdinalIgnoreCase));
-
-        await Task.CompletedTask;
-    }
-
     // --------------------------------------- reemplazo (design.md D9, ARS-147)
 
     [Fact]

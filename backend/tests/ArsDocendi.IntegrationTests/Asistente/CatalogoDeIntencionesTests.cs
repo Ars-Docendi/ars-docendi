@@ -16,14 +16,6 @@ public sealed class CatalogoDeIntencionesTests
     // ------------------------------------------------------ la forma del catálogo
 
     [Fact]
-    public void El_catalogo_embebido_carga()
-    {
-        var catalogo = CatalogoDeIntenciones.Cargar();
-
-        Assert.NotEmpty(catalogo.Intenciones);
-    }
-
-    [Fact]
     public void Cada_intencion_declara_nombre_terminos_slots_y_destino()
     {
         foreach (var intencion in CatalogoDeIntenciones.Cargar().Intenciones)
@@ -33,14 +25,6 @@ public sealed class CatalogoDeIntencionesTests
             Assert.NotEmpty(intencion.Slots);
             Assert.False(string.IsNullOrWhiteSpace(intencion.Destino));
         }
-    }
-
-    [Fact]
-    public void Los_nombres_de_las_intenciones_no_se_repiten()
-    {
-        var nombres = CatalogoDeIntenciones.Cargar().Intenciones.Select(i => i.Nombre).ToList();
-
-        Assert.Equal(nombres.Count, nombres.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]

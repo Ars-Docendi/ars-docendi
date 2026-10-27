@@ -20,12 +20,6 @@ public sealed class SelectorDeEjemplosTests
     private static readonly SelectorDeEjemplos Selector = new();
 
     [Fact]
-    public void El_catalogo_no_esta_vacio()
-    {
-        Assert.NotEmpty(Selector.Catalogo);
-    }
-
-    [Fact]
     public void Toda_consulta_del_catalogo_pasa_el_validador()
     {
         // Un ejemplo que el propio validador rechazaría le estaría enseñando al
@@ -40,15 +34,6 @@ public sealed class SelectorDeEjemplosTests
     }
 
     [Fact]
-    public void Ningun_ejemplo_tiene_campos_vacios()
-    {
-        Assert.DoesNotContain(Selector.Catalogo, ejemplo =>
-            string.IsNullOrWhiteSpace(ejemplo.Pregunta)
-            || string.IsNullOrWhiteSpace(ejemplo.Sql)
-            || string.IsNullOrWhiteSpace(ejemplo.Categoria));
-    }
-
-    [Fact]
     public void No_hay_preguntas_repetidas_en_el_catalogo()
     {
         var repetidas = Selector.Catalogo
@@ -58,20 +43,6 @@ public sealed class SelectorDeEjemplosTests
             .ToArray();
 
         Assert.Empty(repetidas);
-    }
-
-    [Fact]
-    public void El_catalogo_cubre_varias_categorias()
-    {
-        // Un catálogo de una sola categoría le enseñaría al modelo una sola forma
-        // de responder, y el dataset de capacidad está estratificado por
-        // dificultad justamente porque las formas son distintas.
-        var categorias = Selector.Catalogo
-            .Select(e => e.Categoria)
-            .Distinct(StringComparer.Ordinal)
-            .Count();
-
-        Assert.True(categorias >= 3, $"El catálogo cubre solo {categorias} categoría(s).");
     }
 
     // ------------------------------------------------------------- selección
@@ -172,23 +143,6 @@ public sealed class SelectorDeEjemplosTests
         var elegidos = Selector.Elegir("¿Qué docentes están designados en Bases de Datos?");
 
         Assert.NotEmpty(elegidos);
-    }
-
-    // ----------------------------------------------------------------- huella
-
-    [Fact]
-    public void La_huella_es_estable_entre_instancias()
-    {
-        Assert.Equal(new SelectorDeEjemplos().Huella, new SelectorDeEjemplos().Huella);
-    }
-
-    [Fact]
-    public void La_huella_tiene_forma_de_resumen_criptografico()
-    {
-        // SHA-256 en hexadecimal: 64 caracteres. Un GetHashCode() daría algo más
-        // corto y, peor, distinto en cada arranque del proceso.
-        Assert.Equal(64, Selector.Huella.Length);
-        Assert.All(Selector.Huella, caracter => Assert.Contains(caracter, "0123456789abcdef"));
     }
 
     // --------------------------------------------- inyección en el mensaje

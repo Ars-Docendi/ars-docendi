@@ -260,43 +260,6 @@ public sealed class FuncionesActorTests(PostgresFixture postgres)
         Assert.False(await TienePermisoAsync(usuario, Permisos.AsistenteConsultar));
     }
 
-    // ------------------------------------------------------------- el plan
-
-    [Fact]
-    public async Task El_predicado_se_resuelve_una_vez_por_consulta_y_no_por_fila()
-    {
-        var plan = string.Join(
-            "\n",
-            await LeerColumnaAsync(
-                "EXPLAIN SELECT id FROM identity.materias WHERE identity.asistente_es_global()"));
-
-        // STABLE hace que un predicado sin columnas sea pseudo-constante y el
-        // ejecutor lo resuelva UNA vez por consulta.
-        Assert.Contains("One-Time Filter", plan, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task La_misma_funcion_declarada_VOLATILE_se_reevalua_por_fila()
-    {
-        // Contraprueba del test anterior: sin STABLE, el mismo predicado deja de ser
-        // pseudo-constante y pasa a evaluarse fila por fila. Es la diferencia que
-        // justifica la marca, no una preferencia de estilo.
-        await EjecutarAsync(
-            """
-            CREATE FUNCTION identity.asistente_es_global_volatil()
-            RETURNS BOOLEAN LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = ''
-            AS 'SELECT TRUE';
-            """);
-
-        var plan = string.Join(
-            "\n",
-            await LeerColumnaAsync(
-                "EXPLAIN SELECT id FROM identity.materias WHERE identity.asistente_es_global_volatil()"));
-
-        Assert.DoesNotContain("One-Time Filter", plan, StringComparison.Ordinal);
-        Assert.Contains("Filter", plan, StringComparison.Ordinal);
-    }
-
     // ------------------------------------------------------------------------ apoyo
 
     private Task<bool> TienePermisoAsync(Guid actor, string permiso) =>

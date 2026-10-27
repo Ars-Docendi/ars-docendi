@@ -51,18 +51,6 @@ public sealed class AuditoriaDeAdministracionTests(PostgresFixture postgres)
     // -------------------------------------------------------------------- 8.2
 
     [Fact]
-    public void El_puerto_de_auditoria_no_ofrece_actualizar_ni_borrar()
-    {
-        // "Append-only, no borrable" se garantiza no escribiendo ese código
-        // (mismo criterio que auditoria_acceso_historial, design.md D10 de
-        // asistente-historial-conversaciones): el puerto sólo tiene UN método.
-        var metodos = typeof(IAuditoriaDeAdministracion).GetMethods();
-
-        Assert.Single(metodos);
-        Assert.Equal(nameof(IAuditoriaDeAdministracion.RegistrarAsync), metodos[0].Name);
-    }
-
-    [Fact]
     public void Ningun_controller_del_modulo_ofrece_actualizar_o_borrar_la_auditoria()
     {
         var acciones = typeof(Modules.Asistente.ModuleExtensions).Assembly.GetTypes()

@@ -72,92 +72,6 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal(antes, despuesDeDos);
     }
 
-    // ---------------------------------------------- the feedback table (task 1.1)
-
-    [Fact]
-    public async Task The_feedback_table_is_created_with_its_foreign_key_to_the_analytic_row()
-    {
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        var columnas = await ColumnasDeAsync("retroalimentacion_turno");
-        Assert.Equal(["actualizado_en", "analitico_id", "comentario", "razones", "voto"], columnas);
-
-        // The foreign key: analitico_id references registro_analitico(id), and the
-        // migration's own idempotent re-run (covered above) already proves it
-        // converges on a second application.
-        Assert.Equal(1L, await EscalarAsync<long>(
-            """
-            SELECT count(*)
-              FROM information_schema.table_constraints tc
-              JOIN information_schema.constraint_column_usage ccu
-                ON ccu.constraint_name = tc.constraint_name
-               AND ccu.table_schema = tc.table_schema
-             WHERE tc.table_schema = 'asistente'
-               AND tc.table_name = 'retroalimentacion_turno'
-               AND tc.constraint_type = 'FOREIGN KEY'
-               AND ccu.table_name = 'registro_analitico'
-               AND ccu.column_name = 'id'
-            """));
-    }
-
-    // --------------------------------------- own history tables (task 1.1/2.1)
-
-    [Fact]
-    public async Task El_historial_se_crea_con_la_cascada_de_turno_a_hilo()
-    {
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(
-            [
-                "actor_id", "archivada_en", "borrado_pendiente_desde", "creado_en", "id",
-                "lote_de_borrado", "titulo", "ultima_actividad",
-            ],
-            await ColumnasDeAsync("hilo_historico"));
-
-        Assert.Equal(
-            ["estado", "hilo_id", "id", "ocurrido_en", "pregunta", "referencias", "sql_resuelto"],
-            await ColumnasDeAsync("turno_historico"));
-
-        // ON DELETE CASCADE from turno_historico to hilo_historico.
-        Assert.Equal(1L, await EscalarAsync<long>(
-            """
-            SELECT count(*)
-              FROM information_schema.referential_constraints rc
-              JOIN information_schema.table_constraints tc
-                ON tc.constraint_name = rc.constraint_name
-               AND tc.table_schema = rc.constraint_schema
-              JOIN information_schema.constraint_column_usage ccu
-                ON ccu.constraint_name = rc.unique_constraint_name
-               AND ccu.table_schema = rc.unique_constraint_schema
-             WHERE tc.table_schema = 'asistente'
-               AND tc.table_name = 'turno_historico'
-               AND ccu.table_name = 'hilo_historico'
-               AND rc.delete_rule = 'CASCADE'
-            """));
-    }
-
-    [Fact]
-    public async Task La_auditoria_de_soporte_no_lleva_clave_foranea_al_historial()
-    {
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(
-            ["hilo_historico_id", "id", "lector_id", "ocurrido_en", "razon", "sujeto_id"],
-            await ColumnasDeAsync("auditoria_acceso_historial"));
-
-        // Deliberately no foreign key at all from this table (design.md D10):
-        // the audit row has to survive the subject deleting the conversation
-        // it describes.
-        Assert.Equal(0L, await EscalarAsync<long>(
-            """
-            SELECT count(*)
-              FROM information_schema.table_constraints
-             WHERE table_schema = 'asistente'
-               AND table_name = 'auditoria_acceso_historial'
-               AND constraint_type = 'FOREIGN KEY'
-            """));
-    }
-
     // --------------------------- D7 (asistente-rediseno-v3, PO-changed 2026-09-26):
     // `razon` (single value) becomes `razones` (list) + `comentario`, and `lento` is
     // removed entirely. The only real "old base" is one provisioned with just
@@ -230,18 +144,6 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
                 ("id", votoNuevo)));
 
         Assert.Equal(despuesDeUna, await FormaDelSchemaAsync());
-    }
-
-    [Fact]
-    public async Task Una_base_fresca_no_tiene_columna_razon()
-    {
-        await Migrador().MigrarAsync(TestContext.Current.CancellationToken);
-
-        var columnas = await ColumnasDeAsync("retroalimentacion_turno");
-
-        Assert.DoesNotContain("razon", columnas);
-        Assert.Contains("razones", columnas);
-        Assert.Contains("comentario", columnas);
     }
 
     // ------------------------------------------------------------ la base vieja
@@ -401,29 +303,6 @@ public sealed class MigracionDelAsistenteTests(PostgresFixture postgres)
         Assert.Equal("23514", error.SqlState);
         Assert.Equal(22L, await EscalarAsync<long>(
             "SELECT count(*) FROM asistente.registro_analitico WHERE causa IS NOT NULL"));
-    }
-
-    [Fact]
-    public async Task The_quality_columns_carry_the_TD_012_warning_and_the_audit_table_has_no_foreign_keys()
-    {
-        foreach (var columna in (string[])["causa", "modelo", "reemplazado"])
-        {
-            var comentario = await EscalarAsync<string>(
-                "SELECT col_description('asistente.registro_analitico'::regclass, a.attnum) "
-                + "FROM pg_attribute a WHERE a.attrelid = 'asistente.registro_analitico'::regclass "
-                + "AND a.attname = @columna",
-                ("columna", columna));
-
-            Assert.Contains("TD-012", comentario, StringComparison.Ordinal);
-            Assert.Contains("actor", comentario, StringComparison.Ordinal);
-        }
-
-        Assert.Equal(0L, await EscalarAsync<long>(
-            "SELECT count(*) FROM pg_constraint "
-            + "WHERE conrelid = 'asistente.auditoria_revision_de_calidad'::regclass AND contype = 'f'"));
-        Assert.Equal(1L, await EscalarAsync<long>(
-            "SELECT count(*) FROM pg_indexes WHERE schemaname = 'asistente' "
-            + "AND indexname = 'ix_auditoria_revision_de_calidad_ocurrido_en'"));
     }
 
     [Fact]

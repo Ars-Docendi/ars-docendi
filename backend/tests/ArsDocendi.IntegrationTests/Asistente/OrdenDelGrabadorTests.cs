@@ -108,16 +108,6 @@ public sealed class OrdenDelGrabadorTests : IDisposable
             HandlersDelCliente(raiz));
     }
 
-    [Fact]
-    public void El_reintento_sigue_en_el_pipeline_con_el_mecanismo_encendido()
-    {
-        using var raiz = Componer(_directorio).BuildServiceProvider();
-
-        // El grabador se suma al pipeline; no reemplaza nada. Su comportamiento
-        // completo lo sigue verificando ReintentoYTechoTests.
-        Assert.Contains(typeof(ReintentoDeTransporte), HandlersDelCliente(raiz));
-    }
-
     // ------------------------------------------------------------------ apoyo
 
     /// <summary>

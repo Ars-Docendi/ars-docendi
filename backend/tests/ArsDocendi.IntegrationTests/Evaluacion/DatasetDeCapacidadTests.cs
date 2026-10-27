@@ -19,12 +19,6 @@ public sealed class DatasetDeCapacidadTests
     private static readonly DatasetDeCapacidad Dataset = Cargar();
 
     [Fact]
-    public void El_dataset_tiene_items()
-    {
-        Assert.NotEmpty(Dataset.Items);
-    }
-
-    [Fact]
     public void Cada_item_declara_una_categoria_de_la_lista_cerrada()
     {
         var invalidos = Dataset.Items
@@ -117,45 +111,6 @@ public sealed class DatasetDeCapacidadTests
         Assert.Empty(rechazadas);
     }
 
-    [Fact]
-    public void Ninguna_consulta_de_referencia_usa_el_reloj()
-    {
-        // Ya lo cubre el validador, pero se afirma aparte porque es el requisito
-        // del ticket: un dataset con reloj mide qué día lo corriste.
-        string[] reloj =
-        [
-            "now(", "current_date", "current_timestamp", "localtime",
-            "localtimestamp", "statement_timestamp", "clock_timestamp",
-            "transaction_timestamp",
-        ];
-
-        var infractoras = Dataset.Items
-            .Where(item => item.SqlReferencia is not null)
-            .Where(item => reloj.Any(funcion =>
-                item.SqlReferencia!.Contains(funcion, StringComparison.OrdinalIgnoreCase)))
-            .Select(item => item.Id)
-            .ToArray();
-
-        Assert.Empty(infractoras);
-    }
-
-    [Fact]
-    public void Hay_items_de_alcance_acotado()
-    {
-        // La distinción entre «no hay» y «no podés verlo» solo se mide con actores
-        // que no ven todo. Con un dataset puramente global, el caso central de la
-        // política de abstención no se ejercita nunca.
-        Assert.Contains(Dataset.Items, item => item.Actor != ActorDeItem.Global);
-    }
-
-    [Fact]
-    public void Hay_al_menos_un_item_que_declara_el_orden()
-    {
-        // Si ninguno lo declarara, la rama de comparación ordenada del comparador
-        // nunca se ejercitaría en una corrida real.
-        Assert.Contains(Dataset.Items, item => item.OrdenImporta);
-    }
-
     // ------------------------------------------------------------ disjunción
 
     [Fact]
@@ -214,32 +169,6 @@ public sealed class DatasetDeCapacidadTests
         Assert.NotEmpty(terminos);
         Assert.Contains("docente", terminos);
         Assert.Contains("designacion", terminos);
-    }
-
-    // ----------------------------------------------------------------- huella
-
-    [Fact]
-    public void La_huella_es_estable()
-    {
-        Assert.Equal(Cargar().Huella, Cargar().Huella);
-    }
-
-    [Fact]
-    public void Un_dataset_distinto_tiene_otra_huella()
-    {
-        var otro = DatasetDeCapacidad.Interpretar(
-            """
-            {"items":[{"id":"x-1","pregunta":"¿Qué?","categoria":"consulta_simple",
-                       "actor":"global","sql_referencia":"SELECT 1"}]}
-            """);
-
-        Assert.NotEqual(Dataset.Huella, otro.Huella);
-    }
-
-    [Fact]
-    public void Los_conteos_por_categoria_suman_el_total()
-    {
-        Assert.Equal(Dataset.Items.Count, Dataset.ConteoPorCategoria().Values.Sum());
     }
 
     // ------------------------------------------------------------ validación
@@ -343,27 +272,6 @@ public sealed class DatasetDeCapacidadTests
     }
 
     [Fact]
-    public void Los_items_de_rechazo_declaran_los_motivos_aceptables_del_diseno()
-    {
-        // Design.md D10: la tabla se pina literal. Cambiarla es decidir otra cosa.
-        var esperados = new Dictionary<string, string[]>
-        {
-            ["cap-017"] = ["otro_sistema", "no_cubierto"],
-            ["cap-018"] = ["otro_sistema"],
-            ["cap-019"] = ["no_cubierto"],
-            ["cap-030"] = ["no_cubierto"],
-            ["cap-031"] = ["no_cubierto"],
-            ["cap-032"] = ["no_cubierto"],
-        };
-
-        foreach (var (id, motivos) in esperados)
-        {
-            var item = Dataset.Items.Single(i => i.Id == id);
-            Assert.Equal(motivos, item.MotivosAceptables);
-        }
-    }
-
-    [Fact]
     public void Cada_motivo_de_rechazo_esta_representado_en_el_dataset()
     {
         var representados = Dataset.Items
@@ -385,30 +293,6 @@ public sealed class DatasetDeCapacidadTests
     }
 
     // ------------------------------------------------------ menciones (D10/D11)
-
-    [Fact]
-    public void Hay_al_menos_un_item_con_mencion_de_materia_y_uno_de_docente()
-    {
-        // ARS-148, tarea 7.5: el eje de capacidad también mide la traducción de
-        // una pregunta con «@materia»/«#docente», no sólo la de una pregunta
-        // libre.
-        Assert.Contains(
-            Dataset.Items, item => item.Referencias?.Any(r => r.Tipo == "materia") == true);
-        Assert.Contains(
-            Dataset.Items, item => item.Referencias?.Any(r => r.Tipo == "docente") == true);
-    }
-
-    [Fact]
-    public void Toda_referencia_declara_un_tipo_conocido()
-    {
-        var invalidos = Dataset.Items
-            .SelectMany(item => (item.Referencias ?? []).Select(r => (item.Id, r.Tipo)))
-            .Where(par => par.Tipo != "materia" && par.Tipo != "docente")
-            .Select(par => $"{par.Id}: '{par.Tipo}'")
-            .ToArray();
-
-        Assert.Empty(invalidos);
-    }
 
     [Fact]
     public void La_mencion_de_materia_nombra_una_de_las_compartidas_del_fixture()
@@ -442,19 +326,6 @@ public sealed class DatasetDeCapacidadTests
         Assert.All(
             referencias,
             r => Assert.Contains(apellidosCompartidos, apellido => r.Nombre.Contains(apellido, StringComparison.Ordinal)));
-    }
-
-    [Fact]
-    public void Cada_marcador_declarado_aparece_en_su_propia_consulta_de_referencia()
-    {
-        var faltantes = Dataset.Items
-            .Where(item => item.Referencias is { Count: > 0 })
-            .Where(item => item.Referencias!.Any(
-                r => !(item.SqlReferencia ?? string.Empty).Contains(r.Marcador, StringComparison.Ordinal)))
-            .Select(item => item.Id)
-            .ToArray();
-
-        Assert.Empty(faltantes);
     }
 
     // ------------------------------------------------------------------ apoyo

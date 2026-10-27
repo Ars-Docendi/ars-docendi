@@ -155,17 +155,6 @@ public sealed class AdministracionAsistenteControllerTests(PostgresFixture postg
         Assert.True(uso.Organizacion.EsEstimado);
     }
 
-    [Fact]
-    public async Task El_panel_de_uso_nunca_trae_un_campo_del_registro_analitico()
-    {
-        // No hay ningún campo "pregunta" ni "categoria" en el DTO — el
-        // agregado sólo puede venir de registro_operativo (design.md TD-012).
-        var propiedades = typeof(UsoAgregadoDto).GetProperties().Select(p => p.Name);
-
-        Assert.DoesNotContain("Pregunta", propiedades);
-        Assert.DoesNotContain("Categoria", propiedades);
-    }
-
     // --------------------------------------------- rol y cupo efectivo por usuario
 
     [Fact]

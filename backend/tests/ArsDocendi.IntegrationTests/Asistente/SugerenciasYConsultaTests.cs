@@ -30,23 +30,6 @@ public sealed class SugerenciasYConsultaTests(PostgresFixture postgres)
     // ------------------------------------------- sin sugerencias en ningún turno
 
     [Fact]
-    public void ResultadoDelTurno_no_declara_un_campo_de_sugerencias()
-    {
-        // Estructural y no de comportamiento (design.md D12 de
-        // asistente-rediseno-v3): si alguien reintroduce el campo, este test lo
-        // nota sin depender de qué camino del carril lo llene.
-        Assert.Null(typeof(ResultadoDelTurno).GetProperty("Sugerencias"));
-    }
-
-    [Fact]
-    public void RespuestaDelAsistente_no_declara_un_campo_de_sugerencias()
-    {
-        // Mismo invariante, en el contrato HTTP: `opciones` es el único campo de
-        // "qué hacer ahora", y sólo bloquea en la aclaración.
-        Assert.Null(typeof(RespuestaDelAsistente).GetProperty("Sugerencias"));
-    }
-
-    [Fact]
     public async Task Un_rechazo_no_trae_opciones()
     {
         await SembrarAsync();

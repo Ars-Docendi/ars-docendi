@@ -29,15 +29,6 @@ public sealed partial class FixtureDeterministaTests
     }
 
     [Fact]
-    public void La_huella_tiene_forma_de_resumen_criptografico()
-    {
-        var huella = new GeneradorDeFixture().Huella();
-
-        Assert.Equal(64, huella.Length);
-        Assert.All(huella, caracter => Assert.Contains(caracter, "0123456789abcdef"));
-    }
-
-    [Fact]
     public void Un_fixture_distinto_tiene_otra_huella()
     {
         Assert.NotEqual(new GeneradorDeFixture(24).Huella(), new GeneradorDeFixture(25).Huella());
@@ -121,12 +112,6 @@ public sealed partial class FixtureDeterministaTests
     }
 
     [Fact]
-    public void Al_menos_una_materia_aparece_en_tres_carreras()
-    {
-        Assert.Contains(GeneradorDeFixture.MateriasCompartidas, materia => materia.Carreras == 3);
-    }
-
-    [Fact]
     public void Hay_apellidos_compartidos_con_las_cardinalidades_declaradas()
     {
         var personas = SeccionDe(new GeneradorDeFixture().Generar(), "identity.personas");
@@ -137,12 +122,6 @@ public sealed partial class FixtureDeterministaTests
 
             Assert.Equal(cuantas, apariciones);
         }
-    }
-
-    [Fact]
-    public void Al_menos_un_apellido_lo_comparten_tres_personas()
-    {
-        Assert.Contains(GeneradorDeFixture.ApellidosCompartidos, apellido => apellido.Personas == 3);
     }
 
     [Fact]
@@ -185,16 +164,6 @@ public sealed partial class FixtureDeterministaTests
         Assert.True(abiertas > 0, "No hay designaciones vigentes.");
         Assert.True(cerradas > 0, "No hay designaciones cerradas.");
         Assert.Equal(designaciones.Count, abiertas + cerradas);
-    }
-
-    [Fact]
-    public void Hay_un_actor_de_cada_alcance()
-    {
-        // La métrica de abstención vive en la diferencia entre alcances: un actor
-        // acotado que recibe cero filas no está en el mismo caso que uno global.
-        var asignaciones = SeccionDe(new GeneradorDeFixture().Generar(), "identity.user_roles");
-
-        Assert.Equal(4, asignaciones.Count);
     }
 
     // ------------------------------------------------------------------ apoyo

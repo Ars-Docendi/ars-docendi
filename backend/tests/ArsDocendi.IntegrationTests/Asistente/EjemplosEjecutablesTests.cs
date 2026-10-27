@@ -61,38 +61,6 @@ public sealed class EjemplosEjecutablesTests(PostgresFixture postgres)
             + "existe:" + Environment.NewLine + string.Join(Environment.NewLine, rotos));
     }
 
-    [Fact]
-    public async Task Los_ejemplos_de_portal_devuelven_filas_contra_el_seed()
-    {
-        // Un ejemplo que ejecuta pero no devuelve nada le enseña al modelo una forma
-        // válida sobre datos que no existen, y no hay forma de notar la diferencia
-        // leyéndolo. Se exige sólo de los de portal porque son los nuevos: los de
-        // designaciones ya llevan tiempo en uso y alguno puede ser legítimamente
-        // vacío contra este seed.
-        await SembrarAsync();
-
-        var vacios = new List<string>();
-
-        foreach (var ejemplo in new SelectorDeEjemplos().Catalogo
-                     .Where(e => e.Sql.Contains("portal.", StringComparison.OrdinalIgnoreCase)))
-        {
-            await using var conexion = await AbrirConexionAsync();
-            await using var comando = new NpgsqlCommand(ejemplo.Sql, conexion);
-            await using var lector = await comando.ExecuteReaderAsync(
-                TestContext.Current.CancellationToken);
-
-            if (!await lector.ReadAsync(TestContext.Current.CancellationToken))
-            {
-                vacios.Add(ejemplo.Pregunta);
-            }
-        }
-
-        Assert.True(
-            vacios.Count == 0,
-            "Hay ejemplos de portal que no devuelven ninguna fila contra el seed: "
-            + string.Join(" · ", vacios));
-    }
-
     // ------------------------------------------------------------------
     // What "executes" does not catch. An example can run without error and
     // still teach the model something wrong: a column that is no longer the

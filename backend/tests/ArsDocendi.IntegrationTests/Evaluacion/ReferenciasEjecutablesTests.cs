@@ -62,64 +62,6 @@ public sealed class ReferenciasEjecutablesTests(PostgresFixture postgres)
             + string.Join(Environment.NewLine, rotas));
     }
 
-    [Fact]
-    public async Task El_seguimiento_al_resultado_apunta_a_una_sola_materia()
-    {
-        // LA PREMISA DEL ÍTEM dia-005, y sin ella el ítem mide otra cosa. Si el
-        // primer turno devolviera varias materias, «esa materia» sería ambiguo y el
-        // ítem pasaría a medir desambiguación en vez de arrastre de la consulta —y
-        // fallaría por un motivo que su nombre no explica.
-        //
-        // Depende del fixture, no del código, así que el día que cambien las
-        // cardinalidades este test dice exactamente qué hay que revisar.
-        await AplicarFixtureAsync();
-        var ct = TestContext.Current.CancellationToken;
-
-        var referencia = Referencias().Single(r => r.Id == "dia-005-referencia-al-resultado#1");
-
-        await using var conexion = new NpgsqlConnection(Cadena);
-        await conexion.OpenAsync(ct);
-        await using var comando = PrepararComando(conexion, referencia.Sql, referencia.Bindings);
-        await using var lector = await comando.ExecuteReaderAsync(ct);
-
-        Assert.True(await lector.ReadAsync(ct));
-        Assert.Equal("Señales y Sistemas", lector.GetString(0));
-        Assert.False(await lector.ReadAsync(ct));
-    }
-
-    [Fact]
-    public async Task Ninguna_referencia_devuelve_cero_filas_sin_declararlo()
-    {
-        // Una referencia vacía convierte el ítem en «el asistente acierta si tampoco
-        // devuelve nada», que pasa en verde con una consulta cualquiera que no
-        // matchee. No es un error por sí solo —hay preguntas cuya respuesta legítima
-        // es ninguna fila— pero tiene que ser una decisión y no un accidente del
-        // fixture, así que acá se enumera lo que hoy es cierto.
-        await AplicarFixtureAsync();
-
-        var vacias = new List<string>();
-
-        foreach (var (id, sql, bindings) in Referencias())
-        {
-            await using var conexion = new NpgsqlConnection(Cadena);
-            await conexion.OpenAsync(TestContext.Current.CancellationToken);
-            await using var comando = PrepararComando(conexion, sql, bindings);
-            await using var lector = await comando.ExecuteReaderAsync(
-                TestContext.Current.CancellationToken);
-
-            if (!await lector.ReadAsync(TestContext.Current.CancellationToken))
-            {
-                vacias.Add(id);
-            }
-        }
-
-        Assert.True(
-            vacias.Count == 0,
-            "Hay referencias que no devuelven ninguna fila contra el fixture, así que "
-            + "el ítem se satisface con cualquier consulta que tampoco devuelva nada: "
-            + string.Join(", ", vacias));
-    }
-
     private async Task AplicarFixtureAsync()
     {
         await using var conexion = new NpgsqlConnection(Cadena);

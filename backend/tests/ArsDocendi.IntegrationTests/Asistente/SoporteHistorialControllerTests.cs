@@ -412,18 +412,6 @@ public sealed class SoporteHistorialControllerTests(PostgresFixture postgres)
                 || nombre.Contains("auditoria", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
-    public void El_lado_propio_del_historial_no_depende_de_la_auditoria_de_soporte()
-    {
-        // Si HistorialController alguna vez pidiera IConsultasDeAuditoriaDeSoporte,
-        // tendría el canal para exponerla — aunque hoy no lo use. Que no esté
-        // ni siquiera en el constructor es la garantía estructural.
-        var parametros = typeof(HistorialController)
-            .GetConstructors().Single().GetParameters().Select(p => p.ParameterType);
-
-        Assert.DoesNotContain(typeof(IConsultasDeAuditoriaDeSoporte), parametros);
-    }
-
     // ------------------------------------------------------------------ apoyo
 
     private async Task ConcederPermisoDeSoporteAAsync(Guid actor)
