@@ -149,7 +149,7 @@ ON CONFLICT (id) DO UPDATE SET
     code = EXCLUDED.code, name = EXCLUDED.name, description = EXCLUDED.description,
     scope = EXCLUDED.scope, is_active = EXCLUDED.is_active;
 
--- Ver personas es personas.ver (…026) o, en un schema previo a su migración, docentes.ver (…009).
+-- Ver personas es personas.ver (…026) o, en un schema previo a su migración, usuarios.ver (…009).
 INSERT INTO identity.rol_permisos (rol_id, permiso_id)
 SELECT 'a1000000-0000-4000-8000-000000000101', id FROM identity.permisos
 WHERE id IN ('b2000000-0000-4000-8000-000000000001', 'b2000000-0000-4000-8000-000000000026',

@@ -54,7 +54,11 @@ public sealed record GuardarPersonaDto(
     IReadOnlyList<GuardarDesignacionVigenteDto> Designaciones,
     uint? Version = null);
 
-/// <summary>Resultado de la verificación de DNI: lo mínimo para avisar quién lo tiene.</summary>
+/// <param name="ExceptoPersonaId">La propia persona al editar, para no avisarse a sí misma.</param>
+public sealed record VerificarDocumentoDto(string Documento, Guid? ExceptoPersonaId = null);
+
+/// <summary>Resultado de la verificación de DNI: lo mínimo para avisar quién lo tiene.
+/// <c>Activo</c> es el estado de la cuenta; <c>null</c> si la persona no tiene cuenta.</summary>
 public sealed record DocumentoRegistradoDto(
     bool Existe,
     Guid? PersonaId = null,

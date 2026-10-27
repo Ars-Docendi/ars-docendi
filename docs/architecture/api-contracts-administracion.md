@@ -33,8 +33,6 @@ DesignacionVigenteDto  = { id, materiaId, materiaCodigo, materiaNombre, carreraI
 PersonaAdministracionDto = { personaId, usuarioId?, nombre, apellido, documento, legajo?, cuil?,
                            fechaNacimiento?, telefono?, upn?, tieneCuenta, activo, version?,
                            roles[], membresias[], asignaciones[] }
-GuardarDocenteDto      = { personaId? | personaNueva, datosPersona..., membresias[],
-                           designaciones[], version? }
 RolDto                 = { id, codigo, nombre, descripcion?, ambito, esSistema, activo, version, permisos[] }
 CrearRolDto            = { nombre, descripcion?, ambito, rolBaseId? }
 EditarRolDto           = { nombre, descripcion?, ambito, version }
@@ -67,21 +65,22 @@ pueden reemplazarse.
 
 ## Rutas de personas
 
-| Método | Ruta                                                  | Permiso                                | Entrada / salida                                                           |
-| ------ | ----------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
-| GET    | `/api/administracion/personas`                        | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto[]` (acotado por ámbito)                          |
-| GET    | `/api/administracion/personas/{personaId}`            | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto`; 404 fuera del ámbito                           |
-| GET    | `/api/administracion/personas/catalogos`              | `personas.ver` o `personas.ver_ambito` | roles, materias, materias–carrera, carreras, cargos y dedicaciones         |
-| GET    | `/api/administracion/personas/documento/{documento}`  | `personas.administrar`                 | `{ existe, personaId?, nombre?, legajo?, activo? }` (`?exceptoPersonaId=`) |
-| POST   | `/api/administracion/personas`                        | `personas.administrar`                 | `GuardarPersonaDto` → `201 PersonaAdministracionDto`                       |
-| PUT    | `/api/administracion/personas/{personaId}`            | `personas.administrar`                 | `GuardarPersonaDto` con `version` → `PersonaAdministracionDto`             |
-| POST   | `/api/administracion/personas/{personaId}/activar`    | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                 |
-| POST   | `/api/administracion/personas/{personaId}/desactivar` | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                 |
+| Método | Ruta                                                  | Permiso                                | Entrada / salida                                                                                                    |
+| ------ | ----------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/administracion/personas`                        | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto[]` (acotado por ámbito)                                                                   |
+| GET    | `/api/administracion/personas/{personaId}`            | `personas.ver` o `personas.ver_ambito` | `PersonaAdministracionDto`; 404 fuera del ámbito                                                                    |
+| GET    | `/api/administracion/personas/catalogos`              | `personas.ver` o `personas.ver_ambito` | roles, materias, materias–carrera, carreras, cargos y dedicaciones                                                  |
+| POST   | `/api/administracion/personas/documento/verificar`    | `personas.administrar`                 | `{ documento, exceptoPersonaId? }` → `{ existe, personaId?, nombre?, legajo?, activo? }` (`activo` nulo sin cuenta) |
+| POST   | `/api/administracion/personas`                        | `personas.administrar`                 | `GuardarPersonaDto` → `201 PersonaAdministracionDto`                                                                |
+| PUT    | `/api/administracion/personas/{personaId}`            | `personas.administrar`                 | `GuardarPersonaDto` con `version` → `PersonaAdministracionDto`                                                      |
+| POST   | `/api/administracion/personas/{personaId}/activar`    | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
+| POST   | `/api/administracion/personas/{personaId}/desactivar` | `personas.administrar`                 | `{ version }` → `PersonaAdministracionDto`                                                                          |
 
 `GuardarPersonaDto = { nombre, apellido, documento, legajo, cuil?, fechaNacimiento, telefono?, upn,
 membresias[{ rolId, materiaId?, carreraId? }], designaciones[{ materiaId, carreraId, cargoId,
 dedicacionId?, horas }], version? }`. Reglas: al menos un rol con su ámbito; asignaciones obligatorias
-con rol Docente o Jefe de Cátedra; el documento se guarda y compara por sus dígitos y no se repite;
+con rol Docente o Jefe de Cátedra; `dedicacionId` es obligatorio en una asignación nueva y sólo puede
+faltar en una histórica que conserva su dedicación legada; el documento se guarda y compara por sus dígitos y no se repite;
 la lista de roles y la de designaciones se reemplazan completas en una sola transacción.
 
 ## Mi Portal de una persona
@@ -163,4 +162,4 @@ El cliente envía `X-Dev-User-Id` y `X-Dev-Role-Code`. El handler valida usuario
 
 POST/PUT administrativos representan reemplazos o comandos naturalmente repetibles, pero no prometen replay de respuesta. `Idempotency-Key` es obligatorio sólo en transiciones de dominio que lo declaran en el contrato de Designaciones.
 
-El catálogo de docentes incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.
+El catálogo de personas incluye `dedicaciones` con `{ id, codigo, nombre, orden, activo }`. Cada asignación leída conserva `dedicacion` y agrega `dedicacionId` opcional, `horasInvestigacion` y `horasExternas`; las mutaciones usan `{ materiaId, carreraId, cargoId, dedicacionId?, horas }`. Alta y edición ofrecen las seis categorías activas. Una asignación histórica puede conservar su dedicación sin recategorizarla al editar otros campos.

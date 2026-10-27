@@ -6,7 +6,7 @@ Las pantallas de administración que asignan una materia SHALL ofrecer un campo 
 
 #### Scenario: Abrir el buscador desde una fila
 
-- **GIVEN** el modal "Nuevo docente" con una asignación sin materia
+- **GIVEN** la pantalla de nueva persona en `/personas/nueva` con una asignación sin materia
 - **WHEN** el usuario hace clic en "Buscar" de esa asignación
 - **THEN** se abre "Buscar materia" con los filtros vacíos y todas las materias disponibles listadas
 
@@ -85,10 +85,10 @@ El modal "Buscar materia" SHALL abrirse con un tamaño fijo que muestre varias f
 
 ### Requirement: Catálogo con código de carrera
 
-Los catálogos de administración de docentes y de usuarios SHALL incluir en cada par materia–carrera el id de la materia canónica, el código y el nombre de la materia, y el id, código y nombre de la carrera.
+El catálogo de personas (`GET /api/administracion/personas/catalogos`) SHALL incluir en cada par materia–carrera el id de la materia canónica, el código y el nombre de la materia, y el id, código y nombre de la carrera.
 
-#### Scenario: Par materia–carrera del catálogo de usuarios
+#### Scenario: Par materia–carrera del catálogo de personas
 
 - **GIVEN** una materia dictada en una carrera activa
-- **WHEN** un operador obtiene el catálogo de usuarios
+- **WHEN** un operador obtiene el catálogo de personas
 - **THEN** el par informa el id de la materia (no el de la fila materia–plan) y el código de la carrera

@@ -94,7 +94,8 @@ export interface DocumentoRegistrado {
   personaId?: string;
   nombre?: string;
   legajo?: string | null;
-  activo?: boolean;
+  /** Estado de la cuenta; `null` si la persona no tiene cuenta. */
+  activo?: boolean | null;
 }
 
 const base = "/api/administracion/personas";
@@ -139,8 +140,9 @@ export async function cambiarEstadoPersona(persona: Persona, activar: boolean) {
 
 export async function verificarDocumento(documento: string, exceptoPersonaId?: string) {
   return (
-    await apiClient.get<DocumentoRegistrado>(`${base}/documento/${encodeURIComponent(documento)}`, {
-      params: { exceptoPersonaId },
+    await apiClient.post<DocumentoRegistrado>(`${base}/documento/verificar`, {
+      documento,
+      exceptoPersonaId,
     })
   ).data;
 }

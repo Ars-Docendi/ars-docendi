@@ -38,7 +38,7 @@
 ## 2. API de personas (Host)
 
 - [x] 2.1 `ServicioPersonas` a partir de `ServicioDocentes`: listado, detalle, alta y edición atómicas con todos los roles de sistema, ámbito de Jefe de Cátedra, reglas de rol, cuenta y asignaciones obligatorias, y DNI único por dígitos. Tests de integración por regla.
-- [x] 2.2 `PersonasController` (`/api/administracion/personas`: GET, POST, GET/PUT `{id}`, activar, desactivar, catálogos, `documento/{documento}`) con `personas.ver` / `personas.ver_ambito` / `personas.administrar`. Tests HTTP de autorización (403/404 por ámbito).
+- [x] 2.2 `PersonasController` (`/api/administracion/personas`: GET, POST, GET/PUT `{id}`, activar, desactivar, catálogos, `POST documento/verificar`) con `personas.ver` / `personas.ver_ambito` / `personas.administrar`. Tests HTTP de autorización (403/404 por ámbito).
 
 ## 3. Portal administrado
 

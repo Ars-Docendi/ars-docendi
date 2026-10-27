@@ -38,7 +38,8 @@ export function SeccionCv({ cv, onCargar, onEliminar }: SeccionCvProps) {
   }
 
   const tamano = cv?.tamanoBytes ? `${Math.round(cv.tamanoBytes / 1024)} KB · ` : "";
-  const botonDescargar = cv && descargarCv && cv.archivoId && (
+  // Mientras se sube, el CV es provisorio: todavía no hay archivo para descargar.
+  const botonDescargar = cv && descargarCv && cv.archivoId && cv.estado !== "pendiente" && (
     <div>
       <Button
         variant="secondary"

@@ -47,7 +47,7 @@ La alta (`/personas/nueva`) y la edición (`/personas/:personaId`) SHALL ser pan
 
 ### Requirement: Rol y cuenta obligatorios
 
-Toda persona creada o editada MUST quedar con al menos un rol con su ámbito completo y con una cuenta (UPN). Las asignaciones MUST ser al menos una completa (materia, carrera, cargo, dedicación y horas > 0) cuando la persona tenga rol Docente o Jefe de Cátedra. La API MUST rechazar un guardado que no cumpla estas reglas. El editor SHALL conservar siempre al menos una fila de rol. No se modifican personas existentes hasta que se editan.
+Toda persona creada o editada MUST quedar con al menos un rol con su ámbito completo y con una cuenta (UPN). Las asignaciones MUST ser al menos una completa (materia, carrera, cargo, dedicación y horas > 0) cuando la persona tenga rol Docente o Jefe de Cátedra. Una asignación nueva o con la dedicación cambiada MUST tener una dedicación activa; una asignación histórica sin cambios MAY conservar su dedicación legada sin recategorizarla. La API MUST rechazar un guardado que no cumpla estas reglas. El editor SHALL conservar siempre al menos una fila de rol. No se modifican personas existentes hasta que se editan.
 
 #### Scenario: Alta sin rol
 

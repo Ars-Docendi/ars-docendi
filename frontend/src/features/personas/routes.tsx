@@ -10,9 +10,15 @@ export const routes = {
         import("./pages/ListadoPage").then(({ ListadoPage }) => ({ Component: ListadoPage })),
     },
     {
-      path: "/personas/nueva",
-      lazy: () =>
-        import("./pages/EditorPage").then(({ EditorPage }) => ({ Component: EditorPage })),
+      // Alta: sólo quien administra personas (el backend lo exige igual al guardar).
+      element: <RequirePermission permission="personas.administrar" />,
+      children: [
+        {
+          path: "/personas/nueva",
+          lazy: () =>
+            import("./pages/EditorPage").then(({ EditorPage }) => ({ Component: EditorPage })),
+        },
+      ],
     },
     {
       path: "/personas/:personaId",

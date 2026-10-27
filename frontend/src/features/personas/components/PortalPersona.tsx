@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { InlineAlert } from "@ars-docendi/ui";
 
+import { mensajeProblema } from "../../../shared/api/problemDetails";
 import { PerfilSecciones } from "../../../shared/perfil/components/PerfilSecciones";
 import { ModoPerfilContexto, type ModoPerfil } from "../../../shared/perfil/components/ModoPerfil";
 import { usePerfil } from "../../../shared/perfil/hooks/usePerfilDocente";
@@ -24,25 +25,27 @@ export function PortalPersona({ personaId, editable }: { personaId: string; edit
   const api = useMemo(() => apiPortalDePersona(personaId), [personaId]);
   const clave = useMemo(() => personasKeys.portal(personaId), [personaId]);
   const { estado, perfil, error, actualizar, cargarCv, borrarCv } = usePerfil(api, clave);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
 
-  const modo: ModoPerfil = useMemo(
-    () => ({
+  const modo: ModoPerfil = useMemo(() => {
+    const descargar = (pedido: Promise<Blob>, nombre: string) => {
+      setErrorDescarga(null);
+      pedido
+        .then((blob) => guardarArchivo(blob, nombre))
+        .catch((e: unknown) =>
+          setErrorDescarga(mensajeProblema(e, "No se pudo descargar el archivo.")),
+        );
+    };
+    return {
       soloLectura: !editable,
-      descargarCv: () =>
-        void api.descargarCv().then((blob) => guardarArchivo(blob, perfil?.cv?.nombre ?? "cv.pdf")),
+      descargarCv: () => descargar(api.descargarCv(), perfil?.cv?.nombre ?? "cv.pdf"),
       descargarDocumento: (proyectoId) =>
-        void api
-          .descargarDocumento(proyectoId)
-          .then((blob) =>
-            guardarArchivo(
-              blob,
-              perfil?.proyectos.find((p) => p.id === proyectoId)?.documento?.nombre ??
-                "documento.pdf",
-            ),
-          ),
-    }),
-    [api, editable, perfil],
-  );
+        descargar(
+          api.descargarDocumento(proyectoId),
+          perfil?.proyectos.find((p) => p.id === proyectoId)?.documento?.nombre ?? "documento.pdf",
+        ),
+    };
+  }, [api, editable, perfil]);
 
   if (estado === "cargando") return <p role="status">Cargando el perfil…</p>;
   if (estado === "error" || !perfil) {
@@ -51,6 +54,7 @@ export function PortalPersona({ personaId, editable }: { personaId: string; edit
   return (
     <ModoPerfilContexto.Provider value={modo}>
       {error && <InlineAlert severity="danger" title={error} />}
+      {errorDescarga && <InlineAlert severity="danger" title={errorDescarga} />}
       <PerfilSecciones
         perfil={perfil}
         actualizar={actualizar}

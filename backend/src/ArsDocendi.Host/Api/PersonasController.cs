@@ -30,12 +30,11 @@ public sealed class PersonasController(
         return await servicio.ObtenerCatalogosAsync(ct);
     }
 
-    [HttpGet("documento/{documento}")]
+    /// <summary>El DNI viaja en el body para que no quede en rutas ni logs de acceso.</summary>
+    [HttpPost("documento/verificar")]
     [Authorize(Policy = Permisos.PersonasAdministrar)]
-    public Task<DocumentoRegistradoDto> VerificarDocumento(
-        string documento,
-        [FromQuery] Guid? exceptoPersonaId,
-        CancellationToken ct) => servicio.VerificarDocumentoAsync(documento, exceptoPersonaId, ct);
+    public Task<DocumentoRegistradoDto> VerificarDocumento(VerificarDocumentoDto datos, CancellationToken ct) =>
+        servicio.VerificarDocumentoAsync(datos.Documento, datos.ExceptoPersonaId, ct);
 
     [HttpGet("{personaId:guid}")]
     public async Task<PersonaAdministracionDto> Obtener(Guid personaId, CancellationToken ct) =>

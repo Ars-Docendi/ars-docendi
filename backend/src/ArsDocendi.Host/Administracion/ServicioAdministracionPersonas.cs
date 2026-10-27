@@ -96,7 +96,7 @@ public sealed class ServicioAdministracionPersonas(
         var persona = await repositorio.BuscarPorDocumentoAsync(digitos, ct);
         if (persona is null || persona.Id == exceptoPersonaId) return new DocumentoRegistradoDto(false);
         return new DocumentoRegistradoDto(
-            true, persona.Id, $"{persona.Apellido}, {persona.Nombre}", persona.Legajo, persona.Usuario?.Activo ?? false);
+            true, persona.Id, $"{persona.Apellido}, {persona.Nombre}", persona.Legajo, persona.Usuario?.Activo);
     }
 
     public async Task<PersonaAdministracionDto> GuardarAsync(

@@ -68,6 +68,9 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const [form, setForm] = useState<FormularioPersona>(() =>
     personaActual ? formularioDesde(personaActual) : formularioVacio(),
   );
+  // Versión con la que se abrió el formulario: si otro la cambió mientras tanto, el guardado
+  // falla por concurrencia en lugar de pisar ese cambio.
+  const [versionInicial] = useState(personaActual?.version);
   const [enviado, setEnviado] = useState(false);
   // Resultado de la verificación de DNI junto con los dígitos consultados.
   const [verificacion, setVerificacion] = useState<{
@@ -96,7 +99,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   const titulo = persona.data ? nombreCompleto(persona.data) : "Nueva persona";
   const errores = validar(form, cat);
   const errorDni = duplicado
-    ? `Ya existe una persona con este DNI: ${duplicado.nombre}${duplicado.legajo ? ` (legajo ${duplicado.legajo})` : ""}${duplicado.activo ? "." : ", inactiva."}`
+    ? `Ya existe una persona con este DNI: ${duplicado.nombre}${duplicado.legajo ? ` (legajo ${duplicado.legajo})` : ""}${estadoDuplicado(duplicado.activo)}`
     : undefined;
   const marcaPersonales = (enviado && hayErroresPersonales(errores)) || Boolean(errorDni);
   const marcaDocentes = enviado && hayErroresDocentes(errores);
@@ -107,7 +110,7 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
   function enviar() {
     setEnviado(true);
     if (hayErroresPersonales(errores) || hayErroresDocentes(errores) || errorDni) return;
-    guardar.mutate(aGuardar(form, cat, persona.data?.version), {
+    guardar.mutate(aGuardar(form, cat, versionInicial), {
       onSuccess: (p) =>
         navegar("/personas", {
           state: {
@@ -269,4 +272,9 @@ function Editor({ personaId, persona: personaActual, catalogos: cat }: EditorPro
       </div>
     </div>
   );
+}
+
+function estadoDuplicado(activo: boolean | null | undefined) {
+  if (activo === true) return ".";
+  return activo === false ? ", inactiva." : ", sin cuenta.";
 }

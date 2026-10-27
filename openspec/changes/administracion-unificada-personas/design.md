@@ -51,7 +51,9 @@
 2. **Cuatro permisos nuevos.**
    - `personas.ver` (todas) y `personas.ver_ambito` (materias de jefatura) reproducen la distinción actual `usuarios.ver`/`docentes.ver`. Un permiso no lleva el rol de origen, así que el ámbito no puede inferirse de uno solo.
    - `personas.administrar` habilita las mutaciones. `portal.administrar` habilita corregir el portal de otro, acotado al ámbito cuando el actor no tiene `personas.ver`.
-   - Una migración incremental de `identity` (scaffold `node scripts/migrations/scaffold.mjs Identity PermisosPersonas`) los crea, los asigna, retira `usuarios.ver`, `usuarios.administrar` y `docentes.ver`, y su `Down` los restaura con sus asignaciones.
+   - Dos migraciones incrementales de `identity`:
+     - `PermisosPersonasIdentity` (tarea 1.1) crea los cuatro permisos y los asigna traduciendo los anteriores. Su `Down` borra sólo esos cuatro permisos y sus asignaciones.
+     - `RetirarPermisosUsuariosDocentesIdentity` (tarea 6.1) elimina `usuarios.ver`, `usuarios.administrar` y `docentes.ver` con sus asignaciones. Su `Down` los vuelve a crear y los reasigna a partir de los permisos de personas de cada rol.
 3. **Ámbito del Jefe de Cátedra.**
    - Se reutiliza `ResolutorAlcanceDocentes`, que devuelve las materias de jefatura, y el filtro por designación vigente de `ServicioDocentes`.
    - Fuera del ámbito, el detalle y el portal responden 404, como hoy en Docentes.
@@ -62,7 +64,7 @@
    - El Host expone `/api/administracion/personas/{id}/portal/...`, autoriza con `portal.administrar` y el ámbito, y delega en el contrato.
    - Así no se agrega la dependencia Portal → Designaciones.
 5. **Verificación de DNI.**
-   - `GET /api/administracion/personas/documento/{documento}`, con `personas.administrar`, normaliza a dígitos y devuelve `{ existe, personaId, nombre, legajo, activo }`. Expone sólo lo mínimo para el aviso.
+   - `POST /api/administracion/personas/documento/verificar` con `{ documento, exceptoPersonaId? }` en el body, para que el DNI no quede en rutas ni logs de acceso. Requiere `personas.administrar`, normaliza a dígitos y devuelve `{ existe, personaId, nombre, legajo, activo }`, con `activo` nulo si la persona no tiene cuenta. Expone sólo lo mínimo para el aviso.
    - El frontend la consulta con debounce mientras se escribe. La unicidad sigue validándose al guardar, con el conflicto `identity-document-conflict` existente.
 6. **Reglas de guardado.** Rol obligatorio, cuenta obligatoria y asignaciones obligatorias para Docente y Jefe de Cátedra se validan en `ServicioPersonas` con errores por campo (`membresias`, `upn`, `designaciones`). Las personas heredadas sin rol o sin cuenta se listan marcadas.
 7. **Frontend.**
@@ -89,4 +91,4 @@
 1. Implementar la API nueva y la migración de permisos manteniendo las APIs viejas.
 2. Migrar el frontend a `/personas` con redirecciones.
 3. Retirar las APIs viejas, `features/usuarios` y `features/docentes`.
-4. Para revertir, se vuelve atrás el diff. El `Down` de la migración restaura los permisos retirados y sus asignaciones.
+4. Para revertir, se vuelve atrás el diff y se deshacen las migraciones en orden inverso: primero el `Down` de `RetirarPermisosUsuariosDocentesIdentity`, que restaura los permisos anteriores reasignándolos desde los de personas, y después el de `PermisosPersonasIdentity`, que borra los permisos de personas. En el orden contrario se perderían las asignaciones de las que el primero reconstruye los permisos anteriores.

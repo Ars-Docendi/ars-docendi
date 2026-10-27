@@ -27,7 +27,7 @@ El diseño se validó con un prototipo interactivo (listado con filtros por enca
   - `personas.administrar`: crear, editar datos personales, roles y asignaciones, activar y desactivar. Administrativo, Secretaría Académica, Decanato y Administrador de Sistemas.
   - `portal.administrar`: corregir el Mi Portal de otra persona. Los cuatro anteriores y Jefe de Cátedra (dentro de su ámbito).
   - Se retiran `usuarios.ver`, `usuarios.administrar` y `docentes.ver`, que dejan de tener uso.
-- **API**: `GET/POST /api/administracion/personas`, `GET/PUT /{personaId}`, `POST /{personaId}/activar|desactivar`, `GET /catalogos`, `GET /documento/{documento}` (verificación de DNI) y `.../{personaId}/portal/...` para leer, descargar y corregir el perfil. **BREAKING**: se retiran `/api/administracion/usuarios` y `/api/administracion/docentes`; el único consumidor es el frontend de esas pantallas, que también se retira.
+- **API**: `GET/POST /api/administracion/personas`, `GET/PUT /{personaId}`, `POST /{personaId}/activar|desactivar`, `GET /catalogos`, `POST /documento/verificar` (verificación de DNI, con el DNI en el body) y `.../{personaId}/portal/...` para leer, descargar y corregir el perfil. **BREAKING**: se retiran `/api/administracion/usuarios` y `/api/administracion/docentes`; el único consumidor es el frontend de esas pantallas, que también se retira.
 
 ## Capabilities
 
@@ -51,4 +51,4 @@ El diseño se validó con un prototipo interactivo (listado con filtros por enca
 - **Frontend**: feature nueva `personas` (rutas, listado, editor, perfil de Mi Portal reutilizando componentes del portal en modo administración); se retiran `features/usuarios` y `features/docentes`; `nav.ts` y `router.tsx`.
 - **Docs**: `api-contracts.md` y `api-contracts-administracion.md`, `dependency-graph.md` (Host → Portal.Contracts para administración), `data-model.md` si lista permisos, design spec `administracion-usuarios-docentes-design-spec.md` (pasa a describir Personas).
 - **Fase 0 ya aplicada**: `BuscadorMaterias`, `SelectorMateria` y `busquedaMaterias` en `shared/ui`; `OpcionCatalogoDto.CarreraCodigo`; corrección de `RepositorioUsuarios`; tests de regresión e integración.
-- **Rollback**: revertir el diff y la migración (su `Down` restaura los permisos retirados y sus asignaciones).
+- **Rollback**: revertir el diff y deshacer las dos migraciones en orden inverso: `RetirarPermisosUsuariosDocentesIdentity` (su `Down` restaura `usuarios.ver`, `usuarios.administrar` y `docentes.ver` desde los permisos de personas) y después `PermisosPersonasIdentity` (su `Down` borra los cuatro permisos de personas).

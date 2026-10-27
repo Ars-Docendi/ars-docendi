@@ -61,13 +61,16 @@ public sealed class PersonasHttpTests(PostgresFixture postgres)
 
         using var prohibida = await jefe.PostAsJsonAsync("/api/administracion/personas", sinRol, ct);
         Assert.Equal(HttpStatusCode.Forbidden, prohibida.StatusCode);
-        using var documento = await jefe.GetAsync("/api/administracion/personas/documento/70000099", ct);
+        using var documento = await jefe.PostAsJsonAsync(
+            "/api/administracion/personas/documento/verificar", new { documento = "70000099" }, ct);
         Assert.Equal(HttpStatusCode.Forbidden, documento.StatusCode);
 
         // Decanato pasa a administrar: llega a la validación (sin rol → 400).
         using var invalida = await decanato.PostAsJsonAsync("/api/administracion/personas", sinRol, ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalida.StatusCode);
-        var verificacion = await decanato.GetFromJsonAsync<JsonElement>("/api/administracion/personas/documento/70000099", ct);
+        using var respuesta = await decanato.PostAsJsonAsync(
+            "/api/administracion/personas/documento/verificar", new { documento = "70000099" }, ct);
+        var verificacion = await respuesta.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.False(verificacion.GetProperty("existe").GetBoolean());
     }
 
